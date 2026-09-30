@@ -111,7 +111,9 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
       }
       final token = login.accessToken!;
 
-      // 3. Create the server profile row.
+      // 3. Create the server profile row — or, for somebody who left and is
+      //    coming back, sign in to the one they already have (the response
+      //    then carries `rejoined: true`; see `register` in API.md).
       final response = await _serverRepo.register(
         supabaseUrl,
         bearerToken: token,

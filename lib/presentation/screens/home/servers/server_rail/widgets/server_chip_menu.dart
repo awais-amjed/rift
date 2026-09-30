@@ -175,7 +175,8 @@ class ServerChipMenu extends StatelessWidget {
                 'there. To step down properly, open Members and choose '
                 'Transfer ownership first.'
           : 'This removes the server and its keys from this device. You will '
-                'need a new invite to rejoin.',
+                'need a new invite to rejoin, and you come back as the same '
+                'member, with your messages and roles.',
       confirmLabel: 'Leave',
       icon: Icons.logout_rounded,
       isDestructive: true,

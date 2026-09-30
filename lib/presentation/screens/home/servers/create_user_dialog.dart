@@ -78,7 +78,11 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
     final token = data['token'] as String;
     context.read<ServerCubit>().addServer(widget.supabaseUrl, token, data);
 
-    HelperMethods.showSuccess(message: 'Account created');
+    HelperMethods.showSuccess(
+      message: data['rejoined'] == true
+          ? 'Signed back in to your account'
+          : 'Account created',
+    );
     Navigator.of(context).pop(true);
   }
 

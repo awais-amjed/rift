@@ -112,7 +112,18 @@ class _JoinServerModalState extends State<JoinServerModal> {
     if (!mounted) return;
 
     setState(() => _isLoading = false);
-    HelperMethods.showSuccess(message: 'Joined ${invite.serverName}');
+    // Somebody who left and came back is still the member they were — the
+    // server kept the row, and the names typed above were not applied — so
+    // say which account they are in as rather than let the old name surprise
+    // them.
+    final rejoinedAs = data['rejoined'] == true
+        ? ((data['user'] as Map?)?['display_name'] as String?)
+        : null;
+    HelperMethods.showSuccess(
+      message: rejoinedAs == null
+          ? 'Joined ${invite.serverName}'
+          : 'Welcome back to ${invite.serverName} — you are $rejoinedAs again',
+    );
 
     // Read off the register response rather than the roster, which has not
     // been fetched yet at this point.
