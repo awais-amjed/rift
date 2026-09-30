@@ -6,15 +6,14 @@ import '../../../../logic/services/host_platform.dart';
 import 'audio_device_section.dart';
 import 'mic_test/mic_test_section.dart';
 import 'section_divider.dart';
-import 'section_title.dart';
-import 'setting_toggle_row.dart';
+import 'voice_audio/audio_ducking_section.dart';
 import 'voice_audio/audio_processing_section.dart';
 import 'voice_audio/push_to_talk_section.dart';
 import 'voice_audio/soundboard_section.dart';
 import 'voice_audio/sounds/sounds_section.dart';
 
 /// The Voice & Audio settings tab: devices, mic processing, the mic test,
-/// the soundboard and Rift's own sounds as this device hears them, and the two Windows-only
+/// the soundboard and Rift's own sounds as this device hears them, and the Windows-only
 /// sections.
 class VoiceAudioContent extends StatelessWidget {
   const VoiceAudioContent({super.key});
@@ -57,20 +56,7 @@ class VoiceAudioContent extends StatelessWidget {
             // the rule was hanging under the last control.
             if (HostPlatform.ducksOtherApps) ...[
               const SectionDivider(),
-              const SectionTitle(label: 'Audio ducking'),
-              const SizedBox(height: 12),
-              SettingToggleRow(
-                title: 'Disable automatic volume lowering',
-                description:
-                    "Windows lowers other apps' volume when a call is "
-                    'active. This sets Windows\' own preference to "Do '
-                    'nothing" for every app, and turning it off puts back '
-                    'what you had. Windows applies it after you next sign '
-                    'in; the Communications tab of its Sound settings '
-                    'applies it at once.',
-                value: appState.disableAudioDucking,
-                onChanged: context.read<AppCubit>().setDisableAudioDucking,
-              ),
+              const AudioDuckingSection(),
             ],
             if (HostPlatform.hasPushToTalk) ...[
               const SectionDivider(),

@@ -23,7 +23,6 @@ class AppState {
   final double? windowHeight;
   final double? windowX;
   final double? windowY;
-  final bool disableAudioDucking;
 
   /// Whether clicking another voice channel while in a call asks first. On
   /// by default: one click used to drop the call and join the next room, and
@@ -172,7 +171,6 @@ class AppState {
     this.windowHeight,
     this.windowX,
     this.windowY,
-    this.disableAudioDucking = false,
     this.askBeforeVoiceSwitch = true,
     this.verifiedCodes = const {},
     this.statsOverlayPinned = false,
@@ -219,7 +217,6 @@ class AppState {
     double? windowHeight,
     double? windowX,
     double? windowY,
-    bool? disableAudioDucking,
     bool? askBeforeVoiceSwitch,
     Map<String, String>? verifiedCodes,
     bool? statsOverlayPinned,
@@ -272,7 +269,6 @@ class AppState {
       windowHeight: windowHeight ?? this.windowHeight,
       windowX: windowX ?? this.windowX,
       windowY: windowY ?? this.windowY,
-      disableAudioDucking: disableAudioDucking ?? this.disableAudioDucking,
       askBeforeVoiceSwitch: askBeforeVoiceSwitch ?? this.askBeforeVoiceSwitch,
       verifiedCodes: verifiedCodes ?? this.verifiedCodes,
       statsOverlayPinned: statsOverlayPinned ?? this.statsOverlayPinned,

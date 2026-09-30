@@ -29,7 +29,6 @@ AppState _$AppStateFromJson(Map<String, dynamic> json) => AppState(
   windowHeight: (json['windowHeight'] as num?)?.toDouble(),
   windowX: (json['windowX'] as num?)?.toDouble(),
   windowY: (json['windowY'] as num?)?.toDouble(),
-  disableAudioDucking: json['disableAudioDucking'] as bool? ?? false,
   askBeforeVoiceSwitch: json['askBeforeVoiceSwitch'] as bool? ?? true,
   verifiedCodes:
       (json['verifiedCodes'] as Map<String, dynamic>?)?.map(
@@ -88,7 +87,6 @@ Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
   'windowHeight': instance.windowHeight,
   'windowX': instance.windowX,
   'windowY': instance.windowY,
-  'disableAudioDucking': instance.disableAudioDucking,
   'askBeforeVoiceSwitch': instance.askBeforeVoiceSwitch,
   'statsOverlayPinned': instance.statsOverlayPinned,
   'showStreamStats': instance.showStreamStats,

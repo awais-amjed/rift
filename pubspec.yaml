@@ -60,7 +60,6 @@ dependencies:
   flutter_rust_bridge: 2.13.0
   audioplayers: ^6.4.0
   dbus: ^0.7.15
-  win32_registry: ^3.0.3
 
   rust_lib_rift:
     path: rust_builder

@@ -44,12 +44,11 @@ class HostPlatform {
   static bool get capturesSystemAudio =>
       !kIsWeb && (Platform.isWindows || Platform.isLinux);
 
-  /// Whether the OS lowers other applications' volume during a call, and lets
-  /// us ask it not to.
+  /// Whether the OS lowers other applications' volume during a call.
   ///
-  /// Windows does, and has a per-user preference for it; nothing else
-  /// Rift runs on has the behaviour or the switch. The settings pane hides the
-  /// toggle entirely rather than showing one that does nothing.
+  /// Windows does, and keeps the choice in its own Sound window; nothing else
+  /// Rift runs on has the behaviour. The settings pane explains it and opens
+  /// that window there, and shows nothing about it elsewhere.
   static bool get ducksOtherApps => !kIsWeb && Platform.isWindows;
 
   /// Whether push-to-talk can be offered at all.

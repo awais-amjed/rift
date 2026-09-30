@@ -10,7 +10,6 @@ import '../../../data/enums/app_sound.dart';
 import '../../../data/enums/home_surface.dart';
 import '../../../data/enums/sensitive_content_mode.dart';
 import '../../../data/participant_identity.dart';
-import '../../services/windows_audio_ducking/windows_audio_ducking.dart';
 
 part 'app_cubit.g.dart';
 part 'app_state.dart';
@@ -85,11 +84,6 @@ class AppCubit extends HydratedCubit<AppState> {
 
   void setLinkPreviewsEnabled(bool value) =>
       emit(state.copyWith(linkPreviewsEnabled: value));
-
-  void setDisableAudioDucking(bool value) {
-    emit(state.copyWith(disableAudioDucking: value));
-    WindowsAudioDucking.apply(disable: value);
-  }
 
   // ── Persisted: switching voice channels ──────────────────
 
