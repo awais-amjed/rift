@@ -54,8 +54,10 @@ class ScreenShareSources {
     }
   }
 
-  /// PulseAudio sources, for Linux window-capture audio. Full-screen capture
-  /// uses loopback and never asks.
+  /// Applications playing sound: PulseAudio sink inputs on Linux (also for
+  /// window-capture audio), processes on Windows (for a sound share; a screen
+  /// share finds a window's audio by its process). Full-screen capture uses
+  /// loopback and never asks.
   static Future<List<AudioSource>> listAudio() async {
     try {
       // A repeated entry would make the picker's value ambiguous, which the

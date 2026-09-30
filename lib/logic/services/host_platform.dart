@@ -82,4 +82,9 @@ class HostPlatform {
   /// hand. Full-screen capture uses loopback everywhere, and Windows finds a
   /// window's audio by its process.
   static bool get picksShareAudioSource => !kIsWeb && Platform.isLinux;
+
+  /// Whether an audio source's `index` is a process id rather than a
+  /// PulseAudio sink input. Windows lists what is playing by process and
+  /// captures one by its id; Linux lists sink inputs.
+  static bool get listsAudioSourcesByProcess => !kIsWeb && Platform.isWindows;
 }

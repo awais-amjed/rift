@@ -98,6 +98,12 @@ class SoundShareCubit extends Cubit<SoundShareState> {
           livekitToken: response.data['token'] as String,
           selectedAudioSourceIndex: source.index,
           selectedAudioSourceSink: source.sink,
+          // Windows lists a source by its process, with the process id in
+          // `index`, and captures by process; without the id the capture
+          // falls back to the whole mix, which carries the call back in.
+          selectedAudioSourcePid: HostPlatform.listsAudioSourcesByProcess
+              ? source.index
+              : null,
           // Published as the track's name, which is how everyone else's tile
           // says what is playing rather than only whose it is.
           sourceLabel: ScreenShareSources.appLabel(source),

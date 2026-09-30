@@ -143,13 +143,19 @@ pub(crate) async fn start(room: &Room, request: AudioCapture) -> Option<AudioCap
     }
 }
 
-/// Applications currently playing, on the platform that can list them.
+/// Applications currently playing. On Linux each is a PulseAudio sink input;
+/// on Windows each is a process, with its id in `index` (see
+/// [`windows::list_sources`]).
 pub(crate) fn list_sources() -> Vec<AudioSource> {
     #[cfg(target_os = "linux")]
     {
         pulse::list_sink_inputs()
     }
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(target_os = "windows")]
+    {
+        windows::list_sources()
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "windows")))]
     {
         Vec::new()
     }
