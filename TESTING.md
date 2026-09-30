@@ -43,7 +43,7 @@ instances with separate identities; the Android client is the emulator.
 | Bot directory | Sep 20 2026 | publish, browse, like, add |
 | Operator limits | Sep 19 2026 | two clients; each cap refuses and says why |
 | A server built from nothing, with a bot | Sep 6 2026 | the console's stack, two clients, a bot through the SDK |
-| Encrypted voice, audio both directions | Sep 2 2026 | two clients on virtual microphones, a key rotation mid-call |
+| Encrypted voice, audio both directions | Sep 2 2026; Sep 30 2026 | two clients on virtual microphones, a key rotation mid-call; on Sep 30 (Windows) one minted by a client in the call, which has to move its own call too |
 | Friends gate on central | Aug 25 2026 | browser |
 | Notification levels, desktop notifications, FCM push | Aug 24–25 2026 | two Linux clients; Android through the relay |
 | Messaging, attachments, voice notes, server DMs, kick and ban | Aug 23 2026 | Linux, Android and web |

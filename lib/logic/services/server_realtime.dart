@@ -432,6 +432,27 @@ class RealtimeLease {
     unawaited(_send(event, payload));
   }
 
+  /// Hand [event] to this topic's other holders on this device, as if it had
+  /// come over the socket.
+  ///
+  /// A broadcast is not echoed to the socket that sent it, so two features
+  /// sharing one join never hear each other's sends. That is right between
+  /// devices and wrong inside one: the chat that rotates a channel's key rings
+  /// everybody else's call onto the new version, and its own call — the one
+  /// on the same device — stayed on the old one, deaf to everyone who moved.
+  /// This lease's own listeners are skipped; it knows what it just did.
+  void echoLocally(String event, RealtimePayload payload) {
+    if (_released) return;
+    final key = 'broadcast:$event';
+    final mine = {
+      for (final entry in _listeners)
+        if (entry.key == key) entry.value,
+    };
+    for (final listener in [...?_topic.listeners[key]]) {
+      if (!mine.contains(listener)) listener({...payload});
+    }
+  }
+
   Future<void> _send(String event, RealtimePayload payload) async {
     try {
       // A copy: the channel writes its own fields into the map it is handed,

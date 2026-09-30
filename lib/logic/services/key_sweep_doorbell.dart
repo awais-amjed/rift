@@ -34,11 +34,22 @@ class KeySweepDoorbell {
       ?..onBroadcast(ServerEvent.sweep, (_) => onRing());
   }
 
-  /// Ring it, so other clients go and look.
+  /// Ring it, so other clients go and look — and anything else on this device
+  /// listening to the same server.
+  ///
+  /// The second half is not a courtesy. A rotation is minted by whichever
+  /// client's sweep wins the race, and when that client is also in the call,
+  /// the call has to move with everyone else. It heard the server's ring (a
+  /// ban) before the rotation existed, found nothing new, and would never
+  /// hear this one: the socket does not echo a send to its sender.
   ///
   /// Best-effort: the thing being announced has already happened, and a
   /// doorbell nobody heard costs somebody a wait rather than correctness.
-  void ring() => _lease?.send(ServerEvent.sweep, const {});
+  void ring() {
+    _lease
+      ?..send(ServerEvent.sweep, const {})
+      ..echoLocally(ServerEvent.sweep, const {});
+  }
 
   /// Stop listening.
   ///

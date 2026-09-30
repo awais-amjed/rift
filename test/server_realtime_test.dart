@@ -383,6 +383,33 @@ void main() {
     await h.close();
   });
 
+  // The socket does not echo a send to its sender, so the call on the device
+  // that rotated a key never heard about it and stayed on the old version.
+  test(
+    "a local echo reaches the topic's other holders, not the sender",
+    () async {
+      final a = _server('a');
+      final h = _Harness([a]);
+      final heard = <String>[];
+      final chat = h.realtime.join(a, 'server:a')!
+        ..onBroadcast('sweep', (_) => heard.add('chat'));
+      h.realtime
+          .join(a, 'server:a')!
+          .onBroadcast('sweep', (_) => heard.add('call'));
+      h.realtime
+          .join(a, 'server:a')!
+          .onBroadcast('other', (_) => heard.add('other event'));
+
+      chat.echoLocally('sweep', const {});
+      expect(heard, ['call']);
+
+      await chat.release();
+      chat.echoLocally('sweep', const {});
+      expect(heard, ['call']);
+      await h.close();
+    },
+  );
+
   // Somebody else's topic can be sent to but not joined, so a DM's typing
   // indicator goes over HTTP — and has to say it is for a private topic, with
   // the member's token, or the server's rules turn it away.
