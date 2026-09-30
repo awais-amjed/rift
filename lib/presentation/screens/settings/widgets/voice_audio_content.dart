@@ -63,7 +63,11 @@ class VoiceAudioContent extends StatelessWidget {
                 title: 'Disable automatic volume lowering',
                 description:
                     "Windows lowers other apps' volume when a call is "
-                    'active. Enable this to prevent that.',
+                    'active. This sets Windows\' own preference to "Do '
+                    'nothing" for every app, and turning it off puts back '
+                    'what you had. Windows applies it after you next sign '
+                    'in; the Communications tab of its Sound settings '
+                    'applies it at once.',
                 value: appState.disableAudioDucking,
                 onChanged: context.read<AppCubit>().setDisableAudioDucking,
               ),

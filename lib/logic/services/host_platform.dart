@@ -47,7 +47,7 @@ class HostPlatform {
   /// Whether the OS lowers other applications' volume during a call, and lets
   /// us ask it not to.
   ///
-  /// Windows does, through the audio session's ducking policy; nothing else
+  /// Windows does, and has a per-user preference for it; nothing else
   /// Rift runs on has the behaviour or the switch. The settings pane hides the
   /// toggle entirely rather than showing one that does nothing.
   static bool get ducksOtherApps => !kIsWeb && Platform.isWindows;

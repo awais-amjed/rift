@@ -16,7 +16,6 @@ import 'logic/services/storage_namespace.dart';
 import 'logic/services/text_safety.dart';
 import 'logic/services/tray_service/tray_service.dart';
 import 'logic/services/window_focus_service.dart';
-import 'logic/services/windows_audio_ducking/windows_audio_ducking.dart';
 import 'src/rust/frb_generated.dart';
 import 'supabase_config.dart';
 
@@ -50,7 +49,6 @@ class AppBootstrap {
     // on a phone to want one from either.
     if (HostPlatform.drawsOwnWindowChrome) {
       await windowManager.ensureInitialized();
-      WindowsAudioDucking.apply(disable: appCubit.state.disableAudioDucking);
       _restoreWindow(appCubit);
       await TrayService.instance.init();
     }
