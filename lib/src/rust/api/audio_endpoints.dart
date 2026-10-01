@@ -18,6 +18,21 @@ Future<List<AudioEndpoint>> listOutputEndpoints() =>
 Future<List<AudioEndpoint>> listInputEndpoints() =>
     RustLib.instance.api.crateApiAudioEndpointsListInputEndpoints();
 
+/// The id of the render endpoint Windows plays to by default, in the same
+/// form as [`AudioEndpoint::device_id`]. None off Windows, and None when there
+/// is no default or the audio service cannot be reached.
+///
+/// WebRTC's device module cannot be told "the default" by the plugin, only a
+/// device by its place in the list, so choosing "System default" has to be
+/// turned into a concrete endpoint first.
+Future<String?> defaultOutputEndpoint() =>
+    RustLib.instance.api.crateApiAudioEndpointsDefaultOutputEndpoint();
+
+/// The id of the capture endpoint Windows records from by default. See
+/// [`default_output_endpoint`].
+Future<String?> defaultInputEndpoint() =>
+    RustLib.instance.api.crateApiAudioEndpointsDefaultInputEndpoint();
+
 /// One endpoint, and the format Windows hands a shared-mode client for it.
 class AudioEndpoint {
   /// The endpoint id, in the same form WebRTC reports as a device's guid, so
@@ -27,11 +42,18 @@ class AudioEndpoint {
   final int channels;
   final int sampleRate;
 
+  /// Whether Windows accepts any of the formats WebRTC's device module asks
+  /// for. Asked of Windows rather than inferred from the mix format: inside
+  /// Rift's own process a 2 channel endpoint has been seen reporting an 8
+  /// channel mix, which the module opened without trouble.
+  final bool opens;
+
   const AudioEndpoint({
     required this.deviceId,
     required this.name,
     required this.channels,
     required this.sampleRate,
+    required this.opens,
   });
 
   @override
@@ -39,7 +61,8 @@ class AudioEndpoint {
       deviceId.hashCode ^
       name.hashCode ^
       channels.hashCode ^
-      sampleRate.hashCode;
+      sampleRate.hashCode ^
+      opens.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -49,5 +72,6 @@ class AudioEndpoint {
           deviceId == other.deviceId &&
           name == other.name &&
           channels == other.channels &&
-          sampleRate == other.sampleRate;
+          sampleRate == other.sampleRate &&
+          opens == other.opens;
 }

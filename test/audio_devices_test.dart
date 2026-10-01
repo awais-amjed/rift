@@ -10,54 +10,50 @@ import 'package:rift/logic/services/audio_devices.dart';
 /// call through every later choice until it is rejoined. Both a hand-picked
 /// device and a saved one applied on join go through here.
 void main() {
-  AudioEndpoint endpoint({required int channels, required int sampleRate}) =>
-      AudioEndpoint(
-        deviceId: '{0.0.0.00000000}.{a}',
-        name: 'Test',
-        channels: channels,
-        sampleRate: sampleRate,
-      );
+  AudioEndpoint endpoint({
+    required int channels,
+    required int sampleRate,
+    required bool opens,
+  }) => AudioEndpoint(
+    deviceId: '{0.0.0.00000000}.{a}',
+    name: 'Test',
+    channels: channels,
+    sampleRate: sampleRate,
+    opens: opens,
+  );
 
   group('unusableFormat', () {
-    test('accepts mono and stereo at every rate the module tries', () {
-      for (final rate in [8000, 16000, 32000, 44100, 48000, 96000]) {
-        expect(
-          AudioDevices.unusableFormat(endpoint(channels: 1, sampleRate: rate)),
-          isNull,
-          reason: '$rate Hz mono',
-        );
-        expect(
-          AudioDevices.unusableFormat(endpoint(channels: 2, sampleRate: rate)),
-          isNull,
-          reason: '$rate Hz stereo',
-        );
-      }
+    test('accepts whatever Windows says the module can open', () {
+      expect(
+        AudioDevices.unusableFormat(
+          endpoint(channels: 2, sampleRate: 48000, opens: true),
+        ),
+        isNull,
+      );
+      // Seen on Windows: a laptop's stereo speakers reported an 8 channel mix
+      // inside Rift's process while WebRTC played through them. Refusing on
+      // the mix format made "System default" impossible to go back to.
+      expect(
+        AudioDevices.unusableFormat(
+          endpoint(channels: 8, sampleRate: 48000, opens: true),
+        ),
+        isNull,
+      );
     });
 
-    test('refuses more than two channels, and says the format', () {
+    test('refuses what Windows says it cannot open, and says the format', () {
       // The usual shape of a virtual device belonging to routing software.
-      // Windows converts bit depth for a shared stream but not channel count.
       expect(
-        AudioDevices.unusableFormat(endpoint(channels: 8, sampleRate: 96000)),
+        AudioDevices.unusableFormat(
+          endpoint(channels: 8, sampleRate: 96000, opens: false),
+        ),
         '8 channel 96 kHz',
       );
-    });
-
-    test('refuses a rate the module never asks for', () {
       expect(
-        AudioDevices.unusableFormat(endpoint(channels: 2, sampleRate: 192000)),
-        '2 channel 192 kHz',
-      );
-      expect(
-        AudioDevices.unusableFormat(endpoint(channels: 2, sampleRate: 22050)),
+        AudioDevices.unusableFormat(
+          endpoint(channels: 2, sampleRate: 22050, opens: false),
+        ),
         '2 channel 22.1 kHz',
-      );
-    });
-
-    test('refuses an endpoint reporting no channels at all', () {
-      expect(
-        AudioDevices.unusableFormat(endpoint(channels: 0, sampleRate: 48000)),
-        '0 channel 48 kHz',
       );
     });
 

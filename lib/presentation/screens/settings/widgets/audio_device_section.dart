@@ -92,17 +92,26 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
   ///
   /// That order matters: recording the choice first meant a device the
   /// platform went on to refuse stayed saved and came back next launch.
+  ///
+  /// "System default" (a null [deviceId]) is applied too, as Windows' default
+  /// device: WebRTC keeps the last device it was given for the life of the
+  /// process, so merely forgetting the choice left the call where it was.
   Future<void> _select(String? deviceId, {required bool isInput}) async {
-    if (deviceId == null) {
-      _clearSelection(isInput: isInput);
+    final device = deviceId == null
+        ? await AudioDevices.systemDefault(isInput: isInput)
+        : AudioDevices.byId(isInput ? _inputDevices : _outputDevices, deviceId);
+    if (!mounted) return;
+    if (device == null) {
+      // Outside a call there is nothing to apply it to yet; the next join
+      // does, from the saved choice.
+      if (deviceId == null) _clearSelection(isInput: isInput);
       return;
     }
-    final device = AudioDevices.byId(
-      isInput ? _inputDevices : _outputDevices,
-      deviceId,
-    );
-    if (device == null) return;
     if (_refuseUnusable(device, isInput ? _inputFormats : _outputFormats)) {
+      // The default is still recorded as the choice, with the reason it
+      // cannot play shown beside it. Refusing it outright kept the old device
+      // saved, with no way back to the default at all.
+      if (deviceId == null) _clearSelection(isInput: isInput, keepError: true);
       return;
     }
 
@@ -124,9 +133,9 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
     final app = context.read<AppCubit>();
     if (isInput) {
       app.setInputDeviceId(deviceId);
-      // WebRTC binds the capture device when the track is created, so a track
-      // already publishing keeps the old microphone until it is rebuilt.
-      await context.read<LiveKitCubit>().refreshAudioInput();
+      // The mic track has to be remade naming the device, or the plugin puts
+      // it back on the first input as it is made.
+      await context.read<LiveKitCubit>().refreshAudioInput(device.deviceId);
     } else {
       // Nothing to rebuild for playout: the call above reaches libwebrtc's
       // SetPlayoutDevice, which restarts it on the new device by itself when
@@ -159,21 +168,15 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
     return true;
   }
 
-  /// Forgets the saved device, so the next join does not override the
-  /// platform's own choice.
-  ///
-  /// This does not move a running call back to the default. Doing that needs
-  /// the default endpoint's id, which only Windows can supply; reading it
-  /// through the Win32 audio interfaces crashed the app, so that is left out
-  /// until it can be done and checked properly.
-  void _clearSelection({required bool isInput}) {
+  /// Forgets the saved device, so the next join uses Windows' default.
+  void _clearSelection({required bool isInput, bool keepError = false}) {
     final cubit = context.read<AppCubit>();
     if (isInput) {
       cubit.setInputDeviceId(null);
     } else {
       cubit.setOutputDeviceId(null);
     }
-    setState(() => _selectionError = null);
+    if (!keepError) setState(() => _selectionError = null);
   }
 
   @override

@@ -27,6 +27,11 @@ pub struct AudioEndpoint {
     pub name: String,
     pub channels: u32,
     pub sample_rate: u32,
+    /// Whether Windows accepts any of the formats WebRTC's device module asks
+    /// for. Asked of Windows rather than inferred from the mix format: inside
+    /// Rift's own process a 2 channel endpoint has been seen reporting an 8
+    /// channel mix, which the module opened without trouble.
+    pub opens: bool,
 }
 
 /// Every active render endpoint. Empty off Windows, and empty rather than
@@ -53,5 +58,36 @@ pub fn list_input_endpoints() -> Vec<AudioEndpoint> {
     #[cfg(not(target_os = "windows"))]
     {
         Vec::new()
+    }
+}
+
+/// The id of the render endpoint Windows plays to by default, in the same
+/// form as [`AudioEndpoint::device_id`]. None off Windows, and None when there
+/// is no default or the audio service cannot be reached.
+///
+/// WebRTC's device module cannot be told "the default" by the plugin, only a
+/// device by its place in the list, so choosing "System default" has to be
+/// turned into a concrete endpoint first.
+pub fn default_output_endpoint() -> Option<String> {
+    #[cfg(target_os = "windows")]
+    {
+        audio_endpoints::default_output()
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        None
+    }
+}
+
+/// The id of the capture endpoint Windows records from by default. See
+/// [`default_output_endpoint`].
+pub fn default_input_endpoint() -> Option<String> {
+    #[cfg(target_os = "windows")]
+    {
+        audio_endpoints::default_input()
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        None
     }
 }

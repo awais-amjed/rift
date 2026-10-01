@@ -6,6 +6,7 @@ import 'package:livekit_client/livekit_client.dart';
 
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
+import '../../../../../logic/services/audio_devices.dart';
 import '../../../../../logic/services/mic_test_capture.dart';
 import 'widgets/input_level_panel.dart';
 import 'widgets/mic_test_controls.dart';
@@ -89,11 +90,17 @@ class _MicTestSectionState extends State<MicTestSection> {
     }
 
     // Match the real capture path so the meter reflects the processing
-    // toggles; the input device follows the global Hardware selection.
+    // toggles and the chosen input. Without a device the plugin would move
+    // the capture to the first listed input.
     final settings = context.read<AppCubit>().state;
+    final deviceId = await AudioDevices.preferredInputId(
+      settings.inputDeviceId,
+    );
+    if (!mounted) return;
     try {
       await _capture.start(
         options: AudioCaptureOptions(
+          deviceId: deviceId,
           noiseSuppression: settings.noiseSuppression,
           echoCancellation: settings.echoCancellation,
           autoGainControl: settings.autoGainControl,

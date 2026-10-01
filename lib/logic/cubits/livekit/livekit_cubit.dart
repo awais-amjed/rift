@@ -19,6 +19,7 @@ import '../../services/audio_devices.dart';
 import '../../services/call_foreground_service.dart';
 import '../../services/channel_keyring.dart';
 import '../../services/connection_failure.dart';
+import '../../services/host_platform.dart';
 import '../../services/key_sweep_doorbell.dart';
 import '../../services/keyring_outcome.dart';
 import '../../services/level_throttle.dart';
@@ -108,6 +109,12 @@ class LiveKitCubit extends Cubit<LiveKitState>
   /// State, so it lives here rather than in either mixin that reads it.
   @override
   bool _disconnecting = false;
+
+  /// The input device this process last put in force, which every mic track
+  /// has to name — see [_buildAudioCaptureOptions]. Null until a call has
+  /// applied one.
+  @override
+  String? _captureDeviceId;
   StreamSubscription<AppState>? _appSubscription;
   AppState _lastAppState;
 
@@ -386,24 +393,30 @@ class LiveKitCubit extends Cubit<LiveKitState>
     if (syncParticipants) _syncParticipants();
   }
 
-  /// Builds mic capture options from the persisted audio-processing settings.
-  /// [deviceId] is intentionally left unset — input-device selection is
-  /// handled globally via `Hardware.instance.selectAudioInput`.
+  /// Builds mic capture options from the persisted audio-processing settings
+  /// and the input device in force.
+  ///
+  /// The device has to be named here even though it was already selected
+  /// through `Hardware.instance.selectAudioInput`. On the desktop the plugin's
+  /// `getUserMedia` resets WebRTC's device module to the *first* listed input
+  /// whenever a track is made without one, so a track built without the id
+  /// quietly moved the call to whatever input enumerated first.
   @override
   AudioCaptureOptions _buildAudioCaptureOptions() {
     final settings = _appCubit.state;
     return AudioCaptureOptions(
+      deviceId: HostPlatform.isDesktop ? _captureDeviceId : null,
       noiseSuppression: settings.noiseSuppression,
       echoCancellation: settings.echoCancellation,
       autoGainControl: settings.autoGainControl,
     );
   }
 
-  /// Rebuilds mic capture, for after the input device changes.
+  /// Rebuilds mic capture on [deviceId], for after the input device changes.
   ///
-  /// WebRTC binds the device when the track is created, so a track that is
-  /// already publishing keeps capturing from the old microphone however the
-  /// selection changes underneath it.
+  /// The track has to be remade naming the device — see
+  /// [_buildAudioCaptureOptions] — or the plugin moves it back to the first
+  /// input as it is made.
   ///
   /// There is deliberately no matching hook for the output device. Playout is
   /// not tied to a track this side owns: `Hardware.selectAudioOutput` reaches
@@ -413,7 +426,10 @@ class LiveKitCubit extends Cubit<LiveKitState>
   /// that mid-call switching was unsupported — it isn't, and the rejoin only
   /// tore the connection down underneath a device change that was already in
   /// flight on the worker thread.
-  Future<void> refreshAudioInput() => _refreshMicrophoneCapture();
+  Future<void> refreshAudioInput(String deviceId) {
+    _captureDeviceId = deviceId;
+    return _refreshMicrophoneCapture();
+  }
 
   /// Re-publishes the mic track so changed capture options take effect during
   /// a live call. WebRTC bakes these constraints in at track creation, so the
@@ -424,7 +440,16 @@ class LiveKitCubit extends Cubit<LiveKitState>
     final room = state.room;
     if (room == null) return;
     if (state.connectionState != LiveKitConnectionState.connected) return;
-    await room.localParticipant?.setMicrophoneEnabled(false);
+    final local = room.localParticipant;
+    // Unmuting an existing track restarts it with the options it was *made*
+    // with, not the ones passed in, so the new ones go onto the track first.
+    final track = local
+        ?.getTrackPublicationBySource(TrackSource.microphone)
+        ?.track;
+    if (track is LocalAudioTrack) {
+      track.currentOptions = _buildAudioCaptureOptions();
+    }
+    await local?.setMicrophoneEnabled(false);
     await _syncMicrophoneTransmission();
   }
 

@@ -45,21 +45,6 @@ class AudioDevices {
   static Future<({List<MediaDevice> inputs, List<MediaDevice> outputs})>
   load() async => (inputs: await inputs(), outputs: await outputs());
 
-  /// The sample rates WebRTC's Windows device module will offer an endpoint.
-  ///
-  /// It asks `IAudioClient::Initialize` for 16-bit PCM in mono or stereo at
-  /// each of these in turn and gives up when none is accepted, so this list
-  /// and a channel count of one or two are between them the whole of what it
-  /// can open.
-  static const Set<int> _deviceModuleSampleRates = {
-    48000,
-    44100,
-    16000,
-    96000,
-    32000,
-    8000,
-  };
-
   /// Windows' own account of each render endpoint, keyed by device id.
   ///
   /// Empty off Windows and when the probe fails, which callers must read as
@@ -86,13 +71,15 @@ class AudioDevices {
   /// restart it on a later switch if it was still playing, which it isn't. So
   /// the call stays silent through every subsequent choice until it is
   /// rejoined. That is worth refusing a device over.
+  ///
+  /// Whether it can is Windows' answer to the module's own question
+  /// ([AudioEndpoint.opens]), not a guess from the mix format: the module asks
+  /// for 16-bit PCM in mono or stereo at six rates, and inside Rift's process
+  /// a stereo laptop speaker reported an 8 channel mix while the module played
+  /// through it, so the guess refused a working default device. The mix format
+  /// is still what the message names.
   static String? unusableFormat(AudioEndpoint? endpoint) {
-    if (endpoint == null) return null;
-    final usable =
-        endpoint.channels >= 1 &&
-        endpoint.channels <= 2 &&
-        _deviceModuleSampleRates.contains(endpoint.sampleRate);
-    if (usable) return null;
+    if (endpoint == null || endpoint.opens) return null;
     return '${endpoint.channels} channel ${_kHz(endpoint.sampleRate)}';
   }
 
@@ -117,8 +104,38 @@ class AudioDevices {
     return '$text kHz';
   }
 
-  /// Applies the saved devices, ignoring ids that no longer enumerate, and
-  /// reports which of the two it actually moved.
+  /// The device WebRTC lists that Windows uses by default, or null when that
+  /// cannot be known: off Windows, outside a call (when WebRTC lists nothing),
+  /// or with no default device at all.
+  ///
+  /// "System default" needs this because the plugin can only point WebRTC's
+  /// device module at a device in its list. Leaving the choice alone does not
+  /// mean the default: the module keeps whatever it was last given for the
+  /// life of the process, so picking a device and then "System default" left
+  /// the call on the device just un-picked.
+  static Future<MediaDevice?> systemDefault({required bool isInput}) async {
+    if (kIsWeb) return null;
+    final id = isInput
+        ? await defaultInputEndpoint()
+        : await defaultOutputEndpoint();
+    if (id == null) return null;
+    return byId(isInput ? await inputs() : await outputs(), id);
+  }
+
+  /// The id a new mic track should name: the saved input, else Windows'
+  /// default, else null — which leaves the device module where it is.
+  ///
+  /// For the mic test outside a call, where there is no [applySaved] result
+  /// to read. WebRTC lists nothing then, so an id that cannot be matched just
+  /// leaves the device alone, which is still better than the first one.
+  static Future<String?> preferredInputId(String? savedId) async {
+    if (savedId != null || kIsWeb) return savedId;
+    return defaultInputEndpoint();
+  }
+
+  /// Applies the saved devices — or, where nothing is saved, Windows' default
+  /// — ignoring ids that no longer enumerate, and reports what it moved: the
+  /// input by id, since every mic track made afterwards has to name it.
   ///
   /// **Call this only once a call is up.** Everything here goes through the
   /// same device module [load] describes, so before a room is connected there
@@ -139,32 +156,34 @@ class AudioDevices {
   /// happen unattended is this one. The device stays saved — its format may
   /// well be fixed by the time it is next read.
   ///
-  /// The returned flags say what changed, so a caller holding a mic track can
-  /// rebuild it: WebRTC binds the capture device at track creation, and the
-  /// track a room raises on connect predates this.
+  /// The input has to be named again on every mic track because the plugin's
+  /// `getUserMedia` resets the device module to the *first* listed input
+  /// whenever a track is made without one. Selecting the device here alone
+  /// therefore lasted only until the next mute, rejoin or rebuild — which is
+  /// immediately, since the track a room raises on connect predates this.
   ///
   /// Throws if the platform refuses a device that does exist. Callers are
   /// expected to say so rather than swallow it: a failed switch is silent
   /// otherwise, and silence here sounds exactly like a dead output.
-  static Future<({bool input, bool output})> applySaved({
+  static Future<({String? input, bool output})> applySaved({
     String? inputId,
     String? outputId,
   }) async {
-    var appliedInput = false;
+    String? appliedInput;
     var appliedOutput = false;
-    if (inputId != null) {
-      final device = byId(await inputs(), inputId);
-      if (device != null && await _isUsable(device, isInput: true)) {
-        await Hardware.instance.selectAudioInput(device);
-        appliedInput = true;
-      }
+    final input = inputId != null
+        ? byId(await inputs(), inputId)
+        : await systemDefault(isInput: true);
+    if (input != null && await _isUsable(input, isInput: true)) {
+      await Hardware.instance.selectAudioInput(input);
+      appliedInput = input.deviceId;
     }
-    if (outputId != null) {
-      final device = byId(await outputs(), outputId);
-      if (device != null && await _isUsable(device, isInput: false)) {
-        await Hardware.instance.selectAudioOutput(device);
-        appliedOutput = true;
-      }
+    final output = outputId != null
+        ? byId(await outputs(), outputId)
+        : await systemDefault(isInput: false);
+    if (output != null && await _isUsable(output, isInput: false)) {
+      await Hardware.instance.selectAudioOutput(output);
+      appliedOutput = true;
     }
     return (input: appliedInput, output: appliedOutput);
   }

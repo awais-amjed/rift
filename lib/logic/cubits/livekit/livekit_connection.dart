@@ -39,9 +39,12 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
   void forgetChannelToken(String? channelId);
   bool _shouldTransmitMic({bool? micEnabled});
   AudioCaptureOptions _buildAudioCaptureOptions();
+  String? get _captureDeviceId;
+  set _captureDeviceId(String? deviceId);
 
-  /// Puts the user's saved input and output devices in force for this call,
-  /// and reports whether the input moved.
+  /// Puts the user's saved input and output devices — or Windows' defaults,
+  /// where none are saved — in force for this call, and reports whether the
+  /// mic track has to be remade on a different input.
   ///
   /// This belongs to joining and nowhere else. WebRTC's audio device module
   /// neither enumerates nor accepts a selection until it is running, which it
@@ -59,7 +62,10 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
         inputId: _appCubit.state.inputDeviceId,
         outputId: _appCubit.state.outputDeviceId,
       );
-      return applied.input;
+      final input = applied.input;
+      if (input == null || input == _captureDeviceId) return false;
+      _captureDeviceId = input;
+      return true;
     } catch (e) {
       HelperMethods.printDebug('[LiveKit] saved audio device refused: $e');
       return false;
