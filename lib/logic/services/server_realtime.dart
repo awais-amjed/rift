@@ -246,11 +246,11 @@ class ServerRealtime {
   /// Joins [joined] again on a new channel and drops the refused one. The
   /// topic object — and so every lease and listener on it — stays the same.
   ///
-  /// Never for a channel that failed with the socket. realtime_client drops a
-  /// channel from its list by `joinRef`, which is empty until a join is sent,
-  /// and a left channel's is emptied too — so dropping one while the socket is
-  /// down drops every join still waiting to go out, this replacement included,
-  /// and the topic sat "joining" on a channel the socket no longer had.
+  /// Never for a channel that failed with the socket: the client joins that
+  /// one again itself when the socket reopens, and a replacement beside it is
+  /// a second join of the topic. (Unpatched, realtime_client also dropped the
+  /// replacement from its list along with the old channel, by the empty
+  /// `joinRef` both had — see third_party/realtime_client/RIFT_PATCHES.md.)
   void _rejoin(_Connection connection, _Topic joined) {
     if (!identical(connection.topics[joined.name], joined)) return;
     final refused = joined.channel;
@@ -383,9 +383,8 @@ class ServerRealtime {
       await _close(lease._serverId);
       return;
     }
-    // A join never sent has nothing to leave. Leaving it anyway would drop it
-    // from the socket by its empty `joinRef` — and every other join still
-    // waiting for a token with it.
+    // A join never sent has nothing to leave: take it off the socket rather
+    // than send a leave for a topic the server never joined.
     if (joined.awaitingToken) {
       connection.client.realtime.channels.remove(joined.channel);
       return;
@@ -587,8 +586,8 @@ class _Topic {
   /// The server said no. Not `closed`, which is a leave, and not `timedOut`:
   /// realtime_client asks again after a timeout by itself, with whatever
   /// token `setAuth` last gave it, and a replacement channel beside that
-  /// retry is a second join of the same topic on one socket — the server
-  /// closes one of them, and the client's bookkeeping lost both.
+  /// retry is a second join of the same topic on one socket, and the server
+  /// closes one of them.
   static bool isRefusal(RealtimeSubscribeStatus status) =>
       status == RealtimeSubscribeStatus.channelError;
 

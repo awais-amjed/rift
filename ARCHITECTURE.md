@@ -31,6 +31,12 @@ The schema and the endpoints for both servers are in their own repositories, so 
 migration named here is a file there. They are the source of truth; this document
 is the reasoning behind them.
 
+One dependency is kept in this repository and patched: supabase's Realtime
+client, in `third_party/realtime_client`. Its 2.13.0 release could leave a topic
+stuck off the socket after a reconnect, so a server's live updates stopped until
+a restart. `RIFT_PATCHES.md` there lists each change, and says when the copy can
+go back to pub.dev.
+
 Where the two schemas hold the same idea they use the same names — `users`,
 `dm_messages`, `read_state`. Central's account row was `dm_profiles` until it was
 written down as migrations: it is the account, and it holds more than a directory

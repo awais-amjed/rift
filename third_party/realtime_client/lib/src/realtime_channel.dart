@@ -81,8 +81,21 @@ class RealtimeChannel {
         return;
       }
       socket.log('channel', 'error $topic', reason);
+      // RIFT PATCH (as phoenix.js): a join in flight when the socket goes is
+      // void — drop its ref and timer so the rejoin sends a fresh one.
+      if (isJoining) {
+        joinPush.destroy();
+      }
       _state = ChannelStates.errored;
-      _rejoinTimer.scheduleTimeout();
+      // RIFT PATCH (as phoenix.js): retry from a timer only over a live
+      // socket. A dead one rejoins every errored channel itself when it opens
+      // (RealtimeClient._onConnOpen); a timer armed during the outage fired
+      // at some arbitrary moment after the reconnect, often mid-join.
+      if (socket.isConnected) {
+        _rejoinTimer.scheduleTimeout();
+      } else {
+        _rejoinTimer.reset();
+      }
     });
 
     joinPush.receive('timeout', (_) {
@@ -91,7 +104,10 @@ class RealtimeChannel {
       }
       socket.log('channel', 'timeout $topic', joinPush.timeout);
       _state = ChannelStates.errored;
-      _rejoinTimer.scheduleTimeout();
+      // RIFT PATCH (as phoenix.js): see the error handler above.
+      if (socket.isConnected) {
+        _rejoinTimer.scheduleTimeout();
+      }
     });
 
     onEvents(ChannelEvents.reply.eventName(), ChannelFilter(), (
@@ -106,7 +122,10 @@ class RealtimeChannel {
 
   @internal
   void rejoinUntilConnected() {
-    _rejoinTimer.scheduleTimeout();
+    // RIFT PATCH (as phoenix.js): no re-arming here. It fired again while the
+    // join it had just sent was still in flight, and that second rejoin is
+    // what left the channel. A join that fails re-arms it (timeout, error),
+    // and a socket that reopens rejoins errored channels itself.
     if (socket.isConnected) {
       rejoin();
     }
@@ -949,7 +968,7 @@ class RealtimeChannel {
     if (isLeaving) {
       return;
     }
-    socket.leaveOpenTopic(topic);
+    socket.leaveOpenTopic(topic, except: this);
     _state = ChannelStates.joining;
     joinPush.resend(timeout ?? _timeout);
   }

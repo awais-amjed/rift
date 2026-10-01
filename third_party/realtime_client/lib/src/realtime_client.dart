@@ -458,7 +458,9 @@ class RealtimeClient {
   /// Removes a subscription from the socket.
   @internal
   void remove(RealtimeChannel channel) {
-    channels = channels.where((c) => c.joinRef != channel.joinRef).toList();
+    // RIFT PATCH (upstream #1669): by identity. `joinRef` is '' until a join
+    // is sent, so matching on it removed every channel that had not joined.
+    channels = channels.where((c) => !identical(c, channel)).toList();
     if (channels.isEmpty) {
       log('transport', 'no channels remaining, scheduling disconnect');
       _schedulePendingDisconnect();
@@ -635,9 +637,16 @@ class RealtimeClient {
 
   /// Unsubscribe from joined or joining channels with the specified topic.
   @internal
-  void leaveOpenTopic(String topic) {
+  void leaveOpenTopic(String topic, {RealtimeChannel? except}) {
+    // RIFT PATCH: never the channel that is rejoining. A rejoin while it was
+    // itself joining or joined found itself here, unsubscribed itself — which
+    // takes it off [channels] — and then sent a join whose reply no channel
+    // on the socket was left to hear: stuck "joining" for good.
     final dupChannel = channels.firstWhereOrNull(
-      (c) => c.topic == topic && (c.isJoined || c.isJoining),
+      (c) =>
+          !identical(c, except) &&
+          c.topic == topic &&
+          (c.isJoined || c.isJoining),
     );
     if (dupChannel != null) {
       log('transport', 'leaving duplicate topic "$topic"');

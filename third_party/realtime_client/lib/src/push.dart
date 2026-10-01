@@ -45,6 +45,9 @@ class Push {
   void resend(Duration newTimeout) {
     _timeout = newTimeout;
     _cancelRefEvent();
+    // RIFT PATCH (upstream #1822): with the old timer alive, startTimeout()
+    // returned early and the join went out with an empty ref nothing matched.
+    _cancelTimeout();
     _ref = '';
     _refEvent = null;
     _receivedResp = null;
