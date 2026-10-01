@@ -3,10 +3,12 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
+import 'package:screen_retriever/screen_retriever.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'logic/cubits/app/app_cubit.dart';
+import 'logic/helper_methods.dart';
 import 'logic/services/browser_apis.dart';
 import 'logic/services/host_platform.dart';
 import 'logic/services/notification_service.dart';
@@ -16,6 +18,7 @@ import 'logic/services/storage_namespace.dart';
 import 'logic/services/text_safety.dart';
 import 'logic/services/tray_service/tray_service.dart';
 import 'logic/services/window_focus_service.dart';
+import 'logic/services/window_placement.dart';
 import 'src/rust/frb_generated.dart';
 import 'supabase_config.dart';
 
@@ -49,7 +52,7 @@ class AppBootstrap {
     // on a phone to want one from either.
     if (HostPlatform.drawsOwnWindowChrome) {
       await windowManager.ensureInitialized();
-      _restoreWindow(appCubit);
+      await _restoreWindow(appCubit);
       await TrayService.instance.init();
     }
     // Not desktop-only any more: Android posts these too, and the web posts
@@ -113,21 +116,61 @@ class AppBootstrap {
   }
 
   /// Reopens the window where it was last left, with the title bar hidden so
-  /// the app can draw its own.
-  static void _restoreWindow(AppCubit appCubit) {
+  /// the app can draw its own — kept on a screen that exists now, since the
+  /// display it was saved on may since have been unplugged or rescaled.
+  static Future<void> _restoreWindow(AppCubit appCubit) async {
     final state = appCubit.state;
-    final size = state.windowWidth != null
+    var size = state.windowWidth != null
         ? Size(state.windowWidth!, state.windowHeight!)
         : _defaultWindowSize;
-    final position = state.windowX != null
+    Offset? position = state.windowX != null
         ? Offset(state.windowX!, state.windowY!)
         : null;
 
-    windowManager.waitUntilReadyToShow(
-      WindowOptions(titleBarStyle: TitleBarStyle.hidden, size: size),
-      () async {
-        if (position != null) await windowManager.setPosition(position);
-      },
+    final screens = await _workAreas();
+    if (screens != null) {
+      // Nothing saved yet: the window is wherever the platform's runner put
+      // it (10,10 on Windows, scaled), which a bigger scale can push the
+      // fitted size off the edge from just as well.
+      position ??= await _currentPosition();
+      (:size, :position) = fitWindowToScreens(
+        size: size,
+        position: position,
+        workAreas: screens.all,
+        primary: screens.primary,
+      );
+    }
+
+    unawaited(
+      windowManager.waitUntilReadyToShow(
+        WindowOptions(titleBarStyle: TitleBarStyle.hidden, size: size),
+        () async {
+          if (position != null) await windowManager.setPosition(position);
+        },
+      ),
     );
+  }
+
+  static Future<Offset?> _currentPosition() async {
+    try {
+      return await windowManager.getPosition();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// The displays' usable areas and the primary one, or null when the
+  /// platform won't say — then the saved geometry is used as it is.
+  static Future<({List<Rect> all, Rect primary})?> _workAreas() async {
+    Rect workArea(Display d) =>
+        (d.visiblePosition ?? Offset.zero) & (d.visibleSize ?? d.size);
+    try {
+      final displays = await screenRetriever.getAllDisplays();
+      final primary = await screenRetriever.getPrimaryDisplay();
+      return (all: displays.map(workArea).toList(), primary: workArea(primary));
+    } catch (e) {
+      HelperMethods.printDebug('[Window] no display info: $e');
+      return null;
+    }
   }
 }
