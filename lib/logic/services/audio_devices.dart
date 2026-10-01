@@ -38,12 +38,41 @@ class AudioDevices {
   /// measured, and neither does: `getUserMedia` builds an audio source straight
   /// off the peer connection factory without touching it, and a peer connection
   /// carrying a receive-only audio transceiver in its local description does not
-  /// reach it either. Listing devices outside a call needs to come from Windows
-  /// instead — `listInputEndpoints` and `listOutputEndpoints` already can —
-  /// but applying a choice still goes through the device module, so the two
-  /// halves have to be solved together rather than by priming.
+  /// reach it either. Outside a call the pickers read Windows instead — see
+  /// [choices].
   static Future<({List<MediaDevice> inputs, List<MediaDevice> outputs})>
   load() async => (inputs: await inputs(), outputs: await outputs());
+
+  /// What the pickers offer, and whether a pick can be put in force now.
+  ///
+  /// In a call that is WebRTC's own list ([load]), and a pick applies at once.
+  /// Outside one WebRTC lists nothing, so on Windows the list comes from
+  /// Windows itself: the same endpoints under the same ids, since WebRTC's
+  /// device id *is* the endpoint id. There a pick is only saved, and the next
+  /// join applies it ([applySaved]) — the device module it would go to does
+  /// not exist yet. Elsewhere outside a call both lists stay empty.
+  static Future<
+    ({List<MediaDevice> inputs, List<MediaDevice> outputs, bool live})
+  >
+  choices() async {
+    final live = await load();
+    if (kIsWeb || live.inputs.isNotEmpty || live.outputs.isNotEmpty) {
+      return (inputs: live.inputs, outputs: live.outputs, live: true);
+    }
+    return (
+      inputs: _asDevices(await listInputEndpoints(), 'audioinput'),
+      outputs: _asDevices(await listOutputEndpoints(), 'audiooutput'),
+      live: false,
+    );
+  }
+
+  static List<MediaDevice> _asDevices(
+    List<AudioEndpoint> endpoints,
+    String kind,
+  ) => [
+    for (final endpoint in endpoints)
+      MediaDevice(endpoint.deviceId, endpoint.name, kind, null),
+  ];
 
   /// Windows' own account of each render endpoint, keyed by device id.
   ///

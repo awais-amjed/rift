@@ -26,6 +26,11 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
   List<MediaDevice> _outputDevices = [];
   bool _devicesLoading = true;
 
+  /// Whether the lists are WebRTC's, in a call, so a pick can be applied now.
+  /// Outside a call they are Windows' and a pick is only saved — see
+  /// [AudioDevices.choices].
+  bool _live = false;
+
   /// Kept apart from [_selectionError] so a device-change event, which reloads
   /// the list, cannot wipe the explanation of a choice that was just refused
   /// before it has been read.
@@ -66,7 +71,7 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
   /// yet to break; after that only an explicit pick applies.
   Future<void> _loadDevices() async {
     try {
-      final devices = await AudioDevices.load();
+      final devices = await AudioDevices.choices();
       final inputFormats = await AudioDevices.inputEndpointFormats();
       final outputFormats = await AudioDevices.outputEndpointFormats();
       if (!mounted) return;
@@ -74,6 +79,7 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
       setState(() {
         _inputDevices = devices.inputs;
         _outputDevices = devices.outputs;
+        _live = devices.live;
         _inputFormats = inputFormats;
         _outputFormats = outputFormats;
         _devicesLoading = false;
@@ -97,6 +103,7 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
   /// device: WebRTC keeps the last device it was given for the life of the
   /// process, so merely forgetting the choice left the call where it was.
   Future<void> _select(String? deviceId, {required bool isInput}) async {
+    if (!_live) return _save(deviceId, isInput: isInput);
     final device = deviceId == null
         ? await AudioDevices.systemDefault(isInput: isInput)
         : AudioDevices.byId(isInput ? _inputDevices : _outputDevices, deviceId);
@@ -144,6 +151,28 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
     }
   }
 
+  /// Records a pick made outside a call, where there is nothing to apply it
+  /// to: the next join puts it in force. A device that could not be opened is
+  /// still refused here, since that join would only skip it.
+  void _save(String? deviceId, {required bool isInput}) {
+    if (deviceId == null) return _clearSelection(isInput: isInput);
+    final device = AudioDevices.byId(
+      isInput ? _inputDevices : _outputDevices,
+      deviceId,
+    );
+    if (device == null) return;
+    if (_refuseUnusable(device, isInput ? _inputFormats : _outputFormats)) {
+      return;
+    }
+    setState(() => _selectionError = null);
+    final app = context.read<AppCubit>();
+    if (isInput) {
+      app.setInputDeviceId(deviceId);
+    } else {
+      app.setOutputDeviceId(deviceId);
+    }
+  }
+
   /// Refuses a device whose format WebRTC cannot open, and says why.
   ///
   /// Letting the switch through would not merely fail: playout stops, fails to
@@ -181,6 +210,16 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
 
   @override
   Widget build(BuildContext context) {
+    // Joining or leaving swaps which list applies (see [_live]); reading it
+    // again keeps a pick from going to a device module that is not there.
+    return BlocListener<LiveKitCubit, LiveKitState>(
+      listenWhen: (a, b) => (a.room == null) != (b.room == null),
+      listener: (_, _) => _loadDevices(),
+      child: _buildPickers(context),
+    );
+  }
+
+  Widget _buildPickers(BuildContext context) {
     return BlocBuilder<AppCubit, AppState>(
       builder: (context, appState) {
         final error = _selectionError ?? _loadError;
