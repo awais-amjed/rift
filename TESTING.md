@@ -65,8 +65,14 @@ instances with separate identities; the Android client is the emulator.
 
 Don't read the table as "everything works". Still owed:
 
-- **Windows and macOS.** Nothing has been driven on either. macOS is configured
-  (entitlements, usage strings, notifications) but has never been launched.
+- **macOS.** Configured (entitlements, usage strings, notifications) but never
+  launched.
+- **Windows, the parts not reached** (driven Sep 29 – Oct 1 2026 on Windows 11 with
+  debug clients side by side and the installer): an invite expiring (needs the
+  hour to pass), a second monitor with a different scale, pressing a DM toast or an
+  Action Center entry, uninstalling from Settings → Apps, and losing a server that
+  runs on another machine (the server was on the same PC, so the Wi-Fi test never
+  cut Rift off from it).
 - **iOS, and push on it (APNs).**
 - **Push for DM calls** — the phone's Answer/Decline notification and a woken phone
   ringing. The relay is central's, so this waits for central on its server.
@@ -75,14 +81,109 @@ Don't read the table as "everything works". Still owed:
   cleartext, which makes this the one gap between self-hosting and a phone.
 - **Key rotation in a text channel** while someone is reading it, and scrollback
   across two key versions. (A voice key rotating mid-call is covered.)
-- **`rift://` invite links**, since they were last changed.
+- **`rift://` invite links**, since they were last changed. On Windows nothing
+  registers the scheme at all (checked Oct 1 2026), so a link there opens nothing.
 - **The region probe choosing between genuinely distant nodes** — both test nodes
   were on one machine.
 - **The `studio` profile** of the self-hosted stack.
-- **Saved conversations: central DMs, and the wipes.** Channels and server DMs
-  were driven (Sep 28). Leaving a server, signing out of central and a vault
-  reset removing their files are covered by `test/message_cache_test.dart`
-  only, and so is pruning a channel the server stops listing.
+- **Saved conversations: central DMs while central is down.** Channels and server
+  DMs were driven (Sep 28, and on Windows Oct 1), and so were the wipes on Windows
+  on Oct 1: leaving a server, signing out of central, a vault reset and pruning a
+  deleted channel each removed their files. A saved central DM still can't be
+  opened while central is unreachable, because the list itself comes from central.
+
+## Known small issues
+
+Found while driving the app and left open, because none of them stops a feature
+from working. Most were found on Windows (Sep 29 – Oct 1 2026) but are not
+Windows-specific. Remove a line in the commit that fixes it.
+
+**Messaging and DMs**
+- Accepting a DM request doesn't tell the sender: they stay on "Your message
+  request is waiting…" with the composer locked until they reopen the
+  conversation. `answer_dm_request` only announces to the accepter's own devices.
+- A refused DM (blocked, or over the new-DM limit) clears the composer, so the
+  text is lost.
+- The Server DMs unread badge counts a message that was deleted before it was read.
+- Offline, mentions show the username (`@tester_a`) instead of the display name
+  until the members load.
+- Quitting the app never counts as leaving the open conversation, so its saved copy
+  misses your last sends until the next online open. A server DM also stays open in
+  `DmCubit` when you click away to a channel; narrowing the window below 700 then
+  puts that DM back over the channel you were reading.
+- A used-up invite is refused as "Invalid invite code", without saying it was used.
+- A changed safety key is flagged only inside the person's profile; the DM
+  header's "Encrypted" chip stays green.
+- Signing a device back in to the account whose cloud backup *is* this vault still
+  asks "Two identities — Keep cloud / Keep this device", and the vault password was
+  asked again on the next restore although the first said future restores would be
+  automatic.
+
+**Servers and moderation**
+- No kick: the "Kick members" permission is granted to Moderators but does nothing.
+- An open profile doesn't refresh live ("Timed out until…" stays after it ends), and
+  Manage server → Members' count lags right after a ban is lifted.
+- Choosing "Only @mentions" for a channel while its server is on the default stores
+  nothing (it equals the default), so switching the server to All later carries
+  the channel along. By design per `_setLevel`; still surprising.
+
+**Sidebar and layout**
+- Clicking the still-highlighted channel while Server DMs is showing closes it
+  ("No channel selected"); a second click opens it. The sidebar highlights both.
+- The members count is one higher in the compact sheet than in the desktop header
+  (one counts the bot).
+- Between 700 and 1099 wide, Escape doesn't close the members overlay (a click
+  outside does).
+- The welcome card at the default 1280×720 window runs past the bottom edge.
+
+**Voice and calls**
+- Rift's own sounds (the ring) play on the system default output, not the output
+  chosen in Settings.
+- The soundboard volume slider is disabled while "Mute everyone else" is on, yet
+  your own clips still play at that volume.
+- A caller who hangs up while it rings is told "… didn't answer", like a timeout.
+- A deafened member shows deafen + mute in the sidebar but only mute on their tile.
+- The Share sound picker lists other Rift windows on the same PC (only possible
+  with several instances; sharing one would loop the call into itself).
+- A shared window that is minimised freezes on its last frame for viewers, with no
+  hint that it's paused (Windows sends no frames for a minimised window).
+- Once, the speaking glow didn't light for about ten minutes although audio
+  flowed. Not reproduced.
+- A summoned bot that someone else sends away stays drawn as "summoned" for members
+  who didn't send the command: only the sender re-reads the summons
+  (`VoiceListenersCubit.refresh`).
+
+**Bots**
+- A bot's changed command list reaches an open channel only when it is reopened;
+  until then a new command goes out as ordinary encrypted text the bot can't read.
+- With the command suggestion showing, Enter accepts it and a second Enter sends.
+- SDK, `example/music_bot.ts`: in a **private** voice channel `/disconnect` is
+  never handled. The client drops the summon first, and the bot can't find the
+  channel through `voice_roster`. The server still removes it from the room, but
+  the panel keeps saying "Now playing" and every later `/play` there fails until
+  the bot restarts, because `VoiceConnection` can't report a dropped room.
+
+**Keyboard and accessibility**
+- Create channel dialog: Tab never reaches the Private channel switch, and the
+  focused Cancel button shows no focus ring.
+- Windows: after closing a native Save dialog with a key, the first Escape is
+  ignored (closing it with the mouse is fine). Looks like the Flutter embedder.
+- Windows: only the topmost pixel of the window resizes from the top edge (about
+  8 px on the other edges).
+
+**Windows only**
+- Once, a client stopped drawing with its render thread spinning inside the Intel
+  Iris Xe driver (31.0.101.4502). Not reproduced; if it repeats, try turning
+  Impeller off in the runner, and a newer driver.
+- Uninstalling cleans the notification registry keys of the account that approved
+  the UAC prompt, so another admin's password leaves the user's own keys behind.
+
+**Elsewhere**
+- Linux: the audio device pickers still say "No devices found" outside a call, and
+  "System default" is saved but not applied. The plan is in `LINUX_AUDIO_DEVICES.md`.
+- rift-central: `stack/setup.py` writes `kong.yml` with mode 0600, which the Kong
+  container (uid 1001) can't read on a Docker that enforces bind-mount permissions,
+  so `up.sh` stops at "dependency kong failed to start".
 
 ---
 
