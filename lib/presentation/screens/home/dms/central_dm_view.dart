@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../logic/cubits/central_dm/central_dm_cubit.dart';
+import '../../../common/app_button.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 import '../pane_toggles/pane_corner_toggles.dart';
@@ -57,9 +58,14 @@ class _RestingState extends StatelessWidget {
         'Pick a handle',
         'Claim a handle in the panel on the left so people can find you.',
       ),
-      // Reached only while a readiness pass is still running, or after one
-      // failed — `ready` is answered by the friends page above.
-      _ => ('Your Rift DMs', 'Finding your account…'),
+      // `ready` is answered by the friends page above, so this is a pass that
+      // could not reach central. It used to read "Finding your account…" and
+      // stay that way; the cubit now keeps asking, and says so.
+      _ => (
+        "Can't reach your Rift account",
+        'Your Rift DMs load as soon as the account server answers. Rift keeps '
+            'trying.',
+      ),
     };
 
     return Center(
@@ -85,6 +91,14 @@ class _RestingState extends StatelessWidget {
                 style: AppText.body.copyWith(color: themeState.textTertiary),
               ),
             ),
+            if (status == CentralDmStatus.error) ...[
+              const SizedBox(height: 16),
+              AppButton(
+                label: 'Try again',
+                variant: AppButtonVariant.secondary,
+                onPressed: context.read<CentralDmCubit>().retryReady,
+              ),
+            ],
           ],
         ),
       ),

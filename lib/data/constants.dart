@@ -264,6 +264,11 @@ class K {
   /// A one-time secret's button keeps saying it instead: it is copied once.
   static const Duration copiedHold = Duration(seconds: 2);
 
+  /// The first and the longest wait before central DMs ask central again after
+  /// it could not be reached. The wait doubles in between.
+  static const Duration centralRetryMin = Duration(seconds: 2);
+  static const Duration centralRetryMax = Duration(seconds: 30);
+
   /// How long after the last remote audio goes before a Windows mic is
   /// published afresh. Long enough for WebRTC to have removed the receive
   /// stream and stopped playout, which a fresh mic must come after.

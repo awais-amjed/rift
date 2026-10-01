@@ -16,6 +16,7 @@ import '../../../data/classes/message_body.dart';
 import '../../../data/classes/message_cache_slot.dart';
 import '../../../data/classes/paged.dart';
 import '../../../data/classes/pending_attachment.dart';
+import '../../../data/constants.dart';
 import '../../../data/enums/app_sound.dart';
 import '../../../data/enums/friendship_state.dart';
 import '../../../data/enums/home_surface.dart';
@@ -328,6 +329,7 @@ class CentralDmCubit extends Cubit<CentralDmState>
     await _authSub?.cancel();
     await _vaultSub?.cancel();
     await _appSub?.cancel();
+    _clearReadyRetry();
     await _teardown();
     return super.close();
   }

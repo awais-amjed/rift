@@ -49,6 +49,39 @@ mixin _CentralDmReadyMixin
 
   bool _settingUp = false;
 
+  /// The next readiness pass after one that could not reach central.
+  ///
+  /// A pass that failed used to be the last one: nothing asked again, so a
+  /// launch with central unreachable stayed on "Finding your account…" with no
+  /// conversations — saved copies included — long after central was back,
+  /// until the app was restarted. Now a failed pass books another, backing off
+  /// to [K.centralRetryMax].
+  Timer? _readyRetry;
+  Duration _readyRetryDelay = K.centralRetryMin;
+
+  void _scheduleReadyRetry() {
+    _readyRetry?.cancel();
+    final delay = _readyRetryDelay;
+    final next = delay * 2;
+    _readyRetryDelay = next > K.centralRetryMax ? K.centralRetryMax : next;
+    _readyRetry = Timer(delay, () {
+      if (!isClosed) unawaited(_ensureReady());
+    });
+  }
+
+  void _clearReadyRetry() {
+    _readyRetry?.cancel();
+    _readyRetry = null;
+    _readyRetryDelay = K.centralRetryMin;
+  }
+
+  /// Ask central again now, rather than at the next scheduled retry — the
+  /// "Try again" under the can't-reach state.
+  Future<void> retryReady() {
+    _clearReadyRetry();
+    return _ensureReady();
+  }
+
   /// A readiness request that arrived while one was already running.
   ///
   /// Dropping it used to lose the session. The constructor runs a pass
@@ -86,6 +119,7 @@ mixin _CentralDmReadyMixin
   Future<void> _readyPass() async {
     final user = _repo.currentUser;
     if (user == null || _vaultCubit.state.masterSeed == null) {
+      _clearReadyRetry();
       await _teardown();
       emit(const CentralDmState(status: CentralDmStatus.signedOut));
       return;
@@ -96,8 +130,10 @@ mixin _CentralDmReadyMixin
     if (isClosed) return;
     if (!profileResponse.success) {
       emit(state.copyWith(status: CentralDmStatus.error));
+      _scheduleReadyRetry();
       return;
     }
+    _clearReadyRetry();
 
     final profile = profileResponse.data as Map<String, dynamic>?;
     if (profile == null) {
