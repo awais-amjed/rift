@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -12,6 +13,7 @@ import 'logic/helper_methods.dart';
 import 'logic/services/browser_apis.dart';
 import 'logic/services/host_platform.dart';
 import 'logic/services/notification_service.dart';
+import 'logic/services/profile_auth_storage.dart';
 import 'logic/services/push_service.dart';
 import 'logic/services/sound_service.dart';
 import 'logic/services/storage_namespace.dart';
@@ -82,20 +84,38 @@ class AppBootstrap {
   static String _applyStorageNamespace() => StorageNamespace.apply();
 
   /// Supabase, for cloud-backup session persistence. A non-empty suffix gives
-  /// this instance its own session key so it doesn't share the account session
-  /// with another instance on the same machine.
-  static Future<void> _initSupabase(String storageSuffix) {
+  /// this instance its own session so it doesn't share the account session
+  /// with another instance on the same machine — in a file of the profile's
+  /// own, since a key in the shared preferences file was overwritten by the
+  /// other profiles (see [ProfileAuthStorage]). The web keeps the key: its
+  /// storage is the browser's, and it has no file to give each profile.
+  static Future<void> _initSupabase(String storageSuffix) async {
     final host = Uri.parse(SupabaseConfig.supabaseUrl).host.split('.').first;
-    return Supabase.initialize(
+    final legacyKey = 'sb-$host-auth-token-$storageSuffix';
+    final FlutterAuthClientOptions authOptions;
+    if (storageSuffix.isEmpty) {
+      authOptions = const FlutterAuthClientOptions();
+    } else if (kIsWeb) {
+      authOptions = FlutterAuthClientOptions(
+        localStorage: SharedPreferencesLocalStorage(
+          persistSessionKey: legacyKey,
+        ),
+      );
+    } else {
+      final directory = await StorageNamespace.profileDirectory(storageSuffix);
+      final storage = ProfileAuthStorage(
+        File('$directory/central_auth.json'),
+        legacySessionKey: legacyKey,
+      );
+      authOptions = FlutterAuthClientOptions(
+        localStorage: storage,
+        pkceAsyncStorage: storage,
+      );
+    }
+    await Supabase.initialize(
       url: SupabaseConfig.supabaseUrl,
       publishableKey: SupabaseConfig.supabaseKey,
-      authOptions: storageSuffix.isEmpty
-          ? const FlutterAuthClientOptions()
-          : FlutterAuthClientOptions(
-              localStorage: SharedPreferencesLocalStorage(
-                persistSessionKey: 'sb-$host-auth-token-$storageSuffix',
-              ),
-            ),
+      authOptions: authOptions,
     );
   }
 
