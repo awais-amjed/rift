@@ -1,4 +1,5 @@
 pub mod audio_endpoints;
+pub mod mic_test;
 pub mod screenshare;
 pub mod soundshare;
 

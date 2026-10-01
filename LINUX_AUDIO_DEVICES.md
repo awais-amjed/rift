@@ -126,8 +126,17 @@ null sink: `pactl load-module module-null-sink sink_name=test`):
 
 ## Related, still open on every platform
 
-- The Settings mic test does nothing outside a call on Windows (it never starts
-  recording without a call); check it on Linux.
+- **The Settings mic test outside a call.** On Windows a test track made with no
+  call up never received a sample (WebRTC only records while a call is
+  sending), so the test now reads the device itself there: `rust/src/mic_test.rs`
+  through `api/mic_test.rs` (`mic_test_samples` / `stop_mic_test`), used by
+  `MicTestCapture` when `HostPlatform.micTestReadsDevice`. On Linux the test
+  still makes a WebRTC track. Check it outside a call first; if the meter stays
+  dark (expected, for the same reason), add a Linux branch to `mic_test_samples`
+  that records the chosen source through PulseAudio (a record stream on the
+  source, mono 16-bit at 16 kHz — `sharing/audio/linux.rs` already opens record
+  streams on monitors) and extend `micTestReadsDevice` to Linux. The API does
+  not change, so no codegen is needed.
 - The device list does not refresh when a device is plugged in outside a call
   (WebRTC sends no change events then); reopening Settings re-reads it.
 - macOS has neither the Rust device lookup nor any testing; the same plan would

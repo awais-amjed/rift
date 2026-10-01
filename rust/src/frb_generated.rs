@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 790110061;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -745701784;
 
 // Section: executor
 
@@ -318,6 +318,45 @@ fn wire__crate__api__audio_endpoints__list_output_endpoints_impl(
         },
     )
 }
+fn wire__crate__api__mic_test__mic_test_samples_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "mic_test_samples",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_device_id = <Option<String>>::sse_decode(&mut deserializer);
+            let api_sink =
+                <StreamSink<Vec<i16>, flutter_rust_bridge::for_generated::SseCodec>>::sse_decode(
+                    &mut deserializer,
+                );
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok = Ok::<_, ()>({
+                        crate::api::mic_test::mic_test_samples(api_device_id, api_sink);
+                    })?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__screenshare__screenshare_event_stream_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -470,6 +509,40 @@ fn wire__crate__api__soundshare__start_sound_share_impl(
         },
     )
 }
+fn wire__crate__api__mic_test__stop_mic_test_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "stop_mic_test",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok = Ok::<_, ()>({
+                        crate::api::mic_test::stop_mic_test();
+                    })?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__screenshare__stop_screenshare_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -548,6 +621,14 @@ impl SseDecode for flutter_rust_bridge::for_generated::anyhow::Error {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut inner = <String>::sse_decode(deserializer);
         return flutter_rust_bridge::for_generated::anyhow::anyhow!("{}", inner);
+    }
+}
+
+impl SseDecode for StreamSink<Vec<i16>, flutter_rust_bridge::for_generated::SseCodec> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <String>::sse_decode(deserializer);
+        return StreamSink::deserialize(inner);
     }
 }
 
@@ -642,6 +723,13 @@ impl SseDecode for crate::api::screenshare::types::CaptureSource {
     }
 }
 
+impl SseDecode for i16 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        deserializer.cursor.read_i16::<NativeEndian>().unwrap()
+    }
+}
+
 impl SseDecode for i32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -686,6 +774,18 @@ impl SseDecode for Vec<crate::api::screenshare::types::CaptureSource> {
             ans_.push(<crate::api::screenshare::types::CaptureSource>::sse_decode(
                 deserializer,
             ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<i16> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<i16>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -902,28 +1002,30 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        9 => wire__crate__api__screenshare__screenshare_event_stream_impl(
+        9 => wire__crate__api__mic_test__mic_test_samples_impl(port, ptr, rust_vec_len, data_len),
+        10 => wire__crate__api__screenshare__screenshare_event_stream_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        10 => wire__crate__api__soundshare__sound_share_event_stream_impl(
+        11 => wire__crate__api__soundshare__sound_share_event_stream_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        11 => {
+        12 => {
             wire__crate__api__screenshare__start_screenshare_impl(port, ptr, rust_vec_len, data_len)
         }
-        12 => {
+        13 => {
             wire__crate__api__soundshare__start_sound_share_impl(port, ptr, rust_vec_len, data_len)
         }
-        13 => {
+        14 => wire__crate__api__mic_test__stop_mic_test_impl(port, ptr, rust_vec_len, data_len),
+        15 => {
             wire__crate__api__screenshare__stop_screenshare_impl(port, ptr, rust_vec_len, data_len)
         }
-        14 => {
+        16 => {
             wire__crate__api__soundshare__stop_sound_share_impl(port, ptr, rust_vec_len, data_len)
         }
         _ => unreachable!(),
@@ -1150,6 +1252,13 @@ impl SseEncode for flutter_rust_bridge::for_generated::anyhow::Error {
     }
 }
 
+impl SseEncode for StreamSink<Vec<i16>, flutter_rust_bridge::for_generated::SseCodec> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        unimplemented!("")
+    }
+}
+
 impl SseEncode
     for StreamSink<
         crate::api::screenshare::types::ScreenshareEvent,
@@ -1219,6 +1328,13 @@ impl SseEncode for crate::api::screenshare::types::CaptureSource {
     }
 }
 
+impl SseEncode for i16 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        serializer.cursor.write_i16::<NativeEndian>(self).unwrap();
+    }
+}
+
 impl SseEncode for i32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -1252,6 +1368,16 @@ impl SseEncode for Vec<crate::api::screenshare::types::CaptureSource> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::screenshare::types::CaptureSource>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<i16> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <i16>::sse_encode(item, serializer);
         }
     }
 }

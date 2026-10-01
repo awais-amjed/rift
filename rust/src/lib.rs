@@ -3,6 +3,8 @@ pub mod api;
 mod audio_endpoints;
 mod frb_generated;
 mod logging;
+#[cfg(target_os = "windows")]
+mod mic_test;
 mod screenshare;
 #[cfg(desktop)]
 mod sharing;

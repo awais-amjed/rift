@@ -52,6 +52,11 @@ class HostPlatform {
   static bool get recordsThroughOsEchoCanceller =>
       !kIsWeb && Platform.isWindows;
 
+  /// Whether the settings mic test reads the microphone itself rather than
+  /// through WebRTC, which records nothing outside a call. Windows has the
+  /// reader (see `mic_test_capture.dart`); elsewhere the test keeps to WebRTC.
+  static bool get micTestReadsDevice => !kIsWeb && Platform.isWindows;
+
   /// Whether the OS lowers other applications' volume during a call.
   ///
   /// Windows does, and keeps the choice in its own Sound window; nothing else

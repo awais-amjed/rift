@@ -1,5 +1,10 @@
+import 'dart:async';
+import 'dart:typed_data';
+
 import 'package:livekit_client/livekit_client.dart';
 
+import '../../src/rust/api/mic_test.dart' as rust;
+import 'host_platform.dart';
 import 'level_throttle.dart';
 import 'mic_tap_format.dart';
 import 'pcm_level.dart';
@@ -17,7 +22,12 @@ class MicTestCapture {
   LocalAudioTrack? _track;
   CancelListenFunc? _cancelRenderer;
 
-  bool get isRunning => _track != null;
+  /// The device read directly, on Windows — see [_startReadingDevice].
+  /// Cancelled in [stop], through a local taken before the first await.
+  // ignore: cancel_subscriptions
+  StreamSubscription<Int16List>? _samples;
+
+  bool get isRunning => _track != null || _samples != null;
 
   /// Opens the microphone with [options] and calls [onLevel] as it runs.
   ///
@@ -27,8 +37,11 @@ class MicTestCapture {
     required AudioCaptureOptions options,
     required void Function(double level) onLevel,
   }) async {
-    if (_track != null) return;
+    if (isRunning) return;
     _throttle.reset();
+    if (HostPlatform.micTestReadsDevice) {
+      return _startReadingDevice(options.deviceId, onLevel);
+    }
 
     LocalAudioTrack? track;
     try {
@@ -51,15 +64,70 @@ class MicTestCapture {
     }
   }
 
+  /// Reads [deviceId] itself — `null` is Windows' default — rather than
+  /// through a WebRTC track.
+  ///
+  /// WebRTC only records while a call is sending, so outside a call a track
+  /// made for the test never received a sample: the meter stayed dark, and
+  /// Windows recorded that the microphone was never opened. The Rust side
+  /// reads the device in the meter's own format ([micTapFormat]), so the same
+  /// [PcmLevel] reading applies. What it cannot show is WebRTC's noise
+  /// suppression and gain control, which only exist inside a call.
+  ///
+  /// Throws, like the WebRTC path, if the device cannot be opened: that shows
+  /// as the stream's first event being an error.
+  Future<void> _startReadingDevice(
+    String? deviceId,
+    void Function(double level) onLevel,
+  ) async {
+    final opened = Completer<void>();
+    _samples = rust
+        .micTestSamples(deviceId: deviceId)
+        .listen(
+          (samples) {
+            if (!opened.isCompleted) opened.complete();
+            final level = _throttle.add(
+              PcmLevel.fromInt16(
+                samples.buffer.asUint8List(
+                  samples.offsetInBytes,
+                  samples.lengthInBytes,
+                ),
+              ),
+              DateTime.now(),
+            );
+            if (level != null) onLevel(level);
+          },
+          onError: (Object e) {
+            if (!opened.isCompleted) opened.completeError(e);
+          },
+        );
+    try {
+      // A working device delivers within a few milliseconds, silence
+      // included; waiting longer than this would only hold the button up.
+      await opened.future.timeout(_firstSamples, onTimeout: () {});
+    } catch (_) {
+      await stop();
+      rethrow;
+    }
+  }
+
+  static const Duration _firstSamples = Duration(seconds: 2);
+
   /// Releases the microphone. Safe to call when not running, and safe to call
   /// twice — the handles are taken before anything is awaited.
   Future<void> stop() async {
     final cancelRenderer = _cancelRenderer;
     final track = _track;
+    final samples = _samples;
     _cancelRenderer = null;
     _track = null;
+    _samples = null;
     _throttle.reset();
 
+    if (samples != null) {
+      await samples.cancel();
+      await rust.stopMicTest();
+    }
     await cancelRenderer?.call();
     await track?.stop();
     await track?.dispose();

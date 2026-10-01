@@ -159,20 +159,34 @@ class _MicTestSectionState extends State<MicTestSection> {
     super.dispose();
   }
 
+  /// A test reading its own capture opened the input that was chosen when it
+  /// started. Picking another one now that inputs can be chosen outside a
+  /// call would leave the meter on the old device, so the test starts over on
+  /// the new one. A borrowed call tap follows the call by itself.
+  Future<void> _onInputChanged() async {
+    if (!_testing || _busy || !_capture.isRunning) return;
+    await _toggle();
+    await _toggle();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        InputLevelPanel(level: _level, testing: _testing),
-        const SizedBox(height: 10),
-        MicTestControls(
-          testing: _testing,
-          busy: _busy,
-          error: _error,
-          onToggle: _toggle,
-        ),
-      ],
+    return BlocListener<AppCubit, AppState>(
+      listenWhen: (a, b) => a.inputDeviceId != b.inputDeviceId,
+      listener: (_, _) => _onInputChanged(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InputLevelPanel(level: _level, testing: _testing),
+          const SizedBox(height: 10),
+          MicTestControls(
+            testing: _testing,
+            busy: _busy,
+            error: _error,
+            onToggle: _toggle,
+          ),
+        ],
+      ),
     );
   }
 }
