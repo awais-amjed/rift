@@ -30,7 +30,7 @@ pub fn mic_test_samples(device_id: Option<String>, sink: StreamSink<Vec<i16>>) {
     #[cfg(not(target_os = "windows"))]
     {
         let _ = device_id;
-        let _ = sink.add_error("The mic test reads the device itself only on Windows");
+        let _ = sink.add_error("The mic test reads the device itself only on Windows".to_string());
     }
 }
 
