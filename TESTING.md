@@ -23,7 +23,7 @@ instances with separate identities; the Android client is the emulator.
 
 | Area | Last verified | How |
 |---|---|---|
-| Realtime after the gateway drops, and after launching on an expired token | Sep 30 – Oct 2 2026 | Windows (Sep 30): a realtime restart and a 60 s gateway stop recovered, and launches on overnight-expired tokens joined everything. Linux (Oct 2, two and three clients, topic state read from the running apps): launches on days-old tokens joined everything; a 60 s gateway stop **lost the `server:`, `user:` and open `chat:` topics on both clients once** — stuck joining and off the socket, no live messages until a restart — and recovered in the eight tries after (more gateway stops, a 40 s pause of the realtime container). See Not verified yet |
+| Realtime after the gateway drops, and after launching on an expired token | Sep 30 – Oct 2 2026 | Windows (Sep 30): a realtime restart and a 60 s gateway stop recovered, and launches on overnight-expired tokens joined everything. Linux (Oct 2): launches on days-old tokens joined everything; one 60 s gateway stop in nine left `server:`, `user:` and the open `chat:` stuck joining and off the socket for good, on both clients. Cause found in realtime_client and patched (`third_party/realtime_client`). Checked the same day with topic state read from the running app, the server's topic check slowed on purpose (`pg_sleep(0.2)` in `app.can_use_topic`, about 2 s per join) so the reconnect race happens every time: the 2.13.0 build lost all four topics after a 30 s gateway stop and still had only `presence:` and `voice:` four minutes later; the patched build kept all four on the socket and had them joined within two minutes, and joined at once after an ordinary-speed stop. Two-client delivery after the patch not re-driven |
 | Leaving a server and coming back with a new invite | Sep 30, Oct 2 2026 | Windows (Sep 30) and Linux (Oct 2): the member came back as themselves with their messages, whatever names were typed, and the invite was not used up; on Windows a banned member was told so |
 | An expired invite is refused | Oct 1 2026 | Windows 11: a 1-hour invite whose `expires_at` was moved to 20 s ahead in the database (rather than waiting the hour), then pasted on a fresh profile after it passed: the Join dialog says "Invite code has expired" and the invite keeps 0 uses |
 | A music bot playing into a call (SDK `example/music_bot.ts`) | Oct 1 2026 | Windows 11, two clients muted in a call, the bot fed a 660 Hz test tone over HTTP through ffmpeg: `/play` brings it in and both clients play the tone (each app's own audio session measured, plus the speakers' loopback); the panel's Stop and `/stop` silence it and keep the bot in the call; `/disconnect` takes it out. In a private voice channel the summon brings it in and both hear it. **Not working:** `/disconnect` in a private channel is never handled by the bot, which then can't play there again until restarted (the SDK can't report a dropped room); and a member who didn't send the command keeps a stale "summoned" row. |
@@ -68,10 +68,6 @@ instances with separate identities; the Android client is the emulator.
 
 Don't read the table as "everything works". Still owed:
 
-- **Realtime recovering from every outage.** One 60 s gateway stop out of nine on
-  Linux (Oct 2) left topics stuck off the socket for good. The likely cause is
-  realtime_client re-sending a timed-out join with an empty ref, and dropping
-  channels by an empty `joinRef`; not fixed yet.
 - **Pressing a message notification on Linux.** The notification is sent
   with its Open action; the press itself has not been made there.
 - **macOS.** Configured (entitlements, usage strings, notifications) but never
