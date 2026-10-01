@@ -11,6 +11,7 @@ import '../../../data/classes/channel.dart';
 import '../../../data/classes/dm_call_place.dart';
 import '../../../data/classes/participant_info.dart';
 import '../../../data/classes/server.dart';
+import '../../../data/constants.dart';
 import '../../../data/enums/app_sound.dart';
 import '../../../data/enums/error_code.dart';
 import '../../../data/participant_identity.dart';
@@ -48,6 +49,7 @@ import '../soundboard/soundboard_cubit.dart';
 import '../token/token_cubit.dart';
 import '../vault/vault_cubit.dart';
 
+part 'livekit_capture_revive.dart';
 part 'livekit_connection.dart';
 part 'livekit_dm_call.dart';
 part 'livekit_e2ee.dart';
@@ -75,7 +77,8 @@ class LiveKitCubit extends Cubit<LiveKitState>
         _ParticipantMixin,
         _ScreenshareMixin,
         _RoomEventsMixin,
-        _VoiceActivityMixin {
+        _VoiceActivityMixin,
+        _CaptureReviveMixin {
   @override
   final AppCubit _appCubit;
   @override
@@ -349,6 +352,11 @@ class LiveKitCubit extends Cubit<LiveKitState>
   }
 
   @override
+  void _reviveCaptureIfTransmitting() {
+    if (_shouldTransmitMic()) unawaited(_syncMicrophoneTransmission());
+  }
+
+  @override
   bool _shouldTransmitMic({bool? micEnabled}) {
     // `micEnabled` overrides only the user's own toggle, for the connect path
     // where the stored preference is passed in before it reaches state. Their
@@ -381,10 +389,19 @@ class LiveKitCubit extends Cubit<LiveKitState>
     final room = state.room;
     if (room == null) return;
     final shouldTransmit = _shouldTransmitMic();
+    final local = room.localParticipant;
+    // A mic whose capture may have died under it is published afresh rather
+    // than unmuted — see [_CaptureReviveMixin].
+    if (shouldTransmit && _takeCaptureRevive()) {
+      final published = local?.getTrackPublicationBySource(
+        TrackSource.microphone,
+      );
+      if (published != null) await local!.removePublishedTrack(published.sid);
+    }
     // Pass the current capture options so a fresh mic track (created on
     // unmute) always picks up the latest noise-suppression / echo / AGC
     // settings, not the ones frozen into RoomOptions at connect time.
-    await room.localParticipant?.setMicrophoneEnabled(
+    await local?.setMicrophoneEnabled(
       shouldTransmit,
       audioCaptureOptions: _buildAudioCaptureOptions(),
     );

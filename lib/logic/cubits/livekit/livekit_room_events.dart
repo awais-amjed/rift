@@ -24,6 +24,8 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
 
   void _applyStoredSettings();
   void _applyScreenshareQualitySettings(Participant participant);
+  void _onRemoteAudioArrived(RemoteTrackPublication publication);
+  void _onRemoteAudioMayHaveGone();
 
   /// Whether [identity] is a share this client started — see
   /// [_LiveKitCubit._isOwnShare].
@@ -56,6 +58,7 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
         final identity = e.participant.identity;
         _watchingSeen.remove(identity);
         _forgetStream(identity);
+        _onRemoteAudioMayHaveGone();
         if (ParticipantIdentity.isShare(identity)) {
           SoundService.instance.play(AppSound.stream, ending: true);
         } else {
@@ -97,6 +100,7 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
         }
       })
       ..on<TrackSubscribedEvent>((e) {
+        _onRemoteAudioArrived(e.publication);
         _seedWatching(e.participant);
         _syncParticipants();
         // Their key, again, and this is the one that actually matters for
@@ -131,6 +135,7 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
           }
         }
       })
+      ..on<TrackUnsubscribedEvent>((e) => _onRemoteAudioMayHaveGone())
       ..on<TrackUnpublishedEvent>((e) {
         if (!ParticipantIdentity.isScreenshare(e.participant.identity) &&
             e.publication.source == TrackSource.screenShareVideo) {

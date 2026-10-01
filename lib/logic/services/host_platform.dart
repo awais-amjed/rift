@@ -44,6 +44,14 @@ class HostPlatform {
   static bool get capturesSystemAudio =>
       !kIsWeb && (Platform.isWindows || Platform.isLinux);
 
+  /// Whether WebRTC records the mic through the OS's own echo canceller.
+  ///
+  /// On Windows it does whenever echo cancellation is on, and that canceller
+  /// gives no microphone audio while nothing is played out — which WebRTC
+  /// does not allow for. See `_CaptureReviveMixin` in the LiveKit cubit.
+  static bool get recordsThroughOsEchoCanceller =>
+      !kIsWeb && Platform.isWindows;
+
   /// Whether the OS lowers other applications' volume during a call.
   ///
   /// Windows does, and keeps the choice in its own Sound window; nothing else

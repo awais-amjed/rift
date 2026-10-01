@@ -264,6 +264,11 @@ class K {
   /// A one-time secret's button keeps saying it instead: it is copied once.
   static const Duration copiedHold = Duration(seconds: 2);
 
+  /// How long after the last remote audio goes before a Windows mic is
+  /// published afresh. Long enough for WebRTC to have removed the receive
+  /// stream and stopped playout, which a fresh mic must come after.
+  static const Duration captureReviveDelay = Duration(seconds: 2);
+
   /// How long a search field waits after the last keystroke before asking the
   /// server.
   ///
