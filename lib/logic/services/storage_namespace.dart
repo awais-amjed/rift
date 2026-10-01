@@ -28,12 +28,36 @@ class StorageNamespace {
   /// their original paths.
   static String apply() {
     final suffix = SecureStorageRepository.resolveSuffix(
-      envProfile: kIsWeb ? null : Platform.environment['RIFT_PROFILE'],
+      envProfile: explicitProfile,
       releaseMode: kReleaseMode,
     );
     SecureStorageRepository.namespacePrefix =
         SecureStorageRepository.prefixForSuffix(suffix);
     return suffix;
+  }
+
+  /// The profile this process was told to be: `RIFT_PROFILE`, or failing that
+  /// `--rift-profile=<name>` on the command line. The argument exists for
+  /// Windows starting Rift to deliver a notification press, which passes no
+  /// environment (`ToastIdentity.launchCommand`). Null for the default.
+  static String? get explicitProfile {
+    if (kIsWeb) return null;
+    final env = Platform.environment['RIFT_PROFILE'];
+    if (env != null && env.isNotEmpty) return env;
+    return _argumentProfile;
+  }
+
+  static String? _argumentProfile;
+
+  /// Takes `--rift-profile=<name>` from the app's arguments. Call from `main`
+  /// before anything resolves the namespace.
+  static void readArguments(List<String> args) {
+    const flag = '--rift-profile=';
+    for (final arg in args) {
+      if (arg.startsWith(flag) && arg.length > flag.length) {
+        _argumentProfile = arg.substring(flag.length);
+      }
+    }
   }
 
   /// On Windows, keeps this identity's secure storage in its own folder under

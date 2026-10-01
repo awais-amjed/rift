@@ -11,6 +11,9 @@ import 'browser_apis.dart';
 import 'notification_ids.dart';
 import 'push_wake/call_notification_actions.dart';
 import 'sound_service.dart';
+import 'storage_namespace.dart';
+import 'toast_activator.dart';
+import 'toast_identity.dart';
 import 'window_focus_service.dart';
 
 /// Local notifications for incoming chat messages, on Linux, Windows, macOS,
@@ -65,16 +68,21 @@ class NotificationService {
         defaultActionName: 'Open',
         defaultIcon: AssetsLinuxIcon('assets/images/tray_icon.png'),
       );
-      // The GUID matches the installer app id; appUserModelId groups toasts
-      // under the Rift identity in the Windows Action Center. The icon is a
-      // file path Windows reads itself, so it points at the bundled asset on
-      // disk; without one, toasts and their Action Center group have none.
+      // appUserModelId groups toasts under the Rift identity in the Windows
+      // Action Center, and the GUID names the class a press is delivered to —
+      // one pair per storage namespace (ToastIdentity). The icon is a file
+      // path Windows reads itself, so it points at the bundled asset on disk;
+      // without one, toasts and their Action Center group have none.
+      final identity = ToastIdentity.forSuffix(
+        Platform.isWindows ? StorageNamespace.apply() : '',
+      );
       final windows = WindowsInitializationSettings(
-        appName: 'Rift',
-        appUserModelId: 'CodingFries.Rift',
-        guid: '919df387-f79b-5d74-bee3-b08f176b2a14',
+        appName: identity.appName,
+        appUserModelId: identity.appUserModelId,
+        guid: identity.guid,
         iconPath: Platform.isWindows ? _windowsIconPath() : null,
       );
+      if (Platform.isWindows) _registerActivator(identity);
       // The launcher icon rather than a dedicated one: Android tints a
       // notification icon to a flat silhouette, so a detailed mark would come
       // out as a blob either way.
@@ -104,6 +112,22 @@ class NotificationService {
       if (askForPermission) await _requestAndroidPermission();
     } catch (e) {
       HelperMethods.printDebug('NotificationService: init failed – $e');
+    }
+  }
+
+  /// Without this, Windows never delivers a press (`registerToastActivator`).
+  /// A failure costs presses, not notifications, so it is only logged.
+  static void _registerActivator(ToastIdentity identity) {
+    try {
+      registerToastActivator(
+        identity.guid,
+        ToastIdentity.launchCommand(
+          Platform.resolvedExecutable,
+          profile: StorageNamespace.explicitProfile,
+        ),
+      );
+    } catch (e) {
+      HelperMethods.printDebug('NotificationService: activator – $e');
     }
   }
 
@@ -167,10 +191,25 @@ class NotificationService {
       _callPresses.add(press);
       return;
     }
-    _messagePresses.add(
-      ConversationNotificationPayload.decode(response.payload),
-    );
+    final target = ConversationNotificationPayload.decode(response.payload);
+    if (_messagePresses.hasListener) {
+      _messagePresses.add(target);
+    } else {
+      _unclaimedPress = (target: target);
+    }
   }
+
+  /// A press on a message notification that arrived before anything listened
+  /// for one, taken once. On Windows a press with Rift closed starts Rift to
+  /// deliver it, and it lands during startup, long before the home screen
+  /// listens; a broadcast stream would drop it.
+  ({ConversationNotificationPayload? target})? takeUnclaimedPress() {
+    final press = _unclaimedPress;
+    _unclaimedPress = null;
+    return press;
+  }
+
+  ({ConversationNotificationPayload? target})? _unclaimedPress;
 
   /// The press that launched the app from nothing, if it was on a call's
   /// notification — answered once, because a launch happens once.

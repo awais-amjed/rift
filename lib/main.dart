@@ -15,6 +15,7 @@ import 'logic/cubits/vault/vault_cubit.dart';
 import 'logic/helper_methods.dart';
 import 'logic/ptt/push_to_talk_listener.dart';
 import 'logic/services/host_platform.dart';
+import 'logic/services/storage_namespace.dart';
 import 'logic/services/window_focus_service.dart';
 import 'presentation/app_providers.dart';
 import 'presentation/common/app_toast.dart';
@@ -24,8 +25,9 @@ import 'presentation/screens/home/calls/incoming_call_overlay.dart';
 import 'presentation/screens/pip/pip_overlay.dart';
 import 'presentation/theme/app_theme.dart';
 
-void main() async {
+void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+  StorageNamespace.readArguments(args);
   final appCubit = await AppBootstrap.run();
   runApp(MyApp(appCubit: appCubit, vaultCubit: VaultCubit()));
 }

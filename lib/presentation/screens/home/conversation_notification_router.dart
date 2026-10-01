@@ -10,6 +10,7 @@ import '../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../logic/cubits/server/server_cubit.dart';
+import '../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../logic/services/host_platform.dart';
 import '../../../logic/services/notification_ids.dart';
 import '../../../logic/services/notification_service.dart';
@@ -40,6 +41,21 @@ class _ConversationNotificationRouterState
   void initState() {
     super.initState();
     _presses = NotificationService.instance.messagePresses.listen(_handle);
+    final early = NotificationService.instance.takeUnclaimedPress();
+    if (early != null) unawaited(_handleOnceUnlocked(early.target));
+  }
+
+  /// A press that started Rift (Windows starts it to deliver one) lands
+  /// before the vault has opened, and a channel opened then fails as locked:
+  /// its key cannot be unwrapped without the seed. So that one waits for it.
+  Future<void> _handleOnceUnlocked(
+    ConversationNotificationPayload? target,
+  ) async {
+    final vault = context.read<VaultCubit>();
+    if (vault.state.masterSeed == null) {
+      await vault.stream.firstWhere((s) => s.masterSeed != null);
+    }
+    if (mounted) await _handle(target);
   }
 
   @override

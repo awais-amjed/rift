@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rift/data/repositories/secure_storage_repository.dart';
+import 'package:rift/logic/services/storage_namespace.dart';
 
 void main() {
   group('storage namespace isolation', () {
@@ -75,5 +78,18 @@ void main() {
       expect(SecureStorageRepository.prefixForSuffix('dev'), 'dev.');
       expect(SecureStorageRepository.prefixForSuffix('a'), 'a.');
     });
+
+    test(
+      'a profile named on the command line counts, for a press that starts Rift',
+      () {
+        StorageNamespace.readArguments(['-Embedding']);
+        expect(StorageNamespace.explicitProfile, isNull);
+        StorageNamespace.readArguments(['--rift-profile=wa', '-Embedding']);
+        expect(StorageNamespace.explicitProfile, 'wa');
+      },
+      skip: (Platform.environment['RIFT_PROFILE'] ?? '').isNotEmpty
+          ? 'RIFT_PROFILE is set, and wins'
+          : false,
+    );
   });
 }
