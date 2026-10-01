@@ -322,7 +322,7 @@ file you are already editing.
 dart run build_runner build          # regen .g.dart after @JsonSerializable changes
 flutter analyze                      # must be clean
 flutter run -d <device>              # run
-dart run inno_bundle:build --release # Windows installer
+powershell -File scripts/build_windows_installer.ps1  # Windows installer (inno_bundle + uninstall cleanup)
 flutter build linux --release        # Linux build
 scripts/build_web.sh                 # web build, with the call-encryption worker
 ```
