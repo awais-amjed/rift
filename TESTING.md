@@ -23,6 +23,7 @@ instances with separate identities; the Android client is the emulator.
 
 | Area | Last verified | How |
 |---|---|---|
+| "No internet" chip in the desktop title bar | Oct 1 2026 | Windows 11, real Wi-Fi off for ~16 s: the chip appeared 2 s after the drop (the settle), stayed while off and was gone within a second of Wi-Fi coming back (title bar recorded every 2 s); WSL's virtual switch and Tailscale, still up, did not count as online. Linux, macOS and phone layouts (no title bar) not driven |
 | Reopening the desktop window on a screen that exists (size and place fitted to the work area) | Oct 1 2026 | Windows 11, one 1920×1080 display: a client saved at 1280×720 logical at 100 % reopened at 150 % fitted to the work area instead of past the edges and under the taskbar; at 100 % three clients reopened where they were. Unplugged or mixed-scale second monitors not tried (no second monitor) |
 | Conversations saved on the device: drawn on open, offline, replaced by the fresh page | Oct 1 2026 | Windows, two clients, gateway stopped: channels and server DMs, a row deleted while closed, own messages; the server DM list now loads by itself when the server comes back after an offline start (it used to stay empty). Wipes on leaving a server and on a vault reset, files unreadable, pruning a deleted channel. Central DMs and the sign-out wipe not driven |
 | One-to-one calls in server DMs | Sep 27 2026 | two clients + Android; ringing, answer from anywhere, decline, missed, audio both ways recorded, tracks encrypted |

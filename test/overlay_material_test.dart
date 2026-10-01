@@ -1,8 +1,10 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
+import 'package:rift/logic/cubits/network/network_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/presentation/common/popover_surface.dart';
 import 'package:rift/presentation/common/title_bar/app_title_bar.dart';
@@ -53,12 +55,25 @@ Future<void> _pumpBesideNavigator(WidgetTester tester, Widget child) async {
     // Deliberately no Scaffold: this reproduces the overlay's own context,
     // where the only DefaultTextStyle in scope is MaterialApp's fallback.
     MaterialApp(
-      home: BlocProvider(
-        create: (_) => ThemeCubit(),
+      home: MultiBlocProvider(
+        providers: [
+          BlocProvider(create: (_) => ThemeCubit()),
+          // Offline, so the title bar's "No internet" chip is drawn too.
+          BlocProvider(
+            create: (_) => NetworkCubit(
+              changes: const Stream.empty(),
+              check: () async => const [ConnectivityResult.none],
+              settle: Duration.zero,
+            ),
+          ),
+        ],
         child: Align(alignment: Alignment.topLeft, child: child),
       ),
     ),
   );
+  await tester.pump();
+  // The connectivity answer lands, settles (zero here) and redraws the bar.
+  await tester.pump(const Duration(milliseconds: 1));
   await tester.pump();
 }
 
@@ -98,6 +113,7 @@ void main() {
       );
 
       _expectNoFallback(_paintedStyle(tester, 'rift'));
+      _expectNoFallback(_paintedStyle(tester, 'No internet'));
     });
 
     testWidgets('PopoverSurface carries one for every popover', (tester) async {

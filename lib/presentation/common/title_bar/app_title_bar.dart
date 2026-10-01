@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../../data/constants.dart';
+import '../../../logic/cubits/network/network_cubit.dart';
 import '../../../logic/cubits/theme/theme_cubit.dart';
 import '../../theme/app_text.dart';
+import '../../theme/custom_colors.dart';
 import '../../theme/theme_context.dart';
 import '../app_mark.dart';
+import '../status_chip.dart';
 import 'window_button.dart';
 
 /// The window's own chrome: brand mark on the left, window controls on the
@@ -131,6 +135,7 @@ class _AppTitleBarState extends State<AppTitleBar> with WindowListener {
       mainAxisSize: MainAxisSize.min,
       spacing: 2,
       children: [
+        const _NoNetworkChip(),
         WindowButton(
           icon: widget.pinned
               ? Icons.expand_less_rounded
@@ -161,6 +166,33 @@ class _AppTitleBarState extends State<AppTitleBar> with WindowListener {
           isClose: true,
         ),
       ],
+    );
+  }
+}
+
+/// "No internet" beside the window controls while the device has no network,
+/// and nothing otherwise.
+///
+/// The device's state, not a server's: a server on the same network keeps
+/// working without the internet, which is what the tooltip says.
+class _NoNetworkChip extends StatelessWidget {
+  const _NoNetworkChip();
+
+  @override
+  Widget build(BuildContext context) {
+    final offline = context.select<NetworkCubit, bool>((c) => c.state.offline);
+    if (!offline) return const SizedBox.shrink();
+    return const Padding(
+      padding: EdgeInsets.only(right: 6),
+      child: StatusChip(
+        icon: Icons.wifi_off_rounded,
+        label: 'No internet',
+        color: CustomColors.warning,
+        tooltip:
+            'This device is not connected to the internet. A server on your '
+            'own network can still work; everything else waits until you are '
+            'back online.',
+      ),
     );
   }
 }
