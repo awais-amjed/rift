@@ -49,6 +49,16 @@ class ServerRealtime {
   final Map<String, _Connection> _connections = {};
   StreamSubscription<List<Server>>? _serversSub;
 
+  /// The servers whose socket is down: its last attempt to connect failed, or
+  /// it dropped, and it has not opened again since. The client keeps retrying
+  /// on its own; this is only what someone looking at the server is told.
+  ///
+  /// The socket, not a topic: a join can be refused while the server answers
+  /// perfectly well, and that is not "can't reach". Closing a socket
+  /// ourselves — a server left — is not a failure either.
+  ValueListenable<Set<String>> get unreachable => _unreachable;
+  final ValueNotifier<Set<String>> _unreachable = ValueNotifier(const {});
+
   /// [servers] and [current] are the server list as it changes and as it is
   /// now — the only place a token is read from. A holder's own [Server] may be
   /// a snapshot from before the last rotation, and trusting it would put
@@ -312,7 +322,29 @@ class ServerRealtime {
     if (key == null) return null;
     final connection = _Connection(_connect(current.supabaseUrl, key));
     connection.authorise(current.token, key);
+    _watchSocket(server.id, connection.client.realtime);
     return _connections[server.id] = connection;
+  }
+
+  void _watchSocket(String serverId, RealtimeClient socket) {
+    void mark({required bool down}) {
+      // A socket closed or replaced since says nothing about the server now.
+      if (_connections[serverId]?.client.realtime != socket) return;
+      _markReachable(serverId, reachable: !down);
+    }
+
+    socket
+      ..onOpen(() => mark(down: false))
+      ..onError((_) => mark(down: true))
+      ..onClose((_) {
+        if (socket.connState == SocketStates.closed) mark(down: true);
+      });
+  }
+
+  void _markReachable(String serverId, {required bool reachable}) {
+    final next = {..._unreachable.value};
+    final changed = reachable ? next.remove(serverId) : next.add(serverId);
+    if (changed) _unreachable.value = next;
   }
 
   /// Keeps each connection on its server's current token, and closes the
@@ -369,6 +401,7 @@ class ServerRealtime {
   Future<void> _close(String serverId) async {
     final connection = _connections.remove(serverId);
     if (connection == null) return;
+    _markReachable(serverId, reachable: true);
     try {
       await connection.client.dispose();
     } catch (_) {}

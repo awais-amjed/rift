@@ -188,6 +188,10 @@ class K {
 
   // ── Title bar ─────────────────────────────────────────────
   static const double titleBarHeight = 38;
+
+  /// The widest the title bar's connection chip gets — room for "Can't reach"
+  /// and a server name of ordinary length before it ends in an ellipsis.
+  static const double titleBarChipMaxWidth = 260;
   static const double titleBarHotZoneHeight = 40;
   static const double titleBarHiddenSidebarPadding = 20;
 

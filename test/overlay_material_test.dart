@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rift/logic/cubits/network/network_cubit.dart';
+import 'package:rift/logic/cubits/server_reach/server_reach_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/presentation/common/popover_surface.dart';
 import 'package:rift/presentation/common/title_bar/app_title_bar.dart';
@@ -50,7 +51,12 @@ void _expectNoFallback(TextStyle style) {
   expect(style.decorationColor, isNot(_errorDecorationColor));
 }
 
-Future<void> _pumpBesideNavigator(WidgetTester tester, Widget child) async {
+Future<void> _pumpBesideNavigator(
+  WidgetTester tester,
+  Widget child, {
+  bool offline = true,
+  bool serverDown = false,
+}) async {
   await tester.pumpWidget(
     // Deliberately no Scaffold: this reproduces the overlay's own context,
     // where the only DefaultTextStyle in scope is MaterialApp's fallback.
@@ -62,7 +68,17 @@ Future<void> _pumpBesideNavigator(WidgetTester tester, Widget child) async {
           BlocProvider(
             create: (_) => NetworkCubit(
               changes: const Stream.empty(),
-              check: () async => const [ConnectivityResult.none],
+              check: () async => [
+                offline ? ConnectivityResult.none : ConnectivityResult.wifi,
+              ],
+              settle: Duration.zero,
+            ),
+          ),
+          BlocProvider(
+            create: (_) => ServerReachCubit(
+              unreachable: ValueNotifier(serverDown ? {'s1'} : const {}),
+              selected: const Stream.empty(),
+              initial: (id: 's1', name: 'Win Test'),
               settle: Duration.zero,
             ),
           ),
@@ -114,6 +130,34 @@ void main() {
 
       _expectNoFallback(_paintedStyle(tester, 'rift'));
       _expectNoFallback(_paintedStyle(tester, 'No internet'));
+    });
+
+    testWidgets(
+      'a server out of reach is named, and carries its Material too',
+      (tester) async {
+        await _pumpBesideNavigator(
+          tester,
+          const SizedBox(width: 800, child: AppTitleBar()),
+          offline: false,
+          serverDown: true,
+        );
+
+        _expectNoFallback(_paintedStyle(tester, "Can't reach Win Test"));
+        expect(find.text('No internet'), findsNothing);
+      },
+    );
+
+    testWidgets('no network wins over a server out of reach — one chip', (
+      tester,
+    ) async {
+      await _pumpBesideNavigator(
+        tester,
+        const SizedBox(width: 800, child: AppTitleBar()),
+        serverDown: true,
+      );
+
+      expect(find.text('No internet'), findsOneWidget);
+      expect(find.text("Can't reach Win Test"), findsNothing);
     });
 
     testWidgets('PopoverSurface carries one for every popover', (tester) async {

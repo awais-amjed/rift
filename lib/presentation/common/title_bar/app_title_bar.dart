@@ -4,6 +4,7 @@ import 'package:window_manager/window_manager.dart';
 
 import '../../../data/constants.dart';
 import '../../../logic/cubits/network/network_cubit.dart';
+import '../../../logic/cubits/server_reach/server_reach_cubit.dart';
 import '../../../logic/cubits/theme/theme_cubit.dart';
 import '../../theme/app_text.dart';
 import '../../theme/custom_colors.dart';
@@ -135,7 +136,7 @@ class _AppTitleBarState extends State<AppTitleBar> with WindowListener {
       mainAxisSize: MainAxisSize.min,
       spacing: 2,
       children: [
-        const _NoNetworkChip(),
+        const _ConnectionChip(),
         WindowButton(
           icon: widget.pinned
               ? Icons.expand_less_rounded
@@ -170,28 +171,50 @@ class _AppTitleBarState extends State<AppTitleBar> with WindowListener {
   }
 }
 
-/// "No internet" beside the window controls while the device has no network,
-/// and nothing otherwise.
+/// One line about the connection beside the window controls, or nothing.
 ///
-/// The device's state, not a server's: a server on the same network keeps
-/// working without the internet, which is what the tooltip says.
-class _NoNetworkChip extends StatelessWidget {
-  const _NoNetworkChip();
+/// "No internet" first: with no network every server is out of reach, and
+/// naming one of them would point at the wrong thing. Otherwise the selected
+/// server, if it can't be reached. Never both — two chips saying one problem
+/// twice reads as two problems.
+class _ConnectionChip extends StatelessWidget {
+  const _ConnectionChip();
 
   @override
   Widget build(BuildContext context) {
     final offline = context.select<NetworkCubit, bool>((c) => c.state.offline);
-    if (!offline) return const SizedBox.shrink();
-    return const Padding(
-      padding: EdgeInsets.only(right: 6),
-      child: StatusChip(
-        icon: Icons.wifi_off_rounded,
-        label: 'No internet',
-        color: CustomColors.warning,
-        tooltip:
-            'This device is not connected to the internet. A server on your '
-            'own network can still work; everything else waits until you are '
-            'back online.',
+    final server = context.select<ServerReachCubit, String?>(
+      (c) => c.state.unreachableName,
+    );
+    final chip = offline
+        ? const StatusChip(
+            icon: Icons.wifi_off_rounded,
+            label: 'No internet',
+            color: CustomColors.warning,
+            tooltip:
+                'This device is not connected to the internet. A server on '
+                'your own network can still work; everything else waits until '
+                'you are back online.',
+          )
+        : server != null
+        ? StatusChip(
+            icon: Icons.cloud_off_rounded,
+            label: "Can't reach $server",
+            color: CustomColors.error,
+            tooltip:
+                'Rift has lost its connection to this server and keeps '
+                "trying. New messages and calls won't arrive until it is "
+                'back.',
+          )
+        : null;
+    if (chip == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(right: 6),
+      // A long server name ends in an ellipsis rather than pushing the window
+      // controls off the bar.
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: K.titleBarChipMaxWidth),
+        child: chip,
       ),
     );
   }

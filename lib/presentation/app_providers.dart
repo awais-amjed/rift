@@ -16,6 +16,7 @@ import '../logic/cubits/screenshare/screenshare_cubit.dart';
 import '../logic/cubits/server/server_cubit.dart';
 import '../logic/cubits/server_events/server_events_cubit.dart';
 import '../logic/cubits/server_members/server_members_cubit.dart';
+import '../logic/cubits/server_reach/server_reach_cubit.dart';
 import '../logic/cubits/sound_share/sound_share_cubit.dart';
 import '../logic/cubits/soundboard/soundboard_cubit.dart';
 import '../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
@@ -54,6 +55,9 @@ class AppProviders extends StatelessWidget {
         BlocProvider(create: (_) => ThemeCubit()),
         BlocProvider(create: (_) => NetworkCubit()),
         BlocProvider(create: (_) => _createServerCubit()),
+        BlocProvider(
+          create: (context) => ServerReachCubit.of(context.read<ServerCubit>()),
+        ),
         BlocProvider.value(value: appCubit),
         BlocProvider.value(value: vaultCubit),
         BlocProvider(create: (_) => TokenCubit()),
