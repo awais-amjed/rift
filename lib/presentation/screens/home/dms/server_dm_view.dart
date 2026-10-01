@@ -8,6 +8,7 @@ import '../../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
+import '../../../common/app_button.dart';
 import '../../../common/hint_card.dart';
 import 'new_server_dm_modal.dart';
 import 'server_dm_chat_view.dart';
@@ -61,8 +62,7 @@ class _ServerDmViewState extends State<ServerDmView> {
           ? 'Join a server to message its members.'
           : 'Pick a conversation, or start one with a member.',
       conversation: state.openPeerId != null ? const ServerDmChatView() : null,
-      listHidden:
-          expanded && callPeer != null && callPeer == state.openPeerId,
+      listHidden: expanded && callPeer != null && callPeer == state.openPeerId,
       list: DmListPanel(
         title: 'Server DMs',
         subtitle: server?.name,
@@ -91,6 +91,18 @@ class _ServerDmViewState extends State<ServerDmView> {
         leading: server == null ? null : const DmRequestsRow(),
         emptyState: _searchOpen
             ? null
+            : server != null && state.conversationsFailed
+            // Not "no conversations": the server never answered, and saying
+            // otherwise hides every conversation, saved copies and all.
+            ? HintCard(
+                icon: Icons.cloud_off_outlined,
+                text: "Couldn't load your conversations on this server.",
+                action: AppButton(
+                  label: 'Try again',
+                  variant: AppButtonVariant.secondary,
+                  onPressed: context.read<DmCubit>().refreshLists,
+                ),
+              )
             : HintCard(
                 icon: server == null
                     ? Icons.dns_outlined

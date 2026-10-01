@@ -34,9 +34,10 @@ mixin _DmConversationsMixin on Cubit<DmState> {
   /// question the list needs answered is [DmState.hasMoreConversations].
   bool _loadingMoreConversations = false;
 
-  /// Reload from the top. Runs on open and on every incoming message, so it
-  /// deliberately re-reads only the first page — a conversation that has just
-  /// been spoken in is at the top of it by definition.
+  /// Reload from the top. Runs on open, on every incoming message and when
+  /// the inbox rejoins after a dropped connection, so it deliberately
+  /// re-reads only the first page — a conversation that has just been spoken
+  /// in is at the top of it by definition.
   Future<void> refreshConversations() async {
     if (_localUserId == null) return;
     emit(state.copyWith(conversationsLoading: true));
@@ -44,7 +45,9 @@ mixin _DmConversationsMixin on Cubit<DmState> {
     final page = await _fetchConversations();
     if (isClosed) return;
     if (page == null) {
-      emit(state.copyWith(conversationsLoading: false));
+      emit(
+        state.copyWith(conversationsLoading: false, conversationsFailed: true),
+      );
       return;
     }
 
@@ -55,6 +58,7 @@ mixin _DmConversationsMixin on Cubit<DmState> {
       state.copyWith(
         conversations: page.conversations,
         conversationsLoading: false,
+        conversationsFailed: false,
         hasMoreConversations: page.hasMore,
       ),
     );

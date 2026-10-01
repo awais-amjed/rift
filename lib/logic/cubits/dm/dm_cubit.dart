@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rift_crypto/rift_crypto.dart';
+import 'package:supabase/supabase.dart' show RealtimeSubscribeStatus;
 
 import '../../../data/classes/api_response.dart';
 import '../../../data/classes/attachment.dart';
@@ -83,6 +84,10 @@ class DmCubit extends Cubit<DmState>
   /// reacted to, and where peers say they are typing.
   RealtimeLease? _inbox;
 
+  /// The inbox has been joined since this server was set up, so the next
+  /// join is a rejoin — after a dropped connection, with doorbells missed.
+  bool _inboxJoinedBefore = false;
+
   /// Who the open conversation is with — the one we tell we are typing.
   String? _typingPeerId;
   String? _readyServerId;
@@ -154,9 +159,7 @@ class DmCubit extends Cubit<DmState>
     await _reset();
     _readyServerId = server.id;
     _setupRealtime(server);
-    unawaited(refreshConversations());
-    unawaited(refreshRequests());
-    unawaited(refreshBlocks());
+    unawaited(refreshLists());
   }
 
   /// Resolves once this cubit has moved over to [serverId], after a server
@@ -232,24 +235,47 @@ class DmCubit extends Cubit<DmState>
   void _setupRealtime(Server server) {
     final user = server.user;
     if (user == null) return;
-    _inbox = _serverCubit.realtime.join(server, ServerTopics.user(user.id))
-      ?..onBroadcast(ServerEvent.dm, (_) => _onDoorbell())
-      ..onBroadcast(ServerEvent.dmChanged, _onChangeDoorbell)
-      ..onBroadcast(ServerEvent.dmReaction, _onReactionDoorbell)
-      ..onBroadcast(ServerEvent.dmPin, _onPinDoorbell)
-      ..onBroadcast(ServerEvent.dmRequests, (_) => _onRequestsDoorbell())
-      ..onBroadcast(ServerEvent.blocks, (_) => _onBlocksDoorbell())
-      // A call rang, was answered or ended; the open conversation's log may
-      // be the one it belongs to.
-      ..onBroadcast(ServerEvent.dmCalls, (_) {
-        if (state.openPeerId != null) unawaited(refreshCallLog());
-      })
-      ..onBroadcast(ServerEvent.typing, _onTyping);
+    _inbox =
+        _serverCubit.realtime.join(
+            server,
+            ServerTopics.user(user.id),
+            onStatus: _onInboxStatus,
+          )
+          ?..onBroadcast(ServerEvent.dm, (_) => _onDoorbell())
+          ..onBroadcast(ServerEvent.dmChanged, _onChangeDoorbell)
+          ..onBroadcast(ServerEvent.dmReaction, _onReactionDoorbell)
+          ..onBroadcast(ServerEvent.dmPin, _onPinDoorbell)
+          ..onBroadcast(ServerEvent.dmRequests, (_) => _onRequestsDoorbell())
+          ..onBroadcast(ServerEvent.blocks, (_) => _onBlocksDoorbell())
+          // A call rang, was answered or ended; the open conversation's log may
+          // be the one it belongs to.
+          ..onBroadcast(ServerEvent.dmCalls, (_) {
+            if (state.openPeerId != null) unawaited(refreshCallLog());
+          })
+          ..onBroadcast(ServerEvent.typing, _onTyping);
   }
+
+  /// Reads the lists again once the inbox is back: whatever rang while the
+  /// connection was down was never heard. The first join needs nothing —
+  /// the lists were just read — unless that read failed, as it does when the
+  /// app starts with the server out of reach, and then nothing else would
+  /// ever read them again.
+  void _onInboxStatus(RealtimeSubscribeStatus status) {
+    if (status != RealtimeSubscribeStatus.subscribed || isClosed) return;
+    final rejoin = _inboxJoinedBefore;
+    _inboxJoinedBefore = true;
+    if (rejoin || state.conversationsFailed) unawaited(refreshLists());
+  }
+
+  /// The conversation list, the requests waiting and who is blocked — what
+  /// the Server DMs list draws. Its "Try again" when they couldn't be read.
+  Future<void> refreshLists() =>
+      Future.wait([refreshConversations(), refreshRequests(), refreshBlocks()]);
 
   Future<void> _teardownRealtime() async {
     final inbox = _inbox;
     _inbox = null;
+    _inboxJoinedBefore = false;
     _typingPeerId = null;
     await inbox?.release();
   }

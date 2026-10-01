@@ -24,7 +24,7 @@ instances with separate identities; the Android client is the emulator.
 | Area | Last verified | How |
 |---|---|---|
 | Reopening the desktop window on a screen that exists (size and place fitted to the work area) | Oct 1 2026 | Windows 11, one 1920×1080 display: a client saved at 1280×720 logical at 100 % reopened at 150 % fitted to the work area instead of past the edges and under the taskbar; at 100 % three clients reopened where they were. Unplugged or mixed-scale second monitors not tried (no second monitor) |
-| Conversations saved on the device: drawn on open, offline, replaced by the fresh page | Sep 28 2026 | one Linux client, gateway stopped and paused; channels and server DMs. Central DMs and the wipes (leaving, signing out, vault reset) not driven |
+| Conversations saved on the device: drawn on open, offline, replaced by the fresh page | Oct 1 2026 | Windows, two clients, gateway stopped: channels and server DMs, a row deleted while closed, own messages; the server DM list now loads by itself when the server comes back after an offline start (it used to stay empty). Wipes on leaving a server and on a vault reset, files unreadable, pruning a deleted channel. Central DMs and the sign-out wipe not driven |
 | One-to-one calls in server DMs | Sep 27 2026 | two clients + Android; ringing, answer from anywhere, decline, missed, audio both ways recorded, tracks encrypted |
 | Server moderation: reports, time-outs, bans, DM requests, blocks | Sep 27 2026 | two clients + headless members; security pass probed the database and realtime directly |
 | Wording and UI for moderation and DM calls | Sep 27 2026 | two clients; the time-out menu and banner, including expiry |

@@ -10,6 +10,11 @@ class DmState {
   final List<DmConversation> conversations;
   final bool conversationsLoading;
 
+  /// The last read of [conversations] failed, so an empty list means "could
+  /// not load", not "none yet" — what the list says, and what makes the
+  /// next reconnect read it again.
+  final bool conversationsFailed;
+
   /// Whether another page of conversations follows — proved by the spare row
   /// `dm_conversations` over-fetched, never inferred from a
   /// page being full.
@@ -69,6 +74,7 @@ class DmState {
   const DmState({
     this.conversations = const [],
     this.conversationsLoading = false,
+    this.conversationsFailed = false,
     this.hasMoreConversations = false,
     this.openPeerId,
     this.openPeerName,
@@ -90,6 +96,7 @@ class DmState {
   DmState copyWith({
     List<DmConversation>? conversations,
     bool? conversationsLoading,
+    bool? conversationsFailed,
     bool? hasMoreConversations,
     String? openPeerId,
     String? openPeerName,
@@ -114,6 +121,7 @@ class DmState {
     return DmState(
       conversations: conversations ?? this.conversations,
       conversationsLoading: conversationsLoading ?? this.conversationsLoading,
+      conversationsFailed: conversationsFailed ?? this.conversationsFailed,
       hasMoreConversations: hasMoreConversations ?? this.hasMoreConversations,
       openPeerId: closeConversation ? null : (openPeerId ?? this.openPeerId),
       openPeerName: closeConversation
