@@ -36,6 +36,7 @@ class AppBootstrap {
   /// build a second one with different state.
   static Future<AppCubit> run() async {
     final storageSuffix = _applyStorageNamespace();
+    await StorageNamespace.useProfileSecureStorage(storageSuffix);
 
     if (!kIsWeb) await RustLib.init();
 

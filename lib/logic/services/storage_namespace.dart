@@ -1,9 +1,12 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage_platform_interface/flutter_secure_storage_platform_interface.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../data/repositories/secure_storage_repository.dart';
+import 'dpapi_codec.dart';
+import 'profile_secure_storage.dart';
 
 /// Which of several identities on one machine this process belongs to.
 ///
@@ -31,6 +34,21 @@ class StorageNamespace {
     SecureStorageRepository.namespacePrefix =
         SecureStorageRepository.prefixForSuffix(suffix);
     return suffix;
+  }
+
+  /// On Windows, keeps this identity's secure storage in its own folder under
+  /// Local AppData rather than the plugin's one file in Roaming AppData (see
+  /// [ProfileSecureStorage]). Elsewhere the plugin's own storage stays. Call
+  /// after [apply] and before anything reads secure storage.
+  static Future<void> useProfileSecureStorage(String suffix) async {
+    if (kIsWeb || !Platform.isWindows) return;
+    final roaming = (await getApplicationSupportDirectory()).path;
+    FlutterSecureStoragePlatform.instance = ProfileSecureStorage(
+      File('${await profileDirectory(suffix)}/secure_storage.dat'),
+      codec: const DpapiCodec(),
+      legacyFile: File('$roaming/flutter_secure_storage.dat'),
+      legacyKeys: SecureStorageRepository.namespacedKeys,
+    );
   }
 
   /// Where this identity's files go. Not for web, which has no filesystem —

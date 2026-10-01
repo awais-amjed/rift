@@ -81,7 +81,10 @@ Four properties are load-bearing:
   *from* the server are its LiveKit nodes (`livekit_nodes`, §5), which is why
   voice is the only thing a server can move without moving its members.
 - **Argon2id runs off the UI thread**, and the seed lives in platform secure
-  storage — never in HydratedBloc state.
+  storage — never in HydratedBloc state. On Windows that is a DPAPI-sealed file
+  in the profile's folder under Local AppData (`ProfileSecureStorage`), not the
+  plugin's own file in Roaming AppData, which a domain copies to every PC the
+  person signs in to.
 
 `rift_crypto` implements all of it, with no Flutter in it, and is the
 **reference implementation**: the wire vectors are generated from it, and the

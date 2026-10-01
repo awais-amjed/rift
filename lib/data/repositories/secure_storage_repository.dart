@@ -35,6 +35,21 @@ class SecureStorageRepository {
   static String prefixForSuffix(String suffix) =>
       suffix.isEmpty ? '' : '$suffix.';
 
+  /// Every key this build's namespace owns — what Windows takes out of the
+  /// old shared file when it moves this profile's values to a file of its own
+  /// (see `ProfileSecureStorage`).
+  static Set<String> get namespacedKeys => {
+    for (final name in const [
+      'master_seed',
+      'encrypted_vault',
+      'encrypted_seed',
+      'joined_servers',
+      'recovery_seed',
+      'pending_recovery_key',
+    ])
+      '$namespacePrefix$name',
+  };
+
   String get _keyMasterSeed => '${namespacePrefix}master_seed';
   String get _keyEncryptedVault => '${namespacePrefix}encrypted_vault';
   String get _keyEncryptedSeed => '${namespacePrefix}encrypted_seed';
