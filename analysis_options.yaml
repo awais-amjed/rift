@@ -10,6 +10,7 @@ analyzer:
     - macos/**
     - linux/**
     - rust_builder/**   # vendored cargokit
+    - third_party/**    # vendored packages, kept close to upstream
     - tool/**           # untracked local helpers
 include: package:flutter_lints/flutter.yaml
 

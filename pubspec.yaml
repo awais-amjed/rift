@@ -107,6 +107,13 @@ dev_dependencies:
   fake_async: ^1.3.3
   inno_bundle: ^0.12.0
 
+dependency_overrides:
+  # supabase's realtime client, kept in the repository so it can be patched.
+  # third_party/realtime_client/RIFT_PATCHES.md says what differs and when this
+  # can go.
+  realtime_client:
+    path: third_party/realtime_client
+
 flutter:
 
   uses-material-design: true
