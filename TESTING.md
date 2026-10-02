@@ -76,6 +76,7 @@ instances with separate identities; the Android client is the emulator.
 | A DM whose key no longer opens it shows its messages locked | Oct 2 2026 | Linux release, Lana with Benny's key swapped in the database: every message showed as a locked row with author and time (they used to vanish), the DM list read "Message you cannot open yet"; with his key back they opened again. Channels and Rift DMs take the same path (`sealed_open_test.dart`); only the server DM was driven |
 | A DM saying the other person's key changed | Oct 2 2026 | one client, the peer's key swapped in the database: amber chip, a line per change, cleared by looking or verifying; held amber for a verified person; desktop and phone width. Later Oct 2, live: Lana's DM with Benny left open, his key swapped in rift-db: within 3 s, no relaunch, the chip went amber, a new line appeared and his older messages turned locked; his key put back: another line and the messages opened again; Lana then sent "key live check" and Benny read it. Central DMs (no live ring, by design for now) and the profile's line not driven |
 | Screen share, including a phone's stream | Sep 22 2026 | Linux sharing, desktop and Android watching |
+| A minimised shared window says it is paused | Oct 2 2026 | **Viewer half only, on Linux.** Lana shared her screen (X11 session, release build with the new capture code; the share still started), Benny watched; the share connection's `paused` attribute set to `true` through LiveKit's RoomService, standing in for the capture thread: "Paused — the shared window is minimised" over the stream on the stage and in the grid tile, gone again on `false`. **Not driven:** the Windows half — `IsIconic` on the shared window and the attribute it sets — which could not even be compiled here (no Windows toolchain) |
 | Push-to-talk on Linux | Sep 21 2026 | GNOME, through the GlobalShortcuts portal |
 | Server rail order across devices | Sep 21 2026 | one account on two devices, and a reorder made offline |
 | Soundboard | Sep 20–21 2026 | two clients in a call |
@@ -133,8 +134,6 @@ Windows-specific. Remove a line in the commit that fixes it.
 **Voice and calls**
 - Rift's own sounds (the ring) play on the system default output, not the output
   chosen in Settings.
-- A shared window that is minimised freezes on its last frame for viewers, with no
-  hint that it's paused (Windows sends no frames for a minimised window).
 - Once, the speaking glow didn't light for about ten minutes although audio
   flowed. Not reproduced.
 

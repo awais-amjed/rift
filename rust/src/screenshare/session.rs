@@ -9,12 +9,17 @@ use livekit::prelude::*;
 use livekit::webrtc::desktop_capturer::DesktopCaptureSourceType;
 use livekit::webrtc::prelude::VideoResolution;
 use livekit::webrtc::video_source::native::NativeVideoSource;
+use std::collections::HashMap;
 use std::time::Duration;
 use tokio::sync::Mutex;
 
 /// How long the selected source gets to deliver its first frame. A minimised
 /// window, or a Wayland portal the user dismissed, never delivers one.
 const FIRST_FRAME_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// The participant attribute a share sets while its window is minimised, which
+/// viewers read to say the picture is paused (`VoiceAttributes.sharePausedKey`).
+const PAUSED_ATTRIBUTE: &str = "paused";
 
 struct Session {
     room: Room,
@@ -129,6 +134,7 @@ async fn bring_up(
         fps: config.fps,
         max_height: config.resolution,
         capture_cursor: true,
+        on_minimised: Some(announce_paused(room)),
     });
 
     let native = match tokio::time::timeout(FIRST_FRAME_TIMEOUT, first_frame).await {
@@ -185,6 +191,23 @@ async fn bring_up(
         None
     };
     Ok((capture, audio))
+}
+
+/// Tells the room, as an attribute of the share's own connection, when the
+/// shared window is minimised and when it is back. Called from the capture
+/// thread, so the request is handed to the runtime rather than awaited there.
+fn announce_paused(room: &Room) -> Box<dyn Fn(bool) + Send> {
+    let participant = room.local_participant();
+    let runtime = tokio::runtime::Handle::current();
+    Box::new(move |paused| {
+        let participant = participant.clone();
+        runtime.spawn(async move {
+            let attributes = HashMap::from([(PAUSED_ATTRIBUTE.to_string(), paused.to_string())]);
+            if let Err(e) = participant.set_attributes(attributes).await {
+                log::warn!("screenshare: telling viewers paused={paused}: {e:?}");
+            }
+        });
+    })
 }
 
 /// Stop a capture off the async runtime, and hand back the reason it is being

@@ -8,6 +8,7 @@ import '../../../../theme/app_motion.dart';
 import 'avatar_placeholder.dart';
 import 'decrypted_video.dart';
 import 'participant_name_badge.dart';
+import 'share_paused_notice.dart';
 import 'stop_watching_button.dart';
 import 'stream_quality_badge.dart';
 import 'stream_stats_overlay.dart';
@@ -33,6 +34,10 @@ class ExpandedParticipantTile extends StatelessWidget {
   final bool isMuted;
   final bool isDeafened;
   final bool isScreenshare;
+
+  /// The stream's shared window is minimised, so the picture is the last
+  /// frame — see [SharePausedNotice].
+  final bool isPaused;
   final bool showWatchButton;
   final bool showStopButton;
   final bool showOverlays;
@@ -64,6 +69,7 @@ class ExpandedParticipantTile extends StatelessWidget {
     required this.isMuted,
     this.isDeafened = false,
     required this.isScreenshare,
+    this.isPaused = false,
     required this.showWatchButton,
     required this.showStopButton,
     required this.showOverlays,
@@ -126,6 +132,7 @@ class ExpandedParticipantTile extends StatelessWidget {
           )
         else if (!showWatchButton)
           AvatarPlaceholder(name: name, userId: userId),
+        if (isPaused && videoTrack != null) const SharePausedNotice(),
         if (showStats && stats != null)
           AnimatedPositioned(
             duration: _fade,

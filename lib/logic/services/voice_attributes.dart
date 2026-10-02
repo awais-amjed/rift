@@ -33,6 +33,15 @@ class VoiceAttributes {
   static bool isDeafened(Map<String, String> attributes) =>
       attributes[deafenedKey] == 'true';
 
+  /// Set by a desktop screen share's own connection, not by [forSelf]: the
+  /// Rust session publishes it while the shared window is minimised, when
+  /// Windows hands the capturer nothing new and viewers would otherwise be
+  /// left looking at a frozen picture with no idea why.
+  static const sharePausedKey = 'paused';
+
+  static bool isSharePaused(Map<String, String> attributes) =>
+      attributes[sharePausedKey] == 'true';
+
   /// The streams [attributes] says are being watched; empty for anything
   /// unreadable.
   static Set<String> watchingOf(Map<String, String> attributes) {

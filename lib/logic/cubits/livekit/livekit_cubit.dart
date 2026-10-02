@@ -264,6 +264,9 @@ class LiveKitCubit extends Cubit<LiveKitState>
         isSharingSound: sharing.sharesSound(userId),
         isServerMuted: moderation.muted,
         isServerDeafened: moderation.deafened,
+        isSharePaused:
+            ParticipantIdentity.isScreenshare(p.identity) &&
+            VoiceAttributes.isSharePaused(p.attributes),
       );
     }).toList();
 

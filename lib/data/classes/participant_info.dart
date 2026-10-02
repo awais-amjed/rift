@@ -44,6 +44,10 @@ class ParticipantInfo {
   final bool isServerMuted;
   final bool isServerDeafened;
 
+  /// A screen share whose window is minimised, so its picture is standing
+  /// still — see `VoiceAttributes.isSharePaused`. False for anything else.
+  final bool isSharePaused;
+
   const ParticipantInfo({
     required this.identity,
     required this.userId,
@@ -60,6 +64,7 @@ class ParticipantInfo {
     this.isSharingSound = false,
     this.isServerMuted = false,
     this.isServerDeafened = false,
+    this.isSharePaused = false,
   });
 
   /// Whether this is a share rather than a person in the call. Anything

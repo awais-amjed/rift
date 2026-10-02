@@ -25,6 +25,11 @@ pub(crate) struct CaptureRequest {
     pub fps: u32,
     pub max_height: u32,
     pub capture_cursor: bool,
+    /// Told `true` when the shared window is minimised and `false` when it
+    /// comes back. Windows only: a minimised window gives the capturer nothing
+    /// new, so watchers are left with a still picture unless somebody says why.
+    #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
+    pub on_minimised: Option<Box<dyn Fn(bool) + Send>>,
 }
 
 /// The first frame's native size, or why there will never be one.
@@ -93,6 +98,14 @@ impl Drop for TimerResolutionGuard {
     fn drop(&mut self) {
         unsafe { windows::Win32::Media::timeEndPeriod(1) };
     }
+}
+
+/// Whether the window behind a Windows capture source is minimised.
+#[cfg(target_os = "windows")]
+fn window_minimised(id: u64) -> bool {
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::UI::WindowsAndMessaging::IsIconic;
+    unsafe { IsIconic(HWND(id as usize as *mut _)) }.as_bool()
 }
 
 /// Whether the window behind a Windows capture source has been closed.
@@ -170,6 +183,8 @@ fn run(
 
     let frame_interval = Duration::from_secs_f64(1.0 / request.fps as f64);
     let mut next_frame = Instant::now() + frame_interval;
+    #[cfg(target_os = "windows")]
+    let mut minimised = false;
     loop {
         let timeout = next_frame.saturating_duration_since(Instant::now());
         match command_rx.recv_timeout(timeout) {
@@ -184,6 +199,18 @@ fn run(
                     log::info!("capture: source closed, ending the share");
                     crate::api::screenshare::emit_screenshare_event(ScreenshareEvent::SourceClosed);
                     break;
+                }
+                #[cfg(target_os = "windows")]
+                if let (Some(id), Some(report)) = (window, request.on_minimised.as_ref()) {
+                    let now = window_minimised(id);
+                    if now != minimised {
+                        minimised = now;
+                        log::info!(
+                            "capture: shared window {}",
+                            if now { "minimised" } else { "restored" }
+                        );
+                        report(now);
+                    }
                 }
                 next_frame += frame_interval;
                 // Far behind: restart the clock rather than fire a burst of

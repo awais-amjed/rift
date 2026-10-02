@@ -55,6 +55,14 @@ class ParticipantRoster {
     return false;
   }
 
+  /// Whether the screen share with [identity] says its window is minimised.
+  static bool isSharePaused(List<ParticipantInfo> roster, String identity) {
+    for (final info in roster) {
+      if (info.identity == identity) return info.isSharePaused;
+    }
+    return false;
+  }
+
   /// Which of a user's connections this is: themselves, their screen, or
   /// their sound. Two of them must not collapse into one row.
   static int _kind(ParticipantInfo p) {

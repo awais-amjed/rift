@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rift/data/classes/participant_info.dart';
 import 'package:rift/logic/services/participant_roster.dart';
+import 'package:rift/logic/services/voice_attributes.dart';
 
 ParticipantInfo p(
   String identity, {
@@ -132,5 +133,24 @@ void main() {
     expect(ParticipantRoster.isDeafened(roster, 'mod'), isTrue);
     expect(ParticipantRoster.isDeafened(roster, 'a'), isFalse);
     expect(ParticipantRoster.isDeafened(roster, 'stranger'), isFalse);
+  });
+
+  test('a share reads as paused only while its attribute says so', () {
+    expect(VoiceAttributes.isSharePaused(const {'paused': 'true'}), isTrue);
+    expect(VoiceAttributes.isSharePaused(const {'paused': 'false'}), isFalse);
+    expect(VoiceAttributes.isSharePaused(const {}), isFalse);
+    final roster = [
+      const ParticipantInfo(
+        identity: 'u1~d_screenshare',
+        userId: 'u1',
+        name: 'u1',
+        isScreenshare: true,
+        isSharePaused: true,
+      ),
+      p('u1~d', userId: 'u1'),
+    ];
+    expect(ParticipantRoster.isSharePaused(roster, 'u1~d_screenshare'), isTrue);
+    expect(ParticipantRoster.isSharePaused(roster, 'u1~d'), isFalse);
+    expect(ParticipantRoster.isSharePaused(roster, 'stranger'), isFalse);
   });
 }
