@@ -52,7 +52,12 @@ class ChatComposer extends StatefulWidget {
   /// Called with the trimmed text, any staged attachments, and the preview
   /// this device built for the first link — null when there was none, it
   /// was dismissed, or previews are off.
-  final void Function(
+  ///
+  /// Completes with true when the server refused the message outright — a
+  /// block, a limit, a time-out — and it is not kept anywhere to retry. The
+  /// field was emptied by the same press, so the composer then puts back
+  /// what was in it, unless something new has been started there meanwhile.
+  final Future<bool> Function(
     String text,
     List<PendingAttachment> attachments,
     PendingLinkPreview? preview,
@@ -228,11 +233,36 @@ class _ChatComposerState extends State<ChatComposer>
     if (text.isEmpty && _staged.isEmpty) return;
     final attachments = List<PendingAttachment>.from(_staged);
     final preview = _takePreview();
+    final typed = _controller.text;
+    final picked = Map.of(_picked);
     _controller.clear();
     _picked.clear();
     setState(_staged.clear);
-    widget.onSend(text, attachments, preview);
+    unawaited(
+      widget.onSend(text, attachments, preview).then((refused) {
+        if (refused) _giveBack(typed, picked, attachments);
+      }),
+    );
     _focusNode.requestFocus();
+  }
+
+  /// Put a refused message back as it was typed: the field's own text (names,
+  /// not the usernames it was sent as), the names picked from the menu, and
+  /// the files. Only into an empty composer — words typed since are newer than
+  /// the ones that bounced, and overwriting them would lose those instead.
+  void _giveBack(
+    String typed,
+    Map<String, String> picked,
+    List<PendingAttachment> attachments,
+  ) {
+    if (!mounted || _controller.text.isNotEmpty || _staged.isNotEmpty) return;
+    _picked.addAll(picked);
+    _controller.value = TextEditingValue(
+      text: typed,
+      selection: TextSelection.collapsed(offset: typed.length),
+    );
+    setState(() => _staged.addAll(attachments));
+    _syncLinkPreview(typed);
   }
 
   void _onTextChanged(String value) {

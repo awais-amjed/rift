@@ -41,7 +41,11 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
   /// the text, so the two people in the conversation are the only ones who
   /// know which message it was. Nothing rings here: a DM already wakes its
   /// recipient, so there is no mentions array to add anybody to.
-  Future<void> sendDm(
+  ///
+  /// Completes with true when the server refused the message and its row was
+  /// taken away, so the composer can give the words back
+  /// (`ChatComposer.onSend`).
+  Future<bool> sendDm(
     String text, {
     List<PendingAttachment> attachments = const [],
     PendingLinkPreview? preview,
@@ -52,12 +56,12 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
     if (peerId == null ||
         myId == null ||
         state.chatStatus != DmChatStatus.ready) {
-      return;
+      return false;
     }
     final key = _dmKeys[peerId];
-    if (key == null) return;
+    if (key == null) return false;
     final trimmed = text.trim();
-    if (trimmed.isEmpty && attachments.isEmpty) return;
+    if (trimmed.isEmpty && attachments.isEmpty) return false;
 
     // Resolved against rows already decrypted and verified. A reference this
     // client cannot see is one it has no business asserting.
@@ -92,7 +96,7 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
         pending: preview,
         uploadOne: uploadOne,
       );
-      if (state.openPeerId != peerId) return;
+      if (state.openPeerId != peerId) return false;
 
       final identity = await _signingIdentity();
       final envelope = await _crypto.sealMessage(
@@ -112,7 +116,7 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
         recipientId: peerId,
         envelope: envelope.toJson(),
       );
-      if (state.openPeerId != peerId) return;
+      if (state.openPeerId != peerId) return false;
 
       if (!response.success) {
         // The quota and the friendship walls are refusals with something to
@@ -124,8 +128,9 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
         } else if (state.openPeerId == peerId) {
           _removePending(pendingId);
           _reportSendFailure(response);
+          return true;
         }
-        return;
+        return false;
       }
 
       final data = response.data as Map<String, dynamic>;
@@ -160,6 +165,7 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
         unawaited(loadFriends());
       }
       unawaited(refreshConversations());
+      return false;
     } on AttachmentUploadException catch (e) {
       HelperMethods.printDebug('[CentralDM] attachment upload failed: $e');
       if (Outbox.canRetry(e.errorCode)) {
@@ -167,14 +173,18 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
       } else if (state.openPeerId == peerId) {
         _removePending(pendingId);
         HelperMethods.showError(error: 'Failed to upload attachment');
+        return true;
       }
+      return false;
     } catch (e) {
       HelperMethods.printDebug('[CentralDM] send failed: $e');
       // No code to read, so no claim that a retry would help.
       if (state.openPeerId == peerId) {
         _removePending(pendingId);
         HelperMethods.showError(error: 'Failed to send message');
+        return true;
       }
+      return false;
     }
   }
 

@@ -47,7 +47,11 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
   /// never sent as a column, and the author it names is added to the
   /// mentions below so the reply rings — which is the only thing the server
   /// learns about it, and the same thing it learns from an `@`.
-  Future<void> sendMessage(
+  ///
+  /// Completes with true when the server refused the message and its row was
+  /// taken away, so the composer can give the words back
+  /// (`ChatComposer.onSend`).
+  Future<bool> sendMessage(
     String text, {
     List<PendingAttachment> attachments = const [],
     PendingLinkPreview? preview,
@@ -64,10 +68,10 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
         user == null ||
         key == null ||
         state.status != ChannelChatStatus.ready) {
-      return;
+      return false;
     }
     final trimmed = text.trim();
-    if (trimmed.isEmpty && attachments.isEmpty) return;
+    if (trimmed.isEmpty && attachments.isEmpty) return false;
 
     // Resolved before the send, against rows already decrypted and verified:
     // a reference to something this client cannot see is one it has no
@@ -129,7 +133,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
         pending: preview,
         uploadOne: uploadOne,
       );
-      if (state.channelId != channelId) return;
+      if (state.channelId != channelId) return false;
 
       final host = Uri.parse(server.supabaseUrl).host;
       final identity = await _vaultCubit.getIdentityForHost(
@@ -236,17 +240,16 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
           summon: false,
         );
       }
-      if (state.channelId != channelId) return;
+      if (state.channelId != channelId) return false;
 
       if (!response.success) {
-        _failSend(
+        return _failSend(
           pending: pending,
           channelId: channelId,
           attachments: attachments,
           errorCode: response.errorCode,
           error: response.error ?? 'Failed to send message',
         );
-        return;
       }
 
       final data = response.data as Map<String, dynamic>;
@@ -271,9 +274,10 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
         ),
       );
       _saved.noteSent();
+      return false;
     } on AttachmentUploadException catch (e) {
       HelperMethods.printDebug('[Chat] attachment upload failed: $e');
-      _failSend(
+      return _failSend(
         pending: pending,
         channelId: channelId,
         attachments: attachments,
@@ -285,7 +289,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
       // No code to read, so no claim that a retry would help. An exception
       // that got this far is a bug in the send path rather than a network
       // that dropped, and those are the same next time.
-      _failSend(
+      return _failSend(
         pending: pending,
         channelId: channelId,
         attachments: attachments,
@@ -310,7 +314,10 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
   /// Emits only while this is still the open channel, but holds either way —
   /// somebody who clicked elsewhere while a send was failing should still find
   /// it waiting when they come back (`Outbox.restoreInto`).
-  void _failSend({
+  ///
+  /// Returns whether it was a refusal seen with the channel still open, which
+  /// is when the words go back to the composer.
+  bool _failSend({
     required ChatMessage pending,
     required String channelId,
     required List<PendingAttachment> attachments,
@@ -323,7 +330,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
         _removePending(pending.id);
         HelperMethods.showError(error: error);
       }
-      return;
+      return open;
     }
     _outbox.hold(
       OutboxEntry(
@@ -339,6 +346,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
         ),
       );
     }
+    return false;
   }
 
   /// Try one held send again — what tapping a "Not sent" row does.

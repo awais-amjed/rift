@@ -44,6 +44,7 @@ instances with separate identities; the Android client is the emulator.
 | One-to-one calls in server DMs | Sep 27 2026 | two clients + Android; ringing, answer from anywhere, decline, missed, audio both ways recorded, tracks encrypted |
 | The tray menu and quitting (Linux) | Oct 2 2026 | GNOME 50 with the AppIndicator extension, release build, two clients: clicking the icon opens Show Rift / Quit (it opened nothing before — the item advertised no menu until its trigger was set to clicked), and Quit exits; GNOME's close-window key (Super+Q here) hid the window at once and the app exited (pressed by the user). Since Oct 2 the desktop's close hides to the tray like the title bar's button, and only the tray's Quit exits: a close request left the process running with the window hidden, the menu's Show Rift brought it back, Quit exited (driven over DBus and a `_NET_CLOSE_WINDOW` message, not by hand). Not checked on Windows |
 | Accepting a DM request opens the sender's composer | Oct 2 2026 | Linux release, Lana and Benny with Benny on "Ask me first": Lana's first DM waited with her composer locked; Benny pressed Accept and within 2 s Lana's composer opened and the call button appeared, without reopening the conversation (it used to stay locked) |
+| A refused message comes back to the composer | Oct 2 2026 | Linux release, Lana and Benny: Benny blocked Lana in the database, Lana sent him a server DM — "Benny isn't accepting messages from you right now" and her words were back in the field (they used to be lost). Channels and Rift DMs take the same path (`composer_give_back_test.dart` covers the composer); only the server DM was driven |
 | Narrowing the desktop window with a server DM open behind a channel | Oct 2 2026 | Linux release: DM open, #general clicked, window narrowed to 640: #general stayed on screen (the DM used to be pushed over it); back, Direct, Benny opened the DM normally |
 | Server moderation: reports, time-outs, bans, DM requests, blocks | Sep 27 2026 | two clients + headless members; security pass probed the database and realtime directly |
 | Wording and UI for moderation and DM calls | Sep 27 2026 | two clients; the time-out menu and banner, including expiry |
@@ -106,8 +107,6 @@ from working. Most were found on Windows (Sep 29 – Oct 1 2026) but are not
 Windows-specific. Remove a line in the commit that fixes it.
 
 **Messaging and DMs**
-- A refused DM (blocked, or over the new-DM limit) clears the composer, so the
-  text is lost.
 - The Server DMs unread badge counts a message that was deleted before it was read.
 - Offline, mentions show the username (`@tester_a`) instead of the display name
   until the members load.

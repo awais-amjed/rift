@@ -162,20 +162,23 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
   /// No ping toggle here and none offered: a DM wakes the one person in it
   /// whatever the message says, so a control for whether it does would be a
   /// switch wired to nothing.
-  void _send(
+  Future<bool> _send(
     BuildContext context,
     String text,
     List<PendingAttachment> attachments,
     PendingLinkPreview? preview,
-  ) {
-    final answering = replyToId;
+  ) async {
+    final answering = replyingTo;
+    final cubit = context.read<CentralDmCubit>();
     cancelReply();
-    context.read<CentralDmCubit>().sendDm(
+    final refused = await cubit.sendDm(
       text,
       attachments: attachments,
       preview: preview,
-      replyToId: answering,
+      replyToId: answering?.id,
     );
+    if (refused && answering != null) restoreReply(answering, pings: true);
+    return refused;
   }
 
   /// The open conversation's peer as the friends graph knows them.

@@ -73,11 +73,14 @@ void main() {
     Future<Rect> pumpComposer(
       WidgetTester tester, {
       bool enabled = true,
-      void Function(String, List, Object?)? onSend,
+      Future<bool> Function(String, List, Object?)? onSend,
     }) async {
       await host(
         tester,
-        ChatComposer(enabled: enabled, onSend: onSend ?? (_, _, _) {}),
+        ChatComposer(
+          enabled: enabled,
+          onSend: onSend ?? (_, _, _) async => false,
+        ),
       );
       // The painted bar, not the outer padding around it.
       return tester.getRect(find.byType(TapToFocus));
@@ -114,7 +117,13 @@ void main() {
       // The whole point of deferring to the innermost recogniser: a tap that
       // lands on a control belongs to the control, not to the bar under it.
       var sent = 0;
-      final bar = await pumpComposer(tester, onSend: (_, _, _) => sent++);
+      final bar = await pumpComposer(
+        tester,
+        onSend: (_, _, _) async {
+          sent++;
+          return false;
+        },
+      );
 
       await tester.tapAt(bar.centerLeft + const Offset(60, 0));
       await tester.pump();

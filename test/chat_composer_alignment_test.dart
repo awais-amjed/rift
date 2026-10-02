@@ -38,7 +38,7 @@ Future<void> _pumpComposer(WidgetTester tester) async {
           ],
           child: Align(
             alignment: Alignment.bottomCenter,
-            child: ChatComposer(onSend: (_, _, _) {}),
+            child: ChatComposer(onSend: (_, _, _) async => false),
           ),
         ),
       ),

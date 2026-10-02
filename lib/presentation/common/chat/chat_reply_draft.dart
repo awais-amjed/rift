@@ -30,6 +30,16 @@ mixin ChatReplyDraft<T extends StatefulWidget> on State<T> {
     });
   }
 
+  /// Put back a reply whose message the server refused, alongside the words
+  /// the composer puts back — unless another one has been started since.
+  void restoreReply(ChatMessage message, {required bool pings}) {
+    if (!mounted || _replyingTo != null) return;
+    setState(() {
+      _replyingTo = message;
+      _replyPings = pings;
+    });
+  }
+
   void cancelReply() {
     if (_replyingTo == null) return;
     setState(() => _replyingTo = null);

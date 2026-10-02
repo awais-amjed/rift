@@ -173,7 +173,7 @@ class _ChannelChatViewState extends State<ChannelChatView>
   /// a slash typed while in a call rather than run on every message: it is the
   /// only shape that can change one, and a query per message to catch it would
   /// be a poor trade.
-  Future<void> _send(
+  Future<bool> _send(
     BuildContext context,
     String text,
     List<PendingAttachment> attachments,
@@ -186,23 +186,26 @@ class _ChannelChatViewState extends State<ChannelChatView>
 
     // Read before the send and cleared after it: the composer is emptied by
     // the same press, and a reply bar still standing over an empty field is
-    // the next message quietly joining a thread it was not meant for.
-    final answering = replyToId;
+    // the next message quietly joining a thread it was not meant for. A
+    // refusal puts both back.
+    final answering = replyingTo;
     final pings = replyPings;
     cancelReply();
 
-    await context.read<ChannelChatCubit>().sendMessage(
+    final refused = await context.read<ChannelChatCubit>().sendMessage(
       text,
       attachments: attachments,
       preview: preview,
       inVoiceChannel: inVoice,
-      replyToId: answering,
+      replyToId: answering?.id,
       pingReplyTo: pings,
     );
+    if (refused && answering != null) restoreReply(answering, pings: pings);
 
     if (inVoice != null && text.trimLeft().startsWith('/')) {
       await voiceBots.refresh();
     }
+    return refused;
   }
 
   /// Carry a message somewhere else.

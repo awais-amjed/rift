@@ -23,7 +23,11 @@ mixin _DmSendMixin on Cubit<DmState> {
   /// the text, so the two people in the conversation are the only ones who
   /// know which message it was. Nothing rings here: a DM already wakes its
   /// recipient, so there is no mentions array to add anybody to.
-  Future<void> sendDm(
+  ///
+  /// Completes with true when the server refused the message and its row was
+  /// taken away: the composer was emptied by the same press, so without being
+  /// told it would lose the words for good (`ChatComposer.onSend`).
+  Future<bool> sendDm(
     String text, {
     List<PendingAttachment> attachments = const [],
     PendingLinkPreview? preview,
@@ -36,12 +40,12 @@ mixin _DmSendMixin on Cubit<DmState> {
         server == null ||
         user == null ||
         state.chatStatus != DmChatStatus.ready) {
-      return;
+      return false;
     }
     final key = _dmKeys[peerId];
-    if (key == null) return;
+    if (key == null) return false;
     final trimmed = text.trim();
-    if (trimmed.isEmpty && attachments.isEmpty) return;
+    if (trimmed.isEmpty && attachments.isEmpty) return false;
 
     // Resolved against rows already decrypted and verified. A reference this
     // client cannot see is one it has no business asserting.
@@ -80,7 +84,7 @@ mixin _DmSendMixin on Cubit<DmState> {
         pending: preview,
         uploadOne: uploadOne,
       );
-      if (state.openPeerId != peerId) return;
+      if (state.openPeerId != peerId) return false;
 
       final identity = await _vaultIdentityFor(server);
       final envelope = await _crypto.sealMessage(
@@ -100,10 +104,10 @@ mixin _DmSendMixin on Cubit<DmState> {
         recipientId: peerId,
         envelope: envelope.toJson(),
       );
-      if (state.openPeerId != peerId) return;
+      if (state.openPeerId != peerId) return false;
 
       if (!response.success) {
-        _failSend(
+        final refused = _failSend(
           pending: pending,
           peerId: peerId,
           attachments: attachments,
@@ -118,7 +122,7 @@ mixin _DmSendMixin on Cubit<DmState> {
         );
         // A refusal about the request says where things stand now.
         unawaited(refreshOpenLinkState());
-        return;
+        return refused;
       }
 
       final data = response.data as Map<String, dynamic>;
@@ -149,9 +153,10 @@ mixin _DmSendMixin on Cubit<DmState> {
           state.messages.length <= 1) {
         unawaited(refreshOpenLinkState());
       }
+      return false;
     } on AttachmentUploadException catch (e) {
       HelperMethods.printDebug('[DM] attachment upload failed: $e');
-      _failSend(
+      return _failSend(
         pending: pending,
         peerId: peerId,
         attachments: attachments,
@@ -160,7 +165,7 @@ mixin _DmSendMixin on Cubit<DmState> {
       );
     } catch (e) {
       HelperMethods.printDebug('[DM] send failed: $e');
-      _failSend(
+      return _failSend(
         pending: pending,
         peerId: peerId,
         attachments: attachments,
@@ -174,7 +179,10 @@ mixin _DmSendMixin on Cubit<DmState> {
   /// channel mixin's copy for the reasoning, which is the same on all three
   /// surfaces. A refusal takes the row away and says why; a connection that
   /// dropped keeps it and holds what a retry would need.
-  void _failSend({
+  ///
+  /// Returns whether it was a refusal seen with the conversation still open,
+  /// which is when the words go back to the composer.
+  bool _failSend({
     required ChatMessage pending,
     required String peerId,
     required List<PendingAttachment> attachments,
@@ -187,7 +195,7 @@ mixin _DmSendMixin on Cubit<DmState> {
         _removePending(pending.id);
         HelperMethods.showError(error: error);
       }
-      return;
+      return open;
     }
     _outbox.hold(
       OutboxEntry(
@@ -203,6 +211,7 @@ mixin _DmSendMixin on Cubit<DmState> {
         ),
       );
     }
+    return false;
   }
 
   /// Try one held send again — what tapping a "Not sent" row does.
