@@ -20,6 +20,10 @@ class ServerUser {
   /// something a client can tell apart from "nothing here yet".
   final bool isBanned;
 
+  /// The ban is a kick, which the next invite to this server lifts — so the
+  /// notice says "removed" and how to come back, not "banned".
+  final bool isKicked;
+
   /// Until when we cannot post, DM or react here, or null. From the server
   /// on every refresh and never persisted, like [isBanned].
   final DateTime? timedOutUntil;
@@ -34,6 +38,7 @@ class ServerUser {
     required this.permissions,
     this.avatarPath,
     this.isBanned = false,
+    this.isKicked = false,
     this.timedOutUntil,
     this.dmPolicy = DmPolicy.everyone,
   });
@@ -54,6 +59,7 @@ class ServerUser {
     permissions: permissions,
     avatarPath: avatarPath ?? this.avatarPath,
     isBanned: isBanned ?? this.isBanned,
+    isKicked: isKicked,
     timedOutUntil: timedOutUntil,
     dmPolicy: dmPolicy ?? this.dmPolicy,
   );
@@ -72,6 +78,7 @@ class ServerUser {
       // Deliberately not persisted (see toJson): a ban read at launch has to
       // come from the server, not from what we believed last time.
       isBanned: json['is_banned'] as bool? ?? false,
+      isKicked: json['is_kicked'] as bool? ?? false,
       timedOutUntil: DateTime.tryParse(
         json['timed_out_until'] as String? ?? '',
       )?.toLocal(),

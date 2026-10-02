@@ -197,15 +197,19 @@ class _MembersPanelState extends State<MembersPanel> {
     bool? muted,
     bool? deafened,
     bool? banned,
+    bool kick = false,
   }) async {
     setState(() => _busyId = member.id);
-    final response = await context.read<ServerCubit>().moderateUser(
-      userId: member.id,
-      isMuted: muted,
-      isDeafened: deafened,
-      isBanned: banned,
-      serverId: widget.server.id,
-    );
+    final cubit = context.read<ServerCubit>();
+    final response = kick
+        ? await cubit.kickMember(userId: member.id, serverId: widget.server.id)
+        : await cubit.moderateUser(
+            userId: member.id,
+            isMuted: muted,
+            isDeafened: deafened,
+            isBanned: banned,
+            serverId: widget.server.id,
+          );
     if (!mounted) return;
     setState(() {
       _busyId = null;
@@ -213,7 +217,9 @@ class _MembersPanelState extends State<MembersPanel> {
         _moderated[member.id] = member.copyWith(
           isMuted: muted,
           isDeafened: deafened,
-          isBanned: banned,
+          isBanned: kick ? true : banned,
+          // A ban either way settles a kick (`moderate_user`).
+          isKicked: kick ? true : (banned == null ? null : false),
         );
       } else {
         _error = response.error;

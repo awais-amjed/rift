@@ -14,8 +14,14 @@ import '../../../../../theme/theme_context.dart';
 /// needs both of those facts, neither of which fits in a six-letter chip.
 /// Drawn where a pill was, so the answer is in the same place the question
 /// was asked.
+///
+/// A kick is drawn the same way with its own words: the same lock-out, but one
+/// any new invite ends.
 class ProfileBannedNotice extends StatelessWidget {
-  const ProfileBannedNotice({super.key});
+  /// Kicked rather than banned.
+  final bool kicked;
+
+  const ProfileBannedNotice({super.key, this.kicked = false});
 
   @override
   Widget build(BuildContext context) {
@@ -32,8 +38,8 @@ class ProfileBannedNotice extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         spacing: 10,
         children: [
-          const Icon(
-            Icons.gavel_rounded,
+          Icon(
+            kicked ? Icons.logout_rounded : Icons.gavel_rounded,
             size: K.iconRow,
             color: CustomColors.error,
           ),
@@ -42,15 +48,20 @@ class ProfileBannedNotice extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Banned from this server',
+                  kicked
+                      ? 'Kicked from this server'
+                      : 'Banned from this server',
                   style: AppText.secondaryStrong.copyWith(
                     color: CustomColors.error,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'They cannot rejoin. Their messages stay where they are. '
-                  'Any admin can lift it.',
+                  kicked
+                      ? 'A new invite brings them back, without the roles '
+                            'they had. Their messages stay where they are.'
+                      : 'They cannot rejoin. Their messages stay where they '
+                            'are. Any admin can lift it.',
                   style: AppText.secondary.copyWith(
                     height: 1.5,
                     color: theme.textSecondary,

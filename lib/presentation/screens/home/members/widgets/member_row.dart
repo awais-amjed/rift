@@ -28,7 +28,8 @@ class MemberRow extends StatelessWidget {
   /// already carrying a name, a presence dot and two moderation icons.
   final List<Role> roles;
   final VoidCallback onTap;
-  final void Function({bool? muted, bool? deafened, bool? banned}) onModerate;
+  final void Function({bool? muted, bool? deafened, bool? banned, bool kick})
+  onModerate;
 
   /// Passed to the panel — see [MemberManagePanel.onRolesChanged].
   final VoidCallback? onRolesChanged;
@@ -142,8 +143,8 @@ class MemberRow extends StatelessWidget {
                       // and the only place a ban can be lifted; the row
                       // has to say so.
                       if (member.isBanned)
-                        const LabelPill(
-                          label: 'Banned',
+                        LabelPill(
+                          label: member.isKicked ? 'Kicked' : 'Banned',
                           color: CustomColors.error,
                         ),
                     ],

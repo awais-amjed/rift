@@ -49,7 +49,7 @@ Future<void> _pumpRow(WidgetTester tester) async {
             canManagePermissions: false,
             canModerate: false,
             onTap: () {},
-            onModerate: ({muted, deafened, banned}) {},
+            onModerate: ({muted, deafened, banned, kick = false}) {},
           ),
         ),
       ),

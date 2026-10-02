@@ -12,6 +12,7 @@ import '../../../../../common/confirm_dialog.dart';
 import '../../../../../common/quiet_danger_button.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
+import '../../../members/widgets/kick_confirm.dart';
 import '../../../reports/time_out_picker.dart';
 import '../../../roles/member_roles_dialog.dart';
 import 'profile_section.dart';
@@ -26,8 +27,8 @@ import 'profile_section.dart';
 /// is the reason nobody ever does.
 ///
 /// Several permissions, and they are not the same reach: mute and deafen are
-/// a moderator's, a time-out is `MUTE_MEMBERS`, the ban is `BAN_MEMBERS`, and
-/// roles are an admin's — and the server refuses all of them against another
+/// a moderator's, a time-out is `MUTE_MEMBERS`, the kick is `KICK_MEMBERS`, the
+/// ban is `BAN_MEMBERS`, and roles are an admin's — and the server refuses all of them against another
 /// admin, so none is offered there.
 class ProfileModeration extends StatelessWidget {
   final ServerMember member;
@@ -35,9 +36,13 @@ class ProfileModeration extends StatelessWidget {
   final bool canModerate;
   final bool isAdmin;
   final bool canTimeOut;
+  final bool canKick;
   final bool canBan;
 
   final void Function({bool? muted, bool? deafened, bool? banned}) onModerate;
+
+  /// Kick them; already confirmed.
+  final VoidCallback onKick;
 
   /// Time them out for this long; [Duration.zero] lifts it.
   final void Function(Duration duration) onTimeOut;
@@ -49,8 +54,10 @@ class ProfileModeration extends StatelessWidget {
     required this.canModerate,
     required this.isAdmin,
     required this.canTimeOut,
+    required this.canKick,
     required this.canBan,
     required this.onModerate,
+    required this.onKick,
     required this.onTimeOut,
   });
 
@@ -65,9 +72,11 @@ class ProfileModeration extends StatelessWidget {
 
   /// Bans ask first; lifting one doesn't — the same asymmetry the members
   /// dialog uses, and for the same reason: only one of the two cuts somebody
-  /// off mid-sentence.
+  /// off mid-sentence. A kicked member is offered the ban, not a lift: the
+  /// next invite already lifts a kick, so the one decision left is to make it
+  /// stick.
   Future<void> _toggleBan(BuildContext context) async {
-    if (member.isBanned) {
+    if (member.isBanned && !member.isKicked) {
       onModerate(banned: false);
       return;
     }
@@ -85,6 +94,10 @@ class ProfileModeration extends StatelessWidget {
     if (confirmed) onModerate(banned: true);
   }
 
+  Future<void> _kick(BuildContext context) async {
+    if (await confirmKick(context, member.displayName)) onKick();
+  }
+
   void _openRoles(BuildContext context) {
     showDialog<void>(
       context: context,
@@ -100,10 +113,40 @@ class ProfileModeration extends StatelessWidget {
     // Never against another admin: `moderate_user` refuses it, and a button
     // that comes back "cannot_moderate_admin" is worse than no button.
     final reachable = !member.permissions.isServerAdmin;
-    if (!reachable || (!canModerate && !isAdmin && !canTimeOut && !canBan)) {
+    if (!reachable ||
+        (!canModerate && !isAdmin && !canTimeOut && !canKick && !canBan)) {
       return const SizedBox.shrink();
     }
     final until = member.timedOutUntil;
+    final banned = member.isBanned && !member.isKicked;
+    // Two to a row, matching the pair above: full-width bars down a profile's
+    // whole width read as a stack of consequences, and only the last two of
+    // these are.
+    final removals = [
+      if (canTimeOut)
+        QuietDangerButton(
+          icon: Icons.timer_outlined,
+          label: member.isTimedOut ? 'End time-out' : 'Time out',
+          isDangerous: !member.isTimedOut,
+          onTap: isBusy ? null : () => unawaited(_toggleTimeOut(context)),
+        ),
+      // Not for somebody already out: kicking a banned member would turn the
+      // ban into something an invite lifts, and the server refuses it.
+      if (canKick && !member.isBanned)
+        QuietDangerButton(
+          icon: Icons.logout_rounded,
+          label: 'Kick',
+          isDangerous: true,
+          onTap: isBusy ? null : () => unawaited(_kick(context)),
+        ),
+      if (canBan)
+        QuietDangerButton(
+          icon: banned ? Icons.lock_open_rounded : Icons.gavel_rounded,
+          label: banned ? 'Lift ban' : 'Ban from server',
+          isDangerous: !banned,
+          onTap: isBusy ? null : () => _toggleBan(context),
+        ),
+    ];
 
     return ProfileSection(
       label: 'Moderation',
@@ -140,35 +183,12 @@ class ProfileModeration extends StatelessWidget {
                 ),
               ],
             ),
-          // Two to a row, matching the pair above: four full-width bars down
-          // a profile's whole width read as a stack of consequences, and the
-          // ban is the only one of them that is.
-          if (canTimeOut || canBan)
+          for (var i = 0; i < removals.length; i += 2)
             Row(
               spacing: 6,
               children: [
-                if (canTimeOut)
-                  Expanded(
-                    child: QuietDangerButton(
-                      icon: Icons.timer_outlined,
-                      label: member.isTimedOut ? 'End time-out' : 'Time out',
-                      isDangerous: !member.isTimedOut,
-                      onTap: isBusy
-                          ? null
-                          : () => unawaited(_toggleTimeOut(context)),
-                    ),
-                  ),
-                if (canBan)
-                  Expanded(
-                    child: QuietDangerButton(
-                      icon: member.isBanned
-                          ? Icons.lock_open_rounded
-                          : Icons.gavel_rounded,
-                      label: member.isBanned ? 'Lift ban' : 'Ban from server',
-                      isDangerous: !member.isBanned,
-                      onTap: isBusy ? null : () => _toggleBan(context),
-                    ),
-                  ),
+                for (final button in removals.skip(i).take(2))
+                  Expanded(child: button),
               ],
             ),
           if (member.isTimedOut && until != null)

@@ -13,6 +13,11 @@ class ServerMember {
   final bool isDeafened;
   final bool isBanned;
 
+  /// The ban is a kick: [isBanned] until they come back through a new invite.
+  /// A moderator's list says "Kicked" for it, and offers a ban rather than a
+  /// lift, because an invite already lifts it.
+  final bool isKicked;
+
   /// A program, not a person (`users.is_bot`). Set at registration from the
   /// invite and never afterwards.
   ///
@@ -56,6 +61,7 @@ class ServerMember {
     this.isMuted = false,
     this.isDeafened = false,
     this.isBanned = false,
+    this.isKicked = false,
     this.isBot = false,
     this.manifest = BotManifest.empty,
     this.chatPublicKey,
@@ -82,6 +88,7 @@ class ServerMember {
       isMuted: json['is_muted'] == true,
       isDeafened: json['is_deafened'] == true,
       isBanned: json['is_banned'] == true,
+      isKicked: json['is_kicked'] == true,
       isBot: json['is_bot'] == true,
       manifest: BotManifest.fromJson(json['manifest'] as Map<String, dynamic>?),
       chatPublicKey: json['chat_public_key'] as String?,
@@ -114,6 +121,7 @@ class ServerMember {
     bool? isMuted,
     bool? isDeafened,
     bool? isBanned,
+    bool? isKicked,
     DateTime? timedOutUntil,
     bool clearTimedOut = false,
   }) {
@@ -125,6 +133,7 @@ class ServerMember {
       isMuted: isMuted ?? this.isMuted,
       isDeafened: isDeafened ?? this.isDeafened,
       isBanned: isBanned ?? this.isBanned,
+      isKicked: isKicked ?? this.isKicked,
       // Not a parameter: `is_bot` is pinned server-side (`users_pin_is_bot`) and a
       // copyWith that could change it would be the one place in the client
       // where a person turns into a program.

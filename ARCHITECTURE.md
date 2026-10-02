@@ -425,6 +425,13 @@ reacting, pinning or starting calls, up to 28 days, and it ends by itself), a ba
 or dismissal. Review and time-outs are permissions of their own (`REVIEW_REPORTS`,
 `MUTE_MEMBERS`), and nobody can ban an admin or someone who can ban.
 
+A **kick** (`KICK_MEMBERS`) is a ban that the member's next invite lifts. The
+server enforces it exactly as a ban — the same flag, so the same policies, key
+rotation and call teardown — and takes their roles and private-channel seats, so
+they come back as a newcomer under their old name, with their messages. Banning a
+kicked member makes it permanent; nobody can kick an admin, a bot, or someone who
+can kick or ban.
+
 **DM spam** is the member's own call. Each member chooses, per server, who may
 start a conversation with them: everyone, *ask me first* (a first message waits as
 a request — no ring, no push, one message until accepted), or nobody new. Existing

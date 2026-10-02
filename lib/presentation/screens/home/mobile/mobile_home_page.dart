@@ -31,15 +31,15 @@ class MobileHomePage extends StatelessWidget {
     final surface = context.select<AppCubit, HomeSurface>(
       (c) => c.state.surface,
     );
-    final server = context.select<ServerCubit, ({bool any, String? banned})>((
-      c,
-    ) {
-      final s = c.state.selectedServer;
-      return (
-        any: s != null,
-        banned: (s?.user?.isBanned ?? false) ? s!.name : null,
-      );
-    });
+    final server = context
+        .select<ServerCubit, ({bool any, String? banned, bool kicked})>((c) {
+          final s = c.state.selectedServer;
+          return (
+            any: s != null,
+            banned: (s?.user?.isBanned ?? false) ? s!.name : null,
+            kicked: s?.user?.isKicked ?? false,
+          );
+        });
 
     final Widget body;
     if (surface == HomeSurface.centralDms) {
@@ -55,7 +55,9 @@ class MobileHomePage extends StatelessWidget {
     } else if (server.banned != null) {
       // No tabs: every read on a server that banned you comes back empty, and
       // two halves of nothing would say the app is broken rather than closed.
-      body = Expanded(child: BannedNotice(serverName: server.banned!));
+      body = Expanded(
+        child: BannedNotice(serverName: server.banned!, kicked: server.kicked),
+      );
     } else {
       body = Expanded(
         child: Column(

@@ -103,7 +103,28 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
           isMuted: muted,
           isDeafened: deafened,
           isBanned: banned,
+          // A ban either way settles a kick (`moderate_user`).
+          isKicked: banned == null ? null : false,
         );
+      }
+    });
+    if (!response.success) {
+      HelperMethods.showError(error: response.error ?? 'Could not do that.');
+    }
+  }
+
+  Future<void> _kick() async {
+    final member = _member(context.read<ServerMembersCubit>().state);
+    if (member == null) return;
+    setState(() => _busy = true);
+    final response = await context.read<ServerCubit>().kickMember(
+      userId: member.id,
+    );
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      if (response.success) {
+        _moderated = member.copyWith(isBanned: true, isKicked: true);
       }
     });
     if (!response.success) {
@@ -155,6 +176,7 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
             isMuted: changed.isMuted,
             isDeafened: changed.isDeafened,
             isBanned: changed.isBanned,
+            isKicked: changed.isKicked,
             timedOutUntil: changed.timedOutUntil,
             clearTimedOut: changed.timedOutUntil == null,
           );
@@ -192,6 +214,7 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
     final isAdmin = permissions?.isServerAdmin ?? false;
     final canModerate = isAdmin || (permissions?.isChannelManager ?? false);
     final canTimeOut = permissions?.can(ServerPermission.muteMembers) ?? false;
+    final canKick = permissions?.can(ServerPermission.kickMembers) ?? false;
     final canBan = permissions?.can(ServerPermission.banMembers) ?? false;
     final isMe = server?.user?.id == widget.userId;
 
@@ -213,7 +236,8 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (member != null) ..._tags(member),
-          if (member?.isBanned ?? false) const ProfileBannedNotice(),
+          if (member?.isBanned ?? false)
+            ProfileBannedNotice(kicked: member!.isKicked),
           // Who they are on the left, what you can do about them on the
           // right — and stacked in that order on anything too narrow, which
           // is the order the dialog had when it was one column.
@@ -234,9 +258,11 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
               canModerate: canModerate,
               isAdmin: isAdmin,
               canTimeOut: canTimeOut,
+              canKick: canKick,
               canBan: canBan,
               onModerate: ({muted, deafened, banned}) =>
                   _moderate(muted: muted, deafened: deafened, banned: banned),
+              onKick: _kick,
               onTimeOut: _timeOut,
             ),
         ],

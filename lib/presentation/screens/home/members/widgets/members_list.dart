@@ -42,6 +42,7 @@ class MembersList extends StatelessWidget {
     bool? muted,
     bool? deafened,
     bool? banned,
+    bool kick,
   })
   onModerate;
 
@@ -110,11 +111,12 @@ class MembersList extends StatelessWidget {
               viewerIsModerator && !isSelf && !member.permissions.isServerAdmin,
           roles: memberRoles[member.id] ?? const [],
           onTap: () => onTap(member),
-          onModerate: ({muted, deafened, banned}) => onModerate(
+          onModerate: ({muted, deafened, banned, kick = false}) => onModerate(
             member,
             muted: muted,
             deafened: deafened,
             banned: banned,
+            kick: kick,
           ),
           onRolesChanged: onRolesChanged,
         );

@@ -159,4 +159,25 @@ mixin _ServerMembersApiMixin on Cubit<ServerState> {
       ),
     );
   }
+
+  /// Removes somebody until they come back through a new invite.
+  ///
+  /// A ban the next invite lifts (`kick_member`): out of every call now, and
+  /// back as a newcomer — their roles and private-channel seats are gone,
+  /// their name and messages are not. `KICK_MEMBERS`, checked by the server.
+  Future<APIResponse> kickMember({required String userId, String? serverId}) {
+    final server = _target(serverId);
+    if (server == null) return Future.value(_noTargetResponse(serverId));
+
+    return _callFor(
+      server,
+      (token) => _repository.moderateUser(
+        server.supabaseUrl,
+        anonKey: server.supabaseKey ?? '',
+        bearerToken: token,
+        userId: userId,
+        kick: true,
+      ),
+    );
+  }
 }

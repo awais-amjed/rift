@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rift/data/classes/channel.dart';
 import 'package:rift/data/classes/server.dart';
+import 'package:rift/data/classes/server_member.dart';
+import 'package:rift/data/classes/server_user.dart';
 import 'package:rift/data/enums/channel_type.dart';
 
 void main() {
@@ -130,6 +132,39 @@ void main() {
       final restored = Channel.fromJson(json);
       expect(restored.id, 'c1');
       expect(restored.channelType, ChannelType.voice);
+    });
+  });
+
+  // F-3: a kick is a ban an invite lifts, and both sides have to tell the
+  // two apart — the kicked person's notice, and a moderator's list.
+  group('Kicked', () {
+    const row = {
+      'id': 'u1',
+      'username': 'kim',
+      'display_name': 'Kim',
+      'is_banned': true,
+      'is_kicked': true,
+    };
+
+    test('our own row says the ban is a kick, and is not persisted', () {
+      final me = ServerUser.fromJson(row);
+      expect(me.isBanned, isTrue);
+      expect(me.isKicked, isTrue);
+      expect(me.toJson().containsKey('is_kicked'), isFalse);
+      expect(ServerUser.fromJson(me.toJson()).isKicked, isFalse);
+    });
+
+    test('a member row carries it, and a ban clears it', () {
+      final member = ServerMember.fromJson(row);
+      expect(member.isKicked, isTrue);
+      expect(member.copyWith(isMuted: true).isKicked, isTrue);
+      expect(member.copyWith(isKicked: false).isKicked, isFalse);
+    });
+
+    test('an older server that sends no flag means banned', () {
+      final member = ServerMember.fromJson({...row}..remove('is_kicked'));
+      expect(member.isBanned, isTrue);
+      expect(member.isKicked, isFalse);
     });
   });
 }

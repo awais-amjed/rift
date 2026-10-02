@@ -72,7 +72,9 @@ enum ServerPermission {
     5,
     PermissionGroup.server,
     'Kick members',
-    'Remove somebody from the server. They can come back with a new invite.',
+    'Remove somebody from the server, with their roles and private '
+        'channels. Their messages stay, and a new invite brings them back. '
+        'Nobody can kick an admin, or someone else who can kick or ban.',
   ),
   banMembers(
     6,

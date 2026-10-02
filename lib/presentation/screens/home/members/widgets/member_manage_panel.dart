@@ -12,12 +12,13 @@ import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 import '../../channels/bots/bot_access_dialog.dart';
 import '../../roles/member_roles_dialog.dart';
+import 'kick_confirm.dart';
 import 'member_moderation_row.dart';
 import 'ownership_actions.dart';
 
 /// Expanded management controls under a member row: permission toggles
 /// (server admins only), mute/deafen moderation buttons (admins and channel
-/// managers), and the ban control.
+/// managers), and the kick and ban controls.
 ///
 /// This is the only place a ban can be *lifted*. The participant context menu
 /// can ban, but it only ever sees people who are connected, and a banned
@@ -28,7 +29,8 @@ class MemberManagePanel extends StatelessWidget {
   final bool isBusy;
   final bool canManagePermissions;
   final bool canModerate;
-  final void Function({bool? muted, bool? deafened, bool? banned}) onModerate;
+  final void Function({bool? muted, bool? deafened, bool? banned, bool kick})
+  onModerate;
 
   /// Told when the roles dialog closes. It writes each toggle as it is
   /// flipped, so by the time it is shut the list above it is out of date —
@@ -50,8 +52,10 @@ class MemberManagePanel extends StatelessWidget {
   ///
   /// The asymmetry is the point — a ban cuts someone off mid-sentence and an
   /// unban only gives that back, so only one of the two is worth a speed bump.
+  /// A kicked member is offered the ban, not a lift — an invite already lifts
+  /// a kick.
   Future<void> _toggleBan(BuildContext context) async {
-    if (member.isBanned) {
+    if (member.isBanned && !member.isKicked) {
       onModerate(banned: false);
       return;
     }
@@ -67,6 +71,10 @@ class MemberManagePanel extends StatelessWidget {
       isDestructive: true,
     );
     if (confirmed) onModerate(banned: true);
+  }
+
+  Future<void> _kick(BuildContext context) async {
+    if (await confirmKick(context, member.displayName)) onModerate(kick: true);
   }
 
   void _openBotAccess(BuildContext context) {
@@ -138,9 +146,13 @@ class MemberManagePanel extends StatelessWidget {
             ),
           MemberModerationRow(
             member: member,
-
             isBusy: isBusy,
             canModerate: canModerate,
+            canKick:
+                context.read<ServerCubit>().state.myPermissions?.can(
+                  ServerPermission.kickMembers,
+                ) ??
+                false,
             // `BAN_MEMBERS`, which admins hold by implication and a server
             // may also give a moderator role.
             canBan:
@@ -151,6 +163,7 @@ class MemberManagePanel extends StatelessWidget {
             dividerAbove: canManagePermissions,
             onModerate: onModerate,
             onToggleBan: () => _toggleBan(context),
+            onKick: () => unawaited(_kick(context)),
           ),
         ],
       ),

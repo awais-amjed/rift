@@ -59,14 +59,20 @@ class MainContent extends StatelessWidget {
         // would show an empty channel that never loads. Central DMs are a
         // different tier and keep working, which is worth leaving reachable
         // — it is how you'd reach whoever banned you.
-        final bannedFrom = context.select<ServerCubit, String?>((cubit) {
-          final server = cubit.state.selectedServer;
-          return (server?.user?.isBanned ?? false) ? server!.name : null;
-        });
+        final bannedFrom = context
+            .select<ServerCubit, ({String name, bool kicked})?>((cubit) {
+              final server = cubit.state.selectedServer;
+              final user = server?.user;
+              if (user == null || !user.isBanned) return null;
+              return (name: server!.name, kicked: user.isKicked);
+            });
         if (bannedFrom != null && appState.surface != HomeSurface.centralDms) {
           return _ContentPanel(
             child: PaneCornerToggles.over(
-              BannedNotice(serverName: bannedFrom),
+              BannedNotice(
+                serverName: bannedFrom.name,
+                kicked: bannedFrom.kicked,
+              ),
               members: false,
             ),
           );

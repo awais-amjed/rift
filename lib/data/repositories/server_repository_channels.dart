@@ -236,12 +236,14 @@ mixin _ChannelApiMixin {
     bool? isMuted,
     bool? isDeafened,
     bool? isBanned,
+    bool kick = false,
   }) {
     return _post(supabaseUrl, 'moderate_user', {
       'target_user_id': userId,
       'muted': isMuted,
       'deafened': isDeafened,
       'banned': isBanned,
+      if (kick) 'kicked': true,
     }, bearerToken: bearerToken);
   }
 }
