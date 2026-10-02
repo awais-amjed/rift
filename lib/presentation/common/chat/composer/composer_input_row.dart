@@ -28,7 +28,7 @@ class ComposerInputRow extends StatelessWidget {
   final VoidCallback onSubmit;
 
   /// Passed straight to [ComposerTextField] — see its doc.
-  final bool Function()? onAcceptSuggestion;
+  final bool Function({bool sending})? onAcceptSuggestion;
   final VoidCallback onPickFiles;
 
   /// Start a poll, offered from the "+" beside attaching. Null where there

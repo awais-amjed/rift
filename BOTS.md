@@ -195,6 +195,11 @@ the bot and both work while the bot is asleep. A bot that publishes a new one ri
 server's topic, and an open channel reads the lists again — so a verb added while somebody is
 reading goes out as a command, not as sealed text the bot cannot open.
 
+A command's `usage` (`<url>`, `<user> [reason]`) is also how the composer knows whether it takes
+arguments. With the list open, Enter on a verb typed in full that has no `usage` sends it at once;
+one with a `usage`, or a half-typed verb, is completed and waits for the rest. A bot that takes
+arguments but declares no `usage` gets sent the bare verb.
+
 ---
 
 ## 5. Replies — [Implemented]

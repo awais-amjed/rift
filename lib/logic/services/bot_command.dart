@@ -85,6 +85,29 @@ class BotCommands {
     return null;
   }
 
+  /// Whether [text] is a whole command that takes nothing after it: `/stop`
+  /// typed out in full, for a verb whose manifest gives no usage.
+  ///
+  /// Enter sends such a line rather than completing it. Completing would only
+  /// add a space, so the press looked like it did nothing. A fragment (`/st`),
+  /// a verb that wants arguments (`/play <song>`) and a bot's bare name still
+  /// complete first, because what Enter would send then is not what was meant.
+  /// The verb resolves to the same bot [parse] would pick.
+  static bool isReadyToSend(String text, List<ServerMember> bots) {
+    final trimmed = text.trim();
+    if (!trimmed.startsWith('/') || trimmed.contains(RegExp(r'\s'))) {
+      return false;
+    }
+    final name = trimmed.substring(1).toLowerCase();
+    for (final bot in bots) {
+      for (final spec in bot.manifest.commands) {
+        if (spec.name != name) continue;
+        return spec.usage == null || spec.usage!.trim().isEmpty;
+      }
+    }
+    return false;
+  }
+
   /// The commands to offer for [text], as a `/` menu.
   ///
   /// Returns every bot's every command when nothing has been typed past the

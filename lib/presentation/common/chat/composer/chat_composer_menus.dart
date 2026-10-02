@@ -94,11 +94,16 @@ mixin _ComposerMenusMixin
   /// Both menus are ranked, so the first row is the one being offered — and
   /// with no keyboard path to it at all, Enter used to send the half-typed
   /// fragment the menu existed to finish. Answers false when nothing is open,
-  /// which is what leaves Enter meaning send.
-  bool _acceptSuggestion() {
+  /// which is what leaves Enter meaning send — and, for Enter ([sending]),
+  /// when the line is already a whole command with nothing to add
+  /// ([BotCommands.isReadyToSend]).
+  bool _acceptSuggestion({bool sending = false}) {
     if (_mentions.isNotEmpty) {
       _pickMention(_mentions.first);
       return true;
+    }
+    if (sending && BotCommands.isReadyToSend(_controller.text, widget.bots)) {
+      return false;
     }
     final commands = _suggestions;
     if (commands.isNotEmpty) {

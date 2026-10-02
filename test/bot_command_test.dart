@@ -154,6 +154,45 @@ void main() {
     });
   });
 
+  group('Enter on a whole command', () {
+    // F-24. Enter sends a line that is already complete, and completes one
+    // that is not — so it never sends something other than what was meant.
+    final music = ServerMember(
+      id: 'id-musicbot',
+      username: 'musicbot',
+      displayName: 'musicbot',
+      permissions: const UserPermissions(),
+      isBot: true,
+      manifest: const BotManifest(
+        commands: [
+          BotCommandSpec(name: 'play', usage: '<song>'),
+          BotCommandSpec(name: 'stop'),
+        ],
+      ),
+    );
+
+    test('a verb with no usage, typed in full, is ready', () {
+      expect(BotCommands.isReadyToSend('/stop', [music]), isTrue);
+      expect(BotCommands.isReadyToSend('/Stop ', [music]), isTrue);
+    });
+
+    test('a fragment is not', () {
+      expect(BotCommands.isReadyToSend('/st', [music]), isFalse);
+    });
+
+    test('a verb that wants arguments is not', () {
+      expect(BotCommands.isReadyToSend('/play', [music]), isFalse);
+    });
+
+    test("a bot's bare name is not", () {
+      expect(BotCommands.isReadyToSend('/musicbot', [music]), isFalse);
+    });
+
+    test('nobody\'s verb is not', () {
+      expect(BotCommands.isReadyToSend('/shrug', [music]), isFalse);
+    });
+  });
+
   group('the manifest', () {
     test('survives a bot that publishes nonsense', () {
       // Written by somebody else's program, so a field of the wrong type is a

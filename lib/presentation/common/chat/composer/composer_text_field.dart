@@ -28,7 +28,9 @@ class ComposerTextField extends StatelessWidget {
   /// An autocomplete that only takes a mouse click is a trap in a field you
   /// are typing into: with the menu open, Enter sent `@ben` as a message
   /// rather than completing it. Returns true when it consumed the key.
-  final bool Function()? onAcceptSuggestion;
+  /// [sending] is Enter, which declines a line that is already a whole
+  /// command, so it sends.
+  final bool Function({bool sending})? onAcceptSuggestion;
 
   const ComposerTextField({
     super.key,
@@ -61,7 +63,9 @@ class ComposerTextField extends StatelessWidget {
     }
     // A suggestion showing takes Enter first — otherwise the half-typed name
     // it is offering to complete goes out as the message.
-    if (onAcceptSuggestion?.call() ?? false) return KeyEventResult.handled;
+    if (onAcceptSuggestion?.call(sending: true) ?? false) {
+      return KeyEventResult.handled;
+    }
     onSubmit();
     return KeyEventResult.handled;
   }
