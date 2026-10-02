@@ -15,6 +15,11 @@ part of 'dm_cubit.dart';
 /// cursor central's list already had.
 mixin _DmConversationsMixin on Cubit<DmState> {
   ServerCubit get _serverCubit;
+  Map<String, String> get _dmKeySources;
+  Future<Uint8List?> _dmKeyFor(String peerId, String? peerChatKey);
+
+  /// Implemented by the history mixin.
+  Future<bool> _fetchLatest(String peerId);
 
   /// Fire OS notifications for newly-arrived messages across all conversations.
   void _notifyFromConversations(List<DmConversation> conversations);
@@ -40,6 +45,8 @@ mixin _DmConversationsMixin on Cubit<DmState> {
   /// in is at the top of it by definition.
   Future<void> refreshConversations() async {
     if (_localUserId == null) return;
+    final openPeer = state.openPeerId;
+    final openKeyBefore = openPeer == null ? null : _dmKeySources[openPeer];
     emit(state.copyWith(conversationsLoading: true));
 
     final page = await _fetchConversations();
@@ -63,6 +70,25 @@ mixin _DmConversationsMixin on Cubit<DmState> {
       ),
     );
     _notifyFromConversations(page.conversations);
+    if (openPeer != null && openKeyBefore != null) {
+      await _rekeyIfChanged(openPeer, openKeyBefore);
+    }
+  }
+
+  /// The open conversation's peer published a new chat key: work out the new
+  /// DM key and read the page again under it. What they send from now on is
+  /// sealed to it, and what was sealed to the old one shows as locked rather
+  /// than silently failing — the chip and the line in the conversation say
+  /// why (`KeyWatch`).
+  Future<void> _rekeyIfChanged(String peerId, String keyBefore) async {
+    final listed = state.conversations
+        .where((c) => c.peerId == peerId)
+        .firstOrNull
+        ?.peerChatPublicKey;
+    if (listed == null || listed == keyBefore) return;
+    await _dmKeyFor(peerId, listed);
+    if (isClosed || state.openPeerId != peerId) return;
+    await _fetchLatest(peerId);
   }
 
   /// Append the next page — what the list asks for as it is scrolled.

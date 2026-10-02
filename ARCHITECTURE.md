@@ -219,6 +219,14 @@ one is not sealed to until somebody looks; "Forget" is the way to send
 anyway. Everybody else is only told. The record is public keys and is never
 uploaded; another device of yours keeps its own.
 
+A server DM hears a new key while it is open. The `users` row moving rings
+`members` on the server topic, and `DmCubit` reads its conversation list again,
+which carries each peer's key; a changed one is derived anew and the open page read
+again under it, so what was sealed to the old key shows as locked at once. A Rift
+DM notices at its next list read — an arriving message or a launch — because
+central rings nothing when a profile's key changes. Either way a derived DM key is
+only reused while the peer key it came from is still the one listed.
+
 It covers the key a message is *sealed to*, not yet the key it is signed
 with: a member row carries `chat_public_key` and no signing key, so adding
 that means a column and a migration first.

@@ -82,6 +82,20 @@ class DmCubit extends Cubit<DmState>
   @override
   final Map<String, Uint8List> _dmKeys = {};
 
+  /// The peer chat key each entry in [_dmKeys] was worked out from. A peer
+  /// who publishes a new one gets a new DM key, so a cached key is only good
+  /// while the listed one still matches it.
+  @override
+  final Map<String, String> _dmKeySources = {};
+
+  /// The server topic, for `members`: a `users` row moved, which is how a
+  /// peer's new chat key is heard without waiting for their next message.
+  RealtimeLease? _serverFeed;
+
+  /// A role change rings `members` once per row it touches; one re-read
+  /// answers them all.
+  Timer? _membersDebounce;
+
   /// Our own topic, where the database says a DM arrived, changed or was
   /// reacted to, and where peers say they are typing.
   RealtimeLease? _inbox;
@@ -182,6 +196,7 @@ class DmCubit extends Cubit<DmState>
     unawaited(_saved.flush(leaving: true));
     _readyServerId = null;
     _dmKeys.clear();
+    _dmKeySources.clear();
     _outbox.clear();
     _notifier.reset();
     _typingTimer?.cancel();
@@ -214,7 +229,10 @@ class DmCubit extends Cubit<DmState>
   @override
   Future<Uint8List?> _dmKeyFor(String peerId, String? peerChatKey) async {
     final cached = _dmKeys[peerId];
-    if (cached != null) return cached;
+    if (cached != null &&
+        (peerChatKey == null || _dmKeySources[peerId] == peerChatKey)) {
+      return cached;
+    }
     if (peerChatKey == null) return null;
     final server = _serverCubit.state.selectedServer;
     if (server == null || _vaultCubit.state.masterSeed == null) return null;
@@ -225,6 +243,7 @@ class DmCubit extends Cubit<DmState>
       theirPublicKey: CryptoRepository.fromBase64(peerChatKey),
     );
     _dmKeys[peerId] = key;
+    _dmKeySources[peerId] = peerChatKey;
     return key;
   }
 
@@ -256,6 +275,22 @@ class DmCubit extends Cubit<DmState>
             if (state.openPeerId != null) unawaited(refreshCallLog());
           })
           ..onBroadcast(ServerEvent.typing, _onTyping);
+    _serverFeed = _serverCubit.realtime.join(
+      server,
+      ServerTopics.server(server.id),
+    )?..onBroadcast(ServerEvent.members, (_) => _onMembersDoorbell());
+  }
+
+  /// Somebody's `users` row moved — a name, an avatar, or a new chat key.
+  /// The list carries each peer's key, so reading it again is what notices a
+  /// change while the conversation is open, rather than at their next
+  /// message or the next launch (`refreshConversations`).
+  void _onMembersDoorbell() {
+    if (state.conversations.isEmpty) return;
+    _membersDebounce?.cancel();
+    _membersDebounce = Timer(const Duration(milliseconds: 400), () {
+      if (!isClosed) unawaited(refreshConversations());
+    });
   }
 
   /// Reads the lists again once the inbox is back: whatever rang while the
@@ -277,10 +312,14 @@ class DmCubit extends Cubit<DmState>
 
   Future<void> _teardownRealtime() async {
     final inbox = _inbox;
+    final feed = _serverFeed;
     _inbox = null;
+    _serverFeed = null;
+    _membersDebounce?.cancel();
     _inboxJoinedBefore = false;
     _typingPeerId = null;
     await inbox?.release();
+    await feed?.release();
   }
 
   @override

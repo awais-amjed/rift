@@ -100,6 +100,10 @@ class CentralDmCubit extends Cubit<CentralDmState>
   @override
   final Map<String, Uint8List> _dmKeys = {};
 
+  /// The peer chat key each entry in [_dmKeys] was worked out from — see
+  /// `DmCubit._dmKeySources`. A list read that brings a new one re-derives.
+  final Map<String, String> _dmKeySources = {};
+
   /// Signing keys per peer from the directory (base64) — for verification.
   @override
   final Map<String, String> _peerSigningKeys = {};
@@ -238,6 +242,7 @@ class CentralDmCubit extends Cubit<CentralDmState>
     final channel = _incoming;
     _incoming = null;
     _dmKeys.clear();
+    _dmKeySources.clear();
     // Unsent messages belong to the account that wrote them. Keeping them
     // across a sign-out would offer the next account a retry on somebody
     // else's sentence.
@@ -302,7 +307,10 @@ class CentralDmCubit extends Cubit<CentralDmState>
   @override
   Future<Uint8List?> _dmKeyFor(String peerId, String? peerChatKey) async {
     final cached = _dmKeys[peerId];
-    if (cached != null) return cached;
+    if (cached != null &&
+        (peerChatKey == null || _dmKeySources[peerId] == peerChatKey)) {
+      return cached;
+    }
     if (peerChatKey == null || _vaultCubit.state.masterSeed == null) {
       return null;
     }
@@ -312,6 +320,7 @@ class CentralDmCubit extends Cubit<CentralDmState>
       theirPublicKey: CryptoRepository.fromBase64(peerChatKey),
     );
     _dmKeys[peerId] = key;
+    _dmKeySources[peerId] = peerChatKey;
     return key;
   }
 
