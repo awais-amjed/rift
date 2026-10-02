@@ -22,7 +22,8 @@ class MicTestCapture {
   LocalAudioTrack? _track;
   CancelListenFunc? _cancelRenderer;
 
-  /// The device read directly, on Windows — see [_startReadingDevice].
+  /// The device read directly, on Windows and Linux — see
+  /// [_startReadingDevice].
   /// Cancelled in [stop], through a local taken before the first await.
   // ignore: cancel_subscriptions
   StreamSubscription<Int16List>? _samples;
@@ -64,14 +65,14 @@ class MicTestCapture {
     }
   }
 
-  /// Reads [deviceId] itself — `null` is Windows' default — rather than
+  /// Reads [deviceId] itself — `null` is the system default — rather than
   /// through a WebRTC track.
   ///
   /// WebRTC only records while a call is sending, so outside a call a track
   /// made for the test never received a sample: the meter stayed dark, and
-  /// Windows recorded that the microphone was never opened. The Rust side
-  /// reads the device in the meter's own format ([micTapFormat]), so the same
-  /// [PcmLevel] reading applies. What it cannot show is WebRTC's noise
+  /// neither Windows nor PulseAudio showed the microphone being opened. The
+  /// Rust side reads the device in the meter's own format ([micTapFormat]), so
+  /// the same [PcmLevel] reading applies. What it cannot show is WebRTC's noise
   /// suppression and gain control, which only exist inside a call.
   ///
   /// Throws, like the WebRTC path, if the device cannot be opened: that shows

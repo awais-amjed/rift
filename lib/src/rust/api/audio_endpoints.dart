@@ -33,6 +33,16 @@ Future<String?> defaultOutputEndpoint() =>
 Future<String?> defaultInputEndpoint() =>
     RustLib.instance.api.crateApiAudioEndpointsDefaultInputEndpoint();
 
+/// Sends an event whenever an audio device is added or removed or the system
+/// default changes, until Dart stops listening.
+///
+/// Linux only. WebRTC's PulseAudio module never reports a change (its device
+/// observer is not implemented there, so `ondevicechange` never fires), and a
+/// headset plugged in while settings were open stayed missing from the list.
+/// Elsewhere WebRTC reports changes itself, and the stream ends at once.
+Stream<void> audioDeviceChanges() =>
+    RustLib.instance.api.crateApiAudioEndpointsAudioDeviceChanges();
+
 /// One endpoint, and the format Windows hands a shared-mode client for it.
 class AudioEndpoint {
   /// The endpoint id, in the same form WebRTC reports as a device's guid, so

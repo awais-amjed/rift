@@ -3,6 +3,7 @@ import 'package:livekit_client/livekit_client.dart';
 
 import '../../src/rust/api/audio_endpoints.dart';
 import '../helper_methods.dart';
+import 'host_platform.dart';
 
 /// Re-exported so callers reading formats through [AudioDevices] don't have to
 /// reach into the generated bridge themselves.
@@ -18,39 +19,75 @@ export '../../src/rust/api/audio_endpoints.dart' show AudioEndpoint;
 class AudioDevices {
   const AudioDevices._();
 
-  static Future<List<MediaDevice>> inputs() =>
-      Hardware.instance.enumerateDevices(type: 'audioinput');
+  /// The inputs a person can pick, as WebRTC lists them.
+  static Future<List<MediaDevice>> inputs() async =>
+      _pickable(await _listed('audioinput'));
 
-  static Future<List<MediaDevice>> outputs() =>
-      Hardware.instance.enumerateDevices(type: 'audiooutput');
+  /// The outputs a person can pick, as WebRTC lists them.
+  static Future<List<MediaDevice>> outputs() async =>
+      _pickable(await _listed('audiooutput'));
 
-  /// Both lists, which are empty unless a call is up.
+  static Future<List<MediaDevice>> _listed(String kind) =>
+      Hardware.instance.enumerateDevices(type: kind);
+
+  /// [devices] without WebRTC's own "default" entry, where it lists one
+  /// ([HostPlatform.listsDefaultAudioDevice]). That entry is what "System
+  /// default" selects, and listed beside it as well it read as a device of
+  /// its own, named after whichever one happened to be the default.
+  static List<MediaDevice> _pickable(List<MediaDevice> devices) =>
+      devices.where((device) => !_isDefaultEntry(device)).toList();
+
+  /// WebRTC's PulseAudio module names its default entry "default: " plus the
+  /// default device's description, and gives no device an id of its own.
+  static bool _isDefaultEntry(MediaDevice device) =>
+      HostPlatform.listsDefaultAudioDevice &&
+      device.deviceId.startsWith('default: ');
+
+  /// Both lists.
   ///
   /// Audio devices are not enumerated by the operating system here but by
   /// WebRTC's audio device module: the plugin walks `RecordingDevices()` and
   /// `PlayoutDevices()` and reports what they return. Both refuse to answer
   /// until that module has been initialised, and return -1, which the plugin
-  /// loops zero times over — so outside a call both lists come back empty and
-  /// the settings screen says "No devices found" until a channel is joined.
-  /// Only the camera shows, because video devices are enumerated separately.
+  /// loops zero times over.
   ///
-  /// Two ways of bringing that module up from here have been tried and
-  /// measured, and neither does: `getUserMedia` builds an audio source straight
-  /// off the peer connection factory without touching it, and a peer connection
-  /// carrying a receive-only audio transceiver in its local description does not
-  /// reach it either. Outside a call the pickers read Windows instead — see
-  /// [choices].
+  /// When that happens differs by platform. On Linux the libwebrtc shipped
+  /// since m150 initialises the module as soon as the plugin makes its
+  /// factory, so both lists come back with no call up (measured Oct 2 2026).
+  /// On Windows they were still empty until a channel was joined when the
+  /// pickers were last fixed there (Oct 1 2026), and outside a call the
+  /// pickers read Windows instead — see [choices].
   static Future<({List<MediaDevice> inputs, List<MediaDevice> outputs})>
   load() async => (inputs: await inputs(), outputs: await outputs());
 
+  /// Fires when an audio device comes or goes, or the system default
+  /// changes.
+  ///
+  /// WebRTC reports that through `Hardware.onDeviceChange` everywhere but
+  /// Linux, where its device observer is not implemented, so on Linux a
+  /// PulseAudio watcher in the Rust library reports it instead
+  /// ([HostPlatform.watchesAudioDevicesItself]). One watcher serves the
+  /// whole process, started on first listen.
+  static Stream<void> get changes {
+    if (!HostPlatform.watchesAudioDevicesItself) {
+      return Hardware.instance.onDeviceChange.stream;
+    }
+    return _pulseChanges ??= audioDeviceChanges().handleError((Object e) {
+      HelperMethods.printDebug('[AudioDevices] device watch ended: $e');
+    }).asBroadcastStream();
+  }
+
+  static Stream<void>? _pulseChanges;
+
   /// What the pickers offer, and whether a pick can be put in force now.
   ///
-  /// In a call that is WebRTC's own list ([load]), and a pick applies at once.
-  /// Outside one WebRTC lists nothing, so on Windows the list comes from
-  /// Windows itself: the same endpoints under the same ids, since WebRTC's
-  /// device id *is* the endpoint id. There a pick is only saved, and the next
-  /// join applies it ([applySaved]) — the device module it would go to does
-  /// not exist yet. Elsewhere outside a call both lists stay empty.
+  /// Whenever WebRTC lists devices ([load]) the pickers offer its list, and a
+  /// pick applies at once — on Linux that is with or without a call. Where
+  /// it lists nothing, outside a call on Windows, the list comes from Windows
+  /// itself: the same endpoints under the same ids, since WebRTC's device id
+  /// *is* the endpoint id. There a pick is only saved, and the next join
+  /// applies it ([applySaved]) — the device module it would go to does not
+  /// exist yet.
   static Future<
     ({List<MediaDevice> inputs, List<MediaDevice> outputs, bool live})
   >
@@ -133,17 +170,30 @@ class AudioDevices {
     return '$text kHz';
   }
 
-  /// The device WebRTC lists that Windows uses by default, or null when that
-  /// cannot be known: off Windows, outside a call (when WebRTC lists nothing),
-  /// or with no default device at all.
+  /// The device in WebRTC's list that "System default" selects, or null when
+  /// that cannot be known: on the web, on Windows outside a call (when WebRTC
+  /// lists nothing), or with no default device at all.
   ///
   /// "System default" needs this because the plugin can only point WebRTC's
   /// device module at a device in its list. Leaving the choice alone does not
   /// mean the default: the module keeps whatever it was last given for the
   /// life of the process, so picking a device and then "System default" left
   /// the call on the device just un-picked.
+  ///
+  /// On Linux it is WebRTC's own default entry, which opens no device by name
+  /// and so follows the system default as it changes (verified Oct 2 2026:
+  /// changing the default mic and speaker in GNOME moved a running call with
+  /// them). On Windows it is the endpoint Windows names as the default now,
+  /// matched by id; a later change there is not followed.
   static Future<MediaDevice?> systemDefault({required bool isInput}) async {
     if (kIsWeb) return null;
+    if (HostPlatform.listsDefaultAudioDevice) {
+      final listed = await _listed(isInput ? 'audioinput' : 'audiooutput');
+      return listed.cast<MediaDevice?>().firstWhere(
+        (device) => _isDefaultEntry(device!),
+        orElse: () => null,
+      );
+    }
     final id = isInput
         ? await defaultInputEndpoint()
         : await defaultOutputEndpoint();
@@ -151,25 +201,26 @@ class AudioDevices {
     return byId(isInput ? await inputs() : await outputs(), id);
   }
 
-  /// The id a new mic track should name: the saved input, else Windows'
-  /// default, else null — which leaves the device module where it is.
+  /// The id the mic test should open: the saved input, else Windows' default,
+  /// else null — the system default, wherever the test reads the device
+  /// itself ([HostPlatform.micTestReadsDevice]).
   ///
   /// For the mic test outside a call, where there is no [applySaved] result
-  /// to read. WebRTC lists nothing then, so an id that cannot be matched just
-  /// leaves the device alone, which is still better than the first one.
+  /// to read.
   static Future<String?> preferredInputId(String? savedId) async {
     if (savedId != null || kIsWeb) return savedId;
     return defaultInputEndpoint();
   }
 
-  /// Applies the saved devices — or, where nothing is saved, Windows' default
-  /// — ignoring ids that no longer enumerate, and reports what it moved: the
-  /// input by id, since every mic track made afterwards has to name it.
+  /// Applies the saved devices — or, where nothing is saved, the system
+  /// default ([systemDefault]) — ignoring ids that no longer enumerate, and
+  /// reports what it moved: the input by id, since every mic track made
+  /// afterwards has to name it.
   ///
   /// **Call this only once a call is up.** Everything here goes through the
   /// same device module [load] describes, so before a room is connected there
-  /// is nothing to enumerate and nothing to select — this would run to
-  /// completion having done nothing. It was called from app startup for
+  /// may be nothing to enumerate and nothing to select (on Windows there is
+  /// not) — this would run to completion having done nothing. It was called from app startup for
   /// exactly that reason once, on the argument that the choice should be in
   /// place "before any call can open a device", which is the one moment it
   /// cannot be.

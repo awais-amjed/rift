@@ -443,7 +443,10 @@ class LiveKitCubit extends Cubit<LiveKitState>
   /// that mid-call switching was unsupported — it isn't, and the rejoin only
   /// tore the connection down underneath a device change that was already in
   /// flight on the worker thread.
-  Future<void> refreshAudioInput(String deviceId) {
+  ///
+  /// A null [deviceId] names no device, which leaves the plugin on its first
+  /// entry — for "System default" where the default cannot be resolved.
+  Future<void> refreshAudioInput(String? deviceId) {
     _captureDeviceId = deviceId;
     return _refreshMicrophoneCapture();
   }

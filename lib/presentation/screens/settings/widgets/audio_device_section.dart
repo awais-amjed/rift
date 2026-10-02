@@ -26,8 +26,8 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
   List<MediaDevice> _outputDevices = [];
   bool _devicesLoading = true;
 
-  /// Whether the lists are WebRTC's, in a call, so a pick can be applied now.
-  /// Outside a call they are Windows' and a pick is only saved — see
+  /// Whether the lists are WebRTC's, so a pick can be applied now. Outside a
+  /// call on Windows they are Windows' and a pick is only saved — see
   /// [AudioDevices.choices].
   bool _live = false;
 
@@ -42,7 +42,7 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
   Map<String, AudioEndpoint> _inputFormats = const {};
   Map<String, AudioEndpoint> _outputFormats = const {};
 
-  StreamSubscription<List<MediaDevice>>? _deviceChangeSub;
+  StreamSubscription<void>? _deviceChangeSub;
 
   @override
   void initState() {
@@ -50,9 +50,7 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
     _loadDevices();
     // Devices used to be read once and never again, so plugging a headset in
     // while this was open left a list that no longer described the machine.
-    _deviceChangeSub = Hardware.instance.onDeviceChange.stream.listen((_) {
-      _loadDevices();
-    });
+    _deviceChangeSub = AudioDevices.changes.listen((_) => _loadDevices());
   }
 
   @override
@@ -99,9 +97,10 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
   /// That order matters: recording the choice first meant a device the
   /// platform went on to refuse stayed saved and came back next launch.
   ///
-  /// "System default" (a null [deviceId]) is applied too, as Windows' default
-  /// device: WebRTC keeps the last device it was given for the life of the
-  /// process, so merely forgetting the choice left the call where it was.
+  /// "System default" (a null [deviceId]) is applied too
+  /// ([AudioDevices.systemDefault]): WebRTC keeps the last device it was given
+  /// for the life of the process, so merely forgetting the choice left the
+  /// call where it was.
   Future<void> _select(String? deviceId, {required bool isInput}) async {
     if (!_live) return _save(deviceId, isInput: isInput);
     final device = deviceId == null
@@ -109,9 +108,15 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
         : AudioDevices.byId(isInput ? _inputDevices : _outputDevices, deviceId);
     if (!mounted) return;
     if (device == null) {
-      // Outside a call there is nothing to apply it to yet; the next join
-      // does, from the saved choice.
-      if (deviceId == null) _clearSelection(isInput: isInput);
+      // No default to point WebRTC at; the next join applies the saved
+      // choice. The call's mic must still stop naming the device just
+      // un-picked, or every track it makes goes on recording from it.
+      if (deviceId == null) {
+        _clearSelection(isInput: isInput);
+        if (isInput) {
+          await context.read<LiveKitCubit>().refreshAudioInput(null);
+        }
+      }
       return;
     }
     if (_refuseUnusable(device, isInput ? _inputFormats : _outputFormats)) {
@@ -197,7 +202,7 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
     return true;
   }
 
-  /// Forgets the saved device, so the next join uses Windows' default.
+  /// Forgets the saved device, so the next join uses the system default.
   void _clearSelection({required bool isInput, bool keepError = false}) {
     final cubit = context.read<AppCubit>();
     if (isInput) {

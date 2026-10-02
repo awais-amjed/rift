@@ -7,13 +7,15 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 import '../frb_generated.dart';
 
-/// Reads `device_id` — an endpoint id as [`super::audio_endpoints`] reports
-/// them, or `None` for Windows' default — and sends 16-bit mono samples at
-/// 16 kHz to `sink` until [`stop_mic_test`], or until Dart stops listening.
+/// Reads `device_id` — the id WebRTC lists the input under, or `None` for the
+/// system default — and sends 16-bit mono samples at 16 kHz to `sink` until
+/// [`stop_mic_test`], or until Dart stops listening. On Windows that id is the
+/// endpoint id; on Linux it is the source's description, the only name
+/// WebRTC's PulseAudio module gives one.
 ///
 /// A microphone that cannot be opened ends the stream with an error. Off
-/// Windows the stream ends with an error straight away, and the caller keeps
-/// to WebRTC's own capture.
+/// Windows and Linux the stream ends with an error straight away, and the
+/// caller keeps to WebRTC's own capture.
 Stream<Int16List> micTestSamples({String? deviceId}) =>
     RustLib.instance.api.crateApiMicTestMicTestSamples(deviceId: deviceId);
 

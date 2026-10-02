@@ -1,9 +1,10 @@
 //! Linux: record one application's stream through the monitor of the sink
 //! it plays to.
-use super::pulse::{self, Connection};
+use super::pulse;
 use super::{
     samples_from_le_bytes, AudioCapture, AudioCaptureHandle, Command, NUM_CHANNELS, SAMPLE_RATE,
 };
+use crate::pulse::Connection;
 use libpulse_binding as pa;
 use livekit::prelude::*;
 use pa::def::BufferAttr;

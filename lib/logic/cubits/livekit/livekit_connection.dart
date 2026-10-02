@@ -42,9 +42,9 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
   String? get _captureDeviceId;
   set _captureDeviceId(String? deviceId);
 
-  /// Puts the user's saved input and output devices — or Windows' defaults,
-  /// where none are saved — in force for this call, and reports whether the
-  /// mic track has to be remade on a different input.
+  /// Puts the user's saved input and output devices — or the system
+  /// defaults, where none are saved — in force for this call, and reports
+  /// whether the mic track has to be remade on a different input.
   ///
   /// This belongs to joining and nowhere else. WebRTC's audio device module
   /// neither enumerates nor accepts a selection until it is running, which it
@@ -62,8 +62,8 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
         inputId: _appCubit.state.inputDeviceId,
         outputId: _appCubit.state.outputDeviceId,
       );
-      final input = applied.input;
-      if (input == null || input == _captureDeviceId) return false;
+      final input = applied.input ?? _unresolvedDefault();
+      if (input == _captureDeviceId) return false;
       _captureDeviceId = input;
       return true;
     } catch (e) {
@@ -71,6 +71,14 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       return false;
     }
   }
+
+  /// What the mic tracks should name when nothing was applied: nothing at
+  /// all if the choice is "System default", so the plugin falls back to its
+  /// first entry — WebRTC's default on Linux — rather than every track going
+  /// on naming a device picked earlier in the session. Otherwise (a saved
+  /// device that is gone or refused) whatever the tracks already name.
+  String? _unresolvedDefault() =>
+      _appCubit.state.inputDeviceId == null ? null : _captureDeviceId;
 
   /// Connects to a LiveKit channel. Server context is resolved internally via
   /// [_serverCubit]; callers only supply the channel and media preferences.

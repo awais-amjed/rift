@@ -53,9 +53,26 @@ class HostPlatform {
       !kIsWeb && Platform.isWindows;
 
   /// Whether the settings mic test reads the microphone itself rather than
-  /// through WebRTC, which records nothing outside a call. Windows has the
-  /// reader (see `mic_test_capture.dart`); elsewhere the test keeps to WebRTC.
-  static bool get micTestReadsDevice => !kIsWeb && Platform.isWindows;
+  /// through WebRTC, which records nothing outside a call. Windows and Linux
+  /// have the reader (see `mic_test_capture.dart`); elsewhere the test keeps
+  /// to WebRTC.
+  static bool get micTestReadsDevice =>
+      !kIsWeb && (Platform.isWindows || Platform.isLinux);
+
+  /// Whether WebRTC lists the system default as an audio device of its own.
+  ///
+  /// Its PulseAudio module puts an extra "default: …" entry, named after the
+  /// default device, first in both lists, and that entry opens whatever the
+  /// system default is at the time — following it when it changes, mid-call
+  /// included. So on Linux it
+  /// *is* "System default", rather than a second copy of a device to pick.
+  /// See `AudioDevices.systemDefault`.
+  static bool get listsDefaultAudioDevice => !kIsWeb && Platform.isLinux;
+
+  /// Whether Rift has to watch for audio devices coming and going itself.
+  /// WebRTC never reports a change on Linux, where its device observer is
+  /// not implemented; elsewhere `Hardware.onDeviceChange` carries them.
+  static bool get watchesAudioDevicesItself => !kIsWeb && Platform.isLinux;
 
   /// Whether the OS lowers other applications' volume during a call.
   ///
