@@ -32,7 +32,9 @@ class NewMessageNotifier {
     final fresh = <DmConversation>[];
     for (final convo in conversations) {
       final last = convo.lastMessage;
-      if (last == null || last.isMine) continue;
+      // A locked message has no words to show, and a notification saying
+      // nothing is worse than none — the same rule a channel follows.
+      if (last == null || last.isMine || last.isLocked) continue;
       final key = '${convo.peerId}:${last.id}';
       // add() is true only the first time we see this message. Notify only
       // once primed, so the initial snapshot is absorbed silently.

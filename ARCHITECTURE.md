@@ -226,7 +226,7 @@ Reading a message has three outcomes, and for a long time two of them shared a l
 | Outcome | When | What the reader sees |
 |---|---|---|
 | **Opened** | decrypted and verified, or never sealed (a webhook, `key_version 0`) | the message |
-| **Locked** | sealed under a key version this device does not hold | a placeholder row: author, time, and a lock |
+| **Locked** | sealed under a key version this device does not hold, or signed correctly but not opening under the key it does hold | a placeholder row: author, time, and a lock |
 | **Dropped** | the signature does not verify, or the sender's key is gone so it cannot be checked | nothing, ever, and no hint that anything was there |
 
 The middle row used to be the last one. A member nobody had wrapped for yet had every message
@@ -244,6 +244,13 @@ So a channel with no key now renders what it has: locked rows in place, webhook 
 among them, and the composer replaced by a banner — sending needs the same key, so there is no
 half-open state to offer. The full-screen wait survives for the one case where it is still the
 honest answer: nothing came back at all, so there is no list to show and nothing to say but why.
+
+The same holds when the key this device has is the wrong one: a DM key derived from a peer key
+that has since changed, a channel key wrapped wrong. The signature is checked first and covers the
+ciphertext, so a row that verifies and then fails to open is genuine and simply unreadable here —
+locked, not dropped (`openSealed`). Dropping those was what emptied a DM the moment the other
+person's key changed. Channels, server DMs and Rift DMs all take this path, and a DM with no key
+at all shows its rows locked too.
 
 The locked row carries the author and the timestamp, which are columns the server already keeps in
 the clear (§4, *metadata is visible*). Showing them reveals nothing a member without the key could

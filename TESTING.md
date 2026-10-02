@@ -59,6 +59,7 @@ instances with separate identities; the Android client is the emulator.
 | Voice regions: pinning, moving a live call, a region dying | Sep 25–26 2026 | two clients on two LiveKits on one machine |
 | Roles, bans, bots in a call | Sep 23 2026 | a clean stack driven end to end |
 | Safety codes | Sep 22–23 2026 | two clients, both ends |
+| A DM whose key no longer opens it shows its messages locked | Oct 2 2026 | Linux release, Lana with Benny's key swapped in the database: every message showed as a locked row with author and time (they used to vanish), the DM list read "Message you cannot open yet"; with his key back they opened again. Channels and Rift DMs take the same path (`sealed_open_test.dart`); only the server DM was driven |
 | A DM saying the other person's key changed | Oct 2 2026 | one client, the peer's key swapped in the database: amber chip, a line per change, cleared by looking or verifying; held amber for a verified person; desktop and phone width. Central DMs and the profile's line not driven |
 | Screen share, including a phone's stream | Sep 22 2026 | Linux sharing, desktop and Android watching |
 | Push-to-talk on Linux | Sep 21 2026 | GNOME, through the GlobalShortcuts portal |

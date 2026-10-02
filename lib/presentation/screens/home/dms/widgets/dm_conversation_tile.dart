@@ -4,6 +4,7 @@ import '../../../../../data/classes/dm_conversation.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../data/enums/notification_level.dart';
 import '../../../../../logic/services/conversation_time.dart';
+import '../../../../../logic/services/message_excerpt.dart';
 import '../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../common/context_menu_region.dart';
 import '../../../../common/notifications/notification_level_submenu.dart';
@@ -110,9 +111,14 @@ class DmConversationTile extends StatelessWidget {
     // A step rounder than a channel row: this tile carries two lines and an
     // avatar, and at the row radius it reads as a cramped version of one.
     final radius = BorderRadius.circular(K.radiusRow);
-    final preview = conversation.lastMessage?.text;
+    final last = conversation.lastMessage;
+    // A locked message says so, rather than leaving the line blank as if the
+    // conversation had nothing in it.
+    final preview = last != null && last.isLocked
+        ? MessageExcerpt.of(last)
+        : last?.text;
     final compact = context.layoutMode.isCompact;
-    final sentAt = conversation.lastMessage?.sentAt;
+    final sentAt = last?.sentAt;
 
     return Material(
       color: Colors.transparent,

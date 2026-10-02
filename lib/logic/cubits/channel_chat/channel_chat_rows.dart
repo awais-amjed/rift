@@ -20,9 +20,10 @@ mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
   ///
   ///   * **opened** — decrypted and signature-verified, or never sealed at all
   ///     (key_version 0, a webhook);
-  ///   * **locked** — sealed under a key version this device does not hold.
-  ///     Rendered as a placeholder. Nothing is wrong; nobody has wrapped for us
-  ///     yet, and it will open when they do;
+  ///   * **locked** — sealed under a key version this device does not hold,
+  ///     or holds wrong: it verifies and then does not open ([openSealed]).
+  ///     Rendered as a placeholder. Usually nothing is wrong; nobody has
+  ///     wrapped for us yet, and it will open when they do;
   ///   * **dropped** — the signature does not verify, or the sender's key is
   ///     gone so it cannot be verified at all. A forged or tampered message is
   ///     never rendered, and never hinted at either.
@@ -107,19 +108,24 @@ mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
       }
 
       try {
-        final plaintext = await _crypto.openMessage(
+        final opened = await openSealed(
+          _crypto,
           envelope: MessageEnvelope.fromJson(row),
           messageKey: key,
           senderPublicKey: CryptoRepository.fromBase64(senderKeyB64),
           contextId: channelId,
         );
-        if (plaintext == null) {
+        if (opened.outcome == SealedOutcome.dropped) {
           HelperMethods.printDebug(
             '[Chat] dropped message ${row['id']}: bad signature',
           );
           continue;
         }
-        final body = MessageBody.decode(plaintext);
+        if (opened.outcome == SealedOutcome.locked) {
+          result.add(_lockedRow(row, localUserId));
+          continue;
+        }
+        final body = MessageBody.decode(opened.plaintext!);
         result.add(
           ChatMessage(
             id: '${row['id']}',

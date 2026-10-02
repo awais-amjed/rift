@@ -40,6 +40,7 @@ import '../../services/pin_ops.dart';
 import '../../services/push_service.dart';
 import '../../services/quote_lookup.dart';
 import '../../services/saved_conversation.dart';
+import '../../services/sealed_open.dart';
 import '../../services/sound_service.dart';
 import '../../services/window_focus_service.dart';
 import '../app/app_cubit.dart';
