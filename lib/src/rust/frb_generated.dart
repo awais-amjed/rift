@@ -14,6 +14,7 @@ import 'api/mic_test.dart';
 import 'api/screenshare.dart';
 import 'api/screenshare/types.dart';
 import 'api/soundshare.dart';
+import 'api/toast.dart';
 import 'frb_generated.dart';
 import 'frb_generated.io.dart'
     if (dart.library.js_interop) 'frb_generated.web.dart';
@@ -73,7 +74,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -697761063;
+  int get rustContentHash => 937894623;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -117,11 +118,24 @@ abstract class RustLibApi extends BaseApi {
     required bool looping,
   });
 
+  Future<void> crateApiToastRemoveWindowsToast({
+    required String appId,
+    required String tag,
+    required String group,
+  });
+
   Stream<ScreenshareEvent> crateApiScreenshareScreenshareEventStream();
 
   Future<void> crateApiCueSetCueVolume({
     required int id,
     required double volume,
+  });
+
+  Future<void> crateApiToastShowWindowsToast({
+    required String appId,
+    required String tag,
+    required String group,
+    required String xml,
   });
 
   Stream<SoundShareEvent> crateApiSoundshareSoundShareEventStream();
@@ -491,6 +505,43 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<void> crateApiToastRemoveWindowsToast({
+    required String appId,
+    required String tag,
+    required String group,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(appId, serializer);
+          sse_encode_String(tag, serializer);
+          sse_encode_String(group, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 12,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiToastRemoveWindowsToastConstMeta,
+        argValues: [appId, tag, group],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiToastRemoveWindowsToastConstMeta =>
+      const TaskConstMeta(
+        debugName: 'remove_windows_toast',
+        argNames: ['appId', 'tag', 'group'],
+      );
+
+  @override
   Stream<ScreenshareEvent> crateApiScreenshareScreenshareEventStream() {
     final sink = RustStreamSink<ScreenshareEvent>();
     unawaited(
@@ -502,7 +553,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 12,
+              funcId: 13,
               port: port_,
             );
           },
@@ -539,7 +590,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 13,
+            funcId: 14,
             port: port_,
           );
         },
@@ -560,6 +611,45 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<void> crateApiToastShowWindowsToast({
+    required String appId,
+    required String tag,
+    required String group,
+    required String xml,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(appId, serializer);
+          sse_encode_String(tag, serializer);
+          sse_encode_String(group, serializer);
+          sse_encode_String(xml, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 15,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiToastShowWindowsToastConstMeta,
+        argValues: [appId, tag, group, xml],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiToastShowWindowsToastConstMeta =>
+      const TaskConstMeta(
+        debugName: 'show_windows_toast',
+        argNames: ['appId', 'tag', 'group', 'xml'],
+      );
+
+  @override
   Stream<SoundShareEvent> crateApiSoundshareSoundShareEventStream() {
     final sink = RustStreamSink<SoundShareEvent>();
     unawaited(
@@ -571,7 +661,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 14,
+              funcId: 16,
               port: port_,
             );
           },
@@ -606,7 +696,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 15,
+            funcId: 17,
             port: port_,
           );
         },
@@ -636,7 +726,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 16,
+            funcId: 18,
             port: port_,
           );
         },
@@ -664,7 +754,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 17,
+            funcId: 19,
             port: port_,
           );
         },
@@ -691,7 +781,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 18,
+            funcId: 20,
             port: port_,
           );
         },
@@ -718,7 +808,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 19,
+            funcId: 21,
             port: port_,
           );
         },
@@ -745,7 +835,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 20,
+            funcId: 22,
             port: port_,
           );
         },

@@ -141,6 +141,11 @@ mixin _DmCallWatchMixin on Cubit<DmCallState>, _DmCallActionsMixin {
           for (final e in state.incoming) (serverId: e.serverId, call: e.call),
         ], DateTime.now());
         if (kept.length == state.incoming.length) return;
+        for (final e in state.incoming) {
+          if (!kept.any((k) => k.call.id == e.call.id)) {
+            unawaited(NotificationService.instance.cancelCall(e.call.id));
+          }
+        }
         emit(
           state.copyWith(
             incoming: [
@@ -184,8 +189,11 @@ mixin _DmCallWatchMixin on Cubit<DmCallState>, _DmCallActionsMixin {
       return;
     }
     if (_mutedFor(entry)) return;
+    // The call's own notice, so answering, declining or the call ending
+    // takes it down (`cancelCall`) and a missed call replaces it.
     unawaited(
-      NotificationService.instance.showMessage(
+      NotificationService.instance.showCallNotice(
+        callId: entry.call.id,
         title: '${entry.call.peerName} is calling',
         body: 'Direct call · ${entry.serverName}',
         chime: false,
@@ -194,11 +202,16 @@ mixin _DmCallWatchMixin on Cubit<DmCallState>, _DmCallActionsMixin {
   }
 
   void _announceMissed(DmCall call, String? serverName) {
-    if (!HostPlatform.isDesktop || WindowFocusService.instance.isFocused) {
+    if (!HostPlatform.isDesktop) return;
+    // Back in front by now: nobody needs telling, but a ring posted while
+    // the window was behind would otherwise stay up saying it is calling.
+    if (WindowFocusService.instance.isFocused) {
+      unawaited(NotificationService.instance.cancelCall(call.id));
       return;
     }
     unawaited(
-      NotificationService.instance.showMessage(
+      NotificationService.instance.showCallNotice(
+        callId: call.id,
         title: 'Missed call',
         body: serverName == null
             ? 'From ${call.peerName}'

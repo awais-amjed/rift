@@ -6,6 +6,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:path/path.dart' as p;
 
 import '../../data/enums/app_sound.dart';
+import '../../src/rust/api/toast.dart';
 import '../helper_methods.dart';
 import 'browser_apis.dart';
 import 'notification_ids.dart';
@@ -43,6 +44,10 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
   bool _ready = false;
   int _nextId = 0;
+
+  /// The AUMID Windows toasts are posted under, which taking one down has to
+  /// name ([cancelCall]). Null elsewhere.
+  String? _windowsAppId;
 
   /// Initialize once, before `runApp`. Safe on every platform.
   ///
@@ -82,7 +87,10 @@ class NotificationService {
         guid: identity.guid,
         iconPath: Platform.isWindows ? _windowsIconPath() : null,
       );
-      if (Platform.isWindows) _registerActivator(identity);
+      if (Platform.isWindows) {
+        _windowsAppId = identity.appUserModelId;
+        _registerActivator(identity);
+      }
       // The launcher icon rather than a dedicated one: Android tints a
       // notification icon to a flat silhouette, so a detailed mark would come
       // out as a blob either way.
@@ -290,11 +298,77 @@ class NotificationService {
     id: callNotificationId(callId),
   );
 
-  /// Take a call's notification down: answered, declined, or over.
-  Future<void> cancelCall(String callId) async {
-    if (!_ready || kIsWeb || !Platform.isAndroid) return;
+  /// The group a call's notice goes in on Windows ([showCallNotice]).
+  static const _windowsCallGroup = 'call';
+
+  /// A desktop's notice about a DM call — "… is calling", or "Missed call"
+  /// in its place — posted as the call's one notification, so [cancelCall]
+  /// can take it down and a missed call replaces the ring.
+  ///
+  /// Windows posts it through the Rust library rather than the plugin. An
+  /// unpackaged app's toast can only be removed by tag, group and app id
+  /// together, and the plugin's toasts have no group (`api/toast.rs`).
+  Future<void> showCallNotice({
+    required String callId,
+    required String title,
+    required String body,
+    bool chime = true,
+  }) async {
+    final windowsAppId = _windowsAppId;
+    if (!_ready || windowsAppId == null) {
+      return showMessage(
+        title: title,
+        body: body,
+        chime: chime,
+        id: callNotificationId(callId),
+      );
+    }
+    if (chime) unawaited(SoundService.instance.play(AppSound.message));
     try {
-      await _plugin.cancel(id: callNotificationId(callId));
+      await showWindowsToast(
+        appId: windowsAppId,
+        tag: '${callNotificationId(callId)}',
+        group: _windowsCallGroup,
+        xml: windowsToastXml(title: title, body: body),
+      );
+    } catch (e) {
+      HelperMethods.printDebug('NotificationService: call notice failed – $e');
+    }
+  }
+
+  /// The toast the plugin would build for [showMessage] — a title, a body,
+  /// no sound of its own — with no `launch`, so a press carries no payload
+  /// and only brings the window forward, as before.
+  @visibleForTesting
+  static String windowsToastXml({required String title, required String body}) {
+    String text(String s) => s
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&apos;');
+    return '<toast useButtonStyle="true"><visual><binding template="ToastGeneric">'
+        '<text>${text(title)}</text><text>${text(body)}</text>'
+        '</binding></visual><audio silent="true"/></toast>';
+  }
+
+  /// Take a call's notification down: answered, declined, or over — on a
+  /// phone the push's, on a desktop [showCallNotice]'s. The desktop's used to
+  /// stay up saying somebody was calling after the call had ended.
+  Future<void> cancelCall(String callId) async {
+    if (!_ready || kIsWeb) return;
+    final id = callNotificationId(callId);
+    try {
+      final windowsAppId = _windowsAppId;
+      if (windowsAppId != null) {
+        await removeWindowsToast(
+          appId: windowsAppId,
+          tag: '$id',
+          group: _windowsCallGroup,
+        );
+      } else {
+        await _plugin.cancel(id: id);
+      }
     } catch (e) {
       HelperMethods.printDebug('NotificationService: cancel failed – $e');
     }
