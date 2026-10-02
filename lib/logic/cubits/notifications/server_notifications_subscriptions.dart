@@ -12,6 +12,8 @@ mixin _SubscriptionsMixin on Cubit<NotificationsState>, _PeerNamesMixin {
   Future<void> _seed(String serverId);
   void _onChannelMessage(String serverId, Map<String, dynamic> row);
   void _onDmMessage(String serverId, Map<String, dynamic> row);
+  void _onChannelMessageChanged(String serverId, Map<String, dynamic> row);
+  void _onDmMessageChanged(String serverId);
 
   void _sync() {
     final servers = _serverCubit.state.servers;
@@ -77,12 +79,21 @@ mixin _SubscriptionsMixin on Cubit<NotificationsState>, _PeerNamesMixin {
     }
     void onMessage(RealtimePayload message) =>
         _onChannelMessage(server.id, BroadcastPayload.of(message));
-    shared.onBroadcast(ServerEvent.message, onMessage);
+    void onChanged(RealtimePayload message) =>
+        _onChannelMessageChanged(server.id, BroadcastPayload.of(message));
+    shared
+      ..onBroadcast(ServerEvent.message, onMessage)
+      ..onBroadcast(ServerEvent.messageChanged, onChanged);
     own
       ..onBroadcast(ServerEvent.message, onMessage)
+      ..onBroadcast(ServerEvent.messageChanged, onChanged)
       ..onBroadcast(
         ServerEvent.dm,
         (message) => _onDmMessage(server.id, BroadcastPayload.of(message)),
+      )
+      ..onBroadcast(
+        ServerEvent.dmChanged,
+        (_) => _onDmMessageChanged(server.id),
       )
       // A level changed somewhere else — the phone, another desktop. Without
       // this the setting is per-device in everything but storage, so the window
@@ -133,10 +144,17 @@ mixin _SubscriptionsMixin on Cubit<NotificationsState>, _PeerNamesMixin {
       if (sub.privateChannels.containsKey(id)) continue;
       final lease = realtime.join(server, ServerTopics.channel(id));
       if (lease == null) continue;
-      lease.onBroadcast(
-        ServerEvent.message,
-        (message) => _onChannelMessage(server.id, BroadcastPayload.of(message)),
-      );
+      lease
+        ..onBroadcast(
+          ServerEvent.message,
+          (message) =>
+              _onChannelMessage(server.id, BroadcastPayload.of(message)),
+        )
+        ..onBroadcast(
+          ServerEvent.messageChanged,
+          (message) =>
+              _onChannelMessageChanged(server.id, BroadcastPayload.of(message)),
+        );
       sub.privateChannels[id] = lease;
     }
   }

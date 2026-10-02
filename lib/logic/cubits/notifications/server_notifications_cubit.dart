@@ -281,6 +281,32 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
     }
   }
 
+  /// A message in a channel was edited or deleted.
+  ///
+  /// The badge counted it when it arrived, so a delete before it was read has
+  /// to take it back off. The payload names the message and not whether it
+  /// still exists, so the count is asked for again rather than adjusted here
+  /// — and only while this channel has something unread, which leaves an
+  /// edit anywhere else costing nothing.
+  @override
+  void _onChannelMessageChanged(String serverId, Map<String, dynamic> row) {
+    if (isClosed) return;
+    final channelId = row['channel_id'] as String?;
+    if (channelId == null) return;
+    if (state.unreadForChannel(serverId, channelId) == 0) return;
+    unawaited(_seed(serverId));
+  }
+
+  /// A DM to us was edited or deleted. The same as a channel's, except that
+  /// the payload names only the message, so any unread DM on the server is
+  /// reason enough to count again.
+  @override
+  void _onDmMessageChanged(String serverId) {
+    if (isClosed) return;
+    if (state.dmUnreadByServer[serverId]?.isEmpty ?? true) return;
+    unawaited(_seed(serverId));
+  }
+
   /// Announce a DM from a server the user isn't currently on.
   ///
   /// Re-checks focus after the name lookup: the user may well have come back to
