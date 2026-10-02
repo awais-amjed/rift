@@ -77,6 +77,8 @@ instances with separate identities; the Android client is the emulator.
 | A DM saying the other person's key changed | Oct 2 2026 | one client, the peer's key swapped in the database: amber chip, a line per change, cleared by looking or verifying; held amber for a verified person; desktop and phone width. Later Oct 2, live: Lana's DM with Benny left open, his key swapped in rift-db: within 3 s, no relaunch, the chip went amber, a new line appeared and his older messages turned locked; his key put back: another line and the messages opened again; Lana then sent "key live check" and Benny read it. Central DMs (no live ring, by design for now) and the profile's line not driven |
 | Screen share, including a phone's stream | Sep 22 2026 | Linux sharing, desktop and Android watching |
 | A minimised shared window says it is paused | Oct 2 2026 | **Viewer half only, on Linux.** Lana shared her screen (X11 session, release build with the new capture code; the share still started), Benny watched; the share connection's `paused` attribute set to `true` through LiveKit's RoomService, standing in for the capture thread: "Paused — the shared window is minimised" over the stream on the stage and in the grid tile, gone again on `false`. **Windows half, Oct 3:** Tester A shared a Notepad window and Tester B watched; minimising Notepad logged "capture: shared window minimised" and B showed "Paused — the shared window is minimised" over the stream within 3 s; restoring it logged "restored", the notice went and the picture was live again |
+| A desktop call's "is calling" notification goes away | Oct 3 2026 | Windows 11, debug build, Tester A calling Tester B with B's window in the background: the toast ("Rift (wb) / Tester A is calling / Direct call · Win Test", as before) was gone within 2.5 s of A hanging up, and when B answered in the app; pressing it still brought B forward with the ringing card; two rings left to run out each ended as a single "Missed call" in the notification centre with no "is calling" left. Before, the banner stayed on screen for over a minute after the call ended. Windows posts and removes it through the Rust library (`api/toast.rs`); Linux and macOS go through the plugin's cancel with the call's id, not driven |
+| Quitting in a call leaves it | Oct 3 2026 | Windows 11, debug build, two profiles: B quit from the tray while in #voice with A, and left A's voice roster 1.9 s after Quit (it took ~30 s, the server's timeout); A quit from the tray in a DM call with B, and the call was recorded as ended 157 ms after Quit. Both processes exited cleanly. Linux and macOS not driven (same `BeforeQuit` path) |
 | Push-to-talk on Linux | Sep 21 2026 | GNOME, through the GlobalShortcuts portal |
 | Server rail order across devices | Sep 21 2026 | one account on two devices, and a reorder made offline |
 | Soundboard | Sep 20–21 2026 | two clients in a call |
@@ -131,13 +133,6 @@ Windows-specific. Remove a line in the commit that fixes it.
 **Voice and calls**
 - Once, the speaking glow didn't light for about ten minutes although audio
   flowed. Not reproduced.
-- Desktop: the "… is calling" notification stays up after the call is answered
-  or over; on Windows (Oct 3) the banner sat on screen for over a minute after
-  the call ended. `_announceRing` posts it as a plain message with no fixed id,
-  and `cancelCall` only acts on Android.
-- Quitting from the tray while in a call doesn't leave it: the others see you in
-  the channel for about 30 s, until the server notices the connection is gone
-  (Windows, Oct 3). `BeforeQuit` saves conversations but doesn't hang up.
 
 **Keyboard and accessibility**
 - Windows: after closing a native Save dialog with a key, the first Escape is
