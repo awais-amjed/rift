@@ -43,6 +43,18 @@ class ParticipantRoster {
     return fallback;
   }
 
+  /// Whether the participant with [identity] has their ears closed, by their
+  /// own choice or a moderator's. The tile reads it here so that it and the
+  /// sidebar row ([voiceStatusIcons]) agree on what somebody is doing.
+  static bool isDeafened(List<ParticipantInfo> roster, String identity) {
+    for (final info in roster) {
+      if (info.identity == identity) {
+        return info.isDeafened || info.isServerDeafened;
+      }
+    }
+    return false;
+  }
+
   /// Which of a user's connections this is: themselves, their screen, or
   /// their sound. Two of them must not collapse into one row.
   static int _kind(ParticipantInfo p) {

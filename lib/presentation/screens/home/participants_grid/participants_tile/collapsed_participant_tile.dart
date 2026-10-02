@@ -28,6 +28,7 @@ class CollapsedParticipantTile extends StatelessWidget {
   final String userId;
   final bool isMicEnabled;
   final bool isMuted;
+  final bool isDeafened;
   final bool isScreenshare;
   final bool showWatchButton;
   final bool showStopButton;
@@ -46,6 +47,7 @@ class CollapsedParticipantTile extends StatelessWidget {
     required this.userId,
     required this.isMicEnabled,
     required this.isMuted,
+    this.isDeafened = false,
     required this.isScreenshare,
     required this.showWatchButton,
     required this.showStopButton,
@@ -123,6 +125,7 @@ class CollapsedParticipantTile extends StatelessWidget {
                             name: name,
                             isMicEnabled: isMicEnabled,
                             isMuted: isMuted,
+                            isDeafened: isDeafened,
                             isScreenshare: isScreenshare,
                           ),
                         ),

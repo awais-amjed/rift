@@ -226,6 +226,12 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
           userId,
           widget.participant.name,
         );
+        final isDeafened = context.select<AppCubit, bool>(
+          (cubit) => ParticipantRoster.isDeafened(
+            cubit.state.participants,
+            widget.participant.identity,
+          ),
+        );
 
         // Somebody else's stream opens a menu for its sound. Your own is
         // still you: there is nothing of it here to turn down.
@@ -265,6 +271,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                       userId: userId,
                       isMicEnabled: widget.participant.isMicrophoneEnabled(),
                       isMuted: widget.isMuted,
+                      isDeafened: isDeafened,
                       isScreenshare: _isScreenshare,
                       showWatchButton: _isScreenshare && !isSubscribed,
                       showStopButton: showStopButton,
@@ -282,6 +289,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                       videoTrack: videoTrack,
                       name: name,
                       userId: userId,
+                      isDeafened: isDeafened,
                       isSubscribed: isSubscribed,
                       showStopButton: showStopButton,
                     ),
@@ -302,6 +310,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
     required VideoTrack? videoTrack,
     required String name,
     required String userId,
+    required bool isDeafened,
     required bool isSubscribed,
     required bool showStopButton,
   }) {
@@ -319,6 +328,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
           userId: userId,
           isMicEnabled: widget.participant.isMicrophoneEnabled(),
           isMuted: widget.isMuted,
+          isDeafened: isDeafened,
           isScreenshare: _isScreenshare,
           showWatchButton: _isScreenshare && !isSubscribed,
           showStopButton: showStopButton,

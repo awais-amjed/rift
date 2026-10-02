@@ -100,4 +100,37 @@ void main() {
       expect(ParticipantRoster.isSpeaking(const [], 'me'), isFalse);
     });
   });
+
+  // The sidebar drew a deafened person's headphones; their tile showed only a
+  // crossed microphone, which reads as "muted, but listening".
+  test('ParticipantRoster.isDeafened, by choice or by a moderator', () {
+    final base = p('a', userId: 'u1');
+    final roster = [
+      ParticipantInfo(
+        identity: 'self',
+        userId: 'u1',
+        name: 'u1',
+        isSpeaking: false,
+        isMicrophoneEnabled: false,
+        isCameraEnabled: false,
+        isLocal: false,
+        isDeafened: true,
+      ),
+      ParticipantInfo(
+        identity: 'mod',
+        userId: 'u2',
+        name: 'u2',
+        isSpeaking: false,
+        isMicrophoneEnabled: false,
+        isCameraEnabled: false,
+        isLocal: false,
+        isServerDeafened: true,
+      ),
+      base,
+    ];
+    expect(ParticipantRoster.isDeafened(roster, 'self'), isTrue);
+    expect(ParticipantRoster.isDeafened(roster, 'mod'), isTrue);
+    expect(ParticipantRoster.isDeafened(roster, 'a'), isFalse);
+    expect(ParticipantRoster.isDeafened(roster, 'stranger'), isFalse);
+  });
 }

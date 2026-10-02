@@ -139,7 +139,6 @@ Windows-specific. Remove a line in the commit that fixes it.
 **Voice and calls**
 - Rift's own sounds (the ring) play on the system default output, not the output
   chosen in Settings.
-- A deafened member shows deafen + mute in the sidebar but only mute on their tile.
 - The Share sound picker lists other Rift windows on the same PC (only possible
   with several instances; sharing one would loop the call into itself).
 - A shared window that is minimised freezes on its last frame for viewers, with no

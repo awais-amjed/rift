@@ -12,6 +12,11 @@ class ParticipantNameBadge extends StatelessWidget {
   final String name;
   final bool isMicEnabled;
   final bool isMuted;
+
+  /// Drawn as headphones before the microphone, as the sidebar does: being
+  /// deafened takes the microphone with it, and a mic alone read as "muted,
+  /// but listening".
+  final bool isDeafened;
   final bool isScreenshare;
 
   /// Shown before the name. Defaults to the screen icon for a screen share;
@@ -23,6 +28,7 @@ class ParticipantNameBadge extends StatelessWidget {
     required this.name,
     required this.isMicEnabled,
     required this.isMuted,
+    this.isDeafened = false,
     this.isScreenshare = false,
     this.leadingIcon,
   });
@@ -61,7 +67,13 @@ class ParticipantNameBadge extends StatelessWidget {
                   style: AppText.row.copyWith(color: themeState.textPrimary),
                 ),
               ),
-              if (!isScreenshare && (!isMicEnabled || isMuted))
+              if (!isScreenshare && isDeafened)
+                const Icon(
+                  Icons.headset_off_rounded,
+                  size: K.iconInline,
+                  color: CustomColors.error,
+                ),
+              if (!isScreenshare && (!isMicEnabled || isMuted || isDeafened))
                 const Icon(
                   Icons.mic_off_rounded,
                   size: K.iconInline,
