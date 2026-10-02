@@ -23,6 +23,11 @@ instances with separate identities; the Android client is the emulator.
 
 | Area | Last verified | How |
 |---|---|---|
+| A deafened person's tile | Oct 2 2026 | Linux, Lana and Benny in #voice: Benny deafened, and Lana saw headphones and a crossed mic on his tile, as in the sidebar (the tile used to show only the mic); undeafening took the headphones away. Moderator deafen not driven (same roster flag, unit-tested) |
+| A deleted message comes off the unread badge | Oct 2 2026 | Linux, Lana in #general: Benny DMed her and Server DMs showed 1; he deleted it and the badge cleared within 3 s. The same for a message in #lounge and its channel badge. An edit with something unread (which also counts again) not driven |
+| No Rift in the Share sound list | Oct 2 2026 | Linux, Lana and Benny in a call: with Lana's call stream playing (PulseAudio binary `rift`), Benny's Share sound said "Nothing is playing"; with `paplay` also playing, it listed only paplay. Windows not driven (same filter, unit-tested on its `rift.exe` names) |
+| Mention names in a saved copy | Oct 2 2026 | Linux: Benny wrote "@Lana" in #general; Lana left the channel (which saves it), quit, and relaunched with `rift-kong` paused. #general drew from the copy with "@Lana", not "@lana_clean" |
+| Channel order and a used-up invite on joining | Oct 2 2026 | Linux, a fresh privacy-mode profile joined Rift Test with a one-use invite: the sidebar listed general, lounge, random and lounge-voice, voice, by name like everyone else's (the join used to give creation order). The same invite again said "That invite doesn't work. It may be used up, expired or withdrawn, or mistyped." The member was deleted afterwards |
 | The welcome card at the default window size | Oct 2 2026 | Linux, a fresh profile at the default 1280×720: the whole card and the step dots fit, with about 40 px to spare under the dots. Before, the card's lower edge and the dots were cut off. Not checked on Windows, whose text was slightly taller in the earlier pass |
 | Enter on a whole bot command sends it | Oct 2 2026 | Linux, #general on Rift Test with a bot whose commands are `/play <url>`, `/stop` and `/disconnect`: `/stop` typed in full went out on one Enter (it used to need two); `/st` and `/play` completed to `/stop ` and `/play ` and sent nothing. Tab completing without sending is covered by `test/composer_command_enter_test.dart` only. The bot was not running, so nothing answered the `/stop` |
 | The soundboard volume while everyone else is muted | Oct 2 2026 | Linux, Settings → Voice & audio and the soundboard panel in a call: with "Mute everyone else" on, the slider stays usable, shows the real volume (60%, then 30% after a drag) and says only your own clips play now. It used to grey out and read "—". Whether your own clip then plays at that volume was not measured; that rule is unchanged and unit-tested (`SoundboardVolume`) |
@@ -119,12 +124,7 @@ Found while driving the app and left open, because none of them stops a feature
 from working. Most were found on Windows (Sep 29 – Oct 1 2026) but are not
 Windows-specific. Remove a line in the commit that fixes it.
 
-**Messaging and DMs**
-- A used-up invite is refused as "Invalid invite code", without saying it was used.
-
 **Servers and moderation**
-- After leaving a server and rejoining, the channel order in the sidebar can differ
-  from other members' (seen on Linux, Oct 2).
 - An open profile doesn't refresh live ("Timed out until…" stays after it ends), and
   Manage server → Members' count lags right after a ban is lifted.
 - Choosing "Only @mentions" for a channel while its server is on the default stores
