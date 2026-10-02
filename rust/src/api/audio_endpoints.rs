@@ -15,17 +15,22 @@
 //!
 //! Which means the choice has to be filtered before the device module is asked
 //! to make it, and the mix format can only be read from Windows directly.
+//!
+//! The same lists stand in for WebRTC's whenever its device module answers
+//! nothing: on Windows outside a call, and on Linux once a call has ended
+//! (leaving shuts the module down until the next call). On Linux they come
+//! from PulseAudio, under the ids WebRTC gives the same devices.
 
-#[cfg(target_os = "windows")]
+#[cfg(any(target_os = "windows", target_os = "linux"))]
 use crate::audio_endpoints;
 #[cfg(target_os = "linux")]
 use crate::device_watch;
 use crate::frb_generated::StreamSink;
 
-/// One endpoint, and the format Windows hands a shared-mode client for it.
+/// One endpoint, and the format the system hands a shared client for it.
 pub struct AudioEndpoint {
-    /// The endpoint id, in the same form WebRTC reports as a device's guid, so
-    /// the two lists can be matched up.
+    /// The id WebRTC lists the same device under, so the two lists can be
+    /// matched up: the endpoint id on Windows, the description on Linux.
     pub device_id: String,
     pub name: String,
     pub channels: u32,
@@ -33,20 +38,21 @@ pub struct AudioEndpoint {
     /// Whether Windows accepts any of the formats WebRTC's device module asks
     /// for. Asked of Windows rather than inferred from the mix format: inside
     /// Rift's own process a 2 channel endpoint has been seen reporting an 8
-    /// channel mix, which the module opened without trouble.
+    /// channel mix, which the module opened without trouble. Always true on
+    /// Linux, where PulseAudio converts any format.
     pub opens: bool,
 }
 
-/// Every active render endpoint. Empty off Windows, and empty rather than
-/// failing if the audio service cannot be reached: callers treat "nothing
+/// Every active render endpoint. Empty off Windows and Linux, and empty
+/// rather than failing if the audio service cannot be reached: callers treat "nothing
 /// known" as "do not filter", which keeps a broken probe from hiding devices
 /// that would have worked.
 pub fn list_output_endpoints() -> Vec<AudioEndpoint> {
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
     {
         audio_endpoints::outputs()
     }
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
     {
         Vec::new()
     }
@@ -54,11 +60,11 @@ pub fn list_output_endpoints() -> Vec<AudioEndpoint> {
 
 /// Every active capture endpoint. See [`list_output_endpoints`].
 pub fn list_input_endpoints() -> Vec<AudioEndpoint> {
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
     {
         audio_endpoints::inputs()
     }
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
     {
         Vec::new()
     }
@@ -70,7 +76,8 @@ pub fn list_input_endpoints() -> Vec<AudioEndpoint> {
 ///
 /// WebRTC's device module cannot be told "the default" by the plugin, only a
 /// device by its place in the list, so choosing "System default" has to be
-/// turned into a concrete endpoint first.
+/// turned into a concrete endpoint first. Linux needs no such lookup: WebRTC
+/// lists the default there as an entry of its own.
 pub fn default_output_endpoint() -> Option<String> {
     #[cfg(target_os = "windows")]
     {

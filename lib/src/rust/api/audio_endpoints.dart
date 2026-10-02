@@ -7,8 +7,8 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 import '../frb_generated.dart';
 
-/// Every active render endpoint. Empty off Windows, and empty rather than
-/// failing if the audio service cannot be reached: callers treat "nothing
+/// Every active render endpoint. Empty off Windows and Linux, and empty
+/// rather than failing if the audio service cannot be reached: callers treat "nothing
 /// known" as "do not filter", which keeps a broken probe from hiding devices
 /// that would have worked.
 Future<List<AudioEndpoint>> listOutputEndpoints() =>
@@ -24,7 +24,8 @@ Future<List<AudioEndpoint>> listInputEndpoints() =>
 ///
 /// WebRTC's device module cannot be told "the default" by the plugin, only a
 /// device by its place in the list, so choosing "System default" has to be
-/// turned into a concrete endpoint first.
+/// turned into a concrete endpoint first. Linux needs no such lookup: WebRTC
+/// lists the default there as an entry of its own.
 Future<String?> defaultOutputEndpoint() =>
     RustLib.instance.api.crateApiAudioEndpointsDefaultOutputEndpoint();
 
@@ -43,10 +44,10 @@ Future<String?> defaultInputEndpoint() =>
 Stream<void> audioDeviceChanges() =>
     RustLib.instance.api.crateApiAudioEndpointsAudioDeviceChanges();
 
-/// One endpoint, and the format Windows hands a shared-mode client for it.
+/// One endpoint, and the format the system hands a shared client for it.
 class AudioEndpoint {
-  /// The endpoint id, in the same form WebRTC reports as a device's guid, so
-  /// the two lists can be matched up.
+  /// The id WebRTC lists the same device under, so the two lists can be
+  /// matched up: the endpoint id on Windows, the description on Linux.
   final String deviceId;
   final String name;
   final int channels;
@@ -55,7 +56,8 @@ class AudioEndpoint {
   /// Whether Windows accepts any of the formats WebRTC's device module asks
   /// for. Asked of Windows rather than inferred from the mix format: inside
   /// Rift's own process a 2 channel endpoint has been seen reporting an 8
-  /// channel mix, which the module opened without trouble.
+  /// channel mix, which the module opened without trouble. Always true on
+  /// Linux, where PulseAudio converts any format.
   final bool opens;
 
   const AudioEndpoint({

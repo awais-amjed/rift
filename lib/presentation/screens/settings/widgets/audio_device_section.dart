@@ -26,8 +26,8 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
   List<MediaDevice> _outputDevices = [];
   bool _devicesLoading = true;
 
-  /// Whether the lists are WebRTC's, so a pick can be applied now. Outside a
-  /// call on Windows they are Windows' and a pick is only saved — see
+  /// Whether the lists are WebRTC's, so a pick can be applied now. When WebRTC
+  /// lists nothing they are the system's and a pick is only saved — see
   /// [AudioDevices.choices].
   bool _live = false;
 

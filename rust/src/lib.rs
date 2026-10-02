@@ -1,5 +1,5 @@
 pub mod api;
-#[cfg(target_os = "windows")]
+#[cfg(any(target_os = "windows", target_os = "linux"))]
 mod audio_endpoints;
 #[cfg(target_os = "linux")]
 mod device_watch;

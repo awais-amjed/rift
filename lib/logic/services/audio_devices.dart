@@ -53,10 +53,13 @@ class AudioDevices {
   ///
   /// When that happens differs by platform. On Linux the libwebrtc shipped
   /// since m150 initialises the module as soon as the plugin makes its
-  /// factory, so both lists come back with no call up (measured Oct 2 2026).
-  /// On Windows they were still empty until a channel was joined when the
-  /// pickers were last fixed there (Oct 1 2026), and outside a call the
-  /// pickers read Windows instead — see [choices].
+  /// factory, so both lists come back with no call up — but only until the
+  /// first call ends: closing the last peer connection terminates the voice
+  /// engine and the module with it, and nothing starts them again before the
+  /// next call (both measured Oct 2 2026). On Windows they were empty until a
+  /// channel was joined when the pickers were last fixed there (Oct 1 2026).
+  /// Whenever WebRTC lists nothing, the pickers read the system instead —
+  /// see [choices].
   static Future<({List<MediaDevice> inputs, List<MediaDevice> outputs})>
   load() async => (inputs: await inputs(), outputs: await outputs());
 
@@ -82,12 +85,12 @@ class AudioDevices {
   /// What the pickers offer, and whether a pick can be put in force now.
   ///
   /// Whenever WebRTC lists devices ([load]) the pickers offer its list, and a
-  /// pick applies at once — on Linux that is with or without a call. Where
-  /// it lists nothing, outside a call on Windows, the list comes from Windows
-  /// itself: the same endpoints under the same ids, since WebRTC's device id
-  /// *is* the endpoint id. There a pick is only saved, and the next join
-  /// applies it ([applySaved]) — the device module it would go to does not
-  /// exist yet.
+  /// pick applies at once. Where it lists nothing — outside a call on
+  /// Windows, and on Linux once a call has ended — the list comes from the
+  /// system itself, under the ids WebRTC gives the same devices: the endpoint
+  /// id on Windows, the description on Linux (PulseAudio, through the Rust
+  /// library). There a pick is only saved, and the next join applies it
+  /// ([applySaved]) — the device module it would go to is not running.
   static Future<
     ({List<MediaDevice> inputs, List<MediaDevice> outputs, bool live})
   >
@@ -171,8 +174,8 @@ class AudioDevices {
   }
 
   /// The device in WebRTC's list that "System default" selects, or null when
-  /// that cannot be known: on the web, on Windows outside a call (when WebRTC
-  /// lists nothing), or with no default device at all.
+  /// that cannot be known: on the web, whenever WebRTC lists nothing (see
+  /// [load]), or with no default device at all.
   ///
   /// "System default" needs this because the plugin can only point WebRTC's
   /// device module at a device in its list. Leaving the choice alone does not
