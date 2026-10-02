@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
+import '../before_quit.dart';
+
 /// The system tray icon — the way back to a window the user has closed.
 ///
 /// One owner rather than a mixin. tray_manager 0.5 handed every click to
@@ -36,6 +38,9 @@ class TrayService with WindowListener {
   /// freed at the next GC, while the tray still points at it. These live as
   /// long as the icon does.
   final List<Object> _retained = [];
+
+  /// A second Quit while the first is saving does nothing.
+  bool _quitting = false;
 
   /// Whether a tray icon actually exists. False on a desktop without one.
   bool get isShowing => _icon != null;
@@ -80,15 +85,17 @@ class TrayService with WindowListener {
     _icon = icon;
 
     // Alt+F4 and the taskbar's Close would otherwise end the process with the
-    // icon still alive; route them through [quit] too. The title bar's close
-    // button hides instead and never gets here.
-    if (Platform.isWindows) {
+    // icon still alive (Windows) and without [BeforeQuit] (both); route them
+    // through [quit] too. The title bar's close button hides instead and never
+    // gets here.
+    if (Platform.isWindows || Platform.isLinux) {
       windowManager.addListener(this);
       await windowManager.setPreventClose(true);
     }
   }
 
-  /// Leaves the app: the icon first, then the window.
+  /// Leaves the app: out of sight at once, then [BeforeQuit]'s work, then the
+  /// icon, then the window.
   ///
   /// Windows closes rather than destroys. window_manager's `destroy` there is
   /// a bare `PostQuitMessage`, which ends the message loop with the Flutter
@@ -96,6 +103,10 @@ class TrayService with WindowListener {
   /// returned and faults in flutter_windows.dll. A close goes through
   /// WM_DESTROY, which shuts the engine down while the loop still runs.
   Future<void> quit() async {
+    if (_quitting) return;
+    _quitting = true;
+    await windowManager.hide();
+    await BeforeQuit.instance.run();
     if (!Platform.isWindows) return windowManager.destroy();
     final icon = _icon;
     _icon = null;

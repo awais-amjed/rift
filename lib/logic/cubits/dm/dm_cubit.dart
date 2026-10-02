@@ -18,6 +18,7 @@ import '../../../data/enums/dm_link_state.dart';
 import '../../../data/enums/dm_policy.dart';
 import '../../helper_methods.dart';
 import '../../services/attachment_cleanup.dart';
+import '../../services/before_quit.dart';
 import '../../services/broadcast_payload.dart';
 import '../../services/chat_attachment_uploader.dart';
 import '../../services/chat_message_ops.dart';
@@ -135,6 +136,7 @@ class DmCubit extends Cubit<DmState>
     _serverSub = serverCubit.stream.listen((_) => _onServerChanged());
     _vaultSub = vaultCubit.stream.listen((_) => _onServerChanged());
     _onServerChanged();
+    BeforeQuit.instance.add(saveAsLeft);
   }
 
   @override
@@ -419,8 +421,14 @@ class DmCubit extends Cubit<DmState>
   // Lifecycle
   // ──────────────────────────────────────────────────────────
 
+  /// Save what is open as *left*, without closing it: the app quitting
+  /// ([BeforeQuit]), or another surface taking the screen while it stays
+  /// open behind. Leaving is when this device's own sends reach the copy.
+  Future<void> saveAsLeft() => _saved.flush(leaving: true);
+
   @override
   Future<void> close() async {
+    BeforeQuit.instance.remove(saveAsLeft);
     await _saved.flush(leaving: true);
     _saved.dispose();
     await _serverSub?.cancel();

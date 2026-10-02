@@ -107,8 +107,9 @@ class SavedConversation {
   }
 
   /// Write now, if anything changed since the last write. [leaving] is the
-  /// conversation being left — opened over, closed, or the app shutting down
-  /// — which is the one time this device's own sends are fetched in.
+  /// conversation being left — opened over, closed, put behind another
+  /// surface, or the app quitting (`BeforeQuit`) — which is the one time this
+  /// device's own sends are fetched in.
   ///
   /// Everything written is read before the first `await`, so a flush started
   /// just as another conversation opens saves the one being left — its rows,

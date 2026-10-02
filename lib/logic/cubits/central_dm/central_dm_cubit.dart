@@ -26,6 +26,7 @@ import '../../../supabase_config.dart';
 import '../../helper_methods.dart';
 import '../../services/attachment_cache.dart';
 import '../../services/attachment_cleanup.dart';
+import '../../services/before_quit.dart';
 import '../../services/central_handle.dart';
 import '../../services/chat_attachment_uploader.dart';
 import '../../services/chat_message_ops.dart';
@@ -146,6 +147,7 @@ class CentralDmCubit extends Cubit<CentralDmState>
     _vaultSub = vaultCubit.stream.listen((_) => _ensureReady());
     _appSub = appCubit.stream.listen(_onAppStateChanged);
     WindowFocusService.instance.focused.addListener(_onFocusChanged);
+    BeforeQuit.instance.add(saveAsLeft);
     _ensureReady();
   }
 
@@ -320,8 +322,14 @@ class CentralDmCubit extends Cubit<CentralDmState>
   // Lifecycle
   // ──────────────────────────────────────────────────────────
 
+  /// Save what is open as *left*, without closing it: the app quitting
+  /// ([BeforeQuit]), or another surface taking the screen while it stays
+  /// open behind. Leaving is when this device's own sends reach the copy.
+  Future<void> saveAsLeft() => _saved.flush(leaving: true);
+
   @override
   Future<void> close() async {
+    BeforeQuit.instance.remove(saveAsLeft);
     await _saved.flush(leaving: true);
     _saved.dispose();
     PushService.instance.token.removeListener(_onPushToken);

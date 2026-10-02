@@ -19,6 +19,7 @@ import '../../../data/enums/message_origin.dart';
 import '../../../data/enums/notification_level.dart';
 import '../../helper_methods.dart';
 import '../../services/attachment_cleanup.dart';
+import '../../services/before_quit.dart';
 import '../../services/bot_command.dart';
 import '../../services/broadcast_payload.dart';
 import '../../services/channel_keyring.dart';
@@ -211,6 +212,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     // publish + sweep) waits for the master seed.
     _vaultSub = vaultCubit.stream.listen((_) => _ensureServerChatReady());
     _ensureServerChatReady();
+    BeforeQuit.instance.add(saveAsLeft);
   }
 
   // ──────────────────────────────────────────────────────────
@@ -433,8 +435,14 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   // Lifecycle
   // ──────────────────────────────────────────────────────────
 
+  /// Save what is open as *left*, without closing it: the app quitting
+  /// ([BeforeQuit]), or another surface taking the screen while it stays
+  /// open behind. Leaving is when this device's own sends reach the copy.
+  Future<void> saveAsLeft() => _saved.flush(leaving: true);
+
   @override
   Future<void> close() async {
+    BeforeQuit.instance.remove(saveAsLeft);
     await _saved.flush(leaving: true);
     _saved.dispose();
     await _serverSub?.cancel();

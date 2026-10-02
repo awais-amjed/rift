@@ -264,6 +264,10 @@ copy asks the server nothing, and the open that follows makes the same requests
 it always did. The one addition is for your own messages: a send answers with an
 id, not a row, so leaving a conversation you sent in reads its newest page once
 more, and that page is what gets saved. The read is the same query an open makes.
+A conversation is left when another opens over it, when it is closed, when another
+surface takes the screen with it still open behind (a channel clicked from Server
+DMs), and when the app quits — the window hides first and the save gets up to three
+seconds (`BeforeQuit`). A killed app saves what it had; the next online open fills in.
 Measured Sep 28 with `pg_stat_statements` over an identical scripted session (open
 three channels, open a DM, send three messages, close it): 83 statements before,
 85 after, all of it that one read. On the device, a copy is opened with the

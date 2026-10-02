@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -148,6 +150,20 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  /// Each chat cubit not drawn on [surface] saves as left; one with nothing
+  /// new to write does nothing.
+  void _saveOffScreen(HomeSurface surface) {
+    if (surface != HomeSurface.server) {
+      unawaited(context.read<ChannelChatCubit>().saveAsLeft());
+    }
+    if (surface != HomeSurface.serverDms) {
+      unawaited(context.read<DmCubit>().saveAsLeft());
+    }
+    if (surface != HomeSurface.centralDms) {
+      unawaited(context.read<CentralDmCubit>().saveAsLeft());
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return MultiBlocListener(
@@ -174,6 +190,13 @@ class _HomeScreenState extends State<HomeScreen> {
               prev.selectedChannelId != curr.selectedChannelId ||
               prev.surface != curr.surface,
           listener: (context, _) => _dismissOverlays(),
+        ),
+        // A surface left with its conversation still open behind it — a
+        // channel clicked from Server DMs keeps the DM, and back again finds
+        // it — is still a leaving as far as its saved copy is concerned.
+        BlocListener<AppCubit, AppState>(
+          listenWhen: (prev, curr) => prev.surface != curr.surface,
+          listener: (context, state) => _saveOffScreen(state.surface),
         ),
         BlocListener<ChannelChatCubit, ChannelChatState>(
           listenWhen: (prev, curr) => prev.channelId != curr.channelId,
