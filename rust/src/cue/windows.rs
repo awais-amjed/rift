@@ -22,10 +22,12 @@ pub(super) fn run(
     let _ = wasapi::initialize_mta().ok();
     let enumerator = DeviceEnumerator::new().map_err(|e| format!("no device enumerator: {e:?}"))?;
     let device = match device_id {
-        Some(id) => enumerator.get_device(id),
-        None => enumerator.get_default_device(&Direction::Render),
+        Some(id) => crate::audio_endpoints::device_by_id(&Direction::Render, id),
+        None => enumerator
+            .get_default_device(&Direction::Render)
+            .map_err(|e| format!("{e:?}")),
     }
-    .map_err(|e| format!("no such output: {e:?}"))?;
+    .map_err(|e| format!("no such output: {e}"))?;
     let mut client = device
         .get_iaudioclient()
         .map_err(|e| format!("could not open the output: {e:?}"))?;

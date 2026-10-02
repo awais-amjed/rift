@@ -9,4 +9,4 @@ mod windows;
 #[cfg(target_os = "linux")]
 pub(crate) use linux::{inputs, outputs};
 #[cfg(target_os = "windows")]
-pub(crate) use windows::{default_input, default_output, inputs, outputs};
+pub(crate) use windows::{default_input, default_output, device_by_id, inputs, outputs};

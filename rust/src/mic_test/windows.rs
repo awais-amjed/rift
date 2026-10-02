@@ -22,10 +22,12 @@ pub(super) fn run(
     let _ = wasapi::initialize_mta().ok();
     let enumerator = DeviceEnumerator::new().map_err(|e| format!("no device enumerator: {e:?}"))?;
     let device = match device_id {
-        Some(id) => enumerator.get_device(id),
-        None => enumerator.get_default_device(&Direction::Capture),
+        Some(id) => crate::audio_endpoints::device_by_id(&Direction::Capture, id),
+        None => enumerator
+            .get_default_device(&Direction::Capture)
+            .map_err(|e| format!("{e:?}")),
     }
-    .map_err(|e| format!("no such microphone: {e:?}"))?;
+    .map_err(|e| format!("no such microphone: {e}"))?;
     let mut client = device
         .get_iaudioclient()
         .map_err(|e| format!("could not open the microphone: {e:?}"))?;

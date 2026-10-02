@@ -3,7 +3,8 @@
 
 use crate::api::audio_endpoints::AudioEndpoint;
 use wasapi::{
-    AudioClient, DeviceEnumerator, DeviceState, Direction, SampleType, ShareMode, WaveFormat,
+    AudioClient, Device, DeviceEnumerator, DeviceState, Direction, SampleType, ShareMode,
+    WaveFormat,
 };
 
 /// The rates WebRTC's Windows device module tries, in its order. It asks for
@@ -55,6 +56,26 @@ fn default_id(direction: Direction) -> Option<String> {
         .map_err(|e| log::warn!("audio endpoints: no default {direction:?} device: {e:?}"))
         .ok()?;
     device.get_id().ok()
+}
+
+/// The active endpoint whose id is `id`, found by listing them.
+///
+/// Not `DeviceEnumerator::get_device`: in wasapi 0.22 it hands `GetDevice` a
+/// pointer into an `HSTRING` that is dropped before the call, so now and then
+/// Windows reads a garbled id, and opening the device it answers with fails
+/// with "The system cannot find the file specified" (0x80070002). The mic
+/// test and the cues on the chosen output failed that way about one open in
+/// four, falling back to the default device.
+pub(crate) fn device_by_id(direction: &Direction, id: &str) -> Result<Device, String> {
+    let enumerator = DeviceEnumerator::new().map_err(|e| format!("no device enumerator: {e:?}"))?;
+    let collection = enumerator
+        .get_device_collection(direction)
+        .map_err(|e| format!("no device collection: {e:?}"))?;
+    let count = collection.get_nbr_devices().unwrap_or(0);
+    (0..count)
+        .filter_map(|index| collection.get_device_at_index(index).ok())
+        .find(|device| device.get_id().is_ok_and(|device_id| device_id == id))
+        .ok_or_else(|| format!("no active {direction:?} device with id {id}"))
 }
 
 fn list(direction: Direction) -> Vec<AudioEndpoint> {
