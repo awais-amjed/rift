@@ -1,7 +1,11 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../services/linux_connectivity.dart';
 
 part 'network_state.dart';
 
@@ -14,7 +18,8 @@ part 'network_state.dart';
 /// internet". Each platform already keeps that answer — Windows' is the one
 /// behind the taskbar's "No internet" globe, which only counts an adapter
 /// Windows found the internet through, so a VPN or a virtual switch with no
-/// way out does not read as online.
+/// way out does not read as online. Linux's is NetworkManager's, read so that
+/// it means the same (`LinuxConnectivity`).
 ///
 /// It is about the device, never a server. A self-hosted server can sit on the
 /// same network with no internet anywhere, and still work; whether a server
@@ -35,17 +40,19 @@ class NetworkCubit extends Cubit<NetworkState> {
     Duration settle = settle,
   }) : _settle = settle,
        super(const NetworkState()) {
-    final connectivity = (changes == null || check == null)
-        ? Connectivity()
-        : null;
-    _sub = (changes ?? connectivity!.onConnectivityChanged).listen(_onChange);
-    unawaited(
-      (check ?? connectivity!.checkConnectivity)().then(
-        _onChange,
-        // A platform that cannot say is not a reason to claim we're offline.
-        onError: (_) {},
-      ),
-    );
+    if (changes == null || check == null) {
+      if (!kIsWeb && Platform.isLinux) {
+        changes = LinuxConnectivity.changes();
+        check = LinuxConnectivity.check;
+      } else {
+        final connectivity = Connectivity();
+        changes = connectivity.onConnectivityChanged;
+        check = connectivity.checkConnectivity;
+      }
+    }
+    // A platform that cannot say is not a reason to claim we're offline.
+    _sub = changes.listen(_onChange, onError: (_) {});
+    unawaited(check().then(_onChange, onError: (_) {}));
   }
 
   /// No connection at all: an empty answer, or nothing but `none`.

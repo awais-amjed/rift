@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nm/nm.dart';
 import 'package:rift/logic/cubits/network/network_cubit.dart';
+import 'package:rift/logic/services/linux_connectivity.dart';
 
 void main() {
   const settle = Duration(milliseconds: 40);
@@ -78,5 +80,25 @@ void main() {
     await Future<void>.delayed(longer);
     expect(c.state.offline, isFalse);
     await c.close();
+  });
+
+  test('on Linux, a network with no way out is offline', () {
+    // Wi-Fi off with Tailscale or loopback still up reads `limited`, not
+    // `none`; counting only `none` is how the chip never showed.
+    expect(
+      LinuxConnectivity.isOffline(NetworkManagerConnectivityState.limited),
+      isTrue,
+    );
+    expect(
+      LinuxConnectivity.isOffline(NetworkManagerConnectivityState.none),
+      isTrue,
+    );
+    for (final state in [
+      NetworkManagerConnectivityState.full,
+      NetworkManagerConnectivityState.portal,
+      NetworkManagerConnectivityState.unknown,
+    ]) {
+      expect(LinuxConnectivity.isOffline(state), isFalse, reason: '$state');
+    }
   });
 }
