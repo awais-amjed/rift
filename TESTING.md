@@ -46,6 +46,7 @@ instances with separate identities; the Android client is the emulator.
 | Directory moderation (`rift-admin`) | Sep 26 2026 | local central; second factor enforced, lockout after five wrong codes |
 | Central's own stack, backups and restore | Sep 26 2026 | local stack; encrypted backups to a stand-in S3 bucket, then a wiped stack restored with every account, vault and attachment intact |
 | Web build | Sep 26 2026 | Chrome, before deploying |
+| Reactions and pins after their read rules were rewritten | Oct 2 2026 | two clients (Lana, Benny) after `message_reactions_select` / `message_pins_select` stopped calling `app.can_see_message` per row: #general's page loaded (`channel_messages` with reactions embedded, 200); a 🎉 from Lana appeared on Benny's screen live, Benny's own made it 2 on both; reopening the channel refetched the page and still showed 2; a new pin appeared in Benny's pins panel beside the seven older ones. Private channels and bots were checked in the schema suite and against the live rows, not in the app |
 | Pins and polls | Sep 26 2026 | two clients |
 | Voice regions: pinning, moving a live call, a region dying | Sep 25–26 2026 | two clients on two LiveKits on one machine |
 | Roles, bans, bots in a call | Sep 23 2026 | a clean stack driven end to end |
