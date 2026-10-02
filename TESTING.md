@@ -43,6 +43,7 @@ instances with separate identities; the Android client is the emulator.
 | Conversations saved on the device: drawn on open, offline, replaced by the fresh page | Oct 1–2 2026 | Windows, two clients, gateway stopped: channels and server DMs, a row deleted while closed, own messages; the server DM list now loads by itself when the server comes back after an offline start (it used to stay empty). Wipes on leaving a server and on a vault reset, files unreadable, pruning a deleted channel. Central DMs and the sign-out wipe not driven. Linux, Oct 2: the server DM list after an offline start loaded by itself once the gateway was back, with no click. Own sends now reach the copy on quitting and on clicking away (Linux release, Oct 2, Kong paused before reopening the DM): a DM sent and then the window closed through the window manager's close request showed in the offline copy; one sent, then #general clicked with the DM still open behind, then the app killed with `kill -9`, showed too. Alt+F4 itself was not pressed by hand — the test driver's Alt+F4 never reached GNOME; the close request is what it sends |
 | One-to-one calls in server DMs | Sep 27 2026 | two clients + Android; ringing, answer from anywhere, decline, missed, audio both ways recorded, tracks encrypted |
 | Accepting a DM request opens the sender's composer | Oct 2 2026 | Linux release, Lana and Benny with Benny on "Ask me first": Lana's first DM waited with her composer locked; Benny pressed Accept and within 2 s Lana's composer opened and the call button appeared, without reopening the conversation (it used to stay locked) |
+| Narrowing the desktop window with a server DM open behind a channel | Oct 2 2026 | Linux release: DM open, #general clicked, window narrowed to 640: #general stayed on screen (the DM used to be pushed over it); back, Direct, Benny opened the DM normally |
 | Server moderation: reports, time-outs, bans, DM requests, blocks | Sep 27 2026 | two clients + headless members; security pass probed the database and realtime directly |
 | Wording and UI for moderation and DM calls | Sep 27 2026 | two clients; the time-out menu and banner, including expiry |
 | Directory moderation (`rift-admin`) | Sep 26 2026 | local central; second factor enforced, lockout after five wrong codes |
@@ -109,10 +110,6 @@ Windows-specific. Remove a line in the commit that fixes it.
 - The Server DMs unread badge counts a message that was deleted before it was read.
 - Offline, mentions show the username (`@tester_a`) instead of the display name
   until the members load.
-- Quitting the app never counts as leaving the open conversation, so its saved copy
-  misses your last sends until the next online open. A server DM also stays open in
-  `DmCubit` when you click away to a channel; narrowing the window below 700 then
-  puts that DM back over the channel you were reading.
 - A used-up invite is refused as "Invalid invite code", without saying it was used.
 - A changed safety key is flagged only inside the person's profile; the DM
   header's "Encrypted" chip stays green.

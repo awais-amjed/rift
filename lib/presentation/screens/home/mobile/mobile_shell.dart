@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/enums/home_surface.dart';
 import '../../../../data/enums/layout_mode.dart';
 import '../../../../data/enums/mobile_page.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
@@ -44,20 +45,41 @@ class _MobileShellState extends State<MobileShell> {
     super.initState();
     // Whatever was already open when the shell was built — a window narrowed
     // mid-chat, or a notification that opened a conversation during launch.
+    //
+    // A desktop keeps each surface's conversation open behind the others, so
+    // there can be three. Only the one on the surface being shown is the
+    // conversation on screen; the rest are closed, because a phone shows one
+    // at a time and an invisible open one would swallow the tap that reopens
+    // it.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      if (context.read<AppCubit>().state.selectedChannelId != null) {
-        _open(MobilePage.call);
+      final app = context.read<AppCubit>().state;
+      if (app.selectedChannelId != null) _open(MobilePage.call);
+      final open = [
+        if (context.read<ChannelChatCubit>().state.channelId != null)
+          MobilePage.channelChat,
+        if (context.read<DmCubit>().state.openPeerId != null)
+          MobilePage.serverDm,
+        if (context.read<CentralDmCubit>().state.openPeerId != null)
+          MobilePage.centralDm,
+        if (context.read<CentralDmCubit>().state.friendsOpen)
+          MobilePage.friends,
+      ];
+      for (final page in open) {
+        if (_surfaceOf(page) == app.surface) {
+          _open(page);
+        } else {
+          _closeState(page);
+        }
       }
-      final chat = context.read<ChannelChatCubit>().state.channelId != null;
-      final serverDm = context.read<DmCubit>().state.openPeerId != null;
-      final central = context.read<CentralDmCubit>().state;
-      if (chat) _open(MobilePage.channelChat);
-      if (serverDm) _open(MobilePage.serverDm);
-      if (central.openPeerId != null) _open(MobilePage.centralDm);
-      if (central.friendsOpen) _open(MobilePage.friends);
     });
   }
+
+  static HomeSurface _surfaceOf(MobilePage page) => switch (page) {
+    MobilePage.channelChat || MobilePage.call => HomeSurface.server,
+    MobilePage.serverDm => HomeSurface.serverDms,
+    MobilePage.centralDm || MobilePage.friends => HomeSurface.centralDms,
+  };
 
   void _open(MobilePage page) => _apply(_stack.opened(page));
 
