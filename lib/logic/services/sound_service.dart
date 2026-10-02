@@ -1,16 +1,22 @@
 import 'dart:async';
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/services.dart';
 
 import '../../data/classes/participant_setting.dart';
 import '../../data/enums/app_sound.dart';
+import '../../src/rust/api/cue.dart';
 import '../helper_methods.dart';
+import 'host_platform.dart';
 
 /// Plays Rift's own sounds — a new message, and the call's cues — at the
-/// volume each is set to in settings.
+/// volume each is set to in settings, on the output device chosen there.
 ///
 /// The service manages its own [AudioPlayer] pool so that rapid successive
-/// calls never block or cut off a previous sound.
+/// calls never block or cut off a previous sound. The player cannot pick a
+/// device on the desktop, so with one chosen, Windows and Linux open it
+/// themselves through the Rust library ([_playOnOutput]) and keep the player
+/// for when that fails.
 class SoundService {
   SoundService._();
   static final SoundService _instance = SoundService._();
@@ -49,6 +55,15 @@ class SoundService {
   void readSettingsFrom(Map<String, ParticipantSetting> Function() settings) =>
       _settings = settings;
 
+  /// Where the sounds go — `AppState.outputDeviceId`, read the same way as
+  /// [_settings], so a device picked in settings is used by the next sound.
+  String? Function() _outputDevice = () => null;
+
+  /// Connects the sounds to the output picked in settings — see
+  /// [_outputDevice].
+  void readOutputFrom(String? Function() outputDevice) =>
+      _outputDevice = outputDevice;
+
   /// Plays one side of [sound] — the opening tone, or with [ending] the
   /// closing one — as the settings say: not at all when it is muted, and
   /// otherwise at its share of [_ceiling].
@@ -81,6 +96,13 @@ class SoundService {
     final player = _previewPlayer ??= AudioPlayer();
     final gain = volume.clamp(0.0, 1.0) * _ceiling;
     try {
+      final cue = _previewCue;
+      if (_previewing == sound &&
+          cue != null &&
+          DateTime.now().isBefore(_previewCueEnds)) {
+        await setCueVolume(id: cue, volume: gain);
+        return;
+      }
       if (_previewing == sound && player.state == PlayerState.playing) {
         await player.setVolume(gain);
         return;
@@ -90,12 +112,30 @@ class SoundService {
       _lastPreviewStart = now;
       _previewing = sound;
       await player.stop();
+      final previous = _previewCue;
+      _previewCue = null;
+      if (previous != null) unawaited(stopCue(id: previous));
+      final started = await _playOnOutput(sound.startAsset, gain);
+      if (started != null) {
+        _previewCue = started.id;
+        _previewCueEnds = now.add(Duration(milliseconds: started.durationMs));
+        return;
+      }
       await player.setVolume(gain);
       await player.play(AssetSource(sound.startAsset));
     } catch (e) {
       HelperMethods.printDebug('SoundService: preview failed – $e');
     }
   }
+
+  /// The preview playing on the chosen output, which a drag turns up or down
+  /// as [_previewPlayer] would be. Kept after it ends: turning a finished cue
+  /// up does nothing, and the next preview replaces it.
+  int? _previewCue;
+
+  /// When [_previewCue] runs out — the cue player does not say, and a drag
+  /// over a tone still sounding should turn it, not start it again.
+  DateTime _previewCueEnds = DateTime.fromMillisecondsSinceEpoch(0);
 
   AudioPlayer? _previewPlayer;
   AppSound? _previewing;
@@ -112,20 +152,41 @@ class SoundService {
     final setting = sound.settingIn(_settings());
     if (setting.muted || setting.volume <= 0) return;
     _looping = sound;
+    final volume = setting.volume * _ceiling;
+    final cue = (await _playOnOutput(
+      sound.startAsset,
+      volume,
+      looping: true,
+    ))?.id;
+    if (cue != null) {
+      // Stopped while the device was opening: the ring outlived its call.
+      if (_looping != sound) {
+        unawaited(stopCue(id: cue));
+      } else {
+        _loopCue = cue;
+      }
+      return;
+    }
     final player = _loopPlayer ??= AudioPlayer();
     try {
       await player.setReleaseMode(ReleaseMode.loop);
-      await player.setVolume(setting.volume * _ceiling);
+      await player.setVolume(volume);
       await player.play(AssetSource(sound.startAsset));
     } catch (e) {
       HelperMethods.printDebug('SoundService: loop failed – $e');
     }
   }
 
+  /// The ring playing on the chosen output, if [loop] put it there.
+  int? _loopCue;
+
   /// Stops whatever [loop] started. Safe when nothing is looping.
   Future<void> stopLoop() async {
     if (_looping == null) return;
     _looping = null;
+    final cue = _loopCue;
+    _loopCue = null;
+    if (cue != null) unawaited(stopCue(id: cue));
     try {
       await _loopPlayer?.stop();
     } catch (e) {
@@ -141,7 +202,44 @@ class SoundService {
   // Private helpers
   // ──────────────────────────────────────────────────────────
 
+  /// Plays [asset] on the output chosen in settings — decoded in the Rust
+  /// library — and answers the started cue, or null when there is no device to open (none chosen, or not on Windows
+  /// or Linux) or it could not be played there, and the caller should use the
+  /// player instead. Null rather than silence, because a cue on the wrong
+  /// device is better than none.
+  Future<CueStarted?> _playOnOutput(
+    String asset,
+    double volume, {
+    bool looping = false,
+  }) async {
+    if (!HostPlatform.playsCuesOnChosenOutput) return null;
+    final device = _outputDevice();
+    // WebRTC's own "default: …" entry is the system default, which the
+    // player already follows.
+    if (device == null || device.isEmpty || device.startsWith('default: ')) {
+      return null;
+    }
+    try {
+      return await playCue(
+        deviceId: device,
+        mp3: await _bytesOf(asset),
+        volume: volume,
+        looping: looping,
+      );
+    } catch (e) {
+      HelperMethods.printDebug('SoundService: $asset on $device failed – $e');
+      return null;
+    }
+  }
+
+  /// Each sound's file, read once.
+  final Map<String, Uint8List> _bytes = {};
+
+  Future<Uint8List> _bytesOf(String asset) async => _bytes[asset] ??=
+      (await rootBundle.load('assets/$asset')).buffer.asUint8List();
+
   Future<void> _play(String asset, double volume) async {
+    if (await _playOnOutput(asset, volume) != null) return;
     // A fresh player per sound so simultaneous calls don't interfere — which
     // means every one of them has to be handed back, see [_recycle].
     final player = AudioPlayer();

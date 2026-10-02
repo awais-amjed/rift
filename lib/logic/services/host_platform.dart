@@ -59,6 +59,13 @@ class HostPlatform {
   static bool get micTestReadsDevice =>
       !kIsWeb && (Platform.isWindows || Platform.isLinux);
 
+  /// Whether Rift's own sounds can be played on a chosen output device. The
+  /// audio player cannot pick one on the desktop, so Windows and Linux play
+  /// them through the Rust library (`api/cue.rs`); elsewhere they stay on the
+  /// player and the system's choice.
+  static bool get playsCuesOnChosenOutput =>
+      !kIsWeb && (Platform.isWindows || Platform.isLinux);
+
   /// Whether WebRTC lists the system default as an audio device of its own.
   ///
   /// Its PulseAudio module puts an extra "default: …" entry, named after the

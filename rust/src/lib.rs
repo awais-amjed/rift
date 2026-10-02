@@ -1,6 +1,8 @@
 pub mod api;
 #[cfg(any(target_os = "windows", target_os = "linux"))]
 mod audio_endpoints;
+#[cfg(any(target_os = "windows", target_os = "linux"))]
+mod cue;
 #[cfg(target_os = "linux")]
 mod device_watch;
 mod frb_generated;

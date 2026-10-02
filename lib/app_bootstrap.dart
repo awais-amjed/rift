@@ -47,6 +47,7 @@ class AppBootstrap {
     // Every sound reads its mute and volume from here, including the ones
     // raised by services that hold no cubit of their own.
     SoundService.instance.readSettingsFrom(() => appCubit.state.appSounds);
+    SoundService.instance.readOutputFrom(() => appCubit.state.outputDeviceId);
     // Desktop, not "not web". window_manager ships no Android or iOS
     // implementation at all, so calling it there is a method channel with
     // nothing on the other end — a MissingPluginException thrown before the
