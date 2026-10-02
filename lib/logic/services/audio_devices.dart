@@ -210,8 +210,16 @@ class AudioDevices {
   ///
   /// For the mic test outside a call, where there is no [applySaved] result
   /// to read.
+  ///
+  /// A saved input that is no longer listed counts as no choice, as it does
+  /// in the picker, which shows "System default" for it. The test used to
+  /// open the saved id regardless, so with a headset unplugged it failed with
+  /// "Could not access the microphone" under a picker naming the default.
   static Future<String?> preferredInputId(String? savedId) async {
-    if (savedId != null || kIsWeb) return savedId;
+    if (kIsWeb) return savedId;
+    if (savedId != null && byId((await choices()).inputs, savedId) != null) {
+      return savedId;
+    }
     return defaultInputEndpoint();
   }
 
