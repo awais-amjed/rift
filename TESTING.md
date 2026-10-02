@@ -88,6 +88,7 @@ instances with separate identities; the Android client is the emulator.
 | Encrypted voice, audio both directions | Sep 2 2026; Sep 30, Oct 2 2026 | two clients on virtual microphones, a key rotation mid-call; on Sep 30 (Windows) one minted by a client in the call, which has to move its own call too. On Oct 2 (Linux) a ban rotated the key from a client in the call and both calls logged the move to the new version; audio not measured that time |
 | Friends gate on central | Aug 25 2026 | browser |
 | Notification levels, desktop notifications, FCM push | Aug 24–25 2026 | two Linux clients; Android through the relay |
+| A channel's own level outlasting a change to the server's | Oct 2 2026 | Linux release, Lana with no levels stored: #random → Notifications → Only @mentions (already the ticked default) stored a `channel … mentions` row; the server chip → All messages stored `server … all`. Before the fix in the reader the menu then ticked All for #random, because a stored level equal to the default was dropped on the way in; after it, and after a relaunch, #random kept Only @mentions and #general followed the server to All. Rows removed afterwards. Not driven: a notification actually arriving under it, the push isolate's reader (same change), Windows |
 | Messaging, attachments, voice notes, server DMs, kick and ban | Aug 23 2026 | Linux, Android and web |
 
 ## Not verified yet
@@ -125,11 +126,6 @@ Don't read the table as "everything works". Still owed:
 Found while driving the app and left open, because none of them stops a feature
 from working. Most were found on Windows (Sep 29 – Oct 1 2026) but are not
 Windows-specific. Remove a line in the commit that fixes it.
-
-**Servers and moderation**
-- Choosing "Only @mentions" for a channel while its server is on the default stores
-  nothing (it equals the default), so switching the server to All later carries
-  the channel along. By design per `_setLevel`; still surprising.
 
 **Voice and calls**
 - Rift's own sounds (the ring) play on the system default output, not the output

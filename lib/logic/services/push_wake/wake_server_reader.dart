@@ -116,9 +116,11 @@ class WakeServerReader with _WakeChannelKeysMixin, _WakeChannelsMixin {
           marks,
           token,
           positiveCounts(counts, 'channels'),
+          // Every stored level, as the app keeps them — see
+          // `ServerNotificationsCubit._seed`.
           NotificationLevel.mapFrom(
             prefs is Map ? prefs['channels'] : null,
-            fallback: NotificationLevel.channelDefault,
+            fallback: null,
           ),
           serverLevel,
         ),
@@ -130,7 +132,7 @@ class WakeServerReader with _WakeChannelKeysMixin, _WakeChannelsMixin {
           positiveCounts(counts, 'dms'),
           NotificationLevel.mapFrom(
             prefs is Map ? prefs['dms'] : null,
-            fallback: NotificationLevel.dmDefault,
+            fallback: null,
           ),
           serverLevel,
         ),

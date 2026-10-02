@@ -96,10 +96,13 @@ enum NotificationLevel {
   /// should have no key, which is what lets "absent means default" hold
   /// everywhere downstream.
   /// A null [fallback] means every stored level is kept and anything
-  /// unreadable is dropped — which is what the server scope wants. There, the
-  /// level that means *no opinion* is never written down in the first place
-  /// (see [serverDefault]), so anything that did get stored is somebody's
-  /// opinion and dropping it would be overriding them.
+  /// unreadable is dropped — which is what every scope on a server wants. The
+  /// server's own level that means *no opinion* is never written down (see
+  /// [serverDefault]), and a channel's or DM's is only written when somebody
+  /// picks it, so anything stored is somebody's opinion. Inside a server it
+  /// matters even when it matches the default, because it outranks the
+  /// server's level ([resolve]); only a tier with nothing above it, like
+  /// central's DMs, may drop it.
   static Map<String, NotificationLevel> mapFrom(
     Object? raw, {
     required NotificationLevel? fallback,

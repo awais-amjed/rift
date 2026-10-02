@@ -148,13 +148,17 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
           serverPref: servers[serverId],
           channels: _countsOf(data['channels']),
           dms: _countsOf(data['dms']),
+          // Kept whole, defaults included: inside a server a stored level
+          // that matches the default still outranks the server's own
+          // (`NotificationLevel.resolve`), and dropping it here let a channel
+          // set to "Only @mentions" follow the server up to "All".
           channelPrefs: NotificationLevel.mapFrom(
             prefs is Map ? prefs['channels'] : null,
-            fallback: NotificationLevel.channelDefault,
+            fallback: null,
           ),
           dmPrefs: NotificationLevel.mapFrom(
             prefs is Map ? prefs['dms'] : null,
-            fallback: NotificationLevel.dmDefault,
+            fallback: null,
           ),
         ),
       );

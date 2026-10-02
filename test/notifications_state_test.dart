@@ -320,6 +320,23 @@ void main() {
       expect(state.unreadForDm('s1', 'peer1'), 2);
     });
 
+    test('a channel set to its own default stays there when the server is '
+        'turned up', () {
+      // What a re-seed hands over: every stored level, the default included.
+      final seeded = const NotificationsState().withServerCounts(
+        's1',
+        channels: const {},
+        dms: const {},
+        serverPref: NotificationLevel.all,
+        channelPrefs: NotificationLevel.mapFrom({
+          'quiet': 'mentions',
+        }, fallback: null),
+        dmPrefs: const {},
+      );
+      expect(seeded.channelLevel('s1', 'quiet'), NotificationLevel.mentions);
+      expect(seeded.channelLevel('s1', 'other'), NotificationLevel.all);
+    });
+
     test('a server nobody has an opinion about quiets nothing', () {
       const untouched = NotificationsState(
         unreadByServer: {

@@ -56,7 +56,6 @@ mixin _LevelsMixin on Cubit<NotificationsState> {
     scopeId: channelId,
     level: level,
     isChannel: true,
-    fallback: NotificationLevel.channelDefault,
   );
 
   /// How much the conversation with [peerId] on [serverId] may interrupt.
@@ -69,7 +68,6 @@ mixin _LevelsMixin on Cubit<NotificationsState> {
     scopeId: peerId,
     level: level,
     isChannel: false,
-    fallback: NotificationLevel.dmDefault,
   );
 
   /// Applied here first, then written.
@@ -81,52 +79,33 @@ mixin _LevelsMixin on Cubit<NotificationsState> {
   /// which is at most a minute away, and immediately if anything else happens
   /// on that server.
   ///
-  /// Choosing the default **deletes** the row rather than storing it. A scope
-  /// nobody has an opinion about should have no row, so that changing what the
-  /// default means later changes it for everyone who never said otherwise.
+  /// A pick here is always **stored**, even one that matches what the scope
+  /// would do anyway. Picking a level for one conversation is an opinion
+  /// about that conversation, and the nearest opinion wins
+  /// ([NotificationLevel.resolve]). Storing nothing when it matched used to
+  /// leave a channel set to "Only @mentions" following the server to "All"
+  /// the next time the server was turned up. A scope nobody has picked for
+  /// still has no row, so it keeps following the server and the default.
   Future<void> _setLevel(
     String serverId, {
     required String scopeId,
     required NotificationLevel level,
     required bool isChannel,
-    required NotificationLevel fallback,
   }) async {
     if (isClosed) return;
-    // "Same as the default" is stored as nothing at all — but the default here
-    // is what the *server* says where it has an opinion, so the row has to go
-    // for that fallback to be reachable again.
-    final clearing = level == _effectiveDefault(serverId, fallback);
-    emit(
-      clearing
-          ? state.withoutLevel(serverId, scopeId, isChannel: isChannel)
-          : state.withLevel(serverId, scopeId, level, isChannel: isChannel),
-    );
+    emit(state.withLevel(serverId, scopeId, level, isChannel: isChannel));
 
     final sub = _subs[serverId];
     if (sub == null) return;
     final scope = isChannel ? 'channel' : 'dm';
     try {
-      if (clearing) {
-        await _deleteLevel(sub, scope: scope, scopeId: scopeId);
-      } else {
-        await _upsertLevel(sub, scope: scope, scopeId: scopeId, level: level);
-      }
+      await _upsertLevel(sub, scope: scope, scopeId: scopeId, level: level);
     } catch (_) {
       // Put back whatever the server actually thinks, rather than leaving a
       // setting on screen that isn't in force anywhere.
       unawaited(_seed(serverId));
     }
   }
-
-  /// What this scope would fall back to with no row of its own: the server's
-  /// level where it has one, the scope's own default where it doesn't.
-  NotificationLevel _effectiveDefault(
-    String serverId,
-    NotificationLevel fallback,
-  ) => NotificationLevel.resolve(
-    server: state.serverLevels[serverId],
-    fallback: fallback,
-  );
 
   Future<void> _upsertLevel(
     _ServerSub sub, {
