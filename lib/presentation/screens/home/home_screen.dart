@@ -53,6 +53,12 @@ class _HomeScreenState extends State<HomeScreen> {
   /// so the two states are kept apart and [ShellScope] picks between them.
   bool _membersOverlayOpen = false;
 
+  /// Hears Escape for the overlaid member list. A key goes to whatever is
+  /// focused and bubbles up from there, so it reaches this from the composer
+  /// or a row inside the screen, while a dialog or a context menu — neither
+  /// is below it — keeps its own Escape.
+  final _shellFocus = FocusNode(debugLabel: 'home shell', skipTraversal: true);
+
   @override
   void initState() {
     super.initState();
@@ -84,6 +90,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     InviteLinkListener.instance.detach();
+    _shellFocus.dispose();
     super.dispose();
   }
 
@@ -108,6 +115,22 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
     setState(() => _membersOverlayOpen = !_membersOverlayOpen);
+    // Nothing on the screen may hold focus — a click on a button does not
+    // take it — and then Escape would stop above this screen and never
+    // reach [_shellFocus]. Whatever already has focus inside keeps it.
+    if (_membersOverlayOpen && !_shellFocus.hasFocus) {
+      _shellFocus.requestFocus();
+    }
+  }
+
+  KeyEventResult _onShellKey(FocusNode _, KeyEvent event) {
+    if (!_membersOverlayOpen ||
+        event is! KeyDownEvent ||
+        event.logicalKey != LogicalKeyboardKey.escape) {
+      return KeyEventResult.ignored;
+    }
+    _dismissOverlays();
+    return KeyEventResult.handled;
   }
 
   /// Gets the overlaid member list out of the way, leaving a docked one alone.
@@ -303,47 +326,54 @@ class _HomeScreenState extends State<HomeScreen> {
             onPopInvokedWithResult: (didPop, _) {
               if (!didPop) _dismissOverlays();
             },
-            child: CanvasBackdrop(
-              child: Stack(
-                children: [
-                  AnimatedPadding(
-                    // Same length and curve as the content panel's corners, so
-                    // the two read as one movement.
-                    duration: AppMotion.enter,
-                    curve: AppMotion.panel,
-                    padding: insets,
-                    child: Stack(
-                      children: [
-                        Row(
-                          children: [
-                            Sidebar(
-                              open: appState.sidebarOpen,
-                              topPadding: topPadding,
-                            ),
-                            const Expanded(child: MainContent()),
-                          ],
-                        ),
-                        OverlayScrim(
-                          visible: _membersOverlayOpen,
-                          onDismiss: _dismissOverlays,
-                        ),
-                        if (mode.membersIsOverlay)
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: MembersSidebar(
-                              open: _membersOverlayOpen,
-                              floating: true,
-                            ),
+            child: Focus(
+              focusNode: _shellFocus,
+              onKeyEvent: _onShellKey,
+              child: CanvasBackdrop(
+                child: Stack(
+                  children: [
+                    AnimatedPadding(
+                      // Same length and curve as the content panel's corners, so
+                      // the two read as one movement.
+                      duration: AppMotion.enter,
+                      curve: AppMotion.panel,
+                      padding: insets,
+                      child: Stack(
+                        children: [
+                          Row(
+                            children: [
+                              Sidebar(
+                                open: appState.sidebarOpen,
+                                topPadding: topPadding,
+                              ),
+                              const Expanded(child: MainContent()),
+                            ],
                           ),
-                      ],
+                          OverlayScrim(
+                            visible: _membersOverlayOpen,
+                            onDismiss: _dismissOverlays,
+                          ),
+                          if (mode.membersIsOverlay)
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: MembersSidebar(
+                                open: _membersOverlayOpen,
+                                floating: true,
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
-                  // Outside the gutter, so its hot zone is the window's own
-                  // edge rather than the workspace's.
-                  Positioned.fill(
-                    child: SidebarPeek(insets: insets, topPadding: topPadding),
-                  ),
-                ],
+                    // Outside the gutter, so its hot zone is the window's own
+                    // edge rather than the workspace's.
+                    Positioned.fill(
+                      child: SidebarPeek(
+                        insets: insets,
+                        topPadding: topPadding,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

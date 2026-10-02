@@ -23,6 +23,7 @@ instances with separate identities; the Android client is the emulator.
 
 | Area | Last verified | How |
 |---|---|---|
+| Escape closes the members overlay | Oct 2 2026 | Linux at 940 px: with the composer focused, Escape closed the overlay; with a member's context menu open over it, the first Escape closed the menu and the second the overlay. Not driven: Android back (unchanged, `PopScope`) |
 | The members count is the same at every width | Oct 2 2026 | Linux, Rift Test (4 people and a bot): the overlay header at 940 px, the compact sheet and the channel header's "4 members" at 480 px all say 4; the bot is counted under its own Bots heading |
 | A caller hanging up mid-ring | Oct 2 2026 | Linux, Lana calling Benny in their server DM: hung up at 21 s (stored `missed`), Lana's line reads "You cancelled a call" and Benny's "Missed call from Lana"; left to ring out (30.1 s), "Benny didn't answer". Not driven: a hang-up under 15 s (unchanged, `cancelled`) |
 | Realtime after the gateway drops, and after launching on an expired token | Sep 30 – Oct 2 2026 | Windows (Sep 30): a realtime restart and a 60 s gateway stop recovered, and launches on overnight-expired tokens joined everything. Linux (Oct 2): launches on days-old tokens joined everything; one 60 s gateway stop in nine left `server:`, `user:` and the open `chat:` stuck joining and off the socket for good, on both clients. Cause found in realtime_client and patched (`third_party/realtime_client`). Checked the same day with topic state read from the running app, the server's topic check slowed on purpose (`pg_sleep(0.2)` in `app.can_use_topic`, about 2 s per join) so the reconnect race happens every time: the 2.13.0 build lost all four topics after a 30 s gateway stop and still had only `presence:` and `voice:` four minutes later; the patched build kept all four on the socket and had them joined within two minutes, and joined at once after an ordinary-speed stop. Two clients on the patched build, also Oct 2 (Lana and Benny, both with #general open): four gateway stops of 30, 60 and 90 s, and after each one a message each way in #general and an unread badge in a channel the other didn't have open, all four arriving within seconds. With the topic check slowed to 2 s a call (the same ~2 s per join as above, now that a join asks once — see `rift_topic_read` in rift-self-host), messages sent two minutes after a 30 s stop all arrived, but late, the last up to ~45 s after it was stored; when each topic joined was not measured |
@@ -129,8 +130,6 @@ Windows-specific. Remove a line in the commit that fixes it.
   the channel along. By design per `_setLevel`; still surprising.
 
 **Sidebar and layout**
-- Between 700 and 1099 wide, Escape doesn't close the members overlay (a click
-  outside does).
 - The welcome card at the default 1280×720 window runs past the bottom edge.
 
 **Voice and calls**
