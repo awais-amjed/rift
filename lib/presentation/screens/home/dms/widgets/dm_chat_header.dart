@@ -41,6 +41,11 @@ class DmChatHeader extends StatelessWidget {
   /// press. Null while there is nobody to compare keys with.
   final VoidCallback? onVerify;
 
+  /// Their safety key changed and nobody has looked yet — see `SeenKey`.
+  /// Turns the encryption chip amber, and keeps it on screen where it would
+  /// otherwise be the first thing dropped.
+  final bool keyChanged;
+
   /// Open the conversation's pinned messages; null hides the button.
   final void Function(BuildContext anchor)? onShowPins;
 
@@ -57,6 +62,7 @@ class DmChatHeader extends StatelessWidget {
     this.peerId,
     this.onOpenProfile,
     this.onVerify,
+    this.keyChanged = false,
     this.onShowPins,
     this.onCall,
   });
@@ -135,13 +141,29 @@ class DmChatHeader extends StatelessWidget {
                     // the first thing to go — and on a phone it goes at any
                     // width, where the peer's name matters more than a fact
                     // the padlock in the composer already carries.
-                    if (width >= K.dmHeaderTierChipMin)
+                    //
+                    // Unless the key changed. Then the order flips: that is
+                    // the one fact here that asks something of the reader,
+                    // so it stays at any width and on a phone too, and the
+                    // tier chip is what makes room.
+                    if (width >=
+                        (keyChanged
+                            ? K.dmHeaderEncryptedChipMin
+                            : K.dmHeaderTierChipMin))
                       StatusChip(
                         icon: tierIcon,
                         label: tierLabel,
                         color: themeState.accentBright,
                       ),
-                    if (!compact && width >= K.dmHeaderEncryptedChipMin)
+                    if (keyChanged)
+                      StatusChip(
+                        icon: Icons.key_rounded,
+                        label: 'Key changed',
+                        color: CustomColors.warning,
+                        tooltip: StatusChip.keyChangedTooltip,
+                        onTap: onVerify,
+                      )
+                    else if (!compact && width >= K.dmHeaderEncryptedChipMin)
                       StatusChip(
                         icon: Icons.lock_outline,
                         label: 'Encrypted',

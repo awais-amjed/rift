@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 import 'package:rift_crypto/rift_crypto.dart';
 
 import '../../../../../../data/constants.dart';
@@ -42,6 +43,14 @@ class SafetyCodeDialog extends StatelessWidget {
       (c) => c.state.verifiedCodes[person],
     );
     final changed = verified != null && verified != code;
+    // A change to somebody nobody verified: no code to compare against, so
+    // the honest note is when it happened and what to do about it.
+    final changedAt = context.select<AppCubit, DateTime?>((c) {
+      final seen = c.state.seenKeys[person];
+      return seen != null && seen.unacknowledgedChange
+          ? seen.changes.last
+          : null;
+    });
 
     return AppModal(
       title: 'Safety code',
@@ -62,6 +71,17 @@ class SafetyCodeDialog extends StatelessWidget {
                   'That happens when somebody reinstalls or restores a '
                   'backup — and it is also what it looks like if somebody '
                   'is intercepting. Check the new code before trusting it.',
+            ),
+            const SizedBox(height: 16),
+          ] else if (changedAt != null) ...[
+            _Banner(
+              icon: Icons.key_rounded,
+              color: CustomColors.warning,
+              text:
+                  '$personName\'s key changed on '
+                  '${DateFormat('MMM d, HH:mm').format(changedAt.toLocal())}. '
+                  'That usually means a new install or a restored backup. '
+                  'Compare codes before sharing anything private.',
             ),
             const SizedBox(height: 16),
           ],
@@ -151,7 +171,7 @@ class _Banner extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: K.iconRow, color: color),
+          Icon(icon, size: K.iconRow, color: context.theme.statusInk(color)),
           const SizedBox(width: 10),
           Expanded(
             child: Text(

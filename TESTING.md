@@ -59,6 +59,7 @@ instances with separate identities; the Android client is the emulator.
 | Voice regions: pinning, moving a live call, a region dying | Sep 25–26 2026 | two clients on two LiveKits on one machine |
 | Roles, bans, bots in a call | Sep 23 2026 | a clean stack driven end to end |
 | Safety codes | Sep 22–23 2026 | two clients, both ends |
+| A DM saying the other person's key changed | Oct 2 2026 | one client, the peer's key swapped in the database: amber chip, a line per change, cleared by looking or verifying; held amber for a verified person; desktop and phone width. Central DMs and the profile's line not driven |
 | Screen share, including a phone's stream | Sep 22 2026 | Linux sharing, desktop and Android watching |
 | Push-to-talk on Linux | Sep 21 2026 | GNOME, through the GlobalShortcuts portal |
 | Server rail order across devices | Sep 21 2026 | one account on two devices, and a reorder made offline |
@@ -114,8 +115,6 @@ Windows-specific. Remove a line in the commit that fixes it.
 - Offline, mentions show the username (`@tester_a`) instead of the display name
   until the members load.
 - A used-up invite is refused as "Invalid invite code", without saying it was used.
-- A changed safety key is flagged only inside the person's profile; the DM
-  header's "Encrypted" chip stays green.
 
 **Servers and moderation**
 - After leaving a server and rejoining, the channel order in the sidebar can differ

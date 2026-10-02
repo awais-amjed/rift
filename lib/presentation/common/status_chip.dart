@@ -70,6 +70,13 @@ class StatusChip extends StatelessWidget {
   static const String encryptedVerifyTooltip =
       '$encryptedTooltip Click to check the keys.';
 
+  /// The encryption chip once the other person's key has changed. Still
+  /// encrypted — to the new key — so it says what changed and what to do,
+  /// not that something broke.
+  static const String keyChangedTooltip =
+      'Their safety key changed. Usually a new install or a restored backup; '
+      'click to compare codes and be sure it is still them.';
+
   @override
   Widget build(BuildContext context) {
     final press = onTap;

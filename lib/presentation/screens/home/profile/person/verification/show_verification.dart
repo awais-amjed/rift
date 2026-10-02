@@ -42,23 +42,30 @@ Future<String?> safetyCodeFor(
 /// elsewhere.
 ///
 /// [person] is `<tier>:<their id>` — see [AppState.verifiedCodes].
-void showSafetyCode(
+///
+/// Closing it counts as having looked at a changed key, and the DM header
+/// stops saying so — unless they were verified, where the old answer stands
+/// until the new code is marked as matching or the verification forgotten.
+Future<void> showSafetyCode(
   BuildContext context, {
   required String personName,
   required String person,
   required String code,
-}) {
+}) async {
   // Built here, with the cubit read here: both routes rebuild for reasons
   // that have nothing to do with what opened them.
+  final app = context.read<AppCubit>();
   final dialog = BlocProvider.value(
-    value: context.read<AppCubit>(),
+    value: app,
     child: SafetyCodeDialog(personName: personName, person: person, code: code),
   );
   if (context.layoutMode.isCompact) {
-    showAppSheet<void>(context, dialog);
-    return;
+    await showAppSheet<void>(context, dialog);
+  } else {
+    await showCustomDialog<void>(context: context, build: (_) => dialog);
   }
-  showCustomDialog<void>(context: context, build: (_) => dialog);
+  final verified = app.state.verifiedCodes[person];
+  if (verified == null || verified == code) app.acknowledgeKeyChange(person);
 }
 
 /// Compute and show in one step, for a surface that knows exactly whose key
@@ -91,7 +98,7 @@ Future<void> showSafetyCodeFor(
     );
     return;
   }
-  showSafetyCode(
+  await showSafetyCode(
     context,
     personName: personName,
     person: '$tier:$theirId',

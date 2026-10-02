@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -8,6 +10,7 @@ import '../../../../../theme/app_text.dart';
 import '../../../../../theme/custom_colors.dart';
 import '../../../../../theme/theme_context.dart';
 import '../widgets/profile_section.dart';
+import 'key_watch.dart';
 import 'show_verification.dart';
 
 /// Whether this person's key has been checked, and the way to check it.
@@ -71,15 +74,27 @@ class _ProfileVerificationState extends State<ProfileVerification> {
     setState(() => _code = code);
   }
 
-  void _open(String code) => showSafetyCode(
-    context,
-    personName: widget.personName,
-    person: _person,
-    code: code,
+  void _open(String code) => unawaited(
+    showSafetyCode(
+      context,
+      personName: widget.personName,
+      person: _person,
+      code: code,
+    ),
   );
 
   @override
   Widget build(BuildContext context) {
+    // Watched here too, not only in a DM: somebody can be verified from
+    // their profile without a conversation ever being opened.
+    return KeyWatch(
+      person: _person,
+      chatKey: widget.theirChatKey,
+      child: _section(context),
+    );
+  }
+
+  Widget _section(BuildContext context) {
     final code = _code;
     if (code == null) return const SizedBox.shrink();
 
@@ -88,7 +103,16 @@ class _ProfileVerificationState extends State<ProfileVerification> {
       (c) => c.state.verifiedCodes[_person],
     );
     final changed = verified != null && verified != code;
+    final unseenChange = context.select<AppCubit, bool>(
+      (c) => c.state.seenKeys[_person]?.unacknowledgedChange ?? false,
+    );
     final (icon, colour, line) = switch ((verified, changed)) {
+      (null, _) when unseenChange => (
+        Icons.key_rounded,
+        CustomColors.warning,
+        'Their key changed recently. Compare your safety code to be sure it '
+            'is still them.',
+      ),
       (null, _) => (
         Icons.shield_outlined,
         theme.textTertiary,
@@ -127,7 +151,7 @@ class _ProfileVerificationState extends State<ProfileVerification> {
           ),
           const SizedBox(height: 10),
           AppButton(
-            label: changed
+            label: changed || unseenChange
                 ? 'Check the new code'
                 : verified != null
                 ? 'Safety code'

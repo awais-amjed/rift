@@ -102,6 +102,11 @@ class AppState {
   /// device of yours has to check for itself.
   final Map<String, String> verifiedCodes;
 
+  /// The chat key last seen for each person, under the same
+  /// `<tier>:<their id>` — see [SeenKey]. What says a key changed for
+  /// somebody nobody verified, which is almost everybody.
+  final Map<String, SeenKey> seenKeys;
+
   /// Emoji the user reaches for, most recent first, capped at
   /// [AppCubit.maxRecentEmojis]. Kept here rather than in the emoji package's
   /// own store: its writer needs a handle to the widget it ships, which the
@@ -173,6 +178,7 @@ class AppState {
     this.windowY,
     this.askBeforeVoiceSwitch = true,
     this.verifiedCodes = const {},
+    this.seenKeys = const {},
     this.statsOverlayPinned = false,
     this.showStreamStats = false,
     this.sensitiveContentMode = SensitiveContentMode.blur,
@@ -219,6 +225,7 @@ class AppState {
     double? windowY,
     bool? askBeforeVoiceSwitch,
     Map<String, String>? verifiedCodes,
+    Map<String, SeenKey>? seenKeys,
     bool? statsOverlayPinned,
     bool? showStreamStats,
     SensitiveContentMode? sensitiveContentMode,
@@ -271,6 +278,7 @@ class AppState {
       windowY: windowY ?? this.windowY,
       askBeforeVoiceSwitch: askBeforeVoiceSwitch ?? this.askBeforeVoiceSwitch,
       verifiedCodes: verifiedCodes ?? this.verifiedCodes,
+      seenKeys: seenKeys ?? this.seenKeys,
       statsOverlayPinned: statsOverlayPinned ?? this.statsOverlayPinned,
       showStreamStats: showStreamStats ?? this.showStreamStats,
       sensitiveContentMode: sensitiveContentMode ?? this.sensitiveContentMode,

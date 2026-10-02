@@ -21,6 +21,7 @@ import '../../../common/chat/chat_reply_draft.dart';
 import '../../../common/chat/chat_scroll_load_more.dart';
 import '../../../common/chat/composer/chat_composer.dart';
 import '../../../common/chat/forward/show_forward_dialog.dart';
+import '../../../common/chat/key_change_row.dart';
 import '../../../common/chat/pins/show_pinned_messages.dart';
 import '../../../common/chat/saved_copy_notice.dart';
 import '../../../common/chat/time_out_builder.dart';
@@ -35,6 +36,7 @@ import '../chat/widgets/chat_header.dart';
 import '../mobile/widgets/mini_call_bar.dart';
 import '../participants_grid/participants_grid.dart';
 import '../profile/person/show_person_profile.dart';
+import '../profile/person/verification/key_watch.dart';
 import '../profile/person/verification/show_verification.dart';
 import 'widgets/dm_chat_header.dart';
 import 'widgets/dm_composer_slot.dart';
@@ -84,23 +86,29 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
 
   /// The peer's key, as the conversation list knows it — the same key this
   /// conversation's messages are sealed to.
+  String? _peerKey(DmState state) {
+    for (final conversation in state.conversations) {
+      if (conversation.peerId == state.openPeerId) {
+        return conversation.peerChatPublicKey;
+      }
+    }
+    return null;
+  }
+
+  /// Whose key this conversation watches — see [KeyWatch].
+  static String? _person(DmState state) =>
+      state.openPeerId == null ? null : 'server:${state.openPeerId}';
+
   Future<void> _verify(BuildContext context, DmState state) async {
     final peerId = state.openPeerId;
     final server = context.read<ServerCubit>().state.selectedServer;
     if (peerId == null || server == null) return;
-    String? key;
-    for (final conversation in state.conversations) {
-      if (conversation.peerId == peerId) {
-        key = conversation.peerChatPublicKey;
-        break;
-      }
-    }
     await showSafetyCodeFor(
       context,
       personName: state.openPeerName ?? '',
       tier: 'server',
       theirId: peerId,
-      theirChatKey: key,
+      theirChatKey: _peerKey(state),
       myId: server.user?.id ?? '',
       host: Uri.parse(server.supabaseUrl).host,
     );
@@ -153,7 +161,7 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
       (c) => c.state.dmCallChatOpen,
     );
 
-    return BlocListener<LiveKitCubit, LiveKitState>(
+    final conversation = BlocListener<LiveKitCubit, LiveKitState>(
       // Watching a stream is asking for room to watch it in: the call takes
       // the pane, without the messages, and Collapse puts the split back.
       listenWhen: (a, b) =>
@@ -176,6 +184,11 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
                 ],
               ),
             ),
+    );
+    return KeyWatch(
+      person: _person(state),
+      chatKey: _peerKey(state),
+      child: conversation,
     );
   }
 
@@ -227,6 +240,9 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
       onVerify: state.openPeerId == null
           ? null
           : () => unawaited(_verify(context, state)),
+      keyChanged: context.select<AppCubit, bool>(
+        (c) => c.state.seenKeys[_person(state)]?.unacknowledgedChange ?? false,
+      ),
       onShowPins: state.openPeerId == null
           ? null
           : (anchor) => _showPins(context, anchor),
@@ -444,6 +460,13 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
           mentionable: _mentionable(state),
           calls: state.calls,
           myId: context.read<ServerCubit>().state.selectedServer?.user?.id,
+          keyChanges: KeyChangeLines(
+            name: state.openPeerName ?? '',
+            at: context.select<AppCubit, List<DateTime>>(
+              (c) => c.state.seenKeys[_person(state)]?.changes ?? const [],
+            ),
+            onCheck: () => unawaited(_verify(context, state)),
+          ),
         );
       },
     );

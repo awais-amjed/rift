@@ -35,6 +35,11 @@ AppState _$AppStateFromJson(Map<String, dynamic> json) => AppState(
         (k, e) => MapEntry(k, e as String),
       ) ??
       const {},
+  seenKeys:
+      (json['seenKeys'] as Map<String, dynamic>?)?.map(
+        (k, e) => MapEntry(k, SeenKey.fromJson(e as Map<String, dynamic>)),
+      ) ??
+      const {},
   statsOverlayPinned: json['statsOverlayPinned'] as bool? ?? false,
   showStreamStats: json['showStreamStats'] as bool? ?? false,
   sensitiveContentMode:
@@ -106,6 +111,7 @@ Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
   'soundboardVolume': instance.soundboardVolume,
   'appSounds': instance.appSounds.map((k, e) => MapEntry(k, e.toJson())),
   'verifiedCodes': instance.verifiedCodes,
+  'seenKeys': instance.seenKeys.map((k, e) => MapEntry(k, e.toJson())),
   'recentEmojis': instance.recentEmojis,
 };
 

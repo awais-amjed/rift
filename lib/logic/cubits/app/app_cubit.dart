@@ -5,6 +5,7 @@ import 'package:json_annotation/json_annotation.dart';
 import '../../../data/classes/participant_info.dart';
 import '../../../data/classes/participant_setting.dart';
 import '../../../data/classes/screen_share_settings.dart';
+import '../../../data/classes/seen_key.dart';
 import '../../../data/constants.dart';
 import '../../../data/enums/app_sound.dart';
 import '../../../data/enums/home_surface.dart';
@@ -273,15 +274,46 @@ class AppCubit extends HydratedCubit<AppState> {
 
   /// Remember that [code] is what you saw when you checked [person] — see
   /// [AppState.verifiedCodes].
+  ///
+  /// Comparing the codes is also looking at the change, if there was one.
   void setVerified(String person, String code) => emit(
-    state.copyWith(verifiedCodes: {...state.verifiedCodes, person: code}),
+    state.copyWith(
+      verifiedCodes: {...state.verifiedCodes, person: code},
+      seenKeys: _acknowledged(person),
+    ),
   );
 
   /// Take that back, whether because it was a mistake or because their key
   /// changed and the old answer is worse than none.
   void clearVerified(String person) => emit(
-    state.copyWith(verifiedCodes: {...state.verifiedCodes}..remove(person)),
+    state.copyWith(
+      verifiedCodes: {...state.verifiedCodes}..remove(person),
+      seenKeys: _acknowledged(person),
+    ),
   );
+
+  /// Record [key] as [person]'s current chat key — see [SeenKey]. Called by
+  /// whatever surface is about to seal to it or show it; the same key again
+  /// emits nothing.
+  void noteChatKey(String person, String key) {
+    final before = state.seenKeys[person];
+    final after = SeenKey.noting(before, key, DateTime.now());
+    if (identical(before, after)) return;
+    emit(state.copyWith(seenKeys: {...state.seenKeys, person: after}));
+  }
+
+  /// The person has looked at their changed key — the header stops saying so.
+  /// The lines in the conversation stay: they are history.
+  void acknowledgeKeyChange(String person) {
+    if (!(state.seenKeys[person]?.unacknowledgedChange ?? false)) return;
+    emit(state.copyWith(seenKeys: _acknowledged(person)));
+  }
+
+  Map<String, SeenKey>? _acknowledged(String person) {
+    final seen = state.seenKeys[person];
+    if (seen == null || !seen.unacknowledgedChange) return null;
+    return {...state.seenKeys, person: seen.acknowledge()};
+  }
 
   // ── Transient: sidebar hover ─────────────────────────────
 

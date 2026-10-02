@@ -204,6 +204,17 @@ longer matches what was stored, and the profile says so rather than going on
 claiming they are verified — which is the half that catches an interception
 that starts later.
 
+Most people never compare codes, so a change is also caught without one.
+Each device remembers the chat key it last saw for everybody it has a DM
+with or a profile open on (`AppState.seenKeys`, a `SeenKey` per person):
+trust on first sight, so the first key says nothing and any later one is a
+change. A change draws a line in the DM at the moment it was noticed and
+turns the header's "Encrypted" chip into an amber "Key changed", which stays
+— on a phone too — until the safety code has been opened. For somebody you
+had verified it stays until the new code is marked as matching or the
+verification forgotten. The record is public keys and is never uploaded;
+another device of yours keeps its own.
+
 It covers the key a message is *sealed to*, not yet the key it is signed
 with: a member row carries `chat_public_key` and no signing key, so adding
 that means a column and a migration first.

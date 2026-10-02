@@ -15,6 +15,7 @@ import 'attachments/attachment_loader.dart';
 import 'call_log_row.dart';
 import 'date_divider.dart';
 import 'history_window_bar.dart';
+import 'key_change_row.dart';
 import 'message_jump.dart';
 import 'message_row/chat_message_row.dart';
 import 'message_row/message_reply_quote.dart';
@@ -145,6 +146,10 @@ class ChatMessageList extends StatefulWidget {
   final List<DmCall> calls;
   final String? myId;
 
+  /// The other person's safety key changing, woven in the same way — see
+  /// [KeyChangeLines]. Null in a channel, which has no one key to watch.
+  final KeyChangeLines? keyChanges;
+
   const ChatMessageList({
     super.key,
     this.emptyMessage = 'No messages yet — say hi!',
@@ -175,6 +180,7 @@ class ChatMessageList extends StatefulWidget {
     this.jumpRequests,
     this.calls = const [],
     this.myId,
+    this.keyChanges,
   });
 
   @override
@@ -209,18 +215,21 @@ class _ChatMessageListState extends State<ChatMessageList>
 
   /// Build the flat render list: messages interleaved with day dividers, each
   /// message tagged with whether it opens a group (shows avatar + header) —
-  /// and, in a DM, the conversation's calls at the moments they rang. A call
-  /// between two messages ends a group: what follows it is a new moment.
+  /// and, in a DM, the conversation's calls at the moments they rang and the
+  /// other person's key changes at the moments this device noticed them. A
+  /// line between two messages ends a group: what follows it is a new moment.
   List<_StreamItem> _buildItems() {
     final items = <_StreamItem>[];
-    final calls = [
-      for (final call in widget.calls)
-        if (widget.myId != null) call,
-    ]..sort((a, b) => a.startedAt.compareTo(b.startedAt));
-    var nextCall = 0;
+    final events = <(DateTime, _StreamItem)>[
+      if (widget.myId != null)
+        for (final call in widget.calls) (call.startedAt, _CallItem(call)),
+      for (final at in widget.keyChanges?.at ?? const <DateTime>[])
+        (at, _KeyChangeItem(at)),
+    ]..sort((a, b) => a.$1.compareTo(b.$1));
+    var nextEvent = 0;
     DateTime? lastAt;
     ChatMessage? prev;
-    var afterCall = false;
+    var afterEvent = false;
 
     /// A divider when [at] is on a different day from whatever came last.
     bool dayOf(DateTime at) {
@@ -231,30 +240,30 @@ class _ChatMessageListState extends State<ChatMessageList>
       return newDay;
     }
 
-    void callsUntil(DateTime? at) {
-      while (nextCall < calls.length &&
-          (at == null || calls[nextCall].startedAt.isBefore(at))) {
-        final call = calls[nextCall++];
-        dayOf(call.startedAt);
-        items.add(_CallItem(call));
-        afterCall = true;
+    void eventsUntil(DateTime? at) {
+      while (nextEvent < events.length &&
+          (at == null || events[nextEvent].$1.isBefore(at))) {
+        final (eventAt, item) = events[nextEvent++];
+        dayOf(eventAt);
+        items.add(item);
+        afterEvent = true;
       }
     }
 
     for (final cur in widget.messages) {
-      callsUntil(cur.sentAt);
+      eventsUntil(cur.sentAt);
       final newDay = dayOf(cur.sentAt);
       final showHeader =
           newDay ||
-          afterCall ||
+          afterEvent ||
           prev == null ||
           prev.groupKey != cur.groupKey ||
           cur.sentAt.difference(prev.sentAt) > ChatMessageList.groupWindow;
       items.add(_MsgItem(cur, showHeader));
       prev = cur;
-      afterCall = false;
+      afterEvent = false;
     }
-    callsUntil(null);
+    eventsUntil(null);
     return items;
   }
 
@@ -351,7 +360,9 @@ class _ChatMessageListState extends State<ChatMessageList>
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
-    if (widget.messages.isEmpty && widget.calls.isEmpty) {
+    if (widget.messages.isEmpty &&
+        widget.calls.isEmpty &&
+        (widget.keyChanges?.at.isEmpty ?? true)) {
       return Center(
         child: Text(
           widget.emptyMessage,
@@ -395,6 +406,9 @@ class _ChatMessageListState extends State<ChatMessageList>
         }
         if (item is _CallItem) {
           return CallLogRow(call: item.call, myId: widget.myId ?? '');
+        }
+        if (item is _KeyChangeItem) {
+          return KeyChangeRow(at: item.at, lines: widget.keyChanges!);
         }
         final msg = (item as _MsgItem).message;
         final origin = _originOf(msg, byId);
@@ -456,7 +470,8 @@ class _ChatMessageListState extends State<ChatMessageList>
   }
 }
 
-/// An item in the flattened render list — a message or a day divider.
+/// An item in the flattened render list — a message, a day divider, or a
+/// line about the conversation (a call, a key change).
 sealed class _StreamItem {}
 
 class _DateItem extends _StreamItem {
@@ -467,6 +482,11 @@ class _DateItem extends _StreamItem {
 class _CallItem extends _StreamItem {
   final DmCall call;
   _CallItem(this.call);
+}
+
+class _KeyChangeItem extends _StreamItem {
+  final DateTime at;
+  _KeyChangeItem(this.at);
 }
 
 class _MsgItem extends _StreamItem {
