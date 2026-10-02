@@ -303,7 +303,9 @@ same verification as a fresh page, so an open decrypts two pages instead of one.
 them, so a saved row goes back through the same open-or-lock-or-drop path as a
 fresh one (*Three things a client can do with a row*, above). A channel's keys
 come from the server, so its copy carries the key versions it was sealed under.
-A DM's key is worked out on the device and is not stored.
+It also carries the display names its `@mentions` resolved to, which come from a
+member lookup that fails offline. A DM's key is worked out on the device and is
+not stored.
 
 **Sealed as a whole**, AES-256-GCM under a key from its own rung of the ladder
 (§1), with file and folder names that are HMACs under the same key. The rows are

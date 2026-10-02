@@ -48,9 +48,21 @@ mixin _ChannelChatSavedMixin on Cubit<ChannelChatState>, _ChannelChatRowsMixin {
           state.status != ChannelChatStatus.loading) {
         return;
       }
+      // What the `@names` in it drew as, so a copy opened offline does not
+      // fall back to usernames until the members load. Remembered, not
+      // marked asked: online, the server's answer still replaces it.
+      final names = saved['mention_names'];
+      if (names is Map) {
+        _mentionCache.remember({
+          for (final entry in names.entries)
+            if (entry.key is String && entry.value is String)
+              entry.key as String: entry.value as String,
+        });
+      }
       emit(
         state.copyWith(
           messages: messages.reversed.toList(),
+          mentionNames: _mentionCache.names,
           botListeners: (saved['bot_listeners'] as List? ?? const [])
               .cast<String>(),
           showingSaved: true,
@@ -96,6 +108,7 @@ mixin _ChannelChatSavedMixin on Cubit<ChannelChatState>, _ChannelChatRowsMixin {
         '${entry.key}': CryptoRepository.toBase64(entry.value),
     },
     'bot_listeners': state.botListeners,
+    'mention_names': _mentionCache.names,
   };
 
   /// Without a key every sealed row would open as a lock, and a page of locks

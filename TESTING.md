@@ -119,8 +119,6 @@ from working. Most were found on Windows (Sep 29 – Oct 1 2026) but are not
 Windows-specific. Remove a line in the commit that fixes it.
 
 **Messaging and DMs**
-- Offline, mentions show the username (`@tester_a`) instead of the display name
-  until the members load.
 - A used-up invite is refused as "Invalid invite code", without saying it was used.
 
 **Servers and moderation**
