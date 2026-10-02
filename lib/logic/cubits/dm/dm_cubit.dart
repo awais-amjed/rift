@@ -329,7 +329,8 @@ class DmCubit extends Cubit<DmState>
     }
   }
 
-  /// A request arrived, or another of our devices answered one.
+  /// A request arrived, ours was accepted, or another of our devices answered
+  /// one.
   void _onRequestsDoorbell() {
     if (isClosed) return;
     unawaited(refreshRequests());

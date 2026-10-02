@@ -67,7 +67,8 @@ mixin _DmRequestsMixin on Cubit<DmState> {
   }
 
   /// Accept or ignore the request from [peerId]. Accepting moves it into the
-  /// conversation list; ignoring tells nobody.
+  /// conversation list and rings the sender, whose composer opens; ignoring
+  /// tells nobody.
   Future<APIResponse> answerRequest(
     String peerId, {
     required bool accept,
