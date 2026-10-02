@@ -67,16 +67,22 @@ class TrayService with WindowListener {
       menu.addSeparator();
       _addItem(menu, 'Quit', quit);
       icon.setContextMenu(menu);
-      // Windows opens nothing on a right click unless told to: the trigger
-      // defaults to none, which left the menu — and Quit — unreachable.
+      // The trigger defaults to none, which leaves the menu — and Quit —
+      // unreachable. Windows opens it on a right click. Linux has to say
+      // "clicked": only then does the StatusNotifierItem advertise its menu
+      // (`ItemIsMenu`, and `Menu` pointing at it rather than at `/`), and the
+      // panel opens it on any click. Under none, GNOME's AppIndicator panel
+      // found no menu and the icon did nothing at all.
       if (Platform.isWindows) {
         icon.setContextMenuTrigger(ContextMenuTrigger.rightClicked);
+      } else if (Platform.isLinux) {
+        icon.setContextMenuTrigger(ContextMenuTrigger.clicked);
       }
     }
 
     // A left click reopens the window, which is the only thing anyone wants
-    // from this icon. Linux reports neither click — its panel keeps them and
-    // opens the menu on its own.
+    // from this icon. Linux reports neither click — the item answers
+    // `Activate` without telling anyone — so there it is the menu's Show Rift.
     icon.addListener((event) {
       if (event is TrayIconClickedEvent) _show();
     });
