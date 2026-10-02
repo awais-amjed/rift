@@ -24,6 +24,7 @@ instances with separate identities; the Android client is the emulator.
 | Area | Last verified | How |
 |---|---|---|
 | Enter on a whole bot command sends it | Oct 2 2026 | Linux, #general on Rift Test with a bot whose commands are `/play <url>`, `/stop` and `/disconnect`: `/stop` typed in full went out on one Enter (it used to need two); `/st` and `/play` completed to `/stop ` and `/play ` and sent nothing. Tab completing without sending is covered by `test/composer_command_enter_test.dart` only. The bot was not running, so nothing answered the `/stop` |
+| The soundboard volume while everyone else is muted | Oct 2 2026 | Linux, Settings → Voice & audio and the soundboard panel in a call: with "Mute everyone else" on, the slider stays usable, shows the real volume (60%, then 30% after a drag) and says only your own clips play now. It used to grey out and read "—". Whether your own clip then plays at that volume was not measured; that rule is unchanged and unit-tested (`SoundboardVolume`) |
 | Sending is held to a verified person whose key changed | Oct 2 2026 | Linux, Lana and Benny's server DM: Benny marked verified ("They match"), his `chat_public_key` swapped for Tom's in rift-db, Lana relaunched: amber chip, a new key-change line, and the composer replaced by "Benny's safety key changed since you verified them…" with Compare codes; Forward from #general listed echo and not Benny. Closing the code sheet with X kept it held; "Forget" brought the composer back and the chip went green. Not driven: central DMs (same gate, `central:` record), "They match" on the new code |
 | Keyboard through Create channel | Oct 2 2026 | Linux: Tab goes name → Text → Voice → Private channel switch (white ring) → Space turns it on → search → each member row (tinted in turn) → Cancel → Create channel (both ringed). Before, Tab skipped the switch, the buttons showed nothing and the rows' tint was painted under the list's fill. Not driven: the other dialogs' switches and buttons (same widgets), light theme |
 | Escape closes the members overlay | Oct 2 2026 | Linux at 940 px: with the composer focused, Escape closed the overlay; with a member's context menu open over it, the first Escape closed the menu and the second the overlay. Not driven: Android back (unchanged, `PopScope`) |
@@ -138,8 +139,6 @@ Windows-specific. Remove a line in the commit that fixes it.
 **Voice and calls**
 - Rift's own sounds (the ring) play on the system default output, not the output
   chosen in Settings.
-- The soundboard volume slider is disabled while "Mute everyone else" is on, yet
-  your own clips still play at that volume.
 - A deafened member shows deafen + mute in the sidebar but only mute on their tile.
 - The Share sound picker lists other Rift windows on the same PC (only possible
   with several instances; sharing one would loop the call into itself).

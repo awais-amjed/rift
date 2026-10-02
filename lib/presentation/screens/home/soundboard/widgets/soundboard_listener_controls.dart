@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../common/app_switch.dart';
-import '../../../../common/volume_slider.dart';
+import '../../../../common/soundboard_volume_control.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 
@@ -25,9 +25,6 @@ class SoundboardListenerControls extends StatelessWidget {
     final theme = context.theme;
     final muted = context.select<AppCubit, bool>(
       (cubit) => cubit.state.soundboardMuted,
-    );
-    final volume = context.select<AppCubit, double>(
-      (cubit) => cubit.state.soundboardVolume,
     );
 
     return Column(
@@ -59,25 +56,7 @@ class SoundboardListenerControls extends StatelessWidget {
           style: AppText.rowQuiet.copyWith(color: theme.textQuaternary),
         ),
         const SizedBox(height: 6),
-        Row(
-          children: [
-            Text(
-              'VOLUME',
-              style: AppText.sectionLabel.copyWith(color: theme.textTertiary),
-            ),
-            const Spacer(),
-            Text(
-              muted ? '—' : '${(volume * 100).round()}%',
-              style: AppText.chip.copyWith(color: theme.textSecondary),
-            ),
-          ],
-        ),
-        VolumeSlider(
-          value: muted ? 0 : volume,
-          onChanged: muted
-              ? null
-              : context.read<AppCubit>().setSoundboardVolume,
-        ),
+        const SoundboardVolumeControl(),
       ],
     );
   }
