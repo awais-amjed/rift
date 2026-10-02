@@ -12,6 +12,7 @@ import '../../../data/enums/dm_call_outcome.dart';
 import '../../../data/enums/notification_level.dart';
 import '../../../data/participant_identity.dart';
 import '../../helper_methods.dart';
+import '../../services/before_quit.dart';
 import '../../services/call_refusal.dart';
 import '../../services/dm_call_ledger.dart';
 import '../../services/host_platform.dart';
@@ -94,6 +95,7 @@ class DmCallCubit extends Cubit<DmCallState>
     _serverSub = serverCubit.stream.listen((_) => _sync());
     _livekitSub = livekitCubit.stream.listen(_onLiveKit);
     scheduleMicrotask(_sync);
+    BeforeQuit.instance.add(hangUp);
   }
 
   @override
@@ -233,6 +235,7 @@ class DmCallCubit extends Cubit<DmCallState>
 
   @override
   Future<void> close() async {
+    BeforeQuit.instance.remove(hangUp);
     await _serverSub?.cancel();
     await _livekitSub?.cancel();
     for (final timer in _debounce.values) {

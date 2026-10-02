@@ -17,6 +17,7 @@ import '../../../data/enums/error_code.dart';
 import '../../../data/participant_identity.dart';
 import '../../helper_methods.dart';
 import '../../services/audio_devices.dart';
+import '../../services/before_quit.dart';
 import '../../services/call_foreground_service.dart';
 import '../../services/channel_keyring.dart';
 import '../../services/connection_failure.dart';
@@ -137,6 +138,15 @@ class LiveKitCubit extends Cubit<LiveKitState>
        _lastAppState = appCubit.state,
        super(const LiveKitState()) {
     _appSubscription = _appCubit.stream.listen(_onAppStateChanged);
+    BeforeQuit.instance.add(_leaveOnQuit);
+  }
+
+  /// Quitting in a call leaves it, rather than ending the process inside the
+  /// room: without a goodbye the others went on seeing this person in the
+  /// channel for about thirty seconds, until the server gave up on the
+  /// connection.
+  Future<void> _leaveOnQuit() async {
+    if (state.inCall) await disconnect();
   }
 
   void setScreenshareCubit(ScreenshareCubit cubit) {
@@ -560,6 +570,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
 
   @override
   Future<void> close() async {
+    BeforeQuit.instance.remove(_leaveOnQuit);
     _cancelPushToTalkRelease();
     await _appSubscription?.cancel();
     await _cleanupRoom();

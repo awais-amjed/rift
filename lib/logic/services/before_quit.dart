@@ -6,6 +6,8 @@ import 'dart:async';
 /// so whatever a cubit does on its way out has to be asked for here instead.
 /// The chat cubits use it to save the open conversation as *left*, which is
 /// the one moment this device's own sends are fetched into its saved copy.
+/// The call cubits use it to leave the call, so the others don't go on seeing
+/// somebody who has gone until the server times the connection out.
 ///
 /// Each task gets [budget] at most, together: quitting is never held up by a
 /// server that does not answer. A task that fails or runs over is given up on,

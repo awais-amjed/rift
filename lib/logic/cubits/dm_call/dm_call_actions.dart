@@ -149,7 +149,8 @@ mixin _DmCallActionsMixin on Cubit<DmCallState> {
     await _serverCubit.endDmCall(server, incoming.call.id);
   }
 
-  /// End the call this device is in, from our end.
+  /// End the call this device is in, from our end. Also what quitting does
+  /// ([BeforeQuit]), so the other end is not left talking to nobody.
   Future<void> hangUp() async {
     final active = state.active;
     if (active == null) return;
