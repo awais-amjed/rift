@@ -46,6 +46,7 @@ instances with separate identities; the Android client is the emulator.
 | Accepting a DM request opens the sender's composer | Oct 2 2026 | Linux release, Lana and Benny with Benny on "Ask me first": Lana's first DM waited with her composer locked; Benny pressed Accept and within 2 s Lana's composer opened and the call button appeared, without reopening the conversation (it used to stay locked) |
 | A refused message comes back to the composer | Oct 2 2026 | Linux release, Lana and Benny: Benny blocked Lana in the database, Lana sent him a server DM — "Benny isn't accepting messages from you right now" and her words were back in the field (they used to be lost). Channels and Rift DMs take the same path (`composer_give_back_test.dart` covers the composer); only the server DM was driven |
 | A bot's new command reaches a channel that is already open | Oct 2 2026 | Linux release, Lana in #general with the `/` menu showing echo's three commands: a fourth added to echo's manifest in the database showed in the menu 3 s later without reopening the channel, and sending it stored a plaintext command addressed to echo (key version 0), not sealed text. Before, it needed the channel reopened. Not driven: a real bot republishing, or a private channel |
+| A privacy-mode vault signed in to an account, then signed in again | Oct 2 2026 | Linux release on a local central: a fresh profile made a vault with its own password in privacy mode, then created an account ("Account connected. Backup saved."). With only its central session deleted it signed in again and went straight to "Account connected. Backup saved." — no "Two identities" question. A second fresh profile signing in to the account restored without asking for the vault password ("Backup restored from your account."). The old build was not re-run for comparison; before, the first question was unconditional and the second followed from the uploaded seed blob |
 | Narrowing the desktop window with a server DM open behind a channel | Oct 2 2026 | Linux release: DM open, #general clicked, window narrowed to 640: #general stayed on screen (the DM used to be pushed over it); back, Direct, Benny opened the DM normally |
 | Server moderation: reports, time-outs, bans, DM requests, blocks | Sep 27 2026 | two clients + headless members; security pass probed the database and realtime directly |
 | Wording and UI for moderation and DM calls | Sep 27 2026 | two clients; the time-out menu and banner, including expiry |
@@ -114,10 +115,6 @@ Windows-specific. Remove a line in the commit that fixes it.
 - A used-up invite is refused as "Invalid invite code", without saying it was used.
 - A changed safety key is flagged only inside the person's profile; the DM
   header's "Encrypted" chip stays green.
-- Signing a device back in to the account whose cloud backup *is* this vault still
-  asks "Two identities — Keep cloud / Keep this device", and the vault password was
-  asked again on the next restore although the first said future restores would be
-  automatic.
 
 **Servers and moderation**
 - After leaving a server and rejoining, the channel order in the sidebar can differ

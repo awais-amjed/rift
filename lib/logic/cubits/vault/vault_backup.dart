@@ -102,6 +102,32 @@ mixin _VaultBackupMixin on Cubit<VaultState> {
     }
   }
 
+  /// Whether [backupJson] is a backup of this vault — the same master seed,
+  /// whoever uploaded it — rather than of another identity.
+  ///
+  /// Decided by opening its vault blob with the key this device derives from
+  /// its own seed. AES-GCM opens only under the key that sealed it, so this is
+  /// a proof, and it needs no password: the vault key is the seed's, not the
+  /// password's. Anything that does not open, or does not parse, is "another".
+  Future<bool> isBackupOfThisVault(String backupJson) async {
+    final masterSeedB64 = state.masterSeed;
+    if (masterSeedB64 == null) return false;
+    try {
+      final backup = BackupFile.fromJsonString(backupJson);
+      final vaultKey = await _crypto.deriveLocalVaultKey(
+        CryptoRepository.fromBase64(masterSeedB64),
+      );
+      await _crypto.decrypt(
+        ciphertext: CryptoRepository.fromBase64(backup.vault.ciphertext),
+        key: vaultKey,
+        iv: CryptoRepository.fromBase64(backup.vault.iv),
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Restores a vault from a [BackupFile] JSON string.
   ///
   /// Opened with [password], or with [recoveryKey] when the password is the

@@ -33,7 +33,11 @@ part 'supabase_backup_transfer.dart';
 ///   backup was encrypted with a manually chosen vault password)
 /// - fresh device + no backup      → create vault + upload
 /// - local vault  + no backup      → upload (adopts the vault into the account)
-/// - local vault  + cloud backup   → surface a conflict for the user to resolve
+/// - local vault  + its own backup → combine and upload, like any later sync
+/// - local vault  + another backup → surface a conflict for the user to resolve
+///
+/// A device that arrives signed in with a vault of its own first re-wraps its
+/// seed under the account password, if it was made under another one.
 class SupabaseBackupCubit extends Cubit<SupabaseBackupState>
     with
         _SupabaseBackupAuthMixin,
@@ -224,13 +228,21 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState>
     final backupJson = downloadResponse.data as String?;
     final vaultUnlocked = _vaultCubit.state.status == AuthStatus.unlocked;
 
+    if (vaultUnlocked) await _wrapSeedUnderAccount();
+
     if (backupJson != null) {
-      if (vaultUnlocked) {
-        // Local vault + cloud backup: the user must choose (see resolvers).
+      if (!vaultUnlocked) {
+        await _importPendingBackup(backupJson);
+      } else if (await _vaultCubit.isBackupOfThisVault(backupJson)) {
+        // This identity's own backup — from here, or another device holding
+        // the same seed. Nothing to choose between: combined and uploaded the
+        // way every later backup is.
+        await pullFromCloud();
+        await _uploadBackup(successMessage: 'Account connected. Backup saved.');
+      } else {
+        // Two different identities: the user must choose (see resolvers).
         _pendingCloudBackup = backupJson;
         emit(state.copyWith(isProcessing: false, cloudBackupConflict: true));
-      } else {
-        await _importPendingBackup(backupJson);
       }
       return;
     }
@@ -251,6 +263,27 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState>
       }
     }
     await _uploadBackup(successMessage: 'Account connected. Backup saved.');
+  }
+
+  /// On an account the seed is wrapped by the account password (ARCHITECTURE.md
+  /// §3) — that is what lets a new device restore with nothing else typed.
+  /// A vault made in privacy mode and signed in later still had the password
+  /// it was made with, so each upload from it put a blob in the cloud that the
+  /// account could not open: the next restore asked for the old password, and
+  /// re-wrapping it there lasted only until this device uploaded again.
+  ///
+  /// The seed is in memory, so nothing has to be proved first. The check
+  /// costs one Argon2id run per sign-in, and the re-wrap a second, once.
+  Future<void> _wrapSeedUnderAccount() async {
+    final derived = _accountVaultPassword;
+    if (derived == null) return;
+    if (await _vaultCubit.verifyVaultPassword(derived)) return;
+    final result = await _vaultCubit.rewrapSeed(newPassword: derived);
+    if (!result.success) {
+      HelperMethods.printDebug(
+        '[SupabaseBackup] re-wrap under the account failed: ${result.error}',
+      );
+    }
   }
 
   // ── Shared internals ──────────────────────────────────────

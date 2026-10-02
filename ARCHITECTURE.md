@@ -129,7 +129,11 @@ join. What an account buys is a backup of the vault, and a way to be found.
 **One password, split two ways.** It stretches into two independent values: one
 becomes the credential GoTrue stores, the other never leaves the device and is
 what encrypts the vault blob. Central holds a password verifier and a ciphertext
-it cannot open, and neither half yields the other.
+it cannot open, and neither half yields the other. A vault made in privacy mode
+keeps its own password until the device signs in; from then on its seed is
+wrapped by the account password like any other, so a new device restores with
+nothing else typed. And a device signing in to a backup of its own vault — the
+same seed — combines the two rather than asking which identity to keep.
 
 A **recovery key**, shown once at vault creation, is the second door. Central
 cannot reset a password into a readable vault — resetting the credential half
