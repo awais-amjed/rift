@@ -45,6 +45,7 @@ instances with separate identities; the Android client is the emulator.
 | The tray menu and quitting (Linux) | Oct 2 2026 | GNOME 50 with the AppIndicator extension, release build, two clients: clicking the icon opens Show Rift / Quit (it opened nothing before — the item advertised no menu until its trigger was set to clicked), and Quit exits; GNOME's close-window key (Super+Q here) hid the window at once and the app exited (pressed by the user). Since Oct 2 the desktop's close hides to the tray like the title bar's button, and only the tray's Quit exits: a close request left the process running with the window hidden, the menu's Show Rift brought it back, Quit exited (driven over DBus and a `_NET_CLOSE_WINDOW` message, not by hand). Not checked on Windows |
 | Accepting a DM request opens the sender's composer | Oct 2 2026 | Linux release, Lana and Benny with Benny on "Ask me first": Lana's first DM waited with her composer locked; Benny pressed Accept and within 2 s Lana's composer opened and the call button appeared, without reopening the conversation (it used to stay locked) |
 | A refused message comes back to the composer | Oct 2 2026 | Linux release, Lana and Benny: Benny blocked Lana in the database, Lana sent him a server DM — "Benny isn't accepting messages from you right now" and her words were back in the field (they used to be lost). Channels and Rift DMs take the same path (`composer_give_back_test.dart` covers the composer); only the server DM was driven |
+| A bot's new command reaches a channel that is already open | Oct 2 2026 | Linux release, Lana in #general with the `/` menu showing echo's three commands: a fourth added to echo's manifest in the database showed in the menu 3 s later without reopening the channel, and sending it stored a plaintext command addressed to echo (key version 0), not sealed text. Before, it needed the channel reopened. Not driven: a real bot republishing, or a private channel |
 | Narrowing the desktop window with a server DM open behind a channel | Oct 2 2026 | Linux release: DM open, #general clicked, window narrowed to 640: #general stayed on screen (the DM used to be pushed over it); back, Direct, Benny opened the DM normally |
 | Server moderation: reports, time-outs, bans, DM requests, blocks | Sep 27 2026 | two clients + headless members; security pass probed the database and realtime directly |
 | Wording and UI for moderation and DM calls | Sep 27 2026 | two clients; the time-out menu and banner, including expiry |
@@ -150,8 +151,6 @@ Windows-specific. Remove a line in the commit that fixes it.
   flowed. Not reproduced.
 
 **Bots**
-- A bot's changed command list reaches an open channel only when it is reopened;
-  until then a new command goes out as ordinary encrypted text the bot can't read.
 - With the command suggestion showing, Enter accepts it and a second Enter sends.
 - SDK, `example/music_bot.ts`: in a **private** voice channel `/disconnect` is
   never handled. The client drops the summon first, and the bot can't find the

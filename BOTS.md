@@ -191,7 +191,9 @@ Each bot publishes a **command manifest** — name, description, arguments, and 
 what it is given. Plaintext, on the bot's own row; it is public information by definition.
 
 Clients read it to fill the `/` list and the right-click menu, so neither costs a round trip to
-the bot and both work while the bot is asleep.
+the bot and both work while the bot is asleep. A bot that publishes a new one rings `bots` on the
+server's topic, and an open channel reads the lists again — so a verb added while somebody is
+reading goes out as a command, not as sealed text the bot cannot open.
 
 ---
 

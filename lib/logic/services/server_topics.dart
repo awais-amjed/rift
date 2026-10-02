@@ -65,6 +65,10 @@ class ServerEvent {
   /// refused the right to hear one. Empty: re-read both lists.
   static const String voiceBots = 'voice_bots';
 
+  /// A bot joined, left, or published a new command list. Empty: re-read the
+  /// bots an open channel's `/` can reach.
+  static const String bots = 'bots';
+
   // From the database, on a user topic.
   static const String me = 'me';
   static const String dm = 'dm';

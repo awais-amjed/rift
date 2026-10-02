@@ -86,6 +86,23 @@ mixin _ChannelChatRealtimeMixin
         });
       _rtFeeds.add(feed);
     }
+
+    // What a `/` here turns into is decided from the bots' command lists, read
+    // when the channel opened. A bot that publishes a new one says so on the
+    // server's topic whatever the channel, private ones included — without
+    // hearing it, a verb added since goes out as sealed text the bot cannot
+    // read.
+    final roster = realtime.join(server, ServerTopics.server(server.id));
+    if (roster != null) {
+      roster.onBroadcast(ServerEvent.bots, (_) => _onBotsDoorbell(channelId));
+      _rtFeeds.add(roster);
+    }
+  }
+
+  Future<void> _onBotsDoorbell(String channelId) async {
+    final bots = await _serverCubit.listBots(channelId: channelId);
+    if (isClosed || state.channelId != channelId) return;
+    emit(state.copyWith(bots: bots));
   }
 
   Future<void> _teardownRealtime() async {
