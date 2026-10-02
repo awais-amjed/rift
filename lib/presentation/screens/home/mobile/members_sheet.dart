@@ -48,9 +48,9 @@ class _MembersSheet extends StatelessWidget {
     final myId = context.watch<ServerCubit>().state.selectedServer?.user?.id;
     final presence = context.watch<ChannelPresenceCubit>().state;
     final roster = context.watch<ServerMembersCubit>().state;
-    final count = roster.loaded
-        ? roster.peopleCount + roster.bots.length
-        : null;
+    // People only, as in the desktop header: the bots carry their own count
+    // under their own heading.
+    final count = roster.loaded ? roster.peopleCount : null;
 
     return SafeArea(
       top: false,
