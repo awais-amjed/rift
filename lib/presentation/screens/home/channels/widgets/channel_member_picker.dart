@@ -132,12 +132,18 @@ class _ChannelMemberPickerState extends State<ChannelMemberPicker> {
         const SizedBox(height: 8),
         Container(
           height: 168,
+          clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             color: context.theme.bgSecondary,
             borderRadius: BorderRadius.circular(K.radiusRow),
             border: Border.all(color: context.theme.borderPrimary),
           ),
-          child: visible.isEmpty ? _message() : _list(visible),
+          // Inside the fill, so the rows' hover and keyboard-focus ink is
+          // drawn on top of it rather than painted and then covered.
+          child: Material(
+            type: MaterialType.transparency,
+            child: visible.isEmpty ? _message() : _list(visible),
+          ),
         ),
       ],
     );

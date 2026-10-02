@@ -23,6 +23,7 @@ instances with separate identities; the Android client is the emulator.
 
 | Area | Last verified | How |
 |---|---|---|
+| Keyboard through Create channel | Oct 2 2026 | Linux: Tab goes name → Text → Voice → Private channel switch (white ring) → Space turns it on → search → each member row (tinted in turn) → Cancel → Create channel (both ringed). Before, Tab skipped the switch, the buttons showed nothing and the rows' tint was painted under the list's fill. Not driven: the other dialogs' switches and buttons (same widgets), light theme |
 | Escape closes the members overlay | Oct 2 2026 | Linux at 940 px: with the composer focused, Escape closed the overlay; with a member's context menu open over it, the first Escape closed the menu and the second the overlay. Not driven: Android back (unchanged, `PopScope`) |
 | The members count is the same at every width | Oct 2 2026 | Linux, Rift Test (4 people and a bot): the overlay header at 940 px, the compact sheet and the channel header's "4 members" at 480 px all say 4; the bot is counted under its own Bots heading |
 | A caller hanging up mid-ring | Oct 2 2026 | Linux, Lana calling Benny in their server DM: hung up at 21 s (stored `missed`), Lana's line reads "You cancelled a call" and Benny's "Missed call from Lana"; left to ring out (30.1 s), "Benny didn't answer". Not driven: a hang-up under 15 s (unchanged, `cancelled`) |
@@ -149,8 +150,6 @@ Windows-specific. Remove a line in the commit that fixes it.
 - With the command suggestion showing, Enter accepts it and a second Enter sends.
 
 **Keyboard and accessibility**
-- Create channel dialog: Tab never reaches the Private channel switch, and the
-  focused Cancel button shows no focus ring.
 - Windows: after closing a native Save dialog with a key, the first Escape is
   ignored (closing it with the mouse is fine). Looks like the Flutter embedder.
 - Windows: only the topmost pixel of the window resizes from the top edge (about

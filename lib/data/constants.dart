@@ -35,6 +35,11 @@ class K {
   /// Text fields, dropdowns and segmented options.
   static const double fieldHeight = controlHeight;
 
+  /// The ring a button or switch draws while it has keyboard focus. Painted
+  /// in `textPrimary`, which stands out on the accent fill as well as on
+  /// the quiet one — the accent itself would vanish on a primary button.
+  static const double focusRingWidth = 2;
+
   /// A text field's line box, as a multiple of its font size. Pinned rather
   /// than left to the font, because the field's padding is worked out from it:
   /// with the font's own metrics the box came out a different height on every

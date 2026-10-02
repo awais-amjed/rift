@@ -134,11 +134,19 @@ class AppButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(K.radiusRow),
           ),
         ),
-        side: variant == AppButtonVariant.secondary
-            ? WidgetStatePropertyAll(
-                BorderSide(color: themeState.borderElevated),
-              )
-            : null,
+        // A keyboard user has to see where Tab went; the hover fills above
+        // are pointer-only and the overlay is off.
+        side: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.focused)) {
+            return BorderSide(
+              color: themeState.textPrimary,
+              width: K.focusRingWidth,
+            );
+          }
+          return variant == AppButtonVariant.secondary
+              ? BorderSide(color: themeState.borderElevated)
+              : null;
+        }),
       ),
       child: child,
     );
