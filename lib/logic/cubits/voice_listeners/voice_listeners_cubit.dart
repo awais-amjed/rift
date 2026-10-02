@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../data/classes/server.dart';
+import '../../services/server_topic_watcher.dart';
+import '../../services/server_topics.dart';
 import '../server/server_cubit.dart';
 
 /// One bot summoned into a voice channel.
@@ -40,14 +43,18 @@ class VoiceBotsState {
 /// exactly the wrong people, so the channel says it, standing, to everyone.
 class VoiceListenersCubit extends Cubit<VoiceBotsState> {
   final ServerCubit _serverCubit;
-  StreamSubscription<ServerState>? _serverSub;
-  String? _serverId;
+  late final ServerTopicWatcher _watcher;
 
   VoiceListenersCubit({required ServerCubit serverCubit})
     : _serverCubit = serverCubit,
       super(const VoiceBotsState()) {
-    _serverSub = serverCubit.stream.listen(_onServerChanged);
-    _onServerChanged(serverCubit.state);
+    _watcher = ServerTopicWatcher(
+      serverCubit: serverCubit,
+      topicOf: (server) => ServerTopics.server(server.id),
+      event: ServerEvent.voiceBots,
+      onChanged: () => unawaited(refresh()),
+      onServerChanged: _onServerChanged,
+    );
   }
 
   /// The bots that can hear [channelId], by name. Empty is the common case and
@@ -59,19 +66,17 @@ class VoiceListenersCubit extends Cubit<VoiceBotsState> {
   List<SummonedBot> summoned(String channelId) =>
       state.summons[channelId] ?? const [];
 
-  void _onServerChanged(ServerState serverState) {
-    final id = serverState.selectedServer?.id;
-    if (id == _serverId) return;
-    _serverId = id;
+  void _onServerChanged(Server? server) {
     // Clear first. Carrying the previous server's grants across a switch would
     // put a recording light on a channel that never had one, which is the one
     // direction this marker must never be wrong in.
     emit(const VoiceBotsState());
-    if (id != null) unawaited(refresh());
+    if (server != null) unawaited(refresh());
   }
 
-  /// Re-read both. Called on server change, and after a grant or a summon
-  /// changes.
+  /// Re-read both. Called on server change, when the database says a grant
+  /// or a summon came or went (`voice_bots`, whoever changed it), and by the
+  /// client that changed one, which need not wait for the ring.
   ///
   /// Two round trips, started together: they are different tables and the
   /// sidebar wants them at the same moment, so serialising them would show a
@@ -86,8 +91,8 @@ class VoiceListenersCubit extends Cubit<VoiceBotsState> {
   }
 
   @override
-  Future<void> close() {
-    _serverSub?.cancel();
+  Future<void> close() async {
+    await _watcher.dispose();
     return super.close();
   }
 }

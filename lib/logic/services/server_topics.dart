@@ -61,6 +61,10 @@ class ServerEvent {
   /// database at all, and this is only "go and re-read the list".
   static const String soundboard = 'soundboard';
 
+  /// A bot was summoned into or sent away from a voice channel, or given or
+  /// refused the right to hear one. Empty: re-read both lists.
+  static const String voiceBots = 'voice_bots';
+
   // From the database, on a user topic.
   static const String me = 'me';
   static const String dm = 'dm';
