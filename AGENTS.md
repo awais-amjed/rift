@@ -256,13 +256,21 @@ third_party/      # Packages kept here to be patched — each says why in its RI
 
 - **The schema is not in this repository.** A server's lives in `rift-self-host/migrations`
   and the shared tier's in `rift-central/migrations`. Each is a small set of files split by
-  *kind* — tables, helpers, RPCs, triggers, realtime, storage, jobs, security — and each
-  states the shape it is meant to have rather than how it got there, because there are no
-  deployments yet to migrate. So a change edits the file that owns that kind of object, and
-  the file's own prose with it; a new numbered file is for once servers exist to upgrade.
-  Security is deliberately the **last** file: Supabase grants `anon` EXECUTE on every new
-  function in `public` by default, and only a blanket revoke running after everything exists
-  takes that back. Run `./scripts/db_test.sh` in the repository you touched.
+  *kind* — tables, helpers, RPCs, triggers, realtime, storage, jobs, security. Those files
+  are the **baseline**, and since Oct 3 2026, when central went to production, they are
+  locked: **a schema change is a new numbered file, never an edit to one that exists.** A
+  database runs each file once and records its checksum (central's `up.sh`, the console's
+  ledger), so an edit reaches no database that already ran the file and stops the next
+  deploy. `migrations/locked.sha256` holds every file's checksum; add a new file's line in
+  the commit that adds it, and `./scripts/check_locked.sh` (run by `db_test.sh`) fails on
+  an edit or a missing line. Write a new file to apply cleanly on top of the last one, and
+  say why in its header — what it changes and what for — since the baseline no longer
+  states the whole shape. The baseline's security file comes after everything *it* creates:
+  Supabase grants `anon` EXECUTE on every new function in `public` by default, and only an
+  explicit revoke takes that back. So a new file revokes from `PUBLIC, anon, authenticated`
+  and grants by name whatever it adds, and the suite's "nothing reachable that nobody
+  granted" check fails if it forgets. Run `./scripts/db_test.sh` in the repository you
+  touched.
 - **The two central directories are not governed alike, and the difference is the
   rule.** A server listing reserves `(supabase_url, server_id)` — a pair that exists
   whether or not its owner claimed it — so the first publisher locks the real admin out,
