@@ -138,8 +138,6 @@ Windows-specific. Remove a line in the commit that fixes it.
 **Voice and calls**
 - Rift's own sounds (the ring) play on the system default output, not the output
   chosen in Settings.
-- The Share sound picker lists other Rift windows on the same PC (only possible
-  with several instances; sharing one would loop the call into itself).
 - A shared window that is minimised freezes on its last frame for viewers, with no
   hint that it's paused (Windows sends no frames for a minimised window).
 - Once, the speaking glow didn't light for about ten minutes although audio

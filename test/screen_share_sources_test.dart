@@ -85,4 +85,40 @@ void main() {
       },
     );
   });
+
+  // F-10: the Share sound picker offered other Rift windows on the same PC,
+  // and sharing one sends a call back into a call.
+  group('ScreenShareSources.withoutRift', () {
+    AudioSource audio(String app, String binary) => AudioSource(
+      index: app.length,
+      sink: 0,
+      appName: app,
+      binary: binary,
+      mediaName: '',
+    );
+
+    test('drops every Rift on Windows, whatever the case', () {
+      final kept = ScreenShareSources.withoutRift([
+        audio('rift', 'rift.exe'),
+        audio('Rift', 'RIFT.EXE'),
+        audio('Spotify', 'Spotify.exe'),
+      ], ownBinary: r'C:\Program Files\Rift\rift.exe');
+      expect(kept.map((s) => s.appName), ['Spotify']);
+    });
+
+    test('drops every Rift on Linux', () {
+      final kept = ScreenShareSources.withoutRift([
+        audio('rift', 'rift'),
+        audio('Firefox', 'firefox'),
+      ], ownBinary: '/opt/rift/bundle/rift');
+      expect(kept.map((s) => s.appName), ['Firefox']);
+    });
+
+    test('keeps a different program that merely says rift', () {
+      final kept = ScreenShareSources.withoutRift([
+        audio('rift', 'rift-player'),
+      ], ownBinary: '/opt/rift/bundle/rift');
+      expect(kept, hasLength(1));
+    });
+  });
 }

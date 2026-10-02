@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import '../../src/rust/api/screenshare.dart';
@@ -62,11 +63,34 @@ class ScreenShareSources {
     try {
       // A repeated entry would make the picker's value ambiguous, which the
       // dropdown asserts on.
-      return (await listAudioSources()).toSet().toList();
+      return withoutRift(
+        (await listAudioSources()).toSet().toList(),
+        ownBinary: Platform.resolvedExecutable,
+      );
     } catch (e) {
       HelperMethods.printDebug('Failed to load audio sources: $e');
       return const [];
     }
+  }
+
+  /// [sources] minus every copy of Rift, this one and any other running on
+  /// the same machine. What Rift plays is a call, so sharing it puts the call
+  /// back into a call: this one's is an echo, and another instance's (a second
+  /// profile, a test setup) is no better. Windows already left out this
+  /// process alone, and Linux left out nothing (F-10).
+  ///
+  /// Matched on the executable's file name, case-insensitively, since that is
+  /// what both platforms report: `rift.exe` on Windows, `rift` on Linux.
+  static List<AudioSource> withoutRift(
+    List<AudioSource> sources, {
+    required String ownBinary,
+  }) {
+    final own = ownBinary.split(RegExp(r'[\\/]')).last.toLowerCase();
+    if (own.isEmpty) return sources;
+    return [
+      for (final source in sources)
+        if (source.binary.trim().toLowerCase() != own) source,
+    ];
   }
 
   /// What to call an application: its own name, or the binary behind it, and
