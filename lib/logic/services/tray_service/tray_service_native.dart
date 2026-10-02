@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:tray_manager/tray_manager.dart';
@@ -90,10 +91,12 @@ class TrayService with WindowListener {
     icon.setVisible(true);
     _icon = icon;
 
-    // Alt+F4 and the taskbar's Close would otherwise end the process with the
-    // icon still alive (Windows) and without [BeforeQuit] (both); route them
-    // through [quit] too. The title bar's close button hides instead and never
-    // gets here.
+    // Closing the window any other way — Alt+F4, GNOME's Super+Q, the
+    // taskbar's Close — does what the title bar's close button does: hide to
+    // the tray, where Quit is. Left to the desktop it would end the process
+    // with the icon still alive (Windows) and without [BeforeQuit] (both).
+    // Only here, after an icon exists: without one a hidden window could
+    // never come back, so the desktop's close stays a close.
     if (Platform.isWindows || Platform.isLinux) {
       windowManager.addListener(this);
       await windowManager.setPreventClose(true);
@@ -122,8 +125,16 @@ class TrayService with WindowListener {
     await windowManager.close();
   }
 
+  /// The desktop asked the window to close. Hidden like the title bar's
+  /// close button, while there is an icon to come back from.
   @override
-  void onWindowClose() => quit();
+  void onWindowClose() {
+    if (_icon == null) {
+      unawaited(quit());
+      return;
+    }
+    unawaited(windowManager.hide());
+  }
 
   /// Adds one clickable row, carrying its own action.
   ///
