@@ -36,6 +36,7 @@ import '../chat/widgets/chat_header.dart';
 import '../mobile/widgets/mini_call_bar.dart';
 import '../participants_grid/participants_grid.dart';
 import '../profile/person/show_person_profile.dart';
+import '../profile/person/verification/key_check_gate.dart';
 import '../profile/person/verification/key_watch.dart';
 import '../profile/person/verification/show_verification.dart';
 import 'widgets/dm_chat_header.dart';
@@ -283,17 +284,22 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
         const MiniCallBar(),
         DmComposerSlot(
           state: state,
-          composer: ChatComposer(
-            canSend: ready,
-            hintText: 'Message ${state.openPeerName ?? ''}',
-            canAttach: _canAttach(),
-            maxAttachmentBytes: _maxAttachmentBytes(),
-            remainingStorageBytes: _remainingStorage(),
-            onSend: (text, attachments, preview) =>
-                _send(context, text, attachments, preview),
-            replyingTo: replyingTo,
-            onCancelReply: cancelReply,
-            onTyping: () => context.read<DmCubit>().notifyTyping(),
+          composer: KeyCheckGate(
+            person: _person(state),
+            name: state.openPeerName ?? '',
+            onCheck: () => unawaited(_verify(context, state)),
+            child: ChatComposer(
+              canSend: ready,
+              hintText: 'Message ${state.openPeerName ?? ''}',
+              canAttach: _canAttach(),
+              maxAttachmentBytes: _maxAttachmentBytes(),
+              remainingStorageBytes: _remainingStorage(),
+              onSend: (text, attachments, preview) =>
+                  _send(context, text, attachments, preview),
+              replyingTo: replyingTo,
+              onCancelReply: cancelReply,
+              onTyping: () => context.read<DmCubit>().notifyTyping(),
+            ),
           ),
         ),
       ],

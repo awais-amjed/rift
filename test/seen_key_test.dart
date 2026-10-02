@@ -98,6 +98,25 @@ void main() {
       await app.close();
     });
 
+    // Sending to somebody you verified is held while their new key is
+    // unchecked; for anybody else a change is only said.
+    test('a verified person with a new key is held until checked', () async {
+      final app = AppCubit();
+      app.noteChatKey('server:u1', 'A');
+      app.setVerified('server:u1', '111');
+      app.noteChatKey('server:u4', 'A');
+      app.noteChatKey('server:u4', 'B');
+      expect(app.state.keysToCheck, isEmpty);
+
+      app.noteChatKey('server:u1', 'B');
+      expect(app.state.keyChangedSinceVerified('server:u1'), isTrue);
+      expect(app.state.keysToCheck, {'server:u1'});
+
+      app.clearVerified('server:u1');
+      expect(app.state.keysToCheck, isEmpty);
+      await app.close();
+    });
+
     test('people are kept apart', () async {
       final app = AppCubit();
       app.noteChatKey('server:u1', 'A');

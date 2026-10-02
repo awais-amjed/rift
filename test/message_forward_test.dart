@@ -251,6 +251,19 @@ void main() {
       expect(targets, isEmpty);
     });
 
+    test('a DM held for a key check is not offered', () {
+      // Its composer is replaced until the new key is checked; a forward
+      // would be a send that went round that.
+      final targets = ForwardTargets.gather(
+        servers: const [],
+        serverDms: [peer('u1', 'Bo'), peer('u3', 'Di')],
+        serverDmHost: home,
+        centralDms: [peer('u2', 'cara')],
+        held: {'server:u1', 'central:u2'},
+      );
+      expect(targets.map((t) => t.label), ['Di']);
+    });
+
     test('every target has a stable, distinct id', () {
       final targets = ForwardTargets.gather(
         servers: [home, other],

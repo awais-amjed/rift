@@ -15,6 +15,10 @@ abstract final class ForwardTargets {
   /// is being forwarded *from*. It is left out, because "forward this to
   /// where it already is" is never the intent and offering it is how a
   /// mis-click duplicates a message in place.
+  ///
+  /// [held] names people (`<tier>:<their id>`) whose new key is waiting to be
+  /// checked — see `AppState.keyChangedSinceVerified`. Their composer is
+  /// held, and a forward is a send that would get round it.
   static List<ForwardTarget> gather({
     required List<Server> servers,
     List<DmConversation> serverDms = const [],
@@ -22,6 +26,7 @@ abstract final class ForwardTargets {
     List<DmConversation> centralDms = const [],
     String? currentChannelId,
     String? currentPeerId,
+    Set<String> held = const {},
   }) {
     return [
       for (final server in servers)
@@ -35,7 +40,8 @@ abstract final class ForwardTargets {
 
       if (serverDmHost != null)
         for (final conversation in serverDms)
-          if (conversation.peerId != currentPeerId)
+          if (conversation.peerId != currentPeerId &&
+              !held.contains('server:${conversation.peerId}'))
             ServerDmTarget(
               server: serverDmHost,
               peerId: conversation.peerId,
@@ -44,7 +50,8 @@ abstract final class ForwardTargets {
             ),
 
       for (final conversation in centralDms)
-        if (conversation.peerId != currentPeerId)
+        if (conversation.peerId != currentPeerId &&
+            !held.contains('central:${conversation.peerId}'))
           CentralDmTarget(
             peerId: conversation.peerId,
             peerHandle: conversation.peerName,

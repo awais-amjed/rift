@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rift_crypto/rift_crypto.dart';
 
 import '../../../../data/classes/chat_message.dart';
+import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
@@ -46,6 +47,7 @@ Future<void> showForwardDialog(
     centralDms: central.state.conversations,
     currentChannelId: currentChannelId,
     currentPeerId: currentPeerId,
+    held: context.read<AppCubit>().state.keysToCheck,
   );
 
   return showCustomDialog(

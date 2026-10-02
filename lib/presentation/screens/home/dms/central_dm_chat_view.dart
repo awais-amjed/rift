@@ -25,6 +25,7 @@ import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 import '../mobile/widgets/mini_call_bar.dart';
 import '../profile/person/show_person_profile.dart';
+import '../profile/person/verification/key_check_gate.dart';
 import '../profile/person/verification/key_watch.dart';
 import '../profile/person/verification/show_verification.dart';
 import 'widgets/dm_chat_header.dart';
@@ -133,18 +134,23 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
             SavedCopyNotice(onRetry: context.read<CentralDmCubit>().retryOpen),
           if ((ready || opening) && peerId != null)
             switch (friendship) {
-              FriendshipState.friends => ChatComposer(
-                hintText: quotaEmpty
-                    ? 'Daily limit reached — continue on a shared server'
-                    : 'Message @$handle',
-                enabled: !quotaEmpty,
-                canSend: ready,
-                maxAttachmentBytes: ServerLimits.centralMaxAttachmentBytes,
-                footer: const QuotaMeter(),
-                onSend: (text, attachments, preview) =>
-                    _send(context, text, attachments, preview),
-                replyingTo: replyingTo,
-                onCancelReply: cancelReply,
+              FriendshipState.friends => KeyCheckGate(
+                person: _person(state),
+                name: '@$handle',
+                onCheck: () => unawaited(_verify(context, state)),
+                child: ChatComposer(
+                  hintText: quotaEmpty
+                      ? 'Daily limit reached — continue on a shared server'
+                      : 'Message @$handle',
+                  enabled: !quotaEmpty,
+                  canSend: ready,
+                  maxAttachmentBytes: ServerLimits.centralMaxAttachmentBytes,
+                  footer: const QuotaMeter(),
+                  onSend: (text, attachments, preview) =>
+                      _send(context, text, attachments, preview),
+                  replyingTo: replyingTo,
+                  onCancelReply: cancelReply,
+                ),
               ),
               FriendshipState.incoming => FriendRequestBar(
                 peerId: peerId,
@@ -197,12 +203,6 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
     return refused;
   }
 
-  /// The open conversation's peer as the friends graph knows them.
-  ///
-  /// Taken from the conversation row where there is one, because that is
-  /// where their published keys are — the profile needs them to offer a
-  /// message. Falling back to the id and handle alone still draws a profile;
-  /// it just cannot say whether they have set encrypted chat up.
   /// The peer's key as the conversation carries it, against my own central
   /// account — the pair a central DM is sealed between.
   Future<void> _verify(BuildContext context, CentralDmState state) async {
@@ -218,6 +218,12 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
     );
   }
 
+  /// The open conversation's peer as the friends graph knows them.
+  ///
+  /// Taken from the conversation row where there is one, because that is
+  /// where their published keys are — the profile needs them to offer a
+  /// message. Falling back to the id and handle alone still draws a profile;
+  /// it just cannot say whether they have set encrypted chat up.
   Friend _peer(CentralDmState state) {
     final peerId = state.openPeerId!;
     for (final conversation in state.conversations) {

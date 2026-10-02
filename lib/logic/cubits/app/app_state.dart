@@ -208,6 +208,20 @@ class AppState {
     this.desktopPushToTalkPending = false,
   });
 
+  /// Somebody you verified now has a key you have not checked. Sending is
+  /// held until you do: you said this key was theirs, and a server that
+  /// swapped it would be reading whatever you send next. Comparing the new
+  /// code or forgetting the old one both clear it, as both acknowledge.
+  bool keyChangedSinceVerified(String person) =>
+      verifiedCodes.containsKey(person) &&
+      (seenKeys[person]?.unacknowledgedChange ?? false);
+
+  /// Everybody [keyChangedSinceVerified] holds.
+  Set<String> get keysToCheck => {
+    for (final person in verifiedCodes.keys)
+      if (keyChangedSinceVerified(person)) person,
+  };
+
   AppState copyWith({
     bool? sidebarOpen,
     bool? audioEnabled,

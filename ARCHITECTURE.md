@@ -212,8 +212,12 @@ change. A change draws a line in the DM at the moment it was noticed and
 turns the header's "Encrypted" chip into an amber "Key changed", which stays
 — on a phone too — until the safety code has been opened. For somebody you
 had verified it stays until the new code is marked as matching or the
-verification forgotten. The record is public keys and is never uploaded;
-another device of yours keeps its own.
+verification forgotten — and until then nothing is sent to them: the DM's
+composer gives way to a notice offering the code (`KeyCheckGate`), and the
+forward list leaves them out. Verifying said this key was theirs, so a new
+one is not sealed to until somebody looks; "Forget" is the way to send
+anyway. Everybody else is only told. The record is public keys and is never
+uploaded; another device of yours keeps its own.
 
 It covers the key a message is *sealed to*, not yet the key it is signed
 with: a member row carries `chat_public_key` and no signing key, so adding
