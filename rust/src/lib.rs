@@ -14,3 +14,5 @@ mod pulse;
 mod screenshare;
 #[cfg(desktop)]
 mod sharing;
+#[cfg(target_os = "windows")]
+mod toast;

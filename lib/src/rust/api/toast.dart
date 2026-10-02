@@ -7,8 +7,6 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 import '../frb_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `init_apartment`
-
 /// Shows the toast in `xml` for the app `app_id` (the AUMID the plugin was
 /// initialised with), tagged `tag` in `group`. A toast already there with the
 /// same tag and group is replaced. Windows only; elsewhere it fails.

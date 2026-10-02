@@ -20,23 +20,7 @@ pub fn show_windows_toast(
 ) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        use windows::core::HSTRING;
-        use windows::Data::Xml::Dom::XmlDocument;
-        use windows::UI::Notifications::{ToastNotification, ToastNotificationManager};
-
-        init_apartment();
-        let doc = XmlDocument::new().map_err(|e| format!("no XML document: {e}"))?;
-        doc.LoadXml(&HSTRING::from(xml))
-            .map_err(|e| format!("the toast's XML was refused: {e}"))?;
-        let toast = ToastNotification::CreateToastNotification(&doc)
-            .map_err(|e| format!("no toast: {e}"))?;
-        toast
-            .SetTag(&HSTRING::from(tag))
-            .and_then(|_| toast.SetGroup(&HSTRING::from(group)))
-            .map_err(|e| format!("could not label the toast: {e}"))?;
-        ToastNotificationManager::CreateToastNotifierWithId(&HSTRING::from(app_id))
-            .and_then(|notifier| notifier.Show(&toast))
-            .map_err(|e| format!("showing the toast failed: {e}"))
+        crate::toast::show(&app_id, &tag, &group, &xml)
     }
     #[cfg(not(target_os = "windows"))]
     {
@@ -51,32 +35,11 @@ pub fn show_windows_toast(
 pub fn remove_windows_toast(app_id: String, tag: String, group: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        use windows::core::HSTRING;
-        use windows::UI::Notifications::ToastNotificationManager;
-
-        init_apartment();
-        ToastNotificationManager::History()
-            .and_then(|history| {
-                history.RemoveGroupedTagWithId(
-                    &HSTRING::from(tag),
-                    &HSTRING::from(group),
-                    &HSTRING::from(app_id),
-                )
-            })
-            .map_err(|e| format!("removing the toast failed: {e}"))
+        crate::toast::remove(&app_id, &tag, &group)
     }
     #[cfg(not(target_os = "windows"))]
     {
         let _ = (app_id, tag, group);
         Ok(())
     }
-}
-
-/// WinRT on whatever thread the bridge runs this on. A thread that already
-/// has an apartment answers RPC_E_CHANGED_MODE and keeps it, which serves just
-/// as well for these calls.
-#[cfg(target_os = "windows")]
-fn init_apartment() {
-    use windows::Win32::System::WinRT::{RoInitialize, RO_INIT_MULTITHREADED};
-    let _ = unsafe { RoInitialize(RO_INIT_MULTITHREADED) };
 }
