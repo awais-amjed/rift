@@ -23,6 +23,7 @@ instances with separate identities; the Android client is the emulator.
 
 | Area | Last verified | How |
 |---|---|---|
+| The welcome card at the default window size | Oct 2 2026 | Linux, a fresh profile at the default 1280×720: the whole card and the step dots fit, with about 40 px to spare under the dots. Before, the card's lower edge and the dots were cut off. Not checked on Windows, whose text was slightly taller in the earlier pass |
 | Enter on a whole bot command sends it | Oct 2 2026 | Linux, #general on Rift Test with a bot whose commands are `/play <url>`, `/stop` and `/disconnect`: `/stop` typed in full went out on one Enter (it used to need two); `/st` and `/play` completed to `/stop ` and `/play ` and sent nothing. Tab completing without sending is covered by `test/composer_command_enter_test.dart` only. The bot was not running, so nothing answered the `/stop` |
 | The soundboard volume while everyone else is muted | Oct 2 2026 | Linux, Settings → Voice & audio and the soundboard panel in a call: with "Mute everyone else" on, the slider stays usable, shows the real volume (60%, then 30% after a drag) and says only your own clips play now. It used to grey out and read "—". Whether your own clip then plays at that volume was not measured; that rule is unchanged and unit-tested (`SoundboardVolume`) |
 | Sending is held to a verified person whose key changed | Oct 2 2026 | Linux, Lana and Benny's server DM: Benny marked verified ("They match"), his `chat_public_key` swapped for Tom's in rift-db, Lana relaunched: amber chip, a new key-change line, and the composer replaced by "Benny's safety key changed since you verified them…" with Compare codes; Forward from #general listed echo and not Benny. Closing the code sheet with X kept it held; "Forget" brought the composer back and the chip went green. Not driven: central DMs (same gate, `central:` record), "They match" on the new code |
@@ -129,9 +130,6 @@ Windows-specific. Remove a line in the commit that fixes it.
 - Choosing "Only @mentions" for a channel while its server is on the default stores
   nothing (it equals the default), so switching the server to All later carries
   the channel along. By design per `_setLevel`; still surprising.
-
-**Sidebar and layout**
-- The welcome card at the default 1280×720 window runs past the bottom edge.
 
 **Voice and calls**
 - Rift's own sounds (the ring) play on the system default output, not the output

@@ -65,13 +65,15 @@ class OnboardingPage extends StatelessWidget {
     if (context.layoutMode.isCompact) return _buildForPhone(context);
     final themeState = context.theme;
     return CenteredScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+      // Sized so the welcome, the tallest step, fits the default 1280×720
+      // window with its dots showing; it used to need about 790.
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       maxWidth: _contentWidth,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            padding: const EdgeInsets.fromLTRB(48, 44, 48, 40),
+            padding: const EdgeInsets.fromLTRB(48, 36, 48, 32),
             decoration: BoxDecoration(
               // Translucent, so the canvas glow reads through the card
               // instead of stopping at its edge.
@@ -97,7 +99,7 @@ class OnboardingPage extends StatelessWidget {
                   ),
           ),
           if (step != null) ...[
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             StepDots(step: step!, count: stepCount, label: stepLabel),
           ],
         ],

@@ -49,7 +49,7 @@ class WelcomeStep extends StatelessWidget {
               color: theme.textSecondary,
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           Text(
             'Privacy mode: no email, no central server — your identity '
             'never leaves this device.',
@@ -63,9 +63,9 @@ class WelcomeStep extends StatelessWidget {
         children: [
           // The mark itself, large and on the bare card — this is the first
           // thing anyone sees of Rift, and the mark needs no tile to hold it.
-          const AppMark(size: 76),
+          const AppMark(size: 64),
 
-          const SizedBox(height: 28),
+          const SizedBox(height: 20),
 
           // Title
           Text(
@@ -81,7 +81,7 @@ class WelcomeStep extends StatelessWidget {
             style: AppText.sectionTitle.copyWith(color: theme.accentBright),
           ),
 
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
 
           // Description
           ConstrainedBox(
@@ -94,20 +94,20 @@ class WelcomeStep extends StatelessWidget {
               'everything on this device.',
               textAlign: TextAlign.center,
               style: AppText.body.copyWith(
-                height: 1.65,
+                height: 1.55,
                 color: theme.textTertiary,
               ),
             ),
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
 
           // Feature pills
           const _FeaturePillRow(),
 
           // The two ways on sit under this in the card, and at the foot of
           // a phone where a thumb is — see [OnboardingPage.footer].
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
         ],
       ),
     );
