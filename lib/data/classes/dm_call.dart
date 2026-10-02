@@ -28,6 +28,13 @@ class DmCall {
   /// that cannot be joined.
   final String? peerChatPublicKey;
 
+  /// How long a caller's client lets it ring before hanging up by itself.
+  /// The server's window is longer (45 s) so that an answer in flight at the
+  /// last moment still lands — and since the server records any caller
+  /// hang-up after fifteen seconds as `missed`, this is also how the caller
+  /// tells "nobody answered" from "I hung up".
+  static const ringFor = Duration(seconds: 30);
+
   const DmCall({
     required this.id,
     required this.callerId,

@@ -205,8 +205,29 @@ void main() {
     test('a missed call reads differently to each end', () {
       final missed = call(ended: t0, outcome: 'missed');
       expect(CallLogLabel.of(missed, myId: me)!.text, 'Missed call from Ben');
-      final mine = call(caller: me, callee: ben, ended: t0, outcome: 'missed');
+      final mine = call(
+        caller: me,
+        callee: ben,
+        ended: t0.add(DmCall.ringFor),
+        outcome: 'missed',
+      );
       expect(CallLogLabel.of(mine, myId: me)!.text, 'Ben didn\'t answer');
+    });
+
+    // F-11: hanging up during the ring read as the other person not answering.
+    test('a caller who hung up mid-ring cancelled it', () {
+      final mine = call(
+        caller: me,
+        callee: ben,
+        ended: t0.add(const Duration(seconds: 20)),
+        outcome: 'missed',
+      );
+      expect(CallLogLabel.of(mine, myId: me)!.text, 'You cancelled a call');
+      final theirs = call(
+        ended: t0.add(const Duration(seconds: 20)),
+        outcome: 'missed',
+      );
+      expect(CallLogLabel.of(theirs, myId: me)!.text, 'Missed call from Ben');
     });
 
     test('a call given up on at once is nothing to the person rung', () {

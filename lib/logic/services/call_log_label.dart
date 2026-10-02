@@ -31,6 +31,13 @@ class CallLogLabel {
         text: 'Call · ${duration(call.duration ?? Duration.zero)}',
         kind: CallLogKind.answered,
       ),
+      // `missed` to the caller is either their ring running out or their own
+      // hang-up after the callee had a chance — and only the first is the
+      // callee not answering.
+      DmCallOutcome.missed when !incoming && _hungUpEarly(call) => (
+        text: 'You cancelled a call',
+        kind: CallLogKind.declined,
+      ),
       DmCallOutcome.missed => (
         text: incoming ? 'Missed call from $peer' : '$peer didn\'t answer',
         kind: CallLogKind.missed,
@@ -47,6 +54,13 @@ class CallLogLabel {
       ),
       _ => null,
     };
+  }
+
+  /// Whether the ring ended before the caller's client would have given up.
+  /// Both times are the server's, so the clocks agree.
+  static bool _hungUpEarly(DmCall call) {
+    final ended = call.endedAt;
+    return ended != null && ended.difference(call.startedAt) < DmCall.ringFor;
   }
 
   /// "under a minute", "12 min", "1 h 5 min" — how long a call ran, to the

@@ -7,10 +7,6 @@ part of 'dm_call_cubit.dart';
 mixin _DmCallWatchMixin on Cubit<DmCallState>, _DmCallActionsMixin {
   ServerNotificationsCubit? get _notifications;
 
-  /// How long a caller lets it ring. The server's window is longer (45 s) so
-  /// that an answer in flight at the last moment still lands.
-  static const _ringFor = Duration(seconds: 30);
-
   /// How often a device in an answered call says it is still there. The
   /// sweep ends a call nobody has vouched for in three minutes, and ends it
   /// *at* the last beat — so this is also how close a call both ends
@@ -120,7 +116,7 @@ mixin _DmCallWatchMixin on Cubit<DmCallState>, _DmCallActionsMixin {
       _ringTimeout = null;
     } else {
       final callId = active.call.id;
-      _ringTimeout ??= Timer(_ringFor, () {
+      _ringTimeout ??= Timer(DmCall.ringFor, () {
         _ringTimeout = null;
         if (state.active?.call.id == callId && state.isRingingOut) {
           unawaited(hangUp());

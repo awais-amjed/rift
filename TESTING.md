@@ -23,6 +23,7 @@ instances with separate identities; the Android client is the emulator.
 
 | Area | Last verified | How |
 |---|---|---|
+| A caller hanging up mid-ring | Oct 2 2026 | Linux, Lana calling Benny in their server DM: hung up at 21 s (stored `missed`), Lana's line reads "You cancelled a call" and Benny's "Missed call from Lana"; left to ring out (30.1 s), "Benny didn't answer". Not driven: a hang-up under 15 s (unchanged, `cancelled`) |
 | Realtime after the gateway drops, and after launching on an expired token | Sep 30 – Oct 2 2026 | Windows (Sep 30): a realtime restart and a 60 s gateway stop recovered, and launches on overnight-expired tokens joined everything. Linux (Oct 2): launches on days-old tokens joined everything; one 60 s gateway stop in nine left `server:`, `user:` and the open `chat:` stuck joining and off the socket for good, on both clients. Cause found in realtime_client and patched (`third_party/realtime_client`). Checked the same day with topic state read from the running app, the server's topic check slowed on purpose (`pg_sleep(0.2)` in `app.can_use_topic`, about 2 s per join) so the reconnect race happens every time: the 2.13.0 build lost all four topics after a 30 s gateway stop and still had only `presence:` and `voice:` four minutes later; the patched build kept all four on the socket and had them joined within two minutes, and joined at once after an ordinary-speed stop. Two clients on the patched build, also Oct 2 (Lana and Benny, both with #general open): four gateway stops of 30, 60 and 90 s, and after each one a message each way in #general and an unread badge in a channel the other didn't have open, all four arriving within seconds. With the topic check slowed to 2 s a call (the same ~2 s per join as above, now that a join asks once — see `rift_topic_read` in rift-self-host), messages sent two minutes after a 30 s stop all arrived, but late, the last up to ~45 s after it was stored; when each topic joined was not measured |
 | Leaving a server and coming back with a new invite | Sep 30, Oct 2 2026 | Windows (Sep 30) and Linux (Oct 2): the member came back as themselves with their messages, whatever names were typed, and the invite was not used up; on Windows a banned member was told so |
 | An expired invite is refused | Oct 1 2026 | Windows 11: a 1-hour invite whose `expires_at` was moved to 20 s ahead in the database (rather than waiting the hour), then pasted on a fresh profile after it passed: the Join dialog says "Invite code has expired" and the invite keeps 0 uses |
@@ -138,7 +139,6 @@ Windows-specific. Remove a line in the commit that fixes it.
   chosen in Settings.
 - The soundboard volume slider is disabled while "Mute everyone else" is on, yet
   your own clips still play at that volume.
-- A caller who hangs up while it rings is told "… didn't answer", like a timeout.
 - A deafened member shows deafen + mute in the sidebar but only mute on their tile.
 - The Share sound picker lists other Rift windows on the same PC (only possible
   with several instances; sharing one would loop the call into itself).
