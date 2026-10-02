@@ -64,6 +64,7 @@ instances with separate identities; the Android client is the emulator.
 | Narrowing the desktop window with a server DM open behind a channel | Oct 2 2026 | Linux release: DM open, #general clicked, window narrowed to 640: #general stayed on screen (the DM used to be pushed over it); back, Direct, Benny opened the DM normally |
 | Server moderation: reports, time-outs, bans, DM requests, blocks | Sep 27 2026 | two clients + headless members; security pass probed the database and realtime directly |
 | Wording and UI for moderation and DM calls | Sep 27 2026 | two clients; the time-out menu and banner, including expiry |
+| An open profile and the Members count follow moderation live | Oct 2 2026 | Linux release, Lana's profile of Benny left open: Time out → 10 minutes ("until 23:34"), then `timed_out_until` moved to 23:25 in rift-db: the open profile said "until 23:25" within 3 s, and after 23:25 showed Time out again with no line under it. Manage server → Members with Benny kicked said "3 members"; Ban, then Lift ban → "4 members" within a second. Not driven: Windows, a second moderator changing it |
 | Directory moderation (`rift-admin`) | Sep 26 2026 | local central; second factor enforced, lockout after five wrong codes |
 | Central's own stack, backups and restore | Sep 26 2026 | local stack; encrypted backups to a stand-in S3 bucket, then a wiped stack restored with every account, vault and attachment intact |
 | Web build | Sep 26 2026 | Chrome, before deploying |
@@ -125,8 +126,6 @@ from working. Most were found on Windows (Sep 29 – Oct 1 2026) but are not
 Windows-specific. Remove a line in the commit that fixes it.
 
 **Servers and moderation**
-- An open profile doesn't refresh live ("Timed out until…" stays after it ends), and
-  Manage server → Members' count lags right after a ban is lifted.
 - Choosing "Only @mentions" for a channel while its server is on the default stores
   nothing (it equals the default), so switching the server to All later carries
   the channel along. By design per `_setLevel`; still surprising.

@@ -17,6 +17,7 @@ import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
+import '../../../../common/chat/time_out_builder.dart';
 import '../../../../common/label_pill.dart';
 import '../../../../common/modal_columns.dart';
 import '../../../../theme/app_text.dart';
@@ -74,7 +75,9 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
   ///
   /// The roster refetches on a `users` change, but it arrives over Realtime
   /// and the button has to answer the press now. Held here rather than
-  /// emitted, so it goes away with the dialog.
+  /// emitted, so it goes away with the dialog — and dropped as soon as the
+  /// roster agrees with it ([_settle]), so what changes after that, a
+  /// time-out shortened or lifted by somebody else, shows.
   ServerMember? _moderated;
 
   @override
@@ -164,6 +167,20 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
     }
   }
 
+  /// Hand the moderation state back to the roster once its row says the same.
+  void _settle(ServerMembersState state) {
+    final changed = _moderated;
+    final known = state.byId[widget.userId];
+    if (changed == null || known == null) return;
+    if (known.isMuted == changed.isMuted &&
+        known.isDeafened == changed.isDeafened &&
+        known.isBanned == changed.isBanned &&
+        known.isKicked == changed.isKicked &&
+        known.isTimedOut == changed.isTimedOut) {
+      setState(() => _moderated = null);
+    }
+  }
+
   ServerMember? _member(ServerMembersState state) {
     final known = state.byId[widget.userId];
     final changed = _moderated;
@@ -221,51 +238,62 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
     final name = member?.displayName ?? widget.fallbackName;
     final actions = _actions(member, isMe);
 
-    return AppModal(
-      title: name,
-      subtitle: member == null ? null : '@${member.username}',
-      titleIcon: ProfileAvatar(
-        name: name,
-        avatarPath: member?.avatarPath,
-        seed: widget.userId,
-        isOnline: online,
-      ),
-      maxWidth: K.profileWidth,
-      sheetOnPhone: true,
-      content: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (member != null) ..._tags(member),
-          if (member?.isBanned ?? false)
-            ProfileBannedNotice(kicked: member!.isKicked),
-          // Who they are on the left, what you can do about them on the
-          // right — and stacked in that order on anything too narrow, which
-          // is the order the dialog had when it was one column.
-          ModalColumns(
-            minColumnWidth: _columnWidth,
-            children: [
-              _identity(member, roles, server, isMe),
-              // Left out rather than empty: stacked, `ModalColumns` rules
-              // between its children, and a second column with nothing in it
-              // drew a hairline under the profile with nothing after it.
-              ?actions,
-            ],
-          ),
-          if (member != null && !isMe && !member.isBot)
-            ProfileModeration(
-              member: member,
-              isBusy: _busy,
-              canModerate: canModerate,
-              isAdmin: isAdmin,
-              canTimeOut: canTimeOut,
-              canKick: canKick,
-              canBan: canBan,
-              onModerate: ({muted, deafened, banned}) =>
-                  _moderate(muted: muted, deafened: deafened, banned: banned),
-              onKick: _kick,
-              onTimeOut: _timeOut,
+    return BlocListener<ServerMembersCubit, ServerMembersState>(
+      listener: (_, state) => _settle(state),
+      child: AppModal(
+        title: name,
+        subtitle: member == null ? null : '@${member.username}',
+        titleIcon: ProfileAvatar(
+          name: name,
+          avatarPath: member?.avatarPath,
+          seed: widget.userId,
+          isOnline: online,
+        ),
+        maxWidth: K.profileWidth,
+        sheetOnPhone: true,
+        content: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (member != null) ..._tags(member),
+            if (member?.isBanned ?? false)
+              ProfileBannedNotice(kicked: member!.isKicked),
+            // Who they are on the left, what you can do about them on the
+            // right — and stacked in that order on anything too narrow, which
+            // is the order the dialog had when it was one column.
+            ModalColumns(
+              minColumnWidth: _columnWidth,
+              children: [
+                _identity(member, roles, server, isMe),
+                // Left out rather than empty: stacked, `ModalColumns` rules
+                // between its children, and a second column with nothing in it
+                // drew a hairline under the profile with nothing after it.
+                ?actions,
+              ],
             ),
-        ],
+            // Rebuilt the moment a time-out runs out: nothing rings when one
+            // simply ends, and the panel would go on saying "Timed out until…".
+            if (member != null && !isMe && !member.isBot)
+              TimeOutBuilder(
+                until: member.timedOutUntil,
+                builder: (_, _) => ProfileModeration(
+                  member: member,
+                  isBusy: _busy,
+                  canModerate: canModerate,
+                  isAdmin: isAdmin,
+                  canTimeOut: canTimeOut,
+                  canKick: canKick,
+                  canBan: canBan,
+                  onModerate: ({muted, deafened, banned}) => _moderate(
+                    muted: muted,
+                    deafened: deafened,
+                    banned: banned,
+                  ),
+                  onKick: _kick,
+                  onTimeOut: _timeOut,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

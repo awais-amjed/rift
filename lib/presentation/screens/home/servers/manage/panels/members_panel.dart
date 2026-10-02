@@ -225,6 +225,10 @@ class _MembersPanelState extends State<MembersPanel> {
         _error = response.error;
       }
     });
+    // A banned or kicked member is not counted, so the subtitle moves too.
+    if (response.success && (kick || banned != null)) {
+      unawaited(_loadTotal());
+    }
   }
 
   /// Forget what the page holds about people and ask again.
