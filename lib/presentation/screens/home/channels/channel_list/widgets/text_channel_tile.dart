@@ -30,8 +30,15 @@ class TextChannelTile extends StatelessWidget {
     return BlocBuilder<ChannelChatCubit, ChannelChatState>(
       buildWhen: (prev, curr) => prev.channelId != curr.channelId,
       builder: (context, chatState) {
-        final isSelected = chatState.channelId == channel.id;
-        // Unread count for this channel; a selected/open channel is read.
+        // The chat stays open behind Server DMs, so open is not on screen.
+        // Counting it as selected there highlighted a second row beside Server
+        // DMs, hid the badge of a channel that was collecting unreads, and
+        // made a click close the channel instead of showing it.
+        final onScreen = context.select<AppCubit, bool>(
+          (c) => c.state.surface == HomeSurface.server,
+        );
+        final isSelected = onScreen && chatState.channelId == channel.id;
+        // Unread count for this channel; the one on screen is read.
         final serverId = context.select<ServerCubit, String?>(
           (c) => c.state.selectedServerId,
         );

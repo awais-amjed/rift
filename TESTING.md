@@ -134,9 +134,6 @@ Windows-specific. Remove a line in the commit that fixes it.
   the channel along. By design per `_setLevel`; still surprising.
 
 **Sidebar and layout**
-- Clicking the still-highlighted channel while Server DMs is showing closes it
-  ("No channel selected"); a second click opens it. The sidebar highlights both.
-  Seen on Windows and on Linux (Oct 2).
 - The members count is one higher in the compact sheet than in the desktop header
   (one counts the bot).
 - Between 700 and 1099 wide, Escape doesn't close the members overlay (a click
