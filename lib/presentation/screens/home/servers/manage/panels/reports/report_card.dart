@@ -60,7 +60,9 @@ class ReportCard extends StatelessWidget {
           ),
           if (target != null && (target.isBanned || target.isTimedOut))
             Text(
-              target.isBanned
+              target.isKicked
+                  ? '$about was kicked.'
+                  : target.isBanned
                   ? '$about is banned.'
                   : '$about is timed out until ${timeOutEndLabel(until!)}.',
               style: AppText.meta.copyWith(color: theme.textSecondary),

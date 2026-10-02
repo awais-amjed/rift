@@ -78,7 +78,7 @@ mixin _ModerationApiMixin {
             '(display_name, username, avatar_path), '
             'target:users!reports_target_id_fkey'
             '(display_name, username, avatar_path, public_key, is_banned, '
-            'timed_out_until), '
+            'kicked_at, timed_out_until), '
             'channel:channels(name)',
           );
       final filtered = open

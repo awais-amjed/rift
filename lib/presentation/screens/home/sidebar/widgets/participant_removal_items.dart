@@ -6,20 +6,25 @@ import '../../../../../logic/helper_methods.dart';
 import '../../../../common/confirm_dialog.dart';
 import '../../../../common/context_menu/context_menu_item.dart';
 import '../../../../common/context_menu_region.dart';
+import '../../members/widgets/kick_confirm.dart';
 
-/// The two ways to remove someone, which are not the same tool.
+/// The three ways to remove someone, which are not the same tool.
 ///
 /// **Disconnect** ends their connections to this call and nothing else. They
 /// may walk straight back in; nothing is written down. It is for defusing a
 /// moment — a hot mic in an empty room — and it deliberately does not ask for
 /// confirmation, because the worst case is that someone rejoins.
 ///
+/// **Kick** removes them from the server until a new invite brings them back,
+/// without their roles or private channels. It asks first, like a ban.
+///
 /// **Ban** is the persistent one: RLS refuses them everything on the server
 /// afterwards, and they are removed from every live call on the way out. It
 /// asks first, because nothing about it is a small mistake.
 ///
 /// Only banning is admin-only. Disconnect follows "Move to" — the same staff
-/// authority over a call — because it is the same size of act.
+/// authority over a call — because it is the same size of act. Kick is its own
+/// permission, `KICK_MEMBERS`.
 ///
 /// There is no unban here on purpose. A banned member cannot be a live
 /// participant, so this menu can only ever be looking at someone who isn't
@@ -32,6 +37,9 @@ class ParticipantRemovalItems extends StatelessWidget {
   /// May disconnect: staff, and only when there is a call to remove them from.
   final bool canDisconnect;
 
+  /// May kick: `KICK_MEMBERS`, and not against an admin or a bot.
+  final bool canKick;
+
   /// May ban: server admins, matching `moderate_user`'s own rule.
   final bool canBan;
 
@@ -40,6 +48,7 @@ class ParticipantRemovalItems extends StatelessWidget {
     required this.targetUserId,
     required this.name,
     required this.canDisconnect,
+    required this.canKick,
     required this.canBan,
   });
 
@@ -53,6 +62,24 @@ class ParticipantRemovalItems extends StatelessWidget {
     if (response.success) return;
     HelperMethods.showToast(
       title: 'Could not disconnect',
+      description: '${response.error}',
+    );
+  }
+
+  Future<void> _kick(BuildContext context) async {
+    // Read before the await, for the same reason as [_ban].
+    final serverCubit = context.read<ServerCubit>();
+    if (!await confirmKick(context, name)) return;
+    final response = await serverCubit.kickMember(userId: targetUserId);
+    if (response.success) {
+      HelperMethods.showToast(
+        title: 'Kicked',
+        description: '$name is out until a new invite.',
+      );
+      return;
+    }
+    HelperMethods.showToast(
+      title: 'Could not kick',
       description: '${response.error}',
     );
   }
@@ -90,7 +117,7 @@ class ParticipantRemovalItems extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!canDisconnect && !canBan) return const SizedBox.shrink();
+    if (!canDisconnect && !canKick && !canBan) return const SizedBox.shrink();
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -102,6 +129,14 @@ class ParticipantRemovalItems extends StatelessWidget {
             label: 'Disconnect',
             isDangerous: true,
             onTap: () => _disconnect(context),
+          ),
+        if (canKick)
+          ContextMenuItem(
+            icon: Icons.logout_rounded,
+            label: 'Kick from server',
+            isDangerous: true,
+            // The confirm dialog dismisses the menu, as for Ban.
+            onTap: () => _kick(context),
           ),
         if (canBan)
           ContextMenuItem(

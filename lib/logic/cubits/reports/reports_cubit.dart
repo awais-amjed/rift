@@ -26,7 +26,7 @@ part 'reports_state.dart';
 /// happens to open the page. For a member who cannot review, it holds nothing
 /// and listens to nothing.
 ///
-/// An action is two steps, in this order: do it (delete, time out, ban)
+/// An action is two steps, in this order: do it (delete, time out, kick, ban)
 /// through the path that action always takes, then record it with
 /// `resolve_report`, which checks it happened. Recording first would log a
 /// ban the server then refused.
@@ -186,6 +186,16 @@ class ReportsCubit extends Cubit<ReportsState> {
     );
     if (!done.success) return done;
     return _record(entry, ReportOutcome.banned);
+  }
+
+  /// Kick them: out now, back through a new invite. Closes every open
+  /// report about them, as a ban does.
+  Future<APIResponse> kick(ReportEntry entry) async {
+    final target = entry.report.targetId;
+    if (target == null) return APIResponse.error('Nobody to kick');
+    final done = await _serverCubit.kickMember(userId: target);
+    if (!done.success) return done;
+    return _record(entry, ReportOutcome.kicked);
   }
 
   Future<APIResponse> _record(ReportEntry entry, ReportOutcome outcome) async {

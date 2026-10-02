@@ -454,7 +454,8 @@ server enforces it exactly as a ban — the same flag, so the same policies, key
 rotation and call teardown — and takes their roles and private-channel seats, so
 they come back as a newcomer under their old name, with their messages. Banning a
 kicked member makes it permanent; nobody can kick an admin, a bot, or someone who
-can kick or ban.
+can kick or ban. It is offered wherever a ban is, a voice participant's menu and an
+open report included, and a report closed by one is recorded as `kicked`.
 
 **DM spam** is the member's own call. Each member chooses, per server, who may
 start a conversation with them: everyone, *ask me first* (a first message waits as

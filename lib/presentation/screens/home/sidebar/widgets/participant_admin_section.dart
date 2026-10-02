@@ -25,9 +25,9 @@ import 'participant_roles_menu.dart';
 ///   another channel is most of the point.
 /// * **Roles** is for server admins, and works whether or not they're in a
 ///   call, because the roster carries permissions either way.
-/// * **Disconnect and Ban** come last, in that order, because they are the two
-///   biggest things on here and the list should not start with them. Their own
-///   reaches differ again — see [ParticipantRemovalItems].
+/// * **Disconnect, Kick and Ban** come last, in that order, because they are
+///   the biggest things on here and the list should not start with them. Their
+///   own reaches differ again — see [ParticipantRemovalItems].
 class ParticipantAdminSection extends StatelessWidget {
   /// A live LiveKit identity, or a bare user id — moderation resolves the user
   /// out of it either way.
@@ -36,6 +36,9 @@ class ParticipantAdminSection extends StatelessWidget {
 
   final bool isModerator;
   final bool isServerAdmin;
+
+  /// Holds `KICK_MEMBERS`, and the target is not a bot.
+  final bool canKick;
 
   /// Whether they're in a voice channel with us, which is the only place their
   /// live moderation state can be read from.
@@ -61,6 +64,7 @@ class ParticipantAdminSection extends StatelessWidget {
     required this.targetUserId,
     required this.isModerator,
     required this.isServerAdmin,
+    required this.canKick,
     required this.isLive,
     required this.voiceChannelId,
     required this.name,
@@ -76,7 +80,10 @@ class ParticipantAdminSection extends StatelessWidget {
   bool get _canDisconnect => _canMove && !targetIsAdmin;
 
   bool get _showsAnything =>
-      (isModerator && isLive) || _canMove || isServerAdmin;
+      (isModerator && isLive) || _canMove || isServerAdmin || _canKick;
+
+  /// Not against an admin, whom `kick_member` refuses.
+  bool get _canKick => canKick && !targetIsAdmin;
 
   @override
   Widget build(BuildContext context) {
@@ -154,6 +161,7 @@ class ParticipantAdminSection extends StatelessWidget {
           targetUserId: targetUserId,
           name: name,
           canDisconnect: _canDisconnect,
+          canKick: _canKick,
           // Admin only, matching `moderate_user`'s own `app.is_admin()`,
           // and never against another admin, which it also refuses.
           canBan: isServerAdmin && !targetIsAdmin,

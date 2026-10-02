@@ -11,12 +11,13 @@ import '../../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../../logic/helper_methods.dart';
 import '../../../../../../common/app_button.dart';
 import '../../../../../../common/confirm_dialog.dart';
+import '../../../../members/widgets/kick_confirm.dart';
 import '../../../../reports/time_out_picker.dart';
 
 /// What a reviewer can do about an open report — only what they hold the
 /// permission for, and only what applies: no deletion for a report about a
-/// person, no time-out or ban for a webhook, no ban for somebody already
-/// banned.
+/// person, no time-out, kick or ban for a webhook, none of them for somebody
+/// already out.
 ///
 /// Each action is done, then recorded (`ReportsCubit`); the server checks the
 /// record against what happened, so a refusal on the way is said plainly.
@@ -42,7 +43,9 @@ class _ReportActionsState extends State<ReportActions> {
       'That didn\'t go through, so the report is still open. The message '
           'may be in a channel you can\'t moderate.',
     'already_resolved' => 'Someone else closed this report already.',
+    'cannot_kick_bot' => 'A bot is removed from Bots, not kicked.',
     'cannot_moderate_peer' ||
+    'cannot_kick_peer' ||
     'cannot_moderate_admin' => 'You can\'t do that to this person.',
     _ => response.error ?? 'Something went wrong.',
   };
@@ -73,6 +76,12 @@ class _ReportActionsState extends State<ReportActions> {
     final length = await showTimeOutPicker(context, _about);
     if (length != null) {
       await _run(() => cubit.timeOut(widget.entry, length.duration));
+    }
+  }
+
+  Future<void> _kick(ReportsCubit cubit) async {
+    if (await confirmKick(context, _about)) {
+      await _run(() => cubit.kick(widget.entry));
     }
   }
 
@@ -121,6 +130,14 @@ class _ReportActionsState extends State<ReportActions> {
             label: 'Time out',
             variant: AppButtonVariant.secondary,
             onPressed: _busy ? null : () => unawaited(_timeOut(cubit)),
+          ),
+        if (target != null &&
+            !target.isBanned &&
+            can(ServerPermission.kickMembers))
+          AppButton(
+            label: 'Kick',
+            variant: AppButtonVariant.secondary,
+            onPressed: _busy ? null : () => unawaited(_kick(cubit)),
           ),
         if (target != null &&
             !target.isBanned &&

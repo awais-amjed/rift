@@ -6,7 +6,7 @@ import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/presentation/common/context_menu/context_menu_item.dart';
 import 'package:rift/presentation/screens/home/sidebar/widgets/participant_removal_items.dart';
 
-/// Who may disconnect and who may ban.
+/// Who may disconnect, kick and ban.
 ///
 /// Worth pinning because the cost of getting it wrong is asymmetric: offering
 /// a button the server refuses is a confusing dead end, but offering one it
@@ -36,6 +36,7 @@ Future<void> _pump(
   WidgetTester tester, {
   required bool canDisconnect,
   required bool canBan,
+  bool canKick = false,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -46,6 +47,7 @@ Future<void> _pump(
             targetUserId: 'u1',
             name: 'Foxtrot Desk',
             canDisconnect: canDisconnect,
+            canKick: canKick,
             canBan: canBan,
           ),
         ),
@@ -95,6 +97,22 @@ void main() {
     expect(find.text('Ban from server'), findsOneWidget);
   });
 
+  testWidgets('Kick shows for whoever holds it, between the other two', (
+    tester,
+  ) async {
+    // `KICK_MEMBERS` is its own bit: a role can hold it without banning.
+    await _pump(tester, canDisconnect: false, canKick: true, canBan: false);
+    expect(find.text('Kick from server'), findsOneWidget);
+    expect(find.text('Ban from server'), findsNothing);
+
+    await _pump(tester, canDisconnect: true, canKick: true, canBan: true);
+    final labels = tester
+        .widgetList<ContextMenuItem>(find.byType(ContextMenuItem))
+        .map((i) => i.label)
+        .toList();
+    expect(labels, ['Disconnect', 'Kick from server', 'Ban from server']);
+  });
+
   testWidgets('there is no unban here', (tester) async {
     // A banned member cannot be a live participant, so this menu only ever
     // looks at someone who isn't banned. Lifting one lives in the Members
@@ -104,15 +122,15 @@ void main() {
     expect(find.text('Lift ban'), findsNothing);
   });
 
-  testWidgets('both are marked destructive', (tester) async {
-    await _pump(tester, canDisconnect: true, canBan: true);
+  testWidgets('all three are marked destructive', (tester) async {
+    await _pump(tester, canDisconnect: true, canKick: true, canBan: true);
 
     // The red wash is what separates these from the toggles above them in the
     // same list, where every row otherwise looks identical.
     final items = tester.widgetList<ContextMenuItem>(
       find.byType(ContextMenuItem),
     );
-    expect(items.length, 2);
+    expect(items.length, 3);
     expect(items.every((i) => i.isDangerous), isTrue);
   });
 }

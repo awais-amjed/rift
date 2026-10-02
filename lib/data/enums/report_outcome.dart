@@ -4,13 +4,15 @@ enum ReportOutcome {
   dismissed,
   deleted,
   timedOut,
-  banned;
+  banned,
+  kicked;
 
   static ReportOutcome? fromString(String? value) => switch (value) {
     'dismissed' => ReportOutcome.dismissed,
     'deleted' => ReportOutcome.deleted,
     'timed_out' => ReportOutcome.timedOut,
     'banned' => ReportOutcome.banned,
+    'kicked' => ReportOutcome.kicked,
     _ => null,
   };
 
@@ -24,5 +26,6 @@ enum ReportOutcome {
     ReportOutcome.deleted => 'Message deleted',
     ReportOutcome.timedOut => 'Timed out',
     ReportOutcome.banned => 'Banned',
+    ReportOutcome.kicked => 'Kicked',
   };
 }

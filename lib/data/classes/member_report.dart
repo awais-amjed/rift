@@ -125,6 +125,10 @@ class ReportPerson {
   /// signature. Null on the reporter, who is never checked.
   final String? publicKey;
   final bool isBanned;
+
+  /// Out until an invite brings them back — a kick, which is a ban to the
+  /// server, so [isBanned] is true as well.
+  final bool isKicked;
   final DateTime? timedOutUntil;
 
   const ReportPerson({
@@ -133,6 +137,7 @@ class ReportPerson {
     this.avatarPath,
     this.publicKey,
     this.isBanned = false,
+    this.isKicked = false,
     this.timedOutUntil,
   });
 
@@ -147,6 +152,7 @@ class ReportPerson {
       avatarPath: json['avatar_path'] as String?,
       publicKey: json['public_key'] as String?,
       isBanned: json['is_banned'] == true,
+      isKicked: json['kicked_at'] != null,
       timedOutUntil: DateTime.tryParse(
         json['timed_out_until'] as String? ?? '',
       )?.toLocal(),
