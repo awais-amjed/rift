@@ -21,7 +21,17 @@ class MessageBanner extends StatelessWidget {
   final String message;
   final MessageBannerKind kind;
 
-  const MessageBanner({super.key, required this.message, required this.kind});
+  /// A control under the sentence, for a banner whose point is somewhere to
+  /// go — a link out, a retry. Kept inside the banner so it reads as part of
+  /// what the banner says rather than as the form's own button.
+  final Widget? action;
+
+  const MessageBanner({
+    super.key,
+    required this.message,
+    required this.kind,
+    this.action,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -50,12 +60,19 @@ class MessageBanner extends StatelessWidget {
         children: [
           Icon(icon, size: K.iconRow, color: themeState.statusInk(color)),
           Expanded(
-            child: Text(
-              message,
-              style: AppText.secondary.copyWith(
-                height: 1.5,
-                color: themeState.textSecondary,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              spacing: 10,
+              children: [
+                Text(
+                  message,
+                  style: AppText.secondary.copyWith(
+                    height: 1.5,
+                    color: themeState.textSecondary,
+                  ),
+                ),
+                ?action,
+              ],
             ),
           ),
         ],

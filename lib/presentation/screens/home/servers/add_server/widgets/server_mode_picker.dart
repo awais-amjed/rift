@@ -46,7 +46,7 @@ class ServerModePicker extends StatelessWidget {
         _ModeCard(
           icon: Icons.build_outlined,
           title: 'Create server',
-          subtitle: 'Set up your own server with Supabase and LiveKit',
+          subtitle: 'Connect a Rift server you run yourself',
           onTap: onCreate,
         ),
       ],

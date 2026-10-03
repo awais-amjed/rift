@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../logic/services/open_link.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/app_text_field.dart';
@@ -37,6 +38,9 @@ class CreateServerModal extends StatefulWidget {
   @override
   State<CreateServerModal> createState() => _CreateServerModalState();
 }
+
+/// Where somebody without a server is sent to make one.
+const _selfHostingGuide = 'https://docs.joinrift.app/install/';
 
 class _CreateServerModalState extends State<CreateServerModal> {
   final _nameCtrl = TextEditingController();
@@ -122,7 +126,7 @@ class _CreateServerModalState extends State<CreateServerModal> {
   Widget build(BuildContext context) {
     return AppModal(
       title: 'Create server',
-      subtitle: 'Set up your own server with Supabase and LiveKit',
+      subtitle: 'Connect a Rift server you run yourself',
       maxWidth: K.dialogWidthWide,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -137,19 +141,26 @@ class _CreateServerModalState extends State<CreateServerModal> {
               ),
             ),
 
-          // Everything below asks for credentials the person filling this in
-          // has to go and find. Somebody running the self-hosted stack does
-          // not have to: their console generated all four and can make the
-          // server itself, handing back an invite link instead. Said here
-          // rather than in the docs because this form is exactly where
-          // somebody discovers how long it is.
-          const MessageBanner(
+          // Everything below asks for credentials of a server somebody already
+          // runs. People who just installed the app open this expecting
+          // Discord's "create a server" and meet six fields they have never
+          // heard of (asked Oct 3 2026), so the first thing here says what it
+          // is for and where to go instead. The self-hosted stack's console
+          // also makes the server itself and hands back an invite link, so
+          // even somebody running one rarely needs this form.
+          MessageBanner(
             message:
-                'Running the self-hosted Docker stack? Its console makes '
-                'servers for you — none of this to fill in. Open it at '
-                'http://localhost:8080, create the server there, and join with '
-                'the invite link it gives you.',
+                'Not sure what these are? You need your own Rift server '
+                'first. The self-hosting guide sets one up on any machine with '
+                'Docker, and its console creates the server for you: join with '
+                'the invite link it gives you, with none of this to fill in.',
             kind: MessageBannerKind.caution,
+            action: AppButton(
+              label: 'Open the self-hosting guide',
+              variant: AppButtonVariant.secondary,
+              icon: const Icon(Icons.open_in_new_rounded, size: K.iconButton),
+              onPressed: () => openExternalLink(_selfHostingGuide),
+            ),
           ),
           const SizedBox(height: 18),
 
