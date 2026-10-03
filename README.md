@@ -26,21 +26,13 @@
   <img src=".github/assets/app-channels.png" width="860" alt="A Rift server: channels on the left, an encrypted conversation in the middle, members on the right">
 </p>
 
-## Why Rift
+## About
 
-I love Discord. It's where my friends are, and it does what it does really
-well. But when age verification was announced, it got me thinking about how much of
-our lives sits on servers we will never control, and how little say we have in
-what happens to it.
-
-Rift is another option. Anyone can run a server for their own little
-community: a few friends, a club, a team. Messages, files and calls are
-encrypted on your device before they leave, so the server holds data it cannot
-open. And communities aren't stranded on islands: an optional central
-directory lets people find public servers and each other. The independence of
-self-hosting with the convenience of one place to meet.
-
-It's not about leaving anything behind. It's about having the choice.
+Rift is an open-source, self-hostable alternative to Discord that keeps your
+data in your hands. Messages, files and calls are encrypted on your device
+before they leave, so even the server can't read them. Run a server for your
+friends, your club or your team, and use the optional directory to find other
+communities and the people in them.
 
 ## Rift and Discord
 
