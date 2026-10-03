@@ -8,7 +8,7 @@ class SupabaseConfig {
   ///
   /// This URL is used to connect to the specific Supabase project
   /// for all API calls and realtime subscriptions.
-  static const String supabaseUrl = 'https://fjkrobvftxqqapvhgtuw.supabase.co';
+  static const String supabaseUrl = 'https://api.joinrift.app';
 
   /// The public anon key for Supabase authentication.
   ///
@@ -16,7 +16,7 @@ class SupabaseConfig {
   /// IMPORTANT: This is not a secret key and is safe to include in client-side code.
   /// It only grants access to public data and operations allowed for unauthenticated users.
   static const String supabaseKey =
-      'sb_publishable_QIg5M_Ca1LfqDTWjzQIsEQ_Pwll01AC';
+      'sb_publishable_tYndCjF4AXpJ3zwrefpGNpwt0YrpiHOA';
 
   /// Where a self-hosted server sends a push it cannot send itself.
   ///
