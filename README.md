@@ -1,30 +1,249 @@
-# Rift
+<p align="center">
+  <img src="assets/brand/rift-tile.svg" width="96" alt="Rift">
+</p>
 
-Chat, voice, video and screen sharing for a group of people who would rather not
-hand their conversations to somebody else. Anyone can run a server, and messages
-and calls are end-to-end encrypted, so the server stores ciphertext it cannot
-open.
+<h1 align="center">Rift</h1>
 
-This repository is the **app**: the Flutter client for desktop, mobile and web,
-the Rust crate behind screen capture, and `rift_crypto`, the reference
-implementation of Rift's cryptography.
+<p align="center">
+  <b>Your own place to talk. Nobody else's.</b><br>
+  Chat, voice, video and screen sharing, end-to-end encrypted, on servers you run.
+</p>
 
-> **Status: in development.** No releases yet, and nothing is published.
-> Linux, Android and the web are exercised regularly; Windows, macOS and iOS
-> build but have no recorded test pass (see [`TESTING.md`](TESTING.md)).
+<p align="center">
+  <a href="https://github.com/awais-amjed/rift/releases/latest">Download</a> ·
+  <a href="https://joinrift.app">Website</a> ·
+  <a href="https://docs.joinrift.app">Run a server</a> ·
+  <a href="ARCHITECTURE.md">How it works</a> ·
+  <a href="https://github.com/awais-amjed/rift-bot-sdk">Build a bot</a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/licence-GPL--3.0-6366f1" alt="GPL-3.0">
+  <img src="https://img.shields.io/badge/platforms-Linux%20·%20Windows%20·%20Android%20·%20Web-6366f1" alt="Linux, Windows, Android, Web">
+</p>
+
+<p align="center">
+  <img src=".github/assets/app-channels.png" width="860" alt="A Rift server: channels on the left, an encrypted conversation in the middle, members on the right">
+</p>
+
+## Why Rift
+
+I love Discord. It's where my friends are, and it does what it does really
+well. But when age verification was announced, it got me thinking about how much of
+our lives sits on servers we will never control, and how little say we have in
+what happens to it.
+
+Rift is another option. Anyone can run a server for their own little
+community: a few friends, a club, a team. Messages, files and calls are
+encrypted on your device before they leave, so the server holds data it cannot
+open. And communities aren't stranded on islands: an optional central
+directory lets people find public servers and each other. The independence of
+self-hosting with the convenience of one place to meet.
+
+It's not about leaving anything behind. It's about having the choice.
+
+## Rift and Discord
+
+<table width="100%">
+  <thead>
+    <tr>
+      <th align="left" width="60%">Feature</th>
+      <th align="center" width="20%">Discord</th>
+      <th align="center" width="20%">Rift</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Text and voice channels</td>
+      <td align="center">✅</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
+      <td>Direct messages and DM calls</td>
+      <td align="center">✅</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
+      <td>Video calls</td>
+      <td align="center">✅</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
+      <td>Screen sharing</td>
+      <td align="center">✅</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
+      <td>Screen sharing with system audio</td>
+      <td align="center">✅</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
+      <td>1080p 60fps screen sharing</td>
+      <td align="center">✅ (with Nitro)</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
+      <td>Large file uploads</td>
+      <td align="center">✅ (with Nitro)</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
+      <td>Soundboard</td>
+      <td align="center">✅</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
+      <td>Voice messages</td>
+      <td align="center">✅</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
+      <td>Replies, reactions, pins and polls</td>
+      <td align="center">✅</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
+      <td>Bots and webhooks</td>
+      <td align="center">✅</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
+      <td>A directory to find communities</td>
+      <td align="center">✅</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
+      <td>End-to-end encrypted calls</td>
+      <td align="center">✅</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
+      <td>End-to-end encrypted messages</td>
+      <td align="center">❌</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
+      <td>Run your own server</td>
+      <td align="center">❌</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
+      <td>Use it without an account</td>
+      <td align="center">❌</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
+      <td>Open source</td>
+      <td align="center">❌</td>
+      <td align="center">✅</td>
+    </tr>
+    <tr>
+      <td>Message search</td>
+      <td align="center">✅</td>
+      <td align="center">❌</td>
+    </tr>
+    <tr>
+      <td>Threads and forum channels</td>
+      <td align="center">✅</td>
+      <td align="center">❌</td>
+    </tr>
+    <tr>
+      <td>Custom emoji and stickers</td>
+      <td align="center">✅</td>
+      <td align="center">❌</td>
+    </tr>
+  </tbody>
+</table>
+
+Discord's column is as of October 2026. Rift is young, and Discord has had
+years of polish.
+
+## How it fits together
+
+```mermaid
+flowchart LR
+    A["Your app"] -- "sealed messages and calls" --> S[("A server you run")]
+    B["A friend's app"] -- "sealed messages and calls" --> S
+    A -. "optional" .-> C["Rift central<br/>account backup · directory · push"]
+```
+
+- **The app**, this repository, holds your identity: one seed on your device,
+  backed up only if you choose, and encrypted before it leaves.
+- **A server** is yours. It stores ciphertext it cannot open and enforces who
+  may do what. See [`rift-self-host`](https://docs.joinrift.app/install/).
+- **Central** is the one shared piece, and it's optional. It provides
+  accounts, the directories of public servers and bots, and the relay that
+  wakes phones. It never sees a server's messages.
+
+<p align="center">
+  <img src=".github/assets/app-voice.png" width="860" alt="A Rift voice channel with three people in the call">
+</p>
 
 ## Features
 
-- **Servers you run** — text and voice channels, private channels, roles, invites
-- **End-to-end encrypted** messages, attachments, voice and video
-- **Screen sharing** with native capture, and system audio on Linux and Windows
-- **Direct messages** on a server, and between friends across servers
-- **Calls in DMs**, encrypted with a key the server never holds
-- **Replies, forwards, reactions, pins, polls, mentions and link previews**
-- **Moderation** — reports, time-outs, bans, and control over who can DM you
-- **Bots and webhooks**, through a public SDK
-- **Your identity is yours** — one seed on your device, backed up only if you
-  choose, encrypted before it leaves
+- 🔒 **End-to-end encrypted.** Messages, attachments, voice notes and calls are
+  sealed and signed on your device, and every attachment has a key of its own
+- 🗄️ **Servers you run.** Text and voice channels, private channels, roles and
+  invites, plus your own limits on history, storage and call size
+- 🎙️ **Voice and screen sharing** with native capture, and system audio on Linux
+  and Windows
+- 💬 **Direct messages** on a server, and between friends across servers
+- 📞 **Calls in DMs**, encrypted with a key the server never holds
+- ↩️ **The everyday tools:** replies, forwards, reactions, pins, polls, mentions,
+  and link previews made by the sender, so the server never fetches your links
+- 🛡️ **Moderation:** reports, time-outs and bans, plus control over who can DM you
+- 🙈 **Sensitive images blurred on your device**, by a classifier that runs
+  locally, since a server can't scan what it can't read
+- 🤖 **Bots and webhooks** through a public TypeScript SDK. What a bot writes is
+  marked, because the server can read it
+
+## Get started
+
+### 1. Install Rift
+
+| Platform | Download |
+|---|---|
+| **Windows** (64-bit) | [`Rift-<version>-windows-x64-setup.exe`](https://github.com/awais-amjed/rift/releases/latest) |
+| **Linux** (x86-64) | [`rift-<version>-linux-x64.tar.gz`](https://github.com/awais-amjed/rift/releases/latest) |
+| **Android** and the **browser** | Coming soon |
+
+**On Windows**, run the installer. It isn't signed yet, so Windows may say
+"Windows protected your PC": choose **More info**, then **Run anyway**.
+
+**On Linux**, unpack it and run `rift`:
+
+```bash
+tar -xzf rift-*-linux-x64.tar.gz
+./rift-*-linux-x64/rift
+```
+
+It needs Ubuntu 24.04, Debian 13, Fedora 40, Mint 22 or newer, or any rolling
+distribution.
+
+### 2. Make your identity
+
+Open Rift and choose how you want to exist:
+
+- **Continue with an account** if you want your identity backed up, encrypted,
+  and want friends to find you by name.
+- **Use privacy mode** if you'd rather skip the email. Your identity never
+  leaves your device.
+
+### 3. Join a server
+
+- **Got an invite link?** Press **+** in the server list, then **Join server**,
+  and paste it.
+- **Looking for a community?** Press **+**, then **Browse servers**, to see the
+  public ones.
+
+### 4. Or run your own
+
+A server is a few commands on a machine with Docker, about 4 GB of RAM and a
+domain pointing at it: a spare PC or a small VPS. The
+[self-hosting guide](https://docs.joinrift.app/install/)
+walks through it, and its console gives you the first invite link. It also has
+a local-testing mode for trying Rift on one machine.
 
 ## Building it
 
@@ -33,49 +252,29 @@ You need [Flutter](https://docs.flutter.dev/get-started/install) (stable,
 
 ```bash
 flutter pub get
-flutter run -d linux        # or windows, macos, android, chrome
+flutter run -d linux        # or windows, android, chrome
 ```
 
 The Rust crate builds itself through `flutter_rust_bridge` and Cargokit on the
 first run; `build_rust_local.sh` builds it by hand.
 
-On Linux, install the Ayatana AppIndicator library for the tray icon first
-(`libayatana-appindicator3-dev` on Debian and Ubuntu, `libayatana-appindicator`
-on Arch).
+On Linux you also need clang 21 or newer, because the WebRTC library refuses an
+older one, and these development packages:
 
-## Releases
+```bash
+# Debian and Ubuntu. 24.04 ships clang 18: take clang-21 from apt.llvm.org,
+# and build with CC=clang-21 CXX=clang++-21.
+sudo apt install cmake ninja-build pkg-config libgtk-3-dev libsecret-1-dev \
+  libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libpulse-dev libva-dev \
+  libayatana-appindicator3-dev
 
-The version lives in one place, `pubspec.yaml`: in `1.0.3+4`, `1.0.3` is the
-version people see and `4` a build number that only goes up.
-`scripts/release.sh 1.0.3` moves both, commits, and tags `v1.0.3` with the
-release notes as the tag's message. A version with a `-` (`1.1.0-beta.1`) is a
-pre-release.
+# Arch
+sudo pacman -S clang cmake ninja gtk3 libsecret gstreamer gst-plugins-base \
+  libpulse libva libayatana-appindicator
+```
 
-The tag, pushed to Forgejo, reaches the GitHub mirror, where
-`.github/workflows/release.yml` builds two files and publishes them as a
-GitHub Release (a pre-release is not marked latest):
-
-- `Rift-<version>-windows-x64-setup.exe`, the Inno Setup installer. It is not
-  signed yet, so SmartScreen warns before it runs.
-- `rift-<version>-linux-x64.tar.gz`, the bundle to unpack and run. It is built
-  on Ubuntu 24.04 and needs that system's glibc, 2.39, or newer: Debian 13,
-  Fedora 40, Mint 22 and the rolling distributions. It cannot be built lower:
-  the image classifier's prebuilt runtime needs glibc 2.38, and an older
-  system would start the app and lose the sensitive-image check without
-  saying so. It uses GTK 3, libsecret, GStreamer, PulseAudio (PipeWire's
-  stands in) and Ayatana AppIndicator from the system. Built in an Ubuntu
-  24.04 container and started on Manjaro on Oct 3 2026; the workflow itself, and
-  the Windows half, had not run yet.
-
-Run by hand from the Actions tab, the workflow builds both files and keeps them
-with the run instead of publishing anything.
-
-## A server to connect to
-
-The app joins servers through invite links. To get one, run a server with
-[`rift-self-host`](https://docs.joinrift.app/install/) — its console has a
-local-testing mode for trying Rift on one machine — and paste the invite it
-gives you into the app.
+`scripts/package_linux.sh` builds the release archive the way the release
+workflow does.
 
 ## Tests
 
@@ -105,28 +304,6 @@ What a client may call on a server, and over which transport, is `API.md` in
 `rift-self-host`. Running a server is covered by the
 [self-hosting guide](https://docs.joinrift.app/).
 
-## Layout
-
-```
-lib/data/          models, repositories, enums — no Flutter widgets
-lib/logic/         cubits and services; the only place that decides anything
-lib/presentation/  widgets, screens, theme
-rift_crypto/       the key ladder and message envelopes, Flutter-free
-rust/              screen capture and the audio pipeline
-test/              pure logic, crypto and widget invariants — no live server
-```
-
-`rift_crypto` is a package rather than a folder for two reasons: nothing headless
-should need a Flutter SDK to sign a string, and it is the **reference
-implementation** the wire vectors are generated from.
-
-## Contributing
-
-Read [`AGENTS.md`](AGENTS.md) and [`CODE_STYLE.md`](CODE_STYLE.md) first: they
-are the rules this code actually follows, from state management to colours.
-`flutter analyze` and `flutter test` must pass before a commit, and a change
-that makes a doc untrue updates the doc in the same commit.
-
 ## Related repositories
 
 Clone them side by side: `tool/gen_wire_vectors.dart` writes the bot SDK's copy
@@ -135,12 +312,9 @@ of the wire contract, and the docs refer to the others by name.
 | Repository | What it is | Who runs it |
 |---|---|---|
 | **`rift`** | this: the app | — |
-| `rift-self-host` | a server's schema, endpoints and console | anyone |
-| `rift-central` | accounts, the server and bot directories, the push relay | the project |
-| `rift-bot-sdk` | the TypeScript bot SDK | bot authors |
-| `rift-admin` | the directory moderation dashboard | the project |
-| `rift-models` | the on-device image classifier and the tooling that builds it | — |
-| `rift-website` | joinrift.app and the self-hosting docs | the project |
+| [`rift-self-host`](https://github.com/awais-amjed/rift-self-host) | a server's schema, endpoints and console | anyone |
+| [`rift-central`](https://github.com/awais-amjed/rift-central) | accounts, the server and bot directories, the push relay | the project |
+| [`rift-bot-sdk`](https://github.com/awais-amjed/rift-bot-sdk) | the TypeScript bot SDK | bot authors |
 
 ## License
 

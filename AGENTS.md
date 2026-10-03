@@ -250,8 +250,8 @@ third_party/      # Packages kept here to be patched — each says why in its RI
   dependency brings in a licence `rust/about.toml` does not accept.
 - Local native builds: `./build_rust_local.sh` / `build_rust_local.bat`. CI runs on the GitHub
   mirror, since Actions are off on the Forgejo server until a runner exists: `release.yml`
-  builds the Windows installer and the Linux archive from a version tag (*Releases* in the
-  README), and `main.yml` precompiles cargokit binaries on pushes to `production`, a branch
+  builds the Windows installer and the Linux archive from a version tag (`RELEASING.md`),
+  and `main.yml` precompiles cargokit binaries on pushes to `production`, a branch
   this repository does not have yet.
 
 ## Backend
