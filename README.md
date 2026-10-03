@@ -156,9 +156,6 @@ It's not about leaving anything behind. It's about having the choice.
   </tbody>
 </table>
 
-Discord's column is as of October 2026. Rift is young, and Discord has had
-years of polish.
-
 ## How it fits together
 
 ```mermaid
