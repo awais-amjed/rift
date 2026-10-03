@@ -25,6 +25,14 @@ class VaultState {
     this.pendingRecoveryKey,
   });
 
+  /// Whether the person is still in setup: no vault yet, or a recovery key
+  /// not yet confirmed. The router sends them there, but the home screen is
+  /// built for a moment first — and anything it opens in that moment (an
+  /// invite's Join step, Add server) lands on top of setup, asking to join a
+  /// server before there is an identity to join with.
+  bool get stillSettingUp =>
+      status == AuthStatus.fresh || pendingRecoveryKey != null;
+
   VaultState copyWith({
     AuthStatus? status,
     bool? isProcessing,

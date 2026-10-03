@@ -68,8 +68,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _onStartup() async {
     if (!mounted) return;
 
-    await context.read<VaultCubit>().settled();
-    if (!mounted) return;
+    final vault = await context.read<VaultCubit>().settled();
+    // On its way to setup. The home screen that follows setup is a new one,
+    // and it collects any invite held in the meantime.
+    if (!mounted || vault.stillSettingUp) return;
 
     final serverState = context.read<ServerCubit>().state;
 

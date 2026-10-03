@@ -70,4 +70,25 @@ void main() {
     expect((await vault.settled()).status, AuthStatus.unlocked);
     await vault.close();
   });
+
+  // A new profile started by an invite link opened the Join step on top of
+  // the welcome screen: the home screen is built before the redirect to setup,
+  // and asked nothing but whether the vault had been read.
+  test('a new profile is still setting up once the vault is read', () async {
+    final storage = _SlowStorage()..seed.complete(null);
+    final vault = VaultCubit(storage: storage);
+    await vault.checkVaultStatus();
+
+    expect((await vault.settled()).stillSettingUp, isTrue);
+    await vault.close();
+  });
+
+  test('setup ends only when the recovery key is confirmed', () {
+    const unlocked = VaultState(status: AuthStatus.unlocked);
+    expect(unlocked.stillSettingUp, isFalse);
+    expect(
+      unlocked.copyWith(pendingRecoveryKey: 'ABCDE').stillSettingUp,
+      isTrue,
+    );
+  });
 }
