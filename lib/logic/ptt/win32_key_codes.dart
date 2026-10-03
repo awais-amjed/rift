@@ -1,5 +1,7 @@
 import 'package:flutter/services.dart';
 
+import 'mouse_button_bind.dart';
+
 /// Maps a Flutter logical key to the Win32 Virtual Key code the background
 /// keyboard hook reports for it.
 ///
@@ -22,7 +24,14 @@ import 'package:flutter/services.dart';
 /// Which character a key produces still moves with the layout — Windows keys
 /// punctuation on VK_OEM_* codes for the *physical* key, so a keybind shown as
 /// `;` fires whatever that key types under another layout.
-int? win32VkForLogicalKey(int keyId) => _vkByKeyId[keyId];
+///
+/// A mouse button keybind ([MouseButtonBind]) maps to the VK_*BUTTON code the
+/// hook's mouse half reports for it.
+int? win32VkForLogicalKey(int keyId) {
+  final button = MouseButtonBind.buttonOf(keyId);
+  if (button != null) return MouseButtonBind.win32Vk(button);
+  return _vkByKeyId[keyId];
+}
 
 /// Real keys that [kWindowsToLogicalKey] happens not to list.
 ///

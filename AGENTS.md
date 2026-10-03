@@ -25,7 +25,7 @@ lib/
   logic/
     cubits/       # One folder per feature: foo/foo_cubit.dart + foo_state.dart
     services/     # Platform services (sound, Windows sound settings)
-    ptt/          # Push-to-talk key listener
+    ptt/          # Push-to-talk key and mouse button listener
     helper_methods.dart  # HelperMethods: toasts, navigation, printDebug
   presentation/
     common/       # Shared widgets (AppModal, AppTitleBar, ...)

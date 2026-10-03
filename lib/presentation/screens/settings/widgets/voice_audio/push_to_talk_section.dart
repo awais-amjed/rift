@@ -1,8 +1,10 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../../logic/ptt/mouse_button_bind.dart';
 import '../../../../../logic/services/host_platform.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/button_footer.dart';
@@ -13,7 +15,12 @@ import '../setting_toggle_row.dart';
 import 'desktop_key_notice.dart';
 
 /// Push-to-talk: the enable switch, the current keybind, and the capture
-/// button that listens for the next key pressed.
+/// button that listens for the next key or mouse button pressed.
+///
+/// Any key is accepted, Esc included, and any mouse button but the left —
+/// the capture is cancelled by clicking its button again, which is why the
+/// left one can never be the answer. Buttons are heard app-wide through the
+/// pointer router, because the pointer is rarely over the button itself.
 ///
 /// The keybind only appears with push-to-talk on. On Linux the desktop
 /// answers with the key it already granted the moment it is switched on, so
@@ -39,31 +46,59 @@ class _PushToTalkSectionState extends State<PushToTalkSection> {
   final FocusNode _captureFocusNode = FocusNode();
   bool _isCapturing = false;
 
+  /// Listening for a mouse button only — where the desktop owns the key, a
+  /// key pressed here would be swapped back for the desktop's.
+  bool _mouseOnly = false;
+
   /// The key is only picked with push-to-talk on — see [build] — so turning
   /// it off mid-capture ends the capture rather than leaving it listening.
   @override
   void didUpdateWidget(PushToTalkSection oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (_isCapturing && !widget.appState.pushToTalkEnabled) {
-      _isCapturing = false;
-      _captureFocusNode.unfocus();
+      _toggleCapture(false);
     }
   }
 
   @override
   void dispose() {
+    if (_isCapturing) {
+      GestureBinding.instance.pointerRouter.removeGlobalRoute(_onPointer);
+    }
     _captureFocusNode.dispose();
     super.dispose();
   }
 
-  void _toggleCapture(bool enabled) {
-    if (!mounted) return;
-    setState(() => _isCapturing = enabled);
+  void _toggleCapture(bool enabled, {bool mouseOnly = false}) {
+    if (!mounted || enabled == _isCapturing) return;
+    final router = GestureBinding.instance.pointerRouter;
     if (enabled) {
+      router.addGlobalRoute(_onPointer);
+    } else {
+      router.removeGlobalRoute(_onPointer);
+    }
+    setState(() {
+      _isCapturing = enabled;
+      _mouseOnly = enabled && mouseOnly;
+    });
+    if (enabled && !mouseOnly) {
       _captureFocusNode.requestFocus();
     } else {
       _captureFocusNode.unfocus();
     }
+  }
+
+  void _onPointer(PointerEvent event) {
+    if (event.kind != PointerDeviceKind.mouse || event is PointerUpEvent) {
+      return;
+    }
+    final button = MouseButtonBind.pick(event.buttons);
+    if (button == null) return;
+    context.read<AppCubit>().setPushToTalkKeybind(
+      keyId: MouseButtonBind.keyIdFor(button),
+      label: MouseButtonBind.label(button),
+    );
+    _toggleCapture(false);
   }
 
   /// Something readable for any key, including ones with no printable label.
@@ -83,11 +118,6 @@ class _PushToTalkSectionState extends State<PushToTalkSection> {
     // the keybind every first time.
     if (event.synthesized) return KeyEventResult.ignored;
 
-    if (event.logicalKey == LogicalKeyboardKey.escape) {
-      _toggleCapture(false);
-      return KeyEventResult.handled;
-    }
-
     context.read<AppCubit>().setPushToTalkKeybind(
       keyId: event.logicalKey.keyId,
       label: _labelForKey(event.logicalKey),
@@ -100,6 +130,11 @@ class _PushToTalkSectionState extends State<PushToTalkSection> {
   /// "Press " prefix so it reads like any other keybind.
   String? get _desktopKey =>
       widget.appState.desktopPushToTalkKey?.replaceFirst(RegExp('^Press '), '');
+
+  bool get _boundToMouse {
+    final keyId = widget.appState.pushToTalkKeyId;
+    return keyId != null && MouseButtonBind.isMouse(keyId);
+  }
 
   /// Whether the desktop, not this section, decides the key — known, or
   /// being asked for.
@@ -138,7 +173,11 @@ class _PushToTalkSectionState extends State<PushToTalkSection> {
           ),
           const SizedBox(height: 10),
           if (_desktopOwnsKey)
-            DesktopKeyNotice(pending: appState.desktopPushToTalkPending)
+            DesktopKeyNotice(
+              pending: appState.desktopPushToTalkPending,
+              capturingMouse: _isCapturing,
+              onUseMouse: () => _toggleCapture(!_isCapturing, mouseOnly: true),
+            )
           else
             Focus(
               focusNode: _captureFocusNode,
@@ -154,7 +193,7 @@ class _PushToTalkSectionState extends State<PushToTalkSection> {
                     variant: AppButtonVariant.secondary,
                   ),
                   AppButton(
-                    label: _isCapturing ? 'Press a key…' : 'Set key',
+                    label: _isCapturing ? 'Cancel' : 'Set key',
                     onPressed: () => _toggleCapture(!_isCapturing),
                     variant: _isCapturing
                         ? AppButtonVariant.secondary
@@ -166,8 +205,11 @@ class _PushToTalkSectionState extends State<PushToTalkSection> {
           if (HostPlatform.pushToTalkAsksDesktop && !_desktopOwnsKey) ...[
             const SizedBox(height: 8),
             Text(
-              'After you set a key, your computer asks once whether Rift may '
-              'use it while you are in other apps.',
+              _boundToMouse
+                  ? 'A mouse button works only while the pointer is over '
+                        'Rift. A key works in other apps too.'
+                  : 'After you set a key, your computer asks once whether '
+                        'Rift may use it while you are in other apps.',
               style: AppText.secondary.copyWith(color: themeState.textTertiary),
             ),
           ],
@@ -175,7 +217,11 @@ class _PushToTalkSectionState extends State<PushToTalkSection> {
         if (_isCapturing) ...[
           const SizedBox(height: 8),
           Text(
-            'Press Esc to cancel key capture.',
+            _mouseOnly
+                ? 'Press the mouse button to use. The left one is for '
+                      'clicking, so it cannot be used.'
+                : 'Press any key or mouse button. The left button is for '
+                      'clicking, so it cannot be used.',
             style: AppText.secondary.copyWith(color: themeState.textTertiary),
           ),
         ],

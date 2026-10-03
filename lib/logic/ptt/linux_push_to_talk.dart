@@ -5,6 +5,7 @@ import '../cubits/livekit/livekit_cubit.dart';
 import '../helper_methods.dart';
 import 'global_shortcuts_portal.dart';
 import 'linux_desktop_entry.dart';
+import 'mouse_button_bind.dart';
 import 'release_debounce.dart';
 import 'xdg_trigger.dart';
 
@@ -15,6 +16,10 @@ import 'xdg_trigger.dart';
 /// session is open, so leaving one behind would break that key everywhere.
 /// A new keybind closes the old session and binds again, suggesting the new
 /// key; the desktop may ask the user to confirm it.
+///
+/// A mouse button is never offered: the portal only takes keys, and binding
+/// with no suggestion would have the desktop ask for one. So a button closes
+/// the session like an unset key does, and the in-window handler hears it.
 class LinuxPushToTalk {
   final AppCubit _app;
   final LiveKitCubit _liveKit;
@@ -89,7 +94,7 @@ class LinuxPushToTalk {
     _setBound(null);
     _debounce.reset();
     final keyId = wanted.keyId;
-    if (!wanted.enabled || keyId == null) {
+    if (!wanted.enabled || keyId == null || MouseButtonBind.isMouse(keyId)) {
       _app.setDesktopPushToTalkPending(false);
       await _portal.close();
       return;

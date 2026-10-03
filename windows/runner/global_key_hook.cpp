@@ -8,8 +8,9 @@
 // main thread before the hook thread reads it, so no synchronization needed.
 static HWND g_target_hwnd = nullptr;
 
-// The installed hook handle.  Owned by the hook thread.
+// The installed hook handles.  Owned by the hook thread.
 static HHOOK g_hook = nullptr;
+static HHOOK g_mouse_hook = nullptr;
 
 // ----------------------------------------------------------------------------
 // GlobalKeyHook implementation
@@ -39,6 +40,37 @@ LRESULT CALLBACK GlobalKeyHook::LowLevelKeyboardProc(int nCode, WPARAM wParam,
   return CallNextHookEx(nullptr, nCode, wParam, lParam);
 }
 
+LRESULT CALLBACK GlobalKeyHook::LowLevelMouseProc(int nCode, WPARAM wParam,
+                                                   LPARAM lParam) {
+  if (nCode >= 0 && g_target_hwnd != nullptr) {
+    // Every pointer move passes through here too, so anything that is not a
+    // button goes straight on.
+    UINT vk = 0;
+    bool is_down = false;
+    switch (wParam) {
+      case WM_LBUTTONDOWN: is_down = true; [[fallthrough]];
+      case WM_LBUTTONUP: vk = VK_LBUTTON; break;
+      case WM_RBUTTONDOWN: is_down = true; [[fallthrough]];
+      case WM_RBUTTONUP: vk = VK_RBUTTON; break;
+      case WM_MBUTTONDOWN: is_down = true; [[fallthrough]];
+      case WM_MBUTTONUP: vk = VK_MBUTTON; break;
+      case WM_XBUTTONDOWN: is_down = true; [[fallthrough]];
+      case WM_XBUTTONUP: {
+        const auto* mouse = reinterpret_cast<const MSLLHOOKSTRUCT*>(lParam);
+        vk = HIWORD(mouse->mouseData) == XBUTTON1 ? VK_XBUTTON1 : VK_XBUTTON2;
+        break;
+      }
+    }
+    if (vk != 0) {
+      // The same message as a key: a button's VK_*BUTTON code is one more
+      // virtual-key code, and Dart compares codes without caring which.
+      PostMessage(g_target_hwnd, kWmPttKeyEvent, static_cast<WPARAM>(vk),
+                  static_cast<LPARAM>(is_down ? 1 : 0));
+    }
+  }
+  return CallNextHookEx(nullptr, nCode, wParam, lParam);
+}
+
 void GlobalKeyHook::Start(HWND hwnd) {
   if (running_.exchange(true)) {
     return;  // Already running
@@ -56,15 +88,21 @@ void GlobalKeyHook::Start(HWND hwnd) {
 
     g_hook = SetWindowsHookEx(WH_KEYBOARD_LL, LowLevelKeyboardProc,
                                nullptr, 0);
-    if (g_hook) {
+    // Push-to-talk on a mouse's side buttons. Windows calls this for every
+    // move as well, on this thread, so the procedure has to stay trivial.
+    g_mouse_hook =
+        SetWindowsHookEx(WH_MOUSE_LL, LowLevelMouseProc, nullptr, 0);
+    if (g_hook || g_mouse_hook) {
       MSG msg;
       while (GetMessage(&msg, nullptr, 0, 0)) {
         TranslateMessage(&msg);
         DispatchMessage(&msg);
       }
-      UnhookWindowsHookEx(g_hook);
-      g_hook = nullptr;
     }
+    if (g_hook) UnhookWindowsHookEx(g_hook);
+    if (g_mouse_hook) UnhookWindowsHookEx(g_mouse_hook);
+    g_hook = nullptr;
+    g_mouse_hook = nullptr;
   });
 
   // Wait until the hook thread has stored its ID.

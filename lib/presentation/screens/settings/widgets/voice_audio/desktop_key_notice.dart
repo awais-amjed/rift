@@ -12,11 +12,24 @@ import '../../../../theme/theme_context.dart';
 /// Waiting replaces the key controls rather than sitting beside them. The
 /// desktop answers with the key it keeps, so a key picked in the meantime
 /// would be quietly swapped out — better not to offer the choice at all.
+/// A mouse button is the exception: the desktop never sees one, so switching
+/// to a button stays Rift's to offer ([onUseMouse]).
 class DesktopKeyNotice extends StatelessWidget {
   /// True while the desktop has not answered yet.
   final bool pending;
 
-  const DesktopKeyNotice({super.key, required this.pending});
+  /// Starts or stops listening for a mouse button to use instead.
+  final VoidCallback onUseMouse;
+
+  /// Whether that listening is on.
+  final bool capturingMouse;
+
+  const DesktopKeyNotice({
+    super.key,
+    required this.pending,
+    required this.onUseMouse,
+    required this.capturingMouse,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -46,20 +59,25 @@ class DesktopKeyNotice extends StatelessWidget {
           message,
           style: AppText.secondary.copyWith(color: theme.textTertiary),
         ),
-        if (pending || canOpen) ...[
-          const SizedBox(height: 10),
-          ButtonFooter(
-            alignment: MainAxisAlignment.start,
-            buttons: [
+        const SizedBox(height: 10),
+        ButtonFooter(
+          alignment: MainAxisAlignment.start,
+          buttons: [
+            if (pending || canOpen)
               AppButton(
                 label: 'Change key',
                 isLoading: pending,
                 onPressed: pending ? null : DesktopShortcutSettings.open,
                 variant: AppButtonVariant.secondary,
               ),
-            ],
-          ),
-        ],
+            if (!pending)
+              AppButton(
+                label: capturingMouse ? 'Cancel' : 'Use a mouse button',
+                onPressed: onUseMouse,
+                variant: AppButtonVariant.secondary,
+              ),
+          ],
+        ),
       ],
     );
   }

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -10,6 +11,7 @@ import '../cubits/app/app_cubit.dart';
 import '../cubits/livekit/livekit_cubit.dart';
 import '../helper_methods.dart';
 import 'linux_push_to_talk.dart';
+import 'mouse_button_bind.dart';
 import 'win32_key_codes.dart';
 
 /// Global keyboard listener that maps the configured keybind to PTT pressed state.
@@ -23,6 +25,11 @@ import 'win32_key_codes.dart';
 /// On Linux the background half is the desktop's GlobalShortcuts portal
 /// ([LinuxPushToTalk]). Where it is missing or declined, the in-focus handler
 /// is all there is.
+///
+/// A mouse button keybind ([MouseButtonBind]) is heard the same two ways: the
+/// Windows hook reports buttons alongside keys, and in the window every
+/// pointer event passes [_handlePointer]. The portal only takes keys, so on
+/// Linux a button works while Rift has the pointer and nowhere else.
 class PushToTalkListener extends StatefulWidget {
   final Widget child;
 
@@ -44,6 +51,7 @@ class _PushToTalkListenerState extends State<PushToTalkListener>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     HardwareKeyboard.instance.addHandler(_handleKeyEvent);
+    GestureBinding.instance.pointerRouter.addGlobalRoute(_handlePointer);
 
     if (!kIsWeb && Platform.isWindows) {
       _bgSub = _kPttChannel.receiveBroadcastStream().listen(_handleBgKeyEvent);
@@ -61,6 +69,7 @@ class _PushToTalkListenerState extends State<PushToTalkListener>
     _bgSub?.cancel();
     _linux?.dispose();
     HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
+    GestureBinding.instance.pointerRouter.removeGlobalRoute(_handlePointer);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -97,6 +106,33 @@ class _PushToTalkListenerState extends State<PushToTalkListener>
       context.read<LiveKitCubit>().setPushToTalkPressed(true);
     }
     return false;
+  }
+
+  // ── In-window mouse button ───────────────────────────────────────────────
+
+  /// Whether the bound button was down at the last pointer event, so only a
+  /// change reaches the cubit — every pointer move passes through here.
+  bool _buttonHeld = false;
+
+  void _handlePointer(PointerEvent event) {
+    if (kIsWeb || !(Platform.isWindows || Platform.isLinux)) return;
+    if (event.kind != PointerDeviceKind.mouse) return;
+
+    final appState = context.read<AppCubit>().state;
+    final keyId = appState.pushToTalkKeyId;
+    final button = keyId == null ? null : MouseButtonBind.buttonOf(keyId);
+    if (!appState.pushToTalkEnabled || button == null) {
+      _buttonHeld = false;
+      return;
+    }
+
+    final held =
+        event is! PointerUpEvent &&
+        event is! PointerCancelEvent &&
+        event.buttons & button != 0;
+    if (held == _buttonHeld) return;
+    _buttonHeld = held;
+    context.read<LiveKitCubit>().setPushToTalkPressed(held);
   }
 
   // ── Background hook handler (native EventChannel) ────────────────────────
