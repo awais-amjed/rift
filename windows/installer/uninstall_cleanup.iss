@@ -8,6 +8,8 @@
 ;   lib/logic/services/toast_activator_ffi.dart). Every storage namespace's
 ;   class shares the AppId's first four groups (ToastIdentity), so they are
 ;   matched on those.
+; - Software\Classes\rift: the rift:// scheme invite pages open the app with
+;   (registerInviteScheme in lib/logic/services/invite_scheme_ffi.dart).
 ; - Software\Classes\AppUserModelId\CodingFries.Rift[.<profile>] and
 ;   ...\PushNotifications\Backup\CodingFries.Rift[.<profile>]: written by
 ;   flutter_local_notifications when it registers the app.
@@ -47,6 +49,7 @@ begin
   if CurUninstallStep <> usPostUninstall then Exit;
   RiftDeleteSubkeys('Software\Classes\CLSID',
     '{' + Copy('{#SetupSetting("AppId")}', 1, 24), True);
+  RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\rift');
   RiftDeleteSubkeys('Software\Classes\AppUserModelId',
     'CodingFries.Rift', False);
   RiftDeleteSubkeys(

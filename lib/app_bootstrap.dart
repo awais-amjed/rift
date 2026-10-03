@@ -12,6 +12,7 @@ import 'logic/cubits/app/app_cubit.dart';
 import 'logic/helper_methods.dart';
 import 'logic/services/browser_apis.dart';
 import 'logic/services/host_platform.dart';
+import 'logic/services/invite_scheme.dart';
 import 'logic/services/notification_service.dart';
 import 'logic/services/profile_auth_storage.dart';
 import 'logic/services/push_service.dart';
@@ -37,6 +38,7 @@ class AppBootstrap {
   static Future<AppCubit> run() async {
     final storageSuffix = _applyStorageNamespace();
     await StorageNamespace.useProfileSecureStorage(storageSuffix);
+    _claimInviteLinks(storageSuffix);
 
     if (!kIsWeb) await RustLib.init();
 
@@ -78,6 +80,21 @@ class AppBootstrap {
       startBrowserFocusTracking(WindowFocusService.instance.setFocused);
     }
     return appCubit;
+  }
+
+  /// Makes "Open in Rift" on an invite page reach this program, on Windows.
+  ///
+  /// Only the installed identity claims it. One scheme has one handler, so a
+  /// debug build or a second profile claiming it would take every invite the
+  /// installed app should get, and keep it after the build was deleted.
+  /// A failure costs the button, not the app — pasting an invite still works.
+  static void _claimInviteLinks(String storageSuffix) {
+    if (kIsWeb || !Platform.isWindows || storageSuffix.isNotEmpty) return;
+    try {
+      registerInviteScheme(Platform.resolvedExecutable);
+    } catch (e) {
+      HelperMethods.printDebug('AppBootstrap: invite scheme – $e');
+    }
   }
 
   /// Namespaces this instance's storage. See [StorageNamespace] — the push

@@ -114,7 +114,10 @@ Don't read the table as "everything works". Still owed:
 - **Key rotation in a text channel** while someone is reading it, and scrollback
   across two key versions. (A voice key rotating mid-call is covered.)
 - **`rift://` invite links**, since they were last changed. On Windows nothing
-  registers the scheme at all (checked Oct 1 2026), so a link there opens nothing.
+  registered the scheme (checked Oct 1 2026), so "Open in Rift" opened nothing;
+  since Oct 4 the installed app claims it at every start (`registerInviteScheme`)
+  and a second copy hands the link to the running one. Built, not yet run on
+  Windows. The Linux archive still registers nothing.
 - **The region probe choosing between genuinely distant nodes** — both test nodes
   were on one machine.
 - **The `studio` profile** of the self-hosted stack.
