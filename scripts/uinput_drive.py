@@ -52,6 +52,10 @@ SYN_REPORT = 0
 ABS_X, ABS_Y = 0, 1
 REL_X, REL_Y, REL_WHEEL = 0, 1, 8
 BTN_LEFT, BTN_RIGHT = 0x110, 0x111
+# The rest of a mouse, for push-to-talk on a button: `holdbtn side 1.5`.
+# Side and extra are a mouse's back and forward buttons, "Mouse 4" and "5".
+BUTTONS = {'left': BTN_LEFT, 'right': BTN_RIGHT, 'middle': 0x112,
+           'side': 0x113, 'extra': 0x114}
 
 # Small enough that pointer acceleration stays out of the way, and a handful of
 # correction rounds to absorb whatever it still applies.
@@ -138,7 +142,7 @@ class Device:
             fcntl.ioctl(self.fd, UI_SET_EVBIT, ev)
         codes = set(KEY.values()) | {KEY_LEFTSHIFT, KEY_LEFTCTRL, KEY_LEFTALT}
         if not keyboard_only:
-            codes |= {BTN_LEFT, BTN_RIGHT}
+            codes |= set(BUTTONS.values())
         for code in codes:
             fcntl.ioctl(self.fd, UI_SET_KEYBIT, code)
         if not keyboard_only:
@@ -359,6 +363,17 @@ def run(dev, cmd, args):
         time.sleep(float(args[1]) if len(args) > 1 else 1.0)
         dev.emit(EV_KEY, code, 0)
         dev.syn()
+    elif cmd in ('btn', 'holdbtn'):
+        # `btn side` clicks a button; `holdbtn side 1.5` holds it.
+        code = BUTTONS[args[0].lower()]
+        if cmd == 'btn':
+            dev.click(code)
+        else:
+            dev.emit(EV_KEY, code, 1)
+            dev.syn()
+            time.sleep(float(args[1]) if len(args) > 1 else 1.0)
+            dev.emit(EV_KEY, code, 0)
+            dev.syn()
     elif cmd == 'clearmods':
         dev.clear_mods()
     elif cmd == 'scroll':
