@@ -248,9 +248,11 @@ third_party/      # Packages kept here to be patched — each says why in its RI
 - After changing Rust dependencies, run `scripts/generate_licenses.sh`: it rewrites the notices
   for every shipped crate and the prebuilt WebRTC in `assets/licenses/`, and fails if a
   dependency brings in a licence `rust/about.toml` does not accept.
-- Local native builds: `./build_rust_local.sh` / `build_rust_local.bat`. CI precompiles binaries
-  via cargokit on pushes to `production`. (Actions are off on the
-  Forgejo server until a runner exists, so today that does not run.)
+- Local native builds: `./build_rust_local.sh` / `build_rust_local.bat`. CI runs on the GitHub
+  mirror, since Actions are off on the Forgejo server until a runner exists: `release.yml`
+  builds the Windows installer and the Linux archive from a version tag (*Releases* in the
+  README), and `main.yml` precompiles cargokit binaries on pushes to `production`, a branch
+  this repository does not have yet.
 
 ## Backend
 
@@ -333,6 +335,8 @@ flutter analyze                      # must be clean
 flutter run -d <device>              # run
 powershell -File scripts/build_windows_installer.ps1  # Windows installer (inno_bundle + uninstall cleanup)
 flutter build linux --release        # Linux build
+scripts/package_linux.sh             # Linux release archive, built the way CI builds it
+scripts/release.sh 1.0.3             # version, commit and tag a release (1.1.0-beta.1: a pre-release)
 scripts/build_web.sh                 # web build, with the call-encryption worker
 ```
 
