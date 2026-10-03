@@ -6,8 +6,10 @@ import 'package:http/http.dart' as http;
 /// to settle a platform's "not sure" (`NetworkReading.unsure`).
 ///
 /// Only those servers: Rift asks nobody else whether there is internet. Any
-/// HTTP answer counts, whatever its status — an old server with no status
-/// page says 404, and that is still a server reached over the network.
+/// answer below 500 counts — an old server with no status page says 404, and
+/// that is still a server reached over the network. A 5xx does not: it is what
+/// a proxy in the way says when it can't get through, and with Wi-Fi off a
+/// local proxy answering 502 read as online (seen Oct 3 2026).
 class ServerReachProbe {
   /// Long enough for a slow round trip, short enough that the chip is not
   /// held up behind a server that is down.
@@ -42,8 +44,8 @@ class ServerReachProbe {
 
   Future<bool> _answers(String url) async {
     try {
-      await _client.head(Uri.parse(url)).timeout(_timeout);
-      return true;
+      final response = await _client.head(Uri.parse(url)).timeout(_timeout);
+      return response.statusCode < 500;
     } catch (_) {
       return false;
     }
