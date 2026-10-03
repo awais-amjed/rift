@@ -86,6 +86,9 @@ class AppCubit extends HydratedCubit<AppState> {
   void setLinkPreviewsEnabled(bool value) =>
       emit(state.copyWith(linkPreviewsEnabled: value));
 
+  void setShowOfflineChip(bool value) =>
+      emit(state.copyWith(showOfflineChip: value));
+
   // ── Persisted: switching voice channels ──────────────────
 
   void setAskBeforeVoiceSwitch(bool value) =>

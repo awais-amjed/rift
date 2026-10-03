@@ -43,6 +43,11 @@ class AppState {
   /// a choice about what this device reaches out to.
   final bool linkPreviewsEnabled;
 
+  /// Whether the title bar says "No internet". On by default; a machine whose
+  /// platform keeps doubting a connection that works can turn it off. A
+  /// server that can't be reached is still shown — that one is about Rift.
+  final bool showOfflineChip;
+
   /// Whether the right-hand member sidebar is expanded. Persisted so the
   /// layout survives a restart.
   final bool membersSidebarOpen;
@@ -183,6 +188,7 @@ class AppState {
     this.showStreamStats = false,
     this.sensitiveContentMode = SensitiveContentMode.blur,
     this.linkPreviewsEnabled = true,
+    this.showOfflineChip = true,
     this.outputDeviceId,
     this.inputDeviceId,
     this.noiseSuppression = true,
@@ -244,6 +250,7 @@ class AppState {
     bool? showStreamStats,
     SensitiveContentMode? sensitiveContentMode,
     bool? linkPreviewsEnabled,
+    bool? showOfflineChip,
     String? outputDeviceId,
     bool clearOutputDeviceId = false,
     String? inputDeviceId,
@@ -297,6 +304,7 @@ class AppState {
       showStreamStats: showStreamStats ?? this.showStreamStats,
       sensitiveContentMode: sensitiveContentMode ?? this.sensitiveContentMode,
       linkPreviewsEnabled: linkPreviewsEnabled ?? this.linkPreviewsEnabled,
+      showOfflineChip: showOfflineChip ?? this.showOfflineChip,
       outputDeviceId: clearOutputDeviceId
           ? null
           : (outputDeviceId ?? this.outputDeviceId),

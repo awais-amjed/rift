@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../../data/constants.dart';
+import '../../../logic/cubits/app/app_cubit.dart';
 import '../../../logic/cubits/network/network_cubit.dart';
 import '../../../logic/cubits/server_reach/server_reach_cubit.dart';
 import '../../../logic/cubits/theme/theme_cubit.dart';
@@ -182,7 +183,13 @@ class _ConnectionChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final offline = context.select<NetworkCubit, bool>((c) => c.state.offline);
+    final networkDown = context.select<NetworkCubit, bool>(
+      (c) => c.state.offline,
+    );
+    final showOffline = context.select<AppCubit, bool>(
+      (c) => c.state.showOfflineChip,
+    );
+    final offline = networkDown && showOffline;
     final server = context.select<ServerReachCubit, String?>(
       (c) => c.state.unreachableName,
     );

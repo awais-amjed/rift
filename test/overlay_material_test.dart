@@ -1,9 +1,10 @@
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
+import 'package:rift/data/enums/network_reading.dart';
+import 'package:rift/logic/cubits/app/app_cubit.dart';
 import 'package:rift/logic/cubits/network/network_cubit.dart';
 import 'package:rift/logic/cubits/server_reach/server_reach_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
@@ -64,13 +65,13 @@ Future<void> _pumpBesideNavigator(
       home: MultiBlocProvider(
         providers: [
           BlocProvider(create: (_) => ThemeCubit()),
+          BlocProvider(create: (_) => AppCubit()),
           // Offline, so the title bar's "No internet" chip is drawn too.
           BlocProvider(
             create: (_) => NetworkCubit(
               changes: const Stream.empty(),
-              check: () async => [
-                offline ? ConnectivityResult.none : ConnectivityResult.wifi,
-              ],
+              check: () async =>
+                  offline ? NetworkReading.offline : NetworkReading.online,
               settle: Duration.zero,
             ),
           ),

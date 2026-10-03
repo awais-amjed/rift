@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../data/constants.dart';
 import '../../../../data/enums/sensitive_content_mode.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../logic/services/host_platform.dart';
 import '../../../common/segmented_control.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
@@ -54,6 +55,23 @@ class GeneralContent extends StatelessWidget {
         ),
 
         const SectionDivider(),
+
+        // Only where there is a title bar to show it in.
+        if (HostPlatform.drawsOwnWindowChrome) ...[
+          const SectionTitle(label: 'Connection'),
+          const SizedBox(height: 12),
+          SettingToggleRow(
+            title: 'Show "No internet" in the title bar',
+            description:
+                'Turn this off if it shows while your internet works. A '
+                "server that can't be reached is still shown.",
+            value: context.select<AppCubit, bool>(
+              (c) => c.state.showOfflineChip,
+            ),
+            onChanged: context.read<AppCubit>().setShowOfflineChip,
+          ),
+          const SectionDivider(),
+        ],
 
         const SectionTitle(label: 'Streams'),
         const SizedBox(height: 12),

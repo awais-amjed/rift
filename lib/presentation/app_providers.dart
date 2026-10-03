@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../data/repositories/server_reach_probe.dart';
 import '../logic/cubits/app/app_cubit.dart';
 import '../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../logic/cubits/channel_chat/channel_chat_cubit.dart';
@@ -53,8 +54,8 @@ class AppProviders extends StatelessWidget {
     return MultiBlocProvider(
       providers: [
         BlocProvider(create: (_) => ThemeCubit()),
-        BlocProvider(create: (_) => NetworkCubit()),
         BlocProvider(create: (_) => _createServerCubit()),
+        BlocProvider(create: _createNetworkCubit),
         BlocProvider(
           create: (context) => ServerReachCubit.of(context.read<ServerCubit>()),
         ),
@@ -190,6 +191,17 @@ class AppProviders extends StatelessWidget {
     // ...and an export captures the full one.
     vaultCubit.setGetServersForExport(serverCubit.getServersForExport);
     return serverCubit;
+  }
+
+  /// When the platform is unsure about the internet, the servers you joined
+  /// settle it — and nobody else is asked.
+  NetworkCubit _createNetworkCubit(BuildContext context) {
+    final servers = context.read<ServerCubit>();
+    final probe = ServerReachProbe();
+    return NetworkCubit(
+      confirm: () =>
+          probe.anyAnswers(servers.state.servers.map((s) => s.supabaseUrl)),
+    );
   }
 
   ScreenshareCubit _createScreenshareCubit(BuildContext context) {
