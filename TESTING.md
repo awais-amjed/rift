@@ -81,7 +81,7 @@ instances with separate identities; the Android client is the emulator.
 | Quitting in a call leaves it | Oct 3 2026 | Windows 11, debug build, two profiles: B quit from the tray while in #voice with A, and left A's voice roster 1.9 s after Quit (it took ~30 s, the server's timeout); A quit from the tray in a DM call with B, and the call was recorded as ended 157 ms after Quit. Both processes exited cleanly. Linux and macOS not driven (same `BeforeQuit` path) |
 | Push-to-talk on Linux | Sep 21 2026 | GNOME, through the GlobalShortcuts portal |
 | "Open in Rift" on Windows | Oct 4 2026 | Windows 11 VM, the installer built from the fix: the first start wrote `HKCU\Software\Classes\rift` with `"C:\Program Files\Rift\rift.exe" "%1"`; on joinrift.app's invite page in Edge, Open in Rift asked once, then Rift came forward (it was minimised) with no second copy left running. The Join step opened with the invite filled in each time: Rift closed (it started with the link), Rift running (a new code, then the same code again after closing the dialog), and Rift on the welcome screen of a new profile (held, then opened when setup finished). A new profile *started* by a link used to open the Join step over the welcome screen and try the code before an identity existed; since the fix the welcome, password and recovery-key screens stay clear and the Join step opens when setup finishes Uninstalling removed the key, and since the installer writes it too, a fresh install that had not started Rift yet opened it from Edge straight into the Join step. Invites were made up, so redeeming them was not part of it |
-| Push-to-talk on a mouse button: picking it | Oct 4 2026 | Windows 11 VM: Set key, then the mouse's back button over the page, stored and shown as "Mouse 4". Holding it to talk not driven (see below) |
+| Push-to-talk on a mouse button | Oct 4 2026 | Windows 11 VM, joined to the local stack by a real invite: Set key, then the mouse's back button over the page, stored and shown as "Mouse 4". In #voice (Lana online on Linux to hand over the key), holding it over Rift cleared the muted mark beside Win VM and lit Windows' mic-in-use icon, and releasing it brought both back; the same with Notepad focused and the pointer over it — the background hook. Not driven on Linux |
 | Server rail order across devices | Sep 21 2026 | one account on two devices, and a reorder made offline |
 | Soundboard | Sep 20–21 2026 | two clients in a call |
 | Replies, forwarding, jumping to a message | Sep 20 2026 | two clients, channel to channel |
@@ -117,9 +117,8 @@ Don't read the table as "everything works". Still owed:
   across two key versions. (A voice key rotating mid-call is covered.)
 - **`rift://` invite links on Linux.** The archive registers nothing, so "Open
   in Rift" opens nothing there. (Windows: see the table.)
-- **Push-to-talk on a mouse button, held in a call.** Picking one was driven on
-  Windows (Oct 4); holding it to talk, in the window or the background, was not,
-  and neither was any of it on Linux.
+- **Push-to-talk on a mouse button on Linux** — in the window only, by design;
+  driven on Windows (see the table).
 - **The region probe choosing between genuinely distant nodes** — both test nodes
   were on one machine.
 - **The `studio` profile** of the self-hosted stack.
