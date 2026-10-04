@@ -32,6 +32,15 @@ const POLL: Duration = Duration::from_millis(1);
 /// viewer joins or loses packets, so this is only a safety net.
 const GOP_SECONDS: u32 = 60;
 
+/// The finest quantiser an encoder may use: about where H264 stops looking
+/// any better. Below it a VBR encoder with rate to spare on a still picture
+/// never settles: NVIDIA's kept re-coding one at 13 KB a frame, 6.6 Mbps of
+/// an 8 Mbps target, and with this floor sent 83-byte frames instead. Moving
+/// content never reaches the floor at a share's rates (NVIDIA's output on the
+/// test clip was the same byte for byte), and Intel's settles either way.
+/// Measured Oct 5 2026.
+const MIN_QP: u32 = 18;
+
 /// Media Foundation's time unit is 100 ns.
 const TICKS_PER_MICROSECOND: i64 = 10;
 
@@ -431,19 +440,34 @@ impl Transform {
                     log::info!("encoder: {} would not take {what}: {e}", info.name);
                 }
             };
-            // Constant bitrate, although a still screen then costs the whole
-            // rate (Intel: 7.7 Mbps of 8, against 1.2 in peak-constrained
-            // VBR, Oct 4 2026). WebRTC's frame dropper also acts on frames
-            // that come pre-encoded, and drops a delta frame whenever the
-            // sizes run ahead of the target, which breaks the picture until
-            // the next keyframe. VBR's sizes swing — tiny while still, large
-            // the moment anything moves — and set it off over and over; CBR's
-            // even sizes rarely do (2 frames of 128 at the start of a share,
-            // against 10 to 17 of about 100).
-            optional(
+            // VBR: up to the rate when the picture moves, next to nothing while
+            // it is still. Intel's CBR spent the whole rate on a still screen
+            // (7.7 Mbps of 8, against 1.1 in VBR, Oct 4-5 2026), on the
+            // sharer's upload and every viewer's download. VBR's sizes swing,
+            // which WebRTC's frame dropper punished by dropping encoded
+            // frames; the patched webrtc-sys in third_party stops it acting
+            // on pre-encoded ones. Unconstrained, not peak-constrained: under
+            // a peak, Intel's encoder inserted keyframes nobody asked for
+            // (32 for 5 requests in a share's first seconds, against 5 for 3),
+            // and each one held the viewer's picture up. CBR where an encoder
+            // refuses VBR.
+            if set_value(
+                &codec,
                 &CODECAPI_AVEncCommonRateControlMode,
-                VARIANT::from(eAVEncCommonRateControlMode_CBR.0 as u32),
-                "constant bitrate",
+                VARIANT::from(eAVEncCommonRateControlMode_UnconstrainedVBR.0 as u32),
+            )
+            .is_err()
+            {
+                optional(
+                    &CODECAPI_AVEncCommonRateControlMode,
+                    VARIANT::from(eAVEncCommonRateControlMode_CBR.0 as u32),
+                    "constant bitrate",
+                );
+            }
+            optional(
+                &CODECAPI_AVEncVideoMinQP,
+                VARIANT::from(MIN_QP),
+                "a quantiser floor",
             );
             optional(
                 &CODECAPI_AVLowLatencyMode,
@@ -478,10 +502,11 @@ impl Transform {
             let profile = step("the H264 output", set_output_type(&transform, settings))?;
             step("the NV12 input", set_input_type(&transform, settings))?;
             log::info!(
-                "encoder: {} holds rate control {}, {} bps, low latency {}, GOP {}",
+                "encoder: {} holds rate control {}, {} bps, QP from {}, low latency {}, GOP {}",
                 info.name,
                 read_value(&codec, &CODECAPI_AVEncCommonRateControlMode),
                 read_value(&codec, &CODECAPI_AVEncCommonMeanBitRate),
+                read_value(&codec, &CODECAPI_AVEncVideoMinQP),
                 read_value(&codec, &CODECAPI_AVLowLatencyMode),
                 read_value(&codec, &CODECAPI_AVEncMPVGOPSize),
             );

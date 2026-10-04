@@ -12,8 +12,13 @@ What came out of doing it, for whoever picks it up next:
   carries that line in `third_party/webrtc-sys` (the user's call, Oct 5 2026;
   `RIFT_PATCHES.md` there says when it goes). With it the live test passed 6
   runs in 6 with no frame dropped, against 4 in 6 without it.
-- The encoder runs CBR, starts at LiveKit's 1 Mbps, and a size or rate change
-  re-encodes on the same track rather than publishing a new one.
+- With the dropper out of the way the encoder runs VBR, so a still screen costs
+  little: unconstrained, because under a peak Intel's encoder added keyframes
+  nobody asked for, and with a quantiser floor of 18, because without one
+  NVIDIA's re-coded a still picture forever at most of the rate. In the app a
+  still window went from 8.2 Mbps to 0.6 at the viewer, and the moving clip
+  still got its 10 (Oct 5 2026). A share starts at LiveKit's 1 Mbps, and a size
+  or rate change re-encodes on the same track rather than publishing a new one.
 - Intel's encoder writes a three-byte start code before each slice, and
   LiveKit's encryption authenticates the bytes before the first slice, which a
   receiver rebuilds with four-byte ones: every frame failed to decrypt. Start
