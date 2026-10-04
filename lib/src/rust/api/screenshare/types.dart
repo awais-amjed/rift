@@ -210,6 +210,41 @@ class ShareQuality {
           shareAudio == other.shareAudio;
 }
 
+/// A running share as it now goes out, after a change: what the sharer is
+/// shown, since it is the one thing they cannot see for themselves.
+class ShareStatus {
+  /// The picture's size as published. Below the height asked for when the
+  /// source is smaller — nothing is scaled up — and `None` while the share
+  /// waits on a minimised window and has published nothing yet.
+  final int? width;
+  final int? height;
+  final int fps;
+
+  /// Off when it was asked for and could not be had.
+  final bool shareAudio;
+
+  const ShareStatus({
+    this.width,
+    this.height,
+    required this.fps,
+    required this.shareAudio,
+  });
+
+  @override
+  int get hashCode =>
+      width.hashCode ^ height.hashCode ^ fps.hashCode ^ shareAudio.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ShareStatus &&
+          runtimeType == other.runtimeType &&
+          width == other.width &&
+          height == other.height &&
+          fps == other.fps &&
+          shareAudio == other.shareAudio;
+}
+
 /// Codec for the published video track. The Dart settings store these same
 /// names as strings, so the mapping there is by name.
 enum VideoCodec { h264, vp8, vp9 }

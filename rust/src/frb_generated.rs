@@ -1184,6 +1184,22 @@ impl SseDecode for crate::api::screenshare::types::ShareQuality {
     }
 }
 
+impl SseDecode for crate::api::screenshare::types::ShareStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_width = <Option<u32>>::sse_decode(deserializer);
+        let mut var_height = <Option<u32>>::sse_decode(deserializer);
+        let mut var_fps = <u32>::sse_decode(deserializer);
+        let mut var_shareAudio = <bool>::sse_decode(deserializer);
+        return crate::api::screenshare::types::ShareStatus {
+            width: var_width,
+            height: var_height,
+            fps: var_fps,
+            share_audio: var_shareAudio,
+        };
+    }
+}
+
 impl SseDecode for crate::api::soundshare::SoundShareConfig {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1533,6 +1549,29 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::screenshare::types::ShareQual
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::screenshare::types::ShareStatus {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.width.into_into_dart().into_dart(),
+            self.height.into_into_dart().into_dart(),
+            self.fps.into_into_dart().into_dart(),
+            self.share_audio.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::screenshare::types::ShareStatus
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::screenshare::types::ShareStatus>
+    for crate::api::screenshare::types::ShareStatus
+{
+    fn into_into_dart(self) -> crate::api::screenshare::types::ShareStatus {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::soundshare::SoundShareConfig {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -1843,6 +1882,16 @@ impl SseEncode for crate::api::screenshare::types::ShareQuality {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <u32>::sse_encode(self.resolution, serializer);
+        <u32>::sse_encode(self.fps, serializer);
+        <bool>::sse_encode(self.share_audio, serializer);
+    }
+}
+
+impl SseEncode for crate::api::screenshare::types::ShareStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<u32>>::sse_encode(self.width, serializer);
+        <Option<u32>>::sse_encode(self.height, serializer);
         <u32>::sse_encode(self.fps, serializer);
         <bool>::sse_encode(self.share_audio, serializer);
     }

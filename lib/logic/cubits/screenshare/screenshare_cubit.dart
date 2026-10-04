@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' show Helper;
+import 'package:toastification/toastification.dart';
 
 import '../../../data/classes/screen_share_settings.dart';
 import '../../../data/classes/server_limits.dart';
@@ -13,6 +14,7 @@ import '../../services/call_foreground_service.dart';
 import '../../services/host_platform.dart';
 import '../livekit/livekit_cubit.dart';
 import '../server/server_cubit.dart';
+import 'stream_change_notice.dart';
 
 part 'screenshare_state.dart';
 
@@ -235,7 +237,9 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
   ///
   /// Sound is reported as it came out, not as it was asked for: an
   /// application that stopped playing has nothing to capture, and a menu
-  /// ticked for sound nobody hears is the wrong menu.
+  /// ticked for sound nobody hears is the wrong menu. And the sharer is told
+  /// what now goes out ([streamChangeNotice]), because the viewers' picture
+  /// blinking is the only other sign that anything happened.
   Future<ScreenShareSettings?> changeQuality({
     int? fps,
     int? resolution,
@@ -251,7 +255,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
       shareAudio: shareAudio,
     );
     try {
-      final applied = await updateScreenshare(
+      final sent = await updateScreenshare(
         quality: ShareQuality(
           resolution: wanted.resolution,
           fps: wanted.fps,
@@ -259,12 +263,23 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
         ),
       );
       if (!state.isSharing) return null;
-      final now = wanted.copyWith(shareAudio: applied.shareAudio);
+      final now = wanted.copyWith(shareAudio: sent.shareAudio);
       emit(state.copyWith(settings: now));
-      if (wanted.shareAudio && !applied.shareAudio) {
+      if (wanted.shareAudio && !sent.shareAudio) {
         HelperMethods.showError(
           error: 'Could not share this stream’s sound.',
           autoCloseDuration: _errorDuration,
+        );
+      } else {
+        final notice = streamChangeNotice(
+          asked: wanted,
+          sent: sent,
+          soundChanged: shareAudio != null,
+        );
+        HelperMethods.showToast(
+          title: notice.title,
+          description: notice.description,
+          type: ToastificationType.success,
         );
       }
       return now;

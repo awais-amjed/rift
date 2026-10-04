@@ -156,7 +156,7 @@ abstract class RustLibApi extends BaseApi {
 
   Future<String> crateApiSoundshareStopSoundShare();
 
-  Future<ShareQuality> crateApiScreenshareUpdateScreenshare({
+  Future<ShareStatus> crateApiScreenshareUpdateScreenshare({
     required ShareQuality quality,
   });
 }
@@ -858,7 +858,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: 'stop_sound_share', argNames: []);
 
   @override
-  Future<ShareQuality> crateApiScreenshareUpdateScreenshare({
+  Future<ShareStatus> crateApiScreenshareUpdateScreenshare({
     required ShareQuality quality,
   }) {
     return handler.executeNormal(
@@ -874,7 +874,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
         },
         codec: SseCodec(
-          decodeSuccessData: sse_decode_share_quality,
+          decodeSuccessData: sse_decode_share_status,
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiScreenshareUpdateScreenshareConstMeta,
@@ -1130,6 +1130,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       resolution: dco_decode_u_32(arr[0]),
       fps: dco_decode_u_32(arr[1]),
       shareAudio: dco_decode_bool(arr[2]),
+    );
+  }
+
+  @protected
+  ShareStatus dco_decode_share_status(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return ShareStatus(
+      width: dco_decode_opt_box_autoadd_u_32(arr[0]),
+      height: dco_decode_opt_box_autoadd_u_32(arr[1]),
+      fps: dco_decode_u_32(arr[2]),
+      shareAudio: dco_decode_bool(arr[3]),
     );
   }
 
@@ -1492,6 +1506,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_shareAudio = sse_decode_bool(deserializer);
     return ShareQuality(
       resolution: var_resolution,
+      fps: var_fps,
+      shareAudio: var_shareAudio,
+    );
+  }
+
+  @protected
+  ShareStatus sse_decode_share_status(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_width = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_height = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_fps = sse_decode_u_32(deserializer);
+    var var_shareAudio = sse_decode_bool(deserializer);
+    return ShareStatus(
+      width: var_width,
+      height: var_height,
       fps: var_fps,
       shareAudio: var_shareAudio,
     );
@@ -1869,6 +1898,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_share_quality(ShareQuality self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_32(self.resolution, serializer);
+    sse_encode_u_32(self.fps, serializer);
+    sse_encode_bool(self.shareAudio, serializer);
+  }
+
+  @protected
+  void sse_encode_share_status(ShareStatus self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_box_autoadd_u_32(self.width, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.height, serializer);
     sse_encode_u_32(self.fps, serializer);
     sse_encode_bool(self.shareAudio, serializer);
   }
