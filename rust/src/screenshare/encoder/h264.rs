@@ -49,6 +49,33 @@ pub(crate) fn is_idr(payload: &[u8]) -> bool {
     nal_units(payload).iter().any(|&(kind, _)| kind == NAL_IDR)
 }
 
+/// The access unit with every start code in the four-byte form, or `None`
+/// when it already is.
+///
+/// LiveKit's frame encryption leaves the bytes up to the first slice readable
+/// and authenticates them. A receiver rebuilds a frame from its RTP packets
+/// with four-byte start codes throughout, so an encoder that wrote a
+/// three-byte one there (Intel's does, before every slice) has its frames
+/// authenticated against bytes the receiver never sees: every frame fails
+/// to decrypt and no viewer gets a picture (found Oct 4 2026).
+pub(crate) fn with_long_start_codes(payload: &[u8]) -> Option<Vec<u8>> {
+    let codes = start_codes(payload);
+    if codes.iter().all(|&(_, len)| len == 4) {
+        return None;
+    }
+    let mut whole = Vec::with_capacity(payload.len() + codes.len());
+    for (_, unit) in nal_units(payload) {
+        let code = if unit.starts_with(&[0, 0, 0, 1]) {
+            4
+        } else {
+            3
+        };
+        whole.extend_from_slice(&[0, 0, 0, 1]);
+        whole.extend_from_slice(&unit[code..]);
+    }
+    Some(whole)
+}
+
 /// The last SPS and PPS the encoder emitted.
 #[derive(Default)]
 pub(crate) struct ParameterSets {
@@ -144,6 +171,20 @@ mod tests {
     fn an_idr_before_any_parameter_sets_is_left_alone() {
         let mut sets = ParameterSets::default();
         assert_eq!(sets.complete(IDR.to_vec()), IDR);
+    }
+
+    #[test]
+    fn short_start_codes_are_lengthened() {
+        let payload = join(&[SPS, PPS, IDR]);
+        let long = with_long_start_codes(&payload).expect("rewritten");
+        assert_eq!(long, join(&[SPS, PPS, &[0], IDR]));
+        assert!(start_codes(&long).iter().all(|&(_, len)| len == 4));
+    }
+
+    #[test]
+    fn long_start_codes_are_left_alone() {
+        assert_eq!(with_long_start_codes(&join(&[SPS, PPS, DELTA])), None);
+        assert_eq!(with_long_start_codes(&[]), None);
     }
 
     #[test]

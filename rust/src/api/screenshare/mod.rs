@@ -17,7 +17,9 @@ use crate::sharing::audio;
 
 use crate::frb_generated::StreamSink;
 use std::sync::Mutex;
-use types::{AudioSource, CaptureSource, ScreenShareConfig, ScreenshareEvent, ShareQuality};
+use types::{
+    AudioSource, CaptureSource, ScreenShareConfig, ScreenshareEvent, ShareQuality, VideoCodec,
+};
 
 // Set once when Flutter subscribes; replaced if it subscribes again.
 static EVENT_SINK: Mutex<Option<StreamSink<ScreenshareEvent>>> = Mutex::new(None);
@@ -111,6 +113,23 @@ pub fn get_capture_source_thumbnail(
     {
         let _ = (capture_full_screen, source_index);
         None
+    }
+}
+
+/// The codecs this computer's GPU encodes a share in, through Rift's own
+/// encoder (`GPU_ENCODING.md`). Windows only, where H264 is offered only if
+/// this says so: there it is never encoded on the CPU. Empty elsewhere, where
+/// LiveKit chooses its own encoders.
+pub async fn gpu_video_codecs() -> Vec<VideoCodec> {
+    #[cfg(desktop)]
+    {
+        tokio::task::spawn_blocking(crate::screenshare::encoder::gpu_codecs)
+            .await
+            .unwrap_or_default()
+    }
+    #[cfg(not(desktop))]
+    {
+        Vec::new()
     }
 }
 

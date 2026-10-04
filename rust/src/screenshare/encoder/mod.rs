@@ -9,8 +9,43 @@ pub(crate) mod h264;
 #[cfg(target_os = "windows")]
 mod media_foundation;
 #[cfg(target_os = "windows")]
-#[allow(unused_imports)]
-pub(crate) use media_foundation::{hardware_h264_encoders, GpuEncoder};
+pub(crate) use media_foundation::GpuEncoder;
+
+use crate::api::screenshare::types::VideoCodec;
+
+/// The codecs Rift's own encoder can make on this computer's GPU. Opening an
+/// encoder to find out takes a moment, and the GPUs do not change under a
+/// running app, so the first answer is kept.
+pub(crate) fn gpu_codecs() -> Vec<VideoCodec> {
+    #[cfg(target_os = "windows")]
+    {
+        static CODECS: std::sync::OnceLock<Vec<VideoCodec>> = std::sync::OnceLock::new();
+        CODECS
+            .get_or_init(|| {
+                if media_foundation::opens_h264() {
+                    vec![VideoCodec::H264]
+                } else {
+                    Vec::new()
+                }
+            })
+            .clone()
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        Vec::new()
+    }
+}
+
+/// Ways for a test to make the GPU misbehave: be absent, or stop working
+/// after so many pictures. Process-wide, like the share itself.
+#[cfg(test)]
+pub(crate) mod test_hooks {
+    use std::sync::atomic::{AtomicBool, AtomicU32};
+
+    pub(crate) static NO_GPU: AtomicBool = AtomicBool::new(false);
+    /// 0 is never.
+    pub(crate) static FAIL_AFTER: AtomicU32 = AtomicU32::new(0);
+}
 
 /// The lowest bitrate the encoder is held to, whatever the connection asks
 /// for: below this a 1080p picture is mush, and WebRTC's estimate climbs back
@@ -25,6 +60,8 @@ pub(crate) struct EncoderSettings {
     pub fps: u32,
     /// The share's own cap; WebRTC's requests move the rate below it.
     pub max_bitrate_bps: u32,
+    /// Where the rate starts until WebRTC first asks for one.
+    pub start_bitrate_bps: u32,
 }
 
 /// A picture to encode: `width * height` bytes of Y, then the interleaved U

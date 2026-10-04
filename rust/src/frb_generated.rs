@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 433233262;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 2050841947;
 
 // Section: executor
 
@@ -185,6 +185,42 @@ fn wire__crate__api__screenshare__get_capture_source_thumbnail_impl(
                         ))?;
                     std::result::Result::Ok(output_ok)
                 })())
+            }
+        },
+    )
+}
+fn wire__crate__api__screenshare__gpu_video_codecs_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "gpu_video_codecs",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, ()>(
+                    (move || async move {
+                        let output_ok =
+                            Ok::<_, ()>(crate::api::screenshare::gpu_video_codecs().await)?;
+                        std::result::Result::Ok(output_ok)
+                    })()
+                    .await,
+                )
             }
         },
     )
@@ -1137,6 +1173,20 @@ impl SseDecode for Vec<u8> {
     }
 }
 
+impl SseDecode for Vec<crate::api::screenshare::types::VideoCodec> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::screenshare::types::VideoCodec>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Option<String> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1215,6 +1265,7 @@ impl SseDecode for crate::api::screenshare::types::ScreenshareEvent {
         let mut inner = <i32>::sse_decode(deserializer);
         return match inner {
             0 => crate::api::screenshare::types::ScreenshareEvent::SourceClosed,
+            1 => crate::api::screenshare::types::ScreenshareEvent::EncoderFellBack,
             _ => unreachable!("Invalid variant for ScreenshareEvent: {}", inner),
         };
     }
@@ -1354,66 +1405,69 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        5 => wire__crate__api__init_app_impl(port, ptr, rust_vec_len, data_len),
-        6 => wire__crate__api__screenshare__list_audio_sources_impl(
+        5 => {
+            wire__crate__api__screenshare__gpu_video_codecs_impl(port, ptr, rust_vec_len, data_len)
+        }
+        6 => wire__crate__api__init_app_impl(port, ptr, rust_vec_len, data_len),
+        7 => wire__crate__api__screenshare__list_audio_sources_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        7 => wire__crate__api__screenshare__list_capture_sources_impl(
+        8 => wire__crate__api__screenshare__list_capture_sources_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        8 => wire__crate__api__audio_endpoints__list_input_endpoints_impl(
+        9 => wire__crate__api__audio_endpoints__list_input_endpoints_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        9 => wire__crate__api__audio_endpoints__list_output_endpoints_impl(
+        10 => wire__crate__api__audio_endpoints__list_output_endpoints_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        10 => {
+        11 => {
             wire__crate__api__noise_filter__load_deep_filter_impl(port, ptr, rust_vec_len, data_len)
         }
-        11 => wire__crate__api__mic_test__mic_test_samples_impl(port, ptr, rust_vec_len, data_len),
-        12 => wire__crate__api__cue__play_cue_impl(port, ptr, rust_vec_len, data_len),
-        13 => wire__crate__api__toast__remove_windows_toast_impl(port, ptr, rust_vec_len, data_len),
-        14 => wire__crate__api__screenshare__screenshare_event_stream_impl(
+        12 => wire__crate__api__mic_test__mic_test_samples_impl(port, ptr, rust_vec_len, data_len),
+        13 => wire__crate__api__cue__play_cue_impl(port, ptr, rust_vec_len, data_len),
+        14 => wire__crate__api__toast__remove_windows_toast_impl(port, ptr, rust_vec_len, data_len),
+        15 => wire__crate__api__screenshare__screenshare_event_stream_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        15 => wire__crate__api__cue__set_cue_volume_impl(port, ptr, rust_vec_len, data_len),
-        16 => wire__crate__api__toast__show_windows_toast_impl(port, ptr, rust_vec_len, data_len),
-        17 => wire__crate__api__soundshare__sound_share_event_stream_impl(
+        16 => wire__crate__api__cue__set_cue_volume_impl(port, ptr, rust_vec_len, data_len),
+        17 => wire__crate__api__toast__show_windows_toast_impl(port, ptr, rust_vec_len, data_len),
+        18 => wire__crate__api__soundshare__sound_share_event_stream_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        18 => {
+        19 => {
             wire__crate__api__screenshare__start_screenshare_impl(port, ptr, rust_vec_len, data_len)
         }
-        19 => {
+        20 => {
             wire__crate__api__soundshare__start_sound_share_impl(port, ptr, rust_vec_len, data_len)
         }
-        20 => wire__crate__api__cue__stop_cue_impl(port, ptr, rust_vec_len, data_len),
-        21 => wire__crate__api__mic_test__stop_mic_test_impl(port, ptr, rust_vec_len, data_len),
-        22 => {
+        21 => wire__crate__api__cue__stop_cue_impl(port, ptr, rust_vec_len, data_len),
+        22 => wire__crate__api__mic_test__stop_mic_test_impl(port, ptr, rust_vec_len, data_len),
+        23 => {
             wire__crate__api__screenshare__stop_screenshare_impl(port, ptr, rust_vec_len, data_len)
         }
-        23 => {
+        24 => {
             wire__crate__api__soundshare__stop_sound_share_impl(port, ptr, rust_vec_len, data_len)
         }
-        24 => wire__crate__api__screenshare__update_screenshare_impl(
+        25 => wire__crate__api__screenshare__update_screenshare_impl(
             port,
             ptr,
             rust_vec_len,
@@ -1590,6 +1644,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::screenshare::types::Screensha
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
             Self::SourceClosed => 0.into_dart(),
+            Self::EncoderFellBack => 1.into_dart(),
             _ => unreachable!(),
         }
     }
@@ -1899,6 +1954,16 @@ impl SseEncode for Vec<u8> {
     }
 }
 
+impl SseEncode for Vec<crate::api::screenshare::types::VideoCodec> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::screenshare::types::VideoCodec>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<String> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -1956,6 +2021,7 @@ impl SseEncode for crate::api::screenshare::types::ScreenshareEvent {
         <i32>::sse_encode(
             match self {
                 crate::api::screenshare::types::ScreenshareEvent::SourceClosed => 0,
+                crate::api::screenshare::types::ScreenshareEvent::EncoderFellBack => 1,
                 _ => {
                     unimplemented!("");
                 }

@@ -1,7 +1,9 @@
 //! The processing thread: ARGB to I420, scale to the target size, hand to
 //! LiveKit. Kept off the capture thread so a slow conversion delays frames
 //! rather than the capture clock.
-use super::capture::VideoSlot;
+use super::capture::{Feed, VideoSlot};
+#[cfg(target_os = "windows")]
+use super::gpu_feed::Picture;
 use super::resolution::Size;
 use livekit::webrtc::desktop_capturer::DesktopFrame;
 use livekit::webrtc::native::yuv_helper;
@@ -41,9 +43,26 @@ fn run(frame_rx: Receiver<SendableFrame>, source_slot: VideoSlot) {
         };
         // Asked on every frame, because the session swaps in a new source
         // when the size is changed mid-share. One uncontended lock a frame.
-        let Some((source, target)) = source_slot.feed(size) else {
+        let Some((feed, target)) = source_slot.feed(size) else {
             continue;
         };
+
+        // The GPU encoder takes NV12, straight from the capture when it is
+        // already the target size.
+        #[cfg(target_os = "windows")]
+        if let Feed::Gpu(gpu) = &feed {
+            if target == size {
+                gpu.send(
+                    Picture::Argb {
+                        data: frame.data(),
+                        stride: frame.stride(),
+                    },
+                    target,
+                    now_us(),
+                );
+                continue;
+            }
+        }
 
         if native.buffer.width() != size.width || native.buffer.height() != size.height {
             native.buffer = I420Buffer::new(size.width, size.height);
@@ -66,16 +85,35 @@ fn run(frame_rx: Receiver<SendableFrame>, source_slot: VideoSlot) {
         // `scale` allocates a fresh buffer every call (about 3 MB at 1080p)
         // and libwebrtc exposes no scale-into variant, so skip it whenever
         // the capture is already the target size.
-        if target == size {
-            source.capture_frame(&native);
-        } else {
-            let scaled = VideoFrame::new(
-                VideoRotation::VideoRotation0,
-                native
+        match feed {
+            Feed::Raw(source) if target == size => {
+                source.capture_frame(&native);
+            }
+            Feed::Raw(source) => {
+                let scaled = VideoFrame::new(
+                    VideoRotation::VideoRotation0,
+                    native
+                        .buffer
+                        .scale(target.width as i32, target.height as i32),
+                );
+                source.capture_frame(&scaled);
+            }
+            #[cfg(target_os = "windows")]
+            Feed::Gpu(gpu) => {
+                let scaled = native
                     .buffer
-                    .scale(target.width as i32, target.height as i32),
-            );
-            source.capture_frame(&scaled);
+                    .scale(target.width as i32, target.height as i32);
+                gpu.send(Picture::I420(&scaled), target, now_us());
+            }
         }
     }
+}
+
+/// The capture time an encoded frame carries: the wall clock, as libwebrtc
+/// stamps a raw frame that comes without one.
+#[cfg(target_os = "windows")]
+fn now_us() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |since| since.as_micros() as i64)
 }

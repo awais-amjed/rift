@@ -1,8 +1,12 @@
 //! One screen share at a time: bringing it up, and taking it down again.
-use super::capture::{self, Capture, CaptureRequest, Progress, Started, VideoSlot};
+use super::capture::{self, Capture, CaptureRequest, Feed, Progress, Started, VideoSlot};
+#[cfg(target_os = "windows")]
+use super::gpu_feed::GpuFeed;
 use super::resolution::{target_size, Size};
 use super::track::{publish_video_track, TrackSettings};
 use crate::api::screenshare::types::{self, ScreenShareConfig, ShareQuality};
+#[cfg(target_os = "windows")]
+use crate::api::screenshare::types::{ScreenshareEvent, VideoCodec};
 use crate::sharing::audio::{self, AudioCapture, AudioCaptureHandle, AudioSelection};
 use crate::sharing::room;
 use livekit::prelude::*;
@@ -10,7 +14,7 @@ use livekit::webrtc::desktop_capturer::DesktopCaptureSourceType;
 use livekit::webrtc::prelude::VideoResolution;
 use livekit::webrtc::video_source::native::NativeVideoSource;
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
@@ -30,6 +34,13 @@ const PAUSED_ATTRIBUTE: &str = "paused";
 /// screen stands still, so it says less about the share than the setting.
 const SIZE_ATTRIBUTE: &str = "size";
 const FPS_ATTRIBUTE: &str = "fps";
+
+/// Where LiveKit starts WebRTC's estimate for a new track
+/// (`x-google-start-bitrate`). A new GPU encoder starts there too: one that
+/// started at the share's cap made frames WebRTC judged to overshoot, and
+/// dropped, before its first rate request had even arrived.
+#[cfg(target_os = "windows")]
+const START_BITRATE_BPS: u32 = 1_000_000;
 
 /// A screen share's sound keeps the plain name it has always had — nothing
 /// reads it, because the picture says what this is.
@@ -164,7 +175,7 @@ pub(crate) async fn update(quality: ShareQuality) -> Result<ShareQuality, String
 
     session.capture.set_fps(quality.fps);
     if session.video.set_picture(quality.resolution, quality.fps) {
-        if let Err(reason) = session.video.republish().await {
+        if let Err(reason) = session.video.change_picture().await {
             // The old picture is already gone, so the share has nothing to
             // show: end it, the way a closed window does.
             crate::api::screenshare::emit_screenshare_event(
@@ -264,11 +275,14 @@ async fn bring_up(room: &Room, config: &ScreenShareConfig) -> Result<Parts, Stri
         }
     };
 
-    let video = Arc::new(Video {
+    let video = Arc::new_cyclic(|me| Video {
+        me: me.clone(),
         participant: room.local_participant(),
         slot: capture.slot(),
         settings: std::sync::Mutex::new(TrackSettings::from(config)),
         track: Mutex::new(None),
+        #[cfg(target_os = "windows")]
+        gpu: std::sync::Mutex::new(None),
     });
     // A window still on the taskbar: the share is up — viewers see it, marked
     // paused — and the picture goes out once the user opens the window, which
@@ -307,6 +321,10 @@ async fn bring_up(room: &Room, config: &ScreenShareConfig) -> Result<Parts, Stri
 
 /// What publishing the picture needs, none of it borrowed from the start.
 struct Video {
+    /// For a GPU encoder failing mid-share, which republishes from another
+    /// thread and must not keep a stopped share alive to do it.
+    #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
+    me: Weak<Video>,
     participant: LocalParticipant,
     slot: VideoSlot,
     /// Changed by [`update`]; read each time the picture is published.
@@ -315,6 +333,18 @@ struct Video {
     /// publish, so a change made while a minimised window is opening waits
     /// for the first publish and then redoes it, rather than racing it.
     track: Mutex<Option<TrackSid>>,
+    /// The picture's encoder and the source it feeds, while the GPU makes it.
+    #[cfg(target_os = "windows")]
+    gpu: std::sync::Mutex<Option<GpuPicture>>,
+}
+
+/// A published picture the GPU encodes.
+#[cfg(target_os = "windows")]
+struct GpuPicture {
+    source: NativeVideoSource,
+    feed: Arc<GpuFeed>,
+    /// The rate it was published at, which WebRTC holds the track to.
+    published_fps: u32,
 }
 
 impl Video {
@@ -331,6 +361,90 @@ impl Video {
         settings.max_height = max_height;
         settings.fps = fps;
         changed
+    }
+
+    /// Put a new size or rate into effect.
+    async fn change_picture(&self) -> Result<(), String> {
+        #[cfg(target_os = "windows")]
+        if let Some(changed) = self.reopen_gpu().await {
+            return changed;
+        }
+        self.republish().await
+    }
+
+    /// Change a GPU picture on the track it already has: the encoder is
+    /// replaced, the track kept. A new track starts WebRTC's estimate over
+    /// from LiveKit's 1 Mbps, and against that WebRTC dropped the new
+    /// encoder's frames until no picture got through at all (3 runs of 3,
+    /// Oct 4 2026); on the old track the new encoder starts where the old one
+    /// had got to, and viewers do not even see the picture blink.
+    ///
+    /// `None` when that does not apply, and the picture is republished: not
+    /// on the GPU, not published yet, or faster than WebRTC holds the track
+    /// to. A new encoder that will not open hands the share to VP9.
+    #[cfg(target_os = "windows")]
+    async fn reopen_gpu(&self) -> Option<Result<(), String>> {
+        let opened = {
+            let track = self.track.lock().await;
+            track.as_ref()?;
+            let settings = *self.settings.lock().unwrap();
+            let (source, old, published_fps) = {
+                let gpu = self.gpu.lock().unwrap();
+                let picture = gpu.as_ref()?;
+                (
+                    picture.source.clone(),
+                    picture.feed.clone(),
+                    picture.published_fps,
+                )
+            };
+            if settings.fps > published_fps {
+                return None;
+            }
+            let native = self.slot.native()?;
+            let target = target_size(native, settings.max_height);
+            log::info!(
+                "screenshare: re-encoding at {}x{}, {} fps, on the same track",
+                target.width,
+                target.height,
+                settings.fps
+            );
+            // The old encoder closes before the new one opens.
+            let start = old.bitrate();
+            self.slot.detach();
+            *self.gpu.lock().unwrap() = None;
+            drop(old);
+            let fed = source.clone();
+            let max_bitrate = settings.bitrate.saturating_mul(1_000_000);
+            let on_failed = self.on_gpu_failed();
+            let fps = settings.fps;
+            let opened = tokio::task::spawn_blocking(move || {
+                GpuFeed::open(&fed, target, fps, max_bitrate, start, on_failed)
+            })
+            .await
+            .map_err(|e| format!("The GPU encoder did not open: {e}"))
+            .and_then(|opened| opened);
+            match opened {
+                Ok(feed) => {
+                    let feed = Arc::new(feed);
+                    self.slot.attach(Feed::Gpu(feed.clone()), target);
+                    *self.gpu.lock().unwrap() = Some(GpuPicture {
+                        source,
+                        feed,
+                        published_fps,
+                    });
+                    announce_picture(&self.participant, target, settings.fps);
+                    Ok(())
+                }
+                Err(reason) => Err(reason),
+            }
+        };
+        match opened {
+            Ok(()) => Some(Ok(())),
+            Err(reason) => {
+                self.fall_back(&reason);
+                Some(self.republish().await)
+            }
+        }
     }
 
     /// Publish the picture again at the current settings. A share still
@@ -350,6 +464,7 @@ impl Video {
             .slot
             .native()
             .ok_or("No frame has been captured to size the picture by")?;
+        self.slot.detach();
         if let Err(e) = self.participant.unpublish_track(&old).await {
             log::warn!("screenshare: unpublishing the old picture: {e:?}");
         }
@@ -361,7 +476,8 @@ impl Video {
         track: &mut Option<TrackSid>,
         native: Size,
     ) -> Result<(), String> {
-        let settings = *self.settings.lock().unwrap();
+        #[allow(unused_mut)]
+        let mut settings = *self.settings.lock().unwrap();
         let target = target_size(native, settings.max_height);
         log::info!(
             "screenshare: capturing {}x{}, publishing {}x{}",
@@ -370,6 +486,21 @@ impl Video {
             target.width,
             target.height
         );
+
+        // H264 on Windows comes from the GPU or not at all (GPU_ENCODING.md,
+        // decision 1): without one the share goes out as VP9.
+        #[cfg(target_os = "windows")]
+        if settings.codec == VideoCodec::H264 {
+            match self.publish_from_gpu(target, &settings).await {
+                Ok(sid) => {
+                    *track = Some(sid);
+                    announce_picture(&self.participant, target, settings.fps);
+                    return Ok(());
+                }
+                Err(reason) => settings = self.fall_back(&reason),
+            }
+        }
+
         let source = NativeVideoSource::new(
             VideoResolution {
                 width: target.width,
@@ -377,10 +508,77 @@ impl Video {
             },
             false,
         );
-        self.slot.attach(source.clone(), target);
-        *track = Some(publish_video_track(&self.participant, source, &settings).await?);
+        #[cfg(target_os = "windows")]
+        {
+            *self.gpu.lock().unwrap() = None;
+        }
+        self.slot.attach(Feed::Raw(source.clone()), target);
+        *track = Some(publish_video_track(&self.participant, source, &settings, false).await?);
         announce_picture(&self.participant, target, settings.fps);
         Ok(())
+    }
+
+    /// Open a hardware encoder for the picture and publish what it makes.
+    #[cfg(target_os = "windows")]
+    async fn publish_from_gpu(
+        &self,
+        target: Size,
+        settings: &TrackSettings,
+    ) -> Result<TrackSid, String> {
+        let source = NativeVideoSource::new_encoded(VideoResolution {
+            width: target.width,
+            height: target.height,
+        });
+        let fed = source.clone();
+        let fps = settings.fps;
+        let max_bitrate = settings.bitrate.saturating_mul(1_000_000);
+        let on_failed = self.on_gpu_failed();
+        let feed = tokio::task::spawn_blocking(move || {
+            GpuFeed::open(&fed, target, fps, max_bitrate, START_BITRATE_BPS, on_failed)
+        })
+        .await
+        .map_err(|e| format!("The GPU encoder did not open: {e}"))??;
+        log::info!("screenshare: encoding on {}", feed.name());
+        let feed = Arc::new(feed);
+        self.slot.attach(Feed::Gpu(feed.clone()), target);
+        let sid = publish_video_track(&self.participant, source.clone(), settings, true).await?;
+        *self.gpu.lock().unwrap() = Some(GpuPicture {
+            source,
+            feed,
+            published_fps: settings.fps,
+        });
+        Ok(sid)
+    }
+
+    /// Give up on the GPU for the rest of this share, and say so.
+    #[cfg(target_os = "windows")]
+    fn fall_back(&self, reason: &str) -> TrackSettings {
+        log::warn!("screenshare: {reason}; sharing as VP9 instead");
+        let mut settings = self.settings.lock().unwrap();
+        settings.codec = VideoCodec::VP9;
+        crate::api::screenshare::emit_screenshare_event(ScreenshareEvent::EncoderFellBack);
+        *settings
+    }
+
+    /// What the processing thread calls when the encoder stops working
+    /// mid-share: publish again as VP9, so the picture never stays black.
+    #[cfg(target_os = "windows")]
+    fn on_gpu_failed(&self) -> Box<dyn Fn() + Send + Sync> {
+        let me = self.me.clone();
+        let runtime = tokio::runtime::Handle::current();
+        Box::new(move || {
+            let me = me.clone();
+            runtime.spawn(async move {
+                let Some(video) = me.upgrade() else {
+                    return;
+                };
+                video.fall_back("The GPU encoder stopped working");
+                if let Err(reason) = video.republish().await {
+                    log::warn!("screenshare: {reason}");
+                    crate::api::screenshare::emit_screenshare_event(ScreenshareEvent::SourceClosed);
+                }
+            });
+        })
     }
 }
 

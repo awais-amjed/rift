@@ -96,6 +96,9 @@ pub enum ScreenshareEvent {
     /// The captured window was closed, so capture stopped at the source.
     /// Flutter should tear the session down and update its UI.
     SourceClosed,
+    /// H264 was asked for and the GPU could not encode it, at the start or
+    /// part way through, so the share went out as VP9 instead.
+    EncoderFellBack,
 }
 
 const FPS_LIMIT: u32 = 240;

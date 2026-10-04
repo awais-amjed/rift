@@ -6,10 +6,10 @@
 //!
 //! ```text
 //! LIVEKIT_URL=ws://127.0.0.1:7880 LIVEKIT_API_KEY=devkey LIVEKIT_API_SECRET=secret \
-//! BENCH_ROOM=bench-1 BENCH_SECS=30 cargo test live_bench_view -- --ignored --nocapture
+//! BENCH_ROOM=bench-1 BENCH_SECS=30 cargo test bench_view -- --ignored --nocapture
 //!
 //! … BENCH_CODEC=vp9 BENCH_HEIGHT=1080 BENCH_FPS=60 BENCH_MBPS=10 \
-//!   cargo test live_bench_share -- --ignored --nocapture
+//!   cargo test bench_share -- --ignored --nocapture
 //! ```
 //!
 //! The share captures the first screen, so put something moving on it first.
@@ -108,7 +108,7 @@ fn inbound(stats: &[RtcStats]) -> Option<&livekit::webrtc::stats::InboundRtpStat
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "needs a LiveKit server, a display and a viewer; see the module doc"]
-async fn live_bench_share() {
+async fn bench_share() {
     let _ = env_logger::builder()
         .is_test(true)
         .filter_level(log::LevelFilter::Info)
@@ -181,7 +181,7 @@ async fn live_bench_share() {
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "needs a LiveKit server and a share to watch; see the module doc"]
-async fn live_bench_view() {
+async fn bench_view() {
     let _ = env_logger::builder()
         .is_test(true)
         .filter_level(log::LevelFilter::Info)
@@ -204,11 +204,39 @@ async fn live_bench_view() {
     .await
     .expect("a share to watch");
 
+    // Say what the room says about encryption while the picture comes in:
+    // a frame that cannot be decrypted is never decoded, and nothing else
+    // tells the two apart.
+    let watch = tokio::spawn(async move {
+        while let Some(event) = events.recv().await {
+            if let RoomEvent::E2eeStateChanged { participant, state } = event {
+                log::info!(
+                    "bench view: encryption {state:?} for {}",
+                    participant.identity()
+                );
+            }
+        }
+    });
     let mut stream = NativeVideoStream::new(track.rtc_track());
-    let first = timeout(Duration::from_secs(20), stream.next())
-        .await
-        .expect("a first frame");
-    assert!(first.is_some());
+    let first = timeout(Duration::from_secs(20), stream.next()).await;
+    if !matches!(first, Ok(Some(_))) {
+        let stats = track.get_stats().await.expect("stats");
+        if let Some(i) = inbound(&stats) {
+            log::info!(
+                "bench view: no picture: decoder {:?}, {} frames received, {} decoded,                  {} keyframes decoded, {} dropped, {} PLIs, {} packets, {} bytes",
+                i.inbound.decoder_implementation,
+                i.inbound.frames_received,
+                i.inbound.frames_decoded,
+                i.inbound.key_frames_decoded,
+                i.inbound.frames_dropped,
+                i.inbound.pli_count,
+                i.received.packets_received,
+                i.inbound.bytes_received,
+            );
+        }
+        panic!("no picture in 20 s");
+    }
+    watch.abort();
     log::info!(
         "bench view: first frame {:.0} ms after joining",
         joined.elapsed().as_secs_f64() * 1000.0

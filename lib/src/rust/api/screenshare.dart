@@ -55,6 +55,13 @@ Future<Uint8List?> getCaptureSourceThumbnail({
   sourceIndex: sourceIndex,
 );
 
+/// The codecs this computer's GPU encodes a share in, through Rift's own
+/// encoder (`GPU_ENCODING.md`). Windows only, where H264 is offered only if
+/// this says so: there it is never encoded on the CPU. Empty elsewhere, where
+/// LiveKit chooses its own encoders.
+Future<List<VideoCodec>> gpuVideoCodecs() =>
+    RustLib.instance.api.crateApiScreenshareGpuVideoCodecs();
+
 /// Applications currently playing audio, for Linux window-capture audio.
 /// Empty elsewhere: Windows chooses by the window's process id instead.
 Future<List<AudioSource>> listAudioSources() =>

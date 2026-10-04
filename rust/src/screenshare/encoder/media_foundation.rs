@@ -8,7 +8,7 @@
 use super::h264::{self, ParameterSets};
 use super::{clamp_bitrate, Encoded, EncodedSink, EncoderSettings, Nv12Frame};
 use std::mem::ManuallyDrop;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, SyncSender, TrySendError};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
@@ -132,7 +132,32 @@ fn info(activate: &IMFActivate) -> EncoderInfo {
     }
 }
 
+/// Whether one of the hardware H264 encoders will actually open here. Listing
+/// is not enough: on a laptop with two GPUs, NVIDIA's is listed but only
+/// activates in a process Windows runs on the NVIDIA one.
+pub(crate) fn opens_h264() -> bool {
+    let _mf = match MediaFoundation::start() {
+        Ok(mf) => mf,
+        Err(reason) => {
+            log::warn!("encoder: {reason}");
+            return false;
+        }
+    };
+    let Ok(activates) = h264_activates() else {
+        return false;
+    };
+    activates.iter().any(|activate| unsafe {
+        let opened = activate.ActivateObject::<IMFTransform>().is_ok();
+        let _ = activate.ShutdownObject();
+        if opened {
+            log::info!("encoder: {} encodes H264 here", info(activate).name);
+        }
+        opened
+    })
+}
+
 /// The hardware H264 encoders on this machine, best first.
+#[cfg(test)]
 pub(crate) fn hardware_h264_encoders() -> Vec<EncoderInfo> {
     let _mf = match MediaFoundation::start() {
         Ok(mf) => mf,
@@ -157,6 +182,8 @@ pub(crate) struct GpuEncoder {
     /// rather than allocated a frame at a time.
     spare: Arc<Mutex<Vec<Vec<u8>>>>,
     failed: Arc<AtomicBool>,
+    /// The rate the encoder is at, for an encoder opened to take over.
+    bitrate: Arc<AtomicU32>,
     handle: Option<JoinHandle<()>>,
     pub name: String,
 }
@@ -174,8 +201,10 @@ impl GpuEncoder {
         let (opened_tx, opened_rx) = mpsc::channel();
         let spare = Arc::new(Mutex::new(Vec::new()));
         let failed = Arc::new(AtomicBool::new(false));
+        let bitrate = Arc::new(AtomicU32::new(settings.start_bitrate_bps));
         let thread_spare = spare.clone();
         let thread_failed = failed.clone();
+        let thread_bitrate = bitrate.clone();
         let handle = thread::Builder::new()
             .name("gpu-encoder".to_string())
             .spawn(move || {
@@ -187,6 +216,7 @@ impl GpuEncoder {
                     opened_tx,
                     thread_spare,
                     thread_failed,
+                    thread_bitrate,
                 )
             })
             .map_err(|e| format!("no encoder thread: {e}"))?;
@@ -195,6 +225,7 @@ impl GpuEncoder {
                 frames: Some(frames_tx),
                 spare,
                 failed,
+                bitrate,
                 handle: Some(handle),
                 name,
             }),
@@ -234,6 +265,11 @@ impl GpuEncoder {
     pub(crate) fn failed(&self) -> bool {
         self.failed.load(Ordering::Relaxed)
     }
+
+    /// The rate WebRTC last asked for, inside the cap.
+    pub(crate) fn bitrate(&self) -> u32 {
+        self.bitrate.load(Ordering::Relaxed)
+    }
 }
 
 impl Drop for GpuEncoder {
@@ -256,6 +292,7 @@ fn encoder_thread(
     opened: mpsc::Sender<Result<String, String>>,
     spare: Arc<Mutex<Vec<Vec<u8>>>>,
     failed: Arc<AtomicBool>,
+    bitrate: Arc<AtomicU32>,
 ) {
     let _mf = match MediaFoundation::start() {
         Ok(mf) => mf,
@@ -272,6 +309,7 @@ fn encoder_thread(
         }
     };
     let _ = opened.send(Ok(transform.info.name.clone()));
+    transform.shared_bitrate = Some(bitrate);
     if let Err(e) = transform.run(&mut *sink, &frames, &spare) {
         log::warn!("encoder: {} stopped working: {e}", transform.info.name);
         failed.store(true, Ordering::Relaxed);
@@ -280,6 +318,10 @@ fn encoder_thread(
 }
 
 fn open_transform(settings: EncoderSettings, only: Option<usize>) -> Result<Transform, String> {
+    #[cfg(test)]
+    if super::test_hooks::NO_GPU.load(Ordering::Relaxed) {
+        return Err("This computer has no hardware H264 encoder (a test said so)".to_string());
+    }
     let activates = h264_activates()?;
     if activates.is_empty() {
         return Err("This computer has no hardware H264 encoder".to_string());
@@ -337,6 +379,9 @@ struct Transform {
     provides_samples: bool,
     output_size: u32,
     bitrate: u32,
+    logged_bitrate: u32,
+    /// Where [`GpuEncoder::bitrate`] reads the rate from.
+    shared_bitrate: Option<Arc<AtomicU32>>,
     parameter_sets: ParameterSets,
 }
 
@@ -386,6 +431,15 @@ impl Transform {
                     log::info!("encoder: {} would not take {what}: {e}", info.name);
                 }
             };
+            // Constant bitrate, although a still screen then costs the whole
+            // rate (Intel: 7.7 Mbps of 8, against 1.2 in peak-constrained
+            // VBR, Oct 4 2026). WebRTC's frame dropper also acts on frames
+            // that come pre-encoded, and drops a delta frame whenever the
+            // sizes run ahead of the target, which breaks the picture until
+            // the next keyframe. VBR's sizes swing — tiny while still, large
+            // the moment anything moves — and set it off over and over; CBR's
+            // even sizes rarely do (2 frames of 128 at the start of a share,
+            // against 10 to 17 of about 100).
             optional(
                 &CODECAPI_AVEncCommonRateControlMode,
                 VARIANT::from(eAVEncCommonRateControlMode_CBR.0 as u32),
@@ -396,24 +450,29 @@ impl Transform {
                 VARIANT::from(true),
                 "low latency",
             );
-            // WebRTC cannot carry B-frames.
-            step(
-                "turning B-frames off",
-                set_value(
-                    &codec,
-                    &CODECAPI_AVEncMPVDefaultBPictureCount,
-                    VARIANT::from(0u32),
-                ),
-            )?;
+            // WebRTC cannot carry B-frames. The baseline profile asked for
+            // below has none either, so an encoder that will not take this
+            // (NVIDIA's, Oct 4 2026) is still safe.
+            optional(
+                &CODECAPI_AVEncMPVDefaultBPictureCount,
+                VARIANT::from(0u32),
+                "no B-frames",
+            );
             optional(
                 &CODECAPI_AVEncMPVGOPSize,
                 VARIANT::from(settings.fps * GOP_SECONDS),
                 "a keyframe interval",
             );
+            let start = settings.start_bitrate_bps.min(settings.max_bitrate_bps);
             optional(
                 &CODECAPI_AVEncCommonMeanBitRate,
-                VARIANT::from(settings.max_bitrate_bps),
+                VARIANT::from(start),
                 "a bitrate",
+            );
+            optional(
+                &CODECAPI_AVEncCommonMaxBitRate,
+                VARIANT::from(start),
+                "a peak bitrate",
             );
 
             let profile = step("the H264 output", set_output_type(&transform, settings))?;
@@ -454,7 +513,9 @@ impl Transform {
                 profile,
                 provides_samples,
                 output_size,
-                bitrate: settings.max_bitrate_bps,
+                bitrate: start,
+                logged_bitrate: start,
+                shared_bitrate: None,
                 parameter_sets: ParameterSets::default(),
             })
         }
@@ -470,6 +531,8 @@ impl Transform {
     ) -> windows::core::Result<()> {
         let mut wanted = 0u32;
         let mut pending: Option<Nv12Frame> = None;
+        #[cfg(test)]
+        let mut fed = 0u32;
         loop {
             loop {
                 let event = match unsafe { self.events.GetEvent(MF_EVENT_FLAG_NO_WAIT) } {
@@ -482,10 +545,31 @@ impl Transform {
                     wanted += 1;
                 } else if kind == METransformHaveOutput.0 as u32 {
                     self.take_output(sink)?;
+                } else if kind == MEError.0 as u32 {
+                    // An encoder that reports an error asks for nothing more,
+                    // so waiting on it would be a frozen picture.
+                    let status = unsafe { event.GetStatus()? };
+                    return Err(windows::core::Error::from_hresult(status));
+                } else {
+                    log::info!("encoder: {} sent event {kind}", self.info.name);
+                }
+            }
+            #[cfg(test)]
+            {
+                let fail_after = super::test_hooks::FAIL_AFTER.load(Ordering::Relaxed);
+                if fail_after > 0 && fed >= fail_after {
+                    return Err(windows::core::Error::new(
+                        windows::Win32::Foundation::E_FAIL,
+                        "a test made it fail",
+                    ));
                 }
             }
             if wanted > 0 {
                 if let Some(frame) = pending.take() {
+                    #[cfg(test)]
+                    {
+                        fed += 1;
+                    }
                     self.apply_requests(sink);
                     let result = self.feed(&frame);
                     spare.lock().unwrap().push(frame.data);
@@ -520,12 +604,31 @@ impl Transform {
         if let Some(requested) = sink.bitrate_wanted() {
             let bitrate = clamp_bitrate(requested, self.settings.max_bitrate_bps);
             if bitrate != self.bitrate {
+                // The peak first: some encoders refuse a mean above it.
+                let _ = set_value(
+                    &self.codec,
+                    &CODECAPI_AVEncCommonMaxBitRate,
+                    VARIANT::from(bitrate),
+                );
                 match set_value(
                     &self.codec,
                     &CODECAPI_AVEncCommonMeanBitRate,
                     VARIANT::from(bitrate),
                 ) {
-                    Ok(()) => self.bitrate = bitrate,
+                    Ok(()) => {
+                        // Logged when it moves by a fifth or more, which is
+                        // the estimate ramping or the link changing, not
+                        // WebRTC's fine adjustments.
+                        let logged = u64::from(self.logged_bitrate);
+                        if u64::from(bitrate).abs_diff(logged) * 5 >= logged {
+                            log::info!("encoder: {bitrate} bps for the connection");
+                            self.logged_bitrate = bitrate;
+                        }
+                        self.bitrate = bitrate;
+                        if let Some(shared) = &self.shared_bitrate {
+                            shared.store(bitrate, Ordering::Relaxed);
+                        }
+                    }
                     Err(e) => log::warn!("encoder: setting {bitrate} bps: {e}"),
                 }
             }
@@ -725,6 +828,7 @@ mod tests {
             height: 1080,
             fps: 60,
             max_bitrate_bps: 8_000_000,
+            start_bitrate_bps: 8_000_000,
         };
         let mut worked = 0;
         for (index, encoder) in encoders.iter().enumerate() {

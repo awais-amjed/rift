@@ -5,7 +5,7 @@
 //!
 //! ```text
 //! LIVEKIT_URL=ws://localhost:7880 LIVEKIT_API_KEY=… LIVEKIT_API_SECRET=… \
-//!   cargo test live_ -- --ignored --nocapture
+//!   cargo test live_ -- --ignored --nocapture --test-threads=1
 //! ```
 //!
 //! Under a Wayland session libwebrtc captures through the desktop portal,

@@ -1,6 +1,8 @@
 //! The capture thread: asks libwebrtc for a frame on every tick and hands
 //! each one to the processing thread in `frames.rs`.
 use super::frames::{self, SendableFrame};
+#[cfg(target_os = "windows")]
+use super::gpu_feed::GpuFeed;
 use super::resolution::Size;
 use super::sources;
 #[cfg(target_os = "windows")]
@@ -65,18 +67,36 @@ pub(crate) enum Command {
 #[derive(Clone, Default)]
 pub(crate) struct VideoSlot(Arc<Mutex<Slot>>);
 
+/// What the processing thread hands each picture to.
+#[derive(Clone)]
+pub(crate) enum Feed {
+    /// Raw pictures, which libwebrtc encodes.
+    Raw(NativeVideoSource),
+    /// Pictures for the GPU encoder, which feeds a pre-encoded source.
+    #[cfg(target_os = "windows")]
+    Gpu(Arc<GpuFeed>),
+}
+
 #[derive(Default)]
 struct Slot {
-    feed: Option<(NativeVideoSource, Size)>,
+    feed: Option<(Feed, Size)>,
     /// The size of the last frame captured, which a new source is sized for.
     native: Option<Size>,
 }
 
 impl VideoSlot {
-    /// Feed `source` from the next frame on, scaled to `target`. The two must
-    /// be set together: a source fed frames of another size is a black tile.
-    pub(crate) fn attach(&self, source: NativeVideoSource, target: Size) {
-        self.0.lock().unwrap().feed = Some((source, target));
+    /// Send pictures to `feed` from the next frame on, scaled to `target`.
+    /// The two must be set together: a source fed frames of another size is
+    /// a black tile.
+    pub(crate) fn attach(&self, feed: Feed, target: Size) {
+        self.0.lock().unwrap().feed = Some((feed, target));
+    }
+
+    /// Stop sending pictures anywhere until the next [`attach`](Self::attach),
+    /// which also lets go of a GPU encoder: the old one is closed before a new
+    /// one opens, rather than two running at once on the same GPU.
+    pub(crate) fn detach(&self) {
+        self.0.lock().unwrap().feed = None;
     }
 
     /// The size the source is capturing at, once a frame has arrived.
@@ -85,7 +105,7 @@ impl VideoSlot {
     }
 
     /// For the processing thread: note a frame's size, and say where it goes.
-    pub(super) fn feed(&self, native: Size) -> Option<(NativeVideoSource, Size)> {
+    pub(super) fn feed(&self, native: Size) -> Option<(Feed, Size)> {
         let mut slot = self.0.lock().unwrap();
         slot.native = Some(native);
         slot.feed.clone()
