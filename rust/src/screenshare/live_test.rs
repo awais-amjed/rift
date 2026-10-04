@@ -63,6 +63,7 @@ impl Server {
                 room: room.to_string(),
                 can_publish: true,
                 can_subscribe: subscribe,
+                can_update_own_metadata: true,
                 ..Default::default()
             })
             .to_jwt()
@@ -75,6 +76,9 @@ fn shared_key() -> Vec<u8> {
 }
 
 fn config(server: &Server, room: &str) -> ScreenShareConfig {
+    // A share reads its index back through the last list shown, as the
+    // dialog's pick is; show one, so index 0 is the first screen.
+    super::sources::list(true);
     ScreenShareConfig {
         livekit_url: server.url.clone(),
         livekit_token: server.token(room, "sharer", false),
