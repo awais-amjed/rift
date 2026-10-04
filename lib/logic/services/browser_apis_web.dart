@@ -64,3 +64,21 @@ void startBrowserFocusTracking(void Function(bool focused) onChanged) {
   web.window.addEventListener('blur', listener);
   report();
 }
+
+/// Puts the page in full screen, or takes it out.
+///
+/// The browser only allows it in answer to a click, which is the only place
+/// this is called from. It may still say no — an iframe without permission —
+/// and the stream then simply fills the tab.
+Future<void> setBrowserFullscreen(bool on) async {
+  try {
+    final active = web.document.fullscreenElement != null;
+    if (on && !active) {
+      await web.document.documentElement?.requestFullscreen().toDart;
+    } else if (!on && active) {
+      await web.document.exitFullscreen().toDart;
+    }
+  } catch (e) {
+    HelperMethods.printDebug('browser full screen unavailable – $e');
+  }
+}

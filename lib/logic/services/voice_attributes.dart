@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'video_stream_stats.dart';
+
 /// The state a client publishes about itself into a call.
 ///
 /// LiveKit tells the room about tracks, not about intentions. A muted
@@ -41,6 +43,31 @@ class VoiceAttributes {
 
   static bool isSharePaused(Map<String, String> attributes) =>
       attributes[sharePausedKey] == 'true';
+
+  /// Set by a desktop screen share's own connection each time it publishes its
+  /// picture: the size it sends (`1920x1080`) and the rate it was asked for.
+  /// Viewers show these rather than the rate they measure, which falls
+  /// whenever the shared screen stands still and so reads as the share
+  /// flickering between 30 and 60.
+  static const shareSizeKey = 'size';
+  static const shareFpsKey = 'fps';
+
+  /// What a share says it is sending, or null when it has not said (a phone's
+  /// share, or a client from before this was published).
+  static VideoStreamStats? sentPictureOf(Map<String, String> attributes) {
+    final size = attributes[shareSizeKey]?.split('x');
+    if (size == null || size.length != 2) return null;
+    final width = int.tryParse(size[0]);
+    final height = int.tryParse(size[1]);
+    if (width == null || height == null || width <= 0 || height <= 0) {
+      return null;
+    }
+    return VideoStreamStats(
+      width: width,
+      height: height,
+      fps: double.tryParse(attributes[shareFpsKey] ?? ''),
+    );
+  }
 
   /// The streams [attributes] says are being watched; empty for anything
   /// unreadable.

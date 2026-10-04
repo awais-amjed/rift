@@ -38,5 +38,12 @@ target_link_libraries(${BINARY_NAME} PRIVATE flutter flutter_wrapper_app)
 target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
+# The noise models on the microphone (native/noise_filter). Dart finds its
+# functions among the executable's exports.
+add_subdirectory("${CMAKE_SOURCE_DIR}/../native/noise_filter"
+  "${CMAKE_BINARY_DIR}/noise_filter")
+target_link_libraries(${BINARY_NAME} PRIVATE rift_noise_filter)
+target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}/../native")
+
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)

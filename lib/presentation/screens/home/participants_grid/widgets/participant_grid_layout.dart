@@ -159,9 +159,9 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
     final watching = context.select<LiveKitCubit, Set<String>>(
       (cubit) => cubit.state.subscribedScreenshares,
     );
-    // Watching can end away from the tile — the call bar's Stop watching —
-    // and the stream it had opened full size goes back with it, as it does
-    // when the tile's own button is pressed.
+    // Watching ends away from the tile — the call bar's Stop watching, or
+    // the stream's own menu — and the stream it had opened full size goes
+    // back with it.
     final stopped = _watchingBefore.difference(watching);
     _watchingBefore = watching;
     if (stopped.any((identity) => _expandedKey == '$identity#share')) {
@@ -189,8 +189,6 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
           isExpanded: true,
           topInset: widget.focusTopInset,
           bottomInset: widget.controlsInset,
-          // Nothing left to focus on once the share is gone from this screen.
-          onWatchStopped: () => _setExpanded(null),
         );
       }
     }
@@ -217,7 +215,7 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
     // of its picture, as large as fits, with everything else in a row right
     // under it. The row stays under the share rather than beside it so the
     // share keeps the width, and on a tall share it lands behind the floating
-    // controls instead of pushing Stop watching under them. Shares nobody has
+    // controls instead of pushing its name badge under them. Shares nobody has
     // opened go in the row too, or in the grid when nothing is being watched:
     // two unopened streams used to take the whole stage between them.
     final shares = tiles.where((t) => _isShowingShare(t, watching)).toList();

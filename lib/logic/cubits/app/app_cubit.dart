@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:json_annotation/json_annotation.dart';
@@ -9,9 +11,12 @@ import '../../../data/classes/seen_key.dart';
 import '../../../data/constants.dart';
 import '../../../data/enums/app_sound.dart';
 import '../../../data/enums/home_surface.dart';
+import '../../../data/enums/noise_suppression.dart';
 import '../../../data/enums/sensitive_content_mode.dart';
 import '../../../data/participant_identity.dart';
+import '../../services/call_volume.dart';
 import '../../services/hydrated_keys.dart';
+import '../../services/noise_filter.dart';
 
 part 'app_cubit.g.dart';
 part 'app_state.dart';
@@ -20,7 +25,10 @@ part 'app_state.dart';
 /// selected, audio and share settings, per-person volumes. Persisted, and never
 /// sent anywhere.
 class AppCubit extends HydratedCubit<AppState> {
-  AppCubit() : super(const AppState());
+  AppCubit() : super(const AppState()) {
+    // The filter lives in the native audio pipeline, which starts with none.
+    unawaited(NoiseFilter.use(state.noiseSuppression));
+  }
 
   /// A fixed name, not the class's: see [HydratedKeys].
   @override
@@ -103,7 +111,8 @@ class AppCubit extends HydratedCubit<AppState> {
   // The LiveKitCubit watches AppState and re-publishes the mic track when any
   // of these change, so a toggle takes effect mid-call.
 
-  void setNoiseSuppression(bool value) {
+  void setNoiseSuppression(NoiseSuppression value) {
+    unawaited(NoiseFilter.use(value));
     emit(state.copyWith(noiseSuppression: value));
   }
 
@@ -207,6 +216,10 @@ class AppCubit extends HydratedCubit<AppState> {
       ),
     );
   }
+
+  /// See [AppState.outputVolume]. The LiveKitCubit puts it on every track.
+  void setOutputVolume(double volume) =>
+      emit(state.copyWith(outputVolume: volume.clamp(0.0, CallVolume.max)));
 
   void setInputDeviceId(String? deviceId) {
     emit(

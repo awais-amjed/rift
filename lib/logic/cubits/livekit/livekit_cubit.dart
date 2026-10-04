@@ -20,6 +20,7 @@ import '../../helper_methods.dart';
 import '../../services/audio_devices.dart';
 import '../../services/before_quit.dart';
 import '../../services/call_foreground_service.dart';
+import '../../services/call_volume.dart';
 import '../../services/channel_keyring.dart';
 import '../../services/connection_failure.dart';
 import '../../services/host_platform.dart';
@@ -27,6 +28,7 @@ import '../../services/key_sweep_doorbell.dart';
 import '../../services/keyring_outcome.dart';
 import '../../services/level_throttle.dart';
 import '../../services/mic_tap_format.dart';
+import '../../services/noise_filter.dart';
 import '../../services/participant_roster.dart';
 import '../../services/participant_video.dart';
 import '../../services/pcm_level.dart';
@@ -278,6 +280,9 @@ class LiveKitCubit extends Cubit<LiveKitState>
         isSharePaused:
             ParticipantIdentity.isScreenshare(p.identity) &&
             VoiceAttributes.isSharePaused(p.attributes),
+        shareQuality: ParticipantIdentity.isScreenshare(p.identity)
+            ? VoiceAttributes.sentPictureOf(p.attributes)?.qualityLabel
+            : null,
       );
     }).toList();
 
@@ -345,6 +350,10 @@ class LiveKitCubit extends Cubit<LiveKitState>
         previous.autoGainControl != appState.autoGainControl;
     if (audioProcessingChanged) {
       unawaited(_refreshMicrophoneCapture());
+    }
+
+    if (previous.outputVolume != appState.outputVolume) {
+      _applyStoredSettings();
     }
 
     final pttChanged =
@@ -455,7 +464,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
     final settings = _appCubit.state;
     return AudioCaptureOptions(
       deviceId: HostPlatform.isDesktop ? _captureDeviceId : null,
-      noiseSuppression: settings.noiseSuppression,
+      noiseSuppression: NoiseFilter.usesBuiltIn(settings.noiseSuppression),
       echoCancellation: settings.echoCancellation,
       autoGainControl: settings.autoGainControl,
     );
@@ -560,6 +569,9 @@ class LiveKitCubit extends Cubit<LiveKitState>
   void _applyStoredSettings() {
     final room = state.room;
     if (room == null) return;
+    // A setting turns a track back on; deafened, every one stays off. They
+    // are put back when the deafen lifts ([_restoreRemoteAudio]).
+    if (state.isDeafenedEffective) return;
 
     final app = _appCubit.state;
     for (final participant in room.remoteParticipants.values) {
@@ -578,7 +590,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
             localIdentity: room.localParticipant?.identity,
           ),
         );
-        _applyAudioSetting(track.mediaStreamTrack, setting);
+        _applyAudioSetting(track.mediaStreamTrack, setting, app.outputVolume);
       }
     }
   }

@@ -9,7 +9,7 @@ import 'avatar_placeholder.dart';
 import 'decrypted_video.dart';
 import 'participant_name_badge.dart';
 import 'share_paused_notice.dart';
-import 'stop_watching_button.dart';
+import 'stream_fullscreen_button.dart';
 import 'stream_quality_badge.dart';
 import 'stream_stats_overlay.dart';
 import 'stream_stats_poller.dart';
@@ -38,13 +38,28 @@ class ExpandedParticipantTile extends StatelessWidget {
   /// The stream's shared window is minimised, so the picture is the last
   /// frame, or there is none yet — see [SharePausedNotice].
   final bool isPaused;
+
+  /// What the sharer says the stream is sent at ("1080p · 60fps"), which the
+  /// badge shows in place of the measured rate. Null for anything else.
+  final String? sentQuality;
   final bool showWatchButton;
-  final bool showStopButton;
+
+  /// Someone else's stream with its picture here: the one thing that has
+  /// receive stats to poll. Stopping it is the call bar's job, where Leave
+  /// turns into Stop watching.
+  final bool isWatching;
+
+  /// Whether this stage is the stream shown full screen, which hides the
+  /// pointer along with the overlays — a film does.
+  final bool isFullscreen;
+
+  /// Into or out of full screen. Null for anything that has no button for
+  /// it: only a stream being watched does.
+  final VoidCallback? onFullscreen;
   final bool showOverlays;
   final bool statsPinned;
   final VoidCallback onActivity;
   final VoidCallback onWatch;
-  final VoidCallback onStopWatching;
   final ValueChanged<bool> onStatsPinnedChanged;
 
   /// How much of the top edge something else is covering right now — the
@@ -70,13 +85,15 @@ class ExpandedParticipantTile extends StatelessWidget {
     this.isDeafened = false,
     required this.isScreenshare,
     this.isPaused = false,
+    this.sentQuality,
     required this.showWatchButton,
-    required this.showStopButton,
+    required this.isWatching,
+    this.isFullscreen = false,
+    this.onFullscreen,
     required this.showOverlays,
     required this.statsPinned,
     required this.onActivity,
     required this.onWatch,
-    required this.onStopWatching,
     required this.onStatsPinnedChanged,
     this.topInset = 0,
     this.bottomInset = 0,
@@ -96,24 +113,29 @@ class ExpandedParticipantTile extends StatelessWidget {
     final showStats = context.select<AppCubit, bool>(
       (c) => c.state.showStreamStats,
     );
-    return Listener(
+    final listener = Listener(
       behavior: HitTestBehavior.translucent,
       onPointerMove: (_) => onActivity(),
       onPointerHover: (_) => onActivity(),
-      // A phone has no hover, and a tap is no move: its Stop watching went
-      // for good two seconds in, while the call's own controls came back.
+      // A phone has no hover, and a tap is no move: its overlays went for
+      // good two seconds in, while the call's own controls came back.
       onPointerDown: (_) => onActivity(),
       // Only someone else's share you are watching has receive stats.
       child: LayoutBuilder(
         builder: (context, constraints) {
           final lift = constraints.maxWidth < _crowdedWidth ? bottomInset : 0.0;
           return StreamStatsPoller(
-            track: showStopButton ? videoTrack : null,
+            track: isWatching ? videoTrack : null,
             builder: (context, stats) =>
                 _stage(stats, showStats: showStats, bottom: 12 + lift),
           );
         },
       ),
+    );
+    if (!isFullscreen) return listener;
+    return MouseRegion(
+      cursor: showOverlays ? MouseCursor.defer : SystemMouseCursors.none,
+      child: listener,
     );
   }
 
@@ -151,17 +173,6 @@ class ExpandedParticipantTile extends StatelessWidget {
             ),
           ),
         if (showWatchButton) WatchStreamButton(onTap: onWatch),
-        if (showStopButton)
-          AnimatedPositioned(
-            duration: _fade,
-            curve: Curves.easeInOut,
-            bottom: bottom,
-            right: 12,
-            child: _fading(
-              visible: showOverlays,
-              child: StopWatchingButton(onTap: onStopWatching),
-            ),
-          ),
         AnimatedPositioned(
           duration: _fade,
           curve: Curves.easeInOut,
@@ -185,12 +196,26 @@ class ExpandedParticipantTile extends StatelessWidget {
                       isScreenshare: isScreenshare,
                     ),
                   ),
-                  StreamQualityBadge(stats: stats),
+                  StreamQualityBadge(stats: stats, sent: sentQuality),
                 ],
               ),
             ),
           ),
         ),
+        if (onFullscreen != null)
+          AnimatedPositioned(
+            duration: _fade,
+            curve: Curves.easeInOut,
+            bottom: bottom,
+            right: 12,
+            child: _fading(
+              visible: showOverlays,
+              child: StreamFullscreenButton(
+                isFullscreen: isFullscreen,
+                onTap: onFullscreen!,
+              ),
+            ),
+          ),
       ],
     );
   }

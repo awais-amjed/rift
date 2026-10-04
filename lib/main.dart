@@ -17,6 +17,7 @@ import 'logic/ptt/push_to_talk_listener.dart';
 import 'logic/services/host_platform.dart';
 import 'logic/services/storage_namespace.dart';
 import 'logic/services/window_focus_service.dart';
+import 'logic/services/window_fullscreen.dart';
 import 'presentation/app_providers.dart';
 import 'presentation/common/app_toast.dart';
 import 'presentation/common/title_bar_overlay.dart';
@@ -101,12 +102,14 @@ class _MyAppState extends State<MyApp>
 
   @override
   void onWindowResize() async {
+    if (WindowFullscreen.isOn) return;
     final size = await windowManager.getSize();
     widget.appCubit.saveWindowSize(size);
   }
 
   @override
   void onWindowMove() async {
+    if (WindowFullscreen.isOn) return;
     final position = await windowManager.getPosition();
     widget.appCubit.saveWindowPosition(position);
   }

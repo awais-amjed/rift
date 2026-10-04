@@ -100,7 +100,6 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
         }
       })
       ..on<TrackSubscribedEvent>((e) {
-        _onRemoteAudioArrived(e.publication);
         _seedWatching(e.participant);
         _syncParticipants();
         // Their key, again, and this is the one that actually matters for
@@ -110,6 +109,12 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
         // for people who arrive *after* you. Whoever joined second heard
         // silence — connected, subscribed, and decrypting nothing.
         unawaited(_registerTrackKey(e.participant.identity));
+        // Deafening drops the audio there is at that moment; the SDK
+        // subscribes to every track that comes after it by itself. Somebody
+        // joining, a mic published afresh, or rejoining the call while
+        // deafened all used to play at full volume under a deafened icon.
+        if (_staysDeafened(e.publication)) return;
+        _onRemoteAudioArrived(e.publication);
         // Saved mute and volume, now that there is a track to put them on.
         // Publishing is too early: the track arrives after it, so somebody
         // who came back, or streamed again, was heard at full volume.
@@ -312,6 +317,16 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
   /// them to be watched. A desktop streams on a `_screenshare` connection of
   /// its own; a phone publishes its screen beside its microphone, and was
   /// sent to everyone in the call whether they had asked to watch or not.
+  /// Drops [publication] if it is audio arriving while deafened, and says so.
+  /// Undeafening subscribes to it again with everything else.
+  bool _staysDeafened(RemoteTrackPublication publication) {
+    if (!state.isDeafenedEffective) return false;
+    if (publication.kind != TrackType.AUDIO) return false;
+    publication.track?.mediaStreamTrack.enabled = false;
+    unawaited(publication.unsubscribe());
+    return true;
+  }
+
   static bool _isStreamTrack(
     Participant participant,
     TrackPublication publication,

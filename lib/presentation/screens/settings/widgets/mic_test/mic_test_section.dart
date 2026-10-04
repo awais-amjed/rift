@@ -8,6 +8,7 @@ import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/services/audio_devices.dart';
 import '../../../../../logic/services/mic_test_capture.dart';
+import '../../../../../logic/services/noise_filter.dart';
 import 'widgets/input_level_panel.dart';
 import 'widgets/mic_test_controls.dart';
 
@@ -101,7 +102,7 @@ class _MicTestSectionState extends State<MicTestSection> {
       await _capture.start(
         options: AudioCaptureOptions(
           deviceId: deviceId,
-          noiseSuppression: settings.noiseSuppression,
+          noiseSuppression: NoiseFilter.usesBuiltIn(settings.noiseSuppression),
           echoCancellation: settings.echoCancellation,
           autoGainControl: settings.autoGainControl,
         ),

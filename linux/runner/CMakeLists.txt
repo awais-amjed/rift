@@ -24,3 +24,12 @@ target_link_libraries(${BINARY_NAME} PRIVATE flutter)
 target_link_libraries(${BINARY_NAME} PRIVATE PkgConfig::GTK)
 
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
+
+# The noise models on the microphone (native/noise_filter). Dart finds its
+# functions in the executable, so they go in its dynamic symbol table.
+add_subdirectory("${CMAKE_SOURCE_DIR}/../native/noise_filter"
+  "${CMAKE_BINARY_DIR}/noise_filter")
+target_link_libraries(${BINARY_NAME} PRIVATE rift_noise_filter)
+target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}/../native")
+target_link_options(${BINARY_NAME} PRIVATE
+  "LINKER:--export-dynamic-symbol=rift_noise_filter_*")

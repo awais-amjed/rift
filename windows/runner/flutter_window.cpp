@@ -8,6 +8,7 @@
 
 #include "flutter/generated_plugin_registrant.h"
 #include "global_key_hook.h"
+#include "noise_filter/noise_filter.h"
 #include "single_instance.h"
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
@@ -31,6 +32,7 @@ bool FlutterWindow::OnCreate() {
     return false;
   }
   RegisterPlugins(flutter_controller_->engine());
+  rift::InstallNoiseFilter();
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   SetupPttChannel();

@@ -8,11 +8,12 @@ import 'mic_test/mic_test_section.dart';
 import 'section_divider.dart';
 import 'voice_audio/audio_ducking_section.dart';
 import 'voice_audio/audio_processing_section.dart';
+import 'voice_audio/output_volume_section.dart';
 import 'voice_audio/push_to_talk_section.dart';
 import 'voice_audio/soundboard_section.dart';
 import 'voice_audio/sounds/sounds_section.dart';
 
-/// The Voice & Audio settings tab: devices, mic processing, the mic test,
+/// The Voice & Audio settings tab: devices, call volume, mic processing, the mic test,
 /// the soundboard and Rift's own sounds as this device hears them, and the Windows-only
 /// sections.
 class VoiceAudioContent extends StatelessWidget {
@@ -44,6 +45,8 @@ class VoiceAudioContent extends StatelessWidget {
               const AudioDeviceSection(),
               const SectionDivider(),
             ],
+            const OutputVolumeSection(),
+            const SectionDivider(),
             AudioProcessingSection(appState: appState),
             const SizedBox(height: 20),
             const MicTestSection(),

@@ -24,6 +24,13 @@ const FIRST_FRAME_TIMEOUT: Duration = Duration::from_secs(10);
 /// viewers read to say the picture is paused (`VoiceAttributes.sharePausedKey`).
 const PAUSED_ATTRIBUTE: &str = "paused";
 
+/// The participant attributes saying what size and rate the share is sending
+/// at, which viewers show instead of the rate they measure
+/// (`VoiceAttributes.sentPictureOf`). A measured rate drops whenever the
+/// screen stands still, so it says less about the share than the setting.
+const SIZE_ATTRIBUTE: &str = "size";
+const FPS_ATTRIBUTE: &str = "fps";
+
 /// A screen share's sound keeps the plain name it has always had — nothing
 /// reads it, because the picture says what this is.
 const AUDIO_TRACK_NAME: &str = "screen_share_audio";
@@ -355,8 +362,28 @@ impl Video {
         );
         self.slot.attach(source.clone(), target);
         *track = Some(publish_video_track(&self.participant, source, &settings).await?);
+        announce_picture(&self.participant, target, settings.fps);
         Ok(())
     }
+}
+
+/// Tells the room the size and rate a newly published picture goes out at.
+/// Not awaited: the share is up either way, and a viewer without it falls
+/// back to what it measures.
+fn announce_picture(participant: &LocalParticipant, size: Size, fps: u32) {
+    let participant = participant.clone();
+    tokio::spawn(async move {
+        let attributes = HashMap::from([
+            (
+                SIZE_ATTRIBUTE.to_string(),
+                format!("{}x{}", size.width, size.height),
+            ),
+            (FPS_ATTRIBUTE.to_string(), fps.to_string()),
+        ]);
+        if let Err(e) = participant.set_attributes(attributes).await {
+            log::warn!("screenshare: telling viewers the picture: {e:?}");
+        }
+    });
 }
 
 /// The rest of a share that started on a minimised window. A stop aborts it;

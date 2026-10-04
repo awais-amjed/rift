@@ -71,8 +71,15 @@ class AppState {
   final String? outputDeviceId;
   final String? inputDeviceId;
 
+  /// How loud every call is here, on top of each person's own volume: 1 is
+  /// as sent, and up to [CallVolume.max].
+  final double outputVolume;
+
   // ── Audio processing (applied to the mic capture track) ────
-  final bool noiseSuppression;
+  /// Saved as a bool before it was a choice; [NoiseSuppression.fromJson]
+  /// reads both.
+  @JsonKey(fromJson: NoiseSuppression.fromJson)
+  final NoiseSuppression noiseSuppression;
   final bool echoCancellation;
   final bool autoGainControl;
 
@@ -191,7 +198,8 @@ class AppState {
     this.showOfflineChip = true,
     this.outputDeviceId,
     this.inputDeviceId,
-    this.noiseSuppression = true,
+    this.outputVolume = 1.0,
+    this.noiseSuppression = NoiseSuppression.rnnoise,
     this.echoCancellation = true,
     this.autoGainControl = true,
     this.recentEmojis = const [],
@@ -261,8 +269,9 @@ class AppState {
     String? outputDeviceId,
     bool clearOutputDeviceId = false,
     String? inputDeviceId,
+    double? outputVolume,
     bool clearInputDeviceId = false,
-    bool? noiseSuppression,
+    NoiseSuppression? noiseSuppression,
     bool? echoCancellation,
     bool? autoGainControl,
     List<String>? recentEmojis,
@@ -318,6 +327,7 @@ class AppState {
       inputDeviceId: clearInputDeviceId
           ? null
           : (inputDeviceId ?? this.inputDeviceId),
+      outputVolume: outputVolume ?? this.outputVolume,
       noiseSuppression: noiseSuppression ?? this.noiseSuppression,
       echoCancellation: echoCancellation ?? this.echoCancellation,
       autoGainControl: autoGainControl ?? this.autoGainControl,
