@@ -36,7 +36,9 @@ lib/
   src/rust/       # GENERATED flutter_rust_bridge bindings — never edit by hand
 rust/src/api/     # Rust API surface exposed to Flutter — bridge functions and types only
 rust/src/screenshare/  # What those functions call: session, capture, audio/ per platform
-third_party/      # Packages kept here to be patched — each says why in its RIFT_PATCHES.md
+third_party/      # Code kept here: packages to patch, and RNNoise — each says why in its RIFT_PATCHES.md
+native/noise_filter/  # C++ the Linux and Windows runners link in: RNNoise inside libwebrtc's
+                      # processing of the mic, switched from Dart over FFI (NoiseFilter)
 ```
 
 ## State management — Bloc/Cubit only

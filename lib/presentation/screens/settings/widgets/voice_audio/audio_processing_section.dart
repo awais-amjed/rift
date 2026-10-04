@@ -4,9 +4,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../section_title.dart';
 import '../setting_toggle_row.dart';
+import 'noise_suppression_choice.dart';
 
-/// The three mic-processing switches. Cross-platform — these are applied by
-/// LiveKit's capture options rather than by the OS.
+/// How the mic is cleaned up before a call hears it: the noise suppressor,
+/// then echo cancellation and gain control. Applied through LiveKit's capture
+/// options and, for a noise model, the runner's filter — not by the OS.
 class AudioProcessingSection extends StatelessWidget {
   final AppState appState;
 
@@ -21,11 +23,7 @@ class AudioProcessingSection extends StatelessWidget {
       children: [
         const SectionTitle(label: 'Audio processing'),
         const SizedBox(height: 12),
-        SettingToggleRow(
-          title: 'Noise suppression',
-          description:
-              'Filters out steady background noise like fans, keyboards, '
-              'and hum before it reaches the call.',
+        NoiseSuppressionChoice(
           value: appState.noiseSuppression,
           onChanged: cubit.setNoiseSuppression,
         ),

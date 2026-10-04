@@ -72,7 +72,10 @@ class AppState {
   final String? inputDeviceId;
 
   // ── Audio processing (applied to the mic capture track) ────
-  final bool noiseSuppression;
+  /// Saved as a bool before it was a choice; [NoiseSuppression.fromJson]
+  /// reads both.
+  @JsonKey(fromJson: NoiseSuppression.fromJson)
+  final NoiseSuppression noiseSuppression;
   final bool echoCancellation;
   final bool autoGainControl;
 
@@ -191,7 +194,7 @@ class AppState {
     this.showOfflineChip = true,
     this.outputDeviceId,
     this.inputDeviceId,
-    this.noiseSuppression = true,
+    this.noiseSuppression = NoiseSuppression.rnnoise,
     this.echoCancellation = true,
     this.autoGainControl = true,
     this.recentEmojis = const [],
@@ -262,7 +265,7 @@ class AppState {
     bool clearOutputDeviceId = false,
     String? inputDeviceId,
     bool clearInputDeviceId = false,
-    bool? noiseSuppression,
+    NoiseSuppression? noiseSuppression,
     bool? echoCancellation,
     bool? autoGainControl,
     List<String>? recentEmojis,

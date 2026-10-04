@@ -27,6 +27,7 @@ import '../../services/key_sweep_doorbell.dart';
 import '../../services/keyring_outcome.dart';
 import '../../services/level_throttle.dart';
 import '../../services/mic_tap_format.dart';
+import '../../services/noise_filter.dart';
 import '../../services/participant_roster.dart';
 import '../../services/participant_video.dart';
 import '../../services/pcm_level.dart';
@@ -458,7 +459,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
     final settings = _appCubit.state;
     return AudioCaptureOptions(
       deviceId: HostPlatform.isDesktop ? _captureDeviceId : null,
-      noiseSuppression: settings.noiseSuppression,
+      noiseSuppression: NoiseFilter.usesBuiltIn(settings.noiseSuppression),
       echoCancellation: settings.echoCancellation,
       autoGainControl: settings.autoGainControl,
     );

@@ -52,7 +52,9 @@ AppState _$AppStateFromJson(Map<String, dynamic> json) => AppState(
   showOfflineChip: json['showOfflineChip'] as bool? ?? true,
   outputDeviceId: json['outputDeviceId'] as String?,
   inputDeviceId: json['inputDeviceId'] as String?,
-  noiseSuppression: json['noiseSuppression'] as bool? ?? true,
+  noiseSuppression: json['noiseSuppression'] == null
+      ? NoiseSuppression.rnnoise
+      : NoiseSuppression.fromJson(json['noiseSuppression']),
   echoCancellation: json['echoCancellation'] as bool? ?? true,
   autoGainControl: json['autoGainControl'] as bool? ?? true,
   recentEmojis:
@@ -106,7 +108,7 @@ Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
   'dmCallStageShare': instance.dmCallStageShare,
   'outputDeviceId': instance.outputDeviceId,
   'inputDeviceId': instance.inputDeviceId,
-  'noiseSuppression': instance.noiseSuppression,
+  'noiseSuppression': instance.noiseSuppression.toJson(),
   'echoCancellation': instance.echoCancellation,
   'autoGainControl': instance.autoGainControl,
   'soundboardMuted': instance.soundboardMuted,
