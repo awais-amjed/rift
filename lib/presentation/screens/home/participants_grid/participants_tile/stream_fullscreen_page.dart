@@ -58,12 +58,29 @@ class _StreamFullscreenPageState extends State<StreamFullscreenPage> {
   void initState() {
     super.initState();
     WindowFullscreen.set(true);
+    HardwareKeyboard.instance.addHandler(_onKey);
   }
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_onKey);
     WindowFullscreen.set(false);
     super.dispose();
+  }
+
+  /// Esc leaves, whatever has the focus. A shortcut bound to this page only
+  /// heard it while the page held the focus, and any click takes the focus
+  /// away — the app's `KeyboardDismisser` clears it on every tap — so after
+  /// one click on the stream Esc did nothing.
+  bool _onKey(KeyEvent event) {
+    if (event is! KeyDownEvent ||
+        event.logicalKey != LogicalKeyboardKey.escape) {
+      return false;
+    }
+    // A dialog or menu opened over the stream gets its own Esc.
+    if (!(ModalRoute.of(context)?.isCurrent ?? false)) return false;
+    _leave();
+    return true;
   }
 
   void _leave() {
@@ -90,22 +107,16 @@ class _StreamFullscreenPageState extends State<StreamFullscreenPage> {
           listener: (_, _) => _leave(),
         ),
       ],
-      child: CallbackShortcuts(
-        bindings: {const SingleActivator(LogicalKeyboardKey.escape): _leave},
-        child: Focus(
-          autofocus: true,
-          // A Material, not a bare colour: a page with none under its text
-          // draws Flutter's yellow "no Material" underline beneath it.
-          child: Material(
-            color: MediaColors.videoGround,
-            child: ParticipantTileWidget(
-              participant: widget.participant,
-              isScreenshare: true,
-              isMuted: widget.isMuted,
-              isExpanded: true,
-              isFullscreen: true,
-            ),
-          ),
+      // A Material, not a bare colour: a page with none under its text
+      // draws Flutter's yellow "no Material" underline beneath it.
+      child: Material(
+        color: MediaColors.videoGround,
+        child: ParticipantTileWidget(
+          participant: widget.participant,
+          isScreenshare: true,
+          isMuted: widget.isMuted,
+          isExpanded: true,
+          isFullscreen: true,
         ),
       ),
     );
