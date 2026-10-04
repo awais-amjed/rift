@@ -46,6 +46,7 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
         final trackKey = ParticipantIdentity.settingsKeyOf(
           participant.identity,
           screenAudio: pub.source == TrackSource.screenShareAudio,
+          localIdentity: room.localParticipant?.identity,
         );
         if (trackKey == key) yield track.mediaStreamTrack;
       }
@@ -61,23 +62,22 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
   /// touched where they exist, and `_applyStoredSettings` picks it up when
   /// they next join or share.
   void setMuteFor(String key, bool muted) {
-    for (final track in _audioTracksFor(key)) {
-      track.enabled = !muted;
-    }
     _appCubit.setParticipantSetting(key, muted: muted);
+    _applySettingFor(key);
   }
 
   /// Sets the local volume of whatever is stored under [key] — see
-  /// [setMuteFor].
+  /// [setMuteFor]. Still silent while it is muted.
   Future<void> setVolumeFor(String key, double volume) async {
-    for (final track in _audioTracksFor(key)) {
-      try {
-        await rtc.Helper.setVolume(volume, track);
-      } catch (e) {
-        HelperMethods.printDebug('setVolumeFor error: $e');
-      }
-    }
     _appCubit.setParticipantSetting(key, volume: volume);
+    _applySettingFor(key);
+  }
+
+  void _applySettingFor(String key) {
+    final setting = _appCubit.state.settingFor(key);
+    for (final track in _audioTracksFor(key)) {
+      _applyAudioSetting(track, setting);
+    }
   }
 
   /// Locally mutes/unmutes a remote participant's voice (this user only).
@@ -93,4 +93,21 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
   /// [setParticipantMute] for why [target] may be a bare user id.
   Future<void> setParticipantVolume(String target, double volume) =>
       setVolumeFor(ParticipantIdentity.userIdOf(target), volume);
+}
+
+/// Puts this device's mute and volume on one remote audio track.
+///
+/// A mute is also a volume of nothing. The SDK enables a remote track itself
+/// as it starts it, just *after* telling us it subscribed, so a mute made of
+/// `enabled` alone was undone the moment it was applied: a stored mute did not
+/// hold, and your own stream's sound came back on and echoed.
+void _applyAudioSetting(
+  rtc.MediaStreamTrack track,
+  ParticipantSetting setting,
+) {
+  track.enabled = !setting.muted;
+  rtc.Helper.setVolume(
+    setting.muted ? 0 : setting.volume,
+    track,
+  ).catchError((Object e) => HelperMethods.printDebug('setVolume error: $e'));
 }

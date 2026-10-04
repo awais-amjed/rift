@@ -218,8 +218,7 @@ class AppCubit extends HydratedCubit<AppState> {
   // sessions.
 
   void setParticipantSetting(String userId, {bool? muted, double? volume}) {
-    final existing =
-        state.participantSettings[userId] ?? const ParticipantSetting();
+    final existing = state.settingFor(userId);
     final updated = Map<String, ParticipantSetting>.from(
       state.participantSettings,
     )..[userId] = existing.copyWith(muted: muted, volume: volume);

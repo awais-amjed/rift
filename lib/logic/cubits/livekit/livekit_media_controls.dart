@@ -8,6 +8,7 @@ mixin _MediaControlsMixin on Cubit<LiveKitState> {
   void _syncParticipants();
   Future<void> _updateVoiceActivityMonitor();
   void _playPushToTalkTone(bool on);
+  void _applyStoredSettings();
 
   /// Toggles microphone. If deafened, un-deafens instead (restoring mic).
   ///
@@ -79,37 +80,22 @@ mixin _MediaControlsMixin on Cubit<LiveKitState> {
     }
   }
 
-  /// Re-subscribes to remote audio and reapplies each participant's stored
-  /// local mute and volume. Shared by un-deafening yourself and by a moderator
+  /// Re-subscribes to remote audio and reapplies each track's stored local
+  /// mute and volume. Shared by un-deafening yourself and by a moderator
   /// lifting a server deafen — both have to hand the audio back the same way.
+  ///
+  /// The settings go through [_applyStoredSettings], which files each track
+  /// under its own key. Reading the owner's voice setting here put a person's
+  /// volume on their stream, and turned your own stream's sound back on.
   Future<void> _restoreRemoteAudio() async {
     final room = state.room;
     if (room == null) return;
     for (final participant in room.remoteParticipants.values) {
-      final setting =
-          _appCubit.state.participantSettings[ParticipantIdentity.userIdOf(
-            participant.identity,
-          )];
-      final isMuted = setting?.muted ?? false;
       for (final pub in participant.audioTrackPublications) {
         await pub.subscribe();
-        final track = pub.track;
-        if (track == null) continue;
-        if (isMuted) {
-          track.mediaStreamTrack.enabled = false;
-          continue;
-        }
-        track.mediaStreamTrack.enabled = true;
-        final volume = setting?.volume ?? 1.0;
-        if (volume != 1.0) {
-          try {
-            await rtc.Helper.setVolume(volume, track.mediaStreamTrack);
-          } catch (e) {
-            HelperMethods.printDebug('setVolume error: $e');
-          }
-        }
       }
     }
+    _applyStoredSettings();
   }
 
   /// How long the mic keeps transmitting after the key comes up.

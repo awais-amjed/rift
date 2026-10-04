@@ -228,6 +228,13 @@ class AppState {
       if (keyChangedSinceVerified(person)) person,
   };
 
+  /// This device's mute and volume for what is stored under [key], or the
+  /// default for that kind of key: your own stream's sound starts muted
+  /// ([ParticipantIdentity.ownStreamSettingsKey]), everything else on.
+  ParticipantSetting settingFor(String key) =>
+      participantSettings[key] ??
+      ParticipantSetting(muted: ParticipantIdentity.isOwnStreamKey(key));
+
   AppState copyWith({
     bool? sidebarOpen,
     bool? audioEnabled,

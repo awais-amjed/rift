@@ -29,8 +29,8 @@ class ShareAudioControls extends StatelessWidget {
     final setting = context.select<AppCubit, ({bool muted, double volume})>((
       cubit,
     ) {
-      final s = cubit.state.participantSettings[settingsKey];
-      return (muted: s?.muted ?? false, volume: s?.volume ?? 1.0);
+      final s = cubit.state.settingFor(settingsKey);
+      return (muted: s.muted, volume: s.volume);
     });
     final livekit = context.read<LiveKitCubit>();
 

@@ -240,21 +240,18 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
           ),
         );
 
-        // Somebody else's stream opens a menu for its sound. Your own is
-        // still you: there is nothing of it here to turn down.
-        final isOwnStream =
-            widget.participant is LocalParticipant ||
-            ParticipantIdentity.isShareOf(
-              widget.participant.identity,
-              livekitState.room?.localParticipant?.identity,
-            );
+        // A stream opens a menu for its sound — your own desktop's too,
+        // since it comes back to you as a connection with its sound on it.
+        // A phone's own stream is a local track with no sound coming back,
+        // so its menu is still you.
+        final isPhoneOwnStream = widget.participant is LocalParticipant;
         // An unopened stream has nothing to focus but a button, so the
         // whole tile is the button. A click on the button itself only
         // focused the tile, and a second one was needed to watch.
         final opensStream = _isScreenshare && !isSubscribed;
         final onTap = opensStream ? _subscribeToScreenshare : widget.onTap;
         return ContextMenuRegion(
-          contextMenu: _isScreenshare && !isOwnStream
+          contextMenu: _isScreenshare && !isPhoneOwnStream
               ? StreamContextMenu(
                   identity: widget.participant.identity,
                   ownerName: name,

@@ -10,6 +10,7 @@ import '../../../data/classes/api_response.dart';
 import '../../../data/classes/channel.dart';
 import '../../../data/classes/dm_call_place.dart';
 import '../../../data/classes/participant_info.dart';
+import '../../../data/classes/participant_setting.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/constants.dart';
 import '../../../data/enums/app_sound.dart';
@@ -542,28 +543,24 @@ class LiveKitCubit extends Cubit<LiveKitState>
     final room = state.room;
     if (room == null) return;
 
-    final settings = _appCubit.state.participantSettings;
+    final app = _appCubit.state;
     for (final participant in room.remoteParticipants.values) {
       for (final pub in participant.audioTrackPublications) {
         final track = pub.track;
         if (track == null) continue;
         // Keyed by user, never the raw identity (which carries a per-device
         // segment), and each share under a key of its own, so that turning
-        // the music down does not also turn its owner down.
-        final setting =
-            settings[ParticipantIdentity.settingsKeyOf(
-              participant.identity,
-              screenAudio: pub.source == TrackSource.screenShareAudio,
-            )];
-        if (setting == null) continue;
-        if (setting.muted) {
-          track.mediaStreamTrack.enabled = false;
-        } else {
-          track.mediaStreamTrack.enabled = true;
-          if (setting.volume != 1.0) {
-            rtc.Helper.setVolume(setting.volume, track.mediaStreamTrack);
-          }
-        }
+        // the music down does not also turn its owner down. Applied even
+        // where nothing is stored: your own stream's sound is off until you
+        // turn it on, or a shared screen hears itself and echoes.
+        final setting = app.settingFor(
+          ParticipantIdentity.settingsKeyOf(
+            participant.identity,
+            screenAudio: pub.source == TrackSource.screenShareAudio,
+            localIdentity: room.localParticipant?.identity,
+          ),
+        );
+        _applyAudioSetting(track.mediaStreamTrack, setting);
       }
     }
   }

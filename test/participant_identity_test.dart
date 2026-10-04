@@ -1,5 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rift/data/participant_identity.dart';
+import 'package:rift/logic/cubits/app/app_cubit.dart';
+
+import 'helpers/memory_storage.dart';
 
 void main() {
   const userId = 'd290f1ee-6c54-4b01-90e6-d701748f0851';
@@ -118,6 +122,70 @@ void main() {
         ParticipantIdentity.settingsKeyOf(sound, screenAudio: true),
         ParticipantIdentity.soundShareSettingsKey(sound),
       );
+    });
+
+    // Your own stream comes back to you; a whole screen shared with its
+    // sound hears that playback and echoes. Its sound is kept apart, so it
+    // can start off without turning anybody else's stream off.
+    group('your own stream', () {
+      test('is filed apart from the same person’s stream elsewhere', () {
+        final own = ParticipantIdentity.settingsKeyOf(
+          screen,
+          screenAudio: true,
+          localIdentity: '$userId~$device',
+        );
+        expect(own, ParticipantIdentity.ownStreamSettingsKey(screen));
+        expect(own, isNot(ParticipantIdentity.settingsKeyOf(screen)));
+        expect(ParticipantIdentity.isOwnStreamKey(own), isTrue);
+      });
+
+      // Watching your desktop's stream from your phone: nothing there plays
+      // it into the capture, so it is a stream like anyone's.
+      test('from another device of yours is an ordinary stream', () {
+        expect(
+          ParticipantIdentity.settingsKeyOf(
+            screen,
+            localIdentity: '$userId~otherdev',
+          ),
+          ParticipantIdentity.screenshareSettingsKey(screen),
+        );
+      });
+
+      test('a sound share keeps its own key', () {
+        expect(
+          ParticipantIdentity.settingsKeyOf(
+            sound,
+            localIdentity: '$userId~$device',
+          ),
+          ParticipantIdentity.soundShareSettingsKey(sound),
+        );
+      });
+
+      test('starts muted, and everything else starts on', () {
+        const app = AppState();
+        expect(
+          app
+              .settingFor(ParticipantIdentity.ownStreamSettingsKey(screen))
+              .muted,
+          isTrue,
+        );
+        expect(
+          app
+              .settingFor(ParticipantIdentity.screenshareSettingsKey(screen))
+              .muted,
+          isFalse,
+        );
+        expect(app.settingFor(userId).muted, isFalse);
+      });
+
+      // Turning the volume down first must not switch the sound on.
+      test('a volume change keeps it muted', () {
+        HydratedBloc.storage = MemoryStorage();
+        final key = ParticipantIdentity.ownStreamSettingsKey(screen);
+        final cubit = AppCubit()..setParticipantSetting(key, volume: 0.3);
+        expect(cubit.state.settingFor(key).muted, isTrue);
+        expect(cubit.state.settingFor(key).volume, 0.3);
+      });
     });
 
     // Your own share reaches you as a remote connection. Missing this is the

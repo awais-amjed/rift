@@ -69,6 +69,21 @@ class ParticipantIdentity {
   static String screenshareSettingsKey(String identity) =>
       '${userIdOf(identity)}$screenshareSuffix';
 
+  static const _ownStreamSuffix = '_ownstream';
+
+  /// The key the sound of the sharer's *own* stream is stored under, as it
+  /// comes back to the device sharing it.
+  ///
+  /// Apart from [screenshareSettingsKey] because its default differs: a
+  /// whole screen shared with its sound captures whatever this device plays,
+  /// the stream's own sound included, so hearing it back feeds it round
+  /// again as an echo. It starts muted ([isOwnStreamKey]); the sharer can
+  /// turn it on, and down, like anyone else's.
+  static String ownStreamSettingsKey(String identity) =>
+      '${userIdOf(identity)}$_ownStreamSuffix';
+
+  static bool isOwnStreamKey(String key) => key.endsWith(_ownStreamSuffix);
+
   /// Where the local mute and volume for a track of [identity]'s live: the
   /// person's voice, their screen share's sound, or their sound share.
   ///
@@ -76,9 +91,17 @@ class ParticipantIdentity {
   /// identity: a phone streams its screen on the connection it talks on, so
   /// the identity alone would file the stream's sound under the person's
   /// voice. It does not win over a sound share, which publishes its track as
-  /// screen audio too.
-  static String settingsKeyOf(String identity, {bool screenAudio = false}) {
+  /// screen audio too. [localIdentity] is this device's connection, which
+  /// files a stream it started under [ownStreamSettingsKey].
+  static String settingsKeyOf(
+    String identity, {
+    bool screenAudio = false,
+    String? localIdentity,
+  }) {
     if (isSoundShare(identity)) return soundShareSettingsKey(identity);
+    if (isScreenshare(identity) && isShareOf(identity, localIdentity)) {
+      return ownStreamSettingsKey(identity);
+    }
     if (screenAudio || isScreenshare(identity)) {
       return screenshareSettingsKey(identity);
     }
