@@ -1,6 +1,7 @@
 //! Windows: WASAPI loopback, of one process or of the whole default output.
 use super::{
-    samples_from_le_bytes, AudioCapture, AudioCaptureHandle, Command, NUM_CHANNELS, SAMPLE_RATE,
+    samples_from_le_bytes, AudioCapture, AudioCaptureHandle, Command, Pcm, NUM_CHANNELS,
+    SAMPLE_RATE,
 };
 use crate::api::screenshare::types::AudioSource;
 use livekit::prelude::*;
@@ -48,7 +49,7 @@ pub(crate) async fn start(room: &Room, request: AudioCapture) -> Option<AudioCap
 fn spawn_capture_thread(
     pid: Option<u32>,
     commands: Receiver<Command>,
-    frames: FrameSender<Vec<i16>>,
+    frames: FrameSender<Pcm>,
 ) -> JoinHandle<()> {
     thread::spawn(move || {
         if wasapi::initialize_mta().is_err() {
@@ -80,7 +81,7 @@ fn spawn_capture_thread(
                 if frame_count > 0 {
                     let bytes = frame_count as usize * NUM_CHANNELS as usize * 2;
                     if frames
-                        .blocking_send(samples_from_le_bytes(&buffer[..bytes]))
+                        .blocking_send(Pcm::read_now(samples_from_le_bytes(&buffer[..bytes])))
                         .is_err()
                     {
                         break;

@@ -6,6 +6,7 @@
 //! screen share, and for a sound share, which is only this.
 use crate::api::screenshare::types::{AudioSource, ScreenShareConfig};
 use crate::api::soundshare::SoundShareConfig;
+use catch_up::CatchUp;
 use livekit::options::TrackPublishOptions;
 use livekit::prelude::*;
 use livekit::track::{LocalAudioTrack, LocalTrack, TrackSource};
@@ -16,9 +17,11 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::Arc;
 use std::thread::JoinHandle;
+use std::time::{Duration, Instant};
 use tokio::sync::mpsc::Sender as FrameSender;
 use tokio::task::JoinHandle as TaskHandle;
 
+mod catch_up;
 #[cfg(target_os = "linux")]
 mod linux;
 #[cfg(target_os = "linux")]
@@ -36,6 +39,27 @@ const FRAMES_IN_FLIGHT: usize = 100;
 
 pub(crate) enum Command {
     Terminate,
+}
+
+/// Interleaved samples, and when they were read from the device: how long they
+/// then waited on the way to LiveKit is part of how late they are.
+pub(crate) struct Pcm {
+    samples: Vec<i16>,
+    read_at: Instant,
+}
+
+impl Pcm {
+    pub(crate) fn read_now(samples: Vec<i16>) -> Self {
+        Self {
+            samples,
+            read_at: Instant::now(),
+        }
+    }
+
+    fn length(&self) -> Duration {
+        let per_channel = self.samples.len() as u64 / NUM_CHANNELS as u64;
+        Duration::from_micros(per_channel * 1_000_000 / SAMPLE_RATE as u64)
+    }
 }
 
 /// Which application's sound to capture, as each platform asks for it.
@@ -79,7 +103,7 @@ impl From<&SoundShareConfig> for AudioSelection {
 /// A platform's capture thread: reads audio until told to stop or until the
 /// receiver goes away, and sends interleaved samples down `frames`.
 pub(crate) type SpawnCapture =
-    Box<dyn FnOnce(Receiver<Command>, FrameSender<Vec<i16>>) -> JoinHandle<()> + Send>;
+    Box<dyn FnOnce(Receiver<Command>, FrameSender<Pcm>) -> JoinHandle<()> + Send>;
 
 /// What a capture that stops on its own calls, on the feed task. The source
 /// going away — the application closing, the stream ending — reaches us as the
@@ -207,12 +231,23 @@ pub(crate) async fn publish_and_feed(
     log::info!("audio: track published");
 
     let (command_tx, command_rx) = mpsc::channel();
-    let (frame_tx, mut frame_rx) = tokio::sync::mpsc::channel::<Vec<i16>>(FRAMES_IN_FLIGHT);
+    let (frame_tx, mut frame_rx) = tokio::sync::mpsc::channel::<Pcm>(FRAMES_IN_FLIGHT);
     let capture_thread = spawn(command_rx, frame_tx);
     let stopping = Arc::new(AtomicBool::new(false));
     let ended_flag = Arc::clone(&stopping);
     let feed_task = tokio::spawn(async move {
-        while let Some(samples) = frame_rx.recv().await {
+        let mut catch_up = CatchUp::default();
+        let mut dropped = Duration::ZERO;
+        while let Some(pcm) = frame_rx.recv().await {
+            if !catch_up.admit(pcm.read_at, pcm.length(), Instant::now()) {
+                dropped += pcm.length();
+                continue;
+            }
+            if !dropped.is_zero() {
+                log::info!("audio: dropped {} ms to keep up", dropped.as_millis());
+                dropped = Duration::ZERO;
+            }
+            let samples = pcm.samples;
             let frame = AudioFrame {
                 samples_per_channel: samples.len() as u32 / NUM_CHANNELS,
                 data: samples.as_slice().into(),

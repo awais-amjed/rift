@@ -2,7 +2,8 @@
 //! it plays to.
 use super::pulse;
 use super::{
-    samples_from_le_bytes, AudioCapture, AudioCaptureHandle, Command, NUM_CHANNELS, SAMPLE_RATE,
+    samples_from_le_bytes, AudioCapture, AudioCaptureHandle, Command, Pcm, NUM_CHANNELS,
+    SAMPLE_RATE,
 };
 use crate::pulse::Connection;
 use libpulse_binding as pa;
@@ -43,7 +44,7 @@ fn spawn_capture_thread(
     sink_input: u32,
     monitor: String,
     commands: Receiver<Command>,
-    frames: FrameSender<Vec<i16>>,
+    frames: FrameSender<Pcm>,
 ) -> JoinHandle<()> {
     thread::spawn(move || {
         let Some(mut connection) = Connection::open("rift-screenshare-audio") else {
@@ -77,7 +78,10 @@ fn spawn_capture_thread(
                     let _ = stream.discard();
                     while pending.len() >= FRAME_BYTES {
                         let frame: Vec<u8> = pending.drain(..FRAME_BYTES).collect();
-                        if frames.blocking_send(samples_from_le_bytes(&frame)).is_err() {
+                        if frames
+                            .blocking_send(Pcm::read_now(samples_from_le_bytes(&frame)))
+                            .is_err()
+                        {
                             return;
                         }
                     }
