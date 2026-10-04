@@ -56,10 +56,16 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
   List<AudioSource>? _audioSources;
   bool _loadingAudioSources = false;
 
+  /// Linux shares one application's sound, picked here, whatever is being
+  /// shown: there is no system loopback to fall back on, so a whole screen
+  /// with no app picked went out silent.
   bool get _needsAudioSources =>
-      HostPlatform.picksShareAudioSource &&
-      _draft.shareAudio &&
-      !_draft.captureFullScreen;
+      HostPlatform.picksShareAudioSource && _draft.shareAudio;
+
+  /// Whether the picked app is dropped for a whole screen — only where a
+  /// whole screen takes the system's sound instead.
+  bool _dropsAudioSource(bool captureFullScreen) =>
+      captureFullScreen && !HostPlatform.picksShareAudioSource;
 
   @override
   void initState() {
@@ -129,19 +135,17 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
   void _onCaptureTypeChanged(bool captureFullScreen) {
     if (captureFullScreen == _draft.captureFullScreen) return;
     setState(() {
-      // Full-screen capture uses loopback audio, so any window-scoped audio
-      // source no longer applies.
       _draft = _draft.copyWith(
         captureFullScreen: captureFullScreen,
         clearVideoSource: true,
-        clearAudioSource: captureFullScreen,
+        clearAudioSource: _dropsAudioSource(captureFullScreen),
       );
       _captureSources = null;
       _thumbnails.clear();
     });
 
     if (HostPlatform.picksShareSourceInApp) _loadCaptureSources();
-    if (_needsAudioSources) _loadAudioSources();
+    if (_needsAudioSources && _audioSources == null) _loadAudioSources();
   }
 
   void _onAudioToggle() {
@@ -150,8 +154,7 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
   }
 
   void _confirm() {
-    // A window-scoped audio source is meaningless for full-screen capture.
-    final settings = _draft.captureFullScreen
+    final settings = _dropsAudioSource(_draft.captureFullScreen)
         ? _draft.copyWith(clearAudioSource: true)
         : _draft;
     context.read<AppCubit>().setScreenShareSettings(settings);

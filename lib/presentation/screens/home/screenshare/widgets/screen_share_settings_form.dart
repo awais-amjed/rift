@@ -65,12 +65,10 @@ class ScreenShareSettingsForm extends StatelessWidget {
   /// time, so the in-app source grid is hidden there.
   bool get _showsSourcePicker => HostPlatform.picksShareSourceInApp;
 
-  /// Full-screen capture takes system audio via loopback; only Linux window
-  /// capture needs an explicit PulseAudio source.
+  /// Linux shares one application's sound, screen or window; elsewhere a
+  /// whole screen takes the system's sound and a window its own app's.
   bool get _showsAudioSourcePicker =>
-      HostPlatform.picksShareAudioSource &&
-      settings.shareAudio &&
-      !settings.captureFullScreen;
+      HostPlatform.picksShareAudioSource && settings.shareAudio;
 
   @override
   Widget build(BuildContext context) {

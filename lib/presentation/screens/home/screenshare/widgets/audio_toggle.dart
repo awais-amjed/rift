@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/constants.dart';
+import '../../../../../logic/services/host_platform.dart';
 import '../../../../common/app_switch.dart';
 import '../../../../theme/app_motion.dart';
 import '../../../../theme/app_text.dart';
@@ -61,9 +62,12 @@ class AudioToggle extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      shareAudio
-                          ? 'System audio will be captured'
-                          : 'No audio will be shared',
+                      !shareAudio
+                          ? 'No audio will be shared'
+                          // Linux shares one app's sound, picked below.
+                          : HostPlatform.picksShareAudioSource
+                          ? 'The app picked below will be heard'
+                          : 'System audio will be captured',
                       style: AppText.label.copyWith(
                         color: themeState.textTertiary,
                       ),
