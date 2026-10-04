@@ -44,6 +44,12 @@ third_party/      # Packages kept here to be patched — each says why in its RI
 - One cubit per feature under `lib/logic/cubits/<feature>/`. No Provider, Riverpod, setState-based
   app state, or singletons for shared state.
 - **Persisted state** → `HydratedCubit<State>`; **ephemeral state** → plain `Cubit<State>`.
+  Every hydrated cubit overrides `storagePrefix` with a name from `HydratedKeys`
+  (`logic/services/hydrated_keys.dart`). The default is the class name as the
+  build sees it, which in the obfuscated Windows installer and minified web build
+  is a scrambled name that changes every release. An update then finds nothing
+  saved, and the servers and settings start over. A new one also needs its shape
+  in `HydratedKeyRecovery.kindOf`.
 - State classes live in a `part` file (`foo_state.dart`, `part of 'foo_cubit.dart';`). They are
   immutable, with `const` constructors where possible, a `copyWith`, and for hydrated cubits
   `@JsonSerializable` + generated `_$FooStateFromJson/ToJson` (run

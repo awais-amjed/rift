@@ -11,6 +11,7 @@ import '../../../data/enums/app_sound.dart';
 import '../../../data/enums/home_surface.dart';
 import '../../../data/enums/sensitive_content_mode.dart';
 import '../../../data/participant_identity.dart';
+import '../../services/hydrated_keys.dart';
 
 part 'app_cubit.g.dart';
 part 'app_state.dart';
@@ -20,6 +21,10 @@ part 'app_state.dart';
 /// sent anywhere.
 class AppCubit extends HydratedCubit<AppState> {
   AppCubit() : super(const AppState());
+
+  /// A fixed name, not the class's: see [HydratedKeys].
+  @override
+  String get storagePrefix => HydratedKeys.app;
 
   // ── Persisted: sidebar ───────────────────────────────────
 

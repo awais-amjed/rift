@@ -12,6 +12,7 @@ import 'logic/cubits/app/app_cubit.dart';
 import 'logic/helper_methods.dart';
 import 'logic/services/browser_apis.dart';
 import 'logic/services/host_platform.dart';
+import 'logic/services/hydrated_store.dart';
 import 'logic/services/invite_scheme.dart';
 import 'logic/services/notification_service.dart';
 import 'logic/services/profile_auth_storage.dart';
@@ -141,16 +142,8 @@ class AppBootstrap {
   /// Hydrated state lives in a per-suffix subdirectory; the release default
   /// keeps the original path so existing installs are untouched.
   static Future<void> _initHydratedStorage(String storageSuffix) async {
-    HydratedStorageDirectory directory;
-    if (kIsWeb) {
-      directory = HydratedStorageDirectory.web;
-    } else {
-      directory = HydratedStorageDirectory(
-        await StorageNamespace.profileDirectory(storageSuffix),
-      );
-    }
-    HydratedBloc.storage = await HydratedStorage.build(
-      storageDirectory: directory,
+    HydratedBloc.storage = await openHydratedStore(
+      kIsWeb ? null : await StorageNamespace.profileDirectory(storageSuffix),
     );
   }
 

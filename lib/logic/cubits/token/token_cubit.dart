@@ -1,6 +1,7 @@
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 
 import '../../../data/device_id.dart';
+import '../../services/hydrated_keys.dart';
 
 part 'token_state.dart';
 
@@ -17,6 +18,10 @@ part 'token_state.dart';
 /// their moderation grant. Every read now has to name the user it is for.
 class TokenCubit extends HydratedCubit<TokenState> {
   TokenCubit() : super(const TokenState());
+
+  /// A fixed name, not the class's: see [HydratedKeys].
+  @override
+  String get storagePrefix => HydratedKeys.token;
 
   /// Bumped whenever the server starts minting a *different* grant — a new
   /// permission in the token, a new identity shape.

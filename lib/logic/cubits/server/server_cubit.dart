@@ -39,6 +39,7 @@ import '../../helper_methods.dart';
 import '../../services/avatar_cache.dart';
 import '../../services/backup_merge.dart';
 import '../../services/coalesced_refresh.dart';
+import '../../services/hydrated_keys.dart';
 import '../../services/message_cache.dart';
 import '../../services/push_service.dart';
 import '../../services/push_wake/wake_index.dart';
@@ -270,6 +271,10 @@ class ServerCubit extends HydratedCubit<ServerState>
       refreshWakeIndex(state);
     }
   }
+
+  /// A fixed name, not the class's: see [HydratedKeys].
+  @override
+  String get storagePrefix => HydratedKeys.server;
 
   /// FCM hands the token over asynchronously and replaces it whenever it
   /// pleases, so registration is driven by the token rather than by startup —

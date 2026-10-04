@@ -22,6 +22,9 @@ dependencies:
   bloc: ^9.2.0
   flutter_bloc: ^9.1.1
   hydrated_bloc: ^11.0.0
+  # hydrated_bloc's own store, opened here rather than by it so the keys an
+  # earlier build left can be read once (`HydratedKeyRecovery`).
+  hive_ce: ^2.20.0
 
   # Loading
   flutter_easyloading: ^4.0.2

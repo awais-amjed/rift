@@ -4,6 +4,7 @@ import 'package:json_annotation/json_annotation.dart';
 
 import '../../../presentation/theme/app_palette.dart';
 import '../../../presentation/theme/custom_colors.dart';
+import '../../services/hydrated_keys.dart';
 
 part 'theme_cubit.g.dart';
 
@@ -17,6 +18,10 @@ part 'theme_state.dart';
 /// has to think about it.
 class ThemeCubit extends HydratedCubit<ThemeState> {
   ThemeCubit() : super(ThemeState());
+
+  /// A fixed name, not the class's: see [HydratedKeys].
+  @override
+  String get storagePrefix => HydratedKeys.theme;
 
   void setTheme(ThemeMode themeMode) {
     emit(state.copyWith(themeMode: themeMode));
