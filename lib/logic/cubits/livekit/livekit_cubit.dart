@@ -278,6 +278,9 @@ class LiveKitCubit extends Cubit<LiveKitState>
         isSharePaused:
             ParticipantIdentity.isScreenshare(p.identity) &&
             VoiceAttributes.isSharePaused(p.attributes),
+        shareQuality: ParticipantIdentity.isScreenshare(p.identity)
+            ? VoiceAttributes.sentPictureOf(p.attributes)?.qualityLabel
+            : null,
       );
     }).toList();
 

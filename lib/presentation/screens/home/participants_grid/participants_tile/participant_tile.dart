@@ -240,6 +240,13 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
           ),
         );
 
+        final sentQuality = context.select<AppCubit, String?>(
+          (cubit) => ParticipantRoster.shareQuality(
+            cubit.state.participants,
+            widget.participant.identity,
+          ),
+        );
+
         // A stream opens a menu for its sound — your own desktop's too,
         // since it comes back to you as a connection with its sound on it.
         // A phone's own stream is a local track with no sound coming back,
@@ -278,6 +285,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                       isDeafened: isDeafened,
                       isScreenshare: _isScreenshare,
                       isPaused: isPaused,
+                      sentQuality: sentQuality,
                       showWatchButton: _isScreenshare && !isSubscribed,
                       showStopButton: showStopButton,
                       showOverlays: _showOverlays,
@@ -296,6 +304,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                       userId: userId,
                       isDeafened: isDeafened,
                       isPaused: isPaused,
+                      sentQuality: sentQuality,
                       isSubscribed: isSubscribed,
                       showStopButton: showStopButton,
                     ),
@@ -318,6 +327,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
     required String userId,
     required bool isDeafened,
     required bool isPaused,
+    required String? sentQuality,
     required bool isSubscribed,
     required bool showStopButton,
   }) {
@@ -338,6 +348,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
           isDeafened: isDeafened,
           isScreenshare: _isScreenshare,
           isPaused: isPaused,
+          sentQuality: sentQuality,
           showWatchButton: _isScreenshare && !isSubscribed,
           showStopButton: showStopButton,
           onWatch: _subscribeToScreenshare,

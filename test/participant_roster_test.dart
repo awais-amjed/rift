@@ -153,4 +153,33 @@ void main() {
     expect(ParticipantRoster.isSharePaused(roster, 'u1~d'), isFalse);
     expect(ParticipantRoster.isSharePaused(roster, 'stranger'), isFalse);
   });
+
+  test('a share\'s badge reads what the sharer says it sends', () {
+    String? label(Map<String, String> a) =>
+        VoiceAttributes.sentPictureOf(a)?.qualityLabel;
+    expect(label(const {'size': '1920x1080', 'fps': '60'}), '1080p · 60fps');
+    // A window shared at its own size is still named by its class.
+    expect(label(const {'size': '1920x1048', 'fps': '30'}), '1080p · 30fps');
+    expect(label(const {'size': '1280x720'}), '720p');
+    expect(label(const {}), isNull);
+    expect(label(const {'size': 'garbage', 'fps': '60'}), isNull);
+    expect(label(const {'size': '0x0', 'fps': '60'}), isNull);
+
+    final roster = [
+      const ParticipantInfo(
+        identity: 'u1~d_screenshare',
+        userId: 'u1',
+        name: 'u1',
+        isScreenshare: true,
+        shareQuality: '1080p · 60fps',
+      ),
+      p('u1~d', userId: 'u1'),
+    ];
+    expect(
+      ParticipantRoster.shareQuality(roster, 'u1~d_screenshare'),
+      '1080p · 60fps',
+    );
+    expect(ParticipantRoster.shareQuality(roster, 'u1~d'), isNull);
+    expect(ParticipantRoster.shareQuality(roster, 'stranger'), isNull);
+  });
 }

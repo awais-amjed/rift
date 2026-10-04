@@ -63,6 +63,14 @@ class ParticipantRoster {
     return false;
   }
 
+  /// What the screen share with [identity] says it is sending, as a label.
+  static String? shareQuality(List<ParticipantInfo> roster, String identity) {
+    for (final info in roster) {
+      if (info.identity == identity) return info.shareQuality;
+    }
+    return null;
+  }
+
   /// Which of a user's connections this is: themselves, their screen, or
   /// their sound. Two of them must not collapse into one row.
   static int _kind(ParticipantInfo p) {

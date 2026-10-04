@@ -38,6 +38,10 @@ class ExpandedParticipantTile extends StatelessWidget {
   /// The stream's shared window is minimised, so the picture is the last
   /// frame, or there is none yet — see [SharePausedNotice].
   final bool isPaused;
+
+  /// What the sharer says the stream is sent at ("1080p · 60fps"), which the
+  /// badge shows in place of the measured rate. Null for anything else.
+  final String? sentQuality;
   final bool showWatchButton;
   final bool showStopButton;
   final bool showOverlays;
@@ -70,6 +74,7 @@ class ExpandedParticipantTile extends StatelessWidget {
     this.isDeafened = false,
     required this.isScreenshare,
     this.isPaused = false,
+    this.sentQuality,
     required this.showWatchButton,
     required this.showStopButton,
     required this.showOverlays,
@@ -185,7 +190,7 @@ class ExpandedParticipantTile extends StatelessWidget {
                       isScreenshare: isScreenshare,
                     ),
                   ),
-                  StreamQualityBadge(stats: stats),
+                  StreamQualityBadge(stats: stats, sent: sentQuality),
                 ],
               ),
             ),

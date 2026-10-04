@@ -48,6 +48,11 @@ class ParticipantInfo {
   /// still — see `VoiceAttributes.isSharePaused`. False for anything else.
   final bool isSharePaused;
 
+  /// What a screen share says it is sending, as the badge words it
+  /// ("1080p · 60fps") — see `VoiceAttributes.sentPictureOf`. Null when it
+  /// has not said, and for anything that is not a screen share.
+  final String? shareQuality;
+
   const ParticipantInfo({
     required this.identity,
     required this.userId,
@@ -65,6 +70,7 @@ class ParticipantInfo {
     this.isServerMuted = false,
     this.isServerDeafened = false,
     this.isSharePaused = false,
+    this.shareQuality,
   });
 
   /// Whether this is a share rather than a person in the call. Anything
