@@ -6,6 +6,8 @@
 #[cfg(desktop)]
 pub(crate) mod capture;
 #[cfg(desktop)]
+mod encoder;
+#[cfg(desktop)]
 mod frames;
 mod pixels;
 pub(crate) mod resolution;
