@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
+import '../../../../../logic/services/call_volume.dart';
 import '../../../../common/volume_slider.dart';
 
 /// The bare track for how loud somebody is in your ears — no label, no
@@ -24,18 +25,24 @@ class ParticipantVolumeSlider extends StatelessWidget {
   /// owner down with it.
   final ValueChanged<double>? onChanged;
 
+  /// A voice or a shared sound goes up to [CallVolume.max]; a soundboard,
+  /// played here by a player that stops at 1, passes 1.
+  final double? max;
+
   const ParticipantVolumeSlider({
     super.key,
     required this.target,
     required this.isMuted,
     required this.volume,
     this.onChanged,
+    this.max,
   });
 
   @override
   Widget build(BuildContext context) {
     return VolumeSlider(
       value: isMuted ? 0 : volume,
+      max: max ?? CallVolume.max,
       onChanged: isMuted
           ? null
           : (value) {

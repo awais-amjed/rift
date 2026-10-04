@@ -14,6 +14,7 @@ import '../../../data/enums/home_surface.dart';
 import '../../../data/enums/noise_suppression.dart';
 import '../../../data/enums/sensitive_content_mode.dart';
 import '../../../data/participant_identity.dart';
+import '../../services/call_volume.dart';
 import '../../services/hydrated_keys.dart';
 import '../../services/noise_filter.dart';
 
@@ -215,6 +216,10 @@ class AppCubit extends HydratedCubit<AppState> {
       ),
     );
   }
+
+  /// See [AppState.outputVolume]. The LiveKitCubit puts it on every track.
+  void setOutputVolume(double volume) =>
+      emit(state.copyWith(outputVolume: volume.clamp(0.0, CallVolume.max)));
 
   void setInputDeviceId(String? deviceId) {
     emit(

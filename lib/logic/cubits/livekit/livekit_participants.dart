@@ -69,14 +69,18 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
   /// Sets the local volume of whatever is stored under [key] — see
   /// [setMuteFor]. Still silent while it is muted.
   Future<void> setVolumeFor(String key, double volume) async {
-    _appCubit.setParticipantSetting(key, volume: volume);
+    _appCubit.setParticipantSetting(
+      key,
+      volume: volume.clamp(0.0, CallVolume.max),
+    );
     _applySettingFor(key);
   }
 
   void _applySettingFor(String key) {
-    final setting = _appCubit.state.settingFor(key);
+    final app = _appCubit.state;
+    final setting = app.settingFor(key);
     for (final track in _audioTracksFor(key)) {
-      _applyAudioSetting(track, setting);
+      _applyAudioSetting(track, setting, app.outputVolume);
     }
   }
 
@@ -95,7 +99,8 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
       setVolumeFor(ParticipantIdentity.userIdOf(target), volume);
 }
 
-/// Puts this device's mute and volume on one remote audio track.
+/// Puts this device's mute and volume on one remote audio track, the volume
+/// for every call ([output]) included — see [CallVolume.of].
 ///
 /// A mute is also a volume of nothing. The SDK enables a remote track itself
 /// as it starts it, just *after* telling us it subscribed, so a mute made of
@@ -104,10 +109,11 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
 void _applyAudioSetting(
   rtc.MediaStreamTrack track,
   ParticipantSetting setting,
+  double output,
 ) {
   track.enabled = !setting.muted;
   rtc.Helper.setVolume(
-    setting.muted ? 0 : setting.volume,
+    CallVolume.of(setting, output),
     track,
   ).catchError((Object e) => HelperMethods.printDebug('setVolume error: $e'));
 }

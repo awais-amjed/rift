@@ -69,6 +69,7 @@ class ProfileLocalAudio extends StatelessWidget {
             target: userId,
             muted: soundboard?.muted ?? false,
             volume: soundboard?.volume ?? 1.0,
+            max: 1.0,
             onChanged: (value) =>
                 context.read<AppCubit>().setSoundboardVolumeFor(userId, value),
           ),
@@ -104,6 +105,7 @@ class ProfileLocalAudio extends StatelessWidget {
     required bool muted,
     required double volume,
     ValueChanged<double>? onChanged,
+    double? max,
   }) {
     final themeState = context.theme;
     return Column(
@@ -125,9 +127,10 @@ class ProfileLocalAudio extends StatelessWidget {
                 isMuted: muted,
                 volume: volume,
                 onChanged: onChanged,
+                max: max,
               ),
             ),
-            // Wide enough for "100%", so dragging never shifts the track.
+            // Wide enough for "200%", so dragging never shifts the track.
             SizedBox(
               width: 40,
               child: Text(

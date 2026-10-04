@@ -20,6 +20,7 @@ import '../../helper_methods.dart';
 import '../../services/audio_devices.dart';
 import '../../services/before_quit.dart';
 import '../../services/call_foreground_service.dart';
+import '../../services/call_volume.dart';
 import '../../services/channel_keyring.dart';
 import '../../services/connection_failure.dart';
 import '../../services/host_platform.dart';
@@ -351,6 +352,10 @@ class LiveKitCubit extends Cubit<LiveKitState>
       unawaited(_refreshMicrophoneCapture());
     }
 
+    if (previous.outputVolume != appState.outputVolume) {
+      _applyStoredSettings();
+    }
+
     final pttChanged =
         previous.pushToTalkEnabled != appState.pushToTalkEnabled ||
         previous.pushToTalkKeyId != appState.pushToTalkKeyId;
@@ -582,7 +587,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
             localIdentity: room.localParticipant?.identity,
           ),
         );
-        _applyAudioSetting(track.mediaStreamTrack, setting);
+        _applyAudioSetting(track.mediaStreamTrack, setting, app.outputVolume);
       }
     }
   }
