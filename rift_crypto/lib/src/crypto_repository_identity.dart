@@ -120,15 +120,20 @@ mixin _IdentityCryptoMixin {
   /// `Chain ID: solana:mainnet` and the base64 signature encoding are required
   /// by GoTrue's web3 grant. `API.md` in `rift-self-host` explains which of its
   /// four gates each field is there to clear.
+  ///
+  /// [issuedAt] defaults to now. GoTrue refuses a message dated more than ten
+  /// minutes from its own clock, so a device whose clock is wrong signs at the
+  /// server's time instead (`siwsSignIn`).
   Future<({String message, String signatureBase64})> signSiws({
     required SimpleKeyPair keyPair,
     required Uint8List publicKeyBytes,
+    DateTime? issuedAt,
   }) async {
     final address = CryptoRepository.toBase58(publicKeyBytes);
     final nonce = CryptoRepository.toBase64(
       CryptoRepository._secureRandomBytes(12),
     ).replaceAll(RegExp(r'[^A-Za-z0-9]'), '');
-    final issuedAt = DateTime.now().toUtc().toIso8601String();
+    final issued = (issuedAt ?? DateTime.now()).toUtc().toIso8601String();
 
     final message =
         '$_siwsDomain wants you to sign in with your Solana account:\n'
@@ -140,7 +145,7 @@ mixin _IdentityCryptoMixin {
         'Version: 1\n'
         'Chain ID: solana:mainnet\n'
         'Nonce: $nonce\n'
-        'Issued At: $issuedAt';
+        'Issued At: $issued';
 
     final ed = Ed25519();
     final signature = await ed.sign(utf8.encode(message), keyPair: keyPair);

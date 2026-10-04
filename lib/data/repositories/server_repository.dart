@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart' show parseHttpDate;
 import 'package:supabase/supabase.dart' hide ErrorCode;
 
 import '../../logic/services/chat_message_ops.dart';
@@ -110,7 +111,7 @@ class ServerRepository
           )
           .timeout(const Duration(seconds: 15));
       final result = jsonDecode(response.body) as Map<String, dynamic>;
-      return _fromSupabaseCF(result);
+      return _fromSupabaseCF(result, serverTime: _serverTime(response));
     } on TimeoutException {
       return APIResponse.error(
         "This server isn't responding — it may be offline. Try again later.",
@@ -137,14 +138,32 @@ class ServerRepository
     }
   }
 
-  APIResponse _fromSupabaseCF(Map<String, dynamic> data) {
+  APIResponse _fromSupabaseCF(
+    Map<String, dynamic> data, {
+    DateTime? serverTime,
+  }) {
     if (data['success'] == true) {
-      return APIResponse.success(data['data']);
+      return APIResponse(
+        success: true,
+        data: data['data'],
+        serverTime: serverTime,
+      );
     }
     return APIResponse(
       success: false,
       error: data['error'] as String? ?? 'Unknown error',
       errorCode: data['code'] as String?,
+      serverTime: serverTime,
     );
+  }
+
+  static DateTime? _serverTime(http.Response response) {
+    final date = response.headers['date'];
+    if (date == null) return null;
+    try {
+      return parseHttpDate(date);
+    } on FormatException {
+      return null;
+    }
   }
 }

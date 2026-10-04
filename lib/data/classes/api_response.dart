@@ -15,7 +15,19 @@ class APIResponse {
 
   final dynamic data;
 
-  APIResponse({required this.success, this.data, this.error, this.errorCode});
+  /// When the server answered, by its own clock: the HTTP `Date` header. What
+  /// a sign-in is re-dated by when this device's clock is wrong. Null when
+  /// there was no answer, and on the web unless the server exposes the header
+  /// to other origins.
+  final DateTime? serverTime;
+
+  APIResponse({
+    required this.success,
+    this.data,
+    this.error,
+    this.errorCode,
+    this.serverTime,
+  });
 
   factory APIResponse.success(dynamic data) {
     return APIResponse(success: true, data: data);

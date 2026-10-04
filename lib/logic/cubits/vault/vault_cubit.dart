@@ -15,6 +15,7 @@ import '../../../logic/helper_methods.dart';
 import '../../../logic/services/attachment_cache.dart';
 import '../../../logic/services/backup_merge.dart';
 import '../../../logic/services/message_cache.dart';
+import '../../../logic/services/siws_sign_in.dart';
 
 part 'vault_auth.dart';
 part 'vault_backup.dart';

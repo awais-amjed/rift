@@ -55,6 +55,7 @@ dependencies:
   livekit_client: ^2.13.0
   flutter_webrtc: ^1.6.2
   http: ^1.6.0
+  http_parser: ^4.1.2
   window_manager: ^0.5.1
   # Already window_manager's own; named here because the window is fitted to
   # the displays before it shows (see fitWindowToScreens).

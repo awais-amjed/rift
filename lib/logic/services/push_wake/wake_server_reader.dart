@@ -8,6 +8,7 @@ import '../../../data/enums/notification_level.dart';
 import '../../../data/repositories/server_repository.dart';
 import '../chat_notice.dart';
 import '../mentions.dart';
+import '../siws_sign_in.dart';
 import 'wake_calls.dart';
 import 'wake_dm_scan.dart';
 import 'wake_envelope.dart';
@@ -172,14 +173,11 @@ class WakeServerReader with _WakeChannelKeysMixin, _WakeChannelsMixin {
         serverId: server.id,
         version: server.keyVersion,
       );
-      final signed = await _crypto.signSiws(
-        keyPair: identity.keyPair,
-        publicKeyBytes: identity.publicKeyBytes,
-      );
-      final response = await _repo.login(
-        server.supabaseUrl,
-        message: signed.message,
-        signature: signed.signatureBase64,
+      final response = await siwsSignIn(
+        repository: _repo,
+        crypto: _crypto,
+        supabaseUrl: server.supabaseUrl,
+        identity: identity,
       );
       if (!response.success) return null;
       return (response.data as Map<String, dynamic>?)?['access_token']

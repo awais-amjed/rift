@@ -146,6 +146,22 @@ void main() {
       expect(ok, isTrue);
     });
 
+    test('dates the message at the time it is given', () async {
+      // A device whose clock is wrong signs at the server's time instead:
+      // GoTrue refuses anything more than ten minutes from its own.
+      final id = await crypto.deriveServerIdentity(
+        masterSeed: seed,
+        host: 'localhost',
+        serverId: 's1',
+      );
+      final signed = await crypto.signSiws(
+        keyPair: id.keyPair,
+        publicKeyBytes: id.publicKeyBytes,
+        issuedAt: DateTime.utc(2026, 10, 4, 7, 30),
+      );
+      expect(signed.message, endsWith('Issued At: 2026-10-04T07:30:00.000Z'));
+    });
+
     test('a tampered message fails verification', () async {
       final id = await crypto.deriveServerIdentity(
         masterSeed: seed,
