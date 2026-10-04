@@ -569,6 +569,9 @@ class LiveKitCubit extends Cubit<LiveKitState>
   void _applyStoredSettings() {
     final room = state.room;
     if (room == null) return;
+    // A setting turns a track back on; deafened, every one stays off. They
+    // are put back when the deafen lifts ([_restoreRemoteAudio]).
+    if (state.isDeafenedEffective) return;
 
     final app = _appCubit.state;
     for (final participant in room.remoteParticipants.values) {

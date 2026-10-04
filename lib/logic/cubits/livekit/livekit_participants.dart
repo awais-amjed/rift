@@ -77,6 +77,8 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
   }
 
   void _applySettingFor(String key) {
+    // Stored for when the deafen lifts; nothing is playing to change now.
+    if (state.isDeafenedEffective) return;
     final app = _appCubit.state;
     final setting = app.settingFor(key);
     for (final track in _audioTracksFor(key)) {
