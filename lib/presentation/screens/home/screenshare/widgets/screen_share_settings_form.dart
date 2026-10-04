@@ -92,12 +92,8 @@ class ScreenShareSettingsForm extends StatelessWidget {
               sources: captureSources,
               selectedIndex: settings.selectedVideoSourceIndex,
               thumbnails: thumbnails,
-              onChanged: (source) => onChanged(
-                settings.copyWith(
-                  selectedVideoSourceIndex: source.index,
-                  selectedVideoSourcePid: source.audioSourcePid,
-                ),
-              ),
+              onChanged: (source) =>
+                  onChanged(settings.withVideoSource(source)),
               onRefresh: onRefreshCaptureSources,
             ),
             const SizedBox(height: 16),

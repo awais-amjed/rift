@@ -1,41 +1,87 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rift/data/classes/screen_share_settings.dart';
 import 'package:rift/logic/services/screen_share_sources.dart';
 import 'package:rift/src/rust/api/screenshare/types.dart';
 
-CaptureSource src(int index, {int? pid}) => CaptureSource(
+CaptureSource src(int index, {int? pid, String? title}) => CaptureSource(
   index: index,
-  title: 'source $index',
+  title: title ?? 'source $index',
   audioSourcePid: pid,
   minimised: false,
 );
 
+/// What was saved after picking [source] last time.
+ScreenShareSettings pickedLast(CaptureSource source) =>
+    const ScreenShareSettings().withVideoSource(source);
+
 void main() {
   group('ScreenShareSources.pickCaptureSource', () {
-    test('keeps the source the user picked last time', () {
+    test('finds the window picked last time wherever it sits now', () {
+      // Explorer was second; a window opened since and took its place.
+      final last = pickedLast(src(1, title: 'Explorer', pid: 10));
       final picked = ScreenShareSources.pickCaptureSource([
-        src(1),
-        src(7, pid: 4242),
-        src(9),
-      ], 7);
-      expect(picked?.index, 7);
-      expect(picked?.audioSourcePid, 4242);
+        src(0, title: 'Console', pid: 30),
+        src(1, title: 'Notepad', pid: 20),
+        src(2, title: 'Explorer', pid: 10),
+      ], last);
+      expect(picked?.title, 'Explorer');
+      expect(picked?.index, 2);
+    });
+
+    test('tells two windows of the same title apart by their process', () {
+      final picked = ScreenShareSources.pickCaptureSource([
+        src(0, title: 'Home', pid: 10),
+        src(1, title: 'Home', pid: 11),
+      ], pickedLast(src(0, title: 'Home', pid: 11)));
+      expect(picked?.index, 1);
+    });
+
+    test('follows the process when the title moved on', () {
+      final picked = ScreenShareSources.pickCaptureSource([
+        src(0, title: 'Console', pid: 30),
+        src(1, title: 'Another tab - Browser', pid: 40),
+      ], pickedLast(src(0, title: 'A tab - Browser', pid: 40)));
+      expect(picked?.index, 1);
     });
 
     test('falls back to the first when that window is gone', () {
-      final picked = ScreenShareSources.pickCaptureSource([src(3), src(4)], 7);
+      final picked = ScreenShareSources.pickCaptureSource([
+        src(3),
+        src(4),
+      ], pickedLast(src(4, title: 'Gone', pid: 99)));
       expect(picked?.index, 3);
+    });
+
+    test('goes by place only for a choice saved without a title', () {
+      const saved = ScreenShareSettings(selectedVideoSourceIndex: 7);
+      expect(
+        ScreenShareSources.pickCaptureSource([
+          src(1),
+          src(7),
+          src(9),
+        ], saved)?.index,
+        7,
+      );
     });
 
     test('falls back to the first when nothing was persisted', () {
       expect(
-        ScreenShareSources.pickCaptureSource([src(3), src(4)], null)?.index,
+        ScreenShareSources.pickCaptureSource([
+          src(3),
+          src(4),
+        ], const ScreenShareSettings())?.index,
         3,
       );
     });
 
     test('picks nothing when there are no sources', () {
-      expect(ScreenShareSources.pickCaptureSource([], 7), isNull);
-      expect(ScreenShareSources.pickCaptureSource([], null), isNull);
+      expect(
+        ScreenShareSources.pickCaptureSource(
+          [],
+          pickedLast(src(7, title: 'Game')),
+        ),
+        isNull,
+      );
     });
   });
 

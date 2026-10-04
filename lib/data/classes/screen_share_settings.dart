@@ -1,16 +1,22 @@
 import '../../src/rust/api/screenshare/types.dart';
 
 /// What the next screen share will send, remembered between calls. The source
-/// fields are per-platform: a window index everywhere, a PID on Windows, a
-/// PulseAudio source on Linux.
+/// fields are per-platform: a window index and title everywhere, a PID on
+/// Windows, a PulseAudio source on Linux.
 class ScreenShareSettings {
   final int resolution; // height in px (720, 1080, 1440, 2160)
   final int fps;
   final int bitrate; // in Mbps
   final bool shareAudio;
   final bool captureFullScreen; // true = full screen, false = window
+  /// Where the chosen source sat in the list it was picked from. Only the
+  /// share started from that same list may use it: windows open and close in
+  /// between, so in the next list it can name somebody else's window.
   final int? selectedVideoSourceIndex;
   final int? selectedVideoSourcePid; // Windows-only PID for selected window
+
+  /// The chosen source's title, which is what finds it again in a later list.
+  final String? selectedVideoSourceTitle;
   final String codec; // "VP8", "H264" or "VP9", as the picker shows it
   final AudioSource? selectedAudioSource; // Linux PulseAudio source
 
@@ -22,6 +28,7 @@ class ScreenShareSettings {
     this.captureFullScreen = true,
     this.selectedVideoSourceIndex,
     this.selectedVideoSourcePid,
+    this.selectedVideoSourceTitle,
     this.codec = 'VP9',
     this.selectedAudioSource,
   });
@@ -35,6 +42,7 @@ class ScreenShareSettings {
       captureFullScreen: json['captureFullScreen'] as bool? ?? true,
       selectedVideoSourceIndex: json['selectedVideoSourceIndex'] as int?,
       selectedVideoSourcePid: json['selectedVideoSourcePid'] as int?,
+      selectedVideoSourceTitle: json['selectedVideoSourceTitle'] as String?,
       codec: json['codec'] as String? ?? 'VP9',
       // selectedAudioSource is not persisted in JSON (runtime only)
     );
@@ -48,6 +56,7 @@ class ScreenShareSettings {
     'captureFullScreen': captureFullScreen,
     'selectedVideoSourceIndex': selectedVideoSourceIndex,
     'selectedVideoSourcePid': selectedVideoSourcePid,
+    'selectedVideoSourceTitle': selectedVideoSourceTitle,
     'codec': codec,
   };
 
@@ -74,6 +83,22 @@ class ScreenShareSettings {
     _ => '${resolution}p',
   };
 
+  /// [source] as the one to share, replacing every part of the last choice —
+  /// a window without a process must not keep the previous window's.
+  ScreenShareSettings withVideoSource(CaptureSource source) =>
+      ScreenShareSettings(
+        resolution: resolution,
+        fps: fps,
+        bitrate: bitrate,
+        shareAudio: shareAudio,
+        captureFullScreen: captureFullScreen,
+        selectedVideoSourceIndex: source.index,
+        selectedVideoSourcePid: source.audioSourcePid,
+        selectedVideoSourceTitle: source.title,
+        codec: codec,
+        selectedAudioSource: selectedAudioSource,
+      );
+
   /// Passing null keeps the current value, so removing a selection needs an
   /// explicit [clearVideoSource] / [clearAudioSource] — the settings dialog
   /// does exactly that when you switch between screen and window capture.
@@ -85,6 +110,7 @@ class ScreenShareSettings {
     bool? captureFullScreen,
     int? selectedVideoSourceIndex,
     int? selectedVideoSourcePid,
+    String? selectedVideoSourceTitle,
     String? codec,
     AudioSource? selectedAudioSource,
     bool clearVideoSource = false,
@@ -102,6 +128,9 @@ class ScreenShareSettings {
       selectedVideoSourcePid: clearVideoSource
           ? null
           : selectedVideoSourcePid ?? this.selectedVideoSourcePid,
+      selectedVideoSourceTitle: clearVideoSource
+          ? null
+          : selectedVideoSourceTitle ?? this.selectedVideoSourceTitle,
       codec: codec ?? this.codec,
       selectedAudioSource: clearAudioSource
           ? null

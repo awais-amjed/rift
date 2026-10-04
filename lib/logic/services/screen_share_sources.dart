@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import '../../data/classes/screen_share_settings.dart';
 import '../../src/rust/api/screenshare.dart';
 import '../../src/rust/api/screenshare/types.dart';
 import '../helper_methods.dart';
@@ -108,13 +109,32 @@ class ScreenShareSources {
   /// time if it is still there, otherwise the first available, otherwise
   /// nothing. Keeping this pure is what makes "my window disappeared" a
   /// testable case rather than a crash report.
+  ///
+  /// A window is found again by its title, with its process to tell two of
+  /// the same title apart, and by its process alone when the title moved on
+  /// (a browser names the tab it shows). Never by its place in the list:
+  /// windows open and close between one share and the next, and the place
+  /// the last choice held is somebody else's now. Only a choice with no title
+  /// — saved before titles were, or a screen without a name — has nothing
+  /// else to go by.
   static CaptureSource? pickCaptureSource(
     List<CaptureSource> sources,
-    int? persistedIndex,
+    ScreenShareSettings last,
   ) {
     if (sources.isEmpty) return null;
+    final title = last.selectedVideoSourceTitle;
+    final pid = last.selectedVideoSourcePid;
+    if (title != null && title.isNotEmpty) {
+      final named = sources.where((s) => s.title == title);
+      return named.where((s) => s.audioSourcePid == pid).firstOrNull ??
+          named.firstOrNull ??
+          (pid == null
+              ? null
+              : sources.where((s) => s.audioSourcePid == pid).firstOrNull) ??
+          sources.first;
+    }
     for (final source in sources) {
-      if (source.index == persistedIndex) return source;
+      if (source.index == last.selectedVideoSourceIndex) return source;
     }
     return sources.first;
   }

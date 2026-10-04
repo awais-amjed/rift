@@ -28,4 +28,26 @@ void main() {
     final restored = ScreenShareSettings.fromJson(settings.toJson());
     expect(restored.videoCodec, VideoCodec.vp9);
   });
+
+  test('a picked window keeps its title across a restart', () {
+    final settings = const ScreenShareSettings().withVideoSource(
+      const CaptureSource(
+        index: 2,
+        title: 'Explorer',
+        audioSourcePid: 10,
+        minimised: false,
+      ),
+    );
+    final restored = ScreenShareSettings.fromJson(settings.toJson());
+    expect(restored.selectedVideoSourceTitle, 'Explorer');
+    expect(restored.selectedVideoSourcePid, 10);
+  });
+
+  test("picking a window without a process drops the last one's", () {
+    final settings = const ScreenShareSettings(selectedVideoSourcePid: 10)
+        .withVideoSource(
+          const CaptureSource(index: 0, title: 'Screen', minimised: false),
+        );
+    expect(settings.selectedVideoSourcePid, isNull);
+  });
 }

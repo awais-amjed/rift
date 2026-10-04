@@ -79,19 +79,13 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
     );
     if (!mounted) return;
 
-    final selected = ScreenShareSources.pickCaptureSource(
-      sources,
-      _draft.selectedVideoSourceIndex,
-    );
+    final selected = ScreenShareSources.pickCaptureSource(sources, _draft);
     setState(() {
       _captureSources = sources;
       _loadingCaptureSources = false;
       _draft = selected == null
           ? _draft.copyWith(clearVideoSource: true)
-          : _draft.copyWith(
-              selectedVideoSourceIndex: selected.index,
-              selectedVideoSourcePid: selected.audioSourcePid,
-            );
+          : _draft.withVideoSource(selected);
     });
 
     // Thumbnails trickle in behind the list; the list does not wait for them.
