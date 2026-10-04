@@ -248,8 +248,23 @@ features.
    - A long GOP with keyframes on request (`CODECAPI_AVEncVideoForceKeyFrame`).
    - The bitrate changed live (`CODECAPI_AVEncCommonMeanBitRate`) whenever a rate
      control request comes in.
-   - **Profile:** check what LiveKit negotiates. WebRTC's default is constrained
-     baseline (`42e01f`); constrained high (`640c1f`) is also widely accepted.
+   - **Profile: constrained baseline (`42e01f`), on purpose.** High was
+     measured and set aside (Oct 5 2026):
+     - **The gain is real.** Both GPUs take High in Media Foundation (CABAC
+       and the 8×8 transform on, still no B-frames). On a 1080p60 video clip
+       at 8 Mbps it scored 1.4 dB (NVIDIA) and 1.8 dB (Intel) higher luma
+       PSNR at the same rate. Scrolling source code took 17 to 19% fewer
+       bits at the same quality.
+     - **Getting it to viewers is not.** LiveKit's pass-through encoder
+       offers only `42e01f`, and the Rust SDK's `create_sender` puts `42e01f`
+       first, so offering High means patching both. Firefox subscribes with
+       constrained baseline only and gets no video when High is negotiated
+       (rust-sdks issue #1492), and the server forwards a share as sent.
+       Sending High under the `42e01f` label might decode in Chrome, Safari
+       and the desktop app, but it breaks negotiation and is unproven on
+       Firefox and Android.
+     - Revisit if LiveKit offers High for pre-encoded tracks, or with AV1,
+       which needs the same check on every viewer platform.
 4. **Input:** keep today's capture, and convert ARGB to NV12 with `argb_to_nv12`
    into an `IMFSample` in system memory. Simple, and it already takes the encoding
    load off the CPU.
@@ -310,6 +325,8 @@ A share the server could watch is a security bug.
   copies that Phase 1 still makes.
 - 120 fps. libwebrtc caps at 120 (`kMaxFramerateFps`).
 - Higher bitrate options.
+- H264 High profile, once viewers can negotiate it (see Phase 1's profile
+  note).
 
 ## Testing
 
