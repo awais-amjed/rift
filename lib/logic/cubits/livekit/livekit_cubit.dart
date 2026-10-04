@@ -396,8 +396,26 @@ class LiveKitCubit extends Cubit<LiveKitState>
     unawaited(SoundService.instance.play(AppSound.pushToTalk, ending: !on));
   }
 
+  /// Runs every change to the mic one after another.
+  ///
+  /// Each one decides whether the mic should be on when it *runs*, not when
+  /// it was asked for, so the last one always leaves the mic as the state now
+  /// says. Deciding up front let two overlap: a push-to-talk press that had
+  /// to republish the mic (see [_CaptureReviveMixin]) was still taking the
+  /// old track down when the key came up, so the release found nothing to
+  /// mute — and then the press published a live mic. The key was up, the
+  /// state said so, and everyone could still hear them until a mute.
+  final SerialQueue _micQueue = SerialQueue(label: '[LiveKit] microphone');
+
   @override
-  Future<void> _syncMicrophoneTransmission({
+  Future<void> _syncMicrophoneTransmission({bool syncParticipants = false}) =>
+      _micQueue.add(
+        () => _applyMicrophoneTransmission(syncParticipants: syncParticipants),
+      );
+
+  /// One step of [_syncMicrophoneTransmission] — only ever run from its
+  /// queue, which waiting on from in here would deadlock.
+  Future<void> _applyMicrophoneTransmission({
     bool syncParticipants = false,
   }) async {
     final room = state.room;
@@ -470,7 +488,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
   /// track must be recreated — stop it, then let the normal transmission sync
   /// bring it back with the new options.
   @override
-  Future<void> _refreshMicrophoneCapture() async {
+  Future<void> _refreshMicrophoneCapture() => _micQueue.add(() async {
     final room = state.room;
     if (room == null) return;
     if (state.connectionState != LiveKitConnectionState.connected) return;
@@ -484,8 +502,8 @@ class LiveKitCubit extends Cubit<LiveKitState>
       track.currentOptions = _buildAudioCaptureOptions();
     }
     await local?.setMicrophoneEnabled(false);
-    await _syncMicrophoneTransmission();
-  }
+    await _applyMicrophoneTransmission();
+  });
 
   /// Applies HIGH video quality to screenshare tracks from remote participants.
   @override
