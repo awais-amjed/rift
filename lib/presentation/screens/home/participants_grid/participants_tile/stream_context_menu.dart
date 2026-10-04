@@ -4,12 +4,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../data/participant_identity.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
+import '../../../../common/context_menu/context_menu_item.dart';
 import '../../../../common/context_menu/context_menu_panel.dart';
+import '../../../../common/context_menu_region.dart';
 import '../../../../theme/theme_context.dart';
 import '../widgets/share_audio_controls.dart';
 
-/// What a viewer can do about the sound of a screen share: turn it down, or
-/// off.
+/// What a viewer can do about a screen share: turn its sound down or off, or
+/// stop watching just this one.
 ///
 /// The stream's own menu rather than its owner's, which is what this tile used
 /// to open — so the only volume on offer was their voice, and a game too loud
@@ -34,12 +36,11 @@ class StreamContextMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    final localIdentity = context
-        .read<LiveKitCubit>()
-        .state
-        .room
-        ?.localParticipant
-        ?.identity;
+    final livekit = context.read<LiveKitCubit>();
+    final localIdentity = livekit.state.room?.localParticipant?.identity;
+    final watching = context.select<LiveKitCubit, bool>(
+      (cubit) => cubit.state.subscribedScreenshares.contains(identity),
+    );
     return ContextMenuPanel(
       heading: 'Stream',
       subheading: ownerName,
@@ -58,6 +59,19 @@ class StreamContextMenu extends StatelessWidget {
           ),
           noun: 'stream sound',
         ),
+        // The call bar's Stop watching puts every stream away; with two
+        // open, this is how to close one.
+        if (watching) ...[
+          Divider(height: 9, color: theme.borderPrimary),
+          ContextMenuItem(
+            icon: Icons.cancel_presentation,
+            label: 'Stop watching',
+            onTap: () {
+              ContextMenuScope.of(context)?.call();
+              livekit.unsubscribeFromScreenshare(identity);
+            },
+          ),
+        ],
       ],
     );
   }

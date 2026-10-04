@@ -9,7 +9,6 @@ import 'avatar_placeholder.dart';
 import 'decrypted_video.dart';
 import 'participant_name_badge.dart';
 import 'share_paused_notice.dart';
-import 'stop_watching_button.dart';
 import 'stream_quality_badge.dart';
 import 'stream_stats_overlay.dart';
 import 'stream_stats_poller.dart';
@@ -43,12 +42,15 @@ class ExpandedParticipantTile extends StatelessWidget {
   /// badge shows in place of the measured rate. Null for anything else.
   final String? sentQuality;
   final bool showWatchButton;
-  final bool showStopButton;
+
+  /// Someone else's stream with its picture here: the one thing that has
+  /// receive stats to poll. Stopping it is the call bar's job, where Leave
+  /// turns into Stop watching.
+  final bool isWatching;
   final bool showOverlays;
   final bool statsPinned;
   final VoidCallback onActivity;
   final VoidCallback onWatch;
-  final VoidCallback onStopWatching;
   final ValueChanged<bool> onStatsPinnedChanged;
 
   /// How much of the top edge something else is covering right now — the
@@ -76,12 +78,11 @@ class ExpandedParticipantTile extends StatelessWidget {
     this.isPaused = false,
     this.sentQuality,
     required this.showWatchButton,
-    required this.showStopButton,
+    required this.isWatching,
     required this.showOverlays,
     required this.statsPinned,
     required this.onActivity,
     required this.onWatch,
-    required this.onStopWatching,
     required this.onStatsPinnedChanged,
     this.topInset = 0,
     this.bottomInset = 0,
@@ -105,15 +106,15 @@ class ExpandedParticipantTile extends StatelessWidget {
       behavior: HitTestBehavior.translucent,
       onPointerMove: (_) => onActivity(),
       onPointerHover: (_) => onActivity(),
-      // A phone has no hover, and a tap is no move: its Stop watching went
-      // for good two seconds in, while the call's own controls came back.
+      // A phone has no hover, and a tap is no move: its overlays went for
+      // good two seconds in, while the call's own controls came back.
       onPointerDown: (_) => onActivity(),
       // Only someone else's share you are watching has receive stats.
       child: LayoutBuilder(
         builder: (context, constraints) {
           final lift = constraints.maxWidth < _crowdedWidth ? bottomInset : 0.0;
           return StreamStatsPoller(
-            track: showStopButton ? videoTrack : null,
+            track: isWatching ? videoTrack : null,
             builder: (context, stats) =>
                 _stage(stats, showStats: showStats, bottom: 12 + lift),
           );
@@ -156,17 +157,6 @@ class ExpandedParticipantTile extends StatelessWidget {
             ),
           ),
         if (showWatchButton) WatchStreamButton(onTap: onWatch),
-        if (showStopButton)
-          AnimatedPositioned(
-            duration: _fade,
-            curve: Curves.easeInOut,
-            bottom: bottom,
-            right: 12,
-            child: _fading(
-              visible: showOverlays,
-              child: StopWatchingButton(onTap: onStopWatching),
-            ),
-          ),
         AnimatedPositioned(
           duration: _fade,
           curve: Curves.easeInOut,

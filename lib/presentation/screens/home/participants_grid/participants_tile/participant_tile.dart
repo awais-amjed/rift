@@ -41,11 +41,10 @@ class ParticipantTileWidget extends StatefulWidget {
   final VoidCallback? onTap;
   final bool isExpanded;
 
-  /// Called once the viewer has asked to watch this screen share, and once
-  /// they have asked to stop. The grid uses them to take the share in and
-  /// out of focus.
+  /// Called once the viewer has asked to watch this screen share; the grid
+  /// brings it into focus. Stopping can happen away from the tile (the call
+  /// bar, the stream's menu), so the grid watches for that itself.
   final VoidCallback? onWatchStarted;
-  final VoidCallback? onWatchStopped;
 
   /// Told the shape of the grid tile's video. See [ShapeReportingVideo].
   final ValueChanged<double>? onAspectRatio;
@@ -64,7 +63,6 @@ class ParticipantTileWidget extends StatefulWidget {
     this.onTap,
     this.isExpanded = false,
     this.onWatchStarted,
-    this.onWatchStopped,
     this.onAspectRatio,
     this.topInset = 0,
     this.bottomInset = 0,
@@ -182,13 +180,6 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
     );
   }
 
-  Future<void> _unsubscribeFromScreenshare() {
-    widget.onWatchStopped?.call();
-    return context.read<LiveKitCubit>().unsubscribeFromScreenshare(
-      widget.participant.identity,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<LiveKitCubit, LiveKitState>(
@@ -210,8 +201,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
         final themeState = context.theme;
         final track = isSubscribed ? _videoPub?.track : null;
         final videoTrack = track is VideoTrack ? track : null;
-        final showStopButton =
-            _isScreenshare && isSubscribed && videoTrack != null;
+        final isWatching = _isScreenshare && isSubscribed && videoTrack != null;
         // The identity carries a device segment (and a screenshare
         // suffix), so everything about the *person* — their name, their
         // gradient — keys off the user id inside it instead.
@@ -287,12 +277,11 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                       isPaused: isPaused,
                       sentQuality: sentQuality,
                       showWatchButton: _isScreenshare && !isSubscribed,
-                      showStopButton: showStopButton,
+                      isWatching: isWatching,
                       showOverlays: _showOverlays,
                       statsPinned: _statsPinned,
                       onActivity: _onActivity,
                       onWatch: _subscribeToScreenshare,
-                      onStopWatching: _unsubscribeFromScreenshare,
                       onStatsPinnedChanged: _onStatsPinnedChanged,
                       topInset: widget.topInset,
                       bottomInset: widget.bottomInset,
@@ -306,7 +295,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                       isPaused: isPaused,
                       sentQuality: sentQuality,
                       isSubscribed: isSubscribed,
-                      showStopButton: showStopButton,
+                      isWatching: isWatching,
                     ),
             ),
           ),
@@ -329,7 +318,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
     required bool isPaused,
     required String? sentQuality,
     required bool isSubscribed,
-    required bool showStopButton,
+    required bool isWatching,
   }) {
     return BlocSelector<AppCubit, AppState, bool>(
       selector: (appState) => ParticipantRoster.isSpeaking(
@@ -350,9 +339,8 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
           isPaused: isPaused,
           sentQuality: sentQuality,
           showWatchButton: _isScreenshare && !isSubscribed,
-          showStopButton: showStopButton,
+          isWatching: isWatching,
           onWatch: _subscribeToScreenshare,
-          onStopWatching: _unsubscribeFromScreenshare,
           onAspectRatio: widget.onAspectRatio,
         );
       },

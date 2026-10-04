@@ -10,7 +10,6 @@ import 'decrypted_video.dart';
 import 'participant_name_badge.dart';
 import 'shape_reporting_video.dart';
 import 'share_paused_notice.dart';
-import 'stop_watching_button.dart';
 import 'stream_quality_badge.dart';
 import 'stream_stats_poller.dart';
 import 'watch_stream_button.dart';
@@ -40,9 +39,10 @@ class CollapsedParticipantTile extends StatelessWidget {
   /// badge shows in place of the measured rate. Null for anything else.
   final String? sentQuality;
   final bool showWatchButton;
-  final bool showStopButton;
+
+  /// Someone else's stream with its picture here, which has receive stats.
+  final bool isWatching;
   final VoidCallback onWatch;
-  final VoidCallback onStopWatching;
 
   /// Told the video's shape when one arrives. Null for tiles whose box does
   /// not follow the picture.
@@ -61,9 +61,8 @@ class CollapsedParticipantTile extends StatelessWidget {
     this.isPaused = false,
     this.sentQuality,
     required this.showWatchButton,
-    required this.showStopButton,
+    required this.isWatching,
     required this.onWatch,
-    required this.onStopWatching,
     this.onAspectRatio,
   });
 
@@ -114,12 +113,6 @@ class CollapsedParticipantTile extends StatelessWidget {
               // on a minimised window has no picture until the window is opened.
               if (isPaused && !showWatchButton) const SharePausedNotice(),
               if (showWatchButton) WatchStreamButton(onTap: onWatch),
-              if (showStopButton)
-                Positioned(
-                  bottom: 12,
-                  right: 12,
-                  child: StopWatchingButton(onTap: onStopWatching),
-                ),
               Positioned(
                 bottom: 12,
                 left: 12,
@@ -129,7 +122,7 @@ class CollapsedParticipantTile extends StatelessWidget {
                 child: Align(
                   alignment: Alignment.bottomLeft,
                   child: StreamStatsPoller(
-                    track: showStopButton ? videoTrack : null,
+                    track: isWatching ? videoTrack : null,
                     builder: (context, stats) => Row(
                       mainAxisSize: MainAxisSize.min,
                       spacing: 6,

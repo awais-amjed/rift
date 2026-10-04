@@ -14,7 +14,7 @@ class MediaColors {
   /// only thing left to look at.
   static const Color viewerBarrier = Color(0xDD000000);
 
-  /// A bar or a chip floating on video: a stats card, a Stop watching pill.
+  /// A bar or a chip floating on video: a stats card, a notice.
   static const Color panel = Color(0xB3000000);
 
   /// The viewer's toolbar strip — lighter than [panel], because it spans the
