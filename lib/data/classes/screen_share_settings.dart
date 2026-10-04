@@ -19,6 +19,10 @@ class ScreenShareSettings {
   final String? selectedVideoSourceTitle;
   final String codec; // "VP8", "H264" or "VP9", as the picker shows it
 
+  /// Whether [codec] was picked by hand. One that was not follows the
+  /// hardware where it can (see [codecToSend]).
+  final bool codecChosen;
+
   /// What the share gives up when it cannot keep up: frames or sharpness.
   final SharePriority priority;
   final AudioSource? selectedAudioSource; // Linux PulseAudio source
@@ -33,6 +37,7 @@ class ScreenShareSettings {
     this.selectedVideoSourcePid,
     this.selectedVideoSourceTitle,
     this.codec = 'VP9',
+    this.codecChosen = false,
     this.priority = defaultPriority,
     this.selectedAudioSource,
   });
@@ -48,6 +53,7 @@ class ScreenShareSettings {
       selectedVideoSourcePid: json['selectedVideoSourcePid'] as int?,
       selectedVideoSourceTitle: json['selectedVideoSourceTitle'] as String?,
       codec: json['codec'] as String? ?? 'VP9',
+      codecChosen: json['codecChosen'] as bool? ?? false,
       priority: priorityFromName(json['priority'] as String?),
       // selectedAudioSource is not persisted in JSON (runtime only)
     );
@@ -63,6 +69,7 @@ class ScreenShareSettings {
     'selectedVideoSourcePid': selectedVideoSourcePid,
     'selectedVideoSourceTitle': selectedVideoSourceTitle,
     'codec': codec,
+    'codecChosen': codecChosen,
     'priority': priority.name,
   };
 
@@ -79,6 +86,39 @@ class ScreenShareSettings {
     'VP9' => VideoCodec.vp9,
     _ => defaultCodec,
   };
+
+  /// The codecs the picker offers, by name. Where H264 is only ever encoded
+  /// on the GPU ([gpuOnlyH264]), it is offered only if the GPU encodes it
+  /// ([gpu]); VP8 and VP9 are always there, encoded on the CPU.
+  static List<String> codecsOffered({
+    required bool gpuOnlyH264,
+    required Set<VideoCodec> gpu,
+  }) => [
+    'VP8',
+    if (!gpuOnlyH264 || gpu.contains(VideoCodec.h264)) 'H264',
+    'VP9',
+  ];
+
+  /// The codec a share goes out in, by name, which is what the picker shows
+  /// as chosen.
+  ///
+  /// Where H264 is only ever encoded on the GPU ([gpuOnlyH264]): a codec
+  /// never picked by hand follows the hardware, H264 where the GPU encodes it
+  /// and VP9 elsewhere; a saved H264 with no GPU to encode it goes out as
+  /// VP9, rather than as H264 encoded on the CPU. Settings saved before there
+  /// was a choice to follow hold the old default, VP9, unpicked. Elsewhere
+  /// the saved codec, as it always was.
+  String codecToSend({
+    required bool gpuOnlyH264,
+    required Set<VideoCodec> gpu,
+  }) {
+    final saved = codecFromName(codec);
+    if (!gpuOnlyH264) return saved.name.toUpperCase();
+    final gpuH264 = gpu.contains(VideoCodec.h264);
+    if (!codecChosen && saved == defaultCodec) return gpuH264 ? 'H264' : 'VP9';
+    if (saved == VideoCodec.h264 && !gpuH264) return 'VP9';
+    return saved.name.toUpperCase();
+  }
 
   /// Smoothness, because a stream is usually something moving: LiveKit's own
   /// default for a screen share drops frames to stay sharp, and a game
@@ -121,6 +161,7 @@ class ScreenShareSettings {
         selectedVideoSourcePid: source.audioSourcePid,
         selectedVideoSourceTitle: source.title,
         codec: codec,
+        codecChosen: codecChosen,
         priority: priority,
         selectedAudioSource: selectedAudioSource,
       );
@@ -138,6 +179,7 @@ class ScreenShareSettings {
     int? selectedVideoSourcePid,
     String? selectedVideoSourceTitle,
     String? codec,
+    bool? codecChosen,
     SharePriority? priority,
     AudioSource? selectedAudioSource,
     bool clearVideoSource = false,
@@ -159,6 +201,7 @@ class ScreenShareSettings {
           ? null
           : selectedVideoSourceTitle ?? this.selectedVideoSourceTitle,
       codec: codec ?? this.codec,
+      codecChosen: codecChosen ?? this.codecChosen,
       priority: priority ?? this.priority,
       selectedAudioSource: clearAudioSource
           ? null

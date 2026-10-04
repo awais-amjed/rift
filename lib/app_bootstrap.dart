@@ -11,6 +11,7 @@ import 'package:window_manager/window_manager.dart';
 import 'logic/cubits/app/app_cubit.dart';
 import 'logic/helper_methods.dart';
 import 'logic/services/browser_apis.dart';
+import 'logic/services/gpu_codecs.dart';
 import 'logic/services/host_platform.dart';
 import 'logic/services/hydrated_store.dart';
 import 'logic/services/invite_scheme.dart';
@@ -41,7 +42,12 @@ class AppBootstrap {
     await StorageNamespace.useProfileSecureStorage(storageSuffix);
     _claimInviteLinks(storageSuffix);
 
-    if (!kIsWeb) await RustLib.init();
+    if (!kIsWeb) {
+      await RustLib.init();
+      // Opening a GPU encoder to see whether it works takes a moment; the
+      // share dialog wants the answer the moment it opens.
+      GpuCodecs.warmUp();
+    }
 
     await _initSupabase(storageSuffix);
     await _initHydratedStorage(storageSuffix);

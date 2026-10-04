@@ -1,6 +1,29 @@
 # GPU encoding for screen shares on Windows: plan
 
-Status: **planned, not started** (written Oct 4 2026 on the `gpu-encoding` branch).
+Status: **phases 0 to 4 done on Windows (H264), Oct 5 2026; AV1 and zero-copy
+(phase 5) not started.** Written Oct 4 2026 on the `gpu-encoding` branch.
+
+What came out of doing it, for whoever picks it up next:
+- WebRTC's frame dropper still acts on pre-encoded frames: LiveKit's
+  pass-through encoder does not claim a trusted rate controller, so a frame
+  the dropper judges over the target is dropped after encoding, and an H264
+  delta frame dropped breaks the picture until the next keyframe. The fix is
+  one line upstream, open as LiveKit rust-sdks PR #1459; verified here
+  (Oct 5 2026) with a patched local copy, 6 runs of the live test in 6 and no
+  frame dropped, against 4 in 6 without it. Until it lands, the encoder runs
+  CBR (VBR's swinging sizes set the dropper off far more), starts at LiveKit's
+  1 Mbps, and a size or rate change re-encodes on the same track rather than
+  publishing a new one.
+- Intel's encoder writes a three-byte start code before each slice, and
+  LiveKit's encryption authenticates the bytes before the first slice, which a
+  receiver rebuilds with four-byte ones: every frame failed to decrypt. Start
+  codes are rewritten to four bytes (`encoder/h264.rs`).
+- On a laptop with two GPUs, NVIDIA's encoder only opens in a process Windows
+  runs on the NVIDIA GPU (ffmpeg's `h264_mf` behaves the same); the next
+  encoder in the list, Intel's, is used then. The Rift app itself opened
+  NVIDIA's on the test laptop.
+- Measured numbers and the bench are in `rust/src/screenshare/bench_test.rs`
+  and `gpu_live_test.rs`; what was driven is in `TESTING.md`.
 This file is a hand-off. An agent picking it up on Windows should read it first,
 then `AGENTS.md`, `CODE_STYLE.md`, and the screen share code it names.
 
@@ -99,7 +122,7 @@ Then:
 
 **There is no Rift server while Linux is not running.** The local Docker stack
 lives on the Linux side. Testing without one:
-- **Rust live tests:** `cargo test live_ -- --ignored` in `rust/` runs a real
+- **Rust live tests:** `cargo test live_ -- --ignored --test-threads=1` in `rust/` runs a real
   share and a viewer against a LiveKit server.
   - Get `livekit-server` for Windows from the LiveKit releases and run it with
     `--dev`.

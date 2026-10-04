@@ -29,6 +29,84 @@ void main() {
     expect(restored.videoCodec, VideoCodec.vp9);
   });
 
+  group('codec on a computer that encodes H264 only on the GPU', () {
+    const gpu = {VideoCodec.h264};
+    const none = <VideoCodec>{};
+
+    String send(ScreenShareSettings settings, Set<VideoCodec> codecs) =>
+        settings.codecToSend(gpuOnlyH264: true, gpu: codecs);
+
+    test('a codec never picked follows the hardware', () {
+      expect(send(const ScreenShareSettings(), gpu), 'H264');
+      expect(send(const ScreenShareSettings(), none), 'VP9');
+    });
+
+    test('settings saved before there was a choice follow it too', () {
+      final old = ScreenShareSettings.fromJson(const {'codec': 'VP9'});
+      expect(send(old, gpu), 'H264');
+    });
+
+    test('VP9 picked by hand stays VP9', () {
+      const picked = ScreenShareSettings(codec: 'VP9', codecChosen: true);
+      expect(send(picked, gpu), 'VP9');
+      final restored = ScreenShareSettings.fromJson(picked.toJson());
+      expect(send(restored, gpu), 'VP9');
+    });
+
+    test('a saved H264 with no GPU to encode it goes out as VP9', () {
+      const picked = ScreenShareSettings(codec: 'H264', codecChosen: true);
+      expect(send(picked, none), 'VP9');
+      expect(send(picked, gpu), 'H264');
+    });
+
+    test('VP8 is kept either way', () {
+      const picked = ScreenShareSettings(codec: 'VP8', codecChosen: true);
+      expect(send(picked, gpu), 'VP8');
+      expect(send(picked, none), 'VP8');
+    });
+
+    test('H264 is offered only where the GPU encodes it', () {
+      expect(ScreenShareSettings.codecsOffered(gpuOnlyH264: true, gpu: none), [
+        'VP8',
+        'VP9',
+      ]);
+      expect(ScreenShareSettings.codecsOffered(gpuOnlyH264: true, gpu: gpu), [
+        'VP8',
+        'H264',
+        'VP9',
+      ]);
+    });
+
+    test('the choice survives picking a window', () {
+      final settings =
+          const ScreenShareSettings(
+            codec: 'VP9',
+            codecChosen: true,
+          ).withVideoSource(
+            const CaptureSource(index: 0, title: 'Game', minimised: false),
+          );
+      expect(settings.codecChosen, isTrue);
+    });
+  });
+
+  group('codec elsewhere', () {
+    test('is the saved one, as it always was', () {
+      const h264 = ScreenShareSettings(codec: 'H264');
+      expect(h264.codecToSend(gpuOnlyH264: false, gpu: const {}), 'H264');
+      expect(
+        const ScreenShareSettings().codecToSend(
+          gpuOnlyH264: false,
+          gpu: const {},
+        ),
+        'VP9',
+      );
+      expect(
+        ScreenShareSettings.codecsOffered(gpuOnlyH264: false, gpu: const {}),
+        ['VP8', 'H264', 'VP9'],
+      );
+    });
+  });
+
   group('priority', () {
     test('starts on smoothness', () {
       expect(const ScreenShareSettings().priority, SharePriority.smoothness);
