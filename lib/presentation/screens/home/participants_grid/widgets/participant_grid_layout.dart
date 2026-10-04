@@ -100,6 +100,9 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
     widget.onFocusChanged?.call(key != null);
   }
 
+  /// The streams watched as of the last build, to tell when one stops.
+  Set<String> _watchingBefore = const {};
+
   static String _keyOf(VoiceTile<Participant> tile) =>
       '${tile.participant.identity}${tile.isScreenshare ? '#share' : ''}';
 
@@ -156,6 +159,16 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
     final watching = context.select<LiveKitCubit, Set<String>>(
       (cubit) => cubit.state.subscribedScreenshares,
     );
+    // Watching can end away from the tile — the call bar's Stop watching —
+    // and the stream it had opened full size goes back with it, as it does
+    // when the tile's own button is pressed.
+    final stopped = _watchingBefore.difference(watching);
+    _watchingBefore = watching;
+    if (stopped.any((identity) => _expandedKey == '$identity#share')) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _setExpanded(null);
+      });
+    }
 
     // If a tile is expanded, show only that tile in full view
     if (_expandedKey != null) {

@@ -13,13 +13,12 @@ import '../../../common/app_modal.dart';
 import '../../../responsive/shell_scope.dart';
 import '../../../theme/app_motion.dart';
 import '../../../theme/app_shadows.dart';
-import '../../../theme/app_text.dart';
-import '../../../theme/custom_colors.dart';
 import '../../../theme/theme_context.dart';
 import '../soundboard/soundboard_button.dart';
 import '../soundshare/sound_share_picker_dialog.dart';
 import 'screen_share/screen_share_control.dart';
 import 'widgets/control_button.dart';
+import 'widgets/leave_button.dart';
 
 /// Over the widget budget and one job: the call's controls, and what pressing
 /// each one does — sound share and deafen each need a few steps.
@@ -43,7 +42,9 @@ class ControlBar extends StatelessWidget {
           prev.isCameraEnabled != curr.isCameraEnabled ||
           prev.isDeafenedEffective != curr.isDeafenedEffective ||
           prev.isServerMuted != curr.isServerMuted ||
-          prev.isServerDeafened != curr.isServerDeafened,
+          prev.isServerDeafened != curr.isServerDeafened ||
+          prev.subscribedScreenshares.isEmpty !=
+              curr.subscribedScreenshares.isEmpty,
       builder: (context, livekitState) {
         return BlocBuilder<SoundShareCubit, SoundShareState>(
           buildWhen: (prev, curr) => prev.isSharing != curr.isSharing,
@@ -71,6 +72,8 @@ class ControlBar extends StatelessWidget {
                         isDeafened: livekitState.isDeafenedEffective,
                         isServerMuted: livekitState.isServerMuted,
                         isServerDeafened: livekitState.isServerDeafened,
+                        isWatching:
+                            livekitState.subscribedScreenshares.isNotEmpty,
                       ),
                     ),
                   ),
@@ -90,6 +93,10 @@ class _ControlBarContent extends StatelessWidget {
   final bool isSharingSound;
   final bool isDeafened;
 
+  /// A stream is open here, so the last control stops watching rather than
+  /// leaving — see [LeaveButton].
+  final bool isWatching;
+
   /// Moderation, so the tooltip can say why the button won't move.
   final bool isServerMuted;
   final bool isServerDeafened;
@@ -101,6 +108,7 @@ class _ControlBarContent extends StatelessWidget {
     required this.isCameraEnabled,
     required this.isSharingSound,
     required this.isDeafened,
+    required this.isWatching,
   });
 
   /// Shares one application's sound, with no picture — a room listening to
@@ -156,10 +164,6 @@ class _ControlBarContent extends StatelessWidget {
 
   Future<void> _toggleCamera(BuildContext context) async {
     await context.read<LiveKitCubit>().toggleCamera();
-  }
-
-  Future<void> _leave(BuildContext context) async {
-    await context.read<LiveKitCubit>().disconnect();
   }
 
   @override
@@ -280,46 +284,10 @@ class _ControlBarContent extends StatelessWidget {
                   height: 30,
                   color: themeState.borderElevated,
                 ),
-                // Leave
-                Material(
-                  color: CustomColors.error,
-                  borderRadius: BorderRadius.circular(K.radiusRow),
-                  child: InkWell(
-                    mouseCursor: WidgetStateMouseCursor.clickable,
-                    borderRadius: BorderRadius.circular(K.radiusRow),
-                    // Opaque, so hovering deepens the red rather than
-                    // washing it — the one control here you can't undo.
-                    hoverColor: CustomColors.errorDark,
-                    onTap: () => _leave(context),
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: compact ? 12 : 20,
-                        vertical: 12,
-                      ),
-                      child: Row(
-                        spacing: 8,
-                        children: [
-                          const Icon(
-                            Icons.call_end,
-                            size: K.iconLarge,
-                            color: CustomColors.onError,
-                          ),
-                          // The word goes when the call is narrow — on a
-                          // phone, or beside a wide sidebar. The red
-                          // circle-with-a-handset is not a symbol anyone
-                          // needs the caption for.
-                          if (showLabel)
-                            Text(
-                              'Leave',
-                              style: AppText.row.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: CustomColors.onError,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
+                LeaveButton(
+                  watching: isWatching,
+                  compact: compact,
+                  showLabel: showLabel,
                 ),
               ],
             ),

@@ -149,6 +149,23 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
     }
   }
 
+  /// Stops watching every stream — the call bar's Stop watching, which takes
+  /// the place of Leave while anything is watched. One press puts them all
+  /// away, so the button turns back into Leave rather than staying put for a
+  /// second stream the user may not have noticed was still open.
+  Future<void> stopWatchingAll() async {
+    for (final identity in state.subscribedScreenshares.toList()) {
+      await unsubscribeFromScreenshare(identity);
+    }
+    // A stream whose sharer has just gone has nothing left to unsubscribe
+    // from, and would keep the button on Stop watching for nothing.
+    if (state.subscribedScreenshares.isNotEmpty) {
+      emit(state.copyWith(subscribedScreenshares: const {}));
+      _syncParticipants();
+      unawaited(_publishSelfState());
+    }
+  }
+
   /// Records watching [identity] or not, with nothing to subscribe to.
   void _setWatching(String identity, bool watching) {
     final updated = Set<String>.from(state.subscribedScreenshares);
