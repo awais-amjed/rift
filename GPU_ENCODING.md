@@ -8,12 +8,12 @@ What came out of doing it, for whoever picks it up next:
   pass-through encoder does not claim a trusted rate controller, so a frame
   the dropper judges over the target is dropped after encoding, and an H264
   delta frame dropped breaks the picture until the next keyframe. The fix is
-  one line upstream, open as LiveKit rust-sdks PR #1459; verified here
-  (Oct 5 2026) with a patched local copy, 6 runs of the live test in 6 and no
-  frame dropped, against 4 in 6 without it. Until it lands, the encoder runs
-  CBR (VBR's swinging sizes set the dropper off far more), starts at LiveKit's
-  1 Mbps, and a size or rate change re-encodes on the same track rather than
-  publishing a new one.
+  one line, open upstream as LiveKit rust-sdks PR #1459. Until it lands Rift
+  carries that line in `third_party/webrtc-sys` (the user's call, Oct 5 2026;
+  `RIFT_PATCHES.md` there says when it goes). With it the live test passed 6
+  runs in 6 with no frame dropped, against 4 in 6 without it.
+- The encoder runs CBR, starts at LiveKit's 1 Mbps, and a size or rate change
+  re-encodes on the same track rather than publishing a new one.
 - Intel's encoder writes a three-byte start code before each slice, and
   LiveKit's encryption authenticates the bytes before the first slice, which a
   receiver rebuilds with four-byte ones: every frame failed to decrypt. Start
@@ -73,7 +73,8 @@ Already done, and not part of this plan:
    - The dialog offers H264 and AV1 only where the hardware can encode them.
 5. **Do not fork `webrtc-sys`** to add NVENC on Windows. It would cover NVIDIA
    only, and the project dropped its LiveKit fork in Sept 2026 to stay on
-   upstream.
+   upstream. Carrying one upstream fix in `third_party/webrtc-sys` until it is
+   released is not that fork; the user agreed to it on Oct 5 2026.
 6. Hint text in the dialog says only what an option is best for, e.g. "Best for
    games and video.", never how it works.
 

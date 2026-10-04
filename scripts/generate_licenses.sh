@@ -24,10 +24,13 @@ cargo about generate -c about.toml about.hbs -o "$out/rust_crates.txt"
 # script dependency.
 for crate in webrtc-sys; do
   version=$(awk -v n="$crate" '$0 == "name = \"" n "\"" {getline; gsub(/version = |"/, ""); print}' Cargo.lock)
-  for notice in "$registry"/*/"$crate-$version"/NOTICE*; do
+  # A crate kept in third_party (patched, see its RIFT_PATCHES.md) is built from
+  # there, so the registry may not have it.
+  for notice in "$root/third_party/$crate"/NOTICE* "$registry"/*/"$crate-$version"/NOTICE*; do
     [ -f "$notice" ] || continue
     printf '\n%s\nNOTICE from %s %s\n\n' "$(printf '=%.0s' {1..80})" "$crate" "$version" >> "$out/rust_crates.txt"
     cat "$notice" >> "$out/rust_crates.txt"
+    break
   done
 done
 

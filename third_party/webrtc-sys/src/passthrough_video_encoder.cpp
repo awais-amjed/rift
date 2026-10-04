@@ -332,6 +332,11 @@ class PassthroughVideoEncoder final : public VideoEncoder {
     info.implementation_name = "LiveKit pre-encoded passthrough";
     info.scaling_settings = VideoEncoder::ScalingSettings::kOff;
     info.is_hardware_accelerated = false;
+    // RIFT PATCH: the source honours the targets it is given through
+    // SetRates(), so WebRTC must not drop its frames: a dropped H264 delta
+    // frame corrupts the stream until the next keyframe. LiveKit rust-sdks
+    // PR #1459; see RIFT_PATCHES.md.
+    info.has_trusted_rate_controller = true;
     info.supports_simulcast = false;
     info.preferred_pixel_formats = {VideoFrameBuffer::Type::kNative};
     return info;

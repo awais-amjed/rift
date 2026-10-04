@@ -62,3 +62,9 @@ futures-util = "0.3"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
+
+# LiveKit's webrtc-sys with one line changed: WebRTC must not drop frames a
+# screen share's GPU encoder already made. See
+# third_party/webrtc-sys/RIFT_PATCHES.md for why and when it goes.
+[patch.crates-io]
+webrtc-sys = { path = "../third_party/webrtc-sys" }
