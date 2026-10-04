@@ -321,7 +321,7 @@ class ServerRealtime {
     final key = current.supabaseKey;
     if (key == null) return null;
     final connection = _Connection(_connect(current.supabaseUrl, key));
-    connection.authorise(current.token, key);
+    connection.authorise(current.token, key, receivedAt: current.tokenIssuedAt);
     _watchSocket(server.id, connection.client.realtime);
     return _connections[server.id] = connection;
   }
@@ -358,7 +358,11 @@ class ServerRealtime {
         unawaited(_close(id));
       } else {
         final connection = _connections[id]!;
-        if (connection.authorise(server.token, key)) {
+        if (connection.authorise(
+          server.token,
+          key,
+          receivedAt: server.tokenIssuedAt,
+        )) {
           _joinAwaiting(connection);
           _rejoinRefused(connection);
         }
@@ -516,20 +520,20 @@ class _Connection {
 
   DateTime? _expiresAt;
 
-  /// Whether [token] has run out, by its own `exp`. A token that isn't a JWT
-  /// with one is taken at its word.
+  /// Whether [token] has run out. A token that isn't a JWT with an `exp` is
+  /// taken at its word.
   bool get tokenExpired {
     final expiresAt = _expiresAt;
     return expiresAt != null && !DateTime.now().isBefore(expiresAt);
   }
 
-  /// Points REST and Realtime at [token]. A join outlives the token it was
-  /// made with only if Realtime is told the new one. True when the token
-  /// changed.
-  bool authorise(String token, String anonKey) {
+  /// Points REST and Realtime at [token], which this device received at
+  /// [receivedAt]. A join outlives the token it was made with only if Realtime
+  /// is told the new one. True when the token changed.
+  bool authorise(String token, String anonKey, {required DateTime receivedAt}) {
     if (token == _token) return false;
     _token = token;
-    _expiresAt = _expiryOf(token);
+    _expiresAt = _expiryOf(token, receivedAt: receivedAt);
     client.headers = {
       'apikey': anonKey,
       if (token.isNotEmpty) 'Authorization': 'Bearer $token',
@@ -538,15 +542,28 @@ class _Connection {
     return true;
   }
 
-  static DateTime? _expiryOf(String token) {
+  /// When [token] runs out, by this device's clock: its lifetime (`exp` less
+  /// `iat`) counted from [receivedAt].
+  ///
+  /// Not `exp` itself, which is the server's clock. On a device whose clock
+  /// was hours fast every token looked spent the moment it arrived, so every
+  /// join waited for a fresh one that never came, and nothing live — presence,
+  /// messages — reached it (Oct 4 2026). A token without `iat` falls back to
+  /// `exp`.
+  static DateTime? _expiryOf(String token, {required DateTime receivedAt}) {
     final parts = token.split('.');
     if (parts.length != 3) return null;
     try {
       final claims = jsonDecode(
         utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))),
       );
-      final exp = claims is Map ? claims['exp'] : null;
+      if (claims is! Map) return null;
+      final exp = claims['exp'];
       if (exp is! num) return null;
+      final iat = claims['iat'];
+      if (iat is num) {
+        return receivedAt.add(Duration(seconds: (exp - iat).toInt()));
+      }
       return DateTime.fromMillisecondsSinceEpoch(exp.toInt() * 1000);
     } catch (_) {
       return null;

@@ -16,14 +16,19 @@ Server _server(String id, {String token = 'jwt-1', String? key = 'anon'}) =>
       'supabase_key': key,
     });
 
-/// A JWT whose `exp` is [fromNow] away — in the past when negative. Only the
-/// claims are read on this side; the signature is the server's business.
-String _jwt(Duration fromNow) {
+/// A JWT good for an hour from [issuedAt], by the clock of the server that
+/// minted it. Only the claims are read on this side; the signature is the
+/// server's business.
+String _jwt(DateTime issuedAt) {
   String part(Object json) =>
       base64Url.encode(utf8.encode(jsonEncode(json))).replaceAll('=', '');
-  final exp = DateTime.now().add(fromNow).millisecondsSinceEpoch ~/ 1000;
-  return '${part({'alg': 'HS256'})}.${part({'exp': exp})}.sig';
+  final iat = issuedAt.millisecondsSinceEpoch ~/ 1000;
+  return '${part({'alg': 'HS256'})}.${part({'iat': iat, 'exp': iat + 3600})}.sig';
 }
+
+/// [server] holding the token it was handed [ago].
+Server _received(Server server, Duration ago) =>
+    server.copyWith(tokenIssuedAt: DateTime.now().subtract(ago));
 
 /// A registry over a server list the test controls. What is under test is the
 /// bookkeeping, not the sockets.
@@ -282,7 +287,13 @@ void main() {
   // client's own retries of one topic knocked it off the socket for the
   // session.
   test('a join waits for a token that has not run out', () async {
-    final stale = _server('a', token: _jwt(const Duration(hours: -3)));
+    final stale = _received(
+      _server(
+        'a',
+        token: _jwt(DateTime.now().subtract(const Duration(hours: 4))),
+      ),
+      const Duration(hours: 4),
+    );
     final h = _Harness([stale]);
     h.realtime.join(stale, 'user:me');
     final channel = h.realtime.debugChannelOf('a', 'user:me')!;
@@ -292,7 +303,7 @@ void main() {
       reason: 'nothing sent on a dead token',
     );
 
-    await h.publish([stale.copyWith(token: _jwt(const Duration(hours: 1)))]);
+    await h.publish([stale.copyWith(token: _jwt(DateTime.now()))]);
     expect(h.realtime.debugChannelOf('a', 'user:me'), same(channel));
     expect(h.realtime.debugAwaitingToken('a', 'user:me'), isFalse);
     expect(h.realtime.debugSocketChannels('a'), contains(same(channel)));
@@ -300,18 +311,51 @@ void main() {
   });
 
   test('releasing a waiting topic leaves the others waiting', () async {
-    final stale = _server('a', token: _jwt(const Duration(hours: -3)));
+    final stale = _received(
+      _server(
+        'a',
+        token: _jwt(DateTime.now().subtract(const Duration(hours: 4))),
+      ),
+      const Duration(hours: 4),
+    );
     final h = _Harness([stale]);
     final one = h.realtime.join(stale, 'user:me')!;
     h.realtime.join(stale, 'server:a');
     await one.release();
 
-    await h.publish([stale.copyWith(token: _jwt(const Duration(hours: 1)))]);
+    await h.publish([stale.copyWith(token: _jwt(DateTime.now()))]);
     final other = h.realtime.debugChannelOf('a', 'server:a')!;
     expect(h.realtime.debugAwaitingToken('a', 'server:a'), isFalse);
     expect(h.realtime.debugSocketChannels('a'), [same(other)]);
     await h.close();
   });
+
+  // A device fourteen hours fast saw every token as spent the moment it
+  // arrived, held every join back for one that never came, and heard nothing
+  // live (Oct 4 2026). A token's life runs from when it got here.
+  test("a fresh token is not held back by the device's clock", () async {
+    final serverNow = DateTime.now().subtract(const Duration(hours: 14));
+    final a = _server('a', token: _jwt(serverNow));
+    final h = _Harness([a]);
+    h.realtime.join(a, 'user:me');
+    expect(h.realtime.debugAwaitingToken('a', 'user:me'), isFalse);
+    await h.close();
+  });
+
+  test(
+    'a token is still spent an hour after it arrived, whatever the clocks',
+    () async {
+      final serverNow = DateTime.now().add(const Duration(hours: 14));
+      final stale = _received(
+        _server('a', token: _jwt(serverNow)),
+        const Duration(minutes: 61),
+      );
+      final h = _Harness([stale]);
+      h.realtime.join(stale, 'user:me');
+      expect(h.realtime.debugAwaitingToken('a', 'user:me'), isTrue);
+      await h.close();
+    },
+  );
 
   test('a token that is not a JWT is not held back', () async {
     final a = _server('a');
