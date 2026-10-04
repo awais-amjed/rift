@@ -1,13 +1,12 @@
 //! The processing thread: ARGB to I420, scale to the target size, hand to
 //! LiveKit. Kept off the capture thread so a slow conversion delays frames
 //! rather than the capture clock.
-use super::resolution::{target_size, Size};
+use super::capture::VideoSlot;
+use super::resolution::Size;
 use livekit::webrtc::desktop_capturer::DesktopFrame;
 use livekit::webrtc::native::yuv_helper;
 use livekit::webrtc::prelude::{I420Buffer, VideoBuffer, VideoFrame, VideoRotation};
-use livekit::webrtc::video_source::native::NativeVideoSource;
 use std::sync::mpsc::Receiver;
-use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
 /// A `DesktopFrame` on its way to another thread.
@@ -21,27 +20,17 @@ unsafe impl Send for SendableFrame {}
 
 pub(crate) fn spawn_processing(
     frame_rx: Receiver<SendableFrame>,
-    source_slot: Arc<Mutex<Option<NativeVideoSource>>>,
-    max_height: u32,
+    source_slot: VideoSlot,
 ) -> JoinHandle<()> {
-    thread::spawn(move || run(frame_rx, source_slot, max_height))
+    thread::spawn(move || run(frame_rx, source_slot))
 }
 
-fn run(
-    frame_rx: Receiver<SendableFrame>,
-    source_slot: Arc<Mutex<Option<NativeVideoSource>>>,
-    max_height: u32,
-) {
+fn run(frame_rx: Receiver<SendableFrame>, source_slot: VideoSlot) {
     // Reused across frames; reallocated only if the capture size changes.
     // `VideoFrame::new` rather than a struct literal: libwebrtc keeps adding
     // fields to this (0.3.48 added `frame_metadata`), and a literal has to be
     // edited for every one of them.
     let mut native = VideoFrame::new(VideoRotation::VideoRotation0, I420Buffer::new(2, 2));
-    let mut target: Option<Size> = None;
-    // The slot is filled once, by the session, after it has seen the first
-    // frame's size. Read it under the lock until it is there, then keep the
-    // clone and never lock again.
-    let mut source: Option<NativeVideoSource> = None;
 
     while let Ok(SendableFrame(frame)) = frame_rx.recv() {
         let width = frame.width();
@@ -50,7 +39,11 @@ fn run(
             width: width as u32,
             height: height as u32,
         };
-        let target = *target.get_or_insert_with(|| target_size(size, max_height));
+        // Asked on every frame, because the session swaps in a new source
+        // when the size is changed mid-share. One uncontended lock a frame.
+        let Some((source, target)) = source_slot.feed(size) else {
+            continue;
+        };
 
         if native.buffer.width() != size.width || native.buffer.height() != size.height {
             native.buffer = I420Buffer::new(size.width, size.height);
@@ -69,11 +62,6 @@ fn run(
             width,
             height,
         );
-
-        if source.is_none() {
-            source = source_slot.lock().unwrap().clone();
-        }
-        let Some(source) = &source else { continue };
 
         // `scale` allocates a fresh buffer every call (about 3 MB at 1080p)
         // and libwebrtc exposes no scale-into variant, so skip it whenever

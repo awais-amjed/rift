@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../data/classes/screen_share_settings.dart';
 import '../widgets/settings_chip.dart';
 import '../widgets/settings_section.dart';
 
@@ -7,8 +8,6 @@ import '../widgets/settings_section.dart';
 class FrameRateSection extends StatelessWidget {
   final int selectedFps;
   final ValueChanged<int> onChanged;
-
-  static const _fpsOptions = [30, 60];
 
   const FrameRateSection({
     super.key,
@@ -23,7 +22,7 @@ class FrameRateSection extends StatelessWidget {
       children: [
         Wrap(
           spacing: 8,
-          children: _fpsOptions
+          children: ScreenShareSettings.frameRates
               .map(
                 (f) => SettingsChip(
                   label: '$f fps',

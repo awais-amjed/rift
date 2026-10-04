@@ -8,6 +8,7 @@ import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/services/host_platform.dart';
+import '../../../../common/context_menu/context_menu_watcher.dart';
 import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_motion.dart';
 import '../../../../theme/theme_context.dart';
@@ -55,6 +56,11 @@ class _RoomViewState extends State<RoomView> {
   bool _chromeVisible = true;
   Timer? _hideTimer;
 
+  /// A menu opened from the bar is up. It sits in the overlay, so the pointer
+  /// on it reads as the pointer gone idle, and the bar it hangs from would
+  /// fade out from under it.
+  bool _menuOpen = false;
+
   /// Whether one tile fills the stage. The context strip then floats over it
   /// instead of taking a row, so showing it does not resize the video.
   bool _focused = false;
@@ -90,7 +96,7 @@ class _RoomViewState extends State<RoomView> {
   void _scheduleHide() {
     _hideTimer?.cancel();
     _hideTimer = Timer(_hideDelay, () {
-      if (!mounted) return;
+      if (!mounted || _menuOpen) return;
       setState(() => _chromeVisible = false);
       _reportStage();
     });
@@ -212,7 +218,17 @@ class _RoomViewState extends State<RoomView> {
                         ),
                       ),
                     ),
-                  ControlBar(visible: _chromeVisible),
+                  ContextMenuWatcher(
+                    onOpened: () {
+                      _menuOpen = true;
+                      _showChrome();
+                    },
+                    onClosed: () {
+                      _menuOpen = false;
+                      _scheduleHide();
+                    },
+                    child: ControlBar(visible: _chromeVisible),
+                  ),
                   // Above the bar, and outside its IgnorePointer: a clip
                   // that arrives while the chrome has faded is the one
                   // thing on this screen still worth being able to press.

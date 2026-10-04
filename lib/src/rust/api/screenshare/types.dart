@@ -7,7 +7,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 import '../../frb_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `check`
+// These functions are ignored because they are not marked as `pub`: `check_picture`, `check_quality`, `check`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `fmt`
 
 /// A PulseAudio sink-input: one application's playback stream. Linux only;
@@ -180,6 +180,34 @@ enum ScreenshareEvent {
   /// The captured window was closed, so capture stopped at the source.
   /// Flutter should tear the session down and update its UI.
   sourceClosed,
+}
+
+/// What can change while a share is running: the picture's size and rate, and
+/// whether its sound goes with it. The source, codec and bitrate stay as the
+/// share started.
+class ShareQuality {
+  /// Height cap in rows, as [`ScreenShareConfig::resolution`].
+  final int resolution;
+  final int fps;
+  final bool shareAudio;
+
+  const ShareQuality({
+    required this.resolution,
+    required this.fps,
+    required this.shareAudio,
+  });
+
+  @override
+  int get hashCode => resolution.hashCode ^ fps.hashCode ^ shareAudio.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ShareQuality &&
+          runtimeType == other.runtimeType &&
+          resolution == other.resolution &&
+          fps == other.fps &&
+          shareAudio == other.shareAudio;
 }
 
 /// Codec for the published video track. The Dart settings store these same

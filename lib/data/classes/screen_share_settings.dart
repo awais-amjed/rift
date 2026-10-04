@@ -74,8 +74,17 @@ class ScreenShareSettings {
     _ => defaultCodec,
   };
 
+  /// The heights offered, by the picker and by the menu on a running share.
+  static const resolutions = [720, 1080, 1440, 2160];
+
+  /// The frame rates offered, in the same two places.
+  static const frameRates = [15, 30, 60];
+
   /// Human label for [resolution], as shown in the settings summary.
-  String get resolutionLabel => switch (resolution) {
+  String get resolutionLabel => labelFor(resolution);
+
+  /// Human label for a height in [resolutions].
+  static String labelFor(int resolution) => switch (resolution) {
     720 => '720p',
     1080 => '1080p',
     1440 => '2K',

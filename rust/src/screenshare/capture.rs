@@ -11,7 +11,7 @@ use livekit::webrtc::desktop_capturer::{
     DesktopCapturerOptions,
 };
 use livekit::webrtc::video_source::native::NativeVideoSource;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
@@ -30,7 +30,6 @@ pub(crate) struct CaptureRequest {
     pub source_type: DesktopCaptureSourceType,
     pub selected_index: Option<u32>,
     pub fps: u32,
-    pub max_height: u32,
     pub capture_cursor: bool,
     /// Told `true` when the shared window is minimised and `false` when it
     /// comes back. Windows only: a minimised window gives the capturer nothing
@@ -58,21 +57,46 @@ pub(crate) enum Command {
     Terminate,
 }
 
-/// Where the processing thread finds the video source to feed. Frames flow
-/// only once one is [`attach`](Self::attach)ed, which the session does after
-/// it has seen the native size and chosen an output size.
-#[derive(Clone)]
-pub(crate) struct VideoSlot(Arc<Mutex<Option<NativeVideoSource>>>);
+/// Where the processing thread finds the video source to feed, and the size
+/// to scale into it. Frames flow only once one is [`attach`](Self::attach)ed,
+/// which the session does after it has seen the native size and chosen an
+/// output size — and again, with a new source, when the size is changed
+/// during the share.
+#[derive(Clone, Default)]
+pub(crate) struct VideoSlot(Arc<Mutex<Slot>>);
+
+#[derive(Default)]
+struct Slot {
+    feed: Option<(NativeVideoSource, Size)>,
+    /// The size of the last frame captured, which a new source is sized for.
+    native: Option<Size>,
+}
 
 impl VideoSlot {
-    pub(crate) fn attach(&self, source: NativeVideoSource) {
-        *self.0.lock().unwrap() = Some(source);
+    /// Feed `source` from the next frame on, scaled to `target`. The two must
+    /// be set together: a source fed frames of another size is a black tile.
+    pub(crate) fn attach(&self, source: NativeVideoSource, target: Size) {
+        self.0.lock().unwrap().feed = Some((source, target));
+    }
+
+    /// The size the source is capturing at, once a frame has arrived.
+    pub(crate) fn native(&self) -> Option<Size> {
+        self.0.lock().unwrap().native
+    }
+
+    /// For the processing thread: note a frame's size, and say where it goes.
+    pub(super) fn feed(&self, native: Size) -> Option<(NativeVideoSource, Size)> {
+        let mut slot = self.0.lock().unwrap();
+        slot.native = Some(native);
+        slot.feed.clone()
     }
 }
 
 /// A running capture thread.
 pub(crate) struct Capture {
     command_tx: Sender<Command>,
+    /// Frames a second, read by the capture clock on every tick.
+    fps: Arc<AtomicU32>,
     handle: JoinHandle<()>,
     slot: VideoSlot,
 }
@@ -80,6 +104,12 @@ pub(crate) struct Capture {
 impl Capture {
     pub(crate) fn slot(&self) -> VideoSlot {
         self.slot.clone()
+    }
+
+    /// Change the capture clock. Takes effect from the next tick, or from
+    /// the first one for a share still waiting on a minimised window.
+    pub(crate) fn set_fps(&self, fps: u32) {
+        self.fps.store(fps, Ordering::Relaxed);
     }
 
     /// Ask the thread to stop and wait for it. Blocks for at most one frame
@@ -95,12 +125,15 @@ impl Capture {
 pub(crate) fn spawn(request: CaptureRequest) -> (Capture, Started) {
     let (command_tx, command_rx) = mpsc::channel();
     let (progress_tx, progress_rx) = unbounded_channel();
-    let slot = VideoSlot(Arc::new(Mutex::new(None)));
-    let feeds = slot.0.clone();
-    let handle = thread::spawn(move || run(request, progress_tx, feeds, command_rx));
+    let slot = VideoSlot::default();
+    let feeds = slot.clone();
+    let fps = Arc::new(AtomicU32::new(request.fps));
+    let clock = fps.clone();
+    let handle = thread::spawn(move || run(request, clock, progress_tx, feeds, command_rx));
     (
         Capture {
             command_tx,
+            fps,
             handle,
             slot,
         },
@@ -131,8 +164,9 @@ impl Drop for TimerResolutionGuard {
 
 fn run(
     request: CaptureRequest,
+    fps: Arc<AtomicU32>,
     progress: UnboundedSender<Progress>,
-    source_slot: Arc<Mutex<Option<NativeVideoSource>>>,
+    source_slot: VideoSlot,
     command_rx: mpsc::Receiver<Command>,
 ) {
     #[cfg(target_os = "windows")]
@@ -161,7 +195,7 @@ fn run(
     let window = (request.source_type == DesktopCaptureSourceType::Window).then(|| source.id());
 
     let (frame_tx, frame_rx) = mpsc::sync_channel::<SendableFrame>(FRAME_QUEUE);
-    let _processing = frames::spawn_processing(frame_rx, source_slot, request.max_height);
+    let _processing = frames::spawn_processing(frame_rx, source_slot);
 
     // Set when the source reports a permanent error, which for a window means
     // it was closed. The loop below watches this and ends the session.
@@ -189,7 +223,9 @@ fn run(
         Err(_) => {}
     });
 
-    let frame_interval = Duration::from_secs_f64(1.0 / request.fps as f64);
+    let interval = |fps: u32| Duration::from_secs_f64(1.0 / f64::from(fps.max(1)));
+    let mut rate = fps.load(Ordering::Relaxed);
+    let mut frame_interval = interval(rate);
     let mut next_frame = Instant::now() + frame_interval;
     #[cfg(target_os = "windows")]
     let mut minimised = false;
@@ -219,6 +255,12 @@ fn run(
                         );
                         report(now);
                     }
+                }
+                let now_rate = fps.load(Ordering::Relaxed);
+                if now_rate != rate {
+                    log::info!("capture: now {now_rate} fps");
+                    rate = now_rate;
+                    frame_interval = interval(rate);
                 }
                 next_frame += frame_interval;
                 // Far behind: restart the clock rather than fire a burst of

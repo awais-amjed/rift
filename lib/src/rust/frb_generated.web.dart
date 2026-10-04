@@ -65,6 +65,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ScreenShareConfig dco_decode_box_autoadd_screen_share_config(dynamic raw);
 
   @protected
+  ShareQuality dco_decode_box_autoadd_share_quality(dynamic raw);
+
+  @protected
   SoundShareConfig dco_decode_box_autoadd_sound_share_config(dynamic raw);
 
   @protected
@@ -117,6 +120,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ScreenshareEvent dco_decode_screenshare_event(dynamic raw);
+
+  @protected
+  ShareQuality dco_decode_share_quality(dynamic raw);
 
   @protected
   SoundShareConfig dco_decode_sound_share_config(dynamic raw);
@@ -173,6 +179,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ScreenShareConfig sse_decode_box_autoadd_screen_share_config(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ShareQuality sse_decode_box_autoadd_share_quality(
     SseDeserializer deserializer,
   );
 
@@ -239,6 +250,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ScreenshareEvent sse_decode_screenshare_event(SseDeserializer deserializer);
 
   @protected
+  ShareQuality sse_decode_share_quality(SseDeserializer deserializer);
+
+  @protected
   SoundShareConfig sse_decode_sound_share_config(SseDeserializer deserializer);
 
   @protected
@@ -301,6 +315,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_screen_share_config(
     ScreenShareConfig self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_share_quality(
+    ShareQuality self,
     SseSerializer serializer,
   );
 
@@ -384,6 +404,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     ScreenshareEvent self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_share_quality(ShareQuality self, SseSerializer serializer);
 
   @protected
   void sse_encode_sound_share_config(

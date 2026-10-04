@@ -36,7 +36,7 @@ pub(crate) async fn publish_video_track(
     participant: &LocalParticipant,
     source: NativeVideoSource,
     settings: &TrackSettings,
-) -> Result<(), String> {
+) -> Result<TrackSid, String> {
     let track = LocalVideoTrack::create_video_track("screen_share", RtcVideoSource::Native(source));
     let max_bitrate = u64::from(settings.bitrate) * BITS_PER_MEGABIT;
     let video_codec = match settings.codec {
@@ -51,7 +51,7 @@ pub(crate) async fn publish_video_track(
         settings.fps
     );
 
-    participant
+    let publication = participant
         .publish_track(
             LocalTrack::Video(track),
             TrackPublishOptions {
@@ -70,5 +70,5 @@ pub(crate) async fn publish_video_track(
         )
         .await
         .map_err(|e| format!("Failed to publish video track: {e:?}"))?;
-    Ok(())
+    Ok(publication.sid())
 }

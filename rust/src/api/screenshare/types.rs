@@ -40,6 +40,16 @@ pub struct ScreenShareConfig {
     pub e2ee_key_index: i32,
 }
 
+/// What can change while a share is running: the picture's size and rate, and
+/// whether its sound goes with it. The source, codec and bitrate stay as the
+/// share started.
+pub struct ShareQuality {
+    /// Height cap in rows, as [`ScreenShareConfig::resolution`].
+    pub resolution: u32,
+    pub fps: u32,
+    pub share_audio: bool,
+}
+
 /// A screen or window that can be captured.
 #[derive(Clone, Debug)]
 pub struct CaptureSource {
@@ -78,17 +88,27 @@ const KEY_BYTES: usize = 32;
 /// fps is a division by zero in the capture timer, a missing key would connect
 /// and then encrypt for nobody.
 pub(crate) fn check(config: &ScreenShareConfig) -> Result<(), String> {
-    if config.fps == 0 || config.fps > FPS_LIMIT {
-        return Err(format!("fps must be between 1 and {FPS_LIMIT}"));
-    }
-    if config.resolution < 2 {
-        return Err("resolution must be at least 2 rows".to_string());
-    }
+    check_picture(config.resolution, config.fps)?;
     if config.bitrate == 0 {
         return Err("bitrate must be at least 1 Mbps".to_string());
     }
     if config.e2ee_key.len() != KEY_BYTES {
         return Err("Missing the channel key for this call".to_string());
+    }
+    Ok(())
+}
+
+/// The same refusals for a change made during a share.
+pub(crate) fn check_quality(quality: &ShareQuality) -> Result<(), String> {
+    check_picture(quality.resolution, quality.fps)
+}
+
+fn check_picture(resolution: u32, fps: u32) -> Result<(), String> {
+    if fps == 0 || fps > FPS_LIMIT {
+        return Err(format!("fps must be between 1 and {FPS_LIMIT}"));
+    }
+    if resolution < 2 {
+        return Err("resolution must be at least 2 rows".to_string());
     }
     Ok(())
 }
@@ -133,5 +153,17 @@ mod tests {
         let mut c = config();
         c.e2ee_key = vec![0; 16];
         assert!(check(&c).unwrap_err().contains("key"));
+    }
+
+    #[test]
+    fn a_quality_change_is_held_to_the_same_limits() {
+        let quality = |resolution, fps| ShareQuality {
+            resolution,
+            fps,
+            share_audio: false,
+        };
+        assert!(check_quality(&quality(720, 30)).is_ok());
+        assert!(check_quality(&quality(720, 0)).is_err());
+        assert!(check_quality(&quality(1, 30)).is_err());
     }
 }

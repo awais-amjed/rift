@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 937894623;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1462713250;
 
 // Section: executor
 
@@ -833,6 +833,44 @@ fn wire__crate__api__soundshare__stop_sound_share_impl(
         },
     )
 }
+fn wire__crate__api__screenshare__update_screenshare_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "update_screenshare",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_quality =
+                <crate::api::screenshare::types::ShareQuality>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, String>(
+                    (move || async move {
+                        let output_ok =
+                            crate::api::screenshare::update_screenshare(api_quality).await?;
+                        std::result::Result::Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
 
 // Section: dart2rust
 
@@ -1132,6 +1170,20 @@ impl SseDecode for crate::api::screenshare::types::ScreenshareEvent {
     }
 }
 
+impl SseDecode for crate::api::screenshare::types::ShareQuality {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_resolution = <u32>::sse_decode(deserializer);
+        let mut var_fps = <u32>::sse_decode(deserializer);
+        let mut var_shareAudio = <bool>::sse_decode(deserializer);
+        return crate::api::screenshare::types::ShareQuality {
+            resolution: var_resolution,
+            fps: var_fps,
+            share_audio: var_shareAudio,
+        };
+    }
+}
+
 impl SseDecode for crate::api::soundshare::SoundShareConfig {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1288,6 +1340,12 @@ fn pde_ffi_dispatcher_primary_impl(
         22 => {
             wire__crate__api__soundshare__stop_sound_share_impl(port, ptr, rust_vec_len, data_len)
         }
+        23 => wire__crate__api__screenshare__update_screenshare_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
         _ => unreachable!(),
     }
 }
@@ -1449,6 +1507,28 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::screenshare::types::Screensha
     for crate::api::screenshare::types::ScreenshareEvent
 {
     fn into_into_dart(self) -> crate::api::screenshare::types::ScreenshareEvent {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::screenshare::types::ShareQuality {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.resolution.into_into_dart().into_dart(),
+            self.fps.into_into_dart().into_dart(),
+            self.share_audio.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::screenshare::types::ShareQuality
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::screenshare::types::ShareQuality>
+    for crate::api::screenshare::types::ShareQuality
+{
+    fn into_into_dart(self) -> crate::api::screenshare::types::ShareQuality {
         self
     }
 }
@@ -1756,6 +1836,15 @@ impl SseEncode for crate::api::screenshare::types::ScreenshareEvent {
             },
             serializer,
         );
+    }
+}
+
+impl SseEncode for crate::api::screenshare::types::ShareQuality {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u32>::sse_encode(self.resolution, serializer);
+        <u32>::sse_encode(self.fps, serializer);
+        <bool>::sse_encode(self.share_audio, serializer);
     }
 }
 

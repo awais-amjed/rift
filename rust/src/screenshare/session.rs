@@ -2,7 +2,7 @@
 use super::capture::{self, Capture, CaptureRequest, Progress, Started, VideoSlot};
 use super::resolution::{target_size, Size};
 use super::track::{publish_video_track, TrackSettings};
-use crate::api::screenshare::types::{self, ScreenShareConfig};
+use crate::api::screenshare::types::{self, ScreenShareConfig, ShareQuality};
 use crate::sharing::audio::{self, AudioCapture, AudioCaptureHandle, AudioSelection};
 use crate::sharing::room;
 use livekit::prelude::*;
@@ -10,6 +10,7 @@ use livekit::webrtc::desktop_capturer::DesktopCaptureSourceType;
 use livekit::webrtc::prelude::VideoResolution;
 use livekit::webrtc::video_source::native::NativeVideoSource;
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
@@ -23,10 +24,17 @@ const FIRST_FRAME_TIMEOUT: Duration = Duration::from_secs(10);
 /// viewers read to say the picture is paused (`VoiceAttributes.sharePausedKey`).
 const PAUSED_ATTRIBUTE: &str = "paused";
 
+/// A screen share's sound keeps the plain name it has always had — nothing
+/// reads it, because the picture says what this is.
+const AUDIO_TRACK_NAME: &str = "screen_share_audio";
+
 struct Session {
     room: Room,
     capture: Capture,
+    video: Arc<Video>,
     audio: Option<AudioCaptureHandle>,
+    /// Whose sound to capture if it is turned on during the share.
+    audio_selection: AudioSelection,
     /// Publishes the picture when its first frame arrives, for a share that
     /// started on a minimised window and is waiting for it to be opened.
     publisher: Option<JoinHandle<()>>,
@@ -69,7 +77,7 @@ pub(crate) async fn start(config: ScreenShareConfig) -> Result<String, String> {
     let room_sid = room.sid().await.to_string();
     log::info!("screenshare: connected to room {room_name} ({room_sid})");
 
-    let (capture, audio, publisher) = match bring_up(&room, &config).await {
+    let (capture, video, audio, publisher) = match bring_up(&room, &config).await {
         Ok(parts) => parts,
         Err(reason) => {
             // Leave nothing behind: a room left open here is a ghost
@@ -84,7 +92,9 @@ pub(crate) async fn start(config: ScreenShareConfig) -> Result<String, String> {
     *slot = Some(Session {
         room,
         capture,
+        video,
         audio,
+        audio_selection: AudioSelection::from(&config),
         publisher,
     });
     log::info!("screenshare: started");
@@ -98,6 +108,7 @@ pub(crate) async fn stop() -> Result<String, String> {
         capture,
         audio,
         publisher,
+        ..
     }) = slot.take()
     else {
         log::info!("screenshare: stop with nothing running");
@@ -128,12 +139,78 @@ pub(crate) async fn stop() -> Result<String, String> {
     Ok("Stopped successfully".to_string())
 }
 
+/// Applies what [`ShareQuality`] asks for to the running share, and says what
+/// is now in effect — which is sound off if it was asked for and could not be
+/// had, so the caller shows the truth rather than its request.
+pub(crate) async fn update(quality: ShareQuality) -> Result<ShareQuality, String> {
+    types::check_quality(&quality)?;
+    let mut slot = SESSION.lock().await;
+    let Some(session) = slot.as_mut() else {
+        return Err("Not sharing".to_string());
+    };
+    log::info!(
+        "screenshare: changing to {}p{}, audio {}",
+        quality.resolution,
+        quality.fps,
+        quality.share_audio
+    );
+
+    session.capture.set_fps(quality.fps);
+    if session.video.set_picture(quality.resolution, quality.fps) {
+        if let Err(reason) = session.video.republish().await {
+            // The old picture is already gone, so the share has nothing to
+            // show: end it, the way a closed window does.
+            crate::api::screenshare::emit_screenshare_event(
+                crate::api::screenshare::types::ScreenshareEvent::SourceClosed,
+            );
+            return Err(reason);
+        }
+    }
+
+    match (quality.share_audio, session.audio.take()) {
+        (true, None) => {
+            session.audio = audio::start(
+                &session.room,
+                AudioCapture {
+                    selection: session.audio_selection,
+                    track_name: AUDIO_TRACK_NAME.to_string(),
+                    on_ended: None,
+                },
+            )
+            .await;
+        }
+        (false, Some(handle)) => {
+            let track = handle.track();
+            if let Err(e) = session
+                .room
+                .local_participant()
+                .unpublish_track(&track)
+                .await
+            {
+                log::warn!("screenshare: unpublishing the sound: {e:?}");
+            }
+            let _ = tokio::task::spawn_blocking(move || handle.terminate()).await;
+        }
+        (_, unchanged) => session.audio = unchanged,
+    }
+
+    Ok(ShareQuality {
+        share_audio: session.audio.is_some(),
+        ..quality
+    })
+}
+
+/// The pieces of a running share, as [`bring_up`] leaves them.
+type Parts = (
+    Capture,
+    Arc<Video>,
+    Option<AudioCaptureHandle>,
+    Option<JoinHandle<()>>,
+);
+
 /// Everything after the room exists. On any error the capture thread is
 /// already stopped; the caller closes the room.
-async fn bring_up(
-    room: &Room,
-    config: &ScreenShareConfig,
-) -> Result<(Capture, Option<AudioCaptureHandle>, Option<JoinHandle<()>>), String> {
+async fn bring_up(room: &Room, config: &ScreenShareConfig) -> Result<Parts, String> {
     let (capture, mut started) = capture::spawn(CaptureRequest {
         source_type: if config.capture_full_screen {
             DesktopCaptureSourceType::Screen
@@ -142,7 +219,6 @@ async fn bring_up(
         },
         selected_index: config.selected_video_source_index,
         fps: config.fps,
-        max_height: config.resolution,
         capture_cursor: true,
         on_minimised: Some(announce_paused(room)),
     });
@@ -164,11 +240,12 @@ async fn bring_up(
         }
     };
 
-    let video = Video {
+    let video = Arc::new(Video {
         participant: room.local_participant(),
         slot: capture.slot(),
-        settings: TrackSettings::from(config),
-    };
+        settings: std::sync::Mutex::new(TrackSettings::from(config)),
+        track: Mutex::new(None),
+    });
     // A window still on the taskbar: the share is up — viewers see it, marked
     // paused — and the picture goes out once the user opens the window, which
     // is theirs to do when they are ready. Waiting here instead would hold the
@@ -182,19 +259,18 @@ async fn bring_up(
         }
         None => {
             log::info!("screenshare: waiting for the window to be opened");
-            Some(tokio::spawn(publish_when_opened(video, started)))
+            Some(tokio::spawn(publish_when_opened(video.clone(), started)))
         }
     };
 
     // A screen share's sound has no `on_ended`: if the window stops playing,
-    // the picture is still worth watching. Its track keeps the plain name it
-    // has always had — nothing reads it, because the picture says what this is.
+    // the picture is still worth watching.
     let audio = if config.share_audio {
         audio::start(
             room,
             AudioCapture {
                 selection: AudioSelection::from(config),
-                track_name: "screen_share_audio".to_string(),
+                track_name: AUDIO_TRACK_NAME.to_string(),
                 on_ended: None,
             },
         )
@@ -202,20 +278,67 @@ async fn bring_up(
     } else {
         None
     };
-    Ok((capture, audio, publisher))
+    Ok((capture, video, audio, publisher))
 }
 
 /// What publishing the picture needs, none of it borrowed from the start.
 struct Video {
     participant: LocalParticipant,
     slot: VideoSlot,
-    settings: TrackSettings,
+    /// Changed by [`update`]; read each time the picture is published.
+    settings: std::sync::Mutex<TrackSettings>,
+    /// The published track, once there is one. Held for the whole of a
+    /// publish, so a change made while a minimised window is opening waits
+    /// for the first publish and then redoes it, rather than racing it.
+    track: Mutex<Option<TrackSid>>,
 }
 
 impl Video {
     /// Size a video source for the first frame, start feeding it, publish it.
     async fn publish(&self, native: Size) -> Result<(), String> {
-        let target = target_size(native, self.settings.max_height);
+        let mut track = self.track.lock().await;
+        self.publish_locked(&mut track, native).await
+    }
+
+    /// Takes the new height and rate, and says whether either changed.
+    fn set_picture(&self, max_height: u32, fps: u32) -> bool {
+        let mut settings = self.settings.lock().unwrap();
+        let changed = settings.max_height != max_height || settings.fps != fps;
+        settings.max_height = max_height;
+        settings.fps = fps;
+        changed
+    }
+
+    /// Publish the picture again at the current settings. A share still
+    /// waiting on a minimised window has nothing to redo: it publishes at
+    /// these settings when the window opens.
+    ///
+    /// The track is replaced rather than retuned: its size is fixed when its
+    /// source is made, and the SDK has no call to change a sender's encoding.
+    /// Viewers stay subscribed — the share's connection is what they watch —
+    /// and see the picture blink.
+    async fn republish(&self) -> Result<(), String> {
+        let mut track = self.track.lock().await;
+        let Some(old) = track.take() else {
+            return Ok(());
+        };
+        let native = self
+            .slot
+            .native()
+            .ok_or("No frame has been captured to size the picture by")?;
+        if let Err(e) = self.participant.unpublish_track(&old).await {
+            log::warn!("screenshare: unpublishing the old picture: {e:?}");
+        }
+        self.publish_locked(&mut track, native).await
+    }
+
+    async fn publish_locked(
+        &self,
+        track: &mut Option<TrackSid>,
+        native: Size,
+    ) -> Result<(), String> {
+        let settings = *self.settings.lock().unwrap();
+        let target = target_size(native, settings.max_height);
         log::info!(
             "screenshare: capturing {}x{}, publishing {}x{}",
             native.width,
@@ -230,14 +353,15 @@ impl Video {
             },
             false,
         );
-        self.slot.attach(source.clone());
-        publish_video_track(&self.participant, source, &self.settings).await
+        self.slot.attach(source.clone(), target);
+        *track = Some(publish_video_track(&self.participant, source, &settings).await?);
+        Ok(())
     }
 }
 
 /// The rest of a share that started on a minimised window. A stop aborts it;
 /// a window closed while waiting has already told Flutter, which stops it.
-async fn publish_when_opened(video: Video, mut started: Started) {
+async fn publish_when_opened(video: Arc<Video>, mut started: Started) {
     while let Some(progress) = started.recv().await {
         match progress {
             Progress::Waiting => {}

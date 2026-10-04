@@ -88,6 +88,8 @@ pub(crate) type OnEnded = Box<dyn Fn() + Send + 'static>;
 
 /// A running audio capture: the platform thread plus the task feeding LiveKit.
 pub(crate) struct AudioCaptureHandle {
+    /// The published track, which ending the capture leaves in the room.
+    track: TrackSid,
     command_tx: Sender<Command>,
     capture_thread: JoinHandle<()>,
     feed_task: TaskHandle<()>,
@@ -97,6 +99,10 @@ pub(crate) struct AudioCaptureHandle {
 }
 
 impl AudioCaptureHandle {
+    pub(crate) fn track(&self) -> TrackSid {
+        self.track.clone()
+    }
+
     pub(crate) fn terminate(self) {
         self.stopping.store(true, Ordering::SeqCst);
         let _ = self.command_tx.send(Command::Terminate);
@@ -181,7 +187,7 @@ pub(crate) async fn publish_and_feed(
     );
     let track =
         LocalAudioTrack::create_audio_track(track_name, RtcAudioSource::Native(source.clone()));
-    if let Err(e) = room
+    let publication = match room
         .local_participant()
         .publish_track(
             LocalTrack::Audio(track),
@@ -192,9 +198,12 @@ pub(crate) async fn publish_and_feed(
         )
         .await
     {
-        log::warn!("audio: could not publish the track: {e:?}");
-        return None;
-    }
+        Ok(publication) => publication,
+        Err(e) => {
+            log::warn!("audio: could not publish the track: {e:?}");
+            return None;
+        }
+    };
     log::info!("audio: track published");
 
     let (command_tx, command_rx) = mpsc::channel();
@@ -225,6 +234,7 @@ pub(crate) async fn publish_and_feed(
         }
     });
     Some(AudioCaptureHandle {
+        track: publication.sid(),
         command_tx,
         capture_thread,
         feed_task,

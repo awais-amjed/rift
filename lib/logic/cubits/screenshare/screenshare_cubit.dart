@@ -226,6 +226,58 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
     }
   }
 
+  /// Whether a running share's quality can be changed without stopping it:
+  /// on a desktop, where Rust captures. The SDK's capture has no such knob.
+  static bool get changesQualityLive => !_sdkCapturesScreen;
+
+  /// Changes the running share's frame rate, height or sound in place, and
+  /// returns the settings now in effect — null if nothing changed.
+  ///
+  /// Sound is reported as it came out, not as it was asked for: an
+  /// application that stopped playing has nothing to capture, and a menu
+  /// ticked for sound nobody hears is the wrong menu.
+  Future<ScreenShareSettings?> changeQuality({
+    int? fps,
+    int? resolution,
+    bool? shareAudio,
+  }) async {
+    final current = state.settings;
+    if (!state.isSharing || current == null || !changesQualityLive) {
+      return null;
+    }
+    final wanted = current.copyWith(
+      fps: fps,
+      resolution: resolution,
+      shareAudio: shareAudio,
+    );
+    try {
+      final applied = await updateScreenshare(
+        quality: ShareQuality(
+          resolution: wanted.resolution,
+          fps: wanted.fps,
+          shareAudio: wanted.shareAudio && HostPlatform.capturesSystemAudio,
+        ),
+      );
+      if (!state.isSharing) return null;
+      final now = wanted.copyWith(shareAudio: applied.shareAudio);
+      emit(state.copyWith(settings: now));
+      if (wanted.shareAudio && !applied.shareAudio) {
+        HelperMethods.showError(
+          error: 'Could not share this stream’s sound.',
+          autoCloseDuration: _errorDuration,
+        );
+      }
+      return now;
+    } catch (e) {
+      HelperMethods.printDebug('✗ Screen share change error: $e');
+      HelperMethods.showError(
+        error: 'Could not change the stream: $e',
+        autoCloseDuration: _errorDuration,
+      );
+      return null;
+    }
+  }
+
   /// Stops screen sharing.
   Future<void> stopScreenShare() async {
     if (state.status != ScreenshareStatus.sharing) return;
