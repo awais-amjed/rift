@@ -14,6 +14,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_web.dart';
 import 'api/audio_endpoints.dart';
 import 'api/cue.dart';
 import 'api/mic_test.dart';
+import 'api/noise_filter.dart';
 import 'api/screenshare.dart';
 import 'api/screenshare/types.dart';
 import 'api/soundshare.dart';
@@ -80,6 +81,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CueStarted dco_decode_cue_started(dynamic raw);
 
   @protected
+  DeepFilterEntry dco_decode_deep_filter_entry(dynamic raw);
+
+  @protected
   double dco_decode_f_32(dynamic raw);
 
   @protected
@@ -143,6 +147,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void dco_decode_unit(dynamic raw);
 
   @protected
+  BigInt dco_decode_usize(dynamic raw);
+
+  @protected
   VideoCodec dco_decode_video_codec(dynamic raw);
 
   @protected
@@ -203,6 +210,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   CueStarted sse_decode_cue_started(SseDeserializer deserializer);
+
+  @protected
+  DeepFilterEntry sse_decode_deep_filter_entry(SseDeserializer deserializer);
 
   @protected
   double sse_decode_f_32(SseDeserializer deserializer);
@@ -272,6 +282,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_decode_unit(SseDeserializer deserializer);
+
+  @protected
+  BigInt sse_decode_usize(SseDeserializer deserializer);
 
   @protected
   VideoCodec sse_decode_video_codec(SseDeserializer deserializer);
@@ -344,6 +357,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_cue_started(CueStarted self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_deep_filter_entry(
+    DeepFilterEntry self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_f_32(double self, SseSerializer serializer);
@@ -437,6 +456,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_unit(void self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_usize(BigInt self, SseSerializer serializer);
 
   @protected
   void sse_encode_video_codec(VideoCodec self, SseSerializer serializer);

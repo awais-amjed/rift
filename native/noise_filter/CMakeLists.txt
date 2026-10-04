@@ -1,5 +1,5 @@
-# RNNoise on the microphone, inside libwebrtc's own audio processing. Linked
-# into the runner on Linux and Windows; see noise_filter.h.
+# A noise model on the microphone, inside libwebrtc's own audio processing.
+# Linked into the runner on Linux and Windows; see noise_filter.h.
 cmake_minimum_required(VERSION 3.14)
 project(rift_noise_filter LANGUAGES C CXX)
 

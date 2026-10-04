@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1462713250;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 433233262;
 
 // Section: executor
 
@@ -352,6 +352,41 @@ fn wire__crate__api__audio_endpoints__list_output_endpoints_impl(
                         Ok::<_, ()>(crate::api::audio_endpoints::list_output_endpoints())?;
                     std::result::Result::Ok(output_ok)
                 })())
+            }
+        },
+    )
+}
+fn wire__crate__api__noise_filter__load_deep_filter_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "load_deep_filter",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, String>(
+                    (move || async move {
+                        let output_ok = crate::api::noise_filter::load_deep_filter().await?;
+                        std::result::Result::Ok(output_ok)
+                    })()
+                    .await,
+                )
             }
         },
     )
@@ -1003,6 +1038,18 @@ impl SseDecode for crate::api::cue::CueStarted {
     }
 }
 
+impl SseDecode for crate::api::noise_filter::DeepFilterEntry {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_process = <usize>::sse_decode(deserializer);
+        let mut var_reset = <usize>::sse_decode(deserializer);
+        return crate::api::noise_filter::DeepFilterEntry {
+            process: var_process,
+            reset: var_reset,
+        };
+    }
+}
+
 impl SseDecode for f32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1254,6 +1301,13 @@ impl SseDecode for () {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {}
 }
 
+impl SseDecode for usize {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        deserializer.cursor.read_u64::<NativeEndian>().unwrap() as _
+    }
+}
+
 impl SseDecode for crate::api::screenshare::types::VideoCodec {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1325,38 +1379,41 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        10 => wire__crate__api__mic_test__mic_test_samples_impl(port, ptr, rust_vec_len, data_len),
-        11 => wire__crate__api__cue__play_cue_impl(port, ptr, rust_vec_len, data_len),
-        12 => wire__crate__api__toast__remove_windows_toast_impl(port, ptr, rust_vec_len, data_len),
-        13 => wire__crate__api__screenshare__screenshare_event_stream_impl(
+        10 => {
+            wire__crate__api__noise_filter__load_deep_filter_impl(port, ptr, rust_vec_len, data_len)
+        }
+        11 => wire__crate__api__mic_test__mic_test_samples_impl(port, ptr, rust_vec_len, data_len),
+        12 => wire__crate__api__cue__play_cue_impl(port, ptr, rust_vec_len, data_len),
+        13 => wire__crate__api__toast__remove_windows_toast_impl(port, ptr, rust_vec_len, data_len),
+        14 => wire__crate__api__screenshare__screenshare_event_stream_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        14 => wire__crate__api__cue__set_cue_volume_impl(port, ptr, rust_vec_len, data_len),
-        15 => wire__crate__api__toast__show_windows_toast_impl(port, ptr, rust_vec_len, data_len),
-        16 => wire__crate__api__soundshare__sound_share_event_stream_impl(
+        15 => wire__crate__api__cue__set_cue_volume_impl(port, ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__toast__show_windows_toast_impl(port, ptr, rust_vec_len, data_len),
+        17 => wire__crate__api__soundshare__sound_share_event_stream_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        17 => {
+        18 => {
             wire__crate__api__screenshare__start_screenshare_impl(port, ptr, rust_vec_len, data_len)
         }
-        18 => {
+        19 => {
             wire__crate__api__soundshare__start_sound_share_impl(port, ptr, rust_vec_len, data_len)
         }
-        19 => wire__crate__api__cue__stop_cue_impl(port, ptr, rust_vec_len, data_len),
-        20 => wire__crate__api__mic_test__stop_mic_test_impl(port, ptr, rust_vec_len, data_len),
-        21 => {
+        20 => wire__crate__api__cue__stop_cue_impl(port, ptr, rust_vec_len, data_len),
+        21 => wire__crate__api__mic_test__stop_mic_test_impl(port, ptr, rust_vec_len, data_len),
+        22 => {
             wire__crate__api__screenshare__stop_screenshare_impl(port, ptr, rust_vec_len, data_len)
         }
-        22 => {
+        23 => {
             wire__crate__api__soundshare__stop_sound_share_impl(port, ptr, rust_vec_len, data_len)
         }
-        23 => wire__crate__api__screenshare__update_screenshare_impl(
+        24 => wire__crate__api__screenshare__update_screenshare_impl(
             port,
             ptr,
             rust_vec_len,
@@ -1466,6 +1523,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::cue::CueStarted>
     for crate::api::cue::CueStarted
 {
     fn into_into_dart(self) -> crate::api::cue::CueStarted {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::noise_filter::DeepFilterEntry {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.process.into_into_dart().into_dart(),
+            self.reset.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::noise_filter::DeepFilterEntry
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::noise_filter::DeepFilterEntry>
+    for crate::api::noise_filter::DeepFilterEntry
+{
+    fn into_into_dart(self) -> crate::api::noise_filter::DeepFilterEntry {
         self
     }
 }
@@ -1742,6 +1820,14 @@ impl SseEncode for crate::api::cue::CueStarted {
     }
 }
 
+impl SseEncode for crate::api::noise_filter::DeepFilterEntry {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <usize>::sse_encode(self.process, serializer);
+        <usize>::sse_encode(self.reset, serializer);
+    }
+}
+
 impl SseEncode for f32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -1951,6 +2037,16 @@ impl SseEncode for u8 {
 impl SseEncode for () {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {}
+}
+
+impl SseEncode for usize {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        serializer
+            .cursor
+            .write_u64::<NativeEndian>(self as _)
+            .unwrap();
+    }
 }
 
 impl SseEncode for crate::api::screenshare::types::VideoCodec {

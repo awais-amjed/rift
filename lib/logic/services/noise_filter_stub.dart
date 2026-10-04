@@ -11,5 +11,5 @@ abstract final class NoiseFilter {
   static bool usesBuiltIn(NoiseSuppression mode) =>
       mode != NoiseSuppression.off;
 
-  static void use(NoiseSuppression mode) {}
+  static Future<void> use(NoiseSuppression mode) async {}
 }

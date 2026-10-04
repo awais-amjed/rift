@@ -32,9 +32,19 @@ livekit = { version = "0.9.1", features = ["rustls-tls-native-roots"] }
 # nanomp3 decodes Rift's own sounds for the cue player (src/cue), which opens
 # the output device chosen in settings. Pure Rust, no unsafe code; it matched
 # ffmpeg's decode of every cue to within one step of 32768.
+#
+# deep_filter is DeepFilterNet, the second noise model on the microphone
+# (src/deep_filter.rs), run on tract with its DFN3 model built in. Pinned to
+# a commit since crates.io has only a release from before tract. tract is
+# held at 0.21.4: later 0.21 releases moved to an ndarray libDF does not build
+# against, and tract's crates pin each other, so naming two holds them all.
 [target.'cfg(any(target_os = "linux", target_os = "windows"))'.dependencies]
 env_logger = { version = "0.11", default-features = false }
 nanomp3 = "0.2.0"
+deep_filter = { git = "https://github.com/Rikorose/DeepFilterNet", rev = "d375b2d8309e0935d165700c91da9de862a99c31", default-features = false, features = ["tract", "default-model"] }
+ndarray = "0.15"
+tract-onnx = "=0.21.4"
+tract-pulse = "=0.21.4"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libpulse-binding = "2.30.1"

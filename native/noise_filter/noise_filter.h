@@ -12,9 +12,9 @@
 
 namespace rift {
 
-// Puts RNNoise into libwebrtc's processing of the microphone, after its own
-// echo cancellation, noise suppression and gain control. Off until Dart turns
-// it on. Call once, after the plugins are registered: flutter_webrtc makes its
+// Puts a noise model — RNNoise, or DeepFilterNet from the Rust library — into
+// libwebrtc's processing of the microphone, after its own echo cancellation,
+// noise suppression and gain control. Off until Dart picks one. Call once, after the plugins are registered: flutter_webrtc makes its
 // one peer connection factory, and with it the audio processing every capture
 // track goes through, as it registers.
 //
@@ -30,7 +30,14 @@ bool InstallNoiseFilter();
 RIFT_NOISE_FILTER_EXPORT int32_t rift_noise_filter_available(void);
 
 // Which model filters every capture track, from the next 10 ms: 0 for none,
-// 1 for RNNoise. Anything else is treated as none.
+// 1 for RNNoise, 2 for DeepFilterNet. Anything else is treated as none, and
+// DeepFilterNet as none until rift_noise_filter_set_deep_filter.
 RIFT_NOISE_FILTER_EXPORT void rift_noise_filter_set_model(int32_t model);
+
+// Where DeepFilterNet is, once the Rust library has loaded it: its
+// rift_deep_filter_process and rift_deep_filter_reset (rust/src/deep_filter.rs).
+// The runner does not link that library, so Dart passes the addresses on.
+RIFT_NOISE_FILTER_EXPORT void rift_noise_filter_set_deep_filter(void* process,
+                                                                void* reset);
 
 #endif  // RIFT_NOISE_FILTER_NOISE_FILTER_H_

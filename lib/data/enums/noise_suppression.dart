@@ -8,12 +8,14 @@
 enum NoiseSuppression {
   off,
   standard,
-  rnnoise;
+  rnnoise,
+  deepFilter;
 
   String get label => switch (this) {
     off => 'Off',
     standard => 'Standard',
     rnnoise => 'RNNoise',
+    deepFilter => 'DeepFilterNet',
   };
 
   /// Reads a saved value. Before there was a choice this was a switch, saved

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:json_annotation/json_annotation.dart';
@@ -24,7 +26,7 @@ part 'app_state.dart';
 class AppCubit extends HydratedCubit<AppState> {
   AppCubit() : super(const AppState()) {
     // The filter lives in the native audio pipeline, which starts with none.
-    NoiseFilter.use(state.noiseSuppression);
+    unawaited(NoiseFilter.use(state.noiseSuppression));
   }
 
   /// A fixed name, not the class's: see [HydratedKeys].
@@ -109,7 +111,7 @@ class AppCubit extends HydratedCubit<AppState> {
   // of these change, so a toggle takes effect mid-call.
 
   void setNoiseSuppression(NoiseSuppression value) {
-    NoiseFilter.use(value);
+    unawaited(NoiseFilter.use(value));
     emit(state.copyWith(noiseSuppression: value));
   }
 

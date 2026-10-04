@@ -25,7 +25,7 @@ target_link_libraries(${BINARY_NAME} PRIVATE PkgConfig::GTK)
 
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
-# RNNoise on the microphone (native/noise_filter). Dart finds its two
+# The noise models on the microphone (native/noise_filter). Dart finds its
 # functions in the executable, so they go in its dynamic symbol table.
 add_subdirectory("${CMAKE_SOURCE_DIR}/../native/noise_filter"
   "${CMAKE_BINARY_DIR}/noise_filter")

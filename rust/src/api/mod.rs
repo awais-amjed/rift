@@ -1,6 +1,7 @@
 pub mod audio_endpoints;
 pub mod cue;
 pub mod mic_test;
+pub mod noise_filter;
 pub mod screenshare;
 pub mod soundshare;
 pub mod toast;

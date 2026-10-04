@@ -24,6 +24,7 @@ class NoiseSuppressionChoice extends StatelessWidget {
     NoiseSuppression.off => 'Best for music, or a mic that is already clean.',
     NoiseSuppression.standard => 'Best for a quiet room.',
     NoiseSuppression.rnnoise => 'Best for fans, keyboards and street noise.',
+    NoiseSuppression.deepFilter => 'Best for loud, busy rooms.',
   };
 
   @override
@@ -40,9 +41,13 @@ class NoiseSuppressionChoice extends StatelessWidget {
           style: AppText.row.copyWith(color: theme.textPrimary),
         ),
         const SizedBox(height: 8),
-        // A ceiling, not a width: see the sensitive-content choice.
+        // A ceiling, not a width: see the sensitive-content choice. Measured
+        // per segment, since how many there are depends on the platform and
+        // four in the three-segment width cut DeepFilterNet's name short.
         ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: K.settingsChoiceWidth),
+          constraints: BoxConstraints(
+            maxWidth: K.settingsChoiceWidth / 3 * choices.length,
+          ),
           child: SegmentedControl<NoiseSuppression>(
             value: shown,
             onChanged: onChanged,
