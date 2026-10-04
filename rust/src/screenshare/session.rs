@@ -207,6 +207,23 @@ pub(crate) async fn update(quality: ShareQuality) -> Result<ShareQuality, String
     })
 }
 
+/// The running share's picture as WebRTC reports it: what encoder it went
+/// through, how many frames, and what held it back. For the benchmark.
+#[cfg(test)]
+pub(crate) async fn video_stats() -> Option<Vec<livekit::webrtc::stats::RtcStats>> {
+    let slot = SESSION.lock().await;
+    let session = slot.as_ref()?;
+    let sid = session.video.track.lock().await.clone()?;
+    let publication = session
+        .room
+        .local_participant()
+        .get_track_publication(&sid)?;
+    match publication.track()? {
+        LocalTrack::Video(track) => track.get_stats().await.ok(),
+        _ => None,
+    }
+}
+
 /// The pieces of a running share, as [`bring_up`] leaves them.
 type Parts = (
     Capture,

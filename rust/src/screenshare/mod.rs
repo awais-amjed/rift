@@ -21,4 +21,6 @@ mod track;
 mod window_win;
 
 #[cfg(all(test, desktop))]
+mod bench_test;
+#[cfg(all(test, desktop))]
 mod live_test;
