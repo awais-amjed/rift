@@ -12,6 +12,7 @@ import '../sections/capture_source_section.dart';
 import '../sections/capture_type_section.dart';
 import '../sections/codec_section.dart';
 import '../sections/frame_rate_section.dart';
+import '../sections/priority_section.dart';
 import '../sections/resolution_section.dart';
 import 'audio_toggle.dart';
 import 'settings_summary.dart';
@@ -107,6 +108,12 @@ class ScreenShareSettingsForm extends StatelessWidget {
           FrameRateSection(
             selectedFps: settings.fps,
             onChanged: (value) => onChanged(settings.copyWith(fps: value)),
+          ),
+          const SizedBox(height: 16),
+
+          PrioritySection(
+            selected: settings.priority,
+            onChanged: (value) => onChanged(settings.copyWith(priority: value)),
           ),
           const SizedBox(height: 16),
 

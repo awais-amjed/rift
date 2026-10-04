@@ -1,5 +1,5 @@
 //! Publishing the video track.
-use crate::api::screenshare::types::{ScreenShareConfig, VideoCodec};
+use crate::api::screenshare::types::{ScreenShareConfig, SharePriority, VideoCodec};
 use livekit::options::{self, TrackPublishOptions, VideoEncoding};
 use livekit::prelude::*;
 use livekit::track::{LocalTrack, LocalVideoTrack, TrackSource};
@@ -19,6 +19,7 @@ pub(crate) struct TrackSettings {
     /// Megabits per second.
     pub bitrate: u32,
     pub codec: VideoCodec,
+    pub priority: SharePriority,
 }
 
 impl From<&ScreenShareConfig> for TrackSettings {
@@ -28,6 +29,7 @@ impl From<&ScreenShareConfig> for TrackSettings {
             fps: config.fps,
             bitrate: config.bitrate,
             codec: config.codec,
+            priority: config.priority,
         }
     }
 }
@@ -44,11 +46,17 @@ pub(crate) async fn publish_video_track(
         VideoCodec::VP8 => options::VideoCodec::VP8,
         VideoCodec::VP9 => options::VideoCodec::VP9,
     };
+    let degradation_preference = match settings.priority {
+        SharePriority::Smoothness => options::DegradationPreference::MaintainFramerate,
+        SharePriority::Balanced => options::DegradationPreference::Balanced,
+        SharePriority::Sharpness => options::DegradationPreference::MaintainResolution,
+    };
     log::info!(
-        "track: publishing {:?} at {} bps, {} fps",
+        "track: publishing {:?} at {} bps, {} fps, keeping {:?}",
         video_codec,
         max_bitrate,
-        settings.fps
+        settings.fps,
+        settings.priority
     );
 
     let publication = participant
@@ -65,6 +73,7 @@ pub(crate) async fn publish_video_track(
                     max_bitrate,
                     max_framerate: f64::from(settings.fps),
                 }),
+                degradation_preference: Some(degradation_preference),
                 ..Default::default()
             },
         )

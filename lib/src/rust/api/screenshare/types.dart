@@ -8,7 +8,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import '../../frb_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `check_picture`, `check_quality`, `check`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// A PulseAudio sink-input: one application's playback stream. Linux only;
 /// Windows picks audio by process id from [`CaptureSource`] instead.
@@ -101,6 +101,7 @@ class ScreenShareConfig {
   /// Index into `list_capture_sources` for the same `capture_full_screen`.
   final int? selectedVideoSourceIndex;
   final VideoCodec codec;
+  final SharePriority priority;
 
   /// Linux: the PulseAudio sink-input to capture, and the sink it plays to.
   final int? selectedAudioSourceIndex;
@@ -130,6 +131,7 @@ class ScreenShareConfig {
     required this.captureFullScreen,
     this.selectedVideoSourceIndex,
     required this.codec,
+    required this.priority,
     this.selectedAudioSourceIndex,
     this.selectedAudioSourceSink,
     this.selectedAudioSourcePid,
@@ -148,6 +150,7 @@ class ScreenShareConfig {
       captureFullScreen.hashCode ^
       selectedVideoSourceIndex.hashCode ^
       codec.hashCode ^
+      priority.hashCode ^
       selectedAudioSourceIndex.hashCode ^
       selectedAudioSourceSink.hashCode ^
       selectedAudioSourcePid.hashCode ^
@@ -168,6 +171,7 @@ class ScreenShareConfig {
           captureFullScreen == other.captureFullScreen &&
           selectedVideoSourceIndex == other.selectedVideoSourceIndex &&
           codec == other.codec &&
+          priority == other.priority &&
           selectedAudioSourceIndex == other.selectedAudioSourceIndex &&
           selectedAudioSourceSink == other.selectedAudioSourceSink &&
           selectedAudioSourcePid == other.selectedAudioSourcePid &&
@@ -182,9 +186,26 @@ enum ScreenshareEvent {
   sourceClosed,
 }
 
+/// What a share gives up when the computer or the connection cannot keep up:
+/// WebRTC's degradation preference, which LiveKit passes on as it is.
+///
+/// LiveKit's default for a screen share keeps the picture sharp and drops
+/// frames, which suits text and slides and makes a game stutter. Rift starts
+/// on [`SharePriority::Smoothness`], since a stream is usually something moving.
+enum SharePriority {
+  /// Keep the frame rate; the picture softens instead.
+  smoothness,
+
+  /// Give up a little of each.
+  balanced,
+
+  /// Keep the picture sharp; frames are dropped instead.
+  sharpness,
+}
+
 /// What can change while a share is running: the picture's size and rate, and
-/// whether its sound goes with it. The source, codec and bitrate stay as the
-/// share started.
+/// whether its sound goes with it. The source, codec, bitrate and priority stay
+/// as the share started.
 class ShareQuality {
   /// Height cap in rows, as [`ScreenShareConfig::resolution`].
   final int resolution;

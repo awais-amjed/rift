@@ -17,7 +17,7 @@
 //! true if the sender's cryptor is on the slot the key was set in — and a
 //! session can be refused, stopped, and stopped again.
 use super::session;
-use crate::api::screenshare::types::{ScreenShareConfig, VideoCodec};
+use crate::api::screenshare::types::{ScreenShareConfig, SharePriority, VideoCodec};
 use futures_util::StreamExt;
 use livekit::e2ee::key_provider::{KeyProvider, KeyProviderOptions};
 use livekit::e2ee::{E2eeOptions, EncryptionType};
@@ -85,6 +85,7 @@ fn config(server: &Server, room: &str) -> ScreenShareConfig {
         capture_full_screen: true,
         selected_video_source_index: Some(0),
         codec: VideoCodec::VP8,
+        priority: SharePriority::Smoothness,
         selected_audio_source_index: None,
         selected_audio_source_sink: None,
         selected_audio_source_pid: None,

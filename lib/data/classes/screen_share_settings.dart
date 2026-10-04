@@ -18,6 +18,9 @@ class ScreenShareSettings {
   /// The chosen source's title, which is what finds it again in a later list.
   final String? selectedVideoSourceTitle;
   final String codec; // "VP8", "H264" or "VP9", as the picker shows it
+
+  /// What the share gives up when it cannot keep up: frames or sharpness.
+  final SharePriority priority;
   final AudioSource? selectedAudioSource; // Linux PulseAudio source
 
   const ScreenShareSettings({
@@ -30,6 +33,7 @@ class ScreenShareSettings {
     this.selectedVideoSourcePid,
     this.selectedVideoSourceTitle,
     this.codec = 'VP9',
+    this.priority = defaultPriority,
     this.selectedAudioSource,
   });
 
@@ -44,6 +48,7 @@ class ScreenShareSettings {
       selectedVideoSourcePid: json['selectedVideoSourcePid'] as int?,
       selectedVideoSourceTitle: json['selectedVideoSourceTitle'] as String?,
       codec: json['codec'] as String? ?? 'VP9',
+      priority: priorityFromName(json['priority'] as String?),
       // selectedAudioSource is not persisted in JSON (runtime only)
     );
   }
@@ -58,6 +63,7 @@ class ScreenShareSettings {
     'selectedVideoSourcePid': selectedVideoSourcePid,
     'selectedVideoSourceTitle': selectedVideoSourceTitle,
     'codec': codec,
+    'priority': priority.name,
   };
 
   /// [codec] as the Rust side takes it. The string is what is persisted and
@@ -73,6 +79,16 @@ class ScreenShareSettings {
     'VP9' => VideoCodec.vp9,
     _ => defaultCodec,
   };
+
+  /// Smoothness, because a stream is usually something moving: LiveKit's own
+  /// default for a screen share drops frames to stay sharp, and a game
+  /// stutters.
+  static const defaultPriority = SharePriority.smoothness;
+
+  /// A stored priority, by its name. Saved settings from before there was one,
+  /// and a name this build does not know, get the default.
+  static SharePriority priorityFromName(String? name) =>
+      SharePriority.values.asNameMap()[name] ?? defaultPriority;
 
   /// The heights offered, by the picker and by the menu on a running share.
   static const resolutions = [720, 1080, 1440, 2160];
@@ -105,6 +121,7 @@ class ScreenShareSettings {
         selectedVideoSourcePid: source.audioSourcePid,
         selectedVideoSourceTitle: source.title,
         codec: codec,
+        priority: priority,
         selectedAudioSource: selectedAudioSource,
       );
 
@@ -121,6 +138,7 @@ class ScreenShareSettings {
     int? selectedVideoSourcePid,
     String? selectedVideoSourceTitle,
     String? codec,
+    SharePriority? priority,
     AudioSource? selectedAudioSource,
     bool clearVideoSource = false,
     bool clearAudioSource = false,
@@ -141,6 +159,7 @@ class ScreenShareSettings {
           ? null
           : selectedVideoSourceTitle ?? this.selectedVideoSourceTitle,
       codec: codec ?? this.codec,
+      priority: priority ?? this.priority,
       selectedAudioSource: clearAudioSource
           ? null
           : selectedAudioSource ?? this.selectedAudioSource,

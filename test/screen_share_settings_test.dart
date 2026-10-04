@@ -29,6 +29,41 @@ void main() {
     expect(restored.videoCodec, VideoCodec.vp9);
   });
 
+  group('priority', () {
+    test('starts on smoothness', () {
+      expect(const ScreenShareSettings().priority, SharePriority.smoothness);
+    });
+
+    test('is remembered across a restart', () {
+      const settings = ScreenShareSettings(priority: SharePriority.sharpness);
+      final restored = ScreenShareSettings.fromJson(settings.toJson());
+      expect(restored.priority, SharePriority.sharpness);
+    });
+
+    test('settings saved before it existed get the default', () {
+      final restored = ScreenShareSettings.fromJson(const {'fps': 30});
+      expect(restored.priority, SharePriority.smoothness);
+      expect(restored.fps, 30);
+    });
+
+    test('a name this build does not know gets the default', () {
+      expect(
+        ScreenShareSettings.priorityFromName('motion'),
+        SharePriority.smoothness,
+      );
+    });
+
+    test('survives picking a window', () {
+      final settings =
+          const ScreenShareSettings(
+            priority: SharePriority.balanced,
+          ).withVideoSource(
+            const CaptureSource(index: 0, title: 'Game', minimised: false),
+          );
+      expect(settings.priority, SharePriority.balanced);
+    });
+  });
+
   test('a picked window keeps its title across a restart', () {
     final settings = const ScreenShareSettings().withVideoSource(
       const CaptureSource(

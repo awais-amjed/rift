@@ -202,6 +202,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
         captureFullScreen: settings.captureFullScreen,
         selectedVideoSourceIndex: settings.selectedVideoSourceIndex,
         codec: settings.videoCodec,
+        priority: settings.priority,
         selectedAudioSourceIndex: settings.selectedAudioSource?.index,
         selectedAudioSourceSink: settings.selectedAudioSource?.sink,
         selectedAudioSourcePid: settings.selectedVideoSourcePid,

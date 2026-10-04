@@ -10,6 +10,22 @@ pub enum VideoCodec {
     VP9,
 }
 
+/// What a share gives up when the computer or the connection cannot keep up:
+/// WebRTC's degradation preference, which LiveKit passes on as it is.
+///
+/// LiveKit's default for a screen share keeps the picture sharp and drops
+/// frames, which suits text and slides and makes a game stutter. Rift starts
+/// on [`SharePriority::Smoothness`], since a stream is usually something moving.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SharePriority {
+    /// Keep the frame rate; the picture softens instead.
+    Smoothness,
+    /// Give up a little of each.
+    Balanced,
+    /// Keep the picture sharp; frames are dropped instead.
+    Sharpness,
+}
+
 pub struct ScreenShareConfig {
     pub livekit_url: String,
     pub livekit_token: String,
@@ -23,6 +39,7 @@ pub struct ScreenShareConfig {
     /// Index into `list_capture_sources` for the same `capture_full_screen`.
     pub selected_video_source_index: Option<u32>,
     pub codec: VideoCodec,
+    pub priority: SharePriority,
     /// Linux: the PulseAudio sink-input to capture, and the sink it plays to.
     pub selected_audio_source_index: Option<u32>,
     pub selected_audio_source_sink: Option<u32>,
@@ -41,8 +58,8 @@ pub struct ScreenShareConfig {
 }
 
 /// What can change while a share is running: the picture's size and rate, and
-/// whether its sound goes with it. The source, codec and bitrate stay as the
-/// share started.
+/// whether its sound goes with it. The source, codec, bitrate and priority stay
+/// as the share started.
 pub struct ShareQuality {
     /// Height cap in rows, as [`ScreenShareConfig::resolution`].
     pub resolution: u32,
@@ -128,6 +145,7 @@ mod tests {
             capture_full_screen: true,
             selected_video_source_index: None,
             codec: VideoCodec::VP9,
+            priority: SharePriority::Smoothness,
             selected_audio_source_index: None,
             selected_audio_source_sink: None,
             selected_audio_source_pid: None,
