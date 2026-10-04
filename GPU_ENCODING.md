@@ -66,6 +66,14 @@ Already done, and not part of this plan:
     encoding.
 - So H264 can be tested on two vendors' encoders. AV1 cannot be tested here, so
   build it later or leave it behind a check that never succeeds on this laptop.
+- **AV1 is tested on the user's desktop later.**
+  - It has an **AMD Radeon RX 9070 XT** (RDNA 4), which encodes AV1. It is also a
+    third vendor for H264.
+  - First check that AMD's driver offers AV1 as a Media Foundation encoder (list
+    the encoders, as in Phase 1).
+  - If AV1 is only reachable through AMD's own SDK (AMF), that is extra work.
+    Raise it with the user rather than adding a second encoder backend on your
+    own.
 
 ## Setting up (first session)
 
