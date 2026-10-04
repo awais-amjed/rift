@@ -13,6 +13,71 @@ static HHOOK g_hook = nullptr;
 static HHOOK g_mouse_hook = nullptr;
 
 // ----------------------------------------------------------------------------
+// Held-key check
+// ----------------------------------------------------------------------------
+//
+// The hook can miss a key-up. Windows does not run a low-level hook for input
+// going to an elevated window — a game started as administrator, Task Manager
+// — so a push-to-talk key let go there is never reported, and Dart goes on
+// believing it is held: the mic stays open, and the next press changes
+// nothing because the key is already "down". So while the hook believes any
+// key is down, a timer on the hook thread asks Windows whether it still is,
+// and reports the release itself when it is not.
+
+// When each key the hook reported down went down, 0 for keys that are up.
+// Hook thread only: the procedures and the timer both run on it.
+static ULONGLONG g_down_since[256] = {};
+static UINT_PTR g_held_check_timer = 0;
+
+// How often a held key is checked, and how long a fresh press is left alone
+// first: the hook runs before Windows records the press, so asking at once
+// could hear the key as still up.
+static constexpr UINT kHeldCheckMs = 100;
+
+static void PostKey(UINT vk, bool is_down) {
+  // WPARAM carries the virtual-key code, LPARAM carries the direction.
+  PostMessage(g_target_hwnd, kWmPttKeyEvent, static_cast<WPARAM>(vk),
+              static_cast<LPARAM>(is_down ? 1 : 0));
+}
+
+static VOID CALLBACK CheckHeldKeys(HWND, UINT, UINT_PTR, DWORD) {
+  const ULONGLONG now = GetTickCount64();
+  bool any_held = false;
+  for (UINT vk = 0; vk < 256; ++vk) {
+    const ULONGLONG since = g_down_since[vk];
+    if (since == 0) continue;
+    if (now - since < kHeldCheckMs || (GetAsyncKeyState(vk) & 0x8000)) {
+      any_held = true;
+      continue;
+    }
+    g_down_since[vk] = 0;
+    if (g_target_hwnd != nullptr) PostKey(vk, false);
+  }
+  if (!any_held && g_held_check_timer != 0) {
+    KillTimer(nullptr, g_held_check_timer);
+    g_held_check_timer = 0;
+  }
+}
+
+// Posts a key or button event and keeps the held-key record in step with it.
+static void ReportKey(UINT vk, bool is_down) {
+  PostKey(vk, is_down);
+  // The main buttons are left out: Windows reports their logical state to the
+  // hook but their physical one to GetAsyncKeyState, and the two differ on a
+  // mouse set up for the left hand.
+  if (vk >= 256 || vk == VK_LBUTTON || vk == VK_RBUTTON) return;
+  if (!is_down) {
+    g_down_since[vk] = 0;
+    return;
+  }
+  // Auto-repeat sends more downs; the press is when it first went down.
+  if (g_down_since[vk] == 0) g_down_since[vk] = GetTickCount64();
+  if (g_held_check_timer == 0) {
+    g_held_check_timer = SetTimer(nullptr, 0, kHeldCheckMs, CheckHeldKeys);
+  }
+}
+
+// ----------------------------------------------------------------------------
 // GlobalKeyHook implementation
 // ----------------------------------------------------------------------------
 
@@ -31,10 +96,7 @@ LRESULT CALLBACK GlobalKeyHook::LowLevelKeyboardProc(int nCode, WPARAM wParam,
         (wParam == WM_KEYUP || wParam == WM_SYSKEYUP);
 
     if (is_down || is_up) {
-      // WPARAM carries the virtual-key code, LPARAM carries the direction.
-      PostMessage(g_target_hwnd, kWmPttKeyEvent,
-                  static_cast<WPARAM>(kbd->vkCode),
-                  static_cast<LPARAM>(is_down ? 1 : 0));
+      ReportKey(static_cast<UINT>(kbd->vkCode), is_down);
     }
   }
   return CallNextHookEx(nullptr, nCode, wParam, lParam);
@@ -64,8 +126,7 @@ LRESULT CALLBACK GlobalKeyHook::LowLevelMouseProc(int nCode, WPARAM wParam,
     if (vk != 0) {
       // The same message as a key: a button's VK_*BUTTON code is one more
       // virtual-key code, and Dart compares codes without caring which.
-      PostMessage(g_target_hwnd, kWmPttKeyEvent, static_cast<WPARAM>(vk),
-                  static_cast<LPARAM>(is_down ? 1 : 0));
+      ReportKey(vk, is_down);
     }
   }
   return CallNextHookEx(nullptr, nCode, wParam, lParam);
@@ -103,6 +164,9 @@ void GlobalKeyHook::Start(HWND hwnd) {
     if (g_mouse_hook) UnhookWindowsHookEx(g_mouse_hook);
     g_hook = nullptr;
     g_mouse_hook = nullptr;
+    if (g_held_check_timer != 0) KillTimer(nullptr, g_held_check_timer);
+    g_held_check_timer = 0;
+    for (auto& since : g_down_since) since = 0;
   });
 
   // Wait until the hook thread has stored its ID.
