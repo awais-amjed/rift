@@ -6,7 +6,6 @@ import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../theme/app_motion.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
-import '../../../../theme/theme_context.dart';
 
 /// The last control in the call's bar: Leave, or — while a stream is being
 /// watched — Stop watching.
@@ -33,25 +32,24 @@ class LeaveButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.theme;
     final cubit = context.read<LiveKitCubit>();
-    // Leave is red and solid, the one control here you can't undo; Stop
-    // watching is an ordinary control and looks like one.
-    final fill = watching ? themeState.bgTertiary : CustomColors.error;
-    final ink = watching ? themeState.textPrimary : CustomColors.onError;
+    // Red either way: it is the button people reach for to be done, and the
+    // icon and word say which kind of done. A screen with a cross, as Discord
+    // draws it, rather than the handset.
+    const ink = CustomColors.onError;
     final radius = BorderRadius.circular(K.radiusRow);
     final label = watching ? 'Stop watching' : 'Leave';
 
     return Tooltip(
       message: label,
       child: Material(
-        color: fill,
+        color: CustomColors.error,
         borderRadius: radius,
         child: InkWell(
           mouseCursor: WidgetStateMouseCursor.clickable,
           borderRadius: radius,
           // Opaque, so hovering deepens the red rather than washing it.
-          hoverColor: watching ? themeState.bgHover : CustomColors.errorDark,
+          hoverColor: CustomColors.errorDark,
           onTap: watching ? cubit.stopWatchingAll : cubit.disconnect,
           child: AnimatedSize(
             duration: AppMotion.state,
@@ -66,7 +64,7 @@ class LeaveButton extends StatelessWidget {
                 spacing: 8,
                 children: [
                   Icon(
-                    watching ? Icons.stop_circle_outlined : Icons.call_end,
+                    watching ? Icons.cancel_presentation : Icons.call_end,
                     size: K.iconLarge,
                     color: ink,
                   ),
