@@ -50,19 +50,6 @@ pub struct ShareQuality {
     pub share_audio: bool,
 }
 
-/// A running share as it now goes out, after a change: what the sharer is
-/// shown, since it is the one thing they cannot see for themselves.
-pub struct ShareStatus {
-    /// The picture's size as published. Below the height asked for when the
-    /// source is smaller — nothing is scaled up — and `None` while the share
-    /// waits on a minimised window and has published nothing yet.
-    pub width: Option<u32>,
-    pub height: Option<u32>,
-    pub fps: u32,
-    /// Off when it was asked for and could not be had.
-    pub share_audio: bool,
-}
-
 /// A screen or window that can be captured.
 #[derive(Clone, Debug)]
 pub struct CaptureSource {

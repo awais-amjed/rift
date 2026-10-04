@@ -237,9 +237,9 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
   ///
   /// Sound is reported as it came out, not as it was asked for: an
   /// application that stopped playing has nothing to capture, and a menu
-  /// ticked for sound nobody hears is the wrong menu. And the sharer is told
-  /// what now goes out ([streamChangeNotice]), because the viewers' picture
-  /// blinking is the only other sign that anything happened.
+  /// ticked for sound nobody hears is the wrong menu. The sharer is told the
+  /// change went through ([streamChangeNotice]): the viewers' picture
+  /// blinking is the only other sign of it.
   Future<ScreenShareSettings?> changeQuality({
     int? fps,
     int? resolution,
@@ -255,7 +255,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
       shareAudio: shareAudio,
     );
     try {
-      final sent = await updateScreenshare(
+      final applied = await updateScreenshare(
         quality: ShareQuality(
           resolution: wanted.resolution,
           fps: wanted.fps,
@@ -263,17 +263,17 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
         ),
       );
       if (!state.isSharing) return null;
-      final now = wanted.copyWith(shareAudio: sent.shareAudio);
+      final now = wanted.copyWith(shareAudio: applied.shareAudio);
       emit(state.copyWith(settings: now));
-      if (wanted.shareAudio && !sent.shareAudio) {
+      if (wanted.shareAudio && !applied.shareAudio) {
         HelperMethods.showError(
           error: 'Could not share this stream’s sound.',
           autoCloseDuration: _errorDuration,
         );
       } else {
         final notice = streamChangeNotice(
-          asked: wanted,
-          sent: sent,
+          now: now,
+          fpsChanged: fps != null,
           soundChanged: shareAudio != null,
         );
         HelperMethods.showToast(

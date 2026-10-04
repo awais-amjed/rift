@@ -125,9 +125,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ShareQuality dco_decode_share_quality(dynamic raw);
 
   @protected
-  ShareStatus dco_decode_share_status(dynamic raw);
-
-  @protected
   SoundShareConfig dco_decode_sound_share_config(dynamic raw);
 
   @protected
@@ -254,9 +251,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ShareQuality sse_decode_share_quality(SseDeserializer deserializer);
-
-  @protected
-  ShareStatus sse_decode_share_status(SseDeserializer deserializer);
 
   @protected
   SoundShareConfig sse_decode_sound_share_config(SseDeserializer deserializer);
@@ -413,9 +407,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_share_quality(ShareQuality self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_share_status(ShareStatus self, SseSerializer serializer);
 
   @protected
   void sse_encode_sound_share_config(

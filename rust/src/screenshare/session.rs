@@ -2,7 +2,7 @@
 use super::capture::{self, Capture, CaptureRequest, Progress, Started, VideoSlot};
 use super::resolution::{target_size, Size};
 use super::track::{publish_video_track, TrackSettings};
-use crate::api::screenshare::types::{self, ScreenShareConfig, ShareQuality, ShareStatus};
+use crate::api::screenshare::types::{self, ScreenShareConfig, ShareQuality};
 use crate::sharing::audio::{self, AudioCapture, AudioCaptureHandle, AudioSelection};
 use crate::sharing::room;
 use livekit::prelude::*;
@@ -140,9 +140,9 @@ pub(crate) async fn stop() -> Result<String, String> {
 }
 
 /// Applies what [`ShareQuality`] asks for to the running share, and says what
-/// now goes out — the size actually published, and sound off if it was asked
-/// for and could not be had — so the caller shows the truth, not its request.
-pub(crate) async fn update(quality: ShareQuality) -> Result<ShareStatus, String> {
+/// is now in effect — which is sound off if it was asked for and could not be
+/// had, so the caller shows the truth rather than its request.
+pub(crate) async fn update(quality: ShareQuality) -> Result<ShareQuality, String> {
     types::check_quality(&quality)?;
     let mut slot = SESSION.lock().await;
     let Some(session) = slot.as_mut() else {
@@ -194,12 +194,9 @@ pub(crate) async fn update(quality: ShareQuality) -> Result<ShareStatus, String>
         (_, unchanged) => session.audio = unchanged,
     }
 
-    let sent = session.video.sending().await;
-    Ok(ShareStatus {
-        width: sent.map(|size| size.width),
-        height: sent.map(|size| size.height),
-        fps: quality.fps,
+    Ok(ShareQuality {
         share_audio: session.audio.is_some(),
+        ..quality
     })
 }
 
@@ -293,13 +290,7 @@ struct Video {
     /// The published track, once there is one. Held for the whole of a
     /// publish, so a change made while a minimised window is opening waits
     /// for the first publish and then redoes it, rather than racing it.
-    track: Mutex<Option<Published>>,
-}
-
-/// The picture's track, and the size it was published at.
-struct Published {
-    sid: TrackSid,
-    size: Size,
+    track: Mutex<Option<TrackSid>>,
 }
 
 impl Video {
@@ -307,15 +298,6 @@ impl Video {
     async fn publish(&self, native: Size) -> Result<(), String> {
         let mut track = self.track.lock().await;
         self.publish_locked(&mut track, native).await
-    }
-
-    /// The size the picture is published at, once it is.
-    async fn sending(&self) -> Option<Size> {
-        self.track
-            .lock()
-            .await
-            .as_ref()
-            .map(|published| published.size)
     }
 
     /// Takes the new height and rate, and says whether either changed.
@@ -344,7 +326,7 @@ impl Video {
             .slot
             .native()
             .ok_or("No frame has been captured to size the picture by")?;
-        if let Err(e) = self.participant.unpublish_track(&old.sid).await {
+        if let Err(e) = self.participant.unpublish_track(&old).await {
             log::warn!("screenshare: unpublishing the old picture: {e:?}");
         }
         self.publish_locked(&mut track, native).await
@@ -352,7 +334,7 @@ impl Video {
 
     async fn publish_locked(
         &self,
-        track: &mut Option<Published>,
+        track: &mut Option<TrackSid>,
         native: Size,
     ) -> Result<(), String> {
         let settings = *self.settings.lock().unwrap();
@@ -372,8 +354,7 @@ impl Video {
             false,
         );
         self.slot.attach(source.clone(), target);
-        let sid = publish_video_track(&self.participant, source, &settings).await?;
-        *track = Some(Published { sid, size: target });
+        *track = Some(publish_video_track(&self.participant, source, &settings).await?);
         Ok(())
     }
 }

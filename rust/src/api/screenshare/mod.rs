@@ -17,9 +17,7 @@ use crate::sharing::audio;
 
 use crate::frb_generated::StreamSink;
 use std::sync::Mutex;
-use types::{
-    AudioSource, CaptureSource, ScreenShareConfig, ScreenshareEvent, ShareQuality, ShareStatus,
-};
+use types::{AudioSource, CaptureSource, ScreenShareConfig, ScreenshareEvent, ShareQuality};
 
 // Set once when Flutter subscribes; replaced if it subscribes again.
 static EVENT_SINK: Mutex<Option<StreamSink<ScreenshareEvent>>> = Mutex::new(None);
@@ -56,10 +54,10 @@ pub async fn start_screenshare(config: ScreenShareConfig) -> Result<String, Stri
 }
 
 /// Change a running share's frame rate, size or sound without stopping it,
-/// and return what now goes out. The capture carries on, so a desktop
+/// and return what is now in effect. The capture carries on, so a desktop
 /// portal is not asked again; viewers see the picture blink while its track
 /// is published again at the new size.
-pub async fn update_screenshare(quality: ShareQuality) -> Result<ShareStatus, String> {
+pub async fn update_screenshare(quality: ShareQuality) -> Result<ShareQuality, String> {
     #[cfg(desktop)]
     {
         session::update(quality).await
