@@ -11,10 +11,14 @@ mod pixels;
 pub(crate) mod resolution;
 #[cfg(desktop)]
 pub(crate) mod session;
+#[cfg(desktop)]
+pub(crate) mod sources;
 #[cfg(target_os = "windows")]
 pub(crate) mod thumbnail;
 #[cfg(desktop)]
 mod track;
+#[cfg(target_os = "windows")]
+mod window_win;
 
 #[cfg(all(test, desktop))]
 mod live_test;

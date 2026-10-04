@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../src/rust/api/screenshare/types.dart';
 import '../../../../theme/app_motion.dart';
+import 'minimised_preview.dart';
 
 /// Thumbnail grid for selecting a capture source (Windows only).
 class SourceThumbnailGrid extends StatelessWidget {
@@ -116,6 +117,8 @@ class _SourceCard extends StatelessWidget {
                           width: double.infinity,
                           gaplessPlayback: true,
                         )
+                      : source.minimised
+                      ? const MinimisedPreview()
                       : Center(
                           child: Icon(
                             Icons.desktop_windows_outlined,

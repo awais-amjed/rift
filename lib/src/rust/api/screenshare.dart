@@ -29,7 +29,9 @@ Future<String> startScreenshare({required ScreenShareConfig config}) =>
 Future<String> stopScreenshare() =>
     RustLib.instance.api.crateApiScreenshareStopScreenshare();
 
-/// Screens, or windows, in the order their indexes refer to.
+/// Screens, or windows, in the order their indexes refer to. A share or a
+/// thumbnail asked for by index means the source at that index in the list
+/// most recently returned here.
 Future<List<CaptureSource>> listCaptureSources({
   required bool captureFullScreen,
 }) => RustLib.instance.api.crateApiScreenshareListCaptureSources(

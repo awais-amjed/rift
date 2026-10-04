@@ -953,12 +953,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   CaptureSource dco_decode_capture_source(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
     return CaptureSource(
       index: dco_decode_u_32(arr[0]),
       title: dco_decode_String(arr[1]),
       audioSourcePid: dco_decode_opt_box_autoadd_u_32(arr[2]),
+      minimised: dco_decode_bool(arr[3]),
     );
   }
 
@@ -1238,10 +1239,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_index = sse_decode_u_32(deserializer);
     var var_title = sse_decode_String(deserializer);
     var var_audioSourcePid = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_minimised = sse_decode_bool(deserializer);
     return CaptureSource(
       index: var_index,
       title: var_title,
       audioSourcePid: var_audioSourcePid,
+      minimised: var_minimised,
     );
   }
 
@@ -1616,6 +1619,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_u_32(self.index, serializer);
     sse_encode_String(self.title, serializer);
     sse_encode_opt_box_autoadd_u_32(self.audioSourcePid, serializer);
+    sse_encode_bool(self.minimised, serializer);
   }
 
   @protected

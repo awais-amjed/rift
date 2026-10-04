@@ -55,14 +55,23 @@ class CaptureSource {
   /// Windows only: the owning process, for app-loopback audio capture.
   final int? audioSourcePid;
 
+  /// Windows only: a minimised window. There is no picture of it until it
+  /// is back on screen, so sharing it restores it.
+  final bool minimised;
+
   const CaptureSource({
     required this.index,
     required this.title,
     this.audioSourcePid,
+    required this.minimised,
   });
 
   @override
-  int get hashCode => index.hashCode ^ title.hashCode ^ audioSourcePid.hashCode;
+  int get hashCode =>
+      index.hashCode ^
+      title.hashCode ^
+      audioSourcePid.hashCode ^
+      minimised.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -71,7 +80,8 @@ class CaptureSource {
           runtimeType == other.runtimeType &&
           index == other.index &&
           title == other.title &&
-          audioSourcePid == other.audioSourcePid;
+          audioSourcePid == other.audioSourcePid &&
+          minimised == other.minimised;
 }
 
 class ScreenShareConfig {

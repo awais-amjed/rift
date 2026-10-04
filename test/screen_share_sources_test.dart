@@ -2,8 +2,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rift/logic/services/screen_share_sources.dart';
 import 'package:rift/src/rust/api/screenshare/types.dart';
 
-CaptureSource src(int index, {int? pid}) =>
-    CaptureSource(index: index, title: 'source $index', audioSourcePid: pid);
+CaptureSource src(int index, {int? pid}) => CaptureSource(
+  index: index,
+  title: 'source $index',
+  audioSourcePid: pid,
+  minimised: false,
+);
 
 void main() {
   group('ScreenShareSources.pickCaptureSource', () {

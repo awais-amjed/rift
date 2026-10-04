@@ -161,19 +161,6 @@ pub(crate) fn list_sources() -> Vec<AudioSource> {
     }
 }
 
-/// `(window title, process id)` for every visible window, so a picked window
-/// can be matched to the process whose audio to capture. Windows only.
-pub(crate) fn window_pids() -> Vec<(String, u32)> {
-    #[cfg(target_os = "windows")]
-    {
-        windows::list_windows()
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        Vec::new()
-    }
-}
-
 /// Publish a screen-share audio track and start the thread that fills it.
 ///
 /// The source is `ScreenshareAudio` for a sound share too: LiveKit has no

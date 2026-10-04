@@ -943,10 +943,12 @@ impl SseDecode for crate::api::screenshare::types::CaptureSource {
         let mut var_index = <u32>::sse_decode(deserializer);
         let mut var_title = <String>::sse_decode(deserializer);
         let mut var_audioSourcePid = <Option<u32>>::sse_decode(deserializer);
+        let mut var_minimised = <bool>::sse_decode(deserializer);
         return crate::api::screenshare::types::CaptureSource {
             index: var_index,
             title: var_title,
             audio_source_pid: var_audioSourcePid,
+            minimised: var_minimised,
         };
     }
 }
@@ -1359,6 +1361,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::screenshare::types::CaptureSo
             self.index.into_into_dart().into_dart(),
             self.title.into_into_dart().into_dart(),
             self.audio_source_pid.into_into_dart().into_dart(),
+            self.minimised.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -1608,6 +1611,7 @@ impl SseEncode for crate::api::screenshare::types::CaptureSource {
         <u32>::sse_encode(self.index, serializer);
         <String>::sse_encode(self.title, serializer);
         <Option<u32>>::sse_encode(self.audio_source_pid, serializer);
+        <bool>::sse_encode(self.minimised, serializer);
     }
 }
 

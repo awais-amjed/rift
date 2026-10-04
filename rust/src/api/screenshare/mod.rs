@@ -11,7 +11,7 @@ pub mod types;
 #[cfg(target_os = "windows")]
 use crate::screenshare::thumbnail;
 #[cfg(desktop)]
-use crate::screenshare::{capture, session};
+use crate::screenshare::{session, sources};
 #[cfg(desktop)]
 use crate::sharing::audio;
 
@@ -66,11 +66,13 @@ pub async fn stop_screenshare() -> Result<String, String> {
     }
 }
 
-/// Screens, or windows, in the order their indexes refer to.
+/// Screens, or windows, in the order their indexes refer to. A share or a
+/// thumbnail asked for by index means the source at that index in the list
+/// most recently returned here.
 pub fn list_capture_sources(capture_full_screen: bool) -> Vec<CaptureSource> {
     #[cfg(desktop)]
     {
-        capture::list_sources(capture_full_screen)
+        sources::list(capture_full_screen)
     }
     #[cfg(not(desktop))]
     {

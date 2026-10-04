@@ -47,6 +47,9 @@ pub struct CaptureSource {
     pub title: String,
     /// Windows only: the owning process, for app-loopback audio capture.
     pub audio_source_pid: Option<u32>,
+    /// Windows only: a minimised window. There is no picture of it until it
+    /// is back on screen, so sharing it restores it.
+    pub minimised: bool,
 }
 
 /// A PulseAudio sink-input: one application's playback stream. Linux only;

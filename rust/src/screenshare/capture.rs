@@ -2,10 +2,13 @@
 //! each one to the processing thread in `frames.rs`.
 use super::frames::{self, SendableFrame};
 use super::resolution::Size;
-use crate::api::screenshare::types::{CaptureSource, ScreenshareEvent};
-use crate::sharing::audio;
+use super::sources;
+#[cfg(target_os = "windows")]
+use super::window_win;
+use crate::api::screenshare::types::ScreenshareEvent;
 use livekit::webrtc::desktop_capturer::{
-    CaptureError, DesktopCaptureSourceType, DesktopCapturer, DesktopCapturerOptions,
+    CaptureError, CaptureSource as Source, DesktopCaptureSourceType, DesktopCapturer,
+    DesktopCapturerOptions,
 };
 use livekit::webrtc::video_source::native::NativeVideoSource;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -18,6 +21,12 @@ use tokio::sync::oneshot;
 /// Raw frames waiting for the processing thread. Two is one being converted
 /// and one queued; anything older is stale and better dropped.
 const FRAME_QUEUE: usize = 2;
+
+/// How long a window restored from the taskbar gets to be back on screen,
+/// and how often to look. A restore animates for a quarter of a second, and
+/// a game coming back from minimised can take a few seconds to draw again.
+const RESTORE_WAIT: Duration = Duration::from_secs(5);
+const RESTORE_POLL: Duration = Duration::from_millis(100);
 
 pub(crate) struct CaptureRequest {
     pub source_type: DesktopCaptureSourceType,
@@ -100,28 +109,6 @@ impl Drop for TimerResolutionGuard {
     }
 }
 
-/// Whether the window behind a Windows capture source is minimised.
-#[cfg(target_os = "windows")]
-fn window_minimised(id: u64) -> bool {
-    use windows::Win32::Foundation::HWND;
-    use windows::Win32::UI::WindowsAndMessaging::IsIconic;
-    unsafe { IsIconic(HWND(id as usize as *mut _)) }.as_bool()
-}
-
-/// Whether the window behind a Windows capture source has been closed.
-///
-/// libwebrtc's Windows capturer does not report a closed window as a
-/// permanent error — it keeps answering with the last frame it had, so the
-/// share stayed up with a frozen picture and the watchers were never told
-/// (measured Sep 30 2026). A window source's id is its `HWND`, so ask Windows
-/// directly.
-#[cfg(target_os = "windows")]
-fn window_closed(id: u64) -> bool {
-    use windows::Win32::Foundation::HWND;
-    use windows::Win32::UI::WindowsAndMessaging::IsWindow;
-    !unsafe { IsWindow(Some(HWND(id as usize as *mut _))) }.as_bool()
-}
-
 fn run(
     request: CaptureRequest,
     first_frame: oneshot::Sender<Result<Size, String>>,
@@ -138,17 +125,14 @@ fn run(
         return;
     };
 
-    let sources = capturer.get_source_list();
-    let index = request
-        .selected_index
-        .map(|i| i as usize)
-        .filter(|i| *i < sources.len())
-        .unwrap_or(0);
-    let Some(source) = sources.get(index).cloned() else {
-        let _ = first_frame.send(Err("No capture sources available".to_string()));
-        return;
+    let source = match find_source(&capturer, &request) {
+        Ok(source) => source,
+        Err(reason) => {
+            let _ = first_frame.send(Err(reason));
+            return;
+        }
     };
-    log::info!("capture: source [{index}] {}", source.title());
+    log::info!("capture: source {}", source.title());
     #[cfg(target_os = "windows")]
     let window = (request.source_type == DesktopCaptureSourceType::Window).then(|| source.id());
 
@@ -192,7 +176,7 @@ fn run(
             Err(RecvTimeoutError::Timeout) => {
                 capturer.capture_frame();
                 #[cfg(target_os = "windows")]
-                if window.is_some_and(window_closed) {
+                if window.is_some_and(window_win::closed) {
                     source_lost.store(true, Ordering::Relaxed);
                 }
                 if source_lost.load(Ordering::Relaxed) {
@@ -202,7 +186,7 @@ fn run(
                 }
                 #[cfg(target_os = "windows")]
                 if let (Some(id), Some(report)) = (window, request.on_minimised.as_ref()) {
-                    let now = window_minimised(id);
+                    let now = window_win::minimised(id);
                     if now != minimised {
                         minimised = now;
                         log::info!(
@@ -224,40 +208,42 @@ fn run(
     log::info!("capture: thread exiting");
 }
 
-/// Screens or windows, in the order their indexes refer to. On Windows each
-/// window is matched to its process so audio can follow the picked window.
-pub(crate) fn list_sources(capture_full_screen: bool) -> Vec<CaptureSource> {
-    let source_type = if capture_full_screen {
-        DesktopCaptureSourceType::Screen
-    } else {
-        DesktopCaptureSourceType::Window
-    };
-    let Some(capturer) = DesktopCapturer::new(DesktopCapturerOptions::new(source_type)) else {
-        log::warn!("capture: could not create a desktop capturer to list sources");
-        return Vec::new();
-    };
+/// The capturer's own entry for the chosen source.
+///
+/// Found by id through the list the user picked from, so a window opening or
+/// closing in the meantime cannot move the choice onto another one. A
+/// minimised window is not in the capturer's list at all until it is back on
+/// screen, so it is restored, and waited for.
+fn find_source(capturer: &DesktopCapturer, request: &CaptureRequest) -> Result<Source, String> {
     let sources = capturer.get_source_list();
-    log::info!("capture: {} sources", sources.len());
-
-    let pid_by_title = if capture_full_screen {
-        Vec::new()
-    } else {
-        audio::window_pids()
+    // Nothing chosen: the Wayland portal, whose one source is what the user
+    // picked in the desktop's own dialog.
+    let Some(index) = request.selected_index else {
+        return sources
+            .into_iter()
+            .next()
+            .ok_or_else(|| "No capture sources available".to_string());
     };
-    sources
-        .iter()
-        .enumerate()
-        .map(|(index, source)| {
-            let title = source.title();
-            let audio_source_pid = pid_by_title
-                .iter()
-                .find(|(t, _)| *t == title)
-                .map(|(_, pid)| *pid);
-            CaptureSource {
-                index: index as u32,
-                title,
-                audio_source_pid,
-            }
-        })
-        .collect()
+    let Some(chosen) = sources::listed(request.source_type, index) else {
+        return Err("Pick what to share again: the list has changed".to_string());
+    };
+    #[cfg(target_os = "windows")]
+    if request.source_type == DesktopCaptureSourceType::Window && window_win::minimised(chosen.id)
+    {
+        log::info!("capture: restoring the minimised window {}", chosen.title);
+        window_win::restore(chosen.id);
+    }
+
+    let deadline = Instant::now() + RESTORE_WAIT;
+    let mut sources = sources;
+    loop {
+        if let Some(source) = sources.into_iter().find(|source| source.id() == chosen.id) {
+            return Ok(source);
+        }
+        if Instant::now() >= deadline {
+            return Err(format!("“{}” is no longer there to share", chosen.title));
+        }
+        thread::sleep(RESTORE_POLL);
+        sources = capturer.get_source_list();
+    }
 }
