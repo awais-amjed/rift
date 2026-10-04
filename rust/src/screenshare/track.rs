@@ -8,14 +8,38 @@ use livekit::webrtc::video_source::native::NativeVideoSource;
 
 const BITS_PER_MEGABIT: u64 = 1_000_000;
 
+/// What the published picture is held to, out of the share's settings.
+/// Copied rather than borrowed, because a share waiting on a minimised window
+/// publishes long after the call that started it has returned.
+#[derive(Clone, Copy)]
+pub(crate) struct TrackSettings {
+    /// Height cap in rows.
+    pub max_height: u32,
+    pub fps: u32,
+    /// Megabits per second.
+    pub bitrate: u32,
+    pub codec: VideoCodec,
+}
+
+impl From<&ScreenShareConfig> for TrackSettings {
+    fn from(config: &ScreenShareConfig) -> Self {
+        Self {
+            max_height: config.resolution,
+            fps: config.fps,
+            bitrate: config.bitrate,
+            codec: config.codec,
+        }
+    }
+}
+
 pub(crate) async fn publish_video_track(
-    room: &Room,
+    participant: &LocalParticipant,
     source: NativeVideoSource,
-    config: &ScreenShareConfig,
+    settings: &TrackSettings,
 ) -> Result<(), String> {
     let track = LocalVideoTrack::create_video_track("screen_share", RtcVideoSource::Native(source));
-    let max_bitrate = u64::from(config.bitrate) * BITS_PER_MEGABIT;
-    let video_codec = match config.codec {
+    let max_bitrate = u64::from(settings.bitrate) * BITS_PER_MEGABIT;
+    let video_codec = match settings.codec {
         VideoCodec::H264 => options::VideoCodec::H264,
         VideoCodec::VP8 => options::VideoCodec::VP8,
         VideoCodec::VP9 => options::VideoCodec::VP9,
@@ -24,10 +48,10 @@ pub(crate) async fn publish_video_track(
         "track: publishing {:?} at {} bps, {} fps",
         video_codec,
         max_bitrate,
-        config.fps
+        settings.fps
     );
 
-    room.local_participant()
+    participant
         .publish_track(
             LocalTrack::Video(track),
             TrackPublishOptions {
@@ -39,7 +63,7 @@ pub(crate) async fn publish_video_track(
                 preconnect_buffer: true,
                 video_encoding: Some(VideoEncoding {
                     max_bitrate,
-                    max_framerate: f64::from(config.fps),
+                    max_framerate: f64::from(settings.fps),
                 }),
                 ..Default::default()
             },

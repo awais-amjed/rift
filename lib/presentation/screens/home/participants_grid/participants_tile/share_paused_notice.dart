@@ -4,11 +4,13 @@ import '../../../../../data/constants.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/media_colors.dart';
 
-/// Said over a stream whose shared window has been minimised.
+/// Said over a stream whose shared window is minimised.
 ///
 /// Windows gives a capturer nothing for a minimised window, so viewers keep
-/// the last frame. Without this the picture just stops, which reads as the
-/// call breaking rather than as the sharer having put the window away.
+/// the last frame — or, for a share started on a window still on the
+/// taskbar, have no frame at all yet. Without this the picture just stops
+/// (or never starts), which reads as the call breaking rather than as the
+/// sharer having the window put away.
 class SharePausedNotice extends StatelessWidget {
   const SharePausedNotice({super.key});
 

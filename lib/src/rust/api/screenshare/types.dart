@@ -56,7 +56,8 @@ class CaptureSource {
   final int? audioSourcePid;
 
   /// Windows only: a minimised window. There is no picture of it until it
-  /// is back on screen, so sharing it restores it.
+  /// is back on screen, so a share of it starts paused and begins when the
+  /// user opens it.
   final bool minimised;
 
   const CaptureSource({

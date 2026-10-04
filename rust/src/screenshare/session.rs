@@ -1,7 +1,7 @@
 //! One screen share at a time: bringing it up, and taking it down again.
-use super::capture::{self, Capture, CaptureRequest};
-use super::resolution::target_size;
-use super::track::publish_video_track;
+use super::capture::{self, Capture, CaptureRequest, Progress, Started, VideoSlot};
+use super::resolution::{target_size, Size};
+use super::track::{publish_video_track, TrackSettings};
 use crate::api::screenshare::types::{self, ScreenShareConfig};
 use crate::sharing::audio::{self, AudioCapture, AudioCaptureHandle, AudioSelection};
 use crate::sharing::room;
@@ -12,9 +12,11 @@ use livekit::webrtc::video_source::native::NativeVideoSource;
 use std::collections::HashMap;
 use std::time::Duration;
 use tokio::sync::Mutex;
+use tokio::task::JoinHandle;
 
-/// How long the selected source gets to deliver its first frame. A minimised
-/// window, or a Wayland portal the user dismissed, never delivers one.
+/// How long the selected source gets to deliver its first frame, or to say
+/// it is waiting for a minimised window. A Wayland portal the user dismissed
+/// never does either.
 const FIRST_FRAME_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// The participant attribute a share sets while its window is minimised, which
@@ -25,6 +27,9 @@ struct Session {
     room: Room,
     capture: Capture,
     audio: Option<AudioCaptureHandle>,
+    /// Publishes the picture when its first frame arrives, for a share that
+    /// started on a minimised window and is waiting for it to be opened.
+    publisher: Option<JoinHandle<()>>,
 }
 
 // An async mutex, held for the whole of a start or a stop. A second start
@@ -64,7 +69,7 @@ pub(crate) async fn start(config: ScreenShareConfig) -> Result<String, String> {
     let room_sid = room.sid().await.to_string();
     log::info!("screenshare: connected to room {room_name} ({room_sid})");
 
-    let (capture, audio) = match bring_up(&room, &config).await {
+    let (capture, audio, publisher) = match bring_up(&room, &config).await {
         Ok(parts) => parts,
         Err(reason) => {
             // Leave nothing behind: a room left open here is a ghost
@@ -80,6 +85,7 @@ pub(crate) async fn start(config: ScreenShareConfig) -> Result<String, String> {
         room,
         capture,
         audio,
+        publisher,
     });
     log::info!("screenshare: started");
     Ok(format!("Connected to room: {room_name} ({room_sid})"))
@@ -91,11 +97,15 @@ pub(crate) async fn stop() -> Result<String, String> {
         room,
         capture,
         audio,
+        publisher,
     }) = slot.take()
     else {
         log::info!("screenshare: stop with nothing running");
         return Ok("No active session".to_string());
     };
+    if let Some(publisher) = publisher {
+        publisher.abort();
+    }
 
     // Room teardown and the blocking thread joins run at the same time. The
     // capturer's drop (inside the capture join) releases the WGC session,
@@ -123,8 +133,8 @@ pub(crate) async fn stop() -> Result<String, String> {
 async fn bring_up(
     room: &Room,
     config: &ScreenShareConfig,
-) -> Result<(Capture, Option<AudioCaptureHandle>), String> {
-    let (capture, first_frame) = capture::spawn(CaptureRequest {
+) -> Result<(Capture, Option<AudioCaptureHandle>, Option<JoinHandle<()>>), String> {
+    let (capture, mut started) = capture::spawn(CaptureRequest {
         source_type: if config.capture_full_screen {
             DesktopCaptureSourceType::Screen
         } else {
@@ -137,42 +147,44 @@ async fn bring_up(
         on_minimised: Some(announce_paused(room)),
     });
 
-    let native = match tokio::time::timeout(FIRST_FRAME_TIMEOUT, first_frame).await {
-        Ok(Ok(Ok(size))) => size,
-        Ok(Ok(Err(reason))) => return Err(stop_capture(capture, reason).await),
-        Ok(Err(_)) => {
+    let first = match tokio::time::timeout(FIRST_FRAME_TIMEOUT, started.recv()).await {
+        Ok(Some(Progress::FirstFrame(size))) => Some(size),
+        Ok(Some(Progress::Waiting)) => None,
+        Ok(Some(Progress::Failed(reason))) => return Err(stop_capture(capture, reason).await),
+        Ok(None) => {
             let reason = "The capture thread stopped before producing a frame".to_string();
             return Err(stop_capture(capture, reason).await);
         }
         Err(_) => {
             let reason = format!(
-                "No frames arrived from the selected source in {} seconds; is it minimised?",
+                "No frames arrived from the selected source in {} seconds",
                 FIRST_FRAME_TIMEOUT.as_secs()
             );
             return Err(stop_capture(capture, reason).await);
         }
     };
 
-    let target = target_size(native, config.resolution);
-    log::info!(
-        "screenshare: capturing {}x{}, publishing {}x{}",
-        native.width,
-        native.height,
-        target.width,
-        target.height
-    );
-    let source = NativeVideoSource::new(
-        VideoResolution {
-            width: target.width,
-            height: target.height,
-        },
-        false,
-    );
-    capture.attach(source.clone());
-
-    if let Err(reason) = publish_video_track(room, source, config).await {
-        return Err(stop_capture(capture, reason).await);
-    }
+    let video = Video {
+        participant: room.local_participant(),
+        slot: capture.slot(),
+        settings: TrackSettings::from(config),
+    };
+    // A window still on the taskbar: the share is up — viewers see it, marked
+    // paused — and the picture goes out once the user opens the window, which
+    // is theirs to do when they are ready. Waiting here instead would hold the
+    // session lock, and with it any stop, for as long as that takes.
+    let publisher = match first {
+        Some(native) => {
+            if let Err(reason) = video.publish(native).await {
+                return Err(stop_capture(capture, reason).await);
+            }
+            None
+        }
+        None => {
+            log::info!("screenshare: waiting for the window to be opened");
+            Some(tokio::spawn(publish_when_opened(video, started)))
+        }
+    };
 
     // A screen share's sound has no `on_ended`: if the window stops playing,
     // the picture is still worth watching. Its track keeps the plain name it
@@ -190,7 +202,62 @@ async fn bring_up(
     } else {
         None
     };
-    Ok((capture, audio))
+    Ok((capture, audio, publisher))
+}
+
+/// What publishing the picture needs, none of it borrowed from the start.
+struct Video {
+    participant: LocalParticipant,
+    slot: VideoSlot,
+    settings: TrackSettings,
+}
+
+impl Video {
+    /// Size a video source for the first frame, start feeding it, publish it.
+    async fn publish(&self, native: Size) -> Result<(), String> {
+        let target = target_size(native, self.settings.max_height);
+        log::info!(
+            "screenshare: capturing {}x{}, publishing {}x{}",
+            native.width,
+            native.height,
+            target.width,
+            target.height
+        );
+        let source = NativeVideoSource::new(
+            VideoResolution {
+                width: target.width,
+                height: target.height,
+            },
+            false,
+        );
+        self.slot.attach(source.clone());
+        publish_video_track(&self.participant, source, &self.settings).await
+    }
+}
+
+/// The rest of a share that started on a minimised window. A stop aborts it;
+/// a window closed while waiting has already told Flutter, which stops it.
+async fn publish_when_opened(video: Video, mut started: Started) {
+    while let Some(progress) = started.recv().await {
+        match progress {
+            Progress::Waiting => {}
+            Progress::Failed(reason) => {
+                log::info!("screenshare: gave up waiting: {reason}");
+                return;
+            }
+            Progress::FirstFrame(native) => {
+                if let Err(reason) = video.publish(native).await {
+                    // The share is up with nothing to show and no way to put
+                    // it right from here: end it, the way a closed window does.
+                    log::warn!("screenshare: {reason}");
+                    crate::api::screenshare::emit_screenshare_event(
+                        crate::api::screenshare::types::ScreenshareEvent::SourceClosed,
+                    );
+                }
+                return;
+            }
+        }
+    }
 }
 
 /// Tells the room, as an attribute of the share's own connection, when the

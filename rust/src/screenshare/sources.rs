@@ -16,7 +16,7 @@ pub(crate) struct Listed {
     pub id: u64,
     pub title: String,
     /// Not in the capturer's list, because there is nothing on screen to
-    /// capture: it has to be restored first.
+    /// capture until the user opens it again.
     pub minimised: bool,
 }
 
@@ -42,7 +42,11 @@ pub(crate) fn source_type(capture_full_screen: bool) -> DesktopCaptureSourceType
 
 /// The source at `index` in the last list shown, if there was one.
 pub(crate) fn listed(source_type: DesktopCaptureSourceType, index: u32) -> Option<Listed> {
-    shown(source_type).lock().unwrap().get(index as usize).cloned()
+    shown(source_type)
+        .lock()
+        .unwrap()
+        .get(index as usize)
+        .cloned()
 }
 
 /// Screens or windows, in the order their indexes refer to. On Windows each

@@ -4,8 +4,8 @@ import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 
 /// Stands in for the picture of a minimised window, which has none until it
-/// is back on screen — and says that sharing it brings it back, so a game
-/// jumping up when the share starts is no surprise.
+/// is back on screen — and says when its share will start: once the user
+/// opens it, which Rift leaves to them.
 class MinimisedPreview extends StatelessWidget {
   const MinimisedPreview({super.key});
 
@@ -25,7 +25,7 @@ class MinimisedPreview extends StatelessWidget {
               style: AppText.label.copyWith(color: theme.textSecondary),
             ),
             Text(
-              'Opens when you share',
+              'Starts when you open it',
               textAlign: TextAlign.center,
               style: AppText.meta.copyWith(color: theme.textTertiary),
             ),

@@ -10,11 +10,13 @@ import 'support/memory_storage.dart';
 
 /// A minimised window has no picture, and is listed anyway: a minimised game
 /// is what people go looking for. Its tile says why there is no picture and
-/// what sharing it will do.
+/// when the share of it will start.
 void main() {
   setUp(() => HydratedBloc.storage = MemoryStorage());
 
-  testWidgets('a minimised window says it opens when shared', (tester) async {
+  testWidgets('a minimised window says its share starts when it is opened', (
+    tester,
+  ) async {
     CaptureSource? picked;
     await tester.pumpWidget(
       BlocProvider<ThemeCubit>(
@@ -36,7 +38,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Opens when you share'), findsOneWidget);
+    expect(find.text('Starts when you open it'), findsOneWidget);
     await tester.tap(find.text('Game'));
     expect(picked?.index, 1);
   });

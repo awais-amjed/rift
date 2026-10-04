@@ -48,7 +48,8 @@ pub struct CaptureSource {
     /// Windows only: the owning process, for app-loopback audio capture.
     pub audio_source_pid: Option<u32>,
     /// Windows only: a minimised window. There is no picture of it until it
-    /// is back on screen, so sharing it restores it.
+    /// is back on screen, so a share of it starts paused and begins when the
+    /// user opens it.
     pub minimised: bool,
 }
 

@@ -16,17 +16,15 @@ use std::sync::mpsc::{self, RecvTimeoutError, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
-use tokio::sync::oneshot;
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 
 /// Raw frames waiting for the processing thread. Two is one being converted
 /// and one queued; anything older is stale and better dropped.
 const FRAME_QUEUE: usize = 2;
 
-/// How long a window restored from the taskbar gets to be back on screen,
-/// and how often to look. A restore animates for a quarter of a second, and
-/// a game coming back from minimised can take a few seconds to draw again.
-const RESTORE_WAIT: Duration = Duration::from_secs(5);
-const RESTORE_POLL: Duration = Duration::from_millis(100);
+/// How often a share waiting on a minimised window looks for it again.
+#[cfg(target_os = "windows")]
+const WAITING_POLL: Duration = Duration::from_millis(250);
 
 pub(crate) struct CaptureRequest {
     pub source_type: DesktopCaptureSourceType,
@@ -41,25 +39,47 @@ pub(crate) struct CaptureRequest {
     pub on_minimised: Option<Box<dyn Fn(bool) + Send>>,
 }
 
-/// The first frame's native size, or why there will never be one.
-pub(crate) type FirstFrame = oneshot::Receiver<Result<Size, String>>;
+/// How the start of a capture went, as the capture thread learns it.
+pub(crate) enum Progress {
+    /// The window is minimised, so there is no frame until the user opens it
+    /// again — which may be a while, and is theirs to choose. Windows only:
+    /// elsewhere the desktop's own picker chooses the window.
+    #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
+    Waiting,
+    /// The first frame arrived, at this native size.
+    FirstFrame(Size),
+    /// There will never be a frame, and why.
+    Failed(String),
+}
+
+pub(crate) type Started = UnboundedReceiver<Progress>;
 
 pub(crate) enum Command {
     Terminate,
 }
 
-/// A running capture thread. Frames flow only once a video source is
-/// [`attach`](Self::attach)ed, which the session does after it has seen the
-/// native size and chosen an output size.
+/// Where the processing thread finds the video source to feed. Frames flow
+/// only once one is [`attach`](Self::attach)ed, which the session does after
+/// it has seen the native size and chosen an output size.
+#[derive(Clone)]
+pub(crate) struct VideoSlot(Arc<Mutex<Option<NativeVideoSource>>>);
+
+impl VideoSlot {
+    pub(crate) fn attach(&self, source: NativeVideoSource) {
+        *self.0.lock().unwrap() = Some(source);
+    }
+}
+
+/// A running capture thread.
 pub(crate) struct Capture {
     command_tx: Sender<Command>,
     handle: JoinHandle<()>,
-    source_slot: Arc<Mutex<Option<NativeVideoSource>>>,
+    slot: VideoSlot,
 }
 
 impl Capture {
-    pub(crate) fn attach(&self, source: NativeVideoSource) {
-        *self.source_slot.lock().unwrap() = Some(source);
+    pub(crate) fn slot(&self) -> VideoSlot {
+        self.slot.clone()
     }
 
     /// Ask the thread to stop and wait for it. Blocks for at most one frame
@@ -72,19 +92,19 @@ impl Capture {
     }
 }
 
-pub(crate) fn spawn(request: CaptureRequest) -> (Capture, FirstFrame) {
+pub(crate) fn spawn(request: CaptureRequest) -> (Capture, Started) {
     let (command_tx, command_rx) = mpsc::channel();
-    let (first_frame_tx, first_frame_rx) = oneshot::channel();
-    let source_slot = Arc::new(Mutex::new(None));
-    let slot = Arc::clone(&source_slot);
-    let handle = thread::spawn(move || run(request, first_frame_tx, slot, command_rx));
+    let (progress_tx, progress_rx) = unbounded_channel();
+    let slot = VideoSlot(Arc::new(Mutex::new(None)));
+    let feeds = slot.0.clone();
+    let handle = thread::spawn(move || run(request, progress_tx, feeds, command_rx));
     (
         Capture {
             command_tx,
             handle,
-            source_slot,
+            slot,
         },
-        first_frame_rx,
+        progress_rx,
     )
 }
 
@@ -111,7 +131,7 @@ impl Drop for TimerResolutionGuard {
 
 fn run(
     request: CaptureRequest,
-    first_frame: oneshot::Sender<Result<Size, String>>,
+    progress: UnboundedSender<Progress>,
     source_slot: Arc<Mutex<Option<NativeVideoSource>>>,
     command_rx: mpsc::Receiver<Command>,
 ) {
@@ -121,14 +141,18 @@ fn run(
     let mut options = DesktopCapturerOptions::new(request.source_type);
     options.set_include_cursor(request.capture_cursor);
     let Some(mut capturer) = DesktopCapturer::new(options) else {
-        let _ = first_frame.send(Err("Could not create a desktop capturer".to_string()));
+        let _ = progress.send(Progress::Failed(
+            "Could not create a desktop capturer".to_string(),
+        ));
         return;
     };
 
-    let source = match find_source(&capturer, &request) {
-        Ok(source) => source,
+    let source = match find_source(&capturer, &request, &progress, &command_rx) {
+        Ok(Some(source)) => source,
+        // Stopped while waiting for the window.
+        Ok(None) => return,
         Err(reason) => {
-            let _ = first_frame.send(Err(reason));
+            let _ = progress.send(Progress::Failed(reason));
             return;
         }
     };
@@ -143,11 +167,11 @@ fn run(
     // it was closed. The loop below watches this and ends the session.
     let source_lost = Arc::new(AtomicBool::new(false));
     let lost = Arc::clone(&source_lost);
-    let mut first_frame = Some(first_frame);
+    let mut first_frame = Some(progress);
     capturer.start_capture(Some(source), move |result| match result {
         Ok(frame) => {
             if let Some(tx) = first_frame.take() {
-                let _ = tx.send(Ok(Size {
+                let _ = tx.send(Progress::FirstFrame(Size {
                     width: frame.width() as u32,
                     height: frame.height() as u32,
                 }));
@@ -157,7 +181,7 @@ fn run(
         }
         Err(CaptureError::Permanent) => {
             if let Some(tx) = first_frame.take() {
-                let _ = tx.send(Err("The selected source is gone".to_string()));
+                let _ = tx.send(Progress::Failed("The selected source is gone".to_string()));
             }
             lost.store(true, Ordering::Relaxed);
         }
@@ -208,13 +232,17 @@ fn run(
     log::info!("capture: thread exiting");
 }
 
-/// The capturer's own entry for the chosen source.
+/// The capturer's own entry for the chosen source, or `None` if the share
+/// was stopped before there was one.
 ///
 /// Found by id through the list the user picked from, so a window opening or
-/// closing in the meantime cannot move the choice onto another one. A
-/// minimised window is not in the capturer's list at all until it is back on
-/// screen, so it is restored, and waited for.
-fn find_source(capturer: &DesktopCapturer, request: &CaptureRequest) -> Result<Source, String> {
+/// closing in the meantime cannot move the choice onto another one.
+fn find_source(
+    capturer: &DesktopCapturer,
+    request: &CaptureRequest,
+    progress: &UnboundedSender<Progress>,
+    command_rx: &mpsc::Receiver<Command>,
+) -> Result<Option<Source>, String> {
     let sources = capturer.get_source_list();
     // Nothing chosen: the Wayland portal, whose one source is what the user
     // picked in the desktop's own dialog.
@@ -222,28 +250,62 @@ fn find_source(capturer: &DesktopCapturer, request: &CaptureRequest) -> Result<S
         return sources
             .into_iter()
             .next()
+            .map(Some)
             .ok_or_else(|| "No capture sources available".to_string());
     };
     let Some(chosen) = sources::listed(request.source_type, index) else {
         return Err("Pick what to share again: the list has changed".to_string());
     };
-    #[cfg(target_os = "windows")]
-    if request.source_type == DesktopCaptureSourceType::Window && window_win::minimised(chosen.id)
-    {
-        log::info!("capture: restoring the minimised window {}", chosen.title);
-        window_win::restore(chosen.id);
+    if let Some(source) = sources.into_iter().find(|source| source.id() == chosen.id) {
+        return Ok(Some(source));
     }
 
-    let deadline = Instant::now() + RESTORE_WAIT;
-    let mut sources = sources;
+    #[cfg(target_os = "windows")]
+    if request.source_type == DesktopCaptureSourceType::Window && window_win::minimised(chosen.id) {
+        return wait_for_window(capturer, request, &chosen, progress, command_rx);
+    }
+    let _ = (progress, command_rx);
+    Err(format!("“{}” is no longer there to share", chosen.title))
+}
+
+/// A minimised window is not in the capturer's list until it is back on
+/// screen. It is not brought back for the user: they may well not be ready
+/// to (reported Oct 4 2026), so the share waits — paused, which viewers are
+/// told — for as long as it takes them, or until it is stopped or the window
+/// closes.
+#[cfg(target_os = "windows")]
+fn wait_for_window(
+    capturer: &DesktopCapturer,
+    request: &CaptureRequest,
+    chosen: &sources::Listed,
+    progress: &UnboundedSender<Progress>,
+    command_rx: &mpsc::Receiver<Command>,
+) -> Result<Option<Source>, String> {
+    log::info!("capture: waiting for the minimised window {}", chosen.title);
+    let _ = progress.send(Progress::Waiting);
+    if let Some(report) = request.on_minimised.as_ref() {
+        report(true);
+    }
     loop {
-        if let Some(source) = sources.into_iter().find(|source| source.id() == chosen.id) {
-            return Ok(source);
+        match command_rx.recv_timeout(WAITING_POLL) {
+            Ok(Command::Terminate) | Err(RecvTimeoutError::Disconnected) => return Ok(None),
+            Err(RecvTimeoutError::Timeout) => {}
         }
-        if Instant::now() >= deadline {
-            return Err(format!("“{}” is no longer there to share", chosen.title));
+        if window_win::closed(chosen.id) {
+            log::info!("capture: the window closed while waiting, ending the share");
+            crate::api::screenshare::emit_screenshare_event(ScreenshareEvent::SourceClosed);
+            return Err(format!("“{}” was closed", chosen.title));
         }
-        thread::sleep(RESTORE_POLL);
-        sources = capturer.get_source_list();
+        let found = capturer
+            .get_source_list()
+            .into_iter()
+            .find(|source| source.id() == chosen.id);
+        if let Some(source) = found {
+            log::info!("capture: the window is open, starting");
+            if let Some(report) = request.on_minimised.as_ref() {
+                report(false);
+            }
+            return Ok(Some(source));
+        }
     }
 }

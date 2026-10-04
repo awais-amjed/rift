@@ -5,8 +5,8 @@ use windows::Win32::Foundation::{HWND, LPARAM};
 use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_CLOAKED};
 use windows::Win32::UI::WindowsAndMessaging::{
     EnumWindows, GetWindow, GetWindowLongW, GetWindowTextLengthW, GetWindowTextW,
-    GetWindowThreadProcessId, IsIconic, IsWindow, IsWindowVisible, ShowWindowAsync, GWL_EXSTYLE,
-    GW_OWNER, SW_RESTORE, WS_EX_APPWINDOW, WS_EX_TOOLWINDOW,
+    GetWindowThreadProcessId, IsIconic, IsWindow, IsWindowVisible, GWL_EXSTYLE, GW_OWNER,
+    WS_EX_APPWINDOW, WS_EX_TOOLWINDOW,
 };
 
 fn hwnd(id: u64) -> HWND {
@@ -35,12 +35,6 @@ pub(crate) fn pid(id: u64) -> Option<u32> {
     (pid != 0).then_some(pid)
 }
 
-/// Ask the window to come back from the taskbar. Async, so a game that is
-/// not answering its messages cannot hang the share.
-pub(crate) fn restore(id: u64) {
-    let _ = unsafe { ShowWindowAsync(hwnd(id), SW_RESTORE) };
-}
-
 /// `(id, title)` of every minimised window someone would recognise as an
 /// app: the ones on the taskbar.
 ///
@@ -54,7 +48,10 @@ pub(crate) fn list_minimised() -> Vec<(u64, String)> {
     // SAFETY: the callback only runs during this call, and the pointer it is
     // handed is to `found`, which outlives the call.
     unsafe {
-        let _ = EnumWindows(Some(collect_minimised), LPARAM(&mut found as *mut _ as isize));
+        let _ = EnumWindows(
+            Some(collect_minimised),
+            LPARAM(&mut found as *mut _ as isize),
+        );
     }
     found
 }

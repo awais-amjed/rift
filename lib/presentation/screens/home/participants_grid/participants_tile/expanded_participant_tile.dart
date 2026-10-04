@@ -36,7 +36,7 @@ class ExpandedParticipantTile extends StatelessWidget {
   final bool isScreenshare;
 
   /// The stream's shared window is minimised, so the picture is the last
-  /// frame — see [SharePausedNotice].
+  /// frame, or there is none yet — see [SharePausedNotice].
   final bool isPaused;
   final bool showWatchButton;
   final bool showStopButton;
@@ -130,9 +130,11 @@ class ExpandedParticipantTile extends StatelessWidget {
             track: videoTrack!,
             child: VideoTrackRenderer(videoTrack!, fit: VideoViewFit.contain),
           )
-        else if (!showWatchButton)
+        else if (!showWatchButton && !isPaused)
           AvatarPlaceholder(name: name, userId: userId),
-        if (isPaused && videoTrack != null) const SharePausedNotice(),
+        // Over the last frame, or in place of a first one: a share started
+        // on a minimised window has no picture until the window is opened.
+        if (isPaused && !showWatchButton) const SharePausedNotice(),
         if (showStats && stats != null)
           AnimatedPositioned(
             duration: _fade,
