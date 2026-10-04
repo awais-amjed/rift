@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../data/constants.dart';
 import '../../logic/cubits/app/app_cubit.dart';
 import '../../logic/services/host_platform.dart';
+import '../../logic/services/window_fullscreen.dart';
 import '../theme/app_motion.dart';
 import 'title_bar/app_title_bar.dart';
 
@@ -55,38 +56,44 @@ class _TitleBarOverlayState extends State<TitleBarOverlay> {
       buildWhen: (p, c) => p.titleBarVisible != c.titleBarVisible,
       builder: (context, appState) {
         final visible = appState.titleBarVisible;
-        return ValueListenableBuilder<bool>(
-          valueListenable: _hovering,
-          builder: (_, hovering, _) => Stack(
+        return ListenableBuilder(
+          listenable: Listenable.merge([_hovering, WindowFullscreen.active]),
+          builder: (_, _) => Stack(
             clipBehavior: Clip.none,
             children: [
               // Navigator (routes + its own dialog overlay) sits below.
               widget.child,
-              // Title bar is last in the Stack → always above dialogs.
-              AnimatedPositioned(
-                duration: AppMotion.state,
-                curve: Curves.easeOut,
-                top: (visible || hovering) ? 0 : -_height,
-                left: 0,
-                right: 0,
-                height: _height,
-                child: AppTitleBar(
-                  height: _height,
-                  pinned: visible,
-                  onHide: () {
-                    context.read<AppCubit>().setTitleBarVisible(false);
-                    _hovering.value = false;
-                  },
-                  onShow: () {
-                    context.read<AppCubit>().setTitleBarVisible(true);
-                    _hovering.value = false;
-                  },
-                ),
-              ),
+              // A stream watched full screen has the whole window; the bar
+              // would be the one thing left over it.
+              if (!WindowFullscreen.isOn) _bar(context, visible),
             ],
           ),
         );
       },
+    );
+  }
+
+  Widget _bar(BuildContext context, bool visible) {
+    final hovering = _hovering.value;
+    return AnimatedPositioned(
+      duration: AppMotion.state,
+      curve: Curves.easeOut,
+      top: (visible || hovering) ? 0 : -_height,
+      left: 0,
+      right: 0,
+      height: _height,
+      child: AppTitleBar(
+        height: _height,
+        pinned: visible,
+        onHide: () {
+          context.read<AppCubit>().setTitleBarVisible(false);
+          _hovering.value = false;
+        },
+        onShow: () {
+          context.read<AppCubit>().setTitleBarVisible(true);
+          _hovering.value = false;
+        },
+      ),
     );
   }
 

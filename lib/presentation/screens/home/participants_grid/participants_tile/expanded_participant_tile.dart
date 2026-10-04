@@ -9,6 +9,7 @@ import 'avatar_placeholder.dart';
 import 'decrypted_video.dart';
 import 'participant_name_badge.dart';
 import 'share_paused_notice.dart';
+import 'stream_fullscreen_button.dart';
 import 'stream_quality_badge.dart';
 import 'stream_stats_overlay.dart';
 import 'stream_stats_poller.dart';
@@ -47,6 +48,14 @@ class ExpandedParticipantTile extends StatelessWidget {
   /// receive stats to poll. Stopping it is the call bar's job, where Leave
   /// turns into Stop watching.
   final bool isWatching;
+
+  /// Whether this stage is the stream shown full screen, which hides the
+  /// pointer along with the overlays — a film does.
+  final bool isFullscreen;
+
+  /// Into or out of full screen. Null for anything that has no button for
+  /// it: only a stream being watched does.
+  final VoidCallback? onFullscreen;
   final bool showOverlays;
   final bool statsPinned;
   final VoidCallback onActivity;
@@ -79,6 +88,8 @@ class ExpandedParticipantTile extends StatelessWidget {
     this.sentQuality,
     required this.showWatchButton,
     required this.isWatching,
+    this.isFullscreen = false,
+    this.onFullscreen,
     required this.showOverlays,
     required this.statsPinned,
     required this.onActivity,
@@ -102,7 +113,7 @@ class ExpandedParticipantTile extends StatelessWidget {
     final showStats = context.select<AppCubit, bool>(
       (c) => c.state.showStreamStats,
     );
-    return Listener(
+    final listener = Listener(
       behavior: HitTestBehavior.translucent,
       onPointerMove: (_) => onActivity(),
       onPointerHover: (_) => onActivity(),
@@ -120,6 +131,11 @@ class ExpandedParticipantTile extends StatelessWidget {
           );
         },
       ),
+    );
+    if (!isFullscreen) return listener;
+    return MouseRegion(
+      cursor: showOverlays ? MouseCursor.defer : SystemMouseCursors.none,
+      child: listener,
     );
   }
 
@@ -186,6 +202,20 @@ class ExpandedParticipantTile extends StatelessWidget {
             ),
           ),
         ),
+        if (onFullscreen != null)
+          AnimatedPositioned(
+            duration: _fade,
+            curve: Curves.easeInOut,
+            bottom: bottom,
+            right: 12,
+            child: _fading(
+              visible: showOverlays,
+              child: StreamFullscreenButton(
+                isFullscreen: isFullscreen,
+                onTap: onFullscreen!,
+              ),
+            ),
+          ),
       ],
     );
   }

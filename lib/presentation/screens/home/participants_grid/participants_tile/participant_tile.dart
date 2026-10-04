@@ -17,6 +17,7 @@ import '../../sidebar/widgets/participant_context_menu.dart';
 import 'collapsed_participant_tile.dart';
 import 'expanded_participant_tile.dart';
 import 'stream_context_menu.dart';
+import 'stream_fullscreen_page.dart';
 
 /// Over the widget budget and one job: one participant's tile. The grid and
 /// stage layouts are already their own widgets; what is left is the state they
@@ -41,6 +42,10 @@ class ParticipantTileWidget extends StatefulWidget {
   final VoidCallback? onTap;
   final bool isExpanded;
 
+  /// Whether this is the stream shown full screen ([StreamFullscreenPage]),
+  /// where a tap does nothing and the corner button leaves.
+  final bool isFullscreen;
+
   /// Called once the viewer has asked to watch this screen share; the grid
   /// brings it into focus. Stopping can happen away from the tile (the call
   /// bar, the stream's menu), so the grid watches for that itself.
@@ -62,6 +67,7 @@ class ParticipantTileWidget extends StatefulWidget {
     this.isMuted = false,
     this.onTap,
     this.isExpanded = false,
+    this.isFullscreen = false,
     this.onWatchStarted,
     this.onAspectRatio,
     this.topInset = 0,
@@ -180,6 +186,18 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
     );
   }
 
+  void _toggleFullscreen() {
+    if (widget.isFullscreen) {
+      Navigator.of(context).maybePop();
+      return;
+    }
+    StreamFullscreenPage.open(
+      context,
+      participant: widget.participant,
+      isMuted: widget.isMuted,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<LiveKitCubit, LiveKitState>(
@@ -246,7 +264,12 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
         // whole tile is the button. A click on the button itself only
         // focused the tile, and a second one was needed to watch.
         final opensStream = _isScreenshare && !isSubscribed;
-        final onTap = opensStream ? _subscribeToScreenshare : widget.onTap;
+        final onTap = widget.isFullscreen
+            ? null
+            : opensStream
+            ? _subscribeToScreenshare
+            : widget.onTap;
+        final onFullscreen = isWatching ? _toggleFullscreen : null;
         return ContextMenuRegion(
           contextMenu: _isScreenshare && !isPhoneOwnStream
               ? StreamContextMenu(
@@ -278,6 +301,8 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                       sentQuality: sentQuality,
                       showWatchButton: _isScreenshare && !isSubscribed,
                       isWatching: isWatching,
+                      isFullscreen: widget.isFullscreen,
+                      onFullscreen: onFullscreen,
                       showOverlays: _showOverlays,
                       statsPinned: _statsPinned,
                       onActivity: _onActivity,
@@ -296,6 +321,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                       sentQuality: sentQuality,
                       isSubscribed: isSubscribed,
                       isWatching: isWatching,
+                      onFullscreen: onFullscreen,
                     ),
             ),
           ),
@@ -319,6 +345,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
     required String? sentQuality,
     required bool isSubscribed,
     required bool isWatching,
+    required VoidCallback? onFullscreen,
   }) {
     return BlocSelector<AppCubit, AppState, bool>(
       selector: (appState) => ParticipantRoster.isSpeaking(
@@ -340,6 +367,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
           sentQuality: sentQuality,
           showWatchButton: _isScreenshare && !isSubscribed,
           isWatching: isWatching,
+          onFullscreen: onFullscreen,
           onWatch: _subscribeToScreenshare,
           onAspectRatio: widget.onAspectRatio,
         );
