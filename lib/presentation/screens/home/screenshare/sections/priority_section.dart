@@ -7,8 +7,7 @@ import '../widgets/settings_chip.dart';
 import '../widgets/settings_section.dart';
 
 /// What the share gives up when the computer or the connection cannot keep
-/// up, with a line saying what the chosen one means. The names alone do not
-/// say when it matters.
+/// up, with a line saying what the chosen one suits.
 class PrioritySection extends StatelessWidget {
   final SharePriority selected;
   final ValueChanged<SharePriority> onChanged;
@@ -26,15 +25,9 @@ class PrioritySection extends StatelessWidget {
   };
 
   static String _explain(SharePriority priority) => switch (priority) {
-    SharePriority.smoothness =>
-      'When your computer or connection can’t keep up, the picture softens '
-          'and the motion stays smooth. Best for games and video.',
-    SharePriority.balanced =>
-      'When your computer or connection can’t keep up, it gives up a little '
-          'sharpness and a few frames.',
-    SharePriority.sharpness =>
-      'When your computer or connection can’t keep up, frames are dropped '
-          'and the picture stays sharp. Best for text and slides.',
+    SharePriority.smoothness => 'Best for games and video.',
+    SharePriority.balanced => 'Best for a mix of motion and text.',
+    SharePriority.sharpness => 'Best for text, code and slides.',
   };
 
   @override
