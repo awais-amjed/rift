@@ -170,8 +170,8 @@ Windows-specific. Remove a line in the commit that fixes it.
   app with about 20 to 30 more handles and 2 to 4 more threads, whether VP9
   or H264 on the GPU (six of each in a row), while its memory stayed level.
   Likely the share's own LiveKit room; not chased.
-- Oct 5, a 4096x1152 share on stage: its badge says 1080p, and the
-  participant tiles under it shrink until each name chip covers the avatar.
+- Oct 5, a 4096x1152 share on stage: the participant tiles under it shrink
+  until each name chip covers the avatar.
 - Once, a client stopped drawing with its render thread spinning inside the Intel
   Iris Xe driver (31.0.101.4502). Not reproduced; if it repeats, try turning
   Impeller off in the runner, and a newer driver.

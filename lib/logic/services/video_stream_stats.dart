@@ -1,3 +1,5 @@
+import 'dart:math';
+
 /// One poll's worth of receive-side numbers for a video track.
 ///
 /// Every field is nullable because a report can arrive before the value it
@@ -32,7 +34,7 @@ class VideoStreamStats {
 
   String get resolutionLabel => '${width}x$height';
 
-  /// Picture classes the badge names, by the picture's shorter side.
+  /// Picture classes the badge names, each the height of a 16:9 picture.
   static const _heightClasses = [
     144,
     240,
@@ -51,9 +53,14 @@ class VideoStreamStats {
 
   /// The short "1080p · 60fps" line beside a sharer's name, or null before
   /// the picture size is known. A 1920x1048 window is still "1080p".
+  ///
+  /// Named by how much picture there is: the height of a 16:9 picture with
+  /// as many pixels. By its shorter side alone, a 4096x1152 share of a 32:9
+  /// screen was "1080p" (Oct 5 2026), under half of what it carries; by its
+  /// longer side, it would be "2160p", nearly twice.
   String? get qualityLabel {
     if (!hasResolution) return null;
-    final side = width! < height! ? width! : height!;
+    final side = sqrt(width! * height! * 9 / 16);
     final resolution = '${_nearest(_heightClasses, side)}p';
     final rate = fps;
     if (rate == null || rate <= 0) return resolution;
