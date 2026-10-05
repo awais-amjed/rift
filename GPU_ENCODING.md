@@ -30,6 +30,13 @@ What came out of doing it, for whoever picks it up next:
   runs on the NVIDIA GPU (ffmpeg's `h264_mf` behaves the same); the next
   encoder in the list, Intel's, is used then. The Rift app itself opened
   NVIDIA's on the test laptop.
+- A hardware H264 encoder has a largest picture. AMD's opened anything up to
+  4096 wide and nothing wider, so a 5120x1440 screen shared at 2K or 4K fell
+  back to VP9 on the CPU (178% of a core, against 52% on the GPU). A GPU share
+  is now scaled to fit 4096x2304, H264 level 5.1's largest frame
+  (`encoder::MAX_SIZE`): that screen goes out at 4096x1152, on the GPU, with
+  the sharer's app at 86% of a core (Oct 5 2026). AMD also opened 96x54, so a
+  tiny window stays on the GPU too.
 - Measured numbers and the bench are in `rust/src/screenshare/bench_test.rs`
   and `gpu_live_test.rs`; what was driven is in `TESTING.md`.
 This file is a hand-off. An agent picking it up on Windows should read it first,

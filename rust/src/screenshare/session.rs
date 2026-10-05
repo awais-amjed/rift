@@ -1,9 +1,11 @@
 //! One screen share at a time: bringing it up, and taking it down again.
 use super::capture::{self, Capture, CaptureRequest, Feed, Progress, Started, VideoSlot};
 #[cfg(target_os = "windows")]
-use super::encoder::{EncoderSettings, GpuCodec};
+use super::encoder::{self, EncoderSettings, GpuCodec};
 #[cfg(target_os = "windows")]
 use super::gpu_feed::GpuFeed;
+#[cfg(target_os = "windows")]
+use super::resolution::fit_within;
 use super::resolution::{target_size, Size};
 use super::track::{publish_video_track, TrackSettings};
 use crate::api::screenshare::types::{self, ScreenShareConfig, ShareQuality};
@@ -404,7 +406,7 @@ impl Video {
             }
             let codec = GpuCodec::for_share(settings.codec)?;
             let native = self.slot.native()?;
-            let target = target_size(native, settings.max_height);
+            let target = gpu_target(target_size(native, settings.max_height));
             log::info!(
                 "screenshare: re-encoding at {}x{}, {} fps, on the same track",
                 target.width,
@@ -492,6 +494,7 @@ impl Video {
         // decision 1): without one the share goes out as VP9.
         #[cfg(target_os = "windows")]
         if let Some(codec) = GpuCodec::for_share(settings.codec) {
+            let target = gpu_target(target);
             match self.publish_from_gpu(target, codec, &settings).await {
                 Ok(sid) => {
                     *track = Some(sid);
@@ -579,6 +582,24 @@ impl Video {
             });
         })
     }
+}
+
+/// The size the GPU encodes a `target` at: the same, unless it is bigger than
+/// a hardware encoder takes, when it is scaled down to fit rather than going
+/// to VP9 on the CPU.
+#[cfg(target_os = "windows")]
+fn gpu_target(target: Size) -> Size {
+    let fitted = fit_within(target, encoder::MAX_SIZE);
+    if fitted != target {
+        log::info!(
+            "screenshare: {}x{} is bigger than the GPU encodes; encoding at {}x{}",
+            target.width,
+            target.height,
+            fitted.width,
+            fitted.height
+        );
+    }
+    fitted
 }
 
 /// What a share's encoder is opened for: `codec` at the target size and the

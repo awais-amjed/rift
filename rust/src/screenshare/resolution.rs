@@ -32,6 +32,19 @@ pub fn target_size(native: Size, max_height: u32) -> Size {
     }
 }
 
+/// `size` scaled down to fit inside `max`, aspect kept and both sides even,
+/// or `size` itself when it already fits.
+pub fn fit_within(size: Size, max: Size) -> Size {
+    if size.width <= max.width && size.height <= max.height {
+        return size;
+    }
+    let scale = (max.width as f64 / size.width as f64).min(max.height as f64 / size.height as f64);
+    Size {
+        width: even_floor(((size.width as f64 * scale).round() as u32).clamp(2, max.width)),
+        height: even_floor(((size.height as f64 * scale).round() as u32).clamp(2, max.height)),
+    }
+}
+
 fn even_floor(n: u32) -> u32 {
     n & !1
 }
@@ -68,6 +81,37 @@ mod tests {
         for h in [2, 480, 719, 720, 1079, 1080, 2161] {
             assert!(target_size(size(9999, 5555), h).height <= h.max(2));
         }
+    }
+
+    #[test]
+    fn a_size_that_fits_is_left_alone() {
+        let max = size(4096, 2304);
+        assert_eq!(fit_within(size(3840, 2160), max), size(3840, 2160));
+        assert_eq!(fit_within(size(4096, 2304), max), size(4096, 2304));
+    }
+
+    #[test]
+    fn a_super_ultrawide_screen_is_scaled_to_the_widest_allowed() {
+        let max = size(4096, 2304);
+        assert_eq!(fit_within(size(5120, 1440), max), size(4096, 1152));
+        assert_eq!(fit_within(size(5120, 2880), max), size(4096, 2304));
+        assert_eq!(fit_within(size(7680, 2160), max), size(4096, 1152));
+    }
+
+    #[test]
+    fn a_tall_picture_is_held_to_the_height() {
+        assert_eq!(
+            fit_within(size(1440, 5120), size(4096, 2304)),
+            size(648, 2304)
+        );
+    }
+
+    #[test]
+    fn a_fitted_size_stays_even_and_inside() {
+        let max = size(4096, 2304);
+        let fitted = fit_within(size(5119, 1439), max);
+        assert_eq!((fitted.width % 2, fitted.height % 2), (0, 0));
+        assert!(fitted.width <= max.width && fitted.height <= max.height);
     }
 
     #[test]

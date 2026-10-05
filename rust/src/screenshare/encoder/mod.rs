@@ -13,6 +13,7 @@ mod media_foundation;
 #[cfg(target_os = "windows")]
 pub(crate) use media_foundation::GpuEncoder;
 
+use super::resolution::Size;
 use crate::api::screenshare::types::VideoCodec;
 
 /// What the GPU encoder can be asked to make.
@@ -77,6 +78,16 @@ pub(crate) mod test_hooks {
     /// 0 is never.
     pub(crate) static FAIL_AFTER: AtomicU32 = AtomicU32::new(0);
 }
+
+/// The largest picture a hardware H264 encoder is sure to take: H264 level
+/// 5.1's largest frame. AMD's (RX 9070 XT, Oct 5 2026) opened anything up to
+/// 4096 wide and nothing wider, so a 5120x1440 screen shared at 2K or 4K went
+/// out as VP9 on the CPU, at 178% of a core against 52% on the GPU. A share
+/// bigger than this is scaled down to fit and stays on the GPU.
+pub(crate) const MAX_SIZE: Size = Size {
+    width: 4096,
+    height: 2304,
+};
 
 /// The lowest bitrate the encoder is held to, whatever the connection asks
 /// for: below this a 1080p picture is mush, and WebRTC's estimate climbs back
