@@ -6,8 +6,7 @@ project(rift_noise_filter LANGUAGES C CXX)
 set(RNNOISE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../third_party/rnnoise")
 
 # Plain C with the SSE2 every x64 CPU has, no run-time dispatch, and none of
-# the warnings the runner treats as errors: a 10 ms frame takes well under a
-# tenth of a millisecond.
+# the warnings the runner treats as errors: a 10 ms frame takes under 0.2 ms.
 add_library(rnnoise STATIC
   "${RNNOISE_DIR}/src/celt_lpc.c"
   "${RNNOISE_DIR}/src/denoise.c"
@@ -25,11 +24,14 @@ target_include_directories(rnnoise
   PRIVATE "${RNNOISE_DIR}/src"
 )
 set_target_properties(rnnoise PROPERTIES POSITION_INDEPENDENT_CODE ON)
+# The model's float copies of its weights are for debugging, and are already
+# cut from rnnoise_data.c (third_party/rnnoise/RIFT_PATCHES.md).
+target_compile_definitions(rnnoise PRIVATE DISABLE_DEBUG_FLOAT)
 if(MSVC)
   target_compile_options(rnnoise PRIVATE /W0)
-  # MSVC never defines __SSE2__, and the plain-C path it would take instead
-  # includes a header the release tarball does not ship. Every x64 CPU has
-  # SSE2, and these make x86_arch_macros.h say so.
+  # MSVC never defines __SSE2__, so it would take the slower plain-C path
+  # that no other compiler does. Every x64 CPU has SSE2, and these make
+  # x86_arch_macros.h say so.
   target_compile_definitions(rnnoise PRIVATE _USE_MATH_DEFINES
     OPUS_X86_MAY_HAVE_SSE OPUS_X86_MAY_HAVE_SSE2)
 else()
