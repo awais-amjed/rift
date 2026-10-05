@@ -2,6 +2,7 @@
 
 Status: **phases 0 to 4 done on Windows (H264), Oct 5 2026; AV1 and zero-copy
 (phase 5) not started.** Written Oct 4 2026 on the `gpu-encoding` branch.
+**AV1 is next, on the user's desktop: see "Next: AV1 on the desktop".**
 
 What came out of doing it, for whoever picks it up next:
 - WebRTC's frame dropper still acts on pre-encoded frames: LiveKit's
@@ -95,14 +96,8 @@ Already done, and not part of this plan:
     encoding.
 - So H264 can be tested on two vendors' encoders. AV1 cannot be tested here, so
   build it later or leave it behind a check that never succeeds on this laptop.
-- **AV1 is tested on the user's desktop later.**
-  - It has an **AMD Radeon RX 9070 XT** (RDNA 4), which encodes AV1. It is also a
-    third vendor for H264.
-  - First check that AMD's driver offers AV1 as a Media Foundation encoder (list
-    the encoders, as in Phase 1).
-  - If AV1 is only reachable through AMD's own SDK (AMF), that is extra work.
-    Raise it with the user rather than adding a second encoder backend on your
-    own.
+- **AV1 is done on the user's desktop**, which has an **AMD Radeon RX 9070 XT**
+  (RDNA 4). See "Next: AV1 on the desktop".
 
 ## Setting up (first session)
 
@@ -315,9 +310,7 @@ A share the server could watch is a security bug.
 
 ### Phase 5 (later)
 
-- **AV1** on GPUs that encode it (RTX 40+, AMD RX 7000+, Intel Arc). Same
-  Media Foundation path with AV1 output. First check that every viewer platform
-  can play AV1: the web, Android, iOS, and flutter_webrtc on desktop.
+- **AV1:** being done next; see "Next: AV1 on the desktop".
 - **Zero-copy:** capture with Windows.Graphics.Capture straight to a D3D11
   texture, convert to NV12 on the GPU (the D3D11 video processor), and give the
   encoder D3D11 samples through an `IMFDXGIDeviceManager`. This replaces
@@ -327,6 +320,152 @@ A share the server could watch is a security bug.
 - Higher bitrate options.
 - H264 High profile, once viewers can negotiate it (see Phase 1's profile
   note).
+
+## Next: AV1 on the desktop
+
+Written Oct 5 2026, for an agent on the user's Windows desktop. Read the rest of
+this file first: AV1 follows the H264 path almost step for step, and the
+decisions, setup and rules above all hold.
+
+### Why AV1, and why there
+
+- AV1 compresses better than H264 constrained baseline and is royalty-free.
+  Viewers support it far more widely than H265 (decision 3).
+- Decision 1 still holds: **AV1 is only encoded by the GPU**, never by libaom on
+  our CPU. Without a GPU AV1 encoder, AV1 is not offered.
+- The laptop's GPUs cannot encode AV1. The desktop's **AMD Radeon RX 9070 XT**
+  (RDNA 4) can. It is also the first AMD GPU the H264 encoder runs on; so far it
+  has only run on NVIDIA and Intel.
+- **Windows only.** On Linux, LiveKit's own VAAPI encoder makes H264 only, and
+  its NVENC AV1 needs an RTX 40. AV1 on AMD under Linux would need a VAAPI
+  encoder of our own. That is a separate task; do not start it here.
+
+### Step 0: set up, then prove H264 on AMD
+
+- Set up as in "Setting up (first session)". Also install ffmpeg (ffprobe
+  checks streams).
+- **H264 first.** Run the existing tests on AMD before writing any AV1 code:
+  - `cargo test each_hardware_encoder_makes_decodable_h264 -- --ignored
+    --nocapture` in `rust/`. It writes each encoder's stream to
+    `GPU_ENCODER_DUMP` if that is set.
+  - The live tests against a local `livekit-server --dev`
+    (`live_test.rs`, `gpu_live_test.rs`), including the encryption test.
+  - The bench (`bench_test.rs`) for CPU, fps and bitrate.
+- Fix anything AMD's H264 encoder does differently, and record it here. On
+  Intel, these turned up: three-byte start codes, keyframes nobody asked for,
+  and how the quantiser floor behaved.
+- The laptop's test clips are not in the repository. Make one from any 1080p60
+  video: `ffmpeg -i clip.mp4 -t 3 -vf scale=1920:1080 -r 60 -pix_fmt nv12 -f
+  rawvideo clip.nv12`. Then set `GPU_ENCODER_SOURCE` to it.
+- A single-GPU desktop does not have the laptop's two-GPU problem (see the top
+  of this file).
+
+### Step 1: is there an AV1 encoder in Media Foundation?
+
+- List the hardware encoders whose output is `MFVideoFormat_AV1`, the way
+  `hardware_h264_encoders` lists H264. Log each one's name and vendor, and note
+  the AMD driver version.
+- **If AMD offers no AV1 encoder there, stop and ask the user.** AV1 would then
+  be reachable only through AMD's own SDK (AMF), which is a second encoder
+  backend. Do not add that on your own.
+
+### Step 2: the encoder
+
+- Make `encoder/media_foundation.rs` work for both codecs; do not copy it. The
+  codecs differ in:
+  - the output subtype;
+  - the profile;
+  - which encoders are listed.
+- These stay as they are:
+  - the asynchronous event loop;
+  - NV12 input;
+  - forcing keyframes;
+  - live rate changes;
+  - the fallback.
+- Mind `CODE_STYLE.md`'s file size budget; split the file if it grows past it.
+- `encoder/h264.rs` (start codes, parameter sets) stays H264-only. AV1 has no
+  start codes.
+- **Profile:** AV1 Main (profile 0), 8-bit 4:2:0. It is the only AV1 profile
+  LiveKit's pass-through offers (`AV1Profile0` in
+  `third_party/webrtc-sys/src/passthrough_video_encoder.cpp`).
+- **Real time:**
+  - Low-latency mode, and no frame reordering (B-picture count 0).
+  - Check that every output sample is exactly one shown frame: no hidden frame
+    held back for a later `show_existing_frame`, since WebRTC sends one frame
+    per sample.
+  - Check with `ffprobe -bsf:v trace_headers` on a dumped stream.
+- **Rate control:** unconstrained VBR with a quantiser floor, as for H264. The
+  floor was tuned for H264, though: `MIN_QP` 18 is on H264's 0 to 51 scale.
+  - Find out what scale the AV1 encoder's QP setting uses, then measure again.
+  - Target: a still window falls well under 1 Mbps at the viewer, and the moving
+    clip still gets its bitrate. Do not copy 18 across.
+- **Frames to LiveKit:** one `EncodedVideoFrame` per output sample, with
+  `EncodedVideoCodec::AV1`. LiveKit's pass-through fixes up the bytes before
+  sending them (read `third_party/webrtc-sys/src/av1_bitstream.cpp`):
+  - It accepts plain OBUs, Annex B, or IVF frame headers.
+  - It drops temporal delimiters and padding.
+  - It puts the last sequence header back on a keyframe that lacks one.
+- A frame it cannot parse is refused, and WebRTC's log says
+  "PassthroughVideoEncoder received an AV1 frame that WebRTC cannot
+  packetize". Watch for that line.
+- **The keyframe flag** comes from `MFSampleExtension_CleanPoint`, as for H264.
+  Check it against the frame header's frame type.
+
+### Step 3: wire it in
+
+- **Rust:**
+  - `VideoCodec` gains `AV1` in `api/screenshare/types.rs`. Regenerate the
+    bindings.
+  - `track.rs` maps the new codec.
+  - `gpu_codecs()` in `encoder/mod.rs` reports AV1 when an AV1 encoder opens.
+  - `session.rs` takes the GPU path for AV1 as it does for H264; today that
+    check is `settings.codec == VideoCodec::H264`.
+  - `gpu_feed.rs` sends the right `EncodedVideoCodec`.
+- **Fallback:** an AV1 encoder that fails to open, or fails mid-share, falls
+  back to software VP9 with the toast, as H264 does. It never falls back to
+  libaom.
+- **Dart:**
+  - `codecFromName` in `screen_share_settings.dart` takes `AV1`. Its comment
+    about "an old build's AV1" changes in the same commit.
+  - `codecsOffered` offers AV1 only where the GPU encodes it, on every platform,
+    because no CPU encodes AV1 (decision 1).
+  - The hint says only "Best for …" (decision 6).
+- **Default (decision 4):** AV1 becomes the default only after Step 4 shows that
+  every viewer can play it. Until then H264 stays the default where the GPU
+  encodes it, and AV1 is an option.
+
+### Step 4: can every viewer play it?
+
+The server forwards a share as sent, without transcoding. livekit 0.9.1's Rust
+SDK also has no backup codec. So a viewer that cannot decode AV1 sees nothing.
+
+Check each of these and record the result, with the date and how you checked:
+- **The Rift desktop app** (flutter_webrtc 1.6.2) on Windows, Linux and macOS.
+- **Rift on the web** in Chrome, Edge, Firefox and Safari. Safari may decode AV1
+  only on hardware with an AV1 decoder; check it, do not assume it.
+- **The Android and iOS apps**, including an older phone.
+- **With encryption**, because every share is encrypted. Decoding AV1 is not
+  the same as decrypting it. Run Phase 4 again with AV1 in the Rust live test,
+  then check a web viewer.
+
+Viewers other than the Rust test need the full app and a server. Ask the user
+which server to use.
+
+### Step 5: measure and record
+
+- **As in "Testing":**
+  - CPU;
+  - frames per second at the viewer;
+  - keyframe on join;
+  - following the bitrate;
+  - fallback.
+- **Quality against H264 at the same bitrate:**
+  - Use luma PSNR on the same clip, as was done for H264 High.
+  - Also test scrolling text.
+  - Align frames before scoring, because encoders can drop frames at the start.
+- **The still-screen bitrate** at the viewer.
+- **Records:** add rows to `TESTING.md`, and update this file in the commit that
+  makes it true. Commit locally, and **push only when the user asks.**
 
 ## Testing
 
