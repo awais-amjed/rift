@@ -410,6 +410,13 @@ fps: 52 to 67% of a core, against VP9's 186 to 196% (`TESTING.md`).
   follows the picture's size and rate and the codec, generous because it is
   only a cap, and held to the server's share limit like a chosen one.
   Either can still be picked by hand under the dialog's advanced settings.
+- **Auto never drops to VP8 under load.** VP8 is the lighter codec only on an
+  idle machine; on a busy one its encoder threads fight over the cores.
+  Measured Oct 5 2026 on Linux (`bench_test.rs`, a moving 960x1000 window at
+  60 fps): idle, VP8 took 43% of a core and VP9 67%; with every core busy,
+  VP8 fell to 20 fps at 44 ms a frame while VP9 held 59 fps at 15 ms; pinned
+  to one core, VP8 managed 4 fps. Under CPU pressure WebRTC already lowers
+  the size or the rate, as the priority says.
 - **H265 is skipped**: too many viewers cannot play it.
 - **AV1 is parked.** AMD's encoder makes AV1 that WebRTC carries, but no viewer
   gets it encrypted: LiveKit's Rust SDK does not negotiate what the server needs

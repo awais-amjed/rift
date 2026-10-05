@@ -12,7 +12,10 @@
 //!   cargo test bench_share -- --ignored --nocapture
 //! ```
 //!
-//! The share captures the first screen, so put something moving on it first.
+//! The share captures the first screen, so put something moving on it first,
+//! or the first window whose title contains `BENCH_WINDOW`. On Linux under
+//! Wayland only a window works: the X11 capturer sees no screen there, only
+//! X11 windows, and a still picture costs nothing to encode.
 //! Each side waits [`WARMUP`] before it starts counting, then reports over
 //! `BENCH_SECS`.
 use super::live_test::Server;
@@ -106,6 +109,21 @@ fn inbound(stats: &[RtcStats]) -> Option<&livekit::webrtc::stats::InboundRtpStat
     })
 }
 
+/// What to share: the first window titled with `BENCH_WINDOW` if it is set,
+/// the first screen otherwise. Listed first, as the app lists before it
+/// shares.
+fn source() -> (bool, u32) {
+    let Ok(wanted) = std::env::var("BENCH_WINDOW") else {
+        super::sources::list(true);
+        return (true, 0);
+    };
+    let window = super::sources::list(false)
+        .into_iter()
+        .find(|source| source.title.contains(&wanted))
+        .unwrap_or_else(|| panic!("no window titled {wanted:?}"));
+    (false, window.index)
+}
+
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "needs a LiveKit server, a display and a viewer; see the module doc"]
 async fn bench_share() {
@@ -115,7 +133,7 @@ async fn bench_share() {
         .try_init();
     let server = Server::from_env();
     let room = env_or("BENCH_ROOM", "bench");
-    super::sources::list(true);
+    let (full_screen, index) = source();
     let config = ScreenShareConfig {
         livekit_url: server.url.clone(),
         livekit_token: server.token(&room, "sharer", false),
@@ -123,8 +141,8 @@ async fn bench_share() {
         fps: env_num("BENCH_FPS", 60),
         bitrate: env_num("BENCH_MBPS", 10),
         share_audio: false,
-        capture_full_screen: true,
-        selected_video_source_index: Some(0),
+        capture_full_screen: full_screen,
+        selected_video_source_index: Some(index),
         codec: codec(),
         priority: SharePriority::Smoothness,
         selected_audio_source_index: None,
