@@ -490,8 +490,9 @@ impl Video {
             target.height
         );
 
-        // H264 on Windows comes from the GPU or not at all (GPU_ENCODING.md,
-        // decision 1): without one the share goes out as VP9.
+        // H264 on Windows comes from the GPU or not at all (ARCHITECTURE.md,
+        // "Encoding a share on the GPU"): without one the share goes out as
+        // VP9.
         #[cfg(target_os = "windows")]
         if let Some(codec) = GpuCodec::for_share(settings.codec) {
             let target = gpu_target(target);

@@ -14,7 +14,7 @@ brought the copy in shows it.
 ## Why
 
 A Windows screen share's H264 is encoded on the GPU and handed to LiveKit
-already encoded (`GPU_ENCODING.md`). WebRTC's frame dropper still acts on those
+already encoded (`ARCHITECTURE.md`, "Encoding a share on the GPU"). WebRTC's frame dropper still acts on those
 frames: LiveKit's pass-through encoder does not say its rate controller can be
 trusted, so whenever the stream runs above WebRTC's target for a moment — a
 keyframe, motion starting, the link's estimate dipping — WebRTC drops encoded

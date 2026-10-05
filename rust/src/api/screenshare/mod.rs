@@ -117,9 +117,9 @@ pub fn get_capture_source_thumbnail(
 }
 
 /// The codecs this computer's GPU encodes a share in, through Rift's own
-/// encoder (`GPU_ENCODING.md`). Windows only, where H264 is offered only if
-/// this says so: there it is never encoded on the CPU. Empty elsewhere, where
-/// LiveKit chooses its own encoders.
+/// encoder (`ARCHITECTURE.md`, "Encoding a share on the GPU"). Windows only,
+/// where H264 is offered only if this says so: there it is never encoded on
+/// the CPU. Empty elsewhere, where LiveKit chooses its own encoders.
 pub async fn gpu_video_codecs() -> Vec<VideoCodec> {
     #[cfg(desktop)]
     {

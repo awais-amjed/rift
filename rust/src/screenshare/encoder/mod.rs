@@ -1,5 +1,6 @@
 //! Encoding the shared picture ourselves, on the GPU, where LiveKit's own
-//! encoders would spend the CPU a game needs (`GPU_ENCODING.md`).
+//! encoders would spend the CPU a game needs (`ARCHITECTURE.md`, "Encoding a
+//! share on the GPU").
 //!
 //! Windows only for now: LiveKit has no hardware encoder there, and Media
 //! Foundation reaches NVIDIA's, AMD's and Intel's alike. H264 and AV1 are only
@@ -26,8 +27,8 @@ pub(crate) enum GpuCodec {
 impl GpuCodec {
     /// The GPU codec for a share's codec, if the GPU is what makes it. VP8
     /// and VP9 stay with libwebrtc's encoders on the CPU. AV1 is not a share
-    /// codec yet: viewers cannot get it encrypted (`GPU_ENCODING.md`, "AV1:
-    /// parked").
+    /// codec yet: viewers cannot get it encrypted (`ARCHITECTURE.md`,
+    /// "Encoding a share on the GPU").
     pub(crate) fn for_share(codec: VideoCodec) -> Option<GpuCodec> {
         match codec {
             VideoCodec::H264 => Some(GpuCodec::H264),

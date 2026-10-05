@@ -1,7 +1,7 @@
 //! The GPU encoder's H264 through a real room to real viewers: one with the
 //! call's key sees the picture, one with no key or the wrong key sees nothing
-//! of it (`GPU_ENCODING.md`, Phase 4). libwebrtc's own H264 encoder goes
-//! through the same rooms as a control. Needs a LiveKit server (see
+//! of it. libwebrtc's own H264 encoder goes through the same rooms as a
+//! control. Needs a LiveKit server (see
 //! `live_test.rs`) and a hardware H264 encoder; no screen.
 use super::encoder::test_hooks;
 use super::encoder::{
@@ -281,8 +281,8 @@ async fn live_gpu_h264_is_seen_with_the_key_and_by_nobody_else() {
 
 /// Fails today, and is the check to run when this changes: with encryption
 /// on, no viewer gets a frame of AV1 from this SDK, the GPU's or libaom's
-/// alike (Oct 5 2026). Unencrypted, every frame arrives. `GPU_ENCODING.md`,
-/// "AV1: parked", says why.
+/// alike (Oct 5 2026). Unencrypted, every frame arrives. `ARCHITECTURE.md`,
+/// "Encoding a share on the GPU", says why.
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "fails until LiveKit's Rust SDK can send encrypted AV1; needs a LiveKit server and a hardware AV1 encoder"]
 async fn live_gpu_av1_is_seen_with_the_key_and_by_nobody_else() {
@@ -293,9 +293,8 @@ async fn live_gpu_av1_is_seen_with_the_key_and_by_nobody_else() {
     seen_with_the_key_and_by_nobody_else("gpu AV1", Some(GpuCodec::Av1)).await;
 }
 
-/// Phase 4 of `GPU_ENCODING.md` for one way of encoding: a viewer with the
-/// call's key sees the picture, and one without it or with the wrong key
-/// does not.
+/// For one way of encoding: a viewer with the call's key sees the picture,
+/// and one without it or with the wrong key does not.
 async fn seen_with_the_key_and_by_nobody_else(path: &str, gpu: Option<GpuCodec>) {
     {
         let key = Some(shared_key());
@@ -448,11 +447,11 @@ fn h264_share(server: &Server, room: &str) -> ScreenShareConfig {
     }
 }
 
-/// Phase 2 of `GPU_ENCODING.md`, driven through the share itself: the GPU
-/// picture reaches an encrypted viewer, a size change reopens the encoder, a
-/// viewer joining late is sent a keyframe, an encoder that fails mid-share
-/// hands over to VP9 without the share ending, and a share asked for H264
-/// with no GPU to make it goes out as VP9. Needs a display as well.
+/// Driven through the share itself: the GPU picture reaches an encrypted
+/// viewer, a size change reopens the encoder, a viewer joining late is sent a
+/// keyframe, an encoder that fails mid-share hands over to VP9 without the
+/// share ending, and a share asked for H264 with no GPU to make it goes out
+/// as VP9. Needs a display as well.
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "needs a LiveKit server, a display and a hardware H264 encoder"]
 async fn live_gpu_share_resizes_rejoins_and_falls_back() {

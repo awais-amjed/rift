@@ -53,9 +53,9 @@ class HostPlatform {
       !kIsWeb && Platform.isWindows;
 
   /// Whether H264 is only ever encoded on the GPU here, never on the CPU
-  /// (`GPU_ENCODING.md`, decision 1). On Windows Rift encodes it itself
-  /// through Media Foundation, so the codec is offered only where a GPU
-  /// encoder opens; elsewhere LiveKit chooses its own encoder.
+  /// (`ARCHITECTURE.md`, "Encoding a share on the GPU"). On Windows Rift
+  /// encodes it itself through Media Foundation, so the codec is offered only
+  /// where a GPU encoder opens; elsewhere LiveKit chooses its own encoder.
   static bool get encodesH264OnGpuOnly => !kIsWeb && Platform.isWindows;
 
   /// Whether the settings mic test reads the microphone itself rather than

@@ -390,6 +390,29 @@ already knows. **What they may do** is the database's, because that is where
 permissions live. Muting somebody for yourself is local state; muting them for
 everybody is a row.
 
+### Encoding a share on the GPU (Windows) — [Implemented October 2026]
+
+LiveKit's Rust SDK has no hardware video encoder on Windows: every frame of a
+share was encoded in software on the same CPU a game is using. So on Windows
+Rift encodes H264 itself through **Media Foundation**, which reaches NVIDIA's,
+AMD's and Intel's encoders alike, and hands LiveKit the finished frames on its
+pre-encoded path (`rust/src/screenshare/encoder/`). Measured Oct 5 2026 at 60
+fps: 52 to 67% of a core, against VP9's 186 to 196% (`TESTING.md`).
+
+- **H264 and AV1 are only ever encoded by the GPU or the OS, never by Rift.**
+  The reason is patents: H264 is licensed through a pool the GPU makers belong
+  to, so Rift ships no H264 encoder of its own. VP8 and VP9 are royalty-free
+  and stay as CPU codecs. Without a hardware encoder, or if one fails mid-share,
+  the share goes out as VP9 and the user is told.
+- **H265 is skipped**: too many viewers cannot play it.
+- **AV1 is parked.** AMD's encoder makes AV1 that WebRTC carries, but no viewer
+  gets it encrypted: LiveKit's Rust SDK does not negotiate what the server needs
+  to find an encrypted AV1 keyframe, and its JS SDK refuses to encrypt AV1. The
+  encoder keeps AV1, with a live test that says when that changes. The full
+  notes, including the AV1 findings, are kept on the `gpu-encoding` branch.
+- **GPU H264 stays constrained baseline**: LiveKit offers only that profile for
+  pre-encoded tracks, and Firefox viewers cannot take High.
+
 ### Regions — [Implemented September 2026]
 
 A server may run several LiveKits (`livekit_nodes`) so a call is held near the

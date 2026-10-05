@@ -1,5 +1,5 @@
 //! How much a share costs and how smoothly it arrives: the numbers GPU
-//! encoding has to beat (`GPU_ENCODING.md`, Phase 0).
+//! encoding has to beat.
 //!
 //! Two processes, so the viewer's decoding is not billed to the share. Start
 //! the viewer, then the share, with the same room and server:
