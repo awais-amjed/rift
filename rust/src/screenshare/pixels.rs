@@ -1,5 +1,5 @@
-//! Pure pixel work that the Windows thumbnail path uses, kept free of the
-//! platform so it can be tested anywhere.
+//! Pure pixel work, kept free of the platform so it can be tested anywhere:
+//! the Windows thumbnail, and a resized window's letterbox.
 
 /// Shrink a strided BGRA frame to a packed RGB image at most `max_width`
 /// wide, by nearest-neighbour sampling straight from the source. Sampling
@@ -37,6 +37,26 @@ pub(crate) fn thumbnail_rgb(
         }
     }
     Some((rgb, out_w, out_h))
+}
+
+/// Copy one plane of `width` x `height` samples into `dst` with its top-left
+/// at (`x`, `y`). Both planes are strided; the caller keeps the copy inside
+/// `dst`, which a [`letterbox`](super::resolution::letterbox) rectangle is.
+// Only a desktop share calls it; the tests run everywhere.
+#[cfg_attr(not(desktop), allow(dead_code))]
+pub(crate) fn copy_plane(
+    src: &[u8],
+    src_stride: usize,
+    dst: &mut [u8],
+    dst_stride: usize,
+    (x, y): (usize, usize),
+    (width, height): (usize, usize),
+) {
+    for row in 0..height {
+        let from = row * src_stride;
+        let to = (y + row) * dst_stride + x;
+        dst[to..to + width].copy_from_slice(&src[from..from + width]);
+    }
 }
 
 #[cfg(test)]
@@ -92,5 +112,20 @@ mod tests {
     fn short_or_empty_data_is_refused() {
         assert!(thumbnail_rgb(&[], 0, 0, 0, 320).is_none());
         assert!(thumbnail_rgb(&[0; 8], 4, 4, 16, 320).is_none());
+    }
+
+    #[test]
+    fn a_plane_lands_at_its_offset_and_nothing_else_moves() {
+        // A 2x2 plane with a padded stride of 3, into a 5-wide, 4-high one.
+        let src = [1, 2, 9, 3, 4, 9];
+        let mut dst = vec![0u8; 5 * 4];
+        copy_plane(&src, 3, &mut dst, 5, (2, 1), (2, 2));
+        #[rustfmt::skip]
+        assert_eq!(dst, [
+            0, 0, 0, 0, 0,
+            0, 0, 1, 2, 0,
+            0, 0, 3, 4, 0,
+            0, 0, 0, 0, 0,
+        ]);
     }
 }
