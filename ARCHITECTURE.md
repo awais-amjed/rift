@@ -390,6 +390,25 @@ already knows. **What they may do** is the database's, because that is where
 permissions live. Muting somebody for yourself is local state; muting them for
 everybody is a row.
 
+### What a share sends, and to whom — [Implemented October 2026]
+
+A viewer receives a share only after pressing Watch, so most shares spend
+time with nobody watching. The share's connection turns on LiveKit's
+**dynacast**: the server tells the sharer to stop sending a picture nobody
+receives, and libwebrtc stops encoding it (a GPU share's encoder carries on,
+and WebRTC drops its frames). It pauses about 10 s after the last
+viewer goes. The next viewer's first picture comes within a second. Calls had
+it already, for cameras.
+
+A share sends **one picture**, not simulcast's two or three sizes. Tried Oct
+6 2026: on VP8 a second, half-size picture let a viewer on 2.5 Mbps watch at
+30 fps where one picture gave them nothing, and stopped their requests for a
+fresh picture costing everybody else full frames. But it does not reach what
+Auto picks. libwebrtc turns VP9 simulcast into layers inside one stream and
+holds it to its camera bitrates: a share set to 6 Mbps sent 2. Real VP9
+simulcast needs a setting LiveKit's Rust SDK does not expose. And the path
+the GPU's H264 goes through carries one picture.
+
 ### Encoding a share on the GPU — [Implemented October 2026]
 
 LiveKit's Rust SDK has no hardware video encoder on Windows: every frame of a

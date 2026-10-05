@@ -17,7 +17,9 @@
 //! Wayland only a window works: the X11 capturer sees no screen there, only
 //! X11 windows, and a still picture costs nothing to encode.
 //! Each side waits [`WARMUP`] before it starts counting, then reports over
-//! `BENCH_SECS`.
+//! `BENCH_SECS`: the share once for each simulcast layer, the viewer every
+//! [`SAMPLE`] as well, so a move between layers shows. More viewers take a
+//! `BENCH_VIEWER` name each.
 use super::live_test::Server;
 use super::session;
 use crate::api::screenshare::types::{ScreenShareConfig, SharePriority, VideoCodec};
@@ -29,6 +31,8 @@ use std::time::{Duration, Instant};
 use tokio::time::timeout;
 
 const WARMUP: Duration = Duration::from_secs(5);
+/// How often the viewer reports what it is getting.
+const SAMPLE: Duration = Duration::from_secs(2);
 /// How long the share stays up after its own count, so the viewer's count,
 /// which started a little later, ends while there is still a picture.
 const TAIL: Duration = Duration::from_secs(10);
@@ -95,11 +99,18 @@ fn cpu_time() -> Duration {
     Duration::from_millis(ticks * 10)
 }
 
-fn outbound(stats: &[RtcStats]) -> Option<&livekit::webrtc::stats::OutboundRtpStats> {
-    stats.iter().find_map(|s| match s {
-        RtcStats::OutboundRtp(o) if o.stream.kind == "video" => Some(o),
-        _ => None,
-    })
+/// The share's outgoing pictures: one, or one per simulcast layer, largest
+/// last.
+fn outbound(stats: &[RtcStats]) -> Vec<&livekit::webrtc::stats::OutboundRtpStats> {
+    let mut layers: Vec<_> = stats
+        .iter()
+        .filter_map(|s| match s {
+            RtcStats::OutboundRtp(o) if o.stream.kind == "video" => Some(o),
+            _ => None,
+        })
+        .collect();
+    layers.sort_by_key(|o| o.outbound.frame_width);
+    layers
 }
 
 fn inbound(stats: &[RtcStats]) -> Option<&livekit::webrtc::stats::InboundRtpStats> {
@@ -164,33 +175,49 @@ async fn bench_share() {
     tokio::time::sleep(TAIL).await;
     session::stop().await.expect("share stops");
 
-    let a = outbound(&before_stats).expect("outbound video stats");
-    let b = outbound(&after_stats).expect("outbound video stats");
-    let encoded = f64::from(b.outbound.frames_encoded - a.outbound.frames_encoded);
-    let sent = f64::from(b.outbound.frames_sent - a.outbound.frames_sent);
-    let encode_ms = (b.outbound.total_encode_time - a.outbound.total_encode_time) * 1000.0;
-    let mbps = (b.sent.bytes_sent - a.sent.bytes_sent) as f64 * 8.0 / wall / 1e6;
+    let before = outbound(&before_stats);
+    let after = outbound(&after_stats);
+    assert!(!after.is_empty(), "outbound video stats");
     let cores = std::thread::available_parallelism().map_or(1, |n| n.get()) as f64;
+    let mut total_mbps = 0.0;
+    for b in &after {
+        let a = before
+            .iter()
+            .find(|a| a.outbound.rid == b.outbound.rid)
+            .expect("the same layers before and after");
+        let encoded = f64::from(b.outbound.frames_encoded - a.outbound.frames_encoded);
+        let sent = f64::from(b.outbound.frames_sent - a.outbound.frames_sent);
+        let encode_ms = (b.outbound.total_encode_time - a.outbound.total_encode_time) * 1000.0;
+        let mbps = (b.sent.bytes_sent - a.sent.bytes_sent) as f64 * 8.0 / wall / 1e6;
+        total_mbps += mbps;
+        log::info!(
+            "bench share: layer {:?} {} {}x{} | active {} | encoder {:?} | {:.1} fps encoded, \
+             {:.1} fps sent | {:.2} ms encode/frame | {:.2} Mbps sent, target {:.2} | \
+             keyframes {} | limited by {:?} {:?}",
+            b.outbound.rid,
+            env_or("BENCH_CODEC", "vp9"),
+            b.outbound.frame_width,
+            b.outbound.frame_height,
+            b.outbound.active,
+            b.outbound.encoder_implementation,
+            encoded / wall,
+            sent / wall,
+            if encoded > 0.0 {
+                encode_ms / encoded
+            } else {
+                0.0
+            },
+            mbps,
+            b.outbound.target_bitrate / 1e6,
+            b.outbound.key_frames_encoded - a.outbound.key_frames_encoded,
+            b.outbound.quality_limitation_reason,
+            b.outbound.quality_limitation_durations,
+        );
+    }
     log::info!(
-        "bench share: {} {}x{} | encoder {:?} | {:.1} fps encoded, {:.1} fps sent | \
-         {:.2} ms encode/frame | {:.2} Mbps sent, target {:.2} | keyframes {} | \
-         limited by {:?} {:?} | CPU {:.0}% of one core, {:.1}% of {cores} | {:.1} s",
-        env_or("BENCH_CODEC", "vp9"),
-        b.outbound.frame_width,
-        b.outbound.frame_height,
-        b.outbound.encoder_implementation,
-        encoded / wall,
-        sent / wall,
-        if encoded > 0.0 {
-            encode_ms / encoded
-        } else {
-            0.0
-        },
-        mbps,
-        b.outbound.target_bitrate / 1e6,
-        b.outbound.key_frames_encoded - a.outbound.key_frames_encoded,
-        b.outbound.quality_limitation_reason,
-        b.outbound.quality_limitation_durations,
+        "bench share: {} layers | {:.2} Mbps sent | CPU {:.0}% of one core, {:.1}% of {cores} | {:.1} s",
+        after.len(),
+        total_mbps,
         cpu / wall * 100.0,
         cpu / wall / cores * 100.0,
         wall,
@@ -207,7 +234,8 @@ async fn bench_view() {
     let server = Server::from_env();
     let room = env_or("BENCH_ROOM", "bench");
     let joined = Instant::now();
-    let (viewer, mut events) = super::live_test::viewer_as(&server, &room, "viewer").await;
+    let identity = env_or("BENCH_VIEWER", "viewer");
+    let (viewer, mut events) = super::live_test::viewer_as(&server, &room, &identity).await;
     let track = timeout(Duration::from_secs(120), async {
         loop {
             if let RoomEvent::TrackSubscribed {
@@ -265,7 +293,29 @@ async fn bench_view() {
     tokio::time::sleep(WARMUP).await;
     let a = track.get_stats().await.expect("stats");
     let started = Instant::now();
-    tokio::time::sleep(bench_secs()).await;
+    // What arrived in each stretch, to see the server move this viewer
+    // between a share's layers.
+    let mut last = a.clone();
+    while started.elapsed() < bench_secs() {
+        tokio::time::sleep(SAMPLE).await;
+        let now = track.get_stats().await.expect("stats");
+        if let (Some(p), Some(n)) = (inbound(&last), inbound(&now)) {
+            log::info!(
+                "bench view: {:>4.0} s | {}x{} | {:.1} fps | {:.2} Mbps | freezes {} | lost {}",
+                started.elapsed().as_secs_f64(),
+                n.inbound.frame_width,
+                n.inbound.frame_height,
+                f64::from(n.inbound.frames_decoded - p.inbound.frames_decoded)
+                    / SAMPLE.as_secs_f64(),
+                (n.inbound.bytes_received - p.inbound.bytes_received) as f64 * 8.0
+                    / SAMPLE.as_secs_f64()
+                    / 1e6,
+                n.inbound.freeze_count - p.inbound.freeze_count,
+                n.received.packets_lost - p.received.packets_lost,
+            );
+        }
+        last = now;
+    }
     let wall = started.elapsed().as_secs_f64();
     let b = track.get_stats().await.expect("stats");
     drain.abort();

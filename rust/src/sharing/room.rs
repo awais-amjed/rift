@@ -22,6 +22,9 @@ pub(crate) async fn connect(
     // `RoomOptions` is non-exhaustive upstream, so it is built and then set
     // rather than written as a literal.
     let mut room_options = RoomOptions::default();
+    // While nobody watches the share, the server tells it to stop sending
+    // the picture, and libwebrtc stops encoding it.
+    room_options.dynacast = true;
     room_options.encryption = Some(E2eeOptions {
         encryption_type: EncryptionType::Gcm,
         key_provider,

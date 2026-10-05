@@ -72,6 +72,9 @@ pub(crate) async fn publish_video_track(
             TrackPublishOptions {
                 source: TrackSource::Screenshare,
                 video_codec,
+                // One picture. Tried Oct 6 2026: a smaller second one saved a
+                // slow viewer on VP8, but libwebrtc held VP9's to 2 Mbps of 6,
+                // and the GPU's path carries one picture (ARCHITECTURE.md).
                 simulcast: false,
                 dtx: false,
                 red: false,
