@@ -71,6 +71,14 @@ class CollapsedParticipantTile extends StatelessWidget {
     this.onAspectRatio,
   });
 
+  /// How far the badges and the full-screen button sit in from the edge.
+  static const _overlayInset = 12.0;
+
+  /// What the name badge covers of the tile's foot, which the avatar keeps
+  /// clear of: its inset, its height (31 at the default text size) and a
+  /// little air.
+  static const _badgeRoom = _overlayInset + 31 + 3;
+
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
@@ -113,24 +121,28 @@ class CollapsedParticipantTile extends StatelessWidget {
                   ),
                 )
               else if (!showWatchButton && !isPaused)
-                AvatarPlaceholder(name: name, userId: userId),
+                AvatarPlaceholder(
+                  name: name,
+                  userId: userId,
+                  clearBottom: _badgeRoom,
+                ),
               // Over the last frame, or in place of a first one: a share started
               // on a minimised window has no picture until the window is opened.
               if (isPaused && !showWatchButton) const SharePausedNotice(),
               if (showWatchButton) WatchStreamButton(onTap: onWatch),
               if (onFullscreen != null)
                 Positioned(
-                  bottom: 12,
-                  right: 12,
+                  bottom: _overlayInset,
+                  right: _overlayInset,
                   child: StreamFullscreenButton(
                     isFullscreen: false,
                     onTap: onFullscreen!,
                   ),
                 ),
               Positioned(
-                bottom: 12,
-                left: 12,
-                right: 12,
+                bottom: _overlayInset,
+                left: _overlayInset,
+                right: _overlayInset,
                 // Only someone else's share you are watching has receive
                 // stats; the poller does nothing for anything else.
                 child: Align(
