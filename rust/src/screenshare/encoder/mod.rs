@@ -2,17 +2,25 @@
 //! encoders would spend the CPU a game needs (`ARCHITECTURE.md`, "Encoding a
 //! share on the GPU").
 //!
-//! Windows only for now: LiveKit has no hardware encoder there, and Media
-//! Foundation reaches NVIDIA's, AMD's and Intel's alike. H264 and AV1 are only
-//! ever encoded by the GPU or the OS, never by Rift itself (decision 1 of the
-//! plan).
-#![cfg_attr(not(target_os = "windows"), allow(dead_code))]
+//! On Windows through Media Foundation, which reaches NVIDIA's, AMD's and
+//! Intel's encoders alike, since LiveKit has no hardware encoder there. On
+//! Linux through NVENC (`nvenc.rs`), since LiveKit's own NVENC carries code
+//! the GPL client cannot; Intel's and AMD's GPUs there go through LiveKit's
+//! VAAPI encoder instead. H264 and AV1 are only ever encoded by the GPU or the
+//! OS, never by Rift itself.
+#![cfg_attr(not(gpu_encoder), allow(dead_code))]
+// AV1 is made by the Windows encoder alone, and only in its tests.
+#[cfg_attr(not(target_os = "windows"), allow(dead_code))]
 pub(crate) mod av1;
 pub(crate) mod h264;
 #[cfg(target_os = "windows")]
 mod media_foundation;
 #[cfg(target_os = "windows")]
 pub(crate) use media_foundation::GpuEncoder;
+#[cfg(target_os = "linux")]
+mod nvenc;
+#[cfg(target_os = "linux")]
+pub(crate) use nvenc::GpuEncoder;
 
 use super::resolution::Size;
 use crate::api::screenshare::types::VideoCodec;
@@ -21,6 +29,7 @@ use crate::api::screenshare::types::VideoCodec;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum GpuCodec {
     H264,
+    #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
     Av1,
 }
 
@@ -50,10 +59,10 @@ impl std::fmt::Display for GpuCodec {
 /// find out takes a moment, and the GPUs do not change under a running app,
 /// so the first answer is kept.
 ///
-/// On Windows that is Rift's own encoder. On Linux it is LiveKit's: VAAPI
-/// (Intel, AMD) or NVENC (NVIDIA), whichever it lists as working; without
-/// one LiveKit would make H264 with OpenH264 on the CPU, which Rift never
-/// does.
+/// On Windows that is Rift's own encoder. On Linux it is Rift's NVENC, or
+/// else LiveKit's VAAPI (Intel, AMD) where LiveKit lists it as working;
+/// without either LiveKit would make H264 with OpenH264 on the CPU, which
+/// Rift never does.
 pub(crate) fn gpu_codecs() -> Vec<VideoCodec> {
     #[cfg(target_os = "windows")]
     {
@@ -77,7 +86,7 @@ pub(crate) fn gpu_codecs() -> Vec<VideoCodec> {
                     .into_iter()
                     .collect();
                 log::info!("encoder: LiveKit lists {backends:?}");
-                if backends.iter().copied().any(is_gpu_backend) {
+                if encodes_itself(GpuCodec::H264) || backends.iter().copied().any(is_gpu_backend) {
                     vec![VideoCodec::H264]
                 } else {
                     Vec::new()
@@ -88,6 +97,23 @@ pub(crate) fn gpu_codecs() -> Vec<VideoCodec> {
     #[cfg(not(any(target_os = "windows", target_os = "linux")))]
     {
         Vec::new()
+    }
+}
+
+/// Whether a share in `codec` is encoded by Rift's own GPU encoder here,
+/// rather than handed to LiveKit. On Windows always: a failure to open moves
+/// the share to VP9. On Linux where NVENC opens; elsewhere H264 is LiveKit's
+/// VAAPI. Asked once, since opening one to find out takes a moment.
+pub(crate) fn encodes_itself(codec: GpuCodec) -> bool {
+    #[cfg(target_os = "linux")]
+    {
+        static NVENC: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        *NVENC.get_or_init(|| nvenc::opens(GpuCodec::H264)) && codec == GpuCodec::H264
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = codec;
+        true
     }
 }
 
@@ -102,7 +128,8 @@ fn is_gpu_backend(backend: livekit::options::VideoEncoderBackend) -> bool {
 }
 
 /// Whether the encoder WebRTC names in a track's stats is a GPU's H264:
-/// LiveKit's VAAPI or NVENC one, rather than the OpenH264 it falls back to.
+/// LiveKit's VAAPI one (or its NVENC, in a build made with CUDA's headers),
+/// rather than the OpenH264 it falls back to.
 #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 pub(crate) fn is_gpu_h264(implementation: &str) -> bool {
     implementation.contains("VAAPI") || implementation.contains("NVIDIA")

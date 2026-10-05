@@ -84,8 +84,9 @@ pub(crate) async fn publish_video_track(
                 video_encoder: if pre_encoded {
                     VideoEncoderBackend::PreEncoded
                 } else if cfg!(target_os = "linux") && settings.codec == VideoCodec::H264 {
-                    // LiveKit's VAAPI or NVENC, never OpenH264 on the CPU:
-                    // the session checks it got one (`check_h264_encoder`).
+                    // LiveKit's VAAPI, never OpenH264 on the CPU: the session
+                    // checks it got it (`check_h264_encoder`). NVENC does not
+                    // come this way; Rift drives it itself (`encoder/nvenc.rs`).
                     VideoEncoderBackend::Hardware
                 } else {
                     VideoEncoderBackend::Auto

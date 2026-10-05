@@ -1,17 +1,15 @@
 //! One screen share at a time: bringing it up, and taking it down again.
 use super::capture::{self, Capture, CaptureRequest, Feed, Progress, Started, VideoSlot};
-#[cfg(target_os = "linux")]
-use super::encoder;
-#[cfg(target_os = "windows")]
+#[cfg(gpu_encoder)]
 use super::encoder::{self, EncoderSettings, GpuCodec};
-#[cfg(target_os = "windows")]
+#[cfg(gpu_encoder)]
 use super::gpu_feed::GpuFeed;
-#[cfg(target_os = "windows")]
+#[cfg(gpu_encoder)]
 use super::resolution::fit_within;
 use super::resolution::{target_size, Size};
 use super::track::{publish_video_track, TrackSettings};
 use crate::api::screenshare::types::{self, ScreenShareConfig, ShareQuality};
-#[cfg(any(target_os = "windows", target_os = "linux"))]
+#[cfg(gpu_encoder)]
 use crate::api::screenshare::types::{ScreenshareEvent, VideoCodec};
 use crate::sharing::audio::{self, AudioCapture, AudioCaptureHandle, AudioSelection};
 use crate::sharing::room;
@@ -45,7 +43,7 @@ const FPS_ATTRIBUTE: &str = "fps";
 /// (`x-google-start-bitrate`). A new GPU encoder starts there too: one that
 /// started at the share's cap made frames WebRTC judged to overshoot, and
 /// dropped, before its first rate request had even arrived.
-#[cfg(target_os = "windows")]
+#[cfg(gpu_encoder)]
 const START_BITRATE_BPS: u32 = 1_000_000;
 
 /// How often, and how many times, a Linux H264 share's encoder is looked at
@@ -299,7 +297,7 @@ async fn bring_up(room: &Room, config: &ScreenShareConfig) -> Result<Parts, Stri
         slot: capture.slot(),
         settings: std::sync::Mutex::new(TrackSettings::from(config)),
         track: Mutex::new(None),
-        #[cfg(target_os = "windows")]
+        #[cfg(gpu_encoder)]
         gpu: std::sync::Mutex::new(None),
     });
     // A window still on the taskbar: the share is up — viewers see it, marked
@@ -341,7 +339,7 @@ async fn bring_up(room: &Room, config: &ScreenShareConfig) -> Result<Parts, Stri
 struct Video {
     /// For a GPU encoder failing mid-share, which republishes from another
     /// thread and must not keep a stopped share alive to do it.
-    #[cfg_attr(not(any(target_os = "windows", target_os = "linux")), allow(dead_code))]
+    #[cfg_attr(not(gpu_encoder), allow(dead_code))]
     me: Weak<Video>,
     participant: LocalParticipant,
     slot: VideoSlot,
@@ -352,12 +350,12 @@ struct Video {
     /// for the first publish and then redoes it, rather than racing it.
     track: Mutex<Option<TrackSid>>,
     /// The picture's encoder and the source it feeds, while the GPU makes it.
-    #[cfg(target_os = "windows")]
+    #[cfg(gpu_encoder)]
     gpu: std::sync::Mutex<Option<GpuPicture>>,
 }
 
 /// A published picture the GPU encodes.
-#[cfg(target_os = "windows")]
+#[cfg(gpu_encoder)]
 struct GpuPicture {
     source: NativeVideoSource,
     feed: Arc<GpuFeed>,
@@ -388,7 +386,7 @@ impl Video {
 
     /// Put a new size or rate into effect.
     async fn change_picture(&self) -> Result<(), String> {
-        #[cfg(target_os = "windows")]
+        #[cfg(gpu_encoder)]
         if let Some(changed) = self.reopen_gpu().await {
             return changed;
         }
@@ -405,7 +403,7 @@ impl Video {
     /// `None` when that does not apply, and the picture is republished: not
     /// on the GPU, not published yet, or faster or richer than WebRTC holds
     /// the track to. A new encoder that will not open hands the share to VP9.
-    #[cfg(target_os = "windows")]
+    #[cfg(gpu_encoder)]
     async fn reopen_gpu(&self) -> Option<Result<(), String>> {
         let opened = {
             let track = self.track.lock().await;
@@ -511,11 +509,14 @@ impl Video {
             target.height
         );
 
-        // H264 on Windows comes from the GPU or not at all (ARCHITECTURE.md,
-        // "Encoding a share on the GPU"): without one the share goes out as
-        // VP9.
-        #[cfg(target_os = "windows")]
-        if let Some(codec) = GpuCodec::for_share(settings.codec) {
+        // H264 comes from the GPU or not at all (ARCHITECTURE.md, "Encoding a
+        // share on the GPU"): from Rift's own encoder where there is one, and
+        // as VP9 if it will not open. On Linux without NVENC it is LiveKit's
+        // VAAPI encoder, checked once it has made frames.
+        #[cfg(gpu_encoder)]
+        if let Some(codec) =
+            GpuCodec::for_share(settings.codec).filter(|&codec| encoder::encodes_itself(codec))
+        {
             let target = gpu_target(target);
             match self.publish_from_gpu(target, codec, &settings).await {
                 Ok(sid) => {
@@ -534,7 +535,7 @@ impl Video {
             },
             false,
         );
-        #[cfg(target_os = "windows")]
+        #[cfg(gpu_encoder)]
         {
             *self.gpu.lock().unwrap() = None;
         }
@@ -549,8 +550,8 @@ impl Video {
         Ok(())
     }
 
-    /// Linux: H264 comes from LiveKit's own GPU encoders, VAAPI or NVENC, and
-    /// is offered only where LiveKit lists one. A listed one can still fail to
+    /// Linux without NVENC: H264 comes from LiveKit's VAAPI encoder, and is
+    /// offered only where LiveKit lists one. A listed one can still fail to
     /// open, and LiveKit then quietly makes H264 with OpenH264 on the CPU,
     /// which Rift never does (`ARCHITECTURE.md`, "Encoding a share on the
     /// GPU"). So once the first frames are out, the encoder WebRTC names is
@@ -606,7 +607,7 @@ impl Video {
     }
 
     /// Open a hardware encoder for the picture and publish what it makes.
-    #[cfg(target_os = "windows")]
+    #[cfg(gpu_encoder)]
     async fn publish_from_gpu(
         &self,
         target: Size,
@@ -637,7 +638,7 @@ impl Video {
     }
 
     /// Give up on the GPU for the rest of this share, and say so.
-    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    #[cfg(gpu_encoder)]
     fn fall_back(&self, reason: &str) -> TrackSettings {
         log::warn!("screenshare: {reason}; sharing as VP9 instead");
         let mut settings = self.settings.lock().unwrap();
@@ -648,7 +649,7 @@ impl Video {
 
     /// What the processing thread calls when the encoder stops working
     /// mid-share: publish again as VP9, so the picture never stays black.
-    #[cfg(target_os = "windows")]
+    #[cfg(gpu_encoder)]
     fn on_gpu_failed(&self) -> Box<dyn Fn() + Send + Sync> {
         let me = self.me.clone();
         let runtime = tokio::runtime::Handle::current();
@@ -671,7 +672,7 @@ impl Video {
 /// The size the GPU encodes a `target` at: the same, unless it is bigger than
 /// a hardware encoder takes, when it is scaled down to fit rather than going
 /// to VP9 on the CPU.
-#[cfg(target_os = "windows")]
+#[cfg(gpu_encoder)]
 fn gpu_target(target: Size) -> Size {
     let fitted = fit_within(target, encoder::MAX_SIZE);
     if fitted != target {
@@ -688,7 +689,7 @@ fn gpu_target(target: Size) -> Size {
 
 /// What a share's encoder is opened for: `codec` at the target size and the
 /// share's rate, held to its cap, starting at `start_bitrate_bps`.
-#[cfg(target_os = "windows")]
+#[cfg(gpu_encoder)]
 fn encoder_settings(
     codec: GpuCodec,
     target: Size,

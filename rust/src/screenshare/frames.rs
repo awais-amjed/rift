@@ -2,7 +2,7 @@
 //! LiveKit. Kept off the capture thread so a slow conversion delays frames
 //! rather than the capture clock.
 use super::capture::{Feed, VideoSlot};
-#[cfg(target_os = "windows")]
+#[cfg(gpu_encoder)]
 use super::gpu_feed::Picture;
 use super::pixels::copy_plane;
 use super::resolution::{letterbox, Size};
@@ -50,7 +50,7 @@ fn run(frame_rx: Receiver<SendableFrame>, source_slot: VideoSlot) {
 
         // The GPU encoder takes NV12, straight from the capture when it is
         // already the target size.
-        #[cfg(target_os = "windows")]
+        #[cfg(gpu_encoder)]
         if let Feed::Gpu(gpu) = &feed {
             if target == size {
                 gpu.send(
@@ -97,7 +97,7 @@ fn run(frame_rx: Receiver<SendableFrame>, source_slot: VideoSlot) {
                 );
                 source.capture_frame(&scaled);
             }
-            #[cfg(target_os = "windows")]
+            #[cfg(gpu_encoder)]
             Feed::Gpu(gpu) => {
                 let scaled = fit(&mut native.buffer, size, target);
                 gpu.send(Picture::I420(&scaled), target, now_us());
@@ -141,7 +141,7 @@ fn fit(frame: &mut I420Buffer, size: Size, target: Size) -> I420Buffer {
 
 /// The capture time an encoded frame carries: the wall clock, as libwebrtc
 /// stamps a raw frame that comes without one.
-#[cfg(target_os = "windows")]
+#[cfg(gpu_encoder)]
 fn now_us() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

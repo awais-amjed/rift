@@ -48,6 +48,10 @@ tract-pulse = "=0.21.4"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libpulse-binding = "2.30.1"
+# NVENC for a Linux share's H264 (src/screenshare/encoder/nvenc.rs): NVIDIA's
+# MIT API header and libraries opened at run time, so nothing of NVIDIA's
+# licence is built in.
+shiguredo_nvcodec = "2026.2.0"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 wasapi = "0.22.0"

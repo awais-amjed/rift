@@ -399,13 +399,23 @@ AMD's and Intel's encoders alike, and hands LiveKit the finished frames on its
 pre-encoded path (`rust/src/screenshare/encoder/`). Measured Oct 5 2026 at 60
 fps: 52 to 67% of a core, against VP9's 186 to 196% (`TESTING.md`).
 
-On Linux LiveKit has GPU encoders of its own, VAAPI (Intel, AMD) and NVENC
-(NVIDIA), but falls back to OpenH264 on the CPU without a word when neither
-works. So H264 is offered there only where LiveKit lists one of them, the
-share asks for one, and once its first frames are out a share whose encoder
-WebRTC names as anything else goes to VP9. NVENC is only in a build made with
-CUDA's headers, which the release build does not have yet; on a machine with
-no VAAPI driver (Intel's is a separate package) H264 is simply not offered.
+On Linux an NVIDIA GPU is driven by Rift itself, through NVENC, and the frames
+go out on the same pre-encoded path as on Windows. LiveKit has an NVENC encoder
+too, but it is built from NVIDIA's Video Codec SDK samples, which are under
+NVIDIA's licence and not one the GPL client can carry, so Rift's build leaves it
+out (it only goes in when CUDA's headers are found, and the release build has
+none). Rift's goes through `shiguredo_nvcodec` (Apache-2.0): NVIDIA's
+MIT-licensed API header, with the driver's libraries opened at run time, the
+way OBS and Sunshine use NVENC. Measured Oct 5 2026 on an RTX 3070 Ti Laptop: a
+moving 60 fps window at 15% of a core against VP9's 67%, held at 60 fps with
+every core busy; a still one at 0.18 Mbps.
+
+Intel's and AMD's GPUs on Linux go through LiveKit's VAAPI encoder, which falls
+back to OpenH264 on the CPU without a word when it does not work. So without
+NVENC, H264 is offered only where LiveKit lists VAAPI, the share asks for a
+hardware encoder, and once its first frames are out a share whose encoder
+WebRTC names as anything else goes to VP9. On a machine with neither (Intel's
+VAAPI driver is a separate package) H264 is simply not offered.
 
 - **H264 and AV1 are only ever encoded by the GPU or the OS, never by Rift.**
   The reason is patents: H264 is licensed through a pool the GPU makers belong

@@ -9,7 +9,7 @@ pub(crate) mod capture;
 pub(crate) mod encoder;
 #[cfg(desktop)]
 mod frames;
-#[cfg(target_os = "windows")]
+#[cfg(gpu_encoder)]
 mod gpu_feed;
 mod pixels;
 pub(crate) mod resolution;
@@ -26,7 +26,7 @@ mod window_win;
 
 #[cfg(all(test, desktop))]
 mod bench_test;
-#[cfg(all(test, target_os = "windows"))]
+#[cfg(all(test, gpu_encoder))]
 mod gpu_live_test;
 #[cfg(all(test, desktop))]
 mod live_test;

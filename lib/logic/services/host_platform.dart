@@ -55,9 +55,9 @@ class HostPlatform {
   /// Whether H264 is only ever encoded on the GPU here, never on the CPU
   /// (`ARCHITECTURE.md`, "Encoding a share on the GPU"), so the codec is
   /// offered only where a GPU encoder works. On Windows Rift encodes it
-  /// itself through Media Foundation; on Linux LiveKit does, through VAAPI or
-  /// NVENC, where it would otherwise fall back to OpenH264 on the CPU. macOS
-  /// has the OS's own encoder.
+  /// itself through Media Foundation; on Linux through NVENC on an NVIDIA GPU,
+  /// or else LiveKit does through VAAPI, where it would otherwise fall back to
+  /// OpenH264 on the CPU. macOS has the OS's own encoder.
   static bool get encodesH264OnGpuOnly =>
       !kIsWeb && (Platform.isWindows || Platform.isLinux);
 

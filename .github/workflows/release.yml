@@ -62,14 +62,15 @@ jobs:
             libsecret-1-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
             libpulse-dev libva-dev libayatana-appindicator3-dev gnupg
       # libwebrtc is built against a libc++ that needs clang 21 or newer, and
-      # 24.04 ships 18 (webrtc-sys refuses an older one up front).
+      # 24.04 ships 18 (webrtc-sys refuses an older one up front). libclang is
+      # for bindgen, which generates the NVENC bindings (shiguredo_nvcodec).
       - name: Install clang 21
         run: |
           curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | gpg --dearmor -o /usr/share/keyrings/llvm.gpg
           echo "deb [signed-by=/usr/share/keyrings/llvm.gpg] http://apt.llvm.org/noble/ llvm-toolchain-noble-21 main" \
             > /etc/apt/sources.list.d/llvm.list
           apt-get update
-          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends clang-21
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends clang-21 libclang-21-dev
       # The container runs as root over folders the runner owns, and git
       # (Flutter's included) refuses to work in those.
       - run: git config --global --add safe.directory '*'

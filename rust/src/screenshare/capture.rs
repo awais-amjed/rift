@@ -1,7 +1,7 @@
 //! The capture thread: asks libwebrtc for a frame on every tick and hands
 //! each one to the processing thread in `frames.rs`.
 use super::frames::{self, SendableFrame};
-#[cfg(target_os = "windows")]
+#[cfg(gpu_encoder)]
 use super::gpu_feed::GpuFeed;
 use super::resolution::Size;
 use super::sources;
@@ -73,7 +73,7 @@ pub(crate) enum Feed {
     /// Raw pictures, which libwebrtc encodes.
     Raw(NativeVideoSource),
     /// Pictures for the GPU encoder, which feeds a pre-encoded source.
-    #[cfg(target_os = "windows")]
+    #[cfg(gpu_encoder)]
     Gpu(Arc<GpuFeed>),
 }
 
