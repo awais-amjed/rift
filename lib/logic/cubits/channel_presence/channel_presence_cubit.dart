@@ -197,16 +197,18 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
   /// Tells the server where we are now, if it isn't where we last said.
   void _announceLocation() {
     final lkState = _livekitCubit.state;
-    // Connecting is not "nowhere". A move goes connected → connecting →
-    // connected, and announcing the gap would blink us out of the channel list
-    // for the half-second of travel. Genuinely leaving a call goes straight to
-    // disconnected, which does announce.
-    if (lkState.connectionState == LiveKitConnectionState.connecting) return;
-    _voice?.announce(
-      lkState.connectionState == LiveKitConnectionState.connected
-          ? lkState.currentChannelId
-          : null,
-    );
+    // A move says where it is going the moment it starts. Waiting for the new
+    // room meant waiting for the old one to close, a token, the key and the
+    // connect — half a second on a local server, more on a real one — and
+    // until then everyone else drew us in the channel we had left. A join
+    // that then fails ends in `error`, which says "nowhere" like leaving
+    // does. A DM call connects with no channel, and so leaves the one it
+    // came from straight away too.
+    _voice?.announce(switch (lkState.connectionState) {
+      LiveKitConnectionState.connecting ||
+      LiveKitConnectionState.connected => lkState.currentChannelId,
+      _ => null,
+    });
   }
 
   /// The authoritative roster from LiveKit, or null when it can't be had.
