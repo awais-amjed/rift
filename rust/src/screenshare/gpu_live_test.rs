@@ -4,7 +4,9 @@
 //! through the same rooms as a control. Needs a LiveKit server (see
 //! `live_test.rs`) and a hardware H264 encoder; no screen.
 use super::encoder::test_hooks;
-use super::encoder::{h264, Encoded, EncodedSink, EncoderSettings, GpuEncoder, Nv12Frame};
+use super::encoder::{
+    h264, Encoded, EncodedSink, EncoderSettings, GpuCodec, GpuEncoder, Nv12Frame,
+};
 use super::live_test::{shared_key, viewer_as, Server, KEY_INDEX};
 use super::session;
 use crate::api::screenshare::types::{
@@ -35,9 +37,15 @@ struct ToSource(NativeVideoSource);
 
 impl EncodedSink for ToSource {
     fn deliver(&mut self, frame: Encoded<'_>) {
-        let long = h264::with_long_start_codes(frame.payload);
+        let (codec, long) = match frame.codec {
+            GpuCodec::H264 => (
+                EncodedVideoCodec::H264,
+                h264::with_long_start_codes(frame.payload),
+            ),
+            GpuCodec::Av1 => (EncodedVideoCodec::AV1, None),
+        };
         self.0.capture_encoded_frame(&EncodedVideoFrame {
-            codec: EncodedVideoCodec::H264,
+            codec,
             payload: long.as_deref().unwrap_or(frame.payload),
             timestamp_us: frame.timestamp_us,
             frame_type: if frame.keyframe {
@@ -80,10 +88,10 @@ fn options(key: Option<Vec<u8>>) -> RoomOptions {
     options
 }
 
-/// Frames a viewer decodes from 12 s of H264, from the GPU (`gpu`) or from
-/// libwebrtc's own encoder.
+/// Frames a viewer decodes from 12 s of a picture: the GPU encoder's `gpu`
+/// codec, or libwebrtc's own H264 encoder when that is `None`.
 async fn decoded_frames(
-    gpu: bool,
+    gpu: Option<GpuCodec>,
     sharer_key: Option<Vec<u8>>,
     viewer_key: Option<Vec<u8>>,
 ) -> Decoded {
@@ -114,14 +122,15 @@ async fn decoded_frames(
         width: WIDTH,
         height: HEIGHT,
     };
-    let source = if gpu {
+    let source = if gpu.is_some() {
         NativeVideoSource::new_encoded(resolution)
     } else {
         NativeVideoSource::new(resolution, false)
     };
-    let encoder = gpu.then(|| {
+    let encoder = gpu.map(|codec| {
         GpuEncoder::open(
             EncoderSettings {
+                codec,
                 width: WIDTH,
                 height: HEIGHT,
                 fps: FPS,
@@ -141,8 +150,11 @@ async fn decoded_frames(
             LocalTrack::Video(track),
             TrackPublishOptions {
                 source: TrackSource::Screenshare,
-                video_codec: VideoCodec::H264,
-                video_encoder: if gpu {
+                video_codec: match gpu {
+                    Some(GpuCodec::Av1) => VideoCodec::AV1,
+                    _ => VideoCodec::H264,
+                },
+                video_encoder: if gpu.is_some() {
                     VideoEncoderBackend::PreEncoded
                 } else {
                     VideoEncoderBackend::Auto
@@ -259,11 +271,33 @@ async fn live_gpu_h264_is_seen_with_the_key_and_by_nobody_else() {
         .filter_level(log::LevelFilter::Info)
         .try_init();
     let only = std::env::var("GPU_LIVE_ONLY").ok();
-    for gpu in [true, false] {
-        let path = if gpu { "gpu" } else { "software" };
+    for (path, gpu) in [("gpu", Some(GpuCodec::H264)), ("software", None)] {
         if only.as_deref().is_some_and(|o| o != path) {
             continue;
         }
+        seen_with_the_key_and_by_nobody_else(path, gpu).await;
+    }
+}
+
+/// Fails today, and is the check to run when this changes: with encryption
+/// on, no viewer gets a frame of AV1 from this SDK, the GPU's or libaom's
+/// alike (Oct 5 2026). Unencrypted, every frame arrives. `GPU_ENCODING.md`,
+/// "AV1: parked", says why.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "fails until LiveKit's Rust SDK can send encrypted AV1; needs a LiveKit server and a hardware AV1 encoder"]
+async fn live_gpu_av1_is_seen_with_the_key_and_by_nobody_else() {
+    let _ = env_logger::builder()
+        .is_test(true)
+        .filter_level(log::LevelFilter::Info)
+        .try_init();
+    seen_with_the_key_and_by_nobody_else("gpu AV1", Some(GpuCodec::Av1)).await;
+}
+
+/// Phase 4 of `GPU_ENCODING.md` for one way of encoding: a viewer with the
+/// call's key sees the picture, and one without it or with the wrong key
+/// does not.
+async fn seen_with_the_key_and_by_nobody_else(path: &str, gpu: Option<GpuCodec>) {
+    {
         let key = Some(shared_key());
         let plain = decoded_frames(gpu, None, None).await;
         let with_key = decoded_frames(gpu, key.clone(), key.clone()).await;

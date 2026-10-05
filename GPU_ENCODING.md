@@ -1,8 +1,10 @@
 # GPU encoding for screen shares on Windows: plan
 
-Status: **phases 0 to 4 done on Windows (H264), Oct 5 2026; AV1 and zero-copy
-(phase 5) not started.** Written Oct 4 2026 on the `gpu-encoding` branch.
-**AV1 is next, on the user's desktop: see "Next: AV1 on the desktop".**
+Status: **phases 0 to 4 done on Windows (H264), Oct 5 2026; zero-copy (phase
+5) not started.** Written Oct 4 2026 on the `gpu-encoding` branch.
+**AV1 is parked (Oct 5 2026): the GPU encodes it, but no viewer can get it
+encrypted. See "AV1: parked". H264 on the GPU is the result of this branch, and
+it was proved on AMD the same day.**
 
 What came out of doing it, for whoever picks it up next:
 - WebRTC's frame dropper still acts on pre-encoded frames: LiveKit's
@@ -74,7 +76,8 @@ Already done, and not part of this plan:
    and Edge, Firefox, flutter_webrtc on desktop).
 4. **The default codec follows the hardware.**
    - On a PC with a hardware H264 encoder, the default becomes H264, or AV1 if the
-     GPU encodes it and every viewer platform can play it (check that first).
+     GPU encodes it and every viewer platform can play it (check that first;
+     on Oct 5 2026 none could get it encrypted, see "AV1: parked").
    - Elsewhere it stays VP9.
    - The dialog offers H264 and AV1 only where the hardware can encode them.
 5. **Do not fork `webrtc-sys`** to add NVENC on Windows. It would cover NVIDIA
@@ -96,8 +99,8 @@ Already done, and not part of this plan:
     encoding.
 - So H264 can be tested on two vendors' encoders. AV1 cannot be tested here, so
   build it later or leave it behind a check that never succeeds on this laptop.
-- **AV1 is done on the user's desktop**, which has an **AMD Radeon RX 9070 XT**
-  (RDNA 4). See "Next: AV1 on the desktop".
+- **AV1 was tried on the user's desktop**, which has an **AMD Radeon RX 9070
+  XT** (RDNA 4), and parked. See "AV1: parked".
 
 ## Setting up (first session)
 
@@ -310,7 +313,7 @@ A share the server could watch is a security bug.
 
 ### Phase 5 (later)
 
-- **AV1:** being done next; see "Next: AV1 on the desktop".
+- **AV1:** parked until LiveKit can carry it encrypted; see "AV1: parked".
 - **Zero-copy:** capture with Windows.Graphics.Capture straight to a D3D11
   texture, convert to NV12 on the GPU (the D3D11 video processor), and give the
   encoder D3D11 samples through an `IMFDXGIDeviceManager`. This replaces
@@ -321,11 +324,87 @@ A share the server could watch is a security bug.
 - H264 High profile, once viewers can negotiate it (see Phase 1's profile
   note).
 
-## Next: AV1 on the desktop
+## AV1: parked
 
-Written Oct 5 2026, for an agent on the user's Windows desktop. Read the rest of
-this file first: AV1 follows the H264 path almost step for step, and the
-decisions, setup and rules above all hold.
+Decided with the user on Oct 5 2026, after steps 0 to 2 below and part of 3.
+**The encoder works; the problem is getting AV1 to viewers encrypted, and that
+is LiveKit's to fix, not Rift's.**
+
+What exists:
+- `encoder/media_foundation.rs` makes H264 or AV1 (`GpuCodec`), and
+  `encoder/av1.rs` reads AV1 frame headers.
+- `each_hardware_encoder_makes_one_shown_av1_frame_a_sample` passes on AMD.
+- The share itself is not offered AV1: `VideoCodec` has no `AV1`,
+  `gpu_codecs()` reports H264 only, and `GpuCodec::for_share` maps nothing to
+  AV1. So the app is as it was.
+
+What was found (RX 9070 XT, driver 32.0.31041.1004, debug build):
+- **The encoder is sound.**
+  - AMD writes plain low-overhead OBUs: a temporal delimiter, a sequence header
+    on keyframes, then one frame OBU.
+  - Every sample is one newly shown frame, and the keyframe flag matches the
+    frame header. ffmpeg decodes the stream, Main 4:2:0.
+  - Keyframes come when asked for.
+  - It follows live bitrate changes: 8 to 2 to 6 Mbps on the game clip, each
+    within about a second.
+  - CPU in the bench was about H264's: 55% of a core.
+- **Its rate control is not H264's.**
+  - It keeps `base_q_idx` fixed at 26 and moves per-block deltas instead.
+  - It reads back a quantiser floor but ignores it: the output is the same
+    byte for byte from 1 to 100.
+  - It gives the same output in CBR, peak-constrained and unconstrained VBR.
+  - Quality mode ignores the bitrate (77 Mbps whether asked for 8 or 2), so it
+    cannot be used.
+  - On a still picture it sends about 70-byte frames for four seconds, then
+    bursts and holds 1.5 Mbps on the unchanging picture. Any bitrate change
+    drops it back to 0.07 Mbps, and WebRTC changes the rate often, so the real
+    cost may be lower. In the bench, a still screen sent 1.4 Mbps against
+    H264's 0.18.
+- **Encrypted AV1 reaches no viewer.**
+  - Unencrypted, the Rust live test's viewer decoded every frame (177 of 177).
+  - With encryption, a viewer with the right key got none.
+  - libwebrtc's own libaom AV1 failed the same way through this SDK, so it is
+    not the GPU path.
+  - The server logged "sending PLI for layer lock" over and over, and the
+    sender made a keyframe on every request.
+- **Why, from LiveKit's sources (Oct 5 2026):**
+  - LiveKit's native frame cryptor (`frame_crypto_transformer.cc` in
+    webrtc-sdk, which the Rust, Flutter, Swift and Android SDKs share) leaves
+    no AV1 byte unencrypted.
+  - So the server can only find an AV1 keyframe through the Dependency
+    Descriptor RTP header extension, which travels outside the encrypted
+    payload.
+  - The JS SDK adds that extension to its offer for SVC codecs
+    (`ensureVideoDDExtension`).
+  - The Rust SDK does not, not even rust-sdks main as of Oct 3 2026. The
+    publisher's offer here had no Dependency Descriptor.
+  - The pass-through encoder already fills the AV1 frame information the
+    extension is built from (`passthrough_video_encoder.cpp`), so negotiating
+    it may be all the Rust side lacks. That is untried.
+- **Web viewers cannot have it at all:** the JS SDK's frame cryptor throws "av1
+  is not yet supported for end to end encryption". The Rust SDK has no backup
+  codec either, so a web viewer would see nothing.
+- LiveKit's AV1 tracking issue (livekit/livekit #942) lists the Rust-based SDKs
+  as not started.
+
+What would bring it back, in order:
+1. LiveKit's JS SDK encrypting AV1, without which web viewers see nothing.
+2. The Rust SDK negotiating the Dependency Descriptor for AV1. It might be
+   carried in `third_party` the way the frame-dropper fix is, if it comes
+   before LiveKit ships it.
+3. `live_gpu_av1_is_seen_with_the_key_and_by_nobody_else` passing. It is the
+   check, and it fails today.
+4. Then Step 3's wiring, Step 4's viewers, and the still-screen cost.
+
+AV1 hardware decoding is no reason to hurry: GPUs from before about 2020
+lack it, and older phones would decode in software.
+
+## AV1 on the desktop: the plan as written
+
+Written Oct 5 2026, for an agent on the user's Windows desktop, and followed
+as far as "AV1: parked" says. Read the rest of this file first: AV1 follows the
+H264 path almost step for step, and the decisions, setup and rules above all
+hold.
 
 ### Why AV1, and why there
 
@@ -354,11 +433,19 @@ decisions, setup and rules above all hold.
 - Fix anything AMD's H264 encoder does differently, and record it here. On
   Intel, these turned up: three-byte start codes, keyframes nobody asked for,
   and how the quantiser floor behaved.
+- **Done Oct 5 2026: AMD's H264 needed no change.** The RX 9070 XT (driver
+  32.0.31041.1004) passed the encoder test, the live tests including
+  encryption, and the bench, with the numbers in `TESTING.md`. Its rate
+  control held a moving game clip to the target. The encoder reads low latency
+  back as `-1`, which is a `VARIANT_TRUE`, not a refusal.
 - The laptop's test clips are not in the repository. Make one from any 1080p60
   video: `ffmpeg -i clip.mp4 -t 3 -vf scale=1920:1080 -r 60 -pix_fmt nv12 -f
   rawvideo clip.nv12`. Then set `GPU_ENCODER_SOURCE` to it.
-- A single-GPU desktop does not have the laptop's two-GPU problem (see the top
-  of this file).
+- The desktop has the CPU's own Radeon graphics beside the 9070 XT, and Media
+  Foundation lists AMD's H264 encoder three times, all named the same and none
+  carrying an adapter LUID. Each opened in a test process and made the same
+  stream byte for byte, so which GPU each one is was not settled. Unlike the
+  laptop's NVIDIA encoder, none refused to open.
 
 ### Step 1: is there an AV1 encoder in Media Foundation?
 
@@ -368,6 +455,11 @@ decisions, setup and rules above all hold.
 - **If AMD offers no AV1 encoder there, stop and ask the user.** AV1 would then
   be reachable only through AMD's own SDK (AMF), which is a second encoder
   backend. Do not add that on your own.
+- **Answered Oct 5 2026: it does.** On driver 32.0.31041.1004, a hardware
+  NV12-to-AV1 listing returns one encoder, `AMDav1Encoder` (`VEN_1002`), and it
+  activates. No AMF backend is needed. Asked for everything, Media Foundation
+  lists no software AV1 encoder there, so nothing on the CPU can be picked up
+  by mistake.
 
 ### Step 2: the encoder
 

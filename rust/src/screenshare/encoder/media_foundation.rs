@@ -1,12 +1,15 @@
-//! H264 on the GPU through Media Foundation's hardware encoders.
+//! H264 and AV1 on the GPU through Media Foundation's hardware encoders.
 //!
 //! A hardware encoder is an asynchronous transform: it says when it wants a
 //! picture and when it has output, as events. It runs on a thread of its own,
 //! which owns every COM object here, so nothing crosses threads but plain
 //! bytes. Pictures come in on a short queue, newest kept; output goes straight
-//! to the [`EncodedSink`].
+//! to the [`EncodedSink`]. The two codecs differ only in what is asked of the
+//! encoder (output type, profile, quantiser floor) and in how a keyframe is
+//! told from its bytes.
+use super::av1;
 use super::h264::{self, ParameterSets};
-use super::{clamp_bitrate, Encoded, EncodedSink, EncoderSettings, Nv12Frame};
+use super::{clamp_bitrate, Encoded, EncodedSink, EncoderSettings, GpuCodec, Nv12Frame};
 use std::mem::ManuallyDrop;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, SyncSender, TrySendError};
@@ -39,7 +42,28 @@ const GOP_SECONDS: u32 = 60;
 /// content never reaches the floor at a share's rates (NVIDIA's output on the
 /// test clip was the same byte for byte), and Intel's settles either way.
 /// Measured Oct 5 2026.
-const MIN_QP: u32 = 18;
+const H264_MIN_QP: u32 = 18;
+
+/// The quantiser floor for `codec`, on the scale its encoder takes.
+///
+/// None for AV1: AMD's encoder (RX 9070 XT, Oct 5 2026) takes a floor and
+/// reads it back, but its output is the same byte for byte from 1 to 100,
+/// whether set before the media types or after. It keeps base_q_idx fixed and
+/// rate-controls with per-block deltas, which the floor does not reach.
+fn min_qp(codec: GpuCodec) -> Option<u32> {
+    match codec {
+        GpuCodec::H264 => Some(H264_MIN_QP),
+        GpuCodec::Av1 => None,
+    }
+}
+
+/// The Media Foundation subtype an encoder outputs for `codec`.
+fn subtype(codec: GpuCodec) -> GUID {
+    match codec {
+        GpuCodec::H264 => MFVideoFormat_H264,
+        GpuCodec::Av1 => MFVideoFormat_AV1,
+    }
+}
 
 /// Media Foundation's time unit is 100 ns.
 const TICKS_PER_MICROSECOND: i64 = 10;
@@ -83,16 +107,16 @@ impl Drop for MediaFoundation {
     }
 }
 
-/// The hardware encoders that take NV12 and make H264, best first, as Media
-/// Foundation sorts them.
-fn h264_activates() -> Result<Vec<IMFActivate>, String> {
+/// The hardware encoders that take NV12 and make `codec`, best first, as
+/// Media Foundation sorts them.
+fn activates(codec: GpuCodec) -> Result<Vec<IMFActivate>, String> {
     let input = MFT_REGISTER_TYPE_INFO {
         guidMajorType: MFMediaType_Video,
         guidSubtype: MFVideoFormat_NV12,
     };
     let output = MFT_REGISTER_TYPE_INFO {
         guidMajorType: MFMediaType_Video,
-        guidSubtype: MFVideoFormat_H264,
+        guidSubtype: subtype(codec),
     };
     let mut found: *mut Option<IMFActivate> = std::ptr::null_mut();
     let mut count = 0u32;
@@ -141,10 +165,10 @@ fn info(activate: &IMFActivate) -> EncoderInfo {
     }
 }
 
-/// Whether one of the hardware H264 encoders will actually open here. Listing
-/// is not enough: on a laptop with two GPUs, NVIDIA's is listed but only
-/// activates in a process Windows runs on the NVIDIA one.
-pub(crate) fn opens_h264() -> bool {
+/// Whether one of the hardware encoders for `codec` will actually open here.
+/// Listing is not enough: on a laptop with two GPUs, NVIDIA's is listed but
+/// only activates in a process Windows runs on the NVIDIA one.
+pub(crate) fn opens(codec: GpuCodec) -> bool {
     let _mf = match MediaFoundation::start() {
         Ok(mf) => mf,
         Err(reason) => {
@@ -152,22 +176,22 @@ pub(crate) fn opens_h264() -> bool {
             return false;
         }
     };
-    let Ok(activates) = h264_activates() else {
+    let Ok(activates) = activates(codec) else {
         return false;
     };
     activates.iter().any(|activate| unsafe {
         let opened = activate.ActivateObject::<IMFTransform>().is_ok();
         let _ = activate.ShutdownObject();
         if opened {
-            log::info!("encoder: {} encodes H264 here", info(activate).name);
+            log::info!("encoder: {} encodes {codec} here", info(activate).name);
         }
         opened
     })
 }
 
-/// The hardware H264 encoders on this machine, best first.
+/// The hardware encoders for `codec` on this machine, best first.
 #[cfg(test)]
-pub(crate) fn hardware_h264_encoders() -> Vec<EncoderInfo> {
+pub(crate) fn hardware_encoders(codec: GpuCodec) -> Vec<EncoderInfo> {
     let _mf = match MediaFoundation::start() {
         Ok(mf) => mf,
         Err(reason) => {
@@ -175,7 +199,7 @@ pub(crate) fn hardware_h264_encoders() -> Vec<EncoderInfo> {
             return Vec::new();
         }
     };
-    match h264_activates() {
+    match activates(codec) {
         Ok(activates) => activates.iter().map(info).collect(),
         Err(reason) => {
             log::warn!("encoder: {reason}");
@@ -199,7 +223,7 @@ pub(crate) struct GpuEncoder {
 
 impl GpuEncoder {
     /// Open the first hardware encoder that takes these settings, or the
-    /// `only`th of [`hardware_h264_encoders`] when one is named, and start
+    /// `only`th of [`hardware_encoders`] when one is named, and start
     /// feeding `sink`.
     pub(crate) fn open(
         settings: EncoderSettings,
@@ -329,11 +353,17 @@ fn encoder_thread(
 fn open_transform(settings: EncoderSettings, only: Option<usize>) -> Result<Transform, String> {
     #[cfg(test)]
     if super::test_hooks::NO_GPU.load(Ordering::Relaxed) {
-        return Err("This computer has no hardware H264 encoder (a test said so)".to_string());
+        return Err(format!(
+            "This computer has no hardware {} encoder (a test said so)",
+            settings.codec
+        ));
     }
-    let activates = h264_activates()?;
+    let activates = activates(settings.codec)?;
     if activates.is_empty() {
-        return Err("This computer has no hardware H264 encoder".to_string());
+        return Err(format!(
+            "This computer has no hardware {} encoder",
+            settings.codec
+        ));
     }
     let mut reasons = Vec::new();
     for (index, activate) in activates.into_iter().enumerate() {
@@ -344,9 +374,10 @@ fn open_transform(settings: EncoderSettings, only: Option<usize>) -> Result<Tran
         match Transform::open(activate.clone(), info.clone(), settings) {
             Ok(transform) => {
                 log::info!(
-                    "encoder: opened {} ({}) for {}x{} at {} fps, up to {} bps, {}",
+                    "encoder: opened {} ({}) for {} {}x{} at {} fps, up to {} bps, {}",
                     info.name,
                     info.vendor,
+                    settings.codec,
                     settings.width,
                     settings.height,
                     settings.fps,
@@ -369,7 +400,8 @@ fn open_transform(settings: EncoderSettings, only: Option<usize>) -> Result<Tran
         }
     }
     Err(format!(
-        "No hardware H264 encoder opened ({})",
+        "No hardware {} encoder opened ({})",
+        settings.codec,
         reasons.join("; ")
     ))
 }
@@ -464,19 +496,23 @@ impl Transform {
                     "constant bitrate",
                 );
             }
-            optional(
-                &CODECAPI_AVEncVideoMinQP,
-                VARIANT::from(MIN_QP),
-                "a quantiser floor",
-            );
+            if let Some(floor) = min_qp(settings.codec) {
+                optional(
+                    &CODECAPI_AVEncVideoMinQP,
+                    VARIANT::from(floor),
+                    "a quantiser floor",
+                );
+            }
             optional(
                 &CODECAPI_AVLowLatencyMode,
                 VARIANT::from(true),
                 "low latency",
             );
-            // WebRTC cannot carry B-frames. The baseline profile asked for
-            // below has none either, so an encoder that will not take this
-            // (NVIDIA's, Oct 4 2026) is still safe.
+            // WebRTC cannot carry B-frames, nor AV1's frames held back to be
+            // shown later. H264's baseline profile asked for below has no
+            // B-frames either, so an H264 encoder that will not take this
+            // (NVIDIA's, Oct 4 2026) is still safe; AV1's output is checked
+            // for hidden frames by the encoder test.
             optional(
                 &CODECAPI_AVEncMPVDefaultBPictureCount,
                 VARIANT::from(0u32),
@@ -499,7 +535,10 @@ impl Transform {
                 "a peak bitrate",
             );
 
-            let profile = step("the H264 output", set_output_type(&transform, settings))?;
+            let profile = step(
+                &format!("the {} output", settings.codec),
+                set_output_type(&transform, settings),
+            )?;
             step("the NV12 input", set_input_type(&transform, settings))?;
             log::info!(
                 "encoder: {} holds rate control {}, {} bps, QP from {}, low latency {}, GOP {}",
@@ -721,10 +760,21 @@ impl Transform {
                 return Ok(());
             }
             let clean_point = sample.GetUINT32(&MFSampleExtension_CleanPoint).unwrap_or(0) != 0;
-            let keyframe = clean_point || h264::is_idr(&payload);
             let timestamp_us = sample.GetSampleTime()? / TICKS_PER_MICROSECOND;
-            let payload = self.parameter_sets.complete(payload);
+            let (payload, keyframe) = match self.settings.codec {
+                GpuCodec::H264 => {
+                    let keyframe = clean_point || h264::is_idr(&payload);
+                    (self.parameter_sets.complete(payload), keyframe)
+                }
+                // LiveKit's pass-through puts the sequence header back on a
+                // keyframe that lacks one, so nothing is kept here.
+                GpuCodec::Av1 => {
+                    let keyframe = clean_point || av1::is_keyframe(&payload);
+                    (payload, keyframe)
+                }
+            };
             sink.deliver(Encoded {
+                codec: self.settings.codec,
                 payload: &payload,
                 timestamp_us,
                 keyframe,
@@ -751,28 +801,41 @@ impl Drop for Transform {
     }
 }
 
-/// H264 out, in the profile WebRTC offers for a pre-encoded track
-/// (constrained baseline, `42e01f`), or plain baseline from an encoder that
-/// does not name the constrained one: a hardware encoder uses none of the
-/// tools that separate them.
+/// The profiles to ask for, best first, with their names for the log.
+///
+/// H264 in the profile WebRTC offers for a pre-encoded track (constrained
+/// baseline, `42e01f`), or plain baseline from an encoder that does not name
+/// the constrained one: a hardware encoder uses none of the tools that
+/// separate them. AV1 in Main, 8-bit 4:2:0, the only profile LiveKit's
+/// pass-through offers (`AV1Profile0`).
+fn profiles(codec: GpuCodec) -> &'static [(u32, &'static str)] {
+    match codec {
+        GpuCodec::H264 => &[
+            (
+                eAVEncH264VProfile_ConstrainedBase.0 as u32,
+                "constrained baseline",
+            ),
+            (eAVEncH264VProfile_Base.0 as u32, "baseline"),
+        ],
+        GpuCodec::Av1 => &[(eAVEncAV1VProfile_Main_420_8.0 as u32, "main 8-bit 4:2:0")],
+    }
+}
+
 unsafe fn set_output_type(
     transform: &IMFTransform,
     settings: EncoderSettings,
 ) -> windows::core::Result<&'static str> {
     let mut last = None;
-    for (profile, name) in [
-        (eAVEncH264VProfile_ConstrainedBase, "constrained baseline"),
-        (eAVEncH264VProfile_Base, "baseline"),
-    ] {
+    for &(profile, name) in profiles(settings.codec) {
         let media = MFCreateMediaType()?;
         media.SetGUID(&MF_MT_MAJOR_TYPE, &MFMediaType_Video)?;
-        media.SetGUID(&MF_MT_SUBTYPE, &MFVideoFormat_H264)?;
+        media.SetGUID(&MF_MT_SUBTYPE, &subtype(settings.codec))?;
         media.SetUINT32(&MF_MT_AVG_BITRATE, settings.max_bitrate_bps)?;
         media.SetUINT64(&MF_MT_FRAME_SIZE, pack(settings.width, settings.height))?;
         media.SetUINT64(&MF_MT_FRAME_RATE, pack(settings.fps, 1))?;
         media.SetUINT64(&MF_MT_PIXEL_ASPECT_RATIO, pack(1, 1))?;
         media.SetUINT32(&MF_MT_INTERLACE_MODE, MFVideoInterlace_Progressive.0 as u32)?;
-        media.SetUINT32(&MF_MT_MPEG2_PROFILE, profile.0 as u32)?;
+        media.SetUINT32(&MF_MT_MPEG2_PROFILE, profile)?;
         match transform.SetOutputType(0, &media, 0) {
             Ok(()) => return Ok(name),
             Err(e) => last = Some(e),
@@ -838,24 +901,37 @@ mod tests {
         }
     }
 
-    #[test]
-    #[ignore = "needs a hardware H264 encoder"]
-    fn each_hardware_encoder_makes_decodable_h264() {
+    /// What one encoder made of the test's pictures.
+    struct Run {
+        index: usize,
+        name: String,
+        frames: Vec<(Vec<u8>, bool)>,
+    }
+
+    /// Run each hardware encoder for `codec` on 180 pictures, the moving one
+    /// or `GPU_ENCODER_SOURCE`'s, asking for a keyframe at the 90th, and
+    /// check what any codec has to do. Writes each stream to
+    /// `GPU_ENCODER_DUMP` if that is set.
+    fn encode_with_each(codec: GpuCodec) -> Vec<Run> {
         let _ = env_logger::builder()
             .is_test(true)
             .filter_level(log::LevelFilter::Info)
             .try_init();
-        let encoders = hardware_h264_encoders();
-        log::info!("hardware H264 encoders: {encoders:?}");
-        assert!(!encoders.is_empty(), "no hardware H264 encoder here");
+        let encoders = hardware_encoders(codec);
+        log::info!("hardware {codec} encoders: {encoders:?}");
+        assert!(!encoders.is_empty(), "no hardware {codec} encoder here");
         let settings = EncoderSettings {
+            codec,
             width: 1920,
             height: 1080,
             fps: 60,
             max_bitrate_bps: 8_000_000,
             start_bitrate_bps: 8_000_000,
         };
-        let mut worked = 0;
+        let source = std::env::var("GPU_ENCODER_SOURCE")
+            .ok()
+            .map(|path| std::fs::read(path).unwrap());
+        let mut runs = Vec::new();
         for (index, encoder) in encoders.iter().enumerate() {
             let frames = Arc::new(Mutex::new(Vec::new()));
             let want_keyframe = Arc::new(AtomicBool::new(false));
@@ -879,9 +955,6 @@ mod tests {
                 Err(e) => panic!("{}: {e}", encoder.name),
             };
             let started = Instant::now();
-            let source = std::env::var("GPU_ENCODER_SOURCE")
-                .ok()
-                .map(|path| std::fs::read(path).unwrap());
             for n in 0..180u32 {
                 let len = Nv12Frame::len_for(settings.width, settings.height);
                 let mut data = gpu.buffer(len);
@@ -906,7 +979,7 @@ mod tests {
             std::thread::sleep(Duration::from_millis(200));
             let failed = gpu.failed();
             drop(gpu);
-            let frames = frames.lock().unwrap();
+            let frames = std::mem::take(&mut *frames.lock().unwrap());
             let keyframes: Vec<usize> = frames
                 .iter()
                 .enumerate()
@@ -939,28 +1012,74 @@ mod tests {
                 "{} made the keyframe asked for",
                 encoder.name
             );
-            let first = &frames[0].0;
+            if let Ok(dir) = std::env::var("GPU_ENCODER_DUMP") {
+                let stream: Vec<u8> = frames.iter().flat_map(|(p, _)| p.iter().copied()).collect();
+                let extension = match codec {
+                    GpuCodec::H264 => "h264",
+                    GpuCodec::Av1 => "obu",
+                };
+                let path = format!("{dir}/gpu-{index}.{extension}");
+                std::fs::write(&path, stream).unwrap();
+                log::info!("wrote {path}");
+            }
+            runs.push(Run {
+                index,
+                name: encoder.name.clone(),
+                frames,
+            });
+        }
+        assert!(!runs.is_empty(), "no hardware {codec} encoder worked");
+        runs
+    }
+
+    #[test]
+    #[ignore = "needs a hardware H264 encoder"]
+    fn each_hardware_encoder_makes_decodable_h264() {
+        for run in encode_with_each(GpuCodec::H264) {
+            let first = &run.frames[0].0;
             let kinds: Vec<u8> = h264::nal_units(first).iter().map(|&(k, _)| k).collect();
             assert!(
                 kinds.contains(&7) && kinds.contains(&8),
                 "{}: first frame has SPS and PPS: {kinds:?}",
-                encoder.name
+                run.name
             );
-            for &k in &keyframes {
-                let kinds: Vec<u8> = h264::nal_units(&frames[k].0)
-                    .iter()
-                    .map(|&(k, _)| k)
-                    .collect();
+            for (k, (payload, key)) in run.frames.iter().enumerate() {
+                if !key {
+                    continue;
+                }
+                let kinds: Vec<u8> = h264::nal_units(payload).iter().map(|&(k, _)| k).collect();
                 assert!(kinds.contains(&7), "keyframe {k} carries an SPS: {kinds:?}");
             }
-            if let Ok(dir) = std::env::var("GPU_ENCODER_DUMP") {
-                let stream: Vec<u8> = frames.iter().flat_map(|(p, _)| p.iter().copied()).collect();
-                let path = format!("{dir}/gpu-{index}.h264");
-                std::fs::write(&path, stream).unwrap();
-                log::info!("wrote {path}");
-            }
-            worked += 1;
         }
-        assert!(worked > 0, "no hardware encoder worked");
+    }
+
+    /// Ffprobe's `-bsf:v trace_headers` on the dump shows the same headers
+    /// in full.
+    #[test]
+    #[ignore = "needs a hardware AV1 encoder"]
+    fn each_hardware_encoder_makes_one_shown_av1_frame_a_sample() {
+        for run in encode_with_each(GpuCodec::Av1) {
+            assert!(
+                av1::has_sequence_header(&run.frames[0].0),
+                "{}: the first frame carries a sequence header",
+                run.name
+            );
+            for (n, (payload, key)) in run.frames.iter().enumerate() {
+                let headers = av1::frame_headers(payload);
+                // WebRTC sends a sample as one picture: anything else reaches
+                // the viewer out of step.
+                assert!(
+                    headers.len() == 1 && headers[0].shown && !headers[0].existing,
+                    "{} (encoder {}): frame {n} is one newly shown picture: {headers:?}",
+                    run.name,
+                    run.index
+                );
+                assert_eq!(
+                    *key, headers[0].keyframe,
+                    "{}: frame {n}'s keyframe flag matches its header",
+                    run.name
+                );
+            }
+        }
     }
 }

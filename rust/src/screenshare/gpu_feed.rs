@@ -1,7 +1,9 @@
 //! The GPU path of a share: pictures in NV12 to the hardware encoder, its
-//! H264 out to a pre-encoded LiveKit source, and WebRTC's keyframe and
+//! H264 or AV1 out to a pre-encoded LiveKit source, and WebRTC's keyframe and
 //! bitrate requests back the other way.
-use super::encoder::{h264, Encoded, EncodedSink, EncoderSettings, GpuEncoder, Nv12Frame};
+use super::encoder::{
+    h264, Encoded, EncodedSink, EncoderSettings, GpuCodec, GpuEncoder, Nv12Frame,
+};
 use super::resolution::Size;
 use livekit::webrtc::native::yuv_helper;
 use livekit::webrtc::prelude::I420Buffer;
@@ -19,30 +21,20 @@ pub(crate) struct GpuFeed {
 }
 
 impl GpuFeed {
-    /// Open the first hardware encoder that takes `target` at this rate,
-    /// feeding `source`, starting at `start_bitrate_bps` until WebRTC asks
-    /// for another. Blocks while the encoder opens.
+    /// Open the first hardware encoder that takes these settings, feeding
+    /// `source`. Blocks while the encoder opens.
     pub(crate) fn open(
         source: &NativeVideoSource,
-        target: Size,
-        fps: u32,
-        max_bitrate_bps: u32,
-        start_bitrate_bps: u32,
+        settings: EncoderSettings,
         on_failed: Box<dyn Fn() + Send + Sync>,
     ) -> Result<GpuFeed, String> {
         let encoder = GpuEncoder::open(
-            EncoderSettings {
-                width: target.width,
-                height: target.height,
-                fps,
-                max_bitrate_bps,
-                start_bitrate_bps,
-            },
+            settings,
             Box::new(SourceSink {
                 source: source.clone(),
                 resolution: VideoResolution {
-                    width: target.width,
-                    height: target.height,
+                    width: settings.width,
+                    height: settings.height,
                 },
             }),
             None,
@@ -136,10 +128,17 @@ impl EncodedSink for SourceSink {
     fn deliver(&mut self, frame: Encoded<'_>) {
         #[cfg(test)]
         DELIVERED.fetch_add(1, Ordering::Relaxed);
-        // So the receiver authenticates the same bytes the sender encrypted.
-        let long = h264::with_long_start_codes(frame.payload);
+        let (codec, long) = match frame.codec {
+            // So the receiver authenticates the same bytes the sender
+            // encrypted.
+            GpuCodec::H264 => (
+                EncodedVideoCodec::H264,
+                h264::with_long_start_codes(frame.payload),
+            ),
+            GpuCodec::Av1 => (EncodedVideoCodec::AV1, None),
+        };
         self.source.capture_encoded_frame(&EncodedVideoFrame {
-            codec: EncodedVideoCodec::H264,
+            codec,
             payload: long.as_deref().unwrap_or(frame.payload),
             timestamp_us: frame.timestamp_us,
             frame_type: if frame.keyframe {

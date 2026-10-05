@@ -2,9 +2,11 @@
 //! encoders would spend the CPU a game needs (`GPU_ENCODING.md`).
 //!
 //! Windows only for now: LiveKit has no hardware encoder there, and Media
-//! Foundation reaches NVIDIA's, AMD's and Intel's alike. H264 is only ever
-//! encoded by the GPU or the OS, never by Rift itself (decision 1 of the plan).
+//! Foundation reaches NVIDIA's, AMD's and Intel's alike. H264 and AV1 are only
+//! ever encoded by the GPU or the OS, never by Rift itself (decision 1 of the
+//! plan).
 #![cfg_attr(not(target_os = "windows"), allow(dead_code))]
+pub(crate) mod av1;
 pub(crate) mod h264;
 #[cfg(target_os = "windows")]
 mod media_foundation;
@@ -12,6 +14,35 @@ mod media_foundation;
 pub(crate) use media_foundation::GpuEncoder;
 
 use crate::api::screenshare::types::VideoCodec;
+
+/// What the GPU encoder can be asked to make.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum GpuCodec {
+    H264,
+    Av1,
+}
+
+impl GpuCodec {
+    /// The GPU codec for a share's codec, if the GPU is what makes it. VP8
+    /// and VP9 stay with libwebrtc's encoders on the CPU. AV1 is not a share
+    /// codec yet: viewers cannot get it encrypted (`GPU_ENCODING.md`, "AV1:
+    /// parked").
+    pub(crate) fn for_share(codec: VideoCodec) -> Option<GpuCodec> {
+        match codec {
+            VideoCodec::H264 => Some(GpuCodec::H264),
+            VideoCodec::VP8 | VideoCodec::VP9 => None,
+        }
+    }
+}
+
+impl std::fmt::Display for GpuCodec {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            GpuCodec::H264 => "H264",
+            GpuCodec::Av1 => "AV1",
+        })
+    }
+}
 
 /// The codecs Rift's own encoder can make on this computer's GPU. Opening an
 /// encoder to find out takes a moment, and the GPUs do not change under a
@@ -22,7 +53,7 @@ pub(crate) fn gpu_codecs() -> Vec<VideoCodec> {
         static CODECS: std::sync::OnceLock<Vec<VideoCodec>> = std::sync::OnceLock::new();
         CODECS
             .get_or_init(|| {
-                if media_foundation::opens_h264() {
+                if media_foundation::opens(GpuCodec::H264) {
                     vec![VideoCodec::H264]
                 } else {
                     Vec::new()
@@ -55,6 +86,7 @@ const MIN_BITRATE_BPS: u32 = 150_000;
 /// What the encoder is opened for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct EncoderSettings {
+    pub codec: GpuCodec,
     pub width: u32,
     pub height: u32,
     pub fps: u32,
@@ -80,8 +112,10 @@ impl Nv12Frame {
     }
 }
 
-/// One access unit out of the encoder, as Annex B.
+/// One frame out of the encoder: an access unit in Annex B for H264, a
+/// temporal unit of OBUs for AV1.
 pub(crate) struct Encoded<'a> {
+    pub codec: GpuCodec,
     pub payload: &'a [u8],
     pub timestamp_us: i64,
     pub keyframe: bool,

@@ -1,6 +1,8 @@
 //! One screen share at a time: bringing it up, and taking it down again.
 use super::capture::{self, Capture, CaptureRequest, Feed, Progress, Started, VideoSlot};
 #[cfg(target_os = "windows")]
+use super::encoder::{EncoderSettings, GpuCodec};
+#[cfg(target_os = "windows")]
 use super::gpu_feed::GpuFeed;
 use super::resolution::{target_size, Size};
 use super::track::{publish_video_track, TrackSettings};
@@ -400,6 +402,7 @@ impl Video {
             if settings.fps > published_fps {
                 return None;
             }
+            let codec = GpuCodec::for_share(settings.codec)?;
             let native = self.slot.native()?;
             let target = target_size(native, settings.max_height);
             log::info!(
@@ -414,15 +417,13 @@ impl Video {
             *self.gpu.lock().unwrap() = None;
             drop(old);
             let fed = source.clone();
-            let max_bitrate = settings.bitrate.saturating_mul(1_000_000);
+            let encoder = encoder_settings(codec, target, &settings, start);
             let on_failed = self.on_gpu_failed();
-            let fps = settings.fps;
-            let opened = tokio::task::spawn_blocking(move || {
-                GpuFeed::open(&fed, target, fps, max_bitrate, start, on_failed)
-            })
-            .await
-            .map_err(|e| format!("The GPU encoder did not open: {e}"))
-            .and_then(|opened| opened);
+            let opened =
+                tokio::task::spawn_blocking(move || GpuFeed::open(&fed, encoder, on_failed))
+                    .await
+                    .map_err(|e| format!("The GPU encoder did not open: {e}"))
+                    .and_then(|opened| opened);
             match opened {
                 Ok(feed) => {
                     let feed = Arc::new(feed);
@@ -490,8 +491,8 @@ impl Video {
         // H264 on Windows comes from the GPU or not at all (GPU_ENCODING.md,
         // decision 1): without one the share goes out as VP9.
         #[cfg(target_os = "windows")]
-        if settings.codec == VideoCodec::H264 {
-            match self.publish_from_gpu(target, &settings).await {
+        if let Some(codec) = GpuCodec::for_share(settings.codec) {
+            match self.publish_from_gpu(target, codec, &settings).await {
                 Ok(sid) => {
                     *track = Some(sid);
                     announce_picture(&self.participant, target, settings.fps);
@@ -523,6 +524,7 @@ impl Video {
     async fn publish_from_gpu(
         &self,
         target: Size,
+        codec: GpuCodec,
         settings: &TrackSettings,
     ) -> Result<TrackSid, String> {
         let source = NativeVideoSource::new_encoded(VideoResolution {
@@ -530,14 +532,11 @@ impl Video {
             height: target.height,
         });
         let fed = source.clone();
-        let fps = settings.fps;
-        let max_bitrate = settings.bitrate.saturating_mul(1_000_000);
+        let encoder = encoder_settings(codec, target, settings, START_BITRATE_BPS);
         let on_failed = self.on_gpu_failed();
-        let feed = tokio::task::spawn_blocking(move || {
-            GpuFeed::open(&fed, target, fps, max_bitrate, START_BITRATE_BPS, on_failed)
-        })
-        .await
-        .map_err(|e| format!("The GPU encoder did not open: {e}"))??;
+        let feed = tokio::task::spawn_blocking(move || GpuFeed::open(&fed, encoder, on_failed))
+            .await
+            .map_err(|e| format!("The GPU encoder did not open: {e}"))??;
         log::info!("screenshare: encoding on {}", feed.name());
         let feed = Arc::new(feed);
         self.slot.attach(Feed::Gpu(feed.clone()), target);
@@ -579,6 +578,25 @@ impl Video {
                 }
             });
         })
+    }
+}
+
+/// What a share's encoder is opened for: `codec` at the target size and the
+/// share's rate, held to its cap, starting at `start_bitrate_bps`.
+#[cfg(target_os = "windows")]
+fn encoder_settings(
+    codec: GpuCodec,
+    target: Size,
+    settings: &TrackSettings,
+    start_bitrate_bps: u32,
+) -> EncoderSettings {
+    EncoderSettings {
+        codec,
+        width: target.width,
+        height: target.height,
+        fps: settings.fps,
+        max_bitrate_bps: settings.bitrate.saturating_mul(1_000_000),
+        start_bitrate_bps,
     }
 }
 
