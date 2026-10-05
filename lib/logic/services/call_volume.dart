@@ -12,20 +12,36 @@ abstract final class CallVolume {
   /// The top of both sliders, as they read: 200%.
   static double get max => kIsWeb ? 1.0 : 2.0;
 
+  /// What either slider plays at below 100%: its reading, cubed.
+  ///
+  /// Ears hear loudness by ratio, so a straight line left 50% only 6 dB
+  /// down — barely quieter than 100% — and put nearly all the change in the
+  /// last quarter of the track. Cubed, 75% is 7.5 dB down and 50% is 18:
+  /// the curve PulseAudio's own sliders use. 100% is untouched either way.
+  static double _below100(double shown) => shown * shown * shown;
+
   /// What the call volume plays at, from what its slider reads.
   ///
-  /// Up to 100% the two agree. Above it, each step on the slider is three:
+  /// Up to 100% as [_below100]. Above it, each step on the slider is three:
   /// the slider's 200% plays at 400%. Calls were quiet beside everything else
   /// on the machine and 200% was not enough, but a longer scale would have
   /// crowded the useful half of the track. A person's own volume is not
   /// stretched: with both at the top a voice plays at 8×, inside libwebrtc's
   /// 10×.
   static double outputGain(double shown) =>
-      shown <= 1 ? shown : 1 + (shown - 1) * 3;
+      shown <= 1 ? _below100(shown) : 1 + (shown - 1) * 3;
+
+  /// What a person's (or a share's) own volume plays at: as [_below100] up
+  /// to 100%, and as it reads above.
+  static double personGain(double shown) =>
+      shown <= 1 ? _below100(shown) : shown;
 
   /// A person's (or a share's) own volume times the volume for every call,
   /// [output]; nothing while it is muted.
   static double of(ParticipantSetting setting, double output) => setting.muted
       ? 0
-      : (setting.volume * outputGain(output)).clamp(0.0, max * outputGain(max));
+      : (personGain(setting.volume) * outputGain(output)).clamp(
+          0.0,
+          max * outputGain(max),
+        );
 }

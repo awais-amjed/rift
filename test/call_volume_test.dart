@@ -8,9 +8,15 @@ void main() {
     expect(CallVolume.max, 2.0);
   });
 
-  test('the call volume plays as it reads up to 100%, then three for one', () {
+  test('below 100% both sliders play their reading cubed', () {
     const asSent = ParticipantSetting();
-    expect(CallVolume.of(asSent, 0.5), 0.5);
+    expect(CallVolume.of(asSent, 0.5), 0.125);
+    expect(CallVolume.of(const ParticipantSetting(volume: 0.5), 1.0), 0.125);
+    expect(CallVolume.of(asSent, 0), 0);
+  });
+
+  test('the call volume plays 100% as it reads, then three for one', () {
+    const asSent = ParticipantSetting();
     expect(CallVolume.of(asSent, 1.0), 1.0);
     expect(CallVolume.of(asSent, 1.5), 2.5);
     expect(CallVolume.of(asSent, 2.0), 4.0);
@@ -20,7 +26,7 @@ void main() {
     const loud = ParticipantSetting(volume: 2.0);
     expect(CallVolume.of(loud, 1.0), 2.0);
     expect(CallVolume.of(loud, 2.0), 8.0);
-    expect(CallVolume.of(const ParticipantSetting(volume: 0.5), 1.0), 0.5);
+    expect(CallVolume.of(loud, 0.5), 0.25);
   });
 
   test('both at the top stay inside the 10x libwebrtc allows', () {
