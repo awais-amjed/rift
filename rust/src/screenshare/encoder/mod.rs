@@ -46,9 +46,14 @@ impl std::fmt::Display for GpuCodec {
     }
 }
 
-/// The codecs Rift's own encoder can make on this computer's GPU. Opening an
-/// encoder to find out takes a moment, and the GPUs do not change under a
-/// running app, so the first answer is kept.
+/// The codecs this computer's GPU can make a share in. Opening an encoder to
+/// find out takes a moment, and the GPUs do not change under a running app,
+/// so the first answer is kept.
+///
+/// On Windows that is Rift's own encoder. On Linux it is LiveKit's: VAAPI
+/// (Intel, AMD) or NVENC (NVIDIA), whichever it lists as working; without
+/// one LiveKit would make H264 with OpenH264 on the CPU, which Rift never
+/// does.
 pub(crate) fn gpu_codecs() -> Vec<VideoCodec> {
     #[cfg(target_os = "windows")]
     {
@@ -63,10 +68,44 @@ pub(crate) fn gpu_codecs() -> Vec<VideoCodec> {
             })
             .clone()
     }
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "linux")]
+    {
+        static CODECS: std::sync::OnceLock<Vec<VideoCodec>> = std::sync::OnceLock::new();
+        CODECS
+            .get_or_init(|| {
+                let backends: Vec<_> = livekit::options::VideoEncoderBackend::list_available()
+                    .into_iter()
+                    .collect();
+                log::info!("encoder: LiveKit lists {backends:?}");
+                if backends.iter().copied().any(is_gpu_backend) {
+                    vec![VideoCodec::H264]
+                } else {
+                    Vec::new()
+                }
+            })
+            .clone()
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
     {
         Vec::new()
     }
+}
+
+/// Whether one of LiveKit's encoder backends is a GPU's.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+fn is_gpu_backend(backend: livekit::options::VideoEncoderBackend) -> bool {
+    use livekit::options::VideoEncoderBackend;
+    matches!(
+        backend,
+        VideoEncoderBackend::Vaapi | VideoEncoderBackend::Nvenc
+    )
+}
+
+/// Whether the encoder WebRTC names in a track's stats is a GPU's H264:
+/// LiveKit's VAAPI or NVENC one, rather than the OpenH264 it falls back to.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+pub(crate) fn is_gpu_h264(implementation: &str) -> bool {
+    implementation.contains("VAAPI") || implementation.contains("NVIDIA")
 }
 
 /// Ways for a test to make the GPU misbehave: be absent, or stop working
@@ -164,6 +203,18 @@ mod tests {
     #[test]
     fn a_cap_under_the_floor_wins() {
         assert_eq!(clamp_bitrate(0, 100_000), 100_000);
+    }
+
+    #[test]
+    fn only_a_gpu_encoder_counts_as_the_gpu() {
+        assert!(is_gpu_h264("VAAPI H264 Encoder"));
+        assert!(is_gpu_h264("NVIDIA H264 Encoder"));
+        assert!(!is_gpu_h264("OpenH264"));
+        assert!(!is_gpu_h264(""));
+        use livekit::options::VideoEncoderBackend;
+        assert!(is_gpu_backend(VideoEncoderBackend::Vaapi));
+        assert!(!is_gpu_backend(VideoEncoderBackend::Software));
+        assert!(!is_gpu_backend(VideoEncoderBackend::Hardware));
     }
 
     #[test]

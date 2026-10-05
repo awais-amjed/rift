@@ -53,10 +53,13 @@ class HostPlatform {
       !kIsWeb && Platform.isWindows;
 
   /// Whether H264 is only ever encoded on the GPU here, never on the CPU
-  /// (`ARCHITECTURE.md`, "Encoding a share on the GPU"). On Windows Rift
-  /// encodes it itself through Media Foundation, so the codec is offered only
-  /// where a GPU encoder opens; elsewhere LiveKit chooses its own encoder.
-  static bool get encodesH264OnGpuOnly => !kIsWeb && Platform.isWindows;
+  /// (`ARCHITECTURE.md`, "Encoding a share on the GPU"), so the codec is
+  /// offered only where a GPU encoder works. On Windows Rift encodes it
+  /// itself through Media Foundation; on Linux LiveKit does, through VAAPI or
+  /// NVENC, where it would otherwise fall back to OpenH264 on the CPU. macOS
+  /// has the OS's own encoder.
+  static bool get encodesH264OnGpuOnly =>
+      !kIsWeb && (Platform.isWindows || Platform.isLinux);
 
   /// Whether the settings mic test reads the microphone itself rather than
   /// through WebRTC, which records nothing outside a call. Windows and Linux

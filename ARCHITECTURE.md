@@ -390,7 +390,7 @@ already knows. **What they may do** is the database's, because that is where
 permissions live. Muting somebody for yourself is local state; muting them for
 everybody is a row.
 
-### Encoding a share on the GPU (Windows) — [Implemented October 2026]
+### Encoding a share on the GPU — [Implemented October 2026]
 
 LiveKit's Rust SDK has no hardware video encoder on Windows: every frame of a
 share was encoded in software on the same CPU a game is using. So on Windows
@@ -398,6 +398,14 @@ Rift encodes H264 itself through **Media Foundation**, which reaches NVIDIA's,
 AMD's and Intel's encoders alike, and hands LiveKit the finished frames on its
 pre-encoded path (`rust/src/screenshare/encoder/`). Measured Oct 5 2026 at 60
 fps: 52 to 67% of a core, against VP9's 186 to 196% (`TESTING.md`).
+
+On Linux LiveKit has GPU encoders of its own, VAAPI (Intel, AMD) and NVENC
+(NVIDIA), but falls back to OpenH264 on the CPU without a word when neither
+works. So H264 is offered there only where LiveKit lists one of them, the
+share asks for one, and once its first frames are out a share whose encoder
+WebRTC names as anything else goes to VP9. NVENC is only in a build made with
+CUDA's headers, which the release build does not have yet; on a machine with
+no VAAPI driver (Intel's is a separate package) H264 is simply not offered.
 
 - **H264 and AV1 are only ever encoded by the GPU or the OS, never by Rift.**
   The reason is patents: H264 is licensed through a pool the GPU makers belong

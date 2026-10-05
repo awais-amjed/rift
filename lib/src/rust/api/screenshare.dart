@@ -55,10 +55,11 @@ Future<Uint8List?> getCaptureSourceThumbnail({
   sourceIndex: sourceIndex,
 );
 
-/// The codecs this computer's GPU encodes a share in, through Rift's own
-/// encoder (`ARCHITECTURE.md`, "Encoding a share on the GPU"). Windows only,
-/// where H264 is offered only if this says so: there it is never encoded on
-/// the CPU. Empty elsewhere, where LiveKit chooses its own encoders.
+/// The codecs this computer's GPU encodes a share in (`ARCHITECTURE.md`,
+/// "Encoding a share on the GPU"): through Rift's own encoder on Windows,
+/// LiveKit's VAAPI or NVENC on Linux. There H264 is offered only if this says
+/// so, since it is never encoded on the CPU. Empty on macOS, where the OS
+/// encodes it.
 Future<List<VideoCodec>> gpuVideoCodecs() =>
     RustLib.instance.api.crateApiScreenshareGpuVideoCodecs();
 

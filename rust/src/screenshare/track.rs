@@ -83,6 +83,10 @@ pub(crate) async fn publish_video_track(
                 degradation_preference: Some(degradation_preference),
                 video_encoder: if pre_encoded {
                     VideoEncoderBackend::PreEncoded
+                } else if cfg!(target_os = "linux") && settings.codec == VideoCodec::H264 {
+                    // LiveKit's VAAPI or NVENC, never OpenH264 on the CPU:
+                    // the session checks it got one (`check_h264_encoder`).
+                    VideoEncoderBackend::Hardware
                 } else {
                     VideoEncoderBackend::Auto
                 },

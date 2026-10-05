@@ -1,5 +1,7 @@
 //! One screen share at a time: bringing it up, and taking it down again.
 use super::capture::{self, Capture, CaptureRequest, Feed, Progress, Started, VideoSlot};
+#[cfg(target_os = "linux")]
+use super::encoder;
 #[cfg(target_os = "windows")]
 use super::encoder::{self, EncoderSettings, GpuCodec};
 #[cfg(target_os = "windows")]
@@ -9,7 +11,7 @@ use super::resolution::fit_within;
 use super::resolution::{target_size, Size};
 use super::track::{publish_video_track, TrackSettings};
 use crate::api::screenshare::types::{self, ScreenShareConfig, ShareQuality};
-#[cfg(target_os = "windows")]
+#[cfg(any(target_os = "windows", target_os = "linux"))]
 use crate::api::screenshare::types::{ScreenshareEvent, VideoCodec};
 use crate::sharing::audio::{self, AudioCapture, AudioCaptureHandle, AudioSelection};
 use crate::sharing::room;
@@ -45,6 +47,14 @@ const FPS_ATTRIBUTE: &str = "fps";
 /// dropped, before its first rate request had even arrived.
 #[cfg(target_os = "windows")]
 const START_BITRATE_BPS: u32 = 1_000_000;
+
+/// How often, and how many times, a Linux H264 share's encoder is looked at
+/// before it is taken to be the GPU's: long enough for the first frames to
+/// have gone out, which is when WebRTC names it.
+#[cfg(target_os = "linux")]
+const H264_CHECK_EVERY: Duration = Duration::from_secs(2);
+#[cfg(target_os = "linux")]
+const H264_CHECKS: u32 = 5;
 
 /// A screen share's sound keeps the plain name it has always had — nothing
 /// reads it, because the picture says what this is.
@@ -331,7 +341,7 @@ async fn bring_up(room: &Room, config: &ScreenShareConfig) -> Result<Parts, Stri
 struct Video {
     /// For a GPU encoder failing mid-share, which republishes from another
     /// thread and must not keep a stopped share alive to do it.
-    #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
+    #[cfg_attr(not(any(target_os = "windows", target_os = "linux")), allow(dead_code))]
     me: Weak<Video>,
     participant: LocalParticipant,
     slot: VideoSlot,
@@ -529,9 +539,70 @@ impl Video {
             *self.gpu.lock().unwrap() = None;
         }
         self.slot.attach(Feed::Raw(source.clone()), target);
-        *track = Some(publish_video_track(&self.participant, source, &settings, false).await?);
+        let sid = publish_video_track(&self.participant, source, &settings, false).await?;
+        #[cfg(target_os = "linux")]
+        if settings.codec == VideoCodec::H264 {
+            self.check_h264_encoder(sid.clone());
+        }
+        *track = Some(sid);
         announce_picture(&self.participant, target, settings.fps);
         Ok(())
+    }
+
+    /// Linux: H264 comes from LiveKit's own GPU encoders, VAAPI or NVENC, and
+    /// is offered only where LiveKit lists one. A listed one can still fail to
+    /// open, and LiveKit then quietly makes H264 with OpenH264 on the CPU,
+    /// which Rift never does (`ARCHITECTURE.md`, "Encoding a share on the
+    /// GPU"). So once the first frames are out, the encoder WebRTC names is
+    /// checked, and anything but the GPU's hands the share to VP9.
+    #[cfg(target_os = "linux")]
+    fn check_h264_encoder(&self, sid: TrackSid) {
+        let me = self.me.clone();
+        tokio::spawn(async move {
+            for _ in 0..H264_CHECKS {
+                tokio::time::sleep(H264_CHECK_EVERY).await;
+                let Some(video) = me.upgrade() else {
+                    return;
+                };
+                // A newer picture has its own check.
+                if video.track.lock().await.as_ref() != Some(&sid) {
+                    return;
+                }
+                let Some(name) = video.encoder_name(&sid).await else {
+                    continue;
+                };
+                if encoder::is_gpu_h264(&name) {
+                    log::info!("screenshare: H264 from {name}");
+                    return;
+                }
+                video.fall_back(&format!("H264 came from {name}, not the GPU"));
+                if let Err(reason) = video.republish().await {
+                    log::warn!("screenshare: {reason}");
+                    crate::api::screenshare::emit_screenshare_event(ScreenshareEvent::SourceClosed);
+                }
+                return;
+            }
+            log::warn!("screenshare: no encoder named for the H264 picture yet");
+        });
+    }
+
+    /// The encoder WebRTC says made the picture `sid`, once it has made some.
+    #[cfg(target_os = "linux")]
+    async fn encoder_name(&self, sid: &TrackSid) -> Option<String> {
+        let publication = self.participant.get_track_publication(sid)?;
+        let LocalTrack::Video(track) = publication.track()? else {
+            return None;
+        };
+        let stats = track.get_stats().await.ok()?;
+        stats.into_iter().find_map(|stat| match stat {
+            livekit::webrtc::stats::RtcStats::OutboundRtp(out)
+                if out.stream.kind == "video"
+                    && !out.outbound.encoder_implementation.is_empty() =>
+            {
+                Some(out.outbound.encoder_implementation)
+            }
+            _ => None,
+        })
     }
 
     /// Open a hardware encoder for the picture and publish what it makes.
@@ -566,7 +637,7 @@ impl Video {
     }
 
     /// Give up on the GPU for the rest of this share, and say so.
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
     fn fall_back(&self, reason: &str) -> TrackSettings {
         log::warn!("screenshare: {reason}; sharing as VP9 instead");
         let mut settings = self.settings.lock().unwrap();
