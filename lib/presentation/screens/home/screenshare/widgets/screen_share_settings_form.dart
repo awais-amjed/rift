@@ -4,26 +4,24 @@ import 'package:flutter/material.dart';
 
 import '../../../../../data/classes/screen_share_settings.dart';
 import '../../../../../data/classes/server_limits.dart';
-import '../../../../../logic/services/gpu_codecs.dart';
 import '../../../../../logic/services/host_platform.dart';
 import '../../../../../src/rust/api/screenshare/types.dart';
-import '../sections/audio_source_section.dart';
-import '../sections/bitrate_section.dart';
 import '../sections/capture_source_section.dart';
 import '../sections/capture_type_section.dart';
-import '../sections/codec_section.dart';
-import '../sections/frame_rate_section.dart';
-import '../sections/priority_section.dart';
-import '../sections/resolution_section.dart';
-import 'audio_toggle.dart';
-import 'settings_summary.dart';
+import 'share_options.dart';
 
-/// Every editable screen-share setting, stacked in one scrollable column.
+/// Every editable screen-share setting: what to share, then how.
+///
+/// Picking what to share is what the dialog is for, so where the app lists
+/// the windows itself the list takes the room there is, and scrolls in it;
+/// how it goes out sits below in a compact block. Without a list (Linux,
+/// where the system asks at share time) the whole form is one scroll.
 ///
 /// Purely presentational: it reads [settings] and reports edits back through
-/// [onChanged], so the dialog owns the draft and all the loading. The two
-/// changes that also trigger a reload — capture type and the audio toggle —
-/// get their own callbacks rather than being inferred from a diff.
+/// [onChanged], so the dialog owns the draft and all the loading. The changes
+/// that also do something else — capture type and the audio toggle reload a
+/// list, the advanced settings are remembered at once — get their own
+/// callbacks rather than being inferred from a diff.
 class ScreenShareSettingsForm extends StatelessWidget {
   final ScreenShareSettings settings;
   final ValueChanged<ScreenShareSettings> onChanged;
@@ -39,13 +37,10 @@ class ScreenShareSettingsForm extends StatelessWidget {
 
   final ValueChanged<bool> onCaptureTypeChanged;
   final VoidCallback onAudioToggle;
+  final ValueChanged<bool> onAdvancedToggled;
 
   /// What this server allows a share to use, or [ServerLimits.unlimited].
   final int maxShareMbps;
-
-  /// The cap as a [ServerLimits], so the summary resolves the effective
-  /// bitrate with exactly the rule the share itself uses.
-  ServerLimits get _limits => ServerLimits(maxShareMbps: maxShareMbps);
 
   const ScreenShareSettingsForm({
     super.key,
@@ -60,118 +55,78 @@ class ScreenShareSettingsForm extends StatelessWidget {
     required this.onRefreshAudioSources,
     required this.onCaptureTypeChanged,
     required this.onAudioToggle,
+    required this.onAdvancedToggled,
     this.maxShareMbps = ServerLimits.unlimited,
   });
 
-  /// Linux picks its capture source through the system portal at capture
-  /// time, so the in-app source grid is hidden there.
-  bool get _showsSourcePicker => HostPlatform.picksShareSourceInApp;
+  /// The most of the form's height the options below the list may take
+  /// before they scroll, so the list always keeps the rest.
+  static const _optionsShare = 0.55;
 
-  /// Linux shares one application's sound, screen or window; elsewhere a
-  /// whole screen takes the system's sound and a window its own app's.
-  bool get _showsAudioSourcePicker =>
-      HostPlatform.picksShareAudioSource && settings.shareAudio;
-
-  /// The codec the share would go out in, given what the GPU encodes, which
-  /// is asked at startup.
-  String get _codec => settings.codecToSend(
-    gpuOnlyH264: HostPlatform.encodesH264OnGpuOnly,
-    gpu: GpuCodecs.known,
+  CaptureSourceSection _sources({required bool fills}) => CaptureSourceSection(
+    captureFullScreen: settings.captureFullScreen,
+    isLoading: loadingCaptureSources,
+    sources: captureSources,
+    selectedIndex: settings.selectedVideoSourceIndex,
+    thumbnails: thumbnails,
+    onChanged: (source) => onChanged(settings.withVideoSource(source)),
+    onRefresh: onRefreshCaptureSources,
+    fills: fills,
   );
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CaptureTypeSection(
-            captureFullScreen: settings.captureFullScreen,
-            onChanged: onCaptureTypeChanged,
-          ),
-          const SizedBox(height: 16),
+    final type = CaptureTypeSection(
+      captureFullScreen: settings.captureFullScreen,
+      onChanged: onCaptureTypeChanged,
+    );
+    final options = ShareOptions(
+      settings: settings,
+      onChanged: onChanged,
+      maxShareMbps: maxShareMbps,
+      audioSources: audioSources,
+      loadingAudioSources: loadingAudioSources,
+      onRefreshAudioSources: onRefreshAudioSources,
+      onAudioToggle: onAudioToggle,
+      onAdvancedToggled: onAdvancedToggled,
+    );
 
-          if (_showsSourcePicker) ...[
-            CaptureSourceSection(
-              captureFullScreen: settings.captureFullScreen,
-              isLoading: loadingCaptureSources,
-              sources: captureSources,
-              selectedIndex: settings.selectedVideoSourceIndex,
-              thumbnails: thumbnails,
-              onChanged: (source) =>
-                  onChanged(settings.withVideoSource(source)),
-              onRefresh: onRefreshCaptureSources,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (!HostPlatform.picksShareSourceInApp ||
+            !constraints.hasBoundedHeight) {
+          return SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                type,
+                const SizedBox(height: 16),
+                if (HostPlatform.picksShareSourceInApp) ...[
+                  _sources(fills: false),
+                  const SizedBox(height: 16),
+                ],
+                options,
+              ],
             ),
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            type,
             const SizedBox(height: 16),
-          ],
-
-          ResolutionSection(
-            selectedResolution: settings.resolution,
-            onChanged: (value) =>
-                onChanged(settings.copyWith(resolution: value)),
-          ),
-          const SizedBox(height: 16),
-
-          FrameRateSection(
-            selectedFps: settings.fps,
-            onChanged: (value) => onChanged(settings.copyWith(fps: value)),
-          ),
-          const SizedBox(height: 16),
-
-          PrioritySection(
-            selected: settings.priority,
-            onChanged: (value) => onChanged(settings.copyWith(priority: value)),
-          ),
-          const SizedBox(height: 16),
-
-          BitrateSection(
-            selectedBitrate: settings.bitrate,
-            maxMbps: maxShareMbps,
-            onChanged: (value) => onChanged(settings.copyWith(bitrate: value)),
-          ),
-          const SizedBox(height: 16),
-
-          CodecSection(
-            selectedCodec: _codec,
-            offered: ScreenShareSettings.codecsOffered(
-              gpuOnlyH264: HostPlatform.encodesH264OnGpuOnly,
-              gpu: GpuCodecs.known,
-            ),
-            onChanged: (value) =>
-                onChanged(settings.copyWith(codec: value, codecChosen: true)),
-          ),
-          const SizedBox(height: 16),
-
-          if (HostPlatform.capturesSystemAudio)
-            AudioToggle(
-              shareAudio: settings.shareAudio,
-              onToggle: onAudioToggle,
-            ),
-
-          if (_showsAudioSourcePicker) ...[
+            Expanded(child: _sources(fills: true)),
             const SizedBox(height: 16),
-            AudioSourceSection(
-              audioSources: audioSources,
-              selectedAudioSource: settings.selectedAudioSource,
-              isLoading: loadingAudioSources,
-              onChanged: (source) =>
-                  onChanged(settings.copyWith(selectedAudioSource: source)),
-              onRefresh: onRefreshAudioSources,
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: constraints.maxHeight * _optionsShare,
+              ),
+              child: SingleChildScrollView(child: options),
             ),
           ],
-
-          const SizedBox(height: 16),
-          SettingsSummary(
-            captureFullScreen: settings.captureFullScreen,
-            resolution: settings.resolutionLabel,
-            fps: settings.fps,
-            bitrate: _limits.shareMbps(settings.bitrate),
-            shareAudio: settings.shareAudio,
-            codec: _codec,
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

@@ -5,7 +5,7 @@ import 'package:rift/presentation/screens/home/screenshare/sections/bitrate_sect
 /// The bitrate picker against a server that caps shares.
 ///
 /// Pure: these are the two static rules the widget draws itself from, and the
-/// bug they exist to stop is silent — a picker lighting one number while the
+/// bug they exist to stop is silent — a picker showing one number while the
 /// share sends another.
 void main() {
   group('the bitrate picker under a server cap', () {
@@ -19,7 +19,7 @@ void main() {
 
     test('a cap between two rungs becomes a rung of its own', () {
       // The share is clamped to the cap, not snapped to the option below it,
-      // so 3 has to be selectable — otherwise the picker lights 2 and the
+      // so 3 has to be selectable — otherwise the picker shows 2 and the
       // stream sends 3.
       expect(BitrateSection.optionsFor(3), [2, 3, 4, 6, 8, 10, 12, 14, 15]);
       expect(BitrateSection.effectiveFor(15, 3), 3);
@@ -40,7 +40,7 @@ void main() {
       expect(BitrateSection.effectiveFor(4, 12), 4);
     });
 
-    test('whatever is lit is always a chip that exists', () {
+    test('whatever is shown is always an option that exists', () {
       // The invariant the whole thing rests on: every cap an operator could
       // type leaves the effective value somewhere in the row.
       for (var cap = 1; cap <= 20; cap++) {
@@ -48,7 +48,7 @@ void main() {
           expect(
             BitrateSection.optionsFor(cap),
             contains(BitrateSection.effectiveFor(stored, cap)),
-            reason: 'cap $cap with $stored stored lights a chip that is absent',
+            reason: 'cap $cap with $stored stored shows an option that is absent',
           );
         }
       }

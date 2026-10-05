@@ -8,12 +8,20 @@ import '../../../../theme/app_motion.dart';
 import 'minimised_preview.dart';
 
 /// Thumbnail grid for selecting a capture source (Windows only).
+///
+/// The tiles are as big as the width allows: two to a row in the share
+/// dialog, one in a narrow one. Picking what to share is what the dialog is
+/// for, so a window is shown big enough to recognise.
 class SourceThumbnailGrid extends StatelessWidget {
   final List<CaptureSource> sources;
   final int? selectedIndex;
   final Map<int, Uint8List> thumbnails;
   final bool captureFullScreen;
   final ValueChanged<CaptureSource> onChanged;
+
+  /// Whether the grid scrolls itself, in a height it was given, rather than
+  /// growing to fit every tile inside a scroll of the caller's.
+  final bool scrolls;
 
   const SourceThumbnailGrid({
     super.key,
@@ -22,19 +30,19 @@ class SourceThumbnailGrid extends StatelessWidget {
     required this.thumbnails,
     required this.captureFullScreen,
     required this.onChanged,
+    this.scrolls = false,
   });
+
+  /// The widest a tile grows before another fits beside it.
+  static const _maxTileWidth = 480.0;
 
   @override
   Widget build(BuildContext context) {
-    // Screens: 2 columns (usually 1–3).
-    // Windows: 3 columns (can be many).
-    final crossAxisCount = captureFullScreen ? 2 : 3;
-
     return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: crossAxisCount,
+      shrinkWrap: !scrolls,
+      physics: scrolls ? null : const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: _maxTileWidth,
         crossAxisSpacing: 8,
         mainAxisSpacing: 8,
         // 16:9 preview with a label strip below

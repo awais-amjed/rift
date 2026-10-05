@@ -75,6 +75,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
         }
       case ScreenshareEvent.encoderFellBack:
         // The share is still up; only how it is encoded changed.
+        if (state.isSharing) emit(state.copyWith(codec: VideoCodec.vp9));
         HelperMethods.showToast(
           title: 'Sharing as VP9',
           description: 'Your graphics card could not encode H264 this time.',
@@ -187,7 +188,11 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
       final allowed = ServerLimits.fromJson(
         Map<String, dynamic>.from(response.data as Map),
       );
-      final bitrate = allowed.shareMbps(settings.bitrate);
+      final codec = settings.codecToSend(
+        gpuOnlyH264: HostPlatform.encodesH264OnGpuOnly,
+        gpu: await GpuCodecs.supported,
+      );
+      final bitrate = settings.bitrateToSend(codec: codec, limits: allowed);
 
       // The call's key, for the second connection this is about to open into
       // the same encrypted room.
@@ -211,12 +216,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
         shareAudio: settings.shareAudio && HostPlatform.capturesSystemAudio,
         captureFullScreen: settings.captureFullScreen,
         selectedVideoSourceIndex: settings.selectedVideoSourceIndex,
-        codec: ScreenShareSettings.codecFromName(
-          settings.codecToSend(
-            gpuOnlyH264: HostPlatform.encodesH264OnGpuOnly,
-            gpu: await GpuCodecs.supported,
-          ),
-        ),
+        codec: codec,
         priority: settings.priority,
         selectedAudioSourceIndex: settings.selectedAudioSource?.index,
         selectedAudioSourceSink: settings.selectedAudioSource?.sink,
@@ -236,6 +236,8 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
           status: ScreenshareStatus.sharing,
           channelId: channelId,
           settings: settings,
+          codec: codec,
+          limits: allowed,
         ),
       );
     } catch (e) {
@@ -275,6 +277,12 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
         quality: ShareQuality(
           resolution: wanted.resolution,
           fps: wanted.fps,
+          // Auto's bitrate follows the picture, so a bigger or faster one
+          // is given more.
+          bitrate: wanted.bitrateToSend(
+            codec: state.codec ?? wanted.videoCodec,
+            limits: state.limits,
+          ),
           shareAudio: wanted.shareAudio && HostPlatform.capturesSystemAudio,
         ),
       );

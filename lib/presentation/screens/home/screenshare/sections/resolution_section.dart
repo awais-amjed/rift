@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/classes/screen_share_settings.dart';
-import '../widgets/settings_chip.dart';
+import '../../../../common/app_dropdown.dart';
 import '../widgets/settings_section.dart';
 
-/// Section for selecting screen share resolution
+/// The share's picture height, as a dropdown.
 class ResolutionSection extends StatelessWidget {
   final int selectedResolution;
   final ValueChanged<int> onChanged;
@@ -20,18 +20,16 @@ class ResolutionSection extends StatelessWidget {
     return SettingsSection(
       label: 'Resolution',
       children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: ScreenShareSettings.resolutions
-              .map(
-                (r) => SettingsChip(
-                  label: ScreenShareSettings.labelFor(r),
-                  active: selectedResolution == r,
-                  onTap: () => onChanged(r),
-                ),
-              )
-              .toList(),
+        AppDropdown<int>(
+          value: selectedResolution,
+          options: [
+            for (final r in ScreenShareSettings.resolutions)
+              AppDropdownOption(
+                value: r,
+                label: ScreenShareSettings.labelFor(r),
+              ),
+          ],
+          onChanged: onChanged,
         ),
       ],
     );

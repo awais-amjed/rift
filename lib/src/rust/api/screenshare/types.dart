@@ -207,23 +207,32 @@ enum SharePriority {
   sharpness,
 }
 
-/// What can change while a share is running: the picture's size and rate, and
-/// whether its sound goes with it. The source, codec, bitrate and priority stay
-/// as the share started.
+/// What can change while a share is running: the picture's size, rate and
+/// bitrate, and whether its sound goes with it. The source, codec and
+/// priority stay as the share started.
 class ShareQuality {
   /// Height cap in rows, as [`ScreenShareConfig::resolution`].
   final int resolution;
   final int fps;
+
+  /// Megabits per second, as [`ScreenShareConfig::bitrate`]: a bigger or
+  /// faster picture may be given more.
+  final int bitrate;
   final bool shareAudio;
 
   const ShareQuality({
     required this.resolution,
     required this.fps,
+    required this.bitrate,
     required this.shareAudio,
   });
 
   @override
-  int get hashCode => resolution.hashCode ^ fps.hashCode ^ shareAudio.hashCode;
+  int get hashCode =>
+      resolution.hashCode ^
+      fps.hashCode ^
+      bitrate.hashCode ^
+      shareAudio.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -232,6 +241,7 @@ class ShareQuality {
           runtimeType == other.runtimeType &&
           resolution == other.resolution &&
           fps == other.fps &&
+          bitrate == other.bitrate &&
           shareAudio == other.shareAudio;
 }
 

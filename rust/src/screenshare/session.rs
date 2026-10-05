@@ -171,14 +171,18 @@ pub(crate) async fn update(quality: ShareQuality) -> Result<ShareQuality, String
         return Err("Not sharing".to_string());
     };
     log::info!(
-        "screenshare: changing to {}p{}, audio {}",
+        "screenshare: changing to {}p{} at {} Mbps, audio {}",
         quality.resolution,
         quality.fps,
+        quality.bitrate,
         quality.share_audio
     );
 
     session.capture.set_fps(quality.fps);
-    if session.video.set_picture(quality.resolution, quality.fps) {
+    if session
+        .video
+        .set_picture(quality.resolution, quality.fps, quality.bitrate)
+    {
         if let Err(reason) = session.video.change_picture().await {
             // The old picture is already gone, so the share has nothing to
             // show: end it, the way a closed window does.
@@ -349,6 +353,9 @@ struct GpuPicture {
     feed: Arc<GpuFeed>,
     /// The rate it was published at, which WebRTC holds the track to.
     published_fps: u32,
+    /// The bitrate cap it was published at, in Mbps, which WebRTC's requests
+    /// never go above.
+    published_bitrate: u32,
 }
 
 impl Video {
@@ -359,11 +366,13 @@ impl Video {
     }
 
     /// Takes the new height and rate, and says whether either changed.
-    fn set_picture(&self, max_height: u32, fps: u32) -> bool {
+    fn set_picture(&self, max_height: u32, fps: u32, bitrate: u32) -> bool {
         let mut settings = self.settings.lock().unwrap();
-        let changed = settings.max_height != max_height || settings.fps != fps;
+        let changed =
+            settings.max_height != max_height || settings.fps != fps || settings.bitrate != bitrate;
         settings.max_height = max_height;
         settings.fps = fps;
+        settings.bitrate = bitrate;
         changed
     }
 
@@ -384,24 +393,25 @@ impl Video {
     /// had got to, and viewers do not even see the picture blink.
     ///
     /// `None` when that does not apply, and the picture is republished: not
-    /// on the GPU, not published yet, or faster than WebRTC holds the track
-    /// to. A new encoder that will not open hands the share to VP9.
+    /// on the GPU, not published yet, or faster or richer than WebRTC holds
+    /// the track to. A new encoder that will not open hands the share to VP9.
     #[cfg(target_os = "windows")]
     async fn reopen_gpu(&self) -> Option<Result<(), String>> {
         let opened = {
             let track = self.track.lock().await;
             track.as_ref()?;
             let settings = *self.settings.lock().unwrap();
-            let (source, old, published_fps) = {
+            let (source, old, published_fps, published_bitrate) = {
                 let gpu = self.gpu.lock().unwrap();
                 let picture = gpu.as_ref()?;
                 (
                     picture.source.clone(),
                     picture.feed.clone(),
                     picture.published_fps,
+                    picture.published_bitrate,
                 )
             };
-            if settings.fps > published_fps {
+            if settings.fps > published_fps || settings.bitrate > published_bitrate {
                 return None;
             }
             let codec = GpuCodec::for_share(settings.codec)?;
@@ -434,6 +444,7 @@ impl Video {
                         source,
                         feed,
                         published_fps,
+                        published_bitrate,
                     });
                     announce_picture(&self.participant, target, settings.fps);
                     Ok(())
@@ -549,6 +560,7 @@ impl Video {
             source,
             feed,
             published_fps: settings.fps,
+            published_bitrate: settings.bitrate,
         });
         Ok(sid)
     }

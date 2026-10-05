@@ -57,13 +57,16 @@ pub struct ScreenShareConfig {
     pub e2ee_key_index: i32,
 }
 
-/// What can change while a share is running: the picture's size and rate, and
-/// whether its sound goes with it. The source, codec, bitrate and priority stay
-/// as the share started.
+/// What can change while a share is running: the picture's size, rate and
+/// bitrate, and whether its sound goes with it. The source, codec and
+/// priority stay as the share started.
 pub struct ShareQuality {
     /// Height cap in rows, as [`ScreenShareConfig::resolution`].
     pub resolution: u32,
     pub fps: u32,
+    /// Megabits per second, as [`ScreenShareConfig::bitrate`]: a bigger or
+    /// faster picture may be given more.
+    pub bitrate: u32,
     pub share_audio: bool,
 }
 
@@ -108,10 +111,7 @@ const KEY_BYTES: usize = 32;
 /// fps is a division by zero in the capture timer, a missing key would connect
 /// and then encrypt for nobody.
 pub(crate) fn check(config: &ScreenShareConfig) -> Result<(), String> {
-    check_picture(config.resolution, config.fps)?;
-    if config.bitrate == 0 {
-        return Err("bitrate must be at least 1 Mbps".to_string());
-    }
+    check_picture(config.resolution, config.fps, config.bitrate)?;
     if config.e2ee_key.len() != KEY_BYTES {
         return Err("Missing the channel key for this call".to_string());
     }
@@ -120,10 +120,13 @@ pub(crate) fn check(config: &ScreenShareConfig) -> Result<(), String> {
 
 /// The same refusals for a change made during a share.
 pub(crate) fn check_quality(quality: &ShareQuality) -> Result<(), String> {
-    check_picture(quality.resolution, quality.fps)
+    check_picture(quality.resolution, quality.fps, quality.bitrate)
 }
 
-fn check_picture(resolution: u32, fps: u32) -> Result<(), String> {
+fn check_picture(resolution: u32, fps: u32, bitrate: u32) -> Result<(), String> {
+    if bitrate == 0 {
+        return Err("bitrate must be at least 1 Mbps".to_string());
+    }
     if fps == 0 || fps > FPS_LIMIT {
         return Err(format!("fps must be between 1 and {FPS_LIMIT}"));
     }
@@ -178,13 +181,15 @@ mod tests {
 
     #[test]
     fn a_quality_change_is_held_to_the_same_limits() {
-        let quality = |resolution, fps| ShareQuality {
+        let quality = |resolution, fps, bitrate| ShareQuality {
             resolution,
             fps,
+            bitrate,
             share_audio: false,
         };
-        assert!(check_quality(&quality(720, 30)).is_ok());
-        assert!(check_quality(&quality(720, 0)).is_err());
-        assert!(check_quality(&quality(1, 30)).is_err());
+        assert!(check_quality(&quality(720, 30, 6)).is_ok());
+        assert!(check_quality(&quality(720, 0, 6)).is_err());
+        assert!(check_quality(&quality(1, 30, 6)).is_err());
+        assert!(check_quality(&quality(720, 30, 0)).is_err());
     }
 }

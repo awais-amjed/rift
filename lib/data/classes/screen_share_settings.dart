@@ -1,12 +1,23 @@
 import '../../src/rust/api/screenshare/types.dart';
+import 'server_limits.dart';
+import 'share_encoding.dart';
 
+/// Over the model budget and one job: a share's settings, each with its JSON
+/// key, default and the rule for what it sends.
+///
 /// What the next screen share will send, remembered between calls. The source
 /// fields are per-platform: a window index and title everywhere, a PID on
 /// Windows, a PulseAudio source on Linux.
 class ScreenShareSettings {
   final int resolution; // height in px (720, 1080, 1440, 2160)
   final int fps;
-  final int bitrate; // in Mbps
+
+  /// In Mbps, used only when [bitrateChosen]; otherwise Auto sets it from
+  /// the picture ([bitrateToSend]).
+  final int bitrate;
+
+  /// Whether [bitrate] was picked by hand rather than left on Auto.
+  final bool bitrateChosen;
   final bool shareAudio;
   final bool captureFullScreen; // true = full screen, false = window
   /// Where the chosen source sat in the list it was picked from. Only the
@@ -19,9 +30,13 @@ class ScreenShareSettings {
   final String? selectedVideoSourceTitle;
   final String codec; // "VP8", "H264" or "VP9", as the picker shows it
 
-  /// Whether [codec] was picked by hand. One that was not follows the
-  /// hardware where it can (see [codecToSend]).
+  /// Whether [codec] was picked by hand. One that was not is Auto, which
+  /// follows the hardware and the priority (see [codecToSend]).
   final bool codecChosen;
+
+  /// Whether the dialog's advanced settings (codec, bitrate) are shown.
+  /// Somebody who opened them once wants them there the next time.
+  final bool showsAdvanced;
 
   /// What the share gives up when it cannot keep up: frames or sharpness.
   final SharePriority priority;
@@ -30,7 +45,8 @@ class ScreenShareSettings {
   const ScreenShareSettings({
     this.resolution = 1080,
     this.fps = 60,
-    this.bitrate = 10,
+    this.bitrate = defaultMbps,
+    this.bitrateChosen = false,
     this.shareAudio = true,
     this.captureFullScreen = true,
     this.selectedVideoSourceIndex,
@@ -38,22 +54,36 @@ class ScreenShareSettings {
     this.selectedVideoSourceTitle,
     this.codec = 'VP9',
     this.codecChosen = false,
+    this.showsAdvanced = false,
     this.priority = defaultPriority,
     this.selectedAudioSource,
   });
 
+  /// The bitrate every share started at before there was Auto.
+  static const defaultMbps = 10;
+
+  /// Settings saved before Auto existed have no flag saying whether a value
+  /// was picked. One still at the old default counts as never picked, and
+  /// goes to Auto; one changed from it was a choice, and is kept.
   factory ScreenShareSettings.fromJson(Map<String, dynamic> json) {
+    final codec = json['codec'] as String? ?? 'VP9';
+    final bitrate = json['bitrate'] as int? ?? defaultMbps;
     return ScreenShareSettings(
       resolution: json['resolution'] as int? ?? 1080,
       fps: json['fps'] as int? ?? 60,
-      bitrate: json['bitrate'] as int? ?? 10,
+      bitrate: bitrate,
+      bitrateChosen:
+          json['bitrateChosen'] as bool? ?? bitrate != defaultMbps,
       shareAudio: json['shareAudio'] as bool? ?? true,
       captureFullScreen: json['captureFullScreen'] as bool? ?? true,
       selectedVideoSourceIndex: json['selectedVideoSourceIndex'] as int?,
       selectedVideoSourcePid: json['selectedVideoSourcePid'] as int?,
       selectedVideoSourceTitle: json['selectedVideoSourceTitle'] as String?,
-      codec: json['codec'] as String? ?? 'VP9',
-      codecChosen: json['codecChosen'] as bool? ?? false,
+      codec: codec,
+      codecChosen:
+          json['codecChosen'] as bool? ??
+          codecFromName(codec) != defaultCodec,
+      showsAdvanced: json['showsAdvanced'] as bool? ?? false,
       priority: priorityFromName(json['priority'] as String?),
       // selectedAudioSource is not persisted in JSON (runtime only)
     );
@@ -63,6 +93,7 @@ class ScreenShareSettings {
     'resolution': resolution,
     'fps': fps,
     'bitrate': bitrate,
+    'bitrateChosen': bitrateChosen,
     'shareAudio': shareAudio,
     'captureFullScreen': captureFullScreen,
     'selectedVideoSourceIndex': selectedVideoSourceIndex,
@@ -70,6 +101,7 @@ class ScreenShareSettings {
     'selectedVideoSourceTitle': selectedVideoSourceTitle,
     'codec': codec,
     'codecChosen': codecChosen,
+    'showsAdvanced': showsAdvanced,
     'priority': priority.name,
   };
 
@@ -87,38 +119,56 @@ class ScreenShareSettings {
     _ => defaultCodec,
   };
 
-  /// The codecs the picker offers, by name. Where H264 is only ever encoded
-  /// on the GPU ([gpuOnlyH264]), it is offered only if the GPU encodes it
-  /// ([gpu]); VP8 and VP9 are always there, encoded on the CPU.
-  static List<String> codecsOffered({
+  /// The codecs the picker offers besides Auto. Where H264 is only ever
+  /// encoded on the GPU ([gpuOnlyH264]), it is offered only if the GPU
+  /// encodes it ([gpu]); VP8 and VP9 are always there, encoded on the CPU.
+  static List<VideoCodec> codecsOffered({
     required bool gpuOnlyH264,
     required Set<VideoCodec> gpu,
   }) => [
-    'VP8',
-    if (!gpuOnlyH264 || gpu.contains(VideoCodec.h264)) 'H264',
-    'VP9',
+    VideoCodec.vp8,
+    if (!gpuOnlyH264 || gpu.contains(VideoCodec.h264)) VideoCodec.h264,
+    VideoCodec.vp9,
   ];
 
-  /// The codec a share goes out in, by name, which is what the picker shows
-  /// as chosen.
+  /// The codec a share goes out in.
   ///
-  /// Where H264 is only ever encoded on the GPU ([gpuOnlyH264]): a codec
-  /// never picked by hand follows the hardware, H264 where the GPU encodes it
-  /// and VP9 elsewhere; a saved H264 with no GPU to encode it goes out as
-  /// VP9, rather than as H264 encoded on the CPU. Settings saved before there
-  /// was a choice to follow hold the old default, VP9, unpicked. Elsewhere
-  /// the saved codec, as it always was.
-  String codecToSend({
+  /// Auto ([codecChosen] false) is [ShareEncoding.autoCodec]: H264 only where
+  /// it is only ever encoded on the GPU ([gpuOnlyH264]) and the GPU encodes
+  /// it, since elsewhere nothing says a hardware encoder is there. A codec
+  /// picked by hand is sent as picked, except an H264 with no GPU to encode
+  /// it where it is GPU-only: that goes out as VP9, rather than as H264
+  /// encoded on the CPU.
+  VideoCodec codecToSend({
     required bool gpuOnlyH264,
     required Set<VideoCodec> gpu,
   }) {
+    final gpuH264 = gpuOnlyH264 && gpu.contains(VideoCodec.h264);
+    if (!codecChosen) {
+      return ShareEncoding.autoCodec(priority: priority, gpuH264: gpuH264);
+    }
     final saved = codecFromName(codec);
-    if (!gpuOnlyH264) return saved.name.toUpperCase();
-    final gpuH264 = gpu.contains(VideoCodec.h264);
-    if (!codecChosen && saved == defaultCodec) return gpuH264 ? 'H264' : 'VP9';
-    if (saved == VideoCodec.h264 && !gpuH264) return 'VP9';
-    return saved.name.toUpperCase();
+    if (gpuOnlyH264 && saved == VideoCodec.h264 && !gpuH264) {
+      return VideoCodec.vp9;
+    }
+    return saved;
   }
+
+  /// The bitrate a share in [codec] goes out at, in Mbps: the one picked by
+  /// hand, or Auto's for the picture, and never more than the server allows.
+  int bitrateToSend({required VideoCodec codec, required ServerLimits limits}) =>
+      limits.shareMbps(
+        bitrateChosen
+            ? bitrate
+            : ShareEncoding.autoMbps(
+                resolution: resolution,
+                fps: fps,
+                codec: codec,
+              ),
+      );
+
+  /// A codec as the picker and the summary name it.
+  static String nameOf(VideoCodec codec) => codec.name.toUpperCase();
 
   /// Smoothness, because a stream is usually something moving: LiveKit's own
   /// default for a screen share drops frames to stay sharp, and a game
@@ -155,6 +205,7 @@ class ScreenShareSettings {
         resolution: resolution,
         fps: fps,
         bitrate: bitrate,
+        bitrateChosen: bitrateChosen,
         shareAudio: shareAudio,
         captureFullScreen: captureFullScreen,
         selectedVideoSourceIndex: source.index,
@@ -162,6 +213,7 @@ class ScreenShareSettings {
         selectedVideoSourceTitle: source.title,
         codec: codec,
         codecChosen: codecChosen,
+        showsAdvanced: showsAdvanced,
         priority: priority,
         selectedAudioSource: selectedAudioSource,
       );
@@ -173,6 +225,7 @@ class ScreenShareSettings {
     int? resolution,
     int? fps,
     int? bitrate,
+    bool? bitrateChosen,
     bool? shareAudio,
     bool? captureFullScreen,
     int? selectedVideoSourceIndex,
@@ -180,6 +233,7 @@ class ScreenShareSettings {
     String? selectedVideoSourceTitle,
     String? codec,
     bool? codecChosen,
+    bool? showsAdvanced,
     SharePriority? priority,
     AudioSource? selectedAudioSource,
     bool clearVideoSource = false,
@@ -189,6 +243,7 @@ class ScreenShareSettings {
       resolution: resolution ?? this.resolution,
       fps: fps ?? this.fps,
       bitrate: bitrate ?? this.bitrate,
+      bitrateChosen: bitrateChosen ?? this.bitrateChosen,
       shareAudio: shareAudio ?? this.shareAudio,
       captureFullScreen: captureFullScreen ?? this.captureFullScreen,
       selectedVideoSourceIndex: clearVideoSource
@@ -202,6 +257,7 @@ class ScreenShareSettings {
           : selectedVideoSourceTitle ?? this.selectedVideoSourceTitle,
       codec: codec ?? this.codec,
       codecChosen: codecChosen ?? this.codecChosen,
+      showsAdvanced: showsAdvanced ?? this.showsAdvanced,
       priority: priority ?? this.priority,
       selectedAudioSource: clearAudioSource
           ? null

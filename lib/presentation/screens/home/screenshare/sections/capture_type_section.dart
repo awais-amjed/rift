@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../widgets/settings_chip.dart';
-import '../widgets/settings_section.dart';
+import '../../../../common/segmented_control.dart';
 
-/// Section for selecting capture type (Screen or Window)
+/// Whether the share is a whole screen or one window.
 class CaptureTypeSection extends StatelessWidget {
   final bool captureFullScreen;
   final ValueChanged<bool> onChanged;
@@ -16,27 +15,19 @@ class CaptureTypeSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SettingsSection(
-      label: 'Capture type',
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: SettingsChip(
-                label: '🖥️ Screen',
-                active: captureFullScreen,
-                onTap: () => onChanged(true),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: SettingsChip(
-                label: '🪟 Window',
-                active: !captureFullScreen,
-                onTap: () => onChanged(false),
-              ),
-            ),
-          ],
+    return SegmentedControl<bool>(
+      value: captureFullScreen,
+      onChanged: onChanged,
+      options: const [
+        SegmentOption(
+          value: true,
+          label: 'Screen',
+          icon: Icons.desktop_windows_outlined,
+        ),
+        SegmentOption(
+          value: false,
+          label: 'Window',
+          icon: Icons.web_asset_rounded,
         ),
       ],
     );

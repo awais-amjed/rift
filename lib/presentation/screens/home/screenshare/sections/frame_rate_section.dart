@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/classes/screen_share_settings.dart';
-import '../widgets/settings_chip.dart';
+import '../../../../common/app_dropdown.dart';
 import '../widgets/settings_section.dart';
 
-/// Section for selecting frame rate (FPS)
+/// The share's frame rate, as a dropdown.
 class FrameRateSection extends StatelessWidget {
   final int selectedFps;
   final ValueChanged<int> onChanged;
@@ -20,17 +20,13 @@ class FrameRateSection extends StatelessWidget {
     return SettingsSection(
       label: 'Frame rate',
       children: [
-        Wrap(
-          spacing: 8,
-          children: ScreenShareSettings.frameRates
-              .map(
-                (f) => SettingsChip(
-                  label: '$f fps',
-                  active: selectedFps == f,
-                  onTap: () => onChanged(f),
-                ),
-              )
-              .toList(),
+        AppDropdown<int>(
+          value: selectedFps,
+          options: [
+            for (final f in ScreenShareSettings.frameRates)
+              AppDropdownOption(value: f, label: '$f fps'),
+          ],
+          onChanged: onChanged,
         ),
       ],
     );

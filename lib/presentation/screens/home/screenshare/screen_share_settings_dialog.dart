@@ -21,8 +21,7 @@ import 'widgets/settings_dialog_header.dart';
 /// Over the widget budget and one job: a share's settings, held as a draft, and
 /// the source lists they need.
 ///
-/// Dialog for configuring screen share settings (resolution, fps, bitrate,
-/// audio) before a share starts.
+/// Dialog for picking what to share and how, before a share starts.
 ///
 /// Holds a draft [ScreenShareSettings] that only reaches [AppCubit] when the
 /// user confirms, plus the source lists it loads on demand. The controls
@@ -153,6 +152,17 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
     if (_needsAudioSources && _audioSources == null) _loadAudioSources();
   }
 
+  /// Opening or closing the advanced settings is remembered at once, even if
+  /// this share is then cancelled: it is how the dialog should look next
+  /// time, not part of this share.
+  void _onAdvancedToggled(bool open) {
+    setState(() => _draft = _draft.copyWith(showsAdvanced: open));
+    final app = context.read<AppCubit>();
+    app.setScreenShareSettings(
+      app.state.screenShareSettings.copyWith(showsAdvanced: open),
+    );
+  }
+
   void _confirm() {
     final settings = _dropsAudioSource(_draft.captureFullScreen)
         ? _draft.copyWith(clearAudioSource: true)
@@ -197,6 +207,7 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
                   onRefreshAudioSources: _loadAudioSources,
                   onCaptureTypeChanged: _onCaptureTypeChanged,
                   onAudioToggle: _onAudioToggle,
+                  onAdvancedToggled: _onAdvancedToggled,
                 ),
               ),
               const SizedBox(height: 20),

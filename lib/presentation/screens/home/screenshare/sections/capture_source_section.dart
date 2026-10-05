@@ -20,6 +20,10 @@ class CaptureSourceSection extends StatelessWidget {
   final ValueChanged<CaptureSource> onChanged;
   final Future<void> Function() onRefresh;
 
+  /// Whether the list fills a height it was given and scrolls in it, rather
+  /// than growing to fit inside the dialog's own scroll.
+  final bool fills;
+
   const CaptureSourceSection({
     super.key,
     required this.captureFullScreen,
@@ -29,13 +33,16 @@ class CaptureSourceSection extends StatelessWidget {
     required this.thumbnails,
     required this.onChanged,
     required this.onRefresh,
+    this.fills = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final label = captureFullScreen ? 'Screen' : 'Window';
 
+    final list = _list();
     return Column(
+      mainAxisSize: fills ? MainAxisSize.max : MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
@@ -55,26 +62,34 @@ class CaptureSourceSection extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 8),
-        if (isLoading)
-          const LinearProgressIndicator(minHeight: 2)
-        else if (sources == null || sources!.isEmpty)
-          Text('No $label sources found.')
-        else if (HostPlatform.hasShareThumbnails)
-          SourceThumbnailGrid(
-            sources: sources!,
-            selectedIndex: selectedIndex,
-            thumbnails: thumbnails,
-            captureFullScreen: captureFullScreen,
-            onChanged: onChanged,
-          )
+        if (fills && list is SourceThumbnailGrid)
+          Expanded(child: list)
         else
-          _SourceDropdown(
-            sources: sources!,
-            selectedIndex: selectedIndex,
-            captureFullScreen: captureFullScreen,
-            onChanged: onChanged,
-          ),
+          list,
       ],
+    );
+  }
+
+  Widget _list() {
+    final label = captureFullScreen ? 'Screen' : 'Window';
+    if (isLoading) return const LinearProgressIndicator(minHeight: 2);
+    final found = sources;
+    if (found == null || found.isEmpty) return Text('No $label sources found.');
+    if (HostPlatform.hasShareThumbnails) {
+      return SourceThumbnailGrid(
+        sources: found,
+        selectedIndex: selectedIndex,
+        thumbnails: thumbnails,
+        captureFullScreen: captureFullScreen,
+        onChanged: onChanged,
+        scrolls: fills,
+      );
+    }
+    return _SourceDropdown(
+      sources: found,
+      selectedIndex: selectedIndex,
+      captureFullScreen: captureFullScreen,
+      onChanged: onChanged,
     );
   }
 }

@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rift/data/classes/screen_share_settings.dart';
+import 'package:rift/data/classes/server_limits.dart';
+import 'package:rift/data/classes/share_encoding.dart';
 import 'package:rift/src/rust/api/screenshare/types.dart';
 
 void main() {
@@ -33,47 +35,61 @@ void main() {
     const gpu = {VideoCodec.h264};
     const none = <VideoCodec>{};
 
-    String send(ScreenShareSettings settings, Set<VideoCodec> codecs) =>
+    VideoCodec send(ScreenShareSettings settings, Set<VideoCodec> codecs) =>
         settings.codecToSend(gpuOnlyH264: true, gpu: codecs);
 
-    test('a codec never picked follows the hardware', () {
-      expect(send(const ScreenShareSettings(), gpu), 'H264');
-      expect(send(const ScreenShareSettings(), none), 'VP9');
+    test('Auto follows the hardware', () {
+      expect(send(const ScreenShareSettings(), gpu), VideoCodec.h264);
+      expect(send(const ScreenShareSettings(), none), VideoCodec.vp9);
     });
 
-    test('settings saved before there was a choice follow it too', () {
+    test('Auto keeps sharpness on VP9 even with a GPU encoder', () {
+      const sharp = ScreenShareSettings(priority: SharePriority.sharpness);
+      expect(send(sharp, gpu), VideoCodec.vp9);
+      const balanced = ScreenShareSettings(priority: SharePriority.balanced);
+      expect(send(balanced, gpu), VideoCodec.h264);
+    });
+
+    test('settings saved before there was a choice are Auto', () {
       final old = ScreenShareSettings.fromJson(const {'codec': 'VP9'});
-      expect(send(old, gpu), 'H264');
+      expect(old.codecChosen, isFalse);
+      expect(send(old, gpu), VideoCodec.h264);
+    });
+
+    test('a codec changed from the old default before Auto stays picked', () {
+      final old = ScreenShareSettings.fromJson(const {'codec': 'VP8'});
+      expect(old.codecChosen, isTrue);
+      expect(send(old, gpu), VideoCodec.vp8);
     });
 
     test('VP9 picked by hand stays VP9', () {
       const picked = ScreenShareSettings(codec: 'VP9', codecChosen: true);
-      expect(send(picked, gpu), 'VP9');
+      expect(send(picked, gpu), VideoCodec.vp9);
       final restored = ScreenShareSettings.fromJson(picked.toJson());
-      expect(send(restored, gpu), 'VP9');
+      expect(send(restored, gpu), VideoCodec.vp9);
     });
 
     test('a saved H264 with no GPU to encode it goes out as VP9', () {
       const picked = ScreenShareSettings(codec: 'H264', codecChosen: true);
-      expect(send(picked, none), 'VP9');
-      expect(send(picked, gpu), 'H264');
+      expect(send(picked, none), VideoCodec.vp9);
+      expect(send(picked, gpu), VideoCodec.h264);
     });
 
     test('VP8 is kept either way', () {
       const picked = ScreenShareSettings(codec: 'VP8', codecChosen: true);
-      expect(send(picked, gpu), 'VP8');
-      expect(send(picked, none), 'VP8');
+      expect(send(picked, gpu), VideoCodec.vp8);
+      expect(send(picked, none), VideoCodec.vp8);
     });
 
     test('H264 is offered only where the GPU encodes it', () {
       expect(ScreenShareSettings.codecsOffered(gpuOnlyH264: true, gpu: none), [
-        'VP8',
-        'VP9',
+        VideoCodec.vp8,
+        VideoCodec.vp9,
       ]);
       expect(ScreenShareSettings.codecsOffered(gpuOnlyH264: true, gpu: gpu), [
-        'VP8',
-        'H264',
-        'VP9',
+        VideoCodec.vp8,
+        VideoCodec.h264,
+        VideoCodec.vp9,
       ]);
     });
 
@@ -90,20 +106,98 @@ void main() {
   });
 
   group('codec elsewhere', () {
-    test('is the saved one, as it always was', () {
-      const h264 = ScreenShareSettings(codec: 'H264');
-      expect(h264.codecToSend(gpuOnlyH264: false, gpu: const {}), 'H264');
+    test('Auto is VP9, since nothing says a GPU encodes H264', () {
       expect(
         const ScreenShareSettings().codecToSend(
           gpuOnlyH264: false,
           gpu: const {},
         ),
-        'VP9',
+        VideoCodec.vp9,
+      );
+    });
+
+    test('one picked by hand is sent as picked', () {
+      const h264 = ScreenShareSettings(codec: 'H264', codecChosen: true);
+      expect(
+        h264.codecToSend(gpuOnlyH264: false, gpu: const {}),
+        VideoCodec.h264,
       );
       expect(
         ScreenShareSettings.codecsOffered(gpuOnlyH264: false, gpu: const {}),
-        ['VP8', 'H264', 'VP9'],
+        [VideoCodec.vp8, VideoCodec.h264, VideoCodec.vp9],
       );
+    });
+  });
+
+  group('bitrate', () {
+    const open = ServerLimits();
+
+    test('Auto follows the picture and the codec', () {
+      const settings = ScreenShareSettings(resolution: 720, fps: 30);
+      expect(
+        settings.bitrateToSend(codec: VideoCodec.vp9, limits: open),
+        ShareEncoding.autoMbps(
+          resolution: 720,
+          fps: 30,
+          codec: VideoCodec.vp9,
+        ),
+      );
+    });
+
+    test('one picked by hand is sent as picked', () {
+      const settings = ScreenShareSettings(bitrate: 4, bitrateChosen: true);
+      expect(settings.bitrateToSend(codec: VideoCodec.h264, limits: open), 4);
+    });
+
+    test('neither goes over what the server allows', () {
+      const capped = ServerLimits(maxShareMbps: 3);
+      expect(
+        const ScreenShareSettings().bitrateToSend(
+          codec: VideoCodec.h264,
+          limits: capped,
+        ),
+        3,
+      );
+      expect(
+        const ScreenShareSettings(
+          bitrate: 15,
+          bitrateChosen: true,
+        ).bitrateToSend(codec: VideoCodec.vp9, limits: capped),
+        3,
+      );
+    });
+
+    test('settings saved at the old default are Auto, others stay picked', () {
+      expect(
+        ScreenShareSettings.fromJson(const {'bitrate': 10}).bitrateChosen,
+        isFalse,
+      );
+      expect(
+        ScreenShareSettings.fromJson(const {'bitrate': 6}).bitrateChosen,
+        isTrue,
+      );
+      const picked = ScreenShareSettings(bitrate: 10, bitrateChosen: true);
+      expect(
+        ScreenShareSettings.fromJson(picked.toJson()).bitrateChosen,
+        isTrue,
+      );
+    });
+  });
+
+  group('advanced settings', () {
+    test('start closed and are remembered open', () {
+      expect(const ScreenShareSettings().showsAdvanced, isFalse);
+      const open = ScreenShareSettings(showsAdvanced: true);
+      expect(ScreenShareSettings.fromJson(open.toJson()).showsAdvanced, isTrue);
+    });
+
+    test('stay open after picking a window', () {
+      final settings = const ScreenShareSettings(
+        showsAdvanced: true,
+      ).withVideoSource(
+        const CaptureSource(index: 0, title: 'Game', minimised: false),
+      );
+      expect(settings.showsAdvanced, isTrue);
     });
   });
 

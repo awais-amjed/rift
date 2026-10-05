@@ -43,9 +43,10 @@ void main() {
     expect(picked?.index, 1);
   });
 
-  // The share dialog's column is about 288 px wide, three window tiles to a
-  // row, which left the minimised tile's text 2 to 8 px taller than its
-  // preview area: Flutter's overflow stripe, seen on Windows Oct 5 2026.
+  // Three window tiles to a row once left the minimised tile's text 2 to 8 px
+  // taller than its preview area: Flutter's overflow stripe, seen on Windows
+  // Oct 5 2026. Tiles are now as wide as the dialog allows, and never under
+  // about 240 px beside another, so these are the smallest it gets.
   for (final width in [240.0, 288.0, 340.0]) {
     testWidgets('a minimised tile fits in a ${width.toInt()} px dialog', (
       tester,

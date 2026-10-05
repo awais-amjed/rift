@@ -1,32 +1,38 @@
 import 'package:flutter/material.dart';
 
-import '../../../../theme/app_text.dart';
-import '../../../../theme/theme_context.dart';
-import '../widgets/settings_chip.dart';
+import '../../../../../data/classes/screen_share_settings.dart';
+import '../../../../../src/rust/api/screenshare/types.dart';
+import '../../../../common/app_dropdown.dart';
 import '../widgets/settings_section.dart';
 
-/// Section for selecting video codec, with a line saying what the chosen one
-/// suits.
+/// The share's codec, as a dropdown led by Auto.
 class CodecSection extends StatelessWidget {
-  /// The codec the share would go out in, which may not be the saved one
-  /// (`ScreenShareSettings.codecToSend`).
-  final String selectedCodec;
+  /// The codec picked by hand, or null for Auto.
+  final VideoCodec? chosen;
 
-  /// What this computer can send, in the order shown.
-  final List<String> offered;
-  final ValueChanged<String> onChanged;
+  /// What Auto would send (`ScreenShareSettings.codecToSend`), which it
+  /// names in brackets.
+  final VideoCodec auto;
+
+  /// What this computer can send besides Auto, in the order shown.
+  final List<VideoCodec> offered;
+
+  /// Null is Auto.
+  final ValueChanged<VideoCodec?> onChanged;
 
   const CodecSection({
     super.key,
-    required this.selectedCodec,
+    required this.chosen,
+    required this.auto,
     required this.offered,
     required this.onChanged,
   });
 
-  static String _explain(String codec) => switch (codec) {
-    'H264' => 'Best for games and video.',
-    'VP8' => 'Best for older devices.',
-    _ => 'Best for text and slides.',
+  /// What the codec a share goes out in is best for.
+  static String explain(VideoCodec codec) => switch (codec) {
+    VideoCodec.h264 => 'Best for games and video.',
+    VideoCodec.vp8 => 'Best for older devices.',
+    VideoCodec.vp9 => 'Best for text and slides.',
   };
 
   @override
@@ -34,23 +40,20 @@ class CodecSection extends StatelessWidget {
     return SettingsSection(
       label: 'Codec',
       children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: offered
-              .map(
-                (c) => SettingsChip(
-                  label: c,
-                  active: selectedCodec == c,
-                  onTap: () => onChanged(c),
-                ),
-              )
-              .toList(),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          _explain(selectedCodec),
-          style: AppText.secondary.copyWith(color: context.theme.textTertiary),
+        AppDropdown<VideoCodec?>(
+          value: chosen,
+          options: [
+            AppDropdownOption(
+              value: null,
+              label: 'Auto (${ScreenShareSettings.nameOf(auto)})',
+            ),
+            for (final codec in offered)
+              AppDropdownOption(
+                value: codec,
+                label: ScreenShareSettings.nameOf(codec),
+              ),
+          ],
+          onChanged: onChanged,
         ),
       ],
     );

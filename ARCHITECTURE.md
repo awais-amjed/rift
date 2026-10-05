@@ -404,6 +404,12 @@ fps: 52 to 67% of a core, against VP9's 186 to 196% (`TESTING.md`).
   to, so Rift ships no H264 encoder of its own. VP8 and VP9 are royalty-free
   and stay as CPU codecs. Without a hardware encoder, or if one fails mid-share,
   the share goes out as VP9 and the user is told.
+- **Auto, the default, picks the codec and the bitrate** (`ShareEncoding`):
+  H264 where the GPU encodes it, VP9 where it does not or where sharpness was
+  asked for, since it keeps text crisper at the same rate. The bitrate cap
+  follows the picture's size and rate and the codec, generous because it is
+  only a cap, and held to the server's share limit like a chosen one.
+  Either can still be picked by hand under the dialog's advanced settings.
 - **H265 is skipped**: too many viewers cannot play it.
 - **AV1 is parked.** AMD's encoder makes AV1 that WebRTC carries, but no viewer
   gets it encrypted: LiveKit's Rust SDK does not negotiate what the server needs
