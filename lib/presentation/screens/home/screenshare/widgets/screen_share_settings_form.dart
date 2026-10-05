@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../../data/classes/screen_share_settings.dart';
 import '../../../../../data/classes/server_limits.dart';
+import '../../../../../logic/services/gpu_codecs.dart';
 import '../../../../../logic/services/host_platform.dart';
 import '../../../../../src/rust/api/screenshare/types.dart';
 import '../sections/audio_source_section.dart';
@@ -71,6 +72,13 @@ class ScreenShareSettingsForm extends StatelessWidget {
   bool get _showsAudioSourcePicker =>
       HostPlatform.picksShareAudioSource && settings.shareAudio;
 
+  /// The codec the share would go out in, given what the GPU encodes, which
+  /// is asked at startup.
+  String get _codec => settings.codecToSend(
+    gpuOnlyH264: HostPlatform.encodesH264OnGpuOnly,
+    gpu: GpuCodecs.known,
+  );
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -125,8 +133,13 @@ class ScreenShareSettingsForm extends StatelessWidget {
           const SizedBox(height: 16),
 
           CodecSection(
-            selectedCodec: settings.codec,
-            onChanged: (value) => onChanged(settings.copyWith(codec: value)),
+            selectedCodec: _codec,
+            offered: ScreenShareSettings.codecsOffered(
+              gpuOnlyH264: HostPlatform.encodesH264OnGpuOnly,
+              gpu: GpuCodecs.known,
+            ),
+            onChanged: (value) =>
+                onChanged(settings.copyWith(codec: value, codecChosen: true)),
           ),
           const SizedBox(height: 16),
 
@@ -155,7 +168,7 @@ class ScreenShareSettingsForm extends StatelessWidget {
             fps: settings.fps,
             bitrate: _limits.shareMbps(settings.bitrate),
             shareAudio: settings.shareAudio,
-            codec: settings.codec,
+            codec: _codec,
           ),
         ],
       ),

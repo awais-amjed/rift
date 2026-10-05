@@ -5,7 +5,7 @@
 //!
 //! ```text
 //! LIVEKIT_URL=ws://localhost:7880 LIVEKIT_API_KEY=… LIVEKIT_API_SECRET=… \
-//!   cargo test live_ -- --ignored --nocapture
+//!   cargo test live_ -- --ignored --nocapture --test-threads=1
 //! ```
 //!
 //! Under a Wayland session libwebrtc captures through the desktop portal,
@@ -28,18 +28,18 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::time::timeout;
 
 /// Not slot 0, so a sender that ignores the index cannot pass by accident.
-const KEY_INDEX: i32 = 3;
+pub(super) const KEY_INDEX: i32 = 3;
 const FRAMES_WANTED: usize = 10;
 const WAIT: Duration = Duration::from_secs(20);
 
-struct Server {
-    url: String,
+pub(super) struct Server {
+    pub url: String,
     key: String,
     secret: String,
 }
 
 impl Server {
-    fn from_env() -> Server {
+    pub(super) fn from_env() -> Server {
         let var = |name: &str| {
             std::env::var(name).unwrap_or_else(|_| panic!("{name} is not set; see the module doc"))
         };
@@ -54,7 +54,7 @@ impl Server {
     /// share: the share connection only publishes, and one that could
     /// subscribe was a way to sit in a call as nothing but a "screen share"
     /// that no roster lists.
-    fn token(&self, room: &str, identity: &str, subscribe: bool) -> String {
+    pub(super) fn token(&self, room: &str, identity: &str, subscribe: bool) -> String {
         AccessToken::with_api_key(&self.key, &self.secret)
             .with_identity(identity)
             .with_name(identity)
@@ -63,6 +63,7 @@ impl Server {
                 room: room.to_string(),
                 can_publish: true,
                 can_subscribe: subscribe,
+                can_update_own_metadata: true,
                 ..Default::default()
             })
             .to_jwt()
@@ -70,11 +71,14 @@ impl Server {
     }
 }
 
-fn shared_key() -> Vec<u8> {
+pub(super) fn shared_key() -> Vec<u8> {
     (0..32).collect()
 }
 
 fn config(server: &Server, room: &str) -> ScreenShareConfig {
+    // A share reads its index back through the last list shown, as the
+    // dialog's pick is; show one, so index 0 is the first screen.
+    super::sources::list(true);
     ScreenShareConfig {
         livekit_url: server.url.clone(),
         livekit_token: server.token(room, "sharer", false),
@@ -98,6 +102,15 @@ async fn viewer(
     server: &Server,
     room: &str,
 ) -> (Room, tokio::sync::mpsc::UnboundedReceiver<RoomEvent>) {
+    viewer_as(server, room, "viewer").await
+}
+
+/// A participant that subscribes, holding the share's key.
+pub(super) async fn viewer_as(
+    server: &Server,
+    room: &str,
+    identity: &str,
+) -> (Room, tokio::sync::mpsc::UnboundedReceiver<RoomEvent>) {
     let key_provider = KeyProvider::with_shared_key(KeyProviderOptions::default(), shared_key());
     key_provider.set_shared_key(shared_key(), KEY_INDEX);
     let mut options = RoomOptions::default();
@@ -105,7 +118,7 @@ async fn viewer(
         encryption_type: EncryptionType::Gcm,
         key_provider,
     });
-    Room::connect(&server.url, &server.token(room, "viewer", true), options)
+    Room::connect(&server.url, &server.token(room, identity, true), options)
         .await
         .expect("viewer connects")
 }

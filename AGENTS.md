@@ -249,7 +249,7 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
 - Log with `log::` (`info!`/`warn!`), never `println!`: `init_app` installs a logger on every
   platform and stdout goes nowhere in a Windows release build.
 - Pure logic (frame sizing, pixel sampling, sample conversion) is a plain function with unit
-  tests; `cargo test` runs them anywhere. `cargo test live_ -- --ignored` runs a real share
+  tests; `cargo test` runs them anywhere. `cargo test live_ -- --ignored --test-threads=1` runs a real share
   against a LiveKit server (see `rust/src/screenshare/live_test.rs`).
 - `rust/src/frb_generated.rs` and `lib/src/rust/` are generated. After changing the API surface,
   regenerate with flutter_rust_bridge codegen (config in `flutter_rust_bridge.yaml`,

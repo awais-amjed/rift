@@ -11,6 +11,7 @@ import '../../../src/rust/api/screenshare.dart';
 import '../../../src/rust/api/screenshare/types.dart';
 import '../../helper_methods.dart';
 import '../../services/call_foreground_service.dart';
+import '../../services/gpu_codecs.dart';
 import '../../services/host_platform.dart';
 import '../livekit/livekit_cubit.dart';
 import '../server/server_cubit.dart';
@@ -65,10 +66,19 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
   static const Duration _errorDuration = Duration(seconds: 6);
 
   void _onRustScreenshareEvent(ScreenshareEvent event) {
-    if (event == ScreenshareEvent.sourceClosed &&
-        state.status == ScreenshareStatus.sharing) {
-      // The captured window was closed — tear the session down and reset UI.
-      stopScreenShare();
+    switch (event) {
+      case ScreenshareEvent.sourceClosed:
+        if (state.status == ScreenshareStatus.sharing) {
+          // The captured window was closed — tear the session down and
+          // reset UI.
+          stopScreenShare();
+        }
+      case ScreenshareEvent.encoderFellBack:
+        // The share is still up; only how it is encoded changed.
+        HelperMethods.showToast(
+          title: 'Sharing as VP9',
+          description: 'Your graphics card could not encode H264 this time.',
+        );
     }
   }
 
@@ -201,7 +211,12 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
         shareAudio: settings.shareAudio && HostPlatform.capturesSystemAudio,
         captureFullScreen: settings.captureFullScreen,
         selectedVideoSourceIndex: settings.selectedVideoSourceIndex,
-        codec: settings.videoCodec,
+        codec: ScreenShareSettings.codecFromName(
+          settings.codecToSend(
+            gpuOnlyH264: HostPlatform.encodesH264OnGpuOnly,
+            gpu: await GpuCodecs.supported,
+          ),
+        ),
         priority: settings.priority,
         selectedAudioSourceIndex: settings.selectedAudioSource?.index,
         selectedAudioSourceSink: settings.selectedAudioSource?.sink,

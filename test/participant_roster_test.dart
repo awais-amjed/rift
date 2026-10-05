@@ -161,6 +161,7 @@ void main() {
     // A window shared at its own size is still named by its class.
     expect(label(const {'size': '1920x1048', 'fps': '30'}), '1080p · 30fps');
     expect(label(const {'size': '1280x720'}), '720p');
+    expect(label(const {'size': '4096x1152', 'fps': '60'}), '1440p · 60fps');
     expect(label(const {}), isNull);
     expect(label(const {'size': 'garbage', 'fps': '60'}), isNull);
     expect(label(const {'size': '0x0', 'fps': '60'}), isNull);

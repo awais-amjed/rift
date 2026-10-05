@@ -38,8 +38,46 @@ void main() {
       ),
     );
 
-    expect(find.text('Starts when you open it'), findsOneWidget);
+    expect(find.text('Starts when you open\u00A0it'), findsOneWidget);
     await tester.tap(find.text('Game'));
     expect(picked?.index, 1);
   });
+
+  // The share dialog's column is about 288 px wide, three window tiles to a
+  // row, which left the minimised tile's text 2 to 8 px taller than its
+  // preview area: Flutter's overflow stripe, seen on Windows Oct 5 2026.
+  for (final width in [240.0, 288.0, 340.0]) {
+    testWidgets('a minimised tile fits in a ${width.toInt()} px dialog', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        BlocProvider<ThemeCubit>(
+          create: (_) => ThemeCubit(),
+          child: MaterialApp(
+            home: Scaffold(
+              body: Align(
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                  width: width,
+                  child: SourceThumbnailGrid(
+                    sources: const [
+                      CaptureSource(index: 0, title: 'Game', minimised: true),
+                      CaptureSource(index: 1, title: 'Chat', minimised: true),
+                      CaptureSource(index: 2, title: 'Music', minimised: true),
+                    ],
+                    selectedIndex: 0,
+                    thumbnails: const {},
+                    captureFullScreen: false,
+                    onChanged: (_) {},
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(tester.takeException(), isNull);
+      expect(find.text('Minimised'), findsNWidgets(3));
+    });
+  }
 }

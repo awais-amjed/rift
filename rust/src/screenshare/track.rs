@@ -1,6 +1,6 @@
 //! Publishing the video track.
 use crate::api::screenshare::types::{ScreenShareConfig, SharePriority, VideoCodec};
-use livekit::options::{self, TrackPublishOptions, VideoEncoding};
+use livekit::options::{self, TrackPublishOptions, VideoEncoderBackend, VideoEncoding};
 use livekit::prelude::*;
 use livekit::track::{LocalTrack, LocalVideoTrack, TrackSource};
 use livekit::webrtc::prelude::RtcVideoSource;
@@ -34,10 +34,16 @@ impl From<&ScreenShareConfig> for TrackSettings {
     }
 }
 
+/// Publish `source` as the share's picture. A `pre_encoded` source carries
+/// H264 the GPU already made, which WebRTC passes through as it is; it cannot
+/// scale or drop frames for the connection the way it does with raw ones, so
+/// whatever the priority, the encoder keeps the frame rate and lowers its
+/// bitrate to what WebRTC asks.
 pub(crate) async fn publish_video_track(
     participant: &LocalParticipant,
     source: NativeVideoSource,
     settings: &TrackSettings,
+    pre_encoded: bool,
 ) -> Result<TrackSid, String> {
     let track = LocalVideoTrack::create_video_track("screen_share", RtcVideoSource::Native(source));
     let max_bitrate = u64::from(settings.bitrate) * BITS_PER_MEGABIT;
@@ -52,8 +58,9 @@ pub(crate) async fn publish_video_track(
         SharePriority::Sharpness => options::DegradationPreference::MaintainResolution,
     };
     log::info!(
-        "track: publishing {:?} at {} bps, {} fps, keeping {:?}",
+        "track: publishing {:?}{} at {} bps, {} fps, keeping {:?}",
         video_codec,
+        if pre_encoded { " from the GPU" } else { "" },
         max_bitrate,
         settings.fps,
         settings.priority
@@ -74,6 +81,11 @@ pub(crate) async fn publish_video_track(
                     max_framerate: f64::from(settings.fps),
                 }),
                 degradation_preference: Some(degradation_preference),
+                video_encoder: if pre_encoded {
+                    VideoEncoderBackend::PreEncoded
+                } else {
+                    VideoEncoderBackend::Auto
+                },
                 ..Default::default()
             },
         )

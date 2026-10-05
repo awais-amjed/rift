@@ -148,9 +148,20 @@ void main() {
       expect(stats.qualityLabel, '1080p · 60fps');
     });
 
-    test('uses the shorter side for a tall picture', () {
+    test('names a tall picture as a wide one of the same size', () {
       const stats = VideoStreamStats(width: 720, height: 1280, fps: 30);
       expect(stats.qualityLabel, '720p · 30fps');
+    });
+
+    test('names a very wide picture by how much it carries', () {
+      String? label(int width, int height) =>
+          VideoStreamStats(width: width, height: height).qualityLabel;
+      // A 32:9 screen fitted to what a GPU encodes: not "1080p", the
+      // height alone, and not "2160p", the width alone.
+      expect(label(4096, 1152), '1440p');
+      expect(label(3440, 1440), '1440p');
+      expect(label(2560, 1080), '1080p');
+      expect(label(5120, 1440), '2160p');
     });
 
     test('leaves the rate out until there is one', () {
