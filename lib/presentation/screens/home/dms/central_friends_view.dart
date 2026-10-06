@@ -44,19 +44,8 @@ class _CentralFriendsViewState extends State<CentralFriendsView> {
   /// Ask for the rows behind a tab as it is shown. The counts are already in
   /// hand — they arrive with the account — so the tab
   /// bar is drawn correctly before any of this lands.
-  void _open(FriendsTab tab) {
-    final cubit = context.read<CentralDmCubit>();
-    for (final bucket in switch (tab) {
-      FriendsTab.friends => const [FriendBucket.friends],
-      FriendsTab.blocked => const [FriendBucket.blocked],
-      FriendsTab.pending => const [
-        FriendBucket.incoming,
-        FriendBucket.outgoing,
-      ],
-    }) {
-      unawaited(cubit.loadBucket(bucket));
-    }
-  }
+  void _open(FriendsTab tab) =>
+      unawaited(context.read<CentralDmCubit>().openBuckets(tab.buckets));
 
   @override
   Widget build(BuildContext context) {

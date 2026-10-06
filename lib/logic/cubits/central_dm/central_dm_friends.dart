@@ -39,17 +39,24 @@ mixin _CentralDmFriendsMixin on Cubit<CentralDmState> {
         ),
       ),
     );
-    final open = state.openBucket;
-    if (open != null) unawaited(loadBucket(open));
+    for (final open in state.openBuckets) {
+      unawaited(loadBucket(open));
+    }
   }
 
-  /// The first page of one tab, fetched when that tab is opened.
+  /// The first page of each list a tab draws, fetched when that tab is
+  /// opened, and remembered as what is on screen.
+  Future<void> openBuckets(List<FriendBucket> buckets) async {
+    emit(state.copyWith(openBuckets: buckets));
+    await Future.wait(buckets.map(loadBucket));
+  }
+
+  /// The first page of one list.
   ///
-  /// A tab already loaded is left alone: opening Pending, going to Friends and
-  /// coming back should not cost a round trip, and [loadFriends] is what clears
-  /// a page once something has actually changed.
+  /// A list already loaded is left alone: opening Pending, going to Friends
+  /// and coming back should not cost a round trip, and [loadFriends] is what
+  /// clears a page once something has actually changed.
   Future<void> loadBucket(FriendBucket bucket, {bool force = false}) async {
-    emit(state.copyWith(openBucket: bucket));
     if (!force && state.friends.pageOf(bucket) != null) return;
 
     final response = await _repo.friendBucket(bucket);

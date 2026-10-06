@@ -53,9 +53,11 @@ class CentralDmState {
   /// [FriendBuckets].
   final FriendBuckets friends;
 
-  /// Which friends tab is on screen, so a change to the graph can refetch the
-  /// one page somebody is actually looking at. Null when the page is closed.
-  final FriendBucket? openBucket;
+  /// The lists the friends tab on screen draws, so a change to the graph can
+  /// refetch the pages somebody is actually looking at. Pending draws two —
+  /// requests to you and requests you sent — and keeping only one of them
+  /// left the other unloaded after accepting, its spinner turning forever.
+  final List<FriendBucket> openBuckets;
 
   /// Daily-quota meter (null until first fetched).
   final int? quota;
@@ -108,7 +110,7 @@ class CentralDmState {
     this.unreadByPeer = const {},
     this.levelsByPeer = const {},
     FriendBuckets? friends,
-    this.openBucket,
+    this.openBuckets = const [],
     this.quota,
     this.remaining,
     this.friendsOpen = false,
@@ -134,7 +136,7 @@ class CentralDmState {
     Map<String, int>? unreadByPeer,
     Map<String, NotificationLevel>? levelsByPeer,
     FriendBuckets? friends,
-    FriendBucket? openBucket,
+    List<FriendBucket>? openBuckets,
     int? quota,
     int? remaining,
     bool? friendsOpen,
@@ -162,7 +164,7 @@ class CentralDmState {
       unreadByPeer: unreadByPeer ?? this.unreadByPeer,
       levelsByPeer: levelsByPeer ?? this.levelsByPeer,
       friends: friends ?? this.friends,
-      openBucket: openBucket ?? this.openBucket,
+      openBuckets: openBuckets ?? this.openBuckets,
       quota: quota ?? this.quota,
       remaining: remaining ?? this.remaining,
       // Deliberately untouched by [closeConversation]: opening friends *is*

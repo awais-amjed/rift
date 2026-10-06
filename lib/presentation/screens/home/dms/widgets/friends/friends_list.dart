@@ -42,13 +42,7 @@ class FriendsList extends StatelessWidget {
   /// How close to the bottom counts as "nearly there" — about three rows.
   static const double _loadMoreSlack = 180;
 
-  /// The buckets this tab draws, in the order it draws them. Pending is the
-  /// only tab that shows two, each under its own heading.
-  List<FriendBucket> get _buckets => switch (tab) {
-    FriendsTab.friends => const [FriendBucket.friends],
-    FriendsTab.blocked => const [FriendBucket.blocked],
-    FriendsTab.pending => const [FriendBucket.incoming, FriendBucket.outgoing],
-  };
+  List<FriendBucket> get _buckets => tab.buckets;
 
   @override
   Widget build(BuildContext context) {

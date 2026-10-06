@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../../data/classes/friend_buckets.dart';
 import '../../../../../../data/constants.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
@@ -14,6 +15,14 @@ enum FriendsTab {
     FriendsTab.friends => 'Friends',
     FriendsTab.pending => 'Pending',
     FriendsTab.blocked => 'Blocked',
+  };
+
+  /// The lists this tab draws, in the order it draws them. Pending is the
+  /// only tab that shows two, each under its own heading.
+  List<FriendBucket> get buckets => switch (this) {
+    FriendsTab.friends => const [FriendBucket.friends],
+    FriendsTab.pending => const [FriendBucket.incoming, FriendBucket.outgoing],
+    FriendsTab.blocked => const [FriendBucket.blocked],
   };
 }
 
