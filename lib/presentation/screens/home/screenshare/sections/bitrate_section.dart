@@ -23,7 +23,9 @@ class BitrateSection extends StatelessWidget {
   final ValueChanged<int?> onChanged;
 
   /// The ladder everyone sees when nothing is capped.
-  static const bitrateOptions = [2, 4, 6, 8, 10, 12, 14, 15];
+  static const bitrateOptions = [
+    2, 4, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50, 60, 70, 80, 90, 100, //
+  ];
 
   const BitrateSection({
     super.key,
@@ -33,19 +35,22 @@ class BitrateSection extends StatelessWidget {
     this.maxMbps = ServerLimits.unlimited,
   });
 
-  /// The ladder, plus the cap itself when the cap is not already a rung.
+  /// The ladder, plus the cap itself and the stored choice ([picked]) when
+  /// either is not already a rung.
   ///
-  /// Without that extra rung a server allowing 3 Mbps would show 2 and
+  /// Without the cap's rung a server allowing 3 Mbps would show 2 and
   /// publish 3, because the share is clamped to the cap
   /// ([ServerLimits.shareMbps]) and not snapped to the nearest option below
-  /// it. A picker that disagrees with what is sent is worse than no picker.
-  static List<int> optionsFor(int maxMbps) {
-    if (maxMbps == ServerLimits.unlimited ||
-        bitrateOptions.contains(maxMbps) ||
-        maxMbps > bitrateOptions.last) {
-      return bitrateOptions;
-    }
-    return [...bitrateOptions, maxMbps]..sort();
+  /// it. Without the choice's, one picked from an older ladder (14) would
+  /// show nothing at all. A picker that disagrees with what is sent is worse
+  /// than no picker.
+  static List<int> optionsFor(int maxMbps, {int? picked}) {
+    final cap =
+        maxMbps == ServerLimits.unlimited || maxMbps > bitrateOptions.last
+        ? null
+        : maxMbps;
+    final sent = picked == null ? null : effectiveFor(picked, maxMbps);
+    return {...bitrateOptions, ?cap, ?sent}.toList()..sort();
   }
 
   /// What will actually be published — the same rule the share itself uses,
@@ -70,7 +75,7 @@ class BitrateSection extends StatelessWidget {
           options: [
             AppDropdownOption(value: null, label: 'Auto ($auto Mbps)'),
             // Above the cap would be sent at the cap, so it is not offered.
-            for (final b in optionsFor(maxMbps))
+            for (final b in optionsFor(maxMbps, picked: picked))
               if (_allowed(b)) AppDropdownOption(value: b, label: '$b Mbps'),
           ],
           onChanged: onChanged,

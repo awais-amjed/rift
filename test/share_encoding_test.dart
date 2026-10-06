@@ -68,8 +68,9 @@ void main() {
       );
     });
 
-    test('never goes past its ceiling, or under 2 Mbps', () {
-      expect(mbps(2160, 60, VideoCodec.h264), ShareEncoding.maxAutoMbps);
+    test('has no ceiling of its own, and never goes under 2 Mbps', () {
+      expect(mbps(1440, 120, VideoCodec.h264), 34);
+      expect(mbps(2160, 60, VideoCodec.h264), 38);
       expect(mbps(240, 15, VideoCodec.vp9), 2);
     });
 

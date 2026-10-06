@@ -463,8 +463,9 @@ VAAPI driver is a separate package) H264 is simply not offered.
 - **Auto, the default, picks the codec and the bitrate** (`ShareEncoding`):
   H264 where the GPU encodes it, VP9 where it does not or where sharpness was
   asked for, since it keeps text crisper at the same rate. The bitrate cap
-  follows the picture's size and rate and the codec, generous because it is
-  only a cap, and held to the server's share limit like a chosen one.
+  follows the picture's size and rate and the codec, with no ceiling of its
+  own because it is only a cap (2K at 120 fps in H264 asks for 34 Mbps). The
+  server's share limit holds it, like a chosen one, which can be up to 100.
   Either can still be picked by hand under the dialog's advanced settings.
 - **Auto never drops to VP8 under load.** VP8 is the lighter codec only on an
   idle machine; on a busy one its encoder threads fight over the cores.

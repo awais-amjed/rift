@@ -21,7 +21,11 @@ void main() {
       // The share is clamped to the cap, not snapped to the option below it,
       // so 3 has to be selectable — otherwise the picker shows 2 and the
       // stream sends 3.
-      expect(BitrateSection.optionsFor(3), [2, 3, 4, 6, 8, 10, 12, 14, 15]);
+      expect(BitrateSection.optionsFor(3), [
+        2,
+        3,
+        ...BitrateSection.bitrateOptions.skip(1),
+      ]);
       expect(BitrateSection.effectiveFor(15, 3), 3);
       expect(BitrateSection.optionsFor(3), contains(3));
     });
@@ -32,8 +36,19 @@ void main() {
     });
 
     test('a cap above the ladder changes nothing but the sentence', () {
-      expect(BitrateSection.optionsFor(50), BitrateSection.bitrateOptions);
-      expect(BitrateSection.effectiveFor(15, 50), 15);
+      expect(BitrateSection.optionsFor(150), BitrateSection.bitrateOptions);
+      expect(BitrateSection.effectiveFor(15, 150), 15);
+    });
+
+    test('the ladder reaches 100 Mbps', () {
+      expect(BitrateSection.bitrateOptions.last, 100);
+    });
+
+    test('a choice from an older ladder stays a rung', () {
+      expect(
+        BitrateSection.optionsFor(ServerLimits.unlimited, picked: 14),
+        contains(14),
+      );
     });
 
     test('a modest setting is left alone under a generous cap', () {
@@ -43,12 +58,13 @@ void main() {
     test('whatever is shown is always an option that exists', () {
       // The invariant the whole thing rests on: every cap an operator could
       // type leaves the effective value somewhere in the row.
-      for (var cap = 1; cap <= 20; cap++) {
-        for (final stored in BitrateSection.bitrateOptions) {
+      for (var cap = 1; cap <= 110; cap++) {
+        for (final stored in [...BitrateSection.bitrateOptions, 14]) {
           expect(
-            BitrateSection.optionsFor(cap),
+            BitrateSection.optionsFor(cap, picked: stored),
             contains(BitrateSection.effectiveFor(stored, cap)),
-            reason: 'cap $cap with $stored stored shows an option that is absent',
+            reason:
+                'cap $cap with $stored stored shows an option that is absent',
           );
         }
       }

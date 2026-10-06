@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import '../../src/rust/api/screenshare/types.dart';
 
 /// What a share's "Auto" picks: the codec, and the most it may send.
@@ -45,14 +47,11 @@ class ShareEncoding {
       ? 0.7
       : 0.5;
 
-  /// The most Auto ever asks for. Every viewer gets the whole stream, so the
-  /// server's upload pays for it once per viewer.
-  static const maxAutoMbps = 30;
-
   /// The bitrate cap Auto sets, in Mbps.
   ///
   /// It is only a cap: WebRTC follows the connection under it, and a still
-  /// screen sends far less. So it is generous, but not unlimited.
+  /// screen sends far less. So it is what the picture needs, with no ceiling
+  /// of its own; a server that wants one sets its share limit.
   static int autoMbps({
     required int resolution,
     required int fps,
@@ -60,7 +59,7 @@ class ShareEncoding {
   }) {
     final base = _vp9At60[resolution] ?? _nearestBase(resolution);
     final mbps = base * _fpsFactor(fps) * _codecFactor(codec);
-    return mbps.round().clamp(2, maxAutoMbps);
+    return max(2, mbps.round());
   }
 
   /// A height not in the table, scaled by its pixels from 1080p.
