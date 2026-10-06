@@ -69,7 +69,8 @@ jobs:
             ca-certificates curl git jq unzip xz-utils zip file binutils \
             clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev \
             libsecret-1-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
-            libpulse-dev libva-dev libayatana-appindicator3-dev gnupg libicu74
+            libpulse-dev libva-dev libayatana-appindicator3-dev gnupg libicu74 \
+            squashfs-tools
       # libwebrtc is built against a libc++ that needs clang 21 or newer, and
       # 24.04 ships 18 (webrtc-sys refuses an older one up front). libclang is
       # for bindgen, which generates the NVENC bindings (shiguredo_nvcodec).
