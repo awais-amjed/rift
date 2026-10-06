@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
+import '../theme/app_text.dart';
+import '../theme/theme_context.dart';
 import 'app_button.dart';
 
 /// "Didn't get the email? Send it again" — and, once asked, the wait until it
@@ -30,11 +32,16 @@ class ResendConfirmationButton extends StatefulWidget {
   /// clock that `pump` does not move.
   final DateTime Function() clock;
 
+  /// A text link under the step's buttons rather than a button of its own:
+  /// onboarding's footer keeps its secondary actions that way.
+  final bool asLink;
+
   const ResendConfirmationButton({
     super.key,
     required this.availableAt,
     this.isProcessing = false,
     this.clock = DateTime.now,
+    this.asLink = false,
   });
 
   @override
@@ -86,6 +93,24 @@ class _ResendConfirmationButtonState extends State<ResendConfirmationButton> {
   Widget build(BuildContext context) {
     final left = _remaining;
     final waiting = left > Duration.zero;
+    final onPressed = waiting || widget.isProcessing
+        ? null
+        : context.read<SupabaseBackupCubit>().resendConfirmation;
+
+    if (widget.asLink) {
+      final theme = context.theme;
+      return TextButton(
+        onPressed: onPressed,
+        child: Text(
+          waiting
+              ? "Didn't get it? Resend in ${left.inSeconds}s"
+              : "Didn't get it? Resend",
+          style: AppText.secondary.copyWith(
+            color: onPressed == null ? theme.textTertiary : theme.primary,
+          ),
+        ),
+      );
+    }
 
     // It sits in a footer beside Sign in, so it is the same kind of button;
     // while it must wait, the label carries the countdown and the button is
@@ -94,9 +119,7 @@ class _ResendConfirmationButtonState extends State<ResendConfirmationButton> {
     return AppButton(
       label: waiting ? 'Resend in ${left.inSeconds}s' : 'Resend',
       variant: AppButtonVariant.secondary,
-      onPressed: waiting || widget.isProcessing
-          ? null
-          : context.read<SupabaseBackupCubit>().resendConfirmation,
+      onPressed: onPressed,
     );
   }
 }
