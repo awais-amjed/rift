@@ -8,6 +8,7 @@ import '../../../../../logic/cubits/reports/reports_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_modal.dart';
+import '../../invites/show_invite_modal.dart';
 import '../../servers/add_server/add_server_dialog.dart';
 import '../../servers/manage/server_manage_tab.dart';
 import '../../servers/manage/show_server_manage_dialog.dart';
@@ -45,6 +46,9 @@ class SidebarHeader extends StatelessWidget {
             ServerHeader(
               server: server,
               showHideButton: showHideButton,
+              onInvite: (server.user?.permissions.canCreateTokens ?? false)
+                  ? () => showInviteModal(context, server: server)
+                  : null,
               onOpenSettings: canManage
                   ? () => _openServerSettings(context, server)
                   : null,

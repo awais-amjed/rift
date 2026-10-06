@@ -7,13 +7,16 @@ import '../../../../../../data/classes/member_page.dart';
 import '../../../../../../data/classes/role.dart';
 import '../../../../../../data/classes/server.dart';
 import '../../../../../../data/classes/server_member.dart';
+import '../../../../../../data/constants.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../logic/services/member_roster_pager.dart';
+import '../../../../../common/app_button.dart';
 import '../../../../../common/loading_block.dart';
 import '../../../../../common/message_banner.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
+import '../../../invites/show_invite_modal.dart';
 import '../../../members/widgets/members_list.dart';
 import '../../../members/widgets/members_search_field.dart';
 import '../widgets/manage_panel.dart';
@@ -291,6 +294,14 @@ class _MembersPanelState extends State<MembersPanel> {
           if (c.bots == 1) '1 bot' else if (c.bots > 1) '${c.bots} bots',
         ].join(' · '),
       },
+      footer: [
+        if (viewerPerms?.canCreateTokens ?? false)
+          AppButton(
+            label: 'Invite people',
+            icon: const Icon(Icons.person_add_outlined, size: K.iconRow),
+            onPressed: () => showInviteModal(context, server: widget.server),
+          ),
+      ],
       body: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

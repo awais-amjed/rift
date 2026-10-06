@@ -17,7 +17,7 @@ import 'sidebar_peek_scope.dart';
 /// settings: end-to-end encryption is the reason Rift exists, and a claim you
 /// can see at all times is worth more than one you have to go looking for.
 ///
-/// The name and that claim are a label, not a button. Only the two icons act,
+/// The name and that claim are a label, not a button. Only the icons act,
 /// and each says which one it is — a whole row that silently opens settings
 /// gives no clue what it will do before you commit to it.
 class ServerHeader extends StatelessWidget {
@@ -32,6 +32,9 @@ class ServerHeader extends StatelessWidget {
   /// Admin-only. Null hides the gear.
   final VoidCallback? onOpenSettings;
 
+  /// For whoever may make invites. Null hides the button.
+  final VoidCallback? onInvite;
+
   /// Reports waiting on this member, drawn on the settings button. 0 for
   /// everybody who does not review them.
   final int openReports;
@@ -40,6 +43,7 @@ class ServerHeader extends StatelessWidget {
     super.key,
     required this.server,
     this.onOpenSettings,
+    this.onInvite,
     this.openReports = 0,
     this.showHideButton = true,
   });
@@ -63,6 +67,7 @@ class ServerHeader extends StatelessWidget {
               size: 38,
             ),
             Expanded(child: _buildIdentity(themeState)),
+            if (onInvite != null) _buildInviteButton(themeState),
             if (onOpenSettings != null) _buildSettingsButton(themeState),
             if (showHideButton) _buildHideButton(context, themeState),
           ],
@@ -108,6 +113,22 @@ class ServerHeader extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+
+  /// Here rather than only on the rail's menu: asking somebody in is the
+  /// first thing a new server needs, and a right-click is not where anyone
+  /// looks for it.
+  Widget _buildInviteButton(ThemeState themeState) {
+    return IconButton(
+      tooltip: 'Invite people',
+      visualDensity: VisualDensity.compact,
+      onPressed: onInvite,
+      icon: Icon(
+        Icons.person_add_outlined,
+        size: K.iconButton,
+        color: themeState.textTertiary,
+      ),
     );
   }
 

@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/classes/server.dart';
 import '../../../../../../data/enums/notification_level.dart';
-import '../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../../../../../../logic/cubits/reports/reports_cubit.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
@@ -15,7 +14,7 @@ import '../../../../../common/context_menu_region.dart';
 import '../../../../../common/notifications/notification_level_submenu.dart';
 import '../../../../../common/squircle_avatar.dart';
 import '../../../../../common/unread_badge.dart';
-import '../../../invites/invite_modal.dart';
+import '../../../invites/show_invite_modal.dart';
 import '../../manage/server_manage_tab.dart';
 import '../../manage/show_server_manage_dialog.dart';
 
@@ -88,13 +87,7 @@ class ServerChipMenu extends StatelessWidget {
             label: 'Invite people',
             onTap: () => showDialogFromMenu(
               context: context,
-              build: (ctx) => MultiBlocProvider(
-                providers: [
-                  BlocProvider.value(value: ctx.read<ServerCubit>()),
-                  BlocProvider.value(value: ctx.read<AppCubit>()),
-                ],
-                child: InviteModal(server: server),
-              ),
+              build: (ctx) => inviteModal(ctx, server: server),
             ),
           ),
         // Members for whoever moderates them; the whole dialog for whoever
