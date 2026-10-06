@@ -66,6 +66,12 @@ static void my_application_activate(GApplication* application) {
   gdk_rgba_parse(&background_color, "#000000");
   fl_view_set_background_color(view, &background_color);
   gtk_widget_show(GTK_WIDGET(view));
+  // The smallest the window can be dragged to: K.windowMinWidth and
+  // K.windowMinHeight in lib/data/constants.dart, which keep the two in step.
+  // Set here rather than through window_manager's setMinimumSize, because GTK
+  // recomputes the window's geometry hints on every resize and drops that one;
+  // a size request on the view is part of what it recomputes them from.
+  gtk_widget_set_size_request(GTK_WIDGET(view), 400, 520);
   gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(view));
 
   // Show the window when Flutter renders.

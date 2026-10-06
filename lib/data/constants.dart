@@ -191,6 +191,17 @@ class K {
   /// Gap between the floating panels, and between them and the window edge.
   static const double panelGutter = 10;
 
+  // ── Window ────────────────────────────────────────────────
+  /// The smallest a desktop window can be dragged to. Below [breakpointMedium]
+  /// the window gets the phone layout, which works down to a narrow phone, so
+  /// this is about the width of one; with no floor at all the window could be
+  /// squeezed to a strip one line high with nothing usable in it.
+  ///
+  /// Linux sets the same numbers in its runner (`my_application.cc`), where
+  /// GTK keeps them; change both together.
+  static const double windowMinWidth = 400;
+  static const double windowMinHeight = 520;
+
   // ── Title bar ─────────────────────────────────────────────
   static const double titleBarHeight = 38;
 

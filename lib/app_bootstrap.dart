@@ -8,6 +8,7 @@ import 'package:screen_retriever/screen_retriever.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:window_manager/window_manager.dart';
 
+import 'data/constants.dart';
 import 'data/repositories/update_repository.dart';
 import 'logic/cubits/app/app_cubit.dart';
 import 'logic/helper_methods.dart';
@@ -195,7 +196,11 @@ class AppBootstrap {
 
     unawaited(
       windowManager.waitUntilReadyToShow(
-        WindowOptions(titleBarStyle: TitleBarStyle.hidden, size: size),
+        WindowOptions(
+          titleBarStyle: TitleBarStyle.hidden,
+          size: size,
+          minimumSize: const Size(K.windowMinWidth, K.windowMinHeight),
+        ),
         () async {
           if (position != null) await windowManager.setPosition(position);
         },
