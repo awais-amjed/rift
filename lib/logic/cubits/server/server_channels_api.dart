@@ -1,6 +1,6 @@
 part of 'server_cubit.dart';
 
-/// Channel create / update / delete for the selected server.
+/// Channel create / update / delete / reorder for the selected server.
 ///
 /// Split out of `_ServerApiMixin` because these three share one shape that
 /// nothing else in that file does: every one of them mutates the channel list
@@ -108,6 +108,43 @@ mixin _ServerChannelsApiMixin on Cubit<ServerState> {
         ),
         failure: 'Failed to delete channel',
       );
+
+  /// Put one section's channels in the order given (`MANAGE_CHANNELS`).
+  ///
+  /// Everyone else's sidebar follows from the single `channels` ring the
+  /// function sends; ours is re-read here, so the caller can stop showing the
+  /// order it dropped the moment this returns.
+  Future<({bool success, String? error})> reorderChannels(
+    List<String> channelIds,
+  ) async {
+    final server = state.selectedServer;
+    if (server == null) return (success: false, error: 'No server selected');
+
+    final response = await _callWithAutoRefresh(
+      (token) => _repository.reorderChannels(
+        server.supabaseUrl,
+        channelIds,
+        anonKey: _anonKey,
+        bearerToken: token,
+      ),
+    );
+    if (!response.success) {
+      // Re-read anyway: a refusal usually means the list we dragged was
+      // already out of date.
+      await refreshServerDetails();
+      return (success: false, error: _reorderFailure(response.errorCode));
+    }
+    await refreshServerDetails();
+    return (success: true, error: null);
+  }
+
+  static String _reorderFailure(String? code) => switch (code) {
+    'not_authorized' => "You can't reorder channels here",
+    'channel_not_found' => 'The channels changed. Try again.',
+    // PostgREST's "no such function": a server from before 010.
+    'PGRST202' => 'This server needs an update to reorder channels',
+    _ => "Couldn't reorder the channels",
+  };
 
   static String _createFailure(String? reason) => switch (reason) {
     'name_taken' => 'A channel already has that name',

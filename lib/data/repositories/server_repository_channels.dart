@@ -59,6 +59,26 @@ mixin _ChannelApiMixin {
     });
   }
 
+  /// Put the channels in [channelIds] in that order — normally one section,
+  /// as the caller sees it (`MANAGE_CHANNELS`).
+  ///
+  /// An RPC, and the column has no grant, because the order is not the
+  /// client's to write row by row: a manager cannot see the private channels
+  /// they are not in, and positions numbered from what they can see would
+  /// collide with those. `reorder_channels` deals these channels back into
+  /// the places they already hold, so the hidden ones keep theirs.
+  Future<APIResponse> reorderChannels(
+    String supabaseUrl,
+    List<String> channelIds, {
+    required String anonKey,
+    String? bearerToken,
+  }) {
+    return ServerDb.run(() async {
+      final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      return db.rpc('reorder_channels', params: {'p_channels': channelIds});
+    });
+  }
+
   /// Replace a private channel's membership with exactly [userIds].
   ///
   /// One call rather than add-then-remove: doing it in two leaves a window

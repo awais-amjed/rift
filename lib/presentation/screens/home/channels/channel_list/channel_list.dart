@@ -11,9 +11,11 @@ import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/app_modal.dart';
+import '../../../../responsive/shell_scope.dart';
 import '../../mobile/mobile_shell_scope.dart';
 import '../confirm_voice_switch.dart';
 import '../create_channel_dialog.dart';
+import 'widgets/channel_section.dart';
 import 'widgets/empty_channels_view.dart';
 import 'widgets/section_header.dart';
 import 'widgets/text_channel_tile.dart';
@@ -89,58 +91,69 @@ class ChannelList extends StatelessWidget {
       );
     }
 
+    // Moving channels is managing them: the same permission as the "+" for a
+    // public one. Not on a phone, where holding a row opens its menu.
+    final canReorder =
+        !banned &&
+        permissions?.can(ServerPermission.manageChannels) == true &&
+        !context.layoutMode.isCompact;
+
     // Rows are built only as they scroll in: a server can hold hundreds of
-    // channels, and a voice tile watches its own participants.
-    final rows = <Widget Function()>[
-      if (textChannels.isNotEmpty) ...[
-        () => SectionHeader(
-          label: 'Text',
-          addTooltip: 'Create text channel',
-          onAdd: canCreate ? () => openCreateChannel(ChannelType.text) : null,
-        ),
-        for (final ch in textChannels)
-          () => _spaced(TextChannelTile(key: ValueKey(ch.id), channel: ch)),
-      ],
-      if (voiceChannels.isNotEmpty) ...[
-        () => SectionHeader(
-          label: 'Voice',
-          addTooltip: 'Create voice channel',
-          onAdd: canCreate ? () => openCreateChannel(ChannelType.voice) : null,
-        ),
-        for (final ch in voiceChannels)
-          () => _spaced(
-            VoiceChannelTile(
-              key: ValueKey(ch.id),
-              channel: ch,
-              isSelected: selectedChannelId == ch.id,
-              onTap: () => _openVoice(context, ch),
+    // channels, and a voice tile watches its own participants. Each section
+    // is its own reorderable list, so a channel can only be dragged among
+    // its own kind.
+    return Expanded(
+      child: CustomScrollView(
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            sliver: SliverMainAxisGroup(
+              slivers: [
+                if (textChannels.isNotEmpty) ...[
+                  SliverToBoxAdapter(
+                    child: SectionHeader(
+                      label: 'Text',
+                      addTooltip: 'Create text channel',
+                      onAdd: canCreate
+                          ? () => openCreateChannel(ChannelType.text)
+                          : null,
+                    ),
+                  ),
+                  ChannelSection(
+                    channels: textChannels,
+                    canReorder: canReorder,
+                    rowBuilder: (context, ch, grip) =>
+                        grip(TextChannelTile(channel: ch)),
+                  ),
+                ],
+                if (voiceChannels.isNotEmpty) ...[
+                  SliverToBoxAdapter(
+                    child: SectionHeader(
+                      label: 'Voice',
+                      addTooltip: 'Create voice channel',
+                      onAdd: canCreate
+                          ? () => openCreateChannel(ChannelType.voice)
+                          : null,
+                    ),
+                  ),
+                  ChannelSection(
+                    channels: voiceChannels,
+                    canReorder: canReorder,
+                    rowBuilder: (context, ch, grip) => VoiceChannelTile(
+                      channel: ch,
+                      isSelected: selectedChannelId == ch.id,
+                      headerGrip: grip,
+                      onTap: () => _openVoice(context, ch),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
-      ],
-    ];
-
-    return Expanded(
-      child: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        itemCount: rows.length,
-        itemBuilder: (context, i) => rows[i](),
+        ],
       ),
     );
   }
-
-  /// Half the gap between two channel rows, above and below each.
-  ///
-  /// The list's, not the rows': a voice channel is a plain row until someone
-  /// joins and a card after, and a gap the card carried itself would move the
-  /// channel's name the moment it turned into one. Here both shapes get the
-  /// same, so two cards side by side don't touch, and neither do two lit
-  /// text rows.
-  static const double _rowGap = 2;
-
-  static Widget _spaced(Widget row) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: _rowGap),
-    child: row,
-  );
 
   Future<void> _openVoice(BuildContext context, Channel ch) async {
     // On a phone the call is a page: tapping the one you are already in takes

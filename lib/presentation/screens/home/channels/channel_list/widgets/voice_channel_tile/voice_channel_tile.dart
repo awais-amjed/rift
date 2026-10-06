@@ -33,11 +33,16 @@ class VoiceChannelTile extends StatelessWidget {
   final bool isSelected;
   final VoidCallback? onTap;
 
+  /// Wraps the header so a manager can drag the channel to a new place. Only
+  /// the header: the people below it are dragged too, into other calls.
+  final Widget Function(Widget header)? headerGrip;
+
   const VoiceChannelTile({
     super.key,
     required this.channel,
     required this.isSelected,
     this.onTap,
+    this.headerGrip,
   });
 
   @override
@@ -130,6 +135,8 @@ class VoiceChannelTile extends StatelessWidget {
     );
   }
 
+  static Widget _bare(Widget header) => header;
+
   /// The channel as a card, [t] of the way to being one: 0 is the plain row
   /// an empty channel is, 1 the card a call makes it.
   ///
@@ -180,29 +187,31 @@ class VoiceChannelTile extends StatelessWidget {
           // Only the header carries the channel menu: the participant rows
           // below have their own, and nesting the two would make which one you
           // got depend on the pixel you happened to right-click.
-          ChannelContextMenu.wrap(
-            context: context,
-            channel: channel,
-            child: HoverBuilder(
-              builder: (context, hovered) => VoiceChannelTileHeader(
-                channel: channel,
-                card: t,
-                horizontalPadding: RosterRowMetrics.headerInset - 1 - side,
-                startedAt: context
-                    .watch<ChannelPresenceCubit>()
-                    .state
-                    .callStartedAt[channel.id],
-                gear: ChannelSettingsGear.beside(
-                  context,
-                  null,
+          (headerGrip ?? _bare)(
+            ChannelContextMenu.wrap(
+              context: context,
+              channel: channel,
+              child: HoverBuilder(
+                builder: (context, hovered) => VoiceChannelTileHeader(
                   channel: channel,
-                  hovered: hovered,
+                  card: t,
+                  horizontalPadding: RosterRowMetrics.headerInset - 1 - side,
+                  startedAt: context
+                      .watch<ChannelPresenceCubit>()
+                      .state
+                      .callStartedAt[channel.id],
+                  gear: ChannelSettingsGear.beside(
+                    context,
+                    null,
+                    channel: channel,
+                    hovered: hovered,
+                  ),
+                  isSelected: isSelected,
+                  listeners: context.watch<VoiceListenersCubit>().listening(
+                    channel.id,
+                  ),
+                  onTap: onTap,
                 ),
-                isSelected: isSelected,
-                listeners: context.watch<VoiceListenersCubit>().listening(
-                  channel.id,
-                ),
-                onTap: onTap,
               ),
             ),
           ),
