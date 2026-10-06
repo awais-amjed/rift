@@ -16,6 +16,7 @@ import '../../../logic/cubits/server/server_cubit.dart';
 import '../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../logic/services/host_platform.dart';
 import '../../../logic/services/invite_link_listener.dart';
+import '../../common/app_menu/offer_app_menu_entry.dart';
 import '../../common/app_modal.dart';
 import '../../common/canvas_backdrop.dart';
 import '../../common/overlay_scrim.dart';
@@ -87,6 +88,10 @@ class _HomeScreenState extends State<HomeScreen> {
     // listening rather than dropped.
     if (!mounted) return;
     await InviteLinkListener.instance.start(_onInvite);
+
+    // Last, so it never stands in front of signing in or joining.
+    if (!mounted) return;
+    await offerAppMenuEntry(context);
   }
 
   @override

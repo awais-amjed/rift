@@ -53,6 +53,11 @@ class AppState {
   /// installed a beta gets the next beta. See [wantsBetaUpdates].
   final bool? betaUpdates;
 
+  /// A Linux folder copy (the `.tar.gz`)'s answer to "Add Rift to your app
+  /// menu?": null until asked, then whether it was added. Asked once; Settings
+  /// has the button for a later change of mind.
+  final bool? addToAppMenu;
+
   /// [betaUpdates], or when unset, whether [installedVersion] is itself a
   /// pre-release (it has a `-`, as in 1.4.0-beta.1).
   bool wantsBetaUpdates(String? installedVersion) =>
@@ -207,6 +212,7 @@ class AppState {
     this.linkPreviewsEnabled = true,
     this.showOfflineChip = true,
     this.betaUpdates,
+    this.addToAppMenu,
     this.outputDeviceId,
     this.inputDeviceId,
     this.outputVolume = 1.0,
@@ -278,6 +284,7 @@ class AppState {
     bool? linkPreviewsEnabled,
     bool? showOfflineChip,
     bool? betaUpdates,
+    bool? addToAppMenu,
     String? outputDeviceId,
     bool clearOutputDeviceId = false,
     String? inputDeviceId,
@@ -334,6 +341,7 @@ class AppState {
       linkPreviewsEnabled: linkPreviewsEnabled ?? this.linkPreviewsEnabled,
       showOfflineChip: showOfflineChip ?? this.showOfflineChip,
       betaUpdates: betaUpdates ?? this.betaUpdates,
+      addToAppMenu: addToAppMenu ?? this.addToAppMenu,
       outputDeviceId: clearOutputDeviceId
           ? null
           : (outputDeviceId ?? this.outputDeviceId),

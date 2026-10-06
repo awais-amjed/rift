@@ -73,11 +73,13 @@ class AppBootstrap {
       await _restoreWindow(appCubit);
       await TrayService.instance.init();
     }
-    // An AppImage is one file nothing installs, so it puts itself in the
-    // app menu, with its icon. Not awaited: nothing here waits on the menu.
+    // Nothing installs Rift on Linux, so it keeps its own app-menu entry:
+    // the AppImage always, a folder copy once the person said yes (asked on
+    // the home screen). Not awaited: nothing here waits on the menu.
     if (!kIsWeb &&
         Platform.isLinux &&
-        Platform.environment.containsKey('APPIMAGE')) {
+        (Platform.environment.containsKey('APPIMAGE') ||
+            appCubit.state.addToAppMenu == true)) {
       unawaited(LinuxDesktopEntry.ensure());
     }
     // Not desktop-only any more: Android posts these too, and the web posts

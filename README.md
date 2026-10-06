@@ -209,8 +209,16 @@ chmod +x rift-*-linux-x64.AppImage
 
 Keep it wherever you like, such as `~/Applications`: from its first start Rift
 is in your app menu, with its icon. It needs Ubuntu 24.04, Debian 13, Fedora
-40, Mint 22 or newer, or any rolling distribution. The release also has a
-`.tar.gz` to unpack instead, which does not update itself.
+40, Mint 22 or newer, or any rolling distribution.
+
+Rather have a folder? The release also has a `.tar.gz`. Unpack it and run
+`rift` inside; it offers to add itself to your app menu, but does not update
+itself:
+
+```bash
+tar -xzf rift-*-linux-x64.tar.gz
+./rift-*-linux-x64/rift
+```
 
 The Windows install and the AppImage keep themselves up to date: Rift
 downloads a new version in the background and says so in the title bar, and a

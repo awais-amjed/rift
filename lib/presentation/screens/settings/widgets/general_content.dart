@@ -5,6 +5,8 @@ import '../../../../data/constants.dart';
 import '../../../../data/enums/sensitive_content_mode.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/services/host_platform.dart';
+import '../../../../logic/services/linux_desktop_entry.dart';
+import '../../../common/app_menu/app_menu_row.dart';
 import '../../../common/segmented_control.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
@@ -118,6 +120,14 @@ class GeneralContent extends StatelessWidget {
         if (HostPlatform.selfUpdates) ...[
           const SectionDivider(),
           const UpdatesSection(),
+        ],
+
+        // A Linux folder copy; the AppImage keeps its entry by itself.
+        if (LinuxDesktopEntry.offersToAdd) ...[
+          const SectionDivider(),
+          const SectionTitle(label: 'Desktop'),
+          const SizedBox(height: 12),
+          const AppMenuRow(),
         ],
       ],
     );

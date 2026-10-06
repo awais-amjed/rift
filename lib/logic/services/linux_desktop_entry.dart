@@ -4,16 +4,18 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
 import '../helper_methods.dart';
+import 'storage_namespace.dart';
 
 /// Rift's entry in the desktop's app menu, `com.codingfries.rift.desktop`.
 ///
-/// Two things need it. The AppImage is one file a person downloads and runs,
-/// and nothing puts it in the app menu, so at every start it adds itself, with
-/// its icon; the entry names the AppImage file, which an update replaces in
-/// place. And the global-shortcuts portal will not talk to an unsandboxed app
-/// whose id has no desktop entry — GNOME checks, and refuses with "An app id
-/// is required" — so push-to-talk asks for one from a build run from its
-/// folder too.
+/// Nothing installs Rift on Linux — the AppImage is one file, the `.tar.gz` a
+/// folder — so it puts itself in the app menu, with its icon. The AppImage
+/// does so at every start; the entry names the AppImage file, which an update
+/// replaces in place. A folder copy asks first, once ([offersToAdd]), and
+/// keeps its entry current after a yes. And the global-shortcuts portal will
+/// not talk to an unsandboxed app whose id has no desktop entry — GNOME
+/// checks, and refuses with "An app id is required" — so push-to-talk asks
+/// for one whatever the build.
 ///
 /// Not hidden. GNOME Settings lists only visible entries, and its page for
 /// Rift is the one place the push-to-talk key can be changed once the desktop
@@ -35,15 +37,47 @@ class LinuxDesktopEntry {
   /// The line that marks an entry as this one's to rewrite.
   static const _marker = 'X-Rift-Written=true';
 
-  static Future<void> ensure() async {
+  static String? get _appImage => Platform.environment['APPIMAGE'];
+
+  /// Whether to ask "Add Rift to your app menu?": a release folder copy on
+  /// Linux, run as the person's own identity. A `RIFT_PROFILE` copy is a
+  /// second identity for testing, and the AppImage adds itself unasked.
+  static bool get offersToAdd =>
+      !kIsWeb &&
+      Platform.isLinux &&
+      kReleaseMode &&
+      _appImage == null &&
+      StorageNamespace.explicitProfile == null;
+
+  /// Whether the app menu already has Rift: an entry a package or the person
+  /// made, or one this wrote for a program that is still there.
+  static Future<bool> inMenu() async {
+    for (final dir in _dataDirs()) {
+      final file = File(p.join(dir, 'applications', '$appId.desktop'));
+      if (!file.existsSync()) continue;
+      try {
+        final current = await file.readAsString();
+        if (!isOwnEntry(current)) return true;
+        final named = execOf(current);
+        return named != null && File(named).existsSync();
+      } catch (_) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// Writes the entry unless a better one is there. [replace] is the person
+  /// asking for this copy by name, which takes over an entry this wrote for
+  /// another copy; one a package or the person made is still left alone.
+  static Future<void> ensure({bool replace = false}) async {
     final fileName = '$appId.desktop';
     final dataHome = _dataHome();
     final own = dataHome == null
         ? null
         : File(p.join(dataHome, 'applications', fileName));
-    final appImage = Platform.environment['APPIMAGE'];
-    final withIcon =
-        appImage != null && dataHome != null && await _installIcon(dataHome);
+    final appImage = _appImage;
+    final withIcon = dataHome != null && await _installIcon(dataHome);
     final wanted = entry(
       appImage ?? Platform.resolvedExecutable,
       withIcon: withIcon,
@@ -56,7 +90,10 @@ class LinuxDesktopEntry {
         final current = await file.readAsString();
         if (current == wanted || !isOwnEntry(current)) return;
         final named = execOf(current);
-        if (appImage == null && named != null && File(named).existsSync()) {
+        if (!replace &&
+            appImage == null &&
+            named != null &&
+            File(named).existsSync()) {
           return;
         }
       } catch (_) {
@@ -75,14 +112,14 @@ class LinuxDesktopEntry {
     }
   }
 
-  /// Copies the AppImage's own icon (its `.DirIcon`, which vpk makes from
+  /// Copies the icon the build carries (`data/rift.png`, from
   /// `linux/packaging/rift.png`) into the person's icon theme, where the entry
   /// finds it by name. False when there is none to copy.
   static Future<bool> _installIcon(String dataHome) async {
-    final appDir = Platform.environment['APPDIR'];
-    if (appDir == null) return false;
     try {
-      final source = File(p.join(appDir, '.DirIcon'));
+      final source = File(
+        p.join(p.dirname(Platform.resolvedExecutable), 'data', 'rift.png'),
+      );
       if (!source.existsSync()) return false;
       final bytes = await source.readAsBytes();
       final target = File(

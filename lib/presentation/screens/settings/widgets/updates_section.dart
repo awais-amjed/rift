@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -24,12 +26,14 @@ class UpdatesSection extends StatelessWidget {
         const SectionTitle(label: 'Updates'),
         const SizedBox(height: 12),
         if (!state.canUpdate)
-          const SettingRow(
+          SettingRow(
             title: "This copy can't update itself",
-            description:
-                'Install Rift from joinrift.app to get each new version as '
-                'it comes out.',
-            control: SizedBox.shrink(),
+            description: Platform.isLinux
+                ? 'The AppImage from joinrift.app updates itself as each new '
+                      'version comes out.'
+                : 'Install Rift from joinrift.app to get each new version as '
+                      'it comes out.',
+            control: const SizedBox.shrink(),
           )
         else ...[
           SettingRow(
