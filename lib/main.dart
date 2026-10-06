@@ -19,6 +19,7 @@ import 'logic/services/login_launch/login_launch.dart';
 import 'logic/services/storage_namespace.dart';
 import 'logic/services/window_focus_service.dart';
 import 'logic/services/window_fullscreen.dart';
+import 'logic/shortcuts/call_shortcut_listener.dart';
 import 'presentation/app_providers.dart';
 import 'presentation/common/app_toast.dart';
 import 'presentation/common/title_bar_overlay.dart';
@@ -128,29 +129,31 @@ class _MyAppState extends State<MyApp>
             // so there is no Theme above it yet to read one from.
             final themeState = context.watch<ThemeCubit>().state;
             return PushToTalkListener(
-              child: MaterialApp.router(
-                routerConfig: _router,
-                darkTheme: AppTheme.dark(themeState.palette),
-                theme: AppTheme.light(themeState.palette),
-                themeMode: themeState.themeMode,
-                // Inside the app, not around it: a toast is drawn by
-                // `AppToast`, which reads the palette off the `ThemeData`
-                // this `MaterialApp` installs — around it there is no theme
-                // to read and every toast fell back to the package's own.
-                builder: EasyLoading.init(
-                  builder: (context, child) => ToastificationWrapper(
-                    // Clear of the title bar: a toast arrives in the same
-                    // corner the window buttons live in.
-                    config: const ToastificationConfig(
-                      alignment: Alignment.topRight,
-                      itemWidth: AppToast.maxWidth,
-                      marginBuilder: _toastMargin,
-                    ),
-                    // Around the navigator, so a ringing call is above
-                    // every page, dialog and sheet — see IncomingCallOverlay.
-                    child: PipOverlay(
-                      child: TitleBarOverlay(
-                        child: IncomingCallOverlay(child: child!),
+              child: CallShortcutListener(
+                child: MaterialApp.router(
+                  routerConfig: _router,
+                  darkTheme: AppTheme.dark(themeState.palette),
+                  theme: AppTheme.light(themeState.palette),
+                  themeMode: themeState.themeMode,
+                  // Inside the app, not around it: a toast is drawn by
+                  // `AppToast`, which reads the palette off the `ThemeData`
+                  // this `MaterialApp` installs — around it there is no theme
+                  // to read and every toast fell back to the package's own.
+                  builder: EasyLoading.init(
+                    builder: (context, child) => ToastificationWrapper(
+                      // Clear of the title bar: a toast arrives in the same
+                      // corner the window buttons live in.
+                      config: const ToastificationConfig(
+                        alignment: Alignment.topRight,
+                        itemWidth: AppToast.maxWidth,
+                        marginBuilder: _toastMargin,
+                      ),
+                      // Around the navigator, so a ringing call is above
+                      // every page, dialog and sheet — see IncomingCallOverlay.
+                      child: PipOverlay(
+                        child: TitleBarOverlay(
+                          child: IncomingCallOverlay(child: child!),
+                        ),
                       ),
                     ),
                   ),

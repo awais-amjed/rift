@@ -13,6 +13,9 @@ AppState _$AppStateFromJson(Map<String, dynamic> json) => AppState(
   pushToTalkEnabled: json['pushToTalkEnabled'] as bool? ?? false,
   pushToTalkKeyId: (json['pushToTalkKeyId'] as num?)?.toInt(),
   pushToTalkKeyLabel: json['pushToTalkKeyLabel'] as String?,
+  callShortcuts: json['callShortcuts'] == null
+      ? const CallShortcuts()
+      : CallShortcuts.fromJson(json['callShortcuts'] as Map<String, dynamic>),
   titleBarVisible: json['titleBarVisible'] as bool? ?? true,
   screenShareSettings: json['screenShareSettings'] == null
       ? const ScreenShareSettings()
@@ -91,6 +94,7 @@ Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
   'pushToTalkEnabled': instance.pushToTalkEnabled,
   'pushToTalkKeyId': instance.pushToTalkKeyId,
   'pushToTalkKeyLabel': instance.pushToTalkKeyLabel,
+  'callShortcuts': instance.callShortcuts.toJson(),
   'titleBarVisible': instance.titleBarVisible,
   'screenShareSettings': instance.screenShareSettings.toJson(),
   'participantSettings': instance.participantSettings.map(

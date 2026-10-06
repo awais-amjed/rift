@@ -16,6 +16,9 @@ class AppState {
   final bool pushToTalkEnabled;
   final int? pushToTalkKeyId;
   final String? pushToTalkKeyLabel;
+
+  /// Keys for mute and deafen, heard while Rift's window is in front.
+  final CallShortcuts callShortcuts;
   final bool titleBarVisible;
   final ScreenShareSettings screenShareSettings;
   final Map<String, ParticipantSetting> participantSettings;
@@ -205,6 +208,7 @@ class AppState {
     this.pushToTalkEnabled = false,
     this.pushToTalkKeyId,
     this.pushToTalkKeyLabel,
+    this.callShortcuts = const CallShortcuts(),
     this.titleBarVisible = true,
     this.screenShareSettings = const ScreenShareSettings(),
     this.participantSettings = const {},
@@ -279,6 +283,7 @@ class AppState {
     int? pushToTalkKeyId,
     String? pushToTalkKeyLabel,
     bool clearPushToTalkKeybind = false,
+    CallShortcuts? callShortcuts,
     bool? titleBarVisible,
     ScreenShareSettings? screenShareSettings,
     Map<String, ParticipantSetting>? participantSettings,
@@ -338,6 +343,7 @@ class AppState {
       pushToTalkKeyLabel: clearPushToTalkKeybind
           ? null
           : (pushToTalkKeyLabel ?? this.pushToTalkKeyLabel),
+      callShortcuts: callShortcuts ?? this.callShortcuts,
       titleBarVisible: titleBarVisible ?? this.titleBarVisible,
       screenShareSettings: screenShareSettings ?? this.screenShareSettings,
       participantSettings: participantSettings ?? this.participantSettings,

@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:json_annotation/json_annotation.dart';
 
+import '../../../data/classes/call_shortcuts.dart';
+import '../../../data/classes/key_shortcut.dart';
 import '../../../data/classes/participant_info.dart';
 import '../../../data/classes/participant_setting.dart';
 import '../../../data/classes/screen_share_settings.dart';
@@ -84,6 +86,13 @@ class AppCubit extends HydratedCubit<AppState> {
 
   void clearPushToTalkKeybind() {
     emit(state.copyWith(clearPushToTalkKeybind: true));
+  }
+
+  /// Binds [action] to [keys], or unbinds it with null.
+  void setCallShortcut(CallShortcut action, KeyShortcut? keys) {
+    emit(
+      state.copyWith(callShortcuts: state.callShortcuts.withKeys(action, keys)),
+    );
   }
 
   /// What the desktop says the push-to-talk key is, or null once no desktop
