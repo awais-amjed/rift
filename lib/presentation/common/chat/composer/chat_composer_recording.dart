@@ -17,6 +17,7 @@ mixin _ComposerRecordingMixin
   /// how long for, and the ticker that says so are one thing, and the composer
   /// has nothing to say about any of them.
   final VoiceNoteRecorder _recorder = VoiceNoteRecorder();
+  @override
   bool _isRecording = false;
   Duration _elapsed = Duration.zero;
   Timer? _recordTimer;

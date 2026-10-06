@@ -23,6 +23,7 @@ import '../../../theme/app_motion.dart';
 import '../../../theme/theme_context.dart';
 import '../../emoji_text.dart';
 import '../../tap_to_focus.dart';
+import '../drop/chat_drop_relay.dart';
 import 'composer_command_menu.dart';
 import 'composer_input_row.dart';
 import 'composer_link_preview.dart';
@@ -211,12 +212,19 @@ class _ChatComposerState extends State<ChatComposer>
     if (now != null && now != old.replyingTo?.id) _focusNode.requestFocus();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _claimDropRelay();
+  }
+
   void _onFocusChanged() {
     if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    _releaseDropRelay();
     _disposeRecording();
     _disposeMenus();
     _disposeLinkPreview();

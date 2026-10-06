@@ -21,6 +21,7 @@ import '../../../common/chat/chat_message_list.dart';
 import '../../../common/chat/chat_reply_draft.dart';
 import '../../../common/chat/chat_scroll_load_more.dart';
 import '../../../common/chat/composer/chat_composer.dart';
+import '../../../common/chat/drop/chat_drop_zone.dart';
 import '../../../common/chat/forward/show_forward_dialog.dart';
 import '../../../common/chat/pins/show_pinned_messages.dart';
 import '../../../common/chat/polls/create_poll_dialog.dart';
@@ -96,70 +97,72 @@ class _ChannelChatViewState extends State<ChannelChatView>
         // that, and painting over it would break the panel's rounding.
         return DefaultTextStyle.merge(
           style: TextStyle(color: themeState.textSecondary),
-          child: Column(
-            children: [
-              ChatHeader(
-                onShowPins: chatState.channelId == null
-                    ? null
-                    : (anchor) => _showPins(context, anchor),
-              ),
-              Expanded(child: _buildBody(context, chatState)),
-              // A phone's way back into the call, just above whatever
-              // holds the composer's slot. Nothing on a desktop.
-              if (!composing) const MiniCallBar(),
-              // Sending needs the key too, so read-only gets the banner
-              // in the composer's place rather than a composer that would
-              // refuse every message typed into it.
-              // Waiting keeps the slot too: a composer that is plainly
-              // coming says "this will work later", where an absent one
-              // says this channel has none.
-              if (status == ChannelChatStatus.readOnly)
-                const ChatReadOnlyBanner()
-              else if (status == ChannelChatStatus.waitingForKey)
-                const ChatReadOnlyBanner(waitingForKey: true)
-              else if (status == ChannelChatStatus.error &&
-                  chatState.showingSaved)
-                SavedCopyNotice(
-                  onRetry: context.read<ChannelChatCubit>().retry,
+          child: ChatDropZone(
+            child: Column(
+              children: [
+                ChatHeader(
+                  onShowPins: chatState.channelId == null
+                      ? null
+                      : (anchor) => _showPins(context, anchor),
                 ),
-              if (composing) ...[
-                TypingIndicator(names: chatState.typingUsers.values.toList()),
-                const MiniCallBar(),
-                TimeOutGate(
-                  until: context.select<ServerCubit, DateTime?>(
-                    (c) => c.state.selectedServer?.user?.timedOutUntil,
+                Expanded(child: _buildBody(context, chatState)),
+                // A phone's way back into the call, just above whatever
+                // holds the composer's slot. Nothing on a desktop.
+                if (!composing) const MiniCallBar(),
+                // Sending needs the key too, so read-only gets the banner
+                // in the composer's place rather than a composer that would
+                // refuse every message typed into it.
+                // Waiting keeps the slot too: a composer that is plainly
+                // coming says "this will work later", where an absent one
+                // says this channel has none.
+                if (status == ChannelChatStatus.readOnly)
+                  const ChatReadOnlyBanner()
+                else if (status == ChannelChatStatus.waitingForKey)
+                  const ChatReadOnlyBanner(waitingForKey: true)
+                else if (status == ChannelChatStatus.error &&
+                    chatState.showingSaved)
+                  SavedCopyNotice(
+                    onRetry: context.read<ChannelChatCubit>().retry,
                   ),
-                  child: ChatComposer(
-                    canSend: status == ChannelChatStatus.ready,
-                    onSend: (text, attachments, preview) =>
-                        _send(context, text, attachments, preview),
-                    replyingTo: replyingTo,
-                    onCancelReply: cancelReply,
-                    // A channel is the one surface with somebody to ring
-                    // who is not already being written to.
-                    replyPings: replyPings,
-                    onToggleReplyPing: setReplyPing,
-                    onTyping: () =>
-                        context.read<ChannelChatCubit>().notifyTyping(),
-                    canAttach: _canAttach(context),
-                    maxAttachmentBytes: _maxAttachmentBytes(context),
-                    remainingStorageBytes: _remainingStorage(context),
-                    bots: chatState.bots,
-                    onCreatePoll: _canCreatePoll(context)
-                        ? () => _createPoll(context)
-                        : null,
-                    onMentionSearch: (query) =>
-                        _searchMentionable(context, query),
-                    selfUserId: context
-                        .read<ServerCubit>()
-                        .state
-                        .selectedServer
-                        ?.user
-                        ?.id,
+                if (composing) ...[
+                  TypingIndicator(names: chatState.typingUsers.values.toList()),
+                  const MiniCallBar(),
+                  TimeOutGate(
+                    until: context.select<ServerCubit, DateTime?>(
+                      (c) => c.state.selectedServer?.user?.timedOutUntil,
+                    ),
+                    child: ChatComposer(
+                      canSend: status == ChannelChatStatus.ready,
+                      onSend: (text, attachments, preview) =>
+                          _send(context, text, attachments, preview),
+                      replyingTo: replyingTo,
+                      onCancelReply: cancelReply,
+                      // A channel is the one surface with somebody to ring
+                      // who is not already being written to.
+                      replyPings: replyPings,
+                      onToggleReplyPing: setReplyPing,
+                      onTyping: () =>
+                          context.read<ChannelChatCubit>().notifyTyping(),
+                      canAttach: _canAttach(context),
+                      maxAttachmentBytes: _maxAttachmentBytes(context),
+                      remainingStorageBytes: _remainingStorage(context),
+                      bots: chatState.bots,
+                      onCreatePoll: _canCreatePoll(context)
+                          ? () => _createPoll(context)
+                          : null,
+                      onMentionSearch: (query) =>
+                          _searchMentionable(context, query),
+                      selfUserId: context
+                          .read<ServerCubit>()
+                          .state
+                          .selectedServer
+                          ?.user
+                          ?.id,
+                    ),
                   ),
-                ),
+                ],
               ],
-            ],
+            ),
           ),
         );
       },

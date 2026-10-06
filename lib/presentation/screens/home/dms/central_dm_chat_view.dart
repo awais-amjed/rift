@@ -16,6 +16,7 @@ import '../../../common/chat/chat_message_list.dart';
 import '../../../common/chat/chat_reply_draft.dart';
 import '../../../common/chat/chat_scroll_load_more.dart';
 import '../../../common/chat/composer/chat_composer.dart';
+import '../../../common/chat/drop/chat_drop_zone.dart';
 import '../../../common/chat/forward/show_forward_dialog.dart';
 import '../../../common/chat/key_change_row.dart';
 import '../../../common/chat/pins/show_pinned_messages.dart';
@@ -98,79 +99,84 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
     return KeyWatch(
       person: _person(state),
       chatKey: peerId == null ? null : _peer(state).chatPublicKey,
-      child: Column(
-        children: [
-          DmChatHeader(
-            tierIcon: Icons.public,
-            tierLabel: 'Rift',
-            title: '@${state.openPeerHandle ?? ''}',
-            peerId: state.openPeerId,
-            onOpenProfile: state.openPeerId == null
-                ? null
-                : () => unawaited(
-                    showCentralProfile(context, friend: _peer(state)),
-                  ),
-            onVerify: state.openPeerId == null
-                ? null
-                : () => unawaited(_verify(context, state)),
-            keyChanged: context.select<AppCubit, bool>(
-              (c) =>
-                  c.state.seenKeys[_person(state)]?.unacknowledgedChange ??
-                  false,
+      child: ChatDropZone(
+        child: Column(
+          children: [
+            DmChatHeader(
+              tierIcon: Icons.public,
+              tierLabel: 'Rift',
+              title: '@${state.openPeerHandle ?? ''}',
+              peerId: state.openPeerId,
+              onOpenProfile: state.openPeerId == null
+                  ? null
+                  : () => unawaited(
+                      showCentralProfile(context, friend: _peer(state)),
+                    ),
+              onVerify: state.openPeerId == null
+                  ? null
+                  : () => unawaited(_verify(context, state)),
+              keyChanged: context.select<AppCubit, bool>(
+                (c) =>
+                    c.state.seenKeys[_person(state)]?.unacknowledgedChange ??
+                    false,
+              ),
+              onShowPins: state.openPeerId == null
+                  ? null
+                  : (anchor) => _showPins(context, anchor),
+              onClose: () => context.read<CentralDmCubit>().closeConversation(),
             ),
-            onShowPins: state.openPeerId == null
-                ? null
-                : (anchor) => _showPins(context, anchor),
-            onClose: () => context.read<CentralDmCubit>().closeConversation(),
-          ),
-          Expanded(child: _buildBody(state, themeState)),
-          // A phone's way back into a call, above the composer's slot.
-          const MiniCallBar(),
-          // There is a composer here for exactly one of the five states, and
-          // every other branch is a sentence saying what would have to change.
-          // None of them is a disabled field: a greyed composer with a hint in
-          // it reads as something that has broken, and people retype into it.
-          if (state.chatStatus == DmChatStatus.error && state.showingSaved)
-            SavedCopyNotice(onRetry: context.read<CentralDmCubit>().retryOpen),
-          if ((ready || opening) && peerId != null)
-            switch (friendship) {
-              FriendshipState.friends => KeyCheckGate(
-                person: _person(state),
-                name: '@$handle',
-                onCheck: () => unawaited(_verify(context, state)),
-                child: ChatComposer(
-                  hintText: quotaEmpty
-                      ? 'Daily limit reached — continue on a shared server'
-                      : 'Message @$handle',
-                  enabled: !quotaEmpty,
-                  canSend: ready,
-                  maxAttachmentBytes: ServerLimits.centralMaxAttachmentBytes,
-                  footer: const QuotaMeter(),
-                  onSend: (text, attachments, preview) =>
-                      _send(context, text, attachments, preview),
-                  replyingTo: replyingTo,
-                  onCancelReply: cancelReply,
+            Expanded(child: _buildBody(state, themeState)),
+            // A phone's way back into a call, above the composer's slot.
+            const MiniCallBar(),
+            // There is a composer here for exactly one of the five states, and
+            // every other branch is a sentence saying what would have to change.
+            // None of them is a disabled field: a greyed composer with a hint in
+            // it reads as something that has broken, and people retype into it.
+            if (state.chatStatus == DmChatStatus.error && state.showingSaved)
+              SavedCopyNotice(
+                onRetry: context.read<CentralDmCubit>().retryOpen,
+              ),
+            if ((ready || opening) && peerId != null)
+              switch (friendship) {
+                FriendshipState.friends => KeyCheckGate(
+                  person: _person(state),
+                  name: '@$handle',
+                  onCheck: () => unawaited(_verify(context, state)),
+                  child: ChatComposer(
+                    hintText: quotaEmpty
+                        ? 'Daily limit reached — continue on a shared server'
+                        : 'Message @$handle',
+                    enabled: !quotaEmpty,
+                    canSend: ready,
+                    maxAttachmentBytes: ServerLimits.centralMaxAttachmentBytes,
+                    footer: const QuotaMeter(),
+                    onSend: (text, attachments, preview) =>
+                        _send(context, text, attachments, preview),
+                    replyingTo: replyingTo,
+                    onCancelReply: cancelReply,
+                  ),
                 ),
-              ),
-              FriendshipState.incoming => FriendRequestBar(
-                peerId: peerId,
-                peerHandle: handle,
-              ),
-              FriendshipState.outgoing => PendingRequestNote(
-                peerId: peerId,
-                peerHandle: handle,
-              ),
-              // A conversation you can read and not add to: somebody unfriended,
-              // or blocked and not yet cleared off this screen. Both are old
-              // history with a closed door on it, and the note offers the way
-              // back through.
-              FriendshipState.none || FriendshipState.blocked => NotFriendsNote(
-                peerId: peerId,
-                peerHandle: handle,
-                isBlocked: friendship == FriendshipState.blocked,
-              ),
-            },
-        ],
+                FriendshipState.incoming => FriendRequestBar(
+                  peerId: peerId,
+                  peerHandle: handle,
+                ),
+                FriendshipState.outgoing => PendingRequestNote(
+                  peerId: peerId,
+                  peerHandle: handle,
+                ),
+                // A conversation you can read and not add to: somebody unfriended,
+                // or blocked and not yet cleared off this screen. Both are old
+                // history with a closed door on it, and the note offers the way
+                // back through.
+                FriendshipState.none ||
+                FriendshipState.blocked => NotFriendsNote(
+                  peerId: peerId,
+                  peerHandle: handle,
+                  isBlocked: friendship == FriendshipState.blocked,
+                ),
+              },
+          ],
+        ),
       ),
     );
   }
