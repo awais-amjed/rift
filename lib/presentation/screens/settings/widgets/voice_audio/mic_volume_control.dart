@@ -5,13 +5,13 @@ import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/services/mic_volume.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
-import '../section_title.dart';
 import 'volume_row.dart';
 
-/// How loud this microphone is sent, in calls and in the mic test. Shown only
-/// where Rift can set it ([MicVolume.adjustable]).
-class InputVolumeSection extends StatelessWidget {
-  const InputVolumeSection({super.key});
+/// How loud this microphone is sent, in calls and in the mic test. It sits
+/// right above the mic test, so it can be set while hearing the result.
+/// Shown only where Rift can set it ([MicVolume.adjustable]).
+class MicVolumeControl extends StatelessWidget {
+  const MicVolumeControl({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +22,10 @@ class InputVolumeSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionTitle(label: 'Mic volume'),
+        Text(
+          'Mic volume',
+          style: AppText.row.copyWith(color: theme.textPrimary),
+        ),
         const SizedBox(height: 4),
         Text(
           'Turn it up if people hear you quietly.',
