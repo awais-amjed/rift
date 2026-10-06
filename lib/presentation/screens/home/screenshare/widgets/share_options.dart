@@ -63,15 +63,8 @@ class ShareOptions extends StatelessWidget {
 
   VideoCodec get _codec => _codecOf(settings);
 
-  static bool _onGpu(ScreenShareSettings of) =>
-      ScreenShareSettings.encodedOnGpu(
-        _codecOf(of),
-        gpuOnlyH264: HostPlatform.encodesH264OnGpuOnly,
-      );
-
   int _bitrateOf(ScreenShareSettings of) => of.bitrateToSend(
     codec: _codecOf(of),
-    onGpu: _onGpu(of),
     limits: ServerLimits(maxShareMbps: maxShareMbps),
   );
 
@@ -96,11 +89,8 @@ class ShareOptions extends StatelessWidget {
             ),
             Expanded(
               child: FrameRateSection(
-                selectedFps: settings.fpsToSend(onGpu: _onGpu(settings)),
-                offered: ScreenShareSettings.frameRatesAt(
-                  settings.resolution,
-                  onGpu: _onGpu(settings),
-                ),
+                selectedFps: settings.fpsToSend,
+                offered: ScreenShareSettings.frameRatesAt(settings.resolution),
                 onChanged: (value) => onChanged(settings.copyWith(fps: value)),
               ),
             ),
@@ -140,7 +130,7 @@ class ShareOptions extends StatelessWidget {
         SettingsSummary(
           captureFullScreen: settings.captureFullScreen,
           resolution: settings.resolutionLabel,
-          fps: settings.fpsToSend(onGpu: _onGpu(settings)),
+          fps: settings.fpsToSend,
           bitrate: _bitrate,
           shareAudio: settings.shareAudio,
           codec: ScreenShareSettings.nameOf(_codec),

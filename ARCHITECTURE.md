@@ -474,7 +474,7 @@ VAAPI driver is a separate package) H264 is simply not offered.
   VP8 fell to 20 fps at 44 ms a frame while VP9 held 59 fps at 15 ms; pinned
   to one core, VP8 managed 4 fps. Under CPU pressure WebRTC already lowers
   the size or the rate, as the priority says.
-- **120 fps is offered up to 2K on the GPU and up to 1080p on the CPU**
+- **120 fps is offered up to 2K, whatever encodes it**
   (`ScreenShareSettings.frameRatesAt`). WebRTC stops at 120, so there is no
   144. 4K at 120 is past what most viewers' hardware decoders take (H264's
   level 5.2 ends near 4K60), so it is never offered. A picture too big for

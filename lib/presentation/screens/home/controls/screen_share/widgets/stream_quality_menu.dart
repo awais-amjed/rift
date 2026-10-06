@@ -4,7 +4,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../../data/classes/screen_share_settings.dart';
 import '../../../../../../data/constants.dart';
 import '../../../../../../logic/cubits/screenshare/screenshare_cubit.dart';
-import '../../../../../../logic/services/host_platform.dart';
 import '../../../../../common/context_menu/context_menu_item.dart';
 import '../../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../../theme/app_text.dart';
@@ -23,21 +22,15 @@ class StreamQualityMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeState = context.theme;
     return BlocBuilder<ScreenshareCubit, ScreenshareState>(
-      buildWhen: (prev, curr) =>
-          prev.settings != curr.settings || prev.codec != curr.codec,
+      buildWhen: (prev, curr) => prev.settings != curr.settings,
       builder: (context, state) {
         final settings = state.settings ?? const ScreenShareSettings();
-        final onGpu = ScreenShareSettings.encodedOnGpu(
-          state.codec ?? settings.videoCodec,
-          gpuOnlyH264: HostPlatform.encodesH264OnGpuOnly,
-        );
         return ContextMenuPanel(
           heading: 'Frame rate',
           maxWidth: _width,
           children: [
             for (final fps in ScreenShareSettings.frameRatesAt(
               settings.resolution,
-              onGpu: onGpu,
             ))
               _Choice(
                 label: '$fps fps',

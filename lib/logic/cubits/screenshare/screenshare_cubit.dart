@@ -193,19 +193,11 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
         gpuOnlyH264: HostPlatform.encodesH264OnGpuOnly,
         gpu: await GpuCodecs.supported,
       );
-      final onGpu = ScreenShareSettings.encodedOnGpu(
-        codec,
-        gpuOnlyH264: HostPlatform.encodesH264OnGpuOnly,
-      );
-      final bitrate = settings.bitrateToSend(
-        codec: codec,
-        onGpu: onGpu,
-        limits: allowed,
-      );
+      final bitrate = settings.bitrateToSend(codec: codec, limits: allowed);
       // The running share holds the rate it actually goes out at, so its menu
       // ticks that; the dialog's saved choice keeps a 120 the picture is too
       // big for, for when it is not.
-      final fps = settings.fpsToSend(onGpu: onGpu);
+      final fps = settings.fpsToSend;
 
       // The call's key, for the second connection this is about to open into
       // the same encrypted room.
@@ -281,18 +273,13 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
     if (!state.isSharing || current == null || !changesQualityLive) {
       return null;
     }
-    final codec = state.codec ?? current.videoCodec;
-    final onGpu = ScreenShareSettings.encodedOnGpu(
-      codec,
-      gpuOnlyH264: HostPlatform.encodesH264OnGpuOnly,
-    );
     final asked = current.copyWith(
       fps: fps,
       resolution: resolution,
       shareAudio: shareAudio,
     );
     // A picture too big for 120 fps takes 60 with it.
-    final wanted = asked.copyWith(fps: asked.fpsToSend(onGpu: onGpu));
+    final wanted = asked.copyWith(fps: asked.fpsToSend);
     try {
       final applied = await updateScreenshare(
         quality: ShareQuality(
@@ -301,8 +288,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
           // Auto's bitrate follows the picture, so a bigger or faster one
           // is given more.
           bitrate: wanted.bitrateToSend(
-            codec: codec,
-            onGpu: onGpu,
+            codec: state.codec ?? wanted.videoCodec,
             limits: state.limits,
           ),
           shareAudio: wanted.shareAudio && HostPlatform.capturesSystemAudio,

@@ -154,43 +154,34 @@ class ScreenShareSettings {
 
   /// The bitrate a share in [codec] goes out at, in Mbps: the one picked by
   /// hand, or Auto's for the picture, and never more than the server allows.
-  /// [onGpu] says whether [codec] is encoded on the GPU ([encodedOnGpu]).
   int bitrateToSend({
     required VideoCodec codec,
-    required bool onGpu,
     required ServerLimits limits,
   }) => limits.shareMbps(
     bitrateChosen
         ? bitrate
         : ShareEncoding.autoMbps(
             resolution: resolution,
-            fps: fpsToSend(onGpu: onGpu),
+            fps: fpsToSend,
             codec: codec,
           ),
   );
 
-  /// Whether a share in [codec] is encoded on the GPU. Only H264 ever is,
-  /// and only where it is never encoded on the CPU ([gpuOnlyH264]):
-  /// [codecToSend] sends VP9 there when the GPU has no H264.
-  static bool encodedOnGpu(VideoCodec codec, {required bool gpuOnlyH264}) =>
-      gpuOnlyH264 && codec == VideoCodec.h264;
-
-  /// The tallest picture 120 fps is offered for. A GPU's H264 keeps up at
-  /// 2K; a CPU's VP9 is held to 1080p, already twice its work at 60. 4K at
-  /// 120 is past what most viewers' hardware decoders take, so never.
-  static int maxHeightAt120({required bool onGpu}) => onGpu ? 1440 : 1080;
+  /// The tallest picture 120 fps is offered for. Past 2K it is more than
+  /// most viewers' hardware decoders take (H264's level 5.2 ends near 4K60);
+  /// up to it, whether the sharer's computer keeps up is the sharer's call.
+  static const maxHeightAt120 = 1440;
 
   /// The frame rates [frameRates] offers for a picture [resolution] tall.
-  static List<int> frameRatesAt(int resolution, {required bool onGpu}) => [
+  static List<int> frameRatesAt(int resolution) => [
     for (final rate in frameRates)
-      if (rate <= 60 || resolution <= maxHeightAt120(onGpu: onGpu)) rate,
+      if (rate <= 60 || resolution <= maxHeightAt120) rate,
   ];
 
   /// The frame rate a share goes out at: [fps], or 60 where 120 is not
   /// offered for this picture ([frameRatesAt]). The choice itself is kept,
   /// so going back to a smaller picture brings 120 back.
-  int fpsToSend({required bool onGpu}) =>
-      frameRatesAt(resolution, onGpu: onGpu).contains(fps) ? fps : 60;
+  int get fpsToSend => frameRatesAt(resolution).contains(fps) ? fps : 60;
 
   /// A codec as the picker and the summary name it.
   static String nameOf(VideoCodec codec) => codec.name.toUpperCase();
