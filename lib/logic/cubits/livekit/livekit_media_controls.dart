@@ -11,12 +11,14 @@ mixin _MediaControlsMixin on Cubit<LiveKitState> {
   void _applyStoredSettings();
 
   /// Toggles microphone. If deafened, un-deafens instead (restoring mic).
+  /// During the mic test, ends it — see [toggleDeafen].
   ///
   /// Does nothing while a moderator holds the mic — the toggle would record an
   /// intent the user can't see the effect of, and the button is disabled to
   /// match. Their pre-existing choice is what gets restored on release.
   Future<void> toggleMicrophone() async {
     if (state.isModerated) return;
+    if (state.isMicTesting) return setMicTesting(false);
     if (state.isDeafened) {
       await _setDeafened(false);
       return;
@@ -28,8 +30,12 @@ mixin _MediaControlsMixin on Cubit<LiveKitState> {
   }
 
   /// Toggles deafen: mutes mic and silences all remote audio, or reverses that.
+  ///
+  /// During the mic test both buttons read muted and deafened, so pressing
+  /// either ends the test, which hands back what they showed before it.
   Future<void> toggleDeafen() async {
     if (state.isServerDeafened) return;
+    if (state.isMicTesting) return setMicTesting(false);
     await _setDeafened(!state.isDeafened);
   }
 
@@ -43,7 +49,28 @@ mixin _MediaControlsMixin on Cubit<LiveKitState> {
   Future<void> _setDeafened(bool deafened) async {
     final wasDeafened = state.isDeafenedEffective;
     emit(state.copyWith(isDeafened: deafened));
+    await _applyDeafen(wasDeafened: wasDeafened);
+  }
 
+  /// Mutes and deafens this device while the settings mic test plays the
+  /// microphone back, and hands both back when it stops — see
+  /// [LiveKitState.isMicTesting]. Held outside a call too, so a call joined
+  /// mid-test starts out quiet both ways.
+  ///
+  /// Awaited by the test on both edges: it opens its own capture before
+  /// calling this and releases it only after, so the microphone is never left
+  /// with nobody holding it. A Bluetooth headset drops its microphone when the
+  /// last holder lets go, and takes too long to bring it back for whichever
+  /// opens next.
+  Future<void> setMicTesting(bool testing) async {
+    if (state.isMicTesting == testing) return;
+    final wasDeafened = state.isDeafenedEffective;
+    emit(state.copyWith(isMicTesting: testing));
+    await _applyDeafen(wasDeafened: wasDeafened);
+  }
+
+  /// Brings the room in line with a change to this device's own deafen.
+  Future<void> _applyDeafen({required bool wasDeafened}) async {
     if (state.isDeafenedEffective) {
       // Soundboard clips are not remote audio — they come out of this
       // device's own speakers — so silencing the room does not touch one

@@ -450,6 +450,8 @@ fn wire__crate__api__mic_test__mic_test_samples_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_device_id = <Option<String>>::sse_decode(&mut deserializer);
+            let api_playback =
+                <Option<crate::api::mic_test::MicTestPlayback>>::sse_decode(&mut deserializer);
             let api_sink =
                 <StreamSink<Vec<i16>, flutter_rust_bridge::for_generated::SseCodec>>::sse_decode(
                     &mut deserializer,
@@ -458,7 +460,11 @@ fn wire__crate__api__mic_test__mic_test_samples_impl(
             move |context| {
                 transform_result_sse::<_, ()>((move || {
                     let output_ok = Ok::<_, ()>({
-                        crate::api::mic_test::mic_test_samples(api_device_id, api_sink);
+                        crate::api::mic_test::mic_test_samples(
+                            api_device_id,
+                            api_playback,
+                            api_sink,
+                        );
                     })?;
                     std::result::Result::Ok(output_ok)
                 })())
@@ -1376,6 +1382,18 @@ impl SseDecode for Vec<crate::api::screenshare::types::VideoCodec> {
     }
 }
 
+impl SseDecode for crate::api::mic_test::MicTestPlayback {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_deviceId = <Option<String>>::sse_decode(deserializer);
+        let mut var_volume = <f32>::sse_decode(deserializer);
+        return crate::api::mic_test::MicTestPlayback {
+            device_id: var_deviceId,
+            volume: var_volume,
+        };
+    }
+}
+
 impl SseDecode for Option<String> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1392,6 +1410,19 @@ impl SseDecode for Option<crate::api::updater::AvailableUpdate> {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<crate::api::updater::AvailableUpdate>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::mic_test::MicTestPlayback> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::mic_test::MicTestPlayback>::sse_decode(
                 deserializer,
             ));
         } else {
@@ -1840,6 +1871,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::noise_filter::DeepFilterEntry
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::mic_test::MicTestPlayback {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.device_id.into_into_dart().into_dart(),
+            self.volume.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::mic_test::MicTestPlayback
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::mic_test::MicTestPlayback>
+    for crate::api::mic_test::MicTestPlayback
+{
+    fn into_into_dart(self) -> crate::api::mic_test::MicTestPlayback {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::screenshare::types::ScreenShareConfig {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -2219,6 +2271,14 @@ impl SseEncode for Vec<crate::api::screenshare::types::VideoCodec> {
     }
 }
 
+impl SseEncode for crate::api::mic_test::MicTestPlayback {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<String>>::sse_encode(self.device_id, serializer);
+        <f32>::sse_encode(self.volume, serializer);
+    }
+}
+
 impl SseEncode for Option<String> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -2235,6 +2295,16 @@ impl SseEncode for Option<crate::api::updater::AvailableUpdate> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::api::updater::AvailableUpdate>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::mic_test::MicTestPlayback> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::mic_test::MicTestPlayback>::sse_encode(value, serializer);
         }
     }
 }

@@ -40,6 +40,30 @@ void main() {
     });
   });
 
+  group('the mic test', () {
+    // It plays the microphone back, so the call must neither hear it nor talk
+    // over it — and stopping it must hand back exactly what was there.
+    test('mutes and deafens for its length, toggles untouched', () {
+      const testing = LiveKitState(isMicEnabled: true, isMicTesting: true);
+      expect(testing.isMicOn, isFalse);
+      expect(testing.isDeafenedEffective, isTrue);
+      // What the rest of the call is told, so it shows as deafened there.
+      expect(testing.isSelfDeafened, isTrue);
+      expect(testing.isDeafened, isFalse);
+
+      final stopped = testing.copyWith(isMicTesting: false);
+      expect(stopped.isMicOn, isTrue);
+      expect(stopped.isDeafenedEffective, isFalse);
+    });
+
+    test('a member deafened before the test is still deafened after it', () {
+      const testing = LiveKitState(isDeafened: true, isMicTesting: true);
+      final stopped = testing.copyWith(isMicTesting: false);
+      expect(stopped.isDeafenedEffective, isTrue);
+      expect(stopped.isMicOn, isFalse);
+    });
+  });
+
   group('lifting moderation restores what the member chose', () {
     // The reported bug: server mute then server unmute left them silent until
     // they toggled their own mic.

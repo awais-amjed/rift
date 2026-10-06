@@ -10,7 +10,8 @@ import 'mic_tap_format.dart';
 import 'pcm_level.dart';
 
 /// Opens a microphone of its own and reports its level, for the mic test in
-/// settings when no call already holds the device.
+/// settings. On Windows and Linux it also plays the microphone back, so you
+/// hear what Rift hears.
 ///
 /// Deliberately the same measurement as the one running during a call — raw
 /// PCM through [PcmLevel] — so the meter reads the same whether it is watching
@@ -30,18 +31,22 @@ class MicTestCapture {
 
   bool get isRunning => _track != null || _samples != null;
 
-  /// Opens the microphone with [options] and calls [onLevel] as it runs.
+  /// Opens the microphone with [options] and calls [onLevel] as it runs,
+  /// playing it on [playback] where the device is read directly
+  /// ([HostPlatform.micTestReadsDevice]); elsewhere there is nothing to play
+  /// it with.
   ///
   /// Throws if the device cannot be opened, having released anything it
   /// managed to acquire first.
   Future<void> start({
     required AudioCaptureOptions options,
+    rust.MicTestPlayback? playback,
     required void Function(double level) onLevel,
   }) async {
     if (isRunning) return;
     _throttle.reset();
     if (HostPlatform.micTestReadsDevice) {
-      return _startReadingDevice(options.deviceId, onLevel);
+      return _startReadingDevice(options.deviceId, playback, onLevel);
     }
 
     LocalAudioTrack? track;
@@ -79,11 +84,12 @@ class MicTestCapture {
   /// as the stream's first event being an error.
   Future<void> _startReadingDevice(
     String? deviceId,
+    rust.MicTestPlayback? playback,
     void Function(double level) onLevel,
   ) async {
     final opened = Completer<void>();
     _samples = rust
-        .micTestSamples(deviceId: deviceId)
+        .micTestSamples(deviceId: deviceId, playback: playback)
         .listen(
           (samples) {
             if (!opened.isCompleted) opened.complete();

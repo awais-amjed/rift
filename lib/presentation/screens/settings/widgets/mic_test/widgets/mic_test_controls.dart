@@ -17,6 +17,9 @@ class MicTestControls extends StatelessWidget {
   /// Why the microphone could not be opened, if it could not be.
   final String? error;
 
+  /// Whether the test plays the microphone back.
+  final bool hearsYourself;
+
   final VoidCallback onToggle;
 
   const MicTestControls({
@@ -24,6 +27,7 @@ class MicTestControls extends StatelessWidget {
     required this.testing,
     required this.busy,
     required this.error,
+    this.hearsYourself = false,
     required this.onToggle,
   });
 
@@ -46,10 +50,14 @@ class MicTestControls extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             if (testing)
-              Text(
-                'Listening…',
-                style: AppText.secondary.copyWith(
-                  color: themeState.textTertiary,
+              Flexible(
+                child: Text(
+                  hearsYourself
+                      ? "You'll hear yourself. Headphones stop the echo."
+                      : 'Listening…',
+                  style: AppText.secondary.copyWith(
+                    color: themeState.textTertiary,
+                  ),
                 ),
               ),
           ],

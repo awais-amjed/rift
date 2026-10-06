@@ -106,7 +106,7 @@ impl Cue {
     }
 }
 
-fn scale(sample: i16, volume: f32) -> i16 {
+pub(crate) fn scale(sample: i16, volume: f32) -> i16 {
     (f32::from(sample) * volume.clamp(0.0, 1.0)).round() as i16
 }
 

@@ -115,7 +115,10 @@ abstract class RustLibApi extends BaseApi {
 
   Future<DeepFilterEntry> crateApiNoiseFilterLoadDeepFilter();
 
-  Stream<Int16List> crateApiMicTestMicTestSamples({String? deviceId});
+  Stream<Int16List> crateApiMicTestMicTestSamples({
+    String? deviceId,
+    MicTestPlayback? playback,
+  });
 
   Future<CueStarted> crateApiCuePlayCue({
     String? deviceId,
@@ -507,7 +510,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: 'load_deep_filter', argNames: []);
 
   @override
-  Stream<Int16List> crateApiMicTestMicTestSamples({String? deviceId}) {
+  Stream<Int16List> crateApiMicTestMicTestSamples({
+    String? deviceId,
+    MicTestPlayback? playback,
+  }) {
     final sink = RustStreamSink<Int16List>();
     unawaited(
       handler.executeNormal(
@@ -515,6 +521,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           callFfi: (port_) {
             final serializer = SseSerializer(generalizedFrbRustBinding);
             sse_encode_opt_String(deviceId, serializer);
+            sse_encode_opt_box_autoadd_mic_test_playback(playback, serializer);
             sse_encode_StreamSink_list_prim_i_16_strict_Sse(sink, serializer);
             pdeCallFfi(
               generalizedFrbRustBinding,
@@ -528,7 +535,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             decodeErrorData: null,
           ),
           constMeta: kCrateApiMicTestMicTestSamplesConstMeta,
-          argValues: [deviceId, sink],
+          argValues: [deviceId, playback, sink],
           apiImpl: this,
         ),
       ),
@@ -539,7 +546,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiMicTestMicTestSamplesConstMeta =>
       const TaskConstMeta(
         debugName: 'mic_test_samples',
-        argNames: ['deviceId', 'sink'],
+        argNames: ['deviceId', 'playback', 'sink'],
       );
 
   @override
@@ -1212,6 +1219,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  MicTestPlayback dco_decode_box_autoadd_mic_test_playback(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_mic_test_playback(raw);
+  }
+
+  @protected
   ScreenShareConfig dco_decode_box_autoadd_screen_share_config(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_screen_share_config(raw);
@@ -1334,6 +1347,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  MicTestPlayback dco_decode_mic_test_playback(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return MicTestPlayback(
+      deviceId: dco_decode_opt_String(arr[0]),
+      volume: dco_decode_f_32(arr[1]),
+    );
+  }
+
+  @protected
   String? dco_decode_opt_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_String(raw);
@@ -1343,6 +1368,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AvailableUpdate? dco_decode_opt_box_autoadd_available_update(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_available_update(raw);
+  }
+
+  @protected
+  MicTestPlayback? dco_decode_opt_box_autoadd_mic_test_playback(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_mic_test_playback(raw);
   }
 
   @protected
@@ -1578,6 +1609,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  MicTestPlayback sse_decode_box_autoadd_mic_test_playback(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_mic_test_playback(deserializer));
+  }
+
+  @protected
   ScreenShareConfig sse_decode_box_autoadd_screen_share_config(
     SseDeserializer deserializer,
   ) {
@@ -1730,6 +1769,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  MicTestPlayback sse_decode_mic_test_playback(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_deviceId = sse_decode_opt_String(deserializer);
+    var var_volume = sse_decode_f_32(deserializer);
+    return MicTestPlayback(deviceId: var_deviceId, volume: var_volume);
+  }
+
+  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -1748,6 +1795,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_available_update(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  MicTestPlayback? sse_decode_opt_box_autoadd_mic_test_playback(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_mic_test_playback(deserializer));
     } else {
       return null;
     }
@@ -2064,6 +2124,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_mic_test_playback(
+    MicTestPlayback self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_mic_test_playback(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_screen_share_config(
     ScreenShareConfig self,
     SseSerializer serializer,
@@ -2221,6 +2290,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_mic_test_playback(
+    MicTestPlayback self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_String(self.deviceId, serializer);
+    sse_encode_f_32(self.volume, serializer);
+  }
+
+  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -2240,6 +2319,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_available_update(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_mic_test_playback(
+    MicTestPlayback? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_mic_test_playback(self, serializer);
     }
   }
 

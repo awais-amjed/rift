@@ -11,13 +11,42 @@ import '../frb_generated.dart';
 /// system default — and sends 16-bit mono samples at 16 kHz to `sink` until
 /// [`stop_mic_test`], or until Dart stops listening. On Windows that id is the
 /// endpoint id; on Linux it is the source's description, the only name
-/// WebRTC's PulseAudio module gives one.
+/// WebRTC's PulseAudio module gives one. With `playback`, the samples are
+/// played there too, at most 60 ms behind.
 ///
 /// A microphone that cannot be opened ends the stream with an error. Off
 /// Windows and Linux the stream ends with an error straight away, and the
 /// caller keeps to WebRTC's own capture.
-Stream<Int16List> micTestSamples({String? deviceId}) =>
-    RustLib.instance.api.crateApiMicTestMicTestSamples(deviceId: deviceId);
+Stream<Int16List> micTestSamples({
+  String? deviceId,
+  MicTestPlayback? playback,
+}) => RustLib.instance.api.crateApiMicTestMicTestSamples(
+  deviceId: deviceId,
+  playback: playback,
+);
 
 /// Stops the running test, if any, and releases the microphone.
 Future<void> stopMicTest() => RustLib.instance.api.crateApiMicTestStopMicTest();
+
+/// Where the test plays the microphone back.
+class MicTestPlayback {
+  /// The id WebRTC lists the output under, or None for the default — as
+  /// `play_cue` takes it. One that has gone plays on the default.
+  final String? deviceId;
+
+  /// 0 to 1.
+  final double volume;
+
+  const MicTestPlayback({this.deviceId, required this.volume});
+
+  @override
+  int get hashCode => deviceId.hashCode ^ volume.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MicTestPlayback &&
+          runtimeType == other.runtimeType &&
+          deviceId == other.deviceId &&
+          volume == other.volume;
+}

@@ -271,7 +271,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
         // Our own deafen is known here and now; everyone else's arrives as the
         // attribute they publish, which is the only way it travels.
         isDeafened: p is LocalParticipant
-            ? state.isDeafened
+            ? state.isSelfDeafened
             : VoiceAttributes.isDeafened(p.attributes),
         isSharingScreen: sharing.sharesScreen(userId),
         isSharingSound: sharing.sharesSound(userId),
@@ -537,7 +537,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
     try {
       await local.setAttributes(
         VoiceAttributes.forSelf(
-          deafened: state.isDeafened,
+          deafened: state.isSelfDeafened,
           watching: state.subscribedScreenshares,
         ),
       );

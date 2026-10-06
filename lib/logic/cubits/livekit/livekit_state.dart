@@ -32,6 +32,13 @@ class LiveKitState {
   /// any reason".
   final bool isDeafened;
 
+  /// The settings mic test is running. It plays the microphone back to you,
+  /// so for its length you are muted and deafened in every call — nobody hears
+  /// you testing, and the call does not talk over your own voice. Neither of
+  /// your own toggles is touched, so stopping the test hands back exactly
+  /// what you had.
+  final bool isMicTesting;
+
   final bool isPushToTalkPressed;
   final Set<String> subscribedScreenshares;
 
@@ -64,6 +71,7 @@ class LiveKitState {
     this.isCameraEnabled = false,
     this.isScreenSharing = false,
     this.isDeafened = false,
+    this.isMicTesting = false,
     this.isPushToTalkPressed = false,
     this.subscribedScreenshares = const {},
     this.isServerMuted = false,
@@ -81,12 +89,17 @@ class LiveKitState {
       currentChannelId ?? (dmCall == null ? null : 'dm:${dmCall!.callId}');
 
   /// Whether the microphone is live: the user wants it on, hasn't deafened
-  /// themselves, and no moderator has taken it away.
+  /// themselves, isn't testing it, and no moderator has taken it away.
   bool get isMicOn =>
-      isMicEnabled && !isDeafened && !isServerMuted && !isServerDeafened;
+      isMicEnabled && !isSelfDeafened && !isServerMuted && !isServerDeafened;
 
-  /// Deafened for any reason — their own choice or a moderator's.
-  bool get isDeafenedEffective => isDeafened || isServerDeafened;
+  /// Deafened by this device — their own choice, or the mic test. What the
+  /// rest of the call is told.
+  bool get isSelfDeafened => isDeafened || isMicTesting;
+
+  /// Deafened for any reason — their own choice, the mic test, or a
+  /// moderator's.
+  bool get isDeafenedEffective => isSelfDeafened || isServerDeafened;
 
   /// Whether a moderator is holding the mic or the ears, which is what makes
   /// the local controls unusable rather than merely off.
@@ -125,6 +138,7 @@ class LiveKitState {
     bool? isCameraEnabled,
     bool? isScreenSharing,
     bool? isDeafened,
+    bool? isMicTesting,
     bool? isPushToTalkPressed,
     Set<String>? subscribedScreenshares,
     bool? isServerMuted,
@@ -150,6 +164,7 @@ class LiveKitState {
       isCameraEnabled: isCameraEnabled ?? this.isCameraEnabled,
       isScreenSharing: isScreenSharing ?? this.isScreenSharing,
       isDeafened: isDeafened ?? this.isDeafened,
+      isMicTesting: isMicTesting ?? this.isMicTesting,
       isPushToTalkPressed: isPushToTalkPressed ?? this.isPushToTalkPressed,
       subscribedScreenshares:
           subscribedScreenshares ?? this.subscribedScreenshares,

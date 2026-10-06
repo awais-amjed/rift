@@ -71,6 +71,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AvailableUpdate dco_decode_box_autoadd_available_update(dynamic raw);
 
   @protected
+  MicTestPlayback dco_decode_box_autoadd_mic_test_playback(dynamic raw);
+
+  @protected
   ScreenShareConfig dco_decode_box_autoadd_screen_share_config(dynamic raw);
 
   @protected
@@ -122,10 +125,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<VideoCodec> dco_decode_list_video_codec(dynamic raw);
 
   @protected
+  MicTestPlayback dco_decode_mic_test_playback(dynamic raw);
+
+  @protected
   String? dco_decode_opt_String(dynamic raw);
 
   @protected
   AvailableUpdate? dco_decode_opt_box_autoadd_available_update(dynamic raw);
+
+  @protected
+  MicTestPlayback? dco_decode_opt_box_autoadd_mic_test_playback(dynamic raw);
 
   @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
@@ -215,6 +224,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  MicTestPlayback sse_decode_box_autoadd_mic_test_playback(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   ScreenShareConfig sse_decode_box_autoadd_screen_share_config(
     SseDeserializer deserializer,
   );
@@ -276,10 +290,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<VideoCodec> sse_decode_list_video_codec(SseDeserializer deserializer);
 
   @protected
+  MicTestPlayback sse_decode_mic_test_playback(SseDeserializer deserializer);
+
+  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
 
   @protected
   AvailableUpdate? sse_decode_opt_box_autoadd_available_update(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  MicTestPlayback? sse_decode_opt_box_autoadd_mic_test_playback(
     SseDeserializer deserializer,
   );
 
@@ -385,6 +407,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_mic_test_playback(
+    MicTestPlayback self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_screen_share_config(
     ScreenShareConfig self,
     SseSerializer serializer,
@@ -466,11 +494,23 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_mic_test_playback(
+    MicTestPlayback self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_available_update(
     AvailableUpdate? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_mic_test_playback(
+    MicTestPlayback? self,
     SseSerializer serializer,
   );
 
