@@ -183,6 +183,15 @@ class LiveKitCubit extends Cubit<LiveKitState>
       );
     }
     _syncPictureInPicture(change.nextState);
+    // A join that failed — the token, the key or the connect — leaves this
+    // device outside the call, while its share, a connection of its own,
+    // can still be in the room: it reconnects with the token it already
+    // holds. Everyone else then sees a stream from somebody who is not in
+    // the call. Run once the state has changed, which is what it reads.
+    if (change.nextState.connectionState == LiveKitConnectionState.error &&
+        change.currentState.connectionState != LiveKitConnectionState.error) {
+      unawaited(Future(_followShares));
+    }
   }
 
   /// Tells Android whether leaving the app should shrink it to a floating

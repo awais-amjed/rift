@@ -381,7 +381,10 @@ follows it (`ScreenshareCubit.followCall`): on a desktop its connection is
 replaced and the picture published again, keeping the capture, so a Wayland
 portal is not asked a second time; a shared app's sound is started again; on the
 web and on a phone, where a share can start only from a click or fresh consent,
-it ends and the sharer is told. A share left in another call ends. Viewers keep
+it ends and the sharer is told. A share left in another call ends, and so does
+one whose call failed to come back: it can reconnect with the token it holds
+when the call cannot get a new one, and would stream on to a room the sharer is
+not in. Viewers keep
 watching a stream that drops out and is back within half a minute
 (`WatchResume`), whoever's connection it was that dropped.
 

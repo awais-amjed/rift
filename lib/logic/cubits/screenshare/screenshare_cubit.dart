@@ -378,14 +378,22 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
   /// to start it again.
   ///
   /// A share in any other call ends: it belongs to the call it was started
-  /// in.
+  /// in. So does one whose call failed to come back, or it streams on to a
+  /// room the sharer is not in.
   Future<void> followCall() async {
     if (!state.isSharing) return;
     final livekit = _livekitCubit;
-    final sameCall =
-        livekit != null && livekit.state.callKey == state.channelId;
-    if (_sdkCapturesScreen) return _forgetSdkShare(tell: sameCall);
-    if (!sameCall) return stopScreenShare();
+    if (livekit == null) return;
+    final call = livekit.state;
+    final sameCall = call.callKey == state.channelId;
+    final failed = call.connectionState == LiveKitConnectionState.error;
+    if (_sdkCapturesScreen) {
+      return _forgetSdkShare(tell: sameCall && !failed);
+    }
+    if (!sameCall || failed) return stopScreenShare();
+    // Joining the same call again, which may yet fail: whichever way it
+    // ends brings this back here.
+    if (call.connectionState != LiveKitConnectionState.connected) return;
 
     final response = await livekit.shareToken(screenShare: true);
     final livekitUrl =
