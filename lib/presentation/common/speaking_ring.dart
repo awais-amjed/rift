@@ -20,12 +20,18 @@ class SpeakingRing extends StatefulWidget {
   /// across a 16:9 card; an avatar's must not swamp the row it sits in.
   final double bloom;
 
+  /// Clear space between the child and the ring, as the rail's selected chip
+  /// has. Left see-through rather than filled, so it shows whatever the row
+  /// behind is tinted — a hover, the call's own card.
+  final double gap;
+
   const SpeakingRing({
     super.key,
     required this.isSpeaking,
     required this.borderRadius,
     required this.child,
     this.bloom = 1,
+    this.gap = 0,
   });
 
   @override
@@ -77,6 +83,7 @@ class _SpeakingRingState extends State<SpeakingRing>
         return CustomPaint(
           painter: _RingPainter(
             borderRadius: widget.borderRadius,
+            gap: widget.gap,
             shadows: active
                 ? AppShadows.speakingRing(
                     themeState.primary,
@@ -100,24 +107,37 @@ class _SpeakingRingState extends State<SpeakingRing>
 /// Round a 24px avatar that was plain to see: each time somebody started or
 /// stopped talking, their picture looked to switch from a squircle to a
 /// square and back.
+///
+/// With a [gap], each shadow is drawn as a band starting that far out, so the
+/// space next to the child stays empty.
 class _RingPainter extends CustomPainter {
   final BorderRadius borderRadius;
+  final double gap;
   final List<BoxShadow> shadows;
 
-  const _RingPainter({required this.borderRadius, required this.shadows});
+  const _RingPainter({
+    required this.borderRadius,
+    required this.gap,
+    required this.shadows,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
     final box = borderRadius.toRRect(Offset.zero & size);
     for (final shadow in shadows) {
-      canvas.drawRRect(
-        box.shift(shadow.offset).inflate(shadow.spreadRadius),
-        shadow.toPaint(),
-      );
+      final inner = box.shift(shadow.offset).inflate(gap);
+      final outer = inner.inflate(shadow.spreadRadius);
+      if (gap > 0) {
+        canvas.drawDRRect(outer, inner, shadow.toPaint());
+      } else {
+        canvas.drawRRect(outer, shadow.toPaint());
+      }
     }
   }
 
   @override
   bool shouldRepaint(_RingPainter old) =>
-      old.borderRadius != borderRadius || !listEquals(old.shadows, shadows);
+      old.borderRadius != borderRadius ||
+      old.gap != gap ||
+      !listEquals(old.shadows, shadows);
 }

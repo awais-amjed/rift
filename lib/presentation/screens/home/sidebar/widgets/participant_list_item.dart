@@ -81,6 +81,10 @@ class ParticipantListItem extends StatelessWidget {
               // avatar's own, so the glow read as a rounder shape than the
               // picture it was drawn round.
               bloom: 0,
+              // Held off the picture like the rail's selected server, so the
+              // ring reads as round the avatar rather than part of it. Ring
+              // and gap together stay inside the row's 5px padding.
+              gap: 2,
               borderRadius: BorderRadius.circular(
                 metrics.avatarSize * K.avatarRadiusRatio,
               ),

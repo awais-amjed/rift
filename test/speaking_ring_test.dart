@@ -64,4 +64,44 @@ void main() {
       ),
     );
   });
+
+  testWidgets('a gap leaves clear space between the child and the ring', (
+    tester,
+  ) async {
+    const radius = 6.0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: BlocProvider(
+          create: (_) => ThemeCubit(),
+          child: const Center(
+            child: SpeakingRing(
+              isSpeaking: true,
+              bloom: 0,
+              gap: 2,
+              borderRadius: BorderRadius.all(Radius.circular(radius)),
+              child: SizedBox.square(dimension: 24),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // A band from 2px out to 4px out, not a slab behind the avatar.
+    expect(
+      find.descendant(
+        of: find.byType(SpeakingRing),
+        matching: find.byType(CustomPaint),
+      ),
+      paints..drrect(
+        outer: RRect.fromRectAndRadius(
+          const Rect.fromLTWH(-4, -4, 32, 32),
+          const Radius.circular(radius + 4),
+        ),
+        inner: RRect.fromRectAndRadius(
+          const Rect.fromLTWH(-2, -2, 28, 28),
+          const Radius.circular(radius + 2),
+        ),
+      ),
+    );
+  });
 }
