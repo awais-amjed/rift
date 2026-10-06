@@ -14,12 +14,14 @@ import '../../../../logic/cubits/dm/dm_cubit.dart';
 /// conversation can derive its key without a second directory round trip.
 ///
 /// It was copied into each of them until the fourth wanted it. Forgetting the
-/// first line is a bug you only see as two conversations open at once.
+/// first line is a bug you only see as two conversations open at once. The
+/// server DM is set aside rather than just closed, so going back to the
+/// server's DMs finds it open again.
 void openCentralConversation(
   BuildContext context,
   DmConversation conversation,
 ) {
-  context.read<DmCubit>().closeConversation();
+  context.read<DmCubit>().setAsideConversation();
   context.read<CentralDmCubit>().openConversation(
     peerId: conversation.peerId,
     peerHandle: conversation.peerName,

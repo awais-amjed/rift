@@ -16,6 +16,10 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
   void _joinPeerTopic(String peerId);
   void _leavePeerTopic();
 
+  /// Implemented by the set-aside mixin: a conversation opened or closed on
+  /// purpose replaces the one set aside.
+  void _forgetSetAside();
+
   /// The open conversation's saved copy — see [SavedConversation].
   SavedConversation get _saved;
   Server? get _savedServer;
@@ -32,6 +36,7 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
     if (state.openPeerId == peerId && state.chatStatus == DmChatStatus.ready) {
       return;
     }
+    _forgetSetAside();
     // Before the state moves on: the flush reads the conversation being left.
     unawaited(_saved.flush(leaving: true));
 
@@ -97,6 +102,7 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
   }
 
   void closeConversation() {
+    _forgetSetAside();
     unawaited(_saved.flush(leaving: true));
     _leavePeerTopic();
     emit(state.copyWith(closeConversation: true));

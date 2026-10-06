@@ -228,6 +228,14 @@ class _HomeScreenState extends State<HomeScreen> {
           listenWhen: (prev, curr) => prev.surface != curr.surface,
           listener: (context, state) => _saveOffScreen(state.surface),
         ),
+        // A server DM a central one pushed aside opens again on the way back.
+        BlocListener<AppCubit, AppState>(
+          listenWhen: (prev, curr) =>
+              prev.surface != curr.surface &&
+              curr.surface == HomeSurface.serverDms,
+          listener: (context, _) =>
+              unawaited(context.read<DmCubit>().resumeSetAside()),
+        ),
         BlocListener<ChannelChatCubit, ChannelChatState>(
           listenWhen: (prev, curr) => prev.channelId != curr.channelId,
           listener: (context, _) => _dismissOverlays(),

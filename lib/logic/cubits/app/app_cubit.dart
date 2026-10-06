@@ -40,11 +40,22 @@ class AppCubit extends HydratedCubit<AppState> {
     emit(state.copyWith(sidebarOpen: !state.sidebarOpen));
   }
 
+  /// The half of the selected server last on screen — its channels or its
+  /// DMs. Home is a detour from a server, not a way out of it, so coming back
+  /// finds the server as it was left; going straight to its channels lost a
+  /// DM the person was in the middle of.
+  HomeSurface _serverSurface = HomeSurface.server;
+
   /// Switch the centre pane. Mutually exclusive by construction — there is
   /// no state where two surfaces are open.
   void setSurface(HomeSurface surface) {
+    if (surface != HomeSurface.centralDms) _serverSurface = surface;
     emit(state.copyWith(surface: surface));
   }
+
+  /// Back to the selected server from wherever the centre pane is, on the
+  /// half of it that was open last.
+  void backToServer() => setSurface(_serverSurface);
 
   // ── Persisted: title bar ─────────────────────────────────
 

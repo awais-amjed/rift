@@ -47,6 +47,7 @@ part 'dm_pins.dart';
 part 'dm_reactions.dart';
 part 'dm_requests.dart';
 part 'dm_send.dart';
+part 'dm_set_aside.dart';
 part 'dm_state.dart';
 
 /// E2E direct messages between members of the selected server
@@ -67,7 +68,8 @@ class DmCubit extends Cubit<DmState>
         _DmReactionsMixin,
         _DmPinsMixin,
         _DmRequestsMixin,
-        _DmCallLogMixin {
+        _DmCallLogMixin,
+        _DmSetAsideMixin {
   @override
   final ServerCubit _serverCubit;
   final VaultCubit _vaultCubit;
@@ -195,6 +197,7 @@ class DmCubit extends Cubit<DmState>
     // before the reset forgets which one that was.
     unawaited(_saved.flush(leaving: true));
     _readyServerId = null;
+    _forgetSetAside();
     _dmKeys.clear();
     _dmKeySources.clear();
     _outbox.clear();

@@ -93,9 +93,18 @@ class RailServerList extends StatelessWidget {
     );
   }
 
+  /// Another server opens on its channels. The one already selected — the
+  /// way back from Home — opens on whichever half was left, so a server DM
+  /// is still there.
   static void _open(BuildContext context, Server server) {
-    context.read<AppCubit>().setSurface(HomeSurface.server);
-    context.read<ServerCubit>().selectServer(server);
+    final app = context.read<AppCubit>();
+    final servers = context.read<ServerCubit>();
+    if (server.id == servers.state.selectedServerId) {
+      app.backToServer();
+    } else {
+      app.setSurface(HomeSurface.server);
+    }
+    servers.selectServer(server);
   }
 
   /// The chip while it is being carried.
