@@ -6,6 +6,7 @@ import '../../../../data/enums/dm_policy.dart';
 import '../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../logic/helper_methods.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/chip_selector.dart';
@@ -87,6 +88,7 @@ class DmRequestsDialog extends StatelessWidget {
             for (final request in requests)
               DmConversationTile(
                 conversation: request,
+                onServer: true,
                 isSelected: false,
                 unreadCount: 0,
                 onTap: () => _open(context, request),
@@ -107,6 +109,7 @@ Future<void> showDmRequestsDialog(BuildContext context) {
         BlocProvider.value(value: context.read<ServerCubit>()),
         BlocProvider.value(value: context.read<DmCubit>()),
         BlocProvider.value(value: context.read<CentralDmCubit>()),
+        BlocProvider.value(value: context.read<ServerMembersCubit>()),
       ],
       child: const DmRequestsDialog(),
     ),

@@ -190,6 +190,7 @@ class DmListPanel extends StatelessWidget {
     final onLevelChanged = this.onLevelChanged;
     return DmConversationTile(
       conversation: conversation,
+      onServer: true,
       isSelected: conversation.peerId == openPeerId,
 
       unreadCount: unreadFor?.call(conversation.peerId) ?? 0,

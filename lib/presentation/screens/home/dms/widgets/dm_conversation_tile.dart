@@ -7,6 +7,7 @@ import '../../../../../logic/services/conversation_time.dart';
 import '../../../../../logic/services/message_excerpt.dart';
 import '../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../common/context_menu_region.dart';
+import '../../../../common/member_avatar.dart';
 import '../../../../common/notifications/notification_level_submenu.dart';
 import '../../../../common/squircle_avatar.dart';
 import '../../../../common/unread_badge.dart';
@@ -65,7 +66,26 @@ class DmConversationTile extends StatelessWidget {
     this.onLevelChanged,
     this.menuItems = const [],
     this.isOnline,
+    this.onServer = false,
   });
+
+  /// A server DM, whose peer is a member with a picture. Off for central
+  /// DMs: a central account has none, and its id means nothing to the
+  /// selected server's roster.
+  final bool onServer;
+
+  Widget _picture(double size) => onServer
+      ? MemberAvatar(
+          userId: conversation.peerId,
+          name: conversation.peerName,
+          size: size,
+          fallbackPath: conversation.peerAvatarPath,
+        )
+      : SquircleAvatar(
+          name: conversation.peerName,
+          seed: conversation.peerId,
+          size: size,
+        );
 
   @override
   Widget build(BuildContext context) {
@@ -82,11 +102,7 @@ class DmConversationTile extends StatelessWidget {
       builder: (context) => ContextMenuPanel(
         heading: 'Conversation',
         subheading: conversation.peerName,
-        leading: SquircleAvatar(
-          name: conversation.peerName,
-          seed: conversation.peerId,
-          size: 18,
-        ),
+        leading: _picture(18),
         children: [
           if (onLevelChanged != null)
             NotificationLevelSubmenu(
@@ -213,11 +229,7 @@ class DmConversationTile extends StatelessWidget {
   }
 
   Widget _avatar(BuildContext context, double size) {
-    final avatar = SquircleAvatar(
-      name: conversation.peerName,
-      seed: conversation.peerId,
-      size: size,
-    );
+    final avatar = _picture(size);
     final online = isOnline;
     if (online == null) return avatar;
     final theme = context.theme;

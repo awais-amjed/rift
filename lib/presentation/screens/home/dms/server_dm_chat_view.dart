@@ -27,6 +27,7 @@ import '../../../common/chat/saved_copy_notice.dart';
 import '../../../common/chat/time_out_builder.dart';
 import '../../../common/chat/typing_indicator.dart';
 import '../../../common/loading_block.dart';
+import '../../../common/member_avatar.dart';
 import '../../../responsive/shell_scope.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
@@ -229,6 +230,17 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
       tierLabel: 'Server',
       title: state.openPeerName ?? '',
       peerId: state.openPeerId,
+      avatar: state.openPeerId == null
+          ? null
+          : (size) => MemberAvatar(
+              userId: state.openPeerId!,
+              name: state.openPeerName ?? '',
+              size: size,
+              fallbackPath: state.conversations
+                  .where((c) => c.peerId == state.openPeerId)
+                  .firstOrNull
+                  ?.peerAvatarPath,
+            ),
       onOpenProfile: state.openPeerId == null
           ? null
           : () => unawaited(

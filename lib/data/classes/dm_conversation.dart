@@ -15,6 +15,12 @@ class DmConversation {
   /// Peer's Ed25519 key (base64) — verifies their message signatures.
   final String? peerSigningPublicKey;
 
+  /// The peer's picture on the server, as the conversation list last saw
+  /// it. Server DMs only — central accounts have no picture — and only a
+  /// fallback: the member roster's copy is newer when it has one
+  /// (`MemberAvatar`).
+  final String? peerAvatarPath;
+
   final ChatMessage? lastMessage;
 
   /// Where the caller stands with this person, resolved by the server.
@@ -31,6 +37,7 @@ class DmConversation {
     required this.peerName,
     this.peerChatPublicKey,
     this.peerSigningPublicKey,
+    this.peerAvatarPath,
     this.lastMessage,
     this.state,
   });

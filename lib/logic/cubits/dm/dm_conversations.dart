@@ -162,6 +162,7 @@ mixin _DmConversationsMixin on Cubit<DmState> {
           peerName: peerName,
           peerChatPublicKey: peerChatKey,
           peerSigningPublicKey: peerSigningKey,
+          peerAvatarPath: row['peer_avatar_path'] as String?,
           lastMessage: preview,
         ),
       );

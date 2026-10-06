@@ -4,11 +4,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rift/data/classes/dm_conversation.dart';
 import 'package:rift/data/enums/layout_mode.dart';
+import 'package:rift/logic/cubits/server_members/server_members_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/presentation/common/list_loading_footer.dart';
 import 'package:rift/presentation/screens/home/dms/widgets/dm_list_panel.dart';
 
 import 'shell_scope_harness.dart';
+import 'support/stub_members_cubit.dart';
 
 /// In-memory stand-in so [ThemeCubit] (a HydratedCubit) can be built in tests.
 class _MemoryStorage implements Storage {
@@ -50,8 +52,11 @@ void main() {
   }) async {
     await tester.pumpWidget(
       MaterialApp(
-        home: BlocProvider(
-          create: (_) => ThemeCubit(),
+        home: MultiBlocProvider(
+          providers: [
+            BlocProvider(create: (_) => ThemeCubit()),
+            BlocProvider<ServerMembersCubit>(create: (_) => StubMembersCubit()),
+          ],
           child: withShellScope(
             mode: LayoutMode.expanded,
             Scaffold(

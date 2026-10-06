@@ -65,7 +65,12 @@ class DmChatHeader extends StatelessWidget {
     this.keyChanged = false,
     this.onShowPins,
     this.onCall,
+    this.avatar,
   });
+
+  /// The peer's picture at a given size, where there is one to show — a
+  /// server DM's member. Null draws the initial on its gradient.
+  final Widget Function(double size)? avatar;
 
   /// The peer's picture and name, opening their profile where there is one.
   Widget _identity(BuildContext context, ThemeState themeState) {
@@ -73,7 +78,7 @@ class DmChatHeader extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       spacing: 10,
       children: [
-        SquircleAvatar(name: title, seed: peerId, size: 30),
+        avatar?.call(30) ?? SquircleAvatar(name: title, seed: peerId, size: 30),
         Flexible(
           child: Text(
             title,
