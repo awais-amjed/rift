@@ -71,6 +71,9 @@ class HelperMethods {
         description: description,
         type: type,
         onClose: () => toastification.dismiss(item),
+        // Held while the mouse is on it: a toast that leaves halfway through
+        // being read, or with its text half selected, is gone for good.
+        onHover: (over) => over ? item.pause() : item.start(),
         onTap: onTap == null
             ? null
             : () {

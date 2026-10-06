@@ -62,7 +62,7 @@ void main() {
   }) async {
     await tester.pumpWidget(
       MediaQuery(
-        // The width is what makes the body plain text rather than selectable,
+        // The width is what makes the row plain rather than selectable,
         // which is what lets the long press through to the row. Defaults to a
         // phone, which is what these are about.
         data: MediaQueryData(size: Size(windowWidth, 800)),
@@ -134,18 +134,18 @@ void main() {
   });
 
   testWidgets('a desktop keeps its selectable text', (tester) async {
-    // The reason the long press gets through on a phone is that the body is
-    // no longer a SelectableText, whose own long-press recognizer wins the
+    // The reason the long press gets through on a phone is that the row is
+    // no longer a selection region, whose own long-press recognizer wins the
     // arena. That trade is only worth making where there is no mouse: with a
     // cursor, dragging across a message to copy part of it is a normal thing
     // to do and there is a right-click for the menu.
     await pumpRow(tester, msg: message(), windowWidth: 1400);
-    expect(find.byType(SelectableText), findsOneWidget);
+    expect(find.byType(SelectionArea), findsOneWidget);
   });
 
   testWidgets('a phone trades selection for the menu', (tester) async {
     await pumpRow(tester, msg: message());
-    expect(find.byType(SelectableText), findsNothing);
+    expect(find.byType(SelectionArea), findsNothing);
   });
 
   testWidgets('a message still on its way opens nothing', (tester) async {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:toastification/toastification.dart';
 
 import '../../data/constants.dart';
+import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/app_shadows.dart';
 import '../theme/app_text.dart';
 import '../theme/custom_colors.dart';
@@ -28,8 +29,15 @@ class AppToast extends StatelessWidget {
   final VoidCallback onClose;
 
   /// Set when clicking the card should do something (and dismiss it). Null
-  /// leaves the card inert apart from its close button.
+  /// leaves the card inert apart from its close button, and its words
+  /// selectable — an error is often something to paste somewhere. A card
+  /// that is a button can't be both: a click on its text would start a
+  /// selection instead of pressing it.
   final VoidCallback? onTap;
+
+  /// Told when the mouse comes onto the card and leaves it, so the toast can
+  /// hold still while it is being read or its text selected.
+  final ValueChanged<bool>? onHover;
 
   const AppToast({
     super.key,
@@ -38,6 +46,7 @@ class AppToast extends StatelessWidget {
     required this.type,
     required this.onClose,
     this.onTap,
+    this.onHover,
   });
 
   /// The status colour for [type]. Info has no status colour of its own —
@@ -74,6 +83,7 @@ class AppToast extends StatelessWidget {
         constraints: const BoxConstraints(maxWidth: maxWidth),
         child: _Clickable(
           onTap: onTap,
+          onHover: onHover,
           child: Container(
             decoration: BoxDecoration(
               color: theme.bgElevated,
@@ -88,25 +98,7 @@ class AppToast extends StatelessWidget {
               children: [
                 Icon(_icon, size: K.iconButton, color: accent),
                 const SizedBox(width: 10),
-                Flexible(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        title,
-                        style: AppText.strong.copyWith(
-                          color: theme.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        description,
-                        style: AppText.row.copyWith(color: theme.textSecondary),
-                      ),
-                    ],
-                  ),
-                ),
+                Flexible(child: _selectable(_words(theme))),
                 const SizedBox(width: 8),
                 _CloseButton(onTap: onClose),
               ],
@@ -116,21 +108,45 @@ class AppToast extends StatelessWidget {
       ),
     );
   }
+
+  Widget _words(ThemeState theme) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Text(title, style: AppText.strong.copyWith(color: theme.textPrimary)),
+      const SizedBox(height: 2),
+      Text(
+        description,
+        style: AppText.row.copyWith(color: theme.textSecondary),
+      ),
+    ],
+  );
+
+  Widget _selectable(Widget words) =>
+      onTap == null ? SelectionArea(child: words) : words;
 }
 
 class _Clickable extends StatelessWidget {
   final VoidCallback? onTap;
+  final ValueChanged<bool>? onHover;
   final Widget child;
 
-  const _Clickable({required this.onTap, required this.child});
+  const _Clickable({
+    required this.onTap,
+    required this.onHover,
+    required this.child,
+  });
 
   @override
   Widget build(BuildContext context) {
     final onTap = this.onTap;
-    if (onTap == null) return child;
     return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(onTap: onTap, child: child),
+      cursor: onTap == null ? MouseCursor.defer : SystemMouseCursors.click,
+      onEnter: (_) => onHover?.call(true),
+      onExit: (_) => onHover?.call(false),
+      child: onTap == null
+          ? child
+          : GestureDetector(onTap: onTap, child: child),
     );
   }
 }

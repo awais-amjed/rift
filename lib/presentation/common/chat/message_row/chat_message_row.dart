@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -36,7 +37,7 @@ import 'message_locked_body.dart';
 import 'message_reply_quote.dart';
 import 'message_row_avatar.dart';
 import 'message_row_header.dart';
-import 'message_text.dart';
+import 'message_selection_area.dart';
 
 part 'chat_message_row_actions.dart';
 
@@ -225,59 +226,68 @@ class _ChatMessageRowState extends State<ChatMessageRow>
     final content = MouseRegion(
       onEnter: (_) => setState(() => _hovering = true),
       onExit: (_) => setState(() => _hovering = false),
-      child: GestureDetector(
-        onSecondaryTapDown: (d) => _openContextMenu(d.globalPosition),
-        // Without this a message has no reachable actions at all on a phone:
-        // the toolbar above waits for a hover that never comes, and the line
-        // above waits for a mouse button that isn't there.
-        onLongPressStart: (d) => _openContextMenuByTouch(d.globalPosition),
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            _buildRow(),
-            // Over the row rather than behind it, so it tints the whole
-            // line including the avatar gutter — the mark has to say
-            // "this one", and half a row says "roughly here".
-            Positioned.fill(
-              child: MessageFlashHighlight(token: widget.flashToken),
-            ),
-            if (_showToolbar)
-              Positioned(
-                // Lifted clear of the row and aligned with its text edge, so
-                // the toolbar reads as belonging to this message rather than
-                // floating between it and the one above.
-                top: -12,
-                right: K.messageRowHPad,
-                // Rises the last few pixels into place rather than appearing
-                // fully formed. Only on the way in: it leaves the moment the
-                // pointer does, because a toolbar fading out under a cursor
-                // that has already moved on is something to wait for, and the
-                // one thing motion here must never be is something to wait
-                // for.
-                child: TweenAnimationBuilder<double>(
-                  tween: Tween(begin: 0, end: 1),
-                  duration: AppMotion.react,
-                  curve: AppMotion.settle,
-                  builder: (context, t, child) => Opacity(
-                    opacity: t,
-                    child: Transform.translate(
-                      offset: Offset(0, (1 - t) * 4),
-                      child: child,
+      // A Listener rather than the detector's secondary tap: the row's text
+      // is a selection region, which claims that tap for its own menu — see
+      // [MessageSelectionArea].
+      child: Listener(
+        onPointerDown: (event) {
+          if (event.buttons == kSecondaryButton) {
+            _openContextMenu(event.position);
+          }
+        },
+        child: GestureDetector(
+          // Without this a message has no reachable actions at all on a phone:
+          // the toolbar above waits for a hover that never comes, and the line
+          // above waits for a mouse button that isn't there.
+          onLongPressStart: (d) => _openContextMenuByTouch(d.globalPosition),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              _buildRow(),
+              // Over the row rather than behind it, so it tints the whole
+              // line including the avatar gutter — the mark has to say
+              // "this one", and half a row says "roughly here".
+              Positioned.fill(
+                child: MessageFlashHighlight(token: widget.flashToken),
+              ),
+              if (_showToolbar)
+                Positioned(
+                  // Lifted clear of the row and aligned with its text edge, so
+                  // the toolbar reads as belonging to this message rather than
+                  // floating between it and the one above.
+                  top: -12,
+                  right: K.messageRowHPad,
+                  // Rises the last few pixels into place rather than appearing
+                  // fully formed. Only on the way in: it leaves the moment the
+                  // pointer does, because a toolbar fading out under a cursor
+                  // that has already moved on is something to wait for, and the
+                  // one thing motion here must never be is something to wait
+                  // for.
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0, end: 1),
+                    duration: AppMotion.react,
+                    curve: AppMotion.settle,
+                    builder: (context, t, child) => Opacity(
+                      opacity: t,
+                      child: Transform.translate(
+                        offset: Offset(0, (1 - t) * 4),
+                        child: child,
+                      ),
+                    ),
+                    child: MessageHoverToolbar(
+                      onReact: _canReact ? _pickReaction : null,
+                      onReply: _canReply ? (_) => _reply() : null,
+                      onForward: _canForward ? (_) => _forward() : null,
+                      onCopy: _canCopy ? (_) => _copy() : null,
+                      onEdit: _canEdit
+                          ? (_) => setState(() => _editing = true)
+                          : null,
+                      onDelete: _canDelete ? (_) => _confirmDelete() : null,
                     ),
                   ),
-                  child: MessageHoverToolbar(
-                    onReact: _canReact ? _pickReaction : null,
-                    onReply: _canReply ? (_) => _reply() : null,
-                    onForward: _canForward ? (_) => _forward() : null,
-                    onCopy: _canCopy ? (_) => _copy() : null,
-                    onEdit: _canEdit
-                        ? (_) => setState(() => _editing = true)
-                        : null,
-                    onDelete: _canDelete ? (_) => _confirmDelete() : null,
-                  ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -312,31 +322,33 @@ class _ChatMessageRowState extends State<ChatMessageRow>
         // failed: the fade says "not finished", and a row asking to be pressed
         // is the wrong thing to push into the background.
         opacity: message.isPending && !message.sendFailed ? 0.6 : 1.0,
-        child: Padding(
-          padding: EdgeInsets.only(
-            left: K.messageRowHPad,
-            right: K.messageRowHPad,
-            top: widget.showHeader ? 7 : 2,
-            bottom: 2,
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            spacing: 12,
-            children: [
-              SizedBox(
-                width: ChatMessageRow._gutterWidth,
-                child: widget.showHeader
-                    ? _tappable(
-                        MessageRowAvatar(
-                          authorName: message.authorName,
-                          authorId: message.authorId,
-                          avatarPath: message.authorAvatarPath,
-                        ),
-                      )
-                    : null,
-              ),
-              Expanded(child: _buildBody()),
-            ],
+        child: MessageSelectionArea(
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: K.messageRowHPad,
+              right: K.messageRowHPad,
+              top: widget.showHeader ? 7 : 2,
+              bottom: 2,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              spacing: 12,
+              children: [
+                SizedBox(
+                  width: ChatMessageRow._gutterWidth,
+                  child: widget.showHeader
+                      ? _tappable(
+                          MessageRowAvatar(
+                            authorName: message.authorName,
+                            authorId: message.authorId,
+                            avatarPath: message.authorAvatarPath,
+                          ),
+                        )
+                      : null,
+                ),
+                Expanded(child: _buildBody()),
+              ],
+            ),
           ),
         ),
       ),
@@ -431,9 +443,8 @@ class _ChatMessageRowState extends State<ChatMessageRow>
             GuardedMessageText(
               messageId: message.id,
               text: message.text,
-              child: MessageText(
-                onSecondaryTap: _openContextMenu,
-                span: TextSpan(
+              child: Text.rich(
+                TextSpan(
                   children: [
                     messageMarkupSpan(
                       message.text,

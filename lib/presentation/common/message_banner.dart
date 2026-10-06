@@ -64,11 +64,15 @@ class MessageBanner extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               spacing: 10,
               children: [
-                Text(
-                  message,
-                  style: AppText.secondary.copyWith(
-                    height: 1.5,
-                    color: themeState.textSecondary,
+                // Selectable because an error is often something to paste
+                // into a search or a bug report.
+                SelectionArea(
+                  child: Text(
+                    message,
+                    style: AppText.secondary.copyWith(
+                      height: 1.5,
+                      color: themeState.textSecondary,
+                    ),
                   ),
                 ),
                 ?action,
