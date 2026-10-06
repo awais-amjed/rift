@@ -45,7 +45,7 @@ extension ServerManageTabLabel on ServerManageTab {
     ServerManageTab.reports => Icons.flag_outlined,
     ServerManageTab.bots => Icons.smart_toy_outlined,
     ServerManageTab.webhooks => Icons.webhook_rounded,
-    ServerManageTab.soundboard => Icons.graphic_eq_rounded,
+    ServerManageTab.soundboard => Icons.campaign_rounded,
     ServerManageTab.danger => Icons.warning_amber_rounded,
   };
 }

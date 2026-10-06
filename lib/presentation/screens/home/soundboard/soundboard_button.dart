@@ -146,7 +146,7 @@ class _SoundboardButtonState extends State<SoundboardButton> {
         }
         final button = ControlButton(
           key: _buttonKey,
-          icon: Icons.graphic_eq_rounded,
+          icon: Icons.campaign_rounded,
           isActive: _entry != null,
           tooltip: 'Soundboard',
           onTap: _toggle,
