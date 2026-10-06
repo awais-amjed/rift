@@ -23,6 +23,7 @@ import '../logic/cubits/soundboard/soundboard_cubit.dart';
 import '../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../logic/cubits/theme/theme_cubit.dart';
 import '../logic/cubits/token/token_cubit.dart';
+import '../logic/cubits/update/update_cubit.dart';
 import '../logic/cubits/vault/vault_cubit.dart';
 import '../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
 import '../logic/cubits/voice_stats/voice_stats_cubit.dart';
@@ -177,6 +178,12 @@ class AppProviders extends StatelessWidget {
         // when a dialog asks for it, so an account that never browses or
         // publishes never contacts central for this at all.
         BlocProvider(create: (_) => PublicServersCubit()),
+        BlocProvider(
+          // Not lazy: it looks for a newer Rift in the background, whether or
+          // not anything on screen shows it yet.
+          lazy: false,
+          create: (_) => UpdateCubit(appCubit: appCubit),
+        ),
       ],
       child: child,
     );

@@ -514,6 +514,10 @@ rather than a request. The cooldown and length cutoff are applied by the
 | Self-hosted server admin | safe | n/a | readable (they're a member anyway) | **safe** | channel calls: accessible · DM calls: **safe** |
 | Device thief (no password) | Argon2id + secure storage | — | newest page of each channel opened, sealed under the seed (§4, *Saved on the device*) | same | — |
 
+An update is code that runs with everything above, so it has its own guard
+(§8): the GitHub releases it comes from are not trusted, only the release
+key's signature.
+
 ---
 
 ## 7. Moderation — [Implemented September 2026]
@@ -555,6 +559,39 @@ rules are enforced by the database, so a modified client cannot step round them;
 servers and bots are reviewed on a separate site with its own accounts and
 two-factor sign-in (`rift-admin`). Admin tools never ship in the app: a client
 anyone can download is the wrong place for a door only moderators should see.
+
+---
+
+## 8. Updates — [Implemented October 2026]
+
+The Windows and Linux apps replace themselves with a newer release through
+Velopack (`rust/src/updater`). The release workflow packs each platform with
+`vpk`: an installer that puts Rift in the person's own folder (no administrator
+prompt to install or update), an AppImage, and for each a full package, a
+delta from the release before, and a feed, `releases.<channel>.json`, listing
+every package with its size and SHA-256. Installed copies read the feeds of
+the last ten GitHub releases, download the newest in the background, and
+replace themselves when the person restarts, or at the next start.
+
+**The feed is the trust boundary.** Velopack refuses a package that does not
+match the feed, so whoever writes the feed chooses the code — and GitHub, or
+anyone who gets into the account that publishes there, could write both. So a
+feed counts only with `releases.<channel>.json.sig` beside it: an Ed25519
+signature over `rift-update-feed-v1\n<channel>\n` and the feed's bytes, by a
+key in `RELEASE_KEYS` (`rust/src/updater/signature.rs`). The private half is
+kept in the release manager's keyring and nowhere else; `scripts/sign_release.sh`
+signs a published release's feeds there, and until it has, no copy is offered
+that release. The channel is in the message so one platform's feed cannot be
+passed off as another's. Losing the key means no copy can be updated again
+without a reinstall, so it has an offline, passphrase-sealed backup
+(`scripts/release_key.sh export`); a replacement key is added to
+`RELEASE_KEYS` beside the old one, and only used once enough copies carry it.
+
+A copy not installed by Velopack — a build run from its folder, the
+`.tar.gz`, the Program Files copy the old Inno Setup installer made — cannot
+update itself and says so in Settings. On Windows the first start of a
+Velopack copy offers to remove that old copy, behind one administrator
+prompt (`windows/runner/velopack_hooks.cpp`).
 
 ---
 

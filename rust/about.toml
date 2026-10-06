@@ -16,6 +16,10 @@ accepted = [
     "CC0-1.0",
     "0BSD",
     "BSL-1.0",
+    # Mozilla's list of trusted certificate authorities (webpki-roots, which
+    # the updater's HTTP client uses). A licence for data: pass the text on
+    # with it, and nothing more.
+    "CDLA-Permissive-2.0",
 ]
 # Build scripts and tests do not end up in the shipped library.
 ignore-build-dependencies = true

@@ -7,4 +7,7 @@ class TrayService {
   bool get isShowing => false;
 
   Future<void> init() async {}
+
+  /// Nothing to quit: closing the tab is the browser's.
+  Future<void> quit() async {}
 }

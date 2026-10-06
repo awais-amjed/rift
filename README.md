@@ -194,21 +194,26 @@ flowchart LR
 | Platform | Download |
 |---|---|
 | **Windows** (64-bit) | [`Rift-<version>-windows-x64-setup.exe`](https://github.com/awais-amjed/rift/releases/latest) |
-| **Linux** (x86-64) | [`rift-<version>-linux-x64.tar.gz`](https://github.com/awais-amjed/rift/releases/latest) |
+| **Linux** (x86-64) | [`rift-<version>-linux-x64.AppImage`](https://github.com/awais-amjed/rift/releases/latest) |
 | **Android** and the **browser** | Coming soon |
 
 **On Windows**, run the installer. It isn't signed yet, so Windows may say
 "Windows protected your PC": choose **More info**, then **Run anyway**.
 
-**On Linux**, unpack it and run `rift`:
+**On Linux**, make the AppImage executable and run it:
 
 ```bash
-tar -xzf rift-*-linux-x64.tar.gz
-./rift-*-linux-x64/rift
+chmod +x rift-*-linux-x64.AppImage
+./rift-*-linux-x64.AppImage
 ```
 
 It needs Ubuntu 24.04, Debian 13, Fedora 40, Mint 22 or newer, or any rolling
-distribution.
+distribution. The release also has a `.tar.gz` to unpack instead, which does
+not update itself.
+
+The Windows install and the AppImage keep themselves up to date: Rift
+downloads a new version in the background and says so in the title bar, and a
+restart puts it in place.
 
 ### 2. Make your identity
 

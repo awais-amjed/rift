@@ -8,6 +8,7 @@ import 'package:rift/logic/cubits/app/app_cubit.dart';
 import 'package:rift/logic/cubits/network/network_cubit.dart';
 import 'package:rift/logic/cubits/server_reach/server_reach_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
+import 'package:rift/logic/cubits/update/update_cubit.dart';
 import 'package:rift/presentation/common/popover_surface.dart';
 import 'package:rift/presentation/common/title_bar/app_title_bar.dart';
 
@@ -66,6 +67,11 @@ Future<void> _pumpBesideNavigator(
         providers: [
           BlocProvider(create: (_) => ThemeCubit()),
           BlocProvider(create: (_) => AppCubit()),
+          // Nothing installed by the updater here, so it stays quiet.
+          BlocProvider(
+            create: (context) =>
+                UpdateCubit(appCubit: context.read<AppCubit>()),
+          ),
           // Offline, so the title bar's "No internet" chip is drawn too.
           BlocProvider(
             create: (_) => NetworkCubit(

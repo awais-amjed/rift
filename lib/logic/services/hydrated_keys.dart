@@ -4,9 +4,9 @@ import 'dart:typed_data';
 /// The names the persisted cubits save their state under.
 ///
 /// hydrated_bloc names each one after `runtimeType.toString()` unless told
-/// otherwise. The Windows installer is built obfuscated — inno_bundle passes
-/// `--obfuscate` and has no switch to leave it out — and a release web build
-/// is minified, so there the name was a scrambled one (`Sjb`, `Ujb`) that
+/// otherwise. The Windows release is built obfuscated — the old installer's
+/// inno_bundle always passed `--obfuscate`, and `scripts/build_windows.ps1`
+/// still does — and a release web build is minified, so there the name was a scrambled one (`Sjb`, `Ujb`) that
 /// changed from one build to the next. Each update then looked under a name
 /// nothing had been saved under, and the server list, push-to-talk and every
 /// other setting started over. Linux, macOS and Android builds were never

@@ -61,6 +61,12 @@ class HostPlatform {
   static bool get encodesH264OnGpuOnly =>
       !kIsWeb && (Platform.isWindows || Platform.isLinux);
 
+  /// Whether a release of Rift can replace itself here (`rust/src/updater`):
+  /// Velopack's installer on Windows and its AppImage on Linux. Whether this
+  /// particular copy was installed that way is `UpdateRepository`'s answer.
+  static bool get selfUpdates =>
+      !kIsWeb && (Platform.isWindows || Platform.isLinux);
+
   /// Whether the settings mic test reads the microphone itself rather than
   /// through WebRTC, which records nothing outside a call. Windows and Linux
   /// have the reader (see `mic_test_capture.dart`); elsewhere the test keeps

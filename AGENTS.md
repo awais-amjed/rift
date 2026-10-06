@@ -259,7 +259,8 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   dependency brings in a licence `rust/about.toml` does not accept.
 - Local native builds: `./build_rust_local.sh` / `build_rust_local.bat`. CI runs on the GitHub
   mirror, since Actions are off on the Forgejo server until a runner exists: `release.yml`
-  builds the Windows installer and the Linux archive from a version tag (`RELEASING.md`),
+  builds the Windows installer, the Linux AppImage and archive, and the update packages
+  from a version tag (`RELEASING.md`),
   and `main.yml` precompiles cargokit binaries on pushes to `production`, a branch
   this repository does not have yet.
 
@@ -342,10 +343,11 @@ file you are already editing.
 dart run build_runner build          # regen .g.dart after @JsonSerializable changes
 flutter analyze                      # must be clean
 flutter run -d <device>              # run
-powershell -File scripts/build_windows_installer.ps1  # Windows installer (inno_bundle + uninstall cleanup)
+powershell -File scripts/build_windows.ps1  # Windows release build, for scripts/vpk_pack.sh to pack
 flutter build linux --release        # Linux build
 scripts/package_linux.sh             # Linux release archive, built the way CI builds it
 scripts/release.sh 1.0.3             # version, commit and tag a release (1.1.0-beta.1: a pre-release)
+scripts/sign_release.sh v1.0.3       # sign its update feeds once published (the key never leaves this machine)
 scripts/build_web.sh                 # web build, with the call-encryption worker
 ```
 

@@ -48,6 +48,16 @@ class AppState {
   /// server that can't be reached is still shown — that one is about Rift.
   final bool showOfflineChip;
 
+  /// Whether updates include pre-releases (betas). Unset until the person
+  /// chooses, and then it follows the installed version: someone who
+  /// installed a beta gets the next beta. See [wantsBetaUpdates].
+  final bool? betaUpdates;
+
+  /// [betaUpdates], or when unset, whether [installedVersion] is itself a
+  /// pre-release (it has a `-`, as in 1.4.0-beta.1).
+  bool wantsBetaUpdates(String? installedVersion) =>
+      betaUpdates ?? (installedVersion?.contains('-') ?? false);
+
   /// Whether the right-hand member sidebar is expanded. Persisted so the
   /// layout survives a restart.
   final bool membersSidebarOpen;
@@ -196,6 +206,7 @@ class AppState {
     this.sensitiveContentMode = SensitiveContentMode.blur,
     this.linkPreviewsEnabled = true,
     this.showOfflineChip = true,
+    this.betaUpdates,
     this.outputDeviceId,
     this.inputDeviceId,
     this.outputVolume = 1.0,
@@ -266,6 +277,7 @@ class AppState {
     SensitiveContentMode? sensitiveContentMode,
     bool? linkPreviewsEnabled,
     bool? showOfflineChip,
+    bool? betaUpdates,
     String? outputDeviceId,
     bool clearOutputDeviceId = false,
     String? inputDeviceId,
@@ -321,6 +333,7 @@ class AppState {
       sensitiveContentMode: sensitiveContentMode ?? this.sensitiveContentMode,
       linkPreviewsEnabled: linkPreviewsEnabled ?? this.linkPreviewsEnabled,
       showOfflineChip: showOfflineChip ?? this.showOfflineChip,
+      betaUpdates: betaUpdates ?? this.betaUpdates,
       outputDeviceId: clearOutputDeviceId
           ? null
           : (outputDeviceId ?? this.outputDeviceId),

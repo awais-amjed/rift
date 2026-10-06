@@ -5,6 +5,7 @@ pub mod noise_filter;
 pub mod screenshare;
 pub mod soundshare;
 pub mod toast;
+pub mod updater;
 
 /// Runs once when Dart initialises the library, before any other call.
 #[flutter_rust_bridge::frb(init)]

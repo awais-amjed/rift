@@ -8,6 +8,7 @@
 #include "flutter_window.h"
 #include "single_instance.h"
 #include "utils.h"
+#include "velopack_hooks.h"
 
 namespace {
 
@@ -29,12 +30,19 @@ bool LaunchedWithLink() {
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
+  // Before the single-instance check: Velopack runs these while Rift may be
+  // open, and they must not be taken for a second launch.
+  if (HandleVelopackHook()) return EXIT_SUCCESS;
+
   SingleInstance single_instance;
   if (!single_instance.Acquire()) {
     // Without this the running copy came forward and the invite was lost.
     if (LaunchedWithLink()) SendAppLinkToInstance();
     return EXIT_SUCCESS;
   }
+
+  ApplyInstalledAppUserModelId();
+  RemoveLegacyInstall();
 
   // Attach to console when present (e.g., 'flutter run') or create a
   // new console when running with a debugger.

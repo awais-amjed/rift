@@ -19,6 +19,7 @@ import 'api/screenshare.dart';
 import 'api/screenshare/types.dart';
 import 'api/soundshare.dart';
 import 'api/toast.dart';
+import 'api/updater.dart';
 import 'frb_generated.dart';
 
 abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
@@ -31,6 +32,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw);
+
+  @protected
+  RustStreamSink<int> dco_decode_StreamSink_i_32_Sse(dynamic raw);
 
   @protected
   RustStreamSink<Int16List> dco_decode_StreamSink_list_prim_i_16_strict_Sse(
@@ -60,7 +64,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AudioSource dco_decode_audio_source(dynamic raw);
 
   @protected
+  AvailableUpdate dco_decode_available_update(dynamic raw);
+
+  @protected
   bool dco_decode_bool(dynamic raw);
+
+  @protected
+  AvailableUpdate dco_decode_box_autoadd_available_update(dynamic raw);
 
   @protected
   ScreenShareConfig dco_decode_box_autoadd_screen_share_config(dynamic raw);
@@ -117,6 +127,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String? dco_decode_opt_String(dynamic raw);
 
   @protected
+  AvailableUpdate? dco_decode_opt_box_autoadd_available_update(dynamic raw);
+
+  @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
 
   @protected
@@ -159,6 +172,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
 
   @protected
+  RustStreamSink<int> sse_decode_StreamSink_i_32_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   RustStreamSink<Int16List> sse_decode_StreamSink_list_prim_i_16_strict_Sse(
     SseDeserializer deserializer,
   );
@@ -188,7 +206,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AudioSource sse_decode_audio_source(SseDeserializer deserializer);
 
   @protected
+  AvailableUpdate sse_decode_available_update(SseDeserializer deserializer);
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer);
+
+  @protected
+  AvailableUpdate sse_decode_box_autoadd_available_update(
+    SseDeserializer deserializer,
+  );
 
   @protected
   ScreenShareConfig sse_decode_box_autoadd_screen_share_config(
@@ -255,6 +281,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String? sse_decode_opt_String(SseDeserializer deserializer);
 
   @protected
+  AvailableUpdate? sse_decode_opt_box_autoadd_available_update(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
@@ -302,6 +333,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_StreamSink_i_32_Sse(
+    RustStreamSink<int> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_StreamSink_list_prim_i_16_strict_Sse(
     RustStreamSink<Int16List> self,
     SseSerializer serializer,
@@ -335,7 +372,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_audio_source(AudioSource self, SseSerializer serializer);
 
   @protected
+  void sse_encode_available_update(
+    AvailableUpdate self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_available_update(
+    AvailableUpdate self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_screen_share_config(
@@ -420,6 +469,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_available_update(
+    AvailableUpdate? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);

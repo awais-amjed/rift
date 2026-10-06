@@ -18,3 +18,5 @@ mod screenshare;
 mod sharing;
 #[cfg(target_os = "windows")]
 mod toast;
+#[cfg(any(target_os = "windows", target_os = "linux"))]
+mod updater;

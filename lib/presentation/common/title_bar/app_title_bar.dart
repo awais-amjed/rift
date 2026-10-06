@@ -12,6 +12,7 @@ import '../../theme/custom_colors.dart';
 import '../../theme/theme_context.dart';
 import '../app_mark.dart';
 import '../status_chip.dart';
+import 'update_chip.dart';
 import 'window_button.dart';
 
 /// The window's own chrome: brand mark on the left, window controls on the
@@ -137,6 +138,7 @@ class _AppTitleBarState extends State<AppTitleBar> with WindowListener {
       mainAxisSize: MainAxisSize.min,
       spacing: 2,
       children: [
+        const UpdateChip(),
         const _ConnectionChip(),
         WindowButton(
           icon: widget.pinned

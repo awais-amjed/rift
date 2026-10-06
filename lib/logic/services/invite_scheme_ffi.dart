@@ -10,8 +10,8 @@ import 'package:win32/win32.dart';
 /// hands it to whatever is registered here. app_links reads the link from the
 /// command line but registers nothing, so without this the button did nothing
 /// at all on Windows (found Oct 4 2026). Rewritten at every start, so it
-/// follows the executable if it moves; the installer removes it again
-/// (`windows/installer/uninstall_cleanup.iss`). Windows only; throws
+/// follows the executable if it moves; uninstalling removes it again
+/// (`windows/runner/velopack_hooks.cpp`). Windows only; throws
 /// [WindowsException] if a write fails.
 ///
 /// The command passes the link as the only argument: app_links takes it from

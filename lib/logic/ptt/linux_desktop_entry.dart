@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import '../helper_methods.dart';
 
@@ -13,6 +14,11 @@ import '../helper_methods.dart';
 /// Not hidden. GNOME Settings lists only visible entries, and its page for
 /// Rift is the one place the push-to-talk key can be changed once the desktop
 /// owns it — a `NoDisplay` entry made that page unreachable.
+///
+/// An entry this wrote before is rewritten for the AppImage, and when the
+/// program it names is gone. An AppImage runs from a folder mounted afresh at
+/// every start, so its entry names the AppImage file; and it is the copy that
+/// stays, where a folder unpacked to try a build is not.
 class LinuxDesktopEntry {
   const LinuxDesktopEntry._();
 
@@ -22,28 +28,54 @@ class LinuxDesktopEntry {
 
   static Future<void> ensure() async {
     final fileName = '$appId.desktop';
-    for (final dir in _dataDirs()) {
-      if (File(p.join(dir, 'applications', fileName)).existsSync()) return;
-    }
     final home = Platform.environment['HOME'];
-    if (home == null) return;
     final dataHome =
-        Platform.environment['XDG_DATA_HOME'] ?? p.join(home, '.local/share');
+        Platform.environment['XDG_DATA_HOME'] ??
+        (home == null ? null : p.join(home, '.local/share'));
+    final own = dataHome == null
+        ? null
+        : File(p.join(dataHome, 'applications', fileName));
+    final appImage = Platform.environment['APPIMAGE'];
+    final wanted = entry(appImage ?? Platform.resolvedExecutable);
+    for (final dir in _dataDirs()) {
+      final file = File(p.join(dir, 'applications', fileName));
+      if (!file.existsSync()) continue;
+      if (file.path != own?.path) return;
+      try {
+        final current = await file.readAsString();
+        if (current == wanted || !isOwnEntry(current)) return;
+        final named = current.split('Exec=').last.trim();
+        if (appImage == null && File(named).existsSync()) return;
+      } catch (_) {
+        return;
+      }
+      break;
+    }
+    if (own == null) return;
     try {
-      final file = File(p.join(dataHome, 'applications', fileName));
-      await file.parent.create(recursive: true);
-      await file.writeAsString(
-        '[Desktop Entry]\n'
-        'Type=Application\n'
-        'Name=Rift\n'
-        'Exec=${Platform.resolvedExecutable}\n',
-      );
+      await own.parent.create(recursive: true);
+      await own.writeAsString(wanted);
     } catch (e) {
       HelperMethods.printDebug(
         'LinuxDesktopEntry: could not write $fileName – $e',
       );
     }
   }
+
+  /// The entry this writes for the program at [executable].
+  @visibleForTesting
+  static String entry(String executable) =>
+      '[Desktop Entry]\n'
+      'Type=Application\n'
+      'Name=Rift\n'
+      'Exec=$executable\n';
+
+  /// Whether [content] is an entry this wrote, for whichever program — and
+  /// not one a package or the person made, which is left alone.
+  @visibleForTesting
+  static bool isOwnEntry(String content) => RegExp(
+    r'^\[Desktop Entry\]\nType=Application\nName=Rift\nExec=[^\n]*\n$',
+  ).hasMatch(content);
 
   static List<String> _dataDirs() {
     final env = Platform.environment;

@@ -6,7 +6,8 @@
 /// the press to the running Rift that registered the class, or starts Rift
 /// with [launchCommand] to deliver it (see `registerToastActivator`).
 ///
-/// The release identity is the installer's app id. Every other storage
+/// The release identity is the old installer's app id, kept when Rift moved
+/// to Velopack so a press keeps reaching the same class. Every other storage
 /// namespace (debug's `dev`, each `RIFT_PROFILE`) gets its own: one shared
 /// class meant a press on profile A's notification went to whichever profile
 /// had registered last.

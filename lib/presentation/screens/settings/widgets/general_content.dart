@@ -11,6 +11,7 @@ import '../../../theme/theme_context.dart';
 import 'section_divider.dart';
 import 'section_title.dart';
 import 'setting_toggle_row.dart';
+import 'updates_section.dart';
 
 /// Settings' General tab: how the app behaves, as opposed to what it looks
 /// like (Appearance) or how it sounds (Voice & audio).
@@ -113,6 +114,11 @@ class GeneralContent extends StatelessWidget {
             ],
           ),
         ),
+
+        if (HostPlatform.selfUpdates) ...[
+          const SectionDivider(),
+          const UpdatesSection(),
+        ],
       ],
     );
   }
