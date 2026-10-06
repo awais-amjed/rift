@@ -8,6 +8,11 @@ part of 'chat_composer.dart';
 /// going away takes the card with it, and the ✕ remembers that *this* link
 /// is to go out bare, so retyping a word does not bring the card back.
 ///
+/// A link sent before its card was ready still gets one: the send waits for
+/// the fetch instead of going out bare. Typed and sent in one breath, a link
+/// used to lose its preview to the 600 ms pause, and nothing could add it
+/// later — the preview is sealed into the message.
+///
 /// Off entirely when the setting says so, or on the web, where the fetch
 /// cannot be made.
 mixin _ComposerLinkPreviewMixin on State<ChatComposer> {
@@ -19,6 +24,10 @@ mixin _ComposerLinkPreviewMixin on State<ChatComposer> {
   Timer? _linkDebounce;
   int _fetchSerial = 0;
 
+  /// The fetch for [_previewUrl] while it is under way, so a send can wait
+  /// for the one already running rather than start another.
+  Future<PendingLinkPreview?>? _fetching;
+
   bool get _previewsEnabled =>
       LinkPreviewFetcher.isSupported &&
       context.read<AppCubit>().state.linkPreviewsEnabled;
@@ -29,6 +38,7 @@ mixin _ComposerLinkPreviewMixin on State<ChatComposer> {
     if (url == _previewUrl) return;
     _linkDebounce?.cancel();
     _fetchSerial++;
+    _fetching = null;
     if (url == null || url == _dismissedUrl) {
       if (_preview != null || _previewUrl != null) {
         setState(() {
@@ -44,7 +54,9 @@ mixin _ComposerLinkPreviewMixin on State<ChatComposer> {
 
   Future<void> _fetchPreview(String url) async {
     final serial = ++_fetchSerial;
-    final fetched = await LinkPreviewFetcher.fetch(Uri.parse(url));
+    final fetching = LinkPreviewFetcher.fetch(Uri.parse(url));
+    _fetching = fetching;
+    final fetched = await fetching;
     // Typing moved on, or the link changed, while the page was loading.
     if (!mounted || serial != _fetchSerial || _previewUrl != url) return;
     setState(() => _preview = fetched);
@@ -53,14 +65,27 @@ mixin _ComposerLinkPreviewMixin on State<ChatComposer> {
   void _dismissPreview() => setState(() {
     _dismissedUrl = _previewUrl;
     _preview = null;
+    _fetching = null;
+    _fetchSerial++;
   });
 
   /// The preview to send with the message, and the slate wiped for the
-  /// next one.
-  PendingLinkPreview? _takePreview() {
-    final preview = _preview;
+  /// next one. Already built, it is handed over as it is; still being
+  /// fetched, or still waiting out the pause, the send gets the fetch to
+  /// wait for. Null when there is no link, it was dismissed, or previews are
+  /// off. A fetch that fails completes with null, and the message goes out
+  /// without a card.
+  Future<PendingLinkPreview?>? _takePreview() {
+    final url = _previewUrl;
+    final Future<PendingLinkPreview?>? preview = _preview != null
+        ? Future.value(_preview)
+        : _fetching ??
+              (url != null && _linkDebounce?.isActive == true
+                  ? LinkPreviewFetcher.fetch(Uri.parse(url))
+                  : null);
     _linkDebounce?.cancel();
     _fetchSerial++;
+    _fetching = null;
     _preview = null;
     _previewUrl = null;
     _dismissedUrl = null;

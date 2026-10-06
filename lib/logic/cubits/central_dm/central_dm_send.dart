@@ -48,7 +48,7 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
   Future<bool> sendDm(
     String text, {
     List<PendingAttachment> attachments = const [],
-    PendingLinkPreview? preview,
+    Future<PendingLinkPreview?>? preview,
     String? replyToId,
   }) async {
     final peerId = state.openPeerId;
@@ -93,7 +93,7 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
         uploadOne: uploadOne,
       );
       final sentPreview = await ChatAttachmentUploader.uploadPreview(
-        pending: preview,
+        preview: preview,
         uploadOne: uploadOne,
       );
       if (state.openPeerId != peerId) return false;

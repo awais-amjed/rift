@@ -188,7 +188,7 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
     BuildContext context,
     String text,
     List<PendingAttachment> attachments,
-    PendingLinkPreview? preview,
+    Future<PendingLinkPreview?>? preview,
   ) async {
     final answering = replyingTo;
     final cubit = context.read<CentralDmCubit>();

@@ -50,8 +50,9 @@ part 'chat_composer_recording.dart';
 /// below the bar — central DMs put the quota meter there.
 class ChatComposer extends StatefulWidget {
   /// Called with the trimmed text, any staged attachments, and the preview
-  /// this device built for the first link — null when there was none, it
-  /// was dismissed, or previews are off.
+  /// this device is building for the first link — null when there was none,
+  /// it was dismissed, or previews are off. A future, because a link sent
+  /// before its card was ready waits for it (`_ComposerLinkPreviewMixin`).
   ///
   /// Completes with true when the server refused the message outright — a
   /// block, a limit, a time-out — and it is not kept anywhere to retry. The
@@ -60,7 +61,7 @@ class ChatComposer extends StatefulWidget {
   final Future<bool> Function(
     String text,
     List<PendingAttachment> attachments,
-    PendingLinkPreview? preview,
+    Future<PendingLinkPreview?>? preview,
   )
   onSend;
 

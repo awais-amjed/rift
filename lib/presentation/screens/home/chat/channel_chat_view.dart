@@ -177,7 +177,7 @@ class _ChannelChatViewState extends State<ChannelChatView>
     BuildContext context,
     String text,
     List<PendingAttachment> attachments,
-    PendingLinkPreview? preview,
+    Future<PendingLinkPreview?>? preview,
   ) async {
     // Read at send time rather than watched: joining a call should not rebuild
     // the composer.

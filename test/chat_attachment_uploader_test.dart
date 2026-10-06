@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -22,11 +23,8 @@ void main() {
     height: 3,
   );
 
-  APIResponse stored(String path) => APIResponse.success((
-    path: path,
-    keyB64: 'k-$path',
-    nonceB64: 'n-$path',
-  ));
+  APIResponse stored(String path) =>
+      APIResponse.success((path: path, keyB64: 'k-$path', nonceB64: 'n-$path'));
 
   group('uploadAll', () {
     test('uploads in order and keeps each file\'s metadata', () async {
@@ -97,7 +95,7 @@ void main() {
   group('uploadPreview', () {
     test('no preview uploads nothing', () async {
       final preview = await ChatAttachmentUploader.uploadPreview(
-        pending: null,
+        preview: null,
         uploadOne: (_) async => fail('should not upload'),
       );
       expect(preview, isNull);
@@ -105,7 +103,9 @@ void main() {
 
     test('a preview without a picture keeps its words', () async {
       final preview = await ChatAttachmentUploader.uploadPreview(
-        pending: const PendingLinkPreview(url: 'https://a.b', title: 'T'),
+        preview: Future.value(
+          const PendingLinkPreview(url: 'https://a.b', title: 'T'),
+        ),
         uploadOne: (_) async => fail('should not upload'),
       );
       expect(preview!.title, 'T');
@@ -114,13 +114,30 @@ void main() {
 
     test('the thumbnail takes the attachment road', () async {
       final preview = await ChatAttachmentUploader.uploadPreview(
-        pending: PendingLinkPreview(
-          url: 'https://a.b',
-          image: file('t.png', [1]),
+        preview: Future.value(
+          PendingLinkPreview(url: 'https://a.b', image: file('t.png', [1])),
         ),
         uploadOne: (_) async => stored('thumb'),
       );
       expect(preview!.image!.storagePath, 'thumb');
+    });
+
+    test('a preview still being fetched is waited for', () async {
+      final fetch = Completer<PendingLinkPreview?>();
+      final uploading = ChatAttachmentUploader.uploadPreview(
+        preview: fetch.future,
+        uploadOne: (_) async => fail('should not upload'),
+      );
+      fetch.complete(const PendingLinkPreview(url: 'https://a.b', title: 'T'));
+      expect((await uploading)!.title, 'T');
+    });
+
+    test('a fetch that found nothing sends the message bare', () async {
+      final preview = await ChatAttachmentUploader.uploadPreview(
+        preview: Future.value(null),
+        uploadOne: (_) async => fail('should not upload'),
+      );
+      expect(preview, isNull);
     });
   });
 

@@ -54,7 +54,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
   Future<bool> sendMessage(
     String text, {
     List<PendingAttachment> attachments = const [],
-    PendingLinkPreview? preview,
+    Future<PendingLinkPreview?>? preview,
     String? inVoiceChannel,
     String? replyToId,
     bool pingReplyTo = true,
@@ -130,7 +130,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
         uploadOne: uploadOne,
       );
       final sentPreview = await ChatAttachmentUploader.uploadPreview(
-        pending: preview,
+        preview: preview,
         uploadOne: uploadOne,
       );
       if (state.channelId != channelId) return false;

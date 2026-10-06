@@ -315,7 +315,7 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
     BuildContext context,
     String text,
     List<PendingAttachment> attachments,
-    PendingLinkPreview? preview,
+    Future<PendingLinkPreview?>? preview,
   ) async {
     final answering = replyingTo;
     final cubit = context.read<DmCubit>();

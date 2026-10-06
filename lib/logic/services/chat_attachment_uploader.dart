@@ -30,10 +30,15 @@ class ChatAttachmentUploader {
   /// The sender's link preview with its thumbnail uploaded, or null when
   /// there was none. The words travel in the body; only the picture needs
   /// a blob, and it takes the same encrypted road as any attachment.
+  ///
+  /// [preview] may still be fetching — a link sent before its card was
+  /// ready — so this is where the send waits for it, after the pending row
+  /// is already on screen.
   static Future<LinkPreview?> uploadPreview({
-    required PendingLinkPreview? pending,
+    required Future<PendingLinkPreview?>? preview,
     required Future<APIResponse> Function(Uint8List data) uploadOne,
   }) async {
+    final pending = await preview;
     if (pending == null) return null;
     final image = pending.image;
     final uploaded = image == null
