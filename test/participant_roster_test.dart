@@ -10,6 +10,7 @@ ParticipantInfo p(
   bool speaking = false,
   bool mic = false,
   bool screenshare = false,
+  Set<String> watching = const {},
 }) => ParticipantInfo(
   identity: identity,
   userId: userId,
@@ -19,6 +20,7 @@ ParticipantInfo p(
   isCameraEnabled: false,
   isLocal: local,
   isScreenshare: screenshare,
+  watching: watching,
 );
 
 void main() {
@@ -182,5 +184,53 @@ void main() {
     );
     expect(ParticipantRoster.shareQuality(roster, 'u1~d'), isNull);
     expect(ParticipantRoster.shareQuality(roster, 'stranger'), isNull);
+  });
+
+  group('ParticipantRoster.watchersOf', () {
+    const share = 'u1~d_screenshare';
+
+    test('lists the people with the stream open, in roster order', () {
+      final roster = [
+        p('u2~a', userId: 'u2', watching: {share}),
+        p('u3~a', userId: 'u3'),
+        p('u4~a', userId: 'u4', watching: {'u3~a_screenshare', share}),
+      ];
+      expect(ParticipantRoster.watchersOf(roster, share).map((w) => w.userId), [
+        'u2',
+        'u4',
+      ]);
+    });
+
+    test('never counts the sharer watching their own screen', () {
+      final roster = [
+        p('u1~d', userId: 'u1', watching: {share}),
+        p('u2~a', userId: 'u2', watching: {share}),
+      ];
+      expect(ParticipantRoster.watchersOf(roster, share).map((w) => w.userId), [
+        'u2',
+      ]);
+    });
+
+    test('a share connection is not a watcher', () {
+      final roster = [
+        p(
+          'u2~a_screenshare',
+          userId: 'u2',
+          screenshare: true,
+          watching: {share},
+        ),
+      ];
+      expect(ParticipantRoster.watchersOf(roster, share), isEmpty);
+    });
+
+    test('watching from a device that lost the row still counts', () {
+      // The phone wins the row (it is speaking); the laptop has the stream.
+      final rows = ParticipantRoster.dedupeByUser([
+        p('u2~laptop', userId: 'u2', watching: {share}),
+        p('u2~phone', userId: 'u2', speaking: true),
+      ]);
+      expect(rows.single.identity, 'u2~phone');
+      expect(ParticipantRoster.watchersOf(rows, share).single.userId, 'u2');
+    });
   });
 }

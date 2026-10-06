@@ -1,4 +1,5 @@
 import '../../data/classes/participant_info.dart';
+import '../../data/participant_identity.dart';
 
 /// Collapses the LiveKit roster into one row per person.
 class ParticipantRoster {
@@ -9,16 +10,46 @@ class ParticipantRoster {
   /// rather than another of them. The surviving entry prefers the local
   /// participant, then a speaking one, then a mic-enabled one, so the row
   /// reflects the device they are actually talking from.
+  ///
+  /// What the person watches is the union over their devices: a stream open
+  /// on their laptop still has them in front of it when their phone wins
+  /// the row.
   static List<ParticipantInfo> dedupeByUser(List<ParticipantInfo> infos) {
     final byKey = <String, ParticipantInfo>{};
+    final watching = <String, Set<String>>{};
     for (final info in infos) {
       final key = '${info.userId}|${_kind(info)}';
+      (watching[key] ??= {}).addAll(info.watching);
       final existing = byKey[key];
       if (existing == null || _rank(info) > _rank(existing)) {
         byKey[key] = info;
       }
     }
-    return byKey.values.toList();
+    return [
+      for (final MapEntry(:key, value: info) in byKey.entries)
+        info.watching.length == watching[key]!.length
+            ? info
+            : info.withWatching(watching[key]!),
+    ];
+  }
+
+  /// The people watching the stream with [shareIdentity], in roster order.
+  ///
+  /// Never the sharer: opening the preview of your own screen is not an
+  /// audience, and the same rule keeps the sharer's tones quiet
+  /// (`watchCues`).
+  static List<ParticipantInfo> watchersOf(
+    List<ParticipantInfo> roster,
+    String shareIdentity,
+  ) {
+    final owner = ParticipantIdentity.userIdOf(shareIdentity);
+    return [
+      for (final info in roster)
+        if (!info.isShare &&
+            info.userId != owner &&
+            info.watching.contains(shareIdentity))
+          info,
+    ];
   }
 
   /// Whether the participant with [identity] is speaking, according to the

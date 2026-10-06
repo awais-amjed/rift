@@ -355,6 +355,12 @@ class K {
   /// The card a call rings on, floating over the top of the window.
   static const double incomingCallWidth = 360;
 
+  /// The faces of whoever is watching a stream, in its top corner: small
+  /// enough to sit at the name badge's height, and at most this many before
+  /// the rest become "+N".
+  static const double streamWatcherAvatar = 20;
+  static const int streamWatchersShown = 4;
+
   /// How much of a DM conversation's height its call takes on a desktop
   /// until the user drags it: enough for two tiles side by side, leaving the
   /// messages readable.

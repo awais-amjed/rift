@@ -13,6 +13,7 @@ import 'stream_fullscreen_button.dart';
 import 'stream_quality_badge.dart';
 import 'stream_stats_overlay.dart';
 import 'stream_stats_poller.dart';
+import 'stream_watchers.dart';
 import 'watch_stream_button.dart';
 
 /// A participant filling the stage. Same content as the grid tile without the
@@ -34,6 +35,10 @@ class ExpandedParticipantTile extends StatelessWidget {
   final bool isMuted;
   final bool isDeafened;
   final bool isScreenshare;
+
+  /// The stream's identity, for showing who is watching it ([StreamWatchers]).
+  /// Null on a camera tile.
+  final String? shareIdentity;
 
   /// The stream's shared window is minimised, so the picture is the last
   /// frame, or there is none yet — see [SharePausedNotice].
@@ -84,6 +89,7 @@ class ExpandedParticipantTile extends StatelessWidget {
     required this.isMuted,
     this.isDeafened = false,
     required this.isScreenshare,
+    this.shareIdentity,
     this.isPaused = false,
     this.sentQuality,
     required this.showWatchButton,
@@ -157,21 +163,32 @@ class ExpandedParticipantTile extends StatelessWidget {
         // Over the last frame, or in place of a first one: a share started
         // on a minimised window has no picture until the window is opened.
         if (isPaused && !showWatchButton) const SharePausedNotice(),
-        if (showStats && stats != null)
-          AnimatedPositioned(
-            duration: _fade,
-            curve: Curves.easeInOut,
-            top: 12 + topInset,
-            right: 12,
-            // Pinned stats stay put even after the other overlays fade.
-            child: _fading(
-              visible: showOverlays || statsPinned,
-              child: StreamStatsOverlay(
-                stats: stats,
-                onPinnedChanged: onStatsPinnedChanged,
-              ),
-            ),
+        AnimatedPositioned(
+          duration: _fade,
+          curve: Curves.easeInOut,
+          top: 12 + topInset,
+          right: 12,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            spacing: 8,
+            children: [
+              if (shareIdentity case final share?)
+                _fading(
+                  visible: showOverlays,
+                  child: StreamWatchers(shareIdentity: share),
+                ),
+              if (showStats && stats != null)
+                // Pinned stats stay put even after the other overlays fade.
+                _fading(
+                  visible: showOverlays || statsPinned,
+                  child: StreamStatsOverlay(
+                    stats: stats,
+                    onPinnedChanged: onStatsPinnedChanged,
+                  ),
+                ),
+            ],
           ),
+        ),
         if (showWatchButton) WatchStreamButton(onTap: onWatch),
         AnimatedPositioned(
           duration: _fade,

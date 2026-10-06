@@ -53,6 +53,11 @@ class ParticipantInfo {
   /// has not said, and for anything that is not a screen share.
   final String? shareQuality;
 
+  /// The streams this connection is watching, by share identity — see
+  /// `VoiceAttributes.watchingOf`. A stream's tile reads it back the other
+  /// way round, to show who is in front of it.
+  final Set<String> watching;
+
   const ParticipantInfo({
     required this.identity,
     required this.userId,
@@ -71,7 +76,31 @@ class ParticipantInfo {
     this.isServerDeafened = false,
     this.isSharePaused = false,
     this.shareQuality,
+    this.watching = const {},
   });
+
+  /// The same connection, watching [watching] instead. For folding several
+  /// of one person's devices into one row without losing what each watches.
+  ParticipantInfo withWatching(Set<String> watching) => ParticipantInfo(
+    identity: identity,
+    userId: userId,
+    name: name,
+    isSpeaking: isSpeaking,
+    isMicrophoneEnabled: isMicrophoneEnabled,
+    isCameraEnabled: isCameraEnabled,
+    isLocal: isLocal,
+    isScreenshare: isScreenshare,
+    isSoundShare: isSoundShare,
+    shareLabel: shareLabel,
+    isDeafened: isDeafened,
+    isSharingScreen: isSharingScreen,
+    isSharingSound: isSharingSound,
+    isServerMuted: isServerMuted,
+    isServerDeafened: isServerDeafened,
+    isSharePaused: isSharePaused,
+    shareQuality: shareQuality,
+    watching: watching,
+  );
 
   /// Whether this is a share rather than a person in the call. Anything
   /// counting or listing people drops these: a share is one member's extra

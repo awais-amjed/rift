@@ -306,6 +306,10 @@ class LiveKitCubit extends Cubit<LiveKitState>
         shareQuality: ParticipantIdentity.isScreenshare(p.identity)
             ? VoiceAttributes.sentPictureOf(p.attributes)?.qualityLabel
             : null,
+        // Ours is known here, like deafened; everyone else's is published.
+        watching: p is LocalParticipant
+            ? state.subscribedScreenshares
+            : VoiceAttributes.watchingOf(p.attributes),
       );
     }).toList();
 
@@ -567,6 +571,9 @@ class LiveKitCubit extends Cubit<LiveKitState>
     } catch (e) {
       HelperMethods.printDebug('[LiveKit] publishing own state: $e');
     }
+    // Our own row reads what we watch from the cubit, so a stream's watchers
+    // include us as soon as we open it.
+    if (!isClosed) _syncParticipants();
   }
 
   /// What a sound share's track is called, which is the application it came
