@@ -121,6 +121,9 @@ class SoundShareCubit extends Cubit<SoundShareState> {
           clearError: true,
         ),
       );
+      // The call may have ended while this was connecting, and nothing
+      // else is listening for that call any more.
+      if (_callGone(channelId)) await stopSoundShare();
     } catch (e) {
       HelperMethods.printDebug('✗ Sound share error: $e');
       _fail('Failed to share sound: $e');
@@ -157,16 +160,21 @@ class SoundShareCubit extends Cubit<SoundShareState> {
   Future<void> followCall() async {
     final source = state.source;
     if (!state.isSharing || source == null) return;
-    final call = _livekitCubit?.state;
-    final sameCall = call?.callKey == state.channelId;
-    final failed = call?.connectionState == LiveKitConnectionState.error;
-    if (sameCall &&
-        !failed &&
-        call?.connectionState != LiveKitConnectionState.connected) {
+    final gone = _callGone(state.channelId);
+    if (!gone &&
+        _livekitCubit?.state.connectionState !=
+            LiveKitConnectionState.connected) {
       return; // still joining; the join's end brings this back here
     }
     await stopSoundShare();
-    if (sameCall && !failed) await startSoundShare(source: source);
+    if (!gone) await startSoundShare(source: source);
+  }
+
+  /// Whether the call [channelId] names is over for this device — see
+  /// [ScreenshareCubit.followCall], which asks the same.
+  bool _callGone(String? channelId) {
+    final call = _livekitCubit?.state;
+    return call == null || call.callKey != channelId || call.isCallOver;
   }
 
   void clearError() => emit(state.copyWith(clearError: true));

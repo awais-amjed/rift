@@ -375,9 +375,15 @@ LiveKit, one room per channel, joined with a short-lived JWT minted by the edge
 function that holds the API secret. A screenshare joins the same room under an
 `_screenshare` identity suffix, so somebody sharing is two participants.
 
-Being a connection of its own, a share does not go where the call goes. A region
-change or a rejoin puts the call in a new room, so after every join the share
-follows it (`ScreenshareCubit.followCall`): on a desktop its connection is
+**A stream is part of being in the call, never on its own.** Being a connection
+of its own, a share does not go where the call goes, so the app holds the two
+together from both ends. The sharer's app follows every change of its call in one
+place (`LiveKitCubit.onChange`, `LiveKitState.leftCall`) rather than at each way
+out, and a share that finishes starting after its call has gone ends at once.
+Everybody else's app leaves out, and silences, any share whose owner's connection
+is not in the room (`sharesWithoutOwner`), whatever the sharer's app did, and
+brings it back when the owner is. A region change or a rejoin puts the call in a
+new room, so after every join the share follows it (`ScreenshareCubit.followCall`): on a desktop its connection is
 replaced and the picture published again, keeping the capture, so a Wayland
 portal is not asked a second time; a shared app's sound is started again; on the
 web and on a phone, where a share can start only from a click or fresh consent,

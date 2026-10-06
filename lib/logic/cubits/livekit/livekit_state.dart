@@ -88,6 +88,18 @@ class LiveKitState {
   String? get callKey =>
       currentChannelId ?? (dmCall == null ? null : 'dm:${dmCall!.callId}');
 
+  /// Whether there is no call here: never joined, left, or a join that
+  /// failed.
+  bool get isCallOver =>
+      connectionState == LiveKitConnectionState.error ||
+      connectionState == LiveKitConnectionState.disconnected;
+
+  /// Whether this is no longer the call [previous] was: another one, none,
+  /// or a join that failed. What a share, which is part of being in the
+  /// call, has to follow.
+  bool leftCall(LiveKitState previous) =>
+      callKey != previous.callKey || (isCallOver && !previous.isCallOver);
+
   /// Whether the microphone is live: the user wants it on, hasn't deafened
   /// themselves, isn't testing it, and no moderator has taken it away.
   bool get isMicOn =>

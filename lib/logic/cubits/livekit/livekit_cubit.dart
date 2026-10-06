@@ -183,13 +183,15 @@ class LiveKitCubit extends Cubit<LiveKitState>
       );
     }
     _syncPictureInPicture(change.nextState);
-    // A join that failed — the token, the key or the connect — leaves this
-    // device outside the call, while its share, a connection of its own,
-    // can still be in the room: it reconnects with the token it already
-    // holds. Everyone else then sees a stream from somebody who is not in
-    // the call. Run once the state has changed, which is what it reads.
-    if (change.nextState.connectionState == LiveKitConnectionState.error &&
-        change.currentState.connectionState != LiveKitConnectionState.error) {
+    // A share is part of being in the call, and a connection of its own, so
+    // nothing about the call ending reaches it by itself: it can even
+    // reconnect, with the token it holds, after a call that could not get a
+    // new one. So every way out — leaving, a switch, being removed, a DM call
+    // hanging up, a join that failed — is caught here, in the one place
+    // every state change passes through, rather than at each of them. A
+    // successful join is the other half; see [_followShares]. Run once the
+    // state has changed, which is what it reads.
+    if (change.nextState.leftCall(change.currentState)) {
       unawaited(Future(_followShares));
     }
   }
@@ -229,9 +231,16 @@ class LiveKitCubit extends Cubit<LiveKitState>
     final room = state.room;
     if (room == null) return;
 
-    final allParticipants = <Participant>[
+    final inRoom = <Participant>[
       if (room.localParticipant != null) room.localParticipant!,
       ...room.remoteParticipants.values,
+    ];
+    // A stream is part of somebody being in the call, never on its own.
+    final ownerless = sharesWithoutOwner(inRoom.map((p) => p.identity));
+    _holdSharesWithoutOwner(room, ownerless);
+    final allParticipants = [
+      for (final p in inRoom)
+        if (!ownerless.contains(p.identity)) p,
     ];
 
     // Don't derive mic state from LiveKit when deafened — deafen forces the

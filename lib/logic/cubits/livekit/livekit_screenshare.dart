@@ -202,4 +202,20 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
       HelperMethods.printDebug('[LiveKit] Screen share failed: $e');
     }
   }
+
+  /// Silences the shares whose owner is not in the call, and lets them be
+  /// heard again once the owner is back — see [sharesWithoutOwner]. Their
+  /// tiles are left out of the call already; a picture nobody draws is
+  /// paused by adaptive streaming, but sound plays whether it is watched or
+  /// not, so the server is told to stop sending it.
+  void _holdSharesWithoutOwner(Room room, Set<String> ownerless) {
+    for (final participant in room.remoteParticipants.values) {
+      if (!ParticipantIdentity.isShare(participant.identity)) continue;
+      final play = !ownerless.contains(participant.identity);
+      for (final pub in participant.audioTrackPublications) {
+        if (!pub.subscribed || pub.enabled == play) continue;
+        unawaited(play ? pub.enable() : pub.disable());
+      }
+    }
+  }
 }

@@ -64,4 +64,30 @@ void main() {
     expect(result.sharesSound('dave'), isFalse);
     expect(SharePresence.empty.sharesScreen('dave'), isFalse);
   });
+
+  group('shares without their owner', () {
+    const lana = 'lana~d1';
+    const lanaScreen = 'lana~d1_screenshare';
+    const lanaSound = 'lana~d1_soundshare';
+
+    test('a share whose owner is in the call is kept', () {
+      expect(sharesWithoutOwner([lana, lanaScreen, lanaSound]), isEmpty);
+    });
+
+    test('a share whose owner has dropped out is held back', () {
+      expect(sharesWithoutOwner([lanaScreen, lanaSound, 'benny~d2']), {
+        lanaScreen,
+        lanaSound,
+      });
+    });
+
+    test('the owner is the device that shared, not just the person', () {
+      // Lana on her phone does not vouch for her desktop's share.
+      expect(sharesWithoutOwner(['lana~phone', lanaScreen]), {lanaScreen});
+    });
+
+    test('people are never held back', () {
+      expect(sharesWithoutOwner(['benny~d2']), isEmpty);
+    });
+  });
 }

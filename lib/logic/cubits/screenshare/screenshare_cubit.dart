@@ -125,6 +125,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
             settings: settings,
           ),
         );
+        await _endIfCallGone(channelId);
         return;
       }
 
@@ -240,6 +241,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
           limits: allowed,
         ),
       );
+      await _endIfCallGone(channelId);
     } catch (e) {
       HelperMethods.printDebug('✗ Screen share error: $e');
       _fail('Failed to start screen share: $e');
@@ -384,16 +386,14 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
     if (!state.isSharing) return;
     final livekit = _livekitCubit;
     if (livekit == null) return;
-    final call = livekit.state;
-    final sameCall = call.callKey == state.channelId;
-    final failed = call.connectionState == LiveKitConnectionState.error;
-    if (_sdkCapturesScreen) {
-      return _forgetSdkShare(tell: sameCall && !failed);
-    }
-    if (!sameCall || failed) return stopScreenShare();
+    final gone = _callGone(state.channelId);
+    if (_sdkCapturesScreen) return _forgetSdkShare(tell: !gone);
+    if (gone) return stopScreenShare();
     // Joining the same call again, which may yet fail: whichever way it
     // ends brings this back here.
-    if (call.connectionState != LiveKitConnectionState.connected) return;
+    if (livekit.state.connectionState != LiveKitConnectionState.connected) {
+      return;
+    }
 
     final response = await livekit.shareToken(screenShare: true);
     final livekitUrl =
@@ -415,6 +415,23 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
     } catch (e) {
       await _endUnmoved('$e');
     }
+  }
+
+  /// Whether the call [channelId] names is over for this device — it is in
+  /// another call or none, or its join failed — so a share of it must not
+  /// go on.
+  bool _callGone(String? channelId) {
+    final call = _livekitCubit?.state;
+    return call == null || call.callKey != channelId || call.isCallOver;
+  }
+
+  /// Ends a share that has just come up for a call that ended while it was
+  /// starting — the capture, the token and the connect take seconds, and
+  /// nothing else is listening for that call any more.
+  Future<void> _endIfCallGone(String channelId) async {
+    if (!state.isSharing || !_callGone(channelId)) return;
+    if (_sdkCapturesScreen) return _forgetSdkShare(tell: false);
+    await stopScreenShare();
   }
 
   /// A share that could not follow its call: stop it rather than leave it

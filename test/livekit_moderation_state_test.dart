@@ -174,4 +174,39 @@ void main() {
       }
     });
   });
+
+  group('leaving the call, which a share follows', () {
+    const inVoice = LiveKitState(
+      connectionState: LiveKitConnectionState.connected,
+      currentChannelId: 'voice',
+    );
+
+    test('rejoining the same call is not leaving it', () {
+      const rejoining = LiveKitState(
+        connectionState: LiveKitConnectionState.connecting,
+        currentChannelId: 'voice',
+      );
+      expect(rejoining.leftCall(inVoice), isFalse);
+      expect(inVoice.leftCall(rejoining), isFalse);
+    });
+
+    test('a join that fails is', () {
+      const failed = LiveKitState(
+        connectionState: LiveKitConnectionState.error,
+        currentChannelId: 'voice',
+      );
+      expect(failed.leftCall(inVoice), isTrue);
+      // And only once: nothing more happens while it stays failed.
+      expect(failed.leftCall(failed), isFalse);
+    });
+
+    test('hanging up and switching are', () {
+      expect(const LiveKitState().leftCall(inVoice), isTrue);
+      const switching = LiveKitState(
+        connectionState: LiveKitConnectionState.connecting,
+        currentChannelId: 'lounge',
+      );
+      expect(switching.leftCall(inVoice), isTrue);
+    });
+  });
 }
