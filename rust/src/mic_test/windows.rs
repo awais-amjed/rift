@@ -2,9 +2,7 @@
 //! the device runs at into the meter's format, and playing it back on a
 //! render stream polled from the same loop.
 
-use super::{
-    for_playback, samples_from_le_bytes, stopped, Playback, PLAYBACK_SAMPLES, SAMPLE_RATE,
-};
+use super::{for_playback, samples_from_le_bytes, stopped, Playback, SAMPLE_RATE};
 use crate::cue::le_bytes;
 use crate::frb_generated::StreamSink;
 use std::sync::mpsc::Receiver;
@@ -18,6 +16,16 @@ const POLL: Duration = Duration::from_millis(10);
 /// One second, in the 100 ns units WASAPI counts in.
 const BUFFER_DURATION_HNS: i64 = 10_000_000;
 const READ_BUFFER_BYTES: usize = 8 * 1024;
+/// How far behind the voice its playback may fall: 100 ms. Counted from what
+/// the output holds rather than set as its buffer, which Windows' engine
+/// empties in uneven gulps: a buffer that small was often full when the next
+/// packet came, and the voice was cut.
+const MAX_QUEUED_SAMPLES: usize = SAMPLE_RATE as usize / 10;
+/// Silence put ahead of the voice when the output holds nothing — at the
+/// start, and after it ran dry: 30 ms. Without it the voice is played the
+/// moment it lands, so the output never holds more than a packet, and one
+/// that arrives late is a click. PulseAudio prebuffers the same way on Linux.
+const CUSHION_SAMPLES: usize = SAMPLE_RATE as usize * 3 / 100;
 
 pub(super) fn run(
     device_id: Option<&str>,
@@ -58,27 +66,35 @@ pub(super) fn run(
         .map_err(|e| format!("the microphone would not start: {e:?}"))?;
 
     let mut buffer = vec![0u8; READ_BUFFER_BYTES];
-    loop {
+    'test: loop {
         if stopped(stop) {
             break;
         }
-        if let Ok((frames, _)) = capture.read_from_device(&mut buffer) {
-            if frames > 0 {
-                let bytes = frames as usize * 2;
-                let samples = samples_from_le_bytes(&buffer[..bytes]);
-                if let Some(((out_client, render), volume)) = &output {
-                    let room = out_client
-                        .get_available_space_in_frames()
-                        .map_or(0, |free| free as usize);
-                    let played = for_playback(&samples, room, *volume);
-                    if !played.is_empty() {
-                        let _ = render.write_to_device(played.len(), &le_bytes(&played), None);
-                    }
+        // Each read hands over one packet, about 10 ms, so a pass reads until
+        // none is left. Reading one a pass fell behind the device until its
+        // buffer overflowed: a second late, then in pieces. The meter hid
+        // that; playback does not.
+        while let Ok((frames, _)) = capture.read_from_device(&mut buffer) {
+            if frames == 0 {
+                break;
+            }
+            let bytes = frames as usize * 2;
+            let samples = samples_from_le_bytes(&buffer[..bytes]);
+            if let Some(((out_client, render), volume)) = &output {
+                let queued = out_client
+                    .get_current_padding()
+                    .map_or(MAX_QUEUED_SAMPLES, |queued| queued as usize);
+                let room = MAX_QUEUED_SAMPLES.saturating_sub(queued);
+                let cushion = if queued == 0 { CUSHION_SAMPLES } else { 0 };
+                let mut played = vec![0; cushion.min(room)];
+                played.extend(for_playback(&samples, room - played.len(), *volume));
+                if !played.is_empty() {
+                    let _ = render.write_to_device(played.len(), &le_bytes(&played), None);
                 }
-                // Dart stopped listening: nothing left to read for.
-                if sink.add(samples).is_err() {
-                    break;
-                }
+            }
+            // Dart stopped listening: nothing left to read for.
+            if sink.add(samples).is_err() {
+                break 'test;
             }
         }
         thread::sleep(POLL);
@@ -90,9 +106,9 @@ pub(super) fn run(
     Ok(())
 }
 
-/// A render stream for the voice on the chosen output, started, holding no
-/// more than [`PLAYBACK_SAMPLES`]. An output that is not there any more plays
-/// on the default instead: the test is about the microphone.
+/// A render stream for the voice on the chosen output, started. An output
+/// that is not there any more plays on the default instead: the test is about
+/// the microphone.
 fn open_output(
     enumerator: &DeviceEnumerator,
     playback: &Playback,
@@ -116,7 +132,7 @@ fn open_output(
     let format = WaveFormat::new(16, 16, &SampleType::Int, SAMPLE_RATE as usize, 1, None);
     let mode = StreamMode::PollingShared {
         autoconvert: true,
-        buffer_duration_hns: PLAYBACK_SAMPLES as i64 * 10_000_000 / i64::from(SAMPLE_RATE),
+        buffer_duration_hns: BUFFER_DURATION_HNS,
     };
     client
         .initialize_client(&format, &Direction::Render, &mode)

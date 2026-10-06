@@ -24,9 +24,11 @@ use windows::run;
 /// 16 kHz. The platform converts whatever the device runs at.
 const SAMPLE_RATE: u32 = 16_000;
 
-/// How far behind the voice its playback may fall, in samples: 60 ms. Enough
-/// for a late wake not to run the output dry; short enough to hear yourself
-/// as you speak rather than as an echo.
+/// How far behind the voice its playback may fall on Linux, in samples: 60 ms.
+/// Enough for a late wake not to run the output dry; short enough to hear
+/// yourself as you speak rather than as an echo. Windows keeps its own count
+/// (`windows::MAX_QUEUED_SAMPLES`).
+#[cfg(target_os = "linux")]
 const PLAYBACK_SAMPLES: usize = SAMPLE_RATE as usize * 60 / 1000;
 
 /// Where the test plays the microphone back, so you hear what Rift hears.

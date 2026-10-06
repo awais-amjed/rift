@@ -30,7 +30,7 @@ pub struct MicTestPlayback {
 /// [`stop_mic_test`], or until Dart stops listening. On Windows that id is the
 /// endpoint id; on Linux it is the source's description, the only name
 /// WebRTC's PulseAudio module gives one. With `playback`, the samples are
-/// played there too, at most 60 ms behind.
+/// played there too, a few tens of milliseconds behind.
 ///
 /// A microphone that cannot be opened ends the stream with an error. Off
 /// Windows and Linux the stream ends with an error straight away, and the
