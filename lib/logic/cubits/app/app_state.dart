@@ -58,6 +58,15 @@ class AppState {
   /// has the button for a later change of mind.
   final bool? addToAppMenu;
 
+  /// Whether the computer starts Rift when the person signs in. Unset until
+  /// they choose, and then [LoginLaunch.onByDefault] decides: on for their own
+  /// installed copy. See [AppCubit.launchesAtLogin].
+  final bool? launchAtLogin;
+
+  /// Whether a start at sign-in stays in the tray rather than opening the
+  /// window. Starting Rift by hand always opens it.
+  final bool startMinimized;
+
   /// [betaUpdates], or when unset, whether [installedVersion] is itself a
   /// pre-release (it has a `-`, as in 1.4.0-beta.1).
   bool wantsBetaUpdates(String? installedVersion) =>
@@ -213,6 +222,8 @@ class AppState {
     this.showOfflineChip = true,
     this.betaUpdates,
     this.addToAppMenu,
+    this.launchAtLogin,
+    this.startMinimized = false,
     this.outputDeviceId,
     this.inputDeviceId,
     this.outputVolume = 1.0,
@@ -285,6 +296,8 @@ class AppState {
     bool? showOfflineChip,
     bool? betaUpdates,
     bool? addToAppMenu,
+    bool? launchAtLogin,
+    bool? startMinimized,
     String? outputDeviceId,
     bool clearOutputDeviceId = false,
     String? inputDeviceId,
@@ -342,6 +355,8 @@ class AppState {
       showOfflineChip: showOfflineChip ?? this.showOfflineChip,
       betaUpdates: betaUpdates ?? this.betaUpdates,
       addToAppMenu: addToAppMenu ?? this.addToAppMenu,
+      launchAtLogin: launchAtLogin ?? this.launchAtLogin,
+      startMinimized: startMinimized ?? this.startMinimized,
       outputDeviceId: clearOutputDeviceId
           ? null
           : (outputDeviceId ?? this.outputDeviceId),

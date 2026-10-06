@@ -15,8 +15,19 @@ struct _MyApplication {
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
 
-// Called when first Flutter frame received.
+// Whether Rift was started at sign-in to stay in the tray: LoginLaunch puts
+// `--minimized` in the autostart entry when the person asked for that.
+static gboolean started_minimized(MyApplication* self) {
+  for (char** arg = self->dart_entrypoint_arguments; arg && *arg; arg++) {
+    if (g_strcmp0(*arg, "--minimized") == 0) return TRUE;
+  }
+  return FALSE;
+}
+
+// Called when first Flutter frame received. A minimized start never shows
+// the window; the tray's Show Rift does, through window_manager.
 static void first_frame_cb(MyApplication* self, FlView* view) {
+  if (started_minimized(self)) return;
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
 }
 

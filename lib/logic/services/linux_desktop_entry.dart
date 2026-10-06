@@ -39,6 +39,10 @@ class LinuxDesktopEntry {
 
   static String? get _appImage => Platform.environment['APPIMAGE'];
 
+  /// The program an entry should start: the AppImage file, which an update
+  /// replaces in place, rather than the folder it is mounted on this time.
+  static String get program => _appImage ?? Platform.resolvedExecutable;
+
   /// Whether to ask "Add Rift to your app menu?": a release folder copy on
   /// Linux, run as the person's own identity. A `RIFT_PROFILE` copy is a
   /// second identity for testing, and the AppImage adds itself unasked.
@@ -78,10 +82,7 @@ class LinuxDesktopEntry {
         : File(p.join(dataHome, 'applications', fileName));
     final appImage = _appImage;
     final withIcon = dataHome != null && await _installIcon(dataHome);
-    final wanted = entry(
-      appImage ?? Platform.resolvedExecutable,
-      withIcon: withIcon,
-    );
+    final wanted = entry(program, withIcon: withIcon);
     for (final dir in _dataDirs()) {
       final file = File(p.join(dir, 'applications', fileName));
       if (!file.existsSync()) continue;
@@ -145,7 +146,7 @@ class LinuxDesktopEntry {
       'Type=Application\n'
       'Name=Rift\n'
       'Comment=Voice, video and chat\n'
-      'Exec=${_quoteExec(executable)}\n'
+      'Exec=${quoteExec(executable)}\n'
       '${withIcon ? 'Icon=$appId\n' : ''}'
       'Terminal=false\n'
       'Categories=Network;InstantMessaging;Chat;\n'
@@ -181,7 +182,7 @@ class LinuxDesktopEntry {
   /// A path as the desktop entry spec wants it in `Exec`: quoted when it has
   /// anything but plain characters, with `"`, `` ` ``, `$` and `\` escaped
   /// inside the quotes.
-  static String _quoteExec(String path) {
+  static String quoteExec(String path) {
     if (RegExp(r'^[A-Za-z0-9_./+-]+$').hasMatch(path)) return path;
     final escaped = path.replaceAllMapped(
       RegExp(r'["`$\\]'),

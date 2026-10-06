@@ -1,5 +1,7 @@
 #include "flutter_window.h"
 
+#include <shellapi.h>
+
 #include <optional>
 
 #include <flutter/encodable_value.h>
@@ -10,6 +12,21 @@
 #include "global_key_hook.h"
 #include "noise_filter/noise_filter.h"
 #include "single_instance.h"
+
+namespace {
+
+bool StartedMinimized() {
+  int argc = 0;
+  wchar_t** argv = ::CommandLineToArgvW(::GetCommandLineW(), &argc);
+  bool minimized = false;
+  for (int i = 1; argv != nullptr && i < argc; i++) {
+    if (::wcscmp(argv[i], L"--minimized") == 0) minimized = true;
+  }
+  ::LocalFree(argv);
+  return minimized;
+}
+
+}  // namespace
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
@@ -37,9 +54,14 @@ bool FlutterWindow::OnCreate() {
 
   SetupPttChannel();
 
-  flutter_controller_->engine()->SetNextFrameCallback([&]() {
-    this->Show();
-  });
+  // A start at sign-in that should stay in the tray never shows the window:
+  // LoginLaunch puts `--minimized` in the Run value when the person asked for
+  // that, and the tray's Show Rift shows it through window_manager.
+  if (!StartedMinimized()) {
+    flutter_controller_->engine()->SetNextFrameCallback([&]() {
+      this->Show();
+    });
+  }
 
   // Flutter can complete the first frame before the "show window" callback is
   // registered. The following call ensures a frame is pending to ensure the

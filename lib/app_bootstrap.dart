@@ -18,6 +18,7 @@ import 'logic/services/host_platform.dart';
 import 'logic/services/hydrated_store.dart';
 import 'logic/services/invite_scheme.dart';
 import 'logic/services/linux_desktop_entry.dart';
+import 'logic/services/login_launch/login_launch.dart';
 import 'logic/services/notification_service.dart';
 import 'logic/services/profile_auth_storage.dart';
 import 'logic/services/push_service.dart';
@@ -73,7 +74,16 @@ class AppBootstrap {
       await windowManager.ensureInitialized();
       await _restoreWindow(appCubit);
       await TrayService.instance.init();
+      // The runner left the window hidden for a start at sign-in. With no
+      // tray to come back from, it waits on the taskbar instead.
+      if (LoginLaunch.startedMinimized && !TrayService.instance.isShowing) {
+        await windowManager.show();
+        await windowManager.minimize();
+      }
     }
+    // Rewritten at every start, so the entry follows the program if it
+    // moves. Not awaited: nothing here waits on it.
+    unawaited(appCubit.applyLoginLaunch());
     // Nothing installs Rift on Linux, so it keeps its own app-menu entry:
     // the AppImage always, a folder copy once the person said yes (asked on
     // the home screen). Not awaited: nothing here waits on the menu.

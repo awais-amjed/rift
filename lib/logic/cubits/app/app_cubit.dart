@@ -16,6 +16,7 @@ import '../../../data/enums/sensitive_content_mode.dart';
 import '../../../data/participant_identity.dart';
 import '../../services/call_volume.dart';
 import '../../services/hydrated_keys.dart';
+import '../../services/login_launch/login_launch.dart';
 import '../../services/noise_filter.dart';
 
 part 'app_cubit.g.dart';
@@ -115,8 +116,28 @@ class AppCubit extends HydratedCubit<AppState> {
 
   void setBetaUpdates(bool value) => emit(state.copyWith(betaUpdates: value));
 
-  void setAddToAppMenu(bool value) =>
-      emit(state.copyWith(addToAppMenu: value));
+  void setAddToAppMenu(bool value) => emit(state.copyWith(addToAppMenu: value));
+
+  // ── Persisted: starting at sign-in ───────────────────────
+
+  bool get launchesAtLogin => state.launchAtLogin ?? LoginLaunch.onByDefault;
+
+  void setLaunchAtLogin(bool value) {
+    emit(state.copyWith(launchAtLogin: value));
+    unawaited(applyLoginLaunch());
+  }
+
+  void setStartMinimized(bool value) {
+    emit(state.copyWith(startMinimized: value));
+    unawaited(applyLoginLaunch());
+  }
+
+  /// Puts the computer's sign-in entry in line with these settings. Also run
+  /// at every start, so the entry follows the program if it moves.
+  Future<void> applyLoginLaunch() => LoginLaunch.apply(
+    enabled: launchesAtLogin,
+    minimized: state.startMinimized,
+  );
 
   // ── Persisted: switching voice channels ──────────────────
 

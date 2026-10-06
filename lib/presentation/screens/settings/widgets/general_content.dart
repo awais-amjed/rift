@@ -6,10 +6,12 @@ import '../../../../data/enums/sensitive_content_mode.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/services/host_platform.dart';
 import '../../../../logic/services/linux_desktop_entry.dart';
+import '../../../../logic/services/login_launch/login_launch.dart';
 import '../../../common/app_menu/app_menu_row.dart';
 import '../../../common/segmented_control.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
+import 'general/startup_section.dart';
 import 'section_divider.dart';
 import 'section_title.dart';
 import 'setting_toggle_row.dart';
@@ -116,6 +118,11 @@ class GeneralContent extends StatelessWidget {
             ],
           ),
         ),
+
+        if (LoginLaunch.supported) ...[
+          const SectionDivider(),
+          const StartupSection(),
+        ],
 
         if (HostPlatform.selfUpdates) ...[
           const SectionDivider(),

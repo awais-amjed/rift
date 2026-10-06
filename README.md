@@ -220,6 +220,9 @@ tar -xzf rift-*-linux-x64.tar.gz
 ./rift-*-linux-x64/rift
 ```
 
+Rift opens when you sign in to your computer. Settings → General → Startup
+turns that off, or has it start minimized, waiting in the tray.
+
 The Windows install and the AppImage keep themselves up to date: Rift
 downloads a new version in the background and says so in the title bar, and a
 restart puts it in place.

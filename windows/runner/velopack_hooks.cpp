@@ -81,6 +81,32 @@ void DeleteSubkeys(const wchar_t* parent, Match match) {
   ::RegCloseKey(key);
 }
 
+// What starts Rift at sign-in (LoginLaunch): `Rift`, and `Rift.<profile>`
+// for a profile that turned it on.
+void RemoveRunValues() {
+  HKEY key;
+  if (::RegOpenKeyExW(HKEY_CURRENT_USER,
+                      L"Software\\Microsoft\\Windows\\CurrentVersion\\Run", 0,
+                      KEY_QUERY_VALUE | KEY_SET_VALUE,
+                      &key) != ERROR_SUCCESS) {
+    return;
+  }
+  std::vector<std::wstring> doomed;
+  wchar_t name[256];
+  for (DWORD i = 0;; i++) {
+    DWORD length = 256;
+    const LSTATUS status = ::RegEnumValueW(key, i, name, &length, nullptr,
+                                           nullptr, nullptr, nullptr);
+    if (status == ERROR_NO_MORE_ITEMS) break;
+    // A longer name than any of Rift's.
+    if (status != ERROR_SUCCESS) continue;
+    const std::wstring value(name, length);
+    if (IsNameOrProfile(value, L"Rift")) doomed.push_back(value);
+  }
+  for (const auto& value : doomed) ::RegDeleteValueW(key, value.c_str());
+  ::RegCloseKey(key);
+}
+
 // The registry keys Rift writes for the person, as the old installer's
 // uninstall_cleanup.iss removed them:
 // - Software\Classes\CLSID\{<app id's first groups>...}: the class a press on
@@ -106,6 +132,7 @@ void RemoveRegistryKeys() {
     });
   }
   ::RegDeleteTreeW(HKEY_CURRENT_USER, kSettingsKey);
+  RemoveRunValues();
 }
 
 // The old installer's uninstaller, if that copy is still installed. Inno

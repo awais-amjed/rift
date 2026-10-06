@@ -15,6 +15,7 @@ import 'logic/cubits/vault/vault_cubit.dart';
 import 'logic/helper_methods.dart';
 import 'logic/ptt/push_to_talk_listener.dart';
 import 'logic/services/host_platform.dart';
+import 'logic/services/login_launch/login_launch.dart';
 import 'logic/services/storage_namespace.dart';
 import 'logic/services/window_focus_service.dart';
 import 'logic/services/window_fullscreen.dart';
@@ -29,6 +30,7 @@ import 'presentation/theme/app_theme.dart';
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
   StorageNamespace.readArguments(args);
+  LoginLaunch.readArguments(args);
   final appCubit = await AppBootstrap.run();
   runApp(MyApp(appCubit: appCubit, vaultCubit: VaultCubit()));
 }
