@@ -37,30 +37,37 @@ class AttachmentImageThumb extends StatefulWidget {
     required this.loader,
   });
 
-  /// Longest edge of a thumbnail in the message list.
-  static const double maxSize = 220;
+  /// The most room a picture takes in the message list: about a link
+  /// preview's width, so the two read as the same size of thing. At 220 on
+  /// the long edge, a screenshot was too small to read without opening it.
+  static const double maxWidth = 440;
+
+  /// Lower than [maxWidth], so a tall phone screenshot doesn't fill the
+  /// whole pane.
+  static const double maxHeight = 340;
 
   /// Used only when the sender recorded no dimensions.
-  static const double _fallbackHeight = 140;
+  static const double _fallbackHeight = 200;
 
   /// The box a thumbnail of [width]×[height] occupies, or null when the
   /// sender recorded no dimensions and the thumbnail has to size itself once
   /// the bytes land.
   ///
-  /// Scales down to fit [maxSize] on the longest edge, and never up: a 40px
-  /// sticker blown out to 220 is a blurry mess, and the design's thumbnails
-  /// are a ceiling rather than a target.
-  static Size? boxFor(int? width, int? height) {
+  /// Scales down to fit [maxWidth]×[maxHeight], and [within] — the width the
+  /// message has, on a narrow window or a phone — and never up: a 40px
+  /// sticker blown out is a blurry mess, and the ceiling is not a target.
+  static Size? boxFor(int? width, int? height, {double within = maxWidth}) {
     final w = width?.toDouble();
     final h = height?.toDouble();
     if (w == null || h == null || w <= 0 || h <= 0) return null;
-    if (w <= maxSize && h <= maxSize) return Size(w, h);
-    // The long edge is set to the ceiling and the short one derived from it,
-    // rather than scaling both by a ratio: `w * (maxSize / w)` lands a hair
-    // *over* maxSize in floating point, and this box is measured against it.
-    return w >= h
-        ? Size(maxSize, h * maxSize / w)
-        : Size(w * maxSize / h, maxSize);
+    final maxW = within < maxWidth ? within : maxWidth;
+    if (w <= maxW && h <= maxHeight) return Size(w, h);
+    // The limiting edge is set to its ceiling and the other derived from
+    // it, rather than scaling both by a ratio: `w * (maxW / w)` lands a hair
+    // *over* maxW in floating point, and this box is measured against it.
+    return w / maxW >= h / maxHeight
+        ? Size(maxW, h * maxW / w)
+        : Size(w * maxHeight / h, maxHeight);
   }
 
   @override
@@ -116,14 +123,21 @@ class _AttachmentImageThumbState extends State<AttachmentImageThumb> {
   /// Reserved up front where it can be, so the placeholder and the decoded
   /// image are the same size: otherwise the row jumps the moment the bytes
   /// land, which in a scrolled list drags everything below it.
-  Size? get _box => AttachmentImageThumb.boxFor(
+  Size? _boxWithin(double within) => AttachmentImageThumb.boxFor(
     widget.attachment.width,
     widget.attachment.height,
+    within: within,
   );
 
   @override
   Widget build(BuildContext context) {
-    final box = _box;
+    return LayoutBuilder(
+      builder: (context, constraints) =>
+          _build(context, _boxWithin(constraints.maxWidth)),
+    );
+  }
+
+  Widget _build(BuildContext context, Size? box) {
     final content = FutureBuilder<_Loaded>(
       future: _loaded,
       builder: (context, snap) {
@@ -160,8 +174,8 @@ class _AttachmentImageThumbState extends State<AttachmentImageThumb> {
           child: box == null
               ? ConstrainedBox(
                   constraints: const BoxConstraints(
-                    maxWidth: AttachmentImageThumb.maxSize,
-                    maxHeight: AttachmentImageThumb.maxSize,
+                    maxWidth: AttachmentImageThumb.maxWidth,
+                    maxHeight: AttachmentImageThumb.maxHeight,
                   ),
                   child: Image.memory(bytes),
                 )
@@ -201,7 +215,7 @@ class _AttachmentImageThumbState extends State<AttachmentImageThumb> {
   /// the whole thumbnail and a second size here would fight it.
   Widget _placeholder(Size? box, Widget child) {
     return Container(
-      width: box == null ? AttachmentImageThumb.maxSize : null,
+      width: box == null ? AttachmentImageThumb.maxWidth : null,
       height: box == null ? AttachmentImageThumb._fallbackHeight : null,
       decoration: BoxDecoration(
         color: context.theme.bgTertiary,
