@@ -26,6 +26,10 @@ export PATH="$PATH:$HOME/.dotnet/tools"
 # A .NET installed into the home folder (dotnet-install) is found through this.
 [[ -z ${DOTNET_ROOT:-} && -d $HOME/.dotnet ]] && export DOTNET_ROOT=$HOME/.dotnet
 export DOTNET_CLI_TELEMETRY_OPTOUT=1
+# Up front: the download below falls through on any failure, so a missing vpk
+# would first show up as "No earlier release".
+command -v vpk >/dev/null ||
+  { echo "vpk not found: dotnet tool install -g vpk --version <VPK_VERSION in release.yml>" >&2; exit 1; }
 
 # Velopack's own folder under the release one: the delta's base is fetched
 # into it, and must not be published again.

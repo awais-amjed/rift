@@ -102,6 +102,9 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
+      # vpk_pack.sh finds it in ~/.dotnet/tools, where a global tool goes.
+      - name: Install vpk
+        run: dotnet tool install -g vpk --version "$VPK_VERSION"
       - name: Pack with Velopack
         env:
           VERSION: ${{ needs.version.outputs.version }}
@@ -138,6 +141,9 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
+      - name: Install vpk
+        shell: bash
+        run: dotnet tool install -g vpk --version "$VPK_VERSION"
       - name: Pack with Velopack
         shell: bash
         env:
