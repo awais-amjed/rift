@@ -129,24 +129,85 @@ void main() {
     });
   });
 
+  group('120 fps', () {
+    test('is offered up to 1080p on the CPU and 2K on the GPU', () {
+      List<int> at(int height, {required bool onGpu}) =>
+          ScreenShareSettings.frameRatesAt(height, onGpu: onGpu);
+      expect(at(1080, onGpu: false), [15, 30, 60, 120]);
+      expect(at(1440, onGpu: false), [15, 30, 60]);
+      expect(at(1440, onGpu: true), [15, 30, 60, 120]);
+      expect(at(2160, onGpu: true), [15, 30, 60]);
+    });
+
+    test('a picture too big for it goes out at 60, keeping the choice', () {
+      const settings = ScreenShareSettings(resolution: 1440, fps: 120);
+      expect(settings.fpsToSend(onGpu: true), 120);
+      expect(settings.fpsToSend(onGpu: false), 60);
+      expect(settings.copyWith(resolution: 1080).fpsToSend(onGpu: false), 120);
+    });
+
+    test('lower rates go out as picked at any size', () {
+      const settings = ScreenShareSettings(resolution: 2160, fps: 30);
+      expect(settings.fpsToSend(onGpu: false), 30);
+    });
+
+    test('Auto bitrate follows the rate sent, not the one picked', () {
+      const settings = ScreenShareSettings(resolution: 2160, fps: 120);
+      expect(
+        settings.bitrateToSend(
+          codec: VideoCodec.vp9,
+          onGpu: false,
+          limits: const ServerLimits(),
+        ),
+        ShareEncoding.autoMbps(
+          resolution: 2160,
+          fps: 60,
+          codec: VideoCodec.vp9,
+        ),
+      );
+    });
+
+    test('only H264, and only where it is GPU-only, counts as the GPU', () {
+      expect(
+        ScreenShareSettings.encodedOnGpu(VideoCodec.h264, gpuOnlyH264: true),
+        isTrue,
+      );
+      expect(
+        ScreenShareSettings.encodedOnGpu(VideoCodec.h264, gpuOnlyH264: false),
+        isFalse,
+      );
+      expect(
+        ScreenShareSettings.encodedOnGpu(VideoCodec.vp9, gpuOnlyH264: true),
+        isFalse,
+      );
+    });
+  });
+
   group('bitrate', () {
     const open = ServerLimits();
 
     test('Auto follows the picture and the codec', () {
       const settings = ScreenShareSettings(resolution: 720, fps: 30);
       expect(
-        settings.bitrateToSend(codec: VideoCodec.vp9, limits: open),
-        ShareEncoding.autoMbps(
-          resolution: 720,
-          fps: 30,
+        settings.bitrateToSend(
           codec: VideoCodec.vp9,
+          onGpu: false,
+          limits: open,
         ),
+        ShareEncoding.autoMbps(resolution: 720, fps: 30, codec: VideoCodec.vp9),
       );
     });
 
     test('one picked by hand is sent as picked', () {
       const settings = ScreenShareSettings(bitrate: 4, bitrateChosen: true);
-      expect(settings.bitrateToSend(codec: VideoCodec.h264, limits: open), 4);
+      expect(
+        settings.bitrateToSend(
+          codec: VideoCodec.h264,
+          onGpu: true,
+          limits: open,
+        ),
+        4,
+      );
     });
 
     test('neither goes over what the server allows', () {
@@ -154,6 +215,7 @@ void main() {
       expect(
         const ScreenShareSettings().bitrateToSend(
           codec: VideoCodec.h264,
+          onGpu: true,
           limits: capped,
         ),
         3,
@@ -162,7 +224,7 @@ void main() {
         const ScreenShareSettings(
           bitrate: 15,
           bitrateChosen: true,
-        ).bitrateToSend(codec: VideoCodec.vp9, limits: capped),
+        ).bitrateToSend(codec: VideoCodec.vp9, onGpu: false, limits: capped),
         3,
       );
     });
@@ -192,11 +254,10 @@ void main() {
     });
 
     test('stay open after picking a window', () {
-      final settings = const ScreenShareSettings(
-        showsAdvanced: true,
-      ).withVideoSource(
-        const CaptureSource(index: 0, title: 'Game', minimised: false),
-      );
+      final settings = const ScreenShareSettings(showsAdvanced: true)
+          .withVideoSource(
+            const CaptureSource(index: 0, title: 'Game', minimised: false),
+          );
       expect(settings.showsAdvanced, isTrue);
     });
   });

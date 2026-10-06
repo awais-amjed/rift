@@ -473,6 +473,14 @@ VAAPI driver is a separate package) H264 is simply not offered.
   VP8 fell to 20 fps at 44 ms a frame while VP9 held 59 fps at 15 ms; pinned
   to one core, VP8 managed 4 fps. Under CPU pressure WebRTC already lowers
   the size or the rate, as the priority says.
+- **120 fps is offered up to 2K on the GPU and up to 1080p on the CPU**
+  (`ScreenShareSettings.frameRatesAt`). WebRTC stops at 120, so there is no
+  144. 4K at 120 is past what most viewers' hardware decoders take (H264's
+  level 5.2 ends near 4K60), so it is never offered. A picture too big for
+  120 goes out at 60, and the choice is kept for a smaller one. Whether the
+  sharer's computer keeps up is the sharer's call. Measured Oct 6 2026
+  (`bench_test.rs`, a moving 960x1000 window): VP9 sent 119.6 fps at 114% of
+  a core, the GPU's H264 119.9 fps at 26%, the viewer dropping nothing.
 - **H265 is skipped**: too many viewers cannot play it.
 - **AV1 is parked.** AMD's encoder makes AV1 that WebRTC carries, but no viewer
   gets it encrypted: LiveKit's Rust SDK does not negotiate what the server needs

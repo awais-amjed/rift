@@ -11,6 +11,15 @@ void main() {
     expect(notice.description, '2K');
   });
 
+  test('a resolution that took the frame rate down names both', () {
+    final notice = streamChangeNotice(
+      now: now.copyWith(resolution: 2160, fps: 60),
+      fpsLowered: true,
+    );
+    expect(notice.title, 'Stream quality updated');
+    expect(notice.description, '4K · 60 fps');
+  });
+
   test('a frame rate change names the new rate', () {
     final notice = streamChangeNotice(now: now, fpsChanged: true);
     expect(notice.title, 'Frame rate updated');

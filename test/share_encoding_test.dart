@@ -51,6 +51,10 @@ void main() {
         mbps(1080, 15, VideoCodec.vp9),
         lessThan(mbps(1080, 30, VideoCodec.vp9)),
       );
+      expect(
+        mbps(1080, 120, VideoCodec.vp9),
+        greaterThan(mbps(1080, 60, VideoCodec.vp9)),
+      );
     });
 
     test('gives H264 the most and VP9 the least for the same picture', () {

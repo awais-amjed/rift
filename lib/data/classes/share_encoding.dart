@@ -35,8 +35,11 @@ class ShareEncoding {
   };
 
   /// Fewer frames need fewer bits, though not in proportion: each one still
-  /// has to be sharp.
-  static double _fpsFactor(int fps) => fps >= 60
+  /// has to be sharp. More need more for the same reason, though less than
+  /// twice: at 120 each frame differs less from the last.
+  static double _fpsFactor(int fps) => fps > 60
+      ? 1.5
+      : fps >= 60
       ? 1.0
       : fps >= 30
       ? 0.7
