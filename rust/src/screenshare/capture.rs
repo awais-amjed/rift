@@ -283,10 +283,13 @@ fn run(
                     frame_interval = interval(rate);
                 }
                 next_frame += frame_interval;
-                // Far behind: restart the clock rather than fire a burst of
-                // catch-up captures.
+                // Behind: restart the clock rather than fire a burst of
+                // catch-up captures, from now and not an interval on. A
+                // capture a little slower than the interval (a 2K window
+                // over X11 at 120 fps: 8.9 ms of 8.3) used to wait out a
+                // whole interval after it, which halved the rate.
                 if Instant::now() > next_frame {
-                    next_frame = Instant::now() + frame_interval;
+                    next_frame = Instant::now();
                 }
             }
         }

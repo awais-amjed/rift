@@ -480,8 +480,11 @@ VAAPI driver is a separate package) H264 is simply not offered.
   level 5.2 ends near 4K60), so it is never offered. A picture too big for
   120 goes out at 60, and the choice is kept for a smaller one. Whether the
   sharer's computer keeps up is the sharer's call. Measured Oct 6 2026
-  (`bench_test.rs`, a moving 960x1000 window): VP9 sent 119.6 fps at 114% of
-  a core, the GPU's H264 119.9 fps at 26%, the viewer dropping nothing.
+  (`bench_test.rs`, a moving window over X11, on a 20-thread laptop CPU):
+  at 1920x1080 VP9 sent 119.8 fps at 147% of a core, 3.7 ms a frame; at
+  2560x1440 VP9 sent 105 fps at 268%, 7.8 ms a frame against the 8.3 that
+  120 allows, and the GPU's H264 112 fps at 86%. At 2K neither encoder was
+  the limit: grabbing a window that size over X11 takes 7 to 9 ms.
 - **H265 is skipped**: too many viewers cannot play it.
 - **AV1 is parked.** AMD's encoder makes AV1 that WebRTC carries, but no viewer
   gets it encrypted: LiveKit's Rust SDK does not negotiate what the server needs
