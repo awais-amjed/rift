@@ -17,7 +17,7 @@ import 'widgets/mic_test_controls.dart';
 /// "Mic Test" settings block: shows a live input-level meter so the user can
 /// confirm their mic works and see the effect of the processing toggles.
 ///
-/// **On Windows and Linux** it opens its own microphone through
+/// **On Windows, Linux and the web** it opens its own microphone through
 /// [MicTestCapture] and plays it back on the chosen output, so you hear what
 /// Rift hears. For as long as it runs you are muted and deafened in the app
 /// ([LiveKitCubit.setMicTesting]): nobody in a call hears you testing, and the
@@ -28,8 +28,8 @@ import 'widgets/mic_test_controls.dart';
 /// next: the test opens its capture before the call lets go, and the call
 /// takes the microphone back before the test releases it.
 ///
-/// **Elsewhere** there is nothing to play it back with, so it only draws the
-/// meter, and keeps to WebRTC's own capture:
+/// **On Android and macOS** there is nothing to play it back with yet, so it
+/// only draws the meter:
 ///
 /// - **In a call with the mic on** — it reads [LiveKitCubit.micLevels], the tap
 ///   already running for the speaking indicator. No second capture, so nothing
@@ -86,7 +86,7 @@ class _MicTestSectionState extends State<MicTestSection> {
 
   /// Whether this test plays the microphone back, and so mutes and deafens
   /// you while it runs.
-  static bool get _hearsYourself => HostPlatform.micTestReadsDevice;
+  static bool get _hearsYourself => HostPlatform.micTestPlaysBack;
 
   Future<void> _start() async {
     setState(() => _error = null);

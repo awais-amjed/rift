@@ -74,6 +74,12 @@ class HostPlatform {
   static bool get micTestReadsDevice =>
       !kIsWeb && (Platform.isWindows || Platform.isLinux);
 
+  /// Whether the settings mic test plays the microphone back, and so mutes
+  /// and deafens you while it runs: where it reads the device itself, and in
+  /// the browser, whose own track can simply be played. Android and macOS
+  /// would need a player of their own.
+  static bool get micTestPlaysBack => kIsWeb || micTestReadsDevice;
+
   /// Whether Rift's own sounds can be played on a chosen output device. The
   /// audio player cannot pick one on the desktop, so Windows and Linux play
   /// them through the Rust library (`api/cue.rs`); elsewhere they stay on the

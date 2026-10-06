@@ -6,12 +6,13 @@ import 'package:livekit_client/livekit_client.dart';
 import '../../src/rust/api/mic_test.dart' as rust;
 import 'host_platform.dart';
 import 'level_throttle.dart';
+import 'mic_playback.dart';
 import 'mic_tap_format.dart';
 import 'pcm_level.dart';
 
 /// Opens a microphone of its own and reports its level, for the mic test in
-/// settings. On Windows and Linux it also plays the microphone back, so you
-/// hear what Rift hears.
+/// settings. On Windows, Linux and the web it also plays the microphone back,
+/// so you hear what Rift hears ([HostPlatform.micTestPlaysBack]).
 ///
 /// Deliberately the same measurement as the one running during a call — raw
 /// PCM through [PcmLevel] — so the meter reads the same whether it is watching
@@ -23,6 +24,9 @@ class MicTestCapture {
   LocalAudioTrack? _track;
   CancelListenFunc? _cancelRenderer;
 
+  /// The browser playing [_track] back, on the web.
+  MicPlayback? _playback;
+
   /// The device read directly, on Windows and Linux — see
   /// [_startReadingDevice].
   /// Cancelled in [stop], through a local taken before the first await.
@@ -32,9 +36,8 @@ class MicTestCapture {
   bool get isRunning => _track != null || _samples != null;
 
   /// Opens the microphone with [options] and calls [onLevel] as it runs,
-  /// playing it on [playback] where the device is read directly
-  /// ([HostPlatform.micTestReadsDevice]); elsewhere there is nothing to play
-  /// it with.
+  /// playing it on [playback] — by the Rust library where it reads the device
+  /// itself, by the browser on the web, and nowhere else.
   ///
   /// Throws if the device cannot be opened, having released anything it
   /// managed to acquire first.
@@ -62,6 +65,13 @@ class MicTestCapture {
         },
         options: micTapFormat,
       );
+      if (playback != null) {
+        _playback = MicPlayback.start(
+          track.mediaStreamTrack,
+          outputDeviceId: playback.deviceId,
+          volume: playback.volume,
+        );
+      }
       _track = track;
     } catch (_) {
       await track?.stop();
@@ -126,6 +136,8 @@ class MicTestCapture {
     final cancelRenderer = _cancelRenderer;
     final track = _track;
     final samples = _samples;
+    _playback?.stop();
+    _playback = null;
     _cancelRenderer = null;
     _track = null;
     _samples = null;

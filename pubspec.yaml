@@ -57,6 +57,9 @@ dependencies:
   # awais-amjed/livekit-client-sdk-flutter for what it carried.
   livekit_client: ^2.13.0
   flutter_webrtc: ^1.6.2
+  # flutter_webrtc's web side, named for its MediaStreamTrackWeb: the mic test
+  # plays the browser track behind it (mic_playback_web.dart).
+  dart_webrtc: ^1.8.2
   http: ^1.6.0
   http_parser: ^4.1.2
   window_manager: ^0.5.1
