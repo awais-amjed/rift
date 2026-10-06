@@ -82,6 +82,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ShareQuality dco_decode_box_autoadd_share_quality(dynamic raw);
 
   @protected
+  ShareRoom dco_decode_box_autoadd_share_room(dynamic raw);
+
+  @protected
   SoundShareConfig dco_decode_box_autoadd_sound_share_config(dynamic raw);
 
   @protected
@@ -155,6 +158,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ShareQuality dco_decode_share_quality(dynamic raw);
+
+  @protected
+  ShareRoom dco_decode_share_room(dynamic raw);
 
   @protected
   SoundShareConfig dco_decode_sound_share_config(dynamic raw);
@@ -239,6 +245,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ShareQuality sse_decode_box_autoadd_share_quality(
     SseDeserializer deserializer,
   );
+
+  @protected
+  ShareRoom sse_decode_box_autoadd_share_room(SseDeserializer deserializer);
 
   @protected
   SoundShareConfig sse_decode_box_autoadd_sound_share_config(
@@ -326,6 +335,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ShareQuality sse_decode_share_quality(SseDeserializer deserializer);
+
+  @protected
+  ShareRoom sse_decode_share_room(SseDeserializer deserializer);
 
   @protected
   SoundShareConfig sse_decode_sound_share_config(SseDeserializer deserializer);
@@ -423,6 +435,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_share_quality(
     ShareQuality self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_share_room(
+    ShareRoom self,
     SseSerializer serializer,
   );
 
@@ -542,6 +560,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_share_quality(ShareQuality self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_share_room(ShareRoom self, SseSerializer serializer);
 
   @protected
   void sse_encode_sound_share_config(

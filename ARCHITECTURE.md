@@ -375,6 +375,16 @@ LiveKit, one room per channel, joined with a short-lived JWT minted by the edge
 function that holds the API secret. A screenshare joins the same room under an
 `_screenshare` identity suffix, so somebody sharing is two participants.
 
+Being a connection of its own, a share does not go where the call goes. A region
+change or a rejoin puts the call in a new room, so after every join the share
+follows it (`ScreenshareCubit.followCall`): on a desktop its connection is
+replaced and the picture published again, keeping the capture, so a Wayland
+portal is not asked a second time; a shared app's sound is started again; on the
+web and on a phone, where a share can start only from a click or fresh consent,
+it ends and the sharer is told. A share left in another call ends. Viewers keep
+watching a stream that drops out and is back within half a minute
+(`WatchResume`), whoever's connection it was that dropped.
+
 **Media is end-to-end encrypted** with the channel's own key — the same key the
 text keyring seals per member — so the SFU forwards frames it cannot open. DTLS
 protects the hop; this protects the room.

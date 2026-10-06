@@ -149,6 +149,19 @@ class SoundShareCubit extends Cubit<SoundShareState> {
     }
   }
 
+  /// Keeps this device's shared sound with its call, which has just
+  /// connected — see [ScreenshareCubit.followCall], which has the same
+  /// problem. Here there is no portal to ask again, so a share into the same
+  /// call is simply started again on the new room; one in any other call
+  /// ends.
+  Future<void> followCall() async {
+    final source = state.source;
+    if (!state.isSharing || source == null) return;
+    final sameCall = _livekitCubit?.state.callKey == state.channelId;
+    await stopSoundShare();
+    if (sameCall) await startSoundShare(source: source);
+  }
+
   void clearError() => emit(state.copyWith(clearError: true));
 
   /// Record a failure *and* say it out loud — see [ScreenshareCubit._fail],

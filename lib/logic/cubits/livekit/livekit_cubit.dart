@@ -45,6 +45,7 @@ import '../../services/voice_keys.dart';
 import '../../services/voice_rejoin.dart';
 import '../../services/voice_signal.dart';
 import '../../services/watch_cues.dart';
+import '../../services/watch_resume.dart';
 import '../app/app_cubit.dart';
 import '../screenshare/screenshare_cubit.dart';
 import '../server/server_cubit.dart';
@@ -111,6 +112,10 @@ class LiveKitCubit extends Cubit<LiveKitState>
   /// can be told from where somebody already was — see `watchCues`.
   @override
   final Map<String, Set<String>> _watchingSeen = {};
+
+  /// Streams being watched that dropped out, waited for — see [WatchResume].
+  @override
+  final WatchResume _watchResume = WatchResume();
 
   /// Guards `disconnect` against re-entering itself — see its doc comment.
   /// State, so it lives here rather than in either mixin that reads it.

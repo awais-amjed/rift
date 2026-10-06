@@ -57,6 +57,16 @@ pub struct ScreenShareConfig {
     pub e2ee_key_index: i32,
 }
 
+/// Where a running share is taken when its call reconnects somewhere else: a
+/// region change or a rejoin puts the call in a room the share's connection
+/// is not in. The same address, token and key a start is given.
+pub struct ShareRoom {
+    pub livekit_url: String,
+    pub livekit_token: String,
+    pub e2ee_key: Vec<u8>,
+    pub e2ee_key_index: i32,
+}
+
 /// What can change while a share is running: the picture's size, rate and
 /// bitrate, and whether its sound goes with it. The source, codec and
 /// priority stay as the share started.
@@ -113,6 +123,14 @@ const KEY_BYTES: usize = 32;
 pub(crate) fn check(config: &ScreenShareConfig) -> Result<(), String> {
     check_picture(config.resolution, config.fps, config.bitrate)?;
     if config.e2ee_key.len() != KEY_BYTES {
+        return Err("Missing the channel key for this call".to_string());
+    }
+    Ok(())
+}
+
+/// The same refusal for the room a running share is moved to.
+pub(crate) fn check_room(room: &ShareRoom) -> Result<(), String> {
+    if room.e2ee_key.len() != KEY_BYTES {
         return Err("Missing the channel key for this call".to_string());
     }
     Ok(())

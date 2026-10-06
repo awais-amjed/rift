@@ -31,6 +31,13 @@ Future<String> startScreenshare({required ScreenShareConfig config}) =>
 Future<ShareQuality> updateScreenshare({required ShareQuality quality}) =>
     RustLib.instance.api.crateApiScreenshareUpdateScreenshare(quality: quality);
 
+/// Take the running share into the room its call reconnected to, keeping the
+/// capture: a region change or a rejoin leaves the share's own connection in
+/// a room nobody is in any more. A desktop portal is not asked again; viewers
+/// see the picture come back once it is published in the new room.
+Future<void> moveScreenshare({required ShareRoom room}) =>
+    RustLib.instance.api.crateApiScreenshareMoveScreenshare(room: room);
+
 /// Stop the share and leave the room. Succeeds when nothing was running: a
 /// teardown that errors would make every disconnect look like a failure.
 Future<String> stopScreenshare() =>

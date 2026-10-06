@@ -7,7 +7,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 import '../../frb_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `check_picture`, `check_quality`, `check`
+// These functions are ignored because they are not marked as `pub`: `check_picture`, `check_quality`, `check_room`, `check`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// A PulseAudio sink-input: one application's playback stream. Linux only;
@@ -243,6 +243,40 @@ class ShareQuality {
           fps == other.fps &&
           bitrate == other.bitrate &&
           shareAudio == other.shareAudio;
+}
+
+/// Where a running share is taken when its call reconnects somewhere else: a
+/// region change or a rejoin puts the call in a room the share's connection
+/// is not in. The same address, token and key a start is given.
+class ShareRoom {
+  final String livekitUrl;
+  final String livekitToken;
+  final Uint8List e2EeKey;
+  final int e2EeKeyIndex;
+
+  const ShareRoom({
+    required this.livekitUrl,
+    required this.livekitToken,
+    required this.e2EeKey,
+    required this.e2EeKeyIndex,
+  });
+
+  @override
+  int get hashCode =>
+      livekitUrl.hashCode ^
+      livekitToken.hashCode ^
+      e2EeKey.hashCode ^
+      e2EeKeyIndex.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ShareRoom &&
+          runtimeType == other.runtimeType &&
+          livekitUrl == other.livekitUrl &&
+          livekitToken == other.livekitToken &&
+          e2EeKey == other.e2EeKey &&
+          e2EeKeyIndex == other.e2EeKeyIndex;
 }
 
 /// Codec for the published video track. The Dart settings store these same

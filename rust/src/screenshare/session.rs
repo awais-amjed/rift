@@ -8,7 +8,7 @@ use super::gpu_feed::GpuFeed;
 use super::resolution::fit_within;
 use super::resolution::{target_size, Size};
 use super::track::{publish_video_track, TrackSettings};
-use crate::api::screenshare::types::{self, ScreenShareConfig, ShareQuality};
+use crate::api::screenshare::types::{self, ScreenShareConfig, ShareQuality, ShareRoom};
 #[cfg(gpu_encoder)]
 use crate::api::screenshare::types::{ScreenshareEvent, VideoCodec};
 use crate::sharing::audio::{self, AudioCapture, AudioCaptureHandle, AudioSelection};
@@ -27,6 +27,10 @@ use tokio::task::JoinHandle;
 /// it is waiting for a minimised window. A Wayland portal the user dismissed
 /// never does either.
 const FIRST_FRAME_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// How long a share still reconnecting on its own is given to finish before
+/// it is moved instead — see [`move_to`].
+const OWN_RECONNECT_WAIT: Duration = Duration::from_secs(5);
 
 /// The participant attribute a share sets while its window is minimised, which
 /// viewers read to say the picture is paused (`VoiceAttributes.sharePausedKey`).
@@ -58,13 +62,22 @@ const H264_CHECKS: u32 = 5;
 /// reads it, because the picture says what this is.
 const AUDIO_TRACK_NAME: &str = "screen_share_audio";
 
+/// The share's own participant, which a move to another room replaces. Held
+/// where the capture thread's pause announcements and the picture's publishes
+/// both read it, so neither goes on talking to the room that was left.
+type SharedParticipant = Arc<std::sync::Mutex<LocalParticipant>>;
+
 struct Session {
     room: Room,
+    /// The LiveKit the room is on, so a move to the same one can tell whether
+    /// the share is already there.
+    livekit_url: String,
     capture: Capture,
     video: Arc<Video>,
     audio: Option<AudioCaptureHandle>,
     /// Whose sound to capture if it is turned on during the share.
     audio_selection: AudioSelection,
+    participant: SharedParticipant,
     /// Publishes the picture when its first frame arrives, for a share that
     /// started on a minimised window and is waiting for it to be opened.
     publisher: Option<JoinHandle<()>>,
@@ -107,7 +120,8 @@ pub(crate) async fn start(config: ScreenShareConfig) -> Result<String, String> {
     let room_sid = room.sid().await.to_string();
     log::info!("screenshare: connected to room {room_name} ({room_sid})");
 
-    let (capture, video, audio, publisher) = match bring_up(&room, &config).await {
+    let participant: SharedParticipant = Arc::new(std::sync::Mutex::new(room.local_participant()));
+    let (capture, video, audio, publisher) = match bring_up(&room, &participant, &config).await {
         Ok(parts) => parts,
         Err(reason) => {
             // Leave nothing behind: a room left open here is a ghost
@@ -121,10 +135,12 @@ pub(crate) async fn start(config: ScreenShareConfig) -> Result<String, String> {
 
     *slot = Some(Session {
         room,
+        livekit_url: config.livekit_url.clone(),
         capture,
         video,
         audio,
         audio_selection: AudioSelection::from(&config),
+        participant,
         publisher,
     });
     log::info!("screenshare: started");
@@ -167,6 +183,101 @@ pub(crate) async fn stop() -> Result<String, String> {
     }
     log::info!("screenshare: stopped");
     Ok("Stopped successfully".to_string())
+}
+
+/// Takes the running share into the room `to` names, keeping its capture.
+///
+/// For a call that reconnected — a region change, or a rejoin after the
+/// connection gave out. The share's own connection is still in the room the
+/// call left, where nobody is watching any more. Starting the share again
+/// would open the capture again, and on Wayland that is the portal asking the
+/// user to pick their screen a second time; so only the connection is
+/// replaced, and the picture and its sound are published again on the new one.
+///
+/// A share whose call came back on the same LiveKit may have reconnected by
+/// itself, into the very room the call is now in. It is left there: a second
+/// connection under the same identity would replace it, and viewers would see
+/// the stream end and have to start watching again.
+///
+/// Otherwise the new room is joined before the old one is closed, so a share
+/// that cannot get in keeps the one it has.
+pub(crate) async fn move_to(to: ShareRoom) -> Result<(), String> {
+    types::check_room(&to)?;
+    let mut slot = SESSION.lock().await;
+    let Some(session) = slot.as_mut() else {
+        return Err("Not sharing".to_string());
+    };
+    if session.livekit_url == to.livekit_url && reconnected_by_itself(&session.room).await {
+        log::info!("screenshare: already back in the call's room");
+        return Ok(());
+    }
+    let room = room::connect(
+        &to.livekit_url,
+        &to.livekit_token,
+        &to.e2ee_key,
+        to.e2ee_key_index,
+    )
+    .await?;
+    log::info!(
+        "screenshare: moving to room {} ({})",
+        room.name(),
+        room.sid().await
+    );
+
+    let old = std::mem::replace(&mut session.room, room);
+    session.livekit_url = to.livekit_url;
+    *session.participant.lock().unwrap() = session.room.local_participant();
+    let audio = session.audio.take();
+    let had_audio = audio.is_some();
+    let (closed, _) = tokio::join!(
+        old.close(),
+        tokio::task::spawn_blocking(move || {
+            if let Some(audio) = audio {
+                audio.terminate();
+            }
+        }),
+    );
+    if let Err(e) = closed {
+        log::warn!("screenshare: leaving the old room reported {e:?}");
+    }
+
+    if let Err(reason) = session.video.move_to_room().await {
+        // Nothing is being sent anywhere: end it, the way a closed window
+        // does.
+        crate::api::screenshare::emit_screenshare_event(
+            crate::api::screenshare::types::ScreenshareEvent::SourceClosed,
+        );
+        return Err(reason);
+    }
+    if had_audio {
+        session.audio = audio::start(
+            &session.room,
+            AudioCapture {
+                selection: session.audio_selection,
+                track_name: AUDIO_TRACK_NAME.to_string(),
+                on_ended: None,
+            },
+        )
+        .await;
+    }
+    log::info!("screenshare: moved");
+    Ok(())
+}
+
+/// Whether `room` is connected, giving one that is still reconnecting a few
+/// seconds to get there.
+async fn reconnected_by_itself(room: &Room) -> bool {
+    let deadline = tokio::time::Instant::now() + OWN_RECONNECT_WAIT;
+    loop {
+        match room.connection_state() {
+            ConnectionState::Connected => return true,
+            ConnectionState::Disconnected => return false,
+            ConnectionState::Reconnecting if tokio::time::Instant::now() >= deadline => {
+                return false
+            }
+            ConnectionState::Reconnecting => tokio::time::sleep(Duration::from_millis(100)).await,
+        }
+    }
 }
 
 /// Applies what [`ShareQuality`] asks for to the running share, and says what
@@ -261,7 +372,11 @@ type Parts = (
 
 /// Everything after the room exists. On any error the capture thread is
 /// already stopped; the caller closes the room.
-async fn bring_up(room: &Room, config: &ScreenShareConfig) -> Result<Parts, String> {
+async fn bring_up(
+    room: &Room,
+    participant: &SharedParticipant,
+    config: &ScreenShareConfig,
+) -> Result<Parts, String> {
     let (capture, mut started) = capture::spawn(CaptureRequest {
         source_type: if config.capture_full_screen {
             DesktopCaptureSourceType::Screen
@@ -271,7 +386,7 @@ async fn bring_up(room: &Room, config: &ScreenShareConfig) -> Result<Parts, Stri
         selected_index: config.selected_video_source_index,
         fps: config.fps,
         capture_cursor: true,
-        on_minimised: Some(announce_paused(room)),
+        on_minimised: Some(announce_paused(participant.clone())),
     });
 
     let first = match tokio::time::timeout(FIRST_FRAME_TIMEOUT, started.recv()).await {
@@ -293,7 +408,7 @@ async fn bring_up(room: &Room, config: &ScreenShareConfig) -> Result<Parts, Stri
 
     let video = Arc::new_cyclic(|me| Video {
         me: me.clone(),
-        participant: room.local_participant(),
+        participant: participant.clone(),
         slot: capture.slot(),
         settings: std::sync::Mutex::new(TrackSettings::from(config)),
         track: Mutex::new(None),
@@ -341,7 +456,7 @@ struct Video {
     /// thread and must not keep a stopped share alive to do it.
     #[cfg_attr(not(gpu_encoder), allow(dead_code))]
     me: Weak<Video>,
-    participant: LocalParticipant,
+    participant: SharedParticipant,
     slot: VideoSlot,
     /// Changed by [`update`]; read each time the picture is published.
     settings: std::sync::Mutex<TrackSettings>,
@@ -367,6 +482,11 @@ struct GpuPicture {
 }
 
 impl Video {
+    /// Who publishes the picture now — see [`SharedParticipant`].
+    fn participant(&self) -> LocalParticipant {
+        self.participant.lock().unwrap().clone()
+    }
+
     /// Size a video source for the first frame, start feeding it, publish it.
     async fn publish(&self, native: Size) -> Result<(), String> {
         let mut track = self.track.lock().await;
@@ -454,7 +574,7 @@ impl Video {
                         published_fps,
                         published_bitrate,
                     });
-                    announce_picture(&self.participant, target, settings.fps);
+                    announce_picture(&self.participant(), target, settings.fps);
                     Ok(())
                 }
                 Err(reason) => Err(reason),
@@ -487,8 +607,29 @@ impl Video {
             .native()
             .ok_or("No frame has been captured to size the picture by")?;
         self.slot.detach();
-        if let Err(e) = self.participant.unpublish_track(&old).await {
+        if let Err(e) = self.participant().unpublish_track(&old).await {
             log::warn!("screenshare: unpublishing the old picture: {e:?}");
+        }
+        self.publish_locked(&mut track, native).await
+    }
+
+    /// Publish the picture again on the participant a move just put in
+    /// place. Its track went with the room it was in, so there is nothing to
+    /// unpublish; a share still waiting on a minimised window publishes on the
+    /// new participant when the window opens.
+    async fn move_to_room(&self) -> Result<(), String> {
+        let mut track = self.track.lock().await;
+        if track.take().is_none() {
+            return Ok(());
+        }
+        let native = self
+            .slot
+            .native()
+            .ok_or("No frame has been captured to size the picture by")?;
+        self.slot.detach();
+        #[cfg(gpu_encoder)]
+        {
+            *self.gpu.lock().unwrap() = None;
         }
         self.publish_locked(&mut track, native).await
     }
@@ -521,7 +662,7 @@ impl Video {
             match self.publish_from_gpu(target, codec, &settings).await {
                 Ok(sid) => {
                     *track = Some(sid);
-                    announce_picture(&self.participant, target, settings.fps);
+                    announce_picture(&self.participant(), target, settings.fps);
                     return Ok(());
                 }
                 Err(reason) => settings = self.fall_back(&reason),
@@ -540,13 +681,13 @@ impl Video {
             *self.gpu.lock().unwrap() = None;
         }
         self.slot.attach(Feed::Raw(source.clone()), target);
-        let sid = publish_video_track(&self.participant, source, &settings, false).await?;
+        let sid = publish_video_track(&self.participant(), source, &settings, false).await?;
         #[cfg(target_os = "linux")]
         if settings.codec == VideoCodec::H264 {
             self.check_h264_encoder(sid.clone());
         }
         *track = Some(sid);
-        announce_picture(&self.participant, target, settings.fps);
+        announce_picture(&self.participant(), target, settings.fps);
         Ok(())
     }
 
@@ -590,7 +731,7 @@ impl Video {
     /// The encoder WebRTC says made the picture `sid`, once it has made some.
     #[cfg(target_os = "linux")]
     async fn encoder_name(&self, sid: &TrackSid) -> Option<String> {
-        let publication = self.participant.get_track_publication(sid)?;
+        let publication = self.participant().get_track_publication(sid)?;
         let LocalTrack::Video(track) = publication.track()? else {
             return None;
         };
@@ -627,7 +768,7 @@ impl Video {
         log::info!("screenshare: encoding on {}", feed.name());
         let feed = Arc::new(feed);
         self.slot.attach(Feed::Gpu(feed.clone()), target);
-        let sid = publish_video_track(&self.participant, source.clone(), settings, true).await?;
+        let sid = publish_video_track(&self.participant(), source.clone(), settings, true).await?;
         *self.gpu.lock().unwrap() = Some(GpuPicture {
             source,
             feed,
@@ -753,11 +894,10 @@ async fn publish_when_opened(video: Arc<Video>, mut started: Started) {
 /// Tells the room, as an attribute of the share's own connection, when the
 /// shared window is minimised and when it is back. Called from the capture
 /// thread, so the request is handed to the runtime rather than awaited there.
-fn announce_paused(room: &Room) -> Box<dyn Fn(bool) + Send> {
-    let participant = room.local_participant();
+fn announce_paused(participant: SharedParticipant) -> Box<dyn Fn(bool) + Send> {
     let runtime = tokio::runtime::Handle::current();
     Box::new(move |paused| {
-        let participant = participant.clone();
+        let participant = participant.lock().unwrap().clone();
         runtime.spawn(async move {
             let attributes = HashMap::from([(PAUSED_ATTRIBUTE.to_string(), paused.to_string())]);
             if let Err(e) = participant.set_attributes(attributes).await {

@@ -5,6 +5,7 @@ part of 'livekit_cubit.dart';
 mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
   List<EventsListener<RoomEvent>> get _listeners;
   Map<String, Set<String>> get _watchingSeen;
+  WatchResume get _watchResume;
   SoundboardCubit? get _soundboardCubit;
   AppCubit get _appCubit;
   TokenCubit get _tokenCubit;
@@ -57,6 +58,11 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
       ..on<ParticipantDisconnectedEvent>((e) {
         final identity = e.participant.identity;
         _watchingSeen.remove(identity);
+        // Gone without anybody pressing Stop watching, so it may well be
+        // back in a moment — see [WatchResume].
+        if (state.subscribedScreenshares.contains(identity)) {
+          _watchResume.remember([identity], DateTime.now());
+        }
         _forgetStream(identity);
         _onRemoteAudioMayHaveGone();
         if (ParticipantIdentity.isShare(identity)) {
@@ -87,10 +93,11 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
               e.publication.source == TrackSource.screenShareVideo) {
             SoundService.instance.play(AppSound.stream);
           }
-          if (!state.subscribedScreenshares.contains(e.participant.identity)) {
+          if (!_watching(e.participant.identity)) {
             // Prevent auto-subscription to unsubscribed screenshares.
             if (e.publication.subscribed) e.publication.unsubscribe();
           } else {
+            if (!e.publication.subscribed) e.publication.subscribe();
             if (e.publication.source == TrackSource.screenShareVideo) {
               _applyScreenshareQualitySettings(e.participant);
             }
@@ -126,15 +133,13 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
           }
         } else if (_isStreamTrack(e.participant, e.publication)) {
           if (e.publication.source == TrackSource.screenShareVideo) {
-            if (state.subscribedScreenshares.contains(e.participant.identity)) {
+            if (_watching(e.participant.identity)) {
               e.publication.setVideoQuality(VideoQuality.HIGH);
             } else {
               e.publication.unsubscribe();
             }
           } else if (e.publication.source == TrackSource.screenShareAudio) {
-            if (!state.subscribedScreenshares.contains(
-              e.participant.identity,
-            )) {
+            if (!_watching(e.participant.identity)) {
               e.publication.unsubscribe();
             }
           }
@@ -350,6 +355,21 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
       if (room.localParticipant case final local? when streams(local))
         local.identity,
     };
+  }
+
+  /// Whether [identity]'s stream, which has just arrived, is one this client
+  /// watches: already in the set, or one that dropped out a moment ago and
+  /// is back, which is put in the set again here.
+  bool _watching(String identity) {
+    if (state.subscribedScreenshares.contains(identity)) return true;
+    if (!_watchResume.take(identity, DateTime.now())) return false;
+    emit(
+      state.copyWith(
+        subscribedScreenshares: {...state.subscribedScreenshares, identity},
+      ),
+    );
+    unawaited(_publishSelfState());
+    return true;
   }
 
   /// Stops counting [identity]'s stream as watched once it has ended. It

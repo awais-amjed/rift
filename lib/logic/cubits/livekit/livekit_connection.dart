@@ -31,6 +31,12 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
   /// Implemented by [_DmCallConnectMixin].
   Future<void> rejoinDmCall();
 
+  /// Implemented by the cubit. A share is a connection of its own, so a join
+  /// has to take it along or end it — see [_followShares].
+  ScreenshareCubit? get _screenshareCubit;
+  SoundShareCubit? get _soundShareCubit;
+  WatchResume get _watchResume;
+
   /// Both implemented by [_LiveKitLeaveMixin]. Joining needs them because a
   /// join that fails partway has to undo itself, and because being moved to
   /// another channel is a leave followed by a join.
@@ -94,6 +100,14 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
     // it. Its token names a node and is dropped for the same reason leaving
     // drops one — see [forgetChannelToken].
     final leaving = state.currentChannelId;
+    // The streams being watched, waited for through a rejoin of the same
+    // call — a region change, or the connection giving out. Each sharer's
+    // connection follows the call into the new room under the identity it
+    // had, so the viewer goes on watching instead of being offered the
+    // stream again.
+    if (leaving == channelId) {
+      _watchResume.remember(state.subscribedScreenshares, DateTime.now());
+    }
 
     // Emit 'connecting' before cleanup so the RoomDisconnectedEvent fired during
     // _cleanupRoom is not misread as an unexpected disconnect and doesn't clear
@@ -108,7 +122,12 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
     );
 
     if (hadRoom || wasConnecting) await _cleanupRoom();
-    if (leaving != channelId) forgetChannelToken(leaving);
+    if (leaving != channelId) {
+      forgetChannelToken(leaving);
+      // Ended now rather than once the new call is up: a join that fails
+      // would otherwise leave them streaming into the channel just left.
+      if (leaving != null) unawaited(_followShares());
+    }
 
     emit(state.copyWith(clearRoom: true));
 
@@ -330,6 +349,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       unawaited(_publishSelfState());
       _syncParticipants();
       _applyStoredSettings();
+      unawaited(_followShares());
       return false;
     } catch (e) {
       HelperMethods.printDebug('[LiveKit] room.connect() threw: $e');
@@ -365,6 +385,15 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       }
       return mintAgain;
     }
+  }
+
+  /// Takes this device's screen and sound shares into the call it is now in,
+  /// or ends them if they were in another. Each share is its own connection,
+  /// so nothing about the call's own reconnect reaches it: after a region
+  /// change or a rejoin it went on streaming into the room everybody had left.
+  Future<void> _followShares() async {
+    await _screenshareCubit?.followCall();
+    await _soundShareCubit?.followCall();
   }
 
   /// The channel's name for the notification. A plain loop rather than a

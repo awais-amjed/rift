@@ -19,6 +19,7 @@ mixin _LiveKitLeaveMixin on Cubit<LiveKitState>, _E2EEMixin {
   SoundShareCubit? get _soundShareCubit;
   SoundboardCubit? get _soundboardCubit;
   List<EventsListener<RoomEvent>> get _listeners;
+  WatchResume get _watchResume;
   Future<void> _stopVoiceActivityMonitor();
   void _resetCaptureRevive();
 
@@ -51,6 +52,8 @@ mixin _LiveKitLeaveMixin on Cubit<LiveKitState>, _E2EEMixin {
       unawaited(SoundService.instance.play(AppSound.presence, ending: true));
       _appCubit.setParticipants([]);
       _appCubit.setSelectedChannelId(null);
+      // Nothing is coming back to a call that was left.
+      _watchResume.clear();
 
       emit(
         state.copyWith(

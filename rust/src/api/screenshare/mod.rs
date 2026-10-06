@@ -18,7 +18,8 @@ use crate::sharing::audio;
 use crate::frb_generated::StreamSink;
 use std::sync::Mutex;
 use types::{
-    AudioSource, CaptureSource, ScreenShareConfig, ScreenshareEvent, ShareQuality, VideoCodec,
+    AudioSource, CaptureSource, ScreenShareConfig, ScreenshareEvent, ShareQuality, ShareRoom,
+    VideoCodec,
 };
 
 // Set once when Flutter subscribes; replaced if it subscribes again.
@@ -67,6 +68,22 @@ pub async fn update_screenshare(quality: ShareQuality) -> Result<ShareQuality, S
     #[cfg(not(desktop))]
     {
         let _ = quality;
+        Err("Screen sharing from Rust is desktop-only on this build".to_string())
+    }
+}
+
+/// Take the running share into the room its call reconnected to, keeping the
+/// capture: a region change or a rejoin leaves the share's own connection in
+/// a room nobody is in any more. A desktop portal is not asked again; viewers
+/// see the picture come back once it is published in the new room.
+pub async fn move_screenshare(room: ShareRoom) -> Result<(), String> {
+    #[cfg(desktop)]
+    {
+        session::move_to(room).await
+    }
+    #[cfg(not(desktop))]
+    {
+        let _ = room;
         Err("Screen sharing from Rust is desktop-only on this build".to_string())
     }
 }
