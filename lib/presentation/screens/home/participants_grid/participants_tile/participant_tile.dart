@@ -84,7 +84,11 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
 
   TrackPublication? _videoPub;
   bool _showOverlays = true;
-  bool _statsPinned = false;
+
+  /// Starts from the saved pin, not from false: the stats overlay's own pin
+  /// reads the saved value, so a fresh tile drew a pinned pin and then faded
+  /// the stats away with everything else two seconds into the next stream.
+  late bool _statsPinned;
   Timer? _hideTimer;
 
   bool get _isScreenshare => widget.isScreenshare;
@@ -92,6 +96,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
   @override
   void initState() {
     super.initState();
+    _statsPinned = context.read<AppCubit>().state.statsOverlayPinned;
     _updateVideoTrack();
     widget.participant.addListener(_onParticipantChanged);
 
