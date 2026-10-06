@@ -109,9 +109,9 @@ class ServerChipMenu extends StatelessWidget {
           ContextMenuItem(
             icon: Icons.settings_outlined,
             label: 'Manage server',
-            // Open reports, for the server they belong to. On a phone this
-            // is the only place a moderator would see them waiting: there is
-            // no settings gear in the header to carry the count.
+            // Open reports, for the server they belong to. This is where a
+            // moderator sees them waiting: the sidebar header has no
+            // settings gear to carry the count.
             trailing: switch (context.select<ReportsCubit, int>(
               (c) => c.state.openCount,
             )) {

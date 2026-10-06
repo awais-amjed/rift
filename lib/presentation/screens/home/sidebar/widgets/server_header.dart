@@ -20,6 +20,10 @@ import 'sidebar_peek_scope.dart';
 /// The name and that claim are a label, not a button. Only the icons act,
 /// and each says which one it is — a whole row that silently opens settings
 /// gives no clue what it will do before you commit to it.
+///
+/// No settings gear: with invite and hide beside the name a third icon was
+/// one too many, and settings is a rare trip — the rail chip's menu has it,
+/// with the open-report count.
 class ServerHeader extends StatelessWidget {
   final Server server;
 
@@ -29,22 +33,13 @@ class ServerHeader extends StatelessWidget {
   /// for the same mark.
   final bool showHideButton;
 
-  /// Admin-only. Null hides the gear.
-  final VoidCallback? onOpenSettings;
-
   /// For whoever may make invites. Null hides the button.
   final VoidCallback? onInvite;
-
-  /// Reports waiting on this member, drawn on the settings button. 0 for
-  /// everybody who does not review them.
-  final int openReports;
 
   const ServerHeader({
     super.key,
     required this.server,
-    this.onOpenSettings,
     this.onInvite,
-    this.openReports = 0,
     this.showHideButton = true,
   });
 
@@ -68,7 +63,6 @@ class ServerHeader extends StatelessWidget {
             ),
             Expanded(child: _buildIdentity(themeState)),
             if (onInvite != null) _buildInviteButton(themeState),
-            if (onOpenSettings != null) _buildSettingsButton(themeState),
             if (showHideButton) _buildHideButton(context, themeState),
           ],
         ),
@@ -98,7 +92,7 @@ class ServerHeader extends StatelessWidget {
             ),
             Flexible(
               // One word, because the sidebar is a fixed width and the
-              // header spends it on a name, a gear and a collapse chevron:
+              // header spends it on a name and the buttons beside it:
               // "End-to-end encrypted" came out as "End-to-end encryp…" on a
               // 1500px window, which is a claim cut off halfway through
               // making it. The padlock beside it carries the rest, and
@@ -128,31 +122,6 @@ class ServerHeader extends StatelessWidget {
         Icons.person_add_outlined,
         size: K.iconButton,
         color: themeState.textTertiary,
-      ),
-    );
-  }
-
-  /// With a dot of the open-report count for somebody who reviews them: a
-  /// report is only useful if it is seen, and nobody opens a settings dialog
-  /// on the off chance.
-  Widget _buildSettingsButton(ThemeState themeState) {
-    return IconButton(
-      tooltip: openReports > 0
-          ? 'Server settings · $openReports open '
-                '${openReports == 1 ? 'report' : 'reports'}'
-          : 'Server settings',
-      visualDensity: VisualDensity.compact,
-      onPressed: onOpenSettings,
-      icon: Badge(
-        isLabelVisible: openReports > 0,
-        backgroundColor: themeState.primary,
-        textColor: themeState.onPrimary,
-        label: Text('$openReports'),
-        child: Icon(
-          Icons.settings_outlined,
-          size: K.iconButton,
-          color: themeState.textTertiary,
-        ),
       ),
     );
   }

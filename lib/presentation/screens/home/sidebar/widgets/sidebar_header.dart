@@ -1,17 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../data/classes/server.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
-import '../../../../../logic/cubits/reports/reports_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_modal.dart';
 import '../../invites/show_invite_modal.dart';
 import '../../servers/add_server/add_server_dialog.dart';
-import '../../servers/manage/server_manage_tab.dart';
-import '../../servers/manage/show_server_manage_dialog.dart';
 import '../../servers/widgets/no_server_button.dart';
 import '../quick_switcher/quick_switcher_dialog.dart';
 import 'jump_field.dart';
@@ -35,12 +31,6 @@ class SidebarHeader extends StatelessWidget {
           return NoServerButton(onTap: () => _openAddServerDialog(context));
         }
 
-        // The gear opens for anybody with a page in there, not only an
-        // administrator — same rule as the rail's menu, and for the same
-        // reason: the dialog decides what its pages need.
-        final canManage = ServerManageTabs.visible(
-          server.user?.permissions,
-        ).isNotEmpty;
         return Column(
           children: [
             ServerHeader(
@@ -49,25 +39,12 @@ class SidebarHeader extends StatelessWidget {
               onInvite: (server.user?.permissions.canCreateTokens ?? false)
                   ? () => showInviteModal(context, server: server)
                   : null,
-              onOpenSettings: canManage
-                  ? () => _openServerSettings(context, server)
-                  : null,
-              openReports: context.select<ReportsCubit, int>(
-                (c) => c.state.openCount,
-              ),
             ),
             JumpField(onTap: () => openQuickSwitcher(context)),
           ],
         );
       },
     );
-  }
-
-  /// Everything about running [server] — here, always the one this header is
-  /// showing — opened on its first page, which for an administrator is the
-  /// overview and for anybody else is whatever they actually hold.
-  void _openServerSettings(BuildContext context, Server server) {
-    showServerManageDialog(context, server: server);
   }
 
   /// Joining or creating a server.

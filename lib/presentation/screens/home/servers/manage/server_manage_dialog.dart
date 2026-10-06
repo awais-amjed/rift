@@ -29,12 +29,12 @@ import 'widgets/manage_panel.dart';
 /// There used to be a dialog for each — settings here, roles behind a shield
 /// in the members list, bots and webhooks under each channel's right-click —
 /// and finding any of them meant already knowing where it was. Now the rail's
-/// menu and the sidebar's gear both open this, on whichever page the caller
-/// had in mind, and the rest are one click to the left.
+/// menu opens this, on whichever page the caller had in mind, and the rest
+/// are one click to the left.
 ///
-/// It is for the people running the place. Inviting somebody and leaving are
-/// a member's own business and stay on the rail's menu; which pages exist
-/// beyond that is [ServerManageTabs], and each page owns its own footer.
+/// It is for the people running the place. Leaving is a member's own business
+/// and stays on the rail's menu; which pages exist beyond that is
+/// [ServerManageTabs], and each page owns its own footer.
 class ServerManageDialog extends StatefulWidget {
   final Server server;
   final ServerManageTab? initial;

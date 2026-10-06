@@ -49,7 +49,7 @@ Future<int Function()> _pumpHeader(WidgetTester tester) async {
           body: SizedBox(
             width: 288,
             child: withShellScope(
-              ServerHeader(server: _server(), onOpenSettings: () => opened++),
+              ServerHeader(server: _server(), onInvite: () => opened++),
             ),
           ),
         ),
@@ -64,22 +64,18 @@ void main() {
   setUp(() => HydratedBloc.storage = _MemoryStorage());
 
   group('the server header', () {
-    testWidgets('does not open settings when the name is tapped', (
-      tester,
-    ) async {
+    testWidgets('does not invite when the name is tapped', (tester) async {
       final opened = await _pumpHeader(tester);
 
       await tester.tap(find.text('Rift HQ'));
       await tester.pump();
 
-      // The identity is a label. Opening a settings dialog from it gives no
-      // warning of what the tap will do.
+      // The identity is a label. Opening a dialog from it gives no warning
+      // of what the tap will do.
       expect(opened(), 0);
     });
 
-    testWidgets('does not open settings when the E2E claim is tapped', (
-      tester,
-    ) async {
+    testWidgets('does not invite when the E2E claim is tapped', (tester) async {
       final opened = await _pumpHeader(tester);
 
       await tester.tap(find.text('Encrypted'));
@@ -88,10 +84,10 @@ void main() {
       expect(opened(), 0);
     });
 
-    testWidgets('opens settings from the gear', (tester) async {
+    testWidgets('invites from its button', (tester) async {
       final opened = await _pumpHeader(tester);
 
-      await tester.tap(find.byIcon(Icons.settings_outlined));
+      await tester.tap(find.byIcon(Icons.person_add_outlined));
       await tester.pump();
 
       expect(opened(), 1);
@@ -103,16 +99,26 @@ void main() {
       await tester.tap(find.byIcon(Icons.chevron_left_rounded));
       await tester.pump();
 
-      // Hiding the sidebar must not also open settings.
+      // Hiding the sidebar must not also open the invite dialog.
       expect(opened(), 0);
       // And it only ever points one way: there is no pinned/unpinned mode for
       // it to describe any more, so it never becomes a pin.
       expect(find.byIcon(Icons.chevron_left_rounded), findsOneWidget);
       expect(find.byIcon(Icons.push_pin_outlined), findsNothing);
     });
+
+    testWidgets('has no settings gear: settings is on the rail menu', (
+      tester,
+    ) async {
+      await _pumpHeader(tester);
+
+      expect(find.byIcon(Icons.settings_outlined), findsNothing);
+    });
   });
 
-  testWidgets('a non-admin gets no gear at all', (tester) async {
+  testWidgets('somebody who cannot invite gets no invite button', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         home: MultiBlocProvider(
@@ -131,6 +137,6 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.byIcon(Icons.settings_outlined), findsNothing);
+    expect(find.byIcon(Icons.person_add_outlined), findsNothing);
   });
 }
