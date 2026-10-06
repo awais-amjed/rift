@@ -37,14 +37,20 @@ class KeyShortcut {
     );
   }
 
-  /// Whether this can be a shortcut. A plain key, or one with only Shift,
-  /// is typing: bound, it would fire in the middle of a message. Function
-  /// keys type nothing, so they may stand alone.
-  bool get isUsable => ctrl || alt || meta || _isFunctionKey;
+  /// Whether this can be a shortcut. A key that types or moves the caret,
+  /// alone or with only Shift, would fire in the middle of a message. Any
+  /// other key may stand alone: F9, Page Down, Insert, a media key.
+  bool get isUsable => ctrl || alt || meta || !_isTyping;
 
-  bool get _isFunctionKey {
+  bool get _isTyping {
+    // Letters, digits, symbols and Space: every key with a character of its
+    // own is in Flutter's Unicode plane.
+    if (keyId & LogicalKeyboardKey.planeMask ==
+        LogicalKeyboardKey.unicodePlane) {
+      return true;
+    }
     final key = LogicalKeyboardKey.findKeyByKeyId(keyId);
-    return key != null && _functionKeys.contains(key);
+    return key != null && _editingKeys.contains(key);
   }
 
   /// Whether [key], pressed with the modifiers [keys] holds, is this one.
@@ -93,31 +99,38 @@ class KeyShortcut {
     LogicalKeyboardKey.fn,
   };
 
-  static final _functionKeys = {
-    LogicalKeyboardKey.f1,
-    LogicalKeyboardKey.f2,
-    LogicalKeyboardKey.f3,
-    LogicalKeyboardKey.f4,
-    LogicalKeyboardKey.f5,
-    LogicalKeyboardKey.f6,
-    LogicalKeyboardKey.f7,
-    LogicalKeyboardKey.f8,
-    LogicalKeyboardKey.f9,
-    LogicalKeyboardKey.f10,
-    LogicalKeyboardKey.f11,
-    LogicalKeyboardKey.f12,
-    LogicalKeyboardKey.f13,
-    LogicalKeyboardKey.f14,
-    LogicalKeyboardKey.f15,
-    LogicalKeyboardKey.f16,
-    LogicalKeyboardKey.f17,
-    LogicalKeyboardKey.f18,
-    LogicalKeyboardKey.f19,
-    LogicalKeyboardKey.f20,
-    LogicalKeyboardKey.f21,
-    LogicalKeyboardKey.f22,
-    LogicalKeyboardKey.f23,
-    LogicalKeyboardKey.f24,
+  /// What a text field uses, and the number pad, which types digits.
+  /// Esc is here too: it is how picking a shortcut is cancelled.
+  static final _editingKeys = {
+    LogicalKeyboardKey.enter,
+    LogicalKeyboardKey.tab,
+    LogicalKeyboardKey.backspace,
+    LogicalKeyboardKey.delete,
+    LogicalKeyboardKey.escape,
+    LogicalKeyboardKey.arrowLeft,
+    LogicalKeyboardKey.arrowRight,
+    LogicalKeyboardKey.arrowUp,
+    LogicalKeyboardKey.arrowDown,
+    LogicalKeyboardKey.home,
+    LogicalKeyboardKey.end,
+    LogicalKeyboardKey.numpad0,
+    LogicalKeyboardKey.numpad1,
+    LogicalKeyboardKey.numpad2,
+    LogicalKeyboardKey.numpad3,
+    LogicalKeyboardKey.numpad4,
+    LogicalKeyboardKey.numpad5,
+    LogicalKeyboardKey.numpad6,
+    LogicalKeyboardKey.numpad7,
+    LogicalKeyboardKey.numpad8,
+    LogicalKeyboardKey.numpad9,
+    LogicalKeyboardKey.numpadDecimal,
+    LogicalKeyboardKey.numpadAdd,
+    LogicalKeyboardKey.numpadSubtract,
+    LogicalKeyboardKey.numpadMultiply,
+    LogicalKeyboardKey.numpadDivide,
+    LogicalKeyboardKey.numpadEqual,
+    LogicalKeyboardKey.numpadComma,
+    LogicalKeyboardKey.numpadEnter,
   };
 
   factory KeyShortcut.fromJson(Map<String, dynamic> json) => KeyShortcut(

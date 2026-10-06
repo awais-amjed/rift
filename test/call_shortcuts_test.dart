@@ -33,7 +33,34 @@ void main() {
       expect(KeyShortcut(keyId: m, shift: true).isUsable, isFalse);
       expect(KeyShortcut(keyId: m, ctrl: true).isUsable, isTrue);
       expect(KeyShortcut(keyId: m, alt: true).isUsable, isTrue);
-      expect(KeyShortcut(keyId: LogicalKeyboardKey.f9.keyId).isUsable, isTrue);
+      for (final key in [
+        LogicalKeyboardKey.space,
+        LogicalKeyboardKey.digit1,
+        LogicalKeyboardKey.backspace,
+        LogicalKeyboardKey.arrowUp,
+        LogicalKeyboardKey.home,
+        LogicalKeyboardKey.numpad5,
+      ]) {
+        expect(KeyShortcut(keyId: key.keyId).isUsable, isFalse, reason: '$key');
+      }
+    });
+
+    test('a key that types nothing may stand alone', () {
+      for (final key in [
+        LogicalKeyboardKey.f9,
+        LogicalKeyboardKey.pageUp,
+        LogicalKeyboardKey.pageDown,
+        LogicalKeyboardKey.insert,
+        LogicalKeyboardKey.pause,
+        LogicalKeyboardKey.scrollLock,
+        LogicalKeyboardKey.mediaPlayPause,
+      ]) {
+        expect(KeyShortcut(keyId: key.keyId).isUsable, isTrue, reason: '$key');
+      }
+      expect(
+        KeyShortcut(keyId: LogicalKeyboardKey.pageDown.keyId).label,
+        'Page Down',
+      );
     });
 
     test('survives a save', () {
@@ -141,7 +168,12 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.keyM);
       await tester.pump();
       expect(app.state.callShortcuts.deafen, isNull);
-      expect(find.text('Add Ctrl or Alt, or use a function key.'), findsOne);
+      expect(
+        find.text(
+          'That key is for typing. Add Ctrl or Alt, or pick a key like F9.',
+        ),
+        findsOne,
+      );
 
       await pressCtrlShiftM(tester);
       expect(app.state.callShortcuts.deafen, ctrlShiftM);

@@ -29,7 +29,7 @@ class _CallShortcutRowState extends State<CallShortcutRow> {
   final FocusNode _focus = FocusNode();
   bool _capturing = false;
 
-  /// The last press could not be a shortcut: a plain key, which is typing.
+  /// The last press could not be a shortcut: a key that types.
   bool _refused = false;
 
   @override
@@ -109,7 +109,7 @@ class _CallShortcutRowState extends State<CallShortcutRow> {
                 if (_capturing)
                   Text(
                     _refused
-                        ? 'Add Ctrl or Alt, or use a function key.'
+                        ? 'That key is for typing. Add Ctrl or Alt, or pick a key like F9.'
                         : 'Press the keys together, like Ctrl+Shift+M.',
                     style: hint,
                   )
