@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/constants.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/soundboard/soundboard_cubit.dart';
@@ -20,7 +21,12 @@ import 'soundboard_popover.dart';
 /// all and this member could not add one — a button onto an empty list with
 /// no way to fill it.
 class SoundboardButton extends StatefulWidget {
-  const SoundboardButton({super.key});
+  /// Drawn for the user dock's call row (see [ControlButton.dense]), last in
+  /// it. It then takes its own share of the row, so it must sit straight in
+  /// the dock's [Row].
+  final bool dense;
+
+  const SoundboardButton({super.key, this.dense = false});
 
   @override
   State<SoundboardButton> createState() => _SoundboardButtonState();
@@ -138,19 +144,26 @@ class _SoundboardButtonState extends State<SoundboardButton> {
         if (state.isEmpty && !context.read<SoundboardCubit>().canManage) {
           return const SizedBox.shrink();
         }
-        // The gap to the next control is carried here rather than by the
-        // bar, because this is the one control in the row that can be absent
-        // — left outside, it would be a 4px hole in the pill.
-        return Padding(
-          padding: const EdgeInsets.only(right: 4),
-          child: ControlButton(
-            key: _buttonKey,
-            icon: Icons.graphic_eq_rounded,
-            isActive: _entry != null,
-            tooltip: 'Soundboard',
-            onTap: _toggle,
-          ),
+        final button = ControlButton(
+          key: _buttonKey,
+          icon: Icons.graphic_eq_rounded,
+          isActive: _entry != null,
+          tooltip: 'Soundboard',
+          onTap: _toggle,
+          dense: widget.dense,
         );
+        // The gap to the next control is carried here rather than by the
+        // row, because this is the one control in it that can be absent —
+        // left outside, it would be a hole beside nothing.
+        if (widget.dense) {
+          return Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(left: K.dockCallButtonGap),
+              child: button,
+            ),
+          );
+        }
+        return Padding(padding: const EdgeInsets.only(right: 4), child: button);
       },
     );
   }

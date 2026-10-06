@@ -19,7 +19,10 @@ import 'widgets/sharing_button.dart';
 /// share, and while one runs, a button that stops it with a menu beside it
 /// for changing the stream without stopping it.
 class ScreenShareControl extends StatefulWidget {
-  const ScreenShareControl({super.key});
+  /// Drawn for the user dock: see [ControlButton.dense].
+  final bool dense;
+
+  const ScreenShareControl({super.key, this.dense = false});
 
   @override
   State<ScreenShareControl> createState() => _ScreenShareControlState();
@@ -104,6 +107,7 @@ class _ScreenShareControlState extends State<ScreenShareControl> {
             icon: Icons.present_to_all,
             tooltip: 'Share screen',
             onTap: _start,
+            dense: widget.dense,
           );
         }
         final stop = context.read<ScreenshareCubit>().stopScreenShare;
@@ -115,9 +119,15 @@ class _ScreenShareControlState extends State<ScreenShareControl> {
             isActive: true,
             tooltip: 'Stop sharing',
             onTap: stop,
+            dense: widget.dense,
           );
         }
-        return SharingButton(key: _buttonKey, onStop: stop, onMenu: _openMenu);
+        return SharingButton(
+          key: _buttonKey,
+          onStop: stop,
+          onMenu: _openMenu,
+          dense: widget.dense,
+        );
       },
     );
   }

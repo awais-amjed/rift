@@ -14,10 +14,12 @@ import '../../../../theme/theme_context.dart';
 import '../connection_quality/connection_quality_indicator.dart';
 import '../edit/profile_edit_modal.dart';
 import 'widgets/dock_avatar_button.dart';
+import 'widgets/dock_call_panel.dart';
 import 'widgets/dock_icon_button.dart';
 
 /// You, at the bottom of the sidebar: who you are, how your connection is
-/// doing, and the two controls you reach for mid-call.
+/// doing, and the two controls you reach for mid-call — and, with
+/// [showCall], the call itself above them ([DockCallPanel]).
 ///
 /// A floating pill inside the panel rather than a bar welded to its bottom
 /// edge — it belongs to the same family as the voice card above it, and both
@@ -28,7 +30,11 @@ class UserDock extends StatelessWidget {
   /// this is where settings lives there.
   final bool showSettings;
 
-  const UserDock({super.key, this.showSettings = false});
+  /// Grows the call's controls on top while in one. A desktop's sidebar: a
+  /// phone has the call bar over every screen instead ([MiniCallBar]).
+  final bool showCall;
+
+  const UserDock({super.key, this.showSettings = false, this.showCall = false});
 
   @override
   Widget build(BuildContext context) {
@@ -46,19 +52,24 @@ class UserDock extends StatelessWidget {
             borderRadius: BorderRadius.circular(K.radiusCard),
             border: Border.all(color: themeState.borderElevated),
           ),
-          child: Row(
-            spacing: 9,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              DockAvatarButton(
-                user: user,
-
-                onTap: () => showAppModal<bool>(
-                  context: context,
-                  modal: const ProfileEditModal(),
-                ),
+              if (showCall) const DockCallPanel(),
+              Row(
+                spacing: 9,
+                children: [
+                  DockAvatarButton(
+                    user: user,
+                    onTap: () => showAppModal<bool>(
+                      context: context,
+                      modal: const ProfileEditModal(),
+                    ),
+                  ),
+                  Expanded(child: _buildIdentity(themeState, user)),
+                  _buildControls(context),
+                ],
               ),
-              Expanded(child: _buildIdentity(themeState, user)),
-              _buildControls(context),
             ],
           ),
         );

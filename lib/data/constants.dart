@@ -80,6 +80,11 @@ class K {
   /// toolbar, the reply bar's close, the soundboard's mute.
   static const double iconButtonSmall = 28;
 
+  /// The call's controls in the user dock: shorter than the call bar's, and
+  /// as wide as the dock shares out between them.
+  static const double dockCallButtonHeight = 34;
+  static const double dockCallButtonGap = 6;
+
   // ── Dialog widths ─────────────────────────────────────────
   /// A form dialog whose fields run in one column.
   static const double dialogWidth = 480;

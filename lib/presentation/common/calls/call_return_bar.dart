@@ -13,9 +13,8 @@ import '../../theme/theme_context.dart';
 /// The call you are in, as one row: what it is, how long it has run, your
 /// mic, and Leave — with the rest of the row taking you back to it.
 ///
-/// Shared by the phone's [MiniCallBar], which keeps any call a tap away, and
-/// the desktop sidebar's bar for a DM call, which lives in a conversation
-/// you may have walked away from.
+/// The phone's [MiniCallBar], which keeps any call a tap away. A desktop has
+/// the call on top of the user dock instead ([DockCallPanel]).
 class CallReturnBar extends StatefulWidget {
   final String channelName;
   final bool failed;
