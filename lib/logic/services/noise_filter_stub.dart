@@ -12,4 +12,8 @@ abstract final class NoiseFilter {
       mode != NoiseSuppression.off;
 
   static Future<void> use(NoiseSuppression mode) async {}
+
+  static bool get canSetGain => false;
+
+  static void setGain(double gain) {}
 }

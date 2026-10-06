@@ -102,6 +102,10 @@ class AppState {
   /// as sent, and up to [CallVolume.max].
   final double outputVolume;
 
+  /// How loud the microphone is sent, as its slider reads: 1 as it is, and up
+  /// to [MicVolume.max]. Applied where [MicVolume.adjustable].
+  final double inputVolume;
+
   // ── Audio processing (applied to the mic capture track) ────
   /// Saved as a bool before it was a choice; [NoiseSuppression.fromJson]
   /// reads both.
@@ -231,6 +235,7 @@ class AppState {
     this.outputDeviceId,
     this.inputDeviceId,
     this.outputVolume = 1.0,
+    this.inputVolume = 1.0,
     this.noiseSuppression = NoiseSuppression.rnnoise,
     this.echoCancellation = true,
     this.autoGainControl = true,
@@ -307,6 +312,7 @@ class AppState {
     bool clearOutputDeviceId = false,
     String? inputDeviceId,
     double? outputVolume,
+    double? inputVolume,
     bool clearInputDeviceId = false,
     NoiseSuppression? noiseSuppression,
     bool? echoCancellation,
@@ -370,6 +376,7 @@ class AppState {
           ? null
           : (inputDeviceId ?? this.inputDeviceId),
       outputVolume: outputVolume ?? this.outputVolume,
+      inputVolume: inputVolume ?? this.inputVolume,
       noiseSuppression: noiseSuppression ?? this.noiseSuppression,
       echoCancellation: echoCancellation ?? this.echoCancellation,
       autoGainControl: autoGainControl ?? this.autoGainControl,

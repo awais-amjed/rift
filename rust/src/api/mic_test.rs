@@ -8,8 +8,8 @@
 //!
 //! It measures the device as the system delivers it, without WebRTC's noise
 //! suppression or gain control: what the test answers is whether Rift hears
-//! this microphone at all. It plays the same samples back, so you hear what
-//! Rift hears.
+//! this microphone at all. Only the mic volume is applied, as the call
+//! applies it. It plays the same samples back, so you hear what Rift hears.
 
 #[cfg(any(target_os = "windows", target_os = "linux"))]
 use crate::mic_test;
@@ -61,4 +61,14 @@ pub fn mic_test_samples(
 pub fn stop_mic_test() {
     #[cfg(any(target_os = "windows", target_os = "linux"))]
     mic_test::stop();
+}
+
+/// The mic volume, as a gain: what the test reads is turned up or down by it,
+/// meter and playback alike, as the call is by the runner's filter. Reaches a
+/// test already running.
+pub fn set_mic_test_gain(gain: f32) {
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    mic_test::set_gain(gain);
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
+    let _ = gain;
 }

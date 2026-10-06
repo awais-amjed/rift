@@ -40,7 +40,8 @@ rust/src/screenshare/  # What those functions call: session, capture, audio/ per
 third_party/      # Code kept here: packages to patch, and RNNoise — each says why in its RIFT_PATCHES.md
 native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model inside
                       # libwebrtc's processing of the mic — RNNoise, or DeepFilterNet from
-                      # rust/src/deep_filter.rs — switched from Dart over FFI (NoiseFilter)
+                      # rust/src/deep_filter.rs — then the mic volume, with a limiter,
+                      # all switched from Dart over FFI (NoiseFilter, MicVolume)
 ```
 
 ## State management — Bloc/Cubit only

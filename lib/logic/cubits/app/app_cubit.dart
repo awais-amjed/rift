@@ -19,6 +19,7 @@ import '../../../data/participant_identity.dart';
 import '../../services/call_volume.dart';
 import '../../services/hydrated_keys.dart';
 import '../../services/login_launch/login_launch.dart';
+import '../../services/mic_volume.dart';
 import '../../services/noise_filter.dart';
 
 part 'app_cubit.g.dart';
@@ -31,6 +32,7 @@ class AppCubit extends HydratedCubit<AppState> {
   AppCubit() : super(const AppState()) {
     // The filter lives in the native audio pipeline, which starts with none.
     unawaited(NoiseFilter.use(state.noiseSuppression));
+    MicVolume.apply(state.inputVolume);
   }
 
   /// A fixed name, not the class's: see [HydratedKeys].
@@ -266,6 +268,13 @@ class AppCubit extends HydratedCubit<AppState> {
   /// See [AppState.outputVolume]. The LiveKitCubit puts it on every track.
   void setOutputVolume(double volume) =>
       emit(state.copyWith(outputVolume: volume.clamp(0.0, CallVolume.max)));
+
+  /// See [AppState.inputVolume]. Applied at once, mid-call and mid-test.
+  void setInputVolume(double volume) {
+    final clamped = volume.clamp(0.0, MicVolume.max);
+    MicVolume.apply(clamped);
+    emit(state.copyWith(inputVolume: clamped));
+  }
 
   void setInputDeviceId(String? deviceId) {
     emit(

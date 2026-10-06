@@ -2,7 +2,7 @@
 //! the device runs at into the meter's format, and playing it back on a
 //! render stream polled from the same loop.
 
-use super::{for_playback, samples_from_le_bytes, stopped, Playback, SAMPLE_RATE};
+use super::{for_playback, samples_from_le_bytes, stopped, Boost, Playback, SAMPLE_RATE};
 use crate::cue::le_bytes;
 use crate::frb_generated::StreamSink;
 use std::sync::mpsc::Receiver;
@@ -66,6 +66,7 @@ pub(super) fn run(
         .map_err(|e| format!("the microphone would not start: {e:?}"))?;
 
     let mut buffer = vec![0u8; READ_BUFFER_BYTES];
+    let mut boost = Boost::new(SAMPLE_RATE);
     'test: loop {
         if stopped(stop) {
             break;
@@ -79,7 +80,8 @@ pub(super) fn run(
                 break;
             }
             let bytes = frames as usize * 2;
-            let samples = samples_from_le_bytes(&buffer[..bytes]);
+            let mut samples = samples_from_le_bytes(&buffer[..bytes]);
+            boost.apply(&mut samples);
             if let Some(((out_client, render), volume)) = &output {
                 let queued = out_client
                     .get_current_padding()

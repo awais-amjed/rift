@@ -10,6 +10,7 @@ use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
 use std::sync::Mutex;
 use std::thread::{self, JoinHandle};
 
+mod boost;
 #[cfg(target_os = "linux")]
 mod linux;
 #[cfg(target_os = "windows")]
@@ -19,6 +20,9 @@ mod windows;
 use linux::run;
 #[cfg(target_os = "windows")]
 use windows::run;
+
+pub(crate) use boost::set_gain;
+use boost::Boost;
 
 /// The meter's format (`micTapFormat` on the Dart side): mono 16-bit at
 /// 16 kHz. The platform converts whatever the device runs at.

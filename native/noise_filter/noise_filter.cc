@@ -1,6 +1,7 @@
 #include "noise_filter.h"
 
 #include <atomic>
+#include <cmath>
 
 #include <flutter_webrtc.h>
 #include <flutter_webrtc/flutter_web_r_t_c_plugin.h>
@@ -26,6 +27,17 @@ struct RatePath {
 
 // The model values Dart passes to rift_noise_filter_set_model.
 enum Model : int32_t { kNone = 0, kRnnoise = 1, kDeepFilter = 2 };
+
+// The loudest a boosted voice may come out: 2 dB under full scale, in the
+// units libwebrtc processes in (16-bit range, as floats). Opus does not give
+// back exactly the wave it was handed, and at 1 dB under its peaks came out
+// past full scale at the listener.
+constexpr float kCeiling = 0.79f * 32767.0f;
+
+// How fast the limiter lets go once a loud syllable has passed. Short enough
+// that the next quiet word is not held down; long enough that the gain does
+// not follow the waveform, which would be distortion of its own.
+constexpr float kReleaseSeconds = 0.1f;
 
 using DeepFilterProcess = int32_t (*)(float* samples, int32_t count);
 using DeepFilterReset = void (*)();
@@ -56,6 +68,12 @@ class NoiseProcessing final
     deep_filter_process_.store(process, std::memory_order_release);
   }
 
+  // The mic volume, as a gain: 1 leaves the voice as it is.
+  void SetGain(float gain) {
+    gain_.store(gain > 0 && std::isfinite(gain) ? gain : 1.0f,
+                std::memory_order_release);
+  }
+
   void Initialize(int, int) override { restart_ = true; }
 
   void Reset(int) override { restart_ = true; }
@@ -63,6 +81,12 @@ class NoiseProcessing final
   void Release() override {}
 
   void Process(int, int num_frames, int, float* buffer) override {
+    Denoise(num_frames, buffer);
+    Boost(num_frames, buffer);
+  }
+
+ private:
+  void Denoise(int num_frames, float* buffer) {
     const int32_t model = model_.load(std::memory_order_acquire);
     const DeepFilterProcess deep_filter =
         deep_filter_process_.load(std::memory_order_acquire);
@@ -77,17 +101,46 @@ class NoiseProcessing final
     }
 
     if (num_frames == kFrameSize) {
-      Denoise(buffer, deep_filter);
+      RunModel(buffer, deep_filter);
     } else if (path_ != nullptr) {
       path_->up.Process(buffer, num_frames, frame_);
-      Denoise(frame_, deep_filter);
+      RunModel(frame_, deep_filter);
       path_->down.Process(frame_, kFrameSize, buffer);
     }
     // Any other rate passes through untouched.
   }
 
- private:
-  void Denoise(float* frame, DeepFilterProcess deep_filter) {
+  // The mic volume, after the model, so the model hears the voice at the
+  // level it was trained on. Turned up, a voice that already peaks near full
+  // scale would be cut off flat, so a limiter holds the peaks under
+  // [kCeiling] instead: it takes the gain down at once on a peak and gives it
+  // back over [kReleaseSeconds]. The mic test does the same in Rust
+  // (`mic_test::boost`).
+  void Boost(int num_frames, float* buffer) {
+    const float gain = gain_.load(std::memory_order_acquire);
+    if (gain == 1.0f) {
+      envelope_ = 0;
+      return;
+    }
+    if (gain < 1.0f) {
+      envelope_ = 0;
+      for (int i = 0; i < num_frames; ++i) buffer[i] *= gain;
+      return;
+    }
+    // Each call is 10 ms, so the rate follows from the frame count.
+    if (num_frames != release_frames_) {
+      release_ = std::exp(-1.0f / (kReleaseSeconds * num_frames * 100.0f));
+      release_frames_ = num_frames;
+    }
+    for (int i = 0; i < num_frames; ++i) {
+      const float boosted = buffer[i] * gain;
+      envelope_ = std::fmax(std::fabs(boosted), envelope_ * release_);
+      buffer[i] = envelope_ > kCeiling ? boosted * (kCeiling / envelope_)
+                                       : boosted;
+    }
+  }
+
+  void RunModel(float* frame, DeepFilterProcess deep_filter) {
     if (running_ == kRnnoise) {
       rnnoise_process_frame(rnnoise_, frame, frame);
     } else {
@@ -122,6 +175,10 @@ class NoiseProcessing final
   int frames_ = 0;
   int32_t running_ = kNone;
   bool restart_ = true;
+  float envelope_ = 0;
+  float release_ = 0;
+  int release_frames_ = 0;
+  std::atomic<float> gain_{1.0f};
   std::atomic<int32_t> model_{kNone};
   std::atomic<DeepFilterProcess> deep_filter_process_{nullptr};
   std::atomic<DeepFilterReset> deep_filter_reset_{nullptr};
@@ -167,6 +224,10 @@ int32_t rift_noise_filter_available(void) {
 
 void rift_noise_filter_set_model(int32_t model) {
   if (rift::g_processing != nullptr) rift::g_processing->SetModel(model);
+}
+
+void rift_noise_filter_set_gain(float gain) {
+  if (rift::g_processing != nullptr) rift::g_processing->SetGain(gain);
 }
 
 void rift_noise_filter_set_deep_filter(void* process, void* reset) {

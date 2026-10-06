@@ -9,7 +9,7 @@
 //! stream opened without naming one follows, as WebRTC's own does.
 
 use super::{
-    for_playback, samples_from_le_bytes, stopped, Playback, PLAYBACK_SAMPLES, SAMPLE_RATE,
+    for_playback, samples_from_le_bytes, stopped, Boost, Playback, PLAYBACK_SAMPLES, SAMPLE_RATE,
 };
 use crate::cue::le_bytes;
 use crate::frb_generated::StreamSink;
@@ -48,6 +48,7 @@ pub(super) fn run(
         None => None,
     };
 
+    let mut boost = Boost::new(SAMPLE_RATE);
     let result = loop {
         if stopped(stop) {
             break Ok(());
@@ -55,7 +56,7 @@ pub(super) fn run(
         if !connection.turn() {
             break Err("the sound server went away".to_string());
         }
-        match read(&mut stream, output.as_mut(), sink) {
+        match read(&mut stream, output.as_mut(), &mut boost, sink) {
             Ok(true) => {}
             // Dart stopped listening: nothing left to read for.
             Ok(false) => break Ok(()),
@@ -74,14 +75,16 @@ pub(super) fn run(
 fn read(
     stream: &mut Stream,
     output: Option<&mut (Stream, f32)>,
+    boost: &mut Boost,
     sink: &StreamSink<Vec<i16>>,
 ) -> Result<bool, String> {
     let mut output = output;
     loop {
         match stream.peek() {
             Ok(PeekResult::Data(data)) => {
-                let samples = samples_from_le_bytes(data);
+                let mut samples = samples_from_le_bytes(data);
                 let _ = stream.discard();
+                boost.apply(&mut samples);
                 if let Some((out, volume)) = output.as_deref_mut() {
                     let room = out.writable_size().unwrap_or(0) / 2;
                     let played = for_playback(&samples, room, *volume);

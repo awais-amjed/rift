@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:ffi';
 import 'dart:io';
 
 import '../../data/enums/noise_suppression.dart';
+import '../../src/rust/api/mic_test.dart';
 import '../../src/rust/api/noise_filter.dart';
 import '../helper_methods.dart';
 
@@ -10,6 +12,8 @@ import '../helper_methods.dart';
 /// the runner, and DeepFilterNet from the Rust library, loaded the first time
 /// it is picked. One switch for the whole process: every capture track, the
 /// mic test's included, goes through the same processing.
+///
+/// The mic volume runs there too, after the model ([MicVolume]).
 ///
 /// Where the runner has no filter — the other platforms, or a factory that
 /// was not there to attach to — a model reads as [NoiseSuppression.standard].
@@ -38,6 +42,22 @@ abstract final class NoiseFilter {
     NoiseSuppression.standard => true,
     NoiseSuppression.rnnoise || NoiseSuppression.deepFilter => _native == null,
   };
+
+  /// Whether the runner can turn the microphone up or down: [setGain].
+  static bool get canSetGain => _native != null;
+
+  /// The mic volume as a gain, on every capture track and on the mic test,
+  /// which reads the device itself and so does not pass the runner's filter.
+  static void setGain(double gain) {
+    final native = _native;
+    if (native == null) return;
+    native.setGain(gain);
+    unawaited(
+      setMicTestGain(
+        gain: gain,
+      ).catchError((Object e) => HelperMethods.printDebug('Mic test gain: $e')),
+    );
+  }
 
   /// Puts [mode]'s model on the microphone, or takes it off. DeepFilterNet
   /// loads first, about a quarter of a second, with no model on meanwhile;
@@ -77,9 +97,10 @@ abstract final class _Model {
 
 class _NativeFilter {
   final void Function(int) setModel;
+  final void Function(double) setGain;
   final void Function(Pointer<Void>, Pointer<Void>) _setDeepFilter;
 
-  const _NativeFilter(this.setModel, this._setDeepFilter);
+  const _NativeFilter(this.setModel, this.setGain, this._setDeepFilter);
 
   void setDeepFilter(int process, int reset) =>
       _setDeepFilter(Pointer.fromAddress(process), Pointer.fromAddress(reset));
@@ -96,6 +117,9 @@ class _NativeFilter {
       return _NativeFilter(
         exe.lookupFunction<Void Function(Int32), void Function(int)>(
           'rift_noise_filter_set_model',
+        ),
+        exe.lookupFunction<Void Function(Float), void Function(double)>(
+          'rift_noise_filter_set_gain',
         ),
         exe.lookupFunction<
           Void Function(Pointer<Void>, Pointer<Void>),

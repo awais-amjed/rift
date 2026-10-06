@@ -28,6 +28,12 @@ Stream<Int16List> micTestSamples({
 /// Stops the running test, if any, and releases the microphone.
 Future<void> stopMicTest() => RustLib.instance.api.crateApiMicTestStopMicTest();
 
+/// The mic volume, as a gain: what the test reads is turned up or down by it,
+/// meter and playback alike, as the call is by the runner's filter. Reaches a
+/// test already running.
+Future<void> setMicTestGain({required double gain}) =>
+    RustLib.instance.api.crateApiMicTestSetMicTestGain(gain: gain);
+
 /// Where the test plays the microphone back.
 class MicTestPlayback {
   /// The id WebRTC lists the output under, or None for the default — as
