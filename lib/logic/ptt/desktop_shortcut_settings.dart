@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 import '../helper_methods.dart';
-import 'linux_desktop_entry.dart';
+import '../services/linux_desktop_entry.dart';
 
 /// Opens the desktop's own page for Rift's global shortcuts.
 ///

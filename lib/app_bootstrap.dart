@@ -16,6 +16,7 @@ import 'logic/services/gpu_codecs.dart';
 import 'logic/services/host_platform.dart';
 import 'logic/services/hydrated_store.dart';
 import 'logic/services/invite_scheme.dart';
+import 'logic/services/linux_desktop_entry.dart';
 import 'logic/services/notification_service.dart';
 import 'logic/services/profile_auth_storage.dart';
 import 'logic/services/push_service.dart';
@@ -71,6 +72,13 @@ class AppBootstrap {
       await windowManager.ensureInitialized();
       await _restoreWindow(appCubit);
       await TrayService.instance.init();
+    }
+    // An AppImage is one file nothing installs, so it puts itself in the
+    // app menu, with its icon. Not awaited: nothing here waits on the menu.
+    if (!kIsWeb &&
+        Platform.isLinux &&
+        Platform.environment.containsKey('APPIMAGE')) {
+      unawaited(LinuxDesktopEntry.ensure());
     }
     // Not desktop-only any more: Android posts these too, and the web posts
     // them through the browser's own Notification API. Asking for the

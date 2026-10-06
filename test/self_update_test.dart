@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rift/logic/cubits/app/app_cubit.dart';
-import 'package:rift/logic/ptt/linux_desktop_entry.dart';
+import 'package:rift/logic/services/linux_desktop_entry.dart';
 
 void main() {
   group('beta updates', () {
@@ -35,7 +35,7 @@ void main() {
     test('recognises its own entry, for any program', () {
       expect(
         LinuxDesktopEntry.isOwnEntry(
-          LinuxDesktopEntry.entry('/home/a/Rift.AppImage'),
+          LinuxDesktopEntry.entry('/home/a/Rift.AppImage', withIcon: true),
         ),
         isTrue,
       );
@@ -47,19 +47,48 @@ void main() {
       );
     });
 
-    test('leaves an entry someone else wrote alone', () {
+    test('recognises the four-line entry it wrote before', () {
       expect(
         LinuxDesktopEntry.isOwnEntry(
-          '${LinuxDesktopEntry.entry('/usr/bin/rift')}Icon=rift\n',
+          '[Desktop Entry]\nType=Application\nName=Rift\n'
+          'Exec=/opt/rift/rift\n',
         ),
-        isFalse,
+        isTrue,
       );
+    });
+
+    test('leaves an entry someone else wrote alone', () {
       expect(
         LinuxDesktopEntry.isOwnEntry(
           '[Desktop Entry]\nType=Application\nName=Rift\nExec=rift %u\n'
           'MimeType=x-scheme-handler/rift;\n',
         ),
         isFalse,
+      );
+    });
+
+    test('names its icon only when it has one', () {
+      expect(
+        LinuxDesktopEntry.entry('/a/Rift.AppImage', withIcon: true),
+        contains('\nIcon=com.codingfries.rift\n'),
+      );
+      expect(
+        LinuxDesktopEntry.entry('/a/Rift.AppImage'),
+        isNot(contains('Icon=')),
+      );
+    });
+
+    test('quotes a path with spaces, and reads it back', () {
+      const path = r'/home/a/My Apps/Rift "beta" $1.AppImage';
+      final entry = LinuxDesktopEntry.entry(path);
+      expect(
+        entry,
+        contains(r'Exec="/home/a/My Apps/Rift \"beta\" \$1.AppImage"'),
+      );
+      expect(LinuxDesktopEntry.execOf(entry), path);
+      expect(
+        LinuxDesktopEntry.execOf(LinuxDesktopEntry.entry('/opt/rift/rift')),
+        '/opt/rift/rift',
       );
     });
   });
