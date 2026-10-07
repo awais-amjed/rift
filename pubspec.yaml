@@ -3,7 +3,7 @@ description: "A lightweight voice and video communication app powered by LiveKit
 
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
-version: 1.4.0-beta.2+8
+version: 1.4.0-beta.3+9
 
 environment:
   sdk: ^3.11.1
