@@ -9,6 +9,7 @@ import '../../data/repositories/server_repository.dart';
 import '../cubits/server/server_cubit.dart';
 import '../cubits/vault/vault_cubit.dart';
 import '../helper_methods.dart';
+import 'channel_key_chain.dart';
 import 'chat_failure.dart';
 import 'keyring_outcome.dart';
 import 'voice_keys.dart';
@@ -128,8 +129,9 @@ class ChannelKeyring with _KeyringSealingMixin {
   /// the channel has moved off and cannot read what they send back.
   ///
   /// Older versions arrive this way too. A member who joined after a rotation
-  /// is sealed the current key first and the ones before it as other members'
-  /// sweeps get to them, and each one opens rows that were locked.
+  /// is sealed the current key first and the top of each older stretch of
+  /// linked versions as other members' sweeps get to them; each one, and
+  /// everything its links open, unlocks rows that were locked.
   ///
   /// Deliberately additive, unlike [loadOrBootstrap], which clears the ring
   /// before refilling it. That is right when opening a channel and wrong here:
@@ -147,7 +149,7 @@ class ChannelKeyring with _KeyringSealingMixin {
     final data = response.data as Map<String, dynamic>;
     final version = data['current_version'] as int;
 
-    var gained = false;
+    final before = keys.length;
     for (final entry
         in (data['my_keys'] as List).cast<Map<String, dynamic>>()) {
       final entryVersion = entry['key_version'] as int;
@@ -157,11 +159,12 @@ class ChannelKeyring with _KeyringSealingMixin {
           wrapped: WrappedKey.fromJson(entry),
           myKeyPair: identity.keyPair,
         );
-        gained = true;
       } catch (e) {
         HelperMethods.printDebug('[Keyring] unwrap failed: $e');
       }
     }
+    await _followLinks(channelId, data);
+    final gained = keys.length > before;
 
     // Only move up once the new key is actually in hand. Announcing a version
     // we cannot seal with would break sending outright, where staying put
@@ -171,6 +174,20 @@ class ChannelKeyring with _KeyringSealingMixin {
     }
     return gained;
   }
+
+  /// Open older versions from [data]'s links, keeping what [keys] holds, and
+  /// answer which of [own] they confirmed (see [ChannelKeyChain.follow]).
+  Future<Set<int>> _followLinks(
+    String channelId,
+    Map<String, dynamic> data, {
+    Set<int> own = const {},
+  }) => ChannelKeyChain.follow(
+    crypto: _crypto,
+    channelId: channelId,
+    keys: keys,
+    links: ((data['links'] as List?) ?? const []).cast<Map<String, dynamic>>(),
+    own: own,
+  );
 
   /// Seal a media key to any bot in [channelId] that is short of one.
   ///
@@ -232,7 +249,8 @@ class ChannelKeyring with _KeyringSealingMixin {
         continue; // conflict — refetch the winner's keyring
       }
 
-      // Unwrap every version sealed to us (full scrollback).
+      // Unwrap every version sealed to us, then open the rest of the
+      // scrollback from the links below them.
       for (final entry in myKeys) {
         try {
           keys[entry['key_version'] as int] = await _crypto.unwrapKey(
@@ -243,7 +261,19 @@ class ChannelKeyring with _KeyringSealingMixin {
           HelperMethods.printDebug('[Keyring] unwrap failed: $e');
         }
       }
+      final covered = await _followLinks(
+        channelId,
+        data,
+        own: keys.keys.toSet(),
+      );
       currentVersion = version;
+      // Rows the chain reaches, checked against what they hold, are rows this
+      // member no longer needs. Never the current one: a rotation is sealed
+      // from it, and nothing newer links down to it yet.
+      final droppable = covered.where((v) => v < version).toList();
+      if (droppable.isNotEmpty) {
+        unawaited(_serverCubit.pruneChannelKeys(channelId, droppable));
+      }
 
       if (!keys.containsKey(version)) return const KeyringOutcome.waiting();
 

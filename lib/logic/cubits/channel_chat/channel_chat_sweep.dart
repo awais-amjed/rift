@@ -95,8 +95,43 @@ mixin _ChatSweepMixin on Cubit<ChannelChatState> {
       keyVersion: postVersion,
       entries: entries,
       mint: version == 0 || rotate,
+      link: rotate && job['link'] == true
+          ? await _linkBack(job, identity, channelId, channelKey, postVersion)
+          : null,
     );
     // A conflict just means another client won the same race — fine.
     return posted.success;
+  }
+
+  /// The outgoing key sealed under the one this rotation mints, so whoever is
+  /// sealed the new one can open the old (ARCHITECTURE.md §4, *The key chain*).
+  /// The server asks for one only where nothing before the rotation is being
+  /// kept from the people after it. Null when it cannot be made: the
+  /// rotation goes ahead without it, and its members keep a row for the old
+  /// version instead.
+  Future<({String ciphertext, String nonce})?> _linkBack(
+    Map<String, dynamic> job,
+    ChatIdentity identity,
+    String channelId,
+    Uint8List newKey,
+    int newVersion,
+  ) async {
+    final mine = job['my_key'] as Map<String, dynamic>?;
+    if (mine == null) return null;
+    try {
+      final oldKey = await _crypto.unwrapKey(
+        wrapped: WrappedKey.fromJson(mine),
+        myKeyPair: identity.keyPair,
+      );
+      return await _crypto.sealKeyLink(
+        newerKey: newKey,
+        olderKey: oldKey,
+        channelId: channelId,
+        newerVersion: newVersion,
+      );
+    } catch (e) {
+      HelperMethods.printDebug('[Chat] key link failed: $e');
+      return null;
+    }
   }
 }

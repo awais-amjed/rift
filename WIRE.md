@@ -251,8 +251,9 @@ this section exists to prevent, arrived at by following this section.
 
 ## Out of scope
 
-The channel keyring itself and the DM key derivation are between clients that
-hold keys; a bot holds one only for voice, and only its own. They are in
+The channel keyring itself, the links that chain its versions
+(`ARCHITECTURE.md` §4, *The key chain*) and the DM key derivation are between
+clients that hold keys; a bot holds one only for voice, and only its own. They are in
 `ARCHITECTURE.md` §4 and are not frozen here yet — the moment a non-Dart client
 needs to *read* a channel rather than be spoken to, they belong here too.
 

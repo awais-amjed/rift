@@ -10,6 +10,7 @@ part of 'crypto_repository.dart';
 ///   then HMAC into an AES key. Symmetric — both sides derive the same key.
 /// - Channel key (Design 2): random 32 bytes, sealed per member via
 ///   ephemeral-static DH ([wrapKey]/[unwrapKey]).
+/// - Key links: each channel key version sealed under the next ([sealKeyLink]).
 /// - Every message is sealed into a [MessageEnvelope]: AES-256-GCM +
 ///   mandatory Ed25519 signature over [MessageEnvelope.signedPayload].
 mixin _ChatCryptoMixin {
@@ -175,6 +176,68 @@ mixin _ChatCryptoMixin {
       iv: CryptoRepository.fromBase64(wrapped.nonce),
     );
     return CryptoRepository.fromBase64(keyB64);
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // Key links — each channel key opens the one before it
+  // ──────────────────────────────────────────────────────────
+
+  /// Seal channel key version `newerVersion - 1` ([olderKey]) under version
+  /// [newerVersion] ([newerKey]), so whoever holds the newer one can open the
+  /// older without being sealed it. A rotation stores one; a link only reaches
+  /// backwards, so it gives nothing to somebody the rotation left out.
+  ///
+  /// ```
+  /// linkKey = HMAC-SHA256(newerKey, "keylink:v1")
+  /// sealed  = AES-256-GCM(olderKey, linkKey, nonce,
+  ///                       aad: "keylink:v1:<channelId>:<newerVersion>")
+  /// ```
+  ///
+  /// The HMAC keeps the key that seals the link apart from the one that seals
+  /// messages, and the associated data pins it to its channel and place in the
+  /// chain, so it cannot be moved to stand for another version.
+  Future<({String ciphertext, String nonce})> sealKeyLink({
+    required Uint8List newerKey,
+    required Uint8List olderKey,
+    required String channelId,
+    required int newerVersion,
+  }) async {
+    final box = await AesGcm.with256bits().encrypt(
+      olderKey,
+      secretKey: SecretKey(await hmacSha256(key: newerKey, message: 'keylink:v1')),
+      aad: utf8.encode('keylink:v1:$channelId:$newerVersion'),
+    );
+    return (
+      ciphertext: CryptoRepository.toBase64(
+        Uint8List.fromList(box.concatenation(nonce: false)),
+      ),
+      nonce: CryptoRepository.toBase64(Uint8List.fromList(box.nonce)),
+    );
+  }
+
+  /// Open a link made by [sealKeyLink]: version `newerVersion - 1` of the
+  /// channel key. Throws when the link was sealed under another key, for
+  /// another channel, or for another place in the chain.
+  Future<Uint8List> openKeyLink({
+    required Uint8List newerKey,
+    required String ciphertext,
+    required String nonce,
+    required String channelId,
+    required int newerVersion,
+  }) async {
+    final algorithm = AesGcm.with256bits();
+    final sealed = CryptoRepository.fromBase64(ciphertext);
+    final macLength = algorithm.macAlgorithm.macLength;
+    final opened = await algorithm.decrypt(
+      SecretBox(
+        sealed.sublist(0, sealed.length - macLength),
+        nonce: CryptoRepository.fromBase64(nonce),
+        mac: Mac(sealed.sublist(sealed.length - macLength)),
+      ),
+      secretKey: SecretKey(await hmacSha256(key: newerKey, message: 'keylink:v1')),
+      aad: utf8.encode('keylink:v1:$channelId:$newerVersion'),
+    );
+    return Uint8List.fromList(opened);
   }
 
   // ──────────────────────────────────────────────────────────

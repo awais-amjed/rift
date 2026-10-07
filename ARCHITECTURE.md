@@ -164,11 +164,49 @@ opposite halves.
 **Design 2 — wrapped channel key (channels).** One symmetric key per channel,
 sealed individually to each member and stored as a keyring row. Adding a member
 is a wrap; removing one is a rotation. Scrollback stays readable because old
-versions are never discarded, and a member who joins after a rotation is sealed
-the old versions too, by whichever member's sweep gets there, so they read what
-was said before it. Two things are kept back: what a channel said while it was
-private (everything up to `rotate_from_key_version`), and anything before a bot's
-grant.
+versions are never discarded, and a member who joins after a rotation can open
+the old versions too, so they read what was said before it. Two things are kept
+back: what a channel said while it was private (everything up to
+`rotate_from_key_version`), and anything before a bot's grant.
+
+### The key chain [Implemented October 2026]
+
+Sealing every version to every member does not last. A channel of 50,000 that
+rotates once a day (a ban a day) grows by 50,000 keyring rows a day, and a
+newcomer a year in is owed 365 of them. So a rotation also stores a **link**: the
+outgoing key sealed under the incoming one, the way Keybase chains a team's key
+generations.
+
+```
+linkKey = HMAC-SHA256(newerKey, "keylink:v1")
+link    = AES-256-GCM(olderKey, linkKey, nonce,
+                      aad: "keylink:v1:<channelId>:<newerVersion>")
+```
+
+Whoever holds version n opens n − 1 from it, and so on down. A link only reaches
+backwards, so it gives a banned member nothing: they are never sealed the version
+that would open it. Two rotations are never linked, because what came before them
+is not the next person's to read: the one that ends a channel's **private
+stretch**, and the one a **bot's grant** starts at (bots are forward-only). The
+sweep says which rotations may be linked, and `store_channel_key_link` refuses the
+rest again on the server, because a server holding such a link could hand it over.
+It also takes a link only for the version just minted, since a revoked grant
+leaves no record of where it began.
+
+What a member is sealed is then the current version and the top of each linked
+stretch, not every version. And a member's client, having opened a link and found
+it agrees with a row it already holds, drops that row (`prune_channel_keys`), so a
+member keeps about one row per stretch. A link is the minter's word, which the
+server cannot check: a member who mints a bad one costs a newcomer the history
+below it, never a member a key they hold, because a sealed row always wins over a
+link and a row is only dropped once its link is checked against it
+(`ChannelKeyChain`).
+
+The work itself — who lacks what — is found in the database, 500 entries to a
+batch, and a channel's work goes to one online member at a time
+(`channel_key_work`, `API.md` in `rift-self-host`). A rotation in a channel of
+50,000 is still 50,000 seals, about a minute for one member's desktop client;
+the chain is what keeps that from piling up.
 
 ### DM topology — two tiers
 
@@ -613,6 +651,7 @@ rather than a request. The cooldown and length cutoff are applied by the
 | Central server / its host | safe (E2E) | safe (E2E) | n/a | n/a | n/a |
 | Self-hosted server's hosting provider | safe | n/a | safe (E2E) | safe | safe (E2E) |
 | Self-hosted server admin | safe | n/a | readable (they're a member anyway) | **safe** | channel calls: accessible · DM calls: **safe** |
+| A member, later banned | safe | n/a | what they read while a member; nothing after the ban (rotation). A bad key link they mint costs newcomers the history below it (§4, *The key chain*) | safe | ends at the ban |
 | Device thief (no password) | Argon2id + secure storage | — | newest page of each channel opened, sealed under the seed (§4, *Saved on the device*) | same | — |
 
 An update is code that runs with everything above, so it has its own guard

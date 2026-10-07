@@ -224,12 +224,14 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
     ),
   );
 
-  /// Store sealed keyring entries for a key version — a new one when [mint].
+  /// Store sealed keyring entries for a key version — a new one when [mint],
+  /// with the [link] that opens the version before it.
   Future<APIResponse> postChannelKeys({
     required String channelId,
     required int keyVersion,
     required List<Map<String, dynamic>> entries,
     required bool mint,
+    ({String ciphertext, String nonce})? link,
   }) => _callWithAutoRefresh(
     (token) => _repository.postChannelKeys(
       state.selectedServer!.supabaseUrl,
@@ -237,7 +239,22 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
       keyVersion: keyVersion,
       entries: entries,
       mint: mint,
+      link: link,
       bearerToken: token,
+    ),
+  );
+
+  /// Drop our own keyring rows the channel's links already cover.
+  Future<APIResponse> pruneChannelKeys(
+    String channelId,
+    List<int> versions,
+  ) => _callWithAutoRefresh(
+    (token) => _repository.pruneChannelKeys(
+      state.selectedServer!.supabaseUrl,
+      anonKey: _anonKey,
+      bearerToken: token,
+      channelId: channelId,
+      versions: versions,
     ),
   );
 }

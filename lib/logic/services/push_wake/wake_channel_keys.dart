@@ -27,21 +27,37 @@ mixin _WakeChannelKeysMixin {
       channelId: channelId,
     );
     if (!response.success) return null;
-    final entries =
-        (response.data as Map<String, dynamic>?)?['my_keys'] as List?;
+    final data = response.data as Map<String, dynamic>?;
+    final entries = (data?['my_keys'] as List?)?.cast<Map<String, dynamic>>();
     if (entries == null) return null;
 
-    for (final entry in entries.cast<Map<String, dynamic>>()) {
-      if (entry['key_version'] != keyVersion) continue;
-      try {
-        return await _crypto.unwrapKey(
-          wrapped: WrappedKey.fromJson(entry),
-          myKeyPair: identity.keyPair,
-        );
-      } catch (_) {
-        return null;
-      }
+    // This member's own row for the version if it has one; otherwise the
+    // nearest newer row, and the links down from it — a client drops a row
+    // once the chain covers it, and a newcomer was never sealed one.
+    final rows = entries
+        .where((e) => (e['key_version'] as int) >= keyVersion)
+        .toList()
+      ..sort(
+        (a, b) => (a['key_version'] as int).compareTo(b['key_version'] as int),
+      );
+    if (rows.isEmpty) return null;
+    final Uint8List nearest;
+    try {
+      nearest = await _crypto.unwrapKey(
+        wrapped: WrappedKey.fromJson(rows.first),
+        myKeyPair: identity.keyPair,
+      );
+    } catch (_) {
+      return null;
     }
-    return null;
+    final keys = {rows.first['key_version'] as int: nearest};
+    await ChannelKeyChain.follow(
+      crypto: _crypto,
+      channelId: channelId,
+      keys: keys,
+      links: ((data?['links'] as List?) ?? const [])
+          .cast<Map<String, dynamic>>(),
+    );
+    return keys[keyVersion];
   }
 }
