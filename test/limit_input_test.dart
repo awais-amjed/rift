@@ -123,6 +123,8 @@ void main() {
       expect(humanSize(2048), '2 KB');
       expect(humanSize(5 * 1024 * 1024), '5 MB');
       expect(humanSize(5 * 1024 * 1024 + 300 * 1024), '5.3 MB');
+      expect(humanSize(2048 * 1024 * 1024), '2 GB');
+      expect(humanSize(1536 * 1024 * 1024), '1.5 GB');
     });
   });
 }

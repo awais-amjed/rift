@@ -27,8 +27,10 @@ Future<void> discardCopy(XFile copy) async {}
 Future<void> sweepCopies() async {}
 
 /// Grows a Blob a piece at a time rather than holding a list of pieces:
-/// a Blob built from a Blob references it instead of copying it, and the
-/// browser moves a large one to disk.
+/// a Blob built from a Blob references it instead of copying it, so the
+/// bytes live in the browser rather than in the page. The browser still
+/// holds them all until the download starts: a 2 GB save took Chrome about
+/// 2.4 GB (measured Oct 7).
 ///
 /// Pieces are gathered to [_piece] first. Each new Blob still walks the parts
 /// of the one before, so a file grown from what the network hands over (tens

@@ -329,7 +329,8 @@ at, and is read, sealed and sent a chunk at a time:
 - *Where it lands* differs by platform (`file_save/save_target.dart`): a
   desktop's own save dialog, a phone's after a scratch download (Android and
   iOS only hand out a place through their dialog), and a growing Blob on the
-  web. Picking on a phone goes through file_picker, which copies to a cache
+  web, which the browser holds whole until the download starts (a 2 GB save
+  took Chrome about 2.4 GB, measured Oct 7). Picking on a phone goes through file_picker, which copies to a cache
   file natively; file_selector's Android side reads the whole file into memory.
   That copy, and the one a sandboxed macOS app makes of a dropped file, is the
   app's to delete (`PendingAttachment.temporary`): once read into memory, when
