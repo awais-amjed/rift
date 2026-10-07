@@ -146,6 +146,7 @@ class _ChannelChatViewState extends State<ChannelChatView>
                       canAttach: _canAttach(context),
                       maxAttachmentBytes: _maxAttachmentBytes(context),
                       remainingStorageBytes: _remainingStorage(context),
+                      offersPlainFiles: true,
                       bots: chatState.bots,
                       onCreatePoll: _canCreatePoll(context)
                           ? () => _createPoll(context)

@@ -427,4 +427,8 @@ class K {
   /// Room above/below the composer text, applied as a plain symmetric padding
   /// rather than the decorator's `contentPadding` so it can't bias the text.
   static const double composerFieldVPad = 4;
+
+  /// From this size up a staged file can be sent unencrypted. Below it the
+  /// choice is not worth a control: sealing takes a few milliseconds.
+  static const int plainAttachmentMinBytes = 26214400; // 25 MB
 }

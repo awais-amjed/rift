@@ -3110,6 +3110,7 @@ dependencies = [
  "ring",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "shiguredo_nvcodec",
  "tokio",
  "tract-onnx",

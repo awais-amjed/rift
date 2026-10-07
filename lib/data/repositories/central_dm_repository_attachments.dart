@@ -15,7 +15,8 @@ mixin _CentralDmAttachmentsMixin {
   // ──────────────────────────────────────────────────────────
 
   /// Encrypt + upload one attachment blob into the caller's own folder. On
-  /// success `data` is `({String path, String keyB64, String nonceB64})`.
+  /// success `data` is an [UploadedBlob]. Always encrypted: central's files
+  /// stop at 10 MB, well under where sending one unencrypted is offered.
   Future<APIResponse> uploadAttachment({
     required String scopePrefix,
     required Uint8List data,
@@ -33,11 +34,13 @@ mixin _CentralDmAttachmentsMixin {
               upsert: false,
             ),
           );
-      return APIResponse.success((
+      final UploadedBlob uploaded = (
         path: path,
         keyB64: blob.keyB64,
         nonceB64: blob.nonceB64,
-      ));
+        sha256B64: null,
+      );
+      return APIResponse.success(uploaded);
     } catch (e) {
       return APIResponse.error(e);
     }
@@ -61,12 +64,14 @@ mixin _CentralDmAttachmentsMixin {
     }
   }
 
-  /// Download + decrypt one attachment blob. On success `data` is the decrypted
-  /// `Uint8List`.
+  /// Download + open one attachment blob. On success `data` is the file's
+  /// `Uint8List`. Opens a plain one too, though this client never sends one
+  /// here: what arrives is whatever the other end sent.
   Future<APIResponse> downloadAttachment({
     required String path,
     required String keyB64,
     required String nonceB64,
+    String? sha256B64,
   }) async {
     try {
       final bytes = await _client.storage
@@ -76,6 +81,7 @@ mixin _CentralDmAttachmentsMixin {
         ciphertext: bytes,
         keyB64: keyB64,
         nonceB64: nonceB64,
+        sha256B64: sha256B64,
       );
       return APIResponse.success(clear);
     } catch (e) {

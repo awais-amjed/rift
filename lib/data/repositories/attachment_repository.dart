@@ -11,6 +11,15 @@ import 'storage_rest.dart';
 /// that must be stored (encrypted) inside the message body to decrypt it later.
 typedef SealedBlob = ({Uint8List ciphertext, String keyB64, String nonceB64});
 
+/// Where an upload landed and what opens it: the key and nonce of an
+/// encrypted blob, or the digest of a plain one (the other fields empty).
+typedef UploadedBlob = ({
+  String path,
+  String keyB64,
+  String nonceB64,
+  String? sha256B64,
+});
+
 /// Uploads/downloads E2E-encrypted attachment blobs (ARCHITECTURE.md §4).
 ///
 /// The bytes are AES-256-GCM-encrypted client-side with a fresh per-file key
@@ -49,31 +58,55 @@ class AttachmentRepository {
     );
   }
 
-  /// Decrypt a downloaded ciphertext blob with the body-embedded key/nonce.
+  /// The digest a file sent unencrypted carries in place of a key, base64.
+  Future<String> digest(Uint8List data) async =>
+      CryptoRepository.toBase64(await _crypto.digestBytes(data));
+
+  /// A downloaded blob's bytes: decrypted with the body-embedded key/nonce,
+  /// or, for a file sent unencrypted ([sha256B64] set), checked against its
+  /// digest. Throws when either fails — a file the server changed is not
+  /// shown.
   Future<Uint8List> open({
     required Uint8List ciphertext,
     required String keyB64,
     required String nonceB64,
-  }) => _crypto.decryptBytes(
-    ciphertext: ciphertext,
-    key: CryptoRepository.fromBase64(keyB64),
-    iv: CryptoRepository.fromBase64(nonceB64),
-  );
+    String? sha256B64,
+  }) async {
+    if (sha256B64 != null) {
+      if (await digest(ciphertext) != sha256B64) {
+        throw const FormatException('The file does not match its digest');
+      }
+      return ciphertext;
+    }
+    return _crypto.decryptBytes(
+      ciphertext: ciphertext,
+      key: CryptoRepository.fromBase64(keyB64),
+      iv: CryptoRepository.fromBase64(nonceB64),
+    );
+  }
 
   // ── Self-hosted Storage REST transport ────────────────────
 
-  /// Encrypt [data] and upload it to [bucket] under [scopePrefix].
-  /// On success `data` is `({String path, String keyB64, String nonceB64})`.
-  Future<APIResponse> uploadEncrypted({
+  /// Encrypt [data] and upload it to [bucket] under [scopePrefix], or upload
+  /// it as it is when [plain]. On success `data` is an [UploadedBlob].
+  Future<APIResponse> upload({
     required String baseUrl,
     required String anonKey,
     required String bearerToken,
     required String bucket,
     required String scopePrefix,
     required Uint8List data,
+    bool plain = false,
   }) async {
     try {
-      final blob = await seal(data);
+      final SealedBlob blob;
+      String? sha256B64;
+      if (plain) {
+        sha256B64 = await digest(data);
+        blob = (ciphertext: data, keyB64: '', nonceB64: '');
+      } else {
+        blob = await seal(data);
+      }
       final path = buildPath(scopePrefix);
       final uri = StorageRest.object(baseUrl, bucket, path);
       final resp = await _http
@@ -90,11 +123,13 @@ class AttachmentRepository {
 
       final refused = StorageRest.refusal(resp, failed: 'Upload failed');
       if (refused != null) return refused;
-      return APIResponse.success((
+      final UploadedBlob uploaded = (
         path: path,
         keyB64: blob.keyB64,
         nonceB64: blob.nonceB64,
-      ));
+        sha256B64: sha256B64,
+      );
+      return APIResponse.success(uploaded);
     } catch (e) {
       return APIResponse.error(e);
     }
@@ -141,9 +176,9 @@ class AttachmentRepository {
     }
   }
 
-  /// Download and decrypt a blob from [bucket]. On success `data` is the
-  /// decrypted `Uint8List`.
-  Future<APIResponse> downloadDecrypted({
+  /// Download a blob from [bucket] and [open] it. On success `data` is the
+  /// file's `Uint8List`.
+  Future<APIResponse> download({
     required String baseUrl,
     required String anonKey,
     required String bearerToken,
@@ -151,6 +186,7 @@ class AttachmentRepository {
     required String path,
     required String keyB64,
     required String nonceB64,
+    String? sha256B64,
   }) async {
     try {
       final uri = StorageRest.authenticated(baseUrl, bucket, path);
@@ -164,6 +200,7 @@ class AttachmentRepository {
         ciphertext: resp.bodyBytes,
         keyB64: keyB64,
         nonceB64: nonceB64,
+        sha256B64: sha256B64,
       );
       return APIResponse.success(clear);
     } catch (e) {

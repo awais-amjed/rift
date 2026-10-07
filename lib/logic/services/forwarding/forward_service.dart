@@ -7,6 +7,7 @@ import '../../../data/classes/attachment.dart';
 import '../../../data/classes/forwarded_message.dart';
 import '../../../data/classes/message_body.dart';
 import '../../../data/classes/server.dart';
+import '../../../data/repositories/attachment_repository.dart';
 import '../../../data/repositories/central_dm_repository.dart';
 import '../../../supabase_config.dart';
 import '../../cubits/server/server_cubit.dart';

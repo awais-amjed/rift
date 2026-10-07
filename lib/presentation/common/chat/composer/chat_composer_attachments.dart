@@ -99,4 +99,12 @@ mixin _ComposerAttachmentsMixin on State<ChatComposer> {
   void _removeStaged(int index) {
     setState(() => _staged.removeAt(index));
   }
+
+  /// Switch a staged file between encrypted and unencrypted.
+  void _togglePlain(int index) {
+    setState(() {
+      final file = _staged[index];
+      _staged[index] = file.copyWith(plain: !file.plain);
+    });
+  }
 }

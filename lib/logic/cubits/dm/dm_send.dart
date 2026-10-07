@@ -74,8 +74,12 @@ mixin _DmSendMixin on Cubit<DmState> {
         user.id,
         peerId,
       ).replaceAll(':', '_');
-      Future<APIResponse> uploadOne(Uint8List bytes) =>
-          _serverCubit.uploadAttachment(scopePrefix: scope, data: bytes);
+      Future<APIResponse> uploadOne(Uint8List bytes, {bool plain = false}) =>
+          _serverCubit.uploadAttachment(
+            scopePrefix: scope,
+            data: bytes,
+            plain: plain,
+          );
       final uploaded = await ChatAttachmentUploader.uploadAll(
         pending: attachments,
         uploadOne: uploadOne,
@@ -246,6 +250,7 @@ mixin _DmSendMixin on Cubit<DmState> {
           path: attachment.storagePath,
           keyB64: attachment.keyB64,
           nonceB64: attachment.nonceB64,
+          sha256B64: attachment.sha256B64,
         ),
       );
 }

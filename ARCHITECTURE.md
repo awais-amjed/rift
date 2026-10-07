@@ -286,6 +286,23 @@ Linux desktop). The web keeps the Dart path, which the browser runs on
 WebCrypto. Both write the same bytes, and each checks itself against the same
 GCM specification vector.
 
+**A big file can go up unencrypted, if its sender chooses** [Implemented
+October 2026]. On a self-hosted server, a staged file of 25 MB or more has a
+lock on its chip; opening it uploads the bytes as they are, and the composer
+says the server can see them before the message goes. The file's name, and the
+message, are still sealed. With no key there is no tag, so the attachment
+carries a SHA-256 of the bytes inside the sealed body, and a download that does
+not match is not shown: the server can read the file but not swap it. The file
+is badged NOT ENCRYPTED wherever it is drawn, with no setting. The body still
+writes `key` and `nonce`, empty, beside `plain` and `sha256`, so a client from
+before this fails to open the file and still shows the message. A forward
+re-encrypts it, since the choice was made for one server's readers.
+
+How big a file can be at all is the operator's: the console sets storage's
+limit and records it, and no server's own cap goes past it
+(`max_file_bytes`). The whole file is held in memory to seal and send it, so
+the practical ceiling on a device is its RAM.
+
 ### Saved on the device [Implemented September 2026]
 
 Each conversation this device opens — a channel, a server DM, a central DM —

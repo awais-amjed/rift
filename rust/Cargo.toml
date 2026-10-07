@@ -12,8 +12,10 @@ tokio = { version = "1.49.0", features = ["full"] }
 log = "0.4.29"
 # Attachments and saved conversations are sealed here rather than in Dart
 # (src/blob_cipher.rs): pure Rust, with the CPU's AES and carry-less multiply
-# picked at run time, so it builds the same on every target.
+# picked at run time, so it builds the same on every target. sha2 is the
+# digest an unencrypted attachment carries instead of a tag.
 aes-gcm = "0.10"
+sha2 = "0.10"
 
 # Desktop only, and deliberately so.
 #

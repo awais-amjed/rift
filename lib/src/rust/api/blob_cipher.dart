@@ -30,3 +30,7 @@ Future<Uint8List> openBlob({
   nonce: nonce,
   sealed: sealed,
 );
+
+/// SHA-256 of `data`: what an attachment sent unencrypted is checked against.
+Future<Uint8List> digestBlob({required List<int> data}) =>
+    RustLib.instance.api.crateApiBlobCipherDigestBlob(data: data);

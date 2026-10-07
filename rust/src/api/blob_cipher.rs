@@ -13,3 +13,8 @@ pub fn seal_blob(key: Vec<u8>, nonce: Vec<u8>, data: Vec<u8>) -> Result<Vec<u8>,
 pub fn open_blob(key: Vec<u8>, nonce: Vec<u8>, sealed: Vec<u8>) -> Result<Vec<u8>, String> {
     crate::blob_cipher::open(&key, &nonce, sealed)
 }
+
+/// SHA-256 of `data`: what an attachment sent unencrypted is checked against.
+pub fn digest_blob(data: Vec<u8>) -> Vec<u8> {
+    crate::blob_cipher::digest(&data)
+}

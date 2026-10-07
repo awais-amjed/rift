@@ -86,7 +86,8 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
     emit(state.copyWith(messages: [...state.messages, pending]));
 
     try {
-      Future<APIResponse> uploadOne(Uint8List bytes) =>
+      // Always encrypted: the composer offers no choice here.
+      Future<APIResponse> uploadOne(Uint8List bytes, {bool plain = false}) =>
           _repo.uploadAttachment(scopePrefix: myId, data: bytes);
       final uploaded = await ChatAttachmentUploader.uploadAll(
         pending: attachments,
@@ -277,6 +278,7 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
           path: attachment.storagePath,
           keyB64: attachment.keyB64,
           nonceB64: attachment.nonceB64,
+          sha256B64: attachment.sha256B64,
         ),
       );
 }

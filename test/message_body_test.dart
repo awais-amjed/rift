@@ -99,6 +99,43 @@ void main() {
       expect(back.durationMs, isNull);
     });
 
+    test('an encrypted file says nothing of being plain', () {
+      final json = sampleAttachment().toJson();
+      expect(json.containsKey('plain'), isFalse);
+      expect(Attachment.fromJson(json).isEncrypted, isTrue);
+    });
+
+    // A client from before plain files reads `key` and `nonce` as required
+    // strings. Present and empty, it fails to open the file and still shows
+    // the message; absent, it would lose the message.
+    test('a plain file keeps its digest and empty key fields', () {
+      const plain = Attachment(
+        id: 'a2',
+        kind: AttachmentKind.file,
+        name: 'big.iso',
+        mime: 'application/octet-stream',
+        size: 9,
+        storagePath: 's/x.bin',
+        keyB64: '',
+        nonceB64: '',
+        sha256B64: 'ZGlnZXN0',
+      );
+      final json = plain.toJson();
+      expect(json['key'], '');
+      expect(json['nonce'], '');
+      expect(json['plain'], isTrue);
+      final back = Attachment.fromJson(json);
+      expect(back.isEncrypted, isFalse);
+      expect(back.sha256B64, 'ZGlnZXN0');
+    });
+
+    test('a plain file without its digest can never match one', () {
+      final json = sampleAttachment().toJson()..['plain'] = true;
+      final back = Attachment.fromJson(json);
+      expect(back.isEncrypted, isFalse);
+      expect(back.sha256B64, '');
+    });
+
     test('kind is inferred from mime', () {
       expect(AttachmentKind.fromMime('image/webp'), AttachmentKind.image);
       expect(AttachmentKind.fromMime('audio/ogg'), AttachmentKind.audio);

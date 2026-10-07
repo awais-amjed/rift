@@ -26,4 +26,7 @@ class NativeBlobCipher implements BlobCipher {
     required Uint8List key,
     required Uint8List nonce,
   }) => rust.openBlob(key: key, nonce: nonce, sealed: sealed);
+
+  @override
+  Future<Uint8List> digest(Uint8List data) => rust.digestBlob(data: data);
 }

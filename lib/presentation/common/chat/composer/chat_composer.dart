@@ -28,6 +28,7 @@ import 'composer_command_menu.dart';
 import 'composer_input_row.dart';
 import 'composer_link_preview.dart';
 import 'composer_mention_menu.dart';
+import 'composer_plain_file_notice.dart';
 import 'composer_plaintext_notice.dart';
 import 'composer_recording_bar.dart';
 import 'composer_reply_bar.dart';
@@ -143,6 +144,10 @@ class ChatComposer extends StatefulWidget {
   /// sentence before the upload rather than an HTTP 500 after it.
   final int? remainingStorageBytes;
 
+  /// Whether a big file may be sent unencrypted here. A self-hosted server's
+  /// channels and DMs; not central, whose files stop at 10 MB.
+  final bool offersPlainFiles;
+
   /// Start a poll. Null where there are none — DMs have two readers, and a
   /// poll of two is a question.
   final VoidCallback? onCreatePoll;
@@ -158,6 +163,7 @@ class ChatComposer extends StatefulWidget {
     this.canAttach = true,
     this.maxAttachmentBytes = ServerLimits.defaultMaxAttachmentBytes,
     this.remainingStorageBytes,
+    this.offersPlainFiles = false,
     this.onCreatePoll,
     this.bots = const [],
     this.onMentionSearch,
@@ -359,8 +365,16 @@ class _ChatComposerState extends State<ChatComposer>
           alignment: Alignment.bottomLeft,
           child: _staged.isEmpty
               ? const SizedBox(width: double.infinity)
-              : ComposerStagedRow(staged: _staged, onRemove: _removeStaged),
+              : ComposerStagedRow(
+                  staged: _staged,
+                  onRemove: _removeStaged,
+                  onTogglePlain: widget.offersPlainFiles ? _togglePlain : null,
+                ),
         ),
+        // Above the bar for the same reason as the bot notice below: it has
+        // to be read while the file can still be switched back.
+        if (_staged.any((a) => a.plain))
+          ComposerPlainFileNotice(count: _staged.where((a) => a.plain).length),
         if (_preview != null)
           ComposerLinkPreview(preview: _preview!, onRemove: _dismissPreview),
         // Above the bar, because the point of it is to be read *before*

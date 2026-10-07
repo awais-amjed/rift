@@ -248,6 +248,10 @@ class CryptoRepository
     required Uint8List iv,
   }) => blobCipher.open(sealed: ciphertext, key: key, nonce: iv);
 
+  /// SHA-256 of [data], on the same seam as [encryptBytes]: what an
+  /// attachment sent unencrypted is checked against when it is opened.
+  Future<Uint8List> digestBytes(Uint8List data) => blobCipher.digest(data);
+
   // ──────────────────────────────────────────────────────────
   // Helpers
   // ──────────────────────────────────────────────────────────

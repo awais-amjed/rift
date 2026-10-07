@@ -5,8 +5,13 @@ import '../../data/classes/api_response.dart';
 import '../../data/classes/attachment.dart';
 import '../../data/classes/link_preview.dart';
 import '../../data/classes/pending_attachment.dart';
+import '../../data/repositories/attachment_repository.dart';
 import 'attachment_cache.dart';
 import 'link_preview_fetcher.dart';
+
+/// Uploads one blob: encrypted, or as it is when [plain]. Answers an
+/// [APIResponse] whose `data` is an [UploadedBlob] on success.
+typedef BlobUpload = Future<APIResponse> Function(Uint8List data, {bool plain});
 
 /// Shared "upload staged files → attachment metadata" step used by all three
 /// chat pipelines (channels, server DMs, central DMs). The only thing that
@@ -25,8 +30,8 @@ class ChatAttachmentUploader {
   /// [AttachmentCache] under its storage path so the sender renders it without
   /// a round-trip. Throws [AttachmentUploadException] on the first failure.
   ///
-  /// [uploadOne] receives the raw bytes and must return an [APIResponse] whose
-  /// `data` is `({String path, String keyB64, String nonceB64})` on success.
+  /// [uploadOne] receives the raw bytes and whether the sender chose to send
+  /// them unencrypted.
   /// The sender's link preview with its thumbnail uploaded, or null when
   /// there was none. The words travel in the body; only the picture needs
   /// a blob, and it takes the same encrypted road as any attachment.
@@ -36,7 +41,7 @@ class ChatAttachmentUploader {
   /// is already on screen.
   static Future<LinkPreview?> uploadPreview({
     required Future<PendingLinkPreview?>? preview,
-    required Future<APIResponse> Function(Uint8List data) uploadOne,
+    required BlobUpload uploadOne,
   }) async {
     final pending = await preview;
     if (pending == null) return null;
@@ -55,19 +60,18 @@ class ChatAttachmentUploader {
 
   static Future<List<Attachment>> uploadAll({
     required List<PendingAttachment> pending,
-    required Future<APIResponse> Function(Uint8List data) uploadOne,
+    required BlobUpload uploadOne,
   }) async {
     final result = <Attachment>[];
     for (final pa in pending) {
-      final response = await uploadOne(pa.bytes);
+      final response = await uploadOne(pa.bytes, plain: pa.plain);
       if (!response.success || response.data == null) {
         throw AttachmentUploadException(
           response.error ?? 'Attachment upload failed',
           errorCode: response.errorCode,
         );
       }
-      final r =
-          response.data as ({String path, String keyB64, String nonceB64});
+      final r = response.data as UploadedBlob;
       AttachmentCache.instance.put(r.path, pa.bytes);
       result.add(
         Attachment(
@@ -79,6 +83,7 @@ class ChatAttachmentUploader {
           storagePath: r.path,
           keyB64: r.keyB64,
           nonceB64: r.nonceB64,
+          sha256B64: r.sha256B64,
           width: pa.width,
           height: pa.height,
           durationMs: pa.durationMs,

@@ -32,11 +32,13 @@ mixin _ForwardBlobsMixin {
                 path: attachment.storagePath,
                 keyB64: attachment.keyB64,
                 nonceB64: attachment.nonceB64,
+                sha256B64: attachment.sha256B64,
               )
             : await servers.downloadAttachment(
                 path: attachment.storagePath,
                 keyB64: attachment.keyB64,
                 nonceB64: attachment.nonceB64,
+                sha256B64: attachment.sha256B64,
                 serverId: sourceServerId,
               );
         out.add(response.success ? response.data as Uint8List? : null);
@@ -53,7 +55,9 @@ mixin _ForwardBlobsMixin {
   ///
   /// A fresh key per copy, because the upload generates one — which is also
   /// the right answer: the audience is different, and the original's key
-  /// should not be the thing standing between them and the file.
+  /// should not be the thing standing between them and the file. A file sent
+  /// unencrypted is encrypted here too: whoever chose to expose it chose for
+  /// that server, not this one.
   ///
   /// [serverId] null uploads to central.
   Future<List<Attachment>> _reupload(
@@ -78,8 +82,7 @@ mixin _ForwardBlobsMixin {
                 serverId: serverId,
               );
         if (!response.success) continue;
-        final blob =
-            response.data as ({String path, String keyB64, String nonceB64});
+        final blob = response.data as UploadedBlob;
         final source = attachments[i];
         out.add(
           Attachment(
@@ -91,6 +94,7 @@ mixin _ForwardBlobsMixin {
             storagePath: blob.path,
             keyB64: blob.keyB64,
             nonceB64: blob.nonceB64,
+            sha256B64: blob.sha256B64,
             width: source.width,
             height: source.height,
             durationMs: source.durationMs,

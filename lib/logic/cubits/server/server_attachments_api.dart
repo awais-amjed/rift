@@ -27,13 +27,14 @@ mixin _ServerAttachmentsApiMixin on Cubit<ServerState> {
   static String _bucketFor(Server server) => 'chat-${server.id}';
 
   /// Encrypt + upload an attachment blob to the selected server, scoped under
-  /// [scopePrefix] (channel id / DM context). On success `data` is
-  /// `({String path, String keyB64, String nonceB64})`.
+  /// [scopePrefix] (channel id / DM context), or upload it as it is when
+  /// [plain]. On success `data` is an [UploadedBlob].
   /// [serverId] names a server other than the open one — a forward's
   /// destination. Omitted, it is the open one, which is every other caller.
   Future<APIResponse> uploadAttachment({
     required String scopePrefix,
     required Uint8List data,
+    bool plain = false,
     String? serverId,
   }) {
     final target = _chatTarget(serverId);
@@ -42,13 +43,14 @@ mixin _ServerAttachmentsApiMixin on Cubit<ServerState> {
     }
     return _callFor(
       target.server,
-      (token) => _attachments.uploadEncrypted(
+      (token) => _attachments.upload(
         baseUrl: target.server.supabaseUrl,
         anonKey: target.anonKey,
         bearerToken: token,
         bucket: _bucketFor(target.server),
         scopePrefix: scopePrefix,
         data: data,
+        plain: plain,
       ),
     );
   }
@@ -89,12 +91,13 @@ mixin _ServerAttachmentsApiMixin on Cubit<ServerState> {
     );
   }
 
-  /// Download + decrypt an attachment blob from the selected server. On success
-  /// `data` is the decrypted `Uint8List`.
+  /// Download + open an attachment blob from the selected server. On success
+  /// `data` is the file's `Uint8List`.
   Future<APIResponse> downloadAttachment({
     required String path,
     required String keyB64,
     required String nonceB64,
+    String? sha256B64,
     String? serverId,
   }) {
     final target = _chatTarget(serverId);
@@ -103,7 +106,7 @@ mixin _ServerAttachmentsApiMixin on Cubit<ServerState> {
     }
     return _callFor(
       target.server,
-      (token) => _attachments.downloadDecrypted(
+      (token) => _attachments.download(
         baseUrl: target.server.supabaseUrl,
         anonKey: target.anonKey,
         bearerToken: token,
@@ -111,6 +114,7 @@ mixin _ServerAttachmentsApiMixin on Cubit<ServerState> {
         path: path,
         keyB64: keyB64,
         nonceB64: nonceB64,
+        sha256B64: sha256B64,
       ),
     );
   }

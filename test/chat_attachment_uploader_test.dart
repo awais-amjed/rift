@@ -23,8 +23,12 @@ void main() {
     height: 3,
   );
 
-  APIResponse stored(String path) =>
-      APIResponse.success((path: path, keyB64: 'k-$path', nonceB64: 'n-$path'));
+  APIResponse stored(String path) => APIResponse.success((
+    path: path,
+    keyB64: 'k-$path',
+    nonceB64: 'n-$path',
+    sha256B64: null,
+  ));
 
   group('uploadAll', () {
     test('uploads in order and keeps each file\'s metadata', () async {
@@ -34,7 +38,7 @@ void main() {
           file('a.png', [1]),
           file('b.png', [2, 2]),
         ],
-        uploadOne: (_) async => stored('p${n++}'),
+        uploadOne: (_, {plain = false}) async => stored('p${n++}'),
       );
 
       expect(result.map((a) => a.storagePath), ['p0', 'p1']);
@@ -45,12 +49,39 @@ void main() {
       expect(result[0].id, isNot(result[1].id));
     });
 
+    // The sender's choice reaches the upload, and the digest the upload
+    // answers with reaches the attachment, which is what marks it plain.
+    test('a file chosen to go unencrypted goes up plain', () async {
+      final asked = <bool>[];
+      final result = await ChatAttachmentUploader.uploadAll(
+        pending: [
+          file('a.bin', [1]).copyWith(plain: true),
+          file('b.bin', [2]),
+        ],
+        uploadOne: (_, {plain = false}) async {
+          asked.add(plain);
+          return plain
+              ? APIResponse.success((
+                  path: 'p',
+                  keyB64: '',
+                  nonceB64: '',
+                  sha256B64: 'digest',
+                ))
+              : stored('q');
+        },
+      );
+      expect(asked, [true, false]);
+      expect(result[0].isEncrypted, isFalse);
+      expect(result[0].sha256B64, 'digest');
+      expect(result[1].isEncrypted, isTrue);
+    });
+
     test('puts the sender\'s own bytes in the cache', () async {
       await ChatAttachmentUploader.uploadAll(
         pending: [
           file('a.png', [7, 8]),
         ],
-        uploadOne: (_) async => stored('p'),
+        uploadOne: (_, {plain = false}) async => stored('p'),
       );
       expect(AttachmentCache.instance.get('p'), [7, 8]);
     });
@@ -62,7 +93,7 @@ void main() {
           file('a.png', [1]),
           file('b.png', [2]),
         ],
-        uploadOne: (_) async {
+        uploadOne: (_, {plain = false}) async {
           calls++;
           return APIResponse.error('offline', errorCode: 'network');
         },
@@ -85,7 +116,7 @@ void main() {
           pending: [
             file('a.png', [1]),
           ],
-          uploadOne: (_) async => APIResponse(success: true),
+          uploadOne: (_, {plain = false}) async => APIResponse(success: true),
         ),
         throwsA(isA<AttachmentUploadException>()),
       );
@@ -96,7 +127,7 @@ void main() {
     test('no preview uploads nothing', () async {
       final preview = await ChatAttachmentUploader.uploadPreview(
         preview: null,
-        uploadOne: (_) async => fail('should not upload'),
+        uploadOne: (_, {plain = false}) async => fail('should not upload'),
       );
       expect(preview, isNull);
     });
@@ -106,7 +137,7 @@ void main() {
         preview: Future.value(
           const PendingLinkPreview(url: 'https://a.b', title: 'T'),
         ),
-        uploadOne: (_) async => fail('should not upload'),
+        uploadOne: (_, {plain = false}) async => fail('should not upload'),
       );
       expect(preview!.title, 'T');
       expect(preview.image, isNull);
@@ -117,7 +148,7 @@ void main() {
         preview: Future.value(
           PendingLinkPreview(url: 'https://a.b', image: file('t.png', [1])),
         ),
-        uploadOne: (_) async => stored('thumb'),
+        uploadOne: (_, {plain = false}) async => stored('thumb'),
       );
       expect(preview!.image!.storagePath, 'thumb');
     });
@@ -126,7 +157,7 @@ void main() {
       final fetch = Completer<PendingLinkPreview?>();
       final uploading = ChatAttachmentUploader.uploadPreview(
         preview: fetch.future,
-        uploadOne: (_) async => fail('should not upload'),
+        uploadOne: (_, {plain = false}) async => fail('should not upload'),
       );
       fetch.complete(const PendingLinkPreview(url: 'https://a.b', title: 'T'));
       expect((await uploading)!.title, 'T');
@@ -135,7 +166,7 @@ void main() {
     test('a fetch that found nothing sends the message bare', () async {
       final preview = await ChatAttachmentUploader.uploadPreview(
         preview: Future.value(null),
-        uploadOne: (_) async => fail('should not upload'),
+        uploadOne: (_, {plain = false}) async => fail('should not upload'),
       );
       expect(preview, isNull);
     });

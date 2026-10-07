@@ -6,9 +6,14 @@
 //! changes: the `cryptography` package does AES in Dart on the UI isolate,
 //! which froze the window for about 4 s on a 50 MB file, and this runs on the
 //! CPU's AES instructions on one of the bridge's worker threads.
+//!
+//! An attachment sent unencrypted has no tag, so it carries a SHA-256 of its
+//! bytes inside the sealed message instead: the server can read it, but not
+//! swap it. [digest] is that hash, here for the same reason the cipher is.
 
 use aes_gcm::aead::{AeadInPlace, KeyInit};
 use aes_gcm::{Aes256Gcm, Key, Nonce};
+use sha2::{Digest, Sha256};
 
 const KEY_LEN: usize = 32;
 const NONCE_LEN: usize = 12;
@@ -47,6 +52,11 @@ pub(crate) fn open(key: &[u8], nonce: &[u8], mut sealed: Vec<u8>) -> Result<Vec<
         .decrypt_in_place(Nonce::from_slice(nonce), b"", &mut sealed)
         .map_err(|_| "The blob did not decrypt: wrong key, or it was changed".to_string())?;
     Ok(sealed)
+}
+
+/// SHA-256 of `data`.
+pub(crate) fn digest(data: &[u8]) -> Vec<u8> {
+    Sha256::digest(data).to_vec()
 }
 
 #[cfg(test)]
@@ -102,6 +112,15 @@ mod tests {
         assert!(seal(&[0; 16], &hex(NONCE), vec![1]).is_err());
         assert!(seal(&hex(KEY), &[0; 8], vec![1]).is_err());
         assert!(open(&hex(KEY), &hex(NONCE), vec![0; 4]).is_err());
+    }
+
+    // FIPS 180-2's "abc", which the Dart side checks too.
+    #[test]
+    fn digests_the_specification_vector() {
+        assert_eq!(
+            digest(b"abc"),
+            hex("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
+        );
     }
 
     #[test]

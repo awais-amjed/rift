@@ -123,8 +123,12 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
     unawaited(_resolveMentionNames([pending]));
 
     try {
-      Future<APIResponse> uploadOne(Uint8List bytes) =>
-          _serverCubit.uploadAttachment(scopePrefix: channelId, data: bytes);
+      Future<APIResponse> uploadOne(Uint8List bytes, {bool plain = false}) =>
+          _serverCubit.uploadAttachment(
+            scopePrefix: channelId,
+            data: bytes,
+            plain: plain,
+          );
       final uploaded = await ChatAttachmentUploader.uploadAll(
         pending: attachments,
         uploadOne: uploadOne,
@@ -385,6 +389,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
           path: attachment.storagePath,
           keyB64: attachment.keyB64,
           nonceB64: attachment.nonceB64,
+          sha256B64: attachment.sha256B64,
         ),
       );
 }

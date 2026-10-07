@@ -10,6 +10,9 @@ import 'package:cryptography/cryptography.dart';
 /// its Rust library everywhere else, through [CryptoRepository.blobCipher].
 /// Every implementation writes the same bytes: the ciphertext with its 16-byte
 /// tag appended, under the 12-byte [nonce] the caller chose.
+///
+/// [digest] rides along for an attachment sent unencrypted, which has no tag
+/// and carries a SHA-256 in the sealed message instead.
 abstract interface class BlobCipher {
   Future<Uint8List> seal({
     required Uint8List data,
@@ -23,6 +26,9 @@ abstract interface class BlobCipher {
     required Uint8List key,
     required Uint8List nonce,
   });
+
+  /// SHA-256 of [data].
+  Future<Uint8List> digest(Uint8List data);
 }
 
 /// [BlobCipher] in Dart, with the `cryptography` package.
@@ -62,4 +68,8 @@ class DartBlobCipher implements BlobCipher {
     final clear = await algorithm.decrypt(box, secretKey: SecretKey(key));
     return Uint8List.fromList(clear);
   }
+
+  @override
+  Future<Uint8List> digest(Uint8List data) async =>
+      Uint8List.fromList((await Sha256().hash(data)).bytes);
 }
