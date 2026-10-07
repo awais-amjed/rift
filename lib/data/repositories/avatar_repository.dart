@@ -40,17 +40,17 @@ class AvatarRepository {
   }) async {
     try {
       final path = buildPath(userId);
-      final resp = await _http
-          .post(
-            StorageRest.object(baseUrl, bucket, path),
-            headers: {
-              ...StorageRest.headers(anonKey, bearerToken),
-              'Content-Type': 'image/png',
-              'x-upsert': 'false',
-            },
-            body: data,
-          )
-          .timeout(StorageRest.timeout);
+      final resp = await StorageRest.sendBytes(
+        _http,
+        'POST',
+        StorageRest.object(baseUrl, bucket, path),
+        headers: {
+          ...StorageRest.headers(anonKey, bearerToken),
+          'Content-Type': 'image/png',
+          'x-upsert': 'false',
+        },
+        body: data,
+      ).timeout(StorageRest.timeout);
 
       final refused = StorageRest.refusal(resp, failed: 'Avatar upload failed');
       if (refused != null) return refused;

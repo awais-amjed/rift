@@ -55,17 +55,17 @@ class SoundboardRepository {
   }) async {
     try {
       final path = buildPath(serverId);
-      final resp = await _http
-          .post(
-            StorageRest.object(baseUrl, bucket, path),
-            headers: {
-              ...StorageRest.headers(anonKey, bearerToken),
-              'Content-Type': contentType,
-              'x-upsert': 'false',
-            },
-            body: data,
-          )
-          .timeout(StorageRest.timeout);
+      final resp = await StorageRest.sendBytes(
+        _http,
+        'POST',
+        StorageRest.object(baseUrl, bucket, path),
+        headers: {
+          ...StorageRest.headers(anonKey, bearerToken),
+          'Content-Type': contentType,
+          'x-upsert': 'false',
+        },
+        body: data,
+      ).timeout(StorageRest.timeout);
 
       if (resp.statusCode == 413) {
         return APIResponse.error(

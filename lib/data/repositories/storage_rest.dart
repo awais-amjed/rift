@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
@@ -50,6 +51,23 @@ abstract final class StorageRest {
       (_) => _rng.nextInt(256).toRadixString(16).padLeft(2, '0'),
     ).join();
     return '$folder/$id.$extension';
+  }
+
+  /// [body] sent to [uri] as it is. `client.post(body: bytes)` does not:
+  /// it wraps the bytes in a cast view and copies them back one at a time,
+  /// on the UI isolate. Measured Oct 7 on a phone, that was 110 ms for each
+  /// 16 MB piece of a big upload, the window frozen every time.
+  static Future<http.Response> sendBytes(
+    http.Client client,
+    String method,
+    Uri uri, {
+    required Map<String, String> headers,
+    required Uint8List body,
+  }) async {
+    final request = http.Request(method, uri)
+      ..headers.addAll(headers)
+      ..bodyBytes = body;
+    return http.Response.fromStream(await client.send(request));
   }
 
   /// What [response] means when it is not a success, or null when it is.

@@ -158,17 +158,17 @@ class AttachmentRepository with _AttachmentStreamMixin {
       }
       final path = buildPath(scopePrefix);
       final uri = StorageRest.object(baseUrl, bucket, path);
-      final resp = await _http
-          .post(
-            uri,
-            headers: {
-              ...StorageRest.headers(anonKey, bearerToken),
-              'Content-Type': 'application/octet-stream',
-              'x-upsert': 'false',
-            },
-            body: blob.ciphertext,
-          )
-          .timeout(StorageRest.timeout);
+      final resp = await StorageRest.sendBytes(
+        _http,
+        'POST',
+        uri,
+        headers: {
+          ...StorageRest.headers(anonKey, bearerToken),
+          'Content-Type': 'application/octet-stream',
+          'x-upsert': 'false',
+        },
+        body: blob.ciphertext,
+      ).timeout(StorageRest.timeout);
 
       final refused = StorageRest.refusal(resp, failed: 'Upload failed');
       if (refused != null) return refused;

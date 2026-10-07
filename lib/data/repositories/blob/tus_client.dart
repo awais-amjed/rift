@@ -99,18 +99,18 @@ class TusClient {
     required int offset,
     required Uint8List body,
   }) async {
-    final response = await _http
-        .patch(
-          upload,
-          headers: {
-            ...auth,
-            ..._version,
-            'Upload-Offset': '$offset',
-            'Content-Type': 'application/offset+octet-stream',
-          },
-          body: body,
-        )
-        .timeout(pieceTimeout(body.length));
+    final response = await StorageRest.sendBytes(
+      _http,
+      'PATCH',
+      upload,
+      headers: {
+        ...auth,
+        ..._version,
+        'Upload-Offset': '$offset',
+        'Content-Type': 'application/offset+octet-stream',
+      },
+      body: body,
+    ).timeout(pieceTimeout(body.length));
     _check(response, 'Upload failed');
     return int.tryParse(response.headers['upload-offset'] ?? '') ??
         offset + body.length;

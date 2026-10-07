@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:rift/data/repositories/storage_rest.dart';
@@ -66,4 +68,49 @@ void main() {
       expect(paths, hasLength(200));
     });
   });
+
+  group('sendBytes', () {
+    // client.post(body: bytes) copied the bytes back one at a time on the UI
+    // isolate: 110 ms per 16 MB piece of a big upload on a phone.
+    test('hands over the bytes it was given, not a copy', () async {
+      final client = _Capture();
+      final body = Uint8List(1 << 20);
+      await StorageRest.sendBytes(
+        client,
+        'PATCH',
+        Uri.parse('http://x/upload'),
+        headers: {'Upload-Offset': '0'},
+        body: body,
+      );
+      final sent = client.sent! as http.Request;
+      expect(identical(sent.bodyBytes, body), isTrue);
+      expect(sent.method, 'PATCH');
+      expect(sent.headers['Upload-Offset'], '0');
+      expect(sent.contentLength, body.length);
+    });
+
+    test('a view sends only what it covers', () async {
+      // What a piece resent from partway through is.
+      final client = _Capture();
+      final whole = Uint8List.fromList(List.generate(10, (i) => i));
+      await StorageRest.sendBytes(
+        client,
+        'PATCH',
+        Uri.parse('http://x/upload'),
+        headers: const {},
+        body: Uint8List.sublistView(whole, 4),
+      );
+      expect((client.sent! as http.Request).bodyBytes, [4, 5, 6, 7, 8, 9]);
+    });
+  });
+}
+
+class _Capture extends http.BaseClient {
+  http.BaseRequest? sent;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    sent = request;
+    return http.StreamedResponse(const Stream.empty(), 204);
+  }
 }
