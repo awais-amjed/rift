@@ -199,9 +199,17 @@ class ArtifactProvider {
       );
 
       // Look for artifacts in the target/release or target/{triple}/release directory
+      // target/release is what a plain `cargo build --release` made for this
+      // machine, so it can only stand in for this machine's own target.
+      // Offered to an Android build, it put the Linux library in the APK,
+      // which then failed to load.
+      final hostBuild = target.android == null &&
+          (target.darwinPlatform == null ||
+              target.darwinPlatform == 'macosx') &&
+          Target.buildableTargets().any((t) => t.rust == target.rust);
       final possibleDirs = [
         path.join(localCachePath, target.rust, 'release'),
-        path.join(localCachePath, 'release'),
+        if (hostBuild) path.join(localCachePath, 'release'),
       ];
 
       for (final dir in possibleDirs) {
