@@ -224,17 +224,19 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
     ),
   );
 
-  /// Store sealed keyring entries for a key version.
+  /// Store sealed keyring entries for a key version — a new one when [mint].
   Future<APIResponse> postChannelKeys({
     required String channelId,
     required int keyVersion,
     required List<Map<String, dynamic>> entries,
+    required bool mint,
   }) => _callWithAutoRefresh(
     (token) => _repository.postChannelKeys(
       state.selectedServer!.supabaseUrl,
       channelId: channelId,
       keyVersion: keyVersion,
       entries: entries,
+      mint: mint,
       bearerToken: token,
     ),
   );

@@ -14,9 +14,9 @@ mixin _ChatSweepMixin on Cubit<ChannelChatState> {
 
   bool _sweeping = false;
 
-  /// Enough for a server that rotated a few dozen times under a few hundred
-  /// members; anything left over is picked up by the next ring.
-  static const _maxSweepPasses = 10;
+  /// A pass seals at most 500 entries, so this covers a key change in a
+  /// channel of 100,000 members; anything left over goes to the next ring.
+  static const _maxSweepPasses = 200;
 
   Future<void> _runKeySweep() async {
     if (_sweeping) return;
@@ -28,9 +28,10 @@ mixin _ChatSweepMixin on Cubit<ChannelChatState> {
       if (identity == null) return;
 
       var healedAny = false;
-      // The server hands out old-version work a batch at a time and says
-      // `more` when it held some back. A pass that stored nothing ends it, so
-      // a batch that keeps failing is not asked for forever.
+      // The server hands out work 500 entries at a time and says `more` when
+      // it held some back: the rest of a big channel's new key, or old
+      // versions. A pass that stored nothing ends it, so a batch that keeps
+      // failing is not asked for forever.
       for (var pass = 0; pass < _maxSweepPasses; pass++) {
         final response = await _serverCubit.sweepChannelKeys();
         if (!response.success) break;
@@ -93,6 +94,7 @@ mixin _ChatSweepMixin on Cubit<ChannelChatState> {
       channelId: channelId,
       keyVersion: postVersion,
       entries: entries,
+      mint: version == 0 || rotate,
     );
     // A conflict just means another client won the same race — fine.
     return posted.success;

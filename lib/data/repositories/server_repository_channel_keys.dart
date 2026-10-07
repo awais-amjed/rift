@@ -10,10 +10,9 @@ mixin _ChannelKeysApiMixin {
     String? bearerToken,
   });
 
-  // Still edge functions. The key-distribution path enforces the "current + 1"
-  // version race and computes healing sets across channels; moving it is a
-  // careful job of its own, and getting it wrong silently breaks decryption for
-  // everyone rather than throwing. It runs on the service role.
+  // Edge functions on the service role. They enforce the "current + 1"
+  // version race, and the work they hand out is found in the database
+  // (`channel_key_work`, `channel_key_state`), where no row limit cuts it short.
 
   /// Fetch my sealed channel keys + current version + members missing
   /// current-version entries (the healing set).
@@ -40,19 +39,24 @@ mixin _ChannelKeysApiMixin {
     );
   }
 
-  /// Store sealed keyring entries for [keyVersion]. Fails with
-  /// `keyring_conflict` if another writer won the version race.
+  /// Store sealed keyring entries for [keyVersion].
+  ///
+  /// [mint] is a new version: it fails with `keyring_conflict` if another
+  /// writer got there first. Otherwise the version exists and this heals it,
+  /// skipping anybody somebody else sealed meanwhile.
   Future<APIResponse> postChannelKeys(
     String supabaseUrl, {
     String? bearerToken,
     required String channelId,
     required int keyVersion,
     required List<Map<String, dynamic>> entries,
+    required bool mint,
   }) {
     return _post(supabaseUrl, 'post_channel_keys', {
       'channel_id': channelId,
       'key_version': keyVersion,
       'entries': entries,
+      'mint': mint,
     }, bearerToken: bearerToken);
   }
 }

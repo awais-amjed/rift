@@ -82,6 +82,7 @@ mixin _KeyringSealingMixin {
         channelId: channelId,
         keyVersion: keyVersion,
         entries: entries,
+        mint: false,
       );
       // Wake the healed members so their waiting screens refetch.
       if (response.success) onHealed?.call();

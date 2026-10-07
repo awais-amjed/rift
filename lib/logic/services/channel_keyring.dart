@@ -283,6 +283,7 @@ class ChannelKeyring with _KeyringSealingMixin {
       channelId: channelId,
       keyVersion: 1,
       entries: entries,
+      mint: true,
     );
 
     if (response.success) {
