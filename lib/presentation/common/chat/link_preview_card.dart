@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../../../data/classes/attachment.dart';
 import '../../../data/classes/link_preview.dart';
 import '../../../data/constants.dart';
 import '../../../logic/services/open_link.dart';
@@ -54,7 +55,7 @@ class LinkPreviewCard extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (image != null && loader != null)
-                    _Thumbnail(future: loader!(image)),
+                    _Thumbnail(image: image, loader: loader!),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
                     child: Column(
@@ -105,15 +106,40 @@ class LinkPreviewCard extends StatelessWidget {
 
 /// The captured picture, once its bytes are decrypted; nothing while they
 /// are on the way, so the card does not jump.
-class _Thumbnail extends StatelessWidget {
-  final Future<Uint8List?> future;
+///
+/// Stateful so the fetch starts once: a future made in `build` is a new one
+/// every rebuild, and the card asked for its bytes again each time.
+class _Thumbnail extends StatefulWidget {
+  final Attachment image;
+  final AttachmentLoader loader;
 
-  const _Thumbnail({required this.future});
+  const _Thumbnail({required this.image, required this.loader});
+
+  @override
+  State<_Thumbnail> createState() => _ThumbnailState();
+}
+
+class _ThumbnailState extends State<_Thumbnail> {
+  late Future<Uint8List?> _bytes;
+
+  @override
+  void initState() {
+    super.initState();
+    _bytes = widget.loader(widget.image);
+  }
+
+  @override
+  void didUpdateWidget(_Thumbnail old) {
+    super.didUpdateWidget(old);
+    if (old.image.id != widget.image.id || old.loader != widget.loader) {
+      _bytes = widget.loader(widget.image);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<Uint8List?>(
-      future: future,
+      future: _bytes,
       builder: (context, snap) {
         final bytes = snap.data;
         if (bytes == null) return const SizedBox.shrink();
