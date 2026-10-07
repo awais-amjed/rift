@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:livekit_client/livekit_client.dart';
 
+import '../../../data/classes/participant_info.dart';
+import '../../../logic/cubits/app/app_cubit.dart';
 import '../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../logic/services/participant_video.dart';
 import '../../../logic/services/pip_focus.dart';
@@ -33,6 +35,12 @@ class PipCallView extends StatelessWidget {
       color: MediaColors.videoGround,
       child: BlocBuilder<LiveKitCubit, LiveKitState>(
         builder: (context, state) {
+          // Who is talking moves the window to them, and a change of speaker
+          // is not a LiveKit emit — it arrives in the roster published to
+          // [AppCubit] (`LiveKitCubit._syncParticipants`).
+          context.select<AppCubit, List<ParticipantInfo>>(
+            (c) => c.state.participants,
+          );
           final track = _focusTrack(state);
           if (track == null) return const PipAudioCard();
           return VideoTrackRenderer(track, fit: VideoViewFit.contain);

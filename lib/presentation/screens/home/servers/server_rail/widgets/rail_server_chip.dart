@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/classes/server.dart';
 import '../../../../../../data/constants.dart';
+import '../../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../../../../../common/context_menu_region.dart';
 import '../../../../../common/squircle_avatar.dart';
 import '../../../../../theme/app_motion.dart';
@@ -19,14 +21,12 @@ import 'server_chip_menu.dart';
 class RailServerChip extends StatefulWidget {
   final Server server;
   final bool isSelected;
-  final int unreadCount;
   final VoidCallback onTap;
 
   const RailServerChip({
     super.key,
     required this.server,
     required this.isSelected,
-    required this.unreadCount,
     required this.onTap,
   });
 
@@ -45,6 +45,11 @@ class _RailServerChipState extends State<RailServerChip> {
 
   @override
   Widget build(BuildContext context) {
+    // Each chip asks for its own count. The rail used to hand them all out
+    // from one builder, so a message anywhere redrew every server in it.
+    final unread = context.select<ServerNotificationsCubit, int>(
+      (c) => c.state.unreadForServer(widget.server.id),
+    );
     return ContextMenuRegion(
       contextMenu: ServerChipMenu(server: widget.server),
       child: Tooltip(
@@ -85,11 +90,11 @@ class _RailServerChipState extends State<RailServerChip> {
                     radius: K.radiusRailChip,
                   ),
                 ),
-                if (widget.unreadCount > 0 && !widget.isSelected)
+                if (unread > 0 && !widget.isSelected)
                   Positioned(
                     top: -3,
                     right: -3,
-                    child: RailUnreadBadge(count: widget.unreadCount),
+                    child: RailUnreadBadge(count: unread),
                   ),
               ],
             ),

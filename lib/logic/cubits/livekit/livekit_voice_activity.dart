@@ -26,7 +26,7 @@ part of 'livekit_cubit.dart';
 /// alone but libwebrtc ignored the inactive encoding and kept transmitting. It
 /// was removed rather than carried as a setting that does nothing.
 mixin _VoiceActivityMixin on Cubit<LiveKitState> {
-  void _syncParticipants();
+  void _syncParticipants({bool speakingOnly});
   // Signature has to match `_LiveKitConnectionMixin`'s declaration, which this
   // mixin overrides by being applied after it, even though only the no-argument
   // form is called here.
@@ -159,7 +159,9 @@ mixin _VoiceActivityMixin on Cubit<LiveKitState> {
     final level = PcmLevel.fromInt16(frame.data);
     final now = DateTime.now();
 
-    if (_speechDetector.update(level, now)) _syncParticipants();
+    if (_speechDetector.update(level, now)) {
+      _syncParticipants(speakingOnly: true);
+    }
 
     _emitMicLevel(level, now);
   }
@@ -181,7 +183,7 @@ mixin _VoiceActivityMixin on Cubit<LiveKitState> {
 
     await cancel?.call();
     // A muted mic must not leave the glow stuck on.
-    if (_speechDetector.reset()) _syncParticipants();
+    if (_speechDetector.reset()) _syncParticipants(speakingOnly: true);
     // Nor a borrowed meter stuck wherever the last frame left it. No more
     // frames are coming, so silence has to be said rather than measured.
     if (!_micLevelController.isClosed) _micLevelController.add(0);

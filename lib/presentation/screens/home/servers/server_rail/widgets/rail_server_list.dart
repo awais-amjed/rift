@@ -4,7 +4,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../../data/classes/server.dart';
 import '../../../../../../data/enums/home_surface.dart';
 import '../../../../../../logic/cubits/app/app_cubit.dart';
-import '../../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../responsive/shell_scope.dart';
 import 'rail_server_chip.dart';
@@ -38,52 +37,45 @@ class RailServerList extends StatelessWidget {
               a.servers != b.servers ||
               a.selectedServerId != b.selectedServerId,
           builder: (context, serverState) {
-            return BlocBuilder<ServerNotificationsCubit, NotificationsState>(
-              builder: (context, notifications) {
-                return ReorderableListView.builder(
-                  shrinkWrap: true,
-                  padding: EdgeInsets.zero,
-                  physics: const ClampingScrollPhysics(),
-                  buildDefaultDragHandles: false,
-                  proxyDecorator: _carried,
-                  itemCount: serverState.servers.length,
-                  onReorderItem: (from, to) =>
-                      context.read<ServerCubit>().reorderServers(from, to),
-                  itemBuilder: (context, index) {
-                    final server = serverState.servers[index];
-                    return _Draggable(
-                      key: ValueKey(server.id),
-                      index: index,
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: gap),
-                        // Centred, and loosely. A list hands every item the
-                        // full cross-axis width as a *tight* constraint, so
-                        // without this the chip's `Stack` is as wide as the
-                        // rail, the avatar sits at the stack's default
-                        // `topStart`, and the halo — `Positioned` to -4 on
-                        // every side — stretches the whole width with the
-                        // chip off-centre inside it. The `Column` this list
-                        // replaced never showed it, because a column's
-                        // cross-axis constraint is loose.
-                        child: Center(
-                          heightFactor: 1,
-                          child: RailServerChip(
-                            server: server,
-                            // Opening Home doesn't leave the server, but it
-                            // does mean the rail's selection is Home — two
-                            // things can't both be current.
-                            isSelected:
-                                server.id == serverState.selectedServerId &&
-                                appState.surface != HomeSurface.centralDms,
-                            unreadCount: notifications.unreadForServer(
-                              server.id,
-                            ),
-                            onTap: () => _open(context, server),
-                          ),
-                        ),
+            return ReorderableListView.builder(
+              shrinkWrap: true,
+              padding: EdgeInsets.zero,
+              physics: const ClampingScrollPhysics(),
+              buildDefaultDragHandles: false,
+              proxyDecorator: _carried,
+              itemCount: serverState.servers.length,
+              onReorderItem: (from, to) =>
+                  context.read<ServerCubit>().reorderServers(from, to),
+              itemBuilder: (context, index) {
+                final server = serverState.servers[index];
+                return _Draggable(
+                  key: ValueKey(server.id),
+                  index: index,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: gap),
+                    // Centred, and loosely. A list hands every item the
+                    // full cross-axis width as a *tight* constraint, so
+                    // without this the chip's `Stack` is as wide as the
+                    // rail, the avatar sits at the stack's default
+                    // `topStart`, and the halo — `Positioned` to -4 on
+                    // every side — stretches the whole width with the
+                    // chip off-centre inside it. The `Column` this list
+                    // replaced never showed it, because a column's
+                    // cross-axis constraint is loose.
+                    child: Center(
+                      heightFactor: 1,
+                      child: RailServerChip(
+                        server: server,
+                        // Opening Home doesn't leave the server, but it
+                        // does mean the rail's selection is Home — two
+                        // things can't both be current.
+                        isSelected:
+                            server.id == serverState.selectedServerId &&
+                            appState.surface != HomeSurface.centralDms,
+                        onTap: () => _open(context, server),
                       ),
-                    );
-                  },
+                    ),
+                  ),
                 );
               },
             );

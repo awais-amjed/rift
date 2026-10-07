@@ -10,7 +10,7 @@ import '../../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../../logic/cubits/dm_call/dm_call_cubit.dart';
 import '../../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../../../logic/services/call_duration.dart';
+import '../../../../../common/calls/call_clock.dart';
 import '../../../../../theme/app_motion.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/custom_colors.dart';
@@ -79,22 +79,6 @@ class _CallSection extends StatefulWidget {
 }
 
 class _CallSectionState extends State<_CallSection> {
-  Timer? _ticker;
-
-  @override
-  void initState() {
-    super.initState();
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted && widget.call.connectedAt != null) setState(() {});
-    });
-  }
-
-  @override
-  void dispose() {
-    _ticker?.cancel();
-    super.dispose();
-  }
-
   /// Puts the call in the centre: a DM call's conversation, or a channel's
   /// stage on its own server, with any chat over it closed.
   void _open() {
@@ -147,12 +131,18 @@ class _CallSectionState extends State<_CallSection> {
 
     final at = call.connectedAt;
     final failed = call.connectionState == LiveKitConnectionState.error;
-    final status = failed
-        ? 'Couldn\'t connect'
-        : at == null
-        ? 'Connecting…'
-        : formatCallDuration(DateTime.now().difference(at));
     final quiet = AppText.meta.copyWith(color: theme.textTertiary);
+    // Mono while it ticks, so the line does not shift as the digits roll
+    // over. The clock ticks itself; this card rebuilds only when the call
+    // changes.
+    final status = failed
+        ? Text('Couldn\'t connect', style: quiet)
+        : at == null
+        ? Text('Connecting…', style: quiet)
+        : CallClock(
+            since: at,
+            style: AppText.figure.copyWith(color: theme.textTertiary),
+          );
     final radius = BorderRadius.circular(K.radiusRow);
 
     return Column(
@@ -202,16 +192,7 @@ class _CallSectionState extends State<_CallSection> {
                               ),
                               Row(
                                 children: [
-                                  Text(
-                                    status,
-                                    // Mono while it ticks, so the line does
-                                    // not shift as the digits roll over.
-                                    style: at != null && !failed
-                                        ? AppText.figure.copyWith(
-                                            color: theme.textTertiary,
-                                          )
-                                        : quiet,
-                                  ),
+                                  status,
                                   if (where != null)
                                     Flexible(
                                       child: Text(

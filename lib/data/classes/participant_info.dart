@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
+
 /// A snapshot of one call connection, copied out of the LiveKit room for the
 /// sidebar and the tiles. A person with a shared screen or sound is more than
 /// one of these; [userId] is what joins them back up.
@@ -101,6 +103,39 @@ class ParticipantInfo {
     shareQuality: shareQuality,
     watching: watching,
   );
+
+  /// Everything but [isSpeaking] is the same as [other]'s.
+  ///
+  /// Speaking flips several times a second per talker, and only the ring
+  /// round the speaker follows it. Whatever draws the rest of a person asks
+  /// this, so a breath in the conversation does not rebuild every row.
+  bool sameApartFromSpeaking(ParticipantInfo other) =>
+      identity == other.identity &&
+      userId == other.userId &&
+      name == other.name &&
+      isMicrophoneEnabled == other.isMicrophoneEnabled &&
+      isCameraEnabled == other.isCameraEnabled &&
+      isLocal == other.isLocal &&
+      isScreenshare == other.isScreenshare &&
+      isSoundShare == other.isSoundShare &&
+      shareLabel == other.shareLabel &&
+      isDeafened == other.isDeafened &&
+      isSharingScreen == other.isSharingScreen &&
+      isSharingSound == other.isSharingSound &&
+      isServerMuted == other.isServerMuted &&
+      isServerDeafened == other.isServerDeafened &&
+      isSharePaused == other.isSharePaused &&
+      shareQuality == other.shareQuality &&
+      setEquals(watching, other.watching);
+
+  @override
+  bool operator ==(Object other) =>
+      other is ParticipantInfo &&
+      isSpeaking == other.isSpeaking &&
+      sameApartFromSpeaking(other);
+
+  @override
+  int get hashCode => Object.hash(identity, isSpeaking, isMicrophoneEnabled);
 
   /// Whether this is a share rather than a person in the call. Anything
   /// counting or listing people drops these: a share is one member's extra

@@ -226,8 +226,14 @@ class LiveKitCubit extends Cubit<LiveKitState>
   // Internal helpers
   // ──────────────────────────────────────────────────────────
 
+  /// [speakingOnly] says the caller learned nothing but who is talking. The
+  /// room then emits no new [LiveKitState] when it holds the same connections
+  /// as before: nothing in it changed but a flag inside LiveKit's own
+  /// objects, and an emit rebuilt the stage, every tile and the call bar
+  /// several times a second per talker. Speaking reaches the UI through the
+  /// roster published to [AppCubit] below, which every ring reads.
   @override
-  void _syncParticipants() {
+  void _syncParticipants({bool speakingOnly = false}) {
     final room = state.room;
     if (room == null) return;
 
@@ -245,16 +251,24 @@ class LiveKitCubit extends Cubit<LiveKitState>
 
     // Don't derive mic state from LiveKit when deafened — deafen forces the
     // WebRTC track off but the cubit state should reflect the pre-deafen value.
-    emit(
-      state.copyWith(
-        participants: allParticipants,
-        isCameraEnabled:
-            room.localParticipant?.isCameraEnabled() ?? state.isCameraEnabled,
-        isScreenSharing:
-            room.localParticipant?.isScreenShareEnabled() ??
-            state.isScreenSharing,
-      ),
-    );
+    final isCameraEnabled =
+        room.localParticipant?.isCameraEnabled() ?? state.isCameraEnabled;
+    final isScreenSharing =
+        room.localParticipant?.isScreenShareEnabled() ?? state.isScreenSharing;
+    final unchanged =
+        speakingOnly &&
+        _sameConnections(state.participants, allParticipants) &&
+        isCameraEnabled == state.isCameraEnabled &&
+        isScreenSharing == state.isScreenSharing;
+    if (!unchanged) {
+      emit(
+        state.copyWith(
+          participants: allParticipants,
+          isCameraEnabled: isCameraEnabled,
+          isScreenSharing: isScreenSharing,
+        ),
+      );
+    }
 
     // Who has a screen or a track up, so each person's row can say so. Their
     // share is a different connection, which is why this is a sweep of the
@@ -315,6 +329,14 @@ class LiveKitCubit extends Cubit<LiveKitState>
 
     _appCubit.setParticipants(ParticipantRoster.dedupeByUser(infos));
     _syncSelfModeration(infos);
+  }
+
+  static bool _sameConnections(List<Participant> a, List<Participant> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (!identical(a[i], b[i])) return false;
+    }
+    return true;
   }
 
   /// Picks our own moderation state out of the roster and acts on a change.

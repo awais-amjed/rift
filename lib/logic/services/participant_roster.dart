@@ -52,6 +52,21 @@ class ParticipantRoster {
     ];
   }
 
+  /// Whether [a] and [b] list the same connections in the same order, alike in
+  /// everything but who is speaking. See
+  /// [ParticipantInfo.sameApartFromSpeaking].
+  static bool sameApartFromSpeaking(
+    List<ParticipantInfo> a,
+    List<ParticipantInfo> b,
+  ) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (!a[i].sameApartFromSpeaking(b[i])) return false;
+    }
+    return true;
+  }
+
   /// Whether the participant with [identity] is speaking, according to the
   /// roster the LiveKit cubit publishes.
   ///
@@ -114,4 +129,20 @@ class ParticipantRoster {
       (p.isLocal ? 4 : 0) +
       (p.isSpeaking ? 2 : 0) +
       (p.isMicrophoneEnabled ? 1 : 0);
+}
+
+/// A roster that equals another when [ParticipantRoster.sameApartFromSpeaking]
+/// says so, for a `context.select` that must not fire on a change of speaker.
+class RosterApartFromSpeaking {
+  final List<ParticipantInfo> participants;
+
+  const RosterApartFromSpeaking(this.participants);
+
+  @override
+  bool operator ==(Object other) =>
+      other is RosterApartFromSpeaking &&
+      ParticipantRoster.sameApartFromSpeaking(participants, other.participants);
+
+  @override
+  int get hashCode => participants.length;
 }

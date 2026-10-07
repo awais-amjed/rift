@@ -9,7 +9,7 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
   SoundboardCubit? get _soundboardCubit;
   AppCubit get _appCubit;
   TokenCubit get _tokenCubit;
-  void _syncParticipants();
+  void _syncParticipants({bool speakingOnly});
   Future<void> _publishSelfState();
 
   /// Implemented by [_LiveKitConnectionMixin]; a dropped call joins again
@@ -173,7 +173,9 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
           _forgetStream(e.participant.identity);
         }
       })
-      ..on<ActiveSpeakersChangedEvent>((e) => _syncParticipants())
+      ..on<ActiveSpeakersChangedEvent>(
+        (e) => _syncParticipants(speakingOnly: true),
+      )
       ..on<TrackMutedEvent>((e) => _syncParticipants())
       ..on<TrackUnmutedEvent>((e) => _syncParticipants())
       // Server-side moderation state arrives via participant metadata and

@@ -1,11 +1,9 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/constants.dart';
 import '../../../../logic/cubits/livekit/livekit_cubit.dart';
-import '../../../../logic/services/call_duration.dart';
+import '../../../common/calls/call_clock.dart';
 import '../../../theme/app_motion.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/custom_colors.dart';
@@ -16,38 +14,17 @@ import '../../../theme/theme_context.dart';
 ///
 /// Hiding the bar must never hide whether you can be heard. On a desktop the
 /// pointer brings the bar back just by moving; a finger has to know to tap.
-class CallIdlePill extends StatefulWidget {
+class CallIdlePill extends StatelessWidget {
   final bool visible;
 
   const CallIdlePill({super.key, required this.visible});
 
   @override
-  State<CallIdlePill> createState() => _CallIdlePillState();
-}
-
-class _CallIdlePillState extends State<CallIdlePill> {
-  Timer? _ticker;
-
-  @override
-  void initState() {
-    super.initState();
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted && widget.visible) setState(() {});
-    });
-  }
-
-  @override
-  void dispose() {
-    _ticker?.cancel();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    final call = context.watch<LiveKitCubit>().state;
-    final at = call.connectedAt;
-    final micOn = call.isMicOn;
+    final at = context.select((LiveKitCubit c) => c.state.connectedAt);
+    final micOn = context.select((LiveKitCubit c) => c.state.isMicOn);
+    final clockStyle = AppText.figure.copyWith(color: theme.textPrimary);
 
     return Positioned(
       bottom: K.callBarOffset,
@@ -56,7 +33,7 @@ class _CallIdlePillState extends State<CallIdlePill> {
       child: Center(
         child: IgnorePointer(
           child: AnimatedOpacity(
-            opacity: widget.visible ? 1 : 0,
+            opacity: visible ? 1 : 0,
             duration: AppMotion.enter,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
@@ -74,12 +51,10 @@ class _CallIdlePillState extends State<CallIdlePill> {
                     size: K.iconRow,
                     color: CustomColors.success,
                   ),
-                  Text(
-                    at == null
-                        ? '--:--'
-                        : formatCallDuration(DateTime.now().difference(at)),
-                    style: AppText.figure.copyWith(color: theme.textPrimary),
-                  ),
+                  if (at == null)
+                    Text('--:--', style: clockStyle)
+                  else
+                    CallClock(since: at, style: clockStyle),
                   Container(width: 1, height: 14, color: theme.borderElevated),
                   Icon(
                     micOn ? Icons.mic_none_rounded : Icons.mic_off_rounded,

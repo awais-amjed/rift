@@ -1,8 +1,6 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
-import '../../../../../../../../logic/services/call_duration.dart';
+import '../../../../../../../common/calls/call_clock.dart';
 import '../../../../../../../theme/app_text.dart';
 import '../../../../../../../theme/theme_context.dart';
 
@@ -13,7 +11,7 @@ import '../../../../../../../theme/theme_context.dart';
 /// says. The length says something the card didn't: whether you'd be joining
 /// something just starting or two hours in. Mono, like every timer in the call
 /// chrome, so the digits tick in place rather than shuffling the header.
-class CallTimer extends StatefulWidget {
+class CallTimer extends StatelessWidget {
   final DateTime startedAt;
 
   /// The call you are in reads a step brighter, as its card does.
@@ -22,34 +20,12 @@ class CallTimer extends StatefulWidget {
   const CallTimer({super.key, required this.startedAt, this.isYours = false});
 
   @override
-  State<CallTimer> createState() => _CallTimerState();
-}
-
-class _CallTimerState extends State<CallTimer> {
-  late final Timer _tick = Timer.periodic(
-    const Duration(seconds: 1),
-    (_) => setState(() {}),
-  );
-
-  @override
-  void initState() {
-    super.initState();
-    _tick;
-  }
-
-  @override
-  void dispose() {
-    _tick.cancel();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    return Text(
-      formatCallDuration(DateTime.now().difference(widget.startedAt)),
+    return CallClock(
+      since: startedAt,
       style: AppText.figure.copyWith(
-        color: widget.isYours ? theme.textSecondary : theme.textTertiary,
+        color: isYours ? theme.textSecondary : theme.textTertiary,
       ),
     );
   }

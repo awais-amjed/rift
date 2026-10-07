@@ -205,8 +205,15 @@ class _MembersSidebarState extends State<MembersSidebar> {
     ThemeState themeState,
     AppState appState,
   ) {
-    final myId = context.watch<ServerCubit>().state.selectedServer?.user?.id;
-    final presence = context.watch<ChannelPresenceCubit>().state;
+    // Selected, not watched: presence also carries who is in which voice
+    // channel and when each call started, and the server state changes for
+    // reasons a list of members never shows.
+    final myId = context.select(
+      (ServerCubit c) => c.state.selectedServer?.user?.id,
+    );
+    final onlineIds = context.select(
+      (ChannelPresenceCubit c) => c.state.onlineUserIds,
+    );
     final roster = context.watch<ServerMembersCubit>().state;
 
     return Column(
@@ -230,7 +237,7 @@ class _MembersSidebarState extends State<MembersSidebar> {
               : MembersSidebarList(
                   appState: appState,
                   roster: roster,
-                  onlineIds: presence.onlineUserIds,
+                  onlineIds: onlineIds,
                   myId: myId,
                   onLoadMore: () => unawaited(
                     context.read<ServerMembersCubit>().loadMorePeople(),

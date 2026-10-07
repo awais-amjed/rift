@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase/supabase.dart';
 
@@ -274,7 +275,11 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
       }
     }
     _names = names;
-    _online = names.keys.toSet();
+    // The same set when nobody came or went, so a reader can select it by
+    // identity: the member list does, and every move between voice channels
+    // would otherwise redraw it.
+    final online = names.keys.toSet();
+    if (!setEquals(online, _online)) _online = online;
     _emit();
     _healTracking(_online);
   }

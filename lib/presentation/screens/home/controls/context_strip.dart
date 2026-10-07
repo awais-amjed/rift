@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -9,6 +7,7 @@ import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/services/call_duration.dart';
+import '../../../common/calls/call_clock.dart';
 import '../../../common/status_chip.dart';
 import '../../../responsive/shell_scope.dart';
 import '../../../theme/app_text.dart';
@@ -23,7 +22,7 @@ import 'phone_context_strip.dart';
 /// Slim strip above the participant grid: channel name, live participant
 /// count, and session timer. Keeps chrome to one row so the video area stays
 /// as large as possible.
-class ContextStrip extends StatefulWidget {
+class ContextStrip extends StatelessWidget {
   /// Inside a DM conversation's pane, which has its own header and its own
   /// ways to show the side panels — so this does not repeat them.
   final bool embedded;
@@ -34,26 +33,12 @@ class ContextStrip extends StatefulWidget {
   static double heightFor({required bool compact}) =>
       compact ? K.paneHeaderHeight + 8 : K.paneHeaderHeight;
 
-  @override
-  State<ContextStrip> createState() => _ContextStripState();
-}
-
-class _ContextStripState extends State<ContextStrip> {
-  Timer? _ticker;
-
-  @override
-  void initState() {
-    super.initState();
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
-    });
-  }
-
-  @override
-  void dispose() {
-    _ticker?.cancel();
-    super.dispose();
-  }
+  /// People in the call, once each however many devices or shares they have.
+  static int _peopleIn(LiveKitState state) => state.participants
+      .where((p) => !ParticipantIdentity.isShare(p.identity))
+      .map((p) => ParticipantIdentity.userIdOf(p.identity))
+      .toSet()
+      .length;
 
   @override
   Widget build(BuildContext context) {
@@ -73,6 +58,12 @@ class _ContextStripState extends State<ContextStrip> {
                 .firstOrNull;
 
             return BlocBuilder<LiveKitCubit, LiveKitState>(
+              // What the strip says, not the room: the time ticks by itself
+              // in its [CallClock].
+              buildWhen: (a, b) =>
+                  a.dmCall != b.dmCall ||
+                  a.connectedAt != b.connectedAt ||
+                  _peopleIn(a) != _peopleIn(b),
               builder: (context, lkState) {
                 // A DM call is named after the person, and says it is a
                 // call rather than counting who is in it: it is two people.
@@ -81,24 +72,17 @@ class _ContextStripState extends State<ContextStrip> {
                 // Count distinct users, not raw connections, so a user on
                 // multiple devices (or sharing a screen or a track)
                 // counts once.
-                final count = lkState.participants
-                    .where((p) => !ParticipantIdentity.isShare(p.identity))
-                    .map((p) => ParticipantIdentity.userIdOf(p.identity))
-                    .toSet()
-                    .length;
+                final count = _peopleIn(lkState);
 
-                final elapsed = Text(
-                  formatCallDuration(
-                    DateTime.now().difference(
-                      lkState.connectedAt ?? DateTime.now(),
-                    ),
-                  ),
-                  // Mono and tabular: a timer that ticks must not change
-                  // width as the digits roll over.
-                  style: AppText.figure.copyWith(
-                    color: themeState.textTertiary,
-                  ),
+                // Mono and tabular: a timer that ticks must not change
+                // width as the digits roll over.
+                final timeStyle = AppText.figure.copyWith(
+                  color: themeState.textTertiary,
                 );
+                final at = lkState.connectedAt;
+                final elapsed = at == null
+                    ? Text(formatCallDuration(Duration.zero), style: timeStyle)
+                    : CallClock(since: at, style: timeStyle);
                 if (context.layoutMode.isCompact) {
                   return PhoneContextStrip(
                     channelName: callName,
@@ -117,8 +101,7 @@ class _ContextStripState extends State<ContextStrip> {
                   ),
                   child: Row(
                     children: [
-                      if (!widget.embedded &&
-                          ShowSidebarButton.shows(context)) ...[
+                      if (!embedded && ShowSidebarButton.shows(context)) ...[
                         const ShowSidebarButton(),
                         const SizedBox(width: 10),
                       ],
@@ -179,10 +162,10 @@ class _ContextStripState extends State<ContextStrip> {
                       elapsed,
                       if (dm != null) ...[
                         const SizedBox(width: 10),
-                        DmCallLayoutButtons(split: widget.embedded),
+                        DmCallLayoutButtons(split: embedded),
                       ],
                       // A DM surface has no member list to bring back.
-                      if (!widget.embedded &&
+                      if (!embedded &&
                           dm == null &&
                           ShowMembersButton.shows(context)) ...[
                         const SizedBox(width: 10),

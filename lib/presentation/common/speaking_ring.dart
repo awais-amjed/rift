@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/app_motion.dart';
@@ -75,27 +74,24 @@ class _SpeakingRingState extends State<SpeakingRing>
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.theme;
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        final active = widget.isSpeaking || _controller.value > 0;
-        return CustomPaint(
-          painter: _RingPainter(
-            borderRadius: widget.borderRadius,
-            gap: widget.gap,
-            shadows: active
-                ? AppShadows.speakingRing(
-                    themeState.primary,
-                    t: _controller.value,
-                    bloom: widget.bloom,
-                  )
-                : const [],
-          ),
-          child: child,
-        );
-      },
-      child: widget.child,
+    // The pulse is the painter's own: it repaints on every tick of the
+    // controller without a rebuild. And both boundaries matter. Without the
+    // outer one each frame of a breath repainted whatever shared the ring's
+    // layer — the whole sidebar, the whole stage — sixty times a second for
+    // as long as anybody talked; without the inner one the child, a video or
+    // an avatar, is repainted under the ring every frame.
+    return RepaintBoundary(
+      child: CustomPaint(
+        painter: _RingPainter(
+          pulse: _controller,
+          isSpeaking: widget.isSpeaking,
+          accent: context.theme.primary,
+          bloom: widget.bloom,
+          borderRadius: widget.borderRadius,
+          gap: widget.gap,
+        ),
+        child: RepaintBoundary(child: widget.child),
+      ),
     );
   }
 }
@@ -111,20 +107,29 @@ class _SpeakingRingState extends State<SpeakingRing>
 /// With a [gap], each shadow is drawn as a band starting that far out, so the
 /// space next to the child stays empty.
 class _RingPainter extends CustomPainter {
+  final Animation<double> pulse;
+  final bool isSpeaking;
+  final Color accent;
+  final double bloom;
   final BorderRadius borderRadius;
   final double gap;
-  final List<BoxShadow> shadows;
 
-  const _RingPainter({
+  _RingPainter({
+    required this.pulse,
+    required this.isSpeaking,
+    required this.accent,
+    required this.bloom,
     required this.borderRadius,
     required this.gap,
-    required this.shadows,
-  });
+  }) : super(repaint: pulse);
 
   @override
   void paint(Canvas canvas, Size size) {
+    // Still drawn while the pulse settles after the talking stops.
+    final t = pulse.value;
+    if (!isSpeaking && t == 0) return;
     final box = borderRadius.toRRect(Offset.zero & size);
-    for (final shadow in shadows) {
+    for (final shadow in AppShadows.speakingRing(accent, t: t, bloom: bloom)) {
       final inner = box.shift(shadow.offset).inflate(gap);
       final outer = inner.inflate(shadow.spreadRadius);
       if (gap > 0) {
@@ -137,7 +142,10 @@ class _RingPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_RingPainter old) =>
+      old.pulse != pulse ||
+      old.isSpeaking != isSpeaking ||
+      old.accent != accent ||
+      old.bloom != bloom ||
       old.borderRadius != borderRadius ||
-      old.gap != gap ||
-      !listEquals(old.shadows, shadows);
+      old.gap != gap;
 }

@@ -4,8 +4,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rift/data/classes/server.dart';
 import 'package:rift/data/constants.dart';
+import 'package:rift/logic/cubits/notifications/server_notifications_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/presentation/screens/home/servers/server_rail/widgets/rail_server_chip.dart';
+import 'package:rift/presentation/screens/home/servers/server_rail/widgets/rail_unread_badge.dart';
+
+import 'support/rebuild_counter.dart';
 
 /// In-memory stand-in so [ThemeCubit] (a HydratedCubit) can be built in tests.
 class _MemoryStorage implements Storage {
@@ -27,8 +31,26 @@ class _MemoryStorage implements Storage {
   Future<void> close() async {}
 }
 
-Server _server() => Server(
-  id: 'srv-1',
+/// Unread counts the test sets by hand.
+class _StubNotificationsCubit extends Cubit<NotificationsState>
+    implements ServerNotificationsCubit {
+  _StubNotificationsCubit() : super(const NotificationsState());
+
+  void unread(String serverId, int count) => emit(
+    NotificationsState(
+      unreadByServer: {
+        ...state.unreadByServer,
+        serverId: {'channel': count},
+      },
+    ),
+  );
+
+  @override
+  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+Server _server([String id = 'srv-1']) => Server(
+  id: id,
   name: 'Rift HQ',
   supabaseUrl: 'https://hq.example.co',
   token: 't',
@@ -41,14 +63,18 @@ Future<ThemeState> _pumpChip(
   final themeCubit = ThemeCubit();
   await tester.pumpWidget(
     MaterialApp(
-      home: BlocProvider.value(
-        value: themeCubit,
+      home: MultiBlocProvider(
+        providers: [
+          BlocProvider.value(value: themeCubit),
+          BlocProvider<ServerNotificationsCubit>(
+            create: (_) => _StubNotificationsCubit(),
+          ),
+        ],
         child: Scaffold(
           body: Center(
             child: RailServerChip(
               server: _server(),
               isSelected: isSelected,
-              unreadCount: 0,
               onTap: () {},
             ),
           ),
@@ -124,5 +150,42 @@ void main() {
     await _pumpChip(tester, isSelected: false);
 
     expect(_haloLayers(tester), isEmpty);
+  });
+
+  testWidgets('a message on one server redraws that server\'s chip only', (
+    tester,
+  ) async {
+    // The rail used to hand every chip its count from one builder, so a
+    // message anywhere redrew every server in it.
+    final notifications = _StubNotificationsCubit();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MultiBlocProvider(
+          providers: [
+            BlocProvider<ThemeCubit>(create: (_) => ThemeCubit()),
+            BlocProvider<ServerNotificationsCubit>.value(value: notifications),
+          ],
+          child: Scaffold(
+            body: Column(
+              children: [
+                for (final id in ['srv-1', 'srv-2', 'srv-3'])
+                  RailServerChip(
+                    server: _server(id),
+                    isSelected: false,
+                    onTap: () {},
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final counts = await countRebuilds(() async {
+      notifications.unread('srv-2', 4);
+      await tester.pump();
+    });
+    expect(counts[RailServerChip], 1);
+    expect(find.byType(RailUnreadBadge), findsOneWidget);
   });
 }

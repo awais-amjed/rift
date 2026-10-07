@@ -4,7 +4,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../data/classes/participant_info.dart';
 import '../../../../../data/classes/participant_setting.dart';
 import '../../../../../data/constants.dart';
+import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
+import '../../../../../logic/services/participant_roster.dart';
 import '../../../../common/context_menu_region.dart';
 import '../../../../common/hover_builder.dart';
 import '../../../../common/member_avatar.dart';
@@ -38,7 +40,6 @@ class ParticipantListItem extends StatelessWidget {
     final themeState = context.theme;
     final metrics = RosterRowMetrics.of(context);
     final isMuted = setting?.muted ?? false;
-    final isSpeaking = participant.isSpeaking && !isMuted;
 
     // The roster, not `participant.name` — that one is a copy of the
     // display name frozen into the LiveKit token when it was minted, so a
@@ -74,24 +75,36 @@ class ParticipantListItem extends StatelessWidget {
         child: Row(
           children: [
             // The avatar itself carries the speaking state — the same
-            // pulsing ring the voice tiles use, at roster scale.
-            SpeakingRing(
-              isSpeaking: isSpeaking,
-              // The hard ring only. Any blur rounds the corners past the
-              // avatar's own, so the glow read as a rounder shape than the
-              // picture it was drawn round.
-              bloom: 0,
-              // Held off the picture like the rail's selected server, so the
-              // ring reads as round the avatar rather than part of it. Ring
-              // and gap together stay inside the row's 5px padding.
-              gap: 2,
-              borderRadius: BorderRadius.circular(
-                metrics.avatarSize * K.avatarRadiusRatio,
-              ),
-              child: MemberAvatar(
-                userId: participant.userId,
-                name: name,
-                size: metrics.avatarSize,
+            // pulsing ring the voice tiles use, at roster scale. Read here
+            // from the live roster, not off [participant]: the card above
+            // hands this row on unchanged while only speaking differs
+            // (`VoiceChannelTile`), so the ring is all a breath redraws.
+            BlocSelector<AppCubit, AppState, bool>(
+              selector: (app) =>
+                  !isMuted &&
+                  ParticipantRoster.isSpeaking(
+                    app.participants,
+                    participant.identity,
+                    fallback: participant.isSpeaking,
+                  ),
+              builder: (context, isSpeaking) => SpeakingRing(
+                isSpeaking: isSpeaking,
+                // The hard ring only. Any blur rounds the corners past the
+                // avatar's own, so the glow read as a rounder shape than the
+                // picture it was drawn round.
+                bloom: 0,
+                // Held off the picture like the rail's selected server, so the
+                // ring reads as round the avatar rather than part of it. Ring
+                // and gap together stay inside the row's 5px padding.
+                gap: 2,
+                borderRadius: BorderRadius.circular(
+                  metrics.avatarSize * K.avatarRadiusRatio,
+                ),
+                child: MemberAvatar(
+                  userId: participant.userId,
+                  name: name,
+                  size: metrics.avatarSize,
+                ),
               ),
             ),
             const SizedBox(width: 8),

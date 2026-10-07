@@ -3,11 +3,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../../data/classes/channel.dart';
 import '../../../../../../../data/classes/participant_info.dart';
+import '../../../../../../../data/classes/participant_setting.dart';
 import '../../../../../../../data/constants.dart';
 import '../../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
+import '../../../../../../../logic/services/participant_roster.dart';
 import '../../../../../../common/hover_builder.dart';
 import '../../../../../../theme/app_motion.dart';
 import '../../../../../../theme/theme_context.dart';
@@ -48,88 +50,89 @@ class VoiceChannelTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
-    return BlocBuilder<AppCubit, AppState>(
-      // This tile reads two of `AppState`'s thirty fields, and there is one
-      // of it per voice channel in the sidebar. Without this, a hover flag
-      // or an audio preference rebuilt every one of them, along with each
-      // tile's whole roster.
-      //
-      // `identical` is the right test rather than `==`: the cubit replaces
-      // both wholesale — `participantSettings` is copied into a new map on
-      // every change — so a shared instance really does mean unchanged, and
-      // neither has a value equality to fall back on anyway.
-      buildWhen: (previous, current) =>
-          !identical(previous.participants, current.participants) ||
-          !identical(previous.participantSettings, current.participantSettings),
-      builder: (context, appState) {
-        return BlocBuilder<ChannelPresenceCubit, ChannelPresenceState>(
-          builder: (context, presenceState) {
-            // A share's connection isn't a person, and anyone
-            // who has since announced another channel has left this one —
-            // LiveKit just hasn't said so yet (ChannelPresenceState.
-            // isElsewhere).
-            final participants = isSelected
-                ? [
-                    for (final participant in appState.participants)
-                      if (!participant.isShare &&
-                          !presenceState.isElsewhere(
-                            participant.userId,
-                            channel.id,
-                          ))
-                        participant,
-                  ]
-                : const <ParticipantInfo>[];
-            // In your own call LiveKit is the source, but it names the others
-            // a moment after you connect. Until it does, presence still says
-            // they are here — and dropping them for that moment folded
-            // everyone out of the card and back in as you joined.
-            final presenceUsers = isSelected
-                ? [
-                    for (final user in presenceState.usersIn(channel.id))
-                      if (!participants.any((p) => p.userId == user.userId))
-                        user,
-                  ]
-                : presenceState.usersIn(channel.id);
-            // Bots called into this channel, arrived or not. A summon that
-            // nothing answered is the case this is for: it makes the
-            // channel occupied enough to draw a roster, which is the only
-            // place it can be seen or sent away.
-            final summoned = context.watch<VoiceListenersCubit>().summoned(
-              channel.id,
-            );
-            final isOccupied =
-                isSelected ||
-                participants.isNotEmpty ||
-                presenceUsers.isNotEmpty ||
-                summoned.isNotEmpty;
+    // Selected rather than built on: there is one of these per voice channel
+    // in the sidebar, and `AppState` changes with every hover, preference and
+    // breath anybody in the call takes. Settings are replaced wholesale on
+    // every change, so the map's own `==` (identity) is the right test.
+    final settings = context.select<AppCubit, Map<String, ParticipantSetting>>(
+      (c) => c.state.participantSettings,
+    );
+    // Only your own call has live participants, and only a change to who is in
+    // it, or how, redraws the card. Who is speaking is left to each row's ring
+    // (`ParticipantListItem`), or every voice channel rebuilt several times a
+    // second while anyone talked.
+    final live = context
+        .select<AppCubit, RosterApartFromSpeaking>(
+          (c) => RosterApartFromSpeaking(
+            isSelected ? c.state.participants : const [],
+          ),
+        )
+        .participants;
+    return BlocBuilder<ChannelPresenceCubit, ChannelPresenceState>(
+      builder: (context, presenceState) {
+        // A share's connection isn't a person, and anyone
+        // who has since announced another channel has left this one —
+        // LiveKit just hasn't said so yet (ChannelPresenceState.
+        // isElsewhere).
+        final participants = isSelected
+            ? [
+                for (final participant in live)
+                  if (!participant.isShare &&
+                      !presenceState.isElsewhere(
+                        participant.userId,
+                        channel.id,
+                      ))
+                    participant,
+              ]
+            : const <ParticipantInfo>[];
+        // In your own call LiveKit is the source, but it names the others
+        // a moment after you connect. Until it does, presence still says
+        // they are here — and dropping them for that moment folded
+        // everyone out of the card and back in as you joined.
+        final presenceUsers = isSelected
+            ? [
+                for (final user in presenceState.usersIn(channel.id))
+                  if (!participants.any((p) => p.userId == user.userId)) user,
+              ]
+            : presenceState.usersIn(channel.id);
+        // Bots called into this channel, arrived or not. A summon that
+        // nothing answered is the case this is for: it makes the
+        // channel occupied enough to draw a roster, which is the only
+        // place it can be seen or sent away.
+        final summoned = context.watch<VoiceListenersCubit>().summoned(
+          channel.id,
+        );
+        final isOccupied =
+            isSelected ||
+            participants.isNotEmpty ||
+            presenceUsers.isNotEmpty ||
+            summoned.isNotEmpty;
 
-            // An empty channel is the most likely place to drop someone,
-            // so it catches a drag as readily as an occupied one — and a
-            // drag over it raises the card, accent border and all, to say
-            // where the drop would land.
-            return ChannelDropTarget(
-              channelId: channel.id,
-              builder: (context, isTargeted) => TweenAnimationBuilder<double>(
-                // No `begin`: the first build starts where it is, so a list
-                // opening onto calls in progress doesn't animate them all in.
-                tween: Tween(end: isOccupied || isTargeted ? 1 : 0),
-                // Your own join answers your click; anyone else's is an
-                // arrival you didn't cause, and gets the longer, legible one.
-                duration: isSelected ? AppMotion.state : AppMotion.enter,
-                curve: AppMotion.settle,
-                builder: (context, t, _) => _buildCard(
-                  context,
-                  themeState,
-                  appState,
-                  t: t,
-                  participants: participants,
-                  presenceUsers: presenceUsers,
-                  summoned: summoned,
-                  isTargeted: isTargeted,
-                ),
-              ),
-            );
-          },
+        // An empty channel is the most likely place to drop someone,
+        // so it catches a drag as readily as an occupied one — and a
+        // drag over it raises the card, accent border and all, to say
+        // where the drop would land.
+        return ChannelDropTarget(
+          channelId: channel.id,
+          builder: (context, isTargeted) => TweenAnimationBuilder<double>(
+            // No `begin`: the first build starts where it is, so a list
+            // opening onto calls in progress doesn't animate them all in.
+            tween: Tween(end: isOccupied || isTargeted ? 1 : 0),
+            // Your own join answers your click; anyone else's is an
+            // arrival you didn't cause, and gets the longer, legible one.
+            duration: isSelected ? AppMotion.state : AppMotion.enter,
+            curve: AppMotion.settle,
+            builder: (context, t, _) => _buildCard(
+              context,
+              themeState,
+              settings,
+              t: t,
+              participants: participants,
+              presenceUsers: presenceUsers,
+              summoned: summoned,
+              isTargeted: isTargeted,
+            ),
+          ),
         );
       },
     );
@@ -147,7 +150,7 @@ class VoiceChannelTile extends StatelessWidget {
   Widget _buildCard(
     BuildContext context,
     ThemeState themeState,
-    AppState appState, {
+    Map<String, ParticipantSetting> settings, {
     required double t,
     required List<ParticipantInfo> participants,
     required List<PresenceUser> presenceUsers,
@@ -222,7 +225,7 @@ class VoiceChannelTile extends StatelessWidget {
             participants: participants,
             presenceUsers: presenceUsers,
             summoned: summoned,
-            settings: appState.participantSettings,
+            settings: settings,
           ),
         ],
       ),
