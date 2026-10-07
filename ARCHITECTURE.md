@@ -208,6 +208,17 @@ batch, and a channel's work goes to one online member at a time
 50,000 is still 50,000 seals, about a minute for one member's desktop client;
 the chain is what keeps that from piling up.
 
+**A removal changes the key at most once an hour.** A ban, a kick, somebody
+taken out of a private channel or a bot's grant revoked waits until the current
+key is an hour old, so a busy server's bans share one change instead of paying
+50,000 seals each. The server stops serving the person the moment they are
+removed; what the change adds is that a server operator passing them ciphertext
+anyway gets nothing past it, and that now holds within the hour rather than at
+once. Additions are not held back — a bot's grant, a private channel opening —
+since waiting only keeps somebody out longer. A job each minute
+(`app.ring_due_rotations`) rings the server when a held-back change falls due,
+so an online member makes it on time.
+
 ### DM topology — two tiers
 
 Same Design-1 crypto in both; different hosts, different policies. Central is a
@@ -651,7 +662,7 @@ rather than a request. The cooldown and length cutoff are applied by the
 | Central server / its host | safe (E2E) | safe (E2E) | n/a | n/a | n/a |
 | Self-hosted server's hosting provider | safe | n/a | safe (E2E) | safe | safe (E2E) |
 | Self-hosted server admin | safe | n/a | readable (they're a member anyway) | **safe** | channel calls: accessible · DM calls: **safe** |
-| A member, later banned | safe | n/a | what they read while a member; nothing after the ban (rotation). A bad key link they mint costs newcomers the history below it (§4, *The key chain*) | safe | ends at the ban |
+| A member, later banned | safe | n/a | what they read while a member; nothing the server sends after the ban, and nothing under the next key, which a ban brings within the hour (§4, *The key chain*). A bad key link they mint costs newcomers the history below it (§4, *The key chain*) | safe | ends at the ban |
 | Device thief (no password) | Argon2id + secure storage | — | newest page of each channel opened, sealed under the seed (§4, *Saved on the device*) | same | — |
 
 An update is code that runs with everything above, so it has its own guard

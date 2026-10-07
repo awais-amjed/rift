@@ -302,8 +302,10 @@ promise.
 
 ### Revoking rotates
 
-Revoking rotates the channel key, exactly as kicking a member does. The bot keeps what it already
-saw — nobody can take back what has been unwrapped — and gets nothing further.
+Revoking rotates the channel key, exactly as kicking a member does: within the hour, since
+removals share one key change an hour (`ARCHITECTURE.md` §4). The server stops serving the bot
+at once. The bot keeps what it already saw — nobody can take back what has been unwrapped — and
+gets nothing further.
 
 Both signals are shaped so they **clear themselves**: a granted bot whose grant starts above the
 current version, and a revoked bot still sealed into the current one. The rotation makes each check
