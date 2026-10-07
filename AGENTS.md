@@ -225,6 +225,11 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   SnackBars. Debug logging through `HelperMethods.printDebug`, not bare `print` (Dart side).
 - `buildWhen` / `listenWhen` are used on hot-path builders to limit rebuilds (see
   `home_screen.dart`); do the same for anything rebuilding inside the call screen.
+  A chat screen rebuilds per upload tick, keystroke and arrival, so each part of it
+  watches only its own slice of state (`ChannelChatView`), and `ChatMessageList` hands
+  back a row unchanged while its inputs are (`_MessageListRowsMixin`). A new
+  `ChatMessageRow` parameter goes into those inputs, or kept rows draw its old value;
+  `test/message_list_rebuild_test.dart` counts the rows a change rebuilds.
 - Platform gating: `kIsWeb` for web, `Platform.isX` for desktop specifics. The Rust bridge is
   desktop/mobile only (`if (!kIsWeb) await RustLib.init()`); web must degrade gracefully.
 - Navigation is go_router via `AppRoutes`; use `HelperMethods.pushOrGoToRoute` when a route must

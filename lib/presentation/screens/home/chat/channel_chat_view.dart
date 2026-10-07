@@ -81,6 +81,15 @@ class _ChannelChatViewState extends State<ChannelChatView>
       (cubit) => cubit.state.selectedServer?.user?.permissions.bits,
     );
     return BlocBuilder<ChannelChatCubit, ChannelChatState>(
+      // Only what decides the frame: which state is drawn and what holds the
+      // composer's slot. The history, who is typing and the composer's bots
+      // each watch their own part below, so an upload's progress or somebody
+      // typing rebuilds what shows it and not the header and composer too.
+      buildWhen: (a, b) =>
+          a.status != b.status ||
+          a.showingSaved != b.showingSaved ||
+          a.channelId != b.channelId ||
+          a.failure != b.failure,
       builder: (context, chatState) {
         final status = chatState.status;
         // The saved copy is on screen and the channel is still opening: the
@@ -125,7 +134,15 @@ class _ChannelChatViewState extends State<ChannelChatView>
                     onRetry: context.read<ChannelChatCubit>().retry,
                   ),
                 if (composing) ...[
-                  TypingIndicator(names: chatState.typingUsers.values.toList()),
+                  BlocSelector<
+                    ChannelChatCubit,
+                    ChannelChatState,
+                    Map<String, String>
+                  >(
+                    selector: (s) => s.typingUsers,
+                    builder: (context, typing) =>
+                        TypingIndicator(names: typing.values.toList()),
+                  ),
                   const MiniCallBar(),
                   TimeOutGate(
                     until: context.select<ServerCubit, DateTime?>(
@@ -150,7 +167,9 @@ class _ChannelChatViewState extends State<ChannelChatView>
                       // there is no choice to offer per file.
                       offersPlainFiles: !_notEncrypted(context),
                       notEncrypted: _notEncrypted(context),
-                      bots: chatState.bots,
+                      bots: context.select(
+                        (ChannelChatCubit c) => c.state.bots,
+                      ),
                       onCreatePoll: _canCreatePoll(context)
                           ? () => _createPoll(context)
                           : null,
@@ -366,14 +385,14 @@ class _ChannelChatViewState extends State<ChannelChatView>
       // history rather than as an absence.
       case ChannelChatStatus.ready:
       case ChannelChatStatus.readOnly:
-        return _buildList(context, chatState, live: true);
+        return _history(live: true);
       // The saved copy, while the channel opens or when it could not: drawn
       // as it is, with nothing offered that would act on it.
       case ChannelChatStatus.loading ||
               ChannelChatStatus.healingKey ||
               ChannelChatStatus.error
           when chatState.showingSaved:
-        return _buildList(context, chatState, live: false);
+        return _history(live: false);
       case ChannelChatStatus.loading:
       // Drawn the same as loading, and that is the whole point: a key being
       // wrapped for a new member is work in progress, not a refusal.
@@ -414,6 +433,20 @@ class _ChannelChatViewState extends State<ChannelChatView>
         return const SizedBox.shrink();
     }
   }
+
+  /// The history, rebuilt for what the list draws and nothing else.
+  Widget _history({required bool live}) =>
+      BlocBuilder<ChannelChatCubit, ChannelChatState>(
+        buildWhen: (a, b) =>
+            !identical(a.messages, b.messages) ||
+            !identical(a.mentionNames, b.mentionNames) ||
+            !identical(a.pollTallies, b.pollTallies) ||
+            a.hasNewerHistory != b.hasNewerHistory ||
+            a.status != b.status ||
+            a.channelId != b.channelId,
+        builder: (context, chatState) =>
+            _buildList(context, chatState, live: live),
+      );
 
   /// The history. [live] is false for the saved copy: every action on a row
   /// is withheld, since none of it is confirmed and the keys to act with are

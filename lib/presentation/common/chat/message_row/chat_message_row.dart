@@ -51,6 +51,10 @@ part 'chat_message_row_actions.dart';
 /// [showHeader] rows carry the avatar + author name + timestamp; continuation
 /// rows (same author, small gap) show only the indented text. Hovering lights
 /// the whole row and reveals an action toolbar.
+///
+/// The list keeps a built row and hands it back while its inputs are
+/// unchanged, so a new parameter here must go into `_RowInputs` or
+/// `_sameForRows` in `chat_message_list_rows.dart`.
 class ChatMessageRow extends StatefulWidget {
   static const double _gutterWidth = K.messageGutter;
 

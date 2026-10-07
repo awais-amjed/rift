@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:intl/intl.dart';
@@ -22,10 +23,11 @@ import 'message_row/message_reply_quote.dart';
 
 part 'chat_message_list_jumps.dart';
 part 'chat_message_list_quotes.dart';
+part 'chat_message_list_rows.dart';
 
 /// Over the widget budget and one job: the list of rows, their day dividers and
-/// which of them animate in. Looking up quoted messages and jumping to them are
-/// its two parts.
+/// which of them animate in. Looking up quoted messages, jumping to them, and
+/// not rebuilding rows that have not changed are its three parts.
 ///
 /// Scrollable message history, newest at the bottom (reversed list, so it
 /// stays pinned to the latest message). Consecutive messages from the same
@@ -188,7 +190,10 @@ class ChatMessageList extends StatefulWidget {
 }
 
 class _ChatMessageListState extends State<ChatMessageList>
-    with _MessageListQuotesMixin, _MessageListJumpsMixin {
+    with
+        _MessageListQuotesMixin,
+        _MessageListJumpsMixin,
+        _MessageListRowsMixin {
   /// Ids we've already rendered — used to decide which rows are new enough to
   /// animate. The first populated frame primes this set silently.
   final Set<String> _seen = <String>{};
@@ -301,6 +306,7 @@ class _ChatMessageListState extends State<ChatMessageList>
     if (!identical(old.messages, widget.messages)) {
       _animating = _computeAnimating();
     }
+    _refreshKeptRows(old);
     if (old.jumpRequests != widget.jumpRequests) {
       old.jumpRequests?.removeListener(_onJumpRequest);
       widget.jumpRequests?.addListener(_onJumpRequest);
@@ -394,11 +400,21 @@ class _ChatMessageListState extends State<ChatMessageList>
   }
 
   Widget _buildList(List<_StreamItem> items, Map<String, ChatMessage> byId) {
+    // Where each message's row now sits. The list is reversed, so a message
+    // arriving at the bottom moves every row on screen up one place; told
+    // where each went, the list moves it there as it is. Matched by place
+    // instead, every row on screen was rebuilt for every message that came in.
+    final placeOf = <Key, int>{
+      for (var i = 0; i < items.length; i++)
+        if (items[i] case _MsgItem(:final message))
+          _jumper.keyFor(message.rowId): items.length - 1 - i,
+    };
     return ListView.builder(
       controller: widget.controller,
       reverse: true,
       padding: const EdgeInsets.only(top: 12, bottom: 12),
       itemCount: items.length,
+      findChildIndexCallback: (key) => placeOf[key],
       itemBuilder: (context, reversedIndex) {
         final item = items[items.length - 1 - reversedIndex];
         if (item is _DateItem) {
@@ -412,60 +428,75 @@ class _ChatMessageListState extends State<ChatMessageList>
         }
         final msg = (item as _MsgItem).message;
         final origin = _originOf(msg, byId);
+        final inputs = (
+          message: msg,
+          showHeader: item.showHeader,
+          repliedTo: origin.original,
+          originState: origin.state,
+          flashToken: msg.rowId == _flashRowId ? _flashToken : null,
+          animateIn: _animating.contains(msg.id),
+          pollTally: widget.pollTallies[msg.id],
+        );
         // The GlobalKey goes on a wrapper, not on the row. It exists
         // only to give [MessageJumper] something to scroll to, and the
         // row's own key is load-bearing for a different reason — see
-        // below. One widget cannot carry both.
+        // [_buildRow]. One widget cannot carry both.
         return KeyedSubtree(
           key: _jumper.keyFor(msg.rowId),
-          child: ChatMessageRow(
-            // Not `msg.id`: your own message is drawn under a local id and
-            // then handed the server's, and keying by that would make the
-            // ack destroy the row mid-entrance. See [ChatMessage.rowId].
-            key: ValueKey(msg.rowId),
-            message: msg,
-            showHeader: item.showHeader,
-
-            attachmentLoader: widget.attachmentLoader,
-            onToggleReaction: widget.onToggleReaction,
-            // A webhook's row names whoever it was told to name, so there is
-            // no account behind it to open — see [MessageOriginBadge].
-            onOpenProfile: widget.onOpenProfile == null || !msg.origin.isMember
-                ? null
-                : () => widget.onOpenProfile!(msg.authorId, msg.authorName),
-            onReply: widget.onReply,
-            onForward: widget.onForward,
-            repliedTo: origin.original,
-            originState: origin.state,
-            // Pressable whenever there is a message to go to, whether it
-            // is in the list or a few pages back. Not when there is
-            // nothing — a line saying it was deleted is not a button.
-            onJumpToOriginal: switch (origin.state) {
-              ReplyOriginState.present => () => unawaited(
-                _goToOriginal(msg.replyToId!, loaded: true),
-              ),
-              ReplyOriginState.behind when widget.onShowAround != null =>
-                () => unawaited(_goToOriginal(msg.replyToId!, loaded: false)),
-              _ => null,
-            },
-            flashToken: msg.rowId == _flashRowId ? _flashToken : null,
-            onEdit: widget.onEdit,
-            onDelete: widget.onDelete,
-            onRetry: widget.onRetry,
-            onPanelAction: widget.onPanelAction,
-            isModerator: widget.isModerator,
-            canReact: widget.canReact,
-            mentionable: widget.mentionable,
-            mentionNames: widget.mentionNames,
-            animateIn: _animating.contains(msg.id),
-            onTogglePin: widget.onTogglePin,
-            onReport: widget.onReport,
-            pollTally: widget.pollTallies[msg.id],
-            onVote: widget.onVote,
-            onClosePoll: widget.onClosePoll,
-          ),
+          child: _keptRow(msg.rowId, inputs, () => _buildRow(inputs)),
         );
       },
+    );
+  }
+
+  ChatMessageRow _buildRow(_RowInputs inputs) {
+    final msg = inputs.message;
+    return ChatMessageRow(
+      // Not `msg.id`: your own message is drawn under a local id and then
+      // handed the server's, and keying by that would make the ack destroy
+      // the row mid-entrance. See [ChatMessage.rowId].
+      key: ValueKey(msg.rowId),
+      message: msg,
+      showHeader: inputs.showHeader,
+      attachmentLoader: widget.attachmentLoader,
+      onToggleReaction: widget.onToggleReaction == null
+          ? null
+          : _toggleReaction,
+      // A webhook's row names whoever it was told to name, so there is no
+      // account behind it to open — see [MessageOriginBadge].
+      onOpenProfile: widget.onOpenProfile == null || !msg.origin.isMember
+          ? null
+          : () => widget.onOpenProfile?.call(msg.authorId, msg.authorName),
+      onReply: widget.onReply == null ? null : _reply,
+      onForward: widget.onForward == null ? null : _forward,
+      repliedTo: inputs.repliedTo,
+      originState: inputs.originState,
+      // Pressable whenever there is a message to go to, whether it is in the
+      // list or a few pages back. Not when there is nothing — a line saying
+      // it was deleted is not a button.
+      onJumpToOriginal: switch (inputs.originState) {
+        ReplyOriginState.present => () => unawaited(
+          _goToOriginal(msg.replyToId!, loaded: true),
+        ),
+        ReplyOriginState.behind when widget.onShowAround != null =>
+          () => unawaited(_goToOriginal(msg.replyToId!, loaded: false)),
+        _ => null,
+      },
+      flashToken: inputs.flashToken,
+      onEdit: widget.onEdit == null ? null : _edit,
+      onDelete: widget.onDelete == null ? null : _delete,
+      onRetry: widget.onRetry == null ? null : _retry,
+      onPanelAction: widget.onPanelAction == null ? null : _panelAction,
+      isModerator: widget.isModerator,
+      canReact: widget.canReact,
+      mentionable: widget.mentionable,
+      mentionNames: widget.mentionNames,
+      animateIn: inputs.animateIn,
+      onTogglePin: widget.onTogglePin == null ? null : _togglePin,
+      onReport: widget.onReport == null ? null : _report,
+      pollTally: inputs.pollTally,
+      onVote: widget.onVote == null ? null : _vote,
+      onClosePoll: widget.onClosePoll == null ? null : _closePoll,
     );
   }
 }

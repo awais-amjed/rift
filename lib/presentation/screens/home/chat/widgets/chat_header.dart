@@ -141,10 +141,12 @@ class ChatHeader extends StatelessWidget {
                       tooltip: StatusChip.privateTooltip,
                     ),
                   ChannelListenersChip(
-                    listeners: context
-                        .watch<ChannelChatCubit>()
-                        .state
-                        .botListeners,
+                    // Selected, not watched: the header would otherwise
+                    // rebuild for every message, upload tick and keystroke
+                    // somebody else types.
+                    listeners: context.select(
+                      (ChannelChatCubit c) => c.state.botListeners,
+                    ),
                   ),
                 ],
               ),
