@@ -7,6 +7,7 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'save_name.dart';
 import 'save_sink.dart';
 
 export 'save_sink.dart';
@@ -23,7 +24,9 @@ Future<SaveSink?> chooseSaveTarget(
   }
   final location = await getSaveLocation(suggestedName: name);
   if (location == null) return null;
-  final target = File(location.path);
+  final target = File(
+    Platform.isWindows ? keepExtension(location.path, name) : location.path,
+  );
   if (await target.exists() &&
       !await confirmReplace(target.uri.pathSegments.last)) {
     return null;
