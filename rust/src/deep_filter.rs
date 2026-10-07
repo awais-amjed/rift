@@ -54,7 +54,19 @@ impl Model {
     pub(crate) fn new() -> Result<Model, String> {
         // The post-filter takes a little more off what the model leaves
         // between words, at the strength DeepFilterNet's own command line uses.
-        let params = RuntimeParams::default_with_ch(1).with_post_filter(0.02);
+        //
+        // Every stage runs on every frame, as in DeepFilterNet's own
+        // enhancement and its LADSPA plugin. libDF's defaults skip the deep
+        // filter on frames it judges clean enough (above 20 dB, and the whole
+        // model above 30), so a voice switched between being filtered and not
+        // as it spoke, which is heard as crackle. Processing them all, a voice
+        // came out much closer to itself (offline, Oct 7: 32 → 41 dB on clean
+        // speech, 7.6 → 19 dB on speech in noise), with as much noise taken
+        // out, for 0.2 ms more a frame. Frames it judges to be noise alone
+        // (below −10 dB) are still silenced.
+        let params = RuntimeParams::default_with_ch(1)
+            .with_post_filter(0.02)
+            .with_thresholds(-10.0, 35.0, 35.0);
         let df = DfTract::new(DfParams::default(), &params)
             .map_err(|e| format!("DeepFilterNet would not load: {e}"))?;
         if df.hop_size != FRAME || df.sr != 48000 {
@@ -237,6 +249,46 @@ mod tests {
         }
         let lost_db = 10.0 * (energy_in / energy_out.max(1e-9)).log10();
         assert!(lost_db < 3.0, "the voice came out {lost_db:.1} dB quieter");
+    }
+
+    #[test]
+    fn a_voice_in_light_noise_comes_out_close_to_itself() {
+        // Light noise, as in a quiet room, is where libDF's defaults skipped
+        // stages: 6 dB of closeness with them, 33 without.
+        let mut model = Model::new().unwrap();
+        let mut seed = 1u32;
+        let clean: Vec<f32> = voice(300, &mut seed).concat();
+        let mut out = Vec::with_capacity(clean.len());
+        for chunk in clean.chunks_exact(FRAME) {
+            let mut frame = [0.0f32; FRAME];
+            for (to, from) in frame.iter_mut().zip(chunk) {
+                seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+                *to = from + ((seed >> 16) as f32 / 65536.0 - 0.5) * 300.0;
+            }
+            assert!(model.process(&mut frame));
+            out.extend_from_slice(&frame);
+        }
+        // The model's output is three frames behind its input; the first
+        // second is left for it to settle.
+        let delay = 3 * FRAME;
+        let (voice, heard) = (
+            &clean[100 * FRAME..clean.len() - delay],
+            &out[100 * FRAME + delay..],
+        );
+        let dot = |a: &[f32], b: &[f32]| {
+            a.iter()
+                .zip(b)
+                .map(|(x, y)| f64::from(*x) * f64::from(*y))
+                .sum::<f64>()
+        };
+        let gain = dot(heard, voice) / dot(voice, voice);
+        let error: f64 = heard
+            .iter()
+            .zip(voice)
+            .map(|(h, v)| (f64::from(*h) - gain * f64::from(*v)).powi(2))
+            .sum();
+        let closeness = 10.0 * (gain * gain * dot(voice, voice) / error).log10();
+        assert!(closeness > 25.0, "only {closeness:.1} dB");
     }
 
     #[test]
