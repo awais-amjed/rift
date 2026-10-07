@@ -20,6 +20,16 @@ pub(crate) const FRAME: usize = 480;
 /// libwebrtc's samples are on the 16-bit scale; the model's are on ±1.
 const SCALE: f32 = 32768.0;
 
+/// How much louder the model hears the voice than it is: 12 dB, taken off
+/// again after. DFN3 takes speech quieter than about −46 dBFS for noise and
+/// cuts all of it, so a quiet microphone near that level lost a syllable here
+/// and there, which is heard as crackle. Lifted, speech down to about −55 dBFS
+/// comes through whole, a voice peaking at full scale as it did. The cost is
+/// what noise it lets through: pink noise at −36 dBFS that went to silence
+/// comes out at −83, and lifting further lets more through (−68 at 18 dB).
+/// Measured Oct 7 with DeepFilterNet's own speech clip at each level.
+const LIFT: f32 = 4.0;
+
 pub(crate) struct Model {
     df: DfTract,
     /// The model as it loaded, copied back over `df` to start it afresh.
@@ -65,7 +75,7 @@ impl Model {
     /// failed on it.
     pub(crate) fn process(&mut self, frame: &mut [f32; FRAME]) -> bool {
         for (to, from) in self.noisy.iter_mut().zip(frame.iter()) {
-            *to = *from / SCALE;
+            *to = *from / SCALE * LIFT;
         }
         let (Ok(noisy), Ok(enhanced)) = (
             ArrayView2::from_shape((1, FRAME), self.noisy.as_slice()),
@@ -77,7 +87,7 @@ impl Model {
             return false;
         }
         for (to, from) in frame.iter_mut().zip(self.enhanced.iter()) {
-            *to = *from * SCALE;
+            *to = *from * SCALE / LIFT;
         }
         true
     }
@@ -206,6 +216,27 @@ mod tests {
                 frame
             })
             .collect()
+    }
+
+    #[test]
+    fn a_quiet_voice_is_not_taken_for_noise() {
+        let mut model = Model::new().unwrap();
+        let mut seed = 1u32;
+        let (mut energy_in, mut energy_out) = (0.0f64, 0.0f64);
+        for (i, frame) in voice(200, &mut seed).into_iter().enumerate() {
+            // About −53 dBFS while it speaks, where the model, handed it as
+            // it is, cuts it all.
+            let mut frame = frame.map(|s| s / 32.0);
+            if i >= 50 {
+                energy_in += frame.iter().map(|&s| (s as f64).powi(2)).sum::<f64>();
+            }
+            assert!(model.process(&mut frame));
+            if i >= 50 {
+                energy_out += frame.iter().map(|&s| (s as f64).powi(2)).sum::<f64>();
+            }
+        }
+        let lost_db = 10.0 * (energy_in / energy_out.max(1e-9)).log10();
+        assert!(lost_db < 3.0, "the voice came out {lost_db:.1} dB quieter");
     }
 
     #[test]
