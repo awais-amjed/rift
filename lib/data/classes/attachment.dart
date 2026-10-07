@@ -60,6 +60,15 @@ class Attachment {
   /// for every encrypted one, whose tag does this job.
   final String? sha256B64;
 
+  /// Set when the file was sealed a chunk at a time, as a big one is: the
+  /// plaintext bytes in each chunk (`ChunkedLayout`). [nonceB64] is then the
+  /// 7-byte STREAM prefix rather than a whole nonce. Null for a file sealed in
+  /// one piece, and for one sent unencrypted.
+  ///
+  /// A client from before chunking reads such a file as one AES-GCM message,
+  /// fails its tag, and shows the rest of the message without it.
+  final int? chunkSize;
+
   /// Optional media hints so the UI can lay out before the blob is fetched.
   final int? width;
   final int? height;
@@ -75,6 +84,7 @@ class Attachment {
     required this.keyB64,
     required this.nonceB64,
     this.sha256B64,
+    this.chunkSize,
     this.width,
     this.height,
     this.durationMs,
@@ -99,6 +109,7 @@ class Attachment {
       sha256B64: json['plain'] == true
           ? (json['sha256'] as String? ?? '')
           : null,
+      chunkSize: json['chunk'] as int?,
       width: json['w'] as int?,
       height: json['h'] as int?,
       durationMs: json['dur'] as int?,
@@ -121,6 +132,7 @@ class Attachment {
     'key': keyB64,
     'nonce': nonceB64,
     if (sha256B64 != null) ...{'plain': true, 'sha256': sha256B64},
+    if (chunkSize != null) 'chunk': chunkSize,
     if (width != null) 'w': width,
     if (height != null) 'h': height,
     if (durationMs != null) 'dur': durationMs,

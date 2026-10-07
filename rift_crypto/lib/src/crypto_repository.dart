@@ -252,6 +252,43 @@ class CryptoRepository
   /// attachment sent unencrypted is checked against when it is opened.
   Future<Uint8List> digestBytes(Uint8List data) => blobCipher.digest(data);
 
+  /// A fresh 7-byte nonce prefix for a file sealed a chunk at a time
+  /// ([sealChunk]). Random per file, like the key beside it.
+  Uint8List generateChunkNoncePrefix() => _secureRandomBytes(7);
+
+  /// One chunk of a file sealed under STREAM — see [BlobCipher.sealChunk].
+  Future<Uint8List> sealChunk({
+    required Uint8List data,
+    required Uint8List key,
+    required Uint8List noncePrefix,
+    required int index,
+    required bool last,
+  }) => blobCipher.sealChunk(
+    data: data,
+    key: key,
+    noncePrefix: noncePrefix,
+    index: index,
+    last: last,
+  );
+
+  /// One chunk back — see [BlobCipher.openChunk].
+  Future<Uint8List> openChunk({
+    required Uint8List sealed,
+    required Uint8List key,
+    required Uint8List noncePrefix,
+    required int index,
+    required bool last,
+  }) => blobCipher.openChunk(
+    sealed: sealed,
+    key: key,
+    noncePrefix: noncePrefix,
+    index: index,
+    last: last,
+  );
+
+  /// A SHA-256 fed a piece at a time, for a file too big to hash at once.
+  BlobDigest startDigest() => blobCipher.startDigest();
+
   // ──────────────────────────────────────────────────────────
   // Helpers
   // ──────────────────────────────────────────────────────────

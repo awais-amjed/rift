@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
+import 'package:rift/data/classes/api_response.dart';
 import 'package:rift/data/classes/attachment.dart';
 import 'package:rift/data/classes/channel.dart';
 import 'package:rift/data/classes/server_user.dart';
@@ -16,6 +17,7 @@ import 'package:rift/logic/cubits/app/app_cubit.dart';
 import 'package:rift/logic/cubits/channel_presence/channel_presence_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/logic/cubits/voice_listeners/voice_listeners_cubit.dart';
+import 'package:rift/logic/services/attachment_loader.dart';
 import 'package:rift/presentation/common/chat/attachments/attachment_file_card.dart';
 import 'package:rift/presentation/common/chat/composer/composer_icon_button.dart';
 import 'package:rift/presentation/common/chat/composer/composer_send_button.dart';
@@ -252,7 +254,10 @@ void main() {
           keyB64: 'k',
           nonceB64: 'n',
         ),
-        loader: (_) async => null,
+        loader: AttachmentLoader(
+          load: (_) async => null,
+          save: (_, _, {onProgress}) async => APIResponse.error('offline'),
+        ),
       ),
     );
 

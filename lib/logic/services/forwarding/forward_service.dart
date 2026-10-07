@@ -6,6 +6,7 @@ import '../../../data/classes/api_response.dart';
 import '../../../data/classes/attachment.dart';
 import '../../../data/classes/forwarded_message.dart';
 import '../../../data/classes/message_body.dart';
+import '../../../data/classes/pending_attachment.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/repositories/attachment_repository.dart';
 import '../../../data/repositories/central_dm_repository.dart';
@@ -13,6 +14,8 @@ import '../../../supabase_config.dart';
 import '../../cubits/server/server_cubit.dart';
 import '../../cubits/vault/vault_cubit.dart';
 import '../../helper_methods.dart';
+import '../attachment_staging.dart';
+import '../file_save/save_target.dart';
 import 'forward_target.dart';
 
 part 'forward_service_blobs.dart';
@@ -75,16 +78,22 @@ class ForwardService with _ForwardBlobsMixin, _ForwardDmsMixin {
     String? sourceServerId,
     String? note,
   }) async {
-    final bytes = await _fetchBlobs(message.attachments, sourceServerId);
+    final fetched = await _fetchBlobs(message.attachments, sourceServerId);
 
     final results = <ForwardResult>[];
-    for (final target in targets) {
-      try {
-        final error = await _sendOne(target, message, bytes, note);
-        results.add(ForwardResult(target, error: error));
-      } catch (e) {
-        HelperMethods.printDebug('[Forward] ${target.id} failed: $e');
-        results.add(ForwardResult(target, error: 'Could not forward'));
+    try {
+      for (final target in targets) {
+        try {
+          final error = await _sendOne(target, message, fetched.files, note);
+          results.add(ForwardResult(target, error: error));
+        } catch (e) {
+          HelperMethods.printDebug('[Forward] ${target.id} failed: $e');
+          results.add(ForwardResult(target, error: 'Could not forward'));
+        }
+      }
+    } finally {
+      for (final scratch in fetched.scratch) {
+        await scratch.discard();
       }
     }
     return results;
@@ -94,12 +103,12 @@ class ForwardService with _ForwardBlobsMixin, _ForwardDmsMixin {
   Future<String?> _sendOne(
     ForwardTarget target,
     ForwardedMessage message,
-    List<Uint8List?> bytes,
+    List<PendingAttachment?> files,
     String? note,
   ) => switch (target) {
-    ChannelTarget() => _sendToChannel(target, message, bytes, note),
-    ServerDmTarget() => _sendToServerDm(target, message, bytes, note),
-    CentralDmTarget() => _sendToCentralDm(target, message, bytes, note),
+    ChannelTarget() => _sendToChannel(target, message, files, note),
+    ServerDmTarget() => _sendToServerDm(target, message, files, note),
+    CentralDmTarget() => _sendToCentralDm(target, message, files, note),
   };
 
   // ── Channels ──────────────────────────────────────────────
@@ -107,7 +116,7 @@ class ForwardService with _ForwardBlobsMixin, _ForwardDmsMixin {
   Future<String?> _sendToChannel(
     ChannelTarget target,
     ForwardedMessage message,
-    List<Uint8List?> bytes,
+    List<PendingAttachment?> files,
     String? note,
   ) async {
     final server = target.server;
@@ -122,7 +131,7 @@ class ForwardService with _ForwardBlobsMixin, _ForwardDmsMixin {
 
     final attachments = await _reupload(
       message.attachments,
-      bytes,
+      files,
       scopePrefix: target.channel.id,
       serverId: server.id,
     );

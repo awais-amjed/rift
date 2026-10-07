@@ -423,7 +423,7 @@ class _ChannelChatViewState extends State<ChannelChatView>
           key: ValueKey((chatState.channelId, live)),
           messages: chatState.messages,
           controller: scrollController,
-          attachmentLoader: cubit.loadAttachment,
+          attachmentLoader: cubit.attachmentLoader,
           // Passed either way: it is also what says this surface shows
           // reactions at all. [canReact] is what stops the saved copy taking one.
           onToggleReaction: cubit.toggleReaction,

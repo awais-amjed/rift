@@ -28,6 +28,7 @@ void main() {
     keyB64: 'k-$path',
     nonceB64: 'n-$path',
     sha256B64: null,
+    chunkSize: null,
   ));
 
   group('uploadAll', () {
@@ -38,7 +39,7 @@ void main() {
           file('a.png', [1]),
           file('b.png', [2, 2]),
         ],
-        uploadOne: (_, {plain = false}) async => stored('p${n++}'),
+        uploadOne: (_, {onProgress}) async => stored('p${n++}'),
       );
 
       expect(result.map((a) => a.storagePath), ['p0', 'p1']);
@@ -58,14 +59,15 @@ void main() {
           file('a.bin', [1]).copyWith(plain: true),
           file('b.bin', [2]),
         ],
-        uploadOne: (_, {plain = false}) async {
-          asked.add(plain);
-          return plain
+        uploadOne: (file, {onProgress}) async {
+          asked.add(file.plain);
+          return file.plain
               ? APIResponse.success((
                   path: 'p',
                   keyB64: '',
                   nonceB64: '',
                   sha256B64: 'digest',
+                  chunkSize: null,
                 ))
               : stored('q');
         },
@@ -76,12 +78,42 @@ void main() {
       expect(result[1].isEncrypted, isTrue);
     });
 
+    // Progress is over all the files together, by size, and only reported
+    // when it has moved by a percent: the chat list redraws on every report.
+    test('reports progress over every file, in percent steps', () async {
+      final heard = <double>[];
+      await ChatAttachmentUploader.uploadAll(
+        pending: [
+          file('a.bin', List.filled(300, 1)),
+          file('b.bin', List.filled(100, 2)),
+        ],
+        uploadOne: (file, {onProgress}) async {
+          // A sealed file is a little bigger on the wire than on disk.
+          final wire = file.size + 16;
+          for (var done = 0; done <= wire; done += 1) {
+            onProgress?.call(done, wire);
+          }
+          return stored(file.name);
+        },
+        onProgress: heard.add,
+      );
+      expect(heard.first, greaterThan(0));
+      expect(heard.last, 1.0);
+      for (var i = 1; i < heard.length; i++) {
+        expect(heard[i], greaterThanOrEqualTo(heard[i - 1]));
+        if (heard[i] < 1) {
+          expect(heard[i] - heard[i - 1], greaterThanOrEqualTo(0.01));
+        }
+      }
+      expect(heard.length, lessThan(120));
+    });
+
     test('puts the sender\'s own bytes in the cache', () async {
       await ChatAttachmentUploader.uploadAll(
         pending: [
           file('a.png', [7, 8]),
         ],
-        uploadOne: (_, {plain = false}) async => stored('p'),
+        uploadOne: (_, {onProgress}) async => stored('p'),
       );
       expect(AttachmentCache.instance.get('p'), [7, 8]);
     });
@@ -93,7 +125,7 @@ void main() {
           file('a.png', [1]),
           file('b.png', [2]),
         ],
-        uploadOne: (_, {plain = false}) async {
+        uploadOne: (_, {onProgress}) async {
           calls++;
           return APIResponse.error('offline', errorCode: 'network');
         },
@@ -116,7 +148,7 @@ void main() {
           pending: [
             file('a.png', [1]),
           ],
-          uploadOne: (_, {plain = false}) async => APIResponse(success: true),
+          uploadOne: (_, {onProgress}) async => APIResponse(success: true),
         ),
         throwsA(isA<AttachmentUploadException>()),
       );
@@ -127,7 +159,7 @@ void main() {
     test('no preview uploads nothing', () async {
       final preview = await ChatAttachmentUploader.uploadPreview(
         preview: null,
-        uploadOne: (_, {plain = false}) async => fail('should not upload'),
+        uploadOne: (_, {onProgress}) async => fail('should not upload'),
       );
       expect(preview, isNull);
     });
@@ -137,7 +169,7 @@ void main() {
         preview: Future.value(
           const PendingLinkPreview(url: 'https://a.b', title: 'T'),
         ),
-        uploadOne: (_, {plain = false}) async => fail('should not upload'),
+        uploadOne: (_, {onProgress}) async => fail('should not upload'),
       );
       expect(preview!.title, 'T');
       expect(preview.image, isNull);
@@ -148,7 +180,7 @@ void main() {
         preview: Future.value(
           PendingLinkPreview(url: 'https://a.b', image: file('t.png', [1])),
         ),
-        uploadOne: (_, {plain = false}) async => stored('thumb'),
+        uploadOne: (_, {onProgress}) async => stored('thumb'),
       );
       expect(preview!.image!.storagePath, 'thumb');
     });
@@ -157,7 +189,7 @@ void main() {
       final fetch = Completer<PendingLinkPreview?>();
       final uploading = ChatAttachmentUploader.uploadPreview(
         preview: fetch.future,
-        uploadOne: (_, {plain = false}) async => fail('should not upload'),
+        uploadOne: (_, {onProgress}) async => fail('should not upload'),
       );
       fetch.complete(const PendingLinkPreview(url: 'https://a.b', title: 'T'));
       expect((await uploading)!.title, 'T');
@@ -166,7 +198,7 @@ void main() {
     test('a fetch that found nothing sends the message bare', () async {
       final preview = await ChatAttachmentUploader.uploadPreview(
         preview: Future.value(null),
-        uploadOne: (_, {plain = false}) async => fail('should not upload'),
+        uploadOne: (_, {onProgress}) async => fail('should not upload'),
       );
       expect(preview, isNull);
     });

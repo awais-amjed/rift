@@ -108,6 +108,13 @@ dependencies:
   html: ^0.15.7
   url_launcher: ^6.3.2
   desktop_drop: ^0.8.4
+  # Picking and saving files on a phone without holding them in memory:
+  # file_selector's Android side reads a picked file whole and has no save
+  # dialog at all. file_picker copies a pick to a cache file natively;
+  # flutter_file_dialog hands a finished file to the system's save dialog.
+  # Desktops and the web keep file_selector (see file_save/save_target.dart).
+  file_picker: ^13.1.0
+  flutter_file_dialog: ^3.3.3
 dev_dependencies:
   flutter_test:
     sdk: flutter

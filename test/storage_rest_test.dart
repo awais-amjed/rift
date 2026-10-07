@@ -33,8 +33,16 @@ void main() {
         contains('having trouble'),
       );
       expect(
-        StorageRest.refusal(reply(413), failed: 'Upload failed')!.error,
+        StorageRest.refusal(reply(400), failed: 'Upload failed')!.error,
         contains('would not accept'),
+      );
+    });
+
+    // Storage's answer to a file over the bucket's limit, said as that.
+    test('a file too big says so', () {
+      expect(
+        StorageRest.refusal(reply(413), failed: 'Upload failed')!.error,
+        contains('bigger than this server takes'),
       );
     });
 

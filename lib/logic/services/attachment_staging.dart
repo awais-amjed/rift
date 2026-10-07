@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+import 'package:cross_file/cross_file.dart';
 
 import '../../data/classes/attachment.dart';
 import '../../data/classes/pending_attachment.dart';
@@ -19,6 +19,13 @@ class AttachmentStaging {
   /// Hard cap on how many files can ride on one message. Bounds quota gaming
   /// — a quota counts messages, not files — and keeps a row readable.
   static const int maxPerMessage = 10;
+
+  /// The largest file read into memory when it is staged. Anything bigger
+  /// stays where it is and is read a chunk at a time as it is sent — and is
+  /// sealed a chunk at a time, which an older client cannot open — so this is
+  /// also where chunking starts. Above central's 10 MB, so a central DM never
+  /// sends a chunked file; well above any picture or voice note.
+  static const int inMemoryMaxBytes = 16 * 1024 * 1024;
 
   /// Why [name] can't be attached, or null if it can.
   ///
@@ -57,13 +64,16 @@ class AttachmentStaging {
     return null;
   }
 
-  /// Build the staged attachment for [bytes].
+  /// Build the staged attachment for [file], [size] bytes.
   ///
-  /// Image dimensions are read here rather than on arrival so the receiver's
-  /// message list can reserve the right box before it has the bytes to
-  /// measure one.
+  /// A file up to [inMemoryMaxBytes] is read now; a bigger one is only
+  /// pointed at. Image dimensions are read here rather than on arrival so the
+  /// receiver's message list can reserve the right box before it has the
+  /// bytes to measure one — for a picture held in memory, which is every
+  /// picture anybody sends.
   static Future<PendingAttachment> stage({
-    required Uint8List bytes,
+    required XFile file,
+    required int size,
     required String name,
     String? mimeType,
   }) async {
@@ -71,7 +81,17 @@ class AttachmentStaging {
         ? mimeType
         : mimeFromName(name);
     final kind = AttachmentKind.fromMime(mime);
-    final size = kind == AttachmentKind.image
+    if (size > inMemoryMaxBytes) {
+      return PendingAttachment.file(
+        file: file,
+        size: size,
+        name: name,
+        mime: mime,
+        kind: kind,
+      );
+    }
+    final bytes = await file.readAsBytes();
+    final dimensions = kind == AttachmentKind.image
         ? await readImageDimensions(bytes)
         : null;
     return PendingAttachment(
@@ -79,8 +99,8 @@ class AttachmentStaging {
       name: name,
       mime: mime,
       kind: kind,
-      width: size?.width,
-      height: size?.height,
+      width: dimensions?.width,
+      height: dimensions?.height,
     );
   }
 }

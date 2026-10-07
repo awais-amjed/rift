@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../../../data/classes/attachment.dart';
 import '../../../../data/constants.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../logic/helper_methods.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 import '../../icon_tile.dart';
@@ -12,8 +11,8 @@ import 'attachment_download.dart';
 import 'attachment_loader.dart';
 
 /// A non-media attachment: name, size, and a tap to decrypt and save it.
-/// The card owns the in-flight state so a slow download shows a spinner in
-/// place of the download affordance.
+/// The card owns the in-flight state so a download shows how far it has got
+/// in place of the download affordance.
 class AttachmentFileCard extends StatefulWidget {
   final Attachment attachment;
   final AttachmentLoader loader;
@@ -32,18 +31,29 @@ class _AttachmentFileCardState extends State<AttachmentFileCard> {
 
   bool _busy = false;
 
+  /// How far a download has got, 0 to 1. Null before the first piece lands.
+  double? _progress;
+
   Future<void> _download() async {
     if (_busy) return;
     setState(() => _busy = true);
-    final bytes = await widget.loader(widget.attachment);
-    if (!mounted) return;
-    setState(() => _busy = false);
-    if (bytes == null) {
-      HelperMethods.showError(error: "Couldn't download that file.");
-      return;
+    try {
+      await saveAttachment(
+        context,
+        widget.loader,
+        widget.attachment,
+        onProgress: (p) {
+          if (mounted) setState(() => _progress = p);
+        },
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _progress = null;
+        });
+      }
     }
-    if (!mounted) return;
-    await saveToDisk(context, widget.attachment.name, bytes);
   }
 
   @override
@@ -123,6 +133,11 @@ class _AttachmentFileCardState extends State<AttachmentFileCard> {
         color: theme.textTertiary,
       );
     }
-    return LoadingDots(color: theme.primary, dotSize: 4);
+    final progress = _progress;
+    if (progress == null) return LoadingDots(color: theme.primary, dotSize: 4);
+    return Text(
+      '${(progress * 100).floor()}%',
+      style: AppText.figure.copyWith(color: theme.textSecondary),
+    );
   }
 }

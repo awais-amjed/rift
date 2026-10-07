@@ -34,3 +34,46 @@ Future<Uint8List> openBlob({
 /// SHA-256 of `data`: what an attachment sent unencrypted is checked against.
 Future<Uint8List> digestBlob({required List<int> data}) =>
     RustLib.instance.api.crateApiBlobCipherDigestBlob(data: data);
+
+/// Encrypts chunk `position` of a file sealed a chunk at a time, under `key`
+/// and the 7-byte nonce `prefix`; `last` marks the final chunk. Returns the
+/// chunk with its tag appended.
+Future<Uint8List> sealBlobChunk({
+  required List<int> key,
+  required List<int> prefix,
+  required int position,
+  required bool last,
+  required List<int> data,
+}) => RustLib.instance.api.crateApiBlobCipherSealBlobChunk(
+  key: key,
+  prefix: prefix,
+  position: position,
+  last: last,
+  data: data,
+);
+
+/// Decrypts what [seal_blob_chunk] made, at the same `position` and `last`.
+Future<Uint8List> openBlobChunk({
+  required List<int> key,
+  required List<int> prefix,
+  required int position,
+  required bool last,
+  required List<int> sealed,
+}) => RustLib.instance.api.crateApiBlobCipherOpenBlobChunk(
+  key: key,
+  prefix: prefix,
+  position: position,
+  last: last,
+  sealed: sealed,
+);
+
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<BlobHasher>>
+abstract class BlobHasher implements RustOpaqueInterface {
+  /// The hash of everything given. Once only.
+  Future<Uint8List> finish();
+
+  factory BlobHasher() =>
+      RustLib.instance.api.crateApiBlobCipherBlobHasherNew();
+
+  Future<void> update({required List<int> data});
+}

@@ -39,13 +39,13 @@ class ComposerLinkPreview extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           spacing: 10,
           children: [
-            if (image != null)
+            if (image?.bytes case final bytes?)
               ClipRRect(
                 borderRadius: BorderRadius.circular(K.radiusRow),
                 child: SizedBox(
                   width: 56,
                   height: 56,
-                  child: Image.memory(image.bytes, fit: BoxFit.cover),
+                  child: Image.memory(bytes, fit: BoxFit.cover),
                 ),
               ),
             Expanded(

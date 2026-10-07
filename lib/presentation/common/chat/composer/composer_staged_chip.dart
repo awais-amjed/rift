@@ -30,7 +30,12 @@ class ComposerStagedChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
-    final isImage = attachment.kind == AttachmentKind.image;
+    // A big picture is held only as a file, so it shows as one: there are no
+    // bytes in hand to draw.
+    final image = attachment.kind == AttachmentKind.image
+        ? attachment.bytes
+        : null;
+    final isImage = image != null;
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -48,7 +53,7 @@ class ComposerStagedChip extends StatelessWidget {
           ),
           clipBehavior: Clip.antiAlias,
           child: isImage
-              ? Image.memory(attachment.bytes, fit: BoxFit.cover)
+              ? Image.memory(image, fit: BoxFit.cover)
               : _fileBody(context),
         ),
         Positioned(top: -6, right: -6, child: _removeButton(context)),

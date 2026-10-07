@@ -300,8 +300,41 @@ re-encrypts it, since the choice was made for one server's readers.
 
 How big a file can be at all is the operator's: the console sets storage's
 limit and records it, and no server's own cap goes past it
-(`max_file_bytes`). The whole file is held in memory to seal and send it, so
-the practical ceiling on a device is its RAM.
+(`max_file_bytes`).
+
+**A big file never has to fit in memory** [Implemented October 2026]. Up to
+16 MB (`AttachmentStaging.inMemoryMaxBytes`) a file is read when it is staged
+and sealed in one piece, as every file was before. A bigger one is only pointed
+at, and is read, sealed and sent a chunk at a time:
+
+- *Sealed under STREAM* (aead's `stream` module): 1 MiB chunks, each its own
+  AES-GCM message under a nonce of a 7-byte prefix, the chunk's position and a
+  last-chunk flag, so the server cannot reorder, drop or cut off chunks without
+  a tag failing. The attachment carries `chunk` (the chunk size) and the prefix
+  in `nonce`; the layout follows from those and the size (`ChunkedLayout`), so
+  nothing is written into the blob. A client from before this fails the file's
+  tag and shows the rest of the message. Rust, the Dart reference the web uses,
+  and Python's AES-GCM agree on the same test chunks.
+- *Uploaded over tus* (Storage's `/storage/v1/upload/resumable`), about 16 MB
+  to a request, because a browser will not stream a request body. A request
+  that fails is sent again from the offset the server reports, and the token is
+  asked for before each one, so a session that expires partway is renewed
+  rather than fatal.
+- *Downloaded as one response, read as it arrives*, each chunk opened as it
+  completes. Not ranged spans: Storage's file backend spends about 1.7 s
+  starting each ranged reply (measured Oct 7). A dropped connection is taken up
+  again with a range from the first chunk not yet opened. Saving writes beside
+  the chosen name and renames into place only once everything has opened, so a
+  tampered or truncated file leaves nothing behind.
+- *Where it lands* differs by platform (`file_save/save_target.dart`): a
+  desktop's own save dialog, a phone's after a scratch download (Android and
+  iOS only hand out a place through their dialog), and a growing Blob on the
+  web. Picking on a phone goes through file_picker, which copies to a cache
+  file natively; file_selector's Android side reads the whole file into memory.
+
+A file sent unencrypted streams the same way and is hashed as it goes. A
+forward of a big file goes through a scratch file in the app's cache directory
+(not `/tmp`, which Linux often keeps in memory).
 
 ### Saved on the device [Implemented September 2026]
 

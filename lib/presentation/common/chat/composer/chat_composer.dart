@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -15,6 +16,7 @@ import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/helper_methods.dart';
 import '../../../../logic/services/attachment_staging.dart';
 import '../../../../logic/services/bot_command.dart';
+import '../../../../logic/services/host_platform.dart';
 import '../../../../logic/services/link_preview_fetcher.dart';
 import '../../../../logic/services/link_preview_parser.dart';
 import '../../../../logic/services/mention_suggestions.dart';

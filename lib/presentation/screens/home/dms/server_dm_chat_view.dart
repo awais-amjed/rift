@@ -442,7 +442,7 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
           key: ValueKey((state.openPeerId, live)),
           messages: state.messages,
           controller: scrollController,
-          attachmentLoader: cubit.loadAttachment,
+          attachmentLoader: cubit.attachmentLoader,
           // Passed either way: it is also what says this surface shows
           // reactions at all. [canReact] is what stops the saved copy taking one.
           onToggleReaction: cubit.toggleReaction,

@@ -70,6 +70,11 @@ abstract final class StorageRest {
     }
     if (code < 300) return null;
     HelperMethods.printDebug('[Storage] $failed: HTTP $code');
+    if (code == 413) {
+      return APIResponse.error(
+        '$failed — the file is bigger than this server takes.',
+      );
+    }
     return APIResponse.error(
       code >= 500
           ? '$failed — the server is having trouble. Try again in a moment.'

@@ -9,9 +9,14 @@ import '../../data/repositories/attachment_repository.dart';
 import 'attachment_cache.dart';
 import 'link_preview_fetcher.dart';
 
-/// Uploads one blob: encrypted, or as it is when [plain]. Answers an
+/// Uploads one staged file — encrypted, or as it is when the sender chose
+/// `plain` — reporting [onProgress] as a big one goes. Answers an
 /// [APIResponse] whose `data` is an [UploadedBlob] on success.
-typedef BlobUpload = Future<APIResponse> Function(Uint8List data, {bool plain});
+typedef BlobUpload =
+    Future<APIResponse> Function(
+      PendingAttachment file, {
+      TransferProgress? onProgress,
+    });
 
 /// Shared "upload staged files → attachment metadata" step used by all three
 /// chat pipelines (channels, server DMs, central DMs). The only thing that
@@ -25,13 +30,6 @@ class ChatAttachmentUploader {
     (_) => _rng.nextInt(256).toRadixString(16).padLeft(2, '0'),
   ).join();
 
-  /// Uploads every [pending] file in order and returns the resulting
-  /// [Attachment]s. Each uploaded blob's plaintext bytes are stashed in the
-  /// [AttachmentCache] under its storage path so the sender renders it without
-  /// a round-trip. Throws [AttachmentUploadException] on the first failure.
-  ///
-  /// [uploadOne] receives the raw bytes and whether the sender chose to send
-  /// them unencrypted.
   /// The sender's link preview with its thumbnail uploaded, or null when
   /// there was none. The words travel in the body; only the picture needs
   /// a blob, and it takes the same encrypted road as any attachment.
@@ -58,13 +56,41 @@ class ChatAttachmentUploader {
     );
   }
 
+  /// Uploads every [pending] file in order and returns the resulting
+  /// [Attachment]s. A small file's plaintext bytes are stashed in the
+  /// [AttachmentCache] under its storage path so the sender renders it without
+  /// a round-trip. Throws [AttachmentUploadException] on the first failure.
+  ///
+  /// [onProgress] hears how much of all of [pending] has gone, 0 to 1, in
+  /// steps of at least a percent — often enough for a bar, rarely enough not
+  /// to redraw a chat list for every request.
   static Future<List<Attachment>> uploadAll({
     required List<PendingAttachment> pending,
     required BlobUpload uploadOne,
+    void Function(double progress)? onProgress,
   }) async {
     final result = <Attachment>[];
+    final total = pending.fold(0, (sum, a) => sum + a.size);
+    var before = 0;
+    var told = 0.0;
+    void tell(int done) {
+      if (onProgress == null || total == 0) return;
+      final progress = (before + done) / total;
+      if (progress - told < 0.01 && progress < 1) return;
+      told = progress;
+      onProgress(progress.clamp(0, 1).toDouble());
+    }
+
     for (final pa in pending) {
-      final response = await uploadOne(pa.bytes, plain: pa.plain);
+      final response = await uploadOne(
+        pa,
+        // What went over the wire, scaled to the file: a sealed file is a
+        // little bigger than the one it came from.
+        onProgress: (done, all) =>
+            tell(all == 0 ? pa.size : (pa.size * done / all).round()),
+      );
+      before += pa.size;
+      tell(0);
       if (!response.success || response.data == null) {
         throw AttachmentUploadException(
           response.error ?? 'Attachment upload failed',
@@ -72,7 +98,11 @@ class ChatAttachmentUploader {
         );
       }
       final r = response.data as UploadedBlob;
-      AttachmentCache.instance.put(r.path, pa.bytes);
+      // A big file is not held, so there is nothing to keep; the sender's
+      // card fetches it like anyone else's if it is ever opened.
+      if (pa.bytes case final bytes?) {
+        AttachmentCache.instance.put(r.path, bytes);
+      }
       result.add(
         Attachment(
           id: _attachmentId(),
@@ -84,6 +114,7 @@ class ChatAttachmentUploader {
           keyB64: r.keyB64,
           nonceB64: r.nonceB64,
           sha256B64: r.sha256B64,
+          chunkSize: r.chunkSize,
           width: pa.width,
           height: pa.height,
           durationMs: pa.durationMs,

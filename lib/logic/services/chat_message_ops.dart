@@ -83,7 +83,24 @@ class ChatMessageOps {
     String pendingId,
   ) => [
     for (final m in messages)
-      if (m.id != pendingId) m else m.copyWith(sendFailed: true),
+      if (m.id != pendingId)
+        m
+      else
+        m.copyWith(sendFailed: true, clearUploadProgress: true),
+  ];
+
+  /// Say how far a pending send's files have got. A row that is no longer
+  /// there — sent, or taken away — is left alone.
+  static List<ChatMessage> setUploadProgress(
+    List<ChatMessage> messages,
+    String pendingId,
+    double progress,
+  ) => [
+    for (final m in messages)
+      if (m.id != pendingId || !m.isPending)
+        m
+      else
+        m.copyWith(uploadProgress: progress),
   ];
 
   /// Swap an optimistic bubble for the row the server acknowledged.

@@ -16,7 +16,7 @@ mixin _ForwardDmsMixin on _ForwardBlobsMixin {
   Future<String?> _sendToServerDm(
     ServerDmTarget target,
     ForwardedMessage message,
-    List<Uint8List?> bytes,
+    List<PendingAttachment?> files,
     String? note,
   ) async {
     final server = target.server;
@@ -35,7 +35,7 @@ mixin _ForwardDmsMixin on _ForwardBlobsMixin {
     final context = MessageEnvelope.conversationContext(me, target.peerId);
     final attachments = await _reupload(
       message.attachments,
-      bytes,
+      files,
       // The same scope the DM's own uploads use: colons are not legal in a
       // storage path, and the sweep matches on this exact spelling.
       scopePrefix: context.replaceAll(':', '_'),
@@ -64,7 +64,7 @@ mixin _ForwardDmsMixin on _ForwardBlobsMixin {
   Future<String?> _sendToCentralDm(
     CentralDmTarget target,
     ForwardedMessage message,
-    List<Uint8List?> bytes,
+    List<PendingAttachment?> files,
     String? note,
   ) async {
     final me = central.currentUser?.id;
@@ -83,7 +83,7 @@ mixin _ForwardDmsMixin on _ForwardBlobsMixin {
     // policy scopes writes by.
     final attachments = await _reupload(
       message.attachments,
-      bytes,
+      files,
       scopePrefix: me,
     );
 

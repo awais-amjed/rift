@@ -39,6 +39,7 @@ mixin _CentralDmAttachmentsMixin {
         keyB64: blob.keyB64,
         nonceB64: blob.nonceB64,
         sha256B64: null,
+        chunkSize: null,
       );
       return APIResponse.success(uploaded);
     } catch (e) {
@@ -72,6 +73,7 @@ mixin _CentralDmAttachmentsMixin {
     required String keyB64,
     required String nonceB64,
     String? sha256B64,
+    int? chunkSize,
   }) async {
     try {
       final bytes = await _client.storage
@@ -82,6 +84,7 @@ mixin _CentralDmAttachmentsMixin {
         keyB64: keyB64,
         nonceB64: nonceB64,
         sha256B64: sha256B64,
+        chunkSize: chunkSize,
       );
       return APIResponse.success(clear);
     } catch (e) {

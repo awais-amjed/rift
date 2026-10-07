@@ -1,12 +1,13 @@
-import 'dart:typed_data';
-
+import 'package:cross_file/cross_file.dart';
 import 'package:flutter/widgets.dart';
 
-/// A file dropped on a chat pane, already read.
+/// A file handed to the composer — by the picker, or dropped on a chat pane —
+/// not read yet: the composer decides whether it is small enough to hold.
 ///
-/// Not an `XFile`: off the web, `XFile.fromData` ignores the name it is given
-/// and every dropped file would arrive called "".
-typedef DroppedFile = ({String name, Uint8List bytes, String? mimeType});
+/// The name travels beside the file rather than in it: off the web,
+/// `XFile.fromData` ignores the name it is given, so a file wrapped from
+/// bytes would arrive called "".
+typedef DroppedFile = ({String name, XFile file, int size, String? mimeType});
 
 /// Carries files dropped anywhere on a chat pane to the composer at its foot.
 ///

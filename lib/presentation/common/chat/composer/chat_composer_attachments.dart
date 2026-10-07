@@ -18,10 +18,11 @@ mixin _ComposerAttachmentsMixin on State<ChatComposer> {
   Future<void> _pickFiles() async {
     if (!widget.enabled) return;
     try {
-      for (final file in await openFiles()) {
+      for (final file in await _chooseFiles()) {
         await _stage((
           name: file.name,
-          bytes: await file.readAsBytes(),
+          file: file,
+          size: await file.length(),
           mimeType: file.mimeType,
         ));
       }
@@ -30,6 +31,18 @@ mixin _ComposerAttachmentsMixin on State<ChatComposer> {
       HelperMethods.printDebug('[Composer] file pick failed: $e');
       HelperMethods.showError(error: "Couldn't attach that file.");
     }
+  }
+
+  /// The system's picker, unread.
+  ///
+  /// Not file_selector's on a phone: its Android side reads every picked file
+  /// into memory and sends the bytes across the channel, which a big video
+  /// cannot survive. file_picker copies it to a cache file there instead,
+  /// natively and a piece at a time, and hands back the path.
+  Future<List<XFile>> _chooseFiles() async {
+    if (!HostPlatform.isMobile) return openFiles();
+    final picked = await FilePicker.pickFiles();
+    return [for (final file in picked) file.xFile];
   }
 
   /// Files dragged onto the chat pane, handed over by its `ChatDropZone`.
@@ -70,10 +83,11 @@ mixin _ComposerAttachmentsMixin on State<ChatComposer> {
   /// abandon the rest of the selection, so this refuses quietly past the
   /// toast; the caller rebuilds once for the lot.
   Future<void> _stage(DroppedFile file) async {
-    if (!_accepts(name: file.name, bytes: file.bytes.length)) return;
+    if (!_accepts(name: file.name, bytes: file.size)) return;
     _staged.add(
       await AttachmentStaging.stage(
-        bytes: file.bytes,
+        file: file.file,
+        size: file.size,
         name: file.name,
         mimeType: file.mimeType,
       ),
@@ -89,7 +103,7 @@ mixin _ComposerAttachmentsMixin on State<ChatComposer> {
       maxBytes: widget.maxAttachmentBytes,
       alreadyStaged: _staged.length,
       remainingBytes: widget.remainingStorageBytes,
-      stagedBytes: _staged.fold(0, (sum, a) => sum + a.bytes.length),
+      stagedBytes: _staged.fold(0, (sum, a) => sum + a.size),
     );
     if (rejection == null) return true;
     HelperMethods.showError(error: rejection);

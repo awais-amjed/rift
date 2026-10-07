@@ -306,7 +306,7 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
           ? 'No messages yet — say hi!'
           : 'Nothing here yet.',
       controller: scrollController,
-      attachmentLoader: cubit.loadAttachment,
+      attachmentLoader: cubit.attachmentLoader,
       // No onToggleReaction: central DMs are the first-contact tier and are
       // kept deliberately thin — reactions live on servers.
       onLookUpOriginal: cubit.fetchQuoted,

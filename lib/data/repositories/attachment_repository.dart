@@ -1,11 +1,21 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:cross_file/cross_file.dart';
 import 'package:http/http.dart' as http;
 import 'package:rift_crypto/rift_crypto.dart';
 
 import '../classes/api_response.dart';
+import '../classes/attachment.dart';
+import '../classes/chunked_layout.dart';
+import 'blob/blob_sink.dart';
+import 'blob/file_chunks.dart';
+import 'blob/fixed_chunks.dart';
+import 'blob/tus_client.dart';
 import 'storage_rest.dart';
+
+part 'attachment_repository_stream.dart';
 
 /// An encrypted attachment blob ready to upload, plus the per-file key/nonce
 /// that must be stored (encrypted) inside the message body to decrypt it later.
@@ -13,11 +23,13 @@ typedef SealedBlob = ({Uint8List ciphertext, String keyB64, String nonceB64});
 
 /// Where an upload landed and what opens it: the key and nonce of an
 /// encrypted blob, or the digest of a plain one (the other fields empty).
+/// [chunkSize] is set when it was sealed a chunk at a time.
 typedef UploadedBlob = ({
   String path,
   String keyB64,
   String nonceB64,
   String? sha256B64,
+  int? chunkSize,
 });
 
 /// Uploads/downloads E2E-encrypted attachment blobs (ARCHITECTURE.md §4).
@@ -32,8 +44,14 @@ typedef UploadedBlob = ({
 /// same raw-HTTP + bearer-token style as [ServerRepository] so it flows through
 /// the cubit's token auto-refresh. Central DMs reuse [seal]/[open] for crypto
 /// but move bytes over the central Supabase SDK (see CentralDmRepository).
-class AttachmentRepository {
+///
+/// A big file never goes through [upload] or [download], which hold it whole:
+/// it is sealed and sent a chunk at a time, and fetched and opened the same
+/// way, by the streamed half in `attachment_repository_stream.dart`.
+class AttachmentRepository with _AttachmentStreamMixin {
+  @override
   final CryptoRepository _crypto;
+  @override
   final http.Client _http;
 
   AttachmentRepository({CryptoRepository? crypto, http.Client? httpClient})
@@ -65,13 +83,44 @@ class AttachmentRepository {
   /// A downloaded blob's bytes: decrypted with the body-embedded key/nonce,
   /// or, for a file sent unencrypted ([sha256B64] set), checked against its
   /// digest. Throws when either fails — a file the server changed is not
-  /// shown.
+  /// shown. A file sealed a chunk at a time ([chunkSize] set) is opened chunk
+  /// by chunk, here all in memory: this is the road for one small enough to
+  /// draw, and a big one being saved takes [downloadTo] instead.
+  @override
   Future<Uint8List> open({
     required Uint8List ciphertext,
     required String keyB64,
     required String nonceB64,
     String? sha256B64,
+    int? chunkSize,
   }) async {
+    if (chunkSize != null && sha256B64 == null) {
+      // Every chunk but the last is a full one plus its tag; a blob cut off
+      // after a whole chunk leaves a last chunk that was not sealed as one.
+      final per = chunkSize + ChunkedLayout.tagLength;
+      final count = ciphertext.isEmpty
+          ? 1
+          : (ciphertext.length + per - 1) ~/ per;
+      final key = CryptoRepository.fromBase64(keyB64);
+      final prefix = CryptoRepository.fromBase64(nonceB64);
+      final out = BytesBuilder(copy: false);
+      for (var i = 0; i < count; i++) {
+        final start = i * per;
+        final end = start + per < ciphertext.length
+            ? start + per
+            : ciphertext.length;
+        out.add(
+          await _crypto.openChunk(
+            sealed: Uint8List.sublistView(ciphertext, start, end),
+            key: key,
+            noncePrefix: prefix,
+            index: i,
+            last: i == count - 1,
+          ),
+        );
+      }
+      return out.takeBytes();
+    }
     if (sha256B64 != null) {
       if (await digest(ciphertext) != sha256B64) {
         throw const FormatException('The file does not match its digest');
@@ -128,6 +177,7 @@ class AttachmentRepository {
         keyB64: blob.keyB64,
         nonceB64: blob.nonceB64,
         sha256B64: sha256B64,
+        chunkSize: null,
       );
       return APIResponse.success(uploaded);
     } catch (e) {
@@ -187,6 +237,7 @@ class AttachmentRepository {
     required String keyB64,
     required String nonceB64,
     String? sha256B64,
+    int? chunkSize,
   }) async {
     try {
       final uri = StorageRest.authenticated(baseUrl, bucket, path);
@@ -201,6 +252,7 @@ class AttachmentRepository {
         keyB64: keyB64,
         nonceB64: nonceB64,
         sha256B64: sha256B64,
+        chunkSize: chunkSize,
       );
       return APIResponse.success(clear);
     } catch (e) {

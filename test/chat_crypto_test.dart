@@ -300,6 +300,65 @@ void main() {
       expect(await cipher.seal(data: plain, key: key, nonce: nonce), sealed);
       expect(await cipher.open(sealed: sealed, key: key, nonce: nonce), plain);
     });
+
+    // The two chunks rust/src/blob_cipher.rs checks itself against, computed
+    // outside both with Python's AES-GCM under STREAM's nonce layout. The
+    // web seals big files with this code, so it has to write what Rust does.
+    test('seals chunks under the STREAM nonce, as the Rust side does', () async {
+      Uint8List hex(String s) => Uint8List.fromList([
+        for (var i = 0; i < s.length; i += 2)
+          int.parse(s.substring(i, i + 2), radix: 16),
+      ]);
+      final key = hex(
+        'feffe9928665731c6d6a8f9467308308feffe9928665731c6d6a8f9467308308',
+      );
+      final prefix = hex('cafebabefacedb');
+      const cipher = DartBlobCipher();
+      expect(
+        await cipher.sealChunk(
+          data: Uint8List.fromList('chunk zero'.codeUnits),
+          key: key,
+          noncePrefix: prefix,
+          index: 0,
+          last: false,
+        ),
+        hex('f44fe62a9eb368516d28707c631e4d8cd1463a2cea30d0581c72'),
+      );
+      final last = hex('5146419d31b4a19d92262648ad0aae4f35230ba7');
+      expect(
+        await cipher.sealChunk(
+          data: Uint8List.fromList('last'.codeUnits),
+          key: key,
+          noncePrefix: prefix,
+          index: 1,
+          last: true,
+        ),
+        last,
+      );
+      // Cut off before its true end, the file's new last chunk was never
+      // sealed as one.
+      await expectLater(
+        cipher.openChunk(
+          sealed: last,
+          key: key,
+          noncePrefix: prefix,
+          index: 1,
+          last: false,
+        ),
+        throwsA(anything),
+      );
+    });
+
+    test('a digest fed in pieces is the digest of the whole', () async {
+      const cipher = DartBlobCipher();
+      final digest = cipher.startDigest();
+      await digest.add(Uint8List.fromList('a'.codeUnits));
+      await digest.add(Uint8List.fromList('bc'.codeUnits));
+      expect(
+        await digest.close(),
+        await cipher.digest(Uint8List.fromList('abc'.codeUnits)),
+      );
+    });
   });
 
   group('sealMessage / openMessage', () {

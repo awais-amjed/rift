@@ -38,6 +38,7 @@ import 'message_reply_quote.dart';
 import 'message_row_avatar.dart';
 import 'message_row_header.dart';
 import 'message_selection_area.dart';
+import 'message_upload_progress.dart';
 
 part 'chat_message_row_actions.dart';
 
@@ -468,6 +469,9 @@ class _ChatMessageRowState extends State<ChatMessageRow>
               ),
             ),
         ],
+        if (message.uploadProgress case final progress?
+            when message.isPending && !message.sendFailed)
+          MessageUploadProgress(progress: progress),
         if (message.attachments.isNotEmpty && widget.attachmentLoader != null)
           MessageAttachments(
             attachments: message.attachments,

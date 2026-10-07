@@ -86,9 +86,16 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
     emit(state.copyWith(messages: [...state.messages, pending]));
 
     try {
-      // Always encrypted: the composer offers no choice here.
-      Future<APIResponse> uploadOne(Uint8List bytes, {bool plain = false}) =>
-          _repo.uploadAttachment(scopePrefix: myId, data: bytes);
+      // Always encrypted and always in one request: the composer offers no
+      // choice here, and central's files stop at 10 MB, under the size that
+      // is sent a chunk at a time.
+      Future<APIResponse> uploadOne(
+        PendingAttachment file, {
+        TransferProgress? onProgress,
+      }) async => _repo.uploadAttachment(
+        scopePrefix: myId,
+        data: file.bytes ?? await file.source.readAsBytes(),
+      );
       final uploaded = await ChatAttachmentUploader.uploadAll(
         pending: attachments,
         uploadOne: uploadOne,
@@ -279,6 +286,29 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
           keyB64: attachment.keyB64,
           nonceB64: attachment.nonceB64,
           sha256B64: attachment.sha256B64,
+          chunkSize: attachment.chunkSize,
         ),
       );
+
+  /// Fetch an attachment for saving. Central's files are small, so it is
+  /// fetched whole and handed to [sink] in one piece.
+  Future<APIResponse> saveAttachment(
+    Attachment attachment,
+    BlobSink sink, {
+    TransferProgress? onProgress,
+  }) async {
+    final bytes = await loadAttachment(attachment);
+    if (bytes == null) {
+      await sink.abort();
+      return APIResponse.error("Couldn't download that file.");
+    }
+    await sink.add(bytes);
+    await sink.close();
+    onProgress?.call(bytes.length, bytes.length);
+    return APIResponse.success(null);
+  }
+
+  /// What the message list draws and saves attachments with.
+  AttachmentLoader get attachmentLoader =>
+      AttachmentLoader(load: loadAttachment, save: saveAttachment);
 }

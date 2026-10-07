@@ -29,4 +29,54 @@ class NativeBlobCipher implements BlobCipher {
 
   @override
   Future<Uint8List> digest(Uint8List data) => rust.digestBlob(data: data);
+
+  @override
+  Future<Uint8List> sealChunk({
+    required Uint8List data,
+    required Uint8List key,
+    required Uint8List noncePrefix,
+    required int index,
+    required bool last,
+  }) => rust.sealBlobChunk(
+    key: key,
+    prefix: noncePrefix,
+    position: index,
+    last: last,
+    data: data,
+  );
+
+  @override
+  Future<Uint8List> openChunk({
+    required Uint8List sealed,
+    required Uint8List key,
+    required Uint8List noncePrefix,
+    required int index,
+    required bool last,
+  }) => rust.openBlobChunk(
+    key: key,
+    prefix: noncePrefix,
+    position: index,
+    last: last,
+    sealed: sealed,
+  );
+
+  @override
+  BlobDigest startDigest() => _NativeDigest(rust.BlobHasher());
+}
+
+class _NativeDigest implements BlobDigest {
+  final rust.BlobHasher _hasher;
+  _NativeDigest(this._hasher);
+
+  @override
+  Future<void> add(Uint8List data) => _hasher.update(data: data);
+
+  @override
+  Future<Uint8List> close() async {
+    try {
+      return await _hasher.finish();
+    } finally {
+      _hasher.dispose();
+    }
+  }
 }

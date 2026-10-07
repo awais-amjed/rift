@@ -1,16 +1,19 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:cross_file/cross_file.dart';
 import 'package:http/http.dart' as http;
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:rift_crypto/rift_crypto.dart';
 
 import '../../../data/classes/api_response.dart';
+import '../../../data/classes/attachment.dart';
 import '../../../data/classes/channel.dart';
 import '../../../data/classes/livekit_node.dart';
 import '../../../data/classes/member_page.dart';
 import '../../../data/classes/message_cache_slot.dart';
+import '../../../data/classes/pending_attachment.dart';
 import '../../../data/classes/region_load.dart';
 import '../../../data/classes/resolved_invite.dart';
 import '../../../data/classes/role.dart';
@@ -29,6 +32,7 @@ import '../../../data/enums/report_outcome.dart';
 import '../../../data/invite_link.dart';
 import '../../../data/repositories/attachment_repository.dart';
 import '../../../data/repositories/avatar_repository.dart';
+import '../../../data/repositories/blob/blob_sink.dart';
 import '../../../data/repositories/central_dm_repository.dart';
 import '../../../data/repositories/server_db.dart';
 import '../../../data/repositories/server_repository.dart';
@@ -400,6 +404,22 @@ class ServerCubit extends HydratedCubit<ServerState>
 
     return response;
   }
+
+  /// [server]'s token for a transfer that outlasts a single call: read from
+  /// the state each time it is asked, so a background refresh reaches a big
+  /// upload partway through, and signed in again when asked to [refresh].
+  @override
+  BearerToken _bearerFor(Server server) => ({bool refresh = false}) async {
+    Server current = server;
+    for (final s in state.servers) {
+      if (s.id == server.id) current = s;
+    }
+    if ((refresh || current.isTokenNearExpiry) && _vaultCubit != null) {
+      final fresh = await reAuthenticateServer(server.id);
+      if (fresh != null) return fresh;
+    }
+    return current.token;
+  };
 
   /// [_callFor] against the selected server — for the calls that are about
   /// whatever you are looking at (a channel token, the voice roster) rather than

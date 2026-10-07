@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'dart:io' show FileSystemEntity, Platform;
 
+import 'package:cross_file/cross_file.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../logic/helper_methods.dart';
+import '../../../../logic/services/attachment_staging.dart';
+import '../../../../logic/services/file_save/save_target.dart';
 import 'chat_drop_overlay.dart';
 import 'chat_drop_relay.dart';
 
@@ -61,12 +64,16 @@ class _ChatDropZoneState extends State<ChatDropZone> {
           item.path.isNotEmpty &&
           FileSystemEntity.isDirectorySync(item.path));
 
-  /// The file's bytes, read while the sandbox allows it.
+  /// The file as the composer will read it.
   ///
   /// The macOS build is sandboxed, and a file dragged in from Finder is
   /// readable only inside the security-scoped access its bookmark grants. So
-  /// it is read here, under that access, rather than later by the composer.
+  /// there it is read here, under that access, rather than later by the
+  /// composer: held in memory if it is small, copied to a scratch file a
+  /// piece at a time if it is not. Everywhere else the dropped file is a path
+  /// that stays readable, and is passed on unread.
   Future<DroppedFile> _read(DropItem file) async {
+    final size = await file.length();
     final bookmark = file.extraAppleBookmark;
     final scoped =
         !kIsWeb &&
@@ -75,18 +82,31 @@ class _ChatDropZoneState extends State<ChatDropZone> {
         await DesktopDrop.instance.startAccessingSecurityScopedResource(
           bookmark: bookmark,
         );
+    if (!scoped) {
+      return (name: file.name, file: file, size: size, mimeType: file.mimeType);
+    }
     try {
+      final XFile readable;
+      if (size <= AttachmentStaging.inMemoryMaxBytes) {
+        readable = XFile.fromData(await file.readAsBytes(), length: size);
+      } else {
+        final scratch = await scratchTarget(file.name);
+        await for (final piece in file.openRead()) {
+          await scratch.add(Uint8List.fromList(piece));
+        }
+        await scratch.close();
+        readable = scratch.file;
+      }
       return (
         name: file.name,
-        bytes: await file.readAsBytes(),
+        file: readable,
+        size: size,
         mimeType: file.mimeType,
       );
     } finally {
-      if (scoped) {
-        await DesktopDrop.instance.stopAccessingSecurityScopedResource(
-          bookmark: bookmark,
-        );
-      }
+      await DesktopDrop.instance.stopAccessingSecurityScopedResource(
+        bookmark: bookmark,
+      );
     }
   }
 

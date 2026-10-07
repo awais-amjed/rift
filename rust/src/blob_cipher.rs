@@ -7,10 +7,18 @@
 //! which froze the window for about 4 s on a 50 MB file, and this runs on the
 //! CPU's AES instructions on one of the bridge's worker threads.
 //!
+//! A big file is sealed a chunk at a time instead ([seal_chunk]), so no copy
+//! of it ever has to fit in memory: the STREAM construction from aead's
+//! `stream` module, which puts each chunk's position and a last-chunk flag in
+//! its nonce. Chunks cannot be reordered, dropped or cut off at the end
+//! without a tag failing.
+//!
 //! An attachment sent unencrypted has no tag, so it carries a SHA-256 of its
 //! bytes inside the sealed message instead: the server can read it, but not
-//! swap it. [digest] is that hash, here for the same reason the cipher is.
+//! swap it. [digest] is that hash, and [StreamDigest] the same hash fed a
+//! piece at a time.
 
+use aes_gcm::aead::stream::{NewStream, StreamBE32, StreamPrimitive};
 use aes_gcm::aead::{AeadInPlace, KeyInit};
 use aes_gcm::{Aes256Gcm, Key, Nonce};
 use sha2::{Digest, Sha256};
@@ -18,6 +26,9 @@ use sha2::{Digest, Sha256};
 const KEY_LEN: usize = 32;
 const NONCE_LEN: usize = 12;
 const TAG_LEN: usize = 16;
+/// What STREAM leaves of the nonce: 12 bytes less a 4-byte position and a
+/// 1-byte last-chunk flag.
+const PREFIX_LEN: usize = 7;
 
 fn cipher(key: &[u8], nonce: &[u8]) -> Result<Aes256Gcm, String> {
     if key.len() != KEY_LEN {
@@ -54,9 +65,78 @@ pub(crate) fn open(key: &[u8], nonce: &[u8], mut sealed: Vec<u8>) -> Result<Vec<
     Ok(sealed)
 }
 
+fn stream(key: &[u8], prefix: &[u8]) -> Result<StreamBE32<Aes256Gcm>, String> {
+    if prefix.len() != PREFIX_LEN {
+        return Err(format!("A stream nonce is {PREFIX_LEN} bytes, not {}", prefix.len()));
+    }
+    // A full nonce's worth of checks on the key, then the prefix in its place.
+    let aead = cipher(key, &[0; NONCE_LEN])?;
+    Ok(StreamBE32::from_aead(aead, prefix.into()))
+}
+
+/// Encrypts chunk `position` of a file sealed under `key` and the 7-byte
+/// nonce `prefix`, marking it the last when `last`. Returns it with its tag.
+pub(crate) fn seal_chunk(
+    key: &[u8],
+    prefix: &[u8],
+    position: u32,
+    last: bool,
+    mut data: Vec<u8>,
+) -> Result<Vec<u8>, String> {
+    data.reserve_exact(TAG_LEN);
+    stream(key, prefix)?
+        .encrypt_in_place(position, last, b"", &mut data)
+        .map_err(|_| "Could not encrypt the chunk".to_string())?;
+    Ok(data)
+}
+
+/// Opens what [seal_chunk] made. Fails if the chunk was changed, moved, or is
+/// not where the stream ends when `last` says it is.
+pub(crate) fn open_chunk(
+    key: &[u8],
+    prefix: &[u8],
+    position: u32,
+    last: bool,
+    mut sealed: Vec<u8>,
+) -> Result<Vec<u8>, String> {
+    if sealed.len() < TAG_LEN {
+        return Err("The chunk is shorter than its tag".to_string());
+    }
+    stream(key, prefix)?
+        .decrypt_in_place(position, last, b"", &mut sealed)
+        .map_err(|_| "The chunk did not decrypt: wrong key, moved, or changed".to_string())?;
+    Ok(sealed)
+}
+
 /// SHA-256 of `data`.
 pub(crate) fn digest(data: &[u8]) -> Vec<u8> {
     Sha256::digest(data).to_vec()
+}
+
+/// SHA-256 over pieces given one after another. Finished once; a second
+/// [StreamDigest::finish] is an error rather than the hash of nothing.
+pub(crate) struct StreamDigest(Option<Sha256>);
+
+impl StreamDigest {
+    pub(crate) fn new() -> Self {
+        Self(Some(Sha256::new()))
+    }
+
+    pub(crate) fn update(&mut self, data: &[u8]) -> Result<(), String> {
+        self.0
+            .as_mut()
+            .ok_or_else(|| "The digest is already finished".to_string())?
+            .update(data);
+        Ok(())
+    }
+
+    pub(crate) fn finish(&mut self) -> Result<Vec<u8>, String> {
+        let hasher = self
+            .0
+            .take()
+            .ok_or_else(|| "The digest is already finished".to_string())?;
+        Ok(hasher.finalize().to_vec())
+    }
 }
 
 #[cfg(test)]
@@ -121,6 +201,49 @@ mod tests {
             digest(b"abc"),
             hex("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
         );
+    }
+
+    // Computed with Python's `cryptography` AES-GCM under the nonce STREAM
+    // describes (prefix, big-endian position, last flag), so this proves the
+    // layout and not just a round trip. test/chat_crypto_test.dart holds the
+    // Dart side to the same two chunks.
+    const PREFIX: &str = "cafebabefacedb";
+    const CHUNK0: &str = "f44fe62a9eb368516d28707c631e4d8cd1463a2cea30d0581c72";
+    const CHUNK1_LAST: &str = "5146419d31b4a19d92262648ad0aae4f35230ba7";
+
+    #[test]
+    fn seals_chunks_with_their_place_in_the_nonce() {
+        let key = hex(KEY);
+        let prefix = hex(PREFIX);
+        assert_eq!(
+            seal_chunk(&key, &prefix, 0, false, b"chunk zero".to_vec()).unwrap(),
+            hex(CHUNK0)
+        );
+        assert_eq!(seal_chunk(&key, &prefix, 1, true, b"last".to_vec()).unwrap(), hex(CHUNK1_LAST));
+        assert_eq!(open_chunk(&key, &prefix, 1, true, hex(CHUNK1_LAST)).unwrap(), b"last");
+    }
+
+    #[test]
+    fn a_chunk_opens_only_where_it_was_sealed() {
+        let key = hex(KEY);
+        let prefix = hex(PREFIX);
+        // Moved to another position.
+        assert!(open_chunk(&key, &prefix, 1, false, hex(CHUNK0)).is_err());
+        // A file cut short: its new end was not sealed as the last chunk.
+        assert!(open_chunk(&key, &prefix, 0, true, hex(CHUNK0)).is_err());
+        // A last chunk with more said to follow it.
+        assert!(open_chunk(&key, &prefix, 1, false, hex(CHUNK1_LAST)).is_err());
+        assert!(seal_chunk(&key, &[0; 12], 0, true, vec![1]).is_err());
+    }
+
+    #[test]
+    fn digests_in_pieces_as_in_one() {
+        let mut stream = StreamDigest::new();
+        stream.update(b"a").unwrap();
+        stream.update(b"bc").unwrap();
+        assert_eq!(stream.finish().unwrap(), digest(b"abc"));
+        assert!(stream.finish().is_err());
+        assert!(stream.update(b"d").is_err());
     }
 
     #[test]

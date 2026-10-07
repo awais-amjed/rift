@@ -123,15 +123,29 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
     unawaited(_resolveMentionNames([pending]));
 
     try {
-      Future<APIResponse> uploadOne(Uint8List bytes, {bool plain = false}) =>
-          _serverCubit.uploadAttachment(
-            scopePrefix: channelId,
-            data: bytes,
-            plain: plain,
-          );
+      Future<APIResponse> uploadOne(
+        PendingAttachment file, {
+        TransferProgress? onProgress,
+      }) => _serverCubit.uploadStaged(
+        file,
+        scopePrefix: channelId,
+        onProgress: onProgress,
+      );
       final uploaded = await ChatAttachmentUploader.uploadAll(
         pending: attachments,
         uploadOne: uploadOne,
+        onProgress: (progress) {
+          if (state.channelId != channelId) return;
+          emit(
+            state.copyWith(
+              messages: ChatMessageOps.setUploadProgress(
+                state.messages,
+                pendingId,
+                progress,
+              ),
+            ),
+          );
+        },
       );
       final sentPreview = await ChatAttachmentUploader.uploadPreview(
         preview: preview,
@@ -390,6 +404,22 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
           keyB64: attachment.keyB64,
           nonceB64: attachment.nonceB64,
           sha256B64: attachment.sha256B64,
+          chunkSize: attachment.chunkSize,
         ),
       );
+
+  /// Fetch an attachment into [sink] as it is opened, for saving it.
+  Future<APIResponse> saveAttachment(
+    Attachment attachment,
+    BlobSink sink, {
+    TransferProgress? onProgress,
+  }) => _serverCubit.saveAttachment(
+    attachment: attachment,
+    sink: sink,
+    onProgress: onProgress,
+  );
+
+  /// What the message list draws and saves attachments with.
+  AttachmentLoader get attachmentLoader =>
+      AttachmentLoader(load: loadAttachment, save: saveAttachment);
 }

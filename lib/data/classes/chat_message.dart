@@ -78,6 +78,11 @@ class ChatMessage {
   /// button that cannot work.
   final bool sendFailed;
 
+  /// How much of a pending send's files have gone, from 0 to 1, while a big
+  /// one uploads. Null otherwise — on every row from the server, and on a
+  /// send whose files are small enough to go in one request.
+  final double? uploadProgress;
+
   /// The local id this message carried while it was pending, if it was sent
   /// from this client and has since been acknowledged.
   ///
@@ -195,6 +200,7 @@ class ChatMessage {
     this.reactions = const [],
     this.isPending = false,
     this.sendFailed = false,
+    this.uploadProgress,
     this.sentAsId,
     this.editedAt,
     this.origin = MessageOrigin.member,
@@ -215,6 +221,8 @@ class ChatMessage {
     DateTime? editedAt,
     String? sentAsId,
     bool? sendFailed,
+    double? uploadProgress,
+    bool clearUploadProgress = false,
     DateTime? pinnedAt,
     bool clearPinned = false,
   }) => ChatMessage(
@@ -230,6 +238,9 @@ class ChatMessage {
     reactions: reactions ?? this.reactions,
     isPending: isPending,
     sendFailed: sendFailed ?? this.sendFailed,
+    uploadProgress: clearUploadProgress
+        ? null
+        : uploadProgress ?? this.uploadProgress,
     sentAsId: sentAsId ?? this.sentAsId,
     editedAt: editedAt ?? this.editedAt,
     origin: origin,

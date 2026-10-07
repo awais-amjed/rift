@@ -17,6 +17,8 @@ mixin _ServerAttachmentsApiMixin on Cubit<ServerState> {
 
   String _noTarget(String? serverId);
 
+  BearerToken _bearerFor(Server server);
+
   /// See [ServerCubit._chatTarget].
   ({Server server, String anonKey})? _chatTarget(String? serverId);
 
@@ -52,6 +54,76 @@ mixin _ServerAttachmentsApiMixin on Cubit<ServerState> {
         data: data,
         plain: plain,
       ),
+    );
+  }
+
+  /// Upload one staged [file] under [scopePrefix]: one held in memory in a
+  /// single request, a big one a chunk at a time with [onProgress].
+  Future<APIResponse> uploadStaged(
+    PendingAttachment file, {
+    required String scopePrefix,
+    String? serverId,
+    TransferProgress? onProgress,
+  }) => file.streams
+      ? uploadAttachmentFile(
+          scopePrefix: scopePrefix,
+          file: file.file!,
+          length: file.size,
+          plain: file.plain,
+          serverId: serverId,
+          onProgress: onProgress,
+        )
+      : uploadAttachment(
+          scopePrefix: scopePrefix,
+          data: file.bytes!,
+          plain: file.plain,
+          serverId: serverId,
+        );
+
+  /// Seal and upload a big [file] a chunk at a time, or send it as it is when
+  /// [plain] — see `AttachmentRepository.uploadStreamed`. Same answer as
+  /// [uploadAttachment], with [onProgress] as it goes.
+  Future<APIResponse> uploadAttachmentFile({
+    required String scopePrefix,
+    required XFile file,
+    required int length,
+    bool plain = false,
+    String? serverId,
+    TransferProgress? onProgress,
+  }) async {
+    final target = _chatTarget(serverId);
+    if (target == null) return APIResponse.error(_noTarget(serverId));
+    return _attachments.uploadStreamed(
+      baseUrl: target.server.supabaseUrl,
+      anonKey: target.anonKey,
+      token: _bearerFor(target.server),
+      bucket: _bucketFor(target.server),
+      scopePrefix: scopePrefix,
+      file: file,
+      length: length,
+      plain: plain,
+      onProgress: onProgress,
+    );
+  }
+
+  /// Fetch [attachment] into [sink] as it is opened — the road for saving a
+  /// file, which never has to be in memory whole.
+  Future<APIResponse> saveAttachment({
+    required Attachment attachment,
+    required BlobSink sink,
+    String? serverId,
+    TransferProgress? onProgress,
+  }) async {
+    final target = _chatTarget(serverId);
+    if (target == null) return APIResponse.error(_noTarget(serverId));
+    return _attachments.downloadTo(
+      baseUrl: target.server.supabaseUrl,
+      anonKey: target.anonKey,
+      token: _bearerFor(target.server),
+      bucket: _bucketFor(target.server),
+      attachment: attachment,
+      sink: sink,
+      onProgress: onProgress,
     );
   }
 
@@ -98,6 +170,7 @@ mixin _ServerAttachmentsApiMixin on Cubit<ServerState> {
     required String keyB64,
     required String nonceB64,
     String? sha256B64,
+    int? chunkSize,
     String? serverId,
   }) {
     final target = _chatTarget(serverId);
@@ -115,6 +188,7 @@ mixin _ServerAttachmentsApiMixin on Cubit<ServerState> {
         keyB64: keyB64,
         nonceB64: nonceB64,
         sha256B64: sha256B64,
+        chunkSize: chunkSize,
       ),
     );
   }
