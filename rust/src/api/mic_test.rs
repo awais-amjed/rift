@@ -6,10 +6,9 @@
 //! Linux the test reads the microphone itself, the way the sound share reads
 //! an application, and hands the samples to the same meter.
 //!
-//! It measures the device as the system delivers it, without WebRTC's noise
-//! suppression or gain control: what the test answers is whether Rift hears
-//! this microphone at all. Only the mic volume is applied, as the call
-//! applies it. It plays the same samples back, so you hear what Rift hears.
+//! What it reads goes through what the call would do to it — libwebrtc's own
+//! processing, the noise model and the mic volume (`mic_test::clean`) — and
+//! it plays the result back, so you hear how you will sound.
 
 #[cfg(any(target_os = "windows", target_os = "linux"))]
 use crate::mic_test;
@@ -26,7 +25,8 @@ pub struct MicTestPlayback {
 }
 
 /// Reads `device_id` — the id WebRTC lists the input under, or `None` for the
-/// system default — and sends 16-bit mono samples at 16 kHz to `sink` until
+/// system default — and sends 16-bit mono samples at 48 kHz, processed as
+/// [`set_mic_test_processing`] last said, to `sink` until
 /// [`stop_mic_test`], or until Dart stops listening. On Windows that id is the
 /// endpoint id; on Linux it is the source's description, the only name
 /// WebRTC's PulseAudio module gives one. With `playback`, the samples are
@@ -71,4 +71,42 @@ pub fn set_mic_test_gain(gain: f32) {
     mic_test::set_gain(gain);
     #[cfg(not(any(target_os = "windows", target_os = "linux")))]
     let _ = gain;
+}
+
+/// Which noise filter the test runs, as the call would run it on this device.
+pub enum MicTestNoise {
+    Off,
+    /// libwebrtc's own suppressor.
+    Standard,
+    Rnnoise,
+    DeepFilter,
+}
+
+/// How the test processes the microphone: the noise filter, and whether gain
+/// control is on. Reaches a test already running, so a change in settings is
+/// heard straight away.
+pub fn set_mic_test_processing(noise: MicTestNoise, auto_gain: bool) {
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    mic_test::set_processing(mic_test::Settings {
+        noise: match noise {
+            MicTestNoise::Off => mic_test::Noise::Off,
+            MicTestNoise::Standard => mic_test::Noise::Standard,
+            MicTestNoise::Rnnoise => mic_test::Noise::Rnnoise,
+            MicTestNoise::DeepFilter => mic_test::Noise::DeepFilter,
+        },
+        auto_gain,
+    });
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
+    let _ = (noise, auto_gain);
+}
+
+/// Where the runner's RNNoise is: the addresses of its
+/// `rift_noise_filter_rnnoise_create`, `_process` and `_destroy`, which Dart
+/// looks up in the executable. The model is built into the runner, so the test borrows it
+/// rather than the library carrying a second copy.
+pub fn set_mic_test_rnnoise(create: usize, process: usize, destroy: usize) {
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    mic_test::set_rnnoise(create, process, destroy);
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
+    let _ = (create, process, destroy);
 }

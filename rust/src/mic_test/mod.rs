@@ -3,7 +3,9 @@
 //!
 //! Running one test at a time and stopping it is the same everywhere; each
 //! platform supplies `run`, which opens the device and reads it until told to
-//! stop, writing what it reads to the output as it goes.
+//! stop, writing what it reads to the output as it goes. What it reads goes
+//! through the call's processing first (`clean`), so the meter and the
+//! playback are what the call would send.
 
 use crate::frb_generated::StreamSink;
 use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
@@ -11,6 +13,7 @@ use std::sync::Mutex;
 use std::thread::{self, JoinHandle};
 
 mod boost;
+mod clean;
 #[cfg(target_os = "linux")]
 mod linux;
 #[cfg(target_os = "windows")]
@@ -23,10 +26,8 @@ use windows::run;
 
 pub(crate) use boost::set_gain;
 use boost::Boost;
-
-/// The meter's format (`micTapFormat` on the Dart side): mono 16-bit at
-/// 16 kHz. The platform converts whatever the device runs at.
-const SAMPLE_RATE: u32 = 16_000;
+pub(crate) use clean::{set as set_processing, set_rnnoise, Noise, Settings};
+use clean::{Cleaner, SAMPLE_RATE};
 
 /// How far behind the voice its playback may fall on Linux, in samples: 60 ms.
 /// Enough for a late wake not to run the output dry; short enough to hear

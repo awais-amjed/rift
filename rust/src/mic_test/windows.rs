@@ -1,8 +1,9 @@
 //! Windows: reading the microphone through WASAPI, which converts whatever
-//! the device runs at into the meter's format, and playing it back on a
+//! the device runs at into the format the processing works in, and playing it
+//! back on a
 //! render stream polled from the same loop.
 
-use super::{for_playback, samples_from_le_bytes, stopped, Boost, Playback, SAMPLE_RATE};
+use super::{for_playback, samples_from_le_bytes, stopped, Cleaner, Playback, SAMPLE_RATE};
 use crate::cue::le_bytes;
 use crate::frb_generated::StreamSink;
 use std::sync::mpsc::Receiver;
@@ -15,6 +16,7 @@ use wasapi::{
 const POLL: Duration = Duration::from_millis(10);
 /// One second, in the 100 ns units WASAPI counts in.
 const BUFFER_DURATION_HNS: i64 = 10_000_000;
+/// Room for a packet of up to 80 ms; WASAPI hands over about 10.
 const READ_BUFFER_BYTES: usize = 8 * 1024;
 /// How far behind the voice its playback may fall: 100 ms. Counted from what
 /// the output holds rather than set as its buffer, which Windows' engine
@@ -66,7 +68,7 @@ pub(super) fn run(
         .map_err(|e| format!("the microphone would not start: {e:?}"))?;
 
     let mut buffer = vec![0u8; READ_BUFFER_BYTES];
-    let mut boost = Boost::new(SAMPLE_RATE);
+    let mut cleaner = Cleaner::new();
     'test: loop {
         if stopped(stop) {
             break;
@@ -80,8 +82,10 @@ pub(super) fn run(
                 break;
             }
             let bytes = frames as usize * 2;
-            let mut samples = samples_from_le_bytes(&buffer[..bytes]);
-            boost.apply(&mut samples);
+            let samples = cleaner.clean(&samples_from_le_bytes(&buffer[..bytes]));
+            if samples.is_empty() {
+                continue;
+            }
             if let Some(((out_client, render), volume)) = &output {
                 let queued = out_client
                     .get_current_padding()

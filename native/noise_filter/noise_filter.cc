@@ -236,3 +236,16 @@ void rift_noise_filter_set_deep_filter(void* process, void* reset) {
       reinterpret_cast<rift::DeepFilterProcess>(process),
       reinterpret_cast<rift::DeepFilterReset>(reset));
 }
+
+void* rift_noise_filter_rnnoise_create(void) {
+  return rnnoise_create(nullptr);
+}
+
+void rift_noise_filter_rnnoise_process(void* state, float* frame) {
+  if (state == nullptr || frame == nullptr) return;
+  rnnoise_process_frame(static_cast<DenoiseState*>(state), frame, frame);
+}
+
+void rift_noise_filter_rnnoise_destroy(void* state) {
+  if (state != nullptr) rnnoise_destroy(static_cast<DenoiseState*>(state));
+}

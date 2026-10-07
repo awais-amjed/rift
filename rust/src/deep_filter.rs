@@ -5,6 +5,9 @@
 //! here on libwebrtc's capture thread, 10 ms at a time. Dart loads the model
 //! first ([`load`], off the UI thread, since it takes about a quarter of a
 //! second) and hands the runner these functions' addresses.
+//!
+//! The settings mic test reads the microphone here in the library rather than
+//! through libwebrtc, and runs a [`Model`] of its own (`mic_test::clean`).
 
 use std::sync::Mutex;
 
@@ -12,12 +15,12 @@ use df::tract::{DfParams, DfTract, RuntimeParams};
 use ndarray::{ArrayView2, ArrayViewMut2};
 
 /// What libwebrtc hands over: 10 ms at 48 kHz, which is also DFN3's hop.
-const FRAME: usize = 480;
+pub(crate) const FRAME: usize = 480;
 
 /// libwebrtc's samples are on the 16-bit scale; the model's are on ±1.
 const SCALE: f32 = 32768.0;
 
-struct Model {
+pub(crate) struct Model {
     df: DfTract,
     /// The model as it loaded, copied back over `df` to start it afresh.
     /// libDF's own `init` cannot do that: it refills one of its rolling
@@ -38,7 +41,7 @@ struct Model {
 unsafe impl Send for Model {}
 
 impl Model {
-    fn new() -> Result<Model, String> {
+    pub(crate) fn new() -> Result<Model, String> {
         // The post-filter takes a little more off what the model leaves
         // between words, at the strength DeepFilterNet's own command line uses.
         let params = RuntimeParams::default_with_ch(1).with_post_filter(0.02);
@@ -60,7 +63,7 @@ impl Model {
 
     /// Filters 10 ms in place; false, with the frame untouched, if the model
     /// failed on it.
-    fn process(&mut self, frame: &mut [f32; FRAME]) -> bool {
+    pub(crate) fn process(&mut self, frame: &mut [f32; FRAME]) -> bool {
         for (to, from) in self.noisy.iter_mut().zip(frame.iter()) {
             *to = *from / SCALE;
         }
@@ -80,7 +83,7 @@ impl Model {
     }
 
     /// Forgets everything heard since loading.
-    fn reset(&mut self) {
+    pub(crate) fn reset(&mut self) {
         self.df.clone_from(&self.fresh);
     }
 }

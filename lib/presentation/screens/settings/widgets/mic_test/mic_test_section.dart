@@ -18,8 +18,9 @@ import 'widgets/mic_test_controls.dart';
 /// confirm their mic works and see the effect of the processing toggles.
 ///
 /// **On Windows, Linux and the web** it opens its own microphone through
-/// [MicTestCapture] and plays it back on the chosen output, so you hear what
-/// Rift hears. For as long as it runs you are muted and deafened in the app
+/// [MicTestCapture] and plays it back on the chosen output, processed as a call
+/// would process it — noise filter, gain control, mic volume — so you hear how
+/// you will sound, and a change to any of them is heard at once. For as long as it runs you are muted and deafened in the app
 /// ([LiveKitCubit.setMicTesting]): nobody in a call hears you testing, and the
 /// call does not talk over your own voice. Pressing mute or deafen ends it.
 ///
@@ -132,6 +133,7 @@ class _MicTestSectionState extends State<MicTestSection> {
     );
     if (!mounted) return false;
     try {
+      if (HostPlatform.micTestReadsDevice) await _processLikeTheCall(settings);
       await _capture.start(
         options: AudioCaptureOptions(
           deviceId: deviceId,
@@ -161,6 +163,14 @@ class _MicTestSectionState extends State<MicTestSection> {
       return false;
     }
   }
+
+  /// What the call would do to the microphone, for the test that reads the
+  /// device itself and so is outside it.
+  static Future<void> _processLikeTheCall(AppState settings) =>
+      NoiseFilter.forMicTest(
+        settings.noiseSuppression,
+        autoGain: settings.autoGainControl,
+      );
 
   void _onLevel(double level) {
     if (!mounted) return;
@@ -226,6 +236,13 @@ class _MicTestSectionState extends State<MicTestSection> {
               a.outputDeviceId != b.outputDeviceId,
           listener: (_, _) => _onDeviceChanged(),
         ),
+        if (HostPlatform.micTestReadsDevice)
+          BlocListener<AppCubit, AppState>(
+            listenWhen: (a, b) =>
+                a.noiseSuppression != b.noiseSuppression ||
+                a.autoGainControl != b.autoGainControl,
+            listener: (_, settings) => _processLikeTheCall(settings),
+          ),
         BlocListener<LiveKitCubit, LiveKitState>(
           listenWhen: (a, b) => a.isMicTesting != b.isMicTesting,
           listener: (_, state) => _onMicTestingChanged(state.isMicTesting),

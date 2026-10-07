@@ -86,9 +86,9 @@ class MicTestCapture {
   /// WebRTC only records while a call is sending, so outside a call a track
   /// made for the test never received a sample: the meter stayed dark, and
   /// neither Windows nor PulseAudio showed the microphone being opened. The
-  /// Rust side reads the device in the meter's own format ([micTapFormat]), so
-  /// the same [PcmLevel] reading applies. What it cannot show is WebRTC's noise
-  /// suppression and gain control, which only exist inside a call.
+  /// Rust side reads the device and runs what the call would run on it
+  /// (`NoiseFilter.forMicTest`), and the same [PcmLevel] reading applies: a
+  /// level does not depend on the rate, which is 48 kHz here.
   ///
   /// Throws, like the WebRTC path, if the device cannot be opened: that shows
   /// as the stream's first event being an error.

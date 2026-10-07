@@ -8,7 +8,8 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import '../frb_generated.dart';
 
 /// Reads `device_id` — the id WebRTC lists the input under, or `None` for the
-/// system default — and sends 16-bit mono samples at 16 kHz to `sink` until
+/// system default — and sends 16-bit mono samples at 48 kHz, processed as
+/// [`set_mic_test_processing`] last said, to `sink` until
 /// [`stop_mic_test`], or until Dart stops listening. On Windows that id is the
 /// endpoint id; on Linux it is the source's description, the only name
 /// WebRTC's PulseAudio module gives one. With `playback`, the samples are
@@ -33,6 +34,41 @@ Future<void> stopMicTest() => RustLib.instance.api.crateApiMicTestStopMicTest();
 /// test already running.
 Future<void> setMicTestGain({required double gain}) =>
     RustLib.instance.api.crateApiMicTestSetMicTestGain(gain: gain);
+
+/// How the test processes the microphone: the noise filter, and whether gain
+/// control is on. Reaches a test already running, so a change in settings is
+/// heard straight away.
+Future<void> setMicTestProcessing({
+  required MicTestNoise noise,
+  required bool autoGain,
+}) => RustLib.instance.api.crateApiMicTestSetMicTestProcessing(
+  noise: noise,
+  autoGain: autoGain,
+);
+
+/// Where the runner's RNNoise is: the addresses of its
+/// `rift_noise_filter_rnnoise_create`, `_process` and `_destroy`, which Dart
+/// looks up in the executable. The model is built into the runner, so the test borrows it
+/// rather than the library carrying a second copy.
+Future<void> setMicTestRnnoise({
+  required BigInt create,
+  required BigInt process,
+  required BigInt destroy,
+}) => RustLib.instance.api.crateApiMicTestSetMicTestRnnoise(
+  create: create,
+  process: process,
+  destroy: destroy,
+);
+
+/// Which noise filter the test runs, as the call would run it on this device.
+enum MicTestNoise {
+  off,
+
+  /// libwebrtc's own suppressor.
+  standard,
+  rnnoise,
+  deepFilter,
+}
 
 /// Where the test plays the microphone back.
 class MicTestPlayback {

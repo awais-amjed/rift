@@ -41,7 +41,10 @@ third_party/      # Code kept here: packages to patch, and RNNoise — each says
 native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model inside
                       # libwebrtc's processing of the mic — RNNoise, or DeepFilterNet from
                       # rust/src/deep_filter.rs — then the mic volume, with a limiter,
-                      # all switched from Dart over FFI (NoiseFilter, MicVolume)
+                      # all switched from Dart over FFI (NoiseFilter, MicVolume). The
+                      # settings mic test reads the mic outside libwebrtc and runs the
+                      # same steps in rust/src/mic_test/clean.rs, borrowing the runner's
+                      # RNNoise, so it sounds like the call
 ```
 
 ## State management — Bloc/Cubit only

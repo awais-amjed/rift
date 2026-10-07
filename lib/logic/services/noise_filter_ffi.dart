@@ -11,7 +11,9 @@ import '../helper_methods.dart';
 /// Linux and Windows (`native/noise_filter` in the runner): RNNoise built into
 /// the runner, and DeepFilterNet from the Rust library, loaded the first time
 /// it is picked. One switch for the whole process: every capture track, the
-/// mic test's included, goes through the same processing.
+/// call's capture track goes through the same processing. The settings mic
+/// test reads the device itself, outside libwebrtc, and is handed the same
+/// choice to run there ([forMicTest]).
 ///
 /// The mic volume runs there too, after the model ([MicVolume]).
 ///
@@ -24,6 +26,9 @@ abstract final class NoiseFilter {
   /// has moved on is not put on.
   static NoiseSuppression? _wanted;
   static bool _deepFilterReady = false;
+
+  /// Whether the mic test has been told where the runner's RNNoise is.
+  static bool _rnnoiseHanded = false;
 
   /// What the settings offer here.
   static List<NoiseSuppression> get choices => [
@@ -86,6 +91,42 @@ abstract final class NoiseFilter {
         native.setModel(_deepFilterReady ? _Model.deepFilter : _Model.rnnoise);
     }
   }
+
+  /// Has the settings mic test process the microphone as a call would under
+  /// [mode] and [autoGain], here: the test reads the device itself, so the
+  /// runner's filter never sees it (`rust/src/mic_test/clean.rs`). Reaches a
+  /// test already running.
+  static Future<void> forMicTest(
+    NoiseSuppression mode, {
+    required bool autoGain,
+  }) async {
+    final native = _native;
+    if (native != null && !_rnnoiseHanded) {
+      final rnnoise = native.rnnoise;
+      if (rnnoise != null) {
+        await setMicTestRnnoise(
+          create: BigInt.from(rnnoise.create),
+          process: BigInt.from(rnnoise.process),
+          destroy: BigInt.from(rnnoise.destroy),
+        );
+      }
+      _rnnoiseHanded = true;
+    }
+    final hasModels = native?.rnnoise != null;
+    await setMicTestProcessing(
+      noise: switch (mode) {
+        NoiseSuppression.off => MicTestNoise.off,
+        NoiseSuppression.standard => MicTestNoise.standard,
+        // Where the runner has no models the call falls back to the built-in
+        // suppressor, and so does the test.
+        NoiseSuppression.rnnoise =>
+          hasModels ? MicTestNoise.rnnoise : MicTestNoise.standard,
+        NoiseSuppression.deepFilter =>
+          hasModels ? MicTestNoise.deepFilter : MicTestNoise.standard,
+      },
+      autoGain: autoGain,
+    );
+  }
 }
 
 /// The values `rift_noise_filter_set_model` takes.
@@ -100,7 +141,16 @@ class _NativeFilter {
   final void Function(double) setGain;
   final void Function(Pointer<Void>, Pointer<Void>) _setDeepFilter;
 
-  const _NativeFilter(this.setModel, this.setGain, this._setDeepFilter);
+  /// The runner's RNNoise for the mic test, by address; null from a runner
+  /// built before it exported them.
+  final ({int create, int process, int destroy})? rnnoise;
+
+  const _NativeFilter(
+    this.setModel,
+    this.setGain,
+    this._setDeepFilter,
+    this.rnnoise,
+  );
 
   void setDeepFilter(int process, int reset) =>
       _setDeepFilter(Pointer.fromAddress(process), Pointer.fromAddress(reset));
@@ -125,10 +175,33 @@ class _NativeFilter {
           Void Function(Pointer<Void>, Pointer<Void>),
           void Function(Pointer<Void>, Pointer<Void>)
         >('rift_noise_filter_set_deep_filter'),
+        _rnnoiseIn(exe),
       );
     } catch (e) {
       HelperMethods.printDebug('Noise filter unavailable: $e');
       return null;
     }
+  }
+
+  static ({int create, int process, int destroy})? _rnnoiseIn(
+    DynamicLibrary exe,
+  ) {
+    const names = (
+      create: 'rift_noise_filter_rnnoise_create',
+      process: 'rift_noise_filter_rnnoise_process',
+      destroy: 'rift_noise_filter_rnnoise_destroy',
+    );
+    if (![
+      names.create,
+      names.process,
+      names.destroy,
+    ].every(exe.providesSymbol)) {
+      return null;
+    }
+    return (
+      create: exe.lookup<Void>(names.create).address,
+      process: exe.lookup<Void>(names.process).address,
+      destroy: exe.lookup<Void>(names.destroy).address,
+    );
   }
 }

@@ -45,4 +45,19 @@ RIFT_NOISE_FILTER_EXPORT void rift_noise_filter_set_gain(float gain);
 RIFT_NOISE_FILTER_EXPORT void rift_noise_filter_set_deep_filter(void* process,
                                                                 void* reset);
 
+// RNNoise for the settings mic test, which reads the microphone in the Rust
+// library rather than through libwebrtc (rust/src/mic_test). Its own state,
+// apart from the call's, so a test and a call never share what the model has
+// heard. The model is built into the runner, so Dart passes these addresses on
+// rather than the library carrying a second copy of its weights.
+
+// A fresh RNNoise state, or null.
+RIFT_NOISE_FILTER_EXPORT void* rift_noise_filter_rnnoise_create(void);
+
+// Filters 10 ms at 48 kHz in place, on the 16-bit scale as floats.
+RIFT_NOISE_FILTER_EXPORT void rift_noise_filter_rnnoise_process(void* state,
+                                                                float* frame);
+
+RIFT_NOISE_FILTER_EXPORT void rift_noise_filter_rnnoise_destroy(void* state);
+
 #endif  // RIFT_NOISE_FILTER_NOISE_FILTER_H_

@@ -153,6 +153,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<VideoCodec> dco_decode_list_video_codec(dynamic raw);
 
   @protected
+  MicTestNoise dco_decode_mic_test_noise(dynamic raw);
+
+  @protected
   MicTestPlayback dco_decode_mic_test_playback(dynamic raw);
 
   @protected
@@ -340,6 +343,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<VideoCodec> sse_decode_list_video_codec(SseDeserializer deserializer);
+
+  @protected
+  MicTestNoise sse_decode_mic_test_noise(SseDeserializer deserializer);
 
   @protected
   MicTestPlayback sse_decode_mic_test_playback(SseDeserializer deserializer);
@@ -574,6 +580,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     List<VideoCodec> self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_mic_test_noise(MicTestNoise self, SseSerializer serializer);
 
   @protected
   void sse_encode_mic_test_playback(
