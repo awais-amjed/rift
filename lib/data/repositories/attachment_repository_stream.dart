@@ -284,6 +284,9 @@ mixin _AttachmentStreamMixin {
     BlobSink sink,
     TransferProgress? onProgress,
   ) async {
+    if (!ChunkedLayout.readable(plainSize: attachment.size, chunkSize: chunk)) {
+      throw const FormatException('The file claims a chunk size out of range');
+    }
     final layout = ChunkedLayout(plainSize: attachment.size, chunkSize: chunk);
     final key = CryptoRepository.fromBase64(attachment.keyB64);
     final prefix = CryptoRepository.fromBase64(attachment.nonceB64);

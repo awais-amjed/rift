@@ -42,8 +42,9 @@ void main() {
       }
     }
 
-    Future<List<int>> lengths(Stream<List<int>> s, int size) async =>
-        [await for (final c in fixedChunks(s, size)) c.length];
+    Future<List<int>> lengths(Stream<List<int>> s, int size) async => [
+      await for (final c in fixedChunks(s, size)) c.length,
+    ];
 
     test('cuts uneven pieces at the chunk size', () async {
       expect(await lengths(pieces([3, 7, 1, 14]), 10), [10, 10, 5]);
@@ -63,6 +64,29 @@ void main() {
 
     test('an empty source is one empty chunk', () async {
       expect(await lengths(pieces([]), 10), [0]);
+    });
+  });
+
+  group('ChunkedLayout.readable', () {
+    test('takes the size this client seals in', () {
+      expect(
+        ChunkedLayout.readable(plainSize: 650 << 20, chunkSize: 1 << 20),
+        isTrue,
+      );
+    });
+
+    test('refuses a sender\'s chunk size out of range', () {
+      // A gigabyte a chunk would have the reader hold the file in memory.
+      expect(
+        ChunkedLayout.readable(plainSize: 1 << 30, chunkSize: 1 << 30),
+        isFalse,
+      );
+      expect(ChunkedLayout.readable(plainSize: 10, chunkSize: 0), isFalse);
+      expect(ChunkedLayout.readable(plainSize: 10, chunkSize: -1), isFalse);
+      expect(
+        ChunkedLayout.readable(plainSize: -1, chunkSize: 1 << 20),
+        isFalse,
+      );
     });
   });
 }

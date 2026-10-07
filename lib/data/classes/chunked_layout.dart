@@ -9,6 +9,19 @@ class ChunkedLayout {
   /// AES-GCM's tag, after every chunk.
   static const int tagLength = 16;
 
+  /// The range a chunk size has to fall in to be read. This client seals
+  /// 1 MiB chunks; the bounds leave room for another to choose differently.
+  /// The size comes from the sender, and a reader holds a whole chunk before
+  /// it can open it, so one claiming a gigabyte would have a phone hold the
+  /// file in memory, and one of zero would have no chunks at all.
+  static const int smallestChunk = 4 << 10;
+  static const int largestChunk = 16 << 20;
+
+  /// Whether a file of [plainSize] bytes in chunks of [chunkSize] is one this
+  /// client will read.
+  static bool readable({required int plainSize, required int chunkSize}) =>
+      plainSize >= 0 && chunkSize >= smallestChunk && chunkSize <= largestChunk;
+
   final int plainSize;
   final int chunkSize;
 

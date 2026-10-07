@@ -35,6 +35,21 @@ void main() {
       );
     });
 
+    test('puts back only an extension of letters and digits', () {
+      expect(
+        keepExtension(r'C:\Users\a\movie', r'movie.x\..\evil'),
+        r'C:\Users\a\movie',
+      );
+      expect(
+        keepExtension(r'C:\Users\a\movie', 'movie.bin:stream'),
+        r'C:\Users\a\movie',
+      );
+      expect(
+        keepExtension(r'C:\Users\a\movie', 'movie.tar.gz'),
+        r'C:\Users\a\movie.gz',
+      );
+    });
+
     test('leaves the name alone when the file had no extension', () {
       expect(keepExtension(r'C:\a\README', 'README'), r'C:\a\README');
       expect(keepExtension(r'C:\a\.env', '.env'), r'C:\a\.env');
