@@ -279,6 +279,13 @@ bucket holds opaque bytes. Deleting a message has to delete its blobs, and
 storage refuses a direct delete — so that path goes through an endpoint holding
 the Storage API rather than any database role.
 
+The sealing itself runs in the Rust library (`NativeBlobCipher`) on a desktop
+or phone, off the UI thread: the Dart reference took about 4 s for 50 MB with
+the window frozen, and Rust takes about 0.3 s for 500 MB (measured Oct 7 on the
+Linux desktop). The web keeps the Dart path, which the browser runs on
+WebCrypto. Both write the same bytes, and each checks itself against the same
+GCM specification vector.
+
 ### Saved on the device [Implemented September 2026]
 
 Each conversation this device opens — a channel, a server DM, a central DM —

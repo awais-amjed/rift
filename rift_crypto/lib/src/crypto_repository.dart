@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
 
+import 'blob_cipher.dart';
 import 'chat_identity.dart';
 import 'message_envelope.dart';
 import 'server_identity.dart';
@@ -13,6 +14,7 @@ import 'wrapped_key.dart';
 // Re-exported so `import 'crypto_repository.dart'` still hands over the types
 // its methods return. `rift_crypto.dart` is the package's front door and
 // exports the same set; this keeps the file honest on its own.
+export 'blob_cipher.dart';
 export 'chat_identity.dart';
 export 'message_envelope.dart';
 export 'server_identity.dart';
@@ -222,18 +224,20 @@ class CryptoRepository
   /// Generate a fresh random 256-bit key for encrypting a single attachment.
   Uint8List generateFileKey() => _secureRandomBytes(32);
 
+  /// What [encryptBytes] and [decryptBytes] run on. [DartBlobCipher] until
+  /// the app has its native library loaded and swaps in the faster one; the
+  /// bytes are the same either way.
+  static BlobCipher blobCipher = const DartBlobCipher();
+
   /// Encrypt raw bytes with AES-256-GCM using [key] (attachment blobs). The
   /// returned ciphertext includes the GCM auth tag, matching [decryptBytes].
   Future<({Uint8List ciphertext, Uint8List iv})> encryptBytes({
     required Uint8List data,
     required Uint8List key,
   }) async {
-    final algorithm = AesGcm.with256bits();
-    final secretBox = await algorithm.encrypt(data, secretKey: SecretKey(key));
-    return (
-      ciphertext: Uint8List.fromList(secretBox.concatenation(nonce: false)),
-      iv: Uint8List.fromList(secretBox.nonce),
-    );
+    final iv = _secureRandomBytes(12);
+    final ciphertext = await blobCipher.seal(data: data, key: key, nonce: iv);
+    return (ciphertext: ciphertext, iv: iv);
   }
 
   /// Decrypt AES-256-GCM [ciphertext] (tag appended) with [key] and [iv].
@@ -242,16 +246,7 @@ class CryptoRepository
     required Uint8List ciphertext,
     required Uint8List key,
     required Uint8List iv,
-  }) async {
-    final algorithm = AesGcm.with256bits();
-    final macLength = algorithm.macAlgorithm.macLength;
-    final encryptedBytes = ciphertext.sublist(0, ciphertext.length - macLength);
-    final macBytes = ciphertext.sublist(ciphertext.length - macLength);
-
-    final secretBox = SecretBox(encryptedBytes, nonce: iv, mac: Mac(macBytes));
-    final clear = await algorithm.decrypt(secretBox, secretKey: SecretKey(key));
-    return Uint8List.fromList(clear);
-  }
+  }) => blobCipher.open(sealed: ciphertext, key: key, nonce: iv);
 
   // ──────────────────────────────────────────────────────────
   // Helpers

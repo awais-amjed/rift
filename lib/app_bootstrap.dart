@@ -4,11 +4,13 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
+import 'package:rift_crypto/rift_crypto.dart';
 import 'package:screen_retriever/screen_retriever.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'data/constants.dart';
+import 'data/repositories/native_blob_cipher.dart';
 import 'data/repositories/update_repository.dart';
 import 'logic/cubits/app/app_cubit.dart';
 import 'logic/helper_methods.dart';
@@ -48,6 +50,7 @@ class AppBootstrap {
 
     if (!kIsWeb) {
       await RustLib.init();
+      CryptoRepository.blobCipher = const NativeBlobCipher();
       // First after the bridge: it may put a downloaded update in place and
       // restart into it, and nothing should have started by then.
       await UpdateRepository.startup();

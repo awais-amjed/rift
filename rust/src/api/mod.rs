@@ -1,4 +1,5 @@
 pub mod audio_endpoints;
+pub mod blob_cipher;
 pub mod cue;
 pub mod mic_test;
 pub mod noise_filter;

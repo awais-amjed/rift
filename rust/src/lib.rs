@@ -1,6 +1,7 @@
 pub mod api;
 #[cfg(any(target_os = "windows", target_os = "linux"))]
 mod audio_endpoints;
+mod blob_cipher;
 #[cfg(any(target_os = "windows", target_os = "linux"))]
 mod cue;
 #[cfg(any(target_os = "windows", target_os = "linux"))]

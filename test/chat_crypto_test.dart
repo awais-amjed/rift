@@ -274,6 +274,32 @@ void main() {
         throwsA(anything),
       );
     });
+
+    // Test case 15 of the GCM specification. The Rust cipher the app swaps in
+    // checks itself against the same vector (rust/src/blob_cipher.rs), which
+    // is what makes a blob from one open in the other.
+    test('matches the GCM specification vector', () async {
+      Uint8List hex(String s) => Uint8List.fromList([
+        for (var i = 0; i < s.length; i += 2)
+          int.parse(s.substring(i, i + 2), radix: 16),
+      ]);
+      final key = hex(
+        'feffe9928665731c6d6a8f9467308308feffe9928665731c6d6a8f9467308308',
+      );
+      final nonce = hex('cafebabefacedbaddecaf888');
+      final plain = hex(
+        'd9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a72'
+        '1c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b391aafd255',
+      );
+      final sealed = hex(
+        '522dc1f099567d07f47f37a32a84427d643a8cdcbfe5c0c97598a2bd2555d1aa'
+        '8cb08e48590dbb3da7b08b1056828838c5f61e6393ba7a0abcc9f662898015ad'
+        'b094dac5d93471bdec1a502270e3cc6c',
+      );
+      const cipher = DartBlobCipher();
+      expect(await cipher.seal(data: plain, key: key, nonce: nonce), sealed);
+      expect(await cipher.open(sealed: sealed, key: key, nonce: nonce), plain);
+    });
   });
 
   group('sealMessage / openMessage', () {

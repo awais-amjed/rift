@@ -18,6 +18,7 @@
 /// describes.
 library;
 
+export 'src/blob_cipher.dart';
 export 'src/chat_identity.dart';
 export 'src/crypto_repository.dart';
 export 'src/message_envelope.dart';
