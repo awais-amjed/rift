@@ -165,7 +165,8 @@ class _ChannelChatViewState extends State<ChannelChatView>
                       remainingStorageBytes: _remainingStorage(context),
                       // Every file goes as it is where encryption is off, so
                       // there is no choice to offer per file.
-                      offersPlainFiles: !_notEncrypted(context),
+                      offersPlainFiles:
+                          !_notEncrypted(context) && _isPublic(context),
                       notEncrypted: _notEncrypted(context),
                       bots: context.select(
                         (ChannelChatCubit c) => c.state.bots,
@@ -352,15 +353,30 @@ class _ChannelChatViewState extends State<ChannelChatView>
   /// Whether the open channel's encryption was turned off. Watched, so the
   /// composer changes the moment somebody switches it.
   bool _notEncrypted(BuildContext context) {
-    final channelId = context.select(
-      (ChannelChatCubit c) => c.state.channelId,
-    );
+    final channelId = context.select((ChannelChatCubit c) => c.state.channelId);
     return context.select(
       (ServerCubit c) =>
           c.state.selectedServer?.channels
               .where((ch) => ch.id == channelId)
               .firstOrNull
               ?.isEncrypted ==
+          false,
+    );
+  }
+
+  /// Whether the open channel is one every member can read. Only there may a
+  /// file go up unencrypted: a server from before
+  /// `chat_attachments_select` asked about the channel lets any member of
+  /// it fetch any stored file, so a plain file in a private channel would be
+  /// open to the whole server, not just to the server's operator.
+  bool _isPublic(BuildContext context) {
+    final channelId = context.select((ChannelChatCubit c) => c.state.channelId);
+    return context.select(
+      (ServerCubit c) =>
+          c.state.selectedServer?.channels
+              .where((ch) => ch.id == channelId)
+              .firstOrNull
+              ?.isPrivate ==
           false,
     );
   }

@@ -354,7 +354,10 @@ not read off the table directly, and without them the row says nothing about who
 ### Attachments
 
 Encrypted under their own key, carried inside the sealed message body, so the
-bucket holds opaque bytes. Deleting a message has to delete its blobs, and
+bucket holds opaque bytes. A stored file is named for the conversation it was
+sent in (a channel's id, or `dm_<a>_<b>`), and a member may fetch it only where
+they can read that conversation (`chat_attachments_select`); a server from
+before that let any of its members fetch any file. Deleting a message has to delete its blobs, and
 storage refuses a direct delete — so that path goes through an endpoint holding
 the Storage API rather than any database role.
 
@@ -366,8 +369,8 @@ WebCrypto. Both write the same bytes, and each checks itself against the same
 GCM specification vector.
 
 **A big file can go up unencrypted, if its sender chooses** [Implemented
-October 2026]. On a self-hosted server, a staged file of 25 MB or more has a
-lock on its chip; opening it uploads the bytes as they are, and the composer
+October 2026]. In a self-hosted server's public channel, a staged file of 25 MB
+or more has a lock on its chip; opening it uploads the bytes as they are, and the composer
 says the server can see them before the message goes. The file's name, and the
 message, are still sealed. With no key there is no tag, so the attachment
 carries a SHA-256 of the bytes inside the sealed body, and a download that does
@@ -375,7 +378,11 @@ not match is not shown: the server can read the file but not swap it. The file
 is badged NOT ENCRYPTED wherever it is drawn, with no setting. The body still
 writes `key` and `nonce`, empty, beside `plain` and `sha256`, so a client from
 before this fails to open the file and still shows the message. A forward
-re-encrypts it, since the choice was made for one server's readers.
+re-encrypts it, since the choice was made for one server's readers. Not in a DM
+or a private channel: on a server from before `chat_attachments_select` asked
+about the conversation, every member could fetch every stored file, so a plain
+file there would have been open to the whole server, which nothing on the
+screen said (found in the Oct 7 security review).
 
 How big a file can be at all is the operator's: the console sets storage's
 limit and records it, and no server's own cap goes past it

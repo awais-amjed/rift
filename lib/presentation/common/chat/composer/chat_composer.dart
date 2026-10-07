@@ -148,8 +148,10 @@ class ChatComposer extends StatefulWidget {
   /// sentence before the upload rather than an HTTP 500 after it.
   final int? remainingStorageBytes;
 
-  /// Whether a big file may be sent unencrypted here. A self-hosted server's
-  /// channels and DMs; not central, whose files stop at 10 MB.
+  /// Whether a big file may be sent unencrypted here: a self-hosted server's
+  /// public channels. Not a DM or a private channel, whose files any member
+  /// of a server from before `chat_attachments_select` asked about the
+  /// channel can fetch; not central, whose files stop at 10 MB.
   final bool offersPlainFiles;
 
   /// A channel whose encryption was turned off: everything typed here goes

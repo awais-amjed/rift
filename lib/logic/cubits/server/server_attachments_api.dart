@@ -59,29 +59,39 @@ mixin _ServerAttachmentsApiMixin on Cubit<ServerState> {
 
   /// Upload one staged [file] under [scopePrefix]: one held in memory in a
   /// single request, a big one a chunk at a time with [onProgress]. Sent as
-  /// it is when the sender chose that for the file, or [plain] for every file
-  /// (a channel whose encryption is off).
+  /// it is when the sender chose that for the file and [mayGoPlain] lets it,
+  /// or [plain] for every file (a channel whose encryption is off).
+  ///
+  /// [mayGoPlain] is a public channel's: a server from before
+  /// `chat_attachments_select` asked about the channel lets any of its
+  /// members fetch any stored file, so a plain file anywhere else would be
+  /// open to the whole server. Off by default, so a path that forgets it
+  /// seals the file.
   Future<APIResponse> uploadStaged(
     PendingAttachment file, {
     required String scopePrefix,
     String? serverId,
     TransferProgress? onProgress,
     bool plain = false,
-  }) => file.streams
-      ? uploadAttachmentFile(
-          scopePrefix: scopePrefix,
-          file: file.file!,
-          length: file.size,
-          plain: plain || file.plain,
-          serverId: serverId,
-          onProgress: onProgress,
-        )
-      : uploadAttachment(
-          scopePrefix: scopePrefix,
-          data: file.bytes!,
-          plain: plain || file.plain,
-          serverId: serverId,
-        );
+    bool mayGoPlain = false,
+  }) {
+    final asItIs = plain || (mayGoPlain && file.plain);
+    return file.streams
+        ? uploadAttachmentFile(
+            scopePrefix: scopePrefix,
+            file: file.file!,
+            length: file.size,
+            plain: asItIs,
+            serverId: serverId,
+            onProgress: onProgress,
+          )
+        : uploadAttachment(
+            scopePrefix: scopePrefix,
+            data: file.bytes!,
+            plain: asItIs,
+            serverId: serverId,
+          );
+  }
 
   /// Seal and upload a big [file] a chunk at a time, or send it as it is when
   /// [plain] — see `AttachmentRepository.uploadStreamed`. Same answer as

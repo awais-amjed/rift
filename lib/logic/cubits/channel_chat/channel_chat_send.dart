@@ -13,6 +13,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
   Map<int, Uint8List> get _keys;
   int get _currentKeyVersion;
   bool get _plainChannel;
+  bool get _publicChannel;
 
   /// Implemented by the cubit class, like [_ChatSweepMixin]'s copy — see the
   /// note in `channel_chat_ready.dart` for why it lives there rather than in a
@@ -159,6 +160,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
         // A file sealed beside a message anybody can read would protect
         // nothing the message does not already give away.
         plain: plain,
+        mayGoPlain: _publicChannel,
       );
       final uploaded = await ChatAttachmentUploader.uploadAll(
         pending: attachments,

@@ -181,6 +181,16 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
           ?.isEncrypted ==
       false;
 
+  /// Whether the open channel is one every member can read, the only kind a
+  /// file may go up unencrypted in (`ServerCubit.uploadStaged`).
+  @override
+  bool get _publicChannel =>
+      _serverCubit.state.selectedServer?.channels
+          .where((c) => c.id == state.channelId)
+          .firstOrNull
+          ?.isPrivate ==
+      false;
+
   @override
   Future<ChatIdentity?> _chatIdentity(Server server) =>
       _keyring.chatIdentity(server);
