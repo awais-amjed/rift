@@ -34,6 +34,11 @@ class Channel {
   /// is what makes a channel of tens of thousands affordable. Only ever false
   /// on a public text channel (`set_channel_encrypted`). The header and the
   /// composer say so, in place of a badge on every message.
+  ///
+  /// The server's database is what refuses it elsewhere, and whoever runs the
+  /// database can skip that. So the client holds the same line itself: a
+  /// private channel, or a voice one, is encrypted whatever the server says,
+  /// and nothing typed there goes out in the clear.
   final bool isEncrypted;
 
   /// Whether we hold this private channel's own manage seat
@@ -66,11 +71,12 @@ class Channel {
     this.retentionDays,
     this.historyCap,
     this.isPrivate = false,
-    this.isEncrypted = true,
+    bool isEncrypted = true,
     this.canManage = false,
     this.livekitNodeId,
     this.voiceNodeId,
-  });
+  }) : isEncrypted =
+           isEncrypted || isPrivate || channelType != ChannelType.text;
 
   /// Whether this channel holds messages at all, and so whether the retention
   /// settings mean anything for it.

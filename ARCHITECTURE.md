@@ -240,6 +240,9 @@ The danger is a server switching it off quietly, so every switch posts who did i
 in the channel, and every client draws the channel as "Not encrypted" — an amber
 chip in the header, a notice over the composer — from the flag the server sends.
 Those stand in for the per-message badge, which would otherwise be on every row.
+The client also holds the line the database does: a private or voice channel is
+encrypted whatever the server says (`Channel.isEncrypted`), since whoever runs the
+database can skip its own rule, and the system message with it.
 Bots see what they saw before: plaintext rows addressed to them, nothing else.
 
 ### DM topology — two tiers

@@ -26,6 +26,21 @@ void main() {
       );
     });
 
+    test('a private or voice channel stays encrypted whatever it says', () {
+      expect(
+        Channel.fromJson(
+          row({'is_encrypted': false, 'is_private': true}),
+        ).isEncrypted,
+        isTrue,
+      );
+      expect(
+        Channel.fromJson(
+          row({'is_encrypted': false, 'channel_type': 'voice'}),
+        ).isEncrypted,
+        isTrue,
+      );
+    });
+
     test('survives a round trip', () {
       final plain = Channel.fromJson(row({'is_encrypted': false}));
       expect(Channel.fromJson(plain.toJson()).isEncrypted, isFalse);
@@ -50,7 +65,10 @@ void main() {
     );
 
     test('a member in the clear is badged in an encrypted channel', () {
-      expect(MessageOriginBadge.isNeededFor(message(isEncrypted: false)), isTrue);
+      expect(
+        MessageOriginBadge.isNeededFor(message(isEncrypted: false)),
+        isTrue,
+      );
     });
 
     test('but not where the channel itself is not encrypted', () {
