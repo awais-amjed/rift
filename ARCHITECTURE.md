@@ -219,6 +219,29 @@ since waiting only keeps somebody out longer. A job each minute
 (`app.ring_due_rotations`) rings the server when a held-back change falls due,
 so an online member makes it on time.
 
+### Channels that are not encrypted [Implemented October 2026]
+
+A public channel anybody can join protects little by being encrypted: the people
+it hides messages from, the server's operator included, can join and read. And
+encryption is what makes a big channel expensive (*The key chain*, above). So a
+channel manager can turn it off for a public text channel
+(`set_channel_encrypted`, in the channel's Access settings). Private channels and
+voice stay encrypted; closing a channel turns it back on.
+
+While it is off, members post their messages in the clear (`key_version = 0`) in
+the same body they would have sealed, files uploaded as they are, and still
+signed, so the server cannot put words under anybody's name. The key never
+changes there, so bans cost nothing; members are still sealed the key, so what was
+encrypted before the switch stays readable to whoever joins, and turning it back
+on rotates past anybody removed meanwhile. A message that is only text goes as
+bare text, so an older client shows the words rather than the body's JSON.
+
+The danger is a server switching it off quietly, so every switch posts who did it
+in the channel, and every client draws the channel as "Not encrypted" — an amber
+chip in the header, a notice over the composer — from the flag the server sends.
+Those stand in for the per-message badge, which would otherwise be on every row.
+Bots see what they saw before: plaintext rows addressed to them, nothing else.
+
 ### DM topology — two tiers
 
 Same Design-1 crypto in both; different hosts, different policies. Central is a
@@ -661,7 +684,7 @@ rather than a request. The cooldown and length cutoff are applied by the
 | Network observer | safe | safe | safe (TLS) | safe | safe (SRTP) |
 | Central server / its host | safe (E2E) | safe (E2E) | n/a | n/a | n/a |
 | Self-hosted server's hosting provider | safe | n/a | safe (E2E) | safe | safe (E2E) |
-| Self-hosted server admin | safe | n/a | readable (they're a member anyway) | **safe** | channel calls: accessible · DM calls: **safe** |
+| Self-hosted server admin | safe | n/a | readable (they're a member anyway); in a channel with encryption off, readable without joining, which every member is shown | **safe** | channel calls: accessible · DM calls: **safe** |
 | A member, later banned | safe | n/a | what they read while a member; nothing the server sends after the ban, and nothing under the next key, which a ban brings within the hour (§4, *The key chain*). A bad key link they mint costs newcomers the history below it (§4, *The key chain*) | safe | ends at the ban |
 | Device thief (no password) | Argon2id + secure storage | — | newest page of each channel opened, sealed under the seed (§4, *Saved on the device*) | same | — |
 

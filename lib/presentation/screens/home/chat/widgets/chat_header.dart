@@ -104,7 +104,17 @@ class ChatHeader extends StatelessWidget {
                   // it is a claim about every channel equally, and spending 90px
                   // restating it leaves the one thing that differs between them
                   // — the channel's name — squeezed to nothing.
-                  if (!compact)
+                  // Not encrypted is the exception, so unlike the claim
+                  // above it is true of this channel only, and shown at
+                  // every width.
+                  if (channel?.isEncrypted == false)
+                    const StatusChip(
+                      icon: Icons.lock_open_rounded,
+                      label: 'Not encrypted',
+                      color: CustomColors.warning,
+                      tooltip: StatusChip.notEncryptedTooltip,
+                    )
+                  else if (!compact)
                     StatusChip(
                       icon: Icons.lock_outline,
                       label: 'Encrypted',

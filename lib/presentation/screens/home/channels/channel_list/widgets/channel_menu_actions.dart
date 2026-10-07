@@ -111,6 +111,47 @@ Future<bool> openChannelUp(BuildContext context, Channel channel) async {
   return result.success;
 }
 
+/// Turn a public text channel's encryption off, or back on. True when it
+/// changed.
+///
+/// The confirm says what moves and what does not: only new messages change,
+/// and off means the server, and anybody who joins, can read them.
+Future<bool> setChannelEncryption(
+  BuildContext context,
+  Channel channel, {
+  required bool encrypted,
+}) async {
+  final serverCubit = context.read<ServerCubit>();
+
+  final confirmed = await showConfirmDialog(
+    context: context,
+    title: encrypted
+        ? 'Turn encryption back on in #${channel.name}?'
+        : 'Turn off encryption in #${channel.name}?',
+    message: encrypted
+        ? 'New messages will be end-to-end encrypted again. What was sent '
+              'while it was off stays readable to the server.'
+        : 'The server, and anybody who joins, will be able to read new '
+              'messages here. What was already sent stays encrypted. Everyone '
+              'in the channel is told.',
+    confirmLabel: encrypted ? 'Turn on' : 'Turn off',
+    icon: encrypted ? Icons.lock_outline_rounded : Icons.lock_open_rounded,
+    isDestructive: !encrypted,
+  );
+  if (!confirmed) return false;
+
+  final result = await serverCubit.setChannelEncrypted(
+    channelId: channel.id,
+    encrypted: encrypted,
+  );
+  if (!result.success) {
+    HelperMethods.showError(
+      error: result.error ?? 'Could not change encryption here',
+    );
+  }
+  return result.success;
+}
+
 /// Asks, then deletes. True when the channel is gone.
 ///
 /// [onConfirmed] runs between the two, for a button that should look busy

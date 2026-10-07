@@ -28,8 +28,10 @@ class ChatPhoneTitle extends StatelessWidget {
       (c) => c.state.loaded ? c.state.peopleCount : null,
     );
     final private = channel?.isPrivate ?? false;
+    final plain = channel?.isEncrypted == false;
     final detail = [
       ?server,
+      if (plain) 'not encrypted',
       if (private)
         'private'
       else if (members != null)
@@ -65,9 +67,11 @@ class ChatPhoneTitle extends StatelessWidget {
             children: [
               if (!private)
                 Icon(
-                  Icons.lock_outline,
+                  plain ? Icons.lock_open_rounded : Icons.lock_outline,
                   size: K.iconTiny,
-                  color: context.theme.statusInk(CustomColors.success),
+                  color: context.theme.statusInk(
+                    plain ? CustomColors.warning : CustomColors.success,
+                  ),
                 ),
               Flexible(
                 child: Text(

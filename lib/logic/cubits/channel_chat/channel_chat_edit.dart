@@ -5,7 +5,9 @@ part of 'channel_chat_cubit.dart';
 /// An edit re-seals the whole body — the new text plus the message's existing
 /// attachments — at the *current* key version, because a rotation may have
 /// happened since the original send. The server overwrites the envelope in
-/// place and stamps `edited_at`; it still never sees plaintext.
+/// place and stamps `edited_at`; it still never sees plaintext. A message sent
+/// in the clear is edited in the clear, and signed again: an edit never
+/// changes whether a message was encrypted, in either direction.
 mixin _ChannelChatEditMixin on Cubit<ChannelChatState> {
   ServerCubit get _serverCubit;
   VaultCubit get _vaultCubit;
@@ -27,14 +29,14 @@ mixin _ChannelChatEditMixin on Cubit<ChannelChatState> {
     final user = server?.user;
     final key = _keys[_currentKeyVersion];
     final id = int.tryParse(messageId);
-    if (channelId == null || server == null || user == null || key == null) {
-      return;
-    }
+    if (channelId == null || server == null || user == null) return;
     if (id == null) return; // a pending message has no server id yet
 
     final trimmed = newText.trim();
     final existing = state.messages.where((m) => m.id == messageId).firstOrNull;
     if (existing == null) return;
+    final plain = !existing.isEncrypted;
+    if (key == null && !plain) return;
     if (trimmed.isEmpty || trimmed == existing.text) return;
 
     try {
@@ -44,13 +46,20 @@ mixin _ChannelChatEditMixin on Cubit<ChannelChatState> {
         serverId: server.id,
         version: server.keyVersion,
       );
-      final envelope = await _crypto.sealMessage(
-        plaintext: MessageBody.edited(existing, trimmed).encode(),
-        messageKey: key,
-        signingKeyPair: identity.keyPair,
-        contextId: channelId,
-        keyVersion: _currentKeyVersion,
-      );
+      final body = MessageBody.edited(existing, trimmed);
+      final envelope = plain
+          ? await _crypto.signPlaintext(
+              plaintext: body.encodeInClear(),
+              signingKeyPair: identity.keyPair,
+              contextId: channelId,
+            )
+          : await _crypto.sealMessage(
+              plaintext: body.encode(),
+              messageKey: key!,
+              signingKeyPair: identity.keyPair,
+              contextId: channelId,
+              keyVersion: _currentKeyVersion,
+            );
 
       final response = await _serverCubit.editChatMessage(
         channelId: channelId,

@@ -105,7 +105,7 @@ mixin _WakeChannelsMixin on _WakeChannelKeysMixin {
       // woken by the ring trigger and then find nothing to say — the one
       // outcome the wake path exists to avoid.
       if (keyVersion == 0) {
-        final item = _plainItem(
+        final item = await _plainItem(
           row,
           server,
           scope: scope,
@@ -170,7 +170,12 @@ mixin _WakeChannelsMixin on _WakeChannelKeysMixin {
   /// [ChatNotice.channel] is deciding from the plaintext anyway. A
   /// mentions-only channel therefore stays quiet for these, which is the right
   /// answer: an integration posting build results is not somebody calling you.
-  WakeItem? _plainItem(
+  ///
+  /// A member's message in a channel whose encryption is off is the other kind
+  /// of row here. It has an author, so it is checked against their key first,
+  /// exactly as the channel itself checks it: an unsigned line under
+  /// somebody's name is not shown as theirs on a lock screen either.
+  Future<WakeItem?> _plainItem(
     Map<String, dynamic> row,
     WakeServer server, {
     required String scope,
@@ -178,10 +183,23 @@ mixin _WakeChannelsMixin on _WakeChannelKeysMixin {
     required int messageId,
     required int unread,
     required NotificationLevel level,
-  }) {
-    final text = row['ciphertext'] as String?;
-    final author = row['origin_name'] as String?;
-    if (text == null || author == null) return null;
+  }) async {
+    final raw = row['ciphertext'] as String?;
+    if (raw == null) return null;
+    var author = row['origin_name'] as String?;
+    var text = raw;
+    if (author == null) {
+      final senderKey = row['sender_public_key'] as String?;
+      if (senderKey == null || row['to_bot'] != null) return null;
+      final verified = await _crypto.verifyPlaintext(
+        envelope: MessageEnvelope.fromJson(row),
+        senderPublicKey: CryptoRepository.fromBase64(senderKey),
+        contextId: channelId,
+      );
+      if (!verified) return null;
+      author = row['sender_name'] as String? ?? 'Someone';
+      text = MessageBody.decode(raw).text;
+    }
 
     final notice = ChatNotice.channel(
       author: author,

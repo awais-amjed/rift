@@ -187,17 +187,50 @@ class _ChannelAccessPanelState extends State<ChannelAccessPanel> {
   }
 
   Widget _buildPublic() {
+    // Only a public text channel can go unencrypted: a private one's key is
+    // its member list, and a call has no messages to save anything on.
+    final offersEncryption = widget.canManage && _channel.hasMessages;
+    final encrypted = _channel.isEncrypted;
     return ManagePanel(
       title: 'Access',
-      subtitle: 'Public — everyone on the server can see it',
+      subtitle: encrypted
+          ? 'Public — everyone on the server can see it'
+          : 'Public and not encrypted — the server can read new messages',
       footer: [
         AppButton(label: 'Make private', onPressed: () => _setPrivate(true)),
+        if (offersEncryption)
+          AppButton(
+            label: encrypted ? 'Turn encryption off' : 'Turn encryption on',
+            variant: AppButtonVariant.secondary,
+            onPressed: () => setChannelEncryption(
+              context,
+              _channel,
+              encrypted: !encrypted,
+            ),
+          ),
       ],
-      child: const HintCard(
-        icon: Icons.lock_outline_rounded,
-        text:
-            'Make it private to choose who can see it. Everyone here now '
-            'stays in, and you pick who to remove.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        spacing: 12,
+        children: [
+          const HintCard(
+            icon: Icons.lock_outline_rounded,
+            text:
+                'Make it private to choose who can see it. Everyone here now '
+                'stays in, and you pick who to remove.',
+          ),
+          if (offersEncryption)
+            HintCard(
+              icon: encrypted
+                  ? Icons.lock_open_rounded
+                  : Icons.lock_outline_rounded,
+              text: encrypted
+                  ? 'Turning encryption off is best for big public channels.'
+                  : 'Encryption is off. Turning it on is best for anything '
+                        'members would not say in public.',
+            ),
+        ],
       ),
     );
   }

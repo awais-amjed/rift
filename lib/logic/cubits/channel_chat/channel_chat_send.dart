@@ -12,6 +12,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
   CryptoRepository get _crypto;
   Map<int, Uint8List> get _keys;
   int get _currentKeyVersion;
+  bool get _plainChannel;
 
   /// Implemented by the cubit class, like [_ChatSweepMixin]'s copy — see the
   /// note in `channel_chat_ready.dart` for why it lives there rather than in a
@@ -84,10 +85,13 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
     final server = _serverCubit.state.selectedServer;
     final user = server?.user;
     final key = _keys[_currentKeyVersion];
+    // Decided once: a switch landing halfway through a send must not leave
+    // the text sealed and its files in the clear, or the other way round.
+    final plain = _plainChannel;
     if (channelId == null ||
         server == null ||
         user == null ||
-        key == null ||
+        (key == null && !plain) ||
         state.status != ChannelChatStatus.ready) {
       return false;
     }
@@ -133,7 +137,8 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
       // one message whose *sender* chose to send it in the clear, and the send
       // is exactly when they want to see that confirmed — waiting for a reload
       // to admit it would be the worst timing available.
-      isEncrypted: command == null,
+      isEncrypted: command == null && !plain,
+      inPlainChannel: plain,
       replyToId: replyId,
     );
     // Show the text immediately; attachments appear once uploaded.
@@ -151,6 +156,9 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
         file,
         scopePrefix: channelId,
         onProgress: onProgress,
+        // A file sealed beside a message anybody can read would protect
+        // nothing the message does not already give away.
+        plain: plain,
       );
       final uploaded = await ChatAttachmentUploader.uploadAll(
         pending: attachments,
@@ -184,20 +192,24 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
       // sealed one would be a message it could never open (BOTS.md §4). It is
       // still signed — the signature is over the same canonical payload, and
       // being readable is not a reason to be unattributable.
-      final envelope = command != null
+      final body = MessageBody(
+        text: trimmed,
+        attachments: uploaded,
+        preview: sentPreview,
+        replyToId: replyId,
+      );
+      // In a channel whose encryption is off, the whole body goes in the
+      // clear, in the same shape it would have been sealed in, and signed the
+      // way a command is.
+      final envelope = command != null || plain
           ? await _crypto.signPlaintext(
-              plaintext: trimmed,
+              plaintext: command != null ? trimmed : body.encodeInClear(),
               signingKeyPair: identity.keyPair,
               contextId: channelId,
             )
           : await _crypto.sealMessage(
-              plaintext: MessageBody(
-                text: trimmed,
-                attachments: uploaded,
-                preview: sentPreview,
-                replyToId: replyId,
-              ).encode(),
-              messageKey: key,
+              plaintext: body.encode(),
+              messageKey: key!,
               signingKeyPair: identity.keyPair,
               contextId: channelId,
               keyVersion: _currentKeyVersion,
@@ -307,7 +319,8 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
               replyToId: replyId,
               sentAt: DateTime.parse(data['created_at'] as String),
               isMine: true,
-              isEncrypted: command == null,
+              isEncrypted: command == null && !plain,
+              inPlainChannel: plain,
             ),
           ),
         ),

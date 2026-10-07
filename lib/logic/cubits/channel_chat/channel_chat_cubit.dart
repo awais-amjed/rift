@@ -169,6 +169,18 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   @override
   int get _currentKeyVersion => _keyring.currentVersion;
 
+  /// Whether the open channel had its encryption turned off, so what is sent
+  /// there goes in the clear. Read from the server's channel list every time
+  /// rather than held, so a switch made while the channel is open applies to
+  /// the very next message.
+  @override
+  bool get _plainChannel =>
+      _serverCubit.state.selectedServer?.channels
+          .where((c) => c.id == state.channelId)
+          .firstOrNull
+          ?.isEncrypted ==
+      false;
+
   @override
   Future<ChatIdentity?> _chatIdentity(Server server) =>
       _keyring.chatIdentity(server);
@@ -311,6 +323,15 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     await _fetchLatest(channelId);
     if (_isStale(generation)) return;
 
+    if (keyring.isWaiting && _plainChannel) {
+      // Nothing new here is sealed, so there is nothing to wait for: open
+      // now, with whatever came from before the switch drawn locked until a
+      // key for it arrives. The ring still asks for that key.
+      _ringKeySweepDoorbell();
+      emit(state.copyWith(status: ChannelChatStatus.ready));
+      return;
+    }
+
     if (keyring.isWaiting) {
       // No entry sealed to us yet — another member's client will heal us.
       // Ring the sweep doorbell so online members re-check right away, even
@@ -401,7 +422,29 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
         serverId != _openServerId) {
       closeChannel();
     }
+    _restampPlainRows();
     _ensureServerChatReady();
+  }
+
+  /// Encryption switched while the channel is open: what is already drawn in
+  /// the clear is badged again, or stops being, to match. The header and the
+  /// composer follow the channel by themselves; the rows were built before.
+  void _restampPlainRows() {
+    if (state.channelId == null) return;
+    final plain = _plainChannel;
+    if (!state.messages.any(
+      (m) => !m.isEncrypted && m.inPlainChannel != plain,
+    )) {
+      return;
+    }
+    emit(
+      state.copyWith(
+        messages: [
+          for (final m in state.messages)
+            m.isEncrypted ? m : m.copyWith(inPlainChannel: plain),
+        ],
+      ),
+    );
   }
 
   @override

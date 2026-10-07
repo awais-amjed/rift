@@ -13,6 +13,7 @@ mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
   ServerCubit get _serverCubit;
   CryptoRepository get _crypto;
   Map<int, Uint8List> get _keys;
+  bool get _plainChannel;
 
   /// Turn envelope rows into renderable messages, preserving input order.
   ///
@@ -239,17 +240,27 @@ mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
       return null;
     }
 
+    // The same body a sealed message carries, when it came from a channel
+    // whose encryption is off — files, a reply, a preview, a poll. A command
+    // is bare text, which reads back as itself.
+    final body = MessageBody.decode(row['ciphertext'] as String? ?? '');
     return ChatMessage(
       id: '${row['id']}',
       authorId: row['sender_id'] as String? ?? '',
       authorName: row['sender_name'] as String? ?? 'Unknown',
       authorAvatarPath: row['sender_avatar_path'] as String?,
-      text: row['ciphertext'] as String? ?? '',
+      text: body.text,
+      attachments: body.attachments,
+      preview: body.preview,
+      replyToId: body.replyToId,
+      forwarded: body.forwarded,
+      poll: PollOps.fromRow(row, body.poll),
       sentAt: DateTime.parse(row['created_at'] as String),
       isMine: row['sender_id'] == localUserId,
       editedAt: DateTime.tryParse('${row['edited_at']}'),
       reactions: ReactionOps.fromRow(row),
       isEncrypted: false,
+      inPlainChannel: _plainChannel,
       isEphemeral: row['ephemeral_for'] != null,
       // A bot's panel. Parsed after the signature check like everything else
       // on this row: an interface drawn from an envelope nobody could verify

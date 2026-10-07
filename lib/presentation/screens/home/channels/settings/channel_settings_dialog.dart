@@ -189,7 +189,9 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
         // Keyed on privacy, so opening or closing the room starts the page
         // over for what it now is.
         ChannelSettingsTab.access => ChannelAccessPanel(
-          key: ValueKey('access-${channel.id}-${channel.isPrivate}'),
+          key: ValueKey(
+            'access-${channel.id}-${channel.isPrivate}-${channel.isEncrypted}',
+          ),
           channel: channel,
           canManage: canManage,
         ),

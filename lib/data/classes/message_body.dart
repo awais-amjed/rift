@@ -105,6 +105,19 @@ class MessageBody {
     if (poll != null) 'poll': poll!.toJson(),
   });
 
+  /// What goes in the clear, in a channel whose encryption is off: the bare
+  /// text when that is all there is. An older client shows a plaintext row as
+  /// it stands, so a text-only message reads as words there rather than as
+  /// this object; [decode] takes either.
+  String encodeInClear() =>
+      attachments.isEmpty &&
+          preview == null &&
+          replyToId == null &&
+          forwarded == null &&
+          poll == null
+      ? text
+      : encode();
+
   /// Parse a decrypted plaintext into a body. Anything that isn't our tagged
   /// JSON object is wrapped verbatim as a text-only body, so legacy messages
   /// (and any plain string) always render.

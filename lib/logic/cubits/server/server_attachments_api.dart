@@ -58,25 +58,28 @@ mixin _ServerAttachmentsApiMixin on Cubit<ServerState> {
   }
 
   /// Upload one staged [file] under [scopePrefix]: one held in memory in a
-  /// single request, a big one a chunk at a time with [onProgress].
+  /// single request, a big one a chunk at a time with [onProgress]. Sent as
+  /// it is when the sender chose that for the file, or [plain] for every file
+  /// (a channel whose encryption is off).
   Future<APIResponse> uploadStaged(
     PendingAttachment file, {
     required String scopePrefix,
     String? serverId,
     TransferProgress? onProgress,
+    bool plain = false,
   }) => file.streams
       ? uploadAttachmentFile(
           scopePrefix: scopePrefix,
           file: file.file!,
           length: file.size,
-          plain: file.plain,
+          plain: plain || file.plain,
           serverId: serverId,
           onProgress: onProgress,
         )
       : uploadAttachment(
           scopePrefix: scopePrefix,
           data: file.bytes!,
-          plain: file.plain,
+          plain: plain || file.plain,
           serverId: serverId,
         );
 

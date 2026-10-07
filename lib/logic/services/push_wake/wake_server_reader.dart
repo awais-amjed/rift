@@ -4,6 +4,7 @@ import 'package:rift_crypto/rift_crypto.dart';
 
 import '../../../data/classes/api_response.dart';
 import '../../../data/classes/dm_call.dart';
+import '../../../data/classes/message_body.dart';
 import '../../../data/enums/notification_level.dart';
 import '../../../data/repositories/server_repository.dart';
 import '../channel_key_chain.dart';

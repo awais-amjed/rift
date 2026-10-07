@@ -14,6 +14,7 @@ mixin _ChannelChatPollsMixin on Cubit<ChannelChatState> {
   CryptoRepository get _crypto;
   Map<int, Uint8List> get _keys;
   int get _currentKeyVersion;
+  bool get _plainChannel;
 
   Future<void> refreshMessage(String messageId);
 
@@ -32,10 +33,11 @@ mixin _ChannelChatPollsMixin on Cubit<ChannelChatState> {
     final server = _serverCubit.state.selectedServer;
     final user = server?.user;
     final key = _keys[_currentKeyVersion];
+    final plain = _plainChannel;
     if (channelId == null ||
         server == null ||
         user == null ||
-        key == null ||
+        (key == null && !plain) ||
         state.status != ChannelChatStatus.ready) {
       return false;
     }
@@ -46,13 +48,20 @@ mixin _ChannelChatPollsMixin on Cubit<ChannelChatState> {
         serverId: server.id,
         version: server.keyVersion,
       );
-      final envelope = await _crypto.sealMessage(
-        plaintext: MessageBody(poll: body).encode(),
-        messageKey: key,
-        signingKeyPair: identity.keyPair,
-        contextId: channelId,
-        keyVersion: _currentKeyVersion,
-      );
+      final sealedBody = MessageBody(poll: body).encode();
+      final envelope = plain
+          ? await _crypto.signPlaintext(
+              plaintext: sealedBody,
+              signingKeyPair: identity.keyPair,
+              contextId: channelId,
+            )
+          : await _crypto.sealMessage(
+              plaintext: sealedBody,
+              messageKey: key!,
+              signingKeyPair: identity.keyPair,
+              contextId: channelId,
+              keyVersion: _currentKeyVersion,
+            );
       final rules = PollRules(
         options: body.options.length,
         multiple: multiple,
@@ -77,6 +86,8 @@ mixin _ChannelChatPollsMixin on Cubit<ChannelChatState> {
         text: '',
         sentAt: DateTime.parse(data['created_at'] as String),
         isMine: true,
+        isEncrypted: !plain,
+        inPlainChannel: plain,
         poll: PollOps.fromRow(data, body),
       );
       emit(

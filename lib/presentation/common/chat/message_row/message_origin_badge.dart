@@ -16,7 +16,11 @@ import '../../../theme/theme_context.dart';
 /// legible at a glance, from a skim, without hovering — so it is a filled pill
 /// with a word in it rather than a subtle tint or an icon alone.
 ///
-/// It cannot be turned off, and there is deliberately no setting for it.
+/// It cannot be turned off, and there is deliberately no setting for it. The
+/// one place a member's message goes without it is a channel whose encryption
+/// was turned off, where every new message is in the clear and the header and
+/// the composer say so instead: a pill on every row would be a pill nobody
+/// reads.
 ///
 /// The tooltip is the explanation, and it is short on purpose: the pill is
 /// already the signal, and a paragraph is something people learn to dismiss
@@ -27,9 +31,11 @@ class MessageOriginBadge extends StatelessWidget {
   const MessageOriginBadge({super.key, required this.message});
 
   /// Whether [message] needs one at all. A member's sealed message does
-  /// not.
+  /// not, and nor does one in a channel that is not encrypted.
   static bool isNeededFor(ChatMessage message) =>
-      !message.isEncrypted || !message.origin.isMember || message.isEphemeral;
+      (!message.isEncrypted && !message.inPlainChannel) ||
+      !message.origin.isMember ||
+      message.isEphemeral;
 
   /// Amber rather than red. An outside service posting build results is
   /// working exactly as intended; the badge is a label, not an alarm, and

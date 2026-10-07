@@ -146,7 +146,10 @@ class _ChannelChatViewState extends State<ChannelChatView>
                       canAttach: _canAttach(context),
                       maxAttachmentBytes: _maxAttachmentBytes(context),
                       remainingStorageBytes: _remainingStorage(context),
-                      offersPlainFiles: true,
+                      // Every file goes as it is where encryption is off, so
+                      // there is no choice to offer per file.
+                      offersPlainFiles: !_notEncrypted(context),
+                      notEncrypted: _notEncrypted(context),
                       bots: chatState.bots,
                       onCreatePoll: _canCreatePoll(context)
                           ? () => _createPoll(context)
@@ -326,6 +329,22 @@ class _ChannelChatViewState extends State<ChannelChatView>
 
   bool _canAttach(BuildContext context) =>
       _myPermissions(context)?.can(ServerPermission.attachFiles) ?? false;
+
+  /// Whether the open channel's encryption was turned off. Watched, so the
+  /// composer changes the moment somebody switches it.
+  bool _notEncrypted(BuildContext context) {
+    final channelId = context.select(
+      (ChannelChatCubit c) => c.state.channelId,
+    );
+    return context.select(
+      (ServerCubit c) =>
+          c.state.selectedServer?.channels
+              .where((ch) => ch.id == channelId)
+              .firstOrNull
+              ?.isEncrypted ==
+          false,
+    );
+  }
 
   bool _canCreatePoll(BuildContext context) =>
       _myPermissions(context)?.can(ServerPermission.createPolls) ?? false;

@@ -51,6 +51,26 @@ mixin _ServerPrivateChannelsApiMixin on _ServerChannelsApiMixin {
         : 'Failed to open this channel up',
   );
 
+  /// Turn a public text channel's encryption off, or back on.
+  ///
+  /// Here with privacy because it is the same kind of act: it decides who can
+  /// read what is said, and off is the server.
+  Future<({bool success, String? error})> setChannelEncrypted({
+    required String channelId,
+    required bool encrypted,
+  }) => _changeChannel(
+    (server, token) => _repository.setChannelEncrypted(
+      server.supabaseUrl,
+      channelId,
+      anonKey: _anonKey,
+      bearerToken: token,
+      encrypted: encrypted,
+    ),
+    failure: encrypted
+        ? 'Failed to turn encryption back on'
+        : 'Failed to turn encryption off',
+  );
+
   /// Walk out of a private channel.
   ///
   /// Not [setChannelMembers] with one name removed — that needs the manage bit,

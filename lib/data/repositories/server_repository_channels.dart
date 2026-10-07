@@ -120,6 +120,24 @@ mixin _ChannelApiMixin {
     });
   }
 
+  /// Turn a public text channel's encryption off, or back on
+  /// (`set_channel_encrypted`). The server posts who did it in the channel.
+  Future<APIResponse> setChannelEncrypted(
+    String supabaseUrl,
+    String channelId, {
+    required String anonKey,
+    String? bearerToken,
+    required bool encrypted,
+  }) {
+    return ServerDb.run(() async {
+      final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      return db.rpc(
+        'set_channel_encrypted',
+        params: {'p_channel': channelId, 'p_on': encrypted},
+      );
+    });
+  }
+
   /// Remove yourself from a private channel.
   ///
   /// Its own function rather than a `set_channel_members` with one name
@@ -207,7 +225,7 @@ mixin _ChannelApiMixin {
           .eq('id', channelId)
           .select(
             'id, name, channel_type, retention_days, history_cap, is_private, '
-            'livekit_node_id',
+            'is_encrypted, livekit_node_id',
           );
       if ((rows as List).isEmpty) {
         throw const PostgrestException(

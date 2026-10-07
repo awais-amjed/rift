@@ -29,6 +29,13 @@ class Channel {
   /// a public room, not open a private one.
   final bool isPrivate;
 
+  /// False when a channel manager turned encryption off: members then post
+  /// messages the server can read, and the channel's key never changes, which
+  /// is what makes a channel of tens of thousands affordable. Only ever false
+  /// on a public text channel (`set_channel_encrypted`). The header and the
+  /// composer say so, in place of a badge on every message.
+  final bool isEncrypted;
+
   /// Whether we hold this private channel's own manage seat
   /// (`channel_members.can_manage`) — whoever made it, and whoever they
   /// handed it to. Meaningless on a public channel, where managing is the
@@ -59,6 +66,7 @@ class Channel {
     this.retentionDays,
     this.historyCap,
     this.isPrivate = false,
+    this.isEncrypted = true,
     this.canManage = false,
     this.livekitNodeId,
     this.voiceNodeId,
@@ -78,6 +86,7 @@ class Channel {
       retentionDays: (json['retention_days'] as num?)?.toInt(),
       historyCap: (json['history_cap'] as num?)?.toInt(),
       isPrivate: json['is_private'] == true,
+      isEncrypted: json['is_encrypted'] != false,
       canManage: json['can_manage'] == true,
       livekitNodeId: json['livekit_node_id'] as String?,
       voiceNodeId: json['voice_node_id'] as String?,
@@ -91,6 +100,7 @@ class Channel {
     'retention_days': retentionDays,
     'history_cap': historyCap,
     'is_private': isPrivate,
+    'is_encrypted': isEncrypted,
     'can_manage': canManage,
     'livekit_node_id': livekitNodeId,
     'voice_node_id': voiceNodeId,

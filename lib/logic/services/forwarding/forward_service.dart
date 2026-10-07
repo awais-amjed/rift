@@ -120,8 +120,11 @@ class ForwardService with _ForwardBlobsMixin, _ForwardDmsMixin {
     String? note,
   ) async {
     final server = target.server;
-    final key = await _channelKey(server, target.channel.id);
-    if (key == null) {
+    // Forwarded into a channel whose encryption is off, it goes the way
+    // everything else there does: in the clear, files too, and signed.
+    final plain = !target.channel.isEncrypted;
+    final key = plain ? null : await _channelKey(server, target.channel.id);
+    if (key == null && !plain) {
       // Deliberately not bootstrapped from here. Minting a channel's first
       // key is a decision with a race in it (`ChannelKeyring._bootstrap`),
       // and doing it silently from a forward would mean the first key a
@@ -134,20 +137,28 @@ class ForwardService with _ForwardBlobsMixin, _ForwardDmsMixin {
       files,
       scopePrefix: target.channel.id,
       serverId: server.id,
+      plain: plain,
     );
     final identity = await _identityFor(server);
     if (identity == null) return 'Your vault is locked.';
 
-    final envelope = await crypto.sealMessage(
-      plaintext: MessageBody(
-        text: note ?? '',
-        forwarded: message.withAttachments(attachments),
-      ).encode(),
-      messageKey: key.bytes,
-      signingKeyPair: identity.keyPair,
-      contextId: target.channel.id,
-      keyVersion: key.version,
-    );
+    final body = MessageBody(
+      text: note ?? '',
+      forwarded: message.withAttachments(attachments),
+    ).encode();
+    final envelope = key == null
+        ? await crypto.signPlaintext(
+            plaintext: body,
+            signingKeyPair: identity.keyPair,
+            contextId: target.channel.id,
+          )
+        : await crypto.sealMessage(
+            plaintext: body,
+            messageKey: key.bytes,
+            signingKeyPair: identity.keyPair,
+            contextId: target.channel.id,
+            keyVersion: key.version,
+          );
 
     final response = await servers.sendChatMessage(
       channelId: target.channel.id,

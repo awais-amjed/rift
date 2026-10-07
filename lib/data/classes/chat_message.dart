@@ -157,6 +157,11 @@ class ChatMessage {
   /// badge answers to this one; the attribution answers to [origin].
   final bool isEncrypted;
 
+  /// Sent in the clear in a channel whose encryption was turned off, where
+  /// every new message is. The header and the composer say so once for the
+  /// whole channel, so the row does not repeat it (`MessageOriginBadge`).
+  final bool inPlainChannel;
+
   /// A bot's reply that only this reader can see (`messages.ephemeral_for`).
   ///
   /// Enforced by `messages_select`, not by clients agreeing to hide it — so
@@ -206,6 +211,7 @@ class ChatMessage {
     this.origin = MessageOrigin.member,
     this.panel,
     this.isEncrypted = true,
+    this.inPlainChannel = false,
     this.isLocked = false,
     this.isEphemeral = false,
     this.replyToId,
@@ -225,6 +231,7 @@ class ChatMessage {
     bool clearUploadProgress = false,
     DateTime? pinnedAt,
     bool clearPinned = false,
+    bool? inPlainChannel,
   }) => ChatMessage(
     id: id,
     authorId: authorId,
@@ -246,6 +253,7 @@ class ChatMessage {
     origin: origin,
     panel: panel,
     isEncrypted: isEncrypted,
+    inPlainChannel: inPlainChannel ?? this.inPlainChannel,
     isLocked: isLocked,
     isEphemeral: isEphemeral,
     replyToId: replyToId,

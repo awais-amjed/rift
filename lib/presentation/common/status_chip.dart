@@ -39,6 +39,10 @@ class StatusChip extends StatelessWidget {
       'Only the people in this channel can see it. Server admins are not an '
       'exception: nobody outside holds a key to it.';
 
+  static const String notEncryptedTooltip =
+      'Encryption is off here. The server can read new messages, and so can '
+      'anyone who joins.';
+
   static const String encryptedTooltip =
       'Only the people in here can read these messages. The server stores '
       'them but cannot read them.';

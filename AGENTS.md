@@ -123,7 +123,10 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
 - **An unencrypted message is badged, always.** Webhooks (and later bot commands) write bodies the
   server can read, in channels where everything else is sealed. `MessageOriginBadge` says so and
   has no off switch — and the *grouping* rule has to agree, or a badge-less row tucks under a
-  badged one. Group by `ChatMessage.groupKey`, never by `authorId`.
+  badged one. Group by `ChatMessage.groupKey`, never by `authorId`. The one exception is a member's
+  message in a channel whose encryption was turned off (`Channel.isEncrypted`,
+  `ChatMessage.inPlainChannel`): there every new message is in the clear, so the header's
+  "Not encrypted" chip and the composer's notice say it once instead. Webhooks stay badged there.
 - **Keep widget files small — one widget per file wherever possible.** A component gets its own
   folder containing its main file plus one file per helper widget (e.g.
   `invites/invite_modal.dart` + `invites/widgets/invite_form.dart`). Helper widgets that are

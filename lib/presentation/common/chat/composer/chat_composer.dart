@@ -27,6 +27,7 @@ import '../../../theme/theme_context.dart';
 import '../../emoji_text.dart';
 import '../../tap_to_focus.dart';
 import '../drop/chat_drop_relay.dart';
+import 'composer_channel_plain_notice.dart';
 import 'composer_command_menu.dart';
 import 'composer_input_row.dart';
 import 'composer_link_preview.dart';
@@ -151,6 +152,11 @@ class ChatComposer extends StatefulWidget {
   /// channels and DMs; not central, whose files stop at 10 MB.
   final bool offersPlainFiles;
 
+  /// A channel whose encryption was turned off: everything typed here goes
+  /// in the clear, so it says so above the bar, and offers no choice about
+  /// files, which go as they are.
+  final bool notEncrypted;
+
   /// Start a poll. Null where there are none — DMs have two readers, and a
   /// poll of two is a question.
   final VoidCallback? onCreatePoll;
@@ -167,6 +173,7 @@ class ChatComposer extends StatefulWidget {
     this.maxAttachmentBytes = ServerLimits.defaultMaxAttachmentBytes,
     this.remainingStorageBytes,
     this.offersPlainFiles = false,
+    this.notEncrypted = false,
     this.onCreatePoll,
     this.bots = const [],
     this.onMentionSearch,
@@ -388,7 +395,10 @@ class _ChatComposerState extends State<ChatComposer>
           ComposerLinkPreview(preview: _preview!, onRemove: _dismissPreview),
         // Above the bar, because the point of it is to be read *before*
         // the message goes.
-        if (_command != null) ComposerPlaintextNotice(bot: _command!.bot),
+        if (_command != null)
+          ComposerPlaintextNotice(bot: _command!.bot)
+        else if (widget.notEncrypted)
+          const ComposerChannelPlainNotice(),
         if (_suggestions.isNotEmpty)
           ComposerCommandMenu(
             entries: _suggestions,

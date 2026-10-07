@@ -103,12 +103,14 @@ mixin _ForwardBlobsMixin {
   /// unencrypted is encrypted here too: whoever chose to expose it chose for
   /// that server, not this one.
   ///
-  /// [serverId] null uploads to central.
+  /// [serverId] null uploads to central. [plain] sends every file as it is,
+  /// for a channel whose encryption is off.
   Future<List<Attachment>> _reupload(
     List<Attachment> attachments,
     List<PendingAttachment?> files, {
     required String scopePrefix,
     String? serverId,
+    bool plain = false,
   }) async {
     final out = <Attachment>[];
     for (var i = 0; i < attachments.length; i++) {
@@ -124,6 +126,7 @@ mixin _ForwardBlobsMixin {
                 file,
                 scopePrefix: scopePrefix,
                 serverId: serverId,
+                plain: plain,
               );
         if (!response.success) continue;
         final blob = response.data as UploadedBlob;
