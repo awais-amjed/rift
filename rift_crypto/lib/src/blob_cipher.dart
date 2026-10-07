@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
+import 'package:cryptography/dart.dart';
 
 /// AES-256-GCM over a whole blob: an attachment or a saved conversation.
 ///
@@ -147,11 +148,20 @@ class DartBlobCipher implements BlobCipher {
   BlobDigest startDigest() => _DartDigest();
 }
 
+/// The pure-Dart SHA-256, not [Sha256]'s: in a browser that is WebCrypto's,
+/// which cannot hash in pieces, so its sink keeps every byte it is given and
+/// hashes them all at the end. A big file sent or saved unencrypted would
+/// have sat whole in the tab's memory, then frozen it once more to hash.
 class _DartDigest implements BlobDigest {
-  final _sink = Sha256().newHashSink();
+  final _sink = const DartSha256().newHashSink();
 
   @override
-  Future<void> add(Uint8List data) async => _sink.add(data);
+  Future<void> add(Uint8List data) async {
+    _sink.add(data);
+    // A megabyte takes a browser about 15 ms. Without a turn of the event
+    // loop after each, the 16 of a request ran as one 240 ms task.
+    await Future<void>.delayed(Duration.zero);
+  }
 
   @override
   Future<Uint8List> close() async {

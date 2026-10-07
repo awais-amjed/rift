@@ -336,7 +336,11 @@ at, and is read, sealed and sent a chunk at a time:
   its chip is removed, or when the send is over and the outbox is not holding
   it for a retry (`Outbox.settle`). A start clears whatever a closed app left.
 
-A file sent unencrypted streams the same way and is hashed as it goes. A
+A file sent unencrypted streams the same way and is hashed as it goes. On
+the web both ends need care to stay a chunk at a time: a picked file is read
+by fetching its blob URL as a stream, because `XFile.openRead` there reads the
+whole file first, and the hash is the pure-Dart SHA-256, because WebCrypto can
+only hash a buffer whole. A
 forward of a big file goes through a scratch file in the app's cache directory
 (not `/tmp`, which Linux often keeps in memory).
 

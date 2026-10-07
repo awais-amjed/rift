@@ -29,9 +29,18 @@ Future<void> sweepCopies() async {}
 /// Grows a Blob a piece at a time rather than holding a list of pieces:
 /// a Blob built from a Blob references it instead of copying it, and the
 /// browser moves a large one to disk.
+///
+/// Pieces are gathered to [_piece] first. Each new Blob still walks the parts
+/// of the one before, so a file grown from what the network hands over (tens
+/// of kilobytes at a time) took longer for every piece it already had:
+/// measured Oct 7 in Chrome, the 8000th 64 KB piece cost almost four times
+/// the 1000th. At a megabyte a piece the cost stays flat.
 class _DownloadSink implements SaveSink {
+  static const _piece = 1 << 20;
+
   final String _name;
   web.Blob _blob = web.Blob(<web.BlobPart>[].toJS);
+  final _pending = BytesBuilder(copy: false);
   bool _saved = false;
 
   _DownloadSink(this._name);
@@ -41,11 +50,18 @@ class _DownloadSink implements SaveSink {
 
   @override
   Future<void> add(Uint8List data) async {
-    _blob = web.Blob(<web.BlobPart>[_blob, data.toJS].toJS);
+    _pending.add(data);
+    if (_pending.length >= _piece) _flush();
+  }
+
+  void _flush() {
+    if (_pending.isEmpty) return;
+    _blob = web.Blob(<web.BlobPart>[_blob, _pending.takeBytes().toJS].toJS);
   }
 
   @override
   Future<void> close() async {
+    _flush();
     final url = web.URL.createObjectURL(_blob);
     final anchor = web.HTMLAnchorElement()
       ..href = url
@@ -64,6 +80,7 @@ class _DownloadSink implements SaveSink {
 
   @override
   Future<void> abort() async {
+    _pending.clear();
     _blob = web.Blob(<web.BlobPart>[].toJS);
   }
 }
