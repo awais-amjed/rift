@@ -17,6 +17,7 @@ mixin _ChatReadyMixin on Cubit<ChannelChatState>, _ChatSweepMixin {
 
   /// Implemented by the cubit class.
   Future<void> retry();
+  Future<void> openChannel(String channelId, {bool again = false});
 
   /// The server we've completed chat setup for this run (published our chat
   /// key, subscribed the key-sweep topic, ran the initial sweep).
@@ -88,6 +89,19 @@ mixin _ChatReadyMixin on Cubit<ChannelChatState>, _ChatSweepMixin {
     // rather than a heal, and the new version has to be picked up or this
     // client keeps sealing with a key the others have moved off.
     final channelId = state.channelId;
-    if (channelId != null) unawaited(_keyring.absorbNewVersions(channelId));
+    if (channelId != null) unawaited(_absorbKeys(channelId));
+  }
+
+  /// Take in whatever keys have been sealed to us, and when one of them opens
+  /// rows on screen that are locked, read the channel again under it. An
+  /// older version is what a member who joined after a rotation is waiting
+  /// for, and without the reread its rows stayed locked until the channel was
+  /// next opened.
+  Future<void> _absorbKeys(String channelId) async {
+    final gained = await _keyring.absorbNewVersions(channelId);
+    if (!gained || isClosed || state.channelId != channelId) return;
+    if (state.messages.any((m) => m.isLocked)) {
+      await openChannel(channelId, again: true);
+    }
   }
 }

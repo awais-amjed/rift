@@ -164,7 +164,11 @@ opposite halves.
 **Design 2 — wrapped channel key (channels).** One symmetric key per channel,
 sealed individually to each member and stored as a keyring row. Adding a member
 is a wrap; removing one is a rotation. Scrollback stays readable because old
-versions are never discarded.
+versions are never discarded, and a member who joins after a rotation is sealed
+the old versions too, by whichever member's sweep gets there, so they read what
+was said before it. Two things are kept back: what a channel said while it was
+private (everything up to `rotate_from_key_version`), and anything before a bot's
+grant.
 
 ### DM topology — two tiers
 

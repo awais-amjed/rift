@@ -226,6 +226,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   /// [again] opens the channel that is already on screen — a retry over its
   /// saved copy — without clearing it first, so the list and the composer
   /// under it, with whatever was typed, stay where they are.
+  @override
   Future<void> openChannel(String channelId, {bool again = false}) async {
     if (state.channelId == channelId && !again) return;
     // Before anything is awaited: the flush reads the channel being left

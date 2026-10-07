@@ -118,7 +118,8 @@ class ChannelKeyring with _KeyringSealingMixin {
     return data?[publishedChatKeyIsNew] == true;
   }
 
-  /// Pick up key versions minted since this channel was opened.
+  /// Pick up key versions sealed to this member since the channel was opened,
+  /// and answer whether there were any.
   ///
   /// Before rotation existed, a channel's current version could not change
   /// while you sat in it, so a client that already held a key had no reason to
@@ -126,23 +127,27 @@ class ChannelKeyring with _KeyringSealingMixin {
   /// and, until this client notices, it keeps sealing with a key the rest of
   /// the channel has moved off and cannot read what they send back.
   ///
+  /// Older versions arrive this way too. A member who joined after a rotation
+  /// is sealed the current key first and the ones before it as other members'
+  /// sweeps get to them, and each one opens rows that were locked.
+  ///
   /// Deliberately additive, unlike [loadOrBootstrap], which clears the ring
   /// before refilling it. That is right when opening a channel and wrong here:
   /// this runs on a doorbell, against a client that is working, and a momentary
   /// network failure must not cost it the keys it already holds.
-  Future<void> absorbNewVersions(String channelId) async {
+  Future<bool> absorbNewVersions(String channelId) async {
     final server = _serverCubit.state.selectedServer;
-    if (server == null) return;
+    if (server == null) return false;
     final identity = await chatIdentity(server);
-    if (identity == null) return;
+    if (identity == null) return false;
 
     final response = await _serverCubit.getChannelKey(channelId);
-    if (!response.success) return;
+    if (!response.success) return false;
 
     final data = response.data as Map<String, dynamic>;
     final version = data['current_version'] as int;
-    if (version <= currentVersion) return;
 
+    var gained = false;
     for (final entry
         in (data['my_keys'] as List).cast<Map<String, dynamic>>()) {
       final entryVersion = entry['key_version'] as int;
@@ -152,6 +157,7 @@ class ChannelKeyring with _KeyringSealingMixin {
           wrapped: WrappedKey.fromJson(entry),
           myKeyPair: identity.keyPair,
         );
+        gained = true;
       } catch (e) {
         HelperMethods.printDebug('[Keyring] unwrap failed: $e');
       }
@@ -160,7 +166,10 @@ class ChannelKeyring with _KeyringSealingMixin {
     // Only move up once the new key is actually in hand. Announcing a version
     // we cannot seal with would break sending outright, where staying put
     // leaves the client working until the rotation reaches it.
-    if (keys.containsKey(version)) currentVersion = version;
+    if (version > currentVersion && keys.containsKey(version)) {
+      currentVersion = version;
+    }
+    return gained;
   }
 
   /// Seal a media key to any bot in [channelId] that is short of one.

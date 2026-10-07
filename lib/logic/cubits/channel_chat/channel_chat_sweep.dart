@@ -2,8 +2,8 @@ part of 'channel_chat_cubit.dart';
 
 /// Phase-2 key distribution: one sweep pass performs every wrap the local
 /// user can do — bootstrapping version-0 channels, healing members who lack a
-/// current-version entry, and rotating a channel whose key was sealed to
-/// somebody since banned. Runs on server-ready and whenever the key-sweep
+/// current-version entry or an older one (their scrollback), and rotating a
+/// channel whose key was sealed to somebody since banned. Runs on server-ready and whenever the key-sweep
 /// doorbell rings (a member published a new chat key, or another client just
 /// healed someone).
 mixin _ChatSweepMixin on Cubit<ChannelChatState> {
@@ -14,6 +14,10 @@ mixin _ChatSweepMixin on Cubit<ChannelChatState> {
 
   bool _sweeping = false;
 
+  /// Enough for a server that rotated a few dozen times under a few hundred
+  /// members; anything left over is picked up by the next ring.
+  static const _maxSweepPasses = 10;
+
   Future<void> _runKeySweep() async {
     if (_sweeping) return;
     _sweeping = true;
@@ -23,19 +27,26 @@ mixin _ChatSweepMixin on Cubit<ChannelChatState> {
       final identity = await _chatIdentity(server);
       if (identity == null) return;
 
-      final response = await _serverCubit.sweepChannelKeys();
-      if (!response.success) return;
-      final work = ((response.data as Map<String, dynamic>)['work'] as List)
-          .cast<Map<String, dynamic>>();
-      if (work.isEmpty) return;
-
       var healedAny = false;
-      for (final job in work) {
-        try {
-          if (await _performSweepJob(job, identity)) healedAny = true;
-        } catch (e) {
-          HelperMethods.printDebug('[Chat] sweep job failed: $e');
+      // The server hands out old-version work a batch at a time and says
+      // `more` when it held some back. A pass that stored nothing ends it, so
+      // a batch that keeps failing is not asked for forever.
+      for (var pass = 0; pass < _maxSweepPasses; pass++) {
+        final response = await _serverCubit.sweepChannelKeys();
+        if (!response.success) break;
+        final data = response.data as Map<String, dynamic>;
+        final work = (data['work'] as List).cast<Map<String, dynamic>>();
+
+        var stored = false;
+        for (final job in work) {
+          try {
+            if (await _performSweepJob(job, identity)) stored = true;
+          } catch (e) {
+            HelperMethods.printDebug('[Chat] sweep job failed: $e');
+          }
         }
+        healedAny |= stored;
+        if (data['more'] != true || !stored) break;
       }
       // Wake waiting members so they refetch their (now healed) keyring.
       if (healedAny) _ringKeySweepDoorbell();
