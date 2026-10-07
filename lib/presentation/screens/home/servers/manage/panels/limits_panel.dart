@@ -55,7 +55,7 @@ class _LimitsPanelState extends State<LimitsPanel> {
   }
 
   Future<void> _submit() async {
-    final parsed = _limits.read();
+    final parsed = _limits.read(maxFileBytes: widget.server.maxFileBytes);
     if (parsed.limits == null) {
       setState(() => _error = parsed.error);
       return;
@@ -107,6 +107,7 @@ class _LimitsPanelState extends State<LimitsPanel> {
         controllers: _limits,
         enabled: !_isLoading,
         storageUsed: widget.server.storageUsed,
+        maxFileBytes: widget.server.maxFileBytes,
       ),
     );
   }

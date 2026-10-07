@@ -25,8 +25,10 @@ class ServerLimits {
   /// for the column that replaced it — so upgrading changes nothing.
   static const int defaultMaxAttachmentBytes = 26214400; // 25 MB
 
-  /// Storage refuses an object past this, so a cap beyond it cannot be met.
-  static const int maxAttachmentCeiling = 524288000; // 500 MB
+  /// The largest file storage took on every server before its operator
+  /// could choose one: the compose file fixed it at 50 MB. What a server too
+  /// old to say reports as its ceiling — see [Server.maxFileBytes].
+  static const int legacyFileCeiling = 52428800; // 50 MB
 
   /// The central tier's per-file cap. Not an operator setting and never will
   /// be — central pays for central's storage, so this is fixed here and in

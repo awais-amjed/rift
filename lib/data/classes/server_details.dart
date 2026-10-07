@@ -29,6 +29,7 @@ class ServerDetails {
   final List<Channel>? channels;
   final ServerLimits? limits;
   final int? storageUsed;
+  final int? maxFileBytes;
 
   /// Every LiveKit this server may hold a call on, default first. Empty from
   /// a server too old to have a node list, which is the same as "just the one
@@ -44,6 +45,7 @@ class ServerDetails {
     this.channels,
     this.limits,
     this.storageUsed,
+    this.maxFileBytes,
     this.livekitNodes,
   });
 
@@ -69,6 +71,7 @@ class ServerDetails {
           ? ServerLimits.fromJson(json)
           : null,
       storageUsed: (json['storage_used'] as num?)?.toInt(),
+      maxFileBytes: (json['max_file_bytes'] as num?)?.toInt(),
       livekitNodes: (json['livekit_nodes'] as List<dynamic>?)
           ?.map((n) => LiveKitNode.fromJson(n as Map<String, dynamic>))
           .toList(),

@@ -30,6 +30,12 @@ class Server {
   /// somebody before they pick a file, which is all it is for.
   final int storageUsed;
 
+  /// The largest file the machine this server runs on accepts, which its
+  /// operator sets in the console (`max_file_bytes`). [ServerLimits.
+  /// maxAttachmentBytes] can go up to it and no further. Like [storageUsed],
+  /// measured rather than set here, so never sent back with the limits.
+  final int maxFileBytes;
+
   /// Every LiveKit this server may hold a call on, default first.
   ///
   /// Empty from a server that has never answered with one, which reads the
@@ -64,6 +70,7 @@ class Server {
     this.keyVersion = 'v1',
     this.limits = ServerLimits.defaults,
     this.storageUsed = 0,
+    this.maxFileBytes = ServerLimits.legacyFileCeiling,
     this.livekitNodes = const [],
     DateTime? tokenIssuedAt,
   }) : tokenIssuedAt = tokenIssuedAt ?? DateTime.now();
@@ -87,6 +94,9 @@ class Server {
       tokenIssuedAt: DateTime.now(),
       limits: ServerLimits.fromJson(serverDetails),
       storageUsed: (serverDetails['storage_used'] as num?)?.toInt() ?? 0,
+      maxFileBytes:
+          (serverDetails['max_file_bytes'] as num?)?.toInt() ??
+          ServerLimits.legacyFileCeiling,
       user: serverDetails['user'] != null
           ? ServerUser.fromJson(serverDetails['user'] as Map<String, dynamic>)
           : null,
@@ -116,6 +126,9 @@ class Server {
       tokenIssuedAt: DateTime.now(),
       limits: ServerLimits.fromJson(serverData),
       storageUsed: (serverData['storage_used'] as num?)?.toInt() ?? 0,
+      maxFileBytes:
+          (serverData['max_file_bytes'] as num?)?.toInt() ??
+          ServerLimits.legacyFileCeiling,
       user: serverData['user'] != null
           ? ServerUser.fromJson(serverData['user'] as Map<String, dynamic>)
           : null,
@@ -146,6 +159,9 @@ class Server {
           ? ServerLimits.fromJson(json['limits'] as Map<String, dynamic>)
           : ServerLimits.defaults,
       storageUsed: (json['storageUsed'] as num?)?.toInt() ?? 0,
+      maxFileBytes:
+          (json['maxFileBytes'] as num?)?.toInt() ??
+          ServerLimits.legacyFileCeiling,
       user: json['user'] != null
           ? ServerUser.fromJson(json['user'] as Map<String, dynamic>)
           : null,
@@ -174,6 +190,7 @@ class Server {
     'tokenIssuedAt': tokenIssuedAt.toIso8601String(),
     'limits': limits.toJson(),
     'storageUsed': storageUsed,
+    'maxFileBytes': maxFileBytes,
     'user': user?.toJson(),
     'channels': channels.map((c) => c.toJson()).toList(),
     'livekitNodes': livekitNodes.map((n) => n.toJson()).toList(),
@@ -193,6 +210,7 @@ class Server {
     List<Channel>? channels,
     ServerLimits? limits,
     int? storageUsed,
+    int? maxFileBytes,
     List<LiveKitNode>? livekitNodes,
     bool clearUser = false,
   }) {
@@ -211,6 +229,7 @@ class Server {
           : (tokenIssuedAt ?? this.tokenIssuedAt),
       limits: limits ?? this.limits,
       storageUsed: storageUsed ?? this.storageUsed,
+      maxFileBytes: maxFileBytes ?? this.maxFileBytes,
       user: clearUser ? null : (user ?? this.user),
       channels: channels ?? this.channels,
       livekitNodes: livekitNodes ?? this.livekitNodes,

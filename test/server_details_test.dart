@@ -22,6 +22,7 @@ void main() {
     'max_members': 5,
     'max_storage_bytes': 5242880,
     'storage_used': 1048576,
+    'max_file_bytes': 1073741824,
   };
 
   group('ServerDetails.fromJson', () {
@@ -40,6 +41,16 @@ void main() {
       expect(d.limits!.maxMembers, 5);
       expect(d.limits!.maxStorageBytes, 5242880);
       expect(d.storageUsed, 1048576);
+    });
+
+    // The machine's ceiling, which the operator sets in the console. An older
+    // server does not say, and a null leaves what the client knew alone.
+    test('carries the largest file the machine accepts', () {
+      expect(ServerDetails.fromJson(reply()).maxFileBytes, 1073741824);
+      expect(
+        ServerDetails.fromJson(reply()..remove('max_file_bytes')).maxFileBytes,
+        isNull,
+      );
     });
 
     test('carries the server identity, not just its contents', () {

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rift/data/classes/channel.dart';
 import 'package:rift/data/classes/server.dart';
+import 'package:rift/data/classes/server_limits.dart';
 import 'package:rift/data/classes/server_member.dart';
 import 'package:rift/data/classes/server_user.dart';
 import 'package:rift/data/enums/channel_type.dart';
@@ -111,6 +112,15 @@ void main() {
       expect(restored.supabaseUrl, s.supabaseUrl);
       expect(restored.token, s.token);
       expect(restored.channels.single.name, 'general');
+    });
+
+    // A server saved before the ceiling existed reads as the 50 MB storage
+    // enforced then, never as "no ceiling".
+    test('keeps the file ceiling, and an old save reads as 50 MB', () {
+      final s = base().copyWith(maxFileBytes: 1073741824);
+      expect(Server.fromJson(s.toJson()).maxFileBytes, 1073741824);
+      final old = s.toJson()..remove('maxFileBytes');
+      expect(Server.fromJson(old).maxFileBytes, ServerLimits.legacyFileCeiling);
     });
 
     test('a persisted server without tokenIssuedAt is treated as stale', () {

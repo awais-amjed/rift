@@ -25,12 +25,24 @@ class ServerLimitsSection extends StatelessWidget {
   /// there. Null where it is not known.
   final int? storageUsed;
 
+  /// The largest file the machine accepts, which the attachment cap cannot
+  /// pass. Null where it is not known.
+  final int? maxFileBytes;
+
   const ServerLimitsSection({
     super.key,
     required this.controllers,
     this.enabled = true,
     this.storageUsed,
+    this.maxFileBytes,
   });
+
+  /// The attachment box's helper, with the most it can be when we know it.
+  String get _attachmentHelper {
+    const base = 'Applies to every file, image and voice note on this server.';
+    final most = maxFileBytes;
+    return most == null ? base : '$base Up to ${humanSize(most)}.';
+  }
 
   /// The storage box's helper, with what is already in the bucket when we
   /// know it.
@@ -88,8 +100,7 @@ class ServerLimitsSection extends StatelessWidget {
               label: 'Max attachment size',
               unit: 'MB',
               hint: '25',
-              helper:
-                  'Applies to every file, image and voice note on this server.',
+              helper: _attachmentHelper,
               enabled: enabled,
             ),
             const SizedBox(height: 16),

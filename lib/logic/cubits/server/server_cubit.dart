@@ -430,6 +430,7 @@ class ServerCubit extends HydratedCubit<ServerState>
     List<Channel>? channels,
     ServerLimits? limits,
     int? storageUsed,
+    int? maxFileBytes,
     List<LiveKitNode>? livekitNodes,
     bool clearUser = false,
   }) {
@@ -446,6 +447,7 @@ class ServerCubit extends HydratedCubit<ServerState>
         channels: channels,
         limits: limits,
         storageUsed: storageUsed,
+        maxFileBytes: maxFileBytes,
         livekitNodes: livekitNodes,
         clearUser: clearUser,
       );
@@ -478,6 +480,7 @@ class ServerCubit extends HydratedCubit<ServerState>
       channels: details.channels,
       limits: details.limits,
       storageUsed: details.storageUsed,
+      maxFileBytes: details.maxFileBytes,
       livekitNodes: details.livekitNodes,
     );
   }

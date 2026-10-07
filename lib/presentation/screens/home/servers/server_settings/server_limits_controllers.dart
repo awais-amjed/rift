@@ -74,7 +74,8 @@ class ServerLimitsControllers {
   /// says to a reader, and it matches how the fields are seeded. The size cap
   /// is the exception: it cannot be blank and it cannot be zero, because a
   /// size has no "off" and a cap of nothing would forbid every attachment.
-  ({ServerLimits? limits, String? error}) read() {
+  /// Nor can it pass [maxFileBytes], the largest file the machine accepts.
+  ({ServerLimits? limits, String? error}) read({required int maxFileBytes}) {
     final bytes = LimitInput.parseMegabytes(attachmentMb.text);
     if (bytes == null) {
       return (limits: null, error: 'Set a maximum attachment size.');
@@ -85,12 +86,13 @@ class ServerLimitsControllers {
         error: 'Maximum attachment size must be at least 1 MB.',
       );
     }
-    if (bytes > ServerLimits.maxAttachmentCeiling) {
-      final ceiling =
-          ServerLimits.maxAttachmentCeiling ~/ LimitInput.bytesPerMb;
+    if (bytes > maxFileBytes) {
+      final ceiling = maxFileBytes ~/ LimitInput.bytesPerMb;
       return (
         limits: null,
-        error: 'Storage will not accept a file over $ceiling MB.',
+        error:
+            'This server takes files up to $ceiling MB. Its operator can '
+            'raise that in the console.',
       );
     }
 
