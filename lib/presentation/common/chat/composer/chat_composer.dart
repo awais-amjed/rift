@@ -16,6 +16,7 @@ import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/helper_methods.dart';
 import '../../../../logic/services/attachment_staging.dart';
 import '../../../../logic/services/bot_command.dart';
+import '../../../../logic/services/file_save/save_target.dart';
 import '../../../../logic/services/host_platform.dart';
 import '../../../../logic/services/link_preview_fetcher.dart';
 import '../../../../logic/services/link_preview_parser.dart';
@@ -232,6 +233,8 @@ class _ChatComposerState extends State<ChatComposer>
 
   @override
   void dispose() {
+    // Staged files die with the composer; any that were copies go too.
+    unawaited(AttachmentStaging.discard(_staged));
     _releaseDropRelay();
     _disposeRecording();
     _disposeMenus();
@@ -272,7 +275,11 @@ class _ChatComposerState extends State<ChatComposer>
     Map<String, String> picked,
     List<PendingAttachment> attachments,
   ) {
-    if (!mounted || _controller.text.isNotEmpty || _staged.isNotEmpty) return;
+    if (!mounted || _controller.text.isNotEmpty || _staged.isNotEmpty) {
+      // Nowhere to put the files back, so their copies have no reader left.
+      unawaited(AttachmentStaging.discard(attachments));
+      return;
+    }
     _picked.addAll(picked);
     _controller.value = TextEditingValue(
       text: typed,

@@ -20,6 +20,12 @@ Future<SaveSink?> chooseSaveTarget(
 /// Held in memory on the web, which has no scratch files.
 Future<ScratchSink> scratchTarget(String name) async => _MemoryScratch(name);
 
+/// Nothing to remove: the web reads a picked file where it is.
+Future<void> discardCopy(XFile copy) async {}
+
+/// Nothing to sweep, for the same reason.
+Future<void> sweepCopies() async {}
+
 /// Grows a Blob a piece at a time rather than holding a list of pieces:
 /// a Blob built from a Blob references it instead of copying it, and the
 /// browser moves a large one to disk.

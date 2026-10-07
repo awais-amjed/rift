@@ -331,6 +331,10 @@ at, and is read, sealed and sent a chunk at a time:
   iOS only hand out a place through their dialog), and a growing Blob on the
   web. Picking on a phone goes through file_picker, which copies to a cache
   file natively; file_selector's Android side reads the whole file into memory.
+  That copy, and the one a sandboxed macOS app makes of a dropped file, is the
+  app's to delete (`PendingAttachment.temporary`): once read into memory, when
+  its chip is removed, or when the send is over and the outbox is not holding
+  it for a retry (`Outbox.settle`). A start clears whatever a closed app left.
 
 A file sent unencrypted streams the same way and is hashed as it goes. A
 forward of a big file goes through a scratch file in the app's cache directory

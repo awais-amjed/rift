@@ -3,6 +3,7 @@ import 'package:cross_file/cross_file.dart';
 import '../../data/classes/attachment.dart';
 import '../../data/classes/pending_attachment.dart';
 import 'byte_format.dart';
+import 'file_save/save_target.dart';
 import 'image_dimensions.dart';
 import 'mime_util.dart';
 
@@ -71,11 +72,16 @@ class AttachmentStaging {
   /// receiver's message list can reserve the right box before it has the
   /// bytes to measure one — for a picture held in memory, which is every
   /// picture anybody sends.
+  ///
+  /// [temporary] says [file] is a copy made to be sent
+  /// ([PendingAttachment.temporary]). One read into memory here is deleted
+  /// at once; a big one goes when the send is over.
   static Future<PendingAttachment> stage({
     required XFile file,
     required int size,
     required String name,
     String? mimeType,
+    bool temporary = false,
   }) async {
     final mime = (mimeType != null && mimeType.isNotEmpty)
         ? mimeType
@@ -88,9 +94,11 @@ class AttachmentStaging {
         name: name,
         mime: mime,
         kind: kind,
+        temporary: temporary,
       );
     }
     final bytes = await file.readAsBytes();
+    if (temporary) await discardCopy(file);
     final dimensions = kind == AttachmentKind.image
         ? await readImageDimensions(bytes)
         : null;
@@ -102,5 +110,16 @@ class AttachmentStaging {
       width: dimensions?.width,
       height: dimensions?.height,
     );
+  }
+
+  /// Delete the copies among [files] ([PendingAttachment.temporary]), once
+  /// nothing will read them again: the send is over, or the file was taken
+  /// out of the composer.
+  static Future<void> discard(Iterable<PendingAttachment> files) async {
+    for (final staged in files) {
+      if (staged.file case final copy? when staged.temporary) {
+        await discardCopy(copy);
+      }
+    }
   }
 }

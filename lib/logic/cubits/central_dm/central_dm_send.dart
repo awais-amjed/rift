@@ -51,6 +51,23 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
     Future<PendingLinkPreview?>? preview,
     String? replyToId,
   }) async {
+    final refused = await _sendDm(
+      text,
+      attachments: attachments,
+      preview: preview,
+      replyToId: replyToId,
+    );
+    _outbox.settle(attachments, refused: refused);
+    return refused;
+  }
+
+  /// [sendDm] itself; the wrapper settles the files once it is over.
+  Future<bool> _sendDm(
+    String text, {
+    List<PendingAttachment> attachments = const [],
+    Future<PendingLinkPreview?>? preview,
+    String? replyToId,
+  }) async {
     final peerId = state.openPeerId;
     final myId = _myUserId;
     if (peerId == null ||

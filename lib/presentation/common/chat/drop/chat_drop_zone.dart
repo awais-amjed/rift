@@ -83,11 +83,18 @@ class _ChatDropZoneState extends State<ChatDropZone> {
           bookmark: bookmark,
         );
     if (!scoped) {
-      return (name: file.name, file: file, size: size, mimeType: file.mimeType);
+      return (
+        name: file.name,
+        file: file,
+        size: size,
+        mimeType: file.mimeType,
+        temporary: false,
+      );
     }
     try {
       final XFile readable;
-      if (size <= AttachmentStaging.inMemoryMaxBytes) {
+      final copied = size > AttachmentStaging.inMemoryMaxBytes;
+      if (!copied) {
         readable = XFile.fromData(await file.readAsBytes(), length: size);
       } else {
         final scratch = await scratchTarget(file.name);
@@ -102,6 +109,7 @@ class _ChatDropZoneState extends State<ChatDropZone> {
         file: readable,
         size: size,
         mimeType: file.mimeType,
+        temporary: copied,
       );
     } finally {
       await DesktopDrop.instance.stopAccessingSecurityScopedResource(

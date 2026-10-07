@@ -36,6 +36,12 @@ class PendingAttachment {
   /// files (`K.plainAttachmentMinBytes`) on a self-hosted server.
   final bool plain;
 
+  /// [file] is a copy made for this message — a phone's picker hands one
+  /// over, and a file dropped into the sandboxed macOS app is read out into
+  /// one — so it is deleted once nothing will read it again
+  /// (`AttachmentStaging.discard`). Never set on a file the person owns.
+  final bool temporary;
+
   PendingAttachment({
     required Uint8List this.bytes,
     required this.name,
@@ -46,7 +52,8 @@ class PendingAttachment {
     this.durationMs,
     this.plain = false,
   }) : file = null,
-       size = bytes.length;
+       size = bytes.length,
+       temporary = false;
 
   /// A big file, read when it is sent.
   const PendingAttachment.file({
@@ -59,6 +66,7 @@ class PendingAttachment {
     this.height,
     this.durationMs,
     this.plain = false,
+    this.temporary = false,
   }) : bytes = null;
 
   const PendingAttachment._({
@@ -72,6 +80,7 @@ class PendingAttachment {
     required this.height,
     required this.durationMs,
     required this.plain,
+    required this.temporary,
   });
 
   /// Whether it is read from [file] as it goes rather than held.
@@ -91,5 +100,6 @@ class PendingAttachment {
     height: height,
     durationMs: durationMs,
     plain: plain ?? this.plain,
+    temporary: temporary,
   );
 }

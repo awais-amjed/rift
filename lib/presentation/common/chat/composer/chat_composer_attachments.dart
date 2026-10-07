@@ -24,6 +24,9 @@ mixin _ComposerAttachmentsMixin on State<ChatComposer> {
           file: file,
           size: await file.length(),
           mimeType: file.mimeType,
+          // file_picker hands a phone's pick over as a copy in the app's
+          // cache; it is the app's to delete.
+          temporary: HostPlatform.isMobile,
         ));
       }
       if (mounted) setState(() {});
@@ -83,13 +86,17 @@ mixin _ComposerAttachmentsMixin on State<ChatComposer> {
   /// abandon the rest of the selection, so this refuses quietly past the
   /// toast; the caller rebuilds once for the lot.
   Future<void> _stage(DroppedFile file) async {
-    if (!_accepts(name: file.name, bytes: file.size)) return;
+    if (!_accepts(name: file.name, bytes: file.size)) {
+      if (file.temporary) await discardCopy(file.file);
+      return;
+    }
     _staged.add(
       await AttachmentStaging.stage(
         file: file.file,
         size: file.size,
         name: file.name,
         mimeType: file.mimeType,
+        temporary: file.temporary,
       ),
     );
   }
@@ -111,7 +118,9 @@ mixin _ComposerAttachmentsMixin on State<ChatComposer> {
   }
 
   void _removeStaged(int index) {
+    final removed = _staged[index];
     setState(() => _staged.removeAt(index));
+    unawaited(AttachmentStaging.discard([removed]));
   }
 
   /// Switch a staged file between encrypted and unencrypted.

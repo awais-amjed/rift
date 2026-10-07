@@ -7,7 +7,16 @@ import 'package:flutter/widgets.dart';
 /// The name travels beside the file rather than in it: off the web,
 /// `XFile.fromData` ignores the name it is given, so a file wrapped from
 /// bytes would arrive called "".
-typedef DroppedFile = ({String name, XFile file, int size, String? mimeType});
+///
+/// `temporary` marks a copy made to be sent rather than the person's own file
+/// (`PendingAttachment.temporary`), which is deleted once it has gone.
+typedef DroppedFile = ({
+  String name,
+  XFile file,
+  int size,
+  String? mimeType,
+  bool temporary,
+});
 
 /// Carries files dropped anywhere on a chat pane to the composer at its foot.
 ///

@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import '../../data/classes/chat_message.dart';
 import '../../data/classes/pending_attachment.dart';
 import '../../data/enums/error_code.dart';
+import 'attachment_staging.dart';
 
 /// One send that did not land, and everything a second attempt would need.
 ///
@@ -68,7 +71,7 @@ class Outbox {
   OutboxEntry? take(String pendingId) => _held.remove(pendingId);
 
   /// Forget one entry without retrying it — the row is going away.
-  void drop(String pendingId) => _held.remove(pendingId);
+  void drop(String pendingId) => _forget(_held.remove(pendingId));
 
   /// Forget the entries behind rows a merge has just retired.
   ///
@@ -79,10 +82,32 @@ class Outbox {
   void dropRetired(Iterable<String> pendingIds) => pendingIds.forEach(drop);
 
   /// Forget everything for one conversation.
-  void dropDestination(String destination) =>
-      _held.removeWhere((_, entry) => entry.destination == destination);
+  void dropDestination(String destination) => _held.removeWhere((_, entry) {
+    if (entry.destination != destination) return false;
+    _forget(entry);
+    return true;
+  });
 
-  void clear() => _held.clear();
+  void clear() {
+    _held.values.forEach(_forget);
+    _held.clear();
+  }
+
+  /// Called when a send is over, however it ended. Deletes the copies among
+  /// its [files] (`PendingAttachment.temporary`) unless something will read
+  /// them again: this outbox, holding them for a retry, or the composer,
+  /// which a [refused] send hands them back to and which owns them from
+  /// there.
+  void settle(List<PendingAttachment> files, {required bool refused}) {
+    if (refused) return;
+    final held = {for (final entry in _held.values) ...entry.attachments};
+    unawaited(AttachmentStaging.discard(files.where((f) => !held.contains(f))));
+  }
+
+  /// An entry nobody will retry: its copies have no reader left.
+  void _forget(OutboxEntry? entry) {
+    if (entry != null) unawaited(AttachmentStaging.discard(entry.attachments));
+  }
 
   bool holds(String pendingId) => _held.containsKey(pendingId);
 

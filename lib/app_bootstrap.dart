@@ -15,6 +15,7 @@ import 'data/repositories/update_repository.dart';
 import 'logic/cubits/app/app_cubit.dart';
 import 'logic/helper_methods.dart';
 import 'logic/services/browser_apis.dart';
+import 'logic/services/file_save/save_target.dart';
 import 'logic/services/gpu_codecs.dart';
 import 'logic/services/host_platform.dart';
 import 'logic/services/hydrated_store.dart';
@@ -57,6 +58,9 @@ class AppBootstrap {
       // Opening a GPU encoder to see whether it works takes a moment; the
       // share dialog wants the answer the moment it opens.
       GpuCodecs.warmUp();
+      // Copies of files a send left behind when the app last closed under
+      // it. Not awaited: nothing is being sent yet.
+      unawaited(sweepCopies());
     }
 
     await _initSupabase(storageSuffix);

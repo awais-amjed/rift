@@ -1,7 +1,10 @@
 import 'dart:io';
 
+import 'package:cross_file/cross_file.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rift/data/classes/attachment.dart';
 import 'package:rift/data/classes/chat_message.dart';
+import 'package:rift/data/classes/pending_attachment.dart';
 import 'package:rift/data/enums/error_code.dart';
 import 'package:rift/data/repositories/server_db.dart';
 import 'package:rift/logic/services/chat_message_ops.dart';
@@ -274,6 +277,94 @@ void main() {
         ],
       );
       expect(result.retired, isEmpty);
+    });
+  });
+
+  // A phone's picker hands a file over as a copy in the app's cache. Nothing
+  // else will ever delete it, so whoever reads it last must — and a copy
+  // deleted while a retry still needs it is a "Not sent" row that can never
+  // be sent.
+  group('copies made to be sent', () {
+    late Directory dir;
+    setUp(() => dir = Directory.systemTemp.createTempSync('outbox_copies'));
+    tearDown(() => dir.deleteSync(recursive: true));
+
+    PendingAttachment copy(String name) {
+      final folder = Directory('${dir.path}/$name')..createSync();
+      final file = File('${folder.path}/$name')..writeAsStringSync('x');
+      return PendingAttachment.file(
+        file: XFile(file.path),
+        size: 1,
+        name: name,
+        mime: 'application/octet-stream',
+        kind: AttachmentKind.file,
+        temporary: true,
+      );
+    }
+
+    bool exists(PendingAttachment a) => File(a.file!.path).existsSync();
+
+    // The deletes are not awaited by the outbox; give them a moment.
+    Future<void> settled() =>
+        Future<void>.delayed(const Duration(milliseconds: 50));
+
+    test('a send that landed deletes its copies, folder and all', () async {
+      final sent = copy('sent');
+      Outbox().settle([sent], refused: false);
+      await settled();
+      expect(exists(sent), isFalse);
+      expect(Directory('${dir.path}/sent').existsSync(), isFalse);
+    });
+
+    test('a send held for a retry keeps them', () async {
+      final held = copy('held');
+      final outbox = Outbox()
+        ..hold(
+          OutboxEntry(destination: 'chan', row: row('p1'), attachments: [held]),
+        );
+      outbox.settle([held], refused: false);
+      await settled();
+      expect(exists(held), isTrue);
+    });
+
+    test(
+      'a refused send keeps them for the composer it hands them to',
+      () async {
+        final refused = copy('refused');
+        Outbox().settle([refused], refused: true);
+        await settled();
+        expect(exists(refused), isTrue);
+      },
+    );
+
+    test('an entry dropped without a retry deletes them', () async {
+      final dropped = copy('dropped');
+      Outbox()
+        ..hold(
+          OutboxEntry(
+            destination: 'chan',
+            row: row('p1'),
+            attachments: [dropped],
+          ),
+        )
+        ..drop('p1');
+      await settled();
+      expect(exists(dropped), isFalse);
+    });
+
+    test('a file the person owns is never deleted', () async {
+      final own = File('${dir.path}/own')..writeAsStringSync('x');
+      Outbox().settle([
+        PendingAttachment.file(
+          file: XFile(own.path),
+          size: 1,
+          name: 'own',
+          mime: 'application/octet-stream',
+          kind: AttachmentKind.file,
+        ),
+      ], refused: false);
+      await settled();
+      expect(own.existsSync(), isTrue);
     });
   });
 }

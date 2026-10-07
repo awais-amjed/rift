@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:path_provider/path_provider.dart';
@@ -33,6 +34,40 @@ Future<SaveSink?> chooseSaveTarget(
 /// A scratch file for a download about to be sent on.
 Future<ScratchSink> scratchTarget(String name) async =>
     _ScratchSink._(await _scratchFile(name));
+
+/// Remove a file copied only to be sent: what a phone's picker hands over,
+/// or a file dropped into the sandboxed macOS app. Each sits alone in a
+/// folder of its own, which goes too.
+Future<void> discardCopy(XFile copy) async {
+  try {
+    final file = File(copy.path);
+    await file.delete();
+    await file.parent.delete();
+  } catch (_) {}
+}
+
+/// Clear the copies a send left behind when the app closed under it, or when
+/// it was refused with no composer left to take its files back.
+///
+/// Scratch folders only once a day old: two profiles of the app on one
+/// desktop share this cache, and the other may be partway through a forward.
+/// A phone runs one, so its picker's copies all go.
+Future<void> sweepCopies() async {
+  try {
+    if (Platform.isAndroid || Platform.isIOS) {
+      await FilePicker.clearTemporaryFiles();
+    }
+    final base = await getApplicationCacheDirectory();
+    final root = Directory('${base.path}/rift-files');
+    if (!await root.exists()) return;
+    final cutoff = DateTime.now().subtract(const Duration(days: 1));
+    await for (final folder in root.list()) {
+      if ((await folder.stat()).modified.isBefore(cutoff)) {
+        await folder.delete(recursive: true);
+      }
+    }
+  } catch (_) {}
+}
 
 final _rng = Random.secure();
 

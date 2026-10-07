@@ -59,6 +59,27 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
     String? replyToId,
     bool pingReplyTo = true,
   }) async {
+    final refused = await _sendMessage(
+      text,
+      attachments: attachments,
+      preview: preview,
+      inVoiceChannel: inVoiceChannel,
+      replyToId: replyToId,
+      pingReplyTo: pingReplyTo,
+    );
+    _outbox.settle(attachments, refused: refused);
+    return refused;
+  }
+
+  /// [sendMessage] itself; the wrapper settles the files once it is over.
+  Future<bool> _sendMessage(
+    String text, {
+    List<PendingAttachment> attachments = const [],
+    Future<PendingLinkPreview?>? preview,
+    String? inVoiceChannel,
+    String? replyToId,
+    bool pingReplyTo = true,
+  }) async {
     final channelId = state.channelId;
     final server = _serverCubit.state.selectedServer;
     final user = server?.user;

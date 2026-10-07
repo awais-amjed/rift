@@ -19,6 +19,7 @@ DroppedFile _file(String name, int size) => (
   file: XFile.fromData(Uint8List(size)),
   size: size,
   mimeType: 'text/plain',
+  temporary: false,
 );
 
 /// A composer under [relay], the way a chat pane's drop zone puts it.
