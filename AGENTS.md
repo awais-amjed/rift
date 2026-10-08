@@ -106,7 +106,9 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   methods as `_callWithAutoRefresh` and `_callFor`, and are moving out a feature at a time. The
   cubit publishes its server list into the repository on every change and writes back the
   token and details each re-login brings (`SessionRepository.logins`), so neither it nor the
-  vault holds the other. An API call a dialog can open for a server other than the current one takes an
+  vault holds the other. A write that moves something the list holds — a role change moves
+  your own permissions — ends with `SessionRepository.refreshDetails`, and the cubit lands
+  the re-read from `SessionRepository.details` before the call answers. An API call a dialog can open for a server other than the current one takes an
   optional `serverId` and resolves it with `SessionRepository.target` (`_target()` inside
   the cubit) — reading `state.selectedServer` inside
   such a call is how a form ends up writing to the wrong server.

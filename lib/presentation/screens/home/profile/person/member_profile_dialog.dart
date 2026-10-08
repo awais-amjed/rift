@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../../data/apis/moderation_api.dart';
 import '../../../../../data/classes/role.dart';
 import '../../../../../data/classes/server.dart';
 import '../../../../../data/classes/server_member.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../data/enums/home_surface.dart';
 import '../../../../../data/enums/server_permission.dart';
+import '../../../../../data/repositories/session_repository.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
@@ -80,9 +82,12 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
   /// time-out shortened or lifted by somebody else, shows.
   ServerMember? _moderated;
 
+  late final ModerationApi _moderation;
+
   @override
   void initState() {
     super.initState();
+    _moderation = ModerationApi(session: context.read<SessionRepository>());
     // Fills in the member *and* their roles for anybody the roster has not
     // paged in — which is most people, on a server of any size.
     context.read<ServerMembersCubit>().resolve([widget.userId]);
@@ -92,7 +97,7 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
     final member = _member(context.read<ServerMembersCubit>().state);
     if (member == null) return;
     setState(() => _busy = true);
-    final response = await context.read<ServerCubit>().moderateUser(
+    final response = await _moderation.moderateUser(
       userId: member.id,
       isMuted: muted,
       isDeafened: deafened,
@@ -120,9 +125,7 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
     final member = _member(context.read<ServerMembersCubit>().state);
     if (member == null) return;
     setState(() => _busy = true);
-    final response = await context.read<ServerCubit>().kickMember(
-      userId: member.id,
-    );
+    final response = await _moderation.kickMember(userId: member.id);
     if (!mounted) return;
     setState(() {
       _busy = false;
@@ -140,7 +143,7 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
     final member = _member(context.read<ServerMembersCubit>().state);
     if (member == null) return;
     setState(() => _busy = true);
-    final response = await context.read<ServerCubit>().timeOutMember(
+    final response = await _moderation.timeOutMember(
       targetId: member.id,
       duration: duration,
     );

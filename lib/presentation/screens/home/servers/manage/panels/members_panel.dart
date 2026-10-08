@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../../data/apis/moderation_api.dart';
 import '../../../../../../data/classes/server.dart';
 import '../../../../../../data/classes/server_member.dart';
 import '../../../../../../data/constants.dart';
+import '../../../../../../data/repositories/session_repository.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
@@ -94,10 +96,15 @@ class _MembersPanelState extends State<MembersPanel> {
       _busyId = member.id;
       _error = null;
     });
-    final cubit = context.read<ServerCubit>();
+    final moderation = ModerationApi(
+      session: context.read<SessionRepository>(),
+    );
     final response = kick
-        ? await cubit.kickMember(userId: member.id, serverId: widget.server.id)
-        : await cubit.moderateUser(
+        ? await moderation.kickMember(
+            userId: member.id,
+            serverId: widget.server.id,
+          )
+        : await moderation.moderateUser(
             userId: member.id,
             isMuted: muted,
             isDeafened: deafened,

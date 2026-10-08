@@ -1,7 +1,6 @@
 part of 'server_cubit.dart';
 
-/// Browsing the roster: a page of it, every bot on it, and the one write that
-/// changes what a member on it may do.
+/// Browsing the roster: a page of it, and every bot on it.
 ///
 /// Split out of `_ServerApiMixin` because these share a shape the rest of that
 /// file doesn't: they are the calls a dialog opens for a server other than the
@@ -29,10 +28,6 @@ mixin _ServerMembersApiMixin on Cubit<ServerState> {
 
   /// Held by [ServerCubit] because both member mixins write to it.
   List<ServerMember> _remember(String serverId, List<ServerMember> members);
-
-  /// [_noTarget] as the failed [APIResponse] the plain endpoints return.
-  APIResponse _noTargetResponse(String? serverId) =>
-      APIResponse.error(_noTarget(serverId));
 
   /// One alphabetical page of the roster.
   ///
@@ -147,60 +142,4 @@ mixin _ServerMembersApiMixin on Cubit<ServerState> {
 
   /// How many pages a whole read walks before it stops asking.
   static const int _wholePageBudget = 10;
-
-  /// Persistently mutes/deafens/bans a user server-wide on [serverId], or on
-  /// the selected server (requires channel manager or server admin).
-  ///
-  /// Omitted flags are left as they are — the endpoint reads the row back and
-  /// reports the whole state, so a caller changing one thing never has to know
-  /// the others.
-  ///
-  /// A ban is the persistent end of moderation: it removes them from every
-  /// live call immediately and RLS refuses them everything afterwards. Setting
-  /// [isBanned] false lets them back in; nothing else about them changed while
-  /// they were out.
-  Future<APIResponse> moderateUser({
-    required String userId,
-    bool? isMuted,
-    bool? isDeafened,
-    bool? isBanned,
-    String? serverId,
-  }) {
-    final server = _target(serverId);
-    if (server == null) return Future.value(_noTargetResponse(serverId));
-
-    return _callFor(
-      server,
-      (token) => _repository.moderateUser(
-        server.supabaseUrl,
-        anonKey: server.supabaseKey ?? '',
-        bearerToken: token,
-        userId: userId,
-        isMuted: isMuted,
-        isDeafened: isDeafened,
-        isBanned: isBanned,
-      ),
-    );
-  }
-
-  /// Removes somebody until they come back through a new invite.
-  ///
-  /// A ban the next invite lifts (`kick_member`): out of every call now, and
-  /// back as a newcomer — their roles and private-channel seats are gone,
-  /// their name and messages are not. `KICK_MEMBERS`, checked by the server.
-  Future<APIResponse> kickMember({required String userId, String? serverId}) {
-    final server = _target(serverId);
-    if (server == null) return Future.value(_noTargetResponse(serverId));
-
-    return _callFor(
-      server,
-      (token) => _repository.moderateUser(
-        server.supabaseUrl,
-        anonKey: server.supabaseKey ?? '',
-        bearerToken: token,
-        userId: userId,
-        kick: true,
-      ),
-    );
-  }
 }

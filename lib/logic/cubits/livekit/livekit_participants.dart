@@ -2,7 +2,7 @@ part of 'livekit_cubit.dart';
 
 mixin _ParticipantMixin on Cubit<LiveKitState> {
   AppCubit get _appCubit;
-  ServerCubit? get _serverCubit;
+  SessionRepository? get _session;
 
   /// Mutes/unmutes a participant for everyone in the room (requires is_channel_manager).
   /// Server-side moderation: persistently mute/deafen a user for everyone.
@@ -13,12 +13,12 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
     bool? muted,
     bool? deafened,
   }) async {
-    final serverCubit = _serverCubit;
-    if (serverCubit == null) return false;
+    final session = _session;
+    if (session == null) return false;
 
     final userId = ParticipantIdentity.userIdOf(participantIdentity);
 
-    final response = await serverCubit.moderateUser(
+    final response = await ModerationApi(session: session).moderateUser(
       userId: userId,
       isMuted: muted,
       isDeafened: deafened,

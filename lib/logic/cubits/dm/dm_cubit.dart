@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rift_crypto/rift_crypto.dart';
 import 'package:supabase/supabase.dart' show RealtimeSubscribeStatus;
 
+import '../../../data/apis/moderation_api.dart';
 import '../../../data/classes/api_response.dart';
 import '../../../data/classes/attachment.dart';
 import '../../../data/classes/chat_message.dart';
@@ -21,6 +22,7 @@ import '../../../data/enums/dm_link_state.dart';
 import '../../../data/enums/dm_policy.dart';
 import '../../../data/repositories/attachment_repository.dart';
 import '../../../data/repositories/blob/blob_sink.dart';
+import '../../../data/repositories/session_repository.dart';
 import '../../helper_methods.dart';
 import '../../services/attachment_cleanup.dart';
 import '../../services/attachment_loader.dart';
@@ -78,6 +80,8 @@ class DmCubit extends Cubit<DmState>
         _DmSetAsideMixin {
   @override
   final ServerCubit _serverCubit;
+  @override
+  final ModerationApi _moderation;
   final VaultCubit _vaultCubit;
   @override
   final CryptoRepository _crypto;
@@ -150,9 +154,11 @@ class DmCubit extends Cubit<DmState>
 
   DmCubit({
     required ServerCubit serverCubit,
+    required SessionRepository session,
     required VaultCubit vaultCubit,
     CryptoRepository? crypto,
   }) : _serverCubit = serverCubit,
+       _moderation = ModerationApi(session: session),
        _vaultCubit = vaultCubit,
        _crypto = crypto ?? CryptoRepository(),
        super(const DmState()) {

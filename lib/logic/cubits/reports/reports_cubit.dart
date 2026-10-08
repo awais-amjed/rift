@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../data/apis/moderation_api.dart';
 import '../../../data/classes/api_response.dart';
 import '../../../data/classes/chat_message.dart';
 import '../../../data/classes/member_report.dart';
@@ -37,6 +38,7 @@ part 'reports_state.dart';
 /// on a server the person is not looking at; that page owns it and closes it.
 class ReportsCubit extends Cubit<ReportsState> {
   final ServerCubit _serverCubit;
+  final ModerationApi _moderation;
   final ReportedMessageOpener _opener;
 
   /// The one server this watches, or null to follow the selection.
@@ -54,6 +56,7 @@ class ReportsCubit extends Cubit<ReportsState> {
     required VaultCubit vaultCubit,
     String? serverId,
   }) : _serverCubit = serverCubit,
+       _moderation = ModerationApi(session: session),
        _fixedServerId = serverId,
        _opener = ReportedMessageOpener(
          serverCubit: serverCubit,
@@ -135,7 +138,7 @@ class ReportsCubit extends Cubit<ReportsState> {
   }
 
   Future<List<ReportEntry>?> _read({required bool open}) async {
-    final response = await _serverCubit.listReports(
+    final response = await _moderation.listReports(
       open: open,
       serverId: _watchingServerId,
     );
@@ -190,7 +193,7 @@ class ReportsCubit extends Cubit<ReportsState> {
   Future<APIResponse> timeOut(ReportEntry entry, Duration duration) async {
     final target = entry.report.targetId;
     if (target == null) return APIResponse.error('Nobody to time out');
-    final done = await _serverCubit.timeOutMember(
+    final done = await _moderation.timeOutMember(
       targetId: target,
       duration: duration,
       serverId: _watchingServerId,
@@ -202,7 +205,7 @@ class ReportsCubit extends Cubit<ReportsState> {
   Future<APIResponse> ban(ReportEntry entry) async {
     final target = entry.report.targetId;
     if (target == null) return APIResponse.error('Nobody to ban');
-    final done = await _serverCubit.moderateUser(
+    final done = await _moderation.moderateUser(
       userId: target,
       isBanned: true,
       serverId: _watchingServerId,
@@ -216,7 +219,7 @@ class ReportsCubit extends Cubit<ReportsState> {
   Future<APIResponse> kick(ReportEntry entry) async {
     final target = entry.report.targetId;
     if (target == null) return APIResponse.error('Nobody to kick');
-    final done = await _serverCubit.kickMember(
+    final done = await _moderation.kickMember(
       userId: target,
       serverId: _watchingServerId,
     );
@@ -225,7 +228,7 @@ class ReportsCubit extends Cubit<ReportsState> {
   }
 
   Future<APIResponse> _record(ReportEntry entry, ReportOutcome outcome) async {
-    final response = await _serverCubit.resolveReport(
+    final response = await _moderation.resolveReport(
       reportId: entry.report.id,
       outcome: outcome,
       serverId: _watchingServerId,

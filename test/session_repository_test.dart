@@ -3,6 +3,7 @@ import 'package:rift/data/classes/api_response.dart';
 import 'package:rift/data/classes/server.dart';
 import 'package:rift/data/classes/server_details.dart';
 import 'package:rift/data/enums/error_code.dart';
+import 'package:rift/data/repositories/server_repository.dart';
 import 'package:rift/data/repositories/session_repository.dart';
 
 /// A session whose sign-in answers at once, counting how often it is asked.
@@ -24,6 +25,18 @@ class _CountingSession extends SessionRepository {
       error: null,
     );
   }
+}
+
+/// A server whose details read answers with [reply].
+class _DetailsServers extends ServerRepository {
+  APIResponse reply = APIResponse.success(const {'name': 'Renamed'});
+
+  @override
+  Future<APIResponse> getServerDetails(
+    String supabaseUrl, {
+    required String anonKey,
+    String? bearerToken,
+  }) async => reply;
 }
 
 Server _server({String token = 'old'}) => Server(
@@ -124,5 +137,35 @@ void main() {
 
     expect(response.success, isFalse);
     expect(calls, 0);
+  });
+
+  test('a re-read after a write is announced before it answers', () async {
+    final session = SessionRepository(servers: _DetailsServers());
+    session.publish(servers: [_server()], selectedServerId: 's1');
+    final heard = <SessionDetails>[];
+    session.details.listen(heard.add);
+
+    final ok = await session.refreshDetails(_server());
+
+    expect(ok, isTrue);
+    expect(heard.single.serverId, 's1');
+    expect(heard.single.details.name, 'Renamed');
+  });
+
+  test('a failed re-read announces nothing', () async {
+    final servers = _DetailsServers()..reply = APIResponse.error('down');
+    final session = SessionRepository(servers: servers);
+    session.publish(servers: [_server()], selectedServerId: 's1');
+    final heard = <SessionDetails>[];
+    session.details.listen(heard.add);
+
+    expect(await session.refreshDetails(_server()), isFalse);
+    expect(heard, isEmpty);
+  });
+
+  test('a missing server is told apart from no selection', () {
+    final session = SessionRepository(servers: _DetailsServers());
+    expect(session.noTarget(null), 'No server selected');
+    expect(session.noTarget('gone'), contains('no longer on this device'));
   });
 }

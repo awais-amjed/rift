@@ -16,6 +16,9 @@ import 'server_repository.dart';
 /// account of itself that came back with it.
 typedef SessionLogin = ({String serverId, String token, ServerDetails details});
 
+/// A server's own account of itself, read again after a write that moved it.
+typedef SessionDetails = ({String serverId, ServerDetails details});
+
 /// Being signed in to the servers this identity has joined: which server is
 /// selected, each one's token, and getting a new token when one runs out.
 ///
@@ -68,6 +71,13 @@ class SessionRepository {
   /// the current one names it, or its form writes to the wrong server.
   Server? target(String? serverId) =>
       serverId == null ? selectedServer : serverById(serverId);
+
+  /// What to say when [target] finds nothing. A named server that isn't here
+  /// is a different failure from having nothing selected, and telling them
+  /// apart is the difference between "pick a server" and "this one is gone".
+  String noTarget(String? serverId) => serverId == null
+      ? 'No server selected'
+      : 'That server is no longer on this device';
 
   /// Take the server list as it now stands. `ServerCubit` calls this from
   /// `onChange`, so the copy here is never a frame behind its state.
@@ -257,5 +267,41 @@ class SessionRepository {
     return current.token;
   };
 
-  Future<void> dispose() => _logins.close();
+  // ── After a write ───────────────────────────────────────
+
+  final _details = StreamController<SessionDetails>.broadcast(sync: true);
+
+  /// Every re-read of a server's details that [refreshDetails] made.
+  /// `ServerCubit` lands each one, as it lands a re-login's.
+  Stream<SessionDetails> get details => _details.stream;
+
+  /// Read [server]'s details again and announce them on [details].
+  ///
+  /// For a write that moves something the server list holds — a role change
+  /// moves the caller's own permission bits, a DM setting is a field on their
+  /// own row. The stream is synchronous, so the list already holds the new
+  /// row when this answers. A failed read announces nothing; the server's own
+  /// doorbell refreshes it later, and that path is the one that notices a
+  /// server deleted out from under.
+  Future<bool> refreshDetails(Server server) async {
+    final response = await callFor(
+      server,
+      (token) => _servers.getServerDetails(
+        server.supabaseUrl,
+        anonKey: server.supabaseKey ?? '',
+        bearerToken: token,
+      ),
+    );
+    if (!response.success || response.data is! Map) return false;
+    _details.add((
+      serverId: server.id,
+      details: ServerDetails.fromJson(response.data as Map<String, dynamic>),
+    ));
+    return true;
+  }
+
+  Future<void> dispose() async {
+    await _logins.close();
+    await _details.close();
+  }
 }

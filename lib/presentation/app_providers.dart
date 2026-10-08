@@ -129,6 +129,7 @@ class AppProviders extends StatelessWidget {
         BlocProvider(
           create: (context) => DmCubit(
             serverCubit: context.read<ServerCubit>(),
+            session: session,
             vaultCubit: vaultCubit,
           ),
         ),

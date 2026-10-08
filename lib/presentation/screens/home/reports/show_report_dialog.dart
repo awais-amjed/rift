@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/apis/moderation_api.dart';
 import '../../../../data/classes/chat_message.dart';
-import '../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../data/repositories/session_repository.dart';
 import '../../../common/app_modal.dart';
 import 'report_dialog.dart';
 
@@ -15,7 +16,7 @@ Future<void> showReportMessageDialog(
   BuildContext context,
   ChatMessage message,
 ) {
-  final serverCubit = context.read<ServerCubit>();
+  final moderation = ModerationApi(session: context.read<SessionRepository>());
   final id = int.tryParse(message.id);
   if (id == null) return Future.value();
   return showCustomDialog(
@@ -34,7 +35,7 @@ Future<void> showReportMessageDialog(
                 'see your name. This message wasn\'t end-to-end encrypted, '
                 'so they read it as posted.',
       onSend: (reason, note) =>
-          serverCubit.reportMessage(messageId: id, reason: reason, note: note),
+          moderation.reportMessage(messageId: id, reason: reason, note: note),
     ),
   );
 }
@@ -46,7 +47,7 @@ Future<void> showReportMemberDialog(
   required String userId,
   required String displayName,
 }) {
-  final serverCubit = context.read<ServerCubit>();
+  final moderation = ModerationApi(session: context.read<SessionRepository>());
   return showCustomDialog(
     context: context,
     barrierDismissible: true,
@@ -57,11 +58,8 @@ Future<void> showReportMemberDialog(
           '$displayName isn\'t told who reported them. Moderators see your '
           'name and what you write here. They can\'t read your DMs, so say '
           'what happened.',
-      onSend: (reason, note) => serverCubit.reportMember(
-        targetId: userId,
-        reason: reason,
-        note: note,
-      ),
+      onSend: (reason, note) =>
+          moderation.reportMember(targetId: userId, reason: reason, note: note),
     ),
   );
 }

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/apis/moderation_api.dart';
 import '../../../../data/classes/dm_conversation.dart';
 import '../../../../data/enums/dm_policy.dart';
+import '../../../../data/repositories/session_repository.dart';
 import '../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
@@ -27,7 +29,9 @@ class DmRequestsDialog extends StatelessWidget {
   const DmRequestsDialog({super.key});
 
   Future<void> _setPolicy(BuildContext context, DmPolicy policy) async {
-    final response = await context.read<ServerCubit>().setDmPolicy(policy);
+    final response = await ModerationApi(
+      session: context.read<SessionRepository>(),
+    ).setDmPolicy(policy);
     if (!response.success) {
       HelperMethods.showError(
         error: response.error ?? 'Could not change who can message you',

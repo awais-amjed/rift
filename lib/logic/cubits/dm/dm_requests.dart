@@ -8,6 +8,7 @@ part of 'dm_cubit.dart';
 /// ignored, or its sender is blocked.
 mixin _DmRequestsMixin on Cubit<DmState> {
   ServerCubit get _serverCubit;
+  ModerationApi get _moderation;
 
   Future<List<DmConversation>?> _conversationsFrom(
     List<Map<String, dynamic>> rows,
@@ -17,7 +18,7 @@ mixin _DmRequestsMixin on Cubit<DmState> {
   /// The requests waiting on us, previews decrypted like the conversation
   /// list's — the recipient of a request can read it, which is the point.
   Future<void> refreshRequests() async {
-    final response = await _serverCubit.dmRequests();
+    final response = await _moderation.dmRequests();
     if (isClosed || !response.success) return;
     final rows = (response.data as List? ?? const [])
         .cast<Map<String, dynamic>>();
@@ -27,7 +28,7 @@ mixin _DmRequestsMixin on Cubit<DmState> {
   }
 
   Future<void> refreshBlocks() async {
-    final response = await _serverCubit.listBlocks();
+    final response = await _moderation.listBlocks();
     if (isClosed || !response.success) return;
     emit(
       state.copyWith(
@@ -41,7 +42,7 @@ mixin _DmRequestsMixin on Cubit<DmState> {
   Future<void> refreshOpenLinkState() async {
     final peerId = state.openPeerId;
     if (peerId == null) return;
-    final response = await _serverCubit.dmLinkState(peerId: peerId);
+    final response = await _moderation.dmLinkState(peerId: peerId);
     if (isClosed || state.openPeerId != peerId) return;
     // An older server has no such function; open is what it always meant.
     final linkState = response.success
@@ -73,7 +74,7 @@ mixin _DmRequestsMixin on Cubit<DmState> {
     String peerId, {
     required bool accept,
   }) async {
-    final response = await _serverCubit.answerDmRequest(
+    final response = await _moderation.answerDmRequest(
       peerId: peerId,
       accept: accept,
     );
@@ -96,7 +97,7 @@ mixin _DmRequestsMixin on Cubit<DmState> {
   /// Block or unblock [peerId]. A block also takes their request, if any,
   /// out of the list — the server stops listing it, and so does this.
   Future<APIResponse> setBlocked(String peerId, {required bool blocked}) async {
-    final response = await _serverCubit.setBlocked(
+    final response = await _moderation.setBlocked(
       peerId: peerId,
       blocked: blocked,
     );

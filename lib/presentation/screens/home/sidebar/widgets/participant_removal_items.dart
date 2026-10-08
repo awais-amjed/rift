@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/apis/moderation_api.dart';
+import '../../../../../data/repositories/session_repository.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
 import '../../../../common/confirm_dialog.dart';
@@ -68,9 +70,11 @@ class ParticipantRemovalItems extends StatelessWidget {
 
   Future<void> _kick(BuildContext context) async {
     // Read before the await, for the same reason as [_ban].
-    final serverCubit = context.read<ServerCubit>();
+    final moderation = ModerationApi(
+      session: context.read<SessionRepository>(),
+    );
     if (!await confirmKick(context, name)) return;
-    final response = await serverCubit.kickMember(userId: targetUserId);
+    final response = await moderation.kickMember(userId: targetUserId);
     if (response.success) {
       HelperMethods.showToast(
         title: 'Kicked',
@@ -86,8 +90,10 @@ class ParticipantRemovalItems extends StatelessWidget {
 
   Future<void> _ban(BuildContext context) async {
     // Reads before the await: confirming dismisses the menu this widget lives
-    // in, so the cubit has to be in hand before the tree goes.
-    final serverCubit = context.read<ServerCubit>();
+    // in, so the session has to be in hand before the tree goes.
+    final moderation = ModerationApi(
+      session: context.read<SessionRepository>(),
+    );
     final confirmed = await showConfirmDialog(
       context: context,
       title: 'Ban $name?',
@@ -101,7 +107,7 @@ class ParticipantRemovalItems extends StatelessWidget {
     );
     if (!confirmed) return;
 
-    final response = await serverCubit.moderateUser(
+    final response = await moderation.moderateUser(
       userId: targetUserId,
       isBanned: true,
     );

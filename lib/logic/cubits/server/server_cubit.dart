@@ -24,9 +24,6 @@ import '../../../data/classes/server_limits.dart';
 import '../../../data/classes/server_member.dart';
 import '../../../data/classes/server_user.dart';
 import '../../../data/classes/user_permissions.dart';
-import '../../../data/enums/dm_policy.dart';
-import '../../../data/enums/member_report_reason.dart';
-import '../../../data/enums/report_outcome.dart';
 import '../../../data/invite_link.dart';
 import '../../../data/repositories/attachment_repository.dart';
 import '../../../data/repositories/avatar_repository.dart';
@@ -61,7 +58,6 @@ part 'server_dms_api.dart';
 part 'server_invites_api.dart';
 part 'server_member_lookup_api.dart';
 part 'server_members_api.dart';
-part 'server_moderation_api.dart';
 part 'server_ownership_api.dart';
 part 'server_pins_polls_api.dart';
 part 'server_private_channels_api.dart';
@@ -86,7 +82,6 @@ class ServerCubit extends HydratedCubit<ServerState>
         _ServerApiMixin,
         _ServerMemberLookupApiMixin,
         _ServerMembersApiMixin,
-        _ServerModerationApiMixin,
         _ServerRolesApiMixin,
         _ServerOwnershipApiMixin,
         _ServerBotsApiMixin,
@@ -197,13 +192,9 @@ class ServerCubit extends HydratedCubit<ServerState>
     return (server: server, anonKey: anonKey);
   }
 
-  /// What to say when [_target] finds nothing. A named server that isn't here is
-  /// a different failure from having nothing selected, and telling them apart is
-  /// the difference between "pick a server" and "this one is gone".
+  /// What to say when [_target] finds nothing ([SessionRepository.noTarget]).
   @override
-  String _noTarget(String? serverId) => serverId == null
-      ? 'No server selected'
-      : 'That server is no longer on this device';
+  String _noTarget(String? serverId) => _session.noTarget(serverId);
 
   /// Called after the server list changes — wired to cloud auto-backup.
   @override
@@ -254,12 +245,14 @@ class ServerCubit extends HydratedCubit<ServerState>
   @override
   final SessionRepository _session;
   late final StreamSubscription<SessionLogin> _logins;
+  late final StreamSubscription<SessionDetails> _rereads;
 
   ServerCubit({SessionRepository? session})
     : _session = session ?? SessionRepository(),
       super(const ServerState()) {
     _publishSession(state);
     _logins = _session.logins.listen(_onLogin);
+    _rereads = _session.details.listen(_onDetails);
     if (PushService.isSupported) {
       PushService.instance.token.addListener(_onPushToken);
       _onPushToken();
@@ -297,10 +290,17 @@ class ServerCubit extends HydratedCubit<ServerState>
     applyServerDetails(login.serverId, login.details, token: login.token);
   }
 
+  /// A feature's API re-read a server after a write that moved it.
+  void _onDetails(SessionDetails read) {
+    if (isClosed) return;
+    applyServerDetails(read.serverId, read.details);
+  }
+
   @override
   Future<void> close() async {
     PushService.instance.token.removeListener(_onPushToken);
     await _logins.cancel();
+    await _rereads.cancel();
     await realtime.dispose();
     return super.close();
   }
