@@ -1,4 +1,4 @@
-import '../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../data/apis/push_api.dart';
 
 /// Turning a server's push notifications on and off, for the settings dialog.
 ///
@@ -14,21 +14,21 @@ class PushToggle {
   /// could not be asked — a server too old to have the endpoint, or one that is
   /// not answering. Null leaves the toggle inert rather than claiming push is
   /// off, which would invite an admin to "fix" it by turning on what is on.
-  static Future<bool?> status(ServerCubit cubit, String serverId) async {
-    final result = await cubit.pushStatus(serverId: serverId);
+  static Future<bool?> status(PushApi push, String serverId) async {
+    final result = await push.pushStatus(serverId: serverId);
     if (!result.success) return null;
     return (result.data as Map<String, dynamic>?)?['enabled'] == true;
   }
 
   /// Apply a change. Returns the error to show, or null when it landed.
   static Future<String?> set(
-    ServerCubit cubit,
+    PushApi push,
     String serverId, {
     required bool enabled,
   }) async {
     final result = enabled
-        ? await cubit.enablePush(serverId: serverId)
-        : await cubit.disablePush(serverId: serverId);
+        ? await push.enablePush(serverId: serverId)
+        : await push.disablePush(serverId: serverId);
     if (result.success) return null;
 
     // The one refusal an admin can act on, so it gets a sentence instead of a

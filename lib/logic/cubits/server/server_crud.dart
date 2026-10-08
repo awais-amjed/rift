@@ -3,8 +3,7 @@ part of 'server_cubit.dart';
 mixin _ServerCrudMixin on Cubit<ServerState> {
   void Function()? get _onServersChanged;
   SecureStorageRepository get _storage;
-  Future<void> forgetPushDevice(String serverId);
-  Future<void> registerPushDevices();
+  PushApi get _push;
 
   // ──────────────────────────────────────────────────────────
   // CRUD
@@ -30,7 +29,7 @@ mixin _ServerCrudMixin on Cubit<ServerState> {
     // The FCM token listener only fires when the token changes, and joining is
     // not that — so a server joined mid-session would otherwise go unregistered
     // until the next launch.
-    unawaited(registerPushDevices());
+    unawaited(_push.registerPushDevices());
     return newServer;
   }
 
@@ -43,7 +42,7 @@ mixin _ServerCrudMixin on Cubit<ServerState> {
     final updated = [...state.servers, newServer];
     emit(state.copyWith(servers: updated, selectedServerId: newServer.id));
     _onServersChanged?.call();
-    unawaited(registerPushDevices());
+    unawaited(_push.registerPushDevices());
     return newServer;
   }
 
@@ -97,7 +96,7 @@ mixin _ServerCrudMixin on Cubit<ServerState> {
     // it with: a device that stays registered on a server you have left goes
     // on being woken for it. Not awaited — leaving must not wait on a server
     // that has already stopped answering.
-    unawaited(forgetPushDevice(serverId));
+    unawaited(_push.forgetPushDevice(serverId));
     _forgetSavedConversations(serverId);
     final updated = state.servers.where((s) => s.id != serverId).toList();
     String? newSelectedId = state.selectedServerId;

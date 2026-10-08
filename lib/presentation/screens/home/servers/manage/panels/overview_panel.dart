@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/apis/invites_api.dart';
 import '../../../../../../data/apis/members_api.dart';
+import '../../../../../../data/apis/push_api.dart';
 import '../../../../../../data/classes/server.dart';
 import '../../../../../../data/repositories/session_repository.dart';
 import '../../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
@@ -112,7 +113,7 @@ class _OverviewPanelState extends State<OverviewPanel> {
   /// Also non-blocking, for the same reason as the two above.
   Future<void> _loadPushStatus() async {
     final enabled = await PushToggle.status(
-      context.read<ServerCubit>(),
+      PushApi(session: context.read<SessionRepository>()),
       widget.server.id,
     );
     if (!mounted || enabled == null) return;
@@ -125,7 +126,7 @@ class _OverviewPanelState extends State<OverviewPanel> {
       _error = null;
     });
     final error = await PushToggle.set(
-      context.read<ServerCubit>(),
+      PushApi(session: context.read<SessionRepository>()),
       widget.server.id,
       enabled: enabled,
     );

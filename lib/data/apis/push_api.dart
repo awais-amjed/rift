@@ -1,4 +1,13 @@
-part of 'server_cubit.dart';
+import 'dart:async';
+
+import 'package:http/http.dart' as http;
+
+import '../../logic/services/push_service.dart';
+import '../../supabase_config.dart';
+import '../classes/api_response.dart';
+import '../repositories/central_dm_repository.dart';
+import '../repositories/server_repository.dart';
+import '../repositories/session_repository.dart';
 
 /// Push notifications for a self-hosted server: registering this device, and
 /// (for an admin) turning the whole thing on.
@@ -11,18 +20,21 @@ part of 'server_cubit.dart';
 /// triggers ask central to forward. Central learns a device token and a
 /// moment, and nothing else; the push itself carries nothing at all.
 ///
-/// That is why this mixin talks to two places at once, which is otherwise not
+/// That is why this class talks to two places at once, which is otherwise not
 /// something a server call does.
-mixin _ServerPushApiMixin on Cubit<ServerState> {
-  ServerRepository get _repository;
-  WakeIndexWriter get _wakeIndex;
-  CentralDmRepository get _central;
-  Server? _target(String? serverId);
-  String _noTarget(String? serverId);
-  Future<APIResponse> _callFor(
-    Server server,
-    Future<APIResponse> Function(String token) call,
-  );
+///
+/// Holds nothing, so a widget builds one from the session.
+class PushApi {
+  final SessionRepository _session;
+
+  PushApi({required SessionRepository session}) : _session = session;
+
+  ServerRepository get _repository => _session.repository;
+
+  /// Central, for one thing only: minting and revoking the credential a
+  /// server forwards its pushes over. Made on first use, since only an
+  /// admin's toggle ever reaches it.
+  late final CentralDmRepository _central = CentralDmRepository();
 
   /// How long to wait for the relay to say it is alive before giving up on it.
   static const _probeTimeout = Duration(seconds: 8);
@@ -45,50 +57,7 @@ mixin _ServerPushApiMixin on Cubit<ServerState> {
     }
   }
 
-  // ──────────────────────────────────────────────────────────
-  // What the isolate wakes up into
-  // ──────────────────────────────────────────────────────────
-
-  /// Leave the push background isolate a snapshot of the server list.
-  ///
-  /// It is woken into a process that shares nothing with this one — no cubits,
-  /// no hydrated storage — and cannot ask which servers this device is on. So
-  /// the app writes it down. Only the fields a wake actually reads, and only
-  /// when one of them has changed: the state emits on every token refresh and
-  /// every selection, and neither is news to a sleeping isolate.
-  ///
-  /// Takes the state rather than reading it: `onChange` runs *before* the new
-  /// state is installed, so the field would still hold the old list.
-  void refreshWakeIndex(ServerState current) {
-    if (!PushService.isSupported) return;
-    unawaited(
-      _wakeIndex.update(
-        WakeIndex(
-          servers: [
-            for (final server in current.servers)
-              if (server.user != null)
-                WakeServer(
-                  id: server.id,
-                  name: server.name,
-                  supabaseUrl: server.supabaseUrl,
-                  anonKey: server.supabaseKey ?? '',
-                  userId: server.user!.id,
-                  username: server.user!.username,
-                  keyVersion: server.keyVersion,
-                  channels: {
-                    for (final channel in server.channels)
-                      channel.id: channel.name,
-                  },
-                ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ──────────────────────────────────────────────────────────
-  // This device
-  // ──────────────────────────────────────────────────────────
+  // ── This device ───────────────────────────────────────────
 
   /// Tell every joined server that this device can be woken.
   ///
@@ -101,8 +70,8 @@ mixin _ServerPushApiMixin on Cubit<ServerState> {
     final token = PushService.instance.token.value;
     if (token == null) return;
 
-    for (final server in state.servers) {
-      await _callFor(
+    for (final server in _session.servers) {
+      await _session.callFor(
         server,
         (bearer) => _repository.registerDevice(
           server.supabaseUrl,
@@ -118,15 +87,17 @@ mixin _ServerPushApiMixin on Cubit<ServerState> {
   /// Give up this device's registration on one server — on leaving it, so the
   /// phone stops being woken for a place it is no longer in.
   ///
-  /// Best-effort and deliberately not awaited by its caller: leaving must not
-  /// wait on, or fail because of, a server that has already stopped answering.
+  /// The server is looked up before the first await, so a caller can start
+  /// this and then drop the server from the list. Best-effort and deliberately
+  /// not awaited by its caller: leaving must not wait on, or fail because of,
+  /// a server that has already stopped answering.
   Future<void> forgetPushDevice(String serverId) async {
     if (!PushService.isSupported) return;
     final token = PushService.instance.token.value;
-    final server = _target(serverId);
+    final server = _session.target(serverId);
     if (token == null || server == null) return;
 
-    await _callFor(
+    await _session.callFor(
       server,
       (bearer) => _repository.unregisterDevice(
         server.supabaseUrl,
@@ -137,16 +108,14 @@ mixin _ServerPushApiMixin on Cubit<ServerState> {
     );
   }
 
-  // ──────────────────────────────────────────────────────────
-  // The server (admin)
-  // ──────────────────────────────────────────────────────────
+  // ── The server (admin) ────────────────────────────────────
 
   /// Whether this server can currently ring its members' phones.
   /// Returns `{enabled, relay_id}` — the id, never the secret.
   Future<APIResponse> pushStatus({String? serverId}) async {
-    final server = _target(serverId);
-    if (server == null) return APIResponse.error(_noTarget(serverId));
-    return _callFor(
+    final server = _session.target(serverId);
+    if (server == null) return APIResponse.error(_session.noTarget(serverId));
+    return _session.callFor(
       server,
       (bearer) =>
           _repository.pushStatus(server.supabaseUrl, bearerToken: bearer),
@@ -161,8 +130,8 @@ mixin _ServerPushApiMixin on Cubit<ServerState> {
   /// an account may hold, and a few failed attempts would then look like a
   /// limit on how many servers somebody may run.
   Future<APIResponse> enablePush({String? serverId}) async {
-    final server = _target(serverId);
-    if (server == null) return APIResponse.error(_noTarget(serverId));
+    final server = _session.target(serverId);
+    if (server == null) return APIResponse.error(_session.noTarget(serverId));
 
     if (!await _relayAlive()) {
       return APIResponse.error(
@@ -186,7 +155,7 @@ mixin _ServerPushApiMixin on Cubit<ServerState> {
       return APIResponse.error('Central returned no relay credential');
     }
 
-    final configured = await _callFor(
+    final configured = await _session.callFor(
       server,
       (bearer) => _repository.configurePush(
         server.supabaseUrl,
@@ -212,10 +181,10 @@ mixin _ServerPushApiMixin on Cubit<ServerState> {
   /// and a failure to reach central is not a reason to report that push is
   /// still on.
   Future<APIResponse> disablePush({String? serverId}) async {
-    final server = _target(serverId);
-    if (server == null) return APIResponse.error(_noTarget(serverId));
+    final server = _session.target(serverId);
+    if (server == null) return APIResponse.error(_session.noTarget(serverId));
 
-    final result = await _callFor(
+    final result = await _session.callFor(
       server,
       (bearer) =>
           _repository.disablePush(server.supabaseUrl, bearerToken: bearer),

@@ -1,10 +1,10 @@
 import 'dart:async';
 
 import 'package:equatable/equatable.dart';
-import 'package:http/http.dart' as http;
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:json_annotation/json_annotation.dart';
 
+import '../../../data/apis/push_api.dart';
 import '../../../data/classes/api_response.dart';
 import '../../../data/classes/channel.dart';
 import '../../../data/classes/livekit_node.dart';
@@ -15,12 +15,10 @@ import '../../../data/classes/server_details.dart';
 import '../../../data/classes/server_limits.dart';
 import '../../../data/classes/server_user.dart';
 import '../../../data/classes/user_permissions.dart';
-import '../../../data/repositories/central_dm_repository.dart';
 import '../../../data/repositories/secure_storage_repository.dart';
 import '../../../data/repositories/server_db.dart';
 import '../../../data/repositories/server_repository.dart';
 import '../../../data/repositories/session_repository.dart';
-import '../../../supabase_config.dart';
 import '../../services/backup_merge.dart';
 import '../../services/coalesced_refresh.dart';
 import '../../services/hydrated_keys.dart';
@@ -33,7 +31,6 @@ import '../../services/server_realtime.dart';
 part 'server_api.dart';
 part 'server_crud.dart';
 part 'server_cubit.g.dart';
-part 'server_push_api.dart';
 part 'server_selection.dart';
 part 'server_state.dart';
 
@@ -44,27 +41,18 @@ part 'server_state.dart';
 ///
 /// The servers this identity has joined, and every call made to one of them.
 class ServerCubit extends HydratedCubit<ServerState>
-    with
-        _ServerCrudMixin,
-        _ServerSelectionMixin,
-        _ServerApiMixin,
-        _ServerPushApiMixin {
+    with _ServerCrudMixin, _ServerSelectionMixin, _ServerApiMixin {
   /// The session's, so every server's database client is made once.
   @override
   late final ServerRepository _repository = _session.repository;
 
-  /// Avatar upload/download — plaintext, unlike attachments.
+  /// Registering this device on the servers, as the list and the FCM token
+  /// change ([PushApi]).
   @override
-  /// Central, for one thing only: minting and revoking the credential a
-  /// self-hosted server forwards its pushes over. A server cannot reach a
-  /// phone without one — see [_ServerPushApiMixin] — so the enrolment is part
-  /// of what "turn on notifications for this server" means.
-  @override
-  final CentralDmRepository _central = CentralDmRepository();
+  late final PushApi _push = PushApi(session: _session);
 
   /// Keeps the snapshot the push background isolate wakes up into in step with
-  /// the server list. See [_ServerPushApiMixin.refreshWakeIndex].
-  @override
+  /// the server list. See [_refreshWakeIndex].
   final WakeIndexWriter _wakeIndex = WakeIndexWriter();
 
   /// Where the seed is, for the one thing here that needs it: unsealing a
@@ -75,7 +63,7 @@ class ServerCubit extends HydratedCubit<ServerState>
   /// The server a call is about: [serverId] when the caller named one, the
   /// selection when it didn't.
   ///
-  /// Lives on the class because both API mixins resolve through it. Every method
+  /// Lives on the class because the API mixin resolves through it. Every method
   /// a dialog can open for a server other than the current one takes an optional
   /// `serverId` and starts here; the default keeps the call sites that genuinely
   /// mean "this server" — the chat surfaces, the sidebar — reading as they did.
@@ -136,7 +124,7 @@ class ServerCubit extends HydratedCubit<ServerState>
       // Hydration is not a change, so the first snapshot has to be written
       // here or a launch that changes nothing would leave the isolate with
       // whatever an older run left behind.
-      refreshWakeIndex(state);
+      _refreshWakeIndex(state);
     }
   }
 
@@ -147,13 +135,50 @@ class ServerCubit extends HydratedCubit<ServerState>
   /// FCM hands the token over asynchronously and replaces it whenever it
   /// pleases, so registration is driven by the token rather than by startup —
   /// a stale one is a phone that has gone quiet without anyone noticing.
-  void _onPushToken() => unawaited(registerPushDevices());
+  void _onPushToken() => unawaited(_push.registerPushDevices());
+
+  /// Leave the push background isolate a snapshot of the server list.
+  ///
+  /// It is woken into a process that shares nothing with this one — no cubits,
+  /// no hydrated storage — and cannot ask which servers this device is on. So
+  /// the app writes it down. Only the fields a wake actually reads, and only
+  /// when one of them has changed: the state emits on every token refresh and
+  /// every selection, and neither is news to a sleeping isolate.
+  ///
+  /// Takes the state rather than reading it: `onChange` runs *before* the new
+  /// state is installed, so the field would still hold the old list.
+  void _refreshWakeIndex(ServerState current) {
+    if (!PushService.isSupported) return;
+    unawaited(
+      _wakeIndex.update(
+        WakeIndex(
+          servers: [
+            for (final server in current.servers)
+              if (server.user != null)
+                WakeServer(
+                  id: server.id,
+                  name: server.name,
+                  supabaseUrl: server.supabaseUrl,
+                  anonKey: server.supabaseKey ?? '',
+                  userId: server.user!.id,
+                  username: server.user!.username,
+                  keyVersion: server.keyVersion,
+                  channels: {
+                    for (final channel in server.channels)
+                      channel.id: channel.name,
+                  },
+                ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   void onChange(Change<ServerState> change) {
     super.onChange(change);
     _publishSession(change.nextState);
-    refreshWakeIndex(change.nextState);
+    _refreshWakeIndex(change.nextState);
   }
 
   void _publishSession(ServerState state) => _session.publish(
