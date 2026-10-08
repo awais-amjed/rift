@@ -169,7 +169,7 @@ mixin _DmCallWatchMixin on Cubit<DmCallState>, _DmCallActionsMixin {
     if (active == null) return;
     final server = _server(active.serverId);
     if (server == null) return;
-    final response = await _serverCubit.dmCallAlive(server, active.call.id);
+    final response = await _calls.dmCallAlive(server, active.call.id);
     // Not alive is the server saying the call is over — the doorbell that
     // said so went by unheard. Ask, and the answer ends it here too.
     if (response.success && response.data == false) _ask(active.serverId);

@@ -9,6 +9,7 @@ part of 'dm_cubit.dart';
 /// call itself was never anywhere it could read.
 mixin _DmCallLogMixin on Cubit<DmState> {
   ServerCubit get _serverCubit;
+  DmCallsApi get _calls;
 
   /// What the last read was for, so a state that moved nothing the log
   /// depends on — a keystroke's typing indicator, a reaction — asks nothing.
@@ -35,7 +36,7 @@ mixin _DmCallLogMixin on Cubit<DmState> {
     final since = state.hasMoreHistory
         ? state.messages.firstOrNull?.sentAt
         : null;
-    final response = await _serverCubit.dmCallLog(
+    final response = await _calls.dmCallLog(
       server,
       peerId: peerId,
       since: since,

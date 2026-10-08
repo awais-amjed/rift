@@ -5,6 +5,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rift_crypto/rift_crypto.dart';
 
+import '../../../data/apis/dm_calls_api.dart';
 import '../../../data/classes/dm_call.dart';
 import '../../../data/classes/dm_call_place.dart';
 import '../../../data/classes/notice.dart';
@@ -13,6 +14,7 @@ import '../../../data/enums/app_sound.dart';
 import '../../../data/enums/dm_call_outcome.dart';
 import '../../../data/enums/notification_level.dart';
 import '../../../data/participant_identity.dart';
+import '../../../data/repositories/session_repository.dart';
 import '../../helper_methods.dart';
 import '../../services/before_quit.dart';
 import '../../services/call_refusal.dart';
@@ -53,6 +55,8 @@ class DmCallCubit extends Cubit<DmCallState>
   @override
   final ServerCubit _serverCubit;
   @override
+  final DmCallsApi _calls;
+  @override
   final LiveKitCubit _livekit;
   @override
   final VaultCubit _vault;
@@ -84,11 +88,13 @@ class DmCallCubit extends Cubit<DmCallState>
 
   DmCallCubit({
     required ServerCubit serverCubit,
+    required SessionRepository session,
     required LiveKitCubit livekitCubit,
     required VaultCubit vaultCubit,
     required AppCubit appCubit,
     CryptoRepository? crypto,
   }) : _serverCubit = serverCubit,
+       _calls = DmCallsApi(session: session),
        _livekit = livekitCubit,
        _vault = vaultCubit,
        _app = appCubit,
@@ -183,7 +189,7 @@ class DmCallCubit extends Cubit<DmCallState>
       for (final entry in state.incoming)
         if (entry.serverId == serverId) entry.call.id,
     ];
-    final response = await _serverCubit.myDmCalls(server, known: known);
+    final response = await _calls.myDmCalls(server, known: known);
     if (!response.success || isClosed) return;
 
     final before = state.incoming;

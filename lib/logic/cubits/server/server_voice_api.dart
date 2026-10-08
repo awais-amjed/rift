@@ -10,6 +10,11 @@ mixin _ServerVoiceApiMixin on Cubit<ServerState> {
     Future<APIResponse> Function(String token) call,
   );
 
+  Future<APIResponse> _callFor(
+    Server server,
+    Future<APIResponse> Function(String token) call,
+  );
+
   /// Returns a LiveKit JWT for [channelId]. Token refresh is handled automatically.
   ///
   /// Measures which of the server's LiveKit nodes is nearest first, and sends
@@ -60,6 +65,38 @@ mixin _ServerVoiceApiMixin on Cubit<ServerState> {
     if (!response.success && server != null) {
       _regionProbe.invalidate(server.id);
     }
+    return response;
+  }
+
+  /// A LiveKit token for [callId]'s room on [server], measured the same way a
+  /// channel's is: the nearest region is suggested, and forgotten again if
+  /// the join is refused, so a region that died is not suggested twice.
+  ///
+  /// Named rather than selected: a call rings on whichever server it was
+  /// placed on, and the person answering may be looking at another.
+  Future<APIResponse> getDmCallToken(
+    Server server,
+    String callId, {
+    bool screenShare = false,
+    bool soundShare = false,
+  }) async {
+    final preferred = await _regionProbe.nearest(
+      server.id,
+      server.livekitNodes,
+      load: state.regionLoad,
+    );
+    final response = await _callFor(
+      server,
+      (token) => _repository.getDmCallToken(
+        server.supabaseUrl,
+        callId,
+        screenShare: screenShare,
+        soundShare: soundShare,
+        preferredNodeId: preferred,
+        bearerToken: token,
+      ),
+    );
+    if (!response.success) _regionProbe.invalidate(server.id);
     return response;
   }
 

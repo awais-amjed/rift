@@ -139,6 +139,7 @@ class AppProviders extends StatelessWidget {
           lazy: false,
           create: (context) => DmCallCubit(
             serverCubit: context.read<ServerCubit>(),
+            session: session,
             livekitCubit: context.read<LiveKitCubit>(),
             vaultCubit: vaultCubit,
             appCubit: appCubit,
