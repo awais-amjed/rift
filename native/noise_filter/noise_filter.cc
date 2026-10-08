@@ -1,5 +1,6 @@
 #include "noise_filter.h"
 
+#include <algorithm>
 #include <atomic>
 #include <cmath>
 
@@ -74,6 +75,14 @@ class NoiseProcessing final
                 std::memory_order_release);
   }
 
+  // Push-to-talk with the key up: what the mic hears goes out as silence,
+  // while the device keeps running. libwebrtc stops the device whenever the
+  // track is muted, and starting it again on every press lost the first part
+  // of what was said.
+  void SetSilenced(bool silenced) {
+    silenced_.store(silenced, std::memory_order_release);
+  }
+
   void Initialize(int, int) override { restart_ = true; }
 
   void Reset(int) override { restart_ = true; }
@@ -83,6 +92,7 @@ class NoiseProcessing final
   void Process(int, int num_frames, int, float* buffer) override {
     Denoise(num_frames, buffer);
     Boost(num_frames, buffer);
+    Gate(num_frames, buffer);
   }
 
  private:
@@ -140,6 +150,22 @@ class NoiseProcessing final
     }
   }
 
+  // Last, so nothing after it can bring the voice back. The model before it
+  // keeps running, so it has already settled on the room when the key goes
+  // down. A change fades over one frame rather than clicking.
+  void Gate(int num_frames, float* buffer) {
+    const float target =
+        silenced_.load(std::memory_order_acquire) ? 0.0f : 1.0f;
+    if (target == open_) {
+      if (target == 0.0f) std::fill(buffer, buffer + num_frames, 0.0f);
+      return;
+    }
+    for (int i = 0; i < num_frames; ++i) {
+      buffer[i] *= open_ + (target - open_) * (i + 1) / num_frames;
+    }
+    open_ = target;
+  }
+
   void RunModel(float* frame, DeepFilterProcess deep_filter) {
     if (running_ == kRnnoise) {
       rnnoise_process_frame(rnnoise_, frame, frame);
@@ -178,6 +204,8 @@ class NoiseProcessing final
   float envelope_ = 0;
   float release_ = 0;
   int release_frames_ = 0;
+  float open_ = 1.0f;
+  std::atomic<bool> silenced_{false};
   std::atomic<float> gain_{1.0f};
   std::atomic<int32_t> model_{kNone};
   std::atomic<DeepFilterProcess> deep_filter_process_{nullptr};
@@ -228,6 +256,12 @@ void rift_noise_filter_set_model(int32_t model) {
 
 void rift_noise_filter_set_gain(float gain) {
   if (rift::g_processing != nullptr) rift::g_processing->SetGain(gain);
+}
+
+void rift_noise_filter_set_silenced(int32_t silenced) {
+  if (rift::g_processing != nullptr) {
+    rift::g_processing->SetSilenced(silenced != 0);
+  }
 }
 
 void rift_noise_filter_set_deep_filter(void* process, void* reset) {

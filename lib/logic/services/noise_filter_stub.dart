@@ -17,6 +17,10 @@ abstract final class NoiseFilter {
 
   static void setGain(double gain) {}
 
+  static bool get canSilence => false;
+
+  static void setSilenced(bool silenced) {}
+
   static Future<void> forMicTest(
     NoiseSuppression mode, {
     required bool autoGain,

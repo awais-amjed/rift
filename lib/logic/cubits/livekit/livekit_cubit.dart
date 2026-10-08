@@ -312,7 +312,10 @@ class LiveKitCubit extends Cubit<LiveKitState>
         // `update_interval` is a latency floor you'd feel on your own
         // indicator.
         isSpeaking: p is LocalParticipant ? localIsSpeaking : p.isSpeaking,
-        isMicrophoneEnabled: p.isMicrophoneEnabled(),
+        isMicrophoneEnabled: VoiceAttributes.isMicOpen(
+          p,
+          pushToTalkIdle: p is LocalParticipant ? _pushToTalkIdle : null,
+        ),
         isCameraEnabled: p.isCameraEnabled(),
         isLocal: p is LocalParticipant,
         isScreenshare: ParticipantIdentity.isScreenshare(p.identity),
@@ -437,22 +440,34 @@ class LiveKitCubit extends Cubit<LiveKitState>
   }
 
   @override
-  void _reviveCaptureIfTransmitting() {
-    if (_shouldTransmitMic()) unawaited(_syncMicrophoneTransmission());
+  void _reviveCaptureIfCapturing() {
+    if (_shouldCaptureMic()) unawaited(_syncMicrophoneTransmission());
   }
 
   @override
   bool _shouldTransmitMic({bool? micEnabled}) {
+    if (!_shouldCaptureMic(micEnabled: micEnabled)) return false;
+    if (!_appCubit.state.pushToTalkEnabled) return true;
+    return state.isPushToTalkPressed;
+  }
+
+  /// Whether the microphone should be open: transmitting, or under
+  /// push-to-talk waiting for the key.
+  ///
+  /// Push-to-talk keeps the device running between presses and only mutes
+  /// the track. Stopping it on every release meant every press opened the
+  /// device again, and the first part of what was said went nowhere while it
+  /// started. Muting by hand, deafening or being muted by a moderator still
+  /// let go of the device.
+  @override
+  bool _shouldCaptureMic({bool? micEnabled}) {
     // `micEnabled` overrides only the user's own toggle, for the connect path
     // where the stored preference is passed in before it reaches state. Their
     // own deafen and any moderation always come from state.
     if (!(micEnabled ?? state.isMicEnabled)) return false;
     if (state.isDeafenedEffective || state.isServerMuted) return false;
-    final pttEnabled = _appCubit.state.pushToTalkEnabled;
-    final hasKeybind = _appCubit.state.pushToTalkKeyId != null;
-    if (!pttEnabled) return true;
-    if (!hasKeybind) return false;
-    return state.isPushToTalkPressed;
+    final settings = _appCubit.state;
+    return !settings.pushToTalkEnabled || settings.pushToTalkKeyId != null;
   }
 
   /// Plays the push-to-talk tone for [on].
@@ -489,28 +504,94 @@ class LiveKitCubit extends Cubit<LiveKitState>
   Future<void> _applyMicrophoneTransmission({
     bool syncParticipants = false,
   }) async {
-    final room = state.room;
-    if (room == null) return;
-    final shouldTransmit = _shouldTransmitMic();
-    final local = room.localParticipant;
+    final local = state.room?.localParticipant;
+    if (local == null) return;
+    final transmit = _shouldTransmitMic();
+    final capture = _shouldCaptureMic();
+    // Set before any track is touched, so one published live below never
+    // carries a moment of the room — see [_pushToTalkIdle].
+    final silenced = capture && !transmit && NoiseFilter.canSilence;
+    NoiseFilter.setSilenced(silenced);
+    if (silenced != _pushToTalkIdle) {
+      _pushToTalkIdle = silenced;
+      unawaited(_publishSelfState());
+    }
     // A mic whose capture may have died under it is published afresh rather
     // than unmuted — see [_CaptureReviveMixin].
-    if (shouldTransmit && _takeCaptureRevive()) {
-      final published = local?.getTrackPublicationBySource(
+    if (capture && _takeCaptureRevive()) {
+      final published = local.getTrackPublicationBySource(
         TrackSource.microphone,
       );
-      if (published != null) await local!.removePublishedTrack(published.sid);
+      if (published != null) await local.removePublishedTrack(published.sid);
     }
-    // Pass the current capture options so a fresh mic track (created on
-    // unmute) always picks up the latest noise-suppression / echo / AGC
-    // settings, not the ones frozen into RoomOptions at connect time.
-    await local?.setMicrophoneEnabled(
-      shouldTransmit,
-      audioCaptureOptions: _buildAudioCaptureOptions(),
-    );
+    final published = local.getTrackPublicationBySource(TrackSource.microphone);
+    final track = published?.track;
+    final running = track != null && track.isActive;
+    // Pass the current capture options so a fresh mic track always picks up
+    // the latest noise-suppression / echo / AGC settings, not the ones frozen
+    // into RoomOptions at connect time.
+    final options = _buildAudioCaptureOptions();
+    if (transmit || silenced) {
+      // A running track is only switched back on; a stopped one is restarted.
+      await local.setMicrophoneEnabled(
+        true,
+        audioCaptureOptions: options.copyWith(stopAudioCaptureOnMute: !running),
+      );
+    } else if (capture && !running) {
+      // Unmuting would restart a stopped track switched on, and it would be
+      // heard before it could be muted again. A new one is published instead.
+      if (published != null) await local.removePublishedTrack(published.sid);
+      await _publishMutedMicrophone(local, options);
+    } else {
+      await local.setMicrophoneEnabled(
+        false,
+        audioCaptureOptions: options.copyWith(stopAudioCaptureOnMute: !capture),
+      );
+      // Muting a track that is already muted does nothing, so one left
+      // running for push-to-talk is stopped here.
+      if (!capture && running) await track.stop();
+    }
     // Re-bind the level monitor to the (possibly new) mic track.
     await _updateVoiceActivityMonitor();
     if (syncParticipants) _syncParticipants();
+  }
+
+  /// Push-to-talk with the key up, sending silence through the runner's
+  /// processing rather than muting the track.
+  ///
+  /// libwebrtc stops the microphone whenever every track sending it is muted,
+  /// so muting on release meant opening the device again on every press, and
+  /// the start of what was said was lost while it did — slowest on Windows,
+  /// whose echo canceller starts with it. Here the track stays live, the
+  /// device keeps running, and the key only switches the silence
+  /// ([NoiseFilter.setSilenced]). LiveKit then sees an unmuted track, so the
+  /// roster learns the mic is closed from an attribute instead
+  /// ([VoiceAttributes.pushToTalkIdleKey]).
+  ///
+  /// Only where the runner can do it (Linux and Windows); elsewhere the key
+  /// mutes the track as before.
+  bool _pushToTalkIdle = false;
+
+  @override
+  void _resetMicSilence() {
+    _pushToTalkIdle = false;
+    NoiseFilter.setSilenced(false);
+  }
+
+  /// Publishes the mic muted with its capture running, for push-to-talk
+  /// between presses where the runner cannot send silence.
+  ///
+  /// Started and muted before it is published, so it goes out muted and
+  /// never carries a moment of sound: muting switches off only a track that
+  /// has started.
+  Future<void> _publishMutedMicrophone(
+    LocalParticipant local,
+    AudioCaptureOptions options,
+  ) async {
+    final track = await LocalAudioTrack.create(options);
+    await track.start();
+    await track.mute(stopOnMute: false);
+    await local.publishAudioTrack(track);
   }
 
   /// Builds mic capture options from the persisted audio-processing settings
@@ -573,6 +654,9 @@ class LiveKitCubit extends Cubit<LiveKitState>
       track.currentOptions = _buildAudioCaptureOptions();
     }
     await local?.setMicrophoneEnabled(false);
+    // A track kept running for push-to-talk was already muted, so the line
+    // above left it running on the old options.
+    if (track != null && track.isActive) await track.stop();
     await _applyMicrophoneTransmission();
   });
 
@@ -601,6 +685,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
         VoiceAttributes.forSelf(
           deafened: state.isSelfDeafened,
           watching: state.subscribedScreenshares,
+          pushToTalkIdle: _pushToTalkIdle,
         ),
       );
     } catch (e) {

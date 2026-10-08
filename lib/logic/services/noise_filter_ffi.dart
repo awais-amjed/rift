@@ -64,6 +64,15 @@ abstract final class NoiseFilter {
     );
   }
 
+  /// Whether the runner can send silence while the microphone keeps running:
+  /// [setSilenced]. False on a runner built before it could.
+  static bool get canSilence => _native?.setSilenced != null;
+
+  /// Push-to-talk with the key up: everything the microphone hears goes out
+  /// as silence from the next 10 ms, while the device keeps running.
+  static void setSilenced(bool silenced) =>
+      _native?.setSilenced?.call(silenced ? 1 : 0);
+
   /// Puts [mode]'s model on the microphone, or takes it off. DeepFilterNet
   /// loads first, about a quarter of a second, with no model on meanwhile;
   /// if it cannot load, RNNoise stands in.
@@ -141,6 +150,9 @@ class _NativeFilter {
   final void Function(double) setGain;
   final void Function(Pointer<Void>, Pointer<Void>) _setDeepFilter;
 
+  /// Null from a runner built before it exported one.
+  final void Function(int)? setSilenced;
+
   /// The runner's RNNoise for the mic test, by address; null from a runner
   /// built before it exported them.
   final ({int create, int process, int destroy})? rnnoise;
@@ -149,6 +161,7 @@ class _NativeFilter {
     this.setModel,
     this.setGain,
     this._setDeepFilter,
+    this.setSilenced,
     this.rnnoise,
   );
 
@@ -175,6 +188,11 @@ class _NativeFilter {
           Void Function(Pointer<Void>, Pointer<Void>),
           void Function(Pointer<Void>, Pointer<Void>)
         >('rift_noise_filter_set_deep_filter'),
+        exe.providesSymbol('rift_noise_filter_set_silenced')
+            ? exe.lookupFunction<Void Function(Int32), void Function(int)>(
+                'rift_noise_filter_set_silenced',
+              )
+            : null,
         _rnnoiseIn(exe),
       );
     } catch (e) {

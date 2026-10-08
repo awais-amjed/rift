@@ -22,6 +22,7 @@ mixin _LiveKitLeaveMixin on Cubit<LiveKitState>, _E2EEMixin {
   WatchResume get _watchResume;
   Future<void> _stopVoiceActivityMonitor();
   void _resetCaptureRevive();
+  void _resetMicSilence();
 
   /// Disconnects from the current room.
   ///
@@ -107,6 +108,7 @@ mixin _LiveKitLeaveMixin on Cubit<LiveKitState>, _E2EEMixin {
     // disconnecting both land here, so two teardowns can otherwise overlap and
     // disconnect and dispose the same Room twice over.
     _resetCaptureRevive();
+    _resetMicSilence();
     final room = state.room;
     if (room == null) {
       await _stopVoiceActivityMonitor();

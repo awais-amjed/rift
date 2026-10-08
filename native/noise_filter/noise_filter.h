@@ -39,6 +39,10 @@ RIFT_NOISE_FILTER_EXPORT void rift_noise_filter_set_model(int32_t model);
 // is, below 1 quieter, above 1 louder with the peaks limited rather than cut.
 RIFT_NOISE_FILTER_EXPORT void rift_noise_filter_set_gain(float gain);
 
+// Push-to-talk with the key up: 1 sends silence from the next 10 ms while the
+// microphone keeps running, 0 sends it again. Faded over one frame.
+RIFT_NOISE_FILTER_EXPORT void rift_noise_filter_set_silenced(int32_t silenced);
+
 // Where DeepFilterNet is, once the Rust library has loaded it: its
 // rift_deep_filter_process and rift_deep_filter_reset (rust/src/deep_filter.rs).
 // The runner does not link that library, so Dart passes the addresses on.

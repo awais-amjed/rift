@@ -17,13 +17,12 @@ part of 'livekit_cubit.dart';
 /// What does bring it back is what a join does — publishing the mic afresh,
 /// which makes WebRTC start playout and then recording in the order the echo
 /// canceller needs. So once the last remote audio is gone, the mic is marked
-/// for that, and republished: straight away if it is transmitting (after
-/// [K.captureReviveDelay], so WebRTC has stopped playout first), otherwise the
-/// next time it starts to.
+/// for that, and republished: straight away if it is open — transmitting, or
+/// waiting on push-to-talk (after [K.captureReviveDelay], so WebRTC has
+/// stopped playout first) — otherwise the next time it opens.
 mixin _CaptureReviveMixin on Cubit<LiveKitState> {
-  /// Republishes the mic if it is transmitting; the next unmute does it
-  /// otherwise.
-  void _reviveCaptureIfTransmitting();
+  /// Republishes the mic if it is open; the next unmute does it otherwise.
+  void _reviveCaptureIfCapturing();
 
   /// Whether any remote audio has been received since the mic was last
   /// published — without it, there is no playout for WebRTC to stop.
@@ -58,7 +57,7 @@ mixin _CaptureReviveMixin on Cubit<LiveKitState> {
       if (room == null || _remoteAudioCount(room) > 0) return;
       _heardRemoteAudio = false;
       _captureMayBeDead = true;
-      _reviveCaptureIfTransmitting();
+      _reviveCaptureIfCapturing();
     });
   }
 

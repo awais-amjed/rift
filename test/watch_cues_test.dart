@@ -80,12 +80,7 @@ void main() {
       );
       // Anybody else opening that phone's stream is an audience.
       expect(
-        cues(
-          {},
-          {theirVoice},
-          watchedHere: {theirVoice},
-          live: {theirVoice},
-        ),
+        cues({}, {theirVoice}, watchedHere: {theirVoice}, live: {theirVoice}),
         [WatchCue.started],
       );
     });
@@ -103,12 +98,31 @@ void main() {
       final attrs = VoiceAttributes.forSelf(
         deafened: false,
         watching: {theirStream, myStream},
+        pushToTalkIdle: false,
       );
       expect(VoiceAttributes.watchingOf(attrs), {myStream, theirStream});
     });
 
+    test('says whether a push-to-talk key is up', () {
+      bool idle(bool up) => VoiceAttributes.isPushToTalkIdle(
+        VoiceAttributes.forSelf(
+          deafened: false,
+          watching: {},
+          pushToTalkIdle: up,
+        ),
+      );
+      expect(idle(true), isTrue);
+      expect(idle(false), isFalse);
+      // A client from before the attribute: its track's own state stands.
+      expect(VoiceAttributes.isPushToTalkIdle(const {}), isFalse);
+    });
+
     test('is always published, even empty', () {
-      final attrs = VoiceAttributes.forSelf(deafened: false, watching: {});
+      final attrs = VoiceAttributes.forSelf(
+        deafened: false,
+        watching: {},
+        pushToTalkIdle: false,
+      );
       expect(attrs.containsKey(VoiceAttributes.watchingKey), isTrue);
       expect(VoiceAttributes.watchingOf(attrs), isEmpty);
     });

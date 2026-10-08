@@ -11,6 +11,7 @@ import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/services/participant_roster.dart';
 import '../../../../../logic/services/participant_video.dart';
+import '../../../../../logic/services/voice_attributes.dart';
 import '../../../../common/context_menu_region.dart';
 import '../../../../theme/theme_context.dart';
 import '../../sidebar/widgets/participant_context_menu.dart';
@@ -298,7 +299,9 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                       videoTrack: videoTrack,
                       name: name,
                       userId: userId,
-                      isMicEnabled: widget.participant.isMicrophoneEnabled(),
+                      isMicEnabled: VoiceAttributes.isMicOpen(
+                        widget.participant,
+                      ),
                       isMuted: widget.isMuted,
                       isDeafened: isDeafened,
                       isScreenshare: _isScreenshare,
@@ -367,7 +370,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
           isSpeaking: isSpeaking && !widget.isMuted,
           name: name,
           userId: userId,
-          isMicEnabled: widget.participant.isMicrophoneEnabled(),
+          isMicEnabled: VoiceAttributes.isMicOpen(widget.participant),
           isMuted: widget.isMuted,
           isDeafened: isDeafened,
           isScreenshare: _isScreenshare,
