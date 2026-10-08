@@ -7,6 +7,7 @@ part of 'channel_chat_cubit.dart';
 /// Sending into a channel, and fetching attachment bytes back for rendering.
 mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
   ServerCubit get _serverCubit;
+  ChannelMessagesApi get _channelMessages;
   VoiceBotsApi get _voiceBots;
   MembersApi get _members;
   SavedConversation get _saved;
@@ -272,7 +273,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
         if (summoned.success) _ringKeySweepDoorbell();
       }
 
-      final response = await _serverCubit.sendChatMessage(
+      final response = await _channelMessages.sendChatMessage(
         channelId: channelId,
         envelope: envelope.toJson(),
         mentions: mentioned,

@@ -11,6 +11,7 @@ part of 'channel_chat_cubit.dart';
 /// ARCHITECTURE.md §4, *Three things a client can do with a row*.
 mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
   ServerCubit get _serverCubit;
+  ChannelMessagesApi get _channelMessages;
   MembersApi get _members;
   CryptoRepository get _crypto;
   Map<int, Uint8List> get _keys;

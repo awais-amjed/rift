@@ -10,6 +10,7 @@ part of 'channel_chat_cubit.dart';
 /// changes whether a message was encrypted, in either direction.
 mixin _ChannelChatEditMixin on Cubit<ChannelChatState> {
   ServerCubit get _serverCubit;
+  ChannelMessagesApi get _channelMessages;
   VaultCubit get _vaultCubit;
   CryptoRepository get _crypto;
   Map<int, Uint8List> get _keys;
@@ -61,8 +62,7 @@ mixin _ChannelChatEditMixin on Cubit<ChannelChatState> {
               keyVersion: _currentKeyVersion,
             );
 
-      final response = await _serverCubit.editChatMessage(
-        channelId: channelId,
+      final response = await _channelMessages.editChatMessage(
         messageId: id,
         envelope: envelope.toJson(),
       );
@@ -115,10 +115,7 @@ mixin _ChannelChatEditMixin on Cubit<ChannelChatState> {
     final doomed = state.messages.where((m) => m.id == messageId).firstOrNull;
 
     try {
-      final response = await _serverCubit.deleteChatMessage(
-        channelId: channelId,
-        messageId: id,
-      );
+      final response = await _channelMessages.deleteChatMessage(messageId: id);
       if (state.channelId != channelId) return;
 
       if (!response.success) {

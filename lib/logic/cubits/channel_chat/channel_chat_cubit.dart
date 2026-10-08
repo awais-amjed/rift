@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rift_crypto/rift_crypto.dart';
 
 import '../../../data/apis/channel_keys_api.dart';
+import '../../../data/apis/channel_messages_api.dart';
 import '../../../data/apis/members_api.dart';
 import '../../../data/apis/pins_polls_api.dart';
 import '../../../data/apis/reactions_api.dart';
@@ -127,6 +128,9 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
 
   @override
   final ReactionsApi _reactions;
+
+  @override
+  final ChannelMessagesApi _channelMessages;
 
   /// What `@names` in the open channel resolve to, and which have been asked.
   ///
@@ -261,6 +265,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
        _pinsPolls = PinsPollsApi(session: session),
        _channelKeys = ChannelKeysApi(session: session),
        _reactions = ReactionsApi(session: session),
+       _channelMessages = ChannelMessagesApi(session: session),
        _vaultCubit = vaultCubit,
        _crypto = crypto ?? CryptoRepository(),
        _messageCache = messageCache ?? MessageCache.instance,

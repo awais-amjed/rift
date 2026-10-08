@@ -91,7 +91,7 @@ mixin _ChannelChatSavedMixin on Cubit<ChannelChatState>, _ChannelChatRowsMixin {
         selected?.supabaseUrl != server.supabaseUrl) {
       return null;
     }
-    final response = await _serverCubit.listChatMessages(
+    final response = await _channelMessages.listChatMessages(
       channelId: channelId,
       limit: ChatMessageOps.pageSize,
     );

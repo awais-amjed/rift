@@ -9,6 +9,7 @@ part of 'channel_chat_cubit.dart';
 /// under its budget (CODE_STYLE §1).
 mixin _ChannelChatPanelsMixin on Cubit<ChannelChatState> {
   ServerCubit get _serverCubit;
+  ChannelMessagesApi get _channelMessages;
   VaultCubit get _vaultCubit;
   CryptoRepository get _crypto;
 
@@ -59,7 +60,7 @@ mixin _ChannelChatPanelsMixin on Cubit<ChannelChatState> {
       contextId: channelId,
     );
 
-    final response = await _serverCubit.sendPanelAction(
+    final response = await _channelMessages.sendPanelAction(
       channelId: channelId,
       envelope: envelope.toJson(),
       toBot: botId,

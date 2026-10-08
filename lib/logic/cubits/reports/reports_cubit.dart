@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../data/apis/channel_messages_api.dart';
 import '../../../data/apis/moderation_api.dart';
 import '../../../data/classes/api_response.dart';
 import '../../../data/classes/chat_message.dart';
@@ -39,6 +40,7 @@ part 'reports_state.dart';
 class ReportsCubit extends Cubit<ReportsState> {
   final ServerCubit _serverCubit;
   final ModerationApi _moderation;
+  final ChannelMessagesApi _messages;
   final ReportedMessageOpener _opener;
 
   /// The one server this watches, or null to follow the selection.
@@ -57,6 +59,7 @@ class ReportsCubit extends Cubit<ReportsState> {
     String? serverId,
   }) : _serverCubit = serverCubit,
        _moderation = ModerationApi(session: session),
+       _messages = ChannelMessagesApi(session: session),
        _fixedServerId = serverId,
        _opener = ReportedMessageOpener(
          session: session,
@@ -173,8 +176,7 @@ class ReportsCubit extends Cubit<ReportsState> {
     final reported = entry.report.message;
     if (reported == null) return APIResponse.error('Not a message report');
     final serverId = _watchingServerId;
-    final deleted = await _serverCubit.deleteChatMessage(
-      channelId: reported.channelId,
+    final deleted = await _messages.deleteChatMessage(
       messageId: reported.id,
       serverId: serverId,
     );

@@ -46,7 +46,6 @@ part 'server_api.dart';
 part 'server_attachments_api.dart';
 part 'server_bots_api.dart';
 part 'server_channels_api.dart';
-part 'server_chat_api.dart';
 part 'server_crud.dart';
 part 'server_cubit.g.dart';
 part 'server_invites_api.dart';
@@ -74,7 +73,6 @@ class ServerCubit extends HydratedCubit<ServerState>
         _ServerBotsApiMixin,
         _ServerChannelsApiMixin,
         _ServerPrivateChannelsApiMixin,
-        _ServerChatApiMixin,
         _ServerAttachmentsApiMixin,
         _ServerVoiceApiMixin,
         _ServerVoiceRegionsApiMixin,

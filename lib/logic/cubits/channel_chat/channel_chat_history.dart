@@ -20,7 +20,7 @@ mixin _ChannelChatHistoryMixin
   Outbox get _outbox;
 
   Future<void> _fetchLatest(String channelId) async {
-    final response = await _serverCubit.listChatMessages(
+    final response = await _channelMessages.listChatMessages(
       channelId: channelId,
       limit: ChatMessageOps.pageSize,
     );
@@ -54,7 +54,7 @@ mixin _ChannelChatHistoryMixin
     // it would stitch the live end onto a stretch it does not follow.
     if (state.hasNewerHistory) return;
 
-    final response = await _serverCubit.listChatMessages(
+    final response = await _channelMessages.listChatMessages(
       channelId: channelId,
       afterId: ChatMessageOps.latestId(state.messages),
       limit: ChatMessageOps.pageSize,
@@ -98,7 +98,7 @@ mixin _ChannelChatHistoryMixin
     // messages that are not loaded, not at the end of what is.
     if (state.hasNewerHistory) return;
 
-    final response = await _serverCubit.getChatMessage(
+    final response = await _channelMessages.getChatMessage(
       channelId: channelId,
       messageId: id,
     );
@@ -137,7 +137,7 @@ mixin _ChannelChatHistoryMixin
     final id = int.tryParse(messageId);
     if (channelId == null || id == null) return const QuotedMessage.unknown();
 
-    final response = await _serverCubit.getChatMessage(
+    final response = await _channelMessages.getChatMessage(
       channelId: channelId,
       messageId: id,
     );
@@ -173,12 +173,12 @@ mixin _ChannelChatHistoryMixin
     // The message itself comes with the older half: `beforeId` is exclusive,
     // so it is asked for by its own id plus one rather than fetched a third
     // time.
-    final older = await _serverCubit.listChatMessages(
+    final older = await _channelMessages.listChatMessages(
       channelId: channelId,
       beforeId: id + 1,
       limit: ChatMessageOps.windowHalf,
     );
-    final newer = await _serverCubit.listChatMessages(
+    final newer = await _channelMessages.listChatMessages(
       channelId: channelId,
       afterId: id,
       limit: ChatMessageOps.windowHalf,
@@ -235,7 +235,7 @@ mixin _ChannelChatHistoryMixin
     }
     emit(state.copyWith(isLoadingMore: true));
 
-    final response = await _serverCubit.listChatMessages(
+    final response = await _channelMessages.listChatMessages(
       channelId: channelId,
       afterId: ChatMessageOps.latestId(state.messages),
       limit: ChatMessageOps.pageSize,
@@ -290,7 +290,7 @@ mixin _ChannelChatHistoryMixin
     if (channelId == null || id == null) return;
     if (!state.messages.any((m) => m.id == messageId)) return;
 
-    final response = await _serverCubit.getChatMessage(
+    final response = await _channelMessages.getChatMessage(
       channelId: channelId,
       messageId: id,
     );
@@ -332,7 +332,7 @@ mixin _ChannelChatHistoryMixin
     }
     emit(state.copyWith(isLoadingMore: true));
 
-    final response = await _serverCubit.listChatMessages(
+    final response = await _channelMessages.listChatMessages(
       channelId: channelId,
       beforeId: ChatMessageOps.oldestId(state.messages),
       limit: ChatMessageOps.pageSize,

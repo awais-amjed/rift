@@ -10,6 +10,7 @@ part of 'channel_chat_cubit.dart';
 /// anywhere a member can reach, learns who voted for what.
 mixin _ChannelChatPollsMixin on Cubit<ChannelChatState> {
   ServerCubit get _serverCubit;
+  ChannelMessagesApi get _channelMessages;
   PinsPollsApi get _pinsPolls;
   VaultCubit get _vaultCubit;
   CryptoRepository get _crypto;
@@ -68,7 +69,7 @@ mixin _ChannelChatPollsMixin on Cubit<ChannelChatState> {
         multiple: multiple,
         closesAt: DateTime.now().add(duration),
       );
-      final response = await _serverCubit.sendChatMessage(
+      final response = await _channelMessages.sendChatMessage(
         channelId: channelId,
         envelope: envelope.toJson(),
         poll: rules.toJson(),
