@@ -34,7 +34,6 @@ import '../../services/server_import_merge.dart';
 import '../../services/server_realtime.dart';
 
 part 'server_api.dart';
-part 'server_bots_api.dart';
 part 'server_crud.dart';
 part 'server_cubit.g.dart';
 part 'server_ownership_api.dart';
@@ -55,7 +54,6 @@ class ServerCubit extends HydratedCubit<ServerState>
         _ServerSelectionMixin,
         _ServerApiMixin,
         _ServerOwnershipApiMixin,
-        _ServerBotsApiMixin,
         _ServerProfileApiMixin,
         _ServerPushApiMixin {
   /// The session's, so every server's database client is made once.

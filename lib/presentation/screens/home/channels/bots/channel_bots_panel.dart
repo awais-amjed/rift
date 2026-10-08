@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/apis/bot_keys_api.dart';
 import '../../../../../data/apis/members_api.dart';
 import '../../../../../data/classes/channel.dart';
 import '../../../../../data/classes/server_member.dart';
@@ -54,12 +55,14 @@ class _ChannelBotsPanelState extends State<ChannelBotsPanel> {
   }
 
   Future<void> _load() async {
-    final cubit = context.read<ServerCubit>();
-    final members = MembersApi(session: context.read<SessionRepository>());
+    final session = context.read<SessionRepository>();
+    final members = MembersApi(session: session);
     // Every bot, not a page of them: this is a picker, and one that silently
     // left a bot out would be the bug the paged roster exists to fix.
     final bots = await members.listBots();
-    final listeners = await cubit.channelListenerIds(widget.channel.id);
+    final listeners = await BotKeysApi(
+      session: session,
+    ).channelListenerIds(widget.channel.id);
     if (!mounted) return;
 
     setState(() {
@@ -81,7 +84,8 @@ class _ChannelBotsPanelState extends State<ChannelBotsPanel> {
       _busyId = bot.id;
       _error = null;
     });
-    final result = await context.read<ServerCubit>().setBotChannelKey(
+    final keys = BotKeysApi(session: context.read<SessionRepository>());
+    final result = await keys.setBotChannelKey(
       channelId: widget.channel.id,
       botId: bot.id,
       granted: granting,

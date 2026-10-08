@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rift_crypto/rift_crypto.dart';
 
 import '../../../data/apis/attachments_api.dart';
+import '../../../data/apis/bot_keys_api.dart';
 import '../../../data/apis/channel_keys_api.dart';
 import '../../../data/apis/channel_messages_api.dart';
 import '../../../data/apis/members_api.dart';
@@ -111,6 +112,9 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   /// Summoning a bot into a call, and sending it away, from a command.
   @override
   final VoiceBotsApi _voiceBots;
+
+  /// Which bots hold this channel's key, for the header's standing marker.
+  final BotKeysApi _botKeys;
 
   /// The roster, for turning an `@name` into the user id the server rings.
   ///
@@ -265,6 +269,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   }) : _serverCubit = serverCubit,
        _session = session,
        _voiceBots = VoiceBotsApi(session: session),
+       _botKeys = BotKeysApi(session: session),
        _members = MembersApi(session: session),
        _pinsPolls = PinsPollsApi(session: session),
        _channelKeys = ChannelKeysApi(session: session),
@@ -357,7 +362,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
 
     // Who is listening, before the messages. A member is entitled to know a
     // bot holds this channel's key *while reading it*, not a moment after.
-    final listeners = await _serverCubit.channelListeners(channelId);
+    final listeners = await _botKeys.channelListeners(channelId);
     if (_isStale(generation)) return;
     emit(state.copyWith(botListeners: listeners));
 
@@ -561,7 +566,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   Future<void> refreshBotListeners() async {
     final channelId = state.channelId;
     if (channelId == null) return;
-    final listeners = await _serverCubit.channelListeners(channelId);
+    final listeners = await _botKeys.channelListeners(channelId);
     if (isClosed || state.channelId != channelId) return;
     emit(state.copyWith(botListeners: listeners));
   }
