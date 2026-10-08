@@ -12,6 +12,9 @@ overview, so read it before touching vault, auth, backup or messaging code, and 
 `rift-self-host` for an endpoint.
 **`CODE_STYLE.md` covers file size budgets, one-widget-per-file, extracting shared logic, and
 central constants — read it before adding to an existing file or copying a block of code.**
+**`BEST_PRACTICES.md` covers where state lives and how it moves — one source of truth, app vs
+widget state, cubits that need each other, state equality — read it before adding a cubit,
+a fetch, or state to a widget.**
 
 ## Layout
 
@@ -71,8 +74,10 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   `server_crud.dart` / `server_selection.dart` / `server_api.dart`, each defining
   `mixin _ServerCrudMixin on Cubit<ServerState>` with abstract getters for shared dependencies.
   Follow this pattern instead of letting a cubit file grow past a few hundred lines.
-- Cross-cubit dependencies are injected after construction via an explicit setter
-  (`injectVaultCubit(...)`) to avoid circular construction — not via service locators.
+- Existing cubits take others through their constructors, or after construction through
+  an explicit setter (`injectVaultCubit(...)`) where construction would be circular — never
+  via service locators. Don't add new ones: share a repository stream or bridge with a
+  `BlocListener` (`BEST_PRACTICES.md` §3).
 - Cubits never do I/O directly; they call repositories (`ServerRepository`, `CryptoRepository`,
   `SecureStorageRepository`, ...). Repositories never emit state.
 
