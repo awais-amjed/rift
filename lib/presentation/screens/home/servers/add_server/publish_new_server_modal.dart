@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/apis/invites_api.dart';
+import '../../../../../data/apis/server_api.dart';
 import '../../../../../data/classes/directory_tags.dart';
 import '../../../../../data/classes/public_server.dart';
 import '../../../../../data/constants.dart';
@@ -85,7 +86,8 @@ class _PublishNewServerModalState extends State<PublishNewServerModal> {
   Future<void> _publish() async {
     final server = context.read<ServerCubit>().state.selectedServer;
     if (server == null) return;
-    final invites = InvitesApi(session: context.read<SessionRepository>());
+    final session = context.read<SessionRepository>();
+    final invites = InvitesApi(session: session);
 
     setState(() {
       _publishing = true;
@@ -96,9 +98,9 @@ class _PublishNewServerModalState extends State<PublishNewServerModal> {
     // Central redeems it against the server's own domain, because it has no
     // other way to tell an administrator from any other member — see the
     // publish_server edge function on central.
-    final proof = await context.read<ServerCubit>().listingToken(
-      serverId: server.id,
-    );
+    final proof = await ServerApi(
+      session: session,
+    ).listingToken(serverId: server.id);
     if (!mounted) return;
     if (proof.token == null) {
       setState(() {

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/apis/server_api.dart';
 import '../../../../../data/constants.dart';
-import '../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../data/repositories/session_repository.dart';
 import '../../../../../logic/services/open_link.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
@@ -82,14 +83,15 @@ class _CreateServerModalState extends State<CreateServerModal> {
 
     final supabaseUrl = _supabaseUrlCtrl.text.trim();
 
-    final response = await context.read<ServerCubit>().createServer(
-      supabaseUrl: supabaseUrl,
-      serviceKey: _setupSecretCtrl.text.trim(),
-      name: _nameCtrl.text.trim(),
-      livekitUrl: _livekitUrlCtrl.text.trim(),
-      livekitApiKey: _apiKeyCtrl.text.trim(),
-      livekitSecretKey: _secretKeyCtrl.text.trim(),
-    );
+    final response = await ServerApi(session: context.read<SessionRepository>())
+        .createServer(
+          supabaseUrl: supabaseUrl,
+          serviceKey: _setupSecretCtrl.text.trim(),
+          name: _nameCtrl.text.trim(),
+          livekitUrl: _livekitUrlCtrl.text.trim(),
+          livekitApiKey: _apiKeyCtrl.text.trim(),
+          livekitSecretKey: _secretKeyCtrl.text.trim(),
+        );
 
     if (!mounted) return;
 

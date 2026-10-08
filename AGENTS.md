@@ -26,7 +26,7 @@ lib/
     repositories/ # All external I/O: HTTP, Supabase, crypto, secure storage
     apis/         # One feature's calls to a server (SoundboardApi): which server,
                   # its token and re-login through SessionRepository, and the
-                  # refusals put into words. What ServerCubit's API mixins did
+                  # refusals put into words. ServerCubit makes none of them
     constants.dart# `K` class — layout constants (sizes, paddings)
   logic/
     cubits/       # One folder per feature: foo/foo_cubit.dart + foo_state.dart
@@ -75,7 +75,7 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
 - Clearing a nullable field goes through an explicit flag param in `copyWith`
   (e.g. `copyWith(clearPushToTalkKeybind: true)`), never `null`-means-clear.
 - **Large cubits are split into `part` files with private mixins**: `server_cubit.dart` +
-  `server_crud.dart` / `server_selection.dart` / `server_api.dart`, each defining
+  `server_crud.dart` / `server_selection.dart` / `server_details.dart`, each defining
   `mixin _ServerCrudMixin on Cubit<ServerState>` with abstract getters for shared dependencies.
   Follow this pattern instead of letting a cubit file grow past a few hundred lines.
 - Existing cubits take others through their constructors, or after construction through
@@ -102,16 +102,15 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   `callFor(server, …)`, the same thing for a **named** server. A feature's calls live in
   its own class in `data/apis/` built on the repository, which the feature's cubit takes
   instead of `ServerCubit`. The class holds nothing, so a widget that makes one of its
-  calls builds it from `context.read<SessionRepository>()`; the API mixins still inside
-  `ServerCubit` reach the same method as `_callFor`, and are moving out a feature at a time. The
-  cubit publishes its server list into the repository on every change and writes back the
+  calls builds it from `context.read<SessionRepository>()`. A write other members must see at
+  once is followed by the caller ringing `ServerEventsCubit.notifyServerChanged`, since the
+  class cannot reach a cubit. `ServerCubit` publishes its server list into the repository on every change and writes back the
   token and details each re-login brings (`SessionRepository.logins`), so neither it nor the
   vault holds the other. A write that moves something the list holds — a role change moves
   your own permissions — ends with `SessionRepository.refreshDetails`, and the cubit lands
   the re-read from `SessionRepository.details` before the call answers. An API call a dialog can open for a server other than the current one takes an
-  optional `serverId` and resolves it with `SessionRepository.target` (`_target()` inside
-  the cubit) — reading `state.selectedServer` inside
-  such a call is how a form ends up writing to the wrong server.
+  optional `serverId` and resolves it with `SessionRepository.target` — reading the
+  selected server inside such a call is how a form ends up writing to the wrong server.
 - Enums carry their own `fromString` / `toJson` conversions (see `channel_type.dart`).
 - **A picture from storage has one copy, in `MediaStore`, and widgets draw it from
   `MediaCubit`.** A widget asks with `want` and selects its own entry (`StoredPicture`,

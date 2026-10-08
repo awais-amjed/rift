@@ -1,7 +1,8 @@
 import '../../../../../data/apis/invites_api.dart';
+import '../../../../../data/apis/server_api.dart';
 import '../../../../../data/classes/server.dart';
 import '../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
-import '../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../logic/cubits/server_events/server_events_cubit.dart';
 import 'listing_actions.dart';
 import 'listing_draft.dart';
 
@@ -24,23 +25,26 @@ class ServerSettingsSave {
     required Server server,
     required String name,
     required ListingDraft draft,
-    required ServerCubit serverCubit,
+    required ServerApi serverApi,
+    required ServerEventsCubit events,
     required InvitesApi invites,
     required PublicServersCubit publicServers,
     required int memberCount,
   }) async {
-    final result = await serverCubit.updateServerDetails(
+    final result = await serverApi.updateServerDetails(
       name: name,
       // Named, because this dialog is not always about the selected server.
       serverId: server.id,
     );
     if (!result.success) return result.error ?? 'Failed to update server';
+    // A rename shows in every member's rail, so they re-read now.
+    events.notifyServerChanged(server.id);
 
     return ListingActions.save(
       server: server,
       name: name,
       draft: draft,
-      serverCubit: serverCubit,
+      serverApi: serverApi,
       invites: invites,
       publicServers: publicServers,
       memberCount: memberCount,

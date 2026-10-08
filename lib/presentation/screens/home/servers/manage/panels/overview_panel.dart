@@ -4,10 +4,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../../data/apis/invites_api.dart';
 import '../../../../../../data/apis/members_api.dart';
 import '../../../../../../data/apis/push_api.dart';
+import '../../../../../../data/apis/server_api.dart';
 import '../../../../../../data/classes/server.dart';
 import '../../../../../../data/repositories/session_repository.dart';
 import '../../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
-import '../../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../../logic/cubits/server_events/server_events_cubit.dart';
 import '../../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../../../logic/helper_methods.dart';
 import '../../../../../common/app_button.dart';
@@ -162,7 +163,8 @@ class _OverviewPanelState extends State<OverviewPanel> {
       server: widget.server,
       name: name,
       draft: _listing,
-      serverCubit: context.read<ServerCubit>(),
+      serverApi: ServerApi(session: context.read<SessionRepository>()),
+      events: context.read<ServerEventsCubit>(),
       invites: InvitesApi(session: context.read<SessionRepository>()),
       publicServers: context.read<PublicServersCubit>(),
       // Whatever the listing already says, if this server's roster never

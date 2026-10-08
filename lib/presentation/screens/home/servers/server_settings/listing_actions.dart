@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/apis/invites_api.dart';
+import '../../../../../data/apis/server_api.dart';
 import '../../../../../data/classes/server.dart';
 import '../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
-import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/confirm_dialog.dart';
 import 'listing_draft.dart';
 
@@ -24,7 +24,7 @@ class ListingActions {
     required Server server,
     required String name,
     required ListingDraft draft,
-    required ServerCubit serverCubit,
+    required ServerApi serverApi,
     required InvitesApi invites,
     required PublicServersCubit publicServers,
     required int memberCount,
@@ -35,7 +35,7 @@ class ListingActions {
     // anything is minted. Central cannot tell an administrator from any other
     // member, so it redeems this against the server's own domain before
     // writing anything.
-    final proof = await serverCubit.listingToken(serverId: server.id);
+    final proof = await serverApi.listingToken(serverId: server.id);
     if (proof.token == null) {
       return 'Server settings saved, but the public listing did not: '
           '${proof.error ?? 'this server would not confirm it.'}';

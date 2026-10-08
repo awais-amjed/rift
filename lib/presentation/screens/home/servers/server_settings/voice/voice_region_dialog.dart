@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../../data/apis/server_api.dart';
 import '../../../../../../data/apis/voice_regions_api.dart';
 import '../../../../../../data/classes/livekit_node.dart';
 import '../../../../../../data/repositories/session_repository.dart';
-import '../../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../../logic/cubits/server_events/server_events_cubit.dart';
 import '../../../../../../logic/helper_methods.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/app_modal.dart';
@@ -25,7 +26,7 @@ import '../../../../../theme/theme_context.dart';
 /// **The default region is the server's own LiveKit**, so its address and
 /// key are sent through `update_server` — the URL column and `server_secrets`
 /// — and a trigger carries the address into the node; see
-/// [ServerCubit.updateDefaultVoiceRegion]. Both used to be elsewhere: the
+/// [ServerApi.updateDefaultVoiceRegion]. Both used to be elsewhere: the
 /// address read-only here with a pointer to another page, and the key in a
 /// Credentials section under the list. Every region is keyed the same way
 /// now, so there is one place to look for any of them.
@@ -108,7 +109,7 @@ class _VoiceRegionDialogState extends State<VoiceRegionDialog> {
   /// watches the node for one.
   Future<({bool success, String? error})> _write(
     VoiceRegionsApi regions,
-    ServerCubit cubit,
+    ServerApi server,
   ) async {
     final label = _nameCtrl.text.trim();
     final url = _urlCtrl.text.trim();
@@ -145,7 +146,7 @@ class _VoiceRegionDialogState extends State<VoiceRegionDialog> {
     // The default's address and key live on the server row, so they go
     // together in one call; every other region's are its own two.
     if (node.isDefault) {
-      return cubit.updateDefaultVoiceRegion(
+      return server.updateDefaultVoiceRegion(
         url: url != node.url ? url : null,
         apiKey: apiKey.isEmpty ? null : apiKey,
         secret: secret.isEmpty ? null : secret,
@@ -180,10 +181,18 @@ class _VoiceRegionDialogState extends State<VoiceRegionDialog> {
       _error = null;
     });
 
+    final session = context.read<SessionRepository>();
+    final events = context.read<ServerEventsCubit>();
     final result = await _write(
-      VoiceRegionsApi(session: context.read<SessionRepository>()),
-      context.read<ServerCubit>(),
+      VoiceRegionsApi(session: session),
+      ServerApi(session: session),
     );
+    // The default region's address is the server's own, which every member
+    // re-reads on the doorbell; the other regions announce themselves.
+    if (result.success && (_node?.isDefault ?? false)) {
+      final server = session.selectedServer;
+      if (server != null) events.notifyServerChanged(server.id);
+    }
     if (!mounted) return;
 
     if (!result.success) {
@@ -287,18 +296,11 @@ class _VoiceRegionDialogState extends State<VoiceRegionDialog> {
   }
 }
 
-/// Opens [VoiceRegionDialog] with the cubit it writes through.
-///
-/// The dialog is a route of its own, so it is outside the manage dialog's
-/// providers and has to be handed the cubit rather than reading it from a
-/// tree it is no longer in.
+/// Opens [VoiceRegionDialog]. It writes through the session, which sits above
+/// every route, so it needs nothing handed in.
 Future<void> showVoiceRegionDialog(BuildContext context, {LiveKitNode? node}) {
-  final cubit = context.read<ServerCubit>();
   return showCustomDialog(
     context: context,
-    build: (_) => BlocProvider.value(
-      value: cubit,
-      child: VoiceRegionDialog(node: node),
-    ),
+    build: (_) => VoiceRegionDialog(node: node),
   );
 }

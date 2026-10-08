@@ -16,7 +16,7 @@ import '../repositories/session_repository.dart';
 /// the next call can be sent anywhere sensible.
 ///
 /// The default region's address and key are the *server's*, written through
-/// `update_server`, so changing those is `ServerCubit.updateDefaultVoiceRegion`.
+/// `update_server`, so changing those is `ServerApi.updateDefaultVoiceRegion`.
 ///
 /// Holds nothing, so a widget builds one from the session.
 class VoiceRegionsApi {

@@ -3,10 +3,6 @@ part of 'server_cubit.dart';
 mixin _ServerSelectionMixin on Cubit<ServerState> {
   SessionRepository get _session;
 
-  Future<({bool success, String? error})> refreshServerDetails({
-    String? serverId,
-  });
-
   /// Implemented by [ServerCubit].
   ServerManifest getServersForExport();
 
@@ -35,6 +31,13 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
   /// Implemented by [ServerCubit]: drop a server from the rail.
   void removeServer(String serverId);
   void noteServerGone({required String supabaseUrl, required String id});
+
+  /// Implemented by the details part: re-read a server, and forget one that
+  /// is gone.
+  Future<({bool success, String? error})> refreshServerDetails({
+    String? serverId,
+  });
+  void _forgetGoneServer(Server server);
   bool isServerGone({required String supabaseUrl, required String id});
 
   // ──────────────────────────────────────────────────────────
@@ -58,25 +61,14 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
 
     final result = await _session.login(server);
 
-    // The same answer `_fetchServerDetails` gives, on the path that reaches a
+    // The same answer `_fetchDetailsOf` gives, on the path that reaches a
     // deleted server first. A cold selection logs in before it refreshes, and
     // SIWS keeps working after the server is gone — the GoTrue account
     // outlives the membership — so this is where a member who was deleted out
     // from under finds out. Without it the rail kept a chip that opened a
     // server with no channels, signed in as "Guest".
     if (result.error == ServerDb.serverGone) {
-      // Before the removal, because the removal is what schedules the backup
-      // that would otherwise bring it straight back.
-      noteServerGone(supabaseUrl: server.supabaseUrl, id: server.id);
-      removeServer(server.id);
-      emit(
-        state.copyWith(
-          notice: Notice.info(
-            'No longer on ${server.name}',
-            'The server was deleted, or you were removed from it.',
-          ),
-        ),
-      );
+      _forgetGoneServer(server);
       return false;
     }
     final token = result.token;

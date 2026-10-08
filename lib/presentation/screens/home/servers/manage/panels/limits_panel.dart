@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../../data/apis/server_api.dart';
 import '../../../../../../data/classes/server.dart';
 import '../../../../../../data/classes/server_limits.dart';
-import '../../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../../data/repositories/session_repository.dart';
+import '../../../../../../logic/cubits/server_events/server_events_cubit.dart';
 import '../../../../../../logic/helper_methods.dart';
 import '../../../../../common/app_button.dart';
 import '../../server_settings/server_limits_controllers.dart';
@@ -72,10 +74,11 @@ class _LimitsPanelState extends State<LimitsPanel> {
 
     // Only the limits: `update_server` leaves out what it isn't sent, so this
     // cannot disturb the name or the LiveKit key that other pages own.
-    final result = await context.read<ServerCubit>().updateServerDetails(
-      limits: parsed.limits,
-      serverId: widget.server.id,
-    );
+    final events = context.read<ServerEventsCubit>();
+    final result = await ServerApi(
+      session: context.read<SessionRepository>(),
+    ).updateServerDetails(limits: parsed.limits, serverId: widget.server.id);
+    if (result.success) events.notifyServerChanged(widget.server.id);
     if (!mounted) return;
 
     if (!result.success) {

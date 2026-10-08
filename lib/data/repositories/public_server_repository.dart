@@ -151,7 +151,7 @@ class PublicServerRepository {
   /// needed to list somebody else's server, permanently, with a working join
   /// link and a description of their choosing.
   ///
-  /// [listingToken] comes from the server being listed (`ServerCubit
+  /// [listingToken] comes from the server being listed (`ServerApi
   /// .listingToken`, admin-gated there), and central redeems it against that
   /// server's own domain before writing anything. The RPC is now service-role
   /// only, so this path cannot be gone around.

@@ -5,7 +5,6 @@ import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:json_annotation/json_annotation.dart';
 
 import '../../../data/apis/push_api.dart';
-import '../../../data/classes/api_response.dart';
 import '../../../data/classes/channel.dart';
 import '../../../data/classes/livekit_node.dart';
 import '../../../data/classes/message_cache_slot.dart';
@@ -17,7 +16,6 @@ import '../../../data/classes/server_user.dart';
 import '../../../data/classes/user_permissions.dart';
 import '../../../data/repositories/secure_storage_repository.dart';
 import '../../../data/repositories/server_db.dart';
-import '../../../data/repositories/server_repository.dart';
 import '../../../data/repositories/session_repository.dart';
 import '../../services/backup_merge.dart';
 import '../../services/coalesced_refresh.dart';
@@ -28,24 +26,21 @@ import '../../services/push_wake/wake_index.dart';
 import '../../services/server_import_merge.dart';
 import '../../services/server_realtime.dart';
 
-part 'server_api.dart';
 part 'server_crud.dart';
 part 'server_cubit.g.dart';
+part 'server_details.dart';
 part 'server_selection.dart';
 part 'server_state.dart';
 
-/// Over the cubit-hub budget and one job. The parts hold the API
-/// calls; what is left here is what they all share and CODE_STYLE §5 says the
-/// class must hold — the session refresh every call goes through, the
-/// member-name cache, and the one place a server's row is updated.
+/// Over the cubit-hub budget and one job: the servers this identity has
+/// joined — the list, the selection, and keeping each row current. The parts
+/// hold joining and leaving, selecting, and re-reading a server; what is left
+/// here is what they share — the session's logins landed on the list, the push
+/// snapshot, and the one place a server's row is updated.
 ///
-/// The servers this identity has joined, and every call made to one of them.
+/// The calls a feature makes to a server are its own class in `data/apis/`.
 class ServerCubit extends HydratedCubit<ServerState>
-    with _ServerCrudMixin, _ServerSelectionMixin, _ServerApiMixin {
-  /// The session's, so every server's database client is made once.
-  @override
-  late final ServerRepository _repository = _session.repository;
-
+    with _ServerCrudMixin, _ServerSelectionMixin, _ServerDetailsMixin {
   /// Registering this device on the servers, as the list and the FCM token
   /// change ([PushApi]).
   @override
@@ -59,21 +54,6 @@ class ServerCubit extends HydratedCubit<ServerState>
   /// server's saved conversations to forget them.
   @override
   final SecureStorageRepository _storage = SecureStorageRepository();
-
-  /// The server a call is about: [serverId] when the caller named one, the
-  /// selection when it didn't.
-  ///
-  /// Lives on the class because the API mixin resolves through it. Every method
-  /// a dialog can open for a server other than the current one takes an optional
-  /// `serverId` and starts here; the default keeps the call sites that genuinely
-  /// mean "this server" — the chat surfaces, the sidebar — reading as they did.
-  @override
-  Server? _target(String? serverId) =>
-      serverId == null ? state.selectedServer : state.serverById(serverId);
-
-  /// What to say when [_target] finds nothing ([SessionRepository.noTarget]).
-  @override
-  String _noTarget(String? serverId) => _session.noTarget(serverId);
 
   /// Called after the server list changes — wired to cloud auto-backup.
   @override
@@ -89,20 +69,6 @@ class ServerCubit extends HydratedCubit<ServerState>
     servers: stream.map((s) => s.servers),
     current: () => state.servers,
   );
-
-  /// Called after a structural change to a server (e.g. a channel created) —
-  /// wired to the `server_events` Broadcast doorbell so other members refresh in
-  /// realtime.
-  ///
-  /// Takes the server it happened on, because the doorbell can only ring on the
-  /// topic this device is subscribed to: renaming a server you are not looking
-  /// at has nobody to tell, and must not ring the bell on the one you are.
-  @override
-  void Function(String serverId)? _onServerEvent;
-
-  void setOnServerEvent(void Function(String serverId) callback) {
-    _onServerEvent = callback;
-  }
 
   /// Being signed in: every call's token, and getting a new one. This cubit
   /// publishes the server list into it and writes back what a re-login
@@ -222,14 +188,6 @@ class ServerCubit extends HydratedCubit<ServerState>
   /// [SessionRepository.reAuthenticate].
   Future<String?> reAuthenticateServer(String serverId) =>
       _session.reAuthenticate(serverId);
-
-  /// Executes [call] with [server]'s bearer token, signing in again and
-  /// retrying once if the session has run out ([SessionRepository.callFor]).
-  @override
-  Future<APIResponse> _callFor(
-    Server server,
-    Future<APIResponse> Function(String token) call,
-  ) => _session.callFor(server, call);
 
   // ──────────────────────────────────────────────────────────
   // Update (shared by selection, API, and token-refresh)

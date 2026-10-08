@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/apis/server_api.dart';
 import '../../../../data/classes/server_limits.dart';
+import '../../../../data/repositories/session_repository.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../logic/cubits/server_events/server_events_cubit.dart';
 import '../../../../logic/services/limit_input.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
@@ -85,7 +88,9 @@ class _ServerDmSettingsDialogState extends State<ServerDmSettingsDialog> {
     // the rest and quietly reset them. Every field is named for that reason —
     // this once left out the call, member and storage limits, and saving DM
     // settings put all three back to unlimited.
-    final result = await context.read<ServerCubit>().updateServerDetails(
+    final session = context.read<SessionRepository>();
+    final events = context.read<ServerEventsCubit>();
+    final result = await ServerApi(session: session).updateServerDetails(
       limits: ServerLimits(
         maxAttachmentBytes: _initial.maxAttachmentBytes,
         messageRetentionDays: _initial.messageRetentionDays,
@@ -99,6 +104,10 @@ class _ServerDmSettingsDialogState extends State<ServerDmSettingsDialog> {
         dmOpeningsPerHour: _initial.dmOpeningsPerHour,
       ),
     );
+    final server = session.selectedServer;
+    if (result.success && server != null) {
+      events.notifyServerChanged(server.id);
+    }
     if (!mounted) return;
 
     if (!result.success) {
