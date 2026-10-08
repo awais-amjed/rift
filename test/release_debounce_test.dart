@@ -47,6 +47,36 @@ void main() {
     });
   });
 
+  test('repeats delivered after their release do not reopen the mic', () {
+    // A stalled window got a held key's backlog in this order: the release,
+    // then the repeats from before it. The mic stayed open for minutes.
+    debounce.press(0);
+    for (var t = 500; t < 1000; t += 30) {
+      debounce.press(t);
+    }
+    debounce.release(1100);
+    for (var t = 1010; t < 1100; t += 30) {
+      debounce.press(t);
+    }
+    expect(edges, [true, false]);
+  });
+
+  test('a release older than the latest press is dropped', () {
+    debounce.press(0);
+    debounce.press(530);
+    debounce.release(500);
+    expect(edges, [true]);
+    debounce.release(600);
+    expect(edges, [true, false]);
+  });
+
+  test('a press after the release opens again', () {
+    debounce.press(0);
+    debounce.release(100);
+    debounce.press(2000);
+    expect(edges, [true, false, true]);
+  });
+
   test('a release without a press does nothing', () {
     debounce.release(10);
     expect(edges, isEmpty);
