@@ -10,6 +10,7 @@ part of 'channel_chat_cubit.dart';
 /// anywhere a member can reach, learns who voted for what.
 mixin _ChannelChatPollsMixin on Cubit<ChannelChatState> {
   ServerCubit get _serverCubit;
+  PinsPollsApi get _pinsPolls;
   VaultCubit get _vaultCubit;
   CryptoRepository get _crypto;
   Map<int, Uint8List> get _keys;
@@ -131,10 +132,7 @@ mixin _ChannelChatPollsMixin on Cubit<ChannelChatState> {
       mine: state.pollTallies[messageId]?.mine ?? const {},
       option: option,
     );
-    final response = await _serverCubit.votePoll(
-      messageId: id,
-      options: ballot,
-    );
+    final response = await _pinsPolls.votePoll(messageId: id, options: ballot);
     if (!response.success) {
       emit(
         state.copyWith(
@@ -156,7 +154,7 @@ mixin _ChannelChatPollsMixin on Cubit<ChannelChatState> {
   Future<void> closePoll(String messageId) async {
     final id = int.tryParse(messageId);
     if (id == null) return;
-    final response = await _serverCubit.closePoll(messageId: id);
+    final response = await _pinsPolls.closePoll(messageId: id);
     if (!response.success) {
       emit(
         state.copyWith(
@@ -179,7 +177,7 @@ mixin _ChannelChatPollsMixin on Cubit<ChannelChatState> {
     final channelId = state.channelId;
     final ids = PollOps.pollIds(messages);
     if (channelId == null || ids.isEmpty) return;
-    final response = await _serverCubit.pollTallies(messageIds: ids);
+    final response = await _pinsPolls.pollTallies(messageIds: ids);
     if (!response.success || isClosed || state.channelId != channelId) return;
     final answered =
         (response.data as Map<String, dynamic>)['tallies']

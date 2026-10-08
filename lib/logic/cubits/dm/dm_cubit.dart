@@ -8,6 +8,7 @@ import 'package:supabase/supabase.dart' show RealtimeSubscribeStatus;
 
 import '../../../data/apis/members_api.dart';
 import '../../../data/apis/moderation_api.dart';
+import '../../../data/apis/pins_polls_api.dart';
 import '../../../data/classes/api_response.dart';
 import '../../../data/classes/attachment.dart';
 import '../../../data/classes/chat_message.dart';
@@ -85,6 +86,8 @@ class DmCubit extends Cubit<DmState>
   final ModerationApi _moderation;
   @override
   final MembersApi _members;
+  @override
+  final PinsPollsApi _pinsPolls;
   final VaultCubit _vaultCubit;
   @override
   final CryptoRepository _crypto;
@@ -163,6 +166,7 @@ class DmCubit extends Cubit<DmState>
   }) : _serverCubit = serverCubit,
        _moderation = ModerationApi(session: session),
        _members = MembersApi(session: session),
+       _pinsPolls = PinsPollsApi(session: session),
        _vaultCubit = vaultCubit,
        _crypto = crypto ?? CryptoRepository(),
        super(const DmState()) {

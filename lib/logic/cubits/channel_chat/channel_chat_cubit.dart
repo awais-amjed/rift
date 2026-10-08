@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rift_crypto/rift_crypto.dart';
 
 import '../../../data/apis/members_api.dart';
+import '../../../data/apis/pins_polls_api.dart';
 import '../../../data/apis/voice_bots_api.dart';
 import '../../../data/classes/api_response.dart';
 import '../../../data/classes/attachment.dart';
@@ -115,6 +116,9 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   /// meant without being told first.
   @override
   final MembersApi _members;
+
+  @override
+  final PinsPollsApi _pinsPolls;
 
   /// What `@names` in the open channel resolve to, and which have been asked.
   ///
@@ -247,6 +251,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
        _session = session,
        _voiceBots = VoiceBotsApi(session: session),
        _members = MembersApi(session: session),
+       _pinsPolls = PinsPollsApi(session: session),
        _vaultCubit = vaultCubit,
        _crypto = crypto ?? CryptoRepository(),
        _messageCache = messageCache ?? MessageCache.instance,

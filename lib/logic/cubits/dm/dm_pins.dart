@@ -6,7 +6,7 @@ part of 'dm_cubit.dart';
 /// it is opened rather than held, and a pin is drawn on its row only once the
 /// server has taken it.
 mixin _DmPinsMixin on Cubit<DmState> {
-  ServerCubit get _serverCubit;
+  PinsPollsApi get _pinsPolls;
 
   Future<List<ChatMessage>> _decryptRows(
     String peerId,
@@ -20,7 +20,7 @@ mixin _DmPinsMixin on Cubit<DmState> {
   Future<List<ChatMessage>?> loadPins() async {
     final peerId = state.openPeerId;
     if (peerId == null) return null;
-    final response = await _serverCubit.listDmPins(peerId: peerId);
+    final response = await _pinsPolls.listDmPins(peerId: peerId);
     if (!response.success || state.openPeerId != peerId) return null;
     final rows = ((response.data as Map<String, dynamic>)['messages'] as List)
         .cast<Map<String, dynamic>>();
@@ -33,7 +33,7 @@ mixin _DmPinsMixin on Cubit<DmState> {
     final id = int.tryParse(message.id);
     if (peerId == null || id == null) return false;
 
-    final response = await _serverCubit.setPinned(
+    final response = await _pinsPolls.setPinned(
       scope: 'dm',
       messageId: id,
       pinned: pinned,

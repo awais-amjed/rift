@@ -7,7 +7,7 @@ part of 'channel_chat_cubit.dart';
 /// when somebody opens it, decrypted by the same code as a page of history,
 /// and a pin that moves while it is closed costs nothing.
 mixin _ChannelChatPinsMixin on Cubit<ChannelChatState> {
-  ServerCubit get _serverCubit;
+  PinsPollsApi get _pinsPolls;
 
   Future<List<ChatMessage>> _decryptRows(
     String channelId,
@@ -21,7 +21,7 @@ mixin _ChannelChatPinsMixin on Cubit<ChannelChatState> {
   Future<List<ChatMessage>?> loadPins() async {
     final channelId = state.channelId;
     if (channelId == null) return null;
-    final response = await _serverCubit.listChannelPins(channelId: channelId);
+    final response = await _pinsPolls.listChannelPins(channelId: channelId);
     if (!response.success || state.channelId != channelId) return null;
     final rows = ((response.data as Map<String, dynamic>)['messages'] as List)
         .cast<Map<String, dynamic>>();
@@ -38,7 +38,7 @@ mixin _ChannelChatPinsMixin on Cubit<ChannelChatState> {
     final id = int.tryParse(message.id);
     if (channelId == null || id == null) return false;
 
-    final response = await _serverCubit.setPinned(
+    final response = await _pinsPolls.setPinned(
       scope: 'channel',
       messageId: id,
       pinned: pinned,
