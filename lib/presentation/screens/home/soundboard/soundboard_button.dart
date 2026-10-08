@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/constants.dart';
+import '../../../../data/enums/server_permission.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/soundboard/soundboard_cubit.dart';
@@ -137,13 +138,19 @@ class _SoundboardButtonState extends State<SoundboardButton> {
 
   @override
   Widget build(BuildContext context) {
+    // From the server's state, not a getter on the soundboard cubit: a role
+    // granted with the library still empty has to bring the button in, and
+    // only a change to this state rebuilds the button when it happens.
+    final canManage = context.select<ServerCubit, bool>(
+      (cubit) =>
+          cubit.state.myPermissions?.can(ServerPermission.manageSoundboard) ??
+          false,
+    );
     return BlocBuilder<SoundboardCubit, SoundboardState>(
       buildWhen: (before, after) =>
           before.isEmpty != after.isEmpty || before.status != after.status,
       builder: (context, state) {
-        if (state.isEmpty && !context.read<SoundboardCubit>().canManage) {
-          return const SizedBox.shrink();
-        }
+        if (state.isEmpty && !canManage) return const SizedBox.shrink();
         final button = ControlButton(
           key: _buttonKey,
           icon: Icons.campaign_rounded,

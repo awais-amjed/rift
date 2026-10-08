@@ -44,9 +44,8 @@ class SoundShareTile extends StatelessWidget {
       ),
     );
     final userId = ParticipantIdentity.userIdOf(identity);
-    final ownerName = context.watch<ServerMembersCubit>().state.nameFor(
-      userId,
-      participant.name,
+    final ownerName = context.select<ServerMembersCubit, String>(
+      (cubit) => cubit.state.nameFor(userId, participant.name),
     );
 
     // LiveKit's active-speaker detection covers every connection publishing

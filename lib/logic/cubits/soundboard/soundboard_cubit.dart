@@ -92,15 +92,9 @@ class SoundboardCubit extends Cubit<SoundboardState>
 
   void setLiveKitCubit(LiveKitCubit cubit) => _livekitCubit = cubit;
 
-  /// Whether this member may add to or remove from the library.
-  bool get canManage =>
-      _serverCubit.state.selectedServer?.user?.permissions.can(
-        ServerPermission.manageSoundboard,
-      ) ??
-      false;
-
-  /// Whether this member may fire one into a call.
-  bool get canPlay =>
+  /// Whether this member may fire one into a call. Widgets read the same
+  /// permission off `ServerState`, where a change to it rebuilds them.
+  bool get _canPlay =>
       _serverCubit.state.selectedServer?.user?.permissions.can(
         ServerPermission.useSoundboard,
       ) ??
@@ -116,7 +110,7 @@ class SoundboardCubit extends Cubit<SoundboardState>
   Future<void> press(SoundboardSound sound) async {
     final room = _livekitCubit?.state.room;
     if (room == null || !(_livekitCubit?.state.inCall ?? false)) return;
-    if (!canPlay) return;
+    if (!_canPlay) return;
 
     // The same gate as a listener's, keyed on ourselves: a held-down button
     // should not flood the room even though nothing here would stop it.

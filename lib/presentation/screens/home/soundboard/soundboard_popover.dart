@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/constants.dart';
+import '../../../../data/enums/server_permission.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/soundboard/soundboard_cubit.dart';
 import '../../../common/popover_surface.dart';
@@ -91,10 +92,12 @@ class SoundboardPopover extends StatelessWidget {
       buildWhen: (before, after) =>
           before.selectedServer?.user?.permissions !=
           after.selectedServer?.user?.permissions,
-      builder: (context, _) {
-        final cubit = context.read<SoundboardCubit>();
-        final canPlay = cubit.canPlay;
-        final canManage = cubit.canManage;
+      builder: (context, server) {
+        final permissions = server.myPermissions;
+        final canPlay =
+            permissions?.can(ServerPermission.useSoundboard) ?? false;
+        final canManage =
+            permissions?.can(ServerPermission.manageSoundboard) ?? false;
 
         return BlocBuilder<SoundboardCubit, SoundboardState>(
           builder: (context, state) {
