@@ -102,8 +102,8 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   `callFor(server, …)`, the same thing for a **named** server. A feature's calls live in
   its own class in `data/apis/` built on the repository, which the feature's cubit takes
   instead of `ServerCubit`. The class holds nothing, so a widget that makes one of its
-  calls builds it from `context.read<SessionRepository>()`; the API mixins still inside `ServerCubit` reach the same
-  methods as `_callWithAutoRefresh` and `_callFor`, and are moving out a feature at a time. The
+  calls builds it from `context.read<SessionRepository>()`; the API mixins still inside
+  `ServerCubit` reach the same method as `_callFor`, and are moving out a feature at a time. The
   cubit publishes its server list into the repository on every change and writes back the
   token and details each re-login brings (`SessionRepository.logins`), so neither it nor the
   vault holds the other. A write that moves something the list holds — a role change moves

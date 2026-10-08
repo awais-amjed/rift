@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../data/apis/profile_api.dart';
+import '../../data/repositories/session_repository.dart';
 import '../../logic/cubits/media/media_cubit.dart';
-import '../../logic/cubits/server/server_cubit.dart';
 import 'stored_picture.dart';
 
 /// A member's picture, falling back to their initial.
@@ -48,11 +49,11 @@ class _UserAvatarState extends State<UserAvatar> {
   void _want() {
     final path = widget.avatarPath;
     if (path == null) return;
-    final server = context.read<ServerCubit>();
+    final profile = ProfileApi(session: context.read<SessionRepository>());
     context.read<MediaCubit>().want(
       MediaKind.image,
       path,
-      () => server.loadAvatar(path),
+      () => profile.loadAvatar(path),
     );
   }
 

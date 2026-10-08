@@ -3,7 +3,9 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/apis/profile_api.dart';
 import '../../../../../data/constants.dart';
+import '../../../../../data/repositories/session_repository.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
@@ -63,8 +65,8 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
   }
 
   Future<void> _save() async {
-    final serverCubit = context.read<ServerCubit>();
-    final user = serverCubit.state.selectedServer?.user;
+    final user = context.read<ServerCubit>().state.selectedServer?.user;
+    final profile = ProfileApi(session: context.read<SessionRepository>());
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       setState(() => _error = 'Display name cannot be empty.');
@@ -80,7 +82,7 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
     // saved name plus a failed picture would need explaining.
     final picked = _pickedAvatar;
     if (picked != null) {
-      final uploaded = await serverCubit.uploadAvatar(picked);
+      final uploaded = await profile.uploadAvatar(picked);
       if (!mounted) return;
       if (!uploaded.success) {
         setState(() {
@@ -92,7 +94,7 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
     }
 
     if (name != user?.displayName) {
-      final saved = await serverCubit.updateProfile(displayName: name);
+      final saved = await profile.updateProfile(displayName: name);
       if (!mounted) return;
       if (!saved.success) {
         setState(() {

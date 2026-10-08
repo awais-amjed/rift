@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:equatable/equatable.dart';
 import 'package:http/http.dart' as http;
@@ -16,7 +15,6 @@ import '../../../data/classes/server_details.dart';
 import '../../../data/classes/server_limits.dart';
 import '../../../data/classes/server_user.dart';
 import '../../../data/classes/user_permissions.dart';
-import '../../../data/repositories/avatar_repository.dart';
 import '../../../data/repositories/central_dm_repository.dart';
 import '../../../data/repositories/secure_storage_repository.dart';
 import '../../../data/repositories/server_db.dart';
@@ -26,7 +24,6 @@ import '../../../supabase_config.dart';
 import '../../services/backup_merge.dart';
 import '../../services/coalesced_refresh.dart';
 import '../../services/hydrated_keys.dart';
-import '../../services/media_store.dart';
 import '../../services/message_cache.dart';
 import '../../services/push_service.dart';
 import '../../services/push_wake/wake_index.dart';
@@ -36,7 +33,6 @@ import '../../services/server_realtime.dart';
 part 'server_api.dart';
 part 'server_crud.dart';
 part 'server_cubit.g.dart';
-part 'server_profile_api.dart';
 part 'server_push_api.dart';
 part 'server_selection.dart';
 part 'server_state.dart';
@@ -52,7 +48,6 @@ class ServerCubit extends HydratedCubit<ServerState>
         _ServerCrudMixin,
         _ServerSelectionMixin,
         _ServerApiMixin,
-        _ServerProfileApiMixin,
         _ServerPushApiMixin {
   /// The session's, so every server's database client is made once.
   @override
@@ -60,8 +55,6 @@ class ServerCubit extends HydratedCubit<ServerState>
 
   /// Avatar upload/download — plaintext, unlike attachments.
   @override
-  final AvatarRepository _avatars = AvatarRepository();
-
   /// Central, for one thing only: minting and revoking the credential a
   /// self-hosted server forwards its pushes over. A server cannot reach a
   /// phone without one — see [_ServerPushApiMixin] — so the enrolment is part
@@ -78,15 +71,6 @@ class ServerCubit extends HydratedCubit<ServerState>
   /// server's saved conversations to forget them.
   @override
   final SecureStorageRepository _storage = SecureStorageRepository();
-
-  // What a direct database call needs beyond the bearer token: which project
-  // to talk to, which server's rows, and which row is mine. Empty strings
-  // rather than nulls so a call made with no server selected fails as a clean
-  // "no rows" instead of a null assertion.
-  @override
-  String get _anonKey => state.selectedServer?.supabaseKey ?? '';
-  @override
-  String get _userId => state.selectedServer?.user?.id ?? '';
 
   /// The server a call is about: [serverId] when the caller named one, the
   /// selection when it didn't.
@@ -106,20 +90,6 @@ class ServerCubit extends HydratedCubit<ServerState>
   /// Called after the server list changes — wired to cloud auto-backup.
   @override
   void Function()? _onServersChanged;
-
-  /// Swap one server in the list, preserving order and selection. Used by the
-  /// profile API to reflect a rename/avatar change without a refetch.
-  @override
-  void _replaceServer(Server server) {
-    emit(
-      state.copyWith(
-        servers: [
-          for (final s in state.servers)
-            if (s.id == server.id) server else s,
-        ],
-      ),
-    );
-  }
 
   void setOnServersChanged(void Function() callback) {
     _onServersChanged = callback;
@@ -235,14 +205,6 @@ class ServerCubit extends HydratedCubit<ServerState>
     Server server,
     Future<APIResponse> Function(String token) call,
   ) => _session.callFor(server, call);
-
-  /// [_callFor] against the selected server — for the calls that are about
-  /// whatever you are looking at (a channel token, the voice roster) rather than
-  /// about a server named by the caller.
-  @override
-  Future<APIResponse> _callWithAutoRefresh(
-    Future<APIResponse> Function(String token) call,
-  ) => _session.callSelected(call);
 
   // ──────────────────────────────────────────────────────────
   // Update (shared by selection, API, and token-refresh)

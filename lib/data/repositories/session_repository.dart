@@ -10,6 +10,7 @@ import '../classes/server_details.dart';
 import '../enums/error_code.dart';
 import '../member_cache.dart';
 import 'attachment_repository.dart';
+import 'avatar_repository.dart';
 import 'secure_storage_repository.dart';
 import 'server_repository.dart';
 import 'voice_region_probe.dart';
@@ -40,16 +41,19 @@ typedef SessionDetails = ({String serverId, ServerDetails details});
 class SessionRepository {
   final ServerRepository _servers;
   final AttachmentRepository _attachments;
+  final AvatarRepository _avatars;
   final CryptoRepository _crypto;
   final SecureStorageRepository _storage;
 
   SessionRepository({
     ServerRepository? servers,
     AttachmentRepository? attachments,
+    AvatarRepository? avatars,
     CryptoRepository? crypto,
     SecureStorageRepository? storage,
   }) : _servers = servers ?? ServerRepository(),
        _attachments = attachments ?? AttachmentRepository(),
+       _avatars = avatars ?? AvatarRepository(),
        _crypto = crypto ?? CryptoRepository(),
        _storage = storage ?? SecureStorageRepository();
 
@@ -64,6 +68,9 @@ class SessionRepository {
 
   /// The same for a server's stored files, which keep their own HTTP client.
   AttachmentRepository get attachments => _attachments;
+
+  /// And for the members' pictures.
+  AvatarRepository get avatars => _avatars;
 
   List<Server> get servers => _list;
   String? get selectedServerId => _selectedId;

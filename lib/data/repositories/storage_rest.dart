@@ -14,7 +14,7 @@ import '../classes/api_response.dart';
 /// Attachments, avatars and soundboard clips each used to carry their own
 /// copy. The copies agreed, but the one line that matters is easy to drop: a
 /// refused token has to come back as `token_expired`, because that code is what
-/// `ServerCubit._callWithAutoRefresh` re-authenticates on. A copy that forgot
+/// `SessionRepository.callFor` re-authenticates on. A copy that forgot
 /// it would turn an expired session into a failed upload.
 abstract final class StorageRest {
   static final _rng = Random.secure();
