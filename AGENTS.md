@@ -237,7 +237,7 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
 - Dialogs use `showCustomDialog` / `AppModal` from `presentation/common/`; pass existing cubits
   in with `MultiBlocProvider` + `BlocProvider.value` (never construct a new cubit for a dialog).
 - Toasts/errors go through `HelperMethods.showToast` / `showError` (toastification) — no
-  SnackBars. Debug logging through `HelperMethods.printDebug`, not bare `print` (Dart side).
+  SnackBars — called from the presentation layer, not from a cubit (`CODE_STYLE.md` §8). Debug logging through `HelperMethods.printDebug`, not bare `print` (Dart side).
 - `buildWhen` / `listenWhen` are used on hot-path builders to limit rebuilds (see
   `home_screen.dart`); do the same for anything rebuilding inside the call screen.
   A chat screen rebuilds per upload tick, keystroke and arrival, so each part of it

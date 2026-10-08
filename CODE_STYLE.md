@@ -106,8 +106,12 @@ Cross-mixin contracts:
   only fires on private declarations. Say in its doc comment that it is cubit-internal
   (`setupRoomListeners`).
 - The class calling *into* a mixin needs no declaration at all — that's plain inheritance.
-- State stays in the cubit class (`final Map<String, Uint8List> _dmKeys = {}`) with
-  `@override` on the field and an abstract getter in each mixin that reads it.
+- Private working data several mixins share stays in the cubit class
+  (`final Map<String, Uint8List> _dmKeys = {}`), with `@override` on the field and an
+  abstract getter in each mixin that reads it. Such a field is for the cubit's own use —
+  keys, caches, requests in flight. If a widget draws it and it can change, it belongs in
+  `state` instead: a getter on the cubit hands a widget the value of that moment, and
+  nothing rebuilds the widget when the field changes, because only an emit does.
 
 ## 6. Widgets are UI-only
 
@@ -123,7 +127,9 @@ widgets testable and lets a service be reused by a second surface later.
 - Any list that can grow is `ListView.builder` / `.separated` (or a sliver), never a plain
   `ListView(children:)` or a `Column` in a `SingleChildScrollView`. Items get a `key` when
   they can reorder or be removed.
-- Read the narrowest slice of state a widget needs: `context.select`, or `BlocBuilder` with
+- Read the narrowest slice of state, in the smallest widget that draws it. `context.select`
+  rebuilds the whole widget whose `build` called it, so it suits a small widget; in a large
+  one, wrap only the part that changes in a `BlocSelector`, or a `BlocBuilder` with
   `buildWhen`. Watching a whole state at the top of a screen rebuilds every row on every
   typing indicator. `home_screen.dart` shows the pattern.
 - Nothing heavy in `build`: no decoding, sorting, filtering or JSON parsing. Do it once
@@ -137,14 +143,25 @@ widgets testable and lets a service be reused by a second surface later.
   disposed in `close()` / `dispose()`. The `cancel_subscriptions` and `close_sinks` lints
   catch the obvious cases; the rest is on you.
 - After an `await` in a widget, check `mounted` before touching `context` or calling
-  `setState`. In a cubit that can close before the app does — one created for a dialog
-  or a screen, like `PublicBotsCubit` — check `isClosed` before `emit`. The cubits
-  `app_providers.dart` creates at startup close only when the app quits, so they need
-  no check.
+  `setState`.
+- After an `await` in a cubit, ask two things before emitting. *Can it still emit?* A
+  cubit that can close before the app does — one created for a dialog or a screen, like
+  `PublicBotsCubit` — checks `isClosed`; the cubits `app_providers.dart` creates at
+  startup close only when the app quits, so they need no check. *Is the answer still
+  wanted?* That one is for every cubit: a reply that set out for one server, channel or
+  conversation must not land after the user has moved to another. Compare what it was
+  for with the state now, as `ServerMembersCubit._stale` does.
 - A future you deliberately drop is wrapped in `unawaited(...)`; the `unawaited_futures`
   lint refuses a bare one. If you cannot say why it is safe to drop, await it.
-- Errors reach the user through `HelperMethods.showError` and debug output through
-  `HelperMethods.printDebug` (Dart) / `log::` (Rust) — never `print` or `println!`.
+- Errors reach the user through `HelperMethods.showError`, and notices through
+  `showToast`, called from the presentation layer: by the widget that made the call and
+  got its outcome back, or by a `BlocListener` reacting to a change in state. A cubit
+  reports a failure as an outcome or in its state and opens no UI itself — it cannot
+  tell which screen is up, whether a dialog is already showing the error, or whether
+  the user has moved on. Many cubits still toast directly
+  (`grep -rn "HelperMethods.show" lib/logic`); move those out when you touch them.
+- Debug output goes through `HelperMethods.printDebug` (Dart) / `log::` (Rust) — never
+  `print` or `println!`.
 
 ## 9. Comments that earn their place
 

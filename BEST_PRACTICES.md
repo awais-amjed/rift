@@ -72,8 +72,10 @@ widgets  →  cubits  →  repositories  →  network / storage / platform
     Use this when the data is shared (the signed-in user, a server's roles).
   - *Up* — a `BlocListener` on cubit A calls a method on cubit B. Use this for
     a one-off reaction (leaving a server closes its call).
-- **No public fields on a cubit.** Everything a widget reads is in `state`
-  (bloc_lint `avoid_public_fields`).
+- **No public fields on a cubit** (bloc_lint `avoid_public_fields`). Private
+  working data — keys, caches, requests in flight — may live in private fields.
+  If a widget draws it and it can change, it goes in `state`: a getter on the
+  cubit hands over the value of that moment, and only an emit rebuilds.
 - **Results come back through state.** bloc_lint's `prefer_void_public_cubit_methods`
   wants every public cubit method to return `void`/`Future<void>`. Rift differs
   in one case: a method a dialog calls may return the *outcome* of that action
@@ -113,9 +115,10 @@ widgets  →  cubits  →  repositories  →  network / storage / platform
   rebuilds all of it. (Rift's hot paths already depend on this — `AGENTS.md`,
   *Presentation*.)
 - **Builders are pure.** A `BlocBuilder`'s builder runs many times; it returns a
-  widget and does nothing else. Toasts, navigation and dialogs go in a
-  `BlocListener` (`listenWhen` to filter). `BlocConsumer` only when one widget
-  needs both.
+  widget and does nothing else. Toasts, navigation and dialogs are shown by the
+  callback that made the call and got its outcome back, or by a `BlocListener`
+  (`listenWhen` to filter) — never by a builder, and never by the cubit itself
+  (`CODE_STYLE.md` §8). `BlocConsumer` only when one widget needs both.
 - **Who creates a cubit closes it.** `BlocProvider(create:)` makes and closes
   it; `BlocProvider.value` passes one that already exists (dialogs, new routes)
   and leaves it open. Never construct a cubit in `build` or for a dialog.
@@ -124,9 +127,10 @@ widgets  →  cubits  →  repositories  →  network / storage / platform
 
 - **After every `await` in a widget, check `mounted` (or `context.mounted`)**
   before touching `context` or `setState` (lint `use_build_context_synchronously`).
-- **After every `await` in a cubit, check `isClosed` before `emit`,** and check
-  the result is still wanted — a slow reply for the previous server must not land
-  on the current one.
+- **After an `await` in a cubit, check the answer is still wanted** — a slow
+  reply for the previous server must not land on the current one — **and, in a
+  cubit that can close before the app does, check `isClosed` before `emit`**
+  (`CODE_STYLE.md` §8 has the detail).
 - **A cubit cancels what it started.** Stream subscriptions, timers and
   listeners are cancelled in `close()`.
 - **Fire-and-forget is written down:** `unawaited(...)`, never a bare future.
