@@ -17,9 +17,9 @@
 //! Wayland only a window works: the X11 capturer sees no screen there, only
 //! X11 windows, and a still picture costs nothing to encode.
 //! Each side waits [`WARMUP`] before it starts counting, then reports over
-//! `BENCH_SECS`: the share once for each simulcast layer, the viewer every
-//! [`SAMPLE`] as well, so a move between layers shows. More viewers take a
-//! `BENCH_VIEWER` name each.
+//! `BENCH_SECS`: the share once for each simulcast layer, and both every
+//! [`SAMPLE`] as well, so a move between layers shows, or the share falling
+//! behind on a slow link. More viewers take a `BENCH_VIEWER` name each.
 use super::live_test::Server;
 use super::session;
 use crate::api::screenshare::types::{ScreenShareConfig, SharePriority, VideoCodec};
@@ -113,6 +113,43 @@ fn outbound(stats: &[RtcStats]) -> Vec<&livekit::webrtc::stats::OutboundRtpStats
     layers
 }
 
+/// What went out in one stretch, and how late: the time packets waited in
+/// WebRTC's send queue, and the round trip to the server, which grows with a
+/// queue on the way there. Either one climbing is the picture falling behind
+/// its sound.
+fn log_sending(last: &[RtcStats], now: &[RtcStats], elapsed: Duration) {
+    let (Some(p), Some(n)) = (outbound(last).pop(), outbound(now).pop()) else {
+        return;
+    };
+    let packets = n.sent.packets_sent - p.sent.packets_sent;
+    let queued_ms = if packets > 0 {
+        (n.outbound.total_packet_send_delay - p.outbound.total_packet_send_delay) * 1000.0
+            / packets as f64
+    } else {
+        0.0
+    };
+    let rtt_ms = now
+        .iter()
+        .find_map(|s| match s {
+            RtcStats::RemoteInboundRtp(r) if r.stream.kind == "video" => {
+                Some(r.remote_inbound.round_trip_time * 1000.0)
+            }
+            _ => None,
+        })
+        .unwrap_or(0.0);
+    log::info!(
+        "bench share: {:>4.0} s | {:.1} fps sent | {:.2} Mbps sent, target {:.2} | \
+         queued {:.0} ms | round trip {:.0} ms | keyframes {}",
+        elapsed.as_secs_f64(),
+        f64::from(n.outbound.frames_sent - p.outbound.frames_sent) / SAMPLE.as_secs_f64(),
+        (n.sent.bytes_sent - p.sent.bytes_sent) as f64 * 8.0 / SAMPLE.as_secs_f64() / 1e6,
+        n.outbound.target_bitrate / 1e6,
+        queued_ms,
+        rtt_ms,
+        n.outbound.key_frames_encoded - p.outbound.key_frames_encoded,
+    );
+}
+
 fn inbound(stats: &[RtcStats]) -> Option<&livekit::webrtc::stats::InboundRtpStats> {
     stats.iter().find_map(|s| match s {
         RtcStats::InboundRtp(i) if i.stream.kind == "video" => Some(i),
@@ -144,6 +181,12 @@ async fn bench_share() {
         .try_init();
     let server = Server::from_env();
     let room = env_or("BENCH_ROOM", "bench");
+    // BENCH_OVERSHOOT=1: an encoder that ignores the connection, to see what
+    // a capped link does with the excess.
+    super::encoder::test_hooks::IGNORE_RATE.store(
+        env_or("BENCH_OVERSHOOT", "0") == "1",
+        std::sync::atomic::Ordering::Relaxed,
+    );
     let (full_screen, index) = source();
     let config = ScreenShareConfig {
         livekit_url: server.url.clone(),
@@ -168,7 +211,13 @@ async fn bench_share() {
     let before_stats = session::video_stats().await.expect("stats");
     let before_cpu = cpu_time();
     let started = Instant::now();
-    tokio::time::sleep(bench_secs()).await;
+    let mut last = before_stats.clone();
+    while started.elapsed() < bench_secs() {
+        tokio::time::sleep(SAMPLE.min(bench_secs().saturating_sub(started.elapsed()))).await;
+        let now = session::video_stats().await.expect("stats");
+        log_sending(&last, &now, started.elapsed());
+        last = now;
+    }
     let wall = started.elapsed().as_secs_f64();
     let cpu = (cpu_time() - before_cpu).as_secs_f64();
     let after_stats = session::video_stats().await.expect("stats");

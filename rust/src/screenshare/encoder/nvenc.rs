@@ -185,6 +185,13 @@ struct Shared {
 /// offers for pre-encoded H264; no B-frames; tuned for the lowest latency;
 /// variable bitrate from the start rate, moved by WebRTC's requests.
 fn config(settings: &EncoderSettings) -> nv::EncoderConfig {
+    let start = settings.start_bitrate_bps.min(settings.max_bitrate_bps);
+    #[cfg(test)]
+    let start = if super::test_hooks::IGNORE_RATE.load(Ordering::Relaxed) {
+        settings.max_bitrate_bps
+    } else {
+        start
+    };
     nv::EncoderConfig {
         codec: nv::CodecConfig::H264(nv::H264EncoderConfig {
             profile: Some(nv::H264Profile::Baseline),
@@ -196,7 +203,7 @@ fn config(settings: &EncoderSettings) -> nv::EncoderConfig {
         max_encode_height: None,
         framerate_num: settings.fps,
         framerate_den: 1,
-        average_bitrate: Some(settings.start_bitrate_bps.min(settings.max_bitrate_bps)),
+        average_bitrate: Some(start),
         preset: nv::Preset::P4,
         tuning_info: nv::TuningInfo::ULTRA_LOW_LATENCY,
         rate_control_mode: nv::RateControlMode::Vbr,
@@ -260,6 +267,13 @@ fn encoder_thread(
         keyframe |= wanted_key;
         if let Some(requested) = wanted_rate {
             let rate = clamp_bitrate(requested, settings.max_bitrate_bps);
+            #[cfg(test)]
+            if super::test_hooks::IGNORE_RATE.load(Ordering::Relaxed) {
+                // Heard, so the rest of the share knows the target, but not
+                // passed on.
+                current = rate;
+                shared.bitrate.store(rate, Ordering::Relaxed);
+            }
             if rate != current {
                 let params = nv::ReconfigureParams {
                     average_bitrate: Some(rate),

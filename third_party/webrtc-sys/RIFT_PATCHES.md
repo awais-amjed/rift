@@ -26,7 +26,8 @@ Measured Oct 5 2026 on Windows with `gpu_live_test.rs`: without the change
 WebRTC dropped 4 to 7 frames a run and 2 runs in 6 stalled (after a size
 change, or a viewer joining late); with it, none dropped and 6 runs in 6
 passed. The encoder already follows WebRTC's targets, which is what the change
-asks of it.
+asks of it, and one that runs over them has pictures left out before it
+encodes them (`rust/src/screenshare/rate_gate.rs`).
 
 ## The patch
 

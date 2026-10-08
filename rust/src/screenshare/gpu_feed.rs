@@ -1,9 +1,11 @@
 //! The GPU path of a share: pictures in NV12 to the hardware encoder, its
 //! H264 or AV1 out to a pre-encoded LiveKit source, and WebRTC's keyframe and
-//! bitrate requests back the other way.
+//! bitrate requests back the other way. Pictures the encoder would make too
+//! much of are left out on the way in ([`RateGate`]).
 use super::encoder::{
     h264, Encoded, EncodedSink, EncoderSettings, GpuCodec, GpuEncoder, Nv12Frame,
 };
+use super::rate_gate::RateGate;
 use super::resolution::Size;
 use livekit::webrtc::native::yuv_helper;
 use livekit::webrtc::prelude::I420Buffer;
@@ -11,6 +13,8 @@ use livekit::webrtc::video_frame::{EncodedFrameType, EncodedVideoCodec, EncodedV
 use livekit::webrtc::video_source::native::NativeVideoSource;
 use livekit::webrtc::video_source::VideoResolution;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 /// A running GPU encoder, and what to do if it stops working.
 pub(crate) struct GpuFeed {
@@ -18,6 +22,9 @@ pub(crate) struct GpuFeed {
     /// Called once, from the processing thread, when the encoder fails.
     on_failed: Box<dyn Fn() + Send + Sync>,
     reported: AtomicBool,
+    /// What the encoder has made against WebRTC's target, filled from the
+    /// encoder's side and asked before each picture.
+    gate: Arc<Mutex<RateGate>>,
 }
 
 impl GpuFeed {
@@ -28,6 +35,7 @@ impl GpuFeed {
         settings: EncoderSettings,
         on_failed: Box<dyn Fn() + Send + Sync>,
     ) -> Result<GpuFeed, String> {
+        let gate = Arc::new(Mutex::new(RateGate::new()));
         let encoder = GpuEncoder::open(
             settings,
             Box::new(SourceSink {
@@ -36,6 +44,7 @@ impl GpuFeed {
                     width: settings.width,
                     height: settings.height,
                 },
+                gate: gate.clone(),
             }),
             None,
         )?;
@@ -43,6 +52,7 @@ impl GpuFeed {
             encoder,
             on_failed,
             reported: AtomicBool::new(false),
+            gate,
         })
     }
 
@@ -64,6 +74,9 @@ impl GpuFeed {
                 (self.on_failed)();
             }
             return false;
+        }
+        if !self.admits() {
+            return true;
         }
         let width = target.width as usize;
         let height = target.height as usize;
@@ -104,6 +117,21 @@ impl GpuFeed {
         self.encoder.submit(Nv12Frame { data, timestamp_us });
         true
     }
+
+    /// Whether the encoder is within WebRTC's target, so the next picture
+    /// may go to it.
+    fn admits(&self) -> bool {
+        let now = Instant::now();
+        let target = self.encoder.bitrate();
+        let mut gate = self.gate.lock().unwrap();
+        if let Some(left_out) = gate.report(now) {
+            log::info!(
+                "screenshare: left out {left_out} pictures to keep {} within {target} bps",
+                self.encoder.name
+            );
+        }
+        gate.admits(target, now)
+    }
 }
 
 /// One captured picture, in whichever form it is when it reaches the target
@@ -117,6 +145,7 @@ pub(crate) enum Picture<'a> {
 struct SourceSink {
     source: NativeVideoSource,
     resolution: VideoResolution,
+    gate: Arc<Mutex<RateGate>>,
 }
 
 /// Frames handed to LiveKit, for a test to set against what WebRTC says it
@@ -137,6 +166,10 @@ impl EncodedSink for SourceSink {
             ),
             GpuCodec::Av1 => (EncodedVideoCodec::AV1, None),
         };
+        self.gate
+            .lock()
+            .unwrap()
+            .spent(frame.payload.len(), Instant::now());
         self.source.capture_encoded_frame(&EncodedVideoFrame {
             codec,
             payload: long.as_deref().unwrap_or(frame.payload),

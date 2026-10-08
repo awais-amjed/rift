@@ -144,6 +144,10 @@ pub(crate) mod test_hooks {
     pub(crate) static NO_GPU: AtomicBool = AtomicBool::new(false);
     /// 0 is never.
     pub(crate) static FAIL_AFTER: AtomicU32 = AtomicU32::new(0);
+    /// The encoder stays at the share's cap whatever WebRTC asks for, as one
+    /// that overshoots does. Linux's NVENC only: it is the one a bench can
+    /// run on a capped link.
+    pub(crate) static IGNORE_RATE: AtomicBool = AtomicBool::new(false);
 }
 
 /// The largest picture a hardware H264 encoder is sure to take: H264 level

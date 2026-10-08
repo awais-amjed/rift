@@ -645,6 +645,20 @@ VAAPI driver is a separate package) H264 is simply not offered.
   notes, including the AV1 findings, are kept on the `gpu-encoding` branch.
 - **GPU H264 stays constrained baseline**: LiveKit offers only that profile for
   pre-encoded tracks, and Firefox viewers cannot take High.
+- **A GPU encoder is held to WebRTC's target before it encodes, not after.**
+  WebRTC's frame dropper is off for pre-encoded frames (`third_party/webrtc-sys`),
+  since a dropped H264 frame breaks every frame after it until the next
+  keyframe. That leaves whatever an encoder makes beyond the target — variable
+  bitrate on a fast game, or a moment's lag behind a falling estimate — waiting
+  in WebRTC's send queue, and on a link that cannot carry it the picture falls
+  behind its sound. So `RateGate` (`rate_gate.rs`) counts what the encoder makes
+  against the target and leaves pictures out on the way in once it is 0.2 s
+  ahead: a slow link gets fewer frames, never late ones. Measured Oct 9 2026
+  (`bench_test.rs`, Linux NVENC at 120 fps on a 10 Mbit upload, the encoder
+  made to ignore the target): without it every packet waited 1.1 s in the
+  queue, the link lost them and the viewer decoded nothing; with it nothing
+  waited or was lost and the viewer got 36 fps. An encoder that follows the
+  target lost 56 pictures in 30 s, as the estimate fell, and held 120 fps.
 
 ### Regions — [Implemented September 2026]
 
