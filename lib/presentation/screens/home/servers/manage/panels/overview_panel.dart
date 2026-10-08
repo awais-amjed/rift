@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../../data/apis/invites_api.dart';
 import '../../../../../../data/apis/members_api.dart';
 import '../../../../../../data/classes/server.dart';
 import '../../../../../../data/repositories/session_repository.dart';
@@ -161,6 +162,7 @@ class _OverviewPanelState extends State<OverviewPanel> {
       name: name,
       draft: _listing,
       serverCubit: context.read<ServerCubit>(),
+      invites: InvitesApi(session: context.read<SessionRepository>()),
       publicServers: context.read<PublicServersCubit>(),
       // Whatever the listing already says, if this server's roster never
       // arrived — better a stale count than publishing zero over a real one.

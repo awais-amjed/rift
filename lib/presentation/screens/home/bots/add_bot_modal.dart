@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/apis/invites_api.dart';
 import '../../../../data/classes/public_bot.dart';
 import '../../../../data/classes/server.dart';
 import '../../../../data/constants.dart';
 import '../../../../data/enums/server_permission.dart';
 import '../../../../data/invite_link.dart';
+import '../../../../data/repositories/session_repository.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
@@ -73,11 +75,9 @@ class _AddBotModalState extends State<AddBotModal> {
     // Single-use and never-expiring: the link is for one program, and it is
     // spent the moment that program first runs. An unlimited one left in a
     // config file would mint a second bot on every fresh seed.
-    final result = await context.read<ServerCubit>().createInvite(
-      serverId: server.id,
-      isBot: true,
-      maxUses: 1,
-    );
+    final result = await InvitesApi(
+      session: context.read<SessionRepository>(),
+    ).createInvite(serverId: server.id, isBot: true, maxUses: 1);
     if (!mounted) return;
 
     setState(() {

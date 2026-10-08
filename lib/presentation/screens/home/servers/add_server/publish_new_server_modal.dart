@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/apis/invites_api.dart';
 import '../../../../../data/classes/directory_tags.dart';
 import '../../../../../data/classes/public_server.dart';
 import '../../../../../data/constants.dart';
+import '../../../../../data/repositories/session_repository.dart';
 import '../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
@@ -83,6 +85,7 @@ class _PublishNewServerModalState extends State<PublishNewServerModal> {
   Future<void> _publish() async {
     final server = context.read<ServerCubit>().state.selectedServer;
     if (server == null) return;
+    final invites = InvitesApi(session: context.read<SessionRepository>());
 
     setState(() {
       _publishing = true;
@@ -114,7 +117,7 @@ class _PublishNewServerModalState extends State<PublishNewServerModal> {
     // refused routinely: a server on a private address can never be listed,
     // and every press would otherwise have left another permanent open door
     // on it.
-    final invite = await context.read<ServerCubit>().createInvite(
+    final invite = await invites.createInvite(
       maxUses: null,
       expiresInSeconds: null,
       // The server this listing is for, which is also what the publish below
@@ -149,7 +152,7 @@ class _PublishNewServerModalState extends State<PublishNewServerModal> {
     if (!mounted) return;
 
     if (saved == null) {
-      await context.read<ServerCubit>().revokeInvite(
+      await invites.revokeInvite(
         inviteCode: invite.inviteCode!,
         serverId: server.id,
       );

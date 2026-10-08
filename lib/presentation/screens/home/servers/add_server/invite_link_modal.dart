@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/apis/invites_api.dart';
 import '../../../../../data/classes/resolved_invite.dart';
 import '../../../../../data/constants.dart';
-import '../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../data/repositories/session_repository.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/app_text_field.dart';
@@ -68,9 +69,9 @@ class _InviteLinkModalState extends State<InviteLinkModal> {
       _error = null;
     });
 
-    final result = await context.read<ServerCubit>().resolveInvite(
-      _linkCtrl.text,
-    );
+    final result = await InvitesApi(
+      session: context.read<SessionRepository>(),
+    ).resolveInvite(_linkCtrl.text);
     if (!mounted) return;
 
     final invite = result.invite;

@@ -1,16 +1,21 @@
-part of 'server_cubit.dart';
+import '../classes/resolved_invite.dart';
+import '../invite_link.dart';
+import '../repositories/server_repository.dart';
+import '../repositories/session_repository.dart';
 
-/// Invite links: making one for a server, and reading one before joining.
-mixin _ServerInvitesApiMixin on Cubit<ServerState> {
-  ServerRepository get _repository;
+/// Invite links: making one for a server, throwing one away, and reading one
+/// before joining.
+///
+/// Making and revoking take an optional `serverId`: the listing and publish
+/// flows mint an invite for a server the person may not be looking at.
+///
+/// Holds nothing, so a widget builds one from the session.
+class InvitesApi {
+  final SessionRepository _session;
 
-  Future<APIResponse> _callFor(
-    Server server,
-    Future<APIResponse> Function(String token) call,
-  );
+  InvitesApi({required SessionRepository session}) : _session = session;
 
-  Server? _target(String? serverId);
-  String _noTarget(String? serverId);
+  ServerRepository get _repository => _session.repository;
 
   Future<({bool success, String? inviteCode, String? error})> createInvite({
     int? maxUses = 1,
@@ -19,12 +24,16 @@ mixin _ServerInvitesApiMixin on Cubit<ServerState> {
     bool isBot = false,
     String? roleId,
   }) async {
-    final server = _target(serverId);
+    final server = _session.target(serverId);
     if (server == null) {
-      return (success: false, inviteCode: null, error: _noTarget(serverId));
+      return (
+        success: false,
+        inviteCode: null,
+        error: _session.noTarget(serverId),
+      );
     }
 
-    final response = await _callFor(
+    final response = await _session.callFor(
       server,
       (token) => _repository.createInvite(
         server.supabaseUrl,
@@ -39,16 +48,15 @@ mixin _ServerInvitesApiMixin on Cubit<ServerState> {
       ),
     );
 
-    if (response.success) {
-      final inviteCode = response.data['invite_code'] as String;
-      return (success: true, inviteCode: inviteCode, error: null);
-    } else {
+    if (!response.success) {
       return (
         success: false,
         inviteCode: null,
         error: response.error ?? 'Failed to generate invite',
       );
     }
+    final inviteCode = response.data['invite_code'] as String;
+    return (success: true, inviteCode: inviteCode, error: null);
   }
 
   /// Throw away an invite this account minted.
@@ -60,9 +68,9 @@ mixin _ServerInvitesApiMixin on Cubit<ServerState> {
     required String inviteCode,
     String? serverId,
   }) async {
-    final server = _target(serverId);
+    final server = _session.target(serverId);
     if (server == null) return;
-    await _callFor(
+    await _session.callFor(
       server,
       (token) => _repository.deleteInvite(
         server.supabaseUrl,
@@ -75,10 +83,11 @@ mixin _ServerInvitesApiMixin on Cubit<ServerState> {
 
   /// Read an invite link and ask its server what it opens, without using it.
   ///
-  /// The first of the two join steps. A link that does not parse is refused
-  /// here, in words; one that parses is put to the server, which answers with
-  /// the name — or with why not, which is the same answer registration would
-  /// have given a screen later, after a username had been typed for nothing.
+  /// The first of the two join steps, and needs no session: the person is not
+  /// on that server yet. A link that does not parse is refused here, in words;
+  /// one that parses is put to the server, which answers with the name — or
+  /// with why not, which is the same answer registration would have given a
+  /// screen later, after a username had been typed for nothing.
   Future<({ResolvedInvite? invite, String? error})> resolveInvite(
     String rawLink,
   ) async {

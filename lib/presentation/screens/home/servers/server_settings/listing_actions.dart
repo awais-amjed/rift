@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../data/apis/invites_api.dart';
 import '../../../../../data/classes/server.dart';
 import '../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
@@ -24,6 +25,7 @@ class ListingActions {
     required String name,
     required ListingDraft draft,
     required ServerCubit serverCubit,
+    required InvitesApi invites,
     required PublicServersCubit publicServers,
     required int memberCount,
   }) async {
@@ -39,7 +41,7 @@ class ListingActions {
           '${proof.error ?? 'this server would not confirm it.'}';
     }
 
-    final minted = await _inviteCode(draft, serverCubit, server.id);
+    final minted = await _inviteCode(draft, invites, server.id);
     final code = minted.code;
     if (code == null) {
       return 'Server settings saved, but the listing needs a join link and '
@@ -65,7 +67,7 @@ class ListingActions {
       // never expires. The one the listing already had is left alone — it is
       // still in use by the row that is still there.
       if (minted.isNew) {
-        await serverCubit.revokeInvite(inviteCode: code, serverId: server.id);
+        await invites.revokeInvite(inviteCode: code, serverId: server.id);
       }
       return 'Server settings saved, but the public listing did not: '
           '${publicServers.state.error ?? 'central could not be reached.'}';
@@ -115,7 +117,7 @@ class ListingActions {
   /// when the publish fails.
   static Future<({String? code, bool isNew})> _inviteCode(
     ListingDraft draft,
-    ServerCubit serverCubit,
+    InvitesApi invites,
     String serverId,
   ) async {
     final existing = draft.listing?.inviteCode;
@@ -123,7 +125,7 @@ class ListingActions {
       return (code: existing, isNew: false);
     }
 
-    final result = await serverCubit.createInvite(
+    final result = await invites.createInvite(
       maxUses: null,
       expiresInSeconds: null,
       // The listing's server, which is not necessarily the one on screen.

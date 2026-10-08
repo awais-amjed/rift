@@ -1,3 +1,4 @@
+import '../../../../../data/apis/invites_api.dart';
 import '../../../../../data/classes/server.dart';
 import '../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
@@ -24,6 +25,7 @@ class ServerSettingsSave {
     required String name,
     required ListingDraft draft,
     required ServerCubit serverCubit,
+    required InvitesApi invites,
     required PublicServersCubit publicServers,
     required int memberCount,
   }) async {
@@ -39,6 +41,7 @@ class ServerSettingsSave {
       name: name,
       draft: draft,
       serverCubit: serverCubit,
+      invites: invites,
       publicServers: publicServers,
       memberCount: memberCount,
     );

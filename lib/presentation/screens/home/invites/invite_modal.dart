@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/apis/invites_api.dart';
 import '../../../../data/apis/roles_api.dart';
 import '../../../../data/classes/role.dart';
 import '../../../../data/classes/server.dart';
@@ -67,13 +68,14 @@ class _InviteModalState extends State<InviteModal> with _InviteRolesMixin {
       _inviteToken = null;
     });
 
-    final result = await context.read<ServerCubit>().createInvite(
-      maxUses: inviteUsesOptions[_usesIndex].value,
-      expiresInSeconds: inviteExpiryOptions[_expiryIndex].seconds,
-      serverId: widget.server.id,
-      isBot: _isBot,
-      roleId: roleId,
-    );
+    final result = await InvitesApi(session: context.read<SessionRepository>())
+        .createInvite(
+          maxUses: inviteUsesOptions[_usesIndex].value,
+          expiresInSeconds: inviteExpiryOptions[_expiryIndex].seconds,
+          serverId: widget.server.id,
+          isBot: _isBot,
+          roleId: roleId,
+        );
 
     if (!mounted) return;
 

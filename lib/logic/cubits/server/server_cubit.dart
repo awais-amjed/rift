@@ -12,13 +12,11 @@ import '../../../data/classes/livekit_node.dart';
 import '../../../data/classes/message_cache_slot.dart';
 import '../../../data/classes/notice.dart';
 import '../../../data/classes/region_load.dart';
-import '../../../data/classes/resolved_invite.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/classes/server_details.dart';
 import '../../../data/classes/server_limits.dart';
 import '../../../data/classes/server_user.dart';
 import '../../../data/classes/user_permissions.dart';
-import '../../../data/invite_link.dart';
 import '../../../data/repositories/avatar_repository.dart';
 import '../../../data/repositories/central_dm_repository.dart';
 import '../../../data/repositories/secure_storage_repository.dart';
@@ -41,7 +39,6 @@ part 'server_api.dart';
 part 'server_bots_api.dart';
 part 'server_crud.dart';
 part 'server_cubit.g.dart';
-part 'server_invites_api.dart';
 part 'server_ownership_api.dart';
 part 'server_profile_api.dart';
 part 'server_push_api.dart';
@@ -65,7 +62,6 @@ class ServerCubit extends HydratedCubit<ServerState>
         _ServerBotsApiMixin,
         _ServerVoiceApiMixin,
         _ServerVoiceRegionsApiMixin,
-        _ServerInvitesApiMixin,
         _ServerProfileApiMixin,
         _ServerPushApiMixin {
   /// The session's, so every server's database client is made once.
