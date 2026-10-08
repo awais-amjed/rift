@@ -1,3 +1,5 @@
+import 'package:equatable/equatable.dart';
+
 import 'attachment.dart';
 
 /// What the sender saw at a link, sealed into the message beside the text.
@@ -15,7 +17,7 @@ import 'attachment.dart';
 /// uploaded and encrypted like any other attachment, and kept apart from the
 /// message's own attachments so it draws as part of the card, not as a photo
 /// the sender posted.
-class LinkPreview {
+class LinkPreview extends Equatable {
   final String url;
   final String? title;
   final String? description;
@@ -56,4 +58,7 @@ class LinkPreview {
         ? null
         : Attachment.fromJson(json['img'] as Map<String, dynamic>),
   );
+
+  @override
+  List<Object?> get props => [url, title, description, siteName, image];
 }

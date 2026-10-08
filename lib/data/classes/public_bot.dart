@@ -1,3 +1,5 @@
+import 'package:equatable/equatable.dart';
+
 import 'bot_manifest.dart';
 
 /// One row of the central bot directory — central's `public_bots` table.
@@ -11,7 +13,7 @@ import 'bot_manifest.dart';
 /// Everything here is plaintext and none of it is checked. [sourceUrl] is the
 /// one line of provenance a stranger gets, which is why it is required: a bot
 /// whose code nobody can read is a bot nobody should run.
-class PublicBot {
+class PublicBot extends Equatable {
   final String id;
 
   /// The central account that published it, which is not the bot's identity —
@@ -163,6 +165,25 @@ class PublicBot {
     hiddenAt: hiddenAt,
     hiddenReason: hiddenReason,
   );
+
+  @override
+  List<Object?> get props => [
+    id,
+    ownerId,
+    name,
+    description,
+    iconPath,
+    sourceUrl,
+    tags,
+    manifest,
+    isListed,
+    likeCount,
+    likedByMe,
+    createdAt,
+    updatedAt,
+    hiddenAt,
+    hiddenReason,
+  ];
 }
 
 /// How the browser orders the directory.

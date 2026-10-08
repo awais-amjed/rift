@@ -1,8 +1,10 @@
 import 'dart:typed_data';
 
 import 'package:cross_file/cross_file.dart';
+import 'package:equatable/equatable.dart';
 
 import 'attachment.dart';
+import 'equality_props.dart';
 
 /// A file the user has staged in the composer but not yet sent, plus display
 /// metadata. On send it's encrypted, uploaded, and turned into an
@@ -15,7 +17,7 @@ import 'attachment.dart';
 /// and the sender's own copy is drawn from memory. A big one is held only as
 /// [file] and read a chunk at a time as it is sent, so a file larger than the
 /// device's memory can go: see `AttachmentStaging.inMemoryMaxBytes`.
-class PendingAttachment {
+class PendingAttachment extends Equatable {
   /// The whole file, for one small enough to hold. Null for a big one.
   final Uint8List? bytes;
 
@@ -42,6 +44,8 @@ class PendingAttachment {
   /// (`AttachmentStaging.discard`). Never set on a file the person owns.
   final bool temporary;
 
+  // Not const: [size] is read off the bytes.
+  // ignore: prefer_const_constructors_in_immutables
   PendingAttachment({
     required Uint8List this.bytes,
     required this.name,
@@ -102,4 +106,19 @@ class PendingAttachment {
     plain: plain ?? this.plain,
     temporary: temporary,
   );
+
+  @override
+  List<Object?> get props => [
+    IdentityProp(bytes),
+    file,
+    size,
+    name,
+    mime,
+    kind,
+    width,
+    height,
+    durationMs,
+    plain,
+    temporary,
+  ];
 }

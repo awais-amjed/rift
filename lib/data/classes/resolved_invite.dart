@@ -1,3 +1,5 @@
+import 'package:equatable/equatable.dart';
+
 import 'public_server.dart';
 
 /// An invite the server has vouched for: its address and code, and the name
@@ -7,7 +9,7 @@ import 'public_server.dart';
 /// this is what the first hands to the second. It exists so the second step
 /// never sees a raw link: by the time somebody is asked for a username, the
 /// invite has been read and the server has answered to it.
-class ResolvedInvite {
+class ResolvedInvite extends Equatable {
   final String serverUrl;
   final String inviteCode;
   final String serverId;
@@ -31,4 +33,7 @@ class ResolvedInvite {
 
   /// The one line of provenance to show before asking for a username.
   String get host => Uri.tryParse(serverUrl)?.host ?? serverUrl;
+
+  @override
+  List<Object?> get props => [serverUrl, inviteCode, serverId, serverName];
 }

@@ -84,13 +84,16 @@ widgets  →  cubits  →  repositories  →  network / storage / platform
 
 - **Immutable.** `final` fields, a `const` constructor, a `copyWith`. Never
   mutate a list or map held in state; build a new one and emit it.
-- **Value equality on new states and on anything a widget selects.** `emit`
+- **Value equality on every state and every model, over every field.** `emit`
   drops a state equal to the current one, and `buildWhen`, `listenWhen` and
   `BlocSelector` decide with `==`. Without `==`, every equal copy looks new and
-  rebuilds; with a mutated list, a real change looks the same and does not.
-  Implement `==` and `hashCode` together (Effective Dart), and only on immutable
-  classes. Find the state classes still without it with
-  `grep -L "operator ==" lib/logic/cubits/*/*_state.dart`.
+  rebuilds; with a field left out of it, a change to that field compares equal
+  and the screen keeps the old value. Use `Equatable` and list every field in
+  `props`; `test/value_equality_test.dart` reads the source and fails on a class
+  without equality or a field missing from it. A set goes in as `SetProp`
+  (Equatable compares sets in quadratic time) and bytes as `IdentityProp`
+  (`data/classes/equality_props.dart`). Hand-write `==` and `hashCode` together
+  only where identity is the point (`MediaEntry`), and only on immutable classes.
 - **Status names:** a status enum with `initial, loading, success, failure`, or
   sealed subclasses ending in `Initial`, `InProgress`, `Success`, `Failure`
   (Bloc naming conventions). Not `Loaded`, `Done`, `Error`.

@@ -1,3 +1,5 @@
+import 'package:equatable/equatable.dart';
+
 import '../enums/message_origin.dart';
 import 'attachment.dart';
 import 'forwarded_message.dart';
@@ -16,7 +18,7 @@ import 'poll.dart';
 /// message ([MessageOrigin.webhook]) was never sealed and has no signature to
 /// check; it is the server's word that it arrived, and [isEncrypted] is what
 /// tells the two apart. See BOTS.md §3.
-class ChatMessage {
+class ChatMessage extends Equatable {
   final String id;
 
   /// The sender's user id, or the empty string for a message no member sent.
@@ -261,4 +263,33 @@ class ChatMessage {
     poll: poll,
     pinnedAt: clearPinned ? null : pinnedAt ?? this.pinnedAt,
   );
+
+  @override
+  List<Object?> get props => [
+    id,
+    authorId,
+    authorName,
+    authorAvatarPath,
+    text,
+    attachments,
+    preview,
+    reactions,
+    replyToId,
+    forwarded,
+    sentAt,
+    isMine,
+    isPending,
+    sendFailed,
+    uploadProgress,
+    sentAsId,
+    editedAt,
+    origin,
+    panel,
+    isEncrypted,
+    inPlainChannel,
+    isEphemeral,
+    isLocked,
+    poll,
+    pinnedAt,
+  ];
 }

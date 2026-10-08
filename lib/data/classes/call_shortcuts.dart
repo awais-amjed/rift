@@ -1,3 +1,4 @@
+import 'package:equatable/equatable.dart';
 import 'package:flutter/services.dart';
 
 import 'key_shortcut.dart';
@@ -7,7 +8,7 @@ enum CallShortcut { mute, deafen }
 
 /// The keys picked for mute and deafen, each unset until chosen. Per device,
 /// in `AppState`.
-class CallShortcuts {
+class CallShortcuts extends Equatable {
   final KeyShortcut? mute;
   final KeyShortcut? deafen;
 
@@ -48,4 +49,7 @@ class CallShortcuts {
     'mute': mute?.toJson(),
     'deafen': deafen?.toJson(),
   };
+
+  @override
+  List<Object?> get props => [mute, deafen];
 }

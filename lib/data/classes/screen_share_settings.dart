@@ -1,3 +1,5 @@
+import 'package:equatable/equatable.dart';
+
 import '../../src/rust/api/screenshare/types.dart';
 import 'server_limits.dart';
 import 'share_encoding.dart';
@@ -8,7 +10,7 @@ import 'share_encoding.dart';
 /// What the next screen share will send, remembered between calls. The source
 /// fields are per-platform: a window index and title everywhere, a PID on
 /// Windows, a PulseAudio source on Linux.
-class ScreenShareSettings {
+class ScreenShareSettings extends Equatable {
   final int resolution; // height in px (720, 1080, 1440, 2160)
   final int fps;
 
@@ -280,4 +282,22 @@ class ScreenShareSettings {
           : selectedAudioSource ?? this.selectedAudioSource,
     );
   }
+
+  @override
+  List<Object?> get props => [
+    resolution,
+    fps,
+    bitrate,
+    bitrateChosen,
+    shareAudio,
+    captureFullScreen,
+    selectedVideoSourceIndex,
+    selectedVideoSourcePid,
+    selectedVideoSourceTitle,
+    codec,
+    codecChosen,
+    showsAdvanced,
+    priority,
+    selectedAudioSource,
+  ];
 }

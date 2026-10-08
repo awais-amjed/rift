@@ -1,3 +1,5 @@
+import 'package:equatable/equatable.dart';
+
 /// One clip on a server's soundboard (`001_schema.sql`, `soundboard_sounds`).
 ///
 /// The bytes are not here and never are: a clip is fetched once by whoever
@@ -5,7 +7,7 @@
 /// minted once and never rewritten — the server has no UPDATE grant on it, so
 /// a clip cannot be repointed at other bytes behind a cache that already
 /// holds the old ones.
-class SoundboardSound {
+class SoundboardSound extends Equatable {
   final String id;
   final String name;
 
@@ -82,4 +84,16 @@ class SoundboardSound {
       createdAt: createdAt,
     );
   }
+
+  @override
+  List<Object?> get props => [
+    id,
+    name,
+    emoji,
+    objectPath,
+    duration,
+    bytes,
+    createdBy,
+    createdAt,
+  ];
 }

@@ -2,7 +2,7 @@ part of 'public_bots_cubit.dart';
 
 /// The bot directory as the open dialog sees it: one browse and the caller's
 /// own listings. Lives only as long as that dialog.
-class PublicBotsState {
+class PublicBotsState extends Equatable {
   // ── Browsing ──────────────────────────────────────────────
 
   final List<PublicBot> results;
@@ -104,4 +104,21 @@ class PublicBotsState {
       error: clearError ? null : (error ?? this.error),
     );
   }
+
+  @override
+  List<Object?> get props => [
+    results,
+    query,
+    tag,
+    sort,
+    loading,
+    hasBrowsed,
+    hasMore,
+    loadingMore,
+    SetProp(liking),
+    myListings,
+    cap,
+    savingListing,
+    error,
+  ];
 }

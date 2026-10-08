@@ -1,3 +1,5 @@
+import 'package:equatable/equatable.dart';
+
 import 'attachment.dart';
 
 /// Words and files carried into another conversation, and nothing else.
@@ -17,7 +19,7 @@ import 'attachment.dart';
 /// ever have been a claim. Rather than draw one and caption it as
 /// unverifiable, there is none: a forward says *that* it is a forward, and
 /// the words are the forwarder's to stand behind.
-class ForwardedMessage {
+class ForwardedMessage extends Equatable {
   /// What the original text may run to before it is cut.
   ///
   /// The column caps the whole sealed body at 16 KB and the attachments'
@@ -85,4 +87,7 @@ class ForwardedMessage {
     }
     return out;
   }
+
+  @override
+  List<Object?> get props => [text, attachments];
 }

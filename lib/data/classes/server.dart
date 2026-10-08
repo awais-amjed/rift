@@ -1,10 +1,12 @@
+import 'package:equatable/equatable.dart';
+
 import 'channel.dart';
 import 'livekit_node.dart';
 import 'server_limits.dart';
 import 'server_user.dart';
 
 /// Over the helper budget and one job: the server model.
-class Server {
+class Server extends Equatable {
   final String id;
   final String name;
   final String? iconUrl;
@@ -235,4 +237,23 @@ class Server {
       livekitNodes: livekitNodes ?? this.livekitNodes,
     );
   }
+
+  @override
+  List<Object?> get props => [
+    id,
+    name,
+    iconUrl,
+    supabaseUrl,
+    supabaseKey,
+    livekitUrl,
+    token,
+    user,
+    channels,
+    limits,
+    storageUsed,
+    maxFileBytes,
+    livekitNodes,
+    keyVersion,
+    tokenIssuedAt,
+  ];
 }

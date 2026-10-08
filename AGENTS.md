@@ -62,7 +62,8 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   saved, and the servers and settings start over. A new one also needs its shape
   in `HydratedKeyRecovery.kindOf`.
 - State classes live in a `part` file (`foo_state.dart`, `part of 'foo_cubit.dart';`). They are
-  immutable, with `const` constructors where possible, a `copyWith`, and for hydrated cubits
+  immutable, with `const` constructors where possible, a `copyWith`, value equality
+  (`Equatable`, every field in `props` — `BEST_PRACTICES.md` §4), and for hydrated cubits
   `@JsonSerializable` + generated `_$FooStateFromJson/ToJson` (run
   `dart run build_runner build` after changing them — `.g.dart` files are committed).
 - Transient fields inside a hydrated state are excluded with
@@ -83,7 +84,8 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
 
 ## Data layer
 
-- Models in `data/classes/` are plain Dart: final fields, `const` constructor, hand-written
+- Models in `data/classes/` are plain Dart: final fields, `const` constructor, `Equatable`
+  props over every field, hand-written
   `fromJson`/`toJson` with **snake_case JSON keys matching the server** (`channel_type`).
   `@JsonSerializable` codegen is used for cubit states, not for these API models.
 - Multi-value returns use records:

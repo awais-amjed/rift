@@ -1,8 +1,10 @@
+import 'package:equatable/equatable.dart';
+
 import '../enums/channel_type.dart';
 
 /// One text or voice channel as the server lists it, with the per-channel
 /// overrides that inherit from the server when null.
-class Channel {
+class Channel extends Equatable {
   final String id;
   final String name;
   final ChannelType channelType;
@@ -111,4 +113,18 @@ class Channel {
     'livekit_node_id': livekitNodeId,
     'voice_node_id': voiceNodeId,
   };
+
+  @override
+  List<Object?> get props => [
+    id,
+    name,
+    channelType,
+    retentionDays,
+    historyCap,
+    isPrivate,
+    isEncrypted,
+    canManage,
+    livekitNodeId,
+    voiceNodeId,
+  ];
 }

@@ -1,15 +1,18 @@
 part of 'channel_presence_cubit.dart';
 
 /// Somebody sitting in a voice channel, as the sidebar lists them.
-class PresenceUser {
+class PresenceUser extends Equatable {
   final String userId;
   final String displayName;
 
   const PresenceUser({required this.userId, required this.displayName});
+
+  @override
+  List<Object?> get props => [userId, displayName];
 }
 
 /// Who is online on the selected server, and which voice channel each is in.
-class ChannelPresenceState {
+class ChannelPresenceState extends Equatable {
   /// Maps channelId → who is in that voice channel, by display name.
   ///
   /// Built from the broadcast locations, filtered by [onlineUserIds] and with
@@ -63,4 +66,11 @@ class ChannelPresenceState {
   }
 
   bool isOnline(String userId) => onlineUserIds.contains(userId);
+
+  @override
+  List<Object?> get props => [
+    channelPresence,
+    SetProp(onlineUserIds),
+    callStartedAt,
+  ];
 }

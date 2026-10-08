@@ -1,9 +1,11 @@
 import 'dart:async';
 
+import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase/supabase.dart';
 
+import '../../../data/classes/equality_props.dart';
 import '../../../data/classes/server.dart';
 import '../../services/call_start_times.dart';
 import '../../services/presence_ration.dart';

@@ -4,7 +4,7 @@ part of 'sound_share_cubit.dart';
 enum SoundShareStatus { idle, connecting, sharing, stopping, error }
 
 /// One application's sound shared into the call, as its own connection.
-class SoundShareState {
+class SoundShareState extends Equatable {
   final SoundShareStatus status;
 
   /// The channel the share is running in, so a share left over from another
@@ -52,4 +52,7 @@ class SoundShareState {
       error: clearError ? null : (error ?? this.error),
     );
   }
+
+  @override
+  List<Object?> get props => [status, channelId, source, error];
 }

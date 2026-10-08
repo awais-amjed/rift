@@ -1,3 +1,5 @@
+import 'package:equatable/equatable.dart';
+
 import '../enums/member_report_reason.dart';
 import '../enums/report_outcome.dart';
 
@@ -8,7 +10,7 @@ import '../enums/report_outcome.dart';
 /// reviewer's client opens it with the channel key it already holds and
 /// checks the author's signature. The words are never in this row; see
 /// [ReportedMessage].
-class MemberReport {
+class MemberReport extends Equatable {
   final int id;
   final DateTime createdAt;
 
@@ -84,11 +86,28 @@ class MemberReport {
       resolvedAt: DateTime.tryParse(json['resolved_at'] as String? ?? ''),
     );
   }
+
+  @override
+  List<Object?> get props => [
+    id,
+    createdAt,
+    reporterId,
+    targetId,
+    reason,
+    note,
+    message,
+    reporter,
+    target,
+    channelName,
+    outcome,
+    resolvedBy,
+    resolvedAt,
+  ];
 }
 
 /// The envelope a message report kept: exactly the columns `messages` had,
 /// so it opens with the code that opens any message.
-class ReportedMessage {
+class ReportedMessage extends Equatable {
   final int id;
   final String channelId;
   final DateTime createdAt;
@@ -113,10 +132,22 @@ class ReportedMessage {
     this.nonce,
     this.signature,
   });
+
+  @override
+  List<Object?> get props => [
+    id,
+    channelId,
+    createdAt,
+    originName,
+    ciphertext,
+    nonce,
+    signature,
+    keyVersion,
+  ];
 }
 
 /// A person named on a report, as their row stood when the list was read.
-class ReportPerson {
+class ReportPerson extends Equatable {
   final String displayName;
   final String username;
   final String? avatarPath;
@@ -158,4 +189,15 @@ class ReportPerson {
       )?.toLocal(),
     );
   }
+
+  @override
+  List<Object?> get props => [
+    displayName,
+    username,
+    avatarPath,
+    publicKey,
+    isBanned,
+    isKicked,
+    timedOutUntil,
+  ];
 }

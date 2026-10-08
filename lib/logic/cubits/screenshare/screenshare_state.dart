@@ -5,7 +5,7 @@ enum ScreenshareStatus { idle, connecting, sharing, stopping, error }
 
 /// This device's screen share. It runs as a second LiveKit connection, which is
 /// why it has a status of its own rather than a flag on [LiveKitState].
-class ScreenshareState {
+class ScreenshareState extends Equatable {
   final ScreenshareStatus status;
   final String? channelId;
   final ScreenShareSettings? settings;
@@ -56,4 +56,14 @@ class ScreenshareState {
       error: clearError ? null : (error ?? this.error),
     );
   }
+
+  @override
+  List<Object?> get props => [
+    status,
+    channelId,
+    settings,
+    codec,
+    limits,
+    error,
+  ];
 }

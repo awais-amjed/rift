@@ -1,3 +1,5 @@
+import 'package:equatable/equatable.dart';
+
 import '../enums/friendship_state.dart';
 import 'dm_conversation.dart';
 
@@ -9,7 +11,7 @@ import 'dm_conversation.dart';
 /// and opening one needs the keys to seal to. It is a directory row that
 /// happens to know where you stand with the person, which is why [state] lives
 /// on it rather than in a map beside it.
-class Friend {
+class Friend extends Equatable {
   final String id;
   final String handle;
 
@@ -73,4 +75,14 @@ class Friend {
     peerChatPublicKey: chatPublicKey,
     peerSigningPublicKey: signingPublicKey,
   );
+
+  @override
+  List<Object?> get props => [
+    id,
+    handle,
+    chatPublicKey,
+    signingPublicKey,
+    state,
+    since,
+  ];
 }

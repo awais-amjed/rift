@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:equatable/equatable.dart';
+
 import 'encrypted_seed.dart';
 import 'encrypted_vault.dart';
 
@@ -27,7 +29,7 @@ import 'encrypted_vault.dart';
 ///   3. Same vault key + encryptedServers.iv → decrypt servers → server list
 ///   4. Store everything in secure storage and derive all server identities.
 ///   5. Reconstruct Server objects from decrypted servers and populate ServerCubit.
-class BackupFile {
+class BackupFile extends Equatable {
   /// v3 added [recovery]. Older files still load — [recovery] is null and the
   /// password is the only way in, which is exactly what those files meant.
   static const int currentVersion = 3;
@@ -82,4 +84,7 @@ class BackupFile {
 
   factory BackupFile.fromJsonString(String s) =>
       BackupFile.fromJson(jsonDecode(s) as Map<String, dynamic>);
+
+  @override
+  List<Object?> get props => [version, seed, vault, encryptedServers, recovery];
 }

@@ -1,3 +1,5 @@
+import 'package:equatable/equatable.dart';
+
 import '../enums/dm_call_outcome.dart';
 
 /// One call between two members of a server, as one of them sees it
@@ -7,7 +9,7 @@ import '../enums/dm_call_outcome.dart';
 /// What was said never touches the server — the media key is derived from the
 /// pair's DM key, which is why [peerChatPublicKey] rides along: the device a
 /// call rings on may never have opened this conversation.
-class DmCall {
+class DmCall extends Equatable {
   final String id;
   final String callerId;
   final String calleeId;
@@ -111,4 +113,19 @@ class DmCall {
 
   /// The room this call is held in — the name `get_dm_call_token` gives it.
   String get roomName => 'dm-$id';
+
+  @override
+  List<Object?> get props => [
+    id,
+    callerId,
+    calleeId,
+    startedAt,
+    answeredAt,
+    endedAt,
+    outcome,
+    peerId,
+    peerName,
+    peerAvatarPath,
+    peerChatPublicKey,
+  ];
 }

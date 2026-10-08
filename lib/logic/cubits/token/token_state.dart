@@ -7,7 +7,7 @@ part of 'token_cubit.dart';
 /// baked in at mint time — so handing one to a different account does not
 /// mislabel a tile, it signs that account into the room as someone else,
 /// with whatever moderation grant the token was issued with.
-class CachedToken {
+class CachedToken extends Equatable {
   final String supabaseUrl;
   final String channelId;
 
@@ -73,10 +73,22 @@ class CachedToken {
     deviceId: json['deviceId'] as String?,
     livekitUrl: json['livekitUrl'] as String?,
   );
+
+  @override
+  List<Object?> get props => [
+    supabaseUrl,
+    channelId,
+    userId,
+    token,
+    createdAt,
+    grantVersion,
+    deviceId,
+    livekitUrl,
+  ];
 }
 
 /// See [TokenCubit].
-class TokenState {
+class TokenState extends Equatable {
   /// Map of channelId → cached token.
   final Map<String, CachedToken> tokens;
 
@@ -84,4 +96,7 @@ class TokenState {
 
   TokenState copyWith({Map<String, CachedToken>? tokens}) =>
       TokenState(tokens: tokens ?? this.tokens);
+
+  @override
+  List<Object?> get props => [tokens];
 }

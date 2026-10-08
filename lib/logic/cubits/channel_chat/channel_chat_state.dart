@@ -49,7 +49,7 @@ enum ChannelChatStatus {
 
 /// The one open text channel: its messages and paging, who is typing, and the
 /// bots and names a mention can reach.
-class ChannelChatState {
+class ChannelChatState extends Equatable {
   final ChannelChatStatus status;
 
   /// The open text channel, or null when closed.
@@ -180,4 +180,21 @@ class ChannelChatState {
       showingSaved: showingSaved ?? this.showingSaved,
     );
   }
+
+  @override
+  List<Object?> get props => [
+    status,
+    channelId,
+    messages,
+    hasMoreHistory,
+    isLoadingMore,
+    hasNewerHistory,
+    botListeners,
+    bots,
+    mentionNames,
+    typingUsers,
+    failure,
+    pollTallies,
+    showingSaved,
+  ];
 }

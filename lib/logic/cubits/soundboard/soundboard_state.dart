@@ -14,7 +14,7 @@ enum SoundboardStatus { idle, loading, ready, error }
 /// Only the ids are held. The clip's name and the person's are looked up
 /// where the chip is drawn, because both can change and neither is this
 /// cubit's to cache.
-class SoundboardHeard {
+class SoundboardHeard extends Equatable {
   /// Unique per press, so two airhorns from the same person a second apart
   /// are two chips with two lifetimes rather than one that cannot be told
   /// from the other.
@@ -30,11 +30,14 @@ class SoundboardHeard {
     required this.soundId,
     required this.at,
   });
+
+  @override
+  List<Object?> get props => [id, userId, soundId, at];
 }
 
 /// The selected server's soundboard: its clips, what this device just fired,
 /// and who else just played one.
-class SoundboardState {
+class SoundboardState extends Equatable {
   final SoundboardStatus status;
 
   /// Whose library this is. Held so a reply arriving after the rail has moved
@@ -85,4 +88,14 @@ class SoundboardState {
       recent: recent ?? this.recent,
     );
   }
+
+  @override
+  List<Object?> get props => [
+    status,
+    serverId,
+    sounds,
+    error,
+    SetProp(pressed),
+    recent,
+  ];
 }

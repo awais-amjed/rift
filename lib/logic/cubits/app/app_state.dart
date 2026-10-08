@@ -3,7 +3,7 @@ part of 'app_cubit.dart';
 /// See [AppCubit]. Grouped by what each field belongs to; everything here is
 /// this device's choice alone.
 @JsonSerializable(explicitToJson: true)
-class AppState {
+class AppState extends Equatable {
   // ── Persisted ──────────────────────────────────────────────
   /// Whether the left sidebar is shown. Hidden it takes no width at all and a
   /// button at the start of the pane's header brings it back — the member
@@ -411,4 +411,59 @@ class AppState {
       _$AppStateFromJson(json);
 
   Map<String, dynamic> toJson() => _$AppStateToJson(this);
+
+  @override
+  List<Object?> get props => [
+    sidebarOpen,
+    audioEnabled,
+    videoEnabled,
+    pushToTalkEnabled,
+    pushToTalkKeyId,
+    pushToTalkKeyLabel,
+    callShortcuts,
+    titleBarVisible,
+    screenShareSettings,
+    participantSettings,
+    windowWidth,
+    windowHeight,
+    windowX,
+    windowY,
+    askBeforeVoiceSwitch,
+    statsOverlayPinned,
+    showStreamStats,
+    sensitiveContentMode,
+    linkPreviewsEnabled,
+    showOfflineChip,
+    betaUpdates,
+    addToAppMenu,
+    launchAtLogin,
+    startMinimized,
+    membersSidebarOpen,
+    sidebarWidth,
+    membersSidebarWidth,
+    dmCallStageShare,
+    outputDeviceId,
+    inputDeviceId,
+    outputVolume,
+    inputVolume,
+    noiseSuppression,
+    echoCancellation,
+    autoGainControl,
+    soundboardMuted,
+    soundboardVolume,
+    appSounds,
+    verifiedCodes,
+    seenKeys,
+    recentEmojis,
+    isHovered,
+    selectedChannelId,
+    participants,
+    surface,
+    membersHiddenForFocus,
+    stageChromeHidden,
+    dmCallExpanded,
+    dmCallChatOpen,
+    desktopPushToTalkKey,
+    desktopPushToTalkPending,
+  ];
 }

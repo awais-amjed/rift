@@ -1,8 +1,9 @@
 import 'dart:convert';
+import 'package:equatable/equatable.dart';
 
 /// Represents the decrypted vault containing the user's master identity
 /// and a list of servers they've joined.
-class Vault {
+class Vault extends Equatable {
   final String masterSeed; // base64-encoded 256-bit seed
   final List<JoinedServer> joinedServers;
 
@@ -33,10 +34,13 @@ class Vault {
       joinedServers: joinedServers ?? this.joinedServers,
     );
   }
+
+  @override
+  List<Object?> get props => [masterSeed, joinedServers];
 }
 
 /// A server the user has joined, stored inside the vault.
-class JoinedServer {
+class JoinedServer extends Equatable {
   final String url;
   final String version;
   final DateTime joinedAt;
@@ -58,4 +62,7 @@ class JoinedServer {
     version: json['version'] as String,
     joinedAt: DateTime.parse(json['joined_at'] as String),
   );
+
+  @override
+  List<Object?> get props => [url, version, joinedAt];
 }

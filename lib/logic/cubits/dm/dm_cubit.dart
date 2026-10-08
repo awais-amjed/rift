@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rift_crypto/rift_crypto.dart';
 import 'package:supabase/supabase.dart' show RealtimeSubscribeStatus;
@@ -10,6 +11,7 @@ import '../../../data/classes/attachment.dart';
 import '../../../data/classes/chat_message.dart';
 import '../../../data/classes/dm_call.dart';
 import '../../../data/classes/dm_conversation.dart';
+import '../../../data/classes/equality_props.dart';
 import '../../../data/classes/message_body.dart';
 import '../../../data/classes/message_cache_slot.dart';
 import '../../../data/classes/pending_attachment.dart';

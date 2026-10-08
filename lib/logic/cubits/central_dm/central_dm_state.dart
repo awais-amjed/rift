@@ -19,7 +19,7 @@ enum DmChatStatus { closed, loading, ready, error }
 /// Central DMs: the conversation list, the open conversation, friends and the
 /// daily quota. Handles, not display names, because central has no server to
 /// name anybody.
-class CentralDmState {
+class CentralDmState extends Equatable {
   final CentralDmStatus status;
   final String? myHandle;
   final bool claiming;
@@ -245,4 +245,31 @@ class CentralDmState {
   /// an answer. Somebody who has asked to reach you is exactly as worth
   /// surfacing as somebody who already can.
   int get homeBadge => totalUnread + friends.requestCount;
+
+  @override
+  List<Object?> get props => [
+    status,
+    myHandle,
+    claiming,
+    conversations,
+    conversationsLoading,
+    hasMoreConversations,
+    unreadByPeer,
+    levelsByPeer,
+    friends,
+    openBuckets,
+    quota,
+    remaining,
+    friendsOpen,
+    openPeerId,
+    openPeerHandle,
+    chatStatus,
+    messages,
+    hasMoreHistory,
+    isLoadingMore,
+    hasNewerHistory,
+    error,
+    handleQuery,
+    showingSaved,
+  ];
 }

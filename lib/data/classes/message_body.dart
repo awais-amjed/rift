@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:equatable/equatable.dart';
+
 import 'attachment.dart';
 import 'chat_message.dart';
 import 'forwarded_message.dart';
@@ -14,7 +16,7 @@ import 'poll.dart';
 /// format, tables, or signatures, the sealed plaintext is now a small tagged
 /// JSON object. Decoding is **backward compatible**: any plaintext that isn't
 /// our tagged JSON — every pre-existing message — is treated as plain text.
-class MessageBody {
+class MessageBody extends Equatable {
   /// Body schema version. Bumped only on an incompatible shape change.
   static const int currentVersion = 1;
 
@@ -153,4 +155,15 @@ class MessageBody {
     }
     return MessageBody(text: plaintext);
   }
+
+  @override
+  List<Object?> get props => [
+    version,
+    text,
+    attachments,
+    preview,
+    replyToId,
+    forwarded,
+    poll,
+  ];
 }

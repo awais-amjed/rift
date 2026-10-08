@@ -1,3 +1,5 @@
+import 'package:equatable/equatable.dart';
+
 /// One incoming webhook: a secret URL an outside service posts to, which lands
 /// in a channel as an unencrypted message (`webhooks`, BOTS.md §7).
 ///
@@ -6,7 +8,7 @@
 /// [WebhookSecret]. Everything on this class is what a channel manager may read
 /// back afterwards: what it is called, where it posts, and whether it is still
 /// being used.
-class Webhook {
+class Webhook extends Equatable {
   final String id;
   final String channelId;
   final String name;
@@ -34,6 +36,9 @@ class Webhook {
     createdAt: DateTime.parse(json['created_at'] as String),
     lastUsedAt: DateTime.tryParse('${json['last_used_at']}'),
   );
+
+  @override
+  List<Object?> get props => [id, channelId, name, createdAt, lastUsedAt];
 }
 
 /// A freshly minted webhook, with the one and only copy of its secret.
@@ -43,11 +48,14 @@ class Webhook {
 /// until it is closed. Losing it means deleting the webhook and making another,
 /// which is the correct trade — a secret the server could show you twice is a
 /// secret the server is keeping.
-class WebhookSecret {
+class WebhookSecret extends Equatable {
   final String id;
 
   /// The full URL to post to, assembled from the server's own address.
   final String url;
 
   const WebhookSecret({required this.id, required this.url});
+
+  @override
+  List<Object?> get props => [id, url];
 }

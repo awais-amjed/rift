@@ -22,6 +22,9 @@ dependencies:
   bloc: ^9.2.0
   flutter_bloc: ^9.1.1
   hydrated_bloc: ^11.0.0
+  # Value equality for states and models: emit, buildWhen and BlocSelector
+  # decide with ==. Already in the build through toastification.
+  equatable: ^2.1.0
   # hydrated_bloc's own store, opened here rather than by it so the keys an
   # earlier build left can be read once (`HydratedKeyRecovery`).
   hive_ce: ^2.20.0
@@ -123,6 +126,9 @@ dev_dependencies:
   json_serializable: ^6.13.0
   build_runner: ^2.16.1
   fake_async: ^1.3.3
+  # Reads the source in test/value_equality_test.dart, which fails when a
+  # field is missing from a class's equality.
+  analyzer: ^13.3.0
 
 dependency_overrides:
   # supabase's realtime client, kept in the repository so it can be patched.

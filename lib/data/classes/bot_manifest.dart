@@ -1,3 +1,5 @@
+import 'package:equatable/equatable.dart';
+
 /// What a bot says it can do, published on its own `users.manifest`
 /// (BOTS.md §4).
 ///
@@ -6,7 +8,7 @@
 /// because the bot is usually asleep, and because a menu costing a round trip
 /// per keystroke is not a menu. What the bot then *does* is checked by the same
 /// policies as everything else.
-class BotManifest {
+class BotManifest extends Equatable {
   /// One line on what the bot is for.
   final String? description;
 
@@ -49,10 +51,13 @@ class BotManifest {
     if (dataUse != null) 'data_use': dataUse,
     'commands': [for (final c in commands) c.toJson()],
   };
+
+  @override
+  List<Object?> get props => [description, dataUse, commands];
 }
 
 /// One verb a bot answers to.
-class BotCommandSpec {
+class BotCommandSpec extends Equatable {
   /// The word after the slash, without it. Lower-cased on the way in so
   /// `/Play` and `/play` are the same command.
   final String name;
@@ -112,4 +117,13 @@ class BotCommandSpec {
     if (summonsBot) 'summon': true,
     if (dismissesBot) 'dismiss': true,
   };
+
+  @override
+  List<Object?> get props => [
+    name,
+    description,
+    usage,
+    summonsBot,
+    dismissesBot,
+  ];
 }

@@ -3,7 +3,7 @@ part of 'voice_stats_cubit.dart';
 // ── State types ──────────────────────────────────────────────────────────────
 
 /// Connection readings for the call-quality badge and its graph.
-class VoiceStatsState {
+class VoiceStatsState extends Equatable {
   final double? rttMs;
   final double? avgRttMs;
   final double? packetLossPercent;
@@ -41,4 +41,15 @@ class VoiceStatsState {
       isAlone: isAlone ?? this.isAlone,
     );
   }
+
+  @override
+  List<Object?> get props => [
+    rttMs,
+    avgRttMs,
+    packetLossPercent,
+    quality,
+    pingSamples,
+    isConnected,
+    isAlone,
+  ];
 }

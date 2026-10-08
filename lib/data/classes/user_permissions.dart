@@ -1,8 +1,10 @@
+import 'package:equatable/equatable.dart';
+
 import '../enums/server_permission.dart';
 
 /// What a member may do on a server. The UI reads it only to hide what would be
 /// refused; the server enforces every one of these itself.
-class UserPermissions {
+class UserPermissions extends Equatable {
   final bool isServerAdmin;
   final bool isChannelManager;
   final bool canCreateTokens;
@@ -77,4 +79,13 @@ class UserPermissions {
       bits: bits ?? this.bits,
     );
   }
+
+  @override
+  List<Object?> get props => [
+    isServerAdmin,
+    isChannelManager,
+    canCreateTokens,
+    isOwner,
+    bits,
+  ];
 }

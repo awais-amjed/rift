@@ -1,3 +1,5 @@
+import 'package:equatable/equatable.dart';
+
 import '../enums/friendship_state.dart';
 import 'friend.dart';
 import 'paged.dart';
@@ -17,7 +19,7 @@ import 'paged.dart';
 /// tab"; an empty [Paged] is "opened, and there is nobody in it". A tab that
 /// drew "no friends yet" while its first page was still in flight would be
 /// telling somebody something untrue about their own account.
-class FriendBuckets {
+class FriendBuckets extends Equatable {
   /// From `friend_counts()`. Known before any tab is opened, which is what
   /// lets the rows wait.
   final ({int friends, int incoming, int outgoing, int blocked}) counts;
@@ -100,6 +102,9 @@ class FriendBuckets {
   FriendBuckets withCounts(
     ({int friends, int incoming, int outgoing, int blocked}) next,
   ) => FriendBuckets(counts: next);
+
+  @override
+  List<Object?> get props => [counts, friends, incoming, outgoing, blocked];
 }
 
 /// One list on the friends page. Named for the `friend_bucket` argument, so

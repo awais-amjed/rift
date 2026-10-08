@@ -1,10 +1,12 @@
+import 'package:equatable/equatable.dart';
+
 import '../enums/friendship_state.dart';
 import 'chat_message.dart';
 
 /// One DM conversation as shown in the Home list: the peer's identity
 /// material plus the decrypted latest message (null when it can't be
 /// decrypted, e.g. the peer rotated identities).
-class DmConversation {
+class DmConversation extends Equatable {
   final String peerId;
   final String peerName;
 
@@ -58,4 +60,15 @@ class DmConversation {
       peerSigningPublicKey: row['signing_public_key'] as String?,
     );
   }
+
+  @override
+  List<Object?> get props => [
+    peerId,
+    peerName,
+    peerChatPublicKey,
+    peerSigningPublicKey,
+    peerAvatarPath,
+    lastMessage,
+    state,
+  ];
 }

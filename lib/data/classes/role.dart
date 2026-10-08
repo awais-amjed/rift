@@ -1,9 +1,11 @@
 import 'dart:ui';
 
+import 'package:equatable/equatable.dart';
+
 import '../enums/server_permission.dart';
 
 /// A named set of permission bits on one server (`roles`).
-class Role {
+class Role extends Equatable {
   final String id;
   final String name;
 
@@ -86,4 +88,15 @@ class Role {
     isEveryone: isEveryone,
     isOwner: isOwner,
   );
+
+  @override
+  List<Object?> get props => [
+    id,
+    name,
+    color,
+    position,
+    permissions,
+    isEveryone,
+    isOwner,
+  ];
 }

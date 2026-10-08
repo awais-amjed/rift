@@ -1,3 +1,4 @@
+import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:json_annotation/json_annotation.dart';
@@ -7,7 +8,6 @@ import '../../../presentation/theme/custom_colors.dart';
 import '../../services/hydrated_keys.dart';
 
 part 'theme_cubit.g.dart';
-
 part 'theme_state.dart';
 
 /// Light, dark or whatever the system is doing, and which palette. Persisted.

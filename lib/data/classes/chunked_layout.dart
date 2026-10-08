@@ -1,3 +1,5 @@
+import 'package:equatable/equatable.dart';
+
 /// Where each sealed chunk of a file sealed a chunk at a time sits.
 ///
 /// The file is cut into [chunkSize]-byte pieces, the last one shorter (or, for
@@ -5,7 +7,7 @@
 /// tag after it. So everything about the sealed bytes follows from the two
 /// numbers the attachment already carries — its plaintext [plainSize] and its
 /// [chunkSize] — and nothing about the layout has to be written into the blob.
-class ChunkedLayout {
+class ChunkedLayout extends Equatable {
   /// AES-GCM's tag, after every chunk.
   static const int tagLength = 16;
 
@@ -51,4 +53,7 @@ class ChunkedLayout {
 
   /// The chunk the sealed byte at [offset] belongs to.
   int chunkAtSealed(int offset) => offset ~/ (chunkSize + tagLength);
+
+  @override
+  List<Object?> get props => [plainSize, chunkSize];
 }

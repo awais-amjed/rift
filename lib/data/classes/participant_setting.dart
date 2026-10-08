@@ -1,7 +1,9 @@
+import 'package:equatable/equatable.dart';
+
 /// This device's own mute and volume for one person, one shared sound, or one
 /// of Rift's own sounds (`AppSound`). Nobody else sees it and no server stores
 /// it; it persists in `AppState`.
-class ParticipantSetting {
+class ParticipantSetting extends Equatable {
   final bool muted;
   final double volume;
 
@@ -22,4 +24,7 @@ class ParticipantSetting {
       volume: volume ?? this.volume,
     );
   }
+
+  @override
+  List<Object?> get props => [muted, volume];
 }

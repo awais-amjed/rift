@@ -1,7 +1,9 @@
+import 'package:equatable/equatable.dart';
+
 /// An aggregated emoji reaction on a message — how many people used [emoji] and
 /// whether the local user is one of them. Reactions are NOT E2E (the server
 /// sees them); see ARCHITECTURE.md §4.
-class MessageReaction {
+class MessageReaction extends Equatable {
   final String emoji;
   final int count;
   final bool mine;
@@ -28,4 +30,7 @@ class MessageReaction {
             MessageReaction.fromJson((entry as Map).cast<String, dynamic>()),
         ]
       : const [];
+
+  @override
+  List<Object?> get props => [emoji, count, mine];
 }

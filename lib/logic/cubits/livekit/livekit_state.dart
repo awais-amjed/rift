@@ -6,7 +6,7 @@ enum LiveKitConnectionState { disconnected, connecting, connected, error }
 /// The current call: the room, who is in it, and this device's own toggles.
 /// Emitted on every speaking change, so a builder that shows only some of it
 /// filters with `buildWhen`.
-class LiveKitState {
+class LiveKitState extends Equatable {
   final LiveKitConnectionState connectionState;
   final Room? room;
   final String? currentChannelId;
@@ -194,4 +194,25 @@ class LiveKitState {
           : null,
     );
   }
+
+  @override
+  List<Object?> get props => [
+    connectionState,
+    room,
+    currentChannelId,
+    dmCall,
+    failure,
+    participants,
+    isMicEnabled,
+    isCameraEnabled,
+    isScreenSharing,
+    isDeafened,
+    isMicTesting,
+    isPushToTalkPressed,
+    SetProp(subscribedScreenshares),
+    isServerMuted,
+    isServerDeafened,
+    connectedAt,
+    connectedLivekitUrl,
+  ];
 }

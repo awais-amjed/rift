@@ -17,7 +17,7 @@ enum UpdateStatus {
   failed,
 }
 
-class UpdateState {
+class UpdateState extends Equatable {
   final UpdateStatus status;
 
   /// The version this copy was installed as; null when [UpdateStatus.unsupported].
@@ -70,4 +70,14 @@ class UpdateState {
       error: clearError ? null : (error ?? this.error),
     );
   }
+
+  @override
+  List<Object?> get props => [
+    status,
+    installedVersion,
+    version,
+    notes,
+    progress,
+    error,
+  ];
 }

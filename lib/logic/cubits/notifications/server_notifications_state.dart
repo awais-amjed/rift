@@ -19,7 +19,7 @@ part of 'server_notifications_cubit.dart';
 /// for it. The `with*`/`cleared*` transforms below are the only way to change
 /// any of them, which is what keeps that true.
 @immutable
-class NotificationsState {
+class NotificationsState extends Equatable {
   /// serverId → (channelId → unread count). Absent keys mean zero.
   final Map<String, Map<String, int>> unreadByServer;
 
@@ -255,4 +255,13 @@ class NotificationsState {
     }
     return next;
   }
+
+  @override
+  List<Object?> get props => [
+    unreadByServer,
+    dmUnreadByServer,
+    serverLevels,
+    channelLevels,
+    dmLevels,
+  ];
 }

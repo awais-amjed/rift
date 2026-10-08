@@ -1,3 +1,5 @@
+import 'package:equatable/equatable.dart';
+
 /// What kind of attachment this is, so the UI knows how to render it.
 enum AttachmentKind {
   image,
@@ -36,7 +38,7 @@ enum AttachmentKind {
 /// tag, so it carries a SHA-256 of its bytes instead ([sha256B64]), inside the
 /// same sealed body — the server can read the file but cannot change it, and a
 /// download that does not match is not shown.
-class Attachment {
+class Attachment extends Equatable {
   /// Stable id within the message (used as a widget key / cache key).
   final String id;
   final AttachmentKind kind;
@@ -137,4 +139,21 @@ class Attachment {
     if (height != null) 'h': height,
     if (durationMs != null) 'dur': durationMs,
   };
+
+  @override
+  List<Object?> get props => [
+    id,
+    kind,
+    name,
+    mime,
+    size,
+    storagePath,
+    keyB64,
+    nonceB64,
+    sha256B64,
+    chunkSize,
+    width,
+    height,
+    durationMs,
+  ];
 }

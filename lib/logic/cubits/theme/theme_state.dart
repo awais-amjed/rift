@@ -8,7 +8,7 @@ part of 'theme_cubit.dart';
 /// `theme_context.dart` — rather than having it threaded through every
 /// constructor as a parameter.
 @JsonSerializable()
-class ThemeState extends ThemeExtension<ThemeState> {
+class ThemeState extends ThemeExtension<ThemeState> with Equatable {
   final ThemeMode themeMode;
 
   /// Id of the active [AppPalette]. Unknown ids fall back to indigo.
@@ -135,4 +135,7 @@ class ThemeState extends ThemeExtension<ThemeState> {
       _$ThemeStateFromJson(json);
 
   Map<String, dynamic> toJson() => _$ThemeStateToJson(this);
+
+  @override
+  List<Object?> get props => [themeMode, paletteId];
 }

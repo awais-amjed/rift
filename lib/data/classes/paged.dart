@@ -1,3 +1,5 @@
+import 'package:equatable/equatable.dart';
+
 /// A page of things, and whether another one follows.
 ///
 /// The two facts travel together or they drift apart: a "load more" wired to a
@@ -9,7 +11,7 @@
 /// roster resumes on `(display_name, id)` because display names collide, a
 /// friends tab resumes on the handle alone because handles are unique. That
 /// belongs on the subtype that knows.
-class Paged<T> {
+class Paged<T> extends Equatable {
   final List<T> items;
 
   /// Whether another page follows — proved by the spare row the query
@@ -31,4 +33,7 @@ class Paged<T> {
   /// far end, and keeping our own would leave a list that had reached the
   /// bottom still claiming more.
   List<T> itemsWith(Paged<T> next) => [...items, ...next.items];
+
+  @override
+  List<Object?> get props => [items, hasMore];
 }

@@ -1,3 +1,5 @@
+import 'package:equatable/equatable.dart';
+
 import '../enums/region_load_level.dart';
 
 /// How busy one LiveKit region is, as `voice_roster` last reported it.
@@ -11,7 +13,7 @@ import '../enums/region_load_level.dart';
 ///
 /// Transient. It is a reading taken a few seconds ago, never persisted, and
 /// absent until the first roster poll answers.
-class RegionLoad {
+class RegionLoad extends Equatable {
   final String nodeId;
   final String label;
 
@@ -42,4 +44,7 @@ class RegionLoad {
     if (!reachable) return 'offline';
     return level?.label;
   }
+
+  @override
+  List<Object?> get props => [nodeId, label, level, reachable];
 }

@@ -1,3 +1,5 @@
+import 'package:equatable/equatable.dart';
+
 /// Encrypted vault blob containing the joined-servers list.
 ///
 /// Encrypted with AES-256-GCM using a key derived from the master seed:
@@ -6,7 +8,7 @@
 /// Because the key is always derivable from the locally-stored master seed,
 /// this blob can be silently re-encrypted on every state change — no password
 /// needed. The password layer lives in [EncryptedSeed] instead.
-class EncryptedVault {
+class EncryptedVault extends Equatable {
   final String ciphertext; // base64-encoded AES-GCM ciphertext
   final String iv; // base64-encoded 12-byte nonce
 
@@ -18,4 +20,7 @@ class EncryptedVault {
     ciphertext: json['ciphertext'] as String,
     iv: json['iv'] as String,
   );
+
+  @override
+  List<Object?> get props => [ciphertext, iv];
 }

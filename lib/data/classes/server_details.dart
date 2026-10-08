@@ -1,3 +1,5 @@
+import 'package:equatable/equatable.dart';
+
 import 'channel.dart';
 import 'livekit_node.dart';
 import 'server_limits.dart';
@@ -20,7 +22,7 @@ import 'server_user.dart';
 /// row and an empty channel list, and turning that into
 /// [ServerLimits.defaults] would quietly wipe an operator's caps. Callers hand
 /// these straight to `copyWith`, which leaves a null alone.
-class ServerDetails {
+class ServerDetails extends Equatable {
   final String? name;
   final String? iconUrl;
   final String? livekitUrl;
@@ -77,4 +79,18 @@ class ServerDetails {
           .toList(),
     );
   }
+
+  @override
+  List<Object?> get props => [
+    name,
+    iconUrl,
+    livekitUrl,
+    supabaseKey,
+    user,
+    channels,
+    limits,
+    storageUsed,
+    maxFileBytes,
+    livekitNodes,
+  ];
 }

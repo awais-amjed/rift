@@ -1,7 +1,7 @@
 part of 'dm_call_cubit.dart';
 
 /// A call ringing this device, and where.
-class IncomingDmCall {
+class IncomingDmCall extends Equatable {
   final String serverId;
   final String serverName;
   final DmCall call;
@@ -11,10 +11,13 @@ class IncomingDmCall {
     required this.serverName,
     required this.call,
   });
+
+  @override
+  List<Object?> get props => [serverId, serverName, call];
 }
 
 /// The call this device is on — placed here, or answered here.
-class ActiveDmCall {
+class ActiveDmCall extends Equatable {
   final String serverId;
 
   /// The row as last read. Ringing until the other end answers.
@@ -24,11 +27,14 @@ class ActiveDmCall {
 
   ActiveDmCall withCall(DmCall next) =>
       ActiveDmCall(serverId: serverId, call: next);
+
+  @override
+  List<Object?> get props => [serverId, call];
 }
 
 /// Calls between two members, on every server this device is on: the ones
 /// ringing it, and the one it is in.
-class DmCallState {
+class DmCallState extends Equatable {
   /// Newest first. Several at once is rare but real — two people calling in
   /// the same minute, on one server or two.
   final List<IncomingDmCall> incoming;
@@ -58,4 +64,7 @@ class DmCallState {
     active: clearActive ? null : (active ?? this.active),
     busy: busy ?? this.busy,
   );
+
+  @override
+  List<Object?> get props => [incoming, active, busy];
 }

@@ -1,8 +1,10 @@
 import 'dart:async';
 
+import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../data/classes/equality_props.dart';
 import '../../../data/classes/soundboard_sound.dart';
 import '../../../data/enums/server_permission.dart';
 import '../../../data/participant_identity.dart';

@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../data/classes/api_response.dart';
+import '../../../data/classes/equality_props.dart';
 import '../../../data/classes/public_bot.dart';
 import '../../../data/enums/listing_kind.dart';
 import '../../../data/enums/report_reason.dart';

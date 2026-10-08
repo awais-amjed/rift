@@ -1,3 +1,5 @@
+import 'package:equatable/equatable.dart';
+
 /// The chat key this device last saw for one person, and when it saw it
 /// change — kept so a key that changes is said out loud in the conversation,
 /// not only in a profile somebody has to think to open.
@@ -9,7 +11,7 @@
 ///
 /// This device's record alone, like `AppState.verifiedCodes`: it holds public
 /// keys, nothing secret, and it is never uploaded.
-class SeenKey {
+class SeenKey extends Equatable {
   /// How many changes are remembered. Each one is a line in the
   /// conversation; a person who changes key more often than this has made
   /// the point already.
@@ -69,4 +71,7 @@ class SeenKey {
     'changes': [for (final at in changes) at.toUtc().toIso8601String()],
     'acknowledged': acknowledged,
   };
+
+  @override
+  List<Object?> get props => [key, changes, acknowledged];
 }

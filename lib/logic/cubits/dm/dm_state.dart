@@ -5,7 +5,7 @@ enum DmChatStatus { closed, loading, ready, error }
 
 /// DMs on the selected server: the conversation list and the one open
 /// conversation.
-class DmState {
+class DmState extends Equatable {
   /// Conversations on the selected server, newest activity first.
   final List<DmConversation> conversations;
   final bool conversationsLoading;
@@ -156,4 +156,27 @@ class DmState {
           : (showingSaved ?? this.showingSaved),
     );
   }
+
+  @override
+  List<Object?> get props => [
+    conversations,
+    conversationsLoading,
+    conversationsFailed,
+    hasMoreConversations,
+    openPeerId,
+    openPeerName,
+    chatStatus,
+    messages,
+    hasMoreHistory,
+    isLoadingMore,
+    hasNewerHistory,
+    typingPeerName,
+    requests,
+    openLinkState,
+    openPeerPolicy,
+    SetProp(blockedIds),
+    calls,
+    error,
+    showingSaved,
+  ];
 }

@@ -19,7 +19,7 @@ part of 'server_members_cubit.dart';
 ///  * [people] — alphabetical pages of everybody, as far as they have been
 ///    scrolled. [peopleCount] is what says how many there are in total, since
 ///    the length of a page says only how far somebody has read.
-class ServerMembersState {
+class ServerMembersState extends Equatable {
   /// Which server this describes. Null when no server is selected.
   final String? serverId;
 
@@ -140,4 +140,19 @@ class ServerMembersState {
     loading: loading ?? this.loading,
     error: error,
   );
+
+  @override
+  List<Object?> get props => [
+    serverId,
+    bots,
+    known,
+    people,
+    peopleCount,
+    roles,
+    memberRoles,
+    loaded,
+    loading,
+    error,
+    byId,
+  ];
 }

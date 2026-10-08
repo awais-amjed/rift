@@ -1,3 +1,5 @@
+import 'package:equatable/equatable.dart';
+
 /// The fixed vocabulary a bot draws a panel with (BOTS.md §5, `messages_blocks_shape`).
 ///
 /// A bot never controls a pixel, only a structure. The alternative — letting it
@@ -48,7 +50,7 @@ enum PanelButtonStyle {
 }
 
 /// One pressable thing.
-class PanelAction {
+class PanelAction extends Equatable {
   final String label;
 
   /// What comes back to the bot as `action_id`. The bot's own name for it.
@@ -82,10 +84,13 @@ class PanelAction {
       value: raw['value'] is String ? raw['value'] as String : null,
     );
   }
+
+  @override
+  List<Object?> get props => [label, action, style, value];
 }
 
 /// A key/value row inside a `fields` block.
-class PanelField {
+class PanelField extends Equatable {
   final String label;
   final String value;
 
@@ -98,10 +103,13 @@ class PanelField {
     if (label is! String || value is! String) return null;
     return PanelField(label: label, value: value);
   }
+
+  @override
+  List<Object?> get props => [label, value];
 }
 
 /// One block of a panel.
-class PanelBlock {
+class PanelBlock extends Equatable {
   final PanelBlockType type;
 
   /// `heading`, `text`, and a `progress` block's caption.
@@ -163,10 +171,13 @@ class PanelBlock {
     PanelBlockType.actions => actions.isNotEmpty,
     PanelBlockType.select => actions.isNotEmpty && (action ?? '').isNotEmpty,
   };
+
+  @override
+  List<Object?> get props => [type, text, value, fields, actions, action];
 }
 
 /// A whole panel, as it came off the row.
-class Panel {
+class Panel extends Equatable {
   final List<PanelBlock> blocks;
 
   const Panel({required this.blocks});
@@ -187,4 +198,7 @@ class Panel {
     ];
     return blocks.isEmpty ? null : Panel(blocks: blocks);
   }
+
+  @override
+  List<Object?> get props => [blocks];
 }

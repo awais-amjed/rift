@@ -1,10 +1,12 @@
+import 'package:equatable/equatable.dart';
+
 import '../enums/dm_policy.dart';
 import 'bot_manifest.dart';
 import 'user_permissions.dart';
 
 /// A member of a server as returned by the `list_users` edge function —
 /// profile, permissions, and moderation state for the members dialog.
-class ServerMember {
+class ServerMember extends Equatable {
   final String id;
   final String username;
   final String displayName;
@@ -148,4 +150,23 @@ class ServerMember {
           : (timedOutUntil ?? this.timedOutUntil),
     );
   }
+
+  @override
+  List<Object?> get props => [
+    id,
+    username,
+    displayName,
+    permissions,
+    isMuted,
+    isDeafened,
+    isBanned,
+    isKicked,
+    isBot,
+    manifest,
+    chatPublicKey,
+    avatarPath,
+    joinedAt,
+    dmPolicy,
+    timedOutUntil,
+  ];
 }

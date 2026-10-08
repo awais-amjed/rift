@@ -3,7 +3,7 @@ part of 'server_cubit.dart';
 /// Every server this device has joined, in rail order, and which one is
 /// selected. Persisted; the vault backup carries the same list.
 @JsonSerializable(explicitToJson: true)
-class ServerState {
+class ServerState extends Equatable {
   final List<Server> servers;
   final String? selectedServerId;
 
@@ -92,4 +92,12 @@ class ServerState {
       _$ServerStateFromJson(json);
 
   Map<String, dynamic> toJson() => _$ServerStateToJson(this);
+
+  @override
+  List<Object?> get props => [
+    servers,
+    selectedServerId,
+    orderClock,
+    regionLoad,
+  ];
 }

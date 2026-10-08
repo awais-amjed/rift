@@ -1,7 +1,7 @@
 part of 'reports_cubit.dart';
 
 /// One report, with what this device made of the message it names.
-class ReportEntry {
+class ReportEntry extends Equatable {
   final MemberReport report;
 
   /// Null for a report about a member rather than a message.
@@ -12,10 +12,13 @@ class ReportEntry {
   final ChatMessage? message;
 
   const ReportEntry({required this.report, this.content, this.message});
+
+  @override
+  List<Object?> get props => [report, content, message];
 }
 
 /// The selected server's reports, for somebody who may review them.
-class ReportsState {
+class ReportsState extends Equatable {
   /// Open reports, newest first.
   final List<ReportEntry> open;
 
@@ -57,4 +60,14 @@ class ReportsState {
     canReview: canReview ?? this.canReview,
     error: clearError ? null : (error ?? this.error),
   );
+
+  @override
+  List<Object?> get props => [
+    open,
+    closed,
+    loading,
+    closedLoaded,
+    canReview,
+    error,
+  ];
 }

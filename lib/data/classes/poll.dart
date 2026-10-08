@@ -1,3 +1,6 @@
+import 'package:equatable/equatable.dart';
+import 'equality_props.dart';
+
 /// The words of a poll — sealed into the message body, so the server never
 /// reads them.
 ///
@@ -6,7 +9,7 @@
 /// in the clear on the row (`messages.poll`) and are read from there — see
 /// [PollRules]. The count is in both, and a message whose two counts disagree
 /// is not drawn as a poll at all: see [Poll.combine].
-class PollBody {
+class PollBody extends Equatable {
   static const int minOptions = 2;
   static const int maxOptions = 10;
   static const int maxQuestion = 300;
@@ -34,6 +37,9 @@ class PollBody {
     }
     return PollBody(question: question, options: options.cast<String>());
   }
+
+  @override
+  List<Object?> get props => [question, options];
 }
 
 /// A poll's rules as the server holds them: the option count, whether more
@@ -41,7 +47,7 @@ class PollBody {
 ///
 /// `closesAt` is the moment voting stopped or will stop. Ending a poll early
 /// moves it to then, so "closed" is one comparison however it got there.
-class PollRules {
+class PollRules extends Equatable {
   final int options;
   final bool multiple;
   final DateTime closesAt;
@@ -70,10 +76,13 @@ class PollRules {
       closesAt: closesAt,
     );
   }
+
+  @override
+  List<Object?> get props => [options, multiple, closesAt];
 }
 
 /// A poll as it is drawn: the sender's words, under the server's rules.
-class Poll {
+class Poll extends Equatable {
   final String question;
   final List<String> options;
   final bool multiple;
@@ -106,13 +115,16 @@ class Poll {
   }
 
   bool isClosedAt(DateTime now) => !now.isBefore(closesAt);
+
+  @override
+  List<Object?> get props => [question, options, multiple, closesAt];
 }
 
 /// How a poll stands: the count per option, how many people voted, and which
 /// options the reader picked.
 ///
 /// Never who else voted for what — the server does not say (`poll_tallies`).
-class PollTally {
+class PollTally extends Equatable {
   final List<int> counts;
   final int voters;
   final Set<int> mine;
@@ -152,4 +164,7 @@ class PollTally {
       },
     );
   }
+
+  @override
+  List<Object?> get props => [counts, voters, SetProp(mine)];
 }

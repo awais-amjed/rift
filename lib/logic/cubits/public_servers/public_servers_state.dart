@@ -1,7 +1,7 @@
 part of 'public_servers_cubit.dart';
 
 /// The public server directory: the current browse and its paging.
-class PublicServersState {
+class PublicServersState extends Equatable {
   // ── Browsing ──────────────────────────────────────────────
 
   final List<PublicServer> results;
@@ -93,4 +93,19 @@ class PublicServersState {
       error: clearError ? null : (error ?? this.error),
     );
   }
+
+  @override
+  List<Object?> get props => [
+    results,
+    query,
+    tag,
+    loading,
+    hasBrowsed,
+    hasMore,
+    loadingMore,
+    myListings,
+    cap,
+    savingListing,
+    error,
+  ];
 }

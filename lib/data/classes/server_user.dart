@@ -1,8 +1,10 @@
+import 'package:equatable/equatable.dart';
+
 import '../enums/dm_policy.dart';
 import 'user_permissions.dart';
 
 /// Our own member row on one server: who we appear as there, and what we may do.
-class ServerUser {
+class ServerUser extends Equatable {
   final String id;
   final String username;
   final String displayName;
@@ -93,4 +95,17 @@ class ServerUser {
     'permissions': permissions.toJson(),
     'avatar_path': ?avatarPath,
   };
+
+  @override
+  List<Object?> get props => [
+    id,
+    username,
+    displayName,
+    permissions,
+    avatarPath,
+    isBanned,
+    isKicked,
+    timedOutUntil,
+    dmPolicy,
+  ];
 }

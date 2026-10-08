@@ -1,3 +1,5 @@
+import 'package:equatable/equatable.dart';
+
 import '../invite_link.dart';
 
 /// One row of the central directory — a self-hosted server whose admin chose
@@ -7,7 +9,7 @@ import '../invite_link.dart';
 /// advertisement. It carries the address and an ordinary invite code, never any
 /// authority — joining still goes through the target server's own `register`,
 /// exactly as pasting an invite link does.
-class PublicServer {
+class PublicServer extends Equatable {
   /// Central's own id for the listing, not the server's.
   final String id;
 
@@ -110,4 +112,22 @@ class PublicServer {
     'hidden_at': hiddenAt?.toUtc().toIso8601String(),
     'hidden_reason': hiddenReason,
   };
+
+  @override
+  List<Object?> get props => [
+    id,
+    ownerId,
+    supabaseUrl,
+    serverId,
+    inviteCode,
+    name,
+    description,
+    iconPath,
+    tags,
+    memberCount,
+    isListed,
+    updatedAt,
+    hiddenAt,
+    hiddenReason,
+  ];
 }
