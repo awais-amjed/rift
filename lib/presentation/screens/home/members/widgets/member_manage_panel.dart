@@ -7,6 +7,7 @@ import '../../../../../data/classes/server_member.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../data/enums/server_permission.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../common/confirm_dialog.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
@@ -90,8 +91,11 @@ class MemberManagePanel extends StatelessWidget {
   Future<void> _openRoles(BuildContext context) async {
     await showDialog<void>(
       context: context,
-      builder: (ctx) => BlocProvider.value(
-        value: context.read<ServerCubit>(),
+      builder: (ctx) => MultiBlocProvider(
+        providers: [
+          BlocProvider.value(value: context.read<ServerCubit>()),
+          BlocProvider.value(value: context.read<ServerMembersCubit>()),
+        ],
         child: MemberRolesDialog(member: member),
       ),
     );

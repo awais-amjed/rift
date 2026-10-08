@@ -42,8 +42,14 @@ class ServerMembersState extends Equatable {
   final List<Role> roles;
 
   /// Which roles each member holds, most senior first. Filled for the members
-  /// on screen, not for everybody.
+  /// on screen, not for everybody — except while [roleCounts] is kept, when
+  /// it holds every holder on the server.
   final Map<String, List<Role>> memberRoles;
+
+  /// How many members hold each role, by role id. Null unless something is
+  /// showing the counts ([ServerMembersCubit.countRoles]): counting reads
+  /// every assignment on the server, and only the Roles page needs it.
+  final Map<String, int>? roleCounts;
 
   /// Whether the first load for [serverId] has landed — which is what the
   /// sidebar shows a spinner for. A server with no other members is *loaded*
@@ -61,6 +67,7 @@ class ServerMembersState extends Equatable {
     this.peopleCount = 0,
     this.roles = const [],
     this.memberRoles = const {},
+    this.roleCounts,
     this.loaded = false,
     this.loading = false,
     this.error,
@@ -125,6 +132,8 @@ class ServerMembersState extends Equatable {
     int? peopleCount,
     List<Role>? roles,
     Map<String, List<Role>>? memberRoles,
+    Map<String, int>? roleCounts,
+    bool clearRoleCounts = false,
     bool? loaded,
     bool? loading,
     String? error,
@@ -136,6 +145,7 @@ class ServerMembersState extends Equatable {
     peopleCount: peopleCount ?? this.peopleCount,
     roles: roles ?? this.roles,
     memberRoles: memberRoles ?? this.memberRoles,
+    roleCounts: clearRoleCounts ? null : (roleCounts ?? this.roleCounts),
     loaded: loaded ?? this.loaded,
     loading: loading ?? this.loading,
     error: error,
@@ -150,6 +160,7 @@ class ServerMembersState extends Equatable {
     peopleCount,
     roles,
     memberRoles,
+    roleCounts,
     loaded,
     loading,
     error,

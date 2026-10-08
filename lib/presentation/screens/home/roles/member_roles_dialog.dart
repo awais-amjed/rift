@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -5,6 +7,7 @@ import '../../../../data/classes/role.dart';
 import '../../../../data/classes/server_member.dart';
 import '../../../../data/enums/server_permission.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../logic/services/role_ladder.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
@@ -19,6 +22,9 @@ import 'widgets/role_row.dart';
 /// behind a Save. Granting a role is not a draft — it takes effect for that
 /// person as soon as the row lands, and a dialog that batched it would be
 /// showing a state the server does not have.
+///
+/// The roles and which of them [member] holds come from [ServerMembersCubit],
+/// so a role renamed or handed out elsewhere while this is open shows here.
 class MemberRolesDialog extends StatefulWidget {
   final ServerMember member;
 
@@ -29,73 +35,66 @@ class MemberRolesDialog extends StatefulWidget {
 }
 
 class _MemberRolesDialogState extends State<MemberRolesDialog> {
-  List<Role> _roles = const [];
-  Set<String> _held = {};
-
-  /// Which of [_roles] this viewer may actually hand out. Not the same as the
-  /// ones they may *edit* — see [RoleLadder.assignable].
-  Set<String> _assignable = const {};
-  bool _isLoading = true;
   String? _busyId;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _load();
+    // Their chips are normally read already, with the row this was opened
+    // from; this covers somebody whose read has not landed.
+    final members = context.read<ServerMembersCubit>();
+    if (!members.state.memberRoles.containsKey(widget.member.id)) {
+      unawaited(members.reloadRolesOf(widget.member.id));
+    }
   }
 
-  Future<void> _load() async {
-    final cubit = context.read<ServerCubit>();
-    final roles = await cubit.listRoles();
-    final assignments = await cubit.listMemberRoles();
-    if (!mounted) return;
-
-    setState(() {
-      _roles = roles.where((r) => !r.isEveryone).toList();
-      _assignable = {
-        for (final role in RoleLadder.assignable(
-          roles,
-          isAdministrator: cubit.state.myPermissionBits.has(
-            ServerPermission.administrator,
-          ),
-        ))
-          role.id,
-      };
-      _held = {
-        for (final r in assignments[widget.member.id] ?? const <Role>[]) r.id,
-      };
-      _isLoading = false;
-    });
-  }
-
-  Future<void> _toggle(Role role) async {
-    final held = _held.contains(role.id);
+  Future<void> _toggle(Role role, {required bool held}) async {
     setState(() {
       _busyId = role.id;
       _error = null;
     });
 
+    final members = context.read<ServerMembersCubit>();
     final result = await context.read<ServerCubit>().setMemberRole(
       userId: widget.member.id,
       roleId: role.id,
       held: !held,
     );
+    if (result.success) await members.reloadRolesOf(widget.member.id);
     if (!mounted) return;
 
     setState(() {
       _busyId = null;
-      if (result.success) {
-        held ? _held.remove(role.id) : _held.add(role.id);
-      } else {
-        _error = result.error;
-      }
+      _error = result.success ? null : result.error;
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
+    final roles = context.select<ServerMembersCubit, List<Role>>(
+      (c) => c.state.roles,
+    );
+    final heldRoles = context.select<ServerMembersCubit, List<Role>?>(
+      (c) => c.state.memberRoles[widget.member.id],
+    );
+    final isAdministrator = context.select<ServerCubit, bool>(
+      (c) => c.state.myPermissionBits.has(ServerPermission.administrator),
+    );
+
+    final listed = roles.where((r) => !r.isEveryone).toList();
+    // Which of them this viewer may actually hand out. Not the same as the
+    // ones they may *edit* — see [RoleLadder.assignable].
+    final assignable = {
+      for (final role in RoleLadder.assignable(
+        roles,
+        isAdministrator: isAdministrator,
+      ))
+        role.id,
+    };
+    final held = {for (final role in heldRoles ?? const <Role>[]) role.id};
+    final isLoading = heldRoles == null;
 
     return AppModal(
       title: 'Roles',
@@ -106,9 +105,9 @@ class _MemberRolesDialogState extends State<MemberRolesDialog> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (_isLoading)
+          if (isLoading)
             const LoadingBlock(height: 160)
-          else if (_roles.isEmpty)
+          else if (listed.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 24),
               child: Center(
@@ -121,7 +120,7 @@ class _MemberRolesDialogState extends State<MemberRolesDialog> {
               ),
             )
           else
-            for (final role in _roles)
+            for (final role in listed)
               Opacity(
                 opacity: _busyId == role.id ? 0.5 : 1,
                 child: Row(
@@ -132,15 +131,15 @@ class _MemberRolesDialogState extends State<MemberRolesDialog> {
                         // An administrator may hand out a role at their own
                         // rank, which is how the only admin on a server makes
                         // a second one. Everybody else is strictly below.
-                        locked: !_assignable.contains(role.id),
+                        locked: !assignable.contains(role.id),
                       ),
                     ),
                     Checkbox(
-                      value: _held.contains(role.id),
+                      value: held.contains(role.id),
                       onChanged:
-                          !_assignable.contains(role.id) || _busyId != null
+                          !assignable.contains(role.id) || _busyId != null
                           ? null
-                          : (_) => _toggle(role),
+                          : (_) => _toggle(role, held: held.contains(role.id)),
                     ),
                   ],
                 ),

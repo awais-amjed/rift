@@ -2,11 +2,11 @@ part of 'server_cubit.dart';
 
 /// Roles for the selected server.
 ///
-/// Nothing here touches [ServerState]. Roles are read when a dialog opens and
-/// thrown away when it closes — there is no badge and no live view that would
-/// go stale, so holding them in cubit state would be state kept for its own
-/// sake. The one thing that *is* held is the caller's own permission bits, and
-/// those ride along on the user row with everything else about them.
+/// Nothing here touches [ServerState]. The roles and who holds them are kept
+/// by `ServerMembersCubit`, which every screen showing them reads, and which
+/// the `members` doorbell keeps current. The one thing [ServerState] holds is
+/// the caller's own permission bits, which ride along on the user row with
+/// everything else about them.
 ///
 /// The delegation rules are not repeated here. They are `roles_insert`,
 /// `roles_update` and `member_roles_insert`, and a refusal comes back as an
@@ -46,10 +46,12 @@ mixin _ServerRolesApiMixin on Cubit<ServerState> {
     ];
   }
 
-  /// Who holds what, as `{userId: [roleId, ...]}`.
-  Future<Map<String, List<Role>>> listMemberRoles() async {
+  /// Who holds what, as `{userId: [role, ...]}`, for the whole server. Null
+  /// when the read failed, which is not the same answer as nobody holding
+  /// anything.
+  Future<Map<String, List<Role>>?> listMemberRoles() async {
     final server = state.selectedServer;
-    if (server == null) return const {};
+    if (server == null) return null;
 
     final response = await _callWithAutoRefresh(
       (token) => _repository.listMemberRoles(
@@ -58,7 +60,7 @@ mixin _ServerRolesApiMixin on Cubit<ServerState> {
         bearerToken: token,
       ),
     );
-    if (!response.success) return const {};
+    if (!response.success) return null;
 
     return RoleLadder.byUser(_assignmentRows(response));
   }

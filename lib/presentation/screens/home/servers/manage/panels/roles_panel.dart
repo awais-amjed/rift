@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/classes/role.dart';
 import '../../../../../../data/enums/server_permission.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../../logic/services/role_ladder.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/hint_card.dart';
@@ -19,6 +22,10 @@ import '../widgets/manage_panel.dart';
 /// Open to anybody. What roles exist and who holds them is not a secret from
 /// the people they are exercised on — and a member who cannot see the ladder
 /// cannot tell whether the person muting them was meant to be able to.
+///
+/// Drawn from [ServerMembersCubit], the same copy the member list's chips
+/// come from, so a change made here or by another admin shows in both. The
+/// panel asks it to count holders while it is open.
 class RolesPanel extends StatefulWidget {
   const RolesPanel({super.key});
 
@@ -27,14 +34,8 @@ class RolesPanel extends StatefulWidget {
 }
 
 class _RolesPanelState extends State<RolesPanel> {
-  List<Role> _roles = const [];
-  Map<String, int> _counts = const {};
-  bool _isLoading = true;
-
-  /// The rank the viewer's own highest role sits at. Everything at or above it
-  /// is out of reach — administrators included, because nobody edits the role
-  /// they are standing on.
-  int _myRank = 0;
+  /// Held for [dispose], where the tree can no longer be asked for it.
+  late final ServerMembersCubit _members;
   String? _movingId;
 
   int get _myPermissions => context.read<ServerCubit>().state.myPermissionBits;
@@ -46,30 +47,22 @@ class _RolesPanelState extends State<RolesPanel> {
   @override
   void initState() {
     super.initState();
-    _load();
+    _members = context.read<ServerMembersCubit>();
+    unawaited(_members.countRoles());
   }
 
-  Future<void> _load() async {
-    final cubit = context.read<ServerCubit>();
-    final me = cubit.state.selectedServer?.user?.id;
-    final roles = await cubit.listRoles();
-    final assignments = await cubit.listMemberRoles();
-    if (!mounted) return;
-
-    final counts = <String, int>{};
-    for (final held in assignments.values) {
-      for (final role in held) {
-        counts[role.id] = (counts[role.id] ?? 0) + 1;
-      }
-    }
-
-    setState(() {
-      _roles = roles;
-      _counts = counts;
-      _myRank = RoleLadder.rankOf(assignments, me);
-      _isLoading = false;
-    });
+  @override
+  void dispose() {
+    _members.stopCountingRoles();
+    super.dispose();
   }
+
+  List<Role> get _roles => _members.state.roles;
+
+  /// The rank the viewer's own highest role sits at. Everything at or above it
+  /// is out of reach — administrators included, because nobody edits the role
+  /// they are standing on.
+  int get _myRank => RoleLadder.rankOf(_members.state.memberRoles, _myId);
 
   /// Where a new role goes: one rung above the highest one already beneath the
   /// viewer, so it lands at the top of what they can manage without landing on
@@ -93,7 +86,7 @@ class _RolesPanelState extends State<RolesPanel> {
         child: RoleEditorDialog(role: role, newPosition: _newPosition),
       ),
     );
-    if (changed == true) await _load();
+    if (changed == true) await _members.refreshRoles();
   }
 
   /// Swap two adjacent roles' positions.
@@ -122,8 +115,8 @@ class _RolesPanelState extends State<RolesPanel> {
     //
     // Putting the first one back is the best this side can do; the real fix is
     // a swap that happens in one statement on the server, which does not exist
-    // yet. Either way `_load` below shows what actually happened rather than
-    // what was asked for.
+    // yet. Either way the re-read below shows what actually happened rather
+    // than what was asked for.
     final moved = await cubit.updateRole(role.id, position: neighbour.position);
     if (moved.success) {
       final swapped = await cubit.updateRole(
@@ -134,9 +127,9 @@ class _RolesPanelState extends State<RolesPanel> {
         await cubit.updateRole(role.id, position: role.position);
       }
     }
+    await _members.refreshRoles();
     if (!mounted) return;
     setState(() => _movingId = null);
-    await _load();
   }
 
   /// Editable when the viewer may manage roles at all *and* outranks this one.
@@ -153,6 +146,23 @@ class _RolesPanelState extends State<RolesPanel> {
 
   @override
   Widget build(BuildContext context) {
+    return BlocBuilder<ServerMembersCubit, ServerMembersState>(
+      buildWhen: (a, b) => _frameOf(a) != _frameOf(b),
+      builder: (context, roster) => _panel(roster.roleCounts),
+    );
+  }
+
+  /// Everything the rows and the getters above read: the roles, how many hold
+  /// each, and the viewer's own, which set their rank.
+  (List<Role>, Map<String, int>?, List<Role>?) _frameOf(
+    ServerMembersState roster,
+  ) => (roster.roles, roster.roleCounts, roster.memberRoles[_myId]);
+
+  String? get _myId =>
+      context.read<ServerCubit>().state.selectedServer?.user?.id;
+
+  Widget _panel(Map<String, int>? counts) {
+    final isLoading = counts == null;
     return ManagePanel(
       title: 'Roles',
       subtitle: 'What each one can do, and who holds it',
@@ -166,7 +176,7 @@ class _RolesPanelState extends State<RolesPanel> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (_isLoading)
+          if (isLoading)
             const LoadingBlock(height: 180)
           else ...[
             if (!_mayManage) ...[
@@ -181,7 +191,7 @@ class _RolesPanelState extends State<RolesPanel> {
             for (final role in _roles)
               RoleRow(
                 role: role,
-                memberCount: _counts[role.id] ?? 0,
+                memberCount: counts[role.id] ?? 0,
                 locked: _locked(role),
                 onTap: () => _edit(role),
                 // Reordering is only offered where it means something: the

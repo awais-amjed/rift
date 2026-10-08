@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../../data/classes/server_member.dart';
 import '../../../../../../data/constants.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../../logic/services/time_out_label.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/confirm_dialog.dart';
@@ -101,8 +102,11 @@ class ProfileModeration extends StatelessWidget {
   void _openRoles(BuildContext context) {
     showDialog<void>(
       context: context,
-      builder: (_) => BlocProvider.value(
-        value: context.read<ServerCubit>(),
+      builder: (_) => MultiBlocProvider(
+        providers: [
+          BlocProvider.value(value: context.read<ServerCubit>()),
+          BlocProvider.value(value: context.read<ServerMembersCubit>()),
+        ],
         child: MemberRolesDialog(member: member),
       ),
     );
