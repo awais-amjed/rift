@@ -30,7 +30,12 @@ Widget serverManageDialog(
   required Server server,
   ServerManageTab? initial,
 }) {
+  // Read now, not inside the `create`s below: those run when a page first
+  // asks, by which time [context] — the rail menu's — is gone.
   final serverCubit = context.read<ServerCubit>();
+  final appCubit = context.read<AppCubit>();
+  final livekitCubit = context.read<LiveKitCubit>();
+  final vaultCubit = context.read<VaultCubit>();
   final isSelected = serverCubit.state.selectedServer?.id == server.id;
   return MultiBlocProvider(
     providers: [
@@ -45,8 +50,8 @@ Widget serverManageDialog(
         BlocProvider(
           create: (_) => SoundboardCubit(
             serverCubit: serverCubit,
-            appCubit: context.read<AppCubit>(),
-            livekitCubit: context.read<LiveKitCubit>(),
+            appCubit: appCubit,
+            livekitCubit: livekitCubit,
             serverId: server.id,
           ),
         ),
@@ -57,7 +62,7 @@ Widget serverManageDialog(
         BlocProvider(
           create: (_) => ReportsCubit(
             serverCubit: serverCubit,
-            vaultCubit: context.read<VaultCubit>(),
+            vaultCubit: vaultCubit,
             serverId: server.id,
           ),
         ),
