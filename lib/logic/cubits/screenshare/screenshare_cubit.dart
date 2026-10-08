@@ -8,6 +8,7 @@ import 'package:flutter_webrtc/flutter_webrtc.dart' show Helper;
 import '../../../data/classes/notice.dart';
 import '../../../data/classes/screen_share_settings.dart';
 import '../../../data/classes/server_limits.dart';
+import '../../../data/repositories/session_repository.dart';
 import '../../../src/rust/api/screenshare.dart';
 import '../../../src/rust/api/screenshare/types.dart';
 import '../../helper_methods.dart';
@@ -15,7 +16,6 @@ import '../../services/call_foreground_service.dart';
 import '../../services/gpu_codecs.dart';
 import '../../services/host_platform.dart';
 import '../livekit/livekit_cubit.dart';
-import '../server/server_cubit.dart';
 import 'stream_change_notice.dart';
 
 part 'screenshare_state.dart';
@@ -31,15 +31,15 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
   /// Whether the LiveKit SDK captures the screen here, rather than Rust.
   static bool get _sdkCapturesScreen => kIsWeb || HostPlatform.isMobile;
 
-  final ServerCubit _serverCubit;
+  final SessionRepository _session;
   final LiveKitCubit? _livekitCubit;
 
   StreamSubscription<ScreenshareEvent>? _eventSub;
 
   ScreenshareCubit({
-    required ServerCubit serverCubit,
+    required SessionRepository session,
     LiveKitCubit? livekitCubit,
-  }) : _serverCubit = serverCubit,
+  }) : _session = session,
        _livekitCubit = livekitCubit,
        super(const ScreenshareState()) {
     // Desktop screen sharing runs in Rust; listen for its lifecycle events
@@ -138,7 +138,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
       }
 
       // Resolve server context
-      final server = _serverCubit.state.selectedServer;
+      final server = _session.selectedServer;
       if (server == null) {
         _fail('No server selected');
         return;
@@ -421,7 +421,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
     final response = await livekit.shareToken(screenShare: true);
     final livekitUrl =
         response.data?['livekit_url'] as String? ??
-        _serverCubit.state.selectedServer?.livekitUrl;
+        _session.selectedServer?.livekitUrl;
     final encryption = livekit.callEncryption;
     if (!response.success || livekitUrl == null || encryption == null) {
       return _endUnmoved(response.error ?? 'the call is not ready');

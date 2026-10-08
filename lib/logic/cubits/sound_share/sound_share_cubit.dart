@@ -4,13 +4,13 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../data/classes/notice.dart';
+import '../../../data/repositories/session_repository.dart';
 import '../../../src/rust/api/screenshare/types.dart';
 import '../../../src/rust/api/soundshare.dart' as rust;
 import '../../helper_methods.dart';
 import '../../services/host_platform.dart';
 import '../../services/screen_share_sources.dart';
 import '../livekit/livekit_cubit.dart';
-import '../server/server_cubit.dart';
 
 part 'sound_share_state.dart';
 
@@ -25,7 +25,7 @@ part 'sound_share_state.dart';
 /// WASAPI, so on a phone and on the web [isSupported] is false and the control
 /// is not offered at all.
 class SoundShareCubit extends Cubit<SoundShareState> {
-  final ServerCubit _serverCubit;
+  final SessionRepository _session;
   final LiveKitCubit? _livekitCubit;
 
   StreamSubscription<rust.SoundShareEvent>? _eventSub;
@@ -34,9 +34,9 @@ class SoundShareCubit extends Cubit<SoundShareState> {
   static bool get isSupported => HostPlatform.capturesSystemAudio;
 
   SoundShareCubit({
-    required ServerCubit serverCubit,
+    required SessionRepository session,
     LiveKitCubit? livekitCubit,
-  }) : _serverCubit = serverCubit,
+  }) : _session = session,
        _livekitCubit = livekitCubit,
        super(const SoundShareState()) {
     if (isSupported) {
@@ -58,7 +58,7 @@ class SoundShareCubit extends Cubit<SoundShareState> {
     emit(state.copyWith(status: SoundShareStatus.connecting));
 
     try {
-      final server = _serverCubit.state.selectedServer;
+      final server = _session.selectedServer;
 
       final livekit = _livekitCubit;
       final channelId = livekit?.state.callKey;

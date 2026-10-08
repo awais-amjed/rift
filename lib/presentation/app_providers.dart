@@ -223,7 +223,7 @@ class AppProviders extends StatelessWidget {
 
   ScreenshareCubit _createScreenshareCubit(BuildContext context) {
     final screenshareCubit = ScreenshareCubit(
-      serverCubit: context.read<ServerCubit>(),
+      session: session,
       livekitCubit: context.read<LiveKitCubit>(),
     );
     // So a LiveKit disconnect tears down an active share.
@@ -233,7 +233,7 @@ class AppProviders extends StatelessWidget {
 
   SoundShareCubit _createSoundShareCubit(BuildContext context) {
     final soundShareCubit = SoundShareCubit(
-      serverCubit: context.read<ServerCubit>(),
+      session: session,
       livekitCubit: context.read<LiveKitCubit>(),
     );
     // So a LiveKit disconnect tears down an active share.
