@@ -1,7 +1,7 @@
 part of 'server_cubit.dart';
 
 mixin _ServerSelectionMixin on Cubit<ServerState> {
-  VaultCubit? get _vaultCubit;
+  SessionRepository get _session;
 
   Future<({bool success, String? error})> refreshServerDetails({
     String? serverId,
@@ -54,13 +54,9 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
   /// its token, user, and channel list. Returns true on success.
   Future<bool> loginSelectedServer() async {
     final server = state.selectedServer;
-    if (server == null || _vaultCubit == null) return false;
+    if (server == null) return false;
 
-    final result = await _vaultCubit!.loginToServer(
-      supabaseUrl: server.supabaseUrl,
-      serverId: server.id,
-      anonKey: server.supabaseKey ?? '',
-    );
+    final result = await _session.login(server);
 
     // The same answer `_fetchServerDetails` gives, on the path that reaches a
     // deleted server first. A cold selection logs in before it refreshes, and
@@ -83,17 +79,15 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
       );
       return false;
     }
-    if (!result.success || result.data == null) return false;
-
-    final data = result.data!;
-    final token = data['token'] as String?;
-    if (token == null) return false;
+    final token = result.token;
+    final details = result.details;
+    if (token == null || details == null) return false;
 
     // The whole reply, not the four fields this used to pick out: a cold start
     // is the only time most clients ask, so dropping the rest here meant a
     // renamed server, a moved LiveKit URL and every operator limit waited for
     // a refresh that might never come.
-    applyServerDetails(server.id, ServerDetails.fromJson(data), token: token);
+    applyServerDetails(server.id, details, token: token);
 
     return true;
   }
@@ -143,16 +137,19 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
   /// missing something this device holds. A device that reordered with no
   /// network answers false and true — nothing to redraw, everything left to
   /// say.
-  ({bool railChanged, bool cloudStale}) mergeCloudManifest(
-    ServerManifest theirs,
-  ) {
+  ///
+  /// `joined` is the servers that arrived from the cloud — joined on another
+  /// device — for the vault to record too.
+  CloudMerge mergeCloudManifest(ServerManifest theirs) {
     final merged = BackupMerge.union(
       mine: getServersForExport(),
       theirs: theirs,
     );
+    final applied = applyMergedVault(merged);
     return (
-      railChanged: applyMergedVault(merged),
+      railChanged: applied.changed,
       cloudStale: !merged.agreesOnOrderWith(theirs),
+      joined: applied.joined,
     );
   }
 
@@ -165,10 +162,13 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
   /// every time the window is focused, and stamping every token stale that
   /// often would re-authenticate the whole rail for nothing.
   ///
-  /// Returns true when anything actually moved, so a caller can skip the
+  /// `changed` is true when anything actually moved, so a caller can skip the
   /// upload that would otherwise follow a merge that changed nothing.
-  bool applyMergedVault(ServerManifest merged) {
+  ({bool changed, List<JoinedHost> joined}) applyMergedVault(
+    ServerManifest merged,
+  ) {
     final ordered = <Server>[];
+    final joined = <JoinedHost>[];
     var arrived = false;
 
     for (final meta in merged.servers) {
@@ -198,13 +198,7 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
       // has joined, and it is all a v1 restore has to go on — so a host
       // learnt from the cloud has to be written there too, or the two halves
       // of the same backup disagree.
-      unawaited(
-        _vaultCubit?.noteJoinedHost(
-              url,
-              version: (meta['keyVersion'] as String?) ?? 'v1',
-            ) ??
-            Future<void>.value(),
-      );
+      joined.add((url: url, version: (meta['keyVersion'] as String?) ?? 'v1'));
       ordered.add(
         Server(
           id: id,
@@ -234,15 +228,16 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
         !arrived &&
         [for (final s in ordered) s.id].join() ==
             [for (final s in state.servers) s.id].join();
-    if (sameOrder && merged.orderClock == state.orderClock) return false;
+    if (sameOrder && merged.orderClock == state.orderClock) {
+      return (changed: false, joined: joined);
+    }
 
     emit(state.copyWith(servers: ordered, orderClock: merged.orderClock));
-    return !sameOrder;
+    return (changed: !sameOrder, joined: joined);
   }
 
   void selectServer(Server server) {
     setSelectedServer(server);
-    if (_vaultCubit == null) return;
     // Always pull fresh details on select so channels/permissions changed while
     // this server was in the background appear immediately. A stale token
     // (cold start / past the near-expiry window) re-auths first; otherwise a

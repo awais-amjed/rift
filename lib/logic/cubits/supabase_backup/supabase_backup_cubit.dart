@@ -90,12 +90,9 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState>
   /// device's. Injected after construction, like every other cross-cubit
   /// dependency here, to keep the two from having to be built in an order.
   @override
-  ({bool railChanged, bool cloudStale}) Function(ServerManifest)?
-  _mergeCloudServers;
+  CloudMerge Function(ServerManifest)? _mergeCloudServers;
 
-  void setMergeCloudServers(
-    ({bool railChanged, bool cloudStale}) Function(ServerManifest) merge,
-  ) {
+  void setMergeCloudServers(CloudMerge Function(ServerManifest) merge) {
     _mergeCloudServers = merge;
   }
 

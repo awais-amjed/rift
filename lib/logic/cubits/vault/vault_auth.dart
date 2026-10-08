@@ -5,13 +5,7 @@ mixin _VaultAuthMixin on Cubit<VaultState> {
 
   /// Implemented by [_VaultRecoveryMixin].
   Future<String?> loadPendingRecoveryKey();
-  ServerRepository get _serverRepo;
-  CryptoRepository get _crypto;
-  Future<ServerIdentity> getIdentityForHost(
-    String host, {
-    String? serverId,
-    String version = 'v1',
-  });
+  SessionRepository get _session;
 
   // ──────────────────────────────────────────────────────────
   // Startup check
@@ -60,74 +54,11 @@ mixin _VaultAuthMixin on Cubit<VaultState> {
 
   /// Sign a SIWS message with this server's Ed25519 key and exchange it for a
   /// GoTrue session via the `login` proxy. Returns the access token (JWT).
-  /// Shared by both re-login and first-time registration. [serverId] scopes the
-  /// identity so servers sharing a host (project) sign in as distinct users.
+  /// [serverId] scopes the identity so servers sharing a host (project) sign
+  /// in as distinct users. The signing is [SessionRepository]'s, which every
+  /// later re-login goes through too.
   Future<({String? accessToken, String? error})> siwsLogin(
     String supabaseUrl, {
     required String serverId,
-  }) async {
-    final host = Uri.parse(supabaseUrl).host;
-    final identity = await getIdentityForHost(host, serverId: serverId);
-    // The host picks the *key*; it is deliberately not written into the signed
-    // message, which names a fixed domain so a server can live at any address —
-    // a LAN IP, a plain-http hostname — that GoTrue would otherwise reject.
-    final response = await siwsSignIn(
-      repository: _serverRepo,
-      crypto: _crypto,
-      supabaseUrl: supabaseUrl,
-      identity: identity,
-    );
-    if (!response.success) {
-      return (accessToken: null, error: response.error);
-    }
-    final data = response.data as Map<String, dynamic>?;
-    final accessToken = data?['access_token'] as String?;
-    if (accessToken == null) {
-      return (accessToken: null, error: 'Login returned no access token');
-    }
-    return (accessToken: accessToken, error: null);
-  }
-
-  /// Re-authenticate an existing server session: SIWS login for a fresh JWT,
-  /// then refresh the server context. Returns `{token, ...context}`; callers
-  /// (reAuthenticate) read `data['token']`.
-  Future<({bool success, String? error, Map<String, dynamic>? data})>
-  loginToServer({
-    required String supabaseUrl,
-    required String serverId,
-    required String anonKey,
-  }) async {
-    try {
-      final login = await siwsLogin(supabaseUrl, serverId: serverId);
-      if (login.accessToken == null) {
-        return (success: false, error: login.error, data: null);
-      }
-      final token = login.accessToken!;
-
-      final details = await _serverRepo.getServerDetails(
-        supabaseUrl,
-        anonKey: anonKey,
-        bearerToken: token,
-      );
-      // A login that cannot say who it logged in as has not succeeded, and
-      // reporting it as one is how a deleted server became a room with no
-      // channels signed in as "Guest": SIWS still works after the server is
-      // gone — the GoTrue account outlives it — so the only thing that knows
-      // is `get_server_details` coming back null, and this threw that away.
-      // The transient case wants the same answer for the opposite reason: the
-      // caller lands what comes back, and an empty reply blanks a server that
-      // is merely unreachable.
-      if (!details.success || details.data is! Map) {
-        return (success: false, error: details.error, data: null);
-      }
-      final data = <String, dynamic>{
-        ...details.data as Map<String, dynamic>,
-        'token': token, // context no longer carries a token
-      };
-      return (success: true, error: null, data: data);
-    } catch (e) {
-      HelperMethods.printDebug('[Vault] loginToServer error: $e');
-      return (success: false, error: e.toString(), data: null);
-    }
-  }
+  }) => _session.signIn(supabaseUrl, serverId: serverId);
 }

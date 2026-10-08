@@ -76,7 +76,7 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   `mixin _ServerCrudMixin on Cubit<ServerState>` with abstract getters for shared dependencies.
   Follow this pattern instead of letting a cubit file grow past a few hundred lines.
 - Existing cubits take others through their constructors, or after construction through
-  an explicit setter (`injectVaultCubit(...)`) where construction would be circular — never
+  an explicit setter (`injectNotifications(...)`) where construction would be circular — never
   via service locators. Don't add new ones: share a repository stream or bridge with a
   `BlocListener` (`BEST_PRACTICES.md` §3).
 - Cubits never do I/O directly; they call repositories (`ServerRepository`, `CryptoRepository`,
@@ -93,10 +93,13 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
 - All Edge Function calls return the shared `APIResponse` (mirrors the
   `{success, data, error, code}` envelope). Check `response.success`; never assume HTTP errors —
   the API always returns 200.
-- Session (JWT) expiry is handled centrally by `ServerCubit._callWithAutoRefresh` (a silent SIWS
-  re-login); new API calls must go through it rather than re-implementing refresh/retry.
-  It runs against the selected server; `_callFor(server, …)` is the same thing for a **named**
-  server. An API call a dialog can open for a server other than the current one takes an
+- Session (JWT) expiry is handled centrally by `SessionRepository` (a silent SIWS re-login,
+  signed with the seed from secure storage); new API calls must go through it rather than
+  re-implementing refresh/retry. Inside `ServerCubit` that is `_callWithAutoRefresh`, against
+  the selected server, and `_callFor(server, …)`, the same thing for a **named** server. The
+  cubit publishes its server list into the repository on every change and writes back the
+  token and details each re-login brings (`SessionRepository.logins`), so neither it nor the
+  vault holds the other. An API call a dialog can open for a server other than the current one takes an
   optional `serverId` and resolves it with `_target()` — reading `state.selectedServer` inside
   such a call is how a form ends up writing to the wrong server.
 - Enums carry their own `fromString` / `toJson` conversions (see `channel_type.dart`).

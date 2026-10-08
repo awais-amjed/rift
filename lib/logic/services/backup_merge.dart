@@ -38,6 +38,18 @@
 /// change behind it. A fact every device can re-check needs neither.
 library;
 
+/// A project this identity has joined, as the vault blob records it.
+typedef JoinedHost = ({String url, String version});
+
+/// What combining the cloud's list with this device's came to: whether the
+/// rail moved, whether the cloud is missing something, and the servers that
+/// arrived from it.
+typedef CloudMerge = ({
+  bool railChanged,
+  bool cloudStale,
+  List<JoinedHost> joined,
+});
+
 /// The servers half of a backup: the list, in rail order, and the clock that
 /// says how recently somebody chose that order.
 class ServerManifest {

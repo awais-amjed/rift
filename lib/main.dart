@@ -9,6 +9,7 @@ import 'package:window_manager/window_manager.dart';
 
 import 'app_bootstrap.dart';
 import 'data/constants.dart';
+import 'data/repositories/session_repository.dart';
 import 'logic/cubits/app/app_cubit.dart';
 import 'logic/cubits/theme/theme_cubit.dart';
 import 'logic/cubits/vault/vault_cubit.dart';
@@ -34,7 +35,16 @@ void main(List<String> args) async {
   StorageNamespace.readArguments(args);
   LoginLaunch.readArguments(args);
   final appCubit = await AppBootstrap.run();
-  runApp(MyApp(appCubit: appCubit, vaultCubit: VaultCubit()));
+  // One for the app: the vault signs in through it when joining, and every
+  // server call after that does.
+  final session = SessionRepository();
+  runApp(
+    MyApp(
+      appCubit: appCubit,
+      vaultCubit: VaultCubit(session: session),
+      session: session,
+    ),
+  );
 }
 
 /// The app shell: window listeners, the router, and the theme.
@@ -42,8 +52,14 @@ void main(List<String> args) async {
 class MyApp extends StatefulWidget {
   final AppCubit appCubit;
   final VaultCubit vaultCubit;
+  final SessionRepository session;
 
-  const MyApp({super.key, required this.appCubit, required this.vaultCubit});
+  const MyApp({
+    super.key,
+    required this.appCubit,
+    required this.vaultCubit,
+    required this.session,
+  });
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -124,6 +140,7 @@ class _MyAppState extends State<MyApp>
       child: AppProviders(
         appCubit: widget.appCubit,
         vaultCubit: widget.vaultCubit,
+        session: widget.session,
         child: Sizer(
           builder: (context, orientation, screenType) {
             // Watched, not `context.theme`: this is what builds the theme,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../data/repositories/server_reach_probe.dart';
+import '../data/repositories/session_repository.dart';
 import '../logic/cubits/app/app_cubit.dart';
 import '../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../logic/cubits/channel_chat/channel_chat_cubit.dart';
@@ -42,17 +43,26 @@ import '../logic/cubits/voice_stats/voice_stats_cubit.dart';
 class AppProviders extends StatelessWidget {
   final AppCubit appCubit;
   final VaultCubit vaultCubit;
+
+  /// Being signed in to the servers, shared by the vault and every cubit
+  /// that makes server calls (see [SessionRepository]).
+  final SessionRepository session;
   final Widget child;
 
   const AppProviders({
     super.key,
     required this.appCubit,
     required this.vaultCubit,
+    required this.session,
     required this.child,
   });
 
   @override
   Widget build(BuildContext context) {
+    return RepositoryProvider.value(value: session, child: _providers());
+  }
+
+  Widget _providers() {
     return MultiBlocProvider(
       providers: [
         BlocProvider(create: (_) => ThemeCubit()),
@@ -192,9 +202,7 @@ class AppProviders extends StatelessWidget {
   }
 
   ServerCubit _createServerCubit() {
-    final serverCubit = ServerCubit();
-    // Lets ServerCubit re-authenticate on token expiry.
-    serverCubit.injectVaultCubit(vaultCubit);
+    final serverCubit = ServerCubit(session: session);
     // A backup import immediately reconciles the server list...
     vaultCubit.setOnServersImported(serverCubit.syncWithImportedVault);
     // ...and an export captures the full one.

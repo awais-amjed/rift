@@ -10,8 +10,7 @@ mixin _SupabaseBackupTransferMixin on Cubit<SupabaseBackupState> {
   VaultCubit get _vaultCubit;
   Timer? get _autoBackupTimer;
   set _autoBackupTimer(Timer? value);
-  ({bool railChanged, bool cloudStale}) Function(ServerManifest)?
-  get _mergeCloudServers;
+  CloudMerge Function(ServerManifest)? get _mergeCloudServers;
 
   /// Implemented by the cubit.
   Future<void> _uploadBackup({required String successMessage});
@@ -97,6 +96,9 @@ mixin _SupabaseBackupTransferMixin on Cubit<SupabaseBackupState> {
     if (theirs == null) return false;
 
     final outcome = merge(theirs);
+    for (final host in outcome.joined) {
+      unawaited(_vaultCubit.noteJoinedHost(host.url, version: host.version));
+    }
     if (thenPush && outcome.cloudStale) autoBackup();
     return outcome.railChanged;
   }

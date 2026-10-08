@@ -28,7 +28,6 @@ import '../../../data/classes/soundboard_sound.dart';
 import '../../../data/classes/user_permissions.dart';
 import '../../../data/classes/webhook.dart';
 import '../../../data/enums/dm_policy.dart';
-import '../../../data/enums/error_code.dart';
 import '../../../data/enums/member_report_reason.dart';
 import '../../../data/enums/report_outcome.dart';
 import '../../../data/invite_link.dart';
@@ -36,8 +35,10 @@ import '../../../data/repositories/attachment_repository.dart';
 import '../../../data/repositories/avatar_repository.dart';
 import '../../../data/repositories/blob/blob_sink.dart';
 import '../../../data/repositories/central_dm_repository.dart';
+import '../../../data/repositories/secure_storage_repository.dart';
 import '../../../data/repositories/server_db.dart';
 import '../../../data/repositories/server_repository.dart';
+import '../../../data/repositories/session_repository.dart';
 import '../../../data/repositories/soundboard_repository.dart';
 import '../../../data/repositories/voice_region_probe.dart';
 import '../../../supabase_config.dart';
@@ -52,7 +53,6 @@ import '../../services/role_ladder.dart';
 import '../../services/server_import_merge.dart';
 import '../../services/server_realtime.dart';
 import '../../services/soundboard_cache.dart';
-import '../vault/vault_cubit.dart';
 
 part 'server_api.dart';
 part 'server_attachments_api.dart';
@@ -170,9 +170,10 @@ class ServerCubit extends HydratedCubit<ServerState>
     return members;
   }
 
-  /// Injected after construction — allows re-authentication without a circular dependency.
+  /// Where the seed is, for the one thing here that needs it: unsealing a
+  /// server's saved conversations to forget them.
   @override
-  VaultCubit? _vaultCubit;
+  final SecureStorageRepository _storage = SecureStorageRepository();
 
   // What a direct database call needs beyond the bearer token: which project
   // to talk to, which server's rows, and which row is mine. Empty strings
@@ -261,12 +262,18 @@ class ServerCubit extends HydratedCubit<ServerState>
     _onServerEvent = callback;
   }
 
-  /// In-flight token refreshes keyed by server id, so concurrent callers
-  /// (proactive near-expiry refresh + a reactive retry) coalesce onto one
-  /// SIWS re-login and all observe its result.
-  final Map<String, Future<String?>> _refreshing = {};
+  /// Being signed in: every call's token, and getting a new one. This cubit
+  /// publishes the server list into it and writes back what a re-login
+  /// learns (see [SessionRepository]).
+  @override
+  final SessionRepository _session;
+  late final StreamSubscription<SessionLogin> _logins;
 
-  ServerCubit() : super(const ServerState()) {
+  ServerCubit({SessionRepository? session})
+    : _session = session ?? SessionRepository(),
+      super(const ServerState()) {
+    _publishSession(state);
+    _logins = _session.logins.listen(_onLogin);
     if (PushService.isSupported) {
       PushService.instance.token.addListener(_onPushToken);
       _onPushToken();
@@ -289,138 +296,56 @@ class ServerCubit extends HydratedCubit<ServerState>
   @override
   void onChange(Change<ServerState> change) {
     super.onChange(change);
+    _publishSession(change.nextState);
     refreshWakeIndex(change.nextState);
+  }
+
+  void _publishSession(ServerState state) => _session.publish(
+    servers: state.servers,
+    selectedServerId: state.selectedServerId,
+  );
+
+  /// A re-login's token and the server's reply, written onto the server.
+  void _onLogin(SessionLogin login) {
+    if (isClosed) return;
+    applyServerDetails(login.serverId, login.details, token: login.token);
   }
 
   @override
   Future<void> close() async {
     PushService.instance.token.removeListener(_onPushToken);
+    await _logins.cancel();
     await realtime.dispose();
     return super.close();
-  }
-
-  void injectVaultCubit(VaultCubit vaultCubit) {
-    _vaultCubit = vaultCubit;
   }
 
   // ──────────────────────────────────────────────────────────
   // Token auto-refresh helpers
   // ──────────────────────────────────────────────────────────
 
-  /// Returns true if the response indicates an invalid/expired session token.
-  /// Checks the structured error code first, then falls back to string matching
-  /// for older server deployments that don't send a `code` field.
-  static bool _isSessionInvalid(APIResponse response) =>
-      !response.success &&
-      (ErrorCode.isSessionInvalid(response.errorCode) ||
-          // Legacy fallback — remove once all deployments send codes.
-          (response.error != null &&
-              (response.error!.contains('expired') ||
-                  response.error!.contains('Invalid token') ||
-                  response.error!.contains('No token found') ||
-                  response.error!.contains('Token is not linked'))));
-
-  /// Silent SIWS re-login for the selected server. Thin wrapper over
-  /// [reAuthenticateServer].
+  /// Silent SIWS re-login for the selected server.
   Future<String?> reAuthenticate() {
     final id = state.selectedServerId;
     if (id == null) return Future.value(null);
     return reAuthenticateServer(id);
   }
 
-  /// Silent SIWS re-login for any joined server (not only the selected one — the
-  /// notifications cubit keeps every subscribed server's JWT fresh so its
-  /// Realtime subscription doesn't lapse). The key is derived from the seed, so
-  /// it never prompts. On success persists the new JWT and returns it; null on
-  /// failure. Concurrent calls for the same server share one refresh.
-  Future<String?> reAuthenticateServer(String serverId) {
-    final existing = _refreshing[serverId];
-    if (existing != null) return existing;
-    final future = _doReAuthenticate(serverId);
-    _refreshing[serverId] = future;
-    future.whenComplete(() => _refreshing.remove(serverId));
-    return future;
-  }
+  /// Silent SIWS re-login for any joined server; see
+  /// [SessionRepository.reAuthenticate].
+  Future<String?> reAuthenticateServer(String serverId) =>
+      _session.reAuthenticate(serverId);
 
-  Future<String?> _doReAuthenticate(String serverId) async {
-    if (_vaultCubit == null) return null;
-    Server? server;
-    for (final s in state.servers) {
-      if (s.id == serverId) {
-        server = s;
-        break;
-      }
-    }
-    if (server == null) return null;
-
-    final result = await _vaultCubit!.loginToServer(
-      supabaseUrl: server.supabaseUrl,
-      serverId: serverId,
-      anonKey: server.supabaseKey ?? '',
-    );
-    if (!result.success || result.data == null) return null;
-
-    final newToken = result.data!['token'] as String?;
-    if (newToken == null) return null;
-
-    // This runs on a timer rather than on anything the user did, so it is the
-    // path most likely to be the one carrying a change an operator made an
-    // hour ago. The reply is already in hand; taking only the token from it
-    // was free to fix.
-    applyServerDetails(
-      serverId,
-      ServerDetails.fromJson(result.data!),
-      token: newToken,
-    );
-    return newToken;
-  }
-
-  /// Executes [call] with [server]'s bearer token.
-  /// If the token is near expiry a background refresh is kicked off concurrently.
-  /// If the call returns a session-invalid error, re-authenticates and retries once.
-  ///
-  /// Takes the server rather than reading the selection, which is what lets an
-  /// API call act on a server you are not currently looking at. Nothing here
-  /// had to change for that: [reAuthenticateServer] and its coalescing map were
-  /// already keyed by server id, because the notifications cubit keeps every
-  /// joined server's session fresh.
+  /// Executes [call] with [server]'s bearer token, signing in again and
+  /// retrying once if the session has run out ([SessionRepository.callFor]).
   @override
   Future<APIResponse> _callFor(
     Server server,
     Future<APIResponse> Function(String token) call,
-  ) async {
-    if (server.isTokenNearExpiry && _vaultCubit != null) {
-      // Proactive refresh; coalesced by reAuthenticateServer.
-      unawaited(reAuthenticateServer(server.id));
-    }
+  ) => _session.callFor(server, call);
 
-    var response = await call(server.token);
-
-    if (_isSessionInvalid(response) && _vaultCubit != null) {
-      final newToken = await reAuthenticateServer(server.id);
-      if (newToken != null) {
-        response = await call(newToken);
-      }
-    }
-
-    return response;
-  }
-
-  /// [server]'s token for a transfer that outlasts a single call: read from
-  /// the state each time it is asked, so a background refresh reaches a big
-  /// upload partway through, and signed in again when asked to [refresh].
+  /// [server]'s token for a transfer that outlasts a single call.
   @override
-  BearerToken _bearerFor(Server server) => ({bool refresh = false}) async {
-    Server current = server;
-    for (final s in state.servers) {
-      if (s.id == server.id) current = s;
-    }
-    if ((refresh || current.isTokenNearExpiry) && _vaultCubit != null) {
-      final fresh = await reAuthenticateServer(server.id);
-      if (fresh != null) return fresh;
-    }
-    return current.token;
-  };
+  BearerToken _bearerFor(Server server) => _session.bearerFor(server);
 
   /// [_callFor] against the selected server — for the calls that are about
   /// whatever you are looking at (a channel token, the voice roster) rather than
@@ -428,11 +353,7 @@ class ServerCubit extends HydratedCubit<ServerState>
   @override
   Future<APIResponse> _callWithAutoRefresh(
     Future<APIResponse> Function(String token) call,
-  ) async {
-    final server = state.selectedServer;
-    if (server == null) return APIResponse.error('No server selected');
-    return _callFor(server, call);
-  }
+  ) => _session.callSelected(call);
 
   // ──────────────────────────────────────────────────────────
   // Update (shared by selection, API, and token-refresh)

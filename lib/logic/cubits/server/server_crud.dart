@@ -2,7 +2,7 @@ part of 'server_cubit.dart';
 
 mixin _ServerCrudMixin on Cubit<ServerState> {
   void Function()? get _onServersChanged;
-  VaultCubit? get _vaultCubit;
+  SecureStorageRepository get _storage;
   Future<void> forgetPushDevice(String serverId);
   Future<void> registerPushDevices();
 
@@ -118,14 +118,18 @@ mixin _ServerCrudMixin on Cubit<ServerState> {
   /// [MessageCache]). Leaving a server takes them with it: what was saved to
   /// draw a conversation faster must not outlive being able to open it.
   void _forgetSavedConversations(String serverId) {
-    final seed = _vaultCubit?.state.masterSeed;
     final server = state.servers.where((s) => s.id == serverId).firstOrNull;
-    if (seed == null || server == null) return;
-    for (final scope in MessageCacheSlot.scopesOfServer(
+    if (server == null) return;
+    final scopes = MessageCacheSlot.scopesOfServer(
       server.supabaseUrl,
       server.id,
-    )) {
-      unawaited(MessageCache.instance.forgetScope(seed, scope));
-    }
+    ).toList();
+    unawaited(() async {
+      final seed = await _storage.getMasterSeed();
+      if (seed == null) return;
+      for (final scope in scopes) {
+        await MessageCache.instance.forgetScope(seed, scope);
+      }
+    }());
   }
 }
