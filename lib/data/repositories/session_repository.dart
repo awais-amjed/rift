@@ -12,6 +12,7 @@ import '../member_cache.dart';
 import 'attachment_repository.dart';
 import 'secure_storage_repository.dart';
 import 'server_repository.dart';
+import 'voice_region_probe.dart';
 
 /// A silent re-login that worked: the token it minted, and the server's own
 /// account of itself that came back with it.
@@ -283,6 +284,13 @@ class SessionRepository {
   /// outlive every page and be shared by every `MembersApi`, which holds
   /// nothing.
   final MemberCache members = MemberCache();
+
+  // ── Where to hold a call ────────────────────────────────
+
+  /// Which of a server's LiveKit regions this device is nearest to, and how
+  /// busy each was. One for the session, so a measurement is cached across
+  /// joins rather than taken again by every `VoiceApi`, which holds nothing.
+  final VoiceRegionProbe regionProbe = VoiceRegionProbe();
 
   // ── After a write ───────────────────────────────────────
 

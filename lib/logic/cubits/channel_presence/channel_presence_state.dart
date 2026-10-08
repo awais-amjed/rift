@@ -28,10 +28,20 @@ class ChannelPresenceState extends Equatable {
   /// our own included, unlike [channelPresence].
   final Map<String, DateTime> callStartedAt;
 
+  /// How busy each of this server's voice regions is, keyed by node id, as
+  /// the last roster read reported it — what a channel manager sees beside
+  /// each region when choosing one.
+  ///
+  /// A reading seconds old, empty until the first read answers. Here because
+  /// the roster read is this cubit's; the token request weighs the same
+  /// reading from `SessionRepository.regionProbe`, which is where it lands.
+  final Map<String, RegionLoad> regionLoad;
+
   const ChannelPresenceState({
     this.channelPresence = const {},
     this.onlineUserIds = const {},
     this.callStartedAt = const {},
+    this.regionLoad = const {},
   });
 
   List<PresenceUser> usersIn(String channelId) =>
@@ -72,5 +82,6 @@ class ChannelPresenceState extends Equatable {
     channelPresence,
     SetProp(onlineUserIds),
     callStartedAt,
+    regionLoad,
   ];
 }

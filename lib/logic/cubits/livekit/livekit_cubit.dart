@@ -8,6 +8,7 @@ import 'package:livekit_client/livekit_client.dart';
 import 'package:rift_crypto/rift_crypto.dart';
 
 import '../../../data/apis/moderation_api.dart';
+import '../../../data/apis/voice_api.dart';
 import '../../../data/apis/voice_bots_api.dart';
 import '../../../data/classes/api_response.dart';
 import '../../../data/classes/channel.dart';
@@ -97,6 +98,14 @@ class LiveKitCubit extends Cubit<LiveKitState>
   final ServerCubit? _serverCubit;
   @override
   final SessionRepository? _session;
+
+  /// The call tokens, from the session; null without one, as in tests that
+  /// never join.
+  @override
+  late final VoiceApi? _voiceApi = switch (_session) {
+    final session? => VoiceApi(session: session),
+    null => null,
+  };
   @override
   final CryptoRepository _crypto;
   @override

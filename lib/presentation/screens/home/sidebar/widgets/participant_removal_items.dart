@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/apis/moderation_api.dart';
+import '../../../../../data/apis/voice_api.dart';
 import '../../../../../data/repositories/session_repository.dart';
-import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
 import '../../../../common/confirm_dialog.dart';
 import '../../../../common/context_menu/context_menu_item.dart';
@@ -58,9 +58,8 @@ class ParticipantRemovalItems extends StatelessWidget {
     // Dismissed up front: the menu is about a participant who is about to stop
     // being one, and leaving it open over an empty tile reads as a no-op.
     ContextMenuScope.of(context)?.call();
-    final response = await context.read<ServerCubit>().kickUser(
-      userId: targetUserId,
-    );
+    final voice = VoiceApi(session: context.read<SessionRepository>());
+    final response = await voice.kickUser(userId: targetUserId);
     if (response.success) return;
     HelperMethods.showToast(
       title: 'Could not disconnect',

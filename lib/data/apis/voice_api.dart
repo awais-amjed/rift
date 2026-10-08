@@ -1,21 +1,25 @@
-part of 'server_cubit.dart';
+import '../classes/api_response.dart';
+import '../classes/region_load.dart';
+import '../classes/server.dart';
+import '../repositories/server_repository.dart';
+import '../repositories/session_repository.dart';
+import '../repositories/voice_region_probe.dart';
 
 /// The server's side of a call: the LiveKit token to join one, who is in
 /// which channel, and moving or removing somebody.
-mixin _ServerVoiceApiMixin on Cubit<ServerState> {
-  ServerRepository get _repository;
-  VoiceRegionProbe get _regionProbe;
+///
+/// Holds nothing, so a widget builds one from the session. The measurement
+/// of which region is nearest is the session's ([SessionRepository.regionProbe]),
+/// so it outlives every one of these.
+class VoiceApi {
+  final SessionRepository _session;
 
-  Future<APIResponse> _callWithAutoRefresh(
-    Future<APIResponse> Function(String token) call,
-  );
+  VoiceApi({required SessionRepository session}) : _session = session;
 
-  Future<APIResponse> _callFor(
-    Server server,
-    Future<APIResponse> Function(String token) call,
-  );
+  ServerRepository get _repository => _session.repository;
+  VoiceRegionProbe get _probe => _session.regionProbe;
 
-  /// Returns a LiveKit JWT for [channelId]. Token refresh is handled automatically.
+  /// Returns a LiveKit JWT for [channelId] on the selected server.
   ///
   /// Measures which of the server's LiveKit nodes is nearest first, and sends
   /// that along — see [VoiceRegionProbe]. It costs nothing on the usual
@@ -29,18 +33,14 @@ mixin _ServerVoiceApiMixin on Cubit<ServerState> {
     bool screenShare = false,
     bool soundShare = false,
   }) async {
-    final server = state.selectedServer;
-    final preferred = server == null
-        ? null
-        : await _regionProbe.nearest(
-            server.id,
-            server.livekitNodes,
-            load: state.regionLoad,
-          );
+    final server = _session.selectedServer;
+    if (server == null) return APIResponse.error(_session.noTarget(null));
 
-    final response = await _callWithAutoRefresh(
+    final preferred = await _probe.nearest(server.id, server.livekitNodes);
+    final response = await _session.callFor(
+      server,
       (token) => _repository.getChannelToken(
-        state.selectedServer!.supabaseUrl,
+        server.supabaseUrl,
         channelId,
         screenShare: screenShare,
         soundShare: soundShare,
@@ -62,9 +62,7 @@ mixin _ServerVoiceApiMixin on Cubit<ServerState> {
     //
     // Re-measuring costs one request per region and a node that is down
     // cannot answer it, so the next attempt cannot suggest it.
-    if (!response.success && server != null) {
-      _regionProbe.invalidate(server.id);
-    }
+    if (!response.success) _probe.invalidate(server.id);
     return response;
   }
 
@@ -80,12 +78,8 @@ mixin _ServerVoiceApiMixin on Cubit<ServerState> {
     bool screenShare = false,
     bool soundShare = false,
   }) async {
-    final preferred = await _regionProbe.nearest(
-      server.id,
-      server.livekitNodes,
-      load: state.regionLoad,
-    );
-    final response = await _callFor(
+    final preferred = await _probe.nearest(server.id, server.livekitNodes);
+    final response = await _session.callFor(
       server,
       (token) => _repository.getDmCallToken(
         server.supabaseUrl,
@@ -96,7 +90,7 @@ mixin _ServerVoiceApiMixin on Cubit<ServerState> {
         bearerToken: token,
       ),
     );
-    if (!response.success) _regionProbe.invalidate(server.id);
+    if (!response.success) _probe.invalidate(server.id);
     return response;
   }
 
@@ -108,9 +102,9 @@ mixin _ServerVoiceApiMixin on Cubit<ServerState> {
   Future<APIResponse> moveCall({
     required String channelId,
     required String nodeId,
-  }) => _callWithAutoRefresh(
-    (token) => _repository.moveCall(
-      state.selectedServer!.supabaseUrl,
+  }) => _onSelected(
+    (server, token) => _repository.moveCall(
+      server.supabaseUrl,
       channelId: channelId,
       nodeId: nodeId,
       bearerToken: token,
@@ -122,9 +116,9 @@ mixin _ServerVoiceApiMixin on Cubit<ServerState> {
   Future<APIResponse> moveUser({
     required String userId,
     required String channelId,
-  }) => _callWithAutoRefresh(
-    (token) => _repository.moveUser(
-      state.selectedServer!.supabaseUrl,
+  }) => _onSelected(
+    (server, token) => _repository.moveUser(
+      server.supabaseUrl,
       bearerToken: token,
       userId: userId,
       channelId: channelId,
@@ -134,55 +128,57 @@ mixin _ServerVoiceApiMixin on Cubit<ServerState> {
   /// Disconnects a member from the voice channel they're in (requires channel
   /// manager or server admin). They have to be in a call for there to be
   /// anything to end, and nothing stops them rejoining — see `kick_user`.
-  Future<APIResponse> kickUser({required String userId}) =>
-      _callWithAutoRefresh(
-        (token) => _repository.kickUser(
-          state.selectedServer!.supabaseUrl,
-          bearerToken: token,
-          userId: userId,
-        ),
-      );
+  Future<APIResponse> kickUser({required String userId}) => _onSelected(
+    (server, token) => _repository.kickUser(
+      server.supabaseUrl,
+      bearerToken: token,
+      userId: userId,
+    ),
+  );
+
+  /// [call] against the selected server, with its token.
+  Future<APIResponse> _onSelected(
+    Future<APIResponse> Function(Server server, String token) call,
+  ) {
+    final server = _session.selectedServer;
+    if (server == null) {
+      return Future.value(APIResponse.error(_session.noTarget(null)));
+    }
+    return _session.callFor(server, (token) => call(server, token));
+  }
 
   /// Who is in which voice channel on the selected server, straight from
-  /// LiveKit: `{roster: {userId: channelId}}`.
-  /// The roster, and how busy each region is while we are asking.
+  /// LiveKit: `{roster: {userId: channelId}}` — and how busy each region is
+  /// while we are asking, which lands in [SessionRepository.regionProbe]
+  /// under the server that was asked.
   ///
   /// The load rides along because this call already fans out across every
   /// region — it is the one request that has to touch them all — so learning
   /// it costs nothing, and it is polled often enough to be current when a
   /// manager opens the picker.
   Future<APIResponse> voiceRoster() async {
-    final asked = state.selectedServer?.id;
-    final response = await _voiceRosterRequest();
-    // The loads are the server's that was asked, and land on whichever is
-    // selected now: after a switch mid-request, the new server's region
-    // picker would show the old one's numbers.
-    if (!response.success || asked == null) return response;
-    if (state.selectedServer?.id != asked) return response;
+    final server = _session.selectedServer;
+    if (server == null) return APIResponse.error(_session.noTarget(null));
+
+    final response = await _session.callFor(
+      server,
+      (token) =>
+          _repository.voiceRoster(server.supabaseUrl, bearerToken: token),
+    );
+    if (!response.success) return response;
 
     final data = response.data;
     if (data is! Map) return response;
     final regions = data['regions'];
     if (regions is! List) return response;
 
-    emit(
-      state.copyWith(
-        regionLoad: {
-          for (final row in regions)
-            if (row is Map<String, dynamic>)
-              if (RegionLoad.fromJson(row) case final load
-                  when load.nodeId.isNotEmpty)
-                load.nodeId: load,
-        },
-      ),
-    );
+    _probe.noteLoad(server.id, {
+      for (final row in regions)
+        if (row is Map<String, dynamic>)
+          if (RegionLoad.fromJson(row) case final load
+              when load.nodeId.isNotEmpty)
+            load.nodeId: load,
+    });
     return response;
   }
-
-  Future<APIResponse> _voiceRosterRequest() => _callWithAutoRefresh(
-    (token) => _repository.voiceRoster(
-      state.selectedServer!.supabaseUrl,
-      bearerToken: token,
-    ),
-  );
 }

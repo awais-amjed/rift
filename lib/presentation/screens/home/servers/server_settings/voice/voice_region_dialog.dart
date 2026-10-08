@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../../data/apis/voice_regions_api.dart';
 import '../../../../../../data/classes/livekit_node.dart';
+import '../../../../../../data/repositories/session_repository.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/helper_methods.dart';
 import '../../../../../common/app_button.dart';
@@ -104,7 +106,10 @@ class _VoiceRegionDialogState extends State<VoiceRegionDialog> {
   /// Sends only what was actually changed, so renaming a region doesn't
   /// rewrite its address with the same string and wake every client that
   /// watches the node for one.
-  Future<({bool success, String? error})> _write(ServerCubit cubit) async {
+  Future<({bool success, String? error})> _write(
+    VoiceRegionsApi regions,
+    ServerCubit cubit,
+  ) async {
     final label = _nameCtrl.text.trim();
     final url = _urlCtrl.text.trim();
     final node = _node;
@@ -113,7 +118,7 @@ class _VoiceRegionDialogState extends State<VoiceRegionDialog> {
     // both rows in one transaction, so there is no half-made region with no
     // key of its own to explain afterwards.
     if (node == null) {
-      return cubit.addVoiceRegion(
+      return regions.addVoiceRegion(
         label: label,
         url: url,
         apiKey: _apiKeyCtrl.text.trim(),
@@ -131,7 +136,7 @@ class _VoiceRegionDialogState extends State<VoiceRegionDialog> {
     }
 
     if (label != node.label) {
-      final renamed = await cubit.updateVoiceRegion(
+      final renamed = await regions.updateVoiceRegion(
         nodeId: node.id,
         label: label,
       );
@@ -147,7 +152,7 @@ class _VoiceRegionDialogState extends State<VoiceRegionDialog> {
       );
     }
     if (url != node.url) {
-      final moved = await cubit.updateVoiceRegion(nodeId: node.id, url: url);
+      final moved = await regions.updateVoiceRegion(nodeId: node.id, url: url);
       if (!moved.success) return moved;
     }
     // The fields cannot show what is stored, so both empty means "leave it
@@ -155,7 +160,7 @@ class _VoiceRegionDialogState extends State<VoiceRegionDialog> {
     // region cannot give its key up, because it would then be running on the
     // server's.
     if (apiKey.isEmpty) return (success: true, error: null);
-    return cubit.setVoiceRegionCredentials(
+    return regions.setVoiceRegionCredentials(
       nodeId: node.id,
       apiKey: apiKey,
       secret: secret,
@@ -175,7 +180,10 @@ class _VoiceRegionDialogState extends State<VoiceRegionDialog> {
       _error = null;
     });
 
-    final result = await _write(context.read<ServerCubit>());
+    final result = await _write(
+      VoiceRegionsApi(session: context.read<SessionRepository>()),
+      context.read<ServerCubit>(),
+    );
     if (!mounted) return;
 
     if (!result.success) {

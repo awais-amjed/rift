@@ -5,8 +5,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase/supabase.dart';
 
+import '../../../data/apis/voice_api.dart';
 import '../../../data/classes/equality_props.dart';
+import '../../../data/classes/region_load.dart';
 import '../../../data/classes/server.dart';
+import '../../../data/repositories/session_repository.dart';
+import '../../../data/repositories/voice_region_probe.dart';
 import '../../services/call_start_times.dart';
 import '../../services/presence_ration.dart';
 import '../../services/server_realtime.dart';
@@ -44,6 +48,8 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
   @override
   final ServerCubit _serverCubit;
   final LiveKitCubit _livekitCubit;
+  final VoiceApi _voiceApi;
+  final VoiceRegionProbe _probe;
 
   StreamSubscription<ServerState>? _serverSub;
   StreamSubscription<LiveKitState>? _lkSub;
@@ -70,6 +76,10 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
   /// When each occupied channel's call began — see [CallStartTimes].
   CallStartTimes _starts = const CallStartTimes();
 
+  /// How busy each region was at the last roster read — see
+  /// [ChannelPresenceState.regionLoad].
+  Map<String, RegionLoad> _regionLoad = const {};
+
   /// The channel our own call is in, so a join or a leave re-times the
   /// sidebar without redrawing it on every LiveKit tick.
   String? _ownChannel;
@@ -85,8 +95,11 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
   ChannelPresenceCubit({
     required ServerCubit serverCubit,
     required LiveKitCubit livekitCubit,
+    required SessionRepository session,
   }) : _serverCubit = serverCubit,
        _livekitCubit = livekitCubit,
+       _voiceApi = VoiceApi(session: session),
+       _probe = session.regionProbe,
        super(const ChannelPresenceState()) {
     _serverSub = serverCubit.stream.listen(_onServerChanged);
     _lkSub = livekitCubit.stream.listen((_) {
@@ -191,6 +204,7 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
       _names = const {};
       _online = const {};
       _starts = const CallStartTimes();
+      _regionLoad = const {};
       emit(const ChannelPresenceState());
     }
   }
@@ -218,8 +232,10 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
   Future<Map<String, String>?> _fetchRoster() async {
     // The subscribe that asked for this can land after the selection moved on.
     if (_serverCubit.state.selectedServer == null) return null;
-    final response = await _serverCubit.voiceRoster();
+    final asked = _currentServerId;
+    final response = await _voiceApi.voiceRoster();
     if (!response.success) return null;
+    _landRegionLoad(asked);
     final data = response.data;
     if (data is! Map) return null;
     // When the calls already running began. Kept aside until presence shows
@@ -240,6 +256,26 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
         if (entry.key is String && entry.value is String)
           entry.key as String: entry.value as String,
     };
+  }
+
+  /// Ask how busy each region is now, for a picker about to open.
+  ///
+  /// The roster is read when presence connects, not on a timer, so what this
+  /// holds can be minutes old by the time a manager looks.
+  Future<void> refreshRegionLoad() async {
+    final asked = _currentServerId;
+    if (asked == null) return;
+    final response = await _voiceApi.voiceRoster();
+    if (response.success) _landRegionLoad(asked);
+  }
+
+  /// Take the reading [asked]'s roster read left in the probe — unless the
+  /// selection moved on while it was out, when it would put one server's
+  /// numbers beside another's regions.
+  void _landRegionLoad(String? asked) {
+    if (isClosed || asked == null || asked != _currentServerId) return;
+    _regionLoad = _probe.loadOf(asked);
+    _emit();
   }
 
   // ── Presence ─────────────────────────────────────────────────────────────
@@ -340,6 +376,7 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
         channelPresence: rosters,
         onlineUserIds: _online,
         callStartedAt: _starts.started,
+        regionLoad: _regionLoad,
       ),
     );
   }

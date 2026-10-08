@@ -1,9 +1,10 @@
 part of 'server_cubit.dart';
 
 /// A server itself: creating one, its listing token, its settings and
-/// details, and leaving it. Voice and invites are their own parts.
+/// details, and leaving it.
 mixin _ServerApiMixin on Cubit<ServerState> {
   ServerRepository get _repository;
+  SessionRepository get _session;
   void removeServer(String serverId);
   void noteServerGone({required String supabaseUrl, required String id});
 
@@ -157,6 +158,45 @@ mixin _ServerApiMixin on Cubit<ServerState> {
       limits: data.isEmpty ? limits : ServerLimits.fromJson(data),
     );
     _onServerEvent?.call(server.id);
+    return (success: true, error: null);
+  }
+
+  /// The default voice region's address and key, which are the *server's*
+  /// LiveKit URL and key pair.
+  ///
+  /// Written through `update_server` rather than through the node, because
+  /// `servers.livekit_url` and `server_secrets` are where they live, and a
+  /// trigger carries the address into the default node. Writing the node
+  /// instead would leave the two disagreeing, and the column is what an older
+  /// client still reads. Each is sent only if given, and `update_server`
+  /// leaves alone what it isn't sent. The other regions are `VoiceRegionsApi`.
+  ///
+  /// Ends like those calls — the probe's measurement thrown away, the server
+  /// re-read — because the default node's row may just have changed
+  /// underneath us and the copy held here would still name the old box.
+  Future<({bool success, String? error})> updateDefaultVoiceRegion({
+    String? url,
+    String? apiKey,
+    String? secret,
+  }) async {
+    final server = state.selectedServer;
+    if (server == null) {
+      return (success: false, error: 'No server selected');
+    }
+    if (url == null && apiKey == null && secret == null) {
+      return (success: true, error: null);
+    }
+
+    final result = await updateServerDetails(
+      livekitUrl: url,
+      livekitApiKey: apiKey,
+      livekitSecretKey: secret,
+      serverId: server.id,
+    );
+    if (!result.success) return result;
+
+    _session.regionProbe.invalidate(server.id);
+    await refreshServerDetails();
     return (success: true, error: null);
   }
 

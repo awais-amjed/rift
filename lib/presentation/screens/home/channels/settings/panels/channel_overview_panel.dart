@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/apis/channels_api.dart';
+import '../../../../../../data/apis/voice_api.dart';
 import '../../../../../../data/classes/channel.dart';
 import '../../../../../../data/classes/server_limits.dart';
 import '../../../../../../data/repositories/session_repository.dart';
+import '../../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/helper_methods.dart';
 import '../../../../../../logic/services/limit_input.dart';
@@ -157,7 +159,8 @@ class _ChannelOverviewPanelState extends State<ChannelOverviewPanel> {
     // whether a call is up: see [_shouldMoveLiveCall]. With nothing running
     // this costs one request that answers `no_call`.
     if (nodeChanged && nodeId != null && moveLiveCall) {
-      final moved = await context.read<ServerCubit>().moveCall(
+      final voice = VoiceApi(session: context.read<SessionRepository>());
+      final moved = await voice.moveCall(
         channelId: widget.channel.id,
         nodeId: nodeId,
       );
@@ -249,7 +252,9 @@ class _ChannelOverviewPanelState extends State<ChannelOverviewPanel> {
               // Watched rather than read once: the dialog can be open while
               // a roster poll lands, and a picker showing a region as idle
               // while a call fills it is worse than showing nothing.
-              load: context.watch<ServerCubit>().state.regionLoad,
+              load: context.select(
+                (ChannelPresenceCubit c) => c.state.regionLoad,
+              ),
               selectedNodeId: _nodeId,
               liveNodeId: widget.channel.voiceNodeId,
               enabled: !_isLoading,

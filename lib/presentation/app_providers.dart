@@ -110,6 +110,7 @@ class AppProviders extends StatelessWidget {
           create: (context) => ChannelPresenceCubit(
             serverCubit: context.read<ServerCubit>(),
             livekitCubit: context.read<LiveKitCubit>(),
+            session: session,
           ),
         ),
         BlocProvider(

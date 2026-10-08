@@ -9,6 +9,7 @@ import '../../../../../../data/classes/channel.dart';
 import '../../../../../../data/enums/channel_type.dart';
 import '../../../../../../data/repositories/session_repository.dart';
 import '../../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
+import '../../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
 import '../../../../../../logic/helper_methods.dart';
@@ -215,7 +216,7 @@ void openChannelSettings(
   final serverCubit = context.read<ServerCubit>();
   if (!channel.hasMessages &&
       (serverCubit.state.selectedServer?.livekitNodes.length ?? 0) > 1) {
-    unawaited(serverCubit.voiceRoster());
+    unawaited(context.read<ChannelPresenceCubit>().refreshRegionLoad());
     // And where a call here is running right now. That comes with the
     // server's details, which nothing refreshes when a call starts — so
     // without this the picker said "always held in this region" over a call
@@ -233,6 +234,7 @@ void openChannelSettings(
         BlocProvider.value(value: ctx.read<ServerCubit>()),
         BlocProvider.value(value: ctx.read<VoiceListenersCubit>()),
         BlocProvider.value(value: ctx.read<ChannelChatCubit>()),
+        BlocProvider.value(value: ctx.read<ChannelPresenceCubit>()),
       ],
       child: ChannelSettingsDialog(channel: channel, initial: initial),
     ),

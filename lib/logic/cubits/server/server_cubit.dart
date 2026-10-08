@@ -11,7 +11,6 @@ import '../../../data/classes/channel.dart';
 import '../../../data/classes/livekit_node.dart';
 import '../../../data/classes/message_cache_slot.dart';
 import '../../../data/classes/notice.dart';
-import '../../../data/classes/region_load.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/classes/server_details.dart';
 import '../../../data/classes/server_limits.dart';
@@ -23,7 +22,6 @@ import '../../../data/repositories/secure_storage_repository.dart';
 import '../../../data/repositories/server_db.dart';
 import '../../../data/repositories/server_repository.dart';
 import '../../../data/repositories/session_repository.dart';
-import '../../../data/repositories/voice_region_probe.dart';
 import '../../../supabase_config.dart';
 import '../../services/backup_merge.dart';
 import '../../services/coalesced_refresh.dart';
@@ -44,8 +42,6 @@ part 'server_profile_api.dart';
 part 'server_push_api.dart';
 part 'server_selection.dart';
 part 'server_state.dart';
-part 'server_voice_api.dart';
-part 'server_voice_regions_api.dart';
 
 /// Over the cubit-hub budget and one job. The parts hold the API
 /// calls; what is left here is what they all share and CODE_STYLE §5 says the
@@ -60,18 +56,11 @@ class ServerCubit extends HydratedCubit<ServerState>
         _ServerApiMixin,
         _ServerOwnershipApiMixin,
         _ServerBotsApiMixin,
-        _ServerVoiceApiMixin,
-        _ServerVoiceRegionsApiMixin,
         _ServerProfileApiMixin,
         _ServerPushApiMixin {
   /// The session's, so every server's database client is made once.
   @override
   late final ServerRepository _repository = _session.repository;
-
-  /// Which of a server's LiveKit nodes this device is nearest to. Held here
-  /// rather than made per call so the measurement is cached across joins.
-  @override
-  final VoiceRegionProbe _regionProbe = VoiceRegionProbe();
 
   /// Avatar upload/download — plaintext, unlike attachments.
   @override

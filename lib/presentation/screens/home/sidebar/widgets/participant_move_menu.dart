@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/apis/voice_api.dart';
 import '../../../../../data/classes/channel.dart';
+import '../../../../../data/repositories/session_repository.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/services/voice_move.dart';
@@ -47,10 +49,10 @@ class _ParticipantMoveMenuState extends State<ParticipantMoveMenu> {
       _error = null;
     });
 
-    final serverCubit = context.read<ServerCubit>();
+    final voice = VoiceApi(session: context.read<SessionRepository>());
     final dismiss = ContextMenuScope.of(context);
 
-    final response = await serverCubit.moveUser(
+    final response = await voice.moveUser(
       userId: widget.userId,
       channelId: channel.id,
     );

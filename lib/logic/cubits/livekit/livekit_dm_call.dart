@@ -14,6 +14,7 @@ part of 'livekit_cubit.dart';
 /// join and when to leave.
 mixin _DmCallConnectMixin on Cubit<LiveKitState>, _E2EEMixin {
   AppCubit get _appCubit;
+  VoiceApi? get _voiceApi;
 
   /// Implemented by the other parts.
   Future<void> _cleanupRoom();
@@ -68,7 +69,7 @@ mixin _DmCallConnectMixin on Cubit<LiveKitState>, _E2EEMixin {
     emit(state.copyWith(clearRoom: true));
     _dmMediaKey = mediaKey;
 
-    final response = await _serverCubit!.getDmCallToken(server, place.callId);
+    final response = await _voiceApi!.getDmCallToken(server, place.callId);
     // Hung up, or replaced by another call, while the token was on its way.
     if (state.dmCall != place) return;
     if (!response.success) {
@@ -131,15 +132,16 @@ mixin _DmCallConnectMixin on Cubit<LiveKitState>, _E2EEMixin {
     bool screenShare = false,
     bool soundShare = false,
   }) async {
-    final serverCubit = _serverCubit;
-    if (serverCubit == null) return APIResponse.error('No server');
+    final voice = _voiceApi;
+    final session = _session;
+    if (voice == null || session == null) {
+      return APIResponse.error('No server');
+    }
     final place = state.dmCall;
     if (place != null) {
-      final server = serverCubit.state.servers
-          .where((s) => s.id == place.serverId)
-          .firstOrNull;
+      final server = session.serverById(place.serverId);
       if (server == null) return APIResponse.error('No server');
-      return serverCubit.getDmCallToken(
+      return voice.getDmCallToken(
         server,
         place.callId,
         screenShare: screenShare,
@@ -148,7 +150,7 @@ mixin _DmCallConnectMixin on Cubit<LiveKitState>, _E2EEMixin {
     }
     final channelId = state.currentChannelId;
     if (channelId == null) return APIResponse.error('Not in a call');
-    return serverCubit.getChannelToken(
+    return voice.getChannelToken(
       channelId,
       screenShare: screenShare,
       soundShare: soundShare,

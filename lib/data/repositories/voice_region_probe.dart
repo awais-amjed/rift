@@ -46,18 +46,32 @@ class VoiceRegionProbe {
 
   final Map<String, _Measurement> _cache = {};
 
+  /// How busy each of a server's regions was at its last roster poll, keyed
+  /// by server and then node id.
+  ///
+  /// Kept here, beside the latency it is weighed against, because a token is
+  /// asked for by whatever starts the call — a channel, a DM call ringing on
+  /// a server the person is not looking at, a share — and none of them holds
+  /// the roster. Per server, so a DM call on another server is not weighed
+  /// against the selected one's regions.
+  final Map<String, Map<String, RegionLoad>> _loads = {};
+
+  /// Record what a roster poll of [serverId] said about its regions.
+  void noteLoad(String serverId, Map<String, RegionLoad> load) =>
+      _loads[serverId] = load;
+
+  /// How busy [serverId]'s regions were at the last roster poll. Empty
+  /// until one answers.
+  Map<String, RegionLoad> loadOf(String serverId) =>
+      _loads[serverId] ?? const {};
+
   /// Which node answered fastest, or null when none did.
   ///
   /// Cached per server for [_ttl]. The cache also keys on the node list
   /// itself, so adding or removing a node re-measures rather than keeping an
-  /// answer about a set that no longer exists.
-  /// [load] is how busy each region was at the last roster poll, keyed by
-  /// node id. Absent or empty, this is latency alone.
-  Future<String?> nearest(
-    String serverId,
-    List<LiveKitNode> nodes, {
-    Map<String, RegionLoad> load = const {},
-  }) async {
+  /// answer about a set that no longer exists. Among regions comparably close,
+  /// the quieter one by [loadOf] wins; with no reading, this is latency alone.
+  Future<String?> nearest(String serverId, List<LiveKitNode> nodes) async {
     if (nodes.length < 2) {
       // One node is not a choice, and none is not a question. Either way the
       // server's own default is the answer, and measuring would be a round
@@ -77,7 +91,9 @@ class VoiceRegionProbe {
     final answered = results.where((r) => r != null).cast<_Result>().toList()
       ..sort((a, b) => a.micros.compareTo(b.micros));
 
-    final winner = answered.isEmpty ? null : _quietestOf(answered, load).nodeId;
+    final winner = answered.isEmpty
+        ? null
+        : _quietestOf(answered, loadOf(serverId)).nodeId;
     _cache[serverId] = _Measurement(
       fingerprint: fingerprint,
       nodeId: winner,
