@@ -9,6 +9,7 @@ import '../../../data/classes/server.dart';
 import '../../../data/enums/app_sound.dart';
 import '../../../data/enums/home_surface.dart';
 import '../../../data/enums/notification_level.dart';
+import '../../../data/repositories/session_repository.dart';
 import '../../services/broadcast_payload.dart';
 import '../../services/notification_ids.dart';
 import '../../services/notification_service.dart';
@@ -52,6 +53,8 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
     with _PeerNamesMixin, _SubscriptionsMixin, _ReadMarkingMixin, _LevelsMixin {
   @override
   final ServerCubit _serverCubit;
+  @override
+  final SessionRepository _session;
   final AppCubit _appCubit;
   StreamSubscription<ServerState>? _serverSub;
   StreamSubscription<ChannelChatState>? _chatSub;
@@ -80,10 +83,12 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
 
   ServerNotificationsCubit({
     required ServerCubit serverCubit,
+    required SessionRepository session,
     required ChannelChatCubit chatCubit,
     required DmCubit dmCubit,
     required AppCubit appCubit,
   }) : _serverCubit = serverCubit,
+       _session = session,
        _appCubit = appCubit,
        _lastSurface = appCubit.state.surface,
        super(const NotificationsState()) {

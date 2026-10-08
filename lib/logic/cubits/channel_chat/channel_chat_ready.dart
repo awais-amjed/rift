@@ -15,6 +15,7 @@ mixin _ChatReadyMixin on Cubit<ChannelChatState>, _ChatSweepMixin {
   ChannelKeyring get _keyring;
   VaultCubit get _vaultCubit;
   AttachmentsApi get _attachments;
+  SessionRepository get _session;
 
   /// Implemented by the cubit class.
   Future<void> retry();
@@ -67,7 +68,7 @@ mixin _ChatReadyMixin on Cubit<ChannelChatState>, _ChatSweepMixin {
   }
 
   void _setupSweepRealtime(Server server) =>
-      _sweepDoorbell.listen(_serverCubit.realtime, server, _onKeySweepDoorbell);
+      _sweepDoorbell.listen(_session.realtime, server, _onKeySweepDoorbell);
 
   Future<void> _teardownSweepRealtime() => _sweepDoorbell.stop();
 

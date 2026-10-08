@@ -4,7 +4,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../server/server_cubit.dart';
+import '../../../data/repositories/session_repository.dart';
 
 part 'server_reach_state.dart';
 
@@ -47,17 +47,17 @@ class ServerReachCubit extends Cubit<ServerReachState> {
     _onUnreachable();
   }
 
-  /// Wired to a [ServerCubit]: its sockets, and its selected server.
-  factory ServerReachCubit.of(ServerCubit servers) {
-    ({String id, String name})? selectedOf(ServerState state) {
-      final server = state.selectedServer;
+  /// Wired to the session: its sockets, and its selected server.
+  factory ServerReachCubit.of(SessionRepository session) {
+    ({String id, String name})? selectedOf() {
+      final server = session.selectedServer;
       return server == null ? null : (id: server.id, name: server.name);
     }
 
     return ServerReachCubit(
-      unreachable: servers.realtime.unreachable,
-      selected: servers.stream.map(selectedOf).distinct(),
-      initial: selectedOf(servers.state),
+      unreachable: session.realtime.unreachable,
+      selected: session.changes.map((_) => selectedOf()).distinct(),
+      initial: selectedOf(),
     );
   }
 

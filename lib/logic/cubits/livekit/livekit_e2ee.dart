@@ -198,7 +198,7 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
 
   /// Listen for rotations for as long as [channelId]'s call lasts.
   void _watchKeyRotations(Server server, String channelId) {
-    final realtime = _serverCubit?.realtime;
+    final realtime = _session?.realtime;
     if (realtime == null) return;
     _rotations.listen(
       realtime,

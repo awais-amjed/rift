@@ -54,6 +54,7 @@ class DmCallCubit extends Cubit<DmCallState>
     with _DmCallActionsMixin, _DmCallWatchMixin {
   @override
   final ServerCubit _serverCubit;
+  final SessionRepository _session;
   @override
   final DmCallsApi _calls;
   @override
@@ -94,6 +95,7 @@ class DmCallCubit extends Cubit<DmCallState>
     required AppCubit appCubit,
     CryptoRepository? crypto,
   }) : _serverCubit = serverCubit,
+       _session = session,
        _calls = DmCallsApi(session: session),
        _livekit = livekitCubit,
        _vault = vaultCubit,
@@ -131,7 +133,7 @@ class DmCallCubit extends Cubit<DmCallState>
         // Not under a token that is about to be refused — the notifications
         // cubit refreshes it, and this runs again when it lands.
         if (server.isTokenNearExpiry) continue;
-        final lease = _serverCubit.realtime.join(
+        final lease = _session.realtime.join(
           server,
           ServerTopics.user(user.id),
         );

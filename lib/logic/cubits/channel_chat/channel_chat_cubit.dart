@@ -107,6 +107,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
         _ChatNotifyMixin {
   @override
   final ServerCubit _serverCubit;
+  @override
   final SessionRepository _session;
 
   /// Summoning a bot into a call, and sending it away, from a command.

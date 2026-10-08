@@ -40,6 +40,7 @@ part 'reports_state.dart';
 /// on a server the person is not looking at; that page owns it and closes it.
 class ReportsCubit extends Cubit<ReportsState> {
   final ServerCubit _serverCubit;
+  final SessionRepository _session;
   final ModerationApi _moderation;
   final ChannelMessagesApi _messages;
   final AttachmentsApi _attachments;
@@ -60,6 +61,7 @@ class ReportsCubit extends Cubit<ReportsState> {
     required VaultCubit vaultCubit,
     String? serverId,
   }) : _serverCubit = serverCubit,
+       _session = session,
        _moderation = ModerationApi(session: session),
        _messages = ChannelMessagesApi(session: session),
        _attachments = AttachmentsApi(session: session),
@@ -100,7 +102,7 @@ class ReportsCubit extends Cubit<ReportsState> {
       ServerTopics.user(user.id),
       ServerTopics.server(serverId),
     ]) {
-      final lease = _serverCubit.realtime.join(server, topic)
+      final lease = _session.realtime.join(server, topic)
         ?..onBroadcast(ServerEvent.reports, (_) => unawaited(refresh()));
       if (lease != null) _leases.add(lease);
     }

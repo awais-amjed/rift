@@ -4,6 +4,7 @@ part of 'server_notifications_cubit.dart';
 /// connection, and the bookkeeping that keeps the set matching the server list.
 mixin _SubscriptionsMixin on Cubit<NotificationsState>, _PeerNamesMixin {
   ServerCubit get _serverCubit;
+  SessionRepository get _session;
 
   /// Per-server live subscription + authenticated client, keyed by server id.
   @override
@@ -67,7 +68,7 @@ mixin _SubscriptionsMixin on Cubit<NotificationsState>, _PeerNamesMixin {
   /// database says it once, to the topic that may hear it, and says only ids —
   /// the badge needs which channel and who from, never what was said.
   void _subscribe(Server server) {
-    final realtime = _serverCubit.realtime;
+    final realtime = _session.realtime;
     final userId = server.user!.id;
     final client = realtime.clientFor(server);
     final shared = realtime.join(server, ServerTopics.server(server.id));
@@ -128,7 +129,7 @@ mixin _SubscriptionsMixin on Cubit<NotificationsState>, _PeerNamesMixin {
   void _syncPrivateChannels(Server server) {
     final sub = _subs[server.id];
     if (sub == null) return;
-    final realtime = _serverCubit.realtime;
+    final realtime = _session.realtime;
 
     final wanted = <String>{
       for (final channel in server.channels)

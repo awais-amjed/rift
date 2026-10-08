@@ -47,6 +47,7 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
     with _PresenceTrackingMixin {
   @override
   final ServerCubit _serverCubit;
+  final SessionRepository _session;
   final LiveKitCubit _livekitCubit;
   final VoiceApi _voiceApi;
   final VoiceRegionProbe _probe;
@@ -97,6 +98,7 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
     required LiveKitCubit livekitCubit,
     required SessionRepository session,
   }) : _serverCubit = serverCubit,
+       _session = session,
        _livekitCubit = livekitCubit,
        _voiceApi = VoiceApi(session: session),
        _probe = session.regionProbe,
@@ -138,7 +140,7 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
     _currentUserId = server.user?.id;
     _subscribed = false;
     _startTrackingSession();
-    final realtime = _serverCubit.realtime;
+    final realtime = _session.realtime;
     final topic = realtime.join(
       server,
       'presence:${server.id}',

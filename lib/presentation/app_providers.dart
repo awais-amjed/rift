@@ -69,9 +69,7 @@ class AppProviders extends StatelessWidget {
         BlocProvider(create: (_) => MediaCubit()),
         BlocProvider(create: (_) => _createServerCubit()),
         BlocProvider(create: _createNetworkCubit),
-        BlocProvider(
-          create: (context) => ServerReachCubit.of(context.read<ServerCubit>()),
-        ),
+        BlocProvider(create: (_) => ServerReachCubit.of(session)),
         BlocProvider.value(value: appCubit),
         BlocProvider.value(value: vaultCubit),
         BlocProvider(create: (_) => TokenCubit()),
@@ -155,6 +153,7 @@ class AppProviders extends StatelessWidget {
           create: (context) {
             final notifications = ServerNotificationsCubit(
               serverCubit: context.read<ServerCubit>(),
+              session: session,
               chatCubit: context.read<ChannelChatCubit>(),
               // Which conversation is open decides which DM rows count as
               // read...

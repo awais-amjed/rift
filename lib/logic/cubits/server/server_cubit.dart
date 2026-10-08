@@ -24,7 +24,6 @@ import '../../services/message_cache.dart';
 import '../../services/push_service.dart';
 import '../../services/push_wake/wake_index.dart';
 import '../../services/server_import_merge.dart';
-import '../../services/server_realtime.dart';
 
 part 'server_crud.dart';
 part 'server_cubit.g.dart';
@@ -62,11 +61,6 @@ class ServerCubit extends HydratedCubit<ServerState>
   void setOnServersChanged(void Function() callback) {
     _onServersChanged = callback;
   }
-
-  /// Every server's one Realtime connection, which is the session's
-  /// ([SessionRepository.realtime]). Still reachable here for the listeners
-  /// that have not moved off this cubit yet.
-  ServerRealtime get realtime => _session.realtime;
 
   /// Being signed in: every call's token, and getting a new one. This cubit
   /// publishes the server list into it and writes back what a re-login

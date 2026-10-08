@@ -86,6 +86,7 @@ class DmCubit extends Cubit<DmState>
         _DmSetAsideMixin {
   @override
   final ServerCubit _serverCubit;
+  final SessionRepository _session;
   @override
   final ModerationApi _moderation;
   @override
@@ -176,6 +177,7 @@ class DmCubit extends Cubit<DmState>
     required VaultCubit vaultCubit,
     CryptoRepository? crypto,
   }) : _serverCubit = serverCubit,
+       _session = session,
        _moderation = ModerationApi(session: session),
        _members = MembersApi(session: session),
        _pinsPolls = PinsPollsApi(session: session),
@@ -297,7 +299,7 @@ class DmCubit extends Cubit<DmState>
     final user = server.user;
     if (user == null) return;
     _inbox =
-        _serverCubit.realtime.join(
+        _session.realtime.join(
             server,
             ServerTopics.user(user.id),
             onStatus: _onInboxStatus,
@@ -314,10 +316,8 @@ class DmCubit extends Cubit<DmState>
             if (state.openPeerId != null) unawaited(refreshCallLog());
           })
           ..onBroadcast(ServerEvent.typing, _onTyping);
-    _serverFeed = _serverCubit.realtime.join(
-      server,
-      ServerTopics.server(server.id),
-    )?..onBroadcast(ServerEvent.members, (_) => _onMembersDoorbell());
+    _serverFeed = _session.realtime.join(server, ServerTopics.server(server.id))
+      ?..onBroadcast(ServerEvent.members, (_) => _onMembersDoorbell());
   }
 
   /// Somebody's `users` row moved — a name, an avatar, or a new chat key.
@@ -443,7 +443,7 @@ class DmCubit extends Cubit<DmState>
     if (server == null || user == null || peerId == null) return;
     _lastTypingSent = now;
     unawaited(
-      _serverCubit.realtime.ring(
+      _session.realtime.ring(
         server,
         ServerTopics.user(peerId),
         ServerEvent.typing,
