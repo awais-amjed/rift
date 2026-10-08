@@ -71,6 +71,15 @@ abstract final class NoiseFilter {
     );
   }
 
+  /// Whether the runner can send silence while the microphone keeps running:
+  /// [setSilenced]. False on a runner built before it could.
+  static bool get canSilence => _native?.setSilenced != null;
+
+  /// Push-to-talk with the key up: everything the microphone hears goes out
+  /// as silence from the next 10 ms, while the device keeps running.
+  static void setSilenced(bool silenced) =>
+      _native?.setSilenced?.call(silenced ? 1 : 0);
+
   /// Puts [mode]'s model on the microphone, or takes it off. DeepFilterNet
   /// and DPDFNet load first, a tenth to a quarter of a second, with no model
   /// on meanwhile; if one cannot load, RNNoise stands in.
@@ -203,6 +212,9 @@ class _NativeFilter {
   /// `rift_noise_filter_take_timings`; null from a runner built before it.
   final void Function(Pointer<Int64>)? _takeTimings;
 
+  /// Null from a runner built before it exported one.
+  final void Function(int)? setSilenced;
+
   /// The runner's RNNoise for the mic test, by address; null from a runner
   /// built before it exported them.
   final ({int create, int process, int destroy})? rnnoise;
@@ -213,6 +225,7 @@ class _NativeFilter {
     this._setDeepFilter,
     this._setDpdfnet,
     this._takeTimings,
+    this.setSilenced,
     this.rnnoise,
   );
 
@@ -274,6 +287,11 @@ class _NativeFilter {
                 void Function(Pointer<Int64>)
               >(_takeTimingsName)
             : null,
+        exe.providesSymbol(_setSilencedName)
+            ? exe.lookupFunction<Void Function(Int32), void Function(int)>(
+                _setSilencedName,
+              )
+            : null,
         _rnnoiseIn(exe),
       );
     } catch (e) {
@@ -284,6 +302,7 @@ class _NativeFilter {
 
   static const _takeTimingsName = 'rift_noise_filter_take_timings';
   static const _setDpdfnetName = 'rift_noise_filter_set_dpdfnet';
+  static const _setSilencedName = 'rift_noise_filter_set_silenced';
 
   static ({int create, int process, int destroy})? _rnnoiseIn(
     DynamicLibrary exe,

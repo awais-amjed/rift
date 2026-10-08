@@ -46,6 +46,8 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
   Future<void> _cleanupRoom();
   void forgetChannelToken(String? channelId);
   bool _shouldTransmitMic({bool? micEnabled});
+  // ignore: unused_element_parameter
+  bool _shouldCaptureMic({bool? micEnabled});
   AudioCaptureOptions _buildAudioCaptureOptions();
   String? get _captureDeviceId;
   set _captureDeviceId(String? deviceId);
@@ -335,7 +337,9 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       }
       // Joined muted, the call plays at 16 kHz until the mic has run once —
       // see [PlayoutWarmup]. After the devices, so it opens the chosen one.
-      if (_shouldTransmitMic()) {
+      // Push-to-talk with the key up already runs it, sending silence.
+      if (_shouldTransmitMic() ||
+          (_shouldCaptureMic() && NoiseFilter.canSilence)) {
         PlayoutWarmup.markDone();
       } else {
         unawaited(PlayoutWarmup.run(_buildAudioCaptureOptions()));

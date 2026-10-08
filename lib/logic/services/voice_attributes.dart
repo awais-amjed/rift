@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:livekit_client/livekit_client.dart';
+
 import 'video_stream_stats.dart';
 
 /// The state a client publishes about itself into a call.
@@ -18,6 +20,11 @@ class VoiceAttributes {
 
   static const deafenedKey = 'deafened';
 
+  /// Push-to-talk with the key up, where the client keeps its microphone
+  /// track live and sends silence (`NoiseFilter.setSilenced`): the track looks
+  /// unmuted to LiveKit, so this is what says the mic is closed.
+  static const pushToTalkIdleKey = 'ptt_idle';
+
   /// The streams this client is watching, as a JSON list of share identities.
   static const watchingKey = 'watching';
 
@@ -27,13 +34,26 @@ class VoiceAttributes {
   static Map<String, String> forSelf({
     required bool deafened,
     required Set<String> watching,
+    required bool pushToTalkIdle,
   }) => {
     deafenedKey: deafened ? 'true' : 'false',
     watchingKey: jsonEncode(watching.toList()..sort()),
+    pushToTalkIdleKey: pushToTalkIdle ? 'true' : 'false',
   };
 
   static bool isDeafened(Map<String, String> attributes) =>
       attributes[deafenedKey] == 'true';
+
+  static bool isPushToTalkIdle(Map<String, String> attributes) =>
+      attributes[pushToTalkIdleKey] == 'true';
+
+  /// Whether [participant]'s mic is open: its track unmuted, and not a
+  /// push-to-talk key that is up, which leaves the track live and silent.
+  /// [pushToTalkIdle] overrides the attribute for the local participant,
+  /// whose own client knows before the attribute has gone round.
+  static bool isMicOpen(Participant participant, {bool? pushToTalkIdle}) =>
+      participant.isMicrophoneEnabled() &&
+      !(pushToTalkIdle ?? isPushToTalkIdle(participant.attributes));
 
   /// Set by a desktop screen share's own connection, not by [forSelf]: the
   /// Rust session publishes it while the shared window is minimised, when

@@ -32,6 +32,8 @@ mixin _VoiceActivityMixin on Cubit<LiveKitState> {
   // form is called here.
   // ignore: unused_element_parameter
   bool _shouldTransmitMic({bool? micEnabled});
+  // ignore: unused_element_parameter
+  bool _shouldCaptureMic({bool? micEnabled});
 
   CancelListenFunc? _vadRendererCancel;
   String? _vadTrackId; // media-stream track id the renderer is bound to
@@ -61,17 +63,15 @@ mixin _VoiceActivityMixin on Cubit<LiveKitState> {
   /// its own, because this call will be capturing the device while it runs.
   ///
   /// Deliberately **not** [_monitorActive]: that follows what is being
-  /// transmitted, and under push-to-talk the answer flips with every keypress.
-  /// A meter that asked it would open its own capture during a gap and then
-  /// find the call taking the device back the moment the key went down —
-  /// which on a Bluetooth headset, with its single HFP stream, is the fight
-  /// [micLevels] exists to avoid. The mic being *muted* is different: nothing
-  /// is holding the device and nothing is about to, so a meter is welcome to
-  /// open it.
+  /// transmitted, and under push-to-talk the answer flips with every keypress
+  /// while the call keeps the device open in between. A meter that asked it
+  /// would open a second capture during a gap — on a Bluetooth headset, with
+  /// its single HFP stream, the fight [micLevels] exists to avoid. The mic
+  /// being *muted* is different: nothing is holding the device and nothing is
+  /// about to, so a meter is welcome to open it.
   bool get isCallHoldingMic {
     if (state.connectionState != LiveKitConnectionState.connected) return false;
-    if (!state.isMicEnabled) return false;
-    return !state.isDeafenedEffective && !state.isServerMuted;
+    return _shouldCaptureMic();
   }
 
   /// Thins [micLevels] down to a paintable rate. The speaking detector still
