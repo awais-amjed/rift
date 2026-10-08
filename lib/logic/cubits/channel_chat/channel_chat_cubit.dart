@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rift_crypto/rift_crypto.dart';
 
+import '../../../data/apis/attachments_api.dart';
 import '../../../data/apis/channel_keys_api.dart';
 import '../../../data/apis/channel_messages_api.dart';
 import '../../../data/apis/members_api.dart';
@@ -132,6 +133,9 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   @override
   final ChannelMessagesApi _channelMessages;
 
+  @override
+  final AttachmentsApi _attachments;
+
   /// What `@names` in the open channel resolve to, and which have been asked.
   ///
   /// Cleared with the channel by [_resetTo]. Both halves live in one object so
@@ -211,7 +215,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
       false;
 
   /// Whether the open channel is one every member can read, the only kind a
-  /// file may go up unencrypted in (`ServerCubit.uploadStaged`).
+  /// file may go up unencrypted in (`AttachmentsApi.uploadStaged`).
   @override
   bool get _publicChannel =>
       _serverCubit.state.selectedServer?.channels
@@ -266,6 +270,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
        _channelKeys = ChannelKeysApi(session: session),
        _reactions = ReactionsApi(session: session),
        _channelMessages = ChannelMessagesApi(session: session),
+       _attachments = AttachmentsApi(session: session),
        _vaultCubit = vaultCubit,
        _crypto = crypto ?? CryptoRepository(),
        _messageCache = messageCache ?? MessageCache.instance,

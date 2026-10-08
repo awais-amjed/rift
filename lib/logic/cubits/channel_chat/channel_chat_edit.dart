@@ -10,6 +10,7 @@ part of 'channel_chat_cubit.dart';
 /// changes whether a message was encrypted, in either direction.
 mixin _ChannelChatEditMixin on Cubit<ChannelChatState> {
   ServerCubit get _serverCubit;
+  AttachmentsApi get _attachments;
   ChannelMessagesApi get _channelMessages;
   VaultCubit get _vaultCubit;
   CryptoRepository get _crypto;
@@ -136,7 +137,7 @@ mixin _ChannelChatEditMixin on Cubit<ChannelChatState> {
       unawaited(
         AttachmentCleanup.forMessage(
           doomed,
-          delete: _serverCubit.deleteAttachments,
+          delete: _attachments.deleteAttachments,
         ),
       );
     } catch (e) {

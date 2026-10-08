@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:rift_crypto/rift_crypto.dart';
 
+import '../../../data/apis/attachments_api.dart';
 import '../../../data/apis/channel_keys_api.dart';
 import '../../../data/apis/channel_messages_api.dart';
 import '../../../data/apis/dms_api.dart';
@@ -15,7 +16,6 @@ import '../../../data/repositories/attachment_repository.dart';
 import '../../../data/repositories/central_dm_repository.dart';
 import '../../../data/repositories/session_repository.dart';
 import '../../../supabase_config.dart';
-import '../../cubits/server/server_cubit.dart';
 import '../../cubits/vault/vault_cubit.dart';
 import '../../helper_methods.dart';
 import '../attachment_staging.dart';
@@ -52,8 +52,6 @@ class ForwardResult {
 /// alternative is a fourth chat cubit that only ever writes.
 class ForwardService with _ForwardBlobsMixin, _ForwardDmsMixin {
   @override
-  final ServerCubit servers;
-  @override
   final VaultCubit vault;
   @override
   final CryptoRepository crypto;
@@ -61,16 +59,18 @@ class ForwardService with _ForwardBlobsMixin, _ForwardDmsMixin {
   final CentralDmRepository central;
   @override
   final DmsApi dms;
+  @override
+  final AttachmentsApi blobs;
   final ChannelKeysApi channelKeys;
   final ChannelMessagesApi channelMessages;
 
   ForwardService({
-    required this.servers,
     required SessionRepository session,
     required this.vault,
     required this.crypto,
     CentralDmRepository? central,
   }) : dms = DmsApi(session: session),
+       blobs = AttachmentsApi(session: session),
        channelKeys = ChannelKeysApi(session: session),
        channelMessages = ChannelMessagesApi(session: session),
        central = central ?? CentralDmRepository();

@@ -7,6 +7,7 @@ part of 'channel_chat_cubit.dart';
 /// Sending into a channel, and fetching attachment bytes back for rendering.
 mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
   ServerCubit get _serverCubit;
+  AttachmentsApi get _attachments;
   ChannelMessagesApi get _channelMessages;
   VoiceBotsApi get _voiceBots;
   MembersApi get _members;
@@ -156,7 +157,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
       Future<APIResponse> uploadOne(
         PendingAttachment file, {
         TransferProgress? onProgress,
-      }) => _serverCubit.uploadStaged(
+      }) => _attachments.uploadStaged(
         file,
         scopePrefix: channelId,
         onProgress: onProgress,
@@ -435,7 +436,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
   Future<Uint8List?> loadAttachment(Attachment attachment) =>
       ChatAttachmentUploader.load(
         attachment: attachment,
-        download: () => _serverCubit.downloadAttachment(
+        download: () => _attachments.downloadAttachment(
           path: attachment.storagePath,
           keyB64: attachment.keyB64,
           nonceB64: attachment.nonceB64,
@@ -449,7 +450,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
     Attachment attachment,
     BlobSink sink, {
     TransferProgress? onProgress,
-  }) => _serverCubit.saveAttachment(
+  }) => _attachments.saveAttachment(
     attachment: attachment,
     sink: sink,
     onProgress: onProgress,

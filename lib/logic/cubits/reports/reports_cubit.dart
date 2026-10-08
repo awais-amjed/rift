@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../data/apis/attachments_api.dart';
 import '../../../data/apis/channel_messages_api.dart';
 import '../../../data/apis/moderation_api.dart';
 import '../../../data/classes/api_response.dart';
@@ -41,6 +42,7 @@ class ReportsCubit extends Cubit<ReportsState> {
   final ServerCubit _serverCubit;
   final ModerationApi _moderation;
   final ChannelMessagesApi _messages;
+  final AttachmentsApi _attachments;
   final ReportedMessageOpener _opener;
 
   /// The one server this watches, or null to follow the selection.
@@ -60,6 +62,7 @@ class ReportsCubit extends Cubit<ReportsState> {
   }) : _serverCubit = serverCubit,
        _moderation = ModerationApi(session: session),
        _messages = ChannelMessagesApi(session: session),
+       _attachments = AttachmentsApi(session: session),
        _fixedServerId = serverId,
        _opener = ReportedMessageOpener(
          session: session,
@@ -185,7 +188,7 @@ class ReportsCubit extends Cubit<ReportsState> {
       AttachmentCleanup.forMessage(
         entry.message,
         delete: (paths) =>
-            _serverCubit.deleteAttachments(paths, serverId: serverId),
+            _attachments.deleteAttachments(paths, serverId: serverId),
       ),
     );
     return _record(entry, ReportOutcome.deleted);

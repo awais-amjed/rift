@@ -8,6 +8,7 @@ part of 'dm_cubit.dart';
 mixin _DmEditMixin on Cubit<DmState> {
   ServerCubit get _serverCubit;
   DmsApi get _dms;
+  AttachmentsApi get _attachments;
   SavedConversation get _saved;
   CryptoRepository get _crypto;
   Map<String, Uint8List> get _dmKeys;
@@ -117,7 +118,7 @@ mixin _DmEditMixin on Cubit<DmState> {
       unawaited(
         AttachmentCleanup.forMessage(
           doomed,
-          delete: _serverCubit.deleteAttachments,
+          delete: _attachments.deleteAttachments,
         ),
       );
     } catch (e) {

@@ -5,6 +5,7 @@ part of 'dm_cubit.dart';
 mixin _DmSendMixin on Cubit<DmState> {
   ServerCubit get _serverCubit;
   DmsApi get _dms;
+  AttachmentsApi get _attachments;
   SavedConversation get _saved;
   CryptoRepository get _crypto;
   Map<String, Uint8List> get _dmKeys;
@@ -95,7 +96,7 @@ mixin _DmSendMixin on Cubit<DmState> {
       Future<APIResponse> uploadOne(
         PendingAttachment file, {
         TransferProgress? onProgress,
-      }) => _serverCubit.uploadStaged(
+      }) => _attachments.uploadStaged(
         file,
         scopePrefix: scope,
         onProgress: onProgress,
@@ -278,7 +279,7 @@ mixin _DmSendMixin on Cubit<DmState> {
   Future<Uint8List?> loadAttachment(Attachment attachment) =>
       ChatAttachmentUploader.load(
         attachment: attachment,
-        download: () => _serverCubit.downloadAttachment(
+        download: () => _attachments.downloadAttachment(
           path: attachment.storagePath,
           keyB64: attachment.keyB64,
           nonceB64: attachment.nonceB64,
@@ -292,7 +293,7 @@ mixin _DmSendMixin on Cubit<DmState> {
     Attachment attachment,
     BlobSink sink, {
     TransferProgress? onProgress,
-  }) => _serverCubit.saveAttachment(
+  }) => _attachments.saveAttachment(
     attachment: attachment,
     sink: sink,
     onProgress: onProgress,

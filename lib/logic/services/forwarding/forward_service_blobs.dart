@@ -11,7 +11,7 @@ part of 'forward_service.dart';
 /// trimmed past it — leaving a forward that rendered correctly for a week
 /// and then quietly lost its picture.
 mixin _ForwardBlobsMixin {
-  ServerCubit get servers;
+  AttachmentsApi get blobs;
   CentralDmRepository get central;
 
   /// Fetch and open every attachment once, whatever it is being forwarded to.
@@ -32,7 +32,7 @@ mixin _ForwardBlobsMixin {
         if (sourceServerId != null &&
             attachment.size > AttachmentStaging.inMemoryMaxBytes) {
           final sink = await scratchTarget(attachment.name);
-          final response = await servers.saveAttachment(
+          final response = await blobs.saveAttachment(
             attachment: attachment,
             sink: sink,
             serverId: sourceServerId,
@@ -64,7 +64,7 @@ mixin _ForwardBlobsMixin {
                 sha256B64: attachment.sha256B64,
                 chunkSize: attachment.chunkSize,
               )
-            : await servers.downloadAttachment(
+            : await blobs.downloadAttachment(
                 path: attachment.storagePath,
                 keyB64: attachment.keyB64,
                 nonceB64: attachment.nonceB64,
@@ -122,7 +122,7 @@ mixin _ForwardBlobsMixin {
                 scopePrefix: scopePrefix,
                 data: file.bytes ?? await file.source.readAsBytes(),
               )
-            : await servers.uploadStaged(
+            : await blobs.uploadStaged(
                 file,
                 scopePrefix: scopePrefix,
                 serverId: serverId,

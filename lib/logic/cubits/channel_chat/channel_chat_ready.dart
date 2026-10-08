@@ -14,6 +14,7 @@ part of 'channel_chat_cubit.dart';
 mixin _ChatReadyMixin on Cubit<ChannelChatState>, _ChatSweepMixin {
   ChannelKeyring get _keyring;
   VaultCubit get _vaultCubit;
+  AttachmentsApi get _attachments;
 
   /// Implemented by the cubit class.
   Future<void> retry();
@@ -62,7 +63,7 @@ mixin _ChatReadyMixin on Cubit<ChannelChatState>, _ChatSweepMixin {
     // because this is the app's once-per-server-ready hook, and because a
     // server whose members never open it never gets swept — the pg_cron job
     // trims message rows but cannot touch storage.
-    unawaited(_serverCubit.sweepAttachments());
+    unawaited(_attachments.sweepAttachments());
   }
 
   void _setupSweepRealtime(Server server) =>

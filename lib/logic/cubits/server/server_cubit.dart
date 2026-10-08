@@ -1,19 +1,16 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:cross_file/cross_file.dart';
 import 'package:equatable/equatable.dart';
 import 'package:http/http.dart' as http;
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:json_annotation/json_annotation.dart';
 
 import '../../../data/classes/api_response.dart';
-import '../../../data/classes/attachment.dart';
 import '../../../data/classes/channel.dart';
 import '../../../data/classes/livekit_node.dart';
 import '../../../data/classes/message_cache_slot.dart';
 import '../../../data/classes/notice.dart';
-import '../../../data/classes/pending_attachment.dart';
 import '../../../data/classes/region_load.dart';
 import '../../../data/classes/resolved_invite.dart';
 import '../../../data/classes/server.dart';
@@ -22,9 +19,7 @@ import '../../../data/classes/server_limits.dart';
 import '../../../data/classes/server_user.dart';
 import '../../../data/classes/user_permissions.dart';
 import '../../../data/invite_link.dart';
-import '../../../data/repositories/attachment_repository.dart';
 import '../../../data/repositories/avatar_repository.dart';
-import '../../../data/repositories/blob/blob_sink.dart';
 import '../../../data/repositories/central_dm_repository.dart';
 import '../../../data/repositories/secure_storage_repository.dart';
 import '../../../data/repositories/server_db.dart';
@@ -43,7 +38,6 @@ import '../../services/server_import_merge.dart';
 import '../../services/server_realtime.dart';
 
 part 'server_api.dart';
-part 'server_attachments_api.dart';
 part 'server_bots_api.dart';
 part 'server_channels_api.dart';
 part 'server_crud.dart';
@@ -73,7 +67,6 @@ class ServerCubit extends HydratedCubit<ServerState>
         _ServerBotsApiMixin,
         _ServerChannelsApiMixin,
         _ServerPrivateChannelsApiMixin,
-        _ServerAttachmentsApiMixin,
         _ServerVoiceApiMixin,
         _ServerVoiceRegionsApiMixin,
         _ServerInvitesApiMixin,
@@ -87,10 +80,6 @@ class ServerCubit extends HydratedCubit<ServerState>
   /// rather than made per call so the measurement is cached across joins.
   @override
   final VoiceRegionProbe _regionProbe = VoiceRegionProbe();
-
-  /// E2E-encrypted attachment upload/download (self-hosted Storage REST).
-  @override
-  final AttachmentRepository _attachments = AttachmentRepository();
 
   /// Avatar upload/download — plaintext, unlike attachments.
   @override
@@ -132,22 +121,6 @@ class ServerCubit extends HydratedCubit<ServerState>
   @override
   Server? _target(String? serverId) =>
       serverId == null ? state.selectedServer : state.serverById(serverId);
-
-  /// The server a call is aimed at, and the refresher that goes with it.
-  ///
-  /// Every chat call used to read `state.selectedServer`, which is right for
-  /// the conversation somebody is looking at and wrong for the one they are
-  /// forwarding into — a forward's destination is named by the caller and is
-  /// routinely on another server entirely. Resolving both together is what
-  /// stops the two halves disagreeing: sealing for one server and posting the
-  /// envelope to another produces a message nobody in either room can open.
-  @override
-  ({Server server, String anonKey})? _chatTarget(String? serverId) {
-    final server = _target(serverId);
-    final anonKey = server?.supabaseKey;
-    if (server == null || anonKey == null) return null;
-    return (server: server, anonKey: anonKey);
-  }
 
   /// What to say when [_target] finds nothing ([SessionRepository.noTarget]).
   @override
@@ -285,10 +258,6 @@ class ServerCubit extends HydratedCubit<ServerState>
     Server server,
     Future<APIResponse> Function(String token) call,
   ) => _session.callFor(server, call);
-
-  /// [server]'s token for a transfer that outlasts a single call.
-  @override
-  BearerToken _bearerFor(Server server) => _session.bearerFor(server);
 
   /// [_callFor] against the selected server — for the calls that are about
   /// whatever you are looking at (a channel token, the voice roster) rather than

@@ -64,7 +64,6 @@ Future<void> showForwardDialog(
         targets: targets,
         sourceServerId: sourceServerId,
         service: ForwardService(
-          servers: servers,
           session: session,
           vault: vault,
           crypto: CryptoRepository(),

@@ -38,14 +38,17 @@ typedef SessionDetails = ({String serverId, ServerDetails details});
 /// already holds the token it returns.
 class SessionRepository {
   final ServerRepository _servers;
+  final AttachmentRepository _attachments;
   final CryptoRepository _crypto;
   final SecureStorageRepository _storage;
 
   SessionRepository({
     ServerRepository? servers,
+    AttachmentRepository? attachments,
     CryptoRepository? crypto,
     SecureStorageRepository? storage,
   }) : _servers = servers ?? ServerRepository(),
+       _attachments = attachments ?? AttachmentRepository(),
        _crypto = crypto ?? CryptoRepository(),
        _storage = storage ?? SecureStorageRepository();
 
@@ -57,6 +60,9 @@ class SessionRepository {
   /// The repository every call to a server goes through. One, shared, so
   /// each server's database client is made once rather than per feature.
   ServerRepository get repository => _servers;
+
+  /// The same for a server's stored files, which keep their own HTTP client.
+  AttachmentRepository get attachments => _attachments;
 
   List<Server> get servers => _list;
   String? get selectedServerId => _selectedId;
