@@ -21,7 +21,6 @@ import '../../services/window_focus_service.dart';
 import '../app/app_cubit.dart';
 import '../channel_chat/channel_chat_cubit.dart';
 import '../dm/dm_cubit.dart';
-import '../server/server_cubit.dart';
 
 part 'server_notifications_levels.dart';
 part 'server_notifications_names.dart';
@@ -47,16 +46,14 @@ part 'server_notifications_subscriptions.dart';
 ///   (`read_at`), clearing the badge and letting the retention job prune
 ///   the rows.
 /// - **Token freshness** — background servers' JWTs are refreshed before they
-///   expire (via [ServerCubit.reAuthenticateServer]) so their subscriptions
+///   expire (via [SessionRepository.reAuthenticate]) so their subscriptions
 ///   don't lapse while another server is in focus.
 class ServerNotificationsCubit extends Cubit<NotificationsState>
     with _PeerNamesMixin, _SubscriptionsMixin, _ReadMarkingMixin, _LevelsMixin {
   @override
-  final ServerCubit _serverCubit;
-  @override
   final SessionRepository _session;
   final AppCubit _appCubit;
-  StreamSubscription<ServerState>? _serverSub;
+  StreamSubscription<void>? _serverSub;
   StreamSubscription<ChannelChatState>? _chatSub;
   StreamSubscription<DmState>? _dmSub;
   StreamSubscription<AppState>? _appSub;
@@ -82,17 +79,15 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
   HomeSurface _lastSurface;
 
   ServerNotificationsCubit({
-    required ServerCubit serverCubit,
     required SessionRepository session,
     required ChannelChatCubit chatCubit,
     required DmCubit dmCubit,
     required AppCubit appCubit,
-  }) : _serverCubit = serverCubit,
-       _session = session,
+  }) : _session = session,
        _appCubit = appCubit,
        _lastSurface = appCubit.state.surface,
        super(const NotificationsState()) {
-    _serverSub = serverCubit.stream.listen((_) => _sync());
+    _serverSub = session.changes.listen((_) => _sync());
     _chatSub = chatCubit.stream.listen(_onChatChanged);
     // The open channel's notification is raised over there, because only that
     // side holds the key and can tell a mention from an ordinary line. The
@@ -100,20 +95,18 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
     // rather than duplicating the fetch is what keeps one answer to "may this
     // channel interrupt" instead of two that drift.
     chatCubit.setNotificationLevelSource(
-      (channelId) => state.channelLevel(
-        _serverCubit.state.selectedServerId ?? '',
-        channelId,
-      ),
+      (channelId) =>
+          state.channelLevel(_session.selectedServerId ?? '', channelId),
     );
     _dmSub = dmCubit.stream.listen(_onDmChanged);
     _appSub = appCubit.stream.listen(_onAppStateChanged);
     WindowFocusService.instance.focused.addListener(_onFocusChanged);
     if (chatCubit.state.channelId != null) {
-      _openServerId = serverCubit.state.selectedServerId;
+      _openServerId = session.selectedServerId;
       _openChannelId = chatCubit.state.channelId;
     }
     if (dmCubit.state.openPeerId != null) {
-      _openDmServerId = serverCubit.state.selectedServerId;
+      _openDmServerId = session.selectedServerId;
       _openPeerId = dmCubit.state.openPeerId;
     }
     // Keep background servers' JWTs fresh so their subscriptions don't lapse.
@@ -286,7 +279,7 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
       unawaited(SoundService.instance.play(AppSound.message));
       return;
     }
-    if (serverId != _serverCubit.state.selectedServerId) {
+    if (serverId != _session.selectedServerId) {
       unawaited(_notifyBackgroundDm(serverId, peerId));
     }
   }
@@ -370,7 +363,7 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
       _openServerId = null;
       return;
     }
-    final serverId = _serverCubit.state.selectedServerId;
+    final serverId = _session.selectedServerId;
     _openServerId = serverId;
     if (serverId != null && _channelOnScreen) {
       markChannelRead(serverId, channelId);
@@ -385,7 +378,7 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
       _openDmServerId = null;
       return;
     }
-    final serverId = _serverCubit.state.selectedServerId;
+    final serverId = _session.selectedServerId;
     _openDmServerId = serverId;
     if (serverId != null && _dmOnScreen) markDmRead(serverId, peerId);
   }
@@ -416,7 +409,7 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
   // ── Teardown ──────────────────────────────────────────────────
 
   Server? _serverById(String serverId) {
-    for (final s in _serverCubit.state.servers) {
+    for (final s in _session.servers) {
       if (s.id == serverId) return s;
     }
     return null;

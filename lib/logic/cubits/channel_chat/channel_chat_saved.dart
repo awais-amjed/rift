@@ -86,7 +86,7 @@ mixin _ChannelChatSavedMixin on Cubit<ChannelChatState>, _ChannelChatRowsMixin {
     Server server,
     String channelId,
   ) async {
-    final selected = _serverCubit.state.selectedServer;
+    final selected = _session.selectedServer;
     if (selected?.id != server.id ||
         selected?.supabaseUrl != server.supabaseUrl) {
       return null;

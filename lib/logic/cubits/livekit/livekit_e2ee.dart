@@ -26,7 +26,6 @@ part of 'livekit_cubit.dart';
 mixin _E2EEMixin on Cubit<LiveKitState> {
   CryptoRepository get _crypto;
   VaultCubit get _vaultCubit;
-  ServerCubit? get _serverCubit;
   SessionRepository? get _session;
 
   /// Whether a user id belongs to a bot, so its frames are keyed differently.
@@ -110,7 +109,7 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
     // "waiting for this channel's key" until another member happened to open
     // that channel by hand, and the "Try again" button could not help, because
     // trying again rang nothing either.
-    final server = _serverCubit?.state.selectedServer;
+    final server = _session?.selectedServer;
     if (outcome.isWaiting && server != null) {
       // Subscribing before ringing: an unsubscribed doorbell has no client to
       // ring with, and the heal being asked for is announced on the same topic.

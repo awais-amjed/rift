@@ -3,7 +3,7 @@ part of 'dm_cubit.dart';
 /// Sending a DM (seal → upload attachments → post) and fetching attachment
 /// bytes back for rendering.
 mixin _DmSendMixin on Cubit<DmState> {
-  ServerCubit get _serverCubit;
+  SessionRepository get _session;
   DmsApi get _dms;
   AttachmentsApi get _attachments;
   SavedConversation get _saved;
@@ -53,7 +53,7 @@ mixin _DmSendMixin on Cubit<DmState> {
     String? replyToId,
   }) async {
     final peerId = state.openPeerId;
-    final server = _serverCubit.state.selectedServer;
+    final server = _session.selectedServer;
     final user = server?.user;
     if (peerId == null ||
         server == null ||

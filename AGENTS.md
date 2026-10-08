@@ -106,7 +106,10 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   once is followed by the caller ringing `ServerEventsCubit.notifyServerChanged`, since the
   class cannot reach a cubit. `ServerCubit` publishes its server list into the repository on every change and writes back the
   token and details each re-login brings (`SessionRepository.logins`), so neither it nor the
-  vault holds the other. A write that moves something the list holds — a role change moves
+  vault holds the other. A cubit that follows the selection reads it there too
+  (`selectedServer`, `servers`, and `changes` for when they move), and joins Realtime topics
+  on `SessionRepository.realtime`; only what changes the list itself takes `ServerCubit`.
+  A write that moves something the list holds — a role change moves
   your own permissions — ends with `SessionRepository.refreshDetails`, and the cubit lands
   the re-read from `SessionRepository.details` before the call answers. An API call a dialog can open for a server other than the current one takes an
   optional `serverId` and resolves it with `SessionRepository.target` — reading the

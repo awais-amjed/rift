@@ -17,7 +17,6 @@ import '../../services/server_realtime.dart';
 import '../../services/voice_broadcast.dart';
 import '../../services/voice_locations.dart';
 import '../livekit/livekit_cubit.dart';
-import '../server/server_cubit.dart';
 
 part 'channel_presence_state.dart';
 part 'channel_presence_tracking.dart';
@@ -46,13 +45,12 @@ part 'channel_presence_tracking.dart';
 class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
     with _PresenceTrackingMixin {
   @override
-  final ServerCubit _serverCubit;
   final SessionRepository _session;
   final LiveKitCubit _livekitCubit;
   final VoiceApi _voiceApi;
   final VoiceRegionProbe _probe;
 
-  StreamSubscription<ServerState>? _serverSub;
+  StreamSubscription<void>? _serverSub;
   StreamSubscription<LiveKitState>? _lkSub;
 
   /// The presence topic on the server's shared connection. [_channel] is its
@@ -94,28 +92,26 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
   bool _tearingDown = false;
 
   ChannelPresenceCubit({
-    required ServerCubit serverCubit,
     required LiveKitCubit livekitCubit,
     required SessionRepository session,
-  }) : _serverCubit = serverCubit,
-       _session = session,
+  }) : _session = session,
        _livekitCubit = livekitCubit,
        _voiceApi = VoiceApi(session: session),
        _probe = session.regionProbe,
        super(const ChannelPresenceState()) {
-    _serverSub = serverCubit.stream.listen(_onServerChanged);
+    _serverSub = session.changes.listen((_) => _onServerChanged());
     _lkSub = livekitCubit.stream.listen((_) {
       _announceLocation();
       _onOwnChannel();
     });
     // Bootstrap with current state
-    _onServerChanged(serverCubit.state);
+    _onServerChanged();
   }
 
   // ── Server changes ───────────────────────────────────────────────────────
 
-  Future<void> _onServerChanged(ServerState serverState) async {
-    final server = serverState.selectedServer;
+  Future<void> _onServerChanged() async {
+    final server = _session.selectedServer;
     // The user arriving matters as much as the server doing: we connect before
     // registration finishes on first launch, and there is nobody to announce
     // until it has.
@@ -233,7 +229,7 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
   /// The authoritative roster from LiveKit, or null when it can't be had.
   Future<Map<String, String>?> _fetchRoster() async {
     // The subscribe that asked for this can land after the selection moved on.
-    if (_serverCubit.state.selectedServer == null) return null;
+    if (_session.selectedServer == null) return null;
     final asked = _currentServerId;
     final response = await _voiceApi.voiceRoster();
     if (!response.success) return null;
@@ -290,7 +286,7 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
   @override
   Future<void> _rebuild() async {
     if (isClosed) return;
-    final server = _serverCubit.state.selectedServer;
+    final server = _session.selectedServer;
     if (server == null || server.supabaseKey == null) return;
 
     final locations = _voice?.locations ?? const <String, String>{};
@@ -349,7 +345,7 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
         for (final entry in VoiceLocations.rosters(
           locations: _voice!.locations,
           online: _online,
-          excluding: _serverCubit.state.selectedServer?.user?.id,
+          excluding: _session.selectedServer?.user?.id,
         ).entries)
           if (entry.value.isNotEmpty) entry.key,
         ?_ownChannel,
@@ -361,7 +357,7 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
       online: _online,
       // Our own channel is drawn from live LiveKit participants; without this
       // we'd be listed twice in the call we're actually in.
-      excluding: _serverCubit.state.selectedServer?.user?.id,
+      excluding: _session.selectedServer?.user?.id,
     );
 
     final rosters = <String, List<PresenceUser>>{};

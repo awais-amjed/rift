@@ -3,7 +3,6 @@ part of 'server_notifications_cubit.dart';
 /// One unread subscription per joined server, on that server's shared
 /// connection, and the bookkeeping that keeps the set matching the server list.
 mixin _SubscriptionsMixin on Cubit<NotificationsState>, _PeerNamesMixin {
-  ServerCubit get _serverCubit;
   SessionRepository get _session;
 
   /// Per-server live subscription + authenticated client, keyed by server id.
@@ -17,7 +16,7 @@ mixin _SubscriptionsMixin on Cubit<NotificationsState>, _PeerNamesMixin {
   void _onDmMessageChanged(String serverId);
 
   void _sync() {
-    final servers = _serverCubit.state.servers;
+    final servers = _session.servers;
     final joined = <String>{};
 
     for (final server in servers) {
@@ -31,7 +30,7 @@ mixin _SubscriptionsMixin on Cubit<NotificationsState>, _PeerNamesMixin {
       // Keep the JWT fresh (coalesced; no-op if already fresh/refreshing).
       final nearExpiry = server.isTokenNearExpiry;
       if (nearExpiry) {
-        unawaited(_serverCubit.reAuthenticateServer(server.id));
+        unawaited(_session.reAuthenticate(server.id));
       }
 
       final existing = _subs[server.id];

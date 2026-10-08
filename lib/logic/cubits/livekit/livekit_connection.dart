@@ -88,7 +88,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       _appCubit.state.inputDeviceId == null ? null : _captureDeviceId;
 
   /// Connects to a LiveKit channel. Server context is resolved internally via
-  /// [_serverCubit]; callers only supply the channel and media preferences.
+  /// [_session]; callers only supply the channel and media preferences.
   Future<void> connectToChannel({
     required String channelId,
     bool? micEnabled,
@@ -127,7 +127,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
 
     emit(state.copyWith(clearRoom: true));
 
-    final server = _serverCubit?.state.selectedServer;
+    final server = _session?.selectedServer;
     if (server == null) {
       emit(
         state.copyWith(

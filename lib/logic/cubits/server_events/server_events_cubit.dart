@@ -27,7 +27,7 @@ class ServerEventsCubit extends Cubit<int> {
   final SessionRepository _session;
   final LiveKitCubit _livekitCubit;
   final ChannelChatCubit _chatCubit;
-  StreamSubscription<ServerState>? _serverSub;
+  StreamSubscription<void>? _serverSub;
 
   RealtimeLease? _topic;
   String? _serverId;
@@ -61,7 +61,7 @@ class ServerEventsCubit extends Cubit<int> {
        _livekitCubit = livekitCubit,
        _chatCubit = chatCubit,
        super(0) {
-    _serverSub = serverCubit.stream.listen((_) => _sync());
+    _serverSub = session.changes.listen((_) => _sync());
     _sync();
     _channelsWatcher = ServerTopicWatcher(
       session: session,
@@ -109,7 +109,7 @@ class ServerEventsCubit extends Cubit<int> {
   /// properly rather than sitting in a room the server has removed, and closing
   /// a chat whose channel no longer exists.
   void _evictFromDeletedChannels() {
-    final channels = _serverCubit.state.selectedServer?.channels;
+    final channels = _session.selectedServer?.channels;
     if (channels == null) return;
     final live = ChannelEviction.liveIds(channels);
 
@@ -122,7 +122,7 @@ class ServerEventsCubit extends Cubit<int> {
   }
 
   void _sync() {
-    final server = _serverCubit.state.selectedServer;
+    final server = _session.selectedServer;
     if (server == null || server.supabaseKey == null) {
       _teardown();
       return;

@@ -124,7 +124,7 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
         // Only while this is still the selected server: the read goes to the
         // selected one, and an empty answer from another would be saved as
         // this conversation having been emptied.
-        final selected = _serverCubit.state.selectedServer;
+        final selected = _session.selectedServer;
         if (selected?.id != server.id ||
             selected?.supabaseUrl != server.supabaseUrl) {
           return null;

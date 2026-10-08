@@ -54,7 +54,6 @@ import '../../services/watch_cues.dart';
 import '../../services/watch_resume.dart';
 import '../app/app_cubit.dart';
 import '../screenshare/screenshare_cubit.dart';
-import '../server/server_cubit.dart';
 import '../sound_share/sound_share_cubit.dart';
 import '../soundboard/soundboard_cubit.dart';
 import '../token/token_cubit.dart';
@@ -94,8 +93,6 @@ class LiveKitCubit extends Cubit<LiveKitState>
   final AppCubit _appCubit;
   @override
   final TokenCubit _tokenCubit;
-  @override
-  final ServerCubit? _serverCubit;
   @override
   final SessionRepository? _session;
 
@@ -150,7 +147,6 @@ class LiveKitCubit extends Cubit<LiveKitState>
     required AppCubit appCubit,
     required TokenCubit tokenCubit,
     required VaultCubit vaultCubit,
-    ServerCubit? serverCubit,
     SessionRepository? session,
     ScreenshareCubit? screenshareCubit,
     CryptoRepository? crypto,
@@ -158,7 +154,6 @@ class LiveKitCubit extends Cubit<LiveKitState>
        _session = session,
        _vaultCubit = vaultCubit,
        _tokenCubit = tokenCubit,
-       _serverCubit = serverCubit,
        _screenshareCubit = screenshareCubit,
        _crypto = crypto ?? CryptoRepository(),
        _lastAppState = appCubit.state,

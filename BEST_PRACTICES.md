@@ -62,9 +62,9 @@ widgets  →  cubits  →  repositories  →  network / storage / platform
 
 - **Don't add a cubit-to-cubit reference.** The Bloc docs' reason: siblings that
   know each other are tightly coupled, and a change in one breaks the other.
-  Many cubits predate this file and take others — mostly `ServerCubit`, for the
-  selected server and its token — through their constructors or an `inject…`
-  setter (`grep -rnE "final \w+Cubit\??\s+_?\w+;" lib/logic/cubits`). Leave
+  Many cubits predate this file and take others — `VaultCubit`, `AppCubit`,
+  `LiveKitCubit` — through their constructors or an `inject…` setter
+  (`grep -rnE "final \w+Cubit\??\s+_?\w+;" lib/logic/cubits`). Leave
   those until the work in question touches them; don't add new ones. For the
   selection and a token, take `SessionRepository`, and for a server's calls the
   feature's class in `data/apis/` built on it. The session also holds each

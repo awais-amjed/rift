@@ -7,7 +7,7 @@ part of 'channel_chat_cubit.dart';
 /// doorbell rings (a member published a new chat key, or another client just
 /// healed someone).
 mixin _ChatSweepMixin on Cubit<ChannelChatState> {
-  ServerCubit get _serverCubit;
+  SessionRepository get _session;
   ChannelKeysApi get _channelKeys;
   CryptoRepository get _crypto;
   Future<ChatIdentity?> _chatIdentity(Server server);
@@ -23,7 +23,7 @@ mixin _ChatSweepMixin on Cubit<ChannelChatState> {
     if (_sweeping) return;
     _sweeping = true;
     try {
-      final server = _serverCubit.state.selectedServer;
+      final server = _session.selectedServer;
       if (server == null) return;
       final identity = await _chatIdentity(server);
       if (identity == null) return;

@@ -4,7 +4,7 @@ part of 'dm_call_cubit.dart';
 /// the room second, because the row is what decides whether there is a call
 /// to be in.
 mixin _DmCallActionsMixin on Cubit<DmCallState> {
-  ServerCubit get _serverCubit;
+  SessionRepository get _session;
   DmCallsApi get _calls;
   LiveKitCubit get _livekit;
   VaultCubit get _vault;
@@ -28,7 +28,7 @@ mixin _DmCallActionsMixin on Cubit<DmCallState> {
     required String peerId,
     required String peerName,
   }) async {
-    final server = _serverCubit.state.selectedServer;
+    final server = _session.selectedServer;
     if (server == null || state.busy) return;
     if (state.isWith(server.id, peerId)) return;
     if (state.active != null) await hangUp();

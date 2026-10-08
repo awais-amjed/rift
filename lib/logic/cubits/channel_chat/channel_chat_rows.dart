@@ -10,7 +10,7 @@ part of 'channel_chat_cubit.dart';
 /// matters: three outcomes, and two of them used to share a line. See
 /// ARCHITECTURE.md §4, *Three things a client can do with a row*.
 mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
-  ServerCubit get _serverCubit;
+  SessionRepository get _session;
   ChannelMessagesApi get _channelMessages;
   MembersApi get _members;
   CryptoRepository get _crypto;
@@ -67,7 +67,7 @@ mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
     List<Map<String, dynamic>> rows,
     Map<int, Uint8List> keys,
   ) async {
-    final localUserId = _serverCubit.state.selectedServer?.user?.id;
+    final localUserId = _session.selectedServer?.user?.id;
     final result = <ChatMessage>[];
 
     for (final row in rows) {

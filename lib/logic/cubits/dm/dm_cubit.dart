@@ -49,7 +49,6 @@ import '../../services/saved_conversation.dart';
 import '../../services/sealed_open.dart';
 import '../../services/server_realtime.dart';
 import '../../services/server_topics.dart';
-import '../server/server_cubit.dart';
 import '../vault/vault_cubit.dart';
 
 part 'dm_call_log.dart';
@@ -85,7 +84,6 @@ class DmCubit extends Cubit<DmState>
         _DmCallLogMixin,
         _DmSetAsideMixin {
   @override
-  final ServerCubit _serverCubit;
   final SessionRepository _session;
   @override
   final ModerationApi _moderation;
@@ -105,7 +103,7 @@ class DmCubit extends Cubit<DmState>
   @override
   final CryptoRepository _crypto;
 
-  StreamSubscription<ServerState>? _serverSub;
+  StreamSubscription<void>? _serverSub;
   StreamSubscription<VaultState>? _vaultSub;
 
   /// Cached DM keys per peer (derivation is a DH + HMAC — cheap, but not
@@ -159,7 +157,7 @@ class DmCubit extends Cubit<DmState>
   final SavedConversation _saved = SavedConversation();
 
   @override
-  Server? get _savedServer => _serverCubit.state.selectedServer;
+  Server? get _savedServer => _session.selectedServer;
 
   @override
   String? get _seed => _vaultCubit.state.masterSeed;
@@ -172,12 +170,10 @@ class DmCubit extends Cubit<DmState>
   static const _typingTimeout = Duration(seconds: 5);
 
   DmCubit({
-    required ServerCubit serverCubit,
     required SessionRepository session,
     required VaultCubit vaultCubit,
     CryptoRepository? crypto,
-  }) : _serverCubit = serverCubit,
-       _session = session,
+  }) : _session = session,
        _moderation = ModerationApi(session: session),
        _members = MembersApi(session: session),
        _pinsPolls = PinsPollsApi(session: session),
@@ -188,7 +184,7 @@ class DmCubit extends Cubit<DmState>
        _vaultCubit = vaultCubit,
        _crypto = crypto ?? CryptoRepository(),
        super(const DmState()) {
-    _serverSub = serverCubit.stream.listen((_) => _onServerChanged());
+    _serverSub = session.changes.listen((_) => _onServerChanged());
     _vaultSub = vaultCubit.stream.listen((_) => _onServerChanged());
     _onServerChanged();
     BeforeQuit.instance.add(saveAsLeft);
@@ -205,7 +201,7 @@ class DmCubit extends Cubit<DmState>
   // ──────────────────────────────────────────────────────────
 
   Future<void> _onServerChanged() async {
-    final server = _serverCubit.state.selectedServer;
+    final server = _session.selectedServer;
     if (server == null ||
         server.user == null ||
         _vaultCubit.state.masterSeed == null) {
@@ -275,7 +271,7 @@ class DmCubit extends Cubit<DmState>
       return cached;
     }
     if (peerChatKey == null) return null;
-    final server = _serverCubit.state.selectedServer;
+    final server = _session.selectedServer;
     if (server == null || _vaultCubit.state.masterSeed == null) return null;
 
     final identity = await _vaultCubit.getChatIdentityForHost(_hostOf(server));
@@ -437,7 +433,7 @@ class DmCubit extends Cubit<DmState>
         now.difference(_lastTypingSent!) < _typingThrottle) {
       return;
     }
-    final server = _serverCubit.state.selectedServer;
+    final server = _session.selectedServer;
     final user = server?.user;
     final peerId = _typingPeerId;
     if (server == null || user == null || peerId == null) return;

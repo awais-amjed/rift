@@ -59,7 +59,6 @@ import '../../services/sealed_open.dart';
 import '../../services/server_realtime.dart';
 import '../../services/server_topics.dart';
 import '../../services/window_focus_service.dart';
-import '../server/server_cubit.dart';
 import '../vault/vault_cubit.dart';
 
 part 'channel_chat_edit.dart';
@@ -105,8 +104,6 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
         _ChatSweepMixin,
         _ChatReadyMixin,
         _ChatNotifyMixin {
-  @override
-  final ServerCubit _serverCubit;
   @override
   final SessionRepository _session;
 
@@ -168,7 +165,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     canSave: _canSaveChannel,
   );
 
-  StreamSubscription<ServerState>? _serverSub;
+  StreamSubscription<void>? _serverSub;
 
   /// The open channel's keys.
   ///
@@ -213,7 +210,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   /// the very next message.
   @override
   bool get _plainChannel =>
-      _serverCubit.state.selectedServer?.channels
+      _session.selectedServer?.channels
           .where((c) => c.id == state.channelId)
           .firstOrNull
           ?.isEncrypted ==
@@ -223,7 +220,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   /// file may go up unencrypted in (`AttachmentsApi.uploadStaged`).
   @override
   bool get _publicChannel =>
-      _serverCubit.state.selectedServer?.channels
+      _session.selectedServer?.channels
           .where((c) => c.id == state.channelId)
           .firstOrNull
           ?.isPrivate ==
@@ -262,13 +259,11 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   StreamSubscription<VaultState>? _vaultSub;
 
   ChannelChatCubit({
-    required ServerCubit serverCubit,
     required SessionRepository session,
     required VaultCubit vaultCubit,
     CryptoRepository? crypto,
     MessageCache? messageCache,
-  }) : _serverCubit = serverCubit,
-       _session = session,
+  }) : _session = session,
        _voiceBots = VoiceBotsApi(session: session),
        _botKeys = BotKeysApi(session: session),
        _members = MembersApi(session: session),
@@ -281,7 +276,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
        _crypto = crypto ?? CryptoRepository(),
        _messageCache = messageCache ?? MessageCache.instance,
        super(const ChannelChatState()) {
-    _serverSub = serverCubit.stream.listen(_onServerChanged);
+    _serverSub = session.changes.listen((_) => _onServerChanged());
     // The vault unlocks asynchronously at startup — chat readiness (key
     // publish + sweep) waits for the master seed.
     _vaultSub = vaultCubit.stream.listen((_) => _ensureServerChatReady());
@@ -322,7 +317,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
       );
     }
 
-    final server = _serverCubit.state.selectedServer;
+    final server = _session.selectedServer;
     _openServerId = server?.id;
     if (server == null || server.user == null) {
       unawaited(released);
@@ -465,16 +460,16 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   /// Not `_rtServerId`, which this used to compare against: that is realtime
   /// bookkeeping, and it is null for the whole of [openChannel] between the
   /// teardown at the top and the subscribe at the bottom — two network round
-  /// trips later. Any `ServerCubit` emission in that window read as "the
+  /// trips later. Any change to the server list in that window read as "the
   /// server changed" and closed the channel that was still opening, so the
   /// click did nothing and nothing was logged. Rare until something started
   /// refreshing server details more often, and then it was every time.
   String? _openServerId;
 
-  void _onServerChanged(ServerState serverState) {
-    _pruneSavedIfListChanged(serverState.selectedServer);
+  void _onServerChanged() {
+    _pruneSavedIfListChanged(_session.selectedServer);
     // Switching (or losing) the server closes the open chat.
-    final serverId = serverState.selectedServer?.id;
+    final serverId = _session.selectedServer?.id;
     if (state.channelId != null &&
         _openServerId != null &&
         serverId != _openServerId) {

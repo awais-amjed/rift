@@ -18,7 +18,6 @@ import '../../services/coalesced_refresh.dart';
 import '../../services/reported_message_opener.dart';
 import '../../services/server_realtime.dart';
 import '../../services/server_topics.dart';
-import '../server/server_cubit.dart';
 import '../vault/vault_cubit.dart';
 
 part 'reports_state.dart';
@@ -39,7 +38,6 @@ part 'reports_state.dart';
 /// Given a [serverId] it is that one server's instead, for Manage server opened
 /// on a server the person is not looking at; that page owns it and closes it.
 class ReportsCubit extends Cubit<ReportsState> {
-  final ServerCubit _serverCubit;
   final SessionRepository _session;
   final ModerationApi _moderation;
   final ChannelMessagesApi _messages;
@@ -49,19 +47,17 @@ class ReportsCubit extends Cubit<ReportsState> {
   /// The one server this watches, or null to follow the selection.
   final String? _fixedServerId;
 
-  StreamSubscription<ServerState>? _serverSub;
+  StreamSubscription<void>? _serverSub;
   final List<RealtimeLease> _leases = [];
   String? _watchingServerId;
 
   late final CoalescedRefresh<void> _refresh = CoalescedRefresh(_readOpen);
 
   ReportsCubit({
-    required ServerCubit serverCubit,
     required SessionRepository session,
     required VaultCubit vaultCubit,
     String? serverId,
-  }) : _serverCubit = serverCubit,
-       _session = session,
+  }) : _session = session,
        _moderation = ModerationApi(session: session),
        _messages = ChannelMessagesApi(session: session),
        _attachments = AttachmentsApi(session: session),
@@ -71,7 +67,7 @@ class ReportsCubit extends Cubit<ReportsState> {
          vaultCubit: vaultCubit,
        ),
        super(const ReportsState()) {
-    _serverSub = serverCubit.stream.listen((_) => _onServerChanged());
+    _serverSub = session.changes.listen((_) => _onServerChanged());
     _onServerChanged();
   }
 
@@ -83,8 +79,8 @@ class ReportsCubit extends Cubit<ReportsState> {
   void _onServerChanged() {
     final fixed = _fixedServerId;
     final server = fixed == null
-        ? _serverCubit.state.selectedServer
-        : _serverCubit.state.serverById(fixed);
+        ? _session.selectedServer
+        : _session.serverById(fixed);
     final canReview = _mayReview(server);
     final serverId = canReview ? server!.id : null;
     if (serverId == _watchingServerId) return;

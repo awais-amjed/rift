@@ -9,7 +9,7 @@ part of 'channel_chat_cubit.dart';
 /// in the clear is edited in the clear, and signed again: an edit never
 /// changes whether a message was encrypted, in either direction.
 mixin _ChannelChatEditMixin on Cubit<ChannelChatState> {
-  ServerCubit get _serverCubit;
+  SessionRepository get _session;
   AttachmentsApi get _attachments;
   ChannelMessagesApi get _channelMessages;
   VaultCubit get _vaultCubit;
@@ -27,7 +27,7 @@ mixin _ChannelChatEditMixin on Cubit<ChannelChatState> {
   /// unchanged. No-ops when the text is unchanged or empty.
   Future<void> editMessage(String messageId, String newText) async {
     final channelId = state.channelId;
-    final server = _serverCubit.state.selectedServer;
+    final server = _session.selectedServer;
     final user = server?.user;
     final key = _keys[_currentKeyVersion];
     final id = int.tryParse(messageId);

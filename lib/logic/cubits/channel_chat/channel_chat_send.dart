@@ -6,7 +6,7 @@ part of 'channel_chat_cubit.dart';
 ///
 /// Sending into a channel, and fetching attachment bytes back for rendering.
 mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
-  ServerCubit get _serverCubit;
+  SessionRepository get _session;
   AttachmentsApi get _attachments;
   ChannelMessagesApi get _channelMessages;
   VoiceBotsApi get _voiceBots;
@@ -87,7 +87,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
     bool pingReplyTo = true,
   }) async {
     final channelId = state.channelId;
-    final server = _serverCubit.state.selectedServer;
+    final server = _session.selectedServer;
     final user = server?.user;
     final key = _keys[_currentKeyVersion];
     // Decided once: a switch landing halfway through a send must not leave

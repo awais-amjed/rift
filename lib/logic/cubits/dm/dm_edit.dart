@@ -6,7 +6,7 @@ part of 'dm_cubit.dart';
 /// the message's existing attachments) and the server overwrites the envelope
 /// in place. DM key_version is always 1 — DMs don't rotate.
 mixin _DmEditMixin on Cubit<DmState> {
-  ServerCubit get _serverCubit;
+  SessionRepository get _session;
   DmsApi get _dms;
   AttachmentsApi get _attachments;
   SavedConversation get _saved;
@@ -20,7 +20,7 @@ mixin _DmEditMixin on Cubit<DmState> {
   /// Re-seal [messageId] with [newText]; attachments carry over unchanged.
   Future<void> editMessage(String messageId, String newText) async {
     final peerId = state.openPeerId;
-    final server = _serverCubit.state.selectedServer;
+    final server = _session.selectedServer;
     final user = server?.user;
     final id = int.tryParse(messageId);
     if (peerId == null || server == null || user == null || id == null) return;

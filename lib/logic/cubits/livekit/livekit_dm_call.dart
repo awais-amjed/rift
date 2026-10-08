@@ -119,7 +119,7 @@ mixin _DmCallConnectMixin on Cubit<LiveKitState>, _E2EEMixin {
     final place = state.dmCall;
     final key = _dmMediaKey;
     if (place == null || key == null) return;
-    final server = _serverCubit?.state.servers
+    final server = _session?.servers
         .where((s) => s.id == place.serverId)
         .firstOrNull;
     if (server == null) return;

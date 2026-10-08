@@ -37,7 +37,7 @@ const _supabaseUrl = 'https://example.supabase.co';
 /// read has to name one — see `token_cache_identity_test.dart` for why.
 const _userId = 'user-1';
 
-/// Built with no [ServerCubit], so every join fails at the first check. That is
+/// Built with no session, so every join fails at the first check. That is
 /// enough to exercise the retry path itself without a live room.
 LiveKitCubit _buildCubit(TokenCubit tokenCubit) => LiveKitCubit(
   appCubit: AppCubit(),

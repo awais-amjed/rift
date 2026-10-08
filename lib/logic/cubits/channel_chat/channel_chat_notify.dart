@@ -7,7 +7,7 @@ part of 'channel_chat_cubit.dart';
 /// holds the key, so it can name the sender, quote the line, and — the point
 /// of the exercise — tell being mentioned from being in the room.
 mixin _ChatNotifyMixin on Cubit<ChannelChatState> {
-  ServerCubit get _serverCubit;
+  SessionRepository get _session;
   NotificationLevel Function(String channelId)? get _notificationLevelFor;
 
   /// Raise notifications for messages that arrived in the channel on screen.
@@ -36,7 +36,7 @@ mixin _ChatNotifyMixin on Cubit<ChannelChatState> {
         NotificationLevel.channelDefault;
     if (level == NotificationLevel.none) return;
 
-    final server = _serverCubit.state.selectedServer;
+    final server = _session.selectedServer;
     final channelName = _openChannelName(server);
     final mentionable = Mentions.mentionableFor(server?.user?.username);
 

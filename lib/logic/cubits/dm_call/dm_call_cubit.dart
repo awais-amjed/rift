@@ -29,7 +29,6 @@ import '../../services/window_focus_service.dart';
 import '../app/app_cubit.dart';
 import '../livekit/livekit_cubit.dart';
 import '../notifications/server_notifications_cubit.dart';
-import '../server/server_cubit.dart';
 import '../vault/vault_cubit.dart';
 
 part 'dm_call_actions.dart';
@@ -53,7 +52,6 @@ part 'dm_call_watch.dart';
 class DmCallCubit extends Cubit<DmCallState>
     with _DmCallActionsMixin, _DmCallWatchMixin {
   @override
-  final ServerCubit _serverCubit;
   final SessionRepository _session;
   @override
   final DmCallsApi _calls;
@@ -75,7 +73,7 @@ class DmCallCubit extends Cubit<DmCallState>
   void injectNotifications(ServerNotificationsCubit cubit) =>
       _notifications = cubit;
 
-  StreamSubscription<ServerState>? _serverSub;
+  StreamSubscription<void>? _serverSub;
   StreamSubscription<LiveKitState>? _livekitSub;
 
   /// One lease on each server's own topic for the current user, and the token
@@ -88,21 +86,19 @@ class DmCallCubit extends Cubit<DmCallState>
   final Map<String, Timer> _debounce = {};
 
   DmCallCubit({
-    required ServerCubit serverCubit,
     required SessionRepository session,
     required LiveKitCubit livekitCubit,
     required VaultCubit vaultCubit,
     required AppCubit appCubit,
     CryptoRepository? crypto,
-  }) : _serverCubit = serverCubit,
-       _session = session,
+  }) : _session = session,
        _calls = DmCallsApi(session: session),
        _livekit = livekitCubit,
        _vault = vaultCubit,
        _app = appCubit,
        _crypto = crypto ?? CryptoRepository(),
        super(const DmCallState()) {
-    _serverSub = serverCubit.stream.listen((_) => _sync());
+    _serverSub = session.changes.listen((_) => _sync());
     _livekitSub = livekitCubit.stream.listen(_onLiveKit);
     scheduleMicrotask(_sync);
     BeforeQuit.instance.add(hangUp);
@@ -110,7 +106,7 @@ class DmCallCubit extends Cubit<DmCallState>
 
   @override
   Server? _server(String serverId) =>
-      _serverCubit.state.servers.where((s) => s.id == serverId).firstOrNull;
+      _session.servers.where((s) => s.id == serverId).firstOrNull;
 
   // ──────────────────────────────────────────────────────────
   // Listening on every server
@@ -119,7 +115,7 @@ class DmCallCubit extends Cubit<DmCallState>
   void _sync() {
     if (isClosed) return;
     final wanted = <String>{};
-    for (final server in _serverCubit.state.servers) {
+    for (final server in _session.servers) {
       final user = server.user;
       if (user == null ||
           server.supabaseKey == null ||
@@ -207,7 +203,7 @@ class DmCallCubit extends Cubit<DmCallState>
       now: DateTime.now(),
     );
 
-    final names = {for (final s in _serverCubit.state.servers) s.id: s.name};
+    final names = {for (final s in _session.servers) s.id: s.name};
     final incoming = [
       for (final entry in folded.ringing)
         IncomingDmCall(

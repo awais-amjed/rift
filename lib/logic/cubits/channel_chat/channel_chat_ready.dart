@@ -15,7 +15,6 @@ mixin _ChatReadyMixin on Cubit<ChannelChatState>, _ChatSweepMixin {
   ChannelKeyring get _keyring;
   VaultCubit get _vaultCubit;
   AttachmentsApi get _attachments;
-  SessionRepository get _session;
 
   /// Implemented by the cubit class.
   Future<void> retry();
@@ -33,7 +32,7 @@ mixin _ChatReadyMixin on Cubit<ChannelChatState>, _ChatSweepMixin {
   /// Requires a logged-in server user and an unlocked vault; called on
   /// construction, server change, and vault unlock.
   Future<void> _ensureServerChatReady() async {
-    final server = _serverCubit.state.selectedServer;
+    final server = _session.selectedServer;
     // A ban counts as having no server here. Without this the setup still ran
     // — publishing a key, sweeping, subscribing — and every call quietly
     // failed against RLS, but `_readyServerId` was set all the same. Lifting

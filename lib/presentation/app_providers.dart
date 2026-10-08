@@ -81,7 +81,6 @@ class AppProviders extends StatelessWidget {
             // the vault is where the identity that unwraps it lives.
             vaultCubit: vaultCubit,
             // So LiveKit can re-authenticate on token expiry.
-            serverCubit: context.read<ServerCubit>(),
             session: session,
           ),
         ),
@@ -101,7 +100,6 @@ class AppProviders extends StatelessWidget {
         BlocProvider(create: (_) => VoiceListenersCubit(session: session)),
         BlocProvider(
           create: (context) => ChannelPresenceCubit(
-            serverCubit: context.read<ServerCubit>(),
             livekitCubit: context.read<LiveKitCubit>(),
             session: session,
           ),
@@ -114,25 +112,18 @@ class AppProviders extends StatelessWidget {
           create: _createServerMembersCubit,
         ),
         BlocProvider(
-          create: (context) => ChannelChatCubit(
-            serverCubit: context.read<ServerCubit>(),
-            session: session,
-            vaultCubit: vaultCubit,
-          ),
+          create: (context) =>
+              ChannelChatCubit(session: session, vaultCubit: vaultCubit),
         ),
         BlocProvider(
-          create: (context) => DmCubit(
-            serverCubit: context.read<ServerCubit>(),
-            session: session,
-            vaultCubit: vaultCubit,
-          ),
+          create: (context) =>
+              DmCubit(session: session, vaultCubit: vaultCubit),
         ),
         BlocProvider(
           // Not lazy: a call has to ring whatever is on screen, on every
           // server, from the moment the app is up.
           lazy: false,
           create: (context) => DmCallCubit(
-            serverCubit: context.read<ServerCubit>(),
             session: session,
             livekitCubit: context.read<LiveKitCubit>(),
             vaultCubit: vaultCubit,
@@ -152,7 +143,6 @@ class AppProviders extends StatelessWidget {
           lazy: false,
           create: (context) {
             final notifications = ServerNotificationsCubit(
-              serverCubit: context.read<ServerCubit>(),
               session: session,
               chatCubit: context.read<ChannelChatCubit>(),
               // Which conversation is open decides which DM rows count as
@@ -170,11 +160,8 @@ class AppProviders extends StatelessWidget {
           // Not lazy: the Reports badge has to move when a report arrives,
           // not when somebody first opens the page.
           lazy: false,
-          create: (context) => ReportsCubit(
-            serverCubit: context.read<ServerCubit>(),
-            session: session,
-            vaultCubit: vaultCubit,
-          ),
+          create: (context) =>
+              ReportsCubit(session: session, vaultCubit: vaultCubit),
         ),
         BlocProvider(
           // Not lazy: subscribes to the selected server's realtime event
