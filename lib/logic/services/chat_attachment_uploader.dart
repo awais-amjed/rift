@@ -6,8 +6,8 @@ import '../../data/classes/attachment.dart';
 import '../../data/classes/link_preview.dart';
 import '../../data/classes/pending_attachment.dart';
 import '../../data/repositories/attachment_repository.dart';
-import 'attachment_cache.dart';
 import 'link_preview_fetcher.dart';
+import 'media_store.dart';
 
 /// Uploads one staged file — encrypted, or as it is when the sender chose
 /// `plain` — reporting [onProgress] as a big one goes. Answers an
@@ -58,7 +58,7 @@ class ChatAttachmentUploader {
 
   /// Uploads every [pending] file in order and returns the resulting
   /// [Attachment]s. A small file's plaintext bytes are stashed in the
-  /// [AttachmentCache] under its storage path so the sender renders it without
+  /// [MediaStore.attachments] under its storage path so the sender renders it without
   /// a round-trip. Throws [AttachmentUploadException] on the first failure.
   ///
   /// [onProgress] hears how much of all of [pending] has gone, 0 to 1, in
@@ -101,7 +101,7 @@ class ChatAttachmentUploader {
       // A big file is not held, so there is nothing to keep; the sender's
       // card fetches it like anyone else's if it is ever opened.
       if (pa.bytes case final bytes?) {
-        AttachmentCache.instance.put(r.path, bytes);
+        MediaStore.attachments.put(r.path, bytes);
       }
       result.add(
         Attachment(
@@ -124,21 +124,18 @@ class ChatAttachmentUploader {
     return result;
   }
 
-  /// Return an attachment's decrypted bytes, from the [AttachmentCache] if
-  /// present, else by invoking [download] (an [APIResponse] whose `data` is the
-  /// decrypted `Uint8List`) and caching the result. Null on failure.
+  /// Return an attachment's decrypted bytes, from [MediaStore.attachments] if
+  /// held, else by invoking [download] (an [APIResponse] whose `data` is the
+  /// decrypted `Uint8List`). Null on failure. Two callers asking at once share
+  /// one download.
   static Future<Uint8List?> load({
     required Attachment attachment,
     required Future<APIResponse> Function() download,
-  }) async {
-    final cached = AttachmentCache.instance.get(attachment.storagePath);
-    if (cached != null) return cached;
+  }) => MediaStore.attachments.load(attachment.storagePath, () async {
     final response = await download();
     if (!response.success || response.data == null) return null;
-    final bytes = response.data as Uint8List;
-    AttachmentCache.instance.put(attachment.storagePath, bytes);
-    return bytes;
-  }
+    return response.data as Uint8List;
+  });
 }
 
 /// An attachment that did not upload, and the code that says whether trying

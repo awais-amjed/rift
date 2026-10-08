@@ -48,16 +48,16 @@ mixin _ServerProfileApiMixin on Cubit<ServerState> {
     final saved = await updateProfile(avatarPath: path, clearAvatar: false);
     if (!saved.success) return saved;
     // Serve our own new picture from cache immediately.
-    AvatarCache.instance.put(path, imageBytes);
+    MediaStore.images.put(path, imageBytes);
     return APIResponse.success(path);
   }
 
-  /// Fetch one member's avatar bytes, cache-first. Null when they have none or
-  /// the fetch fails — callers fall back to initials.
-  Future<Uint8List?> loadAvatar(String path) async {
-    final cached = AvatarCache.instance.get(path);
-    if (cached != null) return cached;
+  /// Fetch one member's avatar bytes, through [MediaStore.images] so every
+  /// widget showing it sees the result. Null when the fetch fails.
+  Future<Uint8List?> loadAvatar(String path) =>
+      MediaStore.images.load(path, () => _downloadAvatar(path));
 
+  Future<Uint8List?> _downloadAvatar(String path) async {
     final server = state.selectedServer;
     final anonKey = server?.supabaseKey;
     if (server == null || anonKey == null) return null;
@@ -71,9 +71,7 @@ mixin _ServerProfileApiMixin on Cubit<ServerState> {
       ),
     );
     if (!response.success) return null;
-    final bytes = response.data as Uint8List;
-    AvatarCache.instance.put(path, bytes);
-    return bytes;
+    return response.data as Uint8List;
   }
 
   /// Update the caller's display name and/or avatar. Pass [clearAvatar] to

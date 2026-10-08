@@ -12,8 +12,8 @@ import '../../../data/enums/auth_status.dart';
 import '../../../data/repositories/secure_storage_repository.dart';
 import '../../../data/repositories/server_repository.dart';
 import '../../../logic/helper_methods.dart';
-import '../../../logic/services/attachment_cache.dart';
 import '../../../logic/services/backup_merge.dart';
+import '../../../logic/services/media_store.dart';
 import '../../../logic/services/message_cache.dart';
 import '../../../logic/services/siws_sign_in.dart';
 
@@ -145,7 +145,7 @@ class VaultCubit extends Cubit<VaultState>
     _chatIdentityCache.clear();
     // Decrypted attachment bytes outlive the cubits that fetched them, so the
     // keys going away has to take the plaintext with it.
-    AttachmentCache.instance.clear();
+    MediaStore.attachments.clear();
     // So do the conversations saved on this device, which the seed being
     // wiped here is the only key to.
     await MessageCache.instance.clear();

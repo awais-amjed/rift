@@ -26,7 +26,6 @@ import '../../../data/repositories/blob/blob_sink.dart';
 import '../../../data/repositories/central_dm_repository.dart';
 import '../../../supabase_config.dart';
 import '../../helper_methods.dart';
-import '../../services/attachment_cache.dart';
 import '../../services/attachment_cleanup.dart';
 import '../../services/attachment_loader.dart';
 import '../../services/before_quit.dart';
@@ -35,6 +34,7 @@ import '../../services/chat_attachment_uploader.dart';
 import '../../services/chat_message_ops.dart';
 import '../../services/conversation_splice.dart';
 import '../../services/link_preview_fetcher.dart';
+import '../../services/media_store.dart';
 import '../../services/message_cache.dart';
 import '../../services/new_message_notifier.dart';
 import '../../services/notification_ids.dart';
@@ -261,7 +261,7 @@ class CentralDmCubit extends Cubit<CentralDmState>
     // for anyone with no central account at all, and throwing away a
     // privacy-mode user's cached images on each one would be a steady trickle
     // of re-downloads for nothing.
-    if (channel != null) AttachmentCache.instance.clear();
+    if (channel != null) MediaStore.attachments.clear();
     if (channel != null) await _repo.unsubscribe(channel);
   }
 

@@ -1,7 +1,7 @@
 import '../../data/classes/api_response.dart';
 import '../../data/classes/chat_message.dart';
 import '../helper_methods.dart';
-import 'attachment_cache.dart';
+import 'media_store.dart';
 
 /// Removing the attachment blobs of a message that is being deleted.
 ///
@@ -39,7 +39,7 @@ class AttachmentCleanup {
     // even if the network call does — the message is gone from the UI, so its
     // decrypted images should not survive in memory.
     for (final path in paths) {
-      AttachmentCache.instance.remove(path);
+      MediaStore.attachments.remove(path);
     }
 
     try {

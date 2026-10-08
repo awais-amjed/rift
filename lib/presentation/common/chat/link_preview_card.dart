@@ -1,10 +1,12 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../data/classes/attachment.dart';
 import '../../../data/classes/link_preview.dart';
 import '../../../data/constants.dart';
+import '../../../logic/cubits/media/media_cubit.dart';
 import '../../../logic/services/open_link.dart';
 import '../../theme/app_text.dart';
 import '../../theme/theme_context.dart';
@@ -107,8 +109,8 @@ class LinkPreviewCard extends StatelessWidget {
 /// The captured picture, once its bytes are decrypted; nothing while they
 /// are on the way, so the card does not jump.
 ///
-/// Stateful so the fetch starts once: a future made in `build` is a new one
-/// every rebuild, and the card asked for its bytes again each time.
+/// Stateful only to ask [MediaCubit] once, when it appears; the bytes are
+/// read from there, so a failed download is retried like any other picture.
 class _Thumbnail extends StatefulWidget {
   final Attachment image;
   final AttachmentLoader loader;
@@ -120,28 +122,36 @@ class _Thumbnail extends StatefulWidget {
 }
 
 class _ThumbnailState extends State<_Thumbnail> {
-  late Future<Uint8List?> _bytes;
-
   @override
   void initState() {
     super.initState();
-    _bytes = widget.loader(widget.image);
+    _want();
   }
 
   @override
   void didUpdateWidget(_Thumbnail old) {
     super.didUpdateWidget(old);
     if (old.image.id != widget.image.id || old.loader != widget.loader) {
-      _bytes = widget.loader(widget.image);
+      _want();
     }
+  }
+
+  void _want() {
+    final image = widget.image;
+    final loader = widget.loader;
+    context.read<MediaCubit>().want(
+      MediaKind.attachment,
+      image.storagePath,
+      () => loader(image),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<Uint8List?>(
-      future: _bytes,
-      builder: (context, snap) {
-        final bytes = snap.data;
+    return BlocSelector<MediaCubit, MediaState, Uint8List?>(
+      selector: (state) =>
+          state.bytes(MediaKind.attachment, widget.image.storagePath),
+      builder: (context, bytes) {
         if (bytes == null) return const SizedBox.shrink();
         return SizedBox(
           height: LinkPreviewCard.thumbnailHeight,

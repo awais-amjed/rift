@@ -4,8 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rift/data/classes/api_response.dart';
 import 'package:rift/data/classes/attachment.dart';
 import 'package:rift/data/classes/chat_message.dart';
-import 'package:rift/logic/services/attachment_cache.dart';
 import 'package:rift/logic/services/attachment_cleanup.dart';
+import 'package:rift/logic/services/media_store.dart';
 
 Attachment _attachment(String path) => Attachment(
   id: path,
@@ -29,7 +29,7 @@ ChatMessage _message({List<Attachment> attachments = const []}) => ChatMessage(
 );
 
 void main() {
-  setUp(AttachmentCache.instance.clear);
+  setUp(MediaStore.attachments.clear);
 
   group('AttachmentCleanup.pathsOf', () {
     test('a plain text message has nothing to clean up', () {
@@ -76,23 +76,23 @@ void main() {
     });
 
     test('drops the decrypted bytes from the cache', () async {
-      AttachmentCache.instance.put('c1/a.bin', Uint8List.fromList([1, 2, 3]));
+      MediaStore.attachments.put('c1/a.bin', Uint8List.fromList([1, 2, 3]));
       await AttachmentCleanup.forMessage(
         _message(attachments: [_attachment('c1/a.bin')]),
         delete: (_) async => APIResponse.success(null),
       );
-      expect(AttachmentCache.instance.has('c1/a.bin'), isFalse);
+      expect(MediaStore.attachments['c1/a.bin'] != null, isFalse);
     });
 
     test('still drops the bytes when the delete fails', () async {
       // The message is gone from the screen either way, so its plaintext must
       // not survive in memory just because the network did not cooperate.
-      AttachmentCache.instance.put('c1/a.bin', Uint8List.fromList([1, 2, 3]));
+      MediaStore.attachments.put('c1/a.bin', Uint8List.fromList([1, 2, 3]));
       await AttachmentCleanup.forMessage(
         _message(attachments: [_attachment('c1/a.bin')]),
         delete: (_) async => APIResponse.error('nope'),
       );
-      expect(AttachmentCache.instance.has('c1/a.bin'), isFalse);
+      expect(MediaStore.attachments['c1/a.bin'] != null, isFalse);
     });
 
     test('a failed delete does not throw — the sweep collects it later', () {
@@ -117,13 +117,13 @@ void main() {
     });
 
     test('leaves other cached attachments alone', () async {
-      AttachmentCache.instance.put('c1/a.bin', Uint8List.fromList([1]));
-      AttachmentCache.instance.put('c1/keep.bin', Uint8List.fromList([2]));
+      MediaStore.attachments.put('c1/a.bin', Uint8List.fromList([1]));
+      MediaStore.attachments.put('c1/keep.bin', Uint8List.fromList([2]));
       await AttachmentCleanup.forMessage(
         _message(attachments: [_attachment('c1/a.bin')]),
         delete: (_) async => APIResponse.success(null),
       );
-      expect(AttachmentCache.instance.has('c1/keep.bin'), isTrue);
+      expect(MediaStore.attachments['c1/keep.bin'] != null, isTrue);
     });
   });
 }

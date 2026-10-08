@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/classes/attachment.dart';
+import '../../../../data/classes/media_entry.dart';
 import '../../../../data/constants.dart';
 import '../../../../data/enums/sensitive_content_mode.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../logic/cubits/media/media_cubit.dart';
 import '../../../../logic/services/image_safety.dart';
 import '../../../../logic/services/image_safety_classifier.dart';
 import '../../../theme/app_motion.dart';
@@ -22,12 +24,14 @@ import 'sensitive_image_cover.dart';
 /// An image attachment, decrypted on demand and shown as a rounded thumbnail.
 /// Tapping opens it full-screen.
 ///
-/// Stateful for one reason: the fetch is started once, in [initState], and
-/// held. Kicking it off from `build` instead handed [FutureBuilder] a fresh
-/// future every rebuild, which reset it to "waiting" and swapped the image
-/// back to a placeholder of a different height — so merely hovering the row
-/// resized it, which moved the rows under the pointer, which changed what was
-/// hovered. The thrash was a feedback loop, not a slow decrypt.
+/// The bytes come from [MediaCubit], asked once in [initState], so every
+/// place showing this attachment shows the same thing and a failed download
+/// is retried for all of them. The classifier's verdict is the one thing held
+/// here, and started once per set of bytes: starting it from `build` handed
+/// [FutureBuilder] a fresh future every rebuild, which reset it to "waiting"
+/// and swapped the image back to a placeholder of a different height — so
+/// merely hovering the row resized it, which moved the rows under the
+/// pointer, which changed what was hovered.
 class AttachmentImageThumb extends StatefulWidget {
   final Attachment attachment;
   final AttachmentLoader loader;
@@ -74,12 +78,11 @@ class AttachmentImageThumb extends StatefulWidget {
   State<AttachmentImageThumb> createState() => _AttachmentImageThumbState();
 }
 
-/// The bytes, and what the classifier made of them — null where it was not
-/// asked, could not answer, or the setting is off.
-typedef _Loaded = ({Uint8List? bytes, ImageSafetyVerdict? verdict});
-
 class _AttachmentImageThumbState extends State<AttachmentImageThumb> {
-  late Future<_Loaded> _loaded;
+  /// What the classifier made of [_verdictFor] — null where it could not
+  /// answer or the setting is off.
+  Future<ImageSafetyVerdict?>? _verdict;
+  Uint8List? _verdictFor;
 
   /// Read once, when the fetch starts. The verdict is decided with the bytes
   /// rather than at draw time, because the classifier is the slow part and
@@ -91,30 +94,38 @@ class _AttachmentImageThumbState extends State<AttachmentImageThumb> {
   void initState() {
     super.initState();
     _mode = context.read<AppCubit>().state.sensitiveContentMode;
-    _loaded = _load();
+    _want();
   }
 
   @override
   void didUpdateWidget(AttachmentImageThumb old) {
     super.didUpdateWidget(old);
-    // Only a genuinely different attachment re-fetches. A rebuild that merely
-    // rebuilt the widget must not.
     if (old.attachment.id != widget.attachment.id ||
         old.loader != widget.loader) {
-      _loaded = _load();
+      _want();
     }
   }
 
-  Future<_Loaded> _load() async {
-    final bytes = await widget.loader(widget.attachment);
-    if (bytes == null || _mode == SensitiveContentMode.off) {
-      return (bytes: bytes, verdict: null);
-    }
-    final verdict = await ImageSafetyClassifier.instance.classify(
-      widget.attachment.id,
-      bytes,
+  void _want() {
+    final attachment = widget.attachment;
+    final loader = widget.loader;
+    context.read<MediaCubit>().want(
+      MediaKind.attachment,
+      attachment.storagePath,
+      () => loader(attachment),
     );
-    return (bytes: bytes, verdict: verdict);
+  }
+
+  /// The classifier's verdict on [bytes], started once for each new set.
+  Future<ImageSafetyVerdict?> _verdictOf(Uint8List bytes) {
+    if (!identical(bytes, _verdictFor) || _verdict == null) {
+      _verdictFor = bytes;
+      _verdict = ImageSafetyClassifier.instance.classify(
+        widget.attachment.id,
+        bytes,
+      );
+    }
+    return _verdict!;
   }
 
   /// The box the thumbnail occupies, or null when the sender recorded no
@@ -138,19 +149,12 @@ class _AttachmentImageThumbState extends State<AttachmentImageThumb> {
   }
 
   Widget _build(BuildContext context, Size? box) {
-    final content = FutureBuilder<_Loaded>(
-      future: _loaded,
-      builder: (context, snap) {
-        if (snap.connectionState != ConnectionState.done) {
-          return _placeholder(
-            box,
-            Center(
-              child: LoadingDots(color: context.theme.primary, dotSize: 4),
-            ),
-          );
-        }
-        final bytes = snap.data?.bytes;
-        if (bytes == null) {
+    final content = BlocSelector<MediaCubit, MediaState, MediaEntry?>(
+      selector: (state) =>
+          state.entry(MediaKind.attachment, widget.attachment.storagePath),
+      builder: (context, entry) {
+        final bytes = entry?.bytes;
+        if (entry?.status == MediaStatus.failure) {
           return _placeholder(
             box,
             Center(
@@ -161,54 +165,73 @@ class _AttachmentImageThumbState extends State<AttachmentImageThumb> {
             ),
           );
         }
-        // Faded up from the placeholder rather than swapped for it. An
-        // attachment is decrypted and decoded before it can be shown, so the
-        // swap lands at an unpredictable moment — and a picture appearing
-        // instantly mid-scroll reads as a glitch rather than as a load
-        // finishing.
-        final image = ClipRRect(
-          borderRadius: BorderRadius.circular(K.radiusCard),
-          // `cover` only where the box is known to be the image's own
-          // aspect ratio. Without dimensions the box is a guess, and
-          // cropping to a guess would cut the picture.
-          child: box == null
-              ? ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    maxWidth: AttachmentImageThumb.maxWidth,
-                    maxHeight: AttachmentImageThumb.maxHeight,
-                  ),
-                  child: Image.memory(bytes),
-                )
-              : Image.memory(bytes, fit: BoxFit.cover),
+        if (bytes == null) return _loading(box);
+        if (_mode == SensitiveContentMode.off) {
+          return _picture(box, bytes, null);
+        }
+        final known = ImageSafetyClassifier.instance.cached(
+          widget.attachment.id,
         );
-        // The cover goes *inside* the tap: a covered picture opens nothing
-        // until it is revealed, and a hidden one never does.
-        final sensitive = snap.data?.verdict?.isSensitive ?? false;
-        return _FadeIn(
-          child: sensitive
-              ? ClipRRect(
-                  borderRadius: BorderRadius.circular(K.radiusCard),
-                  child: SensitiveImageCover(
-                    attachmentId: widget.attachment.id,
-                    mode: _mode,
-                    child: _Openable(
-                      bytes: bytes,
-                      name: widget.attachment.name,
-                      child: image,
-                    ),
-                  ),
-                )
-              : _Openable(
-                  bytes: bytes,
-                  name: widget.attachment.name,
-                  child: image,
-                ),
+        if (known != null) return _picture(box, bytes, known);
+        return FutureBuilder<ImageSafetyVerdict?>(
+          future: _verdictOf(bytes),
+          builder: (context, verdict) =>
+              verdict.connectionState == ConnectionState.done
+              ? _picture(box, bytes, verdict.data)
+              : _loading(box),
         );
       },
     );
 
     if (box == null) return content;
     return SizedBox(width: box.width, height: box.height, child: content);
+  }
+
+  Widget _loading(Size? box) => _placeholder(
+    box,
+    Center(child: LoadingDots(color: context.theme.primary, dotSize: 4)),
+  );
+
+  Widget _picture(Size? box, Uint8List bytes, ImageSafetyVerdict? verdict) {
+    // Faded up from the placeholder rather than swapped for it. An
+    // attachment is decrypted and decoded before it can be shown, so the
+    // swap lands at an unpredictable moment — and a picture appearing
+    // instantly mid-scroll reads as a glitch rather than as a load
+    // finishing.
+    final image = ClipRRect(
+      borderRadius: BorderRadius.circular(K.radiusCard),
+      // `cover` only where the box is known to be the image's own
+      // aspect ratio. Without dimensions the box is a guess, and
+      // cropping to a guess would cut the picture.
+      child: box == null
+          ? ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: AttachmentImageThumb.maxWidth,
+                maxHeight: AttachmentImageThumb.maxHeight,
+              ),
+              child: Image.memory(bytes),
+            )
+          : Image.memory(bytes, fit: BoxFit.cover),
+    );
+    // The cover goes *inside* the tap: a covered picture opens nothing
+    // until it is revealed, and a hidden one never does.
+    final sensitive = verdict?.isSensitive ?? false;
+    return _FadeIn(
+      child: sensitive
+          ? ClipRRect(
+              borderRadius: BorderRadius.circular(K.radiusCard),
+              child: SensitiveImageCover(
+                attachmentId: widget.attachment.id,
+                mode: _mode,
+                child: _Openable(
+                  bytes: bytes,
+                  name: widget.attachment.name,
+                  child: image,
+                ),
+              ),
+            )
+          : _Openable(bytes: bytes, name: widget.attachment.name, child: image),
+    );
   }
 
   /// Sized only when [box] is null — otherwise the caller has already sized

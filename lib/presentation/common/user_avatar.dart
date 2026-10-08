@@ -1,18 +1,16 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../data/constants.dart';
+import '../../logic/cubits/media/media_cubit.dart';
 import '../../logic/cubits/server/server_cubit.dart';
-import '../../logic/services/avatar_cache.dart';
-import 'squircle_avatar.dart';
+import 'stored_picture.dart';
 
 /// A member's picture, falling back to their initial.
 ///
-/// Fetches lazily and only once per path: the cache is checked synchronously
-/// first, so a already-loaded avatar renders on the first frame with no
-/// flicker. Paths change on every upload, so a cache hit is never stale.
+/// Asks [MediaCubit] for the picture and draws whatever it holds, so every
+/// avatar of the same person shows the same thing: one already fetched draws
+/// on the first frame, and one that lands later reaches all of them at once.
+/// Paths change on every upload, so a held picture is never stale.
 class UserAvatar extends StatefulWidget {
   final String? avatarPath;
   final String name;
@@ -35,66 +33,34 @@ class UserAvatar extends StatefulWidget {
 }
 
 class _UserAvatarState extends State<UserAvatar> {
-  Uint8List? _bytes;
-
   @override
   void initState() {
     super.initState();
-    _resolve();
+    _want();
   }
 
   @override
   void didUpdateWidget(UserAvatar oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.avatarPath != widget.avatarPath) {
-      _bytes = null;
-      _resolve();
-    }
+    if (oldWidget.avatarPath != widget.avatarPath) _want();
   }
 
-  void _resolve() {
+  void _want() {
     final path = widget.avatarPath;
     if (path == null) return;
-    // Synchronous hit — avoids a frame of initials on every rebuild.
-    final cached = AvatarCache.instance.get(path);
-    if (cached != null) {
-      _bytes = cached;
-      return;
-    }
-    _load(path);
-  }
-
-  Future<void> _load(String path) async {
-    final bytes = await context.read<ServerCubit>().loadAvatar(path);
-    if (!mounted || bytes == null) return;
-    // A slow fetch may land after the widget was pointed elsewhere.
-    if (widget.avatarPath != path) return;
-    setState(() => _bytes = bytes);
+    final server = context.read<ServerCubit>();
+    context.read<MediaCubit>().want(
+      MediaKind.image,
+      path,
+      () => server.loadAvatar(path),
+    );
   }
 
   @override
-  Widget build(BuildContext context) {
-    final bytes = _bytes;
-    // No picture yet → the same squircle-and-gradient everything else uses,
-    // so a member with an avatar and one without still look like two members
-    // rather than two different kinds of thing.
-    if (bytes == null) {
-      return SquircleAvatar(
-        name: widget.name,
-        seed: widget.seed,
-        size: widget.size,
-      );
-    }
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(widget.size * K.avatarRadiusRatio),
-      child: Image.memory(
-        bytes,
-        width: widget.size,
-        height: widget.size,
-        fit: BoxFit.cover,
-        gaplessPlayback: true,
-      ),
-    );
-  }
+  Widget build(BuildContext context) => StoredPicture(
+    path: widget.avatarPath,
+    name: widget.name,
+    seed: widget.seed,
+    size: widget.size,
+  );
 }

@@ -9,6 +9,7 @@ import '../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../logic/cubits/dm/dm_cubit.dart';
 import '../logic/cubits/dm_call/dm_call_cubit.dart';
 import '../logic/cubits/livekit/livekit_cubit.dart';
+import '../logic/cubits/media/media_cubit.dart';
 import '../logic/cubits/network/network_cubit.dart';
 import '../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../logic/cubits/public_servers/public_servers_cubit.dart';
@@ -55,6 +56,7 @@ class AppProviders extends StatelessWidget {
     return MultiBlocProvider(
       providers: [
         BlocProvider(create: (_) => ThemeCubit()),
+        BlocProvider(create: (_) => MediaCubit()),
         BlocProvider(create: (_) => _createServerCubit()),
         BlocProvider(create: _createNetworkCubit),
         BlocProvider(

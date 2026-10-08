@@ -5,14 +5,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rift/data/classes/api_response.dart';
 import 'package:rift/data/classes/attachment.dart';
 import 'package:rift/data/classes/pending_attachment.dart';
-import 'package:rift/logic/services/attachment_cache.dart';
 import 'package:rift/logic/services/chat_attachment_uploader.dart';
 import 'package:rift/logic/services/link_preview_fetcher.dart';
+import 'package:rift/logic/services/media_store.dart';
 
 /// The upload step all three chat pipelines share. What matters most is the
 /// failure: its code is what decides between the outbox and a refusal.
 void main() {
-  setUp(AttachmentCache.instance.clear);
+  setUp(MediaStore.attachments.clear);
 
   PendingAttachment file(String name, List<int> bytes) => PendingAttachment(
     bytes: Uint8List.fromList(bytes),
@@ -115,7 +115,7 @@ void main() {
         ],
         uploadOne: (_, {onProgress}) async => stored('p'),
       );
-      expect(AttachmentCache.instance.get('p'), [7, 8]);
+      expect(MediaStore.attachments['p']?.bytes, [7, 8]);
     });
 
     test('stops at the first failure and carries its code', () async {
@@ -217,7 +217,7 @@ void main() {
     );
 
     test('reads the cache before the network', () async {
-      AttachmentCache.instance.put('p', Uint8List.fromList([9]));
+      MediaStore.attachments.put('p', Uint8List.fromList([9]));
       final bytes = await ChatAttachmentUploader.load(
         attachment: at('p'),
         download: () async => fail('should not download'),
@@ -231,7 +231,7 @@ void main() {
         download: () async => APIResponse.success(Uint8List.fromList([5])),
       );
       expect(bytes, [5]);
-      expect(AttachmentCache.instance.get('q'), [5]);
+      expect(MediaStore.attachments['q']?.bytes, [5]);
     });
 
     test('a failed download is null and caches nothing', () async {
@@ -240,7 +240,7 @@ void main() {
         download: () async => APIResponse.error('gone'),
       );
       expect(bytes, isNull);
-      expect(AttachmentCache.instance.get('r'), isNull);
+      expect(MediaStore.attachments['r']?.bytes, isNull);
     });
   });
 }
