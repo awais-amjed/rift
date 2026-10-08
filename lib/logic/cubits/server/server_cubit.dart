@@ -24,7 +24,6 @@ import '../../../data/classes/server_limits.dart';
 import '../../../data/classes/server_member.dart';
 import '../../../data/classes/server_user.dart';
 import '../../../data/classes/user_permissions.dart';
-import '../../../data/classes/webhook.dart';
 import '../../../data/enums/dm_policy.dart';
 import '../../../data/enums/member_report_reason.dart';
 import '../../../data/enums/report_outcome.dart';
@@ -73,7 +72,6 @@ part 'server_selection.dart';
 part 'server_state.dart';
 part 'server_voice_api.dart';
 part 'server_voice_regions_api.dart';
-part 'server_webhooks_api.dart';
 
 /// Over the cubit-hub budget and one job. The parts hold the API
 /// calls; what is left here is what they all share and CODE_STYLE §5 says the
@@ -103,8 +101,7 @@ class ServerCubit extends HydratedCubit<ServerState>
         _ServerVoiceRegionsApiMixin,
         _ServerInvitesApiMixin,
         _ServerProfileApiMixin,
-        _ServerPushApiMixin,
-        _ServerWebhooksApiMixin {
+        _ServerPushApiMixin {
   /// The session's, so every server's database client is made once.
   @override
   late final ServerRepository _repository = _session.repository;

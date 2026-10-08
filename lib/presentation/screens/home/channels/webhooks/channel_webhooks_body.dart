@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/apis/webhooks_api.dart';
 import '../../../../../data/classes/channel.dart';
 import '../../../../../data/classes/webhook.dart';
-import '../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../data/repositories/session_repository.dart';
 import '../../../../common/confirm_dialog.dart';
 import '../../../../common/message_banner.dart';
 import '../../../../theme/app_text.dart';
@@ -36,6 +37,7 @@ class ChannelWebhooksBody extends StatefulWidget {
 
 class _ChannelWebhooksBodyState extends State<ChannelWebhooksBody> {
   final TextEditingController _nameCtrl = TextEditingController();
+  late final WebhooksApi _api;
 
   List<Webhook> _webhooks = const [];
   bool _isLoading = true;
@@ -51,6 +53,7 @@ class _ChannelWebhooksBodyState extends State<ChannelWebhooksBody> {
   @override
   void initState() {
     super.initState();
+    _api = WebhooksApi(session: context.read<SessionRepository>());
     _load();
   }
 
@@ -61,7 +64,7 @@ class _ChannelWebhooksBodyState extends State<ChannelWebhooksBody> {
   }
 
   Future<void> _load() async {
-    final result = await context.read<ServerCubit>().listWebhooks(
+    final result = await _api.listWebhooks(
       widget.channel.id,
       serverId: widget.serverId,
     );
@@ -81,7 +84,7 @@ class _ChannelWebhooksBodyState extends State<ChannelWebhooksBody> {
       _created = null;
     });
 
-    final result = await context.read<ServerCubit>().createWebhook(
+    final result = await _api.createWebhook(
       channelId: widget.channel.id,
       name: _name,
       serverId: widget.serverId,
@@ -101,7 +104,6 @@ class _ChannelWebhooksBodyState extends State<ChannelWebhooksBody> {
   }
 
   Future<void> _delete(Webhook webhook) async {
-    final serverCubit = context.read<ServerCubit>();
     final confirmed = await showConfirmDialog(
       context: context,
       title: 'Revoke ${webhook.name}?',
@@ -114,7 +116,7 @@ class _ChannelWebhooksBodyState extends State<ChannelWebhooksBody> {
     );
     if (!confirmed) return;
 
-    final result = await serverCubit.deleteWebhook(
+    final result = await _api.deleteWebhook(
       webhook.id,
       serverId: widget.serverId,
     );

@@ -1,29 +1,31 @@
-part of 'server_cubit.dart';
+import '../classes/webhook.dart';
+import '../repositories/server_repository.dart';
+import '../repositories/session_repository.dart';
 
-/// Webhook management for [serverId], or the selected server (BOTS.md §7).
+/// Webhook management for a named server, or the selected one (BOTS.md §7).
 ///
-/// Nothing here touches [ServerState]. A webhook list is read when a dialog
+/// Nothing here is kept in a cubit. A webhook list is read when a dialog
 /// opens and thrown away when it closes — there is no badge, no sidebar entry
 /// and no live view that would go stale, so holding it in cubit state would be
 /// state kept for its own sake.
-mixin _ServerWebhooksApiMixin on Cubit<ServerState> {
-  ServerRepository get _repository;
+///
+/// Holds nothing, so the dialog builds one from the session.
+class WebhooksApi {
+  final SessionRepository _session;
 
-  Future<APIResponse> _callFor(
-    Server server,
-    Future<APIResponse> Function(String token) call,
-  );
-  Server? _target(String? serverId);
+  WebhooksApi({required SessionRepository session}) : _session = session;
+
+  ServerRepository get _repository => _session.repository;
 
   /// Every webhook posting into [channelId].
   Future<({List<Webhook> webhooks, String? error})> listWebhooks(
     String channelId, {
     String? serverId,
   }) async {
-    final server = _target(serverId);
+    final server = _session.target(serverId);
     if (server == null) return (webhooks: <Webhook>[], error: 'No server');
 
-    final response = await _callFor(
+    final response = await _session.callFor(
       server,
       (token) => _repository.listWebhooks(
         server.supabaseUrl,
@@ -61,10 +63,10 @@ mixin _ServerWebhooksApiMixin on Cubit<ServerState> {
     required String name,
     String? serverId,
   }) async {
-    final server = _target(serverId);
+    final server = _session.target(serverId);
     if (server == null) return (created: null, error: 'No server');
 
-    final response = await _callFor(
+    final response = await _session.callFor(
       server,
       (token) => _repository.createWebhook(
         server.supabaseUrl,
@@ -107,10 +109,10 @@ mixin _ServerWebhooksApiMixin on Cubit<ServerState> {
     String id, {
     String? serverId,
   }) async {
-    final server = _target(serverId);
+    final server = _session.target(serverId);
     if (server == null) return (success: false, error: 'No server');
 
-    final response = await _callFor(
+    final response = await _session.callFor(
       server,
       (token) => _repository.deleteWebhook(
         server.supabaseUrl,
