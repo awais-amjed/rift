@@ -3,7 +3,9 @@ part of 'server_cubit.dart';
 mixin _ServerSelectionMixin on Cubit<ServerState> {
   VaultCubit? get _vaultCubit;
 
-  Future<({bool success, String? error})> refreshServerDetails();
+  Future<({bool success, String? error})> refreshServerDetails({
+    String? serverId,
+  });
 
   /// Implemented by [ServerCubit].
   ServerManifest getServersForExport();

@@ -2,28 +2,34 @@ part of 'server_cubit.dart';
 
 mixin _ServerOwnershipApiMixin on Cubit<ServerState> {
   ServerRepository get _repository;
-  String get _anonKey;
 
-  Future<APIResponse> _callWithAutoRefresh(
+  Future<APIResponse> _callFor(
+    Server server,
     Future<APIResponse> Function(String token) call,
   );
+  Server? _target(String? serverId);
+  String _noTarget(String? serverId);
 
-  Future<({bool success, String? error})> refreshServerDetails();
+  Future<({bool success, String? error})> refreshServerDetails({
+    String? serverId,
+  });
   void removeServer(String serverId);
   void Function(String serverId)? get _onServerEvent;
 
-  /// Hand the selected server to [userId]. We stay an admin; they become the
-  /// one person who can do this next.
+  /// Hand [serverId], or the selected server, to [userId]. We stay an admin;
+  /// they become the one person who can do this next.
   Future<({bool success, String? error})> transferOwnership(
-    String userId,
-  ) async {
-    final server = state.selectedServer;
-    if (server == null) return (success: false, error: 'No server selected');
+    String userId, {
+    String? serverId,
+  }) async {
+    final server = _target(serverId);
+    if (server == null) return (success: false, error: _noTarget(serverId));
 
-    final response = await _callWithAutoRefresh(
+    final response = await _callFor(
+      server,
       (token) => _repository.transferOwnership(
         server.supabaseUrl,
-        anonKey: _anonKey,
+        anonKey: server.supabaseKey ?? '',
         bearerToken: token,
         userId: userId,
       ),
@@ -35,21 +41,25 @@ mixin _ServerOwnershipApiMixin on Cubit<ServerState> {
     // roles screen decides on. The new owner's row changed too, and they are
     // the one person this has to reach at once — the doorbell is what makes
     // every other client re-read its standing.
-    await refreshServerDetails();
+    await refreshServerDetails(serverId: server.id);
     _onServerEvent?.call(server.id);
     return (success: true, error: null);
   }
 
-  /// End the selected server for everybody, then forget it here.
+  /// End [serverId], or the selected server, for everybody, then forget it
+  /// here.
   ///
   /// The server side is what decides — only the owner gets past the RPC — so
   /// the local list is only touched once it has said yes. Other members find
   /// out the way they find out about any server that stops answering.
-  Future<({bool success, String? error})> deleteServer() async {
-    final server = state.selectedServer;
-    if (server == null) return (success: false, error: 'No server selected');
+  Future<({bool success, String? error})> deleteServer({
+    String? serverId,
+  }) async {
+    final server = _target(serverId);
+    if (server == null) return (success: false, error: _noTarget(serverId));
 
-    final response = await _callWithAutoRefresh(
+    final response = await _callFor(
+      server,
       (token) =>
           _repository.deleteServer(server.supabaseUrl, bearerToken: token),
     );

@@ -1,6 +1,6 @@
 part of 'server_cubit.dart';
 
-/// The soundboard library for the selected server.
+/// The soundboard library for [serverId], or for the selected server.
 ///
 /// Nothing here holds state — [SoundboardCubit] does, because a picker that
 /// opens mid-call cannot wait for a round trip and a new clip has to appear
@@ -9,23 +9,27 @@ part of 'server_cubit.dart';
 mixin _ServerSoundboardApiMixin on Cubit<ServerState> {
   ServerRepository get _repository;
   SoundboardRepository get _sounds;
-  String get _anonKey;
 
-  Future<APIResponse> _callWithAutoRefresh(
+  Future<APIResponse> _callFor(
+    Server server,
     Future<APIResponse> Function(String token) call,
   );
+  Server? _target(String? serverId);
 
-  /// Every clip on the selected server.
-  Future<({List<SoundboardSound> sounds, String? error})> listSounds() async {
-    final server = state.selectedServer;
+  /// Every clip on the server.
+  Future<({List<SoundboardSound> sounds, String? error})> listSounds({
+    String? serverId,
+  }) async {
+    final server = _target(serverId);
     if (server == null) {
       return (sounds: const <SoundboardSound>[], error: 'No server');
     }
 
-    final response = await _callWithAutoRefresh(
+    final response = await _callFor(
+      server,
       (token) => _repository.listSounds(
         server.supabaseUrl,
-        anonKey: _anonKey,
+        anonKey: server.supabaseKey ?? '',
         bearerToken: token,
       ),
     );
@@ -60,14 +64,16 @@ mixin _ServerSoundboardApiMixin on Cubit<ServerState> {
     required Uint8List bytes,
     required String contentType,
     required Duration duration,
+    String? serverId,
   }) async {
-    final server = state.selectedServer;
+    final server = _target(serverId);
     if (server == null) return (sound: null, error: 'No server');
 
-    final uploaded = await _callWithAutoRefresh(
+    final uploaded = await _callFor(
+      server,
       (token) => _sounds.upload(
         baseUrl: server.supabaseUrl,
-        anonKey: _anonKey,
+        anonKey: server.supabaseKey ?? '',
         bearerToken: token,
         serverId: server.id,
         data: bytes,
@@ -79,10 +85,11 @@ mixin _ServerSoundboardApiMixin on Cubit<ServerState> {
     }
 
     final path = uploaded.data as String;
-    final created = await _callWithAutoRefresh(
+    final created = await _callFor(
+      server,
       (token) => _repository.createSound(
         server.supabaseUrl,
-        anonKey: _anonKey,
+        anonKey: server.supabaseKey ?? '',
         bearerToken: token,
         name: name,
         emoji: emoji,
@@ -130,14 +137,16 @@ mixin _ServerSoundboardApiMixin on Cubit<ServerState> {
     required String soundId,
     required String name,
     String? emoji,
+    String? serverId,
   }) async {
-    final server = state.selectedServer;
+    final server = _target(serverId);
     if (server == null) return (success: false, error: 'No server');
 
-    final response = await _callWithAutoRefresh(
+    final response = await _callFor(
+      server,
       (token) => _repository.renameSound(
         server.supabaseUrl,
-        anonKey: _anonKey,
+        anonKey: server.supabaseKey ?? '',
         bearerToken: token,
         soundId: soundId,
         name: name,
@@ -155,14 +164,16 @@ mixin _ServerSoundboardApiMixin on Cubit<ServerState> {
   Future<({bool success, String? error})> deleteSound({
     required String soundId,
     required String objectPath,
+    String? serverId,
   }) async {
-    final server = state.selectedServer;
+    final server = _target(serverId);
     if (server == null) return (success: false, error: 'No server');
 
-    final response = await _callWithAutoRefresh(
+    final response = await _callFor(
+      server,
       (token) => _repository.deleteSound(
         server.supabaseUrl,
-        anonKey: _anonKey,
+        anonKey: server.supabaseKey ?? '',
         bearerToken: token,
         soundId: soundId,
       ),
@@ -177,10 +188,11 @@ mixin _ServerSoundboardApiMixin on Cubit<ServerState> {
       // points at costs space, and there is nothing useful to tell somebody
       // who has already watched the clip disappear.
       unawaited(
-        _callWithAutoRefresh(
+        _callFor(
+          server,
           (token) => _sounds.deleteObject(
             baseUrl: server.supabaseUrl,
-            anonKey: _anonKey,
+            anonKey: server.supabaseKey ?? '',
             bearerToken: token,
             path: objectPath,
           ),
@@ -196,14 +208,15 @@ mixin _ServerSoundboardApiMixin on Cubit<ServerState> {
   }
 
   /// One clip's bytes, for a listener that has not heard it before.
-  Future<Uint8List?> loadSound(String objectPath) async {
-    final server = state.selectedServer;
+  Future<Uint8List?> loadSound(String objectPath, {String? serverId}) async {
+    final server = _target(serverId);
     if (server == null) return null;
 
-    final response = await _callWithAutoRefresh(
+    final response = await _callFor(
+      server,
       (token) => _sounds.download(
         baseUrl: server.supabaseUrl,
-        anonKey: _anonKey,
+        anonKey: server.supabaseKey ?? '',
         bearerToken: token,
         path: objectPath,
       ),

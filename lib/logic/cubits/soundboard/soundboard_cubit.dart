@@ -59,16 +59,22 @@ class SoundboardCubit extends Cubit<SoundboardState>
 
   late final ServerTopicWatcher _watcher;
 
+  /// The selected server's soundboard — the app's own — or, given
+  /// [serverId], that one server's library, for Manage server opened on a
+  /// server the person is not looking at. Whoever opens that page owns that
+  /// one and closes it; it plays only previews.
   SoundboardCubit({
     required ServerCubit serverCubit,
     required AppCubit appCubit,
     LiveKitCubit? livekitCubit,
+    String? serverId,
   }) : _serverCubit = serverCubit,
        _appCubit = appCubit,
        _livekitCubit = livekitCubit,
        super(const SoundboardState()) {
     _watcher = ServerTopicWatcher(
       serverCubit: serverCubit,
+      fixedServerId: serverId,
       topicOf: (server) => ServerTopics.server(server.id),
       event: ServerEvent.soundboard,
       onChanged: () => unawaited(refresh()),
@@ -91,6 +97,9 @@ class SoundboardCubit extends Cubit<SoundboardState>
   }
 
   void setLiveKitCubit(LiveKitCubit cubit) => _livekitCubit = cubit;
+
+  @override
+  String? get _libraryServerId => _watcher.serverId;
 
   /// Whether this member may fire one into a call. Widgets read the same
   /// permission off `ServerState`, where a change to it rebuilds them.
@@ -237,7 +246,8 @@ class SoundboardCubit extends Cubit<SoundboardState>
     if (volume <= 0) return;
     final source = await SoundboardCache.instance.source(
       sound.objectPath,
-      () => _serverCubit.loadSound(sound.objectPath),
+      () =>
+          _serverCubit.loadSound(sound.objectPath, serverId: _watcher.serverId),
     );
     if (source == null || isClosed) return;
     await SoundboardPlayer.instance.play(source, volume: volume);

@@ -14,6 +14,12 @@ mixin _ServerModerationApiMixin on Cubit<ServerState> {
     Future<APIResponse> Function(String token) call,
   );
   void _replaceServer(Server server);
+  Future<APIResponse> _callFor(
+    Server server,
+    Future<APIResponse> Function(String token) call,
+  );
+  Server? _target(String? serverId);
+  String _noTarget(String? serverId);
 
   String get _url => state.selectedServer!.supabaseUrl;
 
@@ -49,28 +55,43 @@ mixin _ServerModerationApiMixin on Cubit<ServerState> {
     ),
   );
 
-  /// Open reports, or the closed ones kept for 90 days.
-  Future<APIResponse> listReports({required bool open}) => _callWithAutoRefresh(
-    (token) => _repository.listReports(
-      _url,
-      anonKey: _anonKey,
-      bearerToken: token,
-      open: open,
-    ),
-  );
+  /// Open reports, or the closed ones kept for 90 days, on [serverId] or the
+  /// selected server — the reports page opens for any server on the rail.
+  Future<APIResponse> listReports({required bool open, String? serverId}) =>
+      _onServer(
+        serverId,
+        (server, token) => _repository.listReports(
+          server.supabaseUrl,
+          anonKey: server.supabaseKey ?? '',
+          bearerToken: token,
+          open: open,
+        ),
+      );
 
   Future<APIResponse> resolveReport({
     required int reportId,
     required ReportOutcome outcome,
-  }) => _callWithAutoRefresh(
-    (token) => _repository.resolveReport(
-      _url,
-      anonKey: _anonKey,
+    String? serverId,
+  }) => _onServer(
+    serverId,
+    (server, token) => _repository.resolveReport(
+      server.supabaseUrl,
+      anonKey: server.supabaseKey ?? '',
       bearerToken: token,
       reportId: reportId,
       outcome: outcome.toJson(),
     ),
   );
+
+  /// [call] against [serverId], or the selected server.
+  Future<APIResponse> _onServer(
+    String? serverId,
+    Future<APIResponse> Function(Server server, String token) call,
+  ) async {
+    final server = _target(serverId);
+    if (server == null) return APIResponse.error(_noTarget(serverId));
+    return _callFor(server, (token) => call(server, token));
+  }
 
   // ── Time-outs ─────────────────────────────────────────────
 
@@ -78,10 +99,12 @@ mixin _ServerModerationApiMixin on Cubit<ServerState> {
   Future<APIResponse> timeOutMember({
     required String targetId,
     required Duration duration,
-  }) => _callWithAutoRefresh(
-    (token) => _repository.timeOutMember(
-      _url,
-      anonKey: _anonKey,
+    String? serverId,
+  }) => _onServer(
+    serverId,
+    (server, token) => _repository.timeOutMember(
+      server.supabaseUrl,
+      anonKey: server.supabaseKey ?? '',
       bearerToken: token,
       targetId: targetId,
       minutes: duration.inMinutes,

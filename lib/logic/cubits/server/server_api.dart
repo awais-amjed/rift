@@ -7,17 +7,9 @@ mixin _ServerApiMixin on Cubit<ServerState> {
   void removeServer(String serverId);
   void noteServerGone({required String supabaseUrl, required String id});
 
-  /// The selected server's anon key — what a direct PostgREST call needs on top
-  /// of a bearer token, for the calls that are about the current server.
-  String get _anonKey;
-
   /// Ping the `server_events` doorbell after a structural change (channel
   /// create/delete, …) so other members refresh in realtime.
   void Function(String serverId)? get _onServerEvent;
-
-  Future<APIResponse> _callWithAutoRefresh(
-    Future<APIResponse> Function(String token) call,
-  );
 
   Future<APIResponse> _callFor(
     Server server,
@@ -168,7 +160,8 @@ mixin _ServerApiMixin on Cubit<ServerState> {
     return (success: true, error: null);
   }
 
-  /// Refresh the channel list and other details for the selected server.
+  /// Refresh the channel list and other details for [serverId], or for the
+  /// selected server.
   ///
   /// Coalesced, because one structural change reaches a member more than
   /// once — the database announces it, and the member who made it also
@@ -177,18 +170,37 @@ mixin _ServerApiMixin on Cubit<ServerState> {
   late final CoalescedRefresh<({bool success, String? error})> _details =
       CoalescedRefresh(_fetchServerDetails);
 
-  Future<({bool success, String? error})> refreshServerDetails() => _details();
+  ///
+  /// A named server other than the selected one is read straight away: it is
+  /// a settings page acting on it, once, not the stream of doorbells the
+  /// selected one hears.
+  Future<({bool success, String? error})> refreshServerDetails({
+    String? serverId,
+  }) {
+    if (serverId == null || serverId == state.selectedServer?.id) {
+      return _details();
+    }
+    final server = state.serverById(serverId);
+    if (server == null) {
+      return Future.value((success: false, error: _noTarget(serverId)));
+    }
+    return _fetchDetailsOf(server);
+  }
 
   Future<({bool success, String? error})> _fetchServerDetails() async {
     final server = state.selectedServer;
     if (server == null) {
       return (success: false, error: 'No server selected');
     }
+    return _fetchDetailsOf(server);
+  }
 
-    final response = await _callWithAutoRefresh(
+  Future<({bool success, String? error})> _fetchDetailsOf(Server server) async {
+    final response = await _callFor(
+      server,
       (token) => _repository.getServerDetails(
         server.supabaseUrl,
-        anonKey: _anonKey,
+        anonKey: server.supabaseKey ?? '',
         bearerToken: token,
       ),
     );

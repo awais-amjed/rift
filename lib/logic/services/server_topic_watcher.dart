@@ -23,16 +23,24 @@ class ServerTopicWatcher {
 
   final ServerCubit serverCubit;
 
-  /// The topic to listen on, for the selected server.
+  /// The one server to watch, or null to follow the selection.
+  ///
+  /// Named for a page about a server the person is not looking at — Manage
+  /// server opened from the rail's menu — which still has to hear that
+  /// server's changes while it is open.
+  final String? fixedServerId;
+
+  /// The topic to listen on, for the watched server.
   final String Function(Server server) topicOf;
 
   /// What to listen for there.
   final String event;
 
-  /// [event] was said on the selected server.
+  /// [event] was said on the watched server.
   final void Function() onChanged;
 
-  /// The selection moved to [server], or to nothing. Always fires before the
+  /// The watched server is now [server], or nothing — the selection moved,
+  /// or a fixed server became usable or went away. Always fires before the
   /// first [onChanged] for that server.
   final void Function(Server? server) onServerChanged;
 
@@ -48,6 +56,7 @@ class ServerTopicWatcher {
     required this.event,
     required this.onChanged,
     required this.onServerChanged,
+    this.fixedServerId,
   }) {
     _serverSub = serverCubit.stream.listen(_sync);
     // Deferred a microtask, never called straight from here. Consumers hold
@@ -68,7 +77,10 @@ class ServerTopicWatcher {
   String? get serverId => _serverId;
 
   void _sync(ServerState state) {
-    final server = state.selectedServer;
+    final fixed = fixedServerId;
+    final server = fixed == null
+        ? state.selectedServer
+        : state.serverById(fixed);
     if (server == null || server.supabaseKey == null || server.user == null) {
       if (_serverId == null) return;
       _teardown();

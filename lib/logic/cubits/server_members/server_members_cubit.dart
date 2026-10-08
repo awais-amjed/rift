@@ -48,6 +48,12 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
   /// refresh reads every assignment again rather than only the rows on screen.
   bool _countingRoles = false;
 
+  /// Whether the Members page is showing [ServerMembersState.banned].
+  bool _showingBanned = false;
+
+  /// Guards a slow search landing after a newer one, or after a clear.
+  int _searchId = 0;
+
   StreamSubscription<void>? _presenceSub;
 
   void Function()? _onSelfModerationChanged;
@@ -72,11 +78,15 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
     _presenceSub = onlineIds.listen((ids) => unawaited(resolve(ids)));
   }
 
-  ServerMembersCubit({required ServerCubit serverCubit})
+  /// The selected server's members — the app's own — or, given [serverId],
+  /// that one server's, for Manage server opened on a server the person is
+  /// not looking at. Whoever opens that page owns that one and closes it.
+  ServerMembersCubit({required ServerCubit serverCubit, String? serverId})
     : _serverCubit = serverCubit,
       super(ServerMembersState()) {
     _watcher = ServerTopicWatcher(
       serverCubit: serverCubit,
+      fixedServerId: serverId,
       topicOf: (server) => ServerTopics.server(server.id),
       event: ServerEvent.members,
       onChanged: () => unawaited(refresh()),
@@ -101,7 +111,11 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
   Future<MemberPage?> _fetchPeoplePage(
     ({String name, String id})? after,
   ) async {
-    final result = await _serverCubit.listMembers(bots: false, after: after);
+    final result = await _serverCubit.listMembers(
+      serverId: _watcher.serverId,
+      bots: false,
+      after: after,
+    );
     return result.page;
   }
 
@@ -112,9 +126,9 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
     if (serverId == null) return;
     final loadId = ++_loadId;
 
-    final bots = await _serverCubit.listBots();
-    final counts = await _serverCubit.memberCounts();
-    final roles = await _serverCubit.listRoles();
+    final bots = await _serverCubit.listBots(serverId: serverId);
+    final counts = await _serverCubit.memberCounts(serverId: serverId);
+    final roles = await _serverCubit.listRoles(serverId: serverId);
     await _people.next();
     if (_stale(loadId, serverId)) return;
 
@@ -132,6 +146,7 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
       for (final member in [...bots, ..._people.loaded.members]) member.id,
     ]);
     if (_countingRoles) await _countRoles();
+    await _refreshExtras();
   }
 
   /// Page in more people — what the sidebar asks for as it is scrolled.
@@ -159,7 +174,7 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
     ];
     if (wanted.isEmpty) return;
 
-    final found = await _serverCubit.membersByIds(wanted);
+    final found = await _serverCubit.membersByIds(wanted, serverId: serverId);
     if (isClosed || serverId != _watcher.serverId || found.isEmpty) return;
 
     _emitLoaded(
@@ -193,7 +208,7 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
     ];
     if (serverId == null || wanted.isEmpty) return;
 
-    final roles = await _serverCubit.memberRolesFor(wanted);
+    final roles = await _serverCubit.memberRolesFor(wanted, serverId: serverId);
     if (isClosed || serverId != _watcher.serverId) return;
     emit(
       state.copyWith(
@@ -222,9 +237,9 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
     if (!state.loaded) return _loadFirst();
     final loadId = ++_loadId;
 
-    final bots = await _serverCubit.listBots();
-    final counts = await _serverCubit.memberCounts();
-    final roles = await _serverCubit.listRoles();
+    final bots = await _serverCubit.listBots(serverId: serverId);
+    final counts = await _serverCubit.memberCounts(serverId: serverId);
+    final roles = await _serverCubit.listRoles(serverId: serverId);
 
     // The pages reach a joiner only when somebody scrolls to them, which is
     // never when every page is already loaded: the count went up and the row
@@ -249,6 +264,7 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
         ...(repaged ? _people.loaded : state.people).members.map((m) => m.id),
         ...state.known.keys,
       }.toList(),
+      serverId: serverId,
     );
     if (_stale(loadId, serverId)) return;
 
@@ -289,6 +305,64 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
     // have moved somebody's roles.
     await _loadRoles([for (final member in refreshed) member.id], force: true);
     if (_countingRoles) await _countRoles();
+    await _refreshExtras();
+  }
+
+  // ── The Members page ────────────────────────────────────────
+
+  /// Keep [ServerMembersState.banned] until [stopShowingBanned].
+  Future<void> showBanned() async {
+    _showingBanned = true;
+    await _readBanned();
+  }
+
+  void stopShowingBanned() {
+    _showingBanned = false;
+    if (!isClosed && state.banned != null) {
+      emit(state.copyWith(clearBanned: true));
+    }
+  }
+
+  /// Answer [query] over the whole roster, banned members included — the
+  /// Members page's search, where lifting a ban starts with finding the
+  /// person. An empty query clears it.
+  Future<void> search(String query) async {
+    final id = ++_searchId;
+    if (query.trim().isEmpty) {
+      if (!isClosed) emit(state.copyWith(clearSearch: true));
+      return;
+    }
+    await _runSearch(query, id);
+  }
+
+  /// What a refresh re-reads beyond the roster, when something shows it.
+  Future<void> _refreshExtras() async {
+    if (_showingBanned) await _readBanned();
+    final asked = state.search?.query;
+    if (asked != null) await _runSearch(asked, _searchId);
+  }
+
+  Future<void> _readBanned() async {
+    final serverId = _watcher.serverId;
+    if (serverId == null) return;
+    final banned = await _serverCubit.listBanned(serverId: serverId);
+    if (banned == null || isClosed || serverId != _watcher.serverId) return;
+    if (!_showingBanned) return;
+    emit(state.copyWith(banned: banned));
+    await _loadRoles([for (final member in banned) member.id]);
+  }
+
+  Future<void> _runSearch(String query, int id) async {
+    final serverId = _watcher.serverId;
+    if (serverId == null) return;
+    final matches = await _serverCubit.searchMembers(
+      query: query,
+      serverId: serverId,
+      banned: null,
+    );
+    if (isClosed || id != _searchId || serverId != _watcher.serverId) return;
+    emit(state.copyWith(search: (query: query, matches: matches)));
+    await _loadRoles([for (final member in matches) member.id]);
   }
 
   // ── Roles ───────────────────────────────────────────────────
@@ -319,7 +393,7 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
   Future<void> refreshRoles() async {
     final serverId = _watcher.serverId;
     if (serverId == null) return;
-    final roles = await _serverCubit.listRoles();
+    final roles = await _serverCubit.listRoles(serverId: serverId);
     if (isClosed || serverId != _watcher.serverId) return;
     if (roles.isNotEmpty) emit(state.copyWith(roles: roles));
     if (_countingRoles) await _countRoles();
@@ -334,7 +408,7 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
   Future<void> _countRoles() async {
     final serverId = _watcher.serverId;
     if (serverId == null) return;
-    final held = await _serverCubit.listMemberRoles();
+    final held = await _serverCubit.listMemberRoles(serverId: serverId);
     if (held == null || isClosed || serverId != _watcher.serverId) return;
     if (!_countingRoles) return;
 
@@ -375,7 +449,9 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
     ServerMembersState previous,
     ServerMembersState next,
   ) {
-    final myId = _serverCubit.state.selectedServer?.user?.id;
+    final serverId = _watcher.serverId;
+    if (serverId == null) return;
+    final myId = _serverCubit.state.serverById(serverId)?.user?.id;
     if (myId == null) return;
 
     // No prior row means this is the first load for the server, not a change.

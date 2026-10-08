@@ -1,6 +1,7 @@
 part of 'server_cubit.dart';
 
-/// Roles for the selected server.
+/// Roles for [serverId], or for the selected server. Named because the roles
+/// page opens for any server on the rail, not only the one on screen.
 ///
 /// Nothing here touches [ServerState]. The roles and who holds them are kept
 /// by `ServerMembersCubit`, which every screen showing them reads, and which
@@ -14,26 +15,31 @@ part of 'server_cubit.dart';
 /// slightly wrong would otherwise disagree with the database quietly.
 mixin _ServerRolesApiMixin on Cubit<ServerState> {
   ServerRepository get _repository;
-  String get _anonKey;
 
-  Future<APIResponse> _callWithAutoRefresh(
+  Future<APIResponse> _callFor(
+    Server server,
     Future<APIResponse> Function(String token) call,
   );
+  Server? _target(String? serverId);
+  String _noTarget(String? serverId);
 
   /// Implemented by [_ServerApiMixin]. A role change moves the three cached
-  /// booleans on `users`, so the selected server's own user row is stale until
-  /// this runs.
-  Future<({bool success, String? error})> refreshServerDetails();
+  /// booleans on `users`, so the server's own user row is stale until this
+  /// runs.
+  Future<({bool success, String? error})> refreshServerDetails({
+    String? serverId,
+  });
 
   /// Every role on this server, most senior first.
-  Future<List<Role>> listRoles() async {
-    final server = state.selectedServer;
+  Future<List<Role>> listRoles({String? serverId}) async {
+    final server = _target(serverId);
     if (server == null) return const [];
 
-    final response = await _callWithAutoRefresh(
+    final response = await _callFor(
+      server,
       (token) => _repository.listRoles(
         server.supabaseUrl,
-        anonKey: _anonKey,
+        anonKey: server.supabaseKey ?? '',
         bearerToken: token,
       ),
     );
@@ -49,14 +55,15 @@ mixin _ServerRolesApiMixin on Cubit<ServerState> {
   /// Who holds what, as `{userId: [role, ...]}`, for the whole server. Null
   /// when the read failed, which is not the same answer as nobody holding
   /// anything.
-  Future<Map<String, List<Role>>?> listMemberRoles() async {
-    final server = state.selectedServer;
+  Future<Map<String, List<Role>>?> listMemberRoles({String? serverId}) async {
+    final server = _target(serverId);
     if (server == null) return null;
 
-    final response = await _callWithAutoRefresh(
+    final response = await _callFor(
+      server,
       (token) => _repository.listMemberRoles(
         server.supabaseUrl,
-        anonKey: _anonKey,
+        anonKey: server.supabaseKey ?? '',
         bearerToken: token,
       ),
     );
@@ -72,14 +79,18 @@ mixin _ServerRolesApiMixin on Cubit<ServerState> {
   /// role) and so hits the response ceiling sooner than the roster itself does.
   /// It is still the right call for a screen that shows everyone at once; this
   /// is the one for a list that pages.
-  Future<Map<String, List<Role>>> memberRolesFor(List<String> userIds) async {
-    final server = state.selectedServer;
+  Future<Map<String, List<Role>>> memberRolesFor(
+    List<String> userIds, {
+    String? serverId,
+  }) async {
+    final server = _target(serverId);
     if (server == null || userIds.isEmpty) return const {};
 
-    final response = await _callWithAutoRefresh(
+    final response = await _callFor(
+      server,
       (token) => _repository.memberRolesFor(
         server.supabaseUrl,
-        anonKey: _anonKey,
+        anonKey: server.supabaseKey ?? '',
         bearerToken: token,
         ids: userIds,
       ),
@@ -101,14 +112,16 @@ mixin _ServerRolesApiMixin on Cubit<ServerState> {
     required int position,
     required int permissions,
     String? color,
+    String? serverId,
   }) async {
-    final server = state.selectedServer;
-    if (server == null) return (role: null, error: 'No server selected');
+    final server = _target(serverId);
+    if (server == null) return (role: null, error: _noTarget(serverId));
 
-    final response = await _callWithAutoRefresh(
+    final response = await _callFor(
+      server,
       (token) => _repository.createRole(
         server.supabaseUrl,
-        anonKey: _anonKey,
+        anonKey: server.supabaseKey ?? '',
         bearerToken: token,
         serverId: server.id,
         name: name,
@@ -133,11 +146,13 @@ mixin _ServerRolesApiMixin on Cubit<ServerState> {
     int? permissions,
     String? color,
     bool clearColor = false,
+    String? serverId,
   }) => _changeRole(
+    serverId,
     (server, token) => _repository.updateRole(
       server.supabaseUrl,
       roleId,
-      anonKey: _anonKey,
+      anonKey: server.supabaseKey ?? '',
       bearerToken: token,
       name: name,
       position: position,
@@ -147,32 +162,37 @@ mixin _ServerRolesApiMixin on Cubit<ServerState> {
     ),
   );
 
-  Future<({bool success, String? error})> deleteRole(String roleId) =>
-      _changeRole(
-        (server, token) => _repository.deleteRole(
-          server.supabaseUrl,
-          roleId,
-          anonKey: _anonKey,
-          bearerToken: token,
-        ),
-      );
+  Future<({bool success, String? error})> deleteRole(
+    String roleId, {
+    String? serverId,
+  }) => _changeRole(
+    serverId,
+    (server, token) => _repository.deleteRole(
+      server.supabaseUrl,
+      roleId,
+      anonKey: server.supabaseKey ?? '',
+      bearerToken: token,
+    ),
+  );
 
   Future<({bool success, String? error})> setMemberRole({
     required String userId,
     required String roleId,
     required bool held,
+    String? serverId,
   }) => _changeRole(
+    serverId,
     (server, token) => held
         ? _repository.assignRole(
             server.supabaseUrl,
-            anonKey: _anonKey,
+            anonKey: server.supabaseKey ?? '',
             bearerToken: token,
             userId: userId,
             roleId: roleId,
           )
         : _repository.unassignRole(
             server.supabaseUrl,
-            anonKey: _anonKey,
+            anonKey: server.supabaseKey ?? '',
             bearerToken: token,
             userId: userId,
             roleId: roleId,
@@ -182,17 +202,18 @@ mixin _ServerRolesApiMixin on Cubit<ServerState> {
   /// Every role write ends the same way: the three cached booleans on `users`
   /// have moved, and this device's own copy of its permissions with them.
   Future<({bool success, String? error})> _changeRole(
+    String? serverId,
     Future<APIResponse> Function(Server server, String token) call,
   ) async {
-    final server = state.selectedServer;
-    if (server == null) return (success: false, error: 'No server selected');
+    final server = _target(serverId);
+    if (server == null) return (success: false, error: _noTarget(serverId));
 
-    final response = await _callWithAutoRefresh((token) => call(server, token));
+    final response = await _callFor(server, (token) => call(server, token));
     if (!response.success) {
       return (success: false, error: _roleFailure(response.error));
     }
 
-    await refreshServerDetails();
+    await refreshServerDetails(serverId: server.id);
     return (success: true, error: null);
   }
 

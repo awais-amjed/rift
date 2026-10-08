@@ -15,7 +15,9 @@ mixin _ServerChannelsApiMixin on Cubit<ServerState> {
   );
 
   /// Implemented by [_ServerApiMixin].
-  Future<({bool success, String? error})> refreshServerDetails();
+  Future<({bool success, String? error})> refreshServerDetails({
+    String? serverId,
+  });
 
   /// Create a new channel in the selected server.
   ///

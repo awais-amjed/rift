@@ -22,7 +22,9 @@ mixin _ServerVoiceRegionsApiMixin on Cubit<ServerState> {
   /// Both implemented by [_ServerApiMixin]. The update is repeated whole
   /// rather than narrowed to the one field sent below: a declaration with
   /// fewer named parameters is not something the real one can override.
-  Future<({bool success, String? error})> refreshServerDetails();
+  Future<({bool success, String? error})> refreshServerDetails({
+    String? serverId,
+  });
   Future<({bool success, String? error})> updateServerDetails({
     String? name,
     String? iconUrl,

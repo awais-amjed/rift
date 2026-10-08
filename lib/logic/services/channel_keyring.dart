@@ -137,13 +137,22 @@ class ChannelKeyring with _KeyringSealingMixin {
   /// before refilling it. That is right when opening a channel and wrong here:
   /// this runs on a doorbell, against a client that is working, and a momentary
   /// network failure must not cost it the keys it already holds.
-  Future<bool> absorbNewVersions(String channelId) async {
-    final server = _serverCubit.state.selectedServer;
+  ///
+  /// [serverId] names the server for a reader who is not looking at it — a
+  /// reviewer opening reports on another server's page. Null is the selected
+  /// one, which is every other caller.
+  Future<bool> absorbNewVersions(String channelId, {String? serverId}) async {
+    final server = serverId == null
+        ? _serverCubit.state.selectedServer
+        : _serverCubit.state.serverById(serverId);
     if (server == null) return false;
     final identity = await chatIdentity(server);
     if (identity == null) return false;
 
-    final response = await _serverCubit.getChannelKey(channelId);
+    final response = await _serverCubit.getChannelKey(
+      channelId,
+      serverId: server.id,
+    );
     if (!response.success) return false;
 
     final data = response.data as Map<String, dynamic>;

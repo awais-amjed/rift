@@ -31,9 +31,15 @@ part 'reports_state.dart';
 /// through the path that action always takes, then record it with
 /// `resolve_report`, which checks it happened. Recording first would log a
 /// ban the server then refused.
+///
+/// Given a [serverId] it is that one server's instead, for Manage server opened
+/// on a server the person is not looking at; that page owns it and closes it.
 class ReportsCubit extends Cubit<ReportsState> {
   final ServerCubit _serverCubit;
   final ReportedMessageOpener _opener;
+
+  /// The one server this watches, or null to follow the selection.
+  final String? _fixedServerId;
 
   StreamSubscription<ServerState>? _serverSub;
   final List<RealtimeLease> _leases = [];
@@ -44,7 +50,9 @@ class ReportsCubit extends Cubit<ReportsState> {
   ReportsCubit({
     required ServerCubit serverCubit,
     required VaultCubit vaultCubit,
+    String? serverId,
   }) : _serverCubit = serverCubit,
+       _fixedServerId = serverId,
        _opener = ReportedMessageOpener(
          serverCubit: serverCubit,
          vaultCubit: vaultCubit,
@@ -60,7 +68,10 @@ class ReportsCubit extends Cubit<ReportsState> {
   /// A server switch, or a role change on this one, decides whether there is
   /// anything to watch.
   void _onServerChanged() {
-    final server = _serverCubit.state.selectedServer;
+    final fixed = _fixedServerId;
+    final server = fixed == null
+        ? _serverCubit.state.selectedServer
+        : _serverCubit.state.serverById(fixed);
     final canReview = _mayReview(server);
     final serverId = canReview ? server!.id : null;
     if (serverId == _watchingServerId) return;
@@ -121,7 +132,10 @@ class ReportsCubit extends Cubit<ReportsState> {
   }
 
   Future<List<ReportEntry>?> _read({required bool open}) async {
-    final response = await _serverCubit.listReports(open: open);
+    final response = await _serverCubit.listReports(
+      open: open,
+      serverId: _watchingServerId,
+    );
     if (!response.success) return null;
     final entries = <ReportEntry>[];
     for (final row in (response.data as List).cast<Map<String, dynamic>>()) {
@@ -130,7 +144,7 @@ class ReportsCubit extends Cubit<ReportsState> {
         entries.add(ReportEntry(report: report));
         continue;
       }
-      final opened = await _opener.open(report);
+      final opened = await _opener.open(report, serverId: _watchingServerId);
       entries.add(
         ReportEntry(
           report: report,
@@ -153,15 +167,18 @@ class ReportsCubit extends Cubit<ReportsState> {
   Future<APIResponse> deleteMessage(ReportEntry entry) async {
     final reported = entry.report.message;
     if (reported == null) return APIResponse.error('Not a message report');
+    final serverId = _watchingServerId;
     final deleted = await _serverCubit.deleteChatMessage(
       channelId: reported.channelId,
       messageId: reported.id,
+      serverId: serverId,
     );
     if (!deleted.success) return deleted;
     unawaited(
       AttachmentCleanup.forMessage(
         entry.message,
-        delete: _serverCubit.deleteAttachments,
+        delete: (paths) =>
+            _serverCubit.deleteAttachments(paths, serverId: serverId),
       ),
     );
     return _record(entry, ReportOutcome.deleted);
@@ -173,6 +190,7 @@ class ReportsCubit extends Cubit<ReportsState> {
     final done = await _serverCubit.timeOutMember(
       targetId: target,
       duration: duration,
+      serverId: _watchingServerId,
     );
     if (!done.success) return done;
     return _record(entry, ReportOutcome.timedOut);
@@ -184,6 +202,7 @@ class ReportsCubit extends Cubit<ReportsState> {
     final done = await _serverCubit.moderateUser(
       userId: target,
       isBanned: true,
+      serverId: _watchingServerId,
     );
     if (!done.success) return done;
     return _record(entry, ReportOutcome.banned);
@@ -194,7 +213,10 @@ class ReportsCubit extends Cubit<ReportsState> {
   Future<APIResponse> kick(ReportEntry entry) async {
     final target = entry.report.targetId;
     if (target == null) return APIResponse.error('Nobody to kick');
-    final done = await _serverCubit.kickMember(userId: target);
+    final done = await _serverCubit.kickMember(
+      userId: target,
+      serverId: _watchingServerId,
+    );
     if (!done.success) return done;
     return _record(entry, ReportOutcome.kicked);
   }
@@ -203,6 +225,7 @@ class ReportsCubit extends Cubit<ReportsState> {
     final response = await _serverCubit.resolveReport(
       reportId: entry.report.id,
       outcome: outcome,
+      serverId: _watchingServerId,
     );
     if (!isClosed) unawaited(refresh());
     return response;

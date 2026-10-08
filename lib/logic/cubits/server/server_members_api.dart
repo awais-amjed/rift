@@ -96,34 +96,57 @@ mixin _ServerMembersApiMixin on Cubit<ServerState> {
   /// that list them are choosing from all of them, and a picker that silently
   /// omitted one would be the bug this whole change is about.
   ///
-  /// Still bounded. [_botPageBudget] pages is far past any real server, and it
+  /// Still bounded. [_wholePageBudget] pages is far past any real server, and it
   /// is what stops this quietly becoming a full-table walk if somebody one day
   /// points it at people.
   Future<List<ServerMember>> listBots({
     String? serverId,
     String? channelId,
+  }) async => (await _listWhole(
+    serverId: serverId,
+    channelId: channelId,
+    bots: true,
+  )).members;
+
+  /// Every banned member, people and bots — the Members page's, which is the
+  /// one place a ban can be lifted. Read whole for the reason bots are: a ban
+  /// is somebody's deliberate act on one person, so there are few. Null when
+  /// the read failed, which is not the same answer as nobody banned.
+  Future<List<ServerMember>?> listBanned({String? serverId}) async {
+    final read = await _listWhole(serverId: serverId, bots: null, banned: true);
+    return read.failed ? null : read.members;
+  }
+
+  /// Every page of one filter of the roster, up to [_wholePageBudget], and
+  /// whether a page failed on the way.
+  Future<({List<ServerMember> members, bool failed})> _listWhole({
+    String? serverId,
+    String? channelId,
+    bool? bots,
+    bool? banned = false,
   }) async {
     final collected = <ServerMember>[];
     ({String name, String id})? after;
 
-    for (var page = 0; page < _botPageBudget; page++) {
+    for (var page = 0; page < _wholePageBudget; page++) {
       final result = await listMembers(
         serverId: serverId,
         channelId: channelId,
-        bots: true,
+        bots: bots,
+        banned: banned,
         after: after,
       );
       final fetched = result.page;
-      if (fetched == null) break;
+      if (fetched == null) return (members: collected, failed: true);
       collected.addAll(fetched.members);
       if (!fetched.hasMore || fetched.cursor == null) break;
       after = fetched.cursor;
     }
-    return collected;
+    return (members: collected, failed: false);
   }
 
-  /// How many pages [listBots] will walk before it stops asking.
-  static const int _botPageBudget = 10;
+  /// How many pages a whole read walks before it stops asking.
+  static const int _wholePageBudget = 10;
 
   /// Persistently mutes/deafens/bans a user server-wide on [serverId], or on
   /// the selected server (requires channel manager or server admin).

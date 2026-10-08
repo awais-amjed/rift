@@ -107,18 +107,27 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
     ),
   );
 
-  /// Hard-delete one channel message (sender, or a moderator).
+  /// Hard-delete one channel message (sender, or a moderator) on [serverId],
+  /// or the selected server — a report is acted on from its server's page.
   Future<APIResponse> deleteChatMessage({
     required String channelId,
     required int messageId,
-  }) => _callWithAutoRefresh(
-    (token) => _repository.deleteMessage(
-      state.selectedServer!.supabaseUrl,
-      anonKey: _anonKey,
-      messageId: messageId,
-      bearerToken: token,
-    ),
-  );
+    String? serverId,
+  }) {
+    final target = _chatTarget(serverId);
+    if (target == null) {
+      return Future.value(APIResponse.error(_noTarget(serverId)));
+    }
+    return _callFor(
+      target.server,
+      (token) => _repository.deleteMessage(
+        target.server.supabaseUrl,
+        anonKey: target.anonKey,
+        messageId: messageId,
+        bearerToken: token,
+      ),
+    );
+  }
 
   /// Page through a channel's message envelopes.
   Future<APIResponse> listChatMessages({
@@ -245,16 +254,14 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
   );
 
   /// Drop our own keyring rows the channel's links already cover.
-  Future<APIResponse> pruneChannelKeys(
-    String channelId,
-    List<int> versions,
-  ) => _callWithAutoRefresh(
-    (token) => _repository.pruneChannelKeys(
-      state.selectedServer!.supabaseUrl,
-      anonKey: _anonKey,
-      bearerToken: token,
-      channelId: channelId,
-      versions: versions,
-    ),
-  );
+  Future<APIResponse> pruneChannelKeys(String channelId, List<int> versions) =>
+      _callWithAutoRefresh(
+        (token) => _repository.pruneChannelKeys(
+          state.selectedServer!.supabaseUrl,
+          anonKey: _anonKey,
+          bearerToken: token,
+          channelId: channelId,
+          versions: versions,
+        ),
+      );
 }

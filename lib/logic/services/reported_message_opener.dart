@@ -49,9 +49,12 @@ class ReportedMessageOpener {
 
   void clear() => _rings.clear();
 
+  /// [serverId] is the server the report was made on, or null for the
+  /// selected one.
   Future<({ReportedContent content, ChatMessage? message})> open(
-    MemberReport report,
-  ) async {
+    MemberReport report, {
+    String? serverId,
+  }) async {
     final reported = report.message!;
     final authorName =
         report.target?.displayName ?? reported.originName ?? 'Unknown';
@@ -80,7 +83,7 @@ class ReportedMessageOpener {
       crypto: _crypto,
     );
     if (!ring.keys.containsKey(reported.keyVersion)) {
-      await ring.absorbNewVersions(reported.channelId);
+      await ring.absorbNewVersions(reported.channelId, serverId: serverId);
     }
     final key = ring.keys[reported.keyVersion];
     if (key == null) return (content: ReportedContent.locked, message: null);

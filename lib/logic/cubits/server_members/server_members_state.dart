@@ -2,6 +2,10 @@ part of 'server_members_cubit.dart';
 
 /// What the client knows about a server's members right now.
 ///
+/// One per server being looked at: the app's own follows the selection, and
+/// Manage server opened for another server holds one for that server while it
+/// is open.
+///
 /// It used to be one list: every member, fetched whole. That list was capped at
 /// 1000 rows by PostgREST, so on a large server it was not the roster — it was
 /// the first thousand names alphabetically, and everything reading it treated
@@ -51,6 +55,18 @@ class ServerMembersState extends Equatable {
   /// every assignment on the server, and only the Roles page needs it.
   final Map<String, int>? roleCounts;
 
+  /// Every banned member. Null unless the Members page is showing them
+  /// ([ServerMembersCubit.showBanned]): nothing else draws somebody who is
+  /// not in the room, and the people pages leave them out.
+  final List<ServerMember>? banned;
+
+  /// What the Members page's search field asked and what the database
+  /// answered, banned members included. Null with the field empty.
+  ///
+  /// Held here rather than by the page so a mute, a ban or a rename refreshes
+  /// a matched row like any other: a refresh asks the same question again.
+  final ({String query, List<ServerMember> matches})? search;
+
   /// Whether the first load for [serverId] has landed — which is what the
   /// sidebar shows a spinner for. A server with no other members is *loaded*
   /// and empty, not pending.
@@ -68,6 +84,8 @@ class ServerMembersState extends Equatable {
     this.roles = const [],
     this.memberRoles = const {},
     this.roleCounts,
+    this.banned,
+    this.search,
     this.loaded = false,
     this.loading = false,
     this.error,
@@ -134,6 +152,10 @@ class ServerMembersState extends Equatable {
     Map<String, List<Role>>? memberRoles,
     Map<String, int>? roleCounts,
     bool clearRoleCounts = false,
+    List<ServerMember>? banned,
+    bool clearBanned = false,
+    ({String query, List<ServerMember> matches})? search,
+    bool clearSearch = false,
     bool? loaded,
     bool? loading,
     String? error,
@@ -146,6 +168,8 @@ class ServerMembersState extends Equatable {
     roles: roles ?? this.roles,
     memberRoles: memberRoles ?? this.memberRoles,
     roleCounts: clearRoleCounts ? null : (roleCounts ?? this.roleCounts),
+    banned: clearBanned ? null : (banned ?? this.banned),
+    search: clearSearch ? null : (search ?? this.search),
     loaded: loaded ?? this.loaded,
     loading: loading ?? this.loading,
     error: error,
@@ -161,6 +185,8 @@ class ServerMembersState extends Equatable {
     roles,
     memberRoles,
     roleCounts,
+    banned,
+    search,
     loaded,
     loading,
     error,
