@@ -6,6 +6,8 @@ part of 'dm_cubit.dart';
 /// The open conversation: opening it, and paging its history. Turning the rows
 /// into messages is [_DmDecryptMixin].
 mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
+  DmsApi get _dms;
+
   /// See the send mixin. Read here to put failed sends back under a freshly
   /// fetched page, and to forget one the server turns out to have stored.
   Outbox get _outbox;
@@ -127,7 +129,7 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
             selected?.supabaseUrl != server.supabaseUrl) {
           return null;
         }
-        final response = await _serverCubit.listDms(
+        final response = await _dms.listDms(
           peerId: peerId,
           limit: ChatMessageOps.pageSize,
         );
@@ -152,7 +154,7 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
 
   /// Whether the newest page arrived. False leaves whatever was drawn.
   Future<bool> _fetchLatest(String peerId) async {
-    final response = await _serverCubit.listDms(
+    final response = await _dms.listDms(
       peerId: peerId,
       limit: ChatMessageOps.pageSize,
     );
@@ -183,7 +185,7 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
     // stitch the live end onto a stretch it does not follow.
     if (state.hasNewerHistory) return;
 
-    final response = await _serverCubit.listDms(
+    final response = await _dms.listDms(
       peerId: peerId,
       afterId: ChatMessageOps.latestId(state.messages),
       limit: ChatMessageOps.pageSize,
@@ -221,7 +223,7 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
     final id = int.tryParse(messageId);
     if (peerId == null || id == null) return const QuotedMessage.unknown();
 
-    final response = await _serverCubit.getDmMessage(messageId: id);
+    final response = await _dms.getDmMessage(messageId: id);
     return QuotedMessage.settle(
       response,
       stillOpen: () => state.openPeerId == peerId,
@@ -246,12 +248,12 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
 
     // `beforeId` is exclusive, so the target rides in with the older half
     // rather than being fetched a third time.
-    final older = await _serverCubit.listDms(
+    final older = await _dms.listDms(
       peerId: peerId,
       beforeId: id + 1,
       limit: ChatMessageOps.windowHalf,
     );
-    final newer = await _serverCubit.listDms(
+    final newer = await _dms.listDms(
       peerId: peerId,
       afterId: id,
       limit: ChatMessageOps.windowHalf,
@@ -308,7 +310,7 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
     }
     emit(state.copyWith(isLoadingMore: true));
 
-    final response = await _serverCubit.listDms(
+    final response = await _dms.listDms(
       peerId: peerId,
       afterId: ChatMessageOps.latestId(state.messages),
       limit: ChatMessageOps.pageSize,
@@ -354,7 +356,7 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
     if (peerId == null || id == null) return;
     if (!state.messages.any((m) => m.id == messageId)) return;
 
-    final response = await _serverCubit.getDmMessage(messageId: id);
+    final response = await _dms.getDmMessage(messageId: id);
     if (!response.success || state.openPeerId != peerId) return;
 
     final row = (response.data as Map<String, dynamic>)['message'];
@@ -392,7 +394,7 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
     }
     emit(state.copyWith(isLoadingMore: true));
 
-    final response = await _serverCubit.listDms(
+    final response = await _dms.listDms(
       peerId: peerId,
       beforeId: ChatMessageOps.oldestId(state.messages),
       limit: ChatMessageOps.pageSize,

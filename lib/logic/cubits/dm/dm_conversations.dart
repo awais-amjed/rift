@@ -15,6 +15,7 @@ part of 'dm_cubit.dart';
 /// cursor central's list already had.
 mixin _DmConversationsMixin on Cubit<DmState> {
   ServerCubit get _serverCubit;
+  DmsApi get _dms;
   Map<String, String> get _dmKeySources;
   Future<Uint8List?> _dmKeyFor(String peerId, String? peerChatKey);
 
@@ -120,7 +121,7 @@ mixin _DmConversationsMixin on Cubit<DmState> {
   /// One page, decrypted. Null when the request failed.
   Future<({List<DmConversation> conversations, bool hasMore})?>
   _fetchConversations({int? before}) async {
-    final response = await _serverCubit.listDmConversations(before: before);
+    final response = await _dms.listDmConversations(before: before);
     if (isClosed || !response.success) return null;
 
     final data = response.data as Map<String, dynamic>;

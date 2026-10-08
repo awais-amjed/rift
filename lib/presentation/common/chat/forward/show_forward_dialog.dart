@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rift_crypto/rift_crypto.dart';
 
 import '../../../../data/classes/chat_message.dart';
+import '../../../../data/repositories/session_repository.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../logic/cubits/dm/dm_cubit.dart';
@@ -32,6 +33,7 @@ Future<void> showForwardDialog(
   String? currentPeerId,
 }) {
   final servers = context.read<ServerCubit>();
+  final session = context.read<SessionRepository>();
   final vault = context.read<VaultCubit>();
   final dms = context.read<DmCubit>();
   final central = context.read<CentralDmCubit>();
@@ -63,6 +65,7 @@ Future<void> showForwardDialog(
         sourceServerId: sourceServerId,
         service: ForwardService(
           servers: servers,
+          session: session,
           vault: vault,
           crypto: CryptoRepository(),
         ),

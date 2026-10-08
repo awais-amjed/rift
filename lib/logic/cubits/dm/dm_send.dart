@@ -4,6 +4,7 @@ part of 'dm_cubit.dart';
 /// bytes back for rendering.
 mixin _DmSendMixin on Cubit<DmState> {
   ServerCubit get _serverCubit;
+  DmsApi get _dms;
   SavedConversation get _saved;
   CryptoRepository get _crypto;
   Map<String, Uint8List> get _dmKeys;
@@ -135,7 +136,7 @@ mixin _DmSendMixin on Cubit<DmState> {
         keyVersion: 1,
       );
 
-      final response = await _serverCubit.sendDm(
+      final response = await _dms.sendDm(
         recipientId: peerId,
         envelope: envelope.toJson(),
       );

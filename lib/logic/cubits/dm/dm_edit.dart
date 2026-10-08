@@ -7,6 +7,7 @@ part of 'dm_cubit.dart';
 /// in place. DM key_version is always 1 — DMs don't rotate.
 mixin _DmEditMixin on Cubit<DmState> {
   ServerCubit get _serverCubit;
+  DmsApi get _dms;
   SavedConversation get _saved;
   CryptoRepository get _crypto;
   Map<String, Uint8List> get _dmKeys;
@@ -40,7 +41,7 @@ mixin _DmEditMixin on Cubit<DmState> {
         keyVersion: 1,
       );
 
-      final response = await _serverCubit.editDm(
+      final response = await _dms.editDm(
         messageId: id,
         envelope: envelope.toJson(),
       );
@@ -95,7 +96,7 @@ mixin _DmEditMixin on Cubit<DmState> {
     final doomed = state.messages.where((m) => m.id == messageId).firstOrNull;
 
     try {
-      final response = await _serverCubit.deleteDm(messageId: id);
+      final response = await _dms.deleteDm(messageId: id);
       if (state.openPeerId != peerId) return;
 
       if (!response.success) {

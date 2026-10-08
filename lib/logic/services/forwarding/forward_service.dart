@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:rift_crypto/rift_crypto.dart';
 
+import '../../../data/apis/dms_api.dart';
 import '../../../data/classes/api_response.dart';
 import '../../../data/classes/attachment.dart';
 import '../../../data/classes/forwarded_message.dart';
@@ -10,6 +11,7 @@ import '../../../data/classes/pending_attachment.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/repositories/attachment_repository.dart';
 import '../../../data/repositories/central_dm_repository.dart';
+import '../../../data/repositories/session_repository.dart';
 import '../../../supabase_config.dart';
 import '../../cubits/server/server_cubit.dart';
 import '../../cubits/vault/vault_cubit.dart';
@@ -55,13 +57,17 @@ class ForwardService with _ForwardBlobsMixin, _ForwardDmsMixin {
   final CryptoRepository crypto;
   @override
   final CentralDmRepository central;
+  @override
+  final DmsApi dms;
 
   ForwardService({
     required this.servers,
+    required SessionRepository session,
     required this.vault,
     required this.crypto,
     CentralDmRepository? central,
-  }) : central = central ?? CentralDmRepository();
+  }) : dms = DmsApi(session: session),
+       central = central ?? CentralDmRepository();
 
   /// Forward [message] to each of [targets], with an optional [note] of the
   /// forwarder's own.
