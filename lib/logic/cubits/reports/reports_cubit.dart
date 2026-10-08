@@ -78,7 +78,7 @@ class ReportsCubit extends Cubit<ReportsState> {
 
     unawaited(_stopWatching());
     _opener.clear();
-    emit(ReportsState(canReview: canReview));
+    emit(ReportsState(canReview: canReview, serverId: serverId));
     if (serverId == null) return;
 
     _watchingServerId = serverId;

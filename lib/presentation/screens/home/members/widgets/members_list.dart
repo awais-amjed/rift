@@ -46,9 +46,9 @@ class MembersList extends StatelessWidget {
   })
   onModerate;
 
-  /// Told when somebody's roles were edited from a row — see
-  /// [MemberManagePanel.onRolesChanged].
-  final VoidCallback? onRolesChanged;
+  /// The server this is about, or null for the selected one. Manage server
+  /// opens from the rail for any server, and a row there acts on *that* one.
+  final String? serverId;
 
   const MembersList({
     super.key,
@@ -63,7 +63,7 @@ class MembersList extends StatelessWidget {
     required this.busyId,
     required this.onTap,
     required this.onModerate,
-    this.onRolesChanged,
+    this.serverId,
   });
 
   /// How close to the bottom counts as "nearly there".
@@ -118,7 +118,7 @@ class MembersList extends StatelessWidget {
             banned: banned,
             kick: kick,
           ),
-          onRolesChanged: onRolesChanged,
+          serverId: serverId,
         );
       },
     );

@@ -15,6 +15,11 @@ mixin _ServerBotsApiMixin on Cubit<ServerState> {
   Future<APIResponse> _callWithAutoRefresh(
     Future<APIResponse> Function(String token) call,
   );
+  Future<APIResponse> _callFor(
+    Server server,
+    Future<APIResponse> Function(String token) call,
+  );
+  Server? _target(String? serverId);
 
   /// Hand a bot the key to a channel, or take it back.
   ///
@@ -55,14 +60,16 @@ mixin _ServerBotsApiMixin on Cubit<ServerState> {
   Future<({bool success, String? error})> setBotServerKey({
     required String botId,
     required bool granted,
+    String? serverId,
   }) async {
-    final server = state.selectedServer;
+    final server = _target(serverId);
     if (server == null) return (success: false, error: 'No server');
 
-    final response = await _callWithAutoRefresh(
+    final response = await _callFor(
+      server,
       (token) => _repository.setBotServerKey(
         server.supabaseUrl,
-        anonKey: _anonKey,
+        anonKey: server.supabaseKey ?? '',
         bearerToken: token,
         botId: botId,
         granted: granted,
@@ -80,17 +87,19 @@ mixin _ServerBotsApiMixin on Cubit<ServerState> {
 
   /// What one bot can read: the channels, and whether it is server-wide.
   Future<({Set<String> channelIds, bool serverWide})> botChannels(
-    String botId,
-  ) async {
-    final server = state.selectedServer;
+    String botId, {
+    String? serverId,
+  }) async {
+    final server = _target(serverId);
     if (server == null) {
       return (channelIds: <String>{}, serverWide: false);
     }
 
-    final response = await _callWithAutoRefresh(
+    final response = await _callFor(
+      server,
       (token) => _repository.listBotChannels(
         server.supabaseUrl,
-        anonKey: _anonKey,
+        anonKey: server.supabaseKey ?? '',
         bearerToken: token,
         botId: botId,
       ),

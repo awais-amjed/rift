@@ -25,7 +25,10 @@ import 'widgets/webhook_secret_card.dart';
 class ChannelWebhooksBody extends StatefulWidget {
   final Channel channel;
 
-  const ChannelWebhooksBody({super.key, required this.channel});
+  /// The server [channel] is on, or null for the selected one.
+  final String? serverId;
+
+  const ChannelWebhooksBody({super.key, required this.channel, this.serverId});
 
   @override
   State<ChannelWebhooksBody> createState() => _ChannelWebhooksBodyState();
@@ -60,6 +63,7 @@ class _ChannelWebhooksBodyState extends State<ChannelWebhooksBody> {
   Future<void> _load() async {
     final result = await context.read<ServerCubit>().listWebhooks(
       widget.channel.id,
+      serverId: widget.serverId,
     );
     if (!mounted) return;
     setState(() {
@@ -80,6 +84,7 @@ class _ChannelWebhooksBodyState extends State<ChannelWebhooksBody> {
     final result = await context.read<ServerCubit>().createWebhook(
       channelId: widget.channel.id,
       name: _name,
+      serverId: widget.serverId,
     );
     if (!mounted) return;
 
@@ -109,7 +114,10 @@ class _ChannelWebhooksBodyState extends State<ChannelWebhooksBody> {
     );
     if (!confirmed) return;
 
-    final result = await serverCubit.deleteWebhook(webhook.id);
+    final result = await serverCubit.deleteWebhook(
+      webhook.id,
+      serverId: widget.serverId,
+    );
     if (!mounted) return;
     // The card is for the webhook that was just minted; revoking anything
     // afterwards makes it stale, and a URL on screen that may be the one just

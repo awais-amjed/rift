@@ -28,7 +28,10 @@ import 'widgets/role_row.dart';
 class MemberRolesDialog extends StatefulWidget {
   final ServerMember member;
 
-  const MemberRolesDialog({super.key, required this.member});
+  /// The server [member] is on, or null for the selected one.
+  final String? serverId;
+
+  const MemberRolesDialog({super.key, required this.member, this.serverId});
 
   @override
   State<MemberRolesDialog> createState() => _MemberRolesDialogState();
@@ -60,6 +63,7 @@ class _MemberRolesDialogState extends State<MemberRolesDialog> {
       userId: widget.member.id,
       roleId: role.id,
       held: !held,
+      serverId: widget.serverId,
     );
     if (result.success) await members.reloadRolesOf(widget.member.id);
     if (!mounted) return;
@@ -80,7 +84,11 @@ class _MemberRolesDialogState extends State<MemberRolesDialog> {
       (c) => c.state.memberRoles[widget.member.id],
     );
     final isAdministrator = context.select<ServerCubit, bool>(
-      (c) => c.state.myPermissionBits.has(ServerPermission.administrator),
+      (c) =>
+          c.state
+              .permissionsOn(widget.serverId)
+              ?.can(ServerPermission.administrator) ??
+          false,
     );
 
     final listed = roles.where((r) => !r.isEveryone).toList();

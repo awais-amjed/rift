@@ -1,6 +1,6 @@
 part of 'server_cubit.dart';
 
-/// Webhook management for the selected server (BOTS.md §7).
+/// Webhook management for [serverId], or the selected server (BOTS.md §7).
 ///
 /// Nothing here touches [ServerState]. A webhook list is read when a dialog
 /// opens and thrown away when it closes — there is no badge, no sidebar entry
@@ -8,23 +8,26 @@ part of 'server_cubit.dart';
 /// state kept for its own sake.
 mixin _ServerWebhooksApiMixin on Cubit<ServerState> {
   ServerRepository get _repository;
-  String get _anonKey;
 
-  Future<APIResponse> _callWithAutoRefresh(
+  Future<APIResponse> _callFor(
+    Server server,
     Future<APIResponse> Function(String token) call,
   );
+  Server? _target(String? serverId);
 
   /// Every webhook posting into [channelId].
   Future<({List<Webhook> webhooks, String? error})> listWebhooks(
-    String channelId,
-  ) async {
-    final server = state.selectedServer;
+    String channelId, {
+    String? serverId,
+  }) async {
+    final server = _target(serverId);
     if (server == null) return (webhooks: <Webhook>[], error: 'No server');
 
-    final response = await _callWithAutoRefresh(
+    final response = await _callFor(
+      server,
       (token) => _repository.listWebhooks(
         server.supabaseUrl,
-        anonKey: _anonKey,
+        anonKey: server.supabaseKey ?? '',
         bearerToken: token,
         channelId: channelId,
       ),
@@ -56,14 +59,16 @@ mixin _ServerWebhooksApiMixin on Cubit<ServerState> {
   Future<({WebhookSecret? created, String? error})> createWebhook({
     required String channelId,
     required String name,
+    String? serverId,
   }) async {
-    final server = state.selectedServer;
+    final server = _target(serverId);
     if (server == null) return (created: null, error: 'No server');
 
-    final response = await _callWithAutoRefresh(
+    final response = await _callFor(
+      server,
       (token) => _repository.createWebhook(
         server.supabaseUrl,
-        anonKey: _anonKey,
+        anonKey: server.supabaseKey ?? '',
         bearerToken: token,
         channelId: channelId,
         name: name,
@@ -98,14 +103,18 @@ mixin _ServerWebhooksApiMixin on Cubit<ServerState> {
   };
 
   /// Revoke one. Its messages stay in the channel.
-  Future<({bool success, String? error})> deleteWebhook(String id) async {
-    final server = state.selectedServer;
+  Future<({bool success, String? error})> deleteWebhook(
+    String id, {
+    String? serverId,
+  }) async {
+    final server = _target(serverId);
     if (server == null) return (success: false, error: 'No server');
 
-    final response = await _callWithAutoRefresh(
+    final response = await _callFor(
+      server,
       (token) => _repository.deleteWebhook(
         server.supabaseUrl,
-        anonKey: _anonKey,
+        anonKey: server.supabaseKey ?? '',
         bearerToken: token,
         webhookId: id,
       ),

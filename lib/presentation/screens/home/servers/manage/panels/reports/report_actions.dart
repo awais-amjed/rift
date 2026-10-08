@@ -102,8 +102,13 @@ class _ReportActionsState extends State<ReportActions> {
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<ReportsCubit>();
+    // On the server these reports are about, which is not always the one on
+    // screen.
+    final serverId = context.select<ReportsCubit, String?>(
+      (c) => c.state.serverId,
+    );
     final perms = context.select<ServerCubit, UserPermissions?>(
-      (c) => c.state.myPermissions,
+      (c) => c.state.permissionsOn(serverId),
     );
     bool can(ServerPermission p) => perms?.can(p) ?? false;
     final report = widget.entry.report;

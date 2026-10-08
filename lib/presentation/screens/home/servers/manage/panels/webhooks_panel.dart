@@ -92,6 +92,7 @@ class _WebhooksPanelState extends State<WebhooksPanel> {
                 ChannelWebhooksBody(
                   key: ValueKey(channel.id),
                   channel: channel,
+                  serverId: widget.server.id,
                 ),
               ],
             ),

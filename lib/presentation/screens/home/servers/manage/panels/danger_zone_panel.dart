@@ -43,7 +43,9 @@ class _DangerZonePanelState extends State<DangerZonePanel> {
     if (!confirmed || !mounted) return;
 
     setState(() => _isBusy = true);
-    final result = await context.read<ServerCubit>().deleteServer();
+    final result = await context.read<ServerCubit>().deleteServer(
+      serverId: widget.server.id,
+    );
     if (!mounted) return;
     setState(() => _isBusy = false);
 

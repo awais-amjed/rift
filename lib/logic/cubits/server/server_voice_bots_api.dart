@@ -20,6 +20,11 @@ mixin _ServerVoiceBotsApiMixin on Cubit<ServerState> {
   Future<APIResponse> _callWithAutoRefresh(
     Future<APIResponse> Function(String token) call,
   );
+  Future<APIResponse> _callFor(
+    Server server,
+    Future<APIResponse> Function(String token) call,
+  );
+  Server? _target(String? serverId);
 
   /// Let [botId] hear [channelId], or stop it.
   Future<({bool success, String? error})> setBotVoiceListen({
@@ -177,8 +182,11 @@ mixin _ServerVoiceBotsApiMixin on Cubit<ServerState> {
   /// bot, because this is the same one round trip the sidebar already makes and
   /// the table has one row per grant — which is a number of rows an admin typed
   /// in by hand, one at a time.
-  Future<Set<String>> voiceChannelsHeardBy(String botId) async {
-    final rows = await _voiceListenerRows(null);
+  Future<Set<String>> voiceChannelsHeardBy(
+    String botId, {
+    String? serverId,
+  }) async {
+    final rows = await _voiceListenerRows(null, serverId: serverId);
     return {
       for (final row in rows)
         if (row['bot_id'] == botId) row['channel_id'] as String,
@@ -186,15 +194,17 @@ mixin _ServerVoiceBotsApiMixin on Cubit<ServerState> {
   }
 
   Future<List<Map<String, dynamic>>> _voiceListenerRows(
-    String? channelId,
-  ) async {
-    final server = state.selectedServer;
+    String? channelId, {
+    String? serverId,
+  }) async {
+    final server = _target(serverId);
     if (server == null) return const [];
 
-    final response = await _callWithAutoRefresh(
+    final response = await _callFor(
+      server,
       (token) => _repository.listVoiceListeners(
         server.supabaseUrl,
-        anonKey: _anonKey,
+        anonKey: server.supabaseKey ?? '',
         bearerToken: token,
         channelId: channelId,
       ),

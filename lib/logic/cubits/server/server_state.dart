@@ -65,6 +65,19 @@ class ServerState extends Equatable {
   @JsonKey(includeFromJson: false, includeToJson: false)
   int get myPermissionBits => myPermissions?.bits ?? 0;
 
+  /// [serverId]'s server, or the selected one when it is null. For a page
+  /// that names its server — Manage server opens from the rail for any of
+  /// them — where "here" means *that* server, never a fallback to another.
+  Server? serverOn(String? serverId) =>
+      serverId == null ? selectedServer : serverById(serverId);
+
+  /// This member's own row on [serverId] — see [serverOn].
+  ServerUser? meOn(String? serverId) => serverOn(serverId)?.user;
+
+  /// [myPermissions], on [serverId] — see [meOn].
+  UserPermissions? permissionsOn(String? serverId) =>
+      meOn(serverId)?.permissions;
+
   /// The joined server with [id], or null when this device has no such server.
   ///
   /// Deliberately without [selectedServer]'s fall back to the first server: a

@@ -19,18 +19,24 @@ class OwnershipActions {
   ///
   /// The database refuses a bot, a banned member and yourself; this is what
   /// keeps the row from being offered and then refused.
-  static bool canTransferTo(ServerCubit cubit, ServerMember member) {
-    final me = cubit.state.selectedServer?.user;
+  static bool canTransferTo(
+    ServerCubit cubit,
+    ServerMember member, {
+    String? serverId,
+  }) {
+    final me = cubit.state.meOn(serverId);
     return (me?.permissions.isOwner ?? false) &&
         me?.id != member.id &&
         !member.isBot &&
         !member.isBanned;
   }
 
+  /// [serverId] is the server being handed on, or null for the selected one.
   static Future<void> transfer(
     BuildContext context,
-    ServerMember member,
-  ) async {
+    ServerMember member, {
+    String? serverId,
+  }) async {
     final confirmed = await showConfirmDialog(
       context: context,
       title: 'Make ${member.displayName} the owner?',
@@ -45,6 +51,7 @@ class OwnershipActions {
 
     final result = await context.read<ServerCubit>().transferOwnership(
       member.id,
+      serverId: serverId,
     );
     if (result.success) {
       HelperMethods.showSuccess(

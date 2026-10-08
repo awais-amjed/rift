@@ -17,8 +17,13 @@ class ReportEntry extends Equatable {
   List<Object?> get props => [report, content, message];
 }
 
-/// The selected server's reports, for somebody who may review them.
+/// One server's reports, for somebody who may review them.
 class ReportsState extends Equatable {
+  /// Whose reports these are, or null while there is nothing to review. What
+  /// "may I act on this" is asked against, since the page can be about a
+  /// server the person is not looking at.
+  final String? serverId;
+
   /// Open reports, newest first.
   final List<ReportEntry> open;
 
@@ -34,6 +39,7 @@ class ReportsState extends Equatable {
   final String? error;
 
   const ReportsState({
+    this.serverId,
     this.open = const [],
     this.closed = const [],
     this.loading = false,
@@ -53,6 +59,7 @@ class ReportsState extends Equatable {
     String? error,
     bool clearError = false,
   }) => ReportsState(
+    serverId: serverId,
     open: open ?? this.open,
     closed: closed ?? this.closed,
     loading: loading ?? this.loading,
@@ -63,6 +70,7 @@ class ReportsState extends Equatable {
 
   @override
   List<Object?> get props => [
+    serverId,
     open,
     closed,
     loading,

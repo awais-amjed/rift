@@ -236,6 +236,13 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   (`data/constants.dart`), not magic numbers.
 - Dialogs use `showCustomDialog` / `AppModal` from `presentation/common/`; pass existing cubits
   in with `MultiBlocProvider` + `BlocProvider.value` (never construct a new cubit for a dialog).
+  The one exception is a page about a server the person is not looking at: Manage server opens
+  from the rail's menu for any server, and the cubits that follow the selection
+  (`ServerMembersCubit`, `ReportsCubit`, `SoundboardCubit`) take a `serverId` that pins them to
+  that server. `serverManageDialog` builds those for it and closes them with the dialog, so the
+  page reads that server's one live copy instead of the selected server's. Everything such a
+  page calls names its server too — `serverId` on the call, `ServerState.permissionsOn` for what
+  the viewer may do there.
 - Toasts/errors go through `HelperMethods.showToast` / `showError` (toastification) — no
   SnackBars — called from the presentation layer, not from a cubit: a cubit sets a `Notice`
   in its state and `NoticeListeners` shows it (`CODE_STYLE.md` §8). Debug logging through `HelperMethods.printDebug`, not bare `print` (Dart side).

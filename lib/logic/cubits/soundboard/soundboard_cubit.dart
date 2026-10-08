@@ -59,6 +59,11 @@ class SoundboardCubit extends Cubit<SoundboardState>
 
   late final ServerTopicWatcher _watcher;
 
+  /// Whether this is the app's own soundboard, which plays into calls. One
+  /// pinned to a server for a settings page plays only previews, and closing
+  /// it must not cut off a clip the call is playing.
+  final bool _ownsPlayback;
+
   /// The selected server's soundboard — the app's own — or, given
   /// [serverId], that one server's library, for Manage server opened on a
   /// server the person is not looking at. Whoever opens that page owns that
@@ -71,6 +76,7 @@ class SoundboardCubit extends Cubit<SoundboardState>
   }) : _serverCubit = serverCubit,
        _appCubit = appCubit,
        _livekitCubit = livekitCubit,
+       _ownsPlayback = serverId == null,
        super(const SoundboardState()) {
     _watcher = ServerTopicWatcher(
       serverCubit: serverCubit,
@@ -280,7 +286,7 @@ class SoundboardCubit extends Cubit<SoundboardState>
   Future<void> close() async {
     _clearHeard();
     await _watcher.dispose();
-    await SoundboardPlayer.instance.stopAll();
+    if (_ownsPlayback) await SoundboardPlayer.instance.stopAll();
     return super.close();
   }
 }

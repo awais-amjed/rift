@@ -27,7 +27,11 @@ import '../widgets/manage_panel.dart';
 /// come from, so a change made here or by another admin shows in both. The
 /// panel asks it to count holders while it is open.
 class RolesPanel extends StatefulWidget {
-  const RolesPanel({super.key});
+  /// The server whose ladder this is — Manage server opens for any server on
+  /// the rail, not only the one on screen.
+  final String serverId;
+
+  const RolesPanel({super.key, required this.serverId});
 
   @override
   State<RolesPanel> createState() => _RolesPanelState();
@@ -38,7 +42,9 @@ class _RolesPanelState extends State<RolesPanel> {
   late final ServerMembersCubit _members;
   String? _movingId;
 
-  int get _myPermissions => context.read<ServerCubit>().state.myPermissionBits;
+  int get _myPermissions =>
+      context.read<ServerCubit>().state.permissionsOn(widget.serverId)?.bits ??
+      0;
 
   /// Administrators only. There used to be a bit for this; a ladder
   /// anybody holding a bit could reshape was a ladder nobody had chosen.
@@ -83,7 +89,11 @@ class _RolesPanelState extends State<RolesPanel> {
       context: context,
       builder: (ctx) => BlocProvider.value(
         value: context.read<ServerCubit>(),
-        child: RoleEditorDialog(role: role, newPosition: _newPosition),
+        child: RoleEditorDialog(
+          role: role,
+          newPosition: _newPosition,
+          serverId: widget.serverId,
+        ),
       ),
     );
     if (changed == true) await _members.refreshRoles();
@@ -117,14 +127,24 @@ class _RolesPanelState extends State<RolesPanel> {
     // a swap that happens in one statement on the server, which does not exist
     // yet. Either way the re-read below shows what actually happened rather
     // than what was asked for.
-    final moved = await cubit.updateRole(role.id, position: neighbour.position);
+    final serverId = widget.serverId;
+    final moved = await cubit.updateRole(
+      role.id,
+      position: neighbour.position,
+      serverId: serverId,
+    );
     if (moved.success) {
       final swapped = await cubit.updateRole(
         neighbour.id,
         position: role.position,
+        serverId: serverId,
       );
       if (!swapped.success) {
-        await cubit.updateRole(role.id, position: role.position);
+        await cubit.updateRole(
+          role.id,
+          position: role.position,
+          serverId: serverId,
+        );
       }
     }
     await _members.refreshRoles();
@@ -159,7 +179,7 @@ class _RolesPanelState extends State<RolesPanel> {
   ) => (roster.roles, roster.roleCounts, roster.memberRoles[_myId]);
 
   String? get _myId =>
-      context.read<ServerCubit>().state.selectedServer?.user?.id;
+      context.read<ServerCubit>().state.meOn(widget.serverId)?.id;
 
   Widget _panel(Map<String, int>? counts) {
     final isLoading = counts == null;

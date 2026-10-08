@@ -174,7 +174,7 @@ class _ServerManageDialogState extends State<ServerManageDialog> {
     ServerManageTab.overview => OverviewPanel(server: server),
     ServerManageTab.voice => VoicePanel(server: server),
     ServerManageTab.limits => LimitsPanel(server: server),
-    ServerManageTab.roles => const RolesPanel(),
+    ServerManageTab.roles => RolesPanel(serverId: server.id),
     ServerManageTab.members => MembersPanel(server: server),
     ServerManageTab.reports => const ReportsPanel(),
     ServerManageTab.bots => BotsPanel(server: server),

@@ -24,7 +24,15 @@ class RoleEditorDialog extends StatefulWidget {
   /// The rank a new role is given — one below the author's own.
   final int newPosition;
 
-  const RoleEditorDialog({super.key, this.role, required this.newPosition});
+  /// The server the role is on, or null for the selected one.
+  final String? serverId;
+
+  const RoleEditorDialog({
+    super.key,
+    this.role,
+    required this.newPosition,
+    this.serverId,
+  });
 
   @override
   State<RoleEditorDialog> createState() => _RoleEditorDialogState();
@@ -55,13 +63,7 @@ class _RoleEditorDialogState extends State<RoleEditorDialog> {
   bool get _canSave => _name.isNotEmpty && _changed && !_isSaving;
 
   int get _viewerPermissions =>
-      context
-          .read<ServerCubit>()
-          .state
-          .selectedServer
-          ?.user
-          ?.permissions
-          .bits ??
+      context.read<ServerCubit>().state.permissionsOn(widget.serverId)?.bits ??
       0;
 
   @override
@@ -84,6 +86,7 @@ class _RoleEditorDialogState extends State<RoleEditorDialog> {
                 position: widget.newPosition,
                 permissions: _permissions,
                 color: _color,
+                serverId: widget.serverId,
               )
               .then((r) => (success: r.role != null, error: r.error))
         : await cubit.updateRole(
@@ -92,6 +95,7 @@ class _RoleEditorDialogState extends State<RoleEditorDialog> {
             permissions: _permissions,
             color: _color,
             clearColor: _color == null,
+            serverId: widget.serverId,
           );
     if (!mounted) return;
 
@@ -120,6 +124,7 @@ class _RoleEditorDialogState extends State<RoleEditorDialog> {
 
     final result = await context.read<ServerCubit>().deleteRole(
       widget.role!.id,
+      serverId: widget.serverId,
     );
     if (!mounted) return;
     if (!result.success) {

@@ -33,11 +33,9 @@ class MemberManagePanel extends StatelessWidget {
   final void Function({bool? muted, bool? deafened, bool? banned, bool kick})
   onModerate;
 
-  /// Told when the roles dialog closes. It writes each toggle as it is
-  /// flipped, so by the time it is shut the list above it is out of date —
-  /// the chips on these rows, and the row itself, since `ADMINISTRATOR` is
-  /// folded into `is_server_admin` and that decides what this panel offers.
-  final VoidCallback? onRolesChanged;
+  /// The server this is about, or null for the selected one. Manage server
+  /// opens from the rail for any server, and a row there acts on *that* one.
+  final String? serverId;
 
   const MemberManagePanel({
     super.key,
@@ -46,7 +44,7 @@ class MemberManagePanel extends StatelessWidget {
     required this.canManagePermissions,
     required this.canModerate,
     required this.onModerate,
-    this.onRolesChanged,
+    this.serverId,
   });
 
   /// Bans ask first; lifting one doesn't.
@@ -83,12 +81,14 @@ class MemberManagePanel extends StatelessWidget {
       context: context,
       builder: (ctx) => BlocProvider.value(
         value: context.read<ServerCubit>(),
-        child: BotAccessDialog(bot: member),
+        child: BotAccessDialog(bot: member, serverId: serverId),
       ),
     );
   }
 
   Future<void> _openRoles(BuildContext context) async {
+    // The roster draws the change itself — the dialog writes, the doorbell
+    // and its own re-read land it — so there is nothing to tell anybody here.
     await showDialog<void>(
       context: context,
       builder: (ctx) => MultiBlocProvider(
@@ -96,10 +96,9 @@ class MemberManagePanel extends StatelessWidget {
           BlocProvider.value(value: context.read<ServerCubit>()),
           BlocProvider.value(value: context.read<ServerMembersCubit>()),
         ],
-        child: MemberRolesDialog(member: member),
+        child: MemberRolesDialog(member: member, serverId: serverId),
       ),
     );
-    onRolesChanged?.call();
   }
 
   @override
@@ -140,29 +139,38 @@ class MemberManagePanel extends StatelessWidget {
           if (OwnershipActions.canTransferTo(
             context.read<ServerCubit>(),
             member,
+            serverId: serverId,
           ))
             _PanelRow(
               icon: Icons.workspace_premium_outlined,
               label: 'Transfer ownership',
               onTap: isBusy
                   ? null
-                  : () => OwnershipActions.transfer(context, member),
+                  : () => OwnershipActions.transfer(
+                      context,
+                      member,
+                      serverId: serverId,
+                    ),
             ),
           MemberModerationRow(
             member: member,
             isBusy: isBusy,
             canModerate: canModerate,
             canKick:
-                context.read<ServerCubit>().state.myPermissions?.can(
-                  ServerPermission.kickMembers,
-                ) ??
+                context
+                    .read<ServerCubit>()
+                    .state
+                    .permissionsOn(serverId)
+                    ?.can(ServerPermission.kickMembers) ??
                 false,
             // `BAN_MEMBERS`, which admins hold by implication and a server
             // may also give a moderator role.
             canBan:
-                context.read<ServerCubit>().state.myPermissions?.can(
-                  ServerPermission.banMembers,
-                ) ??
+                context
+                    .read<ServerCubit>()
+                    .state
+                    .permissionsOn(serverId)
+                    ?.can(ServerPermission.banMembers) ??
                 false,
             dividerAbove: canManagePermissions,
             onModerate: onModerate,

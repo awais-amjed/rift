@@ -29,7 +29,10 @@ import 'widgets/bot_access_list.dart';
 class BotAccessDialog extends StatefulWidget {
   final ServerMember bot;
 
-  const BotAccessDialog({super.key, required this.bot});
+  /// The server the bot is on, or null for the selected one.
+  final String? serverId;
+
+  const BotAccessDialog({super.key, required this.bot, this.serverId});
 
   @override
   State<BotAccessDialog> createState() => _BotAccessDialogState();
@@ -43,13 +46,17 @@ class _BotAccessDialogState extends State<BotAccessDialog> {
   bool _isBusy = false;
   String? _error;
 
-  bool get _mayManage => context.read<ServerCubit>().state.myPermissionBits.has(
-    ServerPermission.manageBots,
-  );
+  bool get _mayManage =>
+      context
+          .read<ServerCubit>()
+          .state
+          .permissionsOn(widget.serverId)
+          ?.can(ServerPermission.manageBots) ??
+      false;
 
   List<Channel> _channelsIn(Set<String> ids) {
     final all =
-        context.read<ServerCubit>().state.selectedServer?.channels ??
+        context.read<ServerCubit>().state.serverOn(widget.serverId)?.channels ??
         const <Channel>[];
     return [
       for (final channel in all)
@@ -65,8 +72,14 @@ class _BotAccessDialogState extends State<BotAccessDialog> {
 
   Future<void> _load() async {
     final cubit = context.read<ServerCubit>();
-    final access = await cubit.botChannels(widget.bot.id);
-    final heard = await cubit.voiceChannelsHeardBy(widget.bot.id);
+    final access = await cubit.botChannels(
+      widget.bot.id,
+      serverId: widget.serverId,
+    );
+    final heard = await cubit.voiceChannelsHeardBy(
+      widget.bot.id,
+      serverId: widget.serverId,
+    );
     if (!mounted) return;
     setState(() {
       _channelIds = access.channelIds;
@@ -87,6 +100,7 @@ class _BotAccessDialogState extends State<BotAccessDialog> {
     final result = await context.read<ServerCubit>().setBotServerKey(
       botId: widget.bot.id,
       granted: next,
+      serverId: widget.serverId,
     );
     if (!mounted) return;
     setState(() {
