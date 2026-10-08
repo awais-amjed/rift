@@ -140,8 +140,66 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
 
   @override
   Widget build(BuildContext context) {
+    return BlocBuilder<DmCubit, DmState>(
+      // Only what decides the frame: who is open, whether it is ready, what
+      // holds the composer's slot. The history and who is typing watch their
+      // own parts below, so an arrival, an upload's progress or the other
+      // person typing rebuilds what shows it and not the header and the
+      // composer too.
+      buildWhen: (a, b) => _frameOf(a) != _frameOf(b),
+      builder: _frame,
+    );
+  }
+
+  /// What [_frame] draws from, as one value that compares by its parts.
+  Object? _frameOf(DmState state) => (
+    state.openPeerId,
+    state.openPeerName,
+    state.chatStatus,
+    state.showingSaved,
+    state.openLinkState,
+    state.openPeerPolicy,
+    state.openPeerId != null && state.blockedIds.contains(state.openPeerId),
+    _peerKey(state),
+    _avatarFallback(state),
+  );
+
+  /// What the history draws from — see [_frameOf].
+  static Object? _listOf(DmState state) => (
+    state.messages,
+    state.chatStatus,
+    state.showingSaved,
+    state.openPeerId,
+    state.openPeerName,
+    state.hasNewerHistory,
+    state.calls,
+    state.error,
+  );
+
+  /// The picture the conversation list has for the open person, for while
+  /// the roster has not loaded them.
+  static String? _avatarFallback(DmState state) => state.conversations
+      .where((c) => c.peerId == state.openPeerId)
+      .firstOrNull
+      ?.peerAvatarPath;
+
+  Widget _frame(BuildContext context, DmState state) {
+    // What the call button and the composer read from the server and the
+    // roster (`_canCall`, `_canAttach`, the limits): asked with `read`, so
+    // selected here for a change to them to redraw the frame.
+    context.select<ServerCubit, Object?>((c) {
+      final server = c.state.selectedServer;
+      return (
+        server?.livekitUrl,
+        server?.user?.permissions.bits,
+        server?.limits,
+        server?.storageUsed,
+      );
+    });
+    context.select<ServerMembersCubit, bool?>(
+      (c) => c.state.byId[state.openPeerId]?.isBot,
+    );
     final themeState = context.theme;
-    final state = context.watch<DmCubit>().state;
     final serverId = context.select<ServerCubit, String?>(
       (c) => c.state.selectedServer?.id,
     );
@@ -237,10 +295,7 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
               userId: state.openPeerId!,
               name: state.openPeerName ?? '',
               size: size,
-              fallbackPath: state.conversations
-                  .where((c) => c.peerId == state.openPeerId)
-                  .firstOrNull
-                  ?.peerAvatarPath,
+              fallbackPath: _avatarFallback(state),
             ),
       onOpenProfile: state.openPeerId == null
           ? null
@@ -284,15 +339,20 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
             (state.chatStatus == DmChatStatus.loading ||
                 state.chatStatus == DmChatStatus.error));
     return [
-      Expanded(child: _buildBody(context, state, themeState)),
+      Expanded(
+        child: BlocBuilder<DmCubit, DmState>(
+          buildWhen: (a, b) => _listOf(a) != _listOf(b),
+          builder: (context, state) => _buildBody(context, state, themeState),
+        ),
+      ),
       if (!composing) const MiniCallBar(),
       if (state.chatStatus == DmChatStatus.error && state.showingSaved)
         SavedCopyNotice(onRetry: context.read<DmCubit>().retryOpen),
       if (composing) ...[
-        TypingIndicator(
-          names: state.typingPeerName != null
-              ? [state.typingPeerName!]
-              : const [],
+        BlocSelector<DmCubit, DmState, String?>(
+          selector: (state) => state.typingPeerName,
+          builder: (context, typing) =>
+              TypingIndicator(names: typing != null ? [typing] : const []),
         ),
         const MiniCallBar(),
         DmComposerSlot(

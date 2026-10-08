@@ -80,8 +80,42 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
 
   @override
   Widget build(BuildContext context) {
+    return BlocBuilder<CentralDmCubit, CentralDmState>(
+      // Only what decides the frame: who is open, whether it is ready, what
+      // holds the composer's slot. The history watches its own part below,
+      // so an arrival or an upload's progress rebuilds the list and not the
+      // header and the composer too.
+      buildWhen: (a, b) => _frameOf(a) != _frameOf(b),
+      builder: _frame,
+    );
+  }
+
+  /// What [_frame] draws from, as one value that compares by its parts.
+  Object? _frameOf(CentralDmState state) => (
+    state.openPeerId,
+    state.openPeerHandle,
+    state.chatStatus,
+    state.showingSaved,
+    state.remaining != null && state.remaining! <= 0,
+    state.openPeerId == null ? null : state.stateFor(state.openPeerId!),
+    state.openPeerId == null ? null : _peer(state).chatPublicKey,
+  );
+
+  /// What the history draws from — see [_frameOf].
+  static Object? _listOf(CentralDmState state) => (
+    state.messages,
+    state.chatStatus,
+    state.showingSaved,
+    state.openPeerId,
+    state.openPeerHandle,
+    state.myHandle,
+    state.hasNewerHistory,
+    state.canSendToOpen,
+    state.error,
+  );
+
+  Widget _frame(BuildContext context, CentralDmState state) {
     final themeState = context.theme;
-    final state = context.watch<CentralDmCubit>().state;
     final quotaEmpty = state.remaining != null && state.remaining! <= 0;
     final peerId = state.openPeerId;
     final handle = state.openPeerHandle ?? '';
@@ -110,11 +144,11 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
               onOpenProfile: state.openPeerId == null
                   ? null
                   : () => unawaited(
-                      showCentralProfile(context, friend: _peer(state)),
+                      showCentralProfile(context, friend: _peer(_current)),
                     ),
               onVerify: state.openPeerId == null
                   ? null
-                  : () => unawaited(_verify(context, state)),
+                  : () => unawaited(_verify(context)),
               keyChanged: context.select<AppCubit, bool>(
                 (c) =>
                     c.state.seenKeys[_person(state)]?.unacknowledgedChange ??
@@ -125,7 +159,12 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
                   : (anchor) => _showPins(context, anchor),
               onClose: () => context.read<CentralDmCubit>().closeConversation(),
             ),
-            Expanded(child: _buildBody(state, themeState)),
+            Expanded(
+              child: BlocBuilder<CentralDmCubit, CentralDmState>(
+                buildWhen: (a, b) => _listOf(a) != _listOf(b),
+                builder: (context, state) => _buildBody(state, themeState),
+              ),
+            ),
             // A phone's way back into a call, above the composer's slot.
             const MiniCallBar(),
             // There is a composer here for exactly one of the five states, and
@@ -141,7 +180,7 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
                 FriendshipState.friends => KeyCheckGate(
                   person: _person(state),
                   name: '@$handle',
-                  onCheck: () => unawaited(_verify(context, state)),
+                  onCheck: () => unawaited(_verify(context)),
                   child: ChatComposer(
                     hintText: quotaEmpty
                         ? 'Daily limit reached — continue on a shared server'
@@ -209,10 +248,14 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
     return refused;
   }
 
+  /// The state as it is now, for a callback: what a builder last drew from
+  /// may be older than the tap.
+  CentralDmState get _current => context.read<CentralDmCubit>().state;
+
   /// The peer's key as the conversation carries it, against my own central
   /// account — the pair a central DM is sealed between.
-  Future<void> _verify(BuildContext context, CentralDmState state) async {
-    final peer = _peer(state);
+  Future<void> _verify(BuildContext context) async {
+    final peer = _peer(_current);
     await showSafetyCodeFor(
       context,
       personName: '@${peer.handle}',
@@ -318,7 +361,7 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
       // handle panel already says all of it, and says it editably.
       onOpenProfile: (userId, _) {
         if (userId != state.openPeerId) return;
-        unawaited(showCentralProfile(context, friend: _peer(state)));
+        unawaited(showCentralProfile(context, friend: _peer(_current)));
       },
       onReply: live ? startReply : null,
       // No source server: a central DM's blobs live in central's own
@@ -353,7 +396,7 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
         at: context.select<AppCubit, List<DateTime>>(
           (c) => c.state.seenKeys[_person(state)]?.changes ?? const [],
         ),
-        onCheck: () => unawaited(_verify(context, state)),
+        onCheck: () => unawaited(_verify(context)),
       ),
     );
   }
