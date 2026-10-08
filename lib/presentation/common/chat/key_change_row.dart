@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../../../data/constants.dart';
+import '../../../logic/services/clock_time.dart';
 import '../../theme/app_text.dart';
 import '../../theme/custom_colors.dart';
 import '../../theme/theme_context.dart';
@@ -60,7 +60,7 @@ class KeyChangeRow extends StatelessWidget {
               ),
             ),
           Text(
-            DateFormat('HH:mm').format(at.toLocal()),
+            formatClock(at.toLocal()),
             style: AppText.meta.copyWith(color: theme.textTertiary),
           ),
         ],

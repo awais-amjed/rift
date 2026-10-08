@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../../../data/classes/dm_call.dart';
 import '../../../data/constants.dart';
 import '../../../logic/services/call_log_label.dart';
+import '../../../logic/services/clock_time.dart';
 import '../../theme/app_text.dart';
 import '../../theme/custom_colors.dart';
 import '../../theme/theme_context.dart';
@@ -50,7 +50,7 @@ class CallLogRow extends StatelessWidget {
             ),
           ),
           Text(
-            DateFormat('HH:mm').format(call.startedAt.toLocal()),
+            formatClock(call.startedAt.toLocal()),
             style: AppText.meta.copyWith(color: theme.textTertiary),
           ),
         ],

@@ -1,5 +1,7 @@
 import 'package:intl/intl.dart';
 
+import 'clock_time.dart';
+
 /// When a time-out ends, said the way a person would check it: the time alone
 /// today, the weekday within a week, the date after that.
 ///
@@ -7,7 +9,7 @@ import 'package:intl/intl.dart';
 String timeOutEndLabel(DateTime until, {DateTime? now}) {
   final local = until.toLocal();
   final today = now ?? DateTime.now();
-  final clock = DateFormat('HH:mm').format(local);
+  final clock = formatClock(local);
   final startOfToday = DateTime(today.year, today.month, today.day);
   final days = DateTime(
     local.year,

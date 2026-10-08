@@ -189,7 +189,8 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   weight, spacing and family but never colour — finish one with
   `.copyWith(color: theme.textSecondary)`. Geist for UI; `figure`/`kbd`/`code`/`mnemonic` are
   mono, reserved for figures that line up or tick in place, keyboard chips and strings copied
-  exactly. Timestamps (`meta`) are sans with tabular figures.
+  exactly. Timestamps (`meta`) are sans with tabular figures, and a time of day is
+  twelve-hour with AM or PM, always through `formatClock` (`logic/services/clock_time.dart`).
 - **Radius:** three steps in `K` — `radiusRow` (8, anything pressed), `radiusCard` (12,
   cards, menus, panels and dialogs), `radiusPill`. No literal radii in widgets.
 - **Selection:** one language everywhere — a flat `channelActiveBg` tint and a 1px

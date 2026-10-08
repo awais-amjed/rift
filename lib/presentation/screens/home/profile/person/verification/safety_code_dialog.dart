@@ -5,6 +5,7 @@ import 'package:rift_crypto/rift_crypto.dart';
 
 import '../../../../../../data/constants.dart';
 import '../../../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../../../logic/services/clock_time.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/app_modal.dart';
 import '../../../../../theme/app_text.dart';
@@ -79,7 +80,8 @@ class SafetyCodeDialog extends StatelessWidget {
               color: CustomColors.warning,
               text:
                   '$personName\'s key changed on '
-                  '${DateFormat('MMM d, HH:mm').format(changedAt.toLocal())}. '
+                  '${DateFormat('MMM d').format(changedAt.toLocal())}, '
+                  '${formatClock(changedAt.toLocal())}. '
                   'That usually means a new install or a restored backup. '
                   'Compare codes before sharing anything private.',
             ),

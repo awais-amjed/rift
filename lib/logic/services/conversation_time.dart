@@ -1,5 +1,7 @@
 import 'package:intl/intl.dart';
 
+import 'clock_time.dart';
+
 /// When a conversation last moved, as its row in a list says it.
 ///
 /// Today is a clock time, because that is how you remember today. Earlier this
@@ -11,7 +13,7 @@ String formatConversationTime(DateTime sentAt, DateTime now) {
   final today = DateTime(now.year, now.month, now.day);
   final day = DateTime(local.year, local.month, local.day);
   final days = today.difference(day).inDays;
-  if (days <= 0) return DateFormat('HH:mm').format(local);
+  if (days <= 0) return formatClock(local);
   if (days < 7) return DateFormat('EEE').format(local);
   if (local.year == now.year) return DateFormat('MMM d').format(local);
   return DateFormat('MMM d, y').format(local);
@@ -28,7 +30,7 @@ String formatMessageMoment(DateTime sentAt, DateTime now) {
   final today = DateTime(now.year, now.month, now.day);
   final day = DateTime(local.year, local.month, local.day);
   final days = today.difference(day).inDays;
-  final clock = DateFormat('HH:mm').format(local);
+  final clock = formatClock(local);
   if (days <= 0) return 'Today at $clock';
   if (days == 1) return 'Yesterday at $clock';
   if (local.year == now.year) return DateFormat('MMM d').format(local);

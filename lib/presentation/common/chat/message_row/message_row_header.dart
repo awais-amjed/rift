@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../data/classes/chat_message.dart';
 import '../../../../data/constants.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../logic/services/clock_time.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/custom_colors.dart';
 import '../../../theme/theme_context.dart';
@@ -33,12 +34,6 @@ class MessageRowHeader extends StatelessWidget {
     this.onOpenProfile,
   });
 
-  static String _timeLabel(DateTime t) {
-    final local = t.toLocal();
-    return '${local.hour.toString().padLeft(2, '0')}:'
-        '${local.minute.toString().padLeft(2, '0')}';
-  }
-
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
@@ -63,9 +58,9 @@ class MessageRowHeader extends StatelessWidget {
             _sendingLabel(context)
           else
             Text(
-              _timeLabel(message.sentAt),
-              // Mono so timestamps form a column down the message list
-              // instead of jittering with the digits.
+              formatClock(message.sentAt.toLocal()),
+              // Tabular figures, so the digits don't jitter from one
+              // header to the next.
               style: AppText.meta.copyWith(color: themeState.textTertiary),
             ),
           if (message.isPinned) ...[
