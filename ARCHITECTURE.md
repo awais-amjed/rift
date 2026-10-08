@@ -603,8 +603,8 @@ every core busy; a still one at 0.18 Mbps.
 Intel's and AMD's GPUs on Linux are driven through **FFmpeg's VAAPI encoder**,
 on the same pre-encoded path. LiveKit has a VAAPI encoder too, but on an AMD
 RX 9070 XT (Mesa 26.2, Oct 9 2026) it stalled the viewer for 2 to 6 s every
-8 to 25 s and made 34 of 60 frames a second, where FFmpeg's on the same GPU
-was clean. FFmpeg cannot be linked beside libwebrtc, which carries Chromium's
+8 to 25 s and made 34 of 60 frames a second; Rift's FFmpeg on the same GPU
+was decoded at 56 of 60 and 115 of 120, one dip in two minutes. FFmpeg cannot be linked beside libwebrtc, which carries Chromium's
 FFmpeg under the same symbol names, so it is built into a library of its own
 (`native/ffenc`): FFmpeg 9.0.2 with nothing but `h264_vaapi`, every FFmpeg
 symbol hidden, opened by the Rust crate at run time (`encoder/ffmpeg.rs`), and
