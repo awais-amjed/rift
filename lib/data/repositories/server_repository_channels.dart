@@ -223,10 +223,11 @@ mixin _ChannelApiMixin {
           .from('channels')
           .update(patch)
           .eq('id', channelId)
-          .select(
-            'id, name, channel_type, retention_days, history_cap, is_private, '
-            'is_encrypted, livekit_node_id',
-          );
+          // Only the id, to tell "updated" from "no row": the caller re-reads
+          // the server for the rest. A column a server added later (015's
+          // `is_encrypted`) fails the whole update on one that has not run
+          // it, so nothing about the change landed.
+          .select('id');
       if ((rows as List).isEmpty) {
         throw const PostgrestException(
           message: 'Channel not found, or not yours to change',
