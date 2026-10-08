@@ -32,7 +32,7 @@ pub(crate) fn opens(codec: GpuCodec) -> bool {
     if super::test_hooks::NO_GPU.load(Ordering::Relaxed) {
         return false;
     }
-    if codec != GpuCodec::H264 || !nv::is_cuda_library_available() {
+    if codec != GpuCodec::H264 || !cuda_starts() {
         return false;
     }
     match nv::query_encoder_caps(nv::EncoderCodec::H264, DEVICE) {
@@ -49,6 +49,39 @@ pub(crate) fn opens(codec: GpuCodec) -> bool {
             log::info!("encoder: no NVENC here: {e}");
             false
         }
+    }
+}
+
+/// Whether CUDA starts here and sees a GPU. Asked before the crate is: when
+/// `cuInit` fails, the crate names the error by loading CUDA again from inside
+/// its own first load, and waits on itself for ever (shiguredo_nvcodec
+/// 2026.2.0). That happens wherever NVIDIA's driver is installed but its GPU
+/// is not there: switched off on a laptop, or hidden with
+/// `CUDA_VISIBLE_DEVICES` (Oct 9 2026). Once `cuInit` has worked, it works
+/// again inside the crate.
+fn cuda_starts() -> bool {
+    // SAFETY: NVIDIA's driver library, which runs nothing on load that an
+    // NVIDIA-using process does not run anyway.
+    let Ok(cuda) = (unsafe { libloading::Library::new("libcuda.so.1") }) else {
+        return false;
+    };
+    // SAFETY: both functions have these types in every CUDA driver API
+    // version, and the count is written before it is read.
+    unsafe {
+        let Ok(init) = cuda.get::<unsafe extern "C" fn(u32) -> u32>(b"cuInit\0") else {
+            return false;
+        };
+        let Ok(count) = cuda.get::<unsafe extern "C" fn(*mut i32) -> u32>(b"cuDeviceGetCount\0")
+        else {
+            return false;
+        };
+        let status = init(0);
+        if status != 0 {
+            log::info!("encoder: no NVENC here: CUDA did not start ({status})");
+            return false;
+        }
+        let mut devices = 0;
+        count(&mut devices) == 0 && devices > 0
     }
 }
 
