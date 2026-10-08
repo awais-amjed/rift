@@ -5,6 +5,7 @@ import '../../../../../../data/classes/server.dart';
 import '../../../../../../data/classes/server_member.dart';
 import '../../../../../../data/constants.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/hint_card.dart';
 import '../../../../../common/loading_block.dart';
@@ -24,56 +25,34 @@ import '../widgets/manage_panel.dart';
 /// ([showBotDirectory]) belongs here rather than beside "Add server" on the
 /// rail: a bot is not something you join, and adding one is minting an invite
 /// on this server — which is the thing this page is already about.
-class BotsPanel extends StatefulWidget {
+///
+/// The list is [ServerMembersCubit]'s bots, the dialog's copy for [server]:
+/// a bot joining is a `users` row like anybody's, so it turns up here from
+/// the server's doorbell — while the directory is still open, or added from
+/// another device — rather than when the page is next reopened.
+class BotsPanel extends StatelessWidget {
   final Server server;
 
   const BotsPanel({super.key, required this.server});
 
-  @override
-  State<BotsPanel> createState() => _BotsPanelState();
-}
-
-class _BotsPanelState extends State<BotsPanel> {
-  List<ServerMember> _bots = const [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final bots = await context.read<ServerCubit>().listBots(
-      serverId: widget.server.id,
-    );
-    if (!mounted) return;
-    setState(() {
-      _bots = bots;
-      _isLoading = false;
-    });
-  }
-
-  /// Find one in the central directory. Reloads on the way back, because
-  /// adding a bot is the program joining, which may have happened while the
-  /// browser was still open.
-  Future<void> _browse() async {
-    await showBotDirectory(context);
-    if (mounted) await _load();
-  }
-
-  void _openAccess(ServerMember bot) {
+  void _openAccess(BuildContext context, ServerMember bot) {
     showDialog<void>(
       context: context,
       builder: (_) => BlocProvider.value(
         value: context.read<ServerCubit>(),
-        child: BotAccessDialog(bot: bot),
+        child: BotAccessDialog(bot: bot, serverId: server.id),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final loaded = context.select<ServerMembersCubit, bool>(
+      (c) => c.state.loaded,
+    );
+    final bots = context.select<ServerMembersCubit, List<ServerMember>>(
+      (c) => c.state.bots,
+    );
     return ManagePanel(
       title: 'Bots',
       subtitle: 'What each one can read and hear',
@@ -81,16 +60,16 @@ class _BotsPanelState extends State<BotsPanel> {
         AppButton(
           label: 'Browse bots',
           icon: const Icon(Icons.travel_explore_rounded, size: K.iconRow),
-          onPressed: _browse,
+          onPressed: () => showBotDirectory(context),
         ),
       ],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (_isLoading)
+          if (!loaded)
             const LoadingBlock(padding: EdgeInsets.all(32))
-          else if (_bots.isEmpty)
+          else if (bots.isEmpty)
             const HintCard(
               icon: Icons.smart_toy_outlined,
               text:
@@ -107,8 +86,8 @@ class _BotsPanelState extends State<BotsPanel> {
                   'hearing a call can be.',
             ),
             const SizedBox(height: 12),
-            for (final bot in _bots)
-              BotRow(bot: bot, onTap: () => _openAccess(bot)),
+            for (final bot in bots)
+              BotRow(bot: bot, onTap: () => _openAccess(context, bot)),
           ],
         ],
       ),
