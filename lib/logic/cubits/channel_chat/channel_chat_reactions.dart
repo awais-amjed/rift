@@ -7,7 +7,7 @@ part of 'channel_chat_cubit.dart';
 /// runs on open or on scroll. These are only for a change *after* the page
 /// loaded: your own tap, or a doorbell saying someone else's.
 mixin _ChannelChatReactionsMixin on Cubit<ChannelChatState> {
-  ServerCubit get _serverCubit;
+  ReactionsApi get _reactions;
 
   /// Toggle the local user's [emoji] reaction on a message. Applies an
   /// optimistic flip, then reconciles with the server's authoritative counts.
@@ -26,7 +26,7 @@ mixin _ChannelChatReactionsMixin on Cubit<ChannelChatState> {
       ),
     );
 
-    final response = await _serverCubit.toggleReaction(
+    final response = await _reactions.toggleReaction(
       scope: 'channel',
       messageId: idNum,
       emoji: emoji,
@@ -45,7 +45,7 @@ mixin _ChannelChatReactionsMixin on Cubit<ChannelChatState> {
     final idNum = int.tryParse(messageId);
     if (channelId == null || idNum == null) return;
 
-    final response = await _serverCubit.listReactions(
+    final response = await _reactions.listReactions(
       scope: 'channel',
       messageIds: [idNum],
     );
@@ -72,7 +72,7 @@ mixin _ChannelChatReactionsMixin on Cubit<ChannelChatState> {
     final ids = ChatMessageOps.ackedIds(state.messages);
     if (ids.isEmpty) return;
 
-    final response = await _serverCubit.listReactions(
+    final response = await _reactions.listReactions(
       scope: 'channel',
       messageIds: ids,
     );

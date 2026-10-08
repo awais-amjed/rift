@@ -11,6 +11,7 @@ import '../../../data/apis/dms_api.dart';
 import '../../../data/apis/members_api.dart';
 import '../../../data/apis/moderation_api.dart';
 import '../../../data/apis/pins_polls_api.dart';
+import '../../../data/apis/reactions_api.dart';
 import '../../../data/classes/api_response.dart';
 import '../../../data/classes/attachment.dart';
 import '../../../data/classes/chat_message.dart';
@@ -94,6 +95,8 @@ class DmCubit extends Cubit<DmState>
   final DmsApi _dms;
   @override
   final DmCallsApi _calls;
+  @override
+  final ReactionsApi _reactions;
   final VaultCubit _vaultCubit;
   @override
   final CryptoRepository _crypto;
@@ -175,6 +178,7 @@ class DmCubit extends Cubit<DmState>
        _pinsPolls = PinsPollsApi(session: session),
        _dms = DmsApi(session: session),
        _calls = DmCallsApi(session: session),
+       _reactions = ReactionsApi(session: session),
        _vaultCubit = vaultCubit,
        _crypto = crypto ?? CryptoRepository(),
        super(const DmState()) {

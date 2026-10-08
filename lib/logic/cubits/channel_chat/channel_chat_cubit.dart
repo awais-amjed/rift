@@ -8,6 +8,7 @@ import 'package:rift_crypto/rift_crypto.dart';
 import '../../../data/apis/channel_keys_api.dart';
 import '../../../data/apis/members_api.dart';
 import '../../../data/apis/pins_polls_api.dart';
+import '../../../data/apis/reactions_api.dart';
 import '../../../data/apis/voice_bots_api.dart';
 import '../../../data/classes/api_response.dart';
 import '../../../data/classes/attachment.dart';
@@ -123,6 +124,9 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
 
   @override
   final ChannelKeysApi _channelKeys;
+
+  @override
+  final ReactionsApi _reactions;
 
   /// What `@names` in the open channel resolve to, and which have been asked.
   ///
@@ -256,6 +260,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
        _members = MembersApi(session: session),
        _pinsPolls = PinsPollsApi(session: session),
        _channelKeys = ChannelKeysApi(session: session),
+       _reactions = ReactionsApi(session: session),
        _vaultCubit = vaultCubit,
        _crypto = crypto ?? CryptoRepository(),
        _messageCache = messageCache ?? MessageCache.instance,

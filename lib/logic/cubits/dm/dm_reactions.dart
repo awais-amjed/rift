@@ -6,7 +6,7 @@ part of 'dm_cubit.dart';
 /// A message page arrives with its reactions already on it, so nothing here
 /// runs on open or on scroll — only when a reaction changes afterwards.
 mixin _DmReactionsMixin on Cubit<DmState> {
-  ServerCubit get _serverCubit;
+  ReactionsApi get _reactions;
 
   /// Optimistic flip first so the tap feels instant, then reconcile with the
   /// server's authoritative counts.
@@ -25,7 +25,7 @@ mixin _DmReactionsMixin on Cubit<DmState> {
       ),
     );
 
-    final response = await _serverCubit.toggleReaction(
+    final response = await _reactions.toggleReaction(
       scope: 'dm',
       messageId: idNum,
       emoji: emoji,
@@ -43,7 +43,7 @@ mixin _DmReactionsMixin on Cubit<DmState> {
     final idNum = int.tryParse(messageId);
     if (peerId == null || idNum == null) return;
 
-    final response = await _serverCubit.listReactions(
+    final response = await _reactions.listReactions(
       scope: 'dm',
       messageIds: [idNum],
     );
@@ -66,7 +66,7 @@ mixin _DmReactionsMixin on Cubit<DmState> {
     final ids = ChatMessageOps.ackedIds(state.messages);
     if (ids.isEmpty) return;
 
-    final response = await _serverCubit.listReactions(
+    final response = await _reactions.listReactions(
       scope: 'dm',
       messageIds: ids,
     );

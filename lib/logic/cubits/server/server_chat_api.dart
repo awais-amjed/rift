@@ -151,37 +151,4 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
       bearerToken: token,
     ),
   );
-
-  /// Toggle the caller's [emoji] reaction on a message ([scope] is `channel`
-  /// or `dm`, which picks the table; who may react is a policy).
-  Future<APIResponse> toggleReaction({
-    required String scope,
-    required int messageId,
-    required String emoji,
-  }) => _callWithAutoRefresh(
-    (token) => _repository.toggleReaction(
-      state.selectedServer!.supabaseUrl,
-      anonKey: _anonKey,
-      userId: _userId,
-      scope: scope,
-      messageId: messageId,
-      emoji: emoji,
-      bearerToken: token,
-    ),
-  );
-
-  /// Aggregated reactions for a set of loaded messages.
-  Future<APIResponse> listReactions({
-    required String scope,
-    required List<int> messageIds,
-  }) => _callWithAutoRefresh(
-    (token) => _repository.listReactions(
-      state.selectedServer!.supabaseUrl,
-      anonKey: _anonKey,
-      userId: _userId,
-      scope: scope,
-      messageIds: messageIds,
-      bearerToken: token,
-    ),
-  );
 }
