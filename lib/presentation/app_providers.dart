@@ -100,12 +100,7 @@ class AppProviders extends StatelessWidget {
           create: (context) =>
               VoiceStatsCubit(livekitCubit: context.read<LiveKitCubit>()),
         ),
-        BlocProvider(
-          create: (context) => VoiceListenersCubit(
-            serverCubit: context.read<ServerCubit>(),
-            session: session,
-          ),
-        ),
+        BlocProvider(create: (_) => VoiceListenersCubit(session: session)),
         BlocProvider(
           create: (context) => ChannelPresenceCubit(
             serverCubit: context.read<ServerCubit>(),
@@ -251,7 +246,6 @@ class AppProviders extends StatelessWidget {
 
   SoundboardCubit _createSoundboardCubit(BuildContext context) {
     final soundboardCubit = SoundboardCubit(
-      serverCubit: context.read<ServerCubit>(),
       session: session,
       appCubit: appCubit,
       livekitCubit: context.read<LiveKitCubit>(),
@@ -265,10 +259,7 @@ class AppProviders extends StatelessWidget {
   ServerMembersCubit _createServerMembersCubit(BuildContext context) {
     final serverCubit = context.read<ServerCubit>();
     final tokenCubit = context.read<TokenCubit>();
-    final members = ServerMembersCubit(
-      serverCubit: serverCubit,
-      session: session,
-    );
+    final members = ServerMembersCubit(session: session);
     // A cached LiveKit token still grants what it was minted with, so being
     // muted has to throw it away — otherwise rejoining restores the old
     // permissions until it expires.
@@ -296,6 +287,7 @@ class AppProviders extends StatelessWidget {
   ServerEventsCubit _createServerEventsCubit(BuildContext context) {
     return ServerEventsCubit(
       serverCubit: context.read<ServerCubit>(),
+      session: session,
       // A deleted channel has to put you out of its call and close its chat.
       livekitCubit: context.read<LiveKitCubit>(),
       chatCubit: context.read<ChannelChatCubit>(),

@@ -67,7 +67,9 @@ widgets  →  cubits  →  repositories  →  network / storage / platform
   setter (`grep -rnE "final \w+Cubit\??\s+_?\w+;" lib/logic/cubits`). Leave
   those until the work in question touches them; don't add new ones. For the
   selection and a token, take `SessionRepository`, and for a server's calls the
-  feature's class in `data/apis/` built on it.
+  feature's class in `data/apis/` built on it. The session also holds each
+  server's one Realtime connection (`realtime`) and says when the list or the
+  selection moved (`changes`), which is all `ServerTopicWatcher` needs.
 - **Instead, push it down or up:**
   - *Down* — both cubits take the same repository, and the repository exposes a
     `Stream` of the shared data. Each cubit subscribes and keeps its own state.

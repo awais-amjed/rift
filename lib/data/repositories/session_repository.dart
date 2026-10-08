@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:rift_crypto/rift_crypto.dart';
 
 import '../../logic/helper_methods.dart';
+import '../../logic/services/server_realtime.dart';
 import '../../logic/services/siws_sign_in.dart';
 import '../classes/api_response.dart';
 import '../classes/server.dart';
@@ -102,7 +103,25 @@ class SessionRepository {
   void publish({required List<Server> servers, String? selectedServerId}) {
     _list = servers;
     _selectedId = selectedServerId;
+    if (!_changes.isClosed) _changes.add(null);
   }
+
+  // Not synchronous, unlike [logins]: `publish` runs before the cubit's new
+  // state is installed, and a listener that read the cubit from in there
+  // would see the old one. A microtask later, both agree.
+  final _changes = StreamController<void>.broadcast();
+
+  /// The list or the selection moved. Read what it now is from [servers]
+  /// and [selectedServerId]; this only says when.
+  Stream<void> get changes => _changes.stream;
+
+  /// Every server's one Realtime connection. Here because the session is
+  /// what holds the servers and their tokens, which the connection follows
+  /// as they rotate, and what every listener can reach without the cubit.
+  late final ServerRealtime realtime = ServerRealtime(
+    servers: _changes.stream.map((_) => _list),
+    current: () => _list,
+  );
 
   // ── Signing in ────────────────────────────────────────────
 
@@ -333,6 +352,8 @@ class SessionRepository {
   }
 
   Future<void> dispose() async {
+    await realtime.dispose();
+    await _changes.close();
     await _logins.close();
     await _details.close();
   }

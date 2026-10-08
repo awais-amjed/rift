@@ -18,7 +18,6 @@ import '../../services/soundboard_play.dart';
 import '../../services/soundboard_player.dart';
 import '../app/app_cubit.dart';
 import '../livekit/livekit_cubit.dart';
-import '../server/server_cubit.dart';
 
 part 'soundboard_library.dart';
 part 'soundboard_state.dart';
@@ -72,7 +71,6 @@ class SoundboardCubit extends Cubit<SoundboardState>
   /// server the person is not looking at. Whoever opens that page owns that
   /// one and closes it; it plays only previews.
   SoundboardCubit({
-    required ServerCubit serverCubit,
     required SessionRepository session,
     required AppCubit appCubit,
     LiveKitCubit? livekitCubit,
@@ -83,9 +81,8 @@ class SoundboardCubit extends Cubit<SoundboardState>
        _livekitCubit = livekitCubit,
        _ownsPlayback = serverId == null,
        super(const SoundboardState()) {
-    // The one thing still read off the cubit: hearing the selection move.
     _watcher = ServerTopicWatcher(
-      serverCubit: serverCubit,
+      session: session,
       fixedServerId: serverId,
       topicOf: (server) => ServerTopics.server(server.id),
       event: ServerEvent.soundboard,

@@ -13,7 +13,6 @@ import '../../../data/repositories/session_repository.dart';
 import '../../services/member_roster_pager.dart';
 import '../../services/server_topic_watcher.dart';
 import '../../services/server_topics.dart';
-import '../server/server_cubit.dart';
 
 part 'server_members_state.dart';
 
@@ -38,7 +37,7 @@ part 'server_members_state.dart';
 ///  * a `members` event re-resolves only what is on screen, rather than
 ///    re-reading the server.
 class ServerMembersCubit extends Cubit<ServerMembersState> {
-  final ServerCubit _serverCubit;
+  final SessionRepository _session;
   final MembersApi _members;
   final RolesApi _roles;
   late final ServerTopicWatcher _watcher;
@@ -86,16 +85,13 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
   /// The selected server's members — the app's own — or, given [serverId],
   /// that one server's, for Manage server opened on a server the person is
   /// not looking at. Whoever opens that page owns that one and closes it.
-  ServerMembersCubit({
-    required ServerCubit serverCubit,
-    required SessionRepository session,
-    String? serverId,
-  }) : _serverCubit = serverCubit,
-       _members = MembersApi(session: session),
-       _roles = RolesApi(session: session),
-       super(ServerMembersState()) {
+  ServerMembersCubit({required SessionRepository session, String? serverId})
+    : _session = session,
+      _members = MembersApi(session: session),
+      _roles = RolesApi(session: session),
+      super(ServerMembersState()) {
     _watcher = ServerTopicWatcher(
-      serverCubit: serverCubit,
+      session: session,
       fixedServerId: serverId,
       topicOf: (server) => ServerTopics.server(server.id),
       event: ServerEvent.members,
@@ -461,7 +457,7 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
   ) {
     final serverId = _watcher.serverId;
     if (serverId == null) return;
-    final myId = _serverCubit.state.serverById(serverId)?.user?.id;
+    final myId = _session.serverById(serverId)?.user?.id;
     if (myId == null) return;
 
     // No prior row means this is the first load for the server, not a change.

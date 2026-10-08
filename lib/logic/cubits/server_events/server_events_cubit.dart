@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../data/repositories/session_repository.dart';
 import '../../services/channel_eviction.dart';
 import '../../services/server_realtime.dart';
 import '../../services/server_topic_watcher.dart';
@@ -23,6 +24,7 @@ import '../server/server_cubit.dart';
 /// other servers refresh on select.
 class ServerEventsCubit extends Cubit<int> {
   final ServerCubit _serverCubit;
+  final SessionRepository _session;
   final LiveKitCubit _livekitCubit;
   final ChannelChatCubit _chatCubit;
   StreamSubscription<ServerState>? _serverSub;
@@ -51,23 +53,25 @@ class ServerEventsCubit extends Cubit<int> {
 
   ServerEventsCubit({
     required ServerCubit serverCubit,
+    required SessionRepository session,
     required LiveKitCubit livekitCubit,
     required ChannelChatCubit chatCubit,
   }) : _serverCubit = serverCubit,
+       _session = session,
        _livekitCubit = livekitCubit,
        _chatCubit = chatCubit,
        super(0) {
     _serverSub = serverCubit.stream.listen((_) => _sync());
     _sync();
     _channelsWatcher = ServerTopicWatcher(
-      serverCubit: serverCubit,
+      session: session,
       topicOf: (server) => ServerTopics.server(server.id),
       event: ServerEvent.channels,
       onChanged: () => unawaited(_onChannelsChanged()),
       onServerChanged: (_) {},
     );
     _membershipWatcher = ServerTopicWatcher(
-      serverCubit: serverCubit,
+      session: session,
       topicOf: (server) => ServerTopics.user(server.user!.id),
       event: ServerEvent.me,
       onChanged: () => unawaited(_onMembershipChanged()),
@@ -127,7 +131,7 @@ class ServerEventsCubit extends Cubit<int> {
 
     _teardown();
     _serverId = server.id;
-    _topic = _serverCubit.realtime.join(server, ServerTopics.server(server.id))
+    _topic = _session.realtime.join(server, ServerTopics.server(server.id))
       ?..onBroadcast(ServerEvent.changed, (_) => _onChanged());
   }
 

@@ -63,12 +63,10 @@ class ServerCubit extends HydratedCubit<ServerState>
     _onServersChanged = callback;
   }
 
-  /// Every server's one Realtime connection. Here because this cubit is what
-  /// holds the servers and their tokens, and what every listener already has.
-  late final ServerRealtime realtime = ServerRealtime(
-    servers: stream.map((s) => s.servers),
-    current: () => state.servers,
-  );
+  /// Every server's one Realtime connection, which is the session's
+  /// ([SessionRepository.realtime]). Still reachable here for the listeners
+  /// that have not moved off this cubit yet.
+  ServerRealtime get realtime => _session.realtime;
 
   /// Being signed in: every call's token, and getting a new one. This cubit
   /// publishes the server list into it and writes back what a re-login
@@ -78,8 +76,12 @@ class ServerCubit extends HydratedCubit<ServerState>
   late final StreamSubscription<SessionLogin> _logins;
   late final StreamSubscription<SessionDetails> _rereads;
 
+  /// Whether the session was made here (a test), so closing ends it too.
+  final bool _ownsSession;
+
   ServerCubit({SessionRepository? session})
     : _session = session ?? SessionRepository(),
+      _ownsSession = session == null,
       super(const ServerState()) {
     _publishSession(state);
     _logins = _session.logins.listen(_onLogin);
@@ -169,7 +171,7 @@ class ServerCubit extends HydratedCubit<ServerState>
     PushService.instance.token.removeListener(_onPushToken);
     await _logins.cancel();
     await _rereads.cancel();
-    await realtime.dispose();
+    if (_ownsSession) await _session.dispose();
     return super.close();
   }
 

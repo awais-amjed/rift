@@ -7,7 +7,6 @@ import '../../../data/classes/server.dart';
 import '../../../data/repositories/session_repository.dart';
 import '../../services/server_topic_watcher.dart';
 import '../../services/server_topics.dart';
-import '../server/server_cubit.dart';
 
 /// One bot summoned into a voice channel.
 typedef SummonedBot = ({String id, String name});
@@ -47,14 +46,11 @@ class VoiceListenersCubit extends Cubit<VoiceBotsState> {
   final VoiceBotsApi _api;
   late final ServerTopicWatcher _watcher;
 
-  VoiceListenersCubit({
-    required ServerCubit serverCubit,
-    required SessionRepository session,
-  }) : _api = VoiceBotsApi(session: session),
-       super(const VoiceBotsState()) {
-    // The one thing still read off the cubit: hearing the selection move.
+  VoiceListenersCubit({required SessionRepository session})
+    : _api = VoiceBotsApi(session: session),
+      super(const VoiceBotsState()) {
     _watcher = ServerTopicWatcher(
-      serverCubit: serverCubit,
+      session: session,
       topicOf: (server) => ServerTopics.server(server.id),
       event: ServerEvent.voiceBots,
       onChanged: () => unawaited(refresh()),

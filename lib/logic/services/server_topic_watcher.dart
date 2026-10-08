@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import '../../data/classes/server.dart';
-import '../cubits/server/server_cubit.dart';
+import '../../data/repositories/session_repository.dart';
 import 'server_realtime.dart';
 
 /// Listens for one thing the database says about the selected server — its
@@ -21,7 +21,8 @@ class ServerTopicWatcher {
   /// One logical change often writes several rows; refresh once for the burst.
   static const _coalesce = Duration(milliseconds: 250);
 
-  final ServerCubit serverCubit;
+  /// Where the server list, the selection and the connection are.
+  final SessionRepository session;
 
   /// The one server to watch, or null to follow the selection.
   ///
@@ -44,21 +45,21 @@ class ServerTopicWatcher {
   /// first [onChanged] for that server.
   final void Function(Server? server) onServerChanged;
 
-  StreamSubscription<ServerState>? _serverSub;
+  StreamSubscription<void>? _serverSub;
   RealtimeLease? _lease;
   String? _serverId;
   Timer? _debounce;
   bool _disposed = false;
 
   ServerTopicWatcher({
-    required this.serverCubit,
+    required this.session,
     required this.topicOf,
     required this.event,
     required this.onChanged,
     required this.onServerChanged,
     this.fixedServerId,
   }) {
-    _serverSub = serverCubit.stream.listen(_sync);
+    _serverSub = session.changes.listen((_) => _sync());
     // Deferred a microtask, never called straight from here. Consumers hold
     // the watcher in a `late final` field that this very expression is
     // initialising, so a callback fired from the constructor reaches an object
@@ -69,18 +70,15 @@ class ServerTopicWatcher {
     // [onServerChanged] fires first is kept.
     scheduleMicrotask(() {
       if (_disposed) return;
-      _sync(serverCubit.state);
+      _sync();
     });
   }
 
   /// The server currently being watched, or null.
   String? get serverId => _serverId;
 
-  void _sync(ServerState state) {
-    final fixed = fixedServerId;
-    final server = fixed == null
-        ? state.selectedServer
-        : state.serverById(fixed);
+  void _sync() {
+    final server = session.target(fixedServerId);
     if (server == null || server.supabaseKey == null || server.user == null) {
       if (_serverId == null) return;
       _teardown();
@@ -102,7 +100,7 @@ class ServerTopicWatcher {
   }
 
   void _subscribe(Server server) {
-    _lease = serverCubit.realtime.join(server, topicOf(server))
+    _lease = session.realtime.join(server, topicOf(server))
       ?..onBroadcast(event, (_) => _schedule());
   }
 

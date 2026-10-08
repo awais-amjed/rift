@@ -51,7 +51,6 @@ Widget serverManageDialog(
       ] else ...[
         BlocProvider(
           create: (_) => SoundboardCubit(
-            serverCubit: serverCubit,
             session: session,
             appCubit: appCubit,
             livekitCubit: livekitCubit,
@@ -59,11 +58,8 @@ Widget serverManageDialog(
           ),
         ),
         BlocProvider(
-          create: (_) => ServerMembersCubit(
-            serverCubit: serverCubit,
-            session: session,
-            serverId: server.id,
-          ),
+          create: (_) =>
+              ServerMembersCubit(session: session, serverId: server.id),
         ),
         BlocProvider(
           create: (_) => ReportsCubit(
