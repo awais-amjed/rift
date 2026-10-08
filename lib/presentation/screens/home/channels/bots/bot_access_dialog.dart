@@ -3,10 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/apis/voice_bots_api.dart';
 import '../../../../../data/classes/channel.dart';
 import '../../../../../data/classes/server_member.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../data/enums/server_permission.dart';
+import '../../../../../data/repositories/session_repository.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
@@ -72,11 +74,12 @@ class _BotAccessDialogState extends State<BotAccessDialog> {
 
   Future<void> _load() async {
     final cubit = context.read<ServerCubit>();
+    final voiceBots = VoiceBotsApi(session: context.read<SessionRepository>());
     final access = await cubit.botChannels(
       widget.bot.id,
       serverId: widget.serverId,
     );
-    final heard = await cubit.voiceChannelsHeardBy(
+    final heard = await voiceBots.voiceChannelsHeardBy(
       widget.bot.id,
       serverId: widget.serverId,
     );

@@ -10,6 +10,7 @@ part of 'channel_keyring.dart';
 /// this client anything, and every one of them is swallowed on purpose.
 mixin _KeyringSealingMixin {
   ServerCubit get _serverCubit;
+  VoiceBotsApi get _voiceBots;
   CryptoRepository get _crypto;
   void Function()? get onHealed;
   Map<int, Uint8List> get keys;
@@ -48,7 +49,7 @@ mixin _KeyringSealingMixin {
           botId: botId,
           mayListen: bot['may_listen'] == true,
         );
-        await _serverCubit.postBotVoiceKey(
+        await _voiceBots.postBotVoiceKey(
           channelId: channelId,
           botId: botId,
           keyVersion: keyVersion,

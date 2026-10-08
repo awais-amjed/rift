@@ -3,9 +3,11 @@ import 'dart:typed_data';
 
 import 'package:rift_crypto/rift_crypto.dart';
 
+import '../../data/apis/voice_bots_api.dart';
 import '../../data/classes/server.dart';
 import '../../data/enums/error_code.dart';
 import '../../data/repositories/server_repository.dart';
+import '../../data/repositories/session_repository.dart';
 import '../cubits/server/server_cubit.dart';
 import '../cubits/vault/vault_cubit.dart';
 import '../helper_methods.dart';
@@ -37,6 +39,8 @@ part 'channel_keyring_sealing.dart';
 class ChannelKeyring with _KeyringSealingMixin {
   @override
   final ServerCubit _serverCubit;
+  @override
+  final VoiceBotsApi _voiceBots;
   final VaultCubit _vaultCubit;
   @override
   final CryptoRepository _crypto;
@@ -49,10 +53,12 @@ class ChannelKeyring with _KeyringSealingMixin {
 
   ChannelKeyring({
     required ServerCubit serverCubit,
+    required SessionRepository session,
     required VaultCubit vaultCubit,
     required CryptoRepository crypto,
     this.onHealed,
   }) : _serverCubit = serverCubit,
+       _voiceBots = VoiceBotsApi(session: session),
        _vaultCubit = vaultCubit,
        _crypto = crypto;
 

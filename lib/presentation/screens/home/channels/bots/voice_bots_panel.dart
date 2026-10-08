@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/apis/voice_bots_api.dart';
 import '../../../../../data/classes/channel.dart';
 import '../../../../../data/classes/server_member.dart';
 import '../../../../../data/enums/server_permission.dart';
+import '../../../../../data/repositories/session_repository.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
 import '../../../../common/confirm_dialog.dart';
@@ -56,10 +58,11 @@ class _VoiceBotsPanelState extends State<VoiceBotsPanel> {
 
   Future<void> _load() async {
     final cubit = context.read<ServerCubit>();
+    final voiceBots = VoiceBotsApi(session: context.read<SessionRepository>());
     // Every bot, not a page of them: this is a picker, and one that silently
     // left a bot out would be the bug the paged roster exists to fix.
     final bots = await cubit.listBots();
-    final listening = await cubit.voiceListenerIds(widget.channel.id);
+    final listening = await voiceBots.voiceListenerIds(widget.channel.id);
     if (!mounted) return;
 
     setState(() {
@@ -81,10 +84,10 @@ class _VoiceBotsPanelState extends State<VoiceBotsPanel> {
       _busyId = bot.id;
       _error = null;
     });
-    final serverCubit = context.read<ServerCubit>();
+    final voiceBots = VoiceBotsApi(session: context.read<SessionRepository>());
     final listeners = context.read<VoiceListenersCubit>();
 
-    final result = await serverCubit.setBotVoiceListen(
+    final result = await voiceBots.setBotVoiceListen(
       channelId: widget.channel.id,
       botId: bot.id,
       listen: granting,

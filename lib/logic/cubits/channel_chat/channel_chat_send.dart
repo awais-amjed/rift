@@ -7,6 +7,7 @@ part of 'channel_chat_cubit.dart';
 /// Sending into a channel, and fetching attachment bytes back for rendering.
 mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
   ServerCubit get _serverCubit;
+  VoiceBotsApi get _voiceBots;
   SavedConversation get _saved;
   VaultCubit get _vaultCubit;
   CryptoRepository get _crypto;
@@ -260,7 +261,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
       // does not turn up, which somebody can see and ask again, and is not a
       // reason to lose the message that carried it.
       if (command != null && command.summonsBot && inVoiceChannel != null) {
-        final summoned = await _serverCubit.setBotVoiceSummon(
+        final summoned = await _voiceBots.setBotVoiceSummon(
           channelId: inVoiceChannel,
           botId: command.bot.id,
           summon: true,
@@ -287,7 +288,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
       // taking away, which is the point: leaving does not depend on the bot
       // acting on a verb it advertised.
       if (command != null && command.dismissesBot && inVoiceChannel != null) {
-        await _serverCubit.setBotVoiceSummon(
+        await _voiceBots.setBotVoiceSummon(
           channelId: inVoiceChannel,
           botId: command.bot.id,
           summon: false,

@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../data/apis/voice_bots_api.dart';
 import '../../../data/classes/server.dart';
+import '../../../data/repositories/session_repository.dart';
 import '../../services/server_topic_watcher.dart';
 import '../../services/server_topics.dart';
 import '../server/server_cubit.dart';
@@ -42,12 +44,15 @@ class VoiceBotsState {
 /// notice that lived in the dialog where the decision was made would reach
 /// exactly the wrong people, so the channel says it, standing, to everyone.
 class VoiceListenersCubit extends Cubit<VoiceBotsState> {
-  final ServerCubit _serverCubit;
+  final VoiceBotsApi _api;
   late final ServerTopicWatcher _watcher;
 
-  VoiceListenersCubit({required ServerCubit serverCubit})
-    : _serverCubit = serverCubit,
-      super(const VoiceBotsState()) {
+  VoiceListenersCubit({
+    required ServerCubit serverCubit,
+    required SessionRepository session,
+  }) : _api = VoiceBotsApi(session: session),
+       super(const VoiceBotsState()) {
+    // The one thing still read off the cubit: hearing the selection move.
     _watcher = ServerTopicWatcher(
       serverCubit: serverCubit,
       topicOf: (server) => ServerTopics.server(server.id),
@@ -83,8 +88,8 @@ class VoiceListenersCubit extends Cubit<VoiceBotsState> {
   /// channel with its listeners and no summons for one frame.
   Future<void> refresh() async {
     final (listeners, summons) = await (
-      _serverCubit.voiceListenersByChannel(),
-      _serverCubit.voiceSummonsByChannel(),
+      _api.voiceListenersByChannel(),
+      _api.voiceSummonsByChannel(),
     ).wait;
     if (isClosed) return;
     emit(VoiceBotsState(listeners: listeners, summons: summons));

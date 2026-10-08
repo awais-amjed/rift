@@ -3,6 +3,7 @@ import 'package:rift_crypto/rift_crypto.dart';
 import '../../data/classes/chat_message.dart';
 import '../../data/classes/member_report.dart';
 import '../../data/classes/message_body.dart';
+import '../../data/repositories/session_repository.dart';
 import '../cubits/server/server_cubit.dart';
 import '../cubits/vault/vault_cubit.dart';
 import '../helper_methods.dart';
@@ -35,15 +36,18 @@ enum ReportedContent {
 /// page lives, so a page of reports from one channel fetches its keys once.
 class ReportedMessageOpener {
   final ServerCubit _serverCubit;
+  final SessionRepository _session;
   final VaultCubit _vaultCubit;
   final CryptoRepository _crypto;
   final Map<String, ChannelKeyring> _rings = {};
 
   ReportedMessageOpener({
     required ServerCubit serverCubit,
+    required SessionRepository session,
     required VaultCubit vaultCubit,
     CryptoRepository? crypto,
   }) : _serverCubit = serverCubit,
+       _session = session,
        _vaultCubit = vaultCubit,
        _crypto = crypto ?? CryptoRepository();
 
@@ -79,6 +83,7 @@ class ReportedMessageOpener {
 
     final ring = _rings[reported.channelId] ??= ChannelKeyring(
       serverCubit: _serverCubit,
+      session: _session,
       vaultCubit: _vaultCubit,
       crypto: _crypto,
     );

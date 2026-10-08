@@ -6,7 +6,6 @@ import 'package:equatable/equatable.dart';
 import 'package:http/http.dart' as http;
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:json_annotation/json_annotation.dart';
-import 'package:rift_crypto/rift_crypto.dart';
 
 import '../../../data/classes/api_response.dart';
 import '../../../data/classes/attachment.dart';
@@ -73,7 +72,6 @@ part 'server_roles_api.dart';
 part 'server_selection.dart';
 part 'server_state.dart';
 part 'server_voice_api.dart';
-part 'server_voice_bots_api.dart';
 part 'server_voice_regions_api.dart';
 part 'server_webhooks_api.dart';
 
@@ -94,7 +92,6 @@ class ServerCubit extends HydratedCubit<ServerState>
         _ServerRolesApiMixin,
         _ServerOwnershipApiMixin,
         _ServerBotsApiMixin,
-        _ServerVoiceBotsApiMixin,
         _ServerChannelsApiMixin,
         _ServerPrivateChannelsApiMixin,
         _ServerChatApiMixin,

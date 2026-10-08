@@ -65,6 +65,7 @@ Widget serverManageDialog(
         BlocProvider(
           create: (_) => ReportsCubit(
             serverCubit: serverCubit,
+            session: session,
             vaultCubit: vaultCubit,
             serverId: server.id,
           ),

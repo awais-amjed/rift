@@ -7,6 +7,7 @@ import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:livekit_client/livekit_client.dart';
 import 'package:rift_crypto/rift_crypto.dart';
 
+import '../../../data/apis/voice_bots_api.dart';
 import '../../../data/classes/api_response.dart';
 import '../../../data/classes/channel.dart';
 import '../../../data/classes/dm_call_place.dart';
@@ -18,6 +19,7 @@ import '../../../data/constants.dart';
 import '../../../data/enums/app_sound.dart';
 import '../../../data/enums/error_code.dart';
 import '../../../data/participant_identity.dart';
+import '../../../data/repositories/session_repository.dart';
 import '../../helper_methods.dart';
 import '../../services/audio_devices.dart';
 import '../../services/before_quit.dart';
@@ -93,6 +95,8 @@ class LiveKitCubit extends Cubit<LiveKitState>
   @override
   final ServerCubit? _serverCubit;
   @override
+  final SessionRepository? _session;
+  @override
   final CryptoRepository _crypto;
   @override
   final VaultCubit _vaultCubit;
@@ -137,9 +141,11 @@ class LiveKitCubit extends Cubit<LiveKitState>
     required TokenCubit tokenCubit,
     required VaultCubit vaultCubit,
     ServerCubit? serverCubit,
+    SessionRepository? session,
     ScreenshareCubit? screenshareCubit,
     CryptoRepository? crypto,
   }) : _appCubit = appCubit,
+       _session = session,
        _vaultCubit = vaultCubit,
        _tokenCubit = tokenCubit,
        _serverCubit = serverCubit,

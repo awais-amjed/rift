@@ -27,6 +27,7 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
   CryptoRepository get _crypto;
   VaultCubit get _vaultCubit;
   ServerCubit? get _serverCubit;
+  SessionRepository? get _session;
 
   /// Whether a user id belongs to a bot, so its frames are keyed differently.
   ///
@@ -52,9 +53,11 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
 
   ChannelKeyring? get _keyring {
     final server = _serverCubit;
-    if (server == null) return null;
+    final session = _session;
+    if (server == null || session == null) return null;
     return _keyringOrNull ??= ChannelKeyring(
       serverCubit: server,
+      session: session,
       vaultCubit: _vaultCubit,
       crypto: _crypto,
     );
@@ -79,6 +82,12 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
   /// give a listener, which is why that grant is a key grant and cannot be
   /// taken back (BOTS.md §6, §6b).
   Set<String> _callListeningBots = const {};
+
+  Future<Set<String>> _listeningBots(String channelId) async {
+    final session = _session;
+    if (session == null) return const {};
+    return VoiceBotsApi(session: session).voiceListenerIds(channelId);
+  }
 
   /// Load the channel's key and build the options `room.connect` takes.
   ///
@@ -126,8 +135,7 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
 
     _callChannelKey = key;
     _callKeyIndex = VoiceKeys.keyIndex(keyring.currentVersion);
-    _callListeningBots =
-        await _serverCubit?.voiceListenerIds(channelId) ?? const {};
+    _callListeningBots = await _listeningBots(channelId);
 
     // `sharedKey: false` is the whole point — see the class comment.
     final provider = await BaseKeyProvider.create(sharedKey: false);
@@ -312,8 +320,7 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
     // A grant can have changed in the same breath as the rotation — revoking
     // one is what rotates the key — so which bot gets which kind is re-read
     // rather than carried over.
-    _callListeningBots =
-        await _serverCubit?.voiceListenerIds(channelId) ?? const {};
+    _callListeningBots = await _listeningBots(channelId);
 
     await _registerAllParticipantKeys(room);
     // Registering the keys is half of it: the frame cryptors were told an index

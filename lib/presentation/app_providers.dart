@@ -84,6 +84,7 @@ class AppProviders extends StatelessWidget {
             vaultCubit: vaultCubit,
             // So LiveKit can re-authenticate on token expiry.
             serverCubit: context.read<ServerCubit>(),
+            session: session,
           ),
         ),
         BlocProvider(create: _createScreenshareCubit),
@@ -100,8 +101,10 @@ class AppProviders extends StatelessWidget {
               VoiceStatsCubit(livekitCubit: context.read<LiveKitCubit>()),
         ),
         BlocProvider(
-          create: (context) =>
-              VoiceListenersCubit(serverCubit: context.read<ServerCubit>()),
+          create: (context) => VoiceListenersCubit(
+            serverCubit: context.read<ServerCubit>(),
+            session: session,
+          ),
         ),
         BlocProvider(
           create: (context) => ChannelPresenceCubit(
@@ -119,6 +122,7 @@ class AppProviders extends StatelessWidget {
         BlocProvider(
           create: (context) => ChannelChatCubit(
             serverCubit: context.read<ServerCubit>(),
+            session: session,
             vaultCubit: vaultCubit,
           ),
         ),
@@ -171,6 +175,7 @@ class AppProviders extends StatelessWidget {
           lazy: false,
           create: (context) => ReportsCubit(
             serverCubit: context.read<ServerCubit>(),
+            session: session,
             vaultCubit: vaultCubit,
           ),
         ),

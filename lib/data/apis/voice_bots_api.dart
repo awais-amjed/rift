@@ -1,30 +1,32 @@
-part of 'server_cubit.dart';
+import 'package:rift_crypto/rift_crypto.dart';
 
-/// What a bot may *hear* — the voice half of BOTS.md §6.
+import '../repositories/server_repository.dart';
+import '../repositories/session_repository.dart';
+
+/// What a bot may *hear*, and which bots were asked into a call — the voice
+/// half of BOTS.md §6.
 ///
-/// Its own file rather than more of [_ServerBotsApiMixin], because the two
-/// grants are not the same promise and the code should not suggest they are.
+/// Its own class rather than more of the bot calls, because the two grants
+/// are not the same promise and the code should not suggest they are.
 ///
 /// A channel key is arithmetic: revoking rotates forward, and nothing can
-/// unread what has already been read. That is why the dialog next door warns on
-/// the way *in*. Hearing a call is a permission on a LiveKit token — voice is
-/// not end-to-end encrypted (ARCHITECTURE.md §5) — so revoking pushes
-/// `canSubscribe: false` onto the live connection and the audio stops mid-call.
+/// unread what has already been read. That is why the dialog next door warns
+/// on the way *in*. Hearing a call is a permission on a LiveKit token — voice
+/// is not end-to-end encrypted (ARCHITECTURE.md §5) — so revoking pushes
+/// `canSubscribe: false` onto the live connection and the audio stops
+/// mid-call.
 ///
-/// The default is the part worth stating: **a bot publishes and hears nothing**
-/// unless somebody granted it this, per channel. A music bot never needs it.
-mixin _ServerVoiceBotsApiMixin on Cubit<ServerState> {
-  ServerRepository get _repository;
-  String get _anonKey;
+/// The default is the part worth stating: **a bot publishes and hears
+/// nothing** unless somebody granted it this, per channel. A music bot never
+/// needs it.
+///
+/// Holds nothing, so a widget that needs one builds it from the session.
+class VoiceBotsApi {
+  final SessionRepository _session;
 
-  Future<APIResponse> _callWithAutoRefresh(
-    Future<APIResponse> Function(String token) call,
-  );
-  Future<APIResponse> _callFor(
-    Server server,
-    Future<APIResponse> Function(String token) call,
-  );
-  Server? _target(String? serverId);
+  VoiceBotsApi({required SessionRepository session}) : _session = session;
+
+  ServerRepository get _repository => _session.repository;
 
   /// Let [botId] hear [channelId], or stop it.
   Future<({bool success, String? error})> setBotVoiceListen({
@@ -32,13 +34,14 @@ mixin _ServerVoiceBotsApiMixin on Cubit<ServerState> {
     required String botId,
     required bool listen,
   }) async {
-    final server = state.selectedServer;
+    final server = _session.selectedServer;
     if (server == null) return (success: false, error: 'No server');
 
-    final response = await _callWithAutoRefresh(
+    final response = await _session.callFor(
+      server,
       (token) => _repository.setBotVoiceListen(
         server.supabaseUrl,
-        anonKey: _anonKey,
+        anonKey: server.supabaseKey ?? '',
         bearerToken: token,
         channelId: channelId,
         botId: botId,
@@ -68,13 +71,14 @@ mixin _ServerVoiceBotsApiMixin on Cubit<ServerState> {
     required String botId,
     required bool summon,
   }) async {
-    final server = state.selectedServer;
+    final server = _session.selectedServer;
     if (server == null) return (success: false, error: 'No server');
 
-    final response = await _callWithAutoRefresh(
+    final response = await _session.callFor(
+      server,
       (token) => _repository.setBotVoiceSummon(
         server.supabaseUrl,
-        anonKey: _anonKey,
+        anonKey: server.supabaseKey ?? '',
         bearerToken: token,
         channelId: channelId,
         botId: botId,
@@ -89,7 +93,7 @@ mixin _ServerVoiceBotsApiMixin on Cubit<ServerState> {
 
   /// Seal one bot its media key for [channelId].
   ///
-  /// The bytes are produced by [ChannelKeyring], which holds the channel key;
+  /// The bytes are produced by `ChannelKeyring`, which holds the channel key;
   /// this only posts them. Failure is swallowed by the caller on purpose — a
   /// bot short of a key is inaudible until the next member opens the call, and
   /// that is not worth failing somebody's own join over.
@@ -100,14 +104,15 @@ mixin _ServerVoiceBotsApiMixin on Cubit<ServerState> {
     required bool isChannelKey,
     required WrappedKey wrapped,
   }) async {
-    final server = state.selectedServer;
+    final server = _session.selectedServer;
     final me = server?.user?.id;
     if (server == null || me == null) return;
 
-    await _callWithAutoRefresh(
+    await _session.callFor(
+      server,
       (token) => _repository.postBotVoiceKey(
         server.supabaseUrl,
-        anonKey: _anonKey,
+        anonKey: server.supabaseKey ?? '',
         bearerToken: token,
         channelId: channelId,
         botId: botId,
@@ -142,13 +147,14 @@ mixin _ServerVoiceBotsApiMixin on Cubit<ServerState> {
   /// bot that was asked in and may not have arrived yet.
   Future<Map<String, List<({String id, String name})>>>
   voiceSummonsByChannel() async {
-    final server = state.selectedServer;
+    final server = _session.selectedServer;
     if (server == null) return const {};
 
-    final response = await _callWithAutoRefresh(
+    final response = await _session.callFor(
+      server,
       (token) => _repository.listVoiceSummons(
         server.supabaseUrl,
-        anonKey: _anonKey,
+        anonKey: server.supabaseKey ?? '',
         bearerToken: token,
       ),
     );
@@ -179,9 +185,9 @@ mixin _ServerVoiceBotsApiMixin on Cubit<ServerState> {
   /// The voice channels [botId] can hear.
   ///
   /// Filtered client-side off the whole-server read rather than asked for by
-  /// bot, because this is the same one round trip the sidebar already makes and
-  /// the table has one row per grant — which is a number of rows an admin typed
-  /// in by hand, one at a time.
+  /// bot, because this is the same one round trip the sidebar already makes
+  /// and the table has one row per grant — which is a number of rows an admin
+  /// typed in by hand, one at a time.
   Future<Set<String>> voiceChannelsHeardBy(
     String botId, {
     String? serverId,
@@ -197,10 +203,10 @@ mixin _ServerVoiceBotsApiMixin on Cubit<ServerState> {
     String? channelId, {
     String? serverId,
   }) async {
-    final server = _target(serverId);
+    final server = _session.target(serverId);
     if (server == null) return const [];
 
-    final response = await _callFor(
+    final response = await _session.callFor(
       server,
       (token) => _repository.listVoiceListeners(
         server.supabaseUrl,

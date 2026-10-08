@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rift_crypto/rift_crypto.dart';
 
+import '../../../data/apis/voice_bots_api.dart';
 import '../../../data/classes/api_response.dart';
 import '../../../data/classes/attachment.dart';
 import '../../../data/classes/channel.dart';
@@ -21,6 +22,7 @@ import '../../../data/enums/message_origin.dart';
 import '../../../data/enums/notification_level.dart';
 import '../../../data/repositories/attachment_repository.dart';
 import '../../../data/repositories/blob/blob_sink.dart';
+import '../../../data/repositories/session_repository.dart';
 import '../../helper_methods.dart';
 import '../../services/attachment_cleanup.dart';
 import '../../services/attachment_loader.dart';
@@ -98,6 +100,11 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
         _ChatNotifyMixin {
   @override
   final ServerCubit _serverCubit;
+  final SessionRepository _session;
+
+  /// Summoning a bot into a call, and sending it away, from a command.
+  @override
+  final VoiceBotsApi _voiceBots;
 
   /// The roster, for turning an `@name` into the user id the server rings.
   ///
@@ -158,6 +165,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   @override
   late final ChannelKeyring _keyring = ChannelKeyring(
     serverCubit: _serverCubit,
+    session: _session,
     vaultCubit: _vaultCubit,
     crypto: _crypto,
     onHealed: _ringKeySweepDoorbell,
@@ -227,10 +235,13 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
 
   ChannelChatCubit({
     required ServerCubit serverCubit,
+    required SessionRepository session,
     required VaultCubit vaultCubit,
     CryptoRepository? crypto,
     MessageCache? messageCache,
   }) : _serverCubit = serverCubit,
+       _session = session,
+       _voiceBots = VoiceBotsApi(session: session),
        _vaultCubit = vaultCubit,
        _crypto = crypto ?? CryptoRepository(),
        _messageCache = messageCache ?? MessageCache.instance,

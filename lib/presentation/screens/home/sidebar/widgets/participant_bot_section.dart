@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/apis/voice_bots_api.dart';
 import '../../../../../data/enums/server_permission.dart';
+import '../../../../../data/repositories/session_repository.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
@@ -41,13 +43,13 @@ class ParticipantBotSection extends StatelessWidget {
 
   Future<void> _dismiss(BuildContext context) async {
     final dismissMenu = ContextMenuScope.of(context);
-    final serverCubit = context.read<ServerCubit>();
+    final api = VoiceBotsApi(session: context.read<SessionRepository>());
     final voiceBots = context.read<VoiceListenersCubit>();
     final channelId = voiceChannelId;
     if (channelId == null) return;
 
     dismissMenu?.call();
-    final result = await serverCubit.setBotVoiceSummon(
+    final result = await api.setBotVoiceSummon(
       channelId: channelId,
       botId: targetUserId,
       summon: false,

@@ -9,6 +9,7 @@ import '../../../data/classes/member_report.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/enums/report_outcome.dart';
 import '../../../data/enums/server_permission.dart';
+import '../../../data/repositories/session_repository.dart';
 import '../../services/attachment_cleanup.dart';
 import '../../services/coalesced_refresh.dart';
 import '../../services/reported_message_opener.dart';
@@ -49,12 +50,14 @@ class ReportsCubit extends Cubit<ReportsState> {
 
   ReportsCubit({
     required ServerCubit serverCubit,
+    required SessionRepository session,
     required VaultCubit vaultCubit,
     String? serverId,
   }) : _serverCubit = serverCubit,
        _fixedServerId = serverId,
        _opener = ReportedMessageOpener(
          serverCubit: serverCubit,
+         session: session,
          vaultCubit: vaultCubit,
        ),
        super(const ReportsState()) {
