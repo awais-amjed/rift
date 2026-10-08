@@ -4,10 +4,12 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../data/apis/soundboard_api.dart';
 import '../../../data/classes/equality_props.dart';
 import '../../../data/classes/soundboard_sound.dart';
 import '../../../data/enums/server_permission.dart';
 import '../../../data/participant_identity.dart';
+import '../../../data/repositories/session_repository.dart';
 import '../../helper_methods.dart';
 import '../../services/server_topic_watcher.dart';
 import '../../services/server_topics.dart';
@@ -33,8 +35,9 @@ part 'soundboard_state.dart';
 /// The library is `soundboard_library.dart`; the ear is here.
 class SoundboardCubit extends Cubit<SoundboardState>
     with _SoundboardLibraryMixin {
+  final SessionRepository _session;
   @override
-  final ServerCubit _serverCubit;
+  final SoundboardApi _api;
   final AppCubit _appCubit;
   LiveKitCubit? _livekitCubit;
 
@@ -70,14 +73,17 @@ class SoundboardCubit extends Cubit<SoundboardState>
   /// one and closes it; it plays only previews.
   SoundboardCubit({
     required ServerCubit serverCubit,
+    required SessionRepository session,
     required AppCubit appCubit,
     LiveKitCubit? livekitCubit,
     String? serverId,
-  }) : _serverCubit = serverCubit,
+  }) : _session = session,
+       _api = SoundboardApi(session: session),
        _appCubit = appCubit,
        _livekitCubit = livekitCubit,
        _ownsPlayback = serverId == null,
        super(const SoundboardState()) {
+    // The one thing still read off the cubit: hearing the selection move.
     _watcher = ServerTopicWatcher(
       serverCubit: serverCubit,
       fixedServerId: serverId,
@@ -110,7 +116,7 @@ class SoundboardCubit extends Cubit<SoundboardState>
   /// Whether this member may fire one into a call. Widgets read the same
   /// permission off `ServerState`, where a change to it rebuilds them.
   bool get _canPlay =>
-      _serverCubit.state.selectedServer?.user?.permissions.can(
+      _session.selectedServer?.user?.permissions.can(
         ServerPermission.useSoundboard,
       ) ??
       false;
@@ -252,8 +258,7 @@ class SoundboardCubit extends Cubit<SoundboardState>
     if (volume <= 0) return;
     final source = await SoundboardCache.instance.source(
       sound.objectPath,
-      () =>
-          _serverCubit.loadSound(sound.objectPath, serverId: _watcher.serverId),
+      () => _api.loadSound(sound.objectPath, serverId: _watcher.serverId),
     );
     if (source == null || isClosed) return;
     await SoundboardPlayer.instance.play(source, volume: volume);

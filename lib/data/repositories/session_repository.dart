@@ -47,6 +47,10 @@ class SessionRepository {
   List<Server> _list = const [];
   String? _selectedId;
 
+  /// The repository every call to a server goes through. One, shared, so
+  /// each server's database client is made once rather than per feature.
+  ServerRepository get repository => _servers;
+
   List<Server> get servers => _list;
   String? get selectedServerId => _selectedId;
   Server? get selectedServer =>
@@ -58,6 +62,12 @@ class SessionRepository {
     }
     return null;
   }
+
+  /// The server a call is about: [serverId] when the caller named one, the
+  /// selection when it didn't. A page that can open for a server other than
+  /// the current one names it, or its form writes to the wrong server.
+  Server? target(String? serverId) =>
+      serverId == null ? selectedServer : serverById(serverId);
 
   /// Take the server list as it now stands. `ServerCubit` calls this from
   /// `onChange`, so the copy here is never a frame behind its state.

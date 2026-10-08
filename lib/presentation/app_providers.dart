@@ -244,6 +244,7 @@ class AppProviders extends StatelessWidget {
   SoundboardCubit _createSoundboardCubit(BuildContext context) {
     final soundboardCubit = SoundboardCubit(
       serverCubit: context.read<ServerCubit>(),
+      session: session,
       appCubit: appCubit,
       livekitCubit: context.read<LiveKitCubit>(),
     );

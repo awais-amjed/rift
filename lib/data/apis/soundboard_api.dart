@@ -1,31 +1,41 @@
-part of 'server_cubit.dart';
+import 'dart:async';
+import 'dart:typed_data';
+
+import '../../logic/services/soundboard_cache.dart';
+import '../classes/soundboard_sound.dart';
+import '../repositories/server_repository.dart';
+import '../repositories/session_repository.dart';
+import '../repositories/soundboard_repository.dart';
 
 /// The soundboard library for [serverId], or for the selected server.
 ///
-/// Nothing here holds state — [SoundboardCubit] does, because a picker that
+/// Nothing here holds state — `SoundboardCubit` does, because a picker that
 /// opens mid-call cannot wait for a round trip and a new clip has to appear
-/// for everyone without one. This mixin is only the four calls and the bytes
-/// that go with them.
-mixin _ServerSoundboardApiMixin on Cubit<ServerState> {
-  ServerRepository get _repository;
-  SoundboardRepository get _sounds;
+/// for everyone without one. This is only the four calls and the bytes that
+/// go with them, each through [SessionRepository] so an expired token signs
+/// in again rather than failing.
+class SoundboardApi {
+  final SessionRepository _session;
+  final SoundboardRepository _sounds;
 
-  Future<APIResponse> _callFor(
-    Server server,
-    Future<APIResponse> Function(String token) call,
-  );
-  Server? _target(String? serverId);
+  SoundboardApi({
+    required SessionRepository session,
+    SoundboardRepository? sounds,
+  }) : _session = session,
+       _sounds = sounds ?? SoundboardRepository();
+
+  ServerRepository get _repository => _session.repository;
 
   /// Every clip on the server.
   Future<({List<SoundboardSound> sounds, String? error})> listSounds({
     String? serverId,
   }) async {
-    final server = _target(serverId);
+    final server = _session.target(serverId);
     if (server == null) {
       return (sounds: const <SoundboardSound>[], error: 'No server');
     }
 
-    final response = await _callFor(
+    final response = await _session.callFor(
       server,
       (token) => _repository.listSounds(
         server.supabaseUrl,
@@ -66,10 +76,10 @@ mixin _ServerSoundboardApiMixin on Cubit<ServerState> {
     required Duration duration,
     String? serverId,
   }) async {
-    final server = _target(serverId);
+    final server = _session.target(serverId);
     if (server == null) return (sound: null, error: 'No server');
 
-    final uploaded = await _callFor(
+    final uploaded = await _session.callFor(
       server,
       (token) => _sounds.upload(
         baseUrl: server.supabaseUrl,
@@ -85,7 +95,7 @@ mixin _ServerSoundboardApiMixin on Cubit<ServerState> {
     }
 
     final path = uploaded.data as String;
-    final created = await _callFor(
+    final created = await _session.callFor(
       server,
       (token) => _repository.createSound(
         server.supabaseUrl,
@@ -139,10 +149,10 @@ mixin _ServerSoundboardApiMixin on Cubit<ServerState> {
     String? emoji,
     String? serverId,
   }) async {
-    final server = _target(serverId);
+    final server = _session.target(serverId);
     if (server == null) return (success: false, error: 'No server');
 
-    final response = await _callFor(
+    final response = await _session.callFor(
       server,
       (token) => _repository.renameSound(
         server.supabaseUrl,
@@ -166,10 +176,10 @@ mixin _ServerSoundboardApiMixin on Cubit<ServerState> {
     required String objectPath,
     String? serverId,
   }) async {
-    final server = _target(serverId);
+    final server = _session.target(serverId);
     if (server == null) return (success: false, error: 'No server');
 
-    final response = await _callFor(
+    final response = await _session.callFor(
       server,
       (token) => _repository.deleteSound(
         server.supabaseUrl,
@@ -188,7 +198,7 @@ mixin _ServerSoundboardApiMixin on Cubit<ServerState> {
       // points at costs space, and there is nothing useful to tell somebody
       // who has already watched the clip disappear.
       unawaited(
-        _callFor(
+        _session.callFor(
           server,
           (token) => _sounds.deleteObject(
             baseUrl: server.supabaseUrl,
@@ -209,10 +219,10 @@ mixin _ServerSoundboardApiMixin on Cubit<ServerState> {
 
   /// One clip's bytes, for a listener that has not heard it before.
   Future<Uint8List?> loadSound(String objectPath, {String? serverId}) async {
-    final server = _target(serverId);
+    final server = _session.target(serverId);
     if (server == null) return null;
 
-    final response = await _callFor(
+    final response = await _session.callFor(
       server,
       (token) => _sounds.download(
         baseUrl: server.supabaseUrl,

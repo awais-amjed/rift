@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/server.dart';
+import '../../../../../data/repositories/session_repository.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
@@ -36,6 +37,7 @@ Widget serverManageDialog(
   final appCubit = context.read<AppCubit>();
   final livekitCubit = context.read<LiveKitCubit>();
   final vaultCubit = context.read<VaultCubit>();
+  final session = context.read<SessionRepository>();
   final isSelected = serverCubit.state.selectedServer?.id == server.id;
   return MultiBlocProvider(
     providers: [
@@ -50,6 +52,7 @@ Widget serverManageDialog(
         BlocProvider(
           create: (_) => SoundboardCubit(
             serverCubit: serverCubit,
+            session: session,
             appCubit: appCubit,
             livekitCubit: livekitCubit,
             serverId: server.id,

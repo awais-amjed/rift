@@ -24,6 +24,9 @@ lib/
     classes/      # Plain immutable models
     enums/        # Enums with fromString/toJson helpers
     repositories/ # All external I/O: HTTP, Supabase, crypto, secure storage
+    apis/         # One feature's calls to a server (SoundboardApi): which server,
+                  # its token and re-login through SessionRepository, and the
+                  # refusals put into words. What ServerCubit's API mixins did
     constants.dart# `K` class — layout constants (sizes, paddings)
   logic/
     cubits/       # One folder per feature: foo/foo_cubit.dart + foo_state.dart
@@ -95,12 +98,16 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   the API always returns 200.
 - Session (JWT) expiry is handled centrally by `SessionRepository` (a silent SIWS re-login,
   signed with the seed from secure storage); new API calls must go through it rather than
-  re-implementing refresh/retry. Inside `ServerCubit` that is `_callWithAutoRefresh`, against
-  the selected server, and `_callFor(server, …)`, the same thing for a **named** server. The
+  re-implementing refresh/retry: `callSelected`, against the selected server, and
+  `callFor(server, …)`, the same thing for a **named** server. A feature's calls live in
+  its own class in `data/apis/` built on the repository, which the feature's cubit takes
+  instead of `ServerCubit`; the API mixins still inside `ServerCubit` reach the same
+  methods as `_callWithAutoRefresh` and `_callFor`, and are moving out a feature at a time. The
   cubit publishes its server list into the repository on every change and writes back the
   token and details each re-login brings (`SessionRepository.logins`), so neither it nor the
   vault holds the other. An API call a dialog can open for a server other than the current one takes an
-  optional `serverId` and resolves it with `_target()` — reading `state.selectedServer` inside
+  optional `serverId` and resolves it with `SessionRepository.target` (`_target()` inside
+  the cubit) — reading `state.selectedServer` inside
   such a call is how a form ends up writing to the wrong server.
 - Enums carry their own `fromString` / `toJson` conversions (see `channel_type.dart`).
 - **A picture from storage has one copy, in `MediaStore`, and widgets draw it from

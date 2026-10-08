@@ -24,7 +24,6 @@ import '../../../data/classes/server_details.dart';
 import '../../../data/classes/server_limits.dart';
 import '../../../data/classes/server_member.dart';
 import '../../../data/classes/server_user.dart';
-import '../../../data/classes/soundboard_sound.dart';
 import '../../../data/classes/user_permissions.dart';
 import '../../../data/classes/webhook.dart';
 import '../../../data/enums/dm_policy.dart';
@@ -39,7 +38,6 @@ import '../../../data/repositories/secure_storage_repository.dart';
 import '../../../data/repositories/server_db.dart';
 import '../../../data/repositories/server_repository.dart';
 import '../../../data/repositories/session_repository.dart';
-import '../../../data/repositories/soundboard_repository.dart';
 import '../../../data/repositories/voice_region_probe.dart';
 import '../../../supabase_config.dart';
 import '../../services/backup_merge.dart';
@@ -52,7 +50,6 @@ import '../../services/push_wake/wake_index.dart';
 import '../../services/role_ladder.dart';
 import '../../services/server_import_merge.dart';
 import '../../services/server_realtime.dart';
-import '../../services/soundboard_cache.dart';
 
 part 'server_api.dart';
 part 'server_attachments_api.dart';
@@ -74,7 +71,6 @@ part 'server_profile_api.dart';
 part 'server_push_api.dart';
 part 'server_roles_api.dart';
 part 'server_selection.dart';
-part 'server_soundboard_api.dart';
 part 'server_state.dart';
 part 'server_voice_api.dart';
 part 'server_voice_bots_api.dart';
@@ -111,10 +107,10 @@ class ServerCubit extends HydratedCubit<ServerState>
         _ServerInvitesApiMixin,
         _ServerProfileApiMixin,
         _ServerPushApiMixin,
-        _ServerSoundboardApiMixin,
         _ServerWebhooksApiMixin {
+  /// The session's, so every server's database client is made once.
   @override
-  final ServerRepository _repository = ServerRepository();
+  late final ServerRepository _repository = _session.repository;
 
   /// Which of a server's LiveKit nodes this device is nearest to. Held here
   /// rather than made per call so the measurement is cached across joins.
@@ -128,10 +124,6 @@ class ServerCubit extends HydratedCubit<ServerState>
   /// Avatar upload/download — plaintext, unlike attachments.
   @override
   final AvatarRepository _avatars = AvatarRepository();
-
-  /// Soundboard clips: plaintext too, and for the same reason.
-  @override
-  final SoundboardRepository _sounds = SoundboardRepository();
 
   /// Central, for one thing only: minting and revoking the credential a
   /// self-hosted server forwards its pushes over. A server cannot reach a

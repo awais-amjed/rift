@@ -98,6 +98,21 @@ void main() {
     expect(session.selectedServer?.token, 'fresh');
   });
 
+  test('a named server is the target, not the selection', () {
+    final session = _CountingSession();
+    final other = Server(
+      id: 's2',
+      name: 'Other',
+      supabaseUrl: 'https://other.invalid',
+      token: 'other',
+    );
+    session.publish(servers: [_server(), other], selectedServerId: 's1');
+
+    expect(session.target('s2')?.id, 's2');
+    expect(session.target(null)?.id, 's1');
+    expect(session.target('gone'), isNull);
+  });
+
   test('no server selected fails without calling anything', () async {
     final session = _CountingSession();
     var calls = 0;

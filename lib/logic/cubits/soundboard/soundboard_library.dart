@@ -6,7 +6,7 @@ part of 'soundboard_cubit.dart';
 /// Nothing here plays a sound or knows a call exists — the other half of the
 /// cubit is the one listening on the data channel.
 mixin _SoundboardLibraryMixin on Cubit<SoundboardState> {
-  ServerCubit get _serverCubit;
+  SoundboardApi get _api;
 
   /// Whose library this is: the watched server.
   String? get _libraryServerId;
@@ -15,7 +15,7 @@ mixin _SoundboardLibraryMixin on Cubit<SoundboardState> {
     final serverId = _libraryServerId;
     if (serverId == null) return;
 
-    final result = await _serverCubit.listSounds(serverId: serverId);
+    final result = await _api.listSounds(serverId: serverId);
     // The rail moved while this was in flight; the answer is another
     // server's and drawing it under this one's name would be a lie.
     if (isClosed || _libraryServerId != serverId) return;
@@ -82,7 +82,7 @@ mixin _SoundboardLibraryMixin on Cubit<SoundboardState> {
     required String contentType,
     required Duration duration,
   }) async {
-    final result = await _serverCubit.addSound(
+    final result = await _api.addSound(
       name: name,
       emoji: emoji,
       bytes: bytes,
@@ -105,7 +105,7 @@ mixin _SoundboardLibraryMixin on Cubit<SoundboardState> {
     required String name,
     String? emoji,
   }) async {
-    final result = await _serverCubit.renameSound(
+    final result = await _api.renameSound(
       soundId: sound.id,
       name: name,
       emoji: emoji,
@@ -129,7 +129,7 @@ mixin _SoundboardLibraryMixin on Cubit<SoundboardState> {
   }
 
   Future<String?> remove(SoundboardSound sound) async {
-    final result = await _serverCubit.deleteSound(
+    final result = await _api.deleteSound(
       soundId: sound.id,
       objectPath: sound.objectPath,
       serverId: _libraryServerId,

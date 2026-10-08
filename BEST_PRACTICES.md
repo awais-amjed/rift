@@ -65,7 +65,9 @@ widgets  →  cubits  →  repositories  →  network / storage / platform
   Many cubits predate this file and take others — mostly `ServerCubit`, for the
   selected server and its token — through their constructors or an `inject…`
   setter (`grep -rnE "final \w+Cubit\??\s+_?\w+;" lib/logic/cubits`). Leave
-  those until the work in question touches them; don't add new ones.
+  those until the work in question touches them; don't add new ones. For the
+  selection and a token, take `SessionRepository`, and for a server's calls the
+  feature's class in `data/apis/` built on it.
 - **Instead, push it down or up:**
   - *Down* — both cubits take the same repository, and the repository exposes a
     `Stream` of the shared data. Each cubit subscribes and keeps its own state.
