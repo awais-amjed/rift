@@ -181,6 +181,9 @@ mixin _DmCallActionsMixin on Cubit<DmCallState> {
     _syncTimers();
 
     final key = await _mediaKey(server, call);
+    // Hung up while the key was being worked out — and perhaps another call
+    // begun, which the hang-up below must not end.
+    if (state.active?.call.id != call.id) return;
     if (key == null) {
       emit(
         state.copyWith(
@@ -193,8 +196,6 @@ mixin _DmCallActionsMixin on Cubit<DmCallState> {
       await hangUp();
       return;
     }
-    // Hung up while the key was being worked out.
-    if (state.active?.call.id != call.id) return;
 
     _joinedCallId = call.id;
     await _livekit.connectToDmCall(

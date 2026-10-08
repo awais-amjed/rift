@@ -115,9 +115,13 @@ mixin _ServerVoiceApiMixin on Cubit<ServerState> {
   /// it costs nothing, and it is polled often enough to be current when a
   /// manager opens the picker.
   Future<APIResponse> voiceRoster() async {
+    final asked = state.selectedServer?.id;
     final response = await _voiceRosterRequest();
-    final server = state.selectedServer;
-    if (!response.success || server == null) return response;
+    // The loads are the server's that was asked, and land on whichever is
+    // selected now: after a switch mid-request, the new server's region
+    // picker would show the old one's numbers.
+    if (!response.success || asked == null) return response;
+    if (state.selectedServer?.id != asked) return response;
 
     final data = response.data;
     if (data is! Map) return response;
