@@ -16,11 +16,15 @@ class SoundShareState extends Equatable {
 
   final String? error;
 
+  /// The last thing to tell the person, shown once by `NoticeListeners`.
+  final Notice? notice;
+
   const SoundShareState({
     this.status = SoundShareStatus.idle,
     this.channelId,
     this.source,
     this.error,
+    this.notice,
   });
 
   bool get isSharing => status == SoundShareStatus.sharing;
@@ -44,15 +48,17 @@ class SoundShareState extends Equatable {
     bool clearChannelId = false,
     bool clearSource = false,
     bool clearError = false,
+    Notice? notice,
   }) {
     return SoundShareState(
       status: status ?? this.status,
       channelId: clearChannelId ? null : (channelId ?? this.channelId),
       source: clearSource ? null : (source ?? this.source),
       error: clearError ? null : (error ?? this.error),
+      notice: notice ?? this.notice,
     );
   }
 
   @override
-  List<Object?> get props => [status, channelId, source, error];
+  List<Object?> get props => [status, channelId, source, error, notice];
 }

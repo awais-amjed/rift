@@ -66,6 +66,9 @@ class SupabaseBackupState {
   final String? error;
   final String? successMessage;
 
+  /// The last thing to tell the person, shown once by `NoticeListeners`.
+  final Notice? notice;
+
   const SupabaseBackupState({
     this.isProcessing = false,
     this.isSignedIn = false,
@@ -78,6 +81,7 @@ class SupabaseBackupState {
     this.accountRecovery = AccountRecoveryStage.idle,
     this.error,
     this.successMessage,
+    this.notice,
   });
 
   SupabaseBackupState copyWith({
@@ -93,6 +97,7 @@ class SupabaseBackupState {
     String? error,
     String? successMessage,
     bool clearMessage = false,
+    Notice? notice,
   }) {
     return SupabaseBackupState(
       isProcessing: isProcessing ?? this.isProcessing,
@@ -109,6 +114,7 @@ class SupabaseBackupState {
       successMessage: clearMessage
           ? null
           : (successMessage ?? this.successMessage),
+      notice: notice ?? this.notice,
     );
   }
 
@@ -127,7 +133,8 @@ class SupabaseBackupState {
           passwordChange == other.passwordChange &&
           accountRecovery == other.accountRecovery &&
           error == other.error &&
-          successMessage == other.successMessage;
+          successMessage == other.successMessage &&
+          notice == other.notice;
 
   @override
   int get hashCode => Object.hash(
@@ -142,5 +149,6 @@ class SupabaseBackupState {
     accountRecovery,
     error,
     successMessage,
+    notice,
   );
 }

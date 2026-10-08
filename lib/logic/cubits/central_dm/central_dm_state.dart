@@ -100,6 +100,9 @@ class CentralDmState extends Equatable {
   /// cannot.
   final bool showingSaved;
 
+  /// The last thing to tell the person, shown once by `NoticeListeners`.
+  final Notice? notice;
+
   const CentralDmState({
     this.status = CentralDmStatus.signedOut,
     this.myHandle,
@@ -124,6 +127,7 @@ class CentralDmState extends Equatable {
     this.error,
     this.handleQuery,
     this.showingSaved = false,
+    this.notice,
   }) : friends = friends ?? FriendBuckets.empty;
 
   CentralDmState copyWith({
@@ -153,6 +157,7 @@ class CentralDmState extends Equatable {
     bool clearHandleQuery = false,
     bool closeConversation = false,
     bool? showingSaved,
+    Notice? notice,
   }) {
     return CentralDmState(
       status: status ?? this.status,
@@ -189,6 +194,7 @@ class CentralDmState extends Equatable {
       showingSaved: closeConversation
           ? false
           : (showingSaved ?? this.showingSaved),
+      notice: notice ?? this.notice,
     );
   }
 
@@ -271,5 +277,6 @@ class CentralDmState extends Equatable {
     error,
     handleQuery,
     showingSaved,
+    notice,
   ];
 }

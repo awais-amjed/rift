@@ -63,9 +63,13 @@ mixin _DmCallWatchMixin on Cubit<DmCallState>, _DmCallActionsMixin {
       _peerGone = null;
       final still = state.active;
       if (still == null || still.call.id != active.call.id) return;
-      HelperMethods.showToast(
-        title: 'Call ended',
-        description: '${active.call.peerName} lost their connection.',
+      emit(
+        state.copyWith(
+          notice: Notice.info(
+            'Call ended',
+            '${active.call.peerName} lost their connection.',
+          ),
+        ),
       );
       unawaited(hangUp());
     });

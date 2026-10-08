@@ -32,7 +32,7 @@ mixin _DmReactionsMixin on Cubit<DmState> {
     );
     if (state.openPeerId != peerId) return;
     if (!response.success) {
-      HelperMethods.showError(error: 'Failed to react');
+      emit(state.copyWith(notice: Notice.error('Failed to react')));
     }
     await refreshReactionsFor(messageId);
   }

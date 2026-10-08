@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rift_crypto/rift_crypto.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show AuthState, User;
 
+import '../../../data/classes/notice.dart';
 import '../../../data/enums/auth_status.dart';
 import '../../../data/enums/error_code.dart';
 import '../../../data/repositories/supabase_backup_repository.dart';
@@ -186,12 +187,16 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState>
     if (state.isSignedIn) {
       _accountVaultPassword = null;
       _pendingCloudBackup = null;
-      emit(state.copyWith(isSignedIn: false, email: null));
-      HelperMethods.showNotificationToast(
-        title: 'Signed out',
-        description:
+      emit(
+        state.copyWith(
+          isSignedIn: false,
+          email: null,
+          notice: Notice.info(
+            'Signed out',
             'Your cloud account session ended. Sign in again from Settings '
-            'to resume backups.',
+                'to resume backups.',
+          ),
+        ),
       );
     }
   }

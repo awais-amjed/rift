@@ -71,9 +71,13 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
       // that would otherwise bring it straight back.
       noteServerGone(supabaseUrl: server.supabaseUrl, id: server.id);
       removeServer(server.id);
-      HelperMethods.showToast(
-        title: 'No longer on ${server.name}',
-        description: 'The server was deleted, or you were removed from it.',
+      emit(
+        state.copyWith(
+          notice: Notice.info(
+            'No longer on ${server.name}',
+            'The server was deleted, or you were removed from it.',
+          ),
+        ),
       );
       return false;
     }

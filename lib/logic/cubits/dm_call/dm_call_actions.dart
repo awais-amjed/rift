@@ -36,11 +36,14 @@ mixin _DmCallActionsMixin on Cubit<DmCallState> {
     final response = await _serverCubit.startDmCall(server, peerId);
     emit(state.copyWith(busy: false));
     if (!response.success) {
-      HelperMethods.showError(
-        error:
+      emit(
+        state.copyWith(
+          notice: Notice.error(
             CallRefusal.describe(response.errorCode, peerName: peerName) ??
-            response.error ??
-            'Couldn\'t start the call.',
+                response.error ??
+                'Couldn\'t start the call.',
+          ),
+        ),
       );
       return;
     }
@@ -71,14 +74,17 @@ mixin _DmCallActionsMixin on Cubit<DmCallState> {
     );
     _syncSounds();
     if (!response.success) {
-      HelperMethods.showError(
-        error:
+      emit(
+        state.copyWith(
+          notice: Notice.error(
             CallRefusal.describe(
-              response.errorCode,
-              peerName: incoming.call.peerName,
-            ) ??
-            response.error ??
-            'Couldn\'t answer the call.',
+                  response.errorCode,
+                  peerName: incoming.call.peerName,
+                ) ??
+                response.error ??
+                'Couldn\'t answer the call.',
+          ),
+        ),
       );
       return false;
     }
@@ -107,7 +113,9 @@ mixin _DmCallActionsMixin on Cubit<DmCallState> {
     ).where((c) => c.id == callId).firstOrNull;
     if (call == null || !call.isRinging) {
       unawaited(NotificationService.instance.cancelCall(callId));
-      HelperMethods.showError(error: 'That call has already ended.');
+      emit(
+        state.copyWith(notice: Notice.error('That call has already ended.')),
+      );
       return false;
     }
     return answer(
@@ -174,10 +182,13 @@ mixin _DmCallActionsMixin on Cubit<DmCallState> {
 
     final key = await _mediaKey(server, call);
     if (key == null) {
-      HelperMethods.showError(
-        error:
+      emit(
+        state.copyWith(
+          notice: Notice.error(
             '${call.peerName} hasn\'t set up encrypted chat yet, so you '
             'can\'t call them.',
+          ),
+        ),
       );
       await hangUp();
       return;
@@ -241,7 +252,7 @@ mixin _DmCallActionsMixin on Cubit<DmCallState> {
       _ => null,
     };
     if (line != null) {
-      HelperMethods.showToast(title: 'Call ended', description: line);
+      emit(state.copyWith(notice: Notice.info('Call ended', line)));
     }
   }
 

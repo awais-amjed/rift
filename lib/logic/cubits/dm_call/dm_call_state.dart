@@ -45,7 +45,15 @@ class DmCallState extends Equatable {
   /// would send a second one are held.
   final bool busy;
 
-  const DmCallState({this.incoming = const [], this.active, this.busy = false});
+  /// The last thing to tell the person, shown once by `NoticeListeners`.
+  final Notice? notice;
+
+  const DmCallState({
+    this.incoming = const [],
+    this.active,
+    this.busy = false,
+    this.notice,
+  });
 
   /// Our own call, still waiting for the other end to pick up.
   bool get isRingingOut => active?.call.isRinging ?? false;
@@ -59,12 +67,14 @@ class DmCallState extends Equatable {
     ActiveDmCall? active,
     bool clearActive = false,
     bool? busy,
+    Notice? notice,
   }) => DmCallState(
     incoming: incoming ?? this.incoming,
     active: clearActive ? null : (active ?? this.active),
     busy: busy ?? this.busy,
+    notice: notice ?? this.notice,
   );
 
   @override
-  List<Object?> get props => [incoming, active, busy];
+  List<Object?> get props => [incoming, active, busy, notice];
 }

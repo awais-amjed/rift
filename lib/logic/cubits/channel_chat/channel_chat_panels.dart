@@ -68,7 +68,11 @@ mixin _ChannelChatPanelsMixin on Cubit<ChannelChatState> {
       actionValue: value,
     );
     if (!response.success) {
-      HelperMethods.showError(error: response.error ?? 'That did not go');
+      emit(
+        state.copyWith(
+          notice: Notice.error(response.error ?? 'That did not go'),
+        ),
+      );
     }
   }
 }

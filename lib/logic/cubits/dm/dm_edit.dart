@@ -47,15 +47,18 @@ mixin _DmEditMixin on Cubit<DmState> {
       if (state.openPeerId != peerId) return;
 
       if (!response.success) {
-        HelperMethods.showError(
-          error:
+        emit(
+          state.copyWith(
+            notice: Notice.error(
               EditRefusal.describe(
-                response.errorCode,
-                timedOut: user.isTimedOut,
-                peerName: state.openPeerName ?? 'This person',
-              ) ??
-              response.error ??
-              'Failed to edit message',
+                    response.errorCode,
+                    timedOut: user.isTimedOut,
+                    peerName: state.openPeerName ?? 'This person',
+                  ) ??
+                  response.error ??
+                  'Failed to edit message',
+            ),
+          ),
         );
         return;
       }
@@ -75,7 +78,7 @@ mixin _DmEditMixin on Cubit<DmState> {
     } catch (e) {
       HelperMethods.printDebug('[DM] edit failed: $e');
       if (state.openPeerId == peerId) {
-        HelperMethods.showError(error: 'Failed to edit message');
+        emit(state.copyWith(notice: Notice.error('Failed to edit message')));
       }
     }
   }
@@ -96,8 +99,10 @@ mixin _DmEditMixin on Cubit<DmState> {
       if (state.openPeerId != peerId) return;
 
       if (!response.success) {
-        HelperMethods.showError(
-          error: response.error ?? 'Failed to delete message',
+        emit(
+          state.copyWith(
+            notice: Notice.error(response.error ?? 'Failed to delete message'),
+          ),
         );
         return;
       }
@@ -117,7 +122,7 @@ mixin _DmEditMixin on Cubit<DmState> {
     } catch (e) {
       HelperMethods.printDebug('[DM] delete failed: $e');
       if (state.openPeerId == peerId) {
-        HelperMethods.showError(error: 'Failed to delete message');
+        emit(state.copyWith(notice: Notice.error('Failed to delete message')));
       }
     }
   }

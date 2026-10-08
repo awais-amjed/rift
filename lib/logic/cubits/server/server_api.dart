@@ -203,9 +203,13 @@ mixin _ServerApiMixin on Cubit<ServerState> {
       // this removal triggers merges the cloud's copy back in.
       noteServerGone(supabaseUrl: server.supabaseUrl, id: server.id);
       removeServer(server.id);
-      HelperMethods.showToast(
-        title: 'No longer on ${server.name}',
-        description: 'The server was deleted, or you were removed from it.',
+      emit(
+        state.copyWith(
+          notice: Notice.info(
+            'No longer on ${server.name}',
+            'The server was deleted, or you were removed from it.',
+          ),
+        ),
       );
       return (success: false, error: response.error);
     }

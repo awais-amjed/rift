@@ -129,6 +129,9 @@ class ChannelChatState extends Equatable {
   /// the keyring the open is still fetching.
   final bool showingSaved;
 
+  /// The last thing to tell the person, shown once by `NoticeListeners`.
+  final Notice? notice;
+
   const ChannelChatState({
     this.status = ChannelChatStatus.closed,
     this.channelId,
@@ -143,6 +146,7 @@ class ChannelChatState extends Equatable {
     this.failure,
     this.pollTallies = const {},
     this.showingSaved = false,
+    this.notice,
   });
 
   ChannelChatState copyWith({
@@ -160,6 +164,7 @@ class ChannelChatState extends Equatable {
     bool clearFailure = false,
     Map<String, PollTally>? pollTallies,
     bool? showingSaved,
+    Notice? notice,
   }) {
     return ChannelChatState(
       status: status ?? this.status,
@@ -178,6 +183,7 @@ class ChannelChatState extends Equatable {
       failure: clearFailure ? null : (failure ?? this.failure),
       pollTallies: pollTallies ?? this.pollTallies,
       showingSaved: showingSaved ?? this.showingSaved,
+      notice: notice ?? this.notice,
     );
   }
 
@@ -196,5 +202,6 @@ class ChannelChatState extends Equatable {
     failure,
     pollTallies,
     showingSaved,
+    notice,
   ];
 }

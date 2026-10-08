@@ -44,10 +44,13 @@ mixin _ChannelChatPinsMixin on Cubit<ChannelChatState> {
       pinned: pinned,
     );
     if (!response.success) {
-      HelperMethods.showError(
-        error:
+      emit(
+        state.copyWith(
+          notice: Notice.error(
             PinOps.errorFor(response.error) ??
-            (pinned ? 'Could not pin the message' : 'Could not unpin it'),
+                (pinned ? 'Could not pin the message' : 'Could not unpin it'),
+          ),
+        ),
       );
       return false;
     }

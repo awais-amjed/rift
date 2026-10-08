@@ -71,6 +71,9 @@ class DmState extends Equatable {
   /// server says: drawn while the conversation opens, and kept when it cannot.
   final bool showingSaved;
 
+  /// The last thing to tell the person, shown once by `NoticeListeners`.
+  final Notice? notice;
+
   const DmState({
     this.conversations = const [],
     this.conversationsLoading = false,
@@ -91,6 +94,7 @@ class DmState extends Equatable {
     this.calls = const [],
     this.error,
     this.showingSaved = false,
+    this.notice,
   });
 
   DmState copyWith({
@@ -117,6 +121,7 @@ class DmState extends Equatable {
     bool clearError = false,
     bool closeConversation = false,
     bool? showingSaved,
+    Notice? notice,
   }) {
     return DmState(
       conversations: conversations ?? this.conversations,
@@ -154,6 +159,7 @@ class DmState extends Equatable {
       showingSaved: closeConversation
           ? false
           : (showingSaved ?? this.showingSaved),
+      notice: notice ?? this.notice,
     );
   }
 
@@ -178,5 +184,6 @@ class DmState extends Equatable {
     calls,
     error,
     showingSaved,
+    notice,
   ];
 }

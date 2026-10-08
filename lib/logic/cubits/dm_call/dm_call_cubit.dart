@@ -7,6 +7,7 @@ import 'package:rift_crypto/rift_crypto.dart';
 
 import '../../../data/classes/dm_call.dart';
 import '../../../data/classes/dm_call_place.dart';
+import '../../../data/classes/notice.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/enums/app_sound.dart';
 import '../../../data/enums/dm_call_outcome.dart';

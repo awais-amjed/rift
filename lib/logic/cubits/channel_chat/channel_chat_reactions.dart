@@ -33,7 +33,7 @@ mixin _ChannelChatReactionsMixin on Cubit<ChannelChatState> {
     );
     if (state.channelId != channelId) return;
     if (!response.success) {
-      HelperMethods.showError(error: 'Failed to react');
+      emit(state.copyWith(notice: Notice.error('Failed to react')));
     }
     await refreshReactionsFor(messageId);
   }

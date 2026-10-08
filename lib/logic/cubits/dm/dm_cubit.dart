@@ -14,6 +14,7 @@ import '../../../data/classes/dm_conversation.dart';
 import '../../../data/classes/equality_props.dart';
 import '../../../data/classes/message_body.dart';
 import '../../../data/classes/message_cache_slot.dart';
+import '../../../data/classes/notice.dart';
 import '../../../data/classes/pending_attachment.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/enums/dm_link_state.dart';

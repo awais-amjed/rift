@@ -69,11 +69,14 @@ mixin _ChannelChatEditMixin on Cubit<ChannelChatState> {
       if (state.channelId != channelId) return;
 
       if (!response.success) {
-        HelperMethods.showError(
-          error:
+        emit(
+          state.copyWith(
+            notice: Notice.error(
               EditRefusal.describe(response.errorCode, timedOut: true) ??
-              response.error ??
-              'Failed to edit message',
+                  response.error ??
+                  'Failed to edit message',
+            ),
+          ),
         );
         return;
       }
@@ -95,7 +98,7 @@ mixin _ChannelChatEditMixin on Cubit<ChannelChatState> {
     } catch (e) {
       HelperMethods.printDebug('[Chat] edit failed: $e');
       if (state.channelId == channelId) {
-        HelperMethods.showError(error: 'Failed to edit message');
+        emit(state.copyWith(notice: Notice.error('Failed to edit message')));
       }
     }
   }
@@ -119,8 +122,10 @@ mixin _ChannelChatEditMixin on Cubit<ChannelChatState> {
       if (state.channelId != channelId) return;
 
       if (!response.success) {
-        HelperMethods.showError(
-          error: response.error ?? 'Failed to delete message',
+        emit(
+          state.copyWith(
+            notice: Notice.error(response.error ?? 'Failed to delete message'),
+          ),
         );
         return;
       }
@@ -140,7 +145,7 @@ mixin _ChannelChatEditMixin on Cubit<ChannelChatState> {
     } catch (e) {
       HelperMethods.printDebug('[Chat] delete failed: $e');
       if (state.channelId == channelId) {
-        HelperMethods.showError(error: 'Failed to delete message');
+        emit(state.copyWith(notice: Notice.error('Failed to delete message')));
       }
     }
   }

@@ -158,8 +158,12 @@ widgets testable and lets a service be reused by a second surface later.
   got its outcome back, or by a `BlocListener` reacting to a change in state. A cubit
   reports a failure as an outcome or in its state and opens no UI itself — it cannot
   tell which screen is up, whether a dialog is already showing the error, or whether
-  the user has moved on. Many cubits still toast directly
-  (`grep -rn "HelperMethods.show" lib/logic`); move those out when you touch them.
+  the user has moved on. For something to say that nobody is waiting on — a failed
+  reaction, a call that ended, a share that stopped — it sets a `Notice` in its state
+  (`emit(state.copyWith(notice: Notice.error(…)))`), and `NoticeListeners` at the root
+  of the app shows each new one once. A cubit with a first notice of its own gets a
+  `notice` field and a line in `NoticeListeners`. `grep -rn "HelperMethods.show"
+  lib/logic` should find nothing.
 - Debug output goes through `HelperMethods.printDebug` (Dart) / `log::` (Rust) — never
   `print` or `println!`.
 

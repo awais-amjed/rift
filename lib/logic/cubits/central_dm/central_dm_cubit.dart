@@ -15,6 +15,7 @@ import '../../../data/classes/friend.dart';
 import '../../../data/classes/friend_buckets.dart';
 import '../../../data/classes/message_body.dart';
 import '../../../data/classes/message_cache_slot.dart';
+import '../../../data/classes/notice.dart';
 import '../../../data/classes/paged.dart';
 import '../../../data/classes/pending_attachment.dart';
 import '../../../data/constants.dart';

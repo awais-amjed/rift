@@ -19,6 +19,9 @@ class ScreenshareState extends Equatable {
   final ServerLimits limits;
   final String? error;
 
+  /// The last thing to tell the person, shown once by `NoticeListeners`.
+  final Notice? notice;
+
   const ScreenshareState({
     this.status = ScreenshareStatus.idle,
     this.channelId,
@@ -26,6 +29,7 @@ class ScreenshareState extends Equatable {
     this.codec,
     this.limits = const ServerLimits(),
     this.error,
+    this.notice,
   });
 
   bool get isSharing => status == ScreenshareStatus.sharing;
@@ -44,6 +48,7 @@ class ScreenshareState extends Equatable {
     bool clearChannelId = false,
     bool clearSettings = false,
     bool clearError = false,
+    Notice? notice,
   }) {
     return ScreenshareState(
       status: status ?? this.status,
@@ -54,6 +59,7 @@ class ScreenshareState extends Equatable {
       codec: clearSettings ? null : (codec ?? this.codec),
       limits: clearSettings ? const ServerLimits() : (limits ?? this.limits),
       error: clearError ? null : (error ?? this.error),
+      notice: notice ?? this.notice,
     );
   }
 
@@ -65,5 +71,6 @@ class ScreenshareState extends Equatable {
     codec,
     limits,
     error,
+    notice,
   ];
 }

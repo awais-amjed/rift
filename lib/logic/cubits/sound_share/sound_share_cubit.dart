@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../data/classes/notice.dart';
 import '../../../src/rust/api/screenshare/types.dart';
 import '../../../src/rust/api/soundshare.dart' as rust;
 import '../../helper_methods.dart';
@@ -184,10 +185,12 @@ class SoundShareCubit extends Cubit<SoundShareState> {
   /// which had the same gap: the control bar reads only `isSharing`, so a
   /// refusal emitted into `error` was a field nothing ever looked at.
   void _fail(String message) {
-    emit(state.copyWith(status: SoundShareStatus.error, error: message));
-    HelperMethods.showError(
-      error: message,
-      autoCloseDuration: const Duration(seconds: 6),
+    emit(
+      state.copyWith(
+        status: SoundShareStatus.error,
+        error: message,
+        notice: Notice.error(message, duration: Notice.long),
+      ),
     );
   }
 

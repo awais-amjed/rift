@@ -122,16 +122,25 @@ mixin _CentralDmFriendsMixin on Cubit<CentralDmState> {
     final response = await _repo.requestFriendByHandle(typed);
     if (isClosed) return false;
     if (!response.success) {
-      HelperMethods.showError(error: _reasonFor(response, handle: typed));
+      emit(
+        state.copyWith(
+          notice: Notice.error(_reasonFor(response, handle: typed)),
+        ),
+      );
       return false;
     }
 
     final result = response.data as ({String handle, FriendshipState state});
     await loadFriends();
-    HelperMethods.showSuccess(
-      message: result.state == FriendshipState.friends
-          ? 'You and @${result.handle} are now friends.'
-          : 'Friend request sent to @${result.handle}.',
+    emit(
+      state.copyWith(
+        notice: Notice.success(
+          'Success',
+          result.state == FriendshipState.friends
+              ? 'You and @${result.handle} are now friends.'
+              : 'Friend request sent to @${result.handle}.',
+        ),
+      ),
     );
     return true;
   }
@@ -176,7 +185,7 @@ mixin _CentralDmFriendsMixin on Cubit<CentralDmState> {
     final response = await call();
     if (isClosed) return false;
     if (!response.success) {
-      HelperMethods.showError(error: _reasonFor(response));
+      emit(state.copyWith(notice: Notice.error(_reasonFor(response))));
       return false;
     }
     if (closeIfOpen != null && state.openPeerId == closeIfOpen) {

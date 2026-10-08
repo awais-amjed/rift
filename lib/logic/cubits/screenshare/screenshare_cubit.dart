@@ -4,8 +4,8 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' show Helper;
-import 'package:toastification/toastification.dart';
 
+import '../../../data/classes/notice.dart';
 import '../../../data/classes/screen_share_settings.dart';
 import '../../../data/classes/server_limits.dart';
 import '../../../src/rust/api/screenshare.dart';
@@ -58,13 +58,16 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
   /// control went back to not-sharing and the reason, which is usually
   /// actionable ("this call's encryption key is not ready", "no frames
   /// arrived from the selected source in 10 seconds"), stayed in a field.
+  /// The notice beside it is what says it: `NoticeListeners` shows it.
   void _fail(String message) {
-    emit(state.copyWith(status: ScreenshareStatus.error, error: message));
-    HelperMethods.showError(error: message, autoCloseDuration: _errorDuration);
+    emit(
+      state.copyWith(
+        status: ScreenshareStatus.error,
+        error: message,
+        notice: Notice.error(message, duration: Notice.long),
+      ),
+    );
   }
-
-  /// Long enough to read a sentence about why a share did not start.
-  static const Duration _errorDuration = Duration(seconds: 6);
 
   void _onRustScreenshareEvent(ScreenshareEvent event) {
     switch (event) {
@@ -77,9 +80,13 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
       case ScreenshareEvent.encoderFellBack:
         // The share is still up; only how it is encoded changed.
         if (state.isSharing) emit(state.copyWith(codec: VideoCodec.vp9));
-        HelperMethods.showToast(
-          title: 'Sharing as VP9',
-          description: 'Your graphics card could not encode H264 this time.',
+        emit(
+          state.copyWith(
+            notice: Notice.info(
+              'Sharing as VP9',
+              'Your graphics card could not encode H264 this time.',
+            ),
+          ),
         );
     }
   }
@@ -299,9 +306,13 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
       final now = wanted.copyWith(shareAudio: applied.shareAudio);
       emit(state.copyWith(settings: now));
       if (wanted.shareAudio && !applied.shareAudio) {
-        HelperMethods.showError(
-          error: 'Could not share this stream’s sound.',
-          autoCloseDuration: _errorDuration,
+        emit(
+          state.copyWith(
+            notice: Notice.error(
+              'Could not share this stream’s sound.',
+              duration: Notice.long,
+            ),
+          ),
         );
       } else {
         final notice = streamChangeNotice(
@@ -310,18 +321,22 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
           fpsLowered: fps == null && now.fps < current.fps,
           soundChanged: shareAudio != null,
         );
-        HelperMethods.showToast(
-          title: notice.title,
-          description: notice.description,
-          type: ToastificationType.success,
+        emit(
+          state.copyWith(
+            notice: Notice.success(notice.title, notice.description),
+          ),
         );
       }
       return now;
     } catch (e) {
       HelperMethods.printDebug('✗ Screen share change error: $e');
-      HelperMethods.showError(
-        error: 'Could not change the stream: $e',
-        autoCloseDuration: _errorDuration,
+      emit(
+        state.copyWith(
+          notice: Notice.error(
+            'Could not change the stream: $e',
+            duration: Notice.long,
+          ),
+        ),
       );
       return null;
     }
@@ -449,11 +464,14 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
       '✗ Screen share could not follow the call: $reason',
     );
     await stopScreenShare();
-    HelperMethods.showError(
-      error:
+    emit(
+      state.copyWith(
+        notice: Notice.error(
           'Your stream stopped when the call reconnected. Share again to '
           'carry on.',
-      autoCloseDuration: _errorDuration,
+          duration: Notice.long,
+        ),
+      ),
     );
   }
 
@@ -471,9 +489,13 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
       ),
     );
     if (tell) {
-      HelperMethods.showToast(
-        title: 'Your stream stopped',
-        description: 'The call reconnected. Share again to carry on.',
+      emit(
+        state.copyWith(
+          notice: Notice.info(
+            'Your stream stopped',
+            'The call reconnected. Share again to carry on.',
+          ),
+        ),
       );
     }
   }

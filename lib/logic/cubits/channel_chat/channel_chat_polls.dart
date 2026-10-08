@@ -73,7 +73,11 @@ mixin _ChannelChatPollsMixin on Cubit<ChannelChatState> {
         poll: rules.toJson(),
       );
       if (!response.success) {
-        HelperMethods.showError(error: response.error ?? 'Could not post poll');
+        emit(
+          state.copyWith(
+            notice: Notice.error(response.error ?? 'Could not post poll'),
+          ),
+        );
         return false;
       }
       if (state.channelId != channelId) return true;
@@ -105,7 +109,7 @@ mixin _ChannelChatPollsMixin on Cubit<ChannelChatState> {
       return true;
     } catch (e) {
       HelperMethods.printDebug('[Chat] poll send failed: $e');
-      HelperMethods.showError(error: 'Could not post poll');
+      emit(state.copyWith(notice: Notice.error('Could not post poll')));
       return false;
     }
   }
@@ -132,8 +136,12 @@ mixin _ChannelChatPollsMixin on Cubit<ChannelChatState> {
       options: ballot,
     );
     if (!response.success) {
-      HelperMethods.showError(
-        error: PollOps.errorFor(response.error) ?? 'Could not vote',
+      emit(
+        state.copyWith(
+          notice: Notice.error(
+            PollOps.errorFor(response.error) ?? 'Could not vote',
+          ),
+        ),
       );
       // A refusal for being closed means the row is out of date; read it.
       unawaited(refreshMessage(messageId));
@@ -150,8 +158,12 @@ mixin _ChannelChatPollsMixin on Cubit<ChannelChatState> {
     if (id == null) return;
     final response = await _serverCubit.closePoll(messageId: id);
     if (!response.success) {
-      HelperMethods.showError(
-        error: PollOps.errorFor(response.error) ?? 'Could not end the poll',
+      emit(
+        state.copyWith(
+          notice: Notice.error(
+            PollOps.errorFor(response.error) ?? 'Could not end the poll',
+          ),
+        ),
       );
       return;
     }

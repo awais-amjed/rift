@@ -44,8 +44,10 @@ mixin _CentralDmEditMixin on Cubit<CentralDmState> {
       if (state.openPeerId != peerId) return;
 
       if (!response.success) {
-        HelperMethods.showError(
-          error: response.error ?? 'Failed to edit message',
+        emit(
+          state.copyWith(
+            notice: Notice.error(response.error ?? 'Failed to edit message'),
+          ),
         );
         return;
       }
@@ -65,7 +67,7 @@ mixin _CentralDmEditMixin on Cubit<CentralDmState> {
     } catch (e) {
       HelperMethods.printDebug('[CentralDM] edit failed: $e');
       if (state.openPeerId == peerId) {
-        HelperMethods.showError(error: 'Failed to edit message');
+        emit(state.copyWith(notice: Notice.error('Failed to edit message')));
       }
     }
   }
@@ -85,8 +87,10 @@ mixin _CentralDmEditMixin on Cubit<CentralDmState> {
       if (state.openPeerId != peerId) return;
 
       if (!response.success) {
-        HelperMethods.showError(
-          error: response.error ?? 'Failed to delete message',
+        emit(
+          state.copyWith(
+            notice: Notice.error(response.error ?? 'Failed to delete message'),
+          ),
         );
         return;
       }
@@ -103,7 +107,7 @@ mixin _CentralDmEditMixin on Cubit<CentralDmState> {
     } catch (e) {
       HelperMethods.printDebug('[CentralDM] delete failed: $e');
       if (state.openPeerId == peerId) {
-        HelperMethods.showError(error: 'Failed to delete message');
+        emit(state.copyWith(notice: Notice.error('Failed to delete message')));
       }
     }
   }

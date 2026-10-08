@@ -197,7 +197,9 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
         _failSend(pending: pending, peerId: peerId, attachments: attachments);
       } else if (state.openPeerId == peerId) {
         _removePending(pendingId);
-        HelperMethods.showError(error: 'Failed to upload attachment');
+        emit(
+          state.copyWith(notice: Notice.error('Failed to upload attachment')),
+        );
         return true;
       }
       return false;
@@ -206,7 +208,7 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
       // No code to read, so no claim that a retry would help.
       if (state.openPeerId == peerId) {
         _removePending(pendingId);
-        HelperMethods.showError(error: 'Failed to send message');
+        emit(state.copyWith(notice: Notice.error('Failed to send message')));
         return true;
       }
       return false;
@@ -261,10 +263,13 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
     switch (response.errorCode) {
       case 'quota_exceeded':
         emit(state.copyWith(remaining: 0));
-        HelperMethods.showError(
-          error:
+        emit(
+          state.copyWith(
+            notice: Notice.error(
               'Daily central DM limit reached — continue on a shared '
               'server, or try again tomorrow.',
+            ),
+          ),
         );
       // The composer should not have existed. Reaching here means this
       // device's graph was stale — they unfriended or blocked while the
@@ -276,12 +281,18 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
       // a bounce.
       case 'not_friends':
         unawaited(loadFriends());
-        HelperMethods.showError(
-          error: 'You can only message people you are friends with.',
+        emit(
+          state.copyWith(
+            notice: Notice.error(
+              'You can only message people you are friends with.',
+            ),
+          ),
         );
       default:
-        HelperMethods.showError(
-          error: response.error ?? 'Failed to send message',
+        emit(
+          state.copyWith(
+            notice: Notice.error(response.error ?? 'Failed to send message'),
+          ),
         );
     }
   }

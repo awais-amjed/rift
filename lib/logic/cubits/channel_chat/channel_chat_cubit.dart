@@ -11,6 +11,7 @@ import '../../../data/classes/channel.dart';
 import '../../../data/classes/chat_message.dart';
 import '../../../data/classes/message_body.dart';
 import '../../../data/classes/message_cache_slot.dart';
+import '../../../data/classes/notice.dart';
 import '../../../data/classes/panel_block.dart';
 import '../../../data/classes/pending_attachment.dart';
 import '../../../data/classes/poll.dart';

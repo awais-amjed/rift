@@ -382,7 +382,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
     if (!Outbox.canRetry(errorCode)) {
       if (open) {
         _removePending(pending.id);
-        HelperMethods.showError(error: error);
+        emit(state.copyWith(notice: Notice.error(error)));
       }
       return open;
     }

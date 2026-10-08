@@ -24,11 +24,17 @@ class ServerState extends Equatable {
   @JsonKey(includeFromJson: false, includeToJson: false)
   final Map<String, RegionLoad> regionLoad;
 
+  /// The last thing to tell the person, shown once by `NoticeListeners`.
+  /// Transient: a notice is news, not something to come back to.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  final Notice? notice;
+
   const ServerState({
     this.servers = const [],
     this.selectedServerId,
     this.orderClock = 0,
     this.regionLoad = const {},
+    this.notice,
   });
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -77,6 +83,7 @@ class ServerState extends Equatable {
     bool clearSelectedServerId = false,
     int? orderClock,
     Map<String, RegionLoad>? regionLoad,
+    Notice? notice,
   }) {
     return ServerState(
       servers: servers ?? this.servers,
@@ -85,6 +92,7 @@ class ServerState extends Equatable {
           : (selectedServerId ?? this.selectedServerId),
       orderClock: orderClock ?? this.orderClock,
       regionLoad: regionLoad ?? this.regionLoad,
+      notice: notice ?? this.notice,
     );
   }
 
@@ -99,5 +107,6 @@ class ServerState extends Equatable {
     selectedServerId,
     orderClock,
     regionLoad,
+    notice,
   ];
 }
