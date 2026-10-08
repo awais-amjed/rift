@@ -9,7 +9,7 @@ part of 'channel_keyring.dart';
 /// runs fire-and-forget, its failures cost somebody else a wait rather than
 /// this client anything, and every one of them is swallowed on purpose.
 mixin _KeyringSealingMixin {
-  ServerCubit get _serverCubit;
+  ChannelKeysApi get _channelKeys;
   VoiceBotsApi get _voiceBots;
   CryptoRepository get _crypto;
   void Function()? get onHealed;
@@ -79,7 +79,7 @@ mixin _KeyringSealingMixin {
         key: channelKey,
         members: members,
       );
-      final response = await _serverCubit.postChannelKeys(
+      final response = await _channelKeys.postChannelKeys(
         channelId: channelId,
         keyVersion: keyVersion,
         entries: entries,

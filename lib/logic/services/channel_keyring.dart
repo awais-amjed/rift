@@ -3,12 +3,12 @@ import 'dart:typed_data';
 
 import 'package:rift_crypto/rift_crypto.dart';
 
+import '../../data/apis/channel_keys_api.dart';
 import '../../data/apis/voice_bots_api.dart';
 import '../../data/classes/server.dart';
 import '../../data/enums/error_code.dart';
 import '../../data/repositories/server_repository.dart';
 import '../../data/repositories/session_repository.dart';
-import '../cubits/server/server_cubit.dart';
 import '../cubits/vault/vault_cubit.dart';
 import '../helper_methods.dart';
 import 'channel_key_chain.dart';
@@ -37,8 +37,9 @@ part 'channel_keyring_sealing.dart';
 /// Everything here is per channel and per member. The server stores only sealed
 /// entries and can read none of them (ARCHITECTURE.md §4).
 class ChannelKeyring with _KeyringSealingMixin {
+  final SessionRepository _session;
   @override
-  final ServerCubit _serverCubit;
+  final ChannelKeysApi _channelKeys;
   @override
   final VoiceBotsApi _voiceBots;
   final VaultCubit _vaultCubit;
@@ -52,12 +53,12 @@ class ChannelKeyring with _KeyringSealingMixin {
   final void Function()? onHealed;
 
   ChannelKeyring({
-    required ServerCubit serverCubit,
     required SessionRepository session,
     required VaultCubit vaultCubit,
     required CryptoRepository crypto,
     this.onHealed,
-  }) : _serverCubit = serverCubit,
+  }) : _session = session,
+       _channelKeys = ChannelKeysApi(session: session),
        _voiceBots = VoiceBotsApi(session: session),
        _vaultCubit = vaultCubit,
        _crypto = crypto;
@@ -116,8 +117,9 @@ class ChannelKeyring with _KeyringSealingMixin {
     if (publishedChatKey.contains(server.id)) return false;
     final identity = await chatIdentity(server);
     if (identity == null) return false;
-    final response = await _serverCubit.publishChatKey(
+    final response = await _channelKeys.publishChatKey(
       identity.publicKeyBase64,
+      serverId: server.id,
     );
     if (!response.success) return false;
     publishedChatKey.add(server.id);
@@ -148,14 +150,12 @@ class ChannelKeyring with _KeyringSealingMixin {
   /// reviewer opening reports on another server's page. Null is the selected
   /// one, which is every other caller.
   Future<bool> absorbNewVersions(String channelId, {String? serverId}) async {
-    final server = serverId == null
-        ? _serverCubit.state.selectedServer
-        : _serverCubit.state.serverById(serverId);
+    final server = _session.target(serverId);
     if (server == null) return false;
     final identity = await chatIdentity(server);
     if (identity == null) return false;
 
-    final response = await _serverCubit.getChannelKey(
+    final response = await _channelKeys.getChannelKey(
       channelId,
       serverId: server.id,
     );
@@ -219,7 +219,7 @@ class ChannelKeyring with _KeyringSealingMixin {
     final version = currentVersion;
     if (!keys.containsKey(version)) return;
 
-    final response = await _serverCubit.getChannelKey(channelId);
+    final response = await _channelKeys.getChannelKey(channelId);
     if (!response.success) return;
 
     final data = response.data as Map<String, dynamic>;
@@ -234,7 +234,7 @@ class ChannelKeyring with _KeyringSealingMixin {
   Future<KeyringOutcome> loadOrBootstrap(String channelId) async {
     clear();
 
-    final server = _serverCubit.state.selectedServer;
+    final server = _session.selectedServer;
     if (server == null) {
       return const KeyringOutcome.failed(ChatFailure.noServer());
     }
@@ -246,7 +246,7 @@ class ChannelKeyring with _KeyringSealingMixin {
     // Bootstrap can race another member: retry once on conflict, using the
     // winner's keyring.
     for (var attempt = 0; attempt < 2; attempt++) {
-      final response = await _serverCubit.getChannelKey(channelId);
+      final response = await _channelKeys.getChannelKey(channelId);
       if (!response.success) {
         return KeyringOutcome.failed(ChatFailure.fromResponse(response));
       }
@@ -287,7 +287,7 @@ class ChannelKeyring with _KeyringSealingMixin {
       // from it, and nothing newer links down to it yet.
       final droppable = covered.where((v) => v < version).toList();
       if (droppable.isNotEmpty) {
-        unawaited(_serverCubit.pruneChannelKeys(channelId, droppable));
+        unawaited(_channelKeys.pruneChannelKeys(channelId, droppable));
       }
 
       if (!keys.containsKey(version)) return const KeyringOutcome.waiting();
@@ -324,7 +324,7 @@ class ChannelKeyring with _KeyringSealingMixin {
       members: members,
     );
 
-    final response = await _serverCubit.postChannelKeys(
+    final response = await _channelKeys.postChannelKeys(
       channelId: channelId,
       keyVersion: 1,
       entries: entries,

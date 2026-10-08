@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rift_crypto/rift_crypto.dart';
 
+import '../../../data/apis/channel_keys_api.dart';
 import '../../../data/apis/members_api.dart';
 import '../../../data/apis/pins_polls_api.dart';
 import '../../../data/apis/voice_bots_api.dart';
@@ -120,6 +121,9 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   @override
   final PinsPollsApi _pinsPolls;
 
+  @override
+  final ChannelKeysApi _channelKeys;
+
   /// What `@names` in the open channel resolve to, and which have been asked.
   ///
   /// Cleared with the channel by [_resetTo]. Both halves live in one object so
@@ -172,7 +176,6 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
 
   @override
   late final ChannelKeyring _keyring = ChannelKeyring(
-    serverCubit: _serverCubit,
     session: _session,
     vaultCubit: _vaultCubit,
     crypto: _crypto,
@@ -252,6 +255,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
        _voiceBots = VoiceBotsApi(session: session),
        _members = MembersApi(session: session),
        _pinsPolls = PinsPollsApi(session: session),
+       _channelKeys = ChannelKeysApi(session: session),
        _vaultCubit = vaultCubit,
        _crypto = crypto ?? CryptoRepository(),
        _messageCache = messageCache ?? MessageCache.instance,

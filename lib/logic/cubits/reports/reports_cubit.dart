@@ -59,7 +59,6 @@ class ReportsCubit extends Cubit<ReportsState> {
        _moderation = ModerationApi(session: session),
        _fixedServerId = serverId,
        _opener = ReportedMessageOpener(
-         serverCubit: serverCubit,
          session: session,
          vaultCubit: vaultCubit,
        ),

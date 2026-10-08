@@ -1,7 +1,7 @@
 part of 'server_cubit.dart';
 
-/// Channel messages and channel keys (E2E messaging). Attachments and DMs
-/// are their own parts.
+/// Channel messages (E2E messaging). Attachments are their own part; the
+/// channel keys are `ChannelKeysApi`.
 ///
 /// Chat API wrappers. Thin pass-throughs to the repository —
 /// all crypto happens in ChannelChatCubit/CryptoRepository; these only add
@@ -27,18 +27,6 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
 
   /// See [ServerCubit._chatTarget].
   ({Server server, String anonKey})? _chatTarget(String? serverId);
-
-  /// Publish the local user's X25519 chat public key (idempotent).
-  Future<APIResponse> publishChatKey(String chatPublicKey) =>
-      _callWithAutoRefresh(
-        (token) => _repository.publishChatKey(
-          state.selectedServer!.supabaseUrl,
-          anonKey: _anonKey,
-          userId: _userId,
-          chatPublicKey: chatPublicKey,
-          bearerToken: token,
-        ),
-      );
 
   /// Store one E2E message envelope for [channelId].
   Future<APIResponse> sendChatMessage({
@@ -196,60 +184,4 @@ mixin _ServerChatApiMixin on Cubit<ServerState> {
       bearerToken: token,
     ),
   );
-
-  /// Fetch my sealed channel keys + current version + healing set.
-  Future<APIResponse> getChannelKey(String channelId, {String? serverId}) {
-    final target = _chatTarget(serverId);
-    if (target == null) {
-      return Future.value(APIResponse.error(_noTarget(serverId)));
-    }
-    return _callFor(
-      target.server,
-      (token) => _repository.getChannelKey(
-        target.server.supabaseUrl,
-        channelId: channelId,
-        bearerToken: token,
-      ),
-    );
-  }
-
-  /// List key-distribution work available to the local user.
-  Future<APIResponse> sweepChannelKeys() => _callWithAutoRefresh(
-    (token) => _repository.sweepChannelKeys(
-      state.selectedServer!.supabaseUrl,
-      bearerToken: token,
-    ),
-  );
-
-  /// Store sealed keyring entries for a key version — a new one when [mint],
-  /// with the [link] that opens the version before it.
-  Future<APIResponse> postChannelKeys({
-    required String channelId,
-    required int keyVersion,
-    required List<Map<String, dynamic>> entries,
-    required bool mint,
-    ({String ciphertext, String nonce})? link,
-  }) => _callWithAutoRefresh(
-    (token) => _repository.postChannelKeys(
-      state.selectedServer!.supabaseUrl,
-      channelId: channelId,
-      keyVersion: keyVersion,
-      entries: entries,
-      mint: mint,
-      link: link,
-      bearerToken: token,
-    ),
-  );
-
-  /// Drop our own keyring rows the channel's links already cover.
-  Future<APIResponse> pruneChannelKeys(String channelId, List<int> versions) =>
-      _callWithAutoRefresh(
-        (token) => _repository.pruneChannelKeys(
-          state.selectedServer!.supabaseUrl,
-          anonKey: _anonKey,
-          bearerToken: token,
-          channelId: channelId,
-          versions: versions,
-        ),
-      );
 }

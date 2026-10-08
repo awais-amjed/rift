@@ -8,6 +8,7 @@ part of 'channel_chat_cubit.dart';
 /// healed someone).
 mixin _ChatSweepMixin on Cubit<ChannelChatState> {
   ServerCubit get _serverCubit;
+  ChannelKeysApi get _channelKeys;
   CryptoRepository get _crypto;
   Future<ChatIdentity?> _chatIdentity(Server server);
   void _ringKeySweepDoorbell();
@@ -33,7 +34,7 @@ mixin _ChatSweepMixin on Cubit<ChannelChatState> {
       // versions. A pass that stored nothing ends it, so a batch that keeps
       // failing is not asked for forever.
       for (var pass = 0; pass < _maxSweepPasses; pass++) {
-        final response = await _serverCubit.sweepChannelKeys();
+        final response = await _channelKeys.sweepChannelKeys();
         if (!response.success) break;
         final data = response.data as Map<String, dynamic>;
         final work = (data['work'] as List).cast<Map<String, dynamic>>();
@@ -90,7 +91,7 @@ mixin _ChatSweepMixin on Cubit<ChannelChatState> {
       members: missing,
     );
 
-    final posted = await _serverCubit.postChannelKeys(
+    final posted = await _channelKeys.postChannelKeys(
       channelId: channelId,
       keyVersion: postVersion,
       entries: entries,

@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:rift_crypto/rift_crypto.dart';
 
+import '../../../data/apis/channel_keys_api.dart';
 import '../../../data/apis/dms_api.dart';
 import '../../../data/classes/api_response.dart';
 import '../../../data/classes/attachment.dart';
@@ -59,6 +60,7 @@ class ForwardService with _ForwardBlobsMixin, _ForwardDmsMixin {
   final CentralDmRepository central;
   @override
   final DmsApi dms;
+  final ChannelKeysApi channelKeys;
 
   ForwardService({
     required this.servers,
@@ -67,6 +69,7 @@ class ForwardService with _ForwardBlobsMixin, _ForwardDmsMixin {
     required this.crypto,
     CentralDmRepository? central,
   }) : dms = DmsApi(session: session),
+       channelKeys = ChannelKeysApi(session: session),
        central = central ?? CentralDmRepository();
 
   /// Forward [message] to each of [targets], with an optional [note] of the
@@ -187,7 +190,7 @@ class ForwardService with _ForwardBlobsMixin, _ForwardDmsMixin {
     final identity = await _chatIdentityFor(server);
     if (identity == null) return null;
 
-    final response = await servers.getChannelKey(
+    final response = await channelKeys.getChannelKey(
       channelId,
       serverId: server.id,
     );

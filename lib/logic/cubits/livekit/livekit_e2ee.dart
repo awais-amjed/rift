@@ -52,11 +52,9 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
   ChannelKeyring? _keyringOrNull;
 
   ChannelKeyring? get _keyring {
-    final server = _serverCubit;
     final session = _session;
-    if (server == null || session == null) return null;
+    if (session == null) return null;
     return _keyringOrNull ??= ChannelKeyring(
-      serverCubit: server,
       session: session,
       vaultCubit: _vaultCubit,
       crypto: _crypto,
