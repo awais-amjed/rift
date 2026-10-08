@@ -1,15 +1,25 @@
-part of 'server_cubit.dart';
+import '../repositories/server_repository.dart';
+import '../repositories/session_repository.dart';
+import 'channels_api.dart';
 
-/// The private half of a channel's life: who is in it, who may say so, and how
-/// a channel crosses the line in either direction.
+/// The private half of a channel's life on the selected server: who is in it,
+/// who may say so, and how a channel crosses the line in either direction.
 ///
-/// Split from [_ServerChannelsApiMixin] rather than sitting in it, because
-/// these share something the other three do not. Every one of them is about a
-/// list of *people*, and under end-to-end encryption that list is not a rule
-/// the server applies — it is the set a key gets sealed to (ARCHITECTURE.md
-/// §4). Renaming a channel and deciding who may read it are not the same kind
-/// of act, and the second one cannot be undone by changing your mind.
-mixin _ServerPrivateChannelsApiMixin on _ServerChannelsApiMixin {
+/// Apart from [ChannelsApi] rather than in it, because these share something
+/// the others do not. Every one of them is about a list of *people*, and under
+/// end-to-end encryption that list is not a rule the server applies — it is
+/// the set a key gets sealed to (ARCHITECTURE.md §4). Renaming a channel and
+/// deciding who may read it are not the same kind of act, and the second one
+/// cannot be undone by changing your mind.
+///
+/// Holds nothing, so a widget builds one from the session.
+class ChannelAccessApi {
+  final SessionRepository _session;
+
+  ChannelAccessApi({required SessionRepository session}) : _session = session;
+
+  ServerRepository get _repository => _session.repository;
+
   /// Replace a private channel's membership with exactly [userIds].
   ///
   /// Removing the last member deletes the channel, and that is not an accident
@@ -18,11 +28,12 @@ mixin _ServerPrivateChannelsApiMixin on _ServerChannelsApiMixin {
   Future<({bool success, String? error})> setChannelMembers({
     required String channelId,
     required List<String> userIds,
-  }) => _changeChannel(
+  }) => changeChannel(
+    _session,
     (server, token) => _repository.setChannelMembers(
       server.supabaseUrl,
       channelId,
-      anonKey: _anonKey,
+      anonKey: server.supabaseKey ?? '',
       bearerToken: token,
       userIds: userIds,
     ),
@@ -38,11 +49,12 @@ mixin _ServerPrivateChannelsApiMixin on _ServerChannelsApiMixin {
   Future<({bool success, String? error})> setChannelPrivate({
     required String channelId,
     required bool isPrivate,
-  }) => _changeChannel(
+  }) => changeChannel(
+    _session,
     (server, token) => _repository.setChannelPrivate(
       server.supabaseUrl,
       channelId,
-      anonKey: _anonKey,
+      anonKey: server.supabaseKey ?? '',
       bearerToken: token,
       isPrivate: isPrivate,
     ),
@@ -58,11 +70,12 @@ mixin _ServerPrivateChannelsApiMixin on _ServerChannelsApiMixin {
   Future<({bool success, String? error})> setChannelEncrypted({
     required String channelId,
     required bool encrypted,
-  }) => _changeChannel(
+  }) => changeChannel(
+    _session,
     (server, token) => _repository.setChannelEncrypted(
       server.supabaseUrl,
       channelId,
-      anonKey: _anonKey,
+      anonKey: server.supabaseKey ?? '',
       bearerToken: token,
       encrypted: encrypted,
     ),
@@ -77,14 +90,15 @@ mixin _ServerPrivateChannelsApiMixin on _ServerChannelsApiMixin {
   /// which is the right answer for who *else* is in a room and the wrong one
   /// for whether you are. Leaving needs nobody's permission.
   Future<({bool success, String? error})> leaveChannel(String channelId) async {
-    final server = state.selectedServer;
-    if (server == null) return (success: false, error: 'No server selected');
+    final server = _session.selectedServer;
+    if (server == null) return (success: false, error: _session.noTarget(null));
 
-    final response = await _callWithAutoRefresh(
+    final response = await _session.callFor(
+      server,
       (token) => _repository.leaveChannel(
         server.supabaseUrl,
         channelId,
-        anonKey: _anonKey,
+        anonKey: server.supabaseKey ?? '',
         bearerToken: token,
       ),
     );
@@ -97,7 +111,7 @@ mixin _ServerPrivateChannelsApiMixin on _ServerChannelsApiMixin {
       return (success: false, error: _leaveFailure(reason as String?));
     }
 
-    await refreshServerDetails();
+    await _session.refreshDetails(server);
     return (success: true, error: null);
   }
 
@@ -122,14 +136,15 @@ mixin _ServerPrivateChannelsApiMixin on _ServerChannelsApiMixin {
   Future<({Set<String> memberIds, bool canManage})> channelMembers(
     String channelId,
   ) async {
-    final server = state.selectedServer;
+    final server = _session.selectedServer;
     if (server == null) return (memberIds: <String>{}, canManage: false);
 
-    final response = await _callWithAutoRefresh(
+    final response = await _session.callFor(
+      server,
       (token) => _repository.listChannelMembers(
         server.supabaseUrl,
         channelId,
-        anonKey: _anonKey,
+        anonKey: server.supabaseKey ?? '',
         bearerToken: token,
       ),
     );
@@ -138,16 +153,13 @@ mixin _ServerPrivateChannelsApiMixin on _ServerChannelsApiMixin {
     }
 
     final rows =
-        (response.data as Map<String, dynamic>)['members'] as List? ?? const [];
+        ((response.data as Map<String, dynamic>)['members'] as List? ??
+                const [])
+            .cast<Map<String, dynamic>>();
     final me = server.user?.id;
     return (
-      memberIds: {
-        for (final r in rows.cast<Map<String, dynamic>>())
-          r['user_id'] as String,
-      },
-      canManage: rows.cast<Map<String, dynamic>>().any(
-        (r) => r['user_id'] == me && r['can_manage'] == true,
-      ),
+      memberIds: {for (final r in rows) r['user_id'] as String},
+      canManage: rows.any((r) => r['user_id'] == me && r['can_manage'] == true),
     );
   }
 }

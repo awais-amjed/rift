@@ -1,25 +1,27 @@
-part of 'server_cubit.dart';
+import '../classes/api_response.dart';
+import '../classes/server.dart';
+import '../repositories/server_repository.dart';
+import '../repositories/session_repository.dart';
 
-/// Channel create / update / delete / reorder for the selected server.
+/// Channel create / update / delete / reorder on the selected server.
 ///
-/// Split out of `_ServerApiMixin` because these three share one shape that
-/// nothing else in that file does: every one of them mutates the channel list
-/// and then has to bring *everyone's* sidebar back in line. That shared tail is
-/// [_changeChannel], and keeping it next to its only three callers is the seam.
-mixin _ServerChannelsApiMixin on Cubit<ServerState> {
-  ServerRepository get _repository;
-  String get _anonKey;
+/// Every one of them changes the channel list, and so ends by bringing
+/// *everyone's* sidebar back in line: our own by re-reading the server
+/// ([SessionRepository.refreshDetails], landed before the call answers), and
+/// every other member's through `channels_announce` on the row itself, which
+/// reaches members who were offline and members nobody could ring.
+///
+/// Who may read a channel is `ChannelAccessApi`'s.
+///
+/// Holds nothing, so a widget builds one from the session.
+class ChannelsApi {
+  final SessionRepository _session;
 
-  Future<APIResponse> _callWithAutoRefresh(
-    Future<APIResponse> Function(String token) call,
-  );
+  ChannelsApi({required SessionRepository session}) : _session = session;
 
-  /// Implemented by [_ServerApiMixin].
-  Future<({bool success, String? error})> refreshServerDetails({
-    String? serverId,
-  });
+  ServerRepository get _repository => _session.repository;
 
-  /// Create a new channel in the selected server.
+  /// Create a new channel.
   ///
   /// [memberIds] is only read when [isPrivate], and never has to include the
   /// creator: `create_channel` seats them itself.
@@ -29,15 +31,14 @@ mixin _ServerChannelsApiMixin on Cubit<ServerState> {
     bool isPrivate = false,
     List<String> memberIds = const [],
   }) async {
-    final server = state.selectedServer;
-    if (server == null) {
-      return (success: false, error: 'No server selected');
-    }
+    final server = _session.selectedServer;
+    if (server == null) return (success: false, error: _session.noTarget(null));
 
-    final response = await _callWithAutoRefresh(
+    final response = await _session.callFor(
+      server,
       (token) => _repository.createChannel(
         server.supabaseUrl,
-        anonKey: _anonKey,
+        anonKey: server.supabaseKey ?? '',
         bearerToken: token,
         name: name,
         channelType: channelType,
@@ -45,7 +46,6 @@ mixin _ServerChannelsApiMixin on Cubit<ServerState> {
         memberIds: isPrivate ? memberIds : const [],
       ),
     );
-
     if (!response.success) {
       return (
         success: false,
@@ -58,12 +58,7 @@ mixin _ServerChannelsApiMixin on Cubit<ServerState> {
       return (success: false, error: _createFailure(reason as String?));
     }
 
-    // Our own list, to include the channel we just made. Everybody else
-    // hears it from the database — `channels_announce` fires
-    // on the row, so it reaches members who were offline when we rang and
-    // members on a server nobody rang. The doorbell used to be sent here too
-    // and only ever arrived as a second identical answer.
-    await refreshServerDetails();
+    await _session.refreshDetails(server);
     return (success: true, error: null);
   }
 
@@ -82,11 +77,12 @@ mixin _ServerChannelsApiMixin on Cubit<ServerState> {
     bool clearHistoryCap = false,
     String? livekitNodeId,
     bool clearLivekitNodeId = false,
-  }) => _changeChannel(
+  }) => changeChannel(
+    _session,
     (server, token) => _repository.updateChannel(
       server.supabaseUrl,
       channelId,
-      anonKey: _anonKey,
+      anonKey: server.supabaseKey ?? '',
       bearerToken: token,
       name: name,
       retentionDays: retentionDays,
@@ -99,10 +95,11 @@ mixin _ServerChannelsApiMixin on Cubit<ServerState> {
     failure: 'Failed to update channel',
   );
 
-  /// Delete a channel in the selected server (channel manager only). Anyone in
-  /// its call is dropped — see [ServerRepository.deleteChannel].
+  /// Delete a channel (channel manager only). Anyone in its call is dropped —
+  /// see [ServerRepository.deleteChannel].
   Future<({bool success, String? error})> deleteChannel(String channelId) =>
-      _changeChannel(
+      changeChannel(
+        _session,
         (server, token) => _repository.deleteChannel(
           server.supabaseUrl,
           channelId,
@@ -119,24 +116,24 @@ mixin _ServerChannelsApiMixin on Cubit<ServerState> {
   Future<({bool success, String? error})> reorderChannels(
     List<String> channelIds,
   ) async {
-    final server = state.selectedServer;
-    if (server == null) return (success: false, error: 'No server selected');
+    final server = _session.selectedServer;
+    if (server == null) return (success: false, error: _session.noTarget(null));
 
-    final response = await _callWithAutoRefresh(
+    final response = await _session.callFor(
+      server,
       (token) => _repository.reorderChannels(
         server.supabaseUrl,
         channelIds,
-        anonKey: _anonKey,
+        anonKey: server.supabaseKey ?? '',
         bearerToken: token,
       ),
     );
+    // Re-read on a refusal too: it usually means the list we dragged was
+    // already out of date.
+    await _session.refreshDetails(server);
     if (!response.success) {
-      // Re-read anyway: a refusal usually means the list we dragged was
-      // already out of date.
-      await refreshServerDetails();
       return (success: false, error: _reorderFailure(response.errorCode));
     }
-    await refreshServerDetails();
     return (success: true, error: null);
   }
 
@@ -154,23 +151,27 @@ mixin _ServerChannelsApiMixin on Cubit<ServerState> {
     'bad_name' => 'Give it a name',
     _ => 'Failed to create channel',
   };
+}
 
-  /// Runs a channel mutation, then brings everyone's sidebar in line: our own
-  /// list directly, and other members' through `channels_announce` on the
-  /// row itself — which is immediate, and reaches people no ping could.
-  Future<({bool success, String? error})> _changeChannel(
-    Future<APIResponse> Function(Server server, String token) call, {
-    required String failure,
-  }) async {
-    final server = state.selectedServer;
-    if (server == null) return (success: false, error: 'No server selected');
+/// Run a channel write on the selected server, then re-read the server so our
+/// own channel list holds the change before this answers. Shared with
+/// `ChannelAccessApi`, whose writes end the same way.
+Future<({bool success, String? error})> changeChannel(
+  SessionRepository session,
+  Future<APIResponse> Function(Server server, String token) call, {
+  required String failure,
+}) async {
+  final server = session.selectedServer;
+  if (server == null) return (success: false, error: session.noTarget(null));
 
-    final response = await _callWithAutoRefresh((token) => call(server, token));
-    if (!response.success) {
-      return (success: false, error: response.error ?? failure);
-    }
-
-    await refreshServerDetails();
-    return (success: true, error: null);
+  final response = await session.callFor(
+    server,
+    (token) => call(server, token),
+  );
+  if (!response.success) {
+    return (success: false, error: response.error ?? failure);
   }
+
+  await session.refreshDetails(server);
+  return (success: true, error: null);
 }

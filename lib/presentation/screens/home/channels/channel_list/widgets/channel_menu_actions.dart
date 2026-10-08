@@ -3,8 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../../data/apis/channel_access_api.dart';
+import '../../../../../../data/apis/channels_api.dart';
 import '../../../../../../data/classes/channel.dart';
 import '../../../../../../data/enums/channel_type.dart';
+import '../../../../../../data/repositories/session_repository.dart';
 import '../../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
@@ -30,7 +33,7 @@ import '../../settings/channel_settings_tab.dart';
 ///
 /// True when the channel is now private.
 Future<bool> makeChannelPrivate(BuildContext context, Channel channel) async {
-  final serverCubit = context.read<ServerCubit>();
+  final access = ChannelAccessApi(session: context.read<SessionRepository>());
 
   final confirmed = await showConfirmDialog(
     context: context,
@@ -44,7 +47,7 @@ Future<bool> makeChannelPrivate(BuildContext context, Channel channel) async {
   );
   if (!confirmed) return false;
 
-  final result = await serverCubit.setChannelPrivate(
+  final result = await access.setChannelPrivate(
     channelId: channel.id,
     isPrivate: true,
   );
@@ -63,7 +66,7 @@ Future<bool> makeChannelPrivate(BuildContext context, Channel channel) async {
 /// and there is no way back in on your own.
 Future<void> leaveChannel(BuildContext context, Channel channel) async {
   ContextMenuScope.of(context)?.call();
-  final serverCubit = context.read<ServerCubit>();
+  final access = ChannelAccessApi(session: context.read<SessionRepository>());
 
   final confirmed = await showConfirmDialog(
     context: context,
@@ -77,7 +80,7 @@ Future<void> leaveChannel(BuildContext context, Channel channel) async {
   );
   if (!confirmed) return;
 
-  final result = await serverCubit.leaveChannel(channel.id);
+  final result = await access.leaveChannel(channel.id);
   if (!result.success) {
     HelperMethods.showError(error: result.error ?? 'Could not leave');
   }
@@ -85,7 +88,7 @@ Future<void> leaveChannel(BuildContext context, Channel channel) async {
 
 /// True when the channel is now open to everyone.
 Future<bool> openChannelUp(BuildContext context, Channel channel) async {
-  final serverCubit = context.read<ServerCubit>();
+  final access = ChannelAccessApi(session: context.read<SessionRepository>());
 
   final confirmed = await showConfirmDialog(
     context: context,
@@ -99,7 +102,7 @@ Future<bool> openChannelUp(BuildContext context, Channel channel) async {
   );
   if (!confirmed) return false;
 
-  final result = await serverCubit.setChannelPrivate(
+  final result = await access.setChannelPrivate(
     channelId: channel.id,
     isPrivate: false,
   );
@@ -121,7 +124,7 @@ Future<bool> setChannelEncryption(
   Channel channel, {
   required bool encrypted,
 }) async {
-  final serverCubit = context.read<ServerCubit>();
+  final access = ChannelAccessApi(session: context.read<SessionRepository>());
 
   final confirmed = await showConfirmDialog(
     context: context,
@@ -140,7 +143,7 @@ Future<bool> setChannelEncryption(
   );
   if (!confirmed) return false;
 
-  final result = await serverCubit.setChannelEncrypted(
+  final result = await access.setChannelEncrypted(
     channelId: channel.id,
     encrypted: encrypted,
   );
@@ -161,7 +164,7 @@ Future<bool> deleteChannel(
   Channel channel, {
   VoidCallback? onConfirmed,
 }) async {
-  final serverCubit = context.read<ServerCubit>();
+  final channels = ChannelsApi(session: context.read<SessionRepository>());
   final isVoice = channel.channelType == ChannelType.voice;
 
   final confirmed = await showConfirmDialog(
@@ -179,7 +182,7 @@ Future<bool> deleteChannel(
   if (!confirmed) return false;
   onConfirmed?.call();
 
-  final result = await serverCubit.deleteChannel(channel.id);
+  final result = await channels.deleteChannel(channel.id);
   if (!result.success) {
     HelperMethods.showError(
       error: result.error ?? 'Could not delete that channel',

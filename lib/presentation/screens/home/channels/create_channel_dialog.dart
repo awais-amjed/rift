@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/apis/channels_api.dart';
 import '../../../../data/apis/members_api.dart';
 import '../../../../data/classes/server_member.dart';
 import '../../../../data/classes/user_permissions.dart';
@@ -92,12 +93,13 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
       _error = null;
     });
 
-    final result = await context.read<ServerCubit>().createChannel(
-      name: _nameCtrl.text.trim(),
-      channelType: _type.name,
-      isPrivate: _isPrivate,
-      memberIds: _isPrivate ? _selection.ids.toList() : const [],
-    );
+    final result = await ChannelsApi(session: context.read<SessionRepository>())
+        .createChannel(
+          name: _nameCtrl.text.trim(),
+          channelType: _type.name,
+          isPrivate: _isPrivate,
+          memberIds: _isPrivate ? _selection.ids.toList() : const [],
+        );
 
     if (!mounted) return;
 

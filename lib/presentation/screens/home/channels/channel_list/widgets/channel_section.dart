@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../../data/apis/channels_api.dart';
 import '../../../../../../data/classes/channel.dart';
 import '../../../../../../data/constants.dart';
-import '../../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../../data/repositories/session_repository.dart';
 import '../../../../../../logic/helper_methods.dart';
 import '../../../../../theme/app_shadows.dart';
 import '../../../../../theme/theme_context.dart';
@@ -78,7 +79,9 @@ class _ChannelSectionState extends State<ChannelSection> {
     final move = ++_moves;
     setState(() => _pending = ids);
 
-    final result = await context.read<ServerCubit>().reorderChannels(ids);
+    final result = await ChannelsApi(
+      session: context.read<SessionRepository>(),
+    ).reorderChannels(ids);
     if (!result.success) {
       HelperMethods.showError(error: result.error);
     }

@@ -4,33 +4,55 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
+import 'package:rift/data/classes/api_response.dart';
 import 'package:rift/data/classes/channel.dart';
+import 'package:rift/data/classes/server.dart';
 import 'package:rift/data/enums/channel_type.dart';
-import 'package:rift/logic/cubits/server/server_cubit.dart';
+import 'package:rift/data/repositories/server_repository.dart';
+import 'package:rift/data/repositories/session_repository.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/presentation/screens/home/channels/channel_list/widgets/channel_section.dart';
 import 'package:toastification/toastification.dart';
 
 import 'support/memory_storage.dart';
 
-/// Records each reorder and answers when the test says so.
-class _StubServerCubit extends Cubit<ServerState> implements ServerCubit {
-  _StubServerCubit() : super(const ServerState());
-
+/// Records each reorder and answers when the test says so. The re-read that
+/// follows fails, so nothing else moves.
+class _StubServers extends ServerRepository {
   final List<List<String>> asked = [];
-  Completer<({bool success, String? error})>? answer;
+  Completer<APIResponse>? answer;
 
   @override
-  Future<({bool success, String? error})> reorderChannels(
-    List<String> channelIds,
-  ) {
+  Future<APIResponse> reorderChannels(
+    String supabaseUrl,
+    List<String> channelIds, {
+    required String anonKey,
+    String? bearerToken,
+  }) {
     asked.add(channelIds);
     return (answer = Completer()).future;
   }
 
   @override
-  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+  Future<APIResponse> getServerDetails(
+    String supabaseUrl, {
+    required String anonKey,
+    String? bearerToken,
+  }) async => APIResponse.error('offline');
 }
+
+SessionRepository _session(_StubServers servers) =>
+    SessionRepository(servers: servers)..publish(
+      servers: [
+        Server(
+          id: 's1',
+          name: 'Test',
+          supabaseUrl: 'https://server.invalid',
+          token: 't',
+        ),
+      ],
+      selectedServerId: 's1',
+    );
 
 Channel _ch(String name) =>
     Channel(id: 'id-$name', name: name, channelType: ChannelType.text);
@@ -43,27 +65,27 @@ List<String> _order(WidgetTester tester) {
 
 Future<void> _pump(
   WidgetTester tester,
-  _StubServerCubit cubit,
+  _StubServers servers,
   List<Channel> channels, {
   bool canReorder = true,
 }) => tester.pumpWidget(
-  MultiBlocProvider(
-    providers: [
-      BlocProvider<ThemeCubit>(create: (_) => ThemeCubit()),
-      BlocProvider<ServerCubit>.value(value: cubit),
-    ],
-    child: ToastificationWrapper(
-      child: MaterialApp(
-        home: Scaffold(
-          body: CustomScrollView(
-            slivers: [
-              ChannelSection(
-                channels: channels,
-                canReorder: canReorder,
-                rowBuilder: (context, ch, grip) =>
-                    grip(SizedBox(height: 40, child: Text(ch.name))),
-              ),
-            ],
+  RepositoryProvider<SessionRepository>.value(
+    value: _session(servers),
+    child: BlocProvider<ThemeCubit>(
+      create: (_) => ThemeCubit(),
+      child: ToastificationWrapper(
+        child: MaterialApp(
+          home: Scaffold(
+            body: CustomScrollView(
+              slivers: [
+                ChannelSection(
+                  channels: channels,
+                  canReorder: canReorder,
+                  rowBuilder: (context, ch, grip) =>
+                      grip(SizedBox(height: 40, child: Text(ch.name))),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -91,47 +113,47 @@ void main() {
   testWidgets('a drop asks the server, and shows its order until it answers', (
     tester,
   ) async {
-    final cubit = _StubServerCubit();
-    await _pump(tester, cubit, abc);
+    final servers = _StubServers();
+    await _pump(tester, servers, abc);
     expect(_order(tester), ['a', 'b', 'c']);
 
     await _drag(tester, 'a', 100);
 
-    expect(cubit.asked, [
+    expect(servers.asked, [
       ['id-b', 'id-c', 'id-a'],
     ]);
     expect(_order(tester), ['b', 'c', 'a']);
 
     // The server's list arrives in the dropped order, then the call returns.
-    await _pump(tester, cubit, [abc[1], abc[2], abc[0]]);
-    cubit.answer!.complete((success: true, error: null));
+    await _pump(tester, servers, [abc[1], abc[2], abc[0]]);
+    servers.answer!.complete(APIResponse.success(const {}));
     await tester.pumpAndSettle();
     expect(_order(tester), ['b', 'c', 'a']);
   });
 
   testWidgets('a refused drop puts the rows back', (tester) async {
-    final cubit = _StubServerCubit();
-    await _pump(tester, cubit, abc);
+    final servers = _StubServers();
+    await _pump(tester, servers, abc);
 
     await _drag(tester, 'a', 100);
     expect(_order(tester), ['b', 'c', 'a']);
 
-    cubit.answer!.complete((success: false, error: 'No'));
+    servers.answer!.complete(APIResponse.error('No'));
     await tester.pumpAndSettle();
     expect(_order(tester), ['a', 'b', 'c']);
-    expect(find.text('No'), findsOneWidget);
+    expect(find.text("Couldn't reorder the channels"), findsOneWidget);
     // The refusal is a toast; let it time out before the tree goes.
     await tester.pump(const Duration(seconds: 30));
     await tester.pumpAndSettle();
   });
 
   testWidgets('a member cannot pick a row up', (tester) async {
-    final cubit = _StubServerCubit();
-    await _pump(tester, cubit, abc, canReorder: false);
+    final servers = _StubServers();
+    await _pump(tester, servers, abc, canReorder: false);
 
     await _drag(tester, 'a', 100);
 
-    expect(cubit.asked, isEmpty);
+    expect(servers.asked, isEmpty);
     expect(_order(tester), ['a', 'b', 'c']);
   });
 }

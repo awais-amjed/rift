@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../../data/apis/channels_api.dart';
 import '../../../../../../data/classes/channel.dart';
 import '../../../../../../data/classes/server_limits.dart';
+import '../../../../../../data/repositories/session_repository.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/helper_methods.dart';
 import '../../../../../../logic/services/limit_input.dart';
@@ -125,16 +127,17 @@ class _ChannelOverviewPanelState extends State<ChannelOverviewPanel> {
     final nodeChanged = _nodeChanged;
     final moveLiveCall = _shouldMoveLiveCall;
     final nodeId = _nodeId;
-    final result = await context.read<ServerCubit>().updateChannel(
-      channelId: widget.channel.id,
-      name: _nameChanged ? _name : null,
-      retentionDays: _retentionChanged ? retention : null,
-      clearRetentionDays: _retentionChanged && retention == null,
-      historyCap: _capChanged ? cap : null,
-      clearHistoryCap: _capChanged && cap == null,
-      livekitNodeId: nodeChanged ? nodeId : null,
-      clearLivekitNodeId: nodeChanged && nodeId == null,
-    );
+    final result = await ChannelsApi(session: context.read<SessionRepository>())
+        .updateChannel(
+          channelId: widget.channel.id,
+          name: _nameChanged ? _name : null,
+          retentionDays: _retentionChanged ? retention : null,
+          clearRetentionDays: _retentionChanged && retention == null,
+          historyCap: _capChanged ? cap : null,
+          clearHistoryCap: _capChanged && cap == null,
+          livekitNodeId: nodeChanged ? nodeId : null,
+          clearLivekitNodeId: nodeChanged && nodeId == null,
+        );
     if (!mounted) return;
 
     if (!result.success) {

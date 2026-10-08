@@ -4,8 +4,8 @@ part of 'server_cubit.dart';
 ///
 /// All three end the same way — refresh the server so the node list and every
 /// channel's pin come back in step — which is the seam this shares with
-/// [_ServerChannelsApiMixin] and the reason it is its own file rather than
-/// three more methods on the voice API next door.
+/// `ChannelsApi` and the reason it is its own file rather than three more
+/// methods on the voice API next door.
 ///
 /// The probe's cached measurement is thrown away on every change: it is keyed
 /// on the set of nodes, so an added or removed one has to be measured before

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../../data/apis/channel_access_api.dart';
 import '../../../../../../data/apis/members_api.dart';
 import '../../../../../../data/classes/channel.dart';
 import '../../../../../../data/classes/server_member.dart';
@@ -70,10 +71,12 @@ class _ChannelAccessPanelState extends State<ChannelAccessPanel> {
   }
 
   Future<void> _load() async {
-    final cubit = context.read<ServerCubit>();
-    final members = MembersApi(session: context.read<SessionRepository>());
+    final session = context.read<SessionRepository>();
+    final members = MembersApi(session: session);
     final me = _me;
-    final membership = await cubit.channelMembers(_channel.id);
+    final membership = await ChannelAccessApi(
+      session: session,
+    ).channelMembers(_channel.id);
     if (!mounted) return;
 
     // Resolved by id rather than picked out of a roster we no longer hold. A
@@ -115,10 +118,13 @@ class _ChannelAccessPanelState extends State<ChannelAccessPanel> {
     // replaces the membership with exactly what it is handed, and a private
     // channel that loses its last member is deleted.
     final me = _me;
-    final result = await context.read<ServerCubit>().setChannelMembers(
-      channelId: _channel.id,
-      userIds: {?me, ..._selection.ids}.toList(),
-    );
+    final result =
+        await ChannelAccessApi(
+          session: context.read<SessionRepository>(),
+        ).setChannelMembers(
+          channelId: _channel.id,
+          userIds: {?me, ..._selection.ids}.toList(),
+        );
     if (!mounted) return;
 
     setState(() {
