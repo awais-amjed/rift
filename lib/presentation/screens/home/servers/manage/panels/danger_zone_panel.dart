@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../../data/apis/ownership_api.dart';
 import '../../../../../../data/classes/server.dart';
+import '../../../../../../data/repositories/session_repository.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/helper_methods.dart';
 import '../../../../../common/app_button.dart';
@@ -43,16 +45,21 @@ class _DangerZonePanelState extends State<DangerZonePanel> {
     if (!confirmed || !mounted) return;
 
     setState(() => _isBusy = true);
-    final result = await context.read<ServerCubit>().deleteServer(
-      serverId: widget.server.id,
-    );
-    if (!mounted) return;
-    setState(() => _isBusy = false);
-
+    final servers = context.read<ServerCubit>();
+    final result = await OwnershipApi(
+      session: context.read<SessionRepository>(),
+    ).deleteServer(serverId: widget.server.id);
     if (!result.success) {
+      if (!mounted) return;
+      setState(() => _isBusy = false);
       HelperMethods.showError(error: result.error ?? 'Could not delete');
       return;
     }
+    // Forgotten here only once the server has said yes, and whether or not
+    // this page is still open to hear it.
+    servers.removeServer(widget.server.id);
+    if (!mounted) return;
+    setState(() => _isBusy = false);
     HelperMethods.showSuccess(message: '${widget.server.name} is gone');
     Navigator.of(context).pop();
   }

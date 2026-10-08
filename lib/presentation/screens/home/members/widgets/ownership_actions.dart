@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/apis/ownership_api.dart';
 import '../../../../../data/classes/server_member.dart';
+import '../../../../../data/repositories/session_repository.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../logic/cubits/server_events/server_events_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
 import '../../../../common/confirm_dialog.dart';
 
@@ -49,11 +52,17 @@ class OwnershipActions {
     );
     if (!confirmed || !context.mounted) return;
 
-    final result = await context.read<ServerCubit>().transferOwnership(
-      member.id,
-      serverId: serverId,
-    );
+    final session = context.read<SessionRepository>();
+    final events = context.read<ServerEventsCubit>();
+    final result = await OwnershipApi(
+      session: session,
+    ).transferOwnership(member.id, serverId: serverId);
     if (result.success) {
+      // The new owner's row changed too, and they are the one person this has
+      // to reach at once: the doorbell makes every other client re-read its
+      // standing.
+      final server = session.target(serverId);
+      if (server != null) events.notifyServerChanged(server.id);
       HelperMethods.showSuccess(
         message: '${member.displayName} now owns this server',
       );

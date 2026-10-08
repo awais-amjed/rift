@@ -1,20 +1,21 @@
-part of 'server_cubit.dart';
+import '../repositories/server_repository.dart';
+import '../repositories/session_repository.dart';
 
-mixin _ServerOwnershipApiMixin on Cubit<ServerState> {
-  ServerRepository get _repository;
+/// The owner's two calls: hand the server on, or end it.
+///
+/// Neither touches the local list beyond what the server says back. A transfer
+/// re-reads our own standing ([SessionRepository.refreshDetails]); the caller
+/// rings the server's doorbell, because the new owner is the one person this
+/// has to reach at once. A delete leaves forgetting the server to the caller,
+/// once the server has said yes.
+///
+/// Holds nothing, so a widget builds one from the session.
+class OwnershipApi {
+  final SessionRepository _session;
 
-  Future<APIResponse> _callFor(
-    Server server,
-    Future<APIResponse> Function(String token) call,
-  );
-  Server? _target(String? serverId);
-  String _noTarget(String? serverId);
+  OwnershipApi({required SessionRepository session}) : _session = session;
 
-  Future<({bool success, String? error})> refreshServerDetails({
-    String? serverId,
-  });
-  void removeServer(String serverId);
-  void Function(String serverId)? get _onServerEvent;
+  ServerRepository get _repository => _session.repository;
 
   /// Hand [serverId], or the selected server, to [userId]. We stay an admin;
   /// they become the one person who can do this next.
@@ -22,10 +23,12 @@ mixin _ServerOwnershipApiMixin on Cubit<ServerState> {
     String userId, {
     String? serverId,
   }) async {
-    final server = _target(serverId);
-    if (server == null) return (success: false, error: _noTarget(serverId));
+    final server = _session.target(serverId);
+    if (server == null) {
+      return (success: false, error: _session.noTarget(serverId));
+    }
 
-    final response = await _callFor(
+    final response = await _session.callFor(
       server,
       (token) => _repository.transferOwnership(
         server.supabaseUrl,
@@ -38,27 +41,25 @@ mixin _ServerOwnershipApiMixin on Cubit<ServerState> {
       return (success: false, error: _transferFailure(response.error));
     }
     // Our own row changed under us: the cached owner flag, and the rank every
-    // roles screen decides on. The new owner's row changed too, and they are
-    // the one person this has to reach at once — the doorbell is what makes
-    // every other client re-read its standing.
-    await refreshServerDetails(serverId: server.id);
-    _onServerEvent?.call(server.id);
+    // roles screen decides on.
+    await _session.refreshDetails(server);
     return (success: true, error: null);
   }
 
-  /// End [serverId], or the selected server, for everybody, then forget it
-  /// here.
+  /// End [serverId], or the selected server, for everybody.
   ///
   /// The server side is what decides — only the owner gets past the RPC — so
-  /// the local list is only touched once it has said yes. Other members find
-  /// out the way they find out about any server that stops answering.
+  /// the caller forgets the server only once this has said yes. Other members
+  /// find out the way they find out about any server that stops answering.
   Future<({bool success, String? error})> deleteServer({
     String? serverId,
   }) async {
-    final server = _target(serverId);
-    if (server == null) return (success: false, error: _noTarget(serverId));
+    final server = _session.target(serverId);
+    if (server == null) {
+      return (success: false, error: _session.noTarget(serverId));
+    }
 
-    final response = await _callFor(
+    final response = await _session.callFor(
       server,
       (token) =>
           _repository.deleteServer(server.supabaseUrl, bearerToken: token),
@@ -69,7 +70,6 @@ mixin _ServerOwnershipApiMixin on Cubit<ServerState> {
         error: response.error ?? 'Could not delete the server',
       );
     }
-    removeServer(server.id);
     return (success: true, error: null);
   }
 
