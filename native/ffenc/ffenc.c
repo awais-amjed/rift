@@ -118,6 +118,14 @@ static int open_codec(RiftFfenc* enc, const AVCodec* codec,
     c->profile = AV_PROFILE_H264_CONSTRAINED_BASELINE;
     // No encoder identification or timing SEI: bytes nobody reads.
     av_opt_set(c->priv_data, "sei", "0", 0);
+    // The finest quantiser the GPU may use, as on Windows
+    // (media_foundation.rs): with rate to spare a still picture never
+    // settles otherwise. Intel re-coded a still 1440p one at 4 Mbps of 20,
+    // and at 0.01 with this. Any floor at all moved Intel's rate control:
+    // a busy 1440p60 picture asked for 12 Mbps made 13.8 instead of 12.2
+    // (Oct 9 2026). What it makes beyond the target is held back before it
+    // is encoded (rate_gate.rs).
+    c->qmin = 18;
   }
   // Variable bitrate, peaking at the cap: in constant bitrate a GPU pads a
   // still picture with filler to make up the rate (Intel: 8 Mbps of a

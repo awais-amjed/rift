@@ -613,8 +613,9 @@ encoder sends the bitrate to the GPU only with a keyframe, so the build patches
 it to send WebRTC's every move with the next picture
 (`third_party/ffmpeg/RIFT_PATCHES.md`); unpatched, an Intel GPU stayed at its
 opening 8 Mbps while WebRTC asked for 2. It runs in variable bitrate capped at
-the target: in constant bitrate Intel's GPU padded a still picture out to the
-full rate, and a shared screen is mostly still. NVENC comes first where both
+the target, with the finest quantiser held at 18 as on Windows: in constant
+bitrate Intel's GPU padded a still picture out to the full rate, and without
+the floor it re-coded one at 4 Mbps of 20; a shared screen is mostly still. NVENC comes first where both
 are present. With neither, or without the library, H264 is not offered, and a
 share asked for in H264 goes out as VP9.
 
