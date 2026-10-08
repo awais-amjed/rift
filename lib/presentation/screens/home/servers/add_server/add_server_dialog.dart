@@ -75,10 +75,15 @@ class _AddServerDialogState extends State<AddServerDialog> {
       if (!mounted) return;
       if (listed) return _handleSuccess();
     }
+    setState(() => _joined = true);
     _go(_Step.publish);
   }
 
   void _go(_Step step) => setState(() => _step = step);
+
+  /// Whether the publish step follows a join rather than a create, which is
+  /// all that changes what it is headed.
+  bool _joined = false;
 
   void _join(ResolvedInvite invite, {required bool fromBrowser}) =>
       setState(() {
@@ -132,7 +137,10 @@ class _AddServerDialogState extends State<AddServerDialog> {
         onSuccess: () => _go(_Step.publish),
         onCancel: () => _go(_Step.pick),
       ),
-      _Step.publish => PublishNewServerModal(onDone: _handleSuccess),
+      _Step.publish => PublishNewServerModal(
+        onDone: _handleSuccess,
+        joined: _joined,
+      ),
     };
   }
 }

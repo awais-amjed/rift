@@ -47,7 +47,16 @@ class PublishNewServerModal extends StatefulWidget {
   /// Ends the whole add-server flow, published or not.
   final VoidCallback onDone;
 
-  const PublishNewServerModal({super.key, required this.onDone});
+  /// Reached by joining as an admin rather than by creating — the second way
+  /// in above. The questions are the same; "Server created" over them was
+  /// not true.
+  final bool joined;
+
+  const PublishNewServerModal({
+    super.key,
+    required this.onDone,
+    this.joined = false,
+  });
 
   @override
   State<PublishNewServerModal> createState() => _PublishNewServerModalState();
@@ -168,19 +177,22 @@ class _PublishNewServerModalState extends State<PublishNewServerModal> {
     );
 
     return AppModal(
-      title: 'Server created',
+      title: widget.joined ? 'Joined as an admin' : 'Server created',
       subtitle: signedIn
           ? 'Let people find $name, or keep it invite-only'
+          : widget.joined
+          ? '$name is invite-only'
           : '$name is ready — it is invite-only',
       maxWidth: K.dialogWidth,
       content: signedIn
           ? _form()
-          : const NoCentralAccount(
+          : NoCentralAccount(
               need:
                   'The directory lives on the Rift central server, so listing '
-                  'a server needs a Rift account. Your server is made and '
-                  'works exactly as it should without one — share its invite '
-                  'link from the server menu.',
+                  'a server needs a Rift account. '
+                  '${widget.joined ? 'The server works' : 'Your server is made and works'} '
+                  'exactly as it should without one — share its invite link '
+                  'from the server menu.',
             ),
       actions: [
         AppButton(
