@@ -26,10 +26,11 @@ mixin _InviteRolesMixin on State<InviteModal> {
 
   Future<void> loadRoles() async {
     final cubit = context.read<ServerCubit>();
+    final api = RolesApi(session: context.read<SessionRepository>());
     // The server the invite is for, which the rail's menu can open on a
     // server the person is not looking at.
     final serverId = widget.server.id;
-    final all = await cubit.listRoles(serverId: serverId);
+    final all = await api.listRoles(serverId: serverId);
     if (!mounted) return;
 
     final bits = cubit.state.permissionsOn(serverId)?.bits ?? 0;

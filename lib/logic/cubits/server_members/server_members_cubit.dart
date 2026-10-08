@@ -3,10 +3,12 @@ import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../data/apis/roles_api.dart';
 import '../../../data/classes/member_page.dart';
 import '../../../data/classes/role.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/classes/server_member.dart';
+import '../../../data/repositories/session_repository.dart';
 import '../../services/member_roster_pager.dart';
 import '../../services/server_topic_watcher.dart';
 import '../../services/server_topics.dart';
@@ -36,6 +38,7 @@ part 'server_members_state.dart';
 ///    re-reading the server.
 class ServerMembersCubit extends Cubit<ServerMembersState> {
   final ServerCubit _serverCubit;
+  final RolesApi _roles;
   late final ServerTopicWatcher _watcher;
   late final MemberRosterPager _people = MemberRosterPager(
     fetchPage: _fetchPeoplePage,
@@ -81,9 +84,13 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
   /// The selected server's members — the app's own — or, given [serverId],
   /// that one server's, for Manage server opened on a server the person is
   /// not looking at. Whoever opens that page owns that one and closes it.
-  ServerMembersCubit({required ServerCubit serverCubit, String? serverId})
-    : _serverCubit = serverCubit,
-      super(ServerMembersState()) {
+  ServerMembersCubit({
+    required ServerCubit serverCubit,
+    required SessionRepository session,
+    String? serverId,
+  }) : _serverCubit = serverCubit,
+       _roles = RolesApi(session: session),
+       super(ServerMembersState()) {
     _watcher = ServerTopicWatcher(
       serverCubit: serverCubit,
       fixedServerId: serverId,
@@ -128,7 +135,7 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
 
     final bots = await _serverCubit.listBots(serverId: serverId);
     final counts = await _serverCubit.memberCounts(serverId: serverId);
-    final roles = await _serverCubit.listRoles(serverId: serverId);
+    final roles = await _roles.listRoles(serverId: serverId);
     await _people.next();
     if (_stale(loadId, serverId)) return;
 
@@ -208,7 +215,7 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
     ];
     if (serverId == null || wanted.isEmpty) return;
 
-    final roles = await _serverCubit.memberRolesFor(wanted, serverId: serverId);
+    final roles = await _roles.memberRolesFor(wanted, serverId: serverId);
     if (isClosed || serverId != _watcher.serverId) return;
     emit(
       state.copyWith(
@@ -239,7 +246,7 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
 
     final bots = await _serverCubit.listBots(serverId: serverId);
     final counts = await _serverCubit.memberCounts(serverId: serverId);
-    final roles = await _serverCubit.listRoles(serverId: serverId);
+    final roles = await _roles.listRoles(serverId: serverId);
 
     // The pages reach a joiner only when somebody scrolls to them, which is
     // never when every page is already loaded: the count went up and the row
@@ -393,7 +400,7 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
   Future<void> refreshRoles() async {
     final serverId = _watcher.serverId;
     if (serverId == null) return;
-    final roles = await _serverCubit.listRoles(serverId: serverId);
+    final roles = await _roles.listRoles(serverId: serverId);
     if (isClosed || serverId != _watcher.serverId) return;
     if (roles.isNotEmpty) emit(state.copyWith(roles: roles));
     if (_countingRoles) await _countRoles();
@@ -408,7 +415,7 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
   Future<void> _countRoles() async {
     final serverId = _watcher.serverId;
     if (serverId == null) return;
-    final held = await _serverCubit.listMemberRoles(serverId: serverId);
+    final held = await _roles.listMemberRoles(serverId: serverId);
     if (held == null || isClosed || serverId != _watcher.serverId) return;
     if (!_countingRoles) return;
 

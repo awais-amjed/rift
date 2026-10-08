@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../../data/apis/roles_api.dart';
 import '../../../../../../data/classes/role.dart';
 import '../../../../../../data/enums/server_permission.dart';
+import '../../../../../../data/repositories/session_repository.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../../logic/services/role_ladder.dart';
@@ -115,7 +117,7 @@ class _RolesPanelState extends State<RolesPanel> {
     if (neighbour.position == role.position) return;
 
     setState(() => _movingId = role.id);
-    final cubit = context.read<ServerCubit>();
+    final api = RolesApi(session: context.read<SessionRepository>());
 
     // Two writes for one swap, and neither result was being looked at. If the
     // second is refused — the connection drops, or somebody else reshaped the
@@ -128,19 +130,19 @@ class _RolesPanelState extends State<RolesPanel> {
     // yet. Either way the re-read below shows what actually happened rather
     // than what was asked for.
     final serverId = widget.serverId;
-    final moved = await cubit.updateRole(
+    final moved = await api.updateRole(
       role.id,
       position: neighbour.position,
       serverId: serverId,
     );
     if (moved.success) {
-      final swapped = await cubit.updateRole(
+      final swapped = await api.updateRole(
         neighbour.id,
         position: role.position,
         serverId: serverId,
       );
       if (!swapped.success) {
-        await cubit.updateRole(
+        await api.updateRole(
           role.id,
           position: role.position,
           serverId: serverId,

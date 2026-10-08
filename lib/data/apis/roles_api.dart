@@ -1,41 +1,39 @@
-part of 'server_cubit.dart';
+import '../../logic/services/role_ladder.dart';
+import '../classes/api_response.dart';
+import '../classes/role.dart';
+import '../classes/server.dart';
+import '../repositories/server_repository.dart';
+import '../repositories/session_repository.dart';
 
 /// Roles for [serverId], or for the selected server. Named because the roles
 /// page opens for any server on the rail, not only the one on screen.
 ///
-/// Nothing here touches [ServerState]. The roles and who holds them are kept
-/// by `ServerMembersCubit`, which every screen showing them reads, and which
-/// the `members` doorbell keeps current. The one thing [ServerState] holds is
+/// Nothing here is kept. The roles and who holds them are kept by
+/// `ServerMembersCubit`, which every screen showing them reads, and which the
+/// `members` doorbell keeps current. The one thing the server list holds is
 /// the caller's own permission bits, which ride along on the user row with
-/// everything else about them.
+/// everything else about them — so every write re-reads the server before it
+/// answers.
 ///
 /// The delegation rules are not repeated here. They are `roles_insert`,
 /// `roles_update` and `member_roles_insert`, and a refusal comes back as an
 /// error like any other — which is the right shape: a client that got the rule
 /// slightly wrong would otherwise disagree with the database quietly.
-mixin _ServerRolesApiMixin on Cubit<ServerState> {
-  ServerRepository get _repository;
+///
+/// Holds nothing, so a widget builds one from the session.
+class RolesApi {
+  final SessionRepository _session;
 
-  Future<APIResponse> _callFor(
-    Server server,
-    Future<APIResponse> Function(String token) call,
-  );
-  Server? _target(String? serverId);
-  String _noTarget(String? serverId);
+  RolesApi({required SessionRepository session}) : _session = session;
 
-  /// Implemented by [_ServerApiMixin]. A role change moves the three cached
-  /// booleans on `users`, so the server's own user row is stale until this
-  /// runs.
-  Future<({bool success, String? error})> refreshServerDetails({
-    String? serverId,
-  });
+  ServerRepository get _repository => _session.repository;
 
   /// Every role on this server, most senior first.
   Future<List<Role>> listRoles({String? serverId}) async {
-    final server = _target(serverId);
+    final server = _session.target(serverId);
     if (server == null) return const [];
 
-    final response = await _callFor(
+    final response = await _session.callFor(
       server,
       (token) => _repository.listRoles(
         server.supabaseUrl,
@@ -56,10 +54,10 @@ mixin _ServerRolesApiMixin on Cubit<ServerState> {
   /// when the read failed, which is not the same answer as nobody holding
   /// anything.
   Future<Map<String, List<Role>>?> listMemberRoles({String? serverId}) async {
-    final server = _target(serverId);
+    final server = _session.target(serverId);
     if (server == null) return null;
 
-    final response = await _callFor(
+    final response = await _session.callFor(
       server,
       (token) => _repository.listMemberRoles(
         server.supabaseUrl,
@@ -83,10 +81,10 @@ mixin _ServerRolesApiMixin on Cubit<ServerState> {
     List<String> userIds, {
     String? serverId,
   }) async {
-    final server = _target(serverId);
+    final server = _session.target(serverId);
     if (server == null || userIds.isEmpty) return const {};
 
-    final response = await _callFor(
+    final response = await _session.callFor(
       server,
       (token) => _repository.memberRolesFor(
         server.supabaseUrl,
@@ -114,10 +112,10 @@ mixin _ServerRolesApiMixin on Cubit<ServerState> {
     String? color,
     String? serverId,
   }) async {
-    final server = _target(serverId);
-    if (server == null) return (role: null, error: _noTarget(serverId));
+    final server = _session.target(serverId);
+    if (server == null) return (role: null, error: _session.noTarget(serverId));
 
-    final response = await _callFor(
+    final response = await _session.callFor(
       server,
       (token) => _repository.createRole(
         server.supabaseUrl,
@@ -205,15 +203,20 @@ mixin _ServerRolesApiMixin on Cubit<ServerState> {
     String? serverId,
     Future<APIResponse> Function(Server server, String token) call,
   ) async {
-    final server = _target(serverId);
-    if (server == null) return (success: false, error: _noTarget(serverId));
+    final server = _session.target(serverId);
+    if (server == null) {
+      return (success: false, error: _session.noTarget(serverId));
+    }
 
-    final response = await _callFor(server, (token) => call(server, token));
+    final response = await _session.callFor(
+      server,
+      (token) => call(server, token),
+    );
     if (!response.success) {
       return (success: false, error: _roleFailure(response.error));
     }
 
-    await refreshServerDetails(serverId: server.id);
+    await _session.refreshDetails(server);
     return (success: true, error: null);
   }
 

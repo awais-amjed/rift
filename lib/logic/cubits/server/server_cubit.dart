@@ -17,7 +17,6 @@ import '../../../data/classes/notice.dart';
 import '../../../data/classes/pending_attachment.dart';
 import '../../../data/classes/region_load.dart';
 import '../../../data/classes/resolved_invite.dart';
-import '../../../data/classes/role.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/classes/server_details.dart';
 import '../../../data/classes/server_limits.dart';
@@ -42,7 +41,6 @@ import '../../services/media_store.dart';
 import '../../services/message_cache.dart';
 import '../../services/push_service.dart';
 import '../../services/push_wake/wake_index.dart';
-import '../../services/role_ladder.dart';
 import '../../services/server_import_merge.dart';
 import '../../services/server_realtime.dart';
 
@@ -63,7 +61,6 @@ part 'server_pins_polls_api.dart';
 part 'server_private_channels_api.dart';
 part 'server_profile_api.dart';
 part 'server_push_api.dart';
-part 'server_roles_api.dart';
 part 'server_selection.dart';
 part 'server_state.dart';
 part 'server_voice_api.dart';
@@ -82,7 +79,6 @@ class ServerCubit extends HydratedCubit<ServerState>
         _ServerApiMixin,
         _ServerMemberLookupApiMixin,
         _ServerMembersApiMixin,
-        _ServerRolesApiMixin,
         _ServerOwnershipApiMixin,
         _ServerBotsApiMixin,
         _ServerChannelsApiMixin,

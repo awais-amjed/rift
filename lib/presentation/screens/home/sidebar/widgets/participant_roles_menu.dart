@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/apis/roles_api.dart';
 import '../../../../../data/classes/role.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../data/enums/server_permission.dart';
+import '../../../../../data/repositories/session_repository.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
@@ -48,10 +50,10 @@ class _ParticipantRolesMenuState extends State<ParticipantRolesMenu> {
       _error = null;
     });
 
-    final serverCubit = context.read<ServerCubit>();
+    final api = RolesApi(session: context.read<SessionRepository>());
     final members = context.read<ServerMembersCubit>();
 
-    final result = await serverCubit.setMemberRole(
+    final result = await api.setMemberRole(
       userId: widget.userId,
       roleId: role.id,
       held: next,

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/apis/roles_api.dart';
 import '../../../../data/classes/role.dart';
 import '../../../../data/enums/server_permission.dart';
+import '../../../../data/repositories/session_repository.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
@@ -77,10 +79,10 @@ class _RoleEditorDialogState extends State<RoleEditorDialog> {
       _isSaving = true;
       _error = null;
     });
-    final cubit = context.read<ServerCubit>();
+    final api = RolesApi(session: context.read<SessionRepository>());
 
     final result = _isNew
-        ? await cubit
+        ? await api
               .createRole(
                 name: _name,
                 position: widget.newPosition,
@@ -89,7 +91,7 @@ class _RoleEditorDialogState extends State<RoleEditorDialog> {
                 serverId: widget.serverId,
               )
               .then((r) => (success: r.role != null, error: r.error))
-        : await cubit.updateRole(
+        : await api.updateRole(
             widget.role!.id,
             name: _name,
             permissions: _permissions,
@@ -122,10 +124,9 @@ class _RoleEditorDialogState extends State<RoleEditorDialog> {
     );
     if (!confirmed || !mounted) return;
 
-    final result = await context.read<ServerCubit>().deleteRole(
-      widget.role!.id,
-      serverId: widget.serverId,
-    );
+    final result = await RolesApi(
+      session: context.read<SessionRepository>(),
+    ).deleteRole(widget.role!.id, serverId: widget.serverId);
     if (!mounted) return;
     if (!result.success) {
       setState(() => _error = result.error);

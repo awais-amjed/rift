@@ -263,7 +263,10 @@ class AppProviders extends StatelessWidget {
   ServerMembersCubit _createServerMembersCubit(BuildContext context) {
     final serverCubit = context.read<ServerCubit>();
     final tokenCubit = context.read<TokenCubit>();
-    final members = ServerMembersCubit(serverCubit: serverCubit);
+    final members = ServerMembersCubit(
+      serverCubit: serverCubit,
+      session: session,
+    );
     // A cached LiveKit token still grants what it was minted with, so being
     // muted has to throw it away — otherwise rejoining restores the old
     // permissions until it expires.

@@ -59,8 +59,11 @@ Widget serverManageDialog(
           ),
         ),
         BlocProvider(
-          create: (_) =>
-              ServerMembersCubit(serverCubit: serverCubit, serverId: server.id),
+          create: (_) => ServerMembersCubit(
+            serverCubit: serverCubit,
+            session: session,
+            serverId: server.id,
+          ),
         ),
         BlocProvider(
           create: (_) => ReportsCubit(

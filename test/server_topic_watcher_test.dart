@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
+import 'package:rift/data/repositories/session_repository.dart';
 import 'package:rift/logic/cubits/server/server_cubit.dart';
 import 'package:rift/logic/cubits/server_members/server_members_cubit.dart';
 
@@ -25,8 +26,8 @@ class _MemoryStorage implements Storage {
 
 /// A server that is ready to be watched: it has both an anon key and a member
 /// row, which is what makes [ServerTopicWatcher] act on it.
-ServerCubit _cubitWithSelectedServer() {
-  final cubit = ServerCubit();
+ServerCubit _cubitWithSelectedServer(SessionRepository session) {
+  final cubit = ServerCubit(session: session);
   cubit.addServer('https://server.invalid', 'jwt', {
     'server_id': 'srv-1',
     'name': 'Rift HQ',
@@ -43,14 +44,18 @@ void main() {
   test(
     'a watcher does not call back from inside its own constructor',
     () async {
-      final serverCubit = _cubitWithSelectedServer();
+      final session = SessionRepository();
+      final serverCubit = _cubitWithSelectedServer(session);
 
       // Building this used to take the app down on launch. The watcher's
       // constructor announced the already-selected server there and then, the
       // cubit refreshed in response, and the refresh read the `_watcher` field
       // that this very constructor call was still in the middle of assigning —
       // an unhandled LateInitializationError, before the first frame.
-      final members = ServerMembersCubit(serverCubit: serverCubit);
+      final members = ServerMembersCubit(
+        serverCubit: serverCubit,
+        session: session,
+      );
 
       // Deferred, not dropped — the selection still arrives, a microtask later.
       expect(members.state.serverId, isNull);
