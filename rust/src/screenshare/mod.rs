@@ -12,6 +12,8 @@ mod frames;
 #[cfg(gpu_encoder)]
 mod gpu_feed;
 mod pixels;
+#[cfg(gpu_encoder)]
+mod rate_gate;
 pub(crate) mod resolution;
 #[cfg(desktop)]
 pub(crate) mod session;

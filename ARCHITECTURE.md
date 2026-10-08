@@ -600,16 +600,29 @@ way OBS and Sunshine use NVENC. Measured Oct 5 2026 on an RTX 3070 Ti Laptop: a
 moving 60 fps window at 15% of a core against VP9's 67%, held at 60 fps with
 every core busy; a still one at 0.18 Mbps.
 
-Intel's and AMD's GPUs on Linux go through LiveKit's VAAPI encoder, which falls
-back to OpenH264 on the CPU without a word when it does not work. So without
-NVENC, H264 is offered only where LiveKit lists VAAPI, the share asks for a
-hardware encoder, and once its first frames are out a share whose encoder
-WebRTC names as anything else goes to VP9. On a machine with neither (Intel's
-VAAPI driver is a separate package) H264 is simply not offered.
+Intel's and AMD's GPUs on Linux are driven through **FFmpeg's VAAPI encoder**,
+on the same pre-encoded path. LiveKit has a VAAPI encoder too, but on an AMD
+RX 9070 XT (Mesa 26.2, Oct 9 2026) it stalled the viewer for 2 to 6 s every
+8 to 25 s and made 34 of 60 frames a second, where FFmpeg's on the same GPU
+was clean. FFmpeg cannot be linked beside libwebrtc, which carries Chromium's
+FFmpeg under the same symbol names, so it is built into a library of its own
+(`native/ffenc`): FFmpeg 9.0.2 with nothing but `h264_vaapi`, every FFmpeg
+symbol hidden, opened by the Rust crate at run time (`encoder/ffmpeg.rs`), and
+VAAPI's first render node that opens an encoder is the one used. FFmpeg's
+encoder sends the bitrate to the GPU only with a keyframe, so the build patches
+it to send WebRTC's every move with the next picture
+(`third_party/ffmpeg/RIFT_PATCHES.md`); unpatched, an Intel GPU stayed at its
+opening 8 Mbps while WebRTC asked for 2. It runs in variable bitrate capped at
+the target, with the finest quantiser held at 18 as on Windows: in constant
+bitrate Intel's GPU padded a still picture out to the full rate, and without
+the floor it re-coded one at 4 Mbps of 20; a shared screen is mostly still. NVENC comes first where both
+are present. With neither, or without the library, H264 is not offered, and a
+share asked for in H264 goes out as VP9.
 
 - **H264 and AV1 are only ever encoded by the GPU or the OS, never by Rift.**
   The reason is patents: H264 is licensed through a pool the GPU makers belong
-  to, so Rift ships no H264 encoder of its own. VP8 and VP9 are royalty-free
+  to, so Rift ships no H264 encoder of its own (the FFmpeg it builds has only
+  the encoder that drives a GPU's). VP8 and VP9 are royalty-free
   and stay as CPU codecs. Without a hardware encoder, or if one fails mid-share,
   the share goes out as VP9 and the user is told.
 - **Auto, the default, picks the codec and the bitrate** (`ShareEncoding`):
@@ -645,6 +658,20 @@ VAAPI driver is a separate package) H264 is simply not offered.
   notes, including the AV1 findings, are kept on the `gpu-encoding` branch.
 - **GPU H264 stays constrained baseline**: LiveKit offers only that profile for
   pre-encoded tracks, and Firefox viewers cannot take High.
+- **A GPU encoder is held to WebRTC's target before it encodes, not after.**
+  WebRTC's frame dropper is off for pre-encoded frames (`third_party/webrtc-sys`),
+  since a dropped H264 frame breaks every frame after it until the next
+  keyframe. That leaves whatever an encoder makes beyond the target — variable
+  bitrate on a fast game, or a moment's lag behind a falling estimate — waiting
+  in WebRTC's send queue, and on a link that cannot carry it the picture falls
+  behind its sound. So `RateGate` (`rate_gate.rs`) counts what the encoder makes
+  against the target and leaves pictures out on the way in once it is 0.2 s
+  ahead: a slow link gets fewer frames, never late ones. Measured Oct 9 2026
+  (`bench_test.rs`, Linux NVENC at 120 fps on a 10 Mbit upload, the encoder
+  made to ignore the target): without it every packet waited 1.1 s in the
+  queue, the link lost them and the viewer decoded nothing; with it nothing
+  waited or was lost and the viewer got 36 fps. An encoder that follows the
+  target lost 56 pictures in 30 s, as the estimate fell, and held 120 fps.
 
 ### Regions — [Implemented September 2026]
 

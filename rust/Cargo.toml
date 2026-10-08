@@ -69,6 +69,10 @@ libpulse-binding = "2.30.1"
 # MIT API header and libraries opened at run time, so nothing of NVIDIA's
 # licence is built in.
 shiguredo_nvcodec = "2026.2.0"
+# Opens Rift's FFmpeg library (native/ffenc) for VAAPI's H264
+# (src/screenshare/encoder/ffmpeg.rs), so a computer it cannot load on still
+# runs the app.
+libloading = "0.8.9"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 wasapi = "0.22.0"
