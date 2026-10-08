@@ -20,6 +20,19 @@ void main() {
       }
     });
 
+    test('a 400 for a bad token is token_expired too', () {
+      // What Storage sends for an expired token. Read as a plain refusal, the
+      // first avatar after a night away showed initials until a restart.
+      const body =
+          '{"statusCode":"400","code":"InvalidJWT","error":"InvalidJWT",'
+          '"message":"jwt expired"}';
+      final r = StorageRest.refusal(
+        http.Response(body, 400),
+        failed: 'Avatar download failed',
+      );
+      expect(r!.errorCode, 'token_expired');
+    });
+
     test('any other failure names the operation, without the status', () {
       // The code belongs in the log: "Upload failed (500)" told the person
       // whose picture would not send nothing they could act on.

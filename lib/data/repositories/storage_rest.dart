@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -12,7 +13,7 @@ import '../classes/api_response.dart';
 ///
 /// Attachments, avatars and soundboard clips each used to carry their own
 /// copy. The copies agreed, but the one line that matters is easy to drop: a
-/// 401 or 403 has to come back as `token_expired`, because that code is what
+/// refused token has to come back as `token_expired`, because that code is what
 /// `ServerCubit._callWithAutoRefresh` re-authenticates on. A copy that forgot
 /// it would turn an expired session into a failed upload.
 abstract final class StorageRest {
@@ -78,12 +79,17 @@ abstract final class StorageRest {
   /// to be the sentence — "Upload failed (500)" — which tells somebody whose
   /// picture would not send nothing they can act on, and tells whoever is
   /// debugging it no more than the log already does.
+  ///
+  /// An expired token is not a 401 here. Storage answers it with a 400 whose
+  /// body says `InvalidJWT`, which read as "would not accept it" and was never
+  /// retried: the first avatar drawn after a night away asked with
+  /// yesterday's token and showed initials until the app restarted.
   static APIResponse? refusal(
     http.Response response, {
     required String failed,
   }) {
     final code = response.statusCode;
-    if (code == 401 || code == 403) {
+    if (code == 401 || code == 403 || (code == 400 && _badToken(response))) {
       return APIResponse.error('Not authorized', errorCode: 'token_expired');
     }
     if (code < 300) return null;
@@ -98,5 +104,16 @@ abstract final class StorageRest {
           ? '$failed — the server is having trouble. Try again in a moment.'
           : '$failed — the server would not accept it.',
     );
+  }
+
+  /// Storage's own code for a token it cannot use, expired or not.
+  static bool _badToken(http.Response response) {
+    try {
+      final body = jsonDecode(response.body);
+      return body is Map &&
+          (body['code'] == 'InvalidJWT' || body['error'] == 'InvalidJWT');
+    } catch (_) {
+      return false;
+    }
   }
 }
