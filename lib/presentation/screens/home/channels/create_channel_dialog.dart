@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/apis/members_api.dart';
 import '../../../../data/classes/server_member.dart';
 import '../../../../data/classes/user_permissions.dart';
 import '../../../../data/enums/channel_type.dart';
 import '../../../../data/enums/server_permission.dart';
+import '../../../../data/repositories/session_repository.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/helper_methods.dart';
 import '../../../../logic/services/member_selection.dart';
@@ -72,9 +74,10 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
   /// local filter over one page is a filter that answers "No matches" about
   /// somebody who is really there.
   Future<List<ServerMember>> _searchMembers(String query) async {
-    final cubit = context.read<ServerCubit>();
-    final me = cubit.state.selectedServer?.user?.id;
-    final results = await cubit.searchMembers(query: query, bots: false);
+    final me = context.read<ServerCubit>().state.selectedServer?.user?.id;
+    final results = await MembersApi(
+      session: context.read<SessionRepository>(),
+    ).searchMembers(query: query, bots: false);
     return [
       for (final member in results)
         if (member.id != me) member,

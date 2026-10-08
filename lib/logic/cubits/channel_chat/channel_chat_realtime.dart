@@ -100,7 +100,7 @@ mixin _ChannelChatRealtimeMixin
   }
 
   Future<void> _onBotsDoorbell(String channelId) async {
-    final bots = await _serverCubit.listBots(channelId: channelId);
+    final bots = await _members.listBots(channelId: channelId);
     if (isClosed || state.channelId != channelId) return;
     emit(state.copyWith(bots: bots));
   }

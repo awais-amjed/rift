@@ -7,8 +7,8 @@ part of 'dm_cubit.dart';
 /// unread badges; this holds it in [DmState.requests] until it is accepted,
 /// ignored, or its sender is blocked.
 mixin _DmRequestsMixin on Cubit<DmState> {
-  ServerCubit get _serverCubit;
   ModerationApi get _moderation;
+  MembersApi get _members;
 
   Future<List<DmConversation>?> _conversationsFrom(
     List<Map<String, dynamic>> rows,
@@ -53,7 +53,7 @@ mixin _DmRequestsMixin on Cubit<DmState> {
     // say before a word is typed. Otherwise it has no say.
     DmPolicy? policy;
     if (linkState == DmLinkState.none) {
-      policy = (await _serverCubit.findMember(peerId))?.dmPolicy;
+      policy = (await _members.findMember(peerId))?.dmPolicy;
       if (isClosed || state.openPeerId != peerId) return;
     }
     if (linkState != state.openLinkState || policy != state.openPeerPolicy) {

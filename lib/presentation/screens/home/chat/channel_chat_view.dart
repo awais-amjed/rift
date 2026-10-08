@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/apis/members_api.dart';
 import '../../../../data/classes/channel.dart';
 import '../../../../data/classes/chat_message.dart';
 import '../../../../data/classes/pending_attachment.dart';
@@ -10,6 +11,7 @@ import '../../../../data/classes/server_limits.dart';
 import '../../../../data/classes/server_member.dart';
 import '../../../../data/classes/user_permissions.dart';
 import '../../../../data/enums/server_permission.dart';
+import '../../../../data/repositories/session_repository.dart';
 import '../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
@@ -300,11 +302,9 @@ class _ChannelChatViewState extends State<ChannelChatView>
   ) {
     final channelId = context.read<ChannelChatCubit>().state.channelId;
     if (channelId == null) return Future.value(const []);
-    return context.read<ServerCubit>().searchMembers(
-      query: query,
-      channelId: channelId,
-      bots: false,
-    );
+    return MembersApi(
+      session: context.read<SessionRepository>(),
+    ).searchMembers(query: query, channelId: channelId, bots: false);
   }
 
   /// The operator's per-file attachment cap for this server.

@@ -8,6 +8,7 @@ part of 'channel_chat_cubit.dart';
 mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
   ServerCubit get _serverCubit;
   VoiceBotsApi get _voiceBots;
+  MembersApi get _members;
   SavedConversation get _saved;
   VaultCubit get _vaultCubit;
   CryptoRepository get _crypto;
@@ -234,10 +235,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
         idsByUsername: Mentions.rosterOf(
           spoken.isEmpty
               ? const []
-              : await _serverCubit.membersByUsernames(
-                  spoken,
-                  channelId: channelId,
-                ),
+              : await _members.membersByUsernames(spoken, channelId: channelId),
         ),
         excludeUserId: user.id,
       );

@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rift_crypto/rift_crypto.dart';
 import 'package:supabase/supabase.dart' show RealtimeSubscribeStatus;
 
+import '../../../data/apis/members_api.dart';
 import '../../../data/apis/moderation_api.dart';
 import '../../../data/classes/api_response.dart';
 import '../../../data/classes/attachment.dart';
@@ -82,6 +83,8 @@ class DmCubit extends Cubit<DmState>
   final ServerCubit _serverCubit;
   @override
   final ModerationApi _moderation;
+  @override
+  final MembersApi _members;
   final VaultCubit _vaultCubit;
   @override
   final CryptoRepository _crypto;
@@ -159,6 +162,7 @@ class DmCubit extends Cubit<DmState>
     CryptoRepository? crypto,
   }) : _serverCubit = serverCubit,
        _moderation = ModerationApi(session: session),
+       _members = MembersApi(session: session),
        _vaultCubit = vaultCubit,
        _crypto = crypto ?? CryptoRepository(),
        super(const DmState()) {

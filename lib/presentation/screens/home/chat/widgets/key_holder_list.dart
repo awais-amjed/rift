@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/apis/members_api.dart';
 import '../../../../../data/classes/channel.dart';
 import '../../../../../data/constants.dart';
+import '../../../../../data/repositories/session_repository.dart';
 import '../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
@@ -44,8 +46,9 @@ class _KeyHolderListState extends State<KeyHolderList> {
 
   Future<void> _loadSeated() async {
     final server = context.read<ServerCubit>();
+    final members = MembersApi(session: context.read<SessionRepository>());
     final membership = await server.channelMembers(widget.channel.id);
-    final rows = await server.membersByIds(membership.memberIds.toList());
+    final rows = await members.membersByIds(membership.memberIds.toList());
     if (!mounted) return;
     setState(() => _seated = {for (final m in rows) m.id: m.displayName});
   }

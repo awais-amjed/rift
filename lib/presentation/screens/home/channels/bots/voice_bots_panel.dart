@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/apis/members_api.dart';
 import '../../../../../data/apis/voice_bots_api.dart';
 import '../../../../../data/classes/channel.dart';
 import '../../../../../data/classes/server_member.dart';
@@ -57,11 +58,12 @@ class _VoiceBotsPanelState extends State<VoiceBotsPanel> {
   }
 
   Future<void> _load() async {
-    final cubit = context.read<ServerCubit>();
-    final voiceBots = VoiceBotsApi(session: context.read<SessionRepository>());
+    final session = context.read<SessionRepository>();
+    final members = MembersApi(session: session);
+    final voiceBots = VoiceBotsApi(session: session);
     // Every bot, not a page of them: this is a picker, and one that silently
     // left a bot out would be the bug the paged roster exists to fix.
-    final bots = await cubit.listBots();
+    final bots = await members.listBots();
     final listening = await voiceBots.voiceListenerIds(widget.channel.id);
     if (!mounted) return;
 

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../../data/apis/members_api.dart';
 import '../../../../../../data/classes/server.dart';
+import '../../../../../../data/repositories/session_repository.dart';
 import '../../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
@@ -99,9 +101,9 @@ class _OverviewPanelState extends State<OverviewPanel> {
   /// PostgREST capped the response at 1000 rows, so a big server quietly
   /// advertised itself as having exactly a thousand members.
   Future<void> _loadMemberCount() async {
-    final counts = await context.read<ServerCubit>().memberCounts(
-      serverId: widget.server.id,
-    );
+    final counts = await MembersApi(
+      session: context.read<SessionRepository>(),
+    ).memberCounts(serverId: widget.server.id);
     if (!mounted) return;
     setState(() => _memberCount = counts.people + counts.bots);
   }

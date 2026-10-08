@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/apis/members_api.dart';
 import '../../../../../data/enums/home_surface.dart';
 import '../../../../../data/enums/server_permission.dart';
 import '../../../../../data/participant_identity.dart';
+import '../../../../../data/repositories/session_repository.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
@@ -70,14 +72,14 @@ class ParticipantContextMenu extends StatelessWidget {
   /// encrypted chat" error even when they have.
   Future<void> _openServerDm(BuildContext context) async {
     final dismiss = ContextMenuScope.of(context);
-    final serverCubit = context.read<ServerCubit>();
+    final members = MembersApi(session: context.read<SessionRepository>());
     final dmCubit = context.read<DmCubit>();
     final centralCubit = context.read<CentralDmCubit>();
     final appCubit = context.read<AppCubit>();
     final userId = ParticipantIdentity.userIdOf(identity);
 
     dismiss?.call();
-    final member = await serverCubit.findMember(userId);
+    final member = await members.findMember(userId);
 
     // Only one DM surface is open at a time.
     centralCubit.closeConversation();

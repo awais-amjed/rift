@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rift_crypto/rift_crypto.dart';
 
+import '../../../data/apis/members_api.dart';
 import '../../../data/apis/voice_bots_api.dart';
 import '../../../data/classes/api_response.dart';
 import '../../../data/classes/attachment.dart';
@@ -112,6 +113,9 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   /// the sender's client can do it at all: the server cannot read the message
   /// to find the names, and the recipients cannot be told which of them was
   /// meant without being told first.
+  @override
+  final MembersApi _members;
+
   /// What `@names` in the open channel resolve to, and which have been asked.
   ///
   /// Cleared with the channel by [_resetTo]. Both halves live in one object so
@@ -242,6 +246,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   }) : _serverCubit = serverCubit,
        _session = session,
        _voiceBots = VoiceBotsApi(session: session),
+       _members = MembersApi(session: session),
        _vaultCubit = vaultCubit,
        _crypto = crypto ?? CryptoRepository(),
        _messageCache = messageCache ?? MessageCache.instance,
@@ -335,7 +340,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     // And which bots a `/` command here can reach, before there is a composer
     // to type one into. Asked with the channel, so a private one answers with
     // the bots seated in it rather than with the server's.
-    final bots = await _serverCubit.listBots(channelId: channelId);
+    final bots = await _members.listBots(channelId: channelId);
     if (_isStale(generation)) return;
     emit(state.copyWith(bots: bots));
 

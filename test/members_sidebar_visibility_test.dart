@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
-import 'package:rift/data/classes/member_page.dart';
 import 'package:rift/data/constants.dart';
 import 'package:rift/logic/cubits/app/app_cubit.dart';
 import 'package:rift/logic/cubits/channel_presence/channel_presence_cubit.dart';
@@ -48,16 +47,6 @@ class _StubPresenceCubit extends Cubit<ChannelPresenceState>
 /// which is exactly the layout the animation moves.
 class _StubServerCubit extends Cubit<ServerState> implements ServerCubit {
   _StubServerCubit() : super(const ServerState());
-
-  @override
-  Future<({bool success, MemberPage? page, String? error})> listMembers({
-    String? serverId,
-    String? channelId,
-    bool? bots,
-    bool? banned = false,
-    ({String name, String id})? after,
-    int limit = MemberPage.pageSize,
-  }) async => (success: true, page: MemberPage.empty, error: null);
 
   @override
   noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

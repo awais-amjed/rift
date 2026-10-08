@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/apis/members_api.dart';
 import '../../../../../data/classes/channel.dart';
 import '../../../../../data/classes/server_member.dart';
 import '../../../../../data/enums/server_permission.dart';
+import '../../../../../data/repositories/session_repository.dart';
 import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/confirm_dialog.dart';
@@ -53,9 +55,10 @@ class _ChannelBotsPanelState extends State<ChannelBotsPanel> {
 
   Future<void> _load() async {
     final cubit = context.read<ServerCubit>();
+    final members = MembersApi(session: context.read<SessionRepository>());
     // Every bot, not a page of them: this is a picker, and one that silently
     // left a bot out would be the bug the paged roster exists to fix.
-    final bots = await cubit.listBots();
+    final bots = await members.listBots();
     final listeners = await cubit.channelListenerIds(widget.channel.id);
     if (!mounted) return;
 

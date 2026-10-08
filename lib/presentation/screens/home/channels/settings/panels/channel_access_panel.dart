@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../../data/apis/members_api.dart';
 import '../../../../../../data/classes/channel.dart';
 import '../../../../../../data/classes/server_member.dart';
+import '../../../../../../data/repositories/session_repository.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/helper_methods.dart';
 import '../../../../../../logic/services/member_selection.dart';
@@ -69,6 +71,7 @@ class _ChannelAccessPanelState extends State<ChannelAccessPanel> {
 
   Future<void> _load() async {
     final cubit = context.read<ServerCubit>();
+    final members = MembersApi(session: context.read<SessionRepository>());
     final me = _me;
     final membership = await cubit.channelMembers(_channel.id);
     if (!mounted) return;
@@ -77,7 +80,7 @@ class _ChannelAccessPanelState extends State<ChannelAccessPanel> {
     // member seated here may be anywhere in the alphabet, and the picker has
     // to draw them whether or not a search would have found them.
     final seated = {...membership.memberIds}..remove(me);
-    final rows = await cubit.membersByIds(seated.toList());
+    final rows = await members.membersByIds(seated.toList());
     if (!mounted) return;
 
     setState(() {
@@ -93,10 +96,9 @@ class _ChannelAccessPanelState extends State<ChannelAccessPanel> {
   /// people only is what stops the picker offering a row it would refuse.
   Future<List<ServerMember>> _search(String query) async {
     final me = _me;
-    final results = await context.read<ServerCubit>().searchMembers(
-      query: query,
-      bots: false,
-    );
+    final results = await MembersApi(
+      session: context.read<SessionRepository>(),
+    ).searchMembers(query: query, bots: false);
     return [
       for (final member in results)
         if (member.id != me) member,
@@ -202,11 +204,8 @@ class _ChannelAccessPanelState extends State<ChannelAccessPanel> {
           AppButton(
             label: encrypted ? 'Turn encryption off' : 'Turn encryption on',
             variant: AppButtonVariant.secondary,
-            onPressed: () => setChannelEncryption(
-              context,
-              _channel,
-              encrypted: !encrypted,
-            ),
+            onPressed: () =>
+                setChannelEncryption(context, _channel, encrypted: !encrypted),
           ),
       ],
       child: Column(

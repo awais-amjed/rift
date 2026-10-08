@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/apis/members_api.dart';
 import '../../../../../data/classes/server_member.dart';
+import '../../../../../data/repositories/session_repository.dart';
 import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
@@ -36,15 +38,15 @@ class _MemberSearchFieldState extends State<MemberSearchField> {
   Future<List<ServerMember>> _search(String query) async {
     // Read before awaiting: reaching back through the context afterwards
     // would be a use-after-dispose if the panel closed mid-flight.
-    final cubit = context.read<ServerCubit>();
-    final myId = cubit.state.selectedServer?.user?.id;
+    final myId = context.read<ServerCubit>().state.selectedServer?.user?.id;
+    final members = MembersApi(session: context.read<SessionRepository>());
     // Bots included, because a DM to a bot is a conversation like any other
     // — sealed between the two of you, unreadable by the server, and the one
     // way to say something to a bot that the rest of a channel does not see
     // (BOTS.md §3). Excluding them here was the only thing standing between
     // that and the app: the database allows it and the bot SDK is written
     // around answering it.
-    final results = await cubit.searchMembers(query: query);
+    final results = await members.searchMembers(query: query);
     return [
       for (final member in results)
         if (member.id != myId) member,

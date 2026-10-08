@@ -8,6 +8,7 @@ import '../classes/api_response.dart';
 import '../classes/server.dart';
 import '../classes/server_details.dart';
 import '../enums/error_code.dart';
+import '../member_cache.dart';
 import 'attachment_repository.dart';
 import 'secure_storage_repository.dart';
 import 'server_repository.dart';
@@ -19,6 +20,9 @@ typedef SessionLogin = ({String serverId, String token, ServerDetails details});
 /// A server's own account of itself, read again after a write that moved it.
 typedef SessionDetails = ({String serverId, ServerDetails details});
 
+/// Over the repository budget and one job: a call to one of this identity's
+/// servers, from picking the server to the token, the retry and the re-read.
+///
 /// Being signed in to the servers this identity has joined: which server is
 /// selected, each one's token, and getting a new token when one runs out.
 ///
@@ -266,6 +270,13 @@ class SessionRepository {
     }
     return current.token;
   };
+
+  // ── Who we have met ─────────────────────────────────────
+
+  /// Everybody this client has met on its servers. Here because it has to
+  /// outlive every page and be shared by every `MembersApi`, which holds
+  /// nothing.
+  final MemberCache members = MemberCache();
 
   // ── After a write ───────────────────────────────────────
 

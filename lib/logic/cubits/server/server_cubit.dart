@@ -11,7 +11,6 @@ import '../../../data/classes/api_response.dart';
 import '../../../data/classes/attachment.dart';
 import '../../../data/classes/channel.dart';
 import '../../../data/classes/livekit_node.dart';
-import '../../../data/classes/member_page.dart';
 import '../../../data/classes/message_cache_slot.dart';
 import '../../../data/classes/notice.dart';
 import '../../../data/classes/pending_attachment.dart';
@@ -20,7 +19,6 @@ import '../../../data/classes/resolved_invite.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/classes/server_details.dart';
 import '../../../data/classes/server_limits.dart';
-import '../../../data/classes/server_member.dart';
 import '../../../data/classes/server_user.dart';
 import '../../../data/classes/user_permissions.dart';
 import '../../../data/invite_link.dart';
@@ -54,8 +52,6 @@ part 'server_cubit.g.dart';
 part 'server_dm_calls_api.dart';
 part 'server_dms_api.dart';
 part 'server_invites_api.dart';
-part 'server_member_lookup_api.dart';
-part 'server_members_api.dart';
 part 'server_ownership_api.dart';
 part 'server_pins_polls_api.dart';
 part 'server_private_channels_api.dart';
@@ -77,8 +73,6 @@ class ServerCubit extends HydratedCubit<ServerState>
         _ServerCrudMixin,
         _ServerSelectionMixin,
         _ServerApiMixin,
-        _ServerMemberLookupApiMixin,
-        _ServerMembersApiMixin,
         _ServerOwnershipApiMixin,
         _ServerBotsApiMixin,
         _ServerChannelsApiMixin,
@@ -121,31 +115,6 @@ class ServerCubit extends HydratedCubit<ServerState>
   /// the server list. See [_ServerPushApiMixin.refreshWakeIndex].
   @override
   final WakeIndexWriter _wakeIndex = WakeIndexWriter();
-
-  /// Everybody this client has met, `serverId → userId → member`.
-  ///
-  /// Here rather than in a mixin because both member mixins use it and the
-  /// class is where shared internals meet (CODE_STYLE §5). Its job changed when
-  /// the roster stopped arriving whole: it used to save a round trip on top of
-  /// a list we already held, and it is now the only in-memory record of
-  /// somebody we have seen at all.
-  ///
-  /// Keyed by server because a user id only means something on the server it
-  /// came from — and because listing another server's members would otherwise
-  /// evict the entries the chat surfaces are about to ask for.
-  @override
-  final Map<String, Map<String, ServerMember>> _memberCache = {};
-
-  /// Remember [members] against [serverId], and hand them back unchanged so a
-  /// caller can wrap a fetch in it.
-  @override
-  List<ServerMember> _remember(String serverId, List<ServerMember> members) {
-    final cache = _memberCache.putIfAbsent(serverId, () => {});
-    for (final member in members) {
-      cache[member.id] = member;
-    }
-    return members;
-  }
 
   /// Where the seed is, for the one thing here that needs it: unsealing a
   /// server's saved conversations to forget them.

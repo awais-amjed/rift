@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../data/apis/members_api.dart';
 import '../../../data/apis/roles_api.dart';
 import '../../../data/classes/member_page.dart';
 import '../../../data/classes/role.dart';
@@ -38,6 +39,7 @@ part 'server_members_state.dart';
 ///    re-reading the server.
 class ServerMembersCubit extends Cubit<ServerMembersState> {
   final ServerCubit _serverCubit;
+  final MembersApi _members;
   final RolesApi _roles;
   late final ServerTopicWatcher _watcher;
   late final MemberRosterPager _people = MemberRosterPager(
@@ -89,6 +91,7 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
     required SessionRepository session,
     String? serverId,
   }) : _serverCubit = serverCubit,
+       _members = MembersApi(session: session),
        _roles = RolesApi(session: session),
        super(ServerMembersState()) {
     _watcher = ServerTopicWatcher(
@@ -118,7 +121,7 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
   Future<MemberPage?> _fetchPeoplePage(
     ({String name, String id})? after,
   ) async {
-    final result = await _serverCubit.listMembers(
+    final result = await _members.listMembers(
       serverId: _watcher.serverId,
       bots: false,
       after: after,
@@ -133,8 +136,8 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
     if (serverId == null) return;
     final loadId = ++_loadId;
 
-    final bots = await _serverCubit.listBots(serverId: serverId);
-    final counts = await _serverCubit.memberCounts(serverId: serverId);
+    final bots = await _members.listBots(serverId: serverId);
+    final counts = await _members.memberCounts(serverId: serverId);
     final roles = await _roles.listRoles(serverId: serverId);
     await _people.next();
     if (_stale(loadId, serverId)) return;
@@ -181,7 +184,7 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
     ];
     if (wanted.isEmpty) return;
 
-    final found = await _serverCubit.membersByIds(wanted, serverId: serverId);
+    final found = await _members.membersByIds(wanted, serverId: serverId);
     if (isClosed || serverId != _watcher.serverId || found.isEmpty) return;
 
     _emitLoaded(
@@ -244,8 +247,8 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
     if (!state.loaded) return _loadFirst();
     final loadId = ++_loadId;
 
-    final bots = await _serverCubit.listBots(serverId: serverId);
-    final counts = await _serverCubit.memberCounts(serverId: serverId);
+    final bots = await _members.listBots(serverId: serverId);
+    final counts = await _members.memberCounts(serverId: serverId);
     final roles = await _roles.listRoles(serverId: serverId);
 
     // The pages reach a joiner only when somebody scrolls to them, which is
@@ -266,7 +269,7 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
 
     // Everybody we hold, paged or resolved by id: somebody known only from a
     // call or a message kept their old name and picture until they left.
-    final refreshed = await _serverCubit.membersByIds(
+    final refreshed = await _members.membersByIds(
       {
         ...(repaged ? _people.loaded : state.people).members.map((m) => m.id),
         ...state.known.keys,
@@ -352,7 +355,7 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
   Future<void> _readBanned() async {
     final serverId = _watcher.serverId;
     if (serverId == null) return;
-    final banned = await _serverCubit.listBanned(serverId: serverId);
+    final banned = await _members.listBanned(serverId: serverId);
     if (banned == null || isClosed || serverId != _watcher.serverId) return;
     if (!_showingBanned) return;
     emit(state.copyWith(banned: banned));
@@ -362,7 +365,7 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
   Future<void> _runSearch(String query, int id) async {
     final serverId = _watcher.serverId;
     if (serverId == null) return;
-    final matches = await _serverCubit.searchMembers(
+    final matches = await _members.searchMembers(
       query: query,
       serverId: serverId,
       banned: null,
