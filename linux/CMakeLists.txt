@@ -111,6 +111,22 @@ install(FILES "packaging/rift.png" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
 install(FILES "${FLUTTER_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
   COMPONENT Runtime)
 
+# FFmpeg's VAAPI encoders in a library of their own (native/ffenc), which the
+# Rust crate opens at run time for a share's H264 on Intel's and AMD's GPUs.
+set(FFENC_SOURCE_DIR "${CMAKE_SOURCE_DIR}/../native/ffenc")
+set(FFENC_LIBRARY "${PROJECT_BINARY_DIR}/ffenc/librift_ffenc.so")
+file(GLOB FFENC_PATCHES "${CMAKE_SOURCE_DIR}/../third_party/ffmpeg/*.patch")
+add_custom_command(
+  OUTPUT "${FFENC_LIBRARY}"
+  COMMAND "${FFENC_SOURCE_DIR}/build.sh" "${PROJECT_BINARY_DIR}/ffenc"
+  DEPENDS "${FFENC_SOURCE_DIR}/build.sh" "${FFENC_SOURCE_DIR}/ffenc.c"
+    "${FFENC_SOURCE_DIR}/ffenc.h" ${FFENC_PATCHES}
+  COMMENT "Building FFmpeg's VAAPI encoders (native/ffenc)"
+  VERBATIM)
+add_custom_target(rift_ffenc ALL DEPENDS "${FFENC_LIBRARY}")
+install(FILES "${FFENC_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+  COMPONENT Runtime)
+
 foreach(bundled_library ${PLUGIN_BUNDLED_LIBRARIES})
   install(FILES "${bundled_library}"
     DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"

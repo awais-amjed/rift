@@ -5,9 +5,9 @@
 //! On Windows through Media Foundation, which reaches NVIDIA's, AMD's and
 //! Intel's encoders alike, since LiveKit has no hardware encoder there. On
 //! Linux through NVENC (`nvenc.rs`), since LiveKit's own NVENC carries code
-//! the GPL client cannot; Intel's and AMD's GPUs there go through LiveKit's
-//! VAAPI encoder instead. H264 and AV1 are only ever encoded by the GPU or the
-//! OS, never by Rift itself.
+//! the GPL client cannot, and through FFmpeg's VAAPI encoder on Intel's and
+//! AMD's GPUs (`ffmpeg.rs`), since LiveKit's own VAAPI encoder stalls. H264
+//! and AV1 are only ever encoded by the GPU or the OS, never by Rift itself.
 #![cfg_attr(not(gpu_encoder), allow(dead_code))]
 // AV1 is made by the Windows encoder alone, and only in its tests.
 #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
@@ -18,9 +18,13 @@ mod media_foundation;
 #[cfg(target_os = "windows")]
 pub(crate) use media_foundation::GpuEncoder;
 #[cfg(target_os = "linux")]
+mod ffmpeg;
+#[cfg(target_os = "linux")]
 mod nvenc;
 #[cfg(target_os = "linux")]
-pub(crate) use nvenc::GpuEncoder;
+mod worker;
+#[cfg(target_os = "linux")]
+pub(crate) use worker::GpuEncoder;
 
 use super::resolution::Size;
 use crate::api::screenshare::types::VideoCodec;
@@ -60,9 +64,8 @@ impl std::fmt::Display for GpuCodec {
 /// so the first answer is kept.
 ///
 /// On Windows that is Rift's own encoder. On Linux it is Rift's NVENC, or
-/// else LiveKit's VAAPI (Intel, AMD) where LiveKit lists it as working;
-/// without either LiveKit would make H264 with OpenH264 on the CPU, which
-/// Rift never does.
+/// FFmpeg's VAAPI where NVIDIA's is missing; without either LiveKit would
+/// make H264 with OpenH264 on the CPU, which Rift never does.
 pub(crate) fn gpu_codecs() -> Vec<VideoCodec> {
     #[cfg(target_os = "windows")]
     {
@@ -79,20 +82,11 @@ pub(crate) fn gpu_codecs() -> Vec<VideoCodec> {
     }
     #[cfg(target_os = "linux")]
     {
-        static CODECS: std::sync::OnceLock<Vec<VideoCodec>> = std::sync::OnceLock::new();
-        CODECS
-            .get_or_init(|| {
-                let backends: Vec<_> = livekit::options::VideoEncoderBackend::list_available()
-                    .into_iter()
-                    .collect();
-                log::info!("encoder: LiveKit lists {backends:?}");
-                if encodes_itself(GpuCodec::H264) || backends.iter().copied().any(is_gpu_backend) {
-                    vec![VideoCodec::H264]
-                } else {
-                    Vec::new()
-                }
-            })
-            .clone()
+        if encodes_itself(GpuCodec::H264) {
+            vec![VideoCodec::H264]
+        } else {
+            Vec::new()
+        }
     }
     #[cfg(not(any(target_os = "windows", target_os = "linux")))]
     {
@@ -100,15 +94,13 @@ pub(crate) fn gpu_codecs() -> Vec<VideoCodec> {
     }
 }
 
-/// Whether a share in `codec` is encoded by Rift's own GPU encoder here,
-/// rather than handed to LiveKit. On Windows always: a failure to open moves
-/// the share to VP9. On Linux where NVENC opens; elsewhere H264 is LiveKit's
-/// VAAPI. Asked once, since opening one to find out takes a moment.
+/// Whether a share in `codec` is encoded by Rift's own GPU encoder here. On
+/// Windows always: a failure to open moves the share to VP9. On Linux where
+/// NVENC or FFmpeg's VAAPI opens one, each asked once.
 pub(crate) fn encodes_itself(codec: GpuCodec) -> bool {
     #[cfg(target_os = "linux")]
     {
-        static NVENC: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-        *NVENC.get_or_init(|| nvenc::opens(GpuCodec::H264)) && codec == GpuCodec::H264
+        codec == GpuCodec::H264 && (nvenc_here() || ffmpeg::opens(codec))
     }
     #[cfg(not(target_os = "linux"))]
     {
@@ -117,22 +109,36 @@ pub(crate) fn encodes_itself(codec: GpuCodec) -> bool {
     }
 }
 
-/// Whether one of LiveKit's encoder backends is a GPU's.
-#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
-fn is_gpu_backend(backend: livekit::options::VideoEncoderBackend) -> bool {
-    use livekit::options::VideoEncoderBackend;
-    matches!(
-        backend,
-        VideoEncoderBackend::Vaapi | VideoEncoderBackend::Nvenc
-    )
+/// Whether NVENC encodes H264 here, which on a computer with both is
+/// preferred to VAAPI: asked once.
+#[cfg(target_os = "linux")]
+fn nvenc_here() -> bool {
+    // A test on a computer with both runs VAAPI this way.
+    #[cfg(test)]
+    if std::env::var_os("GPU_NO_NVENC").is_some() {
+        return false;
+    }
+    static NVENC: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *NVENC.get_or_init(|| nvenc::opens(GpuCodec::H264))
 }
 
-/// Whether the encoder WebRTC names in a track's stats is a GPU's H264:
-/// LiveKit's VAAPI one (or its NVENC, in a build made with CUDA's headers),
-/// rather than the OpenH264 it falls back to.
-#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
-pub(crate) fn is_gpu_h264(implementation: &str) -> bool {
-    implementation.contains("VAAPI") || implementation.contains("NVIDIA")
+#[cfg(target_os = "linux")]
+impl GpuEncoder {
+    /// Open the GPU's encoder for these settings and start feeding `sink`:
+    /// NVENC where NVIDIA's driver has one, else FFmpeg's VAAPI. `_only`,
+    /// which picks one of several encoders on Windows, has nothing to pick
+    /// here.
+    pub(crate) fn open(
+        settings: EncoderSettings,
+        sink: Box<dyn EncodedSink>,
+        _only: Option<usize>,
+    ) -> Result<GpuEncoder, String> {
+        if nvenc_here() {
+            GpuEncoder::start(settings, sink, nvenc::open)
+        } else {
+            GpuEncoder::start(settings, sink, ffmpeg::open)
+        }
+    }
 }
 
 /// Ways for a test to make the GPU misbehave: be absent, or stop working
@@ -145,8 +151,8 @@ pub(crate) mod test_hooks {
     /// 0 is never.
     pub(crate) static FAIL_AFTER: AtomicU32 = AtomicU32::new(0);
     /// The encoder stays at the share's cap whatever WebRTC asks for, as one
-    /// that overshoots does. Linux's NVENC only: it is the one a bench can
-    /// run on a capped link.
+    /// that overshoots does. Linux's encoders only: they are the ones a bench
+    /// can run on a capped link.
     pub(crate) static IGNORE_RATE: AtomicBool = AtomicBool::new(false);
 }
 
@@ -234,18 +240,6 @@ mod tests {
     #[test]
     fn a_cap_under_the_floor_wins() {
         assert_eq!(clamp_bitrate(0, 100_000), 100_000);
-    }
-
-    #[test]
-    fn only_a_gpu_encoder_counts_as_the_gpu() {
-        assert!(is_gpu_h264("VAAPI H264 Encoder"));
-        assert!(is_gpu_h264("NVIDIA H264 Encoder"));
-        assert!(!is_gpu_h264("OpenH264"));
-        assert!(!is_gpu_h264(""));
-        use livekit::options::VideoEncoderBackend;
-        assert!(is_gpu_backend(VideoEncoderBackend::Vaapi));
-        assert!(!is_gpu_backend(VideoEncoderBackend::Software));
-        assert!(!is_gpu_backend(VideoEncoderBackend::Hardware));
     }
 
     #[test]

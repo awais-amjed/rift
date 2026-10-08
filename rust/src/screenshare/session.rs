@@ -50,14 +50,6 @@ const FPS_ATTRIBUTE: &str = "fps";
 #[cfg(gpu_encoder)]
 const START_BITRATE_BPS: u32 = 1_000_000;
 
-/// How often, and how many times, a Linux H264 share's encoder is looked at
-/// before it is taken to be the GPU's: long enough for the first frames to
-/// have gone out, which is when WebRTC names it.
-#[cfg(target_os = "linux")]
-const H264_CHECK_EVERY: Duration = Duration::from_secs(2);
-#[cfg(target_os = "linux")]
-const H264_CHECKS: u32 = 5;
-
 /// A screen share's sound keeps the plain name it has always had — nothing
 /// reads it, because the picture says what this is.
 const AUDIO_TRACK_NAME: &str = "screen_share_audio";
@@ -651,15 +643,17 @@ impl Video {
         );
 
         // H264 comes from the GPU or not at all (ARCHITECTURE.md, "Encoding a
-        // share on the GPU"): from Rift's own encoder where there is one, and
-        // as VP9 if it will not open. On Linux without NVENC it is LiveKit's
-        // VAAPI encoder, checked once it has made frames.
+        // share on the GPU"): from Rift's own encoder, and as VP9 if it will
+        // not open.
         #[cfg(gpu_encoder)]
-        if let Some(codec) =
-            GpuCodec::for_share(settings.codec).filter(|&codec| encoder::encodes_itself(codec))
-        {
+        if let Some(codec) = GpuCodec::for_share(settings.codec) {
             let target = gpu_target(target);
-            match self.publish_from_gpu(target, codec, &settings).await {
+            let published = if encoder::encodes_itself(codec) {
+                self.publish_from_gpu(target, codec, &settings).await
+            } else {
+                Err(format!("no GPU here encodes {codec}"))
+            };
+            match published {
                 Ok(sid) => {
                     *track = Some(sid);
                     announce_picture(&self.participant(), target, settings.fps);
@@ -682,69 +676,9 @@ impl Video {
         }
         self.slot.attach(Feed::Raw(source.clone()), target);
         let sid = publish_video_track(&self.participant(), source, &settings, false).await?;
-        #[cfg(target_os = "linux")]
-        if settings.codec == VideoCodec::H264 {
-            self.check_h264_encoder(sid.clone());
-        }
         *track = Some(sid);
         announce_picture(&self.participant(), target, settings.fps);
         Ok(())
-    }
-
-    /// Linux without NVENC: H264 comes from LiveKit's VAAPI encoder, and is
-    /// offered only where LiveKit lists one. A listed one can still fail to
-    /// open, and LiveKit then quietly makes H264 with OpenH264 on the CPU,
-    /// which Rift never does (`ARCHITECTURE.md`, "Encoding a share on the
-    /// GPU"). So once the first frames are out, the encoder WebRTC names is
-    /// checked, and anything but the GPU's hands the share to VP9.
-    #[cfg(target_os = "linux")]
-    fn check_h264_encoder(&self, sid: TrackSid) {
-        let me = self.me.clone();
-        tokio::spawn(async move {
-            for _ in 0..H264_CHECKS {
-                tokio::time::sleep(H264_CHECK_EVERY).await;
-                let Some(video) = me.upgrade() else {
-                    return;
-                };
-                // A newer picture has its own check.
-                if video.track.lock().await.as_ref() != Some(&sid) {
-                    return;
-                }
-                let Some(name) = video.encoder_name(&sid).await else {
-                    continue;
-                };
-                if encoder::is_gpu_h264(&name) {
-                    log::info!("screenshare: H264 from {name}");
-                    return;
-                }
-                video.fall_back(&format!("H264 came from {name}, not the GPU"));
-                if let Err(reason) = video.republish().await {
-                    log::warn!("screenshare: {reason}");
-                    crate::api::screenshare::emit_screenshare_event(ScreenshareEvent::SourceClosed);
-                }
-                return;
-            }
-            log::warn!("screenshare: no encoder named for the H264 picture yet");
-        });
-    }
-
-    /// The encoder WebRTC says made the picture `sid`, once it has made some.
-    #[cfg(target_os = "linux")]
-    async fn encoder_name(&self, sid: &TrackSid) -> Option<String> {
-        let publication = self.participant().get_track_publication(sid)?;
-        let LocalTrack::Video(track) = publication.track()? else {
-            return None;
-        };
-        let stats = track.get_stats().await.ok()?;
-        stats.into_iter().find_map(|stat| match stat {
-            livekit::webrtc::stats::RtcStats::OutboundRtp(out)
-                if out.stream.kind == "video"
-                    && !out.outbound.encoder_implementation.is_empty() =>
-            {
-                Some(out.outbound.encoder_implementation)
-            }
-            _ => None,
-        })
     }
 
     /// Open a hardware encoder for the picture and publish what it makes.
