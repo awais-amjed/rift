@@ -2,26 +2,30 @@
 //! encoders would spend the CPU a game needs (`ARCHITECTURE.md`, "Encoding a
 //! share on the GPU").
 //!
-//! On Windows through Media Foundation, which reaches NVIDIA's, AMD's and
-//! Intel's encoders alike, since LiveKit has no hardware encoder there. On
-//! Linux through NVENC (`nvenc.rs`), since LiveKit's own NVENC carries code
-//! the GPL client cannot, and through FFmpeg's VAAPI encoder on Intel's and
-//! AMD's GPUs (`ffmpeg.rs`), since LiveKit's own VAAPI encoder stalls. H264
-//! and AV1 are only ever encoded by the GPU or the OS, never by Rift itself.
+//! On Windows, where LiveKit has no hardware encoder, through FFmpeg's NVENC
+//! and Quick Sync encoders on NVIDIA's and Intel's GPUs (`ffmpeg.rs`), and
+//! through Media Foundation, which reaches NVIDIA's, AMD's and Intel's
+//! encoders alike, where those do not open (`windows_gpu.rs`). On Linux
+//! through NVENC (`nvenc.rs`), since LiveKit's own NVENC carries code the GPL
+//! client cannot, and through FFmpeg's VAAPI encoder on Intel's and AMD's GPUs
+//! (`ffmpeg.rs`), since LiveKit's own VAAPI encoder stalls. H264 and AV1 are
+//! only ever encoded by the GPU or the OS, never by Rift itself.
 #![cfg_attr(not(gpu_encoder), allow(dead_code))]
 // AV1 is made by the Windows encoder alone, and only in its tests.
 #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
 pub(crate) mod av1;
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+mod ffmpeg;
 pub(crate) mod h264;
 #[cfg(target_os = "windows")]
 mod media_foundation;
-#[cfg(target_os = "windows")]
-pub(crate) use media_foundation::GpuEncoder;
-#[cfg(target_os = "linux")]
-mod ffmpeg;
 #[cfg(target_os = "linux")]
 mod nvenc;
-#[cfg(target_os = "linux")]
+#[cfg(target_os = "windows")]
+mod windows_gpu;
+#[cfg(target_os = "windows")]
+pub(crate) use windows_gpu::GpuEncoder;
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 mod worker;
 #[cfg(target_os = "linux")]
 pub(crate) use worker::GpuEncoder;
@@ -63,16 +67,17 @@ impl std::fmt::Display for GpuCodec {
 /// find out takes a moment, and the GPUs do not change under a running app,
 /// so the first answer is kept.
 ///
-/// On Windows that is Rift's own encoder. On Linux it is Rift's NVENC, or
-/// FFmpeg's VAAPI where NVIDIA's is missing; without either LiveKit would
-/// make H264 with OpenH264 on the CPU, which Rift never does.
+/// On Windows that is FFmpeg's encoder, or Media Foundation's where FFmpeg's
+/// does not open. On Linux it is Rift's NVENC, or FFmpeg's VAAPI where
+/// NVIDIA's is missing; without either LiveKit would make H264 with OpenH264
+/// on the CPU, which Rift never does.
 pub(crate) fn gpu_codecs() -> Vec<VideoCodec> {
     #[cfg(target_os = "windows")]
     {
         static CODECS: std::sync::OnceLock<Vec<VideoCodec>> = std::sync::OnceLock::new();
         CODECS
             .get_or_init(|| {
-                if media_foundation::opens(GpuCodec::H264) {
+                if ffmpeg::opens(GpuCodec::H264) || media_foundation::opens(GpuCodec::H264) {
                     vec![VideoCodec::H264]
                 } else {
                     Vec::new()
@@ -151,8 +156,8 @@ pub(crate) mod test_hooks {
     /// 0 is never.
     pub(crate) static FAIL_AFTER: AtomicU32 = AtomicU32::new(0);
     /// The encoder stays at the share's cap whatever WebRTC asks for, as one
-    /// that overshoots does. Linux's encoders only: they are the ones a bench
-    /// can run on a capped link.
+    /// that overshoots does. The encoders on the shared encoder thread only
+    /// (`worker.rs`): Linux's, and FFmpeg's on Windows.
     pub(crate) static IGNORE_RATE: AtomicBool = AtomicBool::new(false);
 }
 

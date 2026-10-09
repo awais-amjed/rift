@@ -14,7 +14,14 @@
 #include <va/va.h>
 #endif
 
+// The GPU APIs this library drives, told apart by the encoder's name: FFmpeg
+// names each encoder after the API it drives.
+typedef enum Api { API_NONE, API_VAAPI, API_NVENC, API_QSV, API_AMF } Api;
+
 struct RiftFfenc {
+  Api api;
+  // VAAPI's GPU and its picture pool. NULL for NVENC, QSV and AMF, which
+  // take the picture from memory and upload it themselves.
   AVBufferRef* device;
   AVBufferRef* frames;
   AVCodecContext* codec;
@@ -60,26 +67,24 @@ static void fail(char* error, size_t error_len, const char* what, int err) {
   }
 }
 
-// The hardware an encoder runs on, from its name: FFmpeg names each after
-// the API it drives.
-static enum AVHWDeviceType device_type_for(const char* encoder) {
+static Api api_of(const char* encoder) {
   const char* suffix = strrchr(encoder, '_');
-  if (suffix && strcmp(suffix, "_vaapi") == 0) return AV_HWDEVICE_TYPE_VAAPI;
-  return AV_HWDEVICE_TYPE_NONE;
+  if (!suffix) return API_NONE;
+  if (strcmp(suffix, "_vaapi") == 0) return API_VAAPI;
+  if (strcmp(suffix, "_nvenc") == 0) return API_NVENC;
+  if (strcmp(suffix, "_qsv") == 0) return API_QSV;
+  if (strcmp(suffix, "_amf") == 0) return API_AMF;
+  return API_NONE;
 }
 
-// The pixel format FFmpeg gives pictures held on that hardware.
-static enum AVPixelFormat hardware_format(enum AVHWDeviceType type) {
-  switch (type) {
-    case AV_HWDEVICE_TYPE_VAAPI:
-      return AV_PIX_FMT_VAAPI;
-    default:
-      return AV_PIX_FMT_NONE;
-  }
-}
-
-static void name_driver(RiftFfenc* enc) {
+static void name_driver(RiftFfenc* enc, const AVCodec* codec) {
   snprintf(enc->driver, sizeof(enc->driver), "an unnamed GPU");
+  if (!enc->device) {
+    // The driver picks the GPU and does not say which; the encoder's own
+    // name says whose it is.
+    snprintf(enc->driver, sizeof(enc->driver), "%s", codec->long_name);
+    return;
+  }
 #if defined(__linux__)
   AVHWDeviceContext* device = (AVHWDeviceContext*)enc->device->data;
   if (device->type == AV_HWDEVICE_TYPE_VAAPI) {
@@ -90,32 +95,59 @@ static void name_driver(RiftFfenc* enc) {
 #endif
 }
 
-static int64_t peak_of(int64_t bitrate_bps, int32_t peak_percent) {
-  return bitrate_bps * peak_percent / 100;
+static int64_t peak_of(Api api, int64_t bitrate_bps, int32_t peak_percent) {
+  int64_t peak = bitrate_bps * peak_percent / 100;
+  // QSV runs constant bitrate whenever the peak equals the average, and has
+  // no other way to ask for variable. It counts in kbps, so one kbps more is
+  // the least that tells them apart.
+  if (api == API_QSV && peak < bitrate_bps + 1000) peak = bitrate_bps + 1000;
+  return peak;
 }
 
-// Open the encoder itself on the picture pool.
+// The rate, its peak and the buffer they are held over, on the encoder: when
+// it opens, and at every move.
+static void set_rates(RiftFfenc* enc, int64_t bitrate_bps) {
+  AVCodecContext* c = enc->codec;
+  c->bit_rate = bitrate_bps;
+  c->rc_max_rate = peak_of(enc->api, bitrate_bps, enc->peak_percent);
+  // One second of the peak, which is what VAAPI's encoder takes when none is
+  // given (and what its patch keeps as the rate moves). Left to itself,
+  // FFmpeg's NVENC keeps two seconds of the rate it opened at, whatever the
+  // rate moves to. QSV's is set once (open_codec).
+  if (enc->api == API_NVENC || enc->api == API_AMF) {
+    c->rc_buffer_size = (int)c->rc_max_rate;
+  }
+}
+
+// Open the encoder itself, on the picture pool when there is one.
 static int open_codec(RiftFfenc* enc, const AVCodec* codec,
                       const RiftFfencConfig* config) {
   avcodec_free_context(&enc->codec);
   AVCodecContext* c = avcodec_alloc_context3(codec);
   if (!c) return AVERROR(ENOMEM);
   enc->codec = c;
-  AVHWFramesContext* frames = (AVHWFramesContext*)enc->frames->data;
   c->width = config->width;
   c->height = config->height;
   // Timestamps are the capture's, in microseconds, carried straight through.
   c->time_base = (AVRational){1, 1000000};
   c->framerate = (AVRational){config->fps, 1};
-  c->pix_fmt = frames->format;
-  c->hw_frames_ctx = av_buffer_ref(enc->frames);
+  if (enc->frames) {
+    c->pix_fmt = ((AVHWFramesContext*)enc->frames->data)->format;
+    c->hw_frames_ctx = av_buffer_ref(enc->frames);
+  } else {
+    c->pix_fmt = AV_PIX_FMT_NV12;
+  }
   c->gop_size = config->gop;
   c->max_b_frames = 0;
-  c->bit_rate = config->bitrate_bps;
-  c->rc_max_rate = peak_of(config->bitrate_bps, enc->peak_percent);
+  set_rates(enc, config->bitrate_bps);
   if (codec->id == AV_CODEC_ID_H264) {
-    // The one profile LiveKit offers for pre-encoded H264.
+    // The one profile LiveKit offers for pre-encoded H264. NVENC and QSV
+    // read their own option instead, which has no constrained baseline;
+    // their baseline uses none of the tools that would make it more.
     c->profile = AV_PROFILE_H264_CONSTRAINED_BASELINE;
+    if (enc->api == API_NVENC || enc->api == API_QSV) {
+      av_opt_set(c->priv_data, "profile", "baseline", 0);
+    }
     // No encoder identification or timing SEI: bytes nobody reads.
     av_opt_set(c->priv_data, "sei", "0", 0);
     // The finest quantiser the GPU may use, as on Windows
@@ -124,20 +156,106 @@ static int open_codec(RiftFfenc* enc, const AVCodec* codec,
     // and at 0.01 with this. Any floor at all moved Intel's rate control:
     // a busy 1440p60 picture asked for 12 Mbps made 13.8 instead of 12.2
     // (Oct 9 2026). What it makes beyond the target is held back before it
-    // is encoded (rate_gate.rs).
-    c->qmin = 18;
+    // is encoded (rate_gate.rs). NVENC takes it as its own option.
+    if (enc->api == API_NVENC) {
+      av_opt_set_int(c->priv_data, "qmin", 18, 0);
+    } else {
+      c->qmin = 18;
+    }
   }
   // Variable bitrate, peaking at the cap: in constant bitrate a GPU pads a
   // still picture with filler to make up the rate (Intel: 8 Mbps of a
   // gradient that needs almost none, Oct 9 2026), and a shared screen is
-  // mostly still.
-  av_opt_set(c->priv_data, "rc_mode", "VBR", 0);
+  // mostly still. QSV has no option for it; its peak decides (peak_of).
+  switch (enc->api) {
+    case API_VAAPI:
+      av_opt_set(c->priv_data, "rc_mode", "VBR", 0);
+      break;
+    case API_NVENC:
+      av_opt_set(c->priv_data, "rc", "vbr", 0);
+      break;
+    case API_AMF:
+      av_opt_set(c->priv_data, "rc", "vbr_peak", 0);
+      break;
+    default:
+      break;
+  }
   // One picture in the GPU at a time: each comes out before the next goes
   // in, so the encoder adds no frames of delay.
   av_opt_set(c->priv_data, "async_depth", "1", 0);
-  // Not Intel's low-power encoder: on Alder Lake it ignored the rate
-  // altogether, 22 Mbps whatever was asked (HuC loaded, Oct 9 2026).
+  switch (enc->api) {
+    case API_NVENC:
+      // NVIDIA's settings for streaming: the middle preset, as Rift's own
+      // NVENC on Linux uses, tuned for the lowest latency, with no look-ahead
+      // and nothing held back.
+      av_opt_set(c->priv_data, "preset", "p4", 0);
+      av_opt_set(c->priv_data, "tune", "ull", 0);
+      av_opt_set(c->priv_data, "zerolatency", "1", 0);
+      av_opt_set(c->priv_data, "delay", "0", 0);
+      av_opt_set(c->priv_data, "rc-lookahead", "0", 0);
+      // A keyframe asked for is one a viewer can start from, not just an
+      // intra picture.
+      av_opt_set(c->priv_data, "forced-idr", "1", 0);
+      break;
+    case API_QSV: {
+      av_opt_set(c->priv_data, "look_ahead", "0", 0);
+      av_opt_set(c->priv_data, "forced_idr", "1", 0);
+      // Quick Sync takes a moved rate by resetting itself, and refused any
+      // reset that moved the buffer too ("incompatible video parameters",
+      // Iris Xe, Oct 9 2026). FFmpeg also sizes the encoder's output from
+      // this buffer once, when it opens. So it is one second of the most the
+      // rate will reach, and stays.
+      int64_t most = config->max_bitrate_bps > config->bitrate_bps
+                         ? config->max_bitrate_bps
+                         : config->bitrate_bps;
+      c->rc_buffer_size = (int)peak_of(API_QSV, most, enc->peak_percent);
+      // With the HRD conformance it keeps by default, each reset starts a
+      // new sequence with a keyframe, and WebRTC moves the rate every few
+      // seconds. Without it the rate moves between two pictures.
+      c->strict_std_compliance = FF_COMPLIANCE_UNOFFICIAL;
+      break;
+    }
+    case API_AMF:
+      // Without it AMF holds one picture back before handing out the first.
+      c->flags |= AV_CODEC_FLAG_LOW_DELAY;
+      av_opt_set(c->priv_data, "usage", "ultralowlatency", 0);
+      av_opt_set(c->priv_data, "latency", "1", 0);
+      av_opt_set(c->priv_data, "preencode", "0", 0);
+      av_opt_set(c->priv_data, "forced_idr", "1", 0);
+      break;
+    default:
+      // Not Intel's low-power VAAPI encoder: on Alder Lake it ignored the
+      // rate altogether, 22 Mbps whatever was asked (HuC loaded, Oct 9 2026).
+      break;
+  }
   return avcodec_open2(c, codec, NULL);
+}
+
+// VAAPI's GPU and a pool of NV12 pictures on it, the size of the share's.
+static int open_device(RiftFfenc* enc, const RiftFfencConfig* config,
+                       char* error, size_t error_len) {
+  int err = av_hwdevice_ctx_create(&enc->device, AV_HWDEVICE_TYPE_VAAPI,
+                                   config->device, NULL, 0);
+  if (err < 0) {
+    fail(error, error_len, "the GPU did not open", err);
+    return err;
+  }
+  enc->frames = av_hwframe_ctx_alloc(enc->device);
+  if (!enc->frames) {
+    fail(error, error_len, "no picture pool", AVERROR(ENOMEM));
+    return AVERROR(ENOMEM);
+  }
+  AVHWFramesContext* frames = (AVHWFramesContext*)enc->frames->data;
+  frames->format = AV_PIX_FMT_VAAPI;
+  frames->sw_format = AV_PIX_FMT_NV12;
+  frames->width = config->width;
+  frames->height = config->height;
+  frames->initial_pool_size = 16;
+  err = av_hwframe_ctx_init(enc->frames);
+  if (err < 0) {
+    fail(error, error_len, "the GPU took no NV12 pictures that size", err);
+  }
+  return err;
 }
 
 RiftFfenc* rift_ffenc_open(const RiftFfencConfig* config, char* error,
@@ -148,41 +266,23 @@ RiftFfenc* rift_ffenc_open(const RiftFfencConfig* config, char* error,
     fail(error, error_len, "this build has no such encoder", 0);
     return NULL;
   }
-  enum AVHWDeviceType type = device_type_for(config->encoder);
-  if (type == AV_HWDEVICE_TYPE_NONE) {
+  Api api = api_of(config->encoder);
+  if (api == API_NONE) {
     fail(error, error_len, "not a GPU encoder", 0);
     return NULL;
   }
 
   RiftFfenc* enc = av_mallocz(sizeof(RiftFfenc));
   if (!enc) return NULL;
+  enc->api = api;
   enc->peak_percent = config->peak_percent < 100 ? 100 : config->peak_percent;
 
-  int err = av_hwdevice_ctx_create(&enc->device, type, config->device, NULL, 0);
-  if (err < 0) {
-    fail(error, error_len, "the GPU did not open", err);
+  if (api == API_VAAPI && open_device(enc, config, error, error_len) < 0) {
     goto fail;
   }
-  name_driver(enc);
+  name_driver(enc, codec);
 
-  enc->frames = av_hwframe_ctx_alloc(enc->device);
-  if (!enc->frames) {
-    fail(error, error_len, "no picture pool", AVERROR(ENOMEM));
-    goto fail;
-  }
-  AVHWFramesContext* frames = (AVHWFramesContext*)enc->frames->data;
-  frames->format = hardware_format(type);
-  frames->sw_format = AV_PIX_FMT_NV12;
-  frames->width = config->width;
-  frames->height = config->height;
-  frames->initial_pool_size = 16;
-  err = av_hwframe_ctx_init(enc->frames);
-  if (err < 0) {
-    fail(error, error_len, "the GPU took no NV12 pictures that size", err);
-    goto fail;
-  }
-
-  err = open_codec(enc, codec, config);
+  int err = open_codec(enc, codec, config);
   if (err < 0) {
     fail(error, error_len, "the encoder did not open", err);
     goto fail;
@@ -209,10 +309,10 @@ fail:
 const char* rift_ffenc_driver(const RiftFfenc* enc) { return enc->driver; }
 
 void rift_ffenc_set_bitrate(RiftFfenc* enc, int64_t bitrate_bps) {
-  // Read by the patched VAAPI encoder before the next picture
+  // Read by the encoder before the next picture: by NVENC and QSV
+  // themselves, by VAAPI and AMF once patched
   // (third_party/ffmpeg/RIFT_PATCHES.md).
-  enc->codec->bit_rate = bitrate_bps;
-  enc->codec->rc_max_rate = peak_of(bitrate_bps, enc->peak_percent);
+  set_rates(enc, bitrate_bps);
 }
 
 int32_t rift_ffenc_send(RiftFfenc* enc, const uint8_t* nv12,
@@ -221,16 +321,25 @@ int32_t rift_ffenc_send(RiftFfenc* enc, const uint8_t* nv12,
   picture->data[0] = (uint8_t*)nv12;
   picture->data[1] = (uint8_t*)nv12 + (size_t)picture->width * picture->height;
 
-  AVFrame* gpu = av_frame_alloc();
-  if (!gpu) return AVERROR(ENOMEM);
-  int err = av_hwframe_get_buffer(enc->frames, gpu, 0);
-  if (err >= 0) err = av_hwframe_transfer_data(gpu, picture, 0);
-  if (err >= 0) {
-    gpu->pts = timestamp_us;
-    gpu->pict_type = keyframe ? AV_PICTURE_TYPE_I : AV_PICTURE_TYPE_NONE;
-    err = avcodec_send_frame(enc->codec, gpu);
+  int err;
+  if (!enc->frames) {
+    // FFmpeg copies a picture it does not own before this returns, and the
+    // encoder uploads the copy.
+    picture->pts = timestamp_us;
+    picture->pict_type = keyframe ? AV_PICTURE_TYPE_I : AV_PICTURE_TYPE_NONE;
+    err = avcodec_send_frame(enc->codec, picture);
+  } else {
+    AVFrame* gpu = av_frame_alloc();
+    if (!gpu) return AVERROR(ENOMEM);
+    err = av_hwframe_get_buffer(enc->frames, gpu, 0);
+    if (err >= 0) err = av_hwframe_transfer_data(gpu, picture, 0);
+    if (err >= 0) {
+      gpu->pts = timestamp_us;
+      gpu->pict_type = keyframe ? AV_PICTURE_TYPE_I : AV_PICTURE_TYPE_NONE;
+      err = avcodec_send_frame(enc->codec, gpu);
+    }
+    av_frame_free(&gpu);
   }
-  av_frame_free(&gpu);
   picture->data[0] = NULL;
   picture->data[1] = NULL;
   return err < 0 ? err : 0;

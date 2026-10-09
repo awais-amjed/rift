@@ -1,9 +1,10 @@
-//! The thread a Linux GPU encoder runs on, whichever API it drives.
+//! The thread a GPU encoder runs on, whichever API it drives: Rift's NVENC
+//! and FFmpeg's on Linux, FFmpeg's on Windows.
 //!
 //! Pictures come in on a short queue, newest kept; WebRTC's keyframe and
 //! bitrate requests are applied before each one; encoded frames go to the
-//! [`EncodedSink`]. What differs between NVENC and FFmpeg's VAAPI is only how
-//! a picture is encoded and how the rate is moved: a [`Session`].
+//! [`EncodedSink`]. What differs between NVENC and FFmpeg is only how a
+//! picture is encoded and how the rate is moved: a [`Session`].
 use super::{clamp_bitrate, EncodedSink, EncoderSettings, Nv12Frame};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::mpsc::{self, Receiver, SyncSender, TrySendError};
@@ -129,6 +130,10 @@ impl GpuEncoder {
     /// The rate WebRTC last asked for, inside the cap.
     pub(crate) fn bitrate(&self) -> u32 {
         self.bitrate.load(Ordering::Relaxed)
+    }
+
+    pub(crate) fn name(&self) -> &str {
+        &self.name
     }
 }
 

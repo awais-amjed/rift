@@ -47,6 +47,10 @@ livekit = { version = "0.9.1", features = ["rustls-tls-native-roots"] }
 # held at 0.21.4: later 0.21 releases moved to an ndarray libDF does not build
 # against, and tract's crates pin each other, so naming two holds them all.
 [target.'cfg(any(target_os = "linux", target_os = "windows"))'.dependencies]
+# Opens Rift's FFmpeg library (native/ffenc) for a share's H264 on the GPU
+# (src/screenshare/encoder/ffmpeg.rs), so a computer it cannot load on still
+# runs the app.
+libloading = "0.8.9"
 env_logger = { version = "0.11", default-features = false }
 nanomp3 = "0.2.0"
 deep_filter = { git = "https://github.com/Rikorose/DeepFilterNet", rev = "d375b2d8309e0935d165700c91da9de862a99c31", default-features = false, features = ["tract", "default-model"] }
@@ -69,10 +73,6 @@ libpulse-binding = "2.30.1"
 # MIT API header and libraries opened at run time, so nothing of NVIDIA's
 # licence is built in.
 shiguredo_nvcodec = "2026.2.0"
-# Opens Rift's FFmpeg library (native/ffenc) for VAAPI's H264
-# (src/screenshare/encoder/ffmpeg.rs), so a computer it cannot load on still
-# runs the app.
-libloading = "0.8.9"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 wasapi = "0.22.0"

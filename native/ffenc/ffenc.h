@@ -1,4 +1,6 @@
-// A GPU encoder through FFmpeg, as a library of its own.
+// A GPU encoder through FFmpeg, as a library of its own: librift_ffenc.so
+// with VAAPI's on Linux, rift_ffenc.dll with NVENC's, QSV's and AMF's on
+// Windows.
 //
 // LiveKit's libwebrtc already carries an FFmpeg (Chromium's, decoders only)
 // under the same symbol names, so Rift's FFmpeg cannot be linked beside it.
@@ -24,15 +26,16 @@ extern "C" {
 
 // Bumped whenever a function or struct below changes, so the crate refuses a
 // library from another build instead of calling it wrongly.
-#define RIFT_FFENC_ABI 1
+#define RIFT_FFENC_ABI 2
 
 typedef struct RiftFfenc RiftFfenc;
 
 typedef struct RiftFfencConfig {
-  // FFmpeg's name for the encoder, such as "h264_vaapi".
+  // FFmpeg's name for the encoder, such as "h264_vaapi" or "h264_nvenc".
   const char* encoder;
   // The GPU to open, as FFmpeg's hardware device names it: a DRM render
-  // node for VAAPI. NULL is FFmpeg's default.
+  // node for VAAPI. NULL is FFmpeg's default, and the only choice for
+  // NVENC, QSV and AMF, whose drivers pick their own GPU.
   const char* device;
   int32_t width;
   int32_t height;
@@ -43,6 +46,9 @@ typedef struct RiftFfencConfig {
   int32_t peak_percent;
   // Pictures between keyframes when none is asked for.
   int32_t gop;
+  // The most the rate will be moved to: what an encoder that cannot resize
+  // its buffers once open (QSV) sizes them for.
+  int64_t max_bitrate_bps;
 } RiftFfencConfig;
 
 typedef struct RiftFfencPacket {

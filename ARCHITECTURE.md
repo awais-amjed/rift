@@ -584,10 +584,20 @@ the GPU's H264 goes through carries one picture.
 
 LiveKit's Rust SDK has no hardware video encoder on Windows: every frame of a
 share was encoded in software on the same CPU a game is using. So on Windows
-Rift encodes H264 itself through **Media Foundation**, which reaches NVIDIA's,
-AMD's and Intel's encoders alike, and hands LiveKit the finished frames on its
-pre-encoded path (`rust/src/screenshare/encoder/`). Measured Oct 5 2026 at 60
-fps: 52 to 67% of a core, against VP9's 186 to 196% (`TESTING.md`).
+Rift encodes H264 itself and hands LiveKit the finished frames on its
+pre-encoded path (`rust/src/screenshare/encoder/`): through **FFmpeg's GPU
+encoders**, NVENC on NVIDIA's GPUs and Quick Sync on Intel's, from the same
+library as Linux's VAAPI below, and through **Media Foundation** where neither
+opens, and on AMD's GPUs until FFmpeg's AMF encoder has been measured on one.
+Media Foundation reaches all three makers' encoders but runs past WebRTC's
+target whenever the target is below what the picture costs: on a laptop's
+Iris Xe and RTX 3070 Ti the rate gate had to leave out 200 to 1000 pictures
+while WebRTC's estimate climbed at the start of a share (Oct 9 2026), and a
+friend's 120 fps share on a 4070 Ti Super collapsed. FFmpeg's NVENC and Quick
+Sync, on the same laptop, followed a rate moved from 20 to 5 to 12 Mbps
+within a few percent, with no keyframe at a move. A laptop with both gets
+NVENC, as on Linux. Measured Oct 5 2026 through Media Foundation at 60 fps: 52
+to 67% of a core, against VP9's 186 to 196% (`TESTING.md`).
 
 On Linux an NVIDIA GPU is driven by Rift itself, through NVENC, and the frames
 go out on the same pre-encoded path as on Windows. LiveKit has an NVENC encoder
@@ -606,8 +616,8 @@ RX 9070 XT (Mesa 26.2, Oct 9 2026) it stalled the viewer for 2 to 6 s every
 8 to 25 s and made 34 of 60 frames a second; Rift's FFmpeg on the same GPU
 was decoded at 56 of 60 and 115 of 120, one dip in two minutes. FFmpeg cannot be linked beside libwebrtc, which carries Chromium's
 FFmpeg under the same symbol names, so it is built into a library of its own
-(`native/ffenc`): FFmpeg 9.0.2 with nothing but `h264_vaapi`, every FFmpeg
-symbol hidden, opened by the Rust crate at run time (`encoder/ffmpeg.rs`), and
+(`native/ffenc`): FFmpeg 9.0.2 with nothing but `h264_vaapi` on Linux (and
+`h264_nvenc`, `h264_qsv` and `h264_amf` on Windows), every FFmpeg symbol hidden, opened by the Rust crate at run time (`encoder/ffmpeg.rs`), and
 VAAPI's first render node that opens an encoder is the one used. FFmpeg's
 encoder sends the bitrate to the GPU only with a keyframe, so the build patches
 it to send WebRTC's every move with the next picture
@@ -622,7 +632,7 @@ share asked for in H264 goes out as VP9.
 - **H264 and AV1 are only ever encoded by the GPU or the OS, never by Rift.**
   The reason is patents: H264 is licensed through a pool the GPU makers belong
   to, so Rift ships no H264 encoder of its own (the FFmpeg it builds has only
-  the encoder that drives a GPU's). VP8 and VP9 are royalty-free
+  the encoders that drive a GPU's). VP8 and VP9 are royalty-free
   and stay as CPU codecs. Without a hardware encoder, or if one fails mid-share,
   the share goes out as VP9 and the user is told.
 - **Auto, the default, picks the codec and the bitrate** (`ShareEncoding`):
