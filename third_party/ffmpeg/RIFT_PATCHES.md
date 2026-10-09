@@ -32,5 +32,6 @@ after the first came out within 5% of its target, but for the one with the
 keyframe (2.27 of 2 Mbps); without the patch, every second came out at 8 Mbps,
 through the keyframe too.
 
-Not yet measured on AMD (Mesa), which reads rate control the same way through
-VAAPI.
+Measured Oct 9 2026 on AMD's RX 9070 XT (Mesa 26.2.4), 1440p60, with the rate
+moved 20 → 5 → 12 Mbps: each second after the first came out between 6% under
+and 15% over its target, with no spike in the second the rate fell.

@@ -7,6 +7,7 @@
 
 #include "flutter/generated_plugin_registrant.h"
 #include "noise_filter/noise_filter.h"
+#include "single_instance.h"
 
 struct _MyApplication {
   GtkApplication parent_instance;
@@ -84,6 +85,7 @@ static void my_application_activate(GApplication* application) {
   // a size request on the view is part of what it recomputes them from.
   gtk_widget_set_size_request(GTK_WIDGET(view), 400, 520);
   gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(view));
+  rift::ListenForLaunches(window);
 
   // Show the window when Flutter renders.
   // Requires the view to be realized so we can start rendering.
@@ -104,6 +106,12 @@ static gboolean my_application_local_command_line(GApplication* application,
   MyApplication* self = MY_APPLICATION(application);
   // Strip out the first argument as it is the binary name.
   self->dart_entrypoint_arguments = g_strdupv(*arguments + 1);
+
+  // A second launch on this profile shows the running copy instead.
+  if (!rift::AcquireSingleInstance()) {
+    *exit_status = 0;
+    return TRUE;
+  }
 
   g_autoptr(GError) error = nullptr;
   if (!g_application_register(application, nullptr, &error)) {
