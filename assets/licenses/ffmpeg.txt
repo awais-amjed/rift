@@ -1,12 +1,16 @@
 Licence for FFmpeg 9.0.2 (https://ffmpeg.org), built into lib/librift_ffenc.so
-in the Linux app to drive Intel's and AMD's GPU encoders through VAAPI.
+in the Linux app to drive Intel's and AMD's GPU encoders through VAAPI, and
+into rift_ffenc.dll in the Windows app to drive NVIDIA's, Intel's and AMD's
+through NVENC, Quick Sync and AMF.
 
 FFmpeg is licensed under the GNU Lesser General Public License, version 2.1
-or later; Rift's build enables no part of it under the GPL. The library is
-built from the release tarball https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz
-with one change, third_party/ffmpeg/vaapi-encode-moving-bitrate.patch, by
-native/ffenc/build.sh, both in Rift's source. lib/librift_ffenc.so can be
-rebuilt from them, or from a modified FFmpeg, and replaced.
+or later; Rift's build enables no part of it under the GPL or as nonfree. The
+library is built from the release tarball
+https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz with the changes in
+third_party/ffmpeg (each .patch file, described in RIFT_PATCHES.md there), by
+native/ffenc/build.sh, all in Rift's source. lib/librift_ffenc.so and
+rift_ffenc.dll can be rebuilt from them, or from a modified FFmpeg, and
+replaced.
 
 Copyright (c) the FFmpeg developers.
 

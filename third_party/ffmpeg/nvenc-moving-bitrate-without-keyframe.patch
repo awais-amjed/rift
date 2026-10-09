@@ -1,0 +1,18 @@
+--- a/libavcodec/nvenc.c
++++ b/libavcodec/nvenc.c
+@@ -2850,9 +2850,12 @@
+         }
+ 
+         if (reconfig_bitrate) {
+-            params.resetEncoder = 1;
+-            params.forceIDR = 1;
+-
++            /* RIFT PATCH: no reset and no IDR for a moved rate. NVENC takes a
++             * new average, peak and VBV buffer between pictures when it has
++             * NV_ENC_CAPS_SUPPORT_DYN_BITRATE_CHANGE, which support_dyn_bitrate
++             * has checked; resetting made every move a keyframe, and WebRTC
++             * moves the rate every few seconds. See
++             * third_party/ffmpeg/RIFT_PATCHES.md in Rift. */
+             needs_encode_config = 1;
+             needs_reconfig = 1;
+         }

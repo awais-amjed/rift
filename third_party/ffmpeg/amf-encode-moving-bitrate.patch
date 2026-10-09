@@ -1,0 +1,79 @@
+--- a/libavcodec/amfenc.h
++++ b/libavcodec/amfenc.h
+@@ -101,6 +101,12 @@
+     int                 hw_high_motion_quality_boost;
+     int                 forced_idr;
+ 
++    // RIFT PATCH: the rates last sent to the encoder, so that one the caller
++    // moves goes out with the next picture (amf_send_moved_rate).
++    int64_t             sent_bit_rate;
++    int64_t             sent_max_rate;
++    int                 sent_buffer_size;
++
+     // HEVC - specific options
+ 
+     int                 gops_per_idr;
+--- a/libavcodec/amfenc.c
++++ b/libavcodec/amfenc.c
+@@ -389,6 +389,53 @@
+     return res;
+ }
+ 
++// RIFT PATCH: AMF takes its rates only when it opens, and a caller that
++// moves avctx->bit_rate mid-stream (WebRTC does every few seconds) was never
++// heard. The target, peak and VBV buffer are dynamic properties, so a moved
++// one is set on the encoder before the next picture goes in, with no
++// keyframe. See third_party/ffmpeg/RIFT_PATCHES.md in Rift.
++static void amf_send_moved_rate(AVCodecContext *avctx)
++{
++    AMFEncoderContext *ctx = avctx->priv_data;
++    const wchar_t *target, *peak, *buffer;
++    AMF_RESULT res = AMF_OK;
++
++    if (avctx->bit_rate == ctx->sent_bit_rate &&
++        avctx->rc_max_rate == ctx->sent_max_rate &&
++        avctx->rc_buffer_size == ctx->sent_buffer_size)
++        return;
++    switch (avctx->codec->id) {
++    case AV_CODEC_ID_H264:
++        target = AMF_VIDEO_ENCODER_TARGET_BITRATE;
++        peak   = AMF_VIDEO_ENCODER_PEAK_BITRATE;
++        buffer = AMF_VIDEO_ENCODER_VBV_BUFFER_SIZE;
++        break;
++    case AV_CODEC_ID_HEVC:
++        target = AMF_VIDEO_ENCODER_HEVC_TARGET_BITRATE;
++        peak   = AMF_VIDEO_ENCODER_HEVC_PEAK_BITRATE;
++        buffer = AMF_VIDEO_ENCODER_HEVC_VBV_BUFFER_SIZE;
++        break;
++    case AV_CODEC_ID_AV1:
++        target = AMF_VIDEO_ENCODER_AV1_TARGET_BITRATE;
++        peak   = AMF_VIDEO_ENCODER_AV1_PEAK_BITRATE;
++        buffer = AMF_VIDEO_ENCODER_AV1_VBV_BUFFER_SIZE;
++        break;
++    default:
++        return;
++    }
++    if (avctx->rc_buffer_size > 0 && res == AMF_OK)
++        AMF_ASSIGN_PROPERTY_INT64(res, ctx->encoder, buffer, avctx->rc_buffer_size);
++    if (avctx->rc_max_rate > 0 && res == AMF_OK)
++        AMF_ASSIGN_PROPERTY_INT64(res, ctx->encoder, peak, avctx->rc_max_rate);
++    if (avctx->bit_rate > 0 && res == AMF_OK)
++        AMF_ASSIGN_PROPERTY_INT64(res, ctx->encoder, target, avctx->bit_rate);
++    if (res != AMF_OK)
++        av_log(avctx, AV_LOG_WARNING, "Moving the bitrate failed with error %d\n", res);
++    ctx->sent_bit_rate    = avctx->bit_rate;
++    ctx->sent_max_rate    = avctx->rc_max_rate;
++    ctx->sent_buffer_size = avctx->rc_buffer_size;
++}
++
+ static int amf_submit_frame(AVCodecContext *avctx, AVFrame    *frame, AMFSurface **surface_resubmit)
+ {
+     AMFEncoderContext      *ctx = avctx->priv_data;
+@@ -526,6 +573,7 @@
+     default:
+         break;
+     }
++    amf_send_moved_rate(avctx);
+     // submit surface
+     res = ctx->encoder->pVtbl->SubmitInput(ctx->encoder, (AMFData*)surface);
+     if (res == AMF_INPUT_FULL) { // handle full queue

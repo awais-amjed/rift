@@ -57,7 +57,7 @@ impl GpuFeed {
     }
 
     pub(crate) fn name(&self) -> &str {
-        &self.encoder.name
+        self.encoder.name()
     }
 
     /// The rate the encoder is at, which one taking over starts from.
@@ -127,7 +127,7 @@ impl GpuFeed {
         if let Some(left_out) = gate.report(now) {
             log::info!(
                 "screenshare: left out {left_out} pictures to keep {} within {target} bps",
-                self.encoder.name
+                self.encoder.name()
             );
         }
         gate.admits(target, now)

@@ -88,6 +88,37 @@ if(PLUGIN_BUNDLED_LIBRARIES)
     COMPONENT Runtime)
 endif()
 
+# FFmpeg's NVENC, Quick Sync and AMF encoders in a library of their own
+# (native/ffenc), which the Rust crate opens at run time for a share's H264.
+# native/ffenc/build.sh makes it with MSYS2's MinGW, from RIFT_MSYS2 or
+# C:/msys64, with the packages it names. Without MSYS2 the app is built
+# without it and shares encode through Media Foundation;
+# scripts/build_windows.ps1 refuses to make a release that way.
+set(RIFT_MSYS2 "$ENV{RIFT_MSYS2}")
+if(NOT RIFT_MSYS2)
+  set(RIFT_MSYS2 "C:/msys64")
+endif()
+if(EXISTS "${RIFT_MSYS2}/usr/bin/bash.exe")
+  set(FFENC_SOURCE_DIR "${CMAKE_SOURCE_DIR}/../native/ffenc")
+  set(FFENC_LIBRARY "${PROJECT_BINARY_DIR}/ffenc/rift_ffenc.dll")
+  file(GLOB FFENC_PATCHES "${CMAKE_SOURCE_DIR}/../third_party/ffmpeg/*.patch")
+  add_custom_command(
+    OUTPUT "${FFENC_LIBRARY}"
+    COMMAND ${CMAKE_COMMAND} -E env MSYSTEM=UCRT64 CHERE_INVOKING=1
+      "${RIFT_MSYS2}/usr/bin/bash.exe" -lc "exec \"$0\" \"$1\""
+      "${FFENC_SOURCE_DIR}/build.sh" "${PROJECT_BINARY_DIR}/ffenc"
+    DEPENDS "${FFENC_SOURCE_DIR}/build.sh" "${FFENC_SOURCE_DIR}/ffenc.c"
+      "${FFENC_SOURCE_DIR}/ffenc.h" ${FFENC_PATCHES}
+    COMMENT "Building FFmpeg's GPU encoders (native/ffenc)"
+    VERBATIM)
+  add_custom_target(rift_ffenc ALL DEPENDS "${FFENC_LIBRARY}")
+  install(FILES "${FFENC_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+    COMPONENT Runtime)
+else()
+  message(WARNING "No MSYS2 at ${RIFT_MSYS2}: building without rift_ffenc.dll, "
+    "so shares encode H264 through Media Foundation (native/ffenc/build.sh)")
+endif()
+
 # Copy the native assets provided by the build.dart from all packages.
 set(NATIVE_ASSETS_DIR "${PROJECT_BUILD_DIR}native_assets/windows/")
 install(DIRECTORY "${NATIVE_ASSETS_DIR}"

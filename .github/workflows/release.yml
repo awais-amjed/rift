@@ -138,6 +138,16 @@ jobs:
       - name: Build the Rust library
         working-directory: rust
         run: cargo build --release --target x86_64-pc-windows-msvc
+      # FFmpeg's GPU encoders (native/ffenc) are built with MinGW in the MSYS2
+      # the runner carries at C:\msys64, where windows/CMakeLists.txt looks.
+      - name: Install the FFmpeg library's build tools
+        shell: cmd
+        env:
+          MSYSTEM: UCRT64
+        run: >-
+          C:\msys64\usr\bin\bash.exe -lc "pacman -S --noconfirm --needed
+          make diffutils patch mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake
+          mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-pkgconf"
       - run: ./scripts/build_windows.ps1
       - uses: actions/setup-dotnet@v4
         with:
