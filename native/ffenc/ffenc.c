@@ -18,6 +18,10 @@
 // names each encoder after the API it drives.
 typedef enum Api { API_NONE, API_VAAPI, API_NVENC, API_QSV, API_AMF } Api;
 
+// Pictures kept for an encoder that takes them from memory: one going in, and
+// room for the few an encoder still holds while it works.
+#define OWN_PICTURES 4
+
 struct RiftFfenc {
   Api api;
   // VAAPI's GPU and its picture pool. NULL for NVENC, QSV and AMF, which
@@ -27,6 +31,9 @@ struct RiftFfenc {
   AVCodecContext* codec;
   // The caller's picture, described in place: never owns its bytes.
   AVFrame* picture;
+  // Pictures in memory the encoder can hold on to, for the encoders that
+  // upload them themselves; reused once it lets go.
+  AVFrame* own[OWN_PICTURES];
   AVPacket* packet;
   int32_t peak_percent;
   char driver[128];
@@ -299,6 +306,22 @@ RiftFfenc* rift_ffenc_open(const RiftFfencConfig* config, char* error,
   enc->picture->height = config->height;
   enc->picture->linesize[0] = config->width;
   enc->picture->linesize[1] = config->width;
+  if (!enc->frames) {
+    for (int i = 0; i < OWN_PICTURES; i++) {
+      AVFrame* own = enc->own[i] = av_frame_alloc();
+      if (!own) err = AVERROR(ENOMEM);
+      if (own) {
+        own->format = AV_PIX_FMT_NV12;
+        own->width = config->width;
+        own->height = config->height;
+        err = av_frame_get_buffer(own, 0);
+      }
+      if (err < 0) {
+        fail(error, error_len, "out of memory", err);
+        goto fail;
+      }
+    }
+  }
   return enc;
 
 fail:
@@ -323,11 +346,27 @@ int32_t rift_ffenc_send(RiftFfenc* enc, const uint8_t* nv12,
 
   int err;
   if (!enc->frames) {
-    // FFmpeg copies a picture it does not own before this returns, and the
-    // encoder uploads the copy.
-    picture->pts = timestamp_us;
-    picture->pict_type = keyframe ? AV_PICTURE_TYPE_I : AV_PICTURE_TYPE_NONE;
-    err = avcodec_send_frame(enc->codec, picture);
+    // Copied into one of the encoder's own pictures, which it holds by
+    // reference until it has uploaded it. Handed the caller's bytes instead,
+    // FFmpeg allocated a fresh copy for every picture: at 120 fps, 360 MB a
+    // second through Windows' memory manager, and the share process stalled
+    // for seconds at a time (Oct 9 2026).
+    AVFrame* own = NULL;
+    for (int i = 0; i < OWN_PICTURES && !own; i++) {
+      if (av_frame_is_writable(enc->own[i])) own = enc->own[i];
+    }
+    if (!own) {
+      // Every one still in the encoder: one more is allocated for this
+      // picture, and kept.
+      own = enc->own[0];
+      err = av_frame_make_writable(own);
+      if (err < 0) goto done;
+    }
+    err = av_frame_copy(own, picture);
+    if (err < 0) goto done;
+    own->pts = timestamp_us;
+    own->pict_type = keyframe ? AV_PICTURE_TYPE_I : AV_PICTURE_TYPE_NONE;
+    err = avcodec_send_frame(enc->codec, own);
   } else {
     AVFrame* gpu = av_frame_alloc();
     if (!gpu) return AVERROR(ENOMEM);
@@ -340,6 +379,7 @@ int32_t rift_ffenc_send(RiftFfenc* enc, const uint8_t* nv12,
     }
     av_frame_free(&gpu);
   }
+done:
   picture->data[0] = NULL;
   picture->data[1] = NULL;
   return err < 0 ? err : 0;
@@ -361,6 +401,7 @@ void rift_ffenc_close(RiftFfenc* enc) {
   if (!enc) return;
   av_packet_free(&enc->packet);
   av_frame_free(&enc->picture);
+  for (int i = 0; i < OWN_PICTURES; i++) av_frame_free(&enc->own[i]);
   avcodec_free_context(&enc->codec);
   av_buffer_unref(&enc->frames);
   av_buffer_unref(&enc->device);
