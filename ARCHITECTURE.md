@@ -587,8 +587,10 @@ share was encoded in software on the same CPU a game is using. So on Windows
 Rift encodes H264 itself and hands LiveKit the finished frames on its
 pre-encoded path (`rust/src/screenshare/encoder/`): through **FFmpeg's GPU
 encoders**, NVENC on NVIDIA's GPUs and Quick Sync on Intel's, from the same
-library as Linux's VAAPI below, and through **Media Foundation** where neither
-opens, and on AMD's GPUs until FFmpeg's AMF encoder has been measured on one.
+library as Linux's VAAPI below, and through **Media Foundation** on AMD's GPUs
+until FFmpeg's AMF encoder has been measured on one. Where neither opens, the
+share goes out as VP9. Media Foundation is not the fallback for NVIDIA's and
+Intel's GPUs: NVIDIA's encoder there crashed a 120 fps share twice in two runs.
 Media Foundation reaches all three makers' encoders but runs past WebRTC's
 target whenever the target is below what the picture costs: on a laptop's
 Iris Xe and RTX 3070 Ti the rate gate had to leave out 200 to 1000 pictures

@@ -1,10 +1,9 @@
-//! Windows' GPU encoder: FFmpeg's for the GPU's maker where one opens, and
-//! Media Foundation's otherwise.
+//! Windows' GPU encoder: FFmpeg's for NVIDIA's and Intel's GPUs, and Media
+//! Foundation's for AMD's.
 //!
-//! Media Foundation stays for what FFmpeg does not cover yet: a computer
-//! where the library will not load or no FFmpeg encoder opens, AMD's GPUs
+//! Media Foundation stays only for what FFmpeg does not cover yet: AMD's GPUs
 //! until FFmpeg's AMF encoder has been measured on one, and AV1, which only
-//! its tests make.
+//! its tests make. Where neither opens, a share goes out as VP9.
 use super::media_foundation;
 use super::{ffmpeg, worker, EncodedSink, EncoderSettings, GpuCodec, Nv12Frame};
 
@@ -16,8 +15,8 @@ pub(crate) enum GpuEncoder {
 
 impl GpuEncoder {
     /// Open FFmpeg's encoder for these settings where it encodes them, else
-    /// the first Media Foundation encoder that takes them, or the `only`th of
-    /// those when one is named, and start feeding `sink`.
+    /// the first Media Foundation encoder a share may use that takes them, or
+    /// the `only`th of those when one is named, and start feeding `sink`.
     pub(crate) fn open(
         settings: EncoderSettings,
         sink: Box<dyn EncodedSink>,
