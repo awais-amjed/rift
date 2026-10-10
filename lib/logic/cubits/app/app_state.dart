@@ -31,6 +31,10 @@ class AppState extends Equatable {
   /// by default: one click used to drop the call and join the next room, and
   /// the people left behind hear you leave whether or not you meant to.
   final bool askBeforeVoiceSwitch;
+
+  /// Whether Rift says so when Windows turns other apps down for a call
+  /// (`DuckingHintListener`). On until the person picks "Don't show again".
+  final bool showDuckingHint;
   final bool statsOverlayPinned;
 
   /// Whether a watched stream shows the full stats card. Off by default: the
@@ -221,6 +225,7 @@ class AppState extends Equatable {
     this.windowX,
     this.windowY,
     this.askBeforeVoiceSwitch = true,
+    this.showDuckingHint = true,
     this.verifiedCodes = const {},
     this.seenKeys = const {},
     this.statsOverlayPinned = false,
@@ -297,6 +302,7 @@ class AppState extends Equatable {
     double? windowX,
     double? windowY,
     bool? askBeforeVoiceSwitch,
+    bool? showDuckingHint,
     Map<String, String>? verifiedCodes,
     Map<String, SeenKey>? seenKeys,
     bool? statsOverlayPinned,
@@ -358,6 +364,7 @@ class AppState extends Equatable {
       windowX: windowX ?? this.windowX,
       windowY: windowY ?? this.windowY,
       askBeforeVoiceSwitch: askBeforeVoiceSwitch ?? this.askBeforeVoiceSwitch,
+      showDuckingHint: showDuckingHint ?? this.showDuckingHint,
       verifiedCodes: verifiedCodes ?? this.verifiedCodes,
       seenKeys: seenKeys ?? this.seenKeys,
       statsOverlayPinned: statsOverlayPinned ?? this.statsOverlayPinned,
@@ -429,6 +436,7 @@ class AppState extends Equatable {
     windowX,
     windowY,
     askBeforeVoiceSwitch,
+    showDuckingHint,
     statsOverlayPinned,
     showStreamStats,
     sensitiveContentMode,

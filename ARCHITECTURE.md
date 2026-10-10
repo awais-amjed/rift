@@ -725,6 +725,29 @@ audience is exactly the call, and "turn their soundboard down" is a real control
 rather than a request. The cooldown and length cutoff are applied by the
 *listener*, because a limit the sender honours is one a modified client deletes.
 
+### Windows turning other apps down — [Implemented October 2026]
+
+Windows lowers every other sound while an app has playback open through the
+*communications* role ("ducking": 80% by default, set in the Sound window's
+Communications tab). Measured Oct 10 2026 in a Windows 11 VM: such a stream
+lowered a tone by 18 dB, the same speakers opened through the console role did
+nothing, and a microphone alone did nothing. People notice it on their first
+call and ask why their music went quiet.
+
+Rift does not try to stop it. The setting is Windows', for every calling app,
+and only takes effect when changed in that window (`WindowsSoundSettings`).
+It says what happened instead. `rust/src/ducking.rs` registers for Windows'
+duck notifications (`RegisterDuckNotification`, every session) and reads the
+choice from the registry (`UserDuckingPreference`). `DuckingCubit` counts the
+ducks while the choice lowers others, and `DuckingHintListener` shows a toast
+during a Rift call: it explains what happened, offers "Fix it" (Settings →
+Voice & audio, scrolled to the section and lit up) and "Don't show again"
+(`AppState.showDuckingHint`). The section shows the choice live, re-read when
+the window regains focus, and draws Windows' four options with the one to pick
+marked. **A change applies from the next call.** Windows keeps a duck until the
+stream that caused it closes, so the section says to rejoin when the person
+fixes it mid-call. With "Do nothing" set, Windows sends no duck at all.
+
 ---
 
 ## 6. Threat model summary

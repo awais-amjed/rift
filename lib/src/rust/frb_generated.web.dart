@@ -14,6 +14,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_web.dart';
 import 'api/audio_endpoints.dart';
 import 'api/blob_cipher.dart';
 import 'api/cue.dart';
+import 'api/ducking.dart';
 import 'api/logs.dart';
 import 'api/mic_test.dart';
 import 'api/noise_filter.dart';
@@ -54,6 +55,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   BlobHasher
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlobHasher(
+    dynamic raw,
+  );
+
+  @protected
+  RustStreamSink<DuckingEvent> dco_decode_StreamSink_ducking_event_Sse(
     dynamic raw,
   );
 
@@ -122,6 +128,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DeepFilterEntry dco_decode_deep_filter_entry(dynamic raw);
+
+  @protected
+  DuckingEvent dco_decode_ducking_event(dynamic raw);
 
   @protected
   double dco_decode_f_32(dynamic raw);
@@ -232,6 +241,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RustStreamSink<DuckingEvent> sse_decode_StreamSink_ducking_event_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   RustStreamSink<int> sse_decode_StreamSink_i_32_Sse(
     SseDeserializer deserializer,
   );
@@ -310,6 +324,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DeepFilterEntry sse_decode_deep_filter_entry(SseDeserializer deserializer);
+
+  @protected
+  DuckingEvent sse_decode_ducking_event(SseDeserializer deserializer);
 
   @protected
   double sse_decode_f_32(SseDeserializer deserializer);
@@ -436,6 +453,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_StreamSink_ducking_event_Sse(
+    RustStreamSink<DuckingEvent> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_StreamSink_i_32_Sse(
     RustStreamSink<int> self,
     SseSerializer serializer,
@@ -533,6 +556,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     DeepFilterEntry self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_ducking_event(DuckingEvent self, SseSerializer serializer);
 
   @protected
   void sse_encode_f_32(double self, SseSerializer serializer);

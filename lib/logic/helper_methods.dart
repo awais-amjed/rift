@@ -67,6 +67,7 @@ class HelperMethods {
     bool autoClose = true,
     Duration autoCloseDuration = const Duration(seconds: 3),
     VoidCallback? onTap,
+    List<ToastAction> actions = const [],
   }) {
     toastification.showCustom(
       autoCloseDuration: autoClose ? autoCloseDuration : null,
@@ -75,6 +76,7 @@ class HelperMethods {
         description: description,
         type: type,
         onClose: () => toastification.dismiss(item),
+        actions: actions,
         // Held while the mouse is on it: a toast that leaves halfway through
         // being read, or with its text half selected, is gone for good.
         onHover: (over) => over ? item.pause() : item.start(),

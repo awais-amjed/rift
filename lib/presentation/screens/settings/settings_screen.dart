@@ -32,14 +32,17 @@ export 'widgets/voice_audio_content.dart';
 
 /// Over the widget budget and one job: the settings layout, one pane or two.
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
+  /// Where to open, instead of the first tab.
+  final SettingsTarget? target;
+
+  const SettingsScreen({super.key, this.target});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  SettingsTab _activeTab = SettingsTab.appearance;
+  late SettingsTab _activeTab = widget.target?.tab ?? SettingsTab.appearance;
 
   /// Whether a tab's contents are showing, on the widths where the nav and the
   /// contents cannot both be.
@@ -50,7 +53,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   /// page, which is what every settings screen on a phone already is, and this
   /// says which of the two is showing. Ignored entirely at wider sizes, where
   /// both are on screen and there is nothing to be in front of anything else.
-  bool _detailOpen = false;
+  late bool _detailOpen = widget.target != null;
 
   IconData get _tabIcon => switch (_activeTab) {
     SettingsTab.appearance => Icons.palette_outlined,
@@ -241,7 +244,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                           SettingsTab.general =>
                                             const GeneralContent(),
                                           SettingsTab.voiceAndAudio =>
-                                            const VoiceAudioContent(),
+                                            VoiceAudioContent(
+                                              focus: widget.target?.section,
+                                            ),
                                           SettingsTab.backup => BackupContent(
                                             onResetVault: _resetVault,
                                           ),

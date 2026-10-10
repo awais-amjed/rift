@@ -156,6 +156,11 @@ class AppCubit extends HydratedCubit<AppState> {
   void setAskBeforeVoiceSwitch(bool value) =>
       emit(state.copyWith(askBeforeVoiceSwitch: value));
 
+  // ── Persisted: Windows ducking ───────────────────────────
+
+  void setShowDuckingHint(bool value) =>
+      emit(state.copyWith(showDuckingHint: value));
+
   // ── Audio processing (mic capture) ───────────────────────
   // The LiveKitCubit watches AppState and re-publishes the mic track when any
   // of these change, so a toggle takes effect mid-call.

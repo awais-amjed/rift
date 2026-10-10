@@ -33,6 +33,7 @@ AppState _$AppStateFromJson(Map<String, dynamic> json) => AppState(
   windowX: (json['windowX'] as num?)?.toDouble(),
   windowY: (json['windowY'] as num?)?.toDouble(),
   askBeforeVoiceSwitch: json['askBeforeVoiceSwitch'] as bool? ?? true,
+  showDuckingHint: json['showDuckingHint'] as bool? ?? true,
   verifiedCodes:
       (json['verifiedCodes'] as Map<String, dynamic>?)?.map(
         (k, e) => MapEntry(k, e as String),
@@ -106,6 +107,7 @@ Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
   'windowX': instance.windowX,
   'windowY': instance.windowY,
   'askBeforeVoiceSwitch': instance.askBeforeVoiceSwitch,
+  'showDuckingHint': instance.showDuckingHint,
   'statsOverlayPinned': instance.statsOverlayPinned,
   'showStreamStats': instance.showStreamStats,
   'sensitiveContentMode':
