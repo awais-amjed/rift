@@ -118,6 +118,8 @@ dependencies:
   # Desktops and the web keep file_selector (see file_save/save_target.dart).
   file_picker: ^13.1.0
   flutter_file_dialog: ^3.3.3
+  # The app's own version, for its log and a bug report.
+  package_info_plus: ^10.2.2
 dev_dependencies:
   flutter_test:
     sdk: flutter

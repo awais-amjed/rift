@@ -12,6 +12,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_io.dart';
 import 'api/audio_endpoints.dart';
 import 'api/blob_cipher.dart';
 import 'api/cue.dart';
+import 'api/logs.dart';
 import 'api/mic_test.dart';
 import 'api/noise_filter.dart';
 import 'api/screenshare.dart';

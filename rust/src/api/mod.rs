@@ -1,6 +1,7 @@
 pub mod audio_endpoints;
 pub mod blob_cipher;
 pub mod cue;
+pub mod logs;
 pub mod mic_test;
 pub mod noise_filter;
 pub mod screenshare;

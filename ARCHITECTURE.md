@@ -817,6 +817,35 @@ update itself and says so in Settings. On Windows the first start of a
 Velopack copy offers to remove that old copy, behind one administrator
 prompt (`windows/runner/velopack_hooks.cpp`).
 
+## 9. The app's log — [Implemented October 2026]
+
+Every session writes a log, so that someone whose share stopped or whose app
+closed can send what happened. **Rust owns the file** (`rust/src/logging.rs`):
+its own `log::` lines, Dart's `HelperMethods.printDebug` lines (through
+`write_log_line`), panics and the errors nothing caught (`AppLog.catchErrors`)
+all go into it, each written the moment it arrives. A crash in native code
+therefore loses nothing it had buffered, and the last lines before it are the
+ones that survive. Until Dart names the folder at startup, lines wait in
+memory.
+
+One file per session, `rift-<UTC time>-<pid>.log` in the profile's `logs`
+folder (Local AppData on Windows, the XDG data folder on Linux, the app's
+own folder on Android), the newest ten kept. A crash is reported from the
+session after it, so the one before has to survive a restart. A file past
+8 MB is moved to `.old.log` and started again, keeping a long session's
+latest lines. The web has no file: its last lines stay in memory for the tab.
+Rust's own lines on Android go to logcat only, because flutter_rust_bridge's
+logger there is not ours to tee.
+
+**What is in it is what a log line says**, and the log is something people
+send. So a line never carries a secret or anything from a sealed message — a
+link preview's failure names only the host. As a safety net, every line
+passes through `redact` before it is written: anything shaped like a JWT, the
+word after `Bearer`, and the value of `access_token`, `apikey`, `token`,
+`password` and the like become `[redacted]`. What it does carry: the version
+and system, server and room ids, error text, device names, and the title of a
+window being shared.
+
 ---
 
 ## Speaking indicator
