@@ -1,7 +1,9 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../data/constants.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../logic/services/message_markup.dart';
 import '../../../theme/app_text.dart';
 
 /// A member's `/` command as it reads in the channel: the verb in the accent,
@@ -12,11 +14,13 @@ import '../../../theme/app_text.dart';
 /// is part of the title, and drawing it as emphasis would show something the
 /// bot never got. The composer draws the same line the same way while it is
 /// being typed (`ComposerCommandBackdrop`), so what is sent looks like what
-/// was written.
+/// was written. Addresses in it still open, as in any message: [onLink] is
+/// the row's, which owns and disposes the recognizers (`LinkTapRecognizers`).
 TextSpan commandMessageSpan(
   String text, {
   required TextStyle base,
   required ThemeState theme,
+  GestureRecognizer Function(String url)? onLink,
 }) {
   final trimmed = text.trim();
   final firstBreak = trimmed.indexOf(RegExp(r'\s'));
@@ -36,7 +40,7 @@ TextSpan commandMessageSpan(
         const TextSpan(text: ' '),
         WidgetSpan(
           alignment: PlaceholderAlignment.middle,
-          child: CommandArgument(text: argument, theme: theme),
+          child: CommandArgument(text: argument, theme: theme, onLink: onLink),
         ),
       ],
     ],
@@ -51,11 +55,18 @@ TextSpan commandMessageSpan(
 class CommandArgument extends StatelessWidget {
   final String text;
   final ThemeState theme;
+  final GestureRecognizer Function(String url)? onLink;
 
-  const CommandArgument({super.key, required this.text, required this.theme});
+  const CommandArgument({
+    super.key,
+    required this.text,
+    required this.theme,
+    this.onLink,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final style = AppText.code.copyWith(color: theme.textPrimary);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
       decoration: BoxDecoration(
@@ -63,7 +74,26 @@ class CommandArgument extends StatelessWidget {
         borderRadius: BorderRadius.circular(K.radiusRow),
         border: Border.all(color: theme.borderPrimary),
       ),
-      child: Text(text, style: AppText.code.copyWith(color: theme.textPrimary)),
+      child: Text.rich(
+        TextSpan(
+          style: style,
+          children: [
+            for (final stretch in linkStretches(text))
+              if (stretch.url case final url?)
+                TextSpan(
+                  text: stretch.text,
+                  style: style.copyWith(
+                    color: theme.accentBright,
+                    decoration: TextDecoration.underline,
+                    decorationColor: theme.accentBright.withValues(alpha: 0.5),
+                  ),
+                  recognizer: onLink?.call(url),
+                )
+              else
+                TextSpan(text: stretch.text),
+          ],
+        ),
+      ),
     );
   }
 }

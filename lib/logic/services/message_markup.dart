@@ -147,7 +147,7 @@ void _parse(String s, Set<Marker> marks, List<MarkupSpan> out) {
     // underscore in a path does not start italics halfway through a link.
     // Only at the start of a word, and never right after an `@` — the
     // `b.com` in `a@b.com` is somebody's mail, not a site.
-    if (_isWordish(s, i) && !_isWordish(s, i - 1) && !_isAt(s, i - 1)) {
+    if (_mayStartLink(s, i)) {
       final link = linkAt(s, i);
       if (link != null) {
         flush();
@@ -232,6 +232,9 @@ bool _isSpace(String s, int at) =>
 
 bool _isAt(String s, int at) => at >= 0 && at < s.length && s[at] == '@';
 
+bool _mayStartLink(String s, int i) =>
+    _isWordish(s, i) && !_isWordish(s, i - 1) && !_isAt(s, i - 1);
+
 bool _isWordish(String s, int at) =>
     at >= 0 && at < s.length && RegExp(r'[A-Za-z0-9]').hasMatch(s[at]);
 
@@ -308,4 +311,32 @@ bool mentionsAnyOf(String text, Set<String> names) {
     if (mention != null && names.contains(mention.toLowerCase())) return true;
   }
   return false;
+}
+
+/// [text] cut into plain stretches and addresses, with nothing else read.
+///
+/// For what must stay exactly as typed — a bot command's argument, where `*`
+/// in a song title is part of the title — but whose links should still open.
+/// Addresses are found by the same rules as in a message.
+List<({String text, String? url})> linkStretches(String text) {
+  final out = <({String text, String? url})>[];
+  var plainFrom = 0;
+  var i = 0;
+  while (i < text.length) {
+    final link = _mayStartLink(text, i) ? linkAt(text, i) : null;
+    if (link == null) {
+      i++;
+      continue;
+    }
+    if (i > plainFrom) {
+      out.add((text: text.substring(plainFrom, i), url: null));
+    }
+    out.add((text: link.text, url: link.url));
+    i += link.text.length;
+    plainFrom = i;
+  }
+  if (plainFrom < text.length) {
+    out.add((text: text.substring(plainFrom), url: null));
+  }
+  return out;
 }

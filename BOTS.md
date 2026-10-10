@@ -163,6 +163,7 @@ rather than replacing it, so the field still holds exactly the line that is sent
 a line `BotCommands.parse` would send to a bot — `/shrug x` stays plain text because it goes out
 sealed. The sent command reads the same way in the channel (`commandMessageSpan`, for any row with
 `to_bot`), and without markup: the bot gets the characters, so `*` in a title is drawn as `*`.
+Addresses in it are still links that open, found by the same rules as in a message (`linkStretches`).
 
 ### Only `/` is a command
 

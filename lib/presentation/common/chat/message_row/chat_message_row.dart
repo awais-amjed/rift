@@ -460,6 +460,7 @@ class _ChatMessageRowState extends State<ChatMessageRow>
                           color: themeState.textSecondary,
                         ),
                         theme: themeState,
+                        onLink: _links.forUrl,
                       )
                     else
                       messageMarkupSpan(
