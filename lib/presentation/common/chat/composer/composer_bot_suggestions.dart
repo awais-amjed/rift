@@ -5,6 +5,7 @@ import '../../../../data/classes/server_member.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 import '../../popover_surface.dart';
+import 'composer_menu_row_visible.dart';
 
 /// What a bot offers while its command is typed: the songs under
 /// `/play thats so tr`, picked by a click (WIRE.md §7).
@@ -23,12 +24,17 @@ class ComposerBotSuggestions extends StatelessWidget {
   final bool searching;
   final ValueChanged<BotSuggestion> onSelected;
 
+  /// The row the arrow keys are on, or null before one is pressed — when
+  /// Enter sends the line as typed rather than any row.
+  final int? highlighted;
+
   const ComposerBotSuggestions({
     super.key,
     required this.bot,
     required this.suggestions,
     required this.searching,
     required this.onSelected,
+    this.highlighted,
   });
 
   @override
@@ -45,18 +51,33 @@ class ComposerBotSuggestions extends StatelessWidget {
             shrinkWrap: true,
             padding: const EdgeInsets.symmetric(vertical: 4),
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(10, 4, 10, 4),
-                child: Text(
-                  searching && suggestions.isEmpty
-                      ? '${bot.displayName} is searching…'
-                      : suggestions.isEmpty
-                      ? '${bot.displayName} found nothing'
-                      : 'From ${bot.displayName}',
-                  style: AppText.meta.copyWith(color: themeState.textTertiary),
+              // Brought back with the first row, so coming round to the top
+              // shows whose rows these are again.
+              ComposerMenuRowVisible(
+                active: highlighted == 0,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 4, 10, 4),
+                  child: Text(
+                    searching && suggestions.isEmpty
+                        ? '${bot.displayName} is searching…'
+                        : suggestions.isEmpty
+                        ? '${bot.displayName} found nothing'
+                        : 'From ${bot.displayName}',
+                    style: AppText.meta.copyWith(
+                      color: themeState.textTertiary,
+                    ),
+                  ),
                 ),
               ),
-              for (final suggestion in suggestions) _row(context, suggestion),
+              for (var i = 0; i < suggestions.length; i++)
+                ComposerMenuRowVisible(
+                  active: i == highlighted,
+                  child: _row(
+                    context,
+                    suggestions[i],
+                    highlighted: i == highlighted,
+                  ),
+                ),
             ],
           ),
         ),
@@ -64,10 +85,14 @@ class ComposerBotSuggestions extends StatelessWidget {
     );
   }
 
-  Widget _row(BuildContext context, BotSuggestion suggestion) {
+  Widget _row(
+    BuildContext context,
+    BotSuggestion suggestion, {
+    required bool highlighted,
+  }) {
     final themeState = context.theme;
     return Material(
-      type: MaterialType.transparency,
+      color: highlighted ? themeState.bgHover : Colors.transparent,
       child: InkWell(
         mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () => onSelected(suggestion),

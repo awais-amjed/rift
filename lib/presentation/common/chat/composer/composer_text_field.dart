@@ -37,6 +37,10 @@ class ComposerTextField extends StatelessWidget {
   /// command, so it sends.
   final bool Function({bool sending})? onAcceptSuggestion;
 
+  /// Up (-1) and Down (+1), offered to whichever menu is open before the
+  /// field moves its caret. Returns true when a menu took the key.
+  final bool Function(int delta)? onMoveSuggestion;
+
   const ComposerTextField({
     super.key,
     required this.controller,
@@ -47,9 +51,23 @@ class ComposerTextField extends StatelessWidget {
     required this.onChanged,
     required this.onSubmit,
     this.onAcceptSuggestion,
+    this.onMoveSuggestion,
   });
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
+    // Arrows repeat while held, and holding Down should run down the list.
+    if (event is KeyDownEvent || event is KeyRepeatEvent) {
+      final delta = switch (event.logicalKey) {
+        LogicalKeyboardKey.arrowDown => 1,
+        LogicalKeyboardKey.arrowUp => -1,
+        _ => 0,
+      };
+      if (delta != 0 &&
+          !HardwareKeyboard.instance.isShiftPressed &&
+          (onMoveSuggestion?.call(delta) ?? false)) {
+        return KeyEventResult.handled;
+      }
+    }
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
 
     // Tab belongs to the menus alone: with nothing open it is still the way

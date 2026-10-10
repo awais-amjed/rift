@@ -27,10 +27,15 @@ class ComposerMentionMenu extends StatelessWidget {
   final List<ServerMember> members;
   final void Function(ServerMember member) onSelected;
 
+  /// The row the arrow keys are on, or null before one is pressed (Enter
+  /// then takes the first).
+  final int? highlighted;
+
   const ComposerMentionMenu({
     super.key,
     required this.members,
     required this.onSelected,
+    this.highlighted,
   });
 
   @override
@@ -43,19 +48,26 @@ class ComposerMentionMenu extends StatelessWidget {
         // name lost its second word to an ellipsis, which is the word that
         // tells two people apart.
         maxWidth: 268,
-        children: [for (final member in members) _row(context, member)],
+        children: [
+          for (var i = 0; i < members.length; i++)
+            _row(context, members[i], highlighted: i == highlighted),
+        ],
       ),
     );
   }
 
   /// Deliberately the geometry of [ContextMenuItem] — 9px radius, the same
   /// padding, the same hover — with an avatar where its icon goes.
-  Widget _row(BuildContext context, ServerMember member) {
+  Widget _row(
+    BuildContext context,
+    ServerMember member, {
+    required bool highlighted,
+  }) {
     final themeState = context.theme;
     final radius = BorderRadius.circular(K.radiusRow);
 
     return Material(
-      color: Colors.transparent,
+      color: highlighted ? themeState.bgHover : Colors.transparent,
       borderRadius: radius,
       child: InkWell(
         mouseCursor: WidgetStateMouseCursor.clickable,

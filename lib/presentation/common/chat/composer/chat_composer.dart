@@ -44,6 +44,7 @@ import 'composer_staged_row.dart';
 part 'chat_composer_attachments.dart';
 part 'chat_composer_bot_suggest.dart';
 part 'chat_composer_link_preview.dart';
+part 'chat_composer_menu_keys.dart';
 part 'chat_composer_menus.dart';
 part 'chat_composer_recording.dart';
 
@@ -211,7 +212,8 @@ class _ChatComposerState extends State<ChatComposer>
         _ComposerRecordingMixin,
         _ComposerLinkPreviewMixin,
         _ComposerMenusMixin,
-        _ComposerBotSuggestMixin {
+        _ComposerBotSuggestMixin,
+        _ComposerMenuKeysMixin {
   // Colours emoji as they are typed, matching how they render once sent.
   @override
   final EmojiTextEditingController _controller = EmojiTextEditingController();
@@ -377,6 +379,7 @@ class _ChatComposerState extends State<ChatComposer>
                   heightFactor: 1,
                   child: ComposerMentionMenu(
                     members: _mentions,
+                    highlighted: _highlighted,
 
                     onSelected: _pickMention,
                   ),
@@ -439,6 +442,7 @@ class _ChatComposerState extends State<ChatComposer>
             entries: _suggestions,
 
             onSelected: (_, name) => _pickCommand(name),
+            highlighted: _highlighted,
           )
         else if (_showsBotSuggestions)
           ComposerBotSuggestions(
@@ -446,6 +450,7 @@ class _ChatComposerState extends State<ChatComposer>
             suggestions: _botSuggestions,
             searching: _botSearching,
             onSelected: _pickBotSuggestion,
+            highlighted: _highlighted,
           ),
         _buildBar(themeState),
         // No gap of its own: a footer with nothing to say draws nothing, and
@@ -508,6 +513,7 @@ class _ChatComposerState extends State<ChatComposer>
               onChanged: _onTextChanged,
               onSubmit: _send,
               onAcceptSuggestion: _acceptSuggestion,
+              onMoveSuggestion: _moveHighlight,
               onPickFiles: _pickFiles,
               onCreatePoll: widget.onCreatePoll,
               onStartRecording: _startRecording,
