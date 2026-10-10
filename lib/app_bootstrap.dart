@@ -10,6 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'data/constants.dart';
+import 'data/device_id.dart';
 import 'data/repositories/native_blob_cipher.dart';
 import 'data/repositories/update_repository.dart';
 import 'logic/cubits/app/app_cubit.dart';
@@ -54,6 +55,12 @@ class AppBootstrap {
     await AppLog.writeHeader();
 
     if (!kIsWeb) {
+      // Before anything joins a call: a restart rejoins as the same device.
+      await DeviceId.loadFrom(
+        File(
+          '${await StorageNamespace.profileDirectory(storageSuffix)}/device_id',
+        ),
+      );
       await RustLib.init();
       await AppLog.start(storageSuffix);
       CryptoRepository.blobCipher = const NativeBlobCipher();
