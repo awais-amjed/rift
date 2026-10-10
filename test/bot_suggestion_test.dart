@@ -1,3 +1,4 @@
+import 'package:flutter/painting.dart' show TextRange;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rift/data/classes/bot_manifest.dart';
 import 'package:rift/data/classes/bot_suggestion.dart';
@@ -68,6 +69,49 @@ void main() {
         BotCommands.suggestionQuery('/play ${'x' * 201}', [music]),
         isNull,
       );
+    });
+  });
+
+  group('where the command is drawn', () {
+    final player = bot('musicbot', const [
+      BotCommandSpec(name: 'play', usage: '<song, artist or link>'),
+    ]);
+
+    test('the verb and what follows its space, with the verb\'s usage', () {
+      final shape = BotCommands.shapeOf('/play thats so', [player])!;
+      expect(shape.verb, const TextRange(start: 0, end: 5));
+      expect(shape.argument, const TextRange(start: 6, end: 14));
+      expect(shape.usage, '<song, artist or link>');
+    });
+
+    test('an empty argument right after the space, for the placeholder', () {
+      final shape = BotCommands.shapeOf('/play ', [player])!;
+      expect(shape.argument, const TextRange(start: 6, end: 6));
+    });
+
+    test('the argument starts at its first word, past extra spaces', () {
+      expect(
+        BotCommands.shapeOf('  /play   x', [player])!.argument,
+        const TextRange(start: 10, end: 11),
+      );
+    });
+
+    test('not while the verb is still being typed', () {
+      expect(BotCommands.shapeOf('/play', [player]), isNull);
+      expect(BotCommands.shapeOf('/pl', [player]), isNull);
+    });
+
+    test('nothing that would not go out as a command', () {
+      // Drawn as a command only when it is one: `/shrug x` is sealed text.
+      expect(BotCommands.shapeOf('/shrug x', [player]), isNull);
+      expect(BotCommands.shapeOf('hi /play x', [player]), isNull);
+      expect(BotCommands.shapeOf('/ x', [player]), isNull);
+    });
+
+    test('a bot called by its own name, with no usage to offer', () {
+      final shape = BotCommands.shapeOf('/musicbot play x', [player])!;
+      expect(shape.verb, const TextRange(start: 0, end: 9));
+      expect(shape.usage, isNull);
     });
   });
 

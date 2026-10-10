@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../logic/services/emoji_text.dart';
+import '../theme/theme_context.dart';
 
 /// The style an emoji stretch is rendered with. Naming the colour font
 /// directly — rather than adding it as a *fallback* — is the whole point: see
@@ -86,6 +87,11 @@ class EmojiText extends StatelessWidget {
 /// A controller that colours emoji *inside* the composer field, so what you
 /// type looks like what you send.
 class EmojiTextEditingController extends TextEditingController {
+  /// A bot command's verb in the text (`/play`), drawn in the accent so the
+  /// line reads as a command rather than a message. Set by the composer as
+  /// the text changes; null for an ordinary message.
+  TextRange? command;
+
   @override
   TextSpan buildTextSpan({
     required BuildContext context,
@@ -101,6 +107,33 @@ class EmojiTextEditingController extends TextEditingController {
         withComposing: withComposing,
       );
     }
-    return emojiTextSpan(text, style: style);
+    final verb = command;
+    if (verb == null || !verb.isValid || verb.end > text.length) {
+      return emojiTextSpan(text, style: style);
+    }
+    final themeState = context.theme;
+    final after = verb.textAfter(text);
+    final gap = after.substring(0, after.length - after.trimLeft().length);
+    return TextSpan(
+      style: style,
+      children: [
+        emojiTextSpan(verb.textBefore(text), style: style),
+        emojiTextSpan(
+          verb.textInside(text),
+          style: (style ?? const TextStyle()).copyWith(
+            color: themeState.accentBright,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        // The spaces after the verb, drawn wider: the verb and the argument
+        // each sit in a box of their own (`ComposerCommandBackdrop`), and at
+        // one space's width the two boxes touched.
+        TextSpan(
+          text: gap,
+          style: (style ?? const TextStyle()).copyWith(letterSpacing: 8),
+        ),
+        emojiTextSpan(after.substring(gap.length), style: style),
+      ],
+    );
   }
 }

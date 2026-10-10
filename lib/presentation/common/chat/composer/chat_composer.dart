@@ -30,6 +30,7 @@ import '../../tap_to_focus.dart';
 import '../drop/chat_drop_relay.dart';
 import 'composer_bot_suggestions.dart';
 import 'composer_channel_plain_notice.dart';
+import 'composer_command_backdrop.dart';
 import 'composer_command_menu.dart';
 import 'composer_input_row.dart';
 import 'composer_link_preview.dart';
@@ -213,7 +214,7 @@ class _ChatComposerState extends State<ChatComposer>
         _ComposerBotSuggestMixin {
   // Colours emoji as they are typed, matching how they render once sent.
   @override
-  final TextEditingController _controller = EmojiTextEditingController();
+  final EmojiTextEditingController _controller = EmojiTextEditingController();
   @override
   final FocusNode _focusNode = FocusNode();
   @override
@@ -292,6 +293,19 @@ class _ChatComposerState extends State<ChatComposer>
       }),
     );
     _focusNode.requestFocus();
+  }
+
+  /// Where the command is in the line, for the field to draw it apart — and
+  /// the verb handed to the controller to colour. Worked out on each build
+  /// from the text, like [_command], so the drawing and what is sent cannot
+  /// disagree: a staged file turns a command back into a message, and the
+  /// boxes go with it.
+  CommandShape? _commandShape() {
+    final shape = _staged.isNotEmpty || !widget.enabled
+        ? null
+        : BotCommands.shapeOf(_controller.text, widget.bots);
+    _controller.command = shape?.verb;
+    return shape;
   }
 
   /// Put a refused message back as it was typed: the field's own text (names,
@@ -481,6 +495,7 @@ class _ChatComposerState extends State<ChatComposer>
           : ComposerInputRow(
               controller: _controller,
               focusNode: _focusNode,
+              commandShape: _commandShape(),
 
               enabled: widget.enabled,
               canSend:

@@ -156,6 +156,12 @@ plain, something unmissable — **before** it is sent.
 `/roll 2d6` in the clear is nothing. Someone typing `/ask` and pasting something personal is a
 different event, and they need to know while they can still stop.
 
+The line itself changes too, once the verb and a space are typed: the verb sits on an accent chip
+and what follows it in a box of its own, with the verb's `usage` as a placeholder until something is
+typed (`ComposerCommandBackdrop`). Drawn behind the field's text rather than replacing it, so the
+field still holds exactly the line that is sent, and drawn only for a line `BotCommands.parse` would
+send to a bot — `/shrug x` stays plain text because it goes out sealed.
+
 ### Only `/` is a command
 
 A normal message that mentions a bot does **nothing**. No natural-language triggering, no
