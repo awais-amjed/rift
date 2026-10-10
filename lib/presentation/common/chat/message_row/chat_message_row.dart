@@ -407,6 +407,7 @@ class _ChatMessageRowState extends State<ChatMessageRow>
         else if (message.panel case final panel?)
           PanelView(
             panel: panel,
+            loader: widget.attachmentLoader,
 
             onAction: widget.onPanelAction == null
                 ? null

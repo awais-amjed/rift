@@ -267,7 +267,7 @@ mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
       // A bot's panel. Parsed after the signature check like everything else
       // on this row: an interface drawn from an envelope nobody could verify
       // is an interface anybody could have sent.
-      panel: Panel.tryParse(row['blocks']),
+      panel: Panel.tryParse(row['blocks'], channelId: channelId),
       pinnedAt: PinOps.pinnedAtOf(row),
     );
   }

@@ -2,8 +2,8 @@
 
 Design reference for third-party integrations. **Everything here is implemented** — the bot
 itself, panels, the grants and encrypted voice, plus the SDK (§10). What is left is in §11 and in
-the SDK's README, and it is choices rather than a backlog: attachments, joining from an invite
-link, and an `image` block that points at this server's own bucket. A bot reads over realtime — it
+the SDK's README, and it is choices rather than a backlog: attachments and joining from an
+invite link. A bot reads over realtime — it
 is told what it may hear on its own topic, and polls slowly behind that as a backstop.
 Sections are marked as they land, the same way `ARCHITECTURE.md` marks its own.
 
@@ -241,16 +241,39 @@ Start with the smallest useful set and add on demand:
 | `divider` | a rule |
 | `actions` | a row of `button`s |
 | `select` | a dropdown |
+| `image` | a picture from this server's own bucket |
 
 The bot sends that as JSON and the app draws each block with its own widget. The vocabulary is
 fixed and versioned, because third-party bots make it public API — **anything not in the list
 cannot be drawn**, which is the safety property rather than a shortcoming of the first version.
-`WIRE.md` §5 freezes the seven, field by field.
+`WIRE.md` §5 freezes the eight, field by field.
 
-**There is no `image` block, and that is a decision rather than an omission.** A URL a bot chose
-makes every member's client fetch from it, which hands a third party the IP address of everybody
-in the room and a per-member read receipt. It comes back when it can point at the server's own
-attachment bucket.
+### Pictures — [Implemented October 2026]
+
+**An `image` block is never a URL.** A URL a bot chose makes every member's client fetch from it,
+which hands a third party the IP address of everybody in the room and a per-member read receipt.
+That is why the first set had no picture at all.
+
+So the bot uploads the picture to the server's own attachment bucket, unencrypted, under the
+channel the panel is in, and the block names that object. Every member's client already talks to
+that server, so fetching from it tells nobody anything new. Three rules hold it:
+
+- **Only somebody who can see the channel reads it.** The object sits under the channel's folder,
+  and `chat_attachments_select` asks `app.can_read_attachment` the same question it asks of a
+  member's own files. The upload is held to `chat_attachments_insert`, so a bot needs
+  `ATTACH_FILES`, and the server's cap and file-size limit count it like any other file.
+- **A panel shows only its own channel's pictures.** The client drops a block whose path names a
+  different channel, so a panel cannot draw a picture kept alive by another channel's history.
+  The orphan sweep keeps the object while its channel has messages older than it, as with any
+  attachment, and a bot replacing a picture deletes the old one itself (an uploader may delete its
+  own object).
+- **It carries a digest.** `sha256` is checked on download, as for a member's file sent
+  unencrypted. It does not make the picture secret: the panel and the picture are both readable
+  by the server, the same as every bot message. What it adds is that a bot can only name bytes
+  it had, so it cannot make a panel show a member's file it never held.
+
+The client draws it with the code that draws a member's picture, so it is sized before it arrives,
+covered by the sensitive-image setting, and opened full-screen when tapped.
 
 ### The round trip
 
