@@ -25,6 +25,7 @@ import '../panel/panel_view.dart';
 import '../polls/message_poll_card.dart';
 import '../reactions/message_reactions_bar.dart';
 import '../reactions/reaction_picker.dart';
+import 'command_message_span.dart';
 import 'guarded_message_text.dart';
 import 'link_tap_recognizers.dart';
 import 'message_action_sheet.dart';
@@ -452,16 +453,25 @@ class _ChatMessageRowState extends State<ChatMessageRow>
               child: Text.rich(
                 TextSpan(
                   children: [
-                    messageMarkupSpan(
-                      message.text,
-                      base: AppText.body.copyWith(
-                        color: themeState.textSecondary,
+                    if (message.isCommand)
+                      commandMessageSpan(
+                        message.text,
+                        base: AppText.body.copyWith(
+                          color: themeState.textSecondary,
+                        ),
+                        theme: themeState,
+                      )
+                    else
+                      messageMarkupSpan(
+                        message.text,
+                        base: AppText.body.copyWith(
+                          color: themeState.textSecondary,
+                        ),
+                        theme: themeState,
+                        mentionable: widget.mentionable,
+                        displayNames: widget.mentionNames,
+                        onLink: _links.forUrl,
                       ),
-                      theme: themeState,
-                      mentionable: widget.mentionable,
-                      displayNames: widget.mentionNames,
-                      onLink: _links.forUrl,
-                    ),
                     if (message.isEdited)
                       TextSpan(
                         text: '  (edited)',

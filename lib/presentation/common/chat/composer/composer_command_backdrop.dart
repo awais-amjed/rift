@@ -9,8 +9,10 @@ import '../../../theme/theme_context.dart';
 typedef CommandShape = ({TextRange verb, TextRange argument, String? usage});
 
 /// Draws a bot command apart from an ordinary message, behind the field's own
-/// text: the verb on an accent tint, what follows it in a box of its own, and
-/// — while that is still empty — the command's usage as a placeholder.
+/// text: what follows the verb boxed like inline code, as it will read once
+/// sent (`commandMessageSpan`), and — while that is still empty — the
+/// command's usage as a placeholder. The verb's accent and the code face come
+/// from the controller (`EmojiTextEditingController.command`).
 ///
 /// Behind the text rather than in it, so the field keeps holding exactly the
 /// line that is sent: the caret, selection, the `@` and `/` menus and the
@@ -41,7 +43,6 @@ class ComposerCommandBackdrop extends StatefulWidget {
 
 class _ComposerCommandBackdropState extends State<ComposerCommandBackdrop> {
   final GlobalKey _field = GlobalKey();
-  List<Rect> _verb = const [];
   List<Rect> _argument = const [];
 
   /// Where the placeholder goes: just after the verb's space, on its line.
@@ -89,7 +90,7 @@ class _ComposerCommandBackdropState extends State<ComposerCommandBackdrop> {
         editable == null ||
         !me.hasSize ||
         shape.argument.end > text.length) {
-      _set(const [], const [], null);
+      _set(const [], null);
       return;
     }
     final origin = me.globalToLocal(editable.localToGlobal(Offset.zero));
@@ -101,7 +102,6 @@ class _ComposerCommandBackdropState extends State<ComposerCommandBackdrop> {
     ];
     final empty = shape.argument.isCollapsed;
     _set(
-      boxes(shape.verb),
       empty ? const [] : boxes(shape.argument),
       empty
           ? editable
@@ -114,14 +114,11 @@ class _ComposerCommandBackdropState extends State<ComposerCommandBackdrop> {
     );
   }
 
-  void _set(List<Rect> verb, List<Rect> argument, Offset? placeholderAt) {
-    if (_sameRects(verb, _verb) &&
-        _sameRects(argument, _argument) &&
-        placeholderAt == _placeholderAt) {
+  void _set(List<Rect> argument, Offset? placeholderAt) {
+    if (_sameRects(argument, _argument) && placeholderAt == _placeholderAt) {
       return;
     }
     setState(() {
-      _verb = verb;
       _argument = argument;
       _placeholderAt = placeholderAt;
     });
@@ -158,12 +155,11 @@ class _ComposerCommandBackdropState extends State<ComposerCommandBackdrop> {
           child: IgnorePointer(
             child: CustomPaint(
               painter: _CommandPainter(
-                verb: _verb,
                 argument: _argument,
-                verbFill: themeState.channelActiveBg,
-                verbBorder: themeState.channelActiveBorder,
-                argumentFill: themeState.bgHover,
-                argumentBorder: themeState.borderPrimary,
+                // Recessed into the bar, which is itself `bgTertiary`: in a
+                // message row the same box is lighter than the row instead.
+                fill: themeState.bgContent,
+                border: themeState.borderPrimary,
               ),
             ),
           ),
@@ -198,20 +194,14 @@ class _ComposerCommandBackdropState extends State<ComposerCommandBackdrop> {
 }
 
 class _CommandPainter extends CustomPainter {
-  final List<Rect> verb;
   final List<Rect> argument;
-  final Color verbFill;
-  final Color verbBorder;
-  final Color argumentFill;
-  final Color argumentBorder;
+  final Color fill;
+  final Color border;
 
   _CommandPainter({
-    required this.verb,
     required this.argument,
-    required this.verbFill,
-    required this.verbBorder,
-    required this.argumentFill,
-    required this.argumentBorder,
+    required this.fill,
+    required this.border,
   });
 
   /// Room around the glyphs, so a box frames its words instead of clipping
@@ -223,17 +213,12 @@ class _CommandPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    _boxes(canvas, verb, verbFill, verbBorder);
-    _boxes(canvas, argument, argumentFill, argumentBorder);
-  }
-
-  void _boxes(Canvas canvas, List<Rect> rects, Color fill, Color border) {
     final fillPaint = Paint()..color = fill;
     final borderPaint = Paint()
       ..color = border
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
-    for (final rect in rects) {
+    for (final rect in argument) {
       if (rect.width <= 0) continue;
       final box = RRect.fromRectAndRadius(
         _pad.inflateRect(rect),
@@ -247,10 +232,5 @@ class _CommandPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_CommandPainter old) =>
-      old.verb != verb ||
-      old.argument != argument ||
-      old.verbFill != verbFill ||
-      old.verbBorder != verbBorder ||
-      old.argumentFill != argumentFill ||
-      old.argumentBorder != argumentBorder;
+      old.argument != argument || old.fill != fill || old.border != border;
 }

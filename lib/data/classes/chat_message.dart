@@ -173,6 +173,11 @@ class ChatMessage extends Equatable {
   /// on the screen: you would answer it, and nobody would know what you meant.
   final bool isEphemeral;
 
+  /// A member's `/` command to a bot (`messages.to_bot`), drawn as one — the
+  /// verb, then what was handed to the bot set like code — so it reads as an
+  /// instruction to a program, not as something said to the room.
+  final bool isCommand;
+
   /// Sealed under a key version this device does not hold, so [text] is empty
   /// and there is nothing to render but the fact that it exists.
   ///
@@ -216,6 +221,7 @@ class ChatMessage extends Equatable {
     this.inPlainChannel = false,
     this.isLocked = false,
     this.isEphemeral = false,
+    this.isCommand = false,
     this.replyToId,
     this.forwarded,
     this.poll,
@@ -258,6 +264,7 @@ class ChatMessage extends Equatable {
     inPlainChannel: inPlainChannel ?? this.inPlainChannel,
     isLocked: isLocked,
     isEphemeral: isEphemeral,
+    isCommand: isCommand,
     replyToId: replyToId,
     forwarded: forwarded,
     poll: poll,
@@ -288,6 +295,7 @@ class ChatMessage extends Equatable {
     isEncrypted,
     inPlainChannel,
     isEphemeral,
+    isCommand,
     isLocked,
     poll,
     pinnedAt,

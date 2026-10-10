@@ -144,6 +144,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
       // to admit it would be the worst timing available.
       isEncrypted: command == null && !plain,
       inPlainChannel: plain,
+      isCommand: command != null,
       replyToId: replyId,
     );
     // Show the text immediately; attachments appear once uploaded.
@@ -324,6 +325,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
               isMine: true,
               isEncrypted: command == null && !plain,
               inPlainChannel: plain,
+              isCommand: command != null,
             ),
           ),
         ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../logic/services/emoji_text.dart';
+import '../theme/app_text.dart';
 import '../theme/theme_context.dart';
 
 /// The style an emoji stretch is rendered with. Naming the colour font
@@ -88,8 +89,9 @@ class EmojiText extends StatelessWidget {
 /// type looks like what you send.
 class EmojiTextEditingController extends TextEditingController {
   /// A bot command's verb in the text (`/play`), drawn in the accent so the
-  /// line reads as a command rather than a message. Set by the composer as
-  /// the text changes; null for an ordinary message.
+  /// line reads as a command rather than a message, with what follows it in
+  /// the code face. Set by the composer as the text changes; null for an
+  /// ordinary message.
   TextRange? command;
 
   @override
@@ -132,7 +134,14 @@ class EmojiTextEditingController extends TextEditingController {
           text: gap,
           style: (style ?? const TextStyle()).copyWith(letterSpacing: 8),
         ),
-        emojiTextSpan(after.substring(gap.length), style: style),
+        // What the bot is handed, in the code face like the sent line
+        // (`commandMessageSpan`): it is read character for character.
+        TextSpan(
+          text: after.substring(gap.length),
+          style: (style ?? const TextStyle()).copyWith(
+            fontFamily: AppText.mono,
+          ),
+        ),
       ],
     );
   }
