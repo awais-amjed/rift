@@ -86,6 +86,28 @@ void main() {
       },
     );
 
+    test('a menu\'s options need only a label, as WIRE.md gives them', () {
+      // Each option comes back under the menu's own action id. Asking every
+      // option for an id of its own dropped them all, so no menu ever drew.
+      final menu = parse([
+        {
+          'type': 'select',
+          'action': 'volume',
+          'text': 'Volume 50%',
+          'options': [
+            {'label': '25%', 'value': '25'},
+            {'label': '50%', 'value': '50'},
+            {'value': 'no-label'},
+          ],
+        },
+      ])!.blocks.single;
+      expect(menu.type, PanelBlockType.select);
+      expect(menu.actions.map((o) => (o.label, o.action, o.value)), [
+        ('25%', 'volume', '25'),
+        ('50%', 'volume', '50'),
+      ]);
+    });
+
     test('a style is a weight, never a colour', () {
       // A bot picks how prominent an action is and nothing else. Anything it
       // does not recognise falls back to normal rather than being honoured,

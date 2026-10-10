@@ -72,10 +72,15 @@ class PanelAction extends Equatable {
     this.value,
   });
 
-  static PanelAction? tryParse(Object? raw) {
+  /// [blockAction] is a `select`'s own action id. Its options carry none —
+  /// WIRE.md §5 gives them only a label and a value, since every option of
+  /// one menu comes back under the menu's id — so they take the menu's.
+  /// Requiring one of their own dropped every option of every menu, and no
+  /// menu was ever drawn.
+  static PanelAction? tryParse(Object? raw, {String? blockAction}) {
     if (raw is! Map) return null;
     final label = raw['label'];
-    final action = raw['action'];
+    final action = blockAction ?? raw['action'];
     // Both are required and both are the bot's: a button with no action id is
     // one nothing can be done with, and one with no label is one nobody can
     // read. Dropping it is better than drawing half of it.
@@ -234,6 +239,7 @@ class PanelBlock extends Equatable {
     if (raw is! Map) return const PanelBlock(type: PanelBlockType.unknown);
     final type = PanelBlockType.parse(raw['type']);
     final rawValue = raw['value'];
+    final action = raw['action'] is String ? raw['action'] as String : null;
 
     return PanelBlock(
       type: type,
@@ -244,11 +250,14 @@ class PanelBlock extends Equatable {
           ?PanelField.tryParse(item),
       ],
       actions: [
-        for (final item
-            in (raw['items'] as List? ?? raw['options'] as List? ?? const []))
-          ?PanelAction.tryParse(item),
+        if (type == PanelBlockType.select)
+          for (final item in (raw['options'] as List? ?? const []))
+            ?PanelAction.tryParse(item, blockAction: action)
+        else
+          for (final item in (raw['items'] as List? ?? const []))
+            ?PanelAction.tryParse(item),
       ],
-      action: raw['action'] is String ? raw['action'] as String : null,
+      action: action,
       image: type == PanelBlockType.image ? PanelImage.tryParse(raw) : null,
     );
   }
