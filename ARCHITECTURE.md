@@ -725,6 +725,37 @@ audience is exactly the call, and "turn their soundboard down" is a real control
 rather than a request. The cooldown and length cutoff are applied by the
 *listener*, because a limit the sender honours is one a modified client deletes.
 
+### How a call is played out on the desktop — [Implemented October 2026]
+
+On the desktop, everything a call plays — voices, a share's sound, a bot —
+passes through WebRTC's audio processing module on its way out, not around
+it. The library flutter_webrtc ships always installs a render
+pre-processor (an empty one unless set), and with one installed WebRTC plays
+the module's own copy of the audio instead of the audio. That copy is mono,
+and on Linux it runs at the capture rate, which is 16 kHz until the
+microphone has recorded something. Somebody who joined muted and stayed muted
+heard the whole call cut off just under 8 kHz; one unmute was enough to bring
+it to the module's 32 kHz, and that held after muting again.
+
+`PlayoutWarmup` closes that gap: joining without transmitting, the client
+sends the microphone from one peer connection to another inside the process
+for half a second, which is enough for the module to learn the rate, and closes
+both. Nothing leaves the app and the call does not see the microphone open.
+Once per session, since the rate holds until the app quits. Measured Oct 10
+2026 on Linux: muted from the start went from a 7.3 kHz cut-off to 14 kHz, the
+same as having unmuted.
+
+**Linux only.** Windows uses the same library and measured differently in the
+VM: about 14 kHz joined muted and unmuted alike, while the warm-up took it to
+7.4 kHz and made Windows turn other apps down — recording there opens a
+communications stream, which is what Windows ducks for.
+
+**Still true:** playback is mono, and nothing above about 16 kHz survives. Both
+come from the library, and fixing them means building it without the render
+pre-processor (or with multi-channel render), not anything in this repository.
+Web, Android and macOS use other WebRTC builds and are not affected (not
+measured).
+
 ### Windows turning other apps down — [Implemented October 2026]
 
 Windows lowers every other sound while an app has playback open through the
