@@ -26,10 +26,15 @@ class AppLog {
 
   static bool _started = false;
   static String? _path;
+  static Directory? _directory;
   static final Queue<String> _lines = Queue<String>();
 
   /// This session's file, once [start] has opened it.
   static String? get path => _path;
+
+  /// The folder holding this session's file and the ones before it, once
+  /// [start] has opened it. Null on the web.
+  static Directory? get directory => _directory;
 
   /// The folder the profile's logs go in: the session files, and the ones
   /// before it.
@@ -48,6 +53,7 @@ class AppLog {
     try {
       final dir = await folder(storageSuffix);
       _path = await rust.startLogFile(dir: dir.path);
+      _directory = dir;
       _started = true;
       for (final line in _lines) {
         rust.writeLogLine(source: 'dart', line: line);

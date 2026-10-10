@@ -817,7 +817,7 @@ update itself and says so in Settings. On Windows the first start of a
 Velopack copy offers to remove that old copy, behind one administrator
 prompt (`windows/runner/velopack_hooks.cpp`).
 
-## 9. The app's log — [Implemented October 2026]
+## 9. The app's log and bug reports — [Implemented October 2026]
 
 Every session writes a log, so that someone whose share stopped or whose app
 closed can send what happened. **Rust owns the file** (`rust/src/logging.rs`):
@@ -845,6 +845,17 @@ word after `Bearer`, and the value of `access_token`, `apikey`, `token`,
 `password` and the like become `[redacted]`. What it does carry: the version
 and system, server and room ids, error text, device names, and the title of a
 window being shared.
+
+**Report a bug** (Settings → General → Help) sends it. The person writes what
+happened; `BugReportRepository` files it on central (`submit_bug_report`, ten
+a day per account, a Rift account required), then uploads the newest four log
+files, gzipped, into `bug-reports/<uid>/<report id>/`. The bucket takes a file
+only under the uploader's own report, within an hour of filing it and four
+files to a report, so a report id is not somewhere to keep putting bytes. Only
+a moderator with a second factor reads them, on `rift-admin`'s Bug reports
+page; central deletes a report after 90 days and the nightly sweep its files.
+The dialog says what goes with it before anything is sent. On a desktop,
+Help also opens the logs folder, for someone sending them by hand.
 
 ---
 
