@@ -200,6 +200,31 @@ arguments. With the list open, Enter on a verb typed in full that has no `usage`
 one with a `usage`, or a half-typed verb, is completed and waits for the rest. A bot that takes
 arguments but declares no `usage` gets sent the bare verb.
 
+### Suggestions while you type — [Implemented October 2026]
+
+A command the manifest marks `suggest` gets a second menu once its verb and a space are typed:
+`/play thats so tr` lists songs, and clicking one sends `/play <its value>` — for the music bot,
+the song's own link, so what plays is what was shown. Enter without picking sends the line as typed.
+
+This is the one place the composer talks to a bot before Enter, and it is the bot's to switch on,
+per command: what follows the verb reaches the bot as it is typed, unencrypted, in a pause-driven
+trickle of questions. Nothing is asked for a bare verb, for a bot addressed by its own name, or for
+a verb whose bot did not opt in, and the composer's unencrypted notice is already up by the time
+anything is asked.
+
+Both halves are Realtime broadcasts (WIRE.md §7), so nothing is stored: the question goes to the
+bot's own `user:` topic, which any co-member may send to and only the bot hears, and the answer
+comes back on the asker's. The server vouches for neither. That shapes both ends:
+
+- **The bot acts on nothing it is asked here.** `from` is the asking client's claim, so a handler
+  only looks things up; the song is queued when the signed command arrives.
+- **The client takes only the answer to its own question.** The request carries a random id only
+  the bot heard, and an answer naming any other id — somebody else on the server writing to this
+  person's topic — is dropped. The rows are the bot's words, so the menu says whose they are.
+
+No migration was needed: `app.can_use_topic` already lets a co-member send on another member's
+`user:` topic, because a DM's typing indicator travels the same way.
+
 ---
 
 ## 5. Replies — [Implemented]

@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/apis/bot_suggestions_api.dart';
 import '../../../../data/apis/members_api.dart';
+import '../../../../data/classes/bot_suggestion.dart';
 import '../../../../data/classes/channel.dart';
 import '../../../../data/classes/chat_message.dart';
 import '../../../../data/classes/pending_attachment.dart';
@@ -178,6 +180,8 @@ class _ChannelChatViewState extends State<ChannelChatView>
                           : null,
                       onMentionSearch: (query) =>
                           _searchMentionable(context, query),
+                      onCommandSuggest: (bot, command, text) =>
+                          _askBot(context, bot, command, text),
                       selfUserId: context
                           .read<ServerCubit>()
                           .state
@@ -305,6 +309,20 @@ class _ChannelChatViewState extends State<ChannelChatView>
     return MembersApi(
       session: context.read<SessionRepository>(),
     ).searchMembers(query: query, channelId: channelId, bots: false);
+  }
+
+  /// What [bot] offers for `/<command> <text>` here (WIRE.md §7).
+  Future<List<BotSuggestion>> _askBot(
+    BuildContext context,
+    ServerMember bot,
+    String command,
+    String text,
+  ) {
+    final channelId = context.read<ChannelChatCubit>().state.channelId;
+    if (channelId == null) return Future.value(const []);
+    return BotSuggestionsApi(
+      session: context.read<SessionRepository>(),
+    ).ask(channelId: channelId, bot: bot, command: command, text: text);
   }
 
   /// The operator's per-file attachment cap for this server.

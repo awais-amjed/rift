@@ -108,6 +108,36 @@ class BotCommands {
     return false;
   }
 
+  /// What to ask a bot for while [text] is typed, or null when there is
+  /// nothing to ask: the line must be a verb the bot declared with
+  /// `suggest`, a space, and something after it.
+  ///
+  /// By verb only, never by a bot's own name: `/musicbot play x` carries no
+  /// manifest entry to have switched suggestions on.
+  static ({ServerMember bot, String command, String query})? suggestionQuery(
+    String text,
+    List<ServerMember> bots,
+  ) {
+    final trimmed = text.trimLeft();
+    if (!trimmed.startsWith('/')) return null;
+    final firstBreak = trimmed.indexOf(RegExp(r'\s'));
+    if (firstBreak == -1) return null;
+    final query = trimmed.substring(firstBreak + 1).trim();
+    // WIRE.md §7 caps what is asked about; a line longer than that is not
+    // somebody looking for a song.
+    if (query.isEmpty || query.length > 200) return null;
+    final head = trimmed.substring(1, firstBreak).toLowerCase();
+    for (final bot in bots) {
+      for (final spec in bot.manifest.commands) {
+        if (spec.name != head) continue;
+        // The first bot to declare the verb is the one [parse] sends to, so
+        // it is the one to ask — even when it does not offer suggestions.
+        return spec.suggests ? (bot: bot, command: head, query: query) : null;
+      }
+    }
+    return null;
+  }
+
   /// The commands to offer for [text], as a `/` menu.
   ///
   /// Returns every bot's every command when nothing has been typed past the
