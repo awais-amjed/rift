@@ -325,6 +325,13 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       } else {
         await _syncMicrophoneTransmission();
       }
+      // Joined muted, the call plays at 16 kHz until the mic has run once —
+      // see [PlayoutWarmup]. After the devices, so it opens the chosen one.
+      if (_shouldTransmitMic()) {
+        PlayoutWarmup.markDone();
+      } else {
+        unawaited(PlayoutWarmup.run(_buildAudioCaptureOptions()));
+      }
       // Android evicts a backgrounded process; LiveKit does nothing about
       // that, so the call gets a foreground service to stand on. Its
       // notification is also the only part of the call still on screen once

@@ -7,6 +7,22 @@ import '../theme/app_shadows.dart';
 import '../theme/app_text.dart';
 import '../theme/custom_colors.dart';
 import '../theme/theme_context.dart';
+import 'app_button.dart';
+
+/// A button along a toast's foot. Pressing one closes the toast first.
+class ToastAction {
+  final String label;
+  final VoidCallback onPressed;
+
+  /// The one the toast is offering; drawn as the solid button.
+  final bool primary;
+
+  const ToastAction({
+    required this.label,
+    required this.onPressed,
+    this.primary = false,
+  });
+}
 
 /// The card every toast is drawn in.
 ///
@@ -39,6 +55,10 @@ class AppToast extends StatelessWidget {
   /// hold still while it is being read or its text selected.
   final ValueChanged<bool>? onHover;
 
+  /// Buttons under the words, for a toast that offers to do something about
+  /// what it says. Each closes the toast, then runs.
+  final List<ToastAction> actions;
+
   const AppToast({
     super.key,
     required this.title,
@@ -47,6 +67,7 @@ class AppToast extends StatelessWidget {
     required this.onClose,
     this.onTap,
     this.onHover,
+    this.actions = const [],
   });
 
   /// The status colour for [type]. Info has no status colour of its own —
@@ -119,6 +140,27 @@ class AppToast extends StatelessWidget {
         description,
         style: AppText.row.copyWith(color: theme.textSecondary),
       ),
+      if (actions.isNotEmpty) ...[
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final action in actions)
+              AppButton(
+                label: action.label,
+                height: K.compactControlHeight,
+                variant: action.primary
+                    ? AppButtonVariant.primary
+                    : AppButtonVariant.secondary,
+                onPressed: () {
+                  onClose();
+                  action.onPressed();
+                },
+              ),
+          ],
+        ),
+      ],
     ],
   );
 

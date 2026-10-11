@@ -16,6 +16,11 @@ enum PasswordChangeStage {
   /// Current password proved and there is no address to confirm — privacy
   /// mode. Waiting for the new password alone.
   enterNew,
+
+  /// The current password is forgotten, on a device signed in to an account.
+  /// A code was emailed; waiting for it and the new password
+  /// (`supabase_backup_password_reset.dart`).
+  reset,
 }
 
 /// Where account recovery has got to.

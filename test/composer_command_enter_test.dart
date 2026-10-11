@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rift/data/classes/bot_manifest.dart';
+import 'package:rift/data/classes/bot_suggestion.dart';
 import 'package:rift/data/classes/server_member.dart';
 import 'package:rift/data/classes/user_permissions.dart';
 import 'package:rift/logic/cubits/app/app_cubit.dart';
@@ -38,7 +39,7 @@ const _music = ServerMember(
   isBot: true,
   manifest: BotManifest(
     commands: [
-      BotCommandSpec(name: 'play', usage: '<song>'),
+      BotCommandSpec(name: 'play', usage: '<song>', suggests: true),
       BotCommandSpec(name: 'stop'),
     ],
   ),
@@ -58,6 +59,10 @@ Future<List<String>> _pumpComposer(WidgetTester tester) async {
             alignment: Alignment.bottomCenter,
             child: ChatComposer(
               bots: const [_music],
+              onCommandSuggest: (_, _, text) => Future.value([
+                BotSuggestion(label: '$text one', value: 'v1'),
+                BotSuggestion(label: '$text two', value: 'v2'),
+              ]),
               onSend: (text, _, _) {
                 sent.add(text);
                 return Future.value(false);
@@ -119,5 +124,73 @@ void main() {
     await tester.pump();
     expect(sent, isEmpty);
     expect(_field(tester), '/stop ');
+  });
+
+  group('the arrow keys move through the open menu', () {
+    Future<void> press(WidgetTester tester, LogicalKeyboardKey key) async {
+      await tester.sendKeyEvent(key);
+      await tester.pump();
+    }
+
+    testWidgets('Down twice and Enter takes the second command', (
+      tester,
+    ) async {
+      final sent = await _pumpComposer(tester);
+      await tester.enterText(find.byType(EditableText), '/');
+      await tester.pump();
+      await press(tester, LogicalKeyboardKey.arrowDown);
+      await press(tester, LogicalKeyboardKey.arrowDown);
+      await press(tester, LogicalKeyboardKey.enter);
+      expect(sent, isEmpty);
+      expect(_field(tester), '/stop ');
+    });
+
+    testWidgets('Up first lands on the last row', (tester) async {
+      await _pumpComposer(tester);
+      await tester.enterText(find.byType(EditableText), '/');
+      await tester.pump();
+      await press(tester, LogicalKeyboardKey.arrowUp);
+      await press(tester, LogicalKeyboardKey.tab);
+      expect(_field(tester), '/stop ');
+    });
+
+    testWidgets('a bot suggestion picked with the arrows is sent', (
+      tester,
+    ) async {
+      final sent = await _pumpComposer(tester);
+      await tester.enterText(find.byType(EditableText), '/play abc');
+      // Past the pause before asking, and the answer.
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump();
+      expect(find.text('abc two'), findsOneWidget);
+      await press(tester, LogicalKeyboardKey.arrowDown);
+      await press(tester, LogicalKeyboardKey.arrowDown);
+      await press(tester, LogicalKeyboardKey.enter);
+      expect(sent, ['/play v2']);
+    });
+
+    testWidgets('Enter without the arrows sends the line as typed', (
+      tester,
+    ) async {
+      final sent = await _pumpComposer(tester);
+      await tester.enterText(find.byType(EditableText), '/play abc');
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump();
+      await press(tester, LogicalKeyboardKey.enter);
+      expect(sent, ['/play abc']);
+    });
+
+    testWidgets('a new answer forgets the old highlight', (tester) async {
+      final sent = await _pumpComposer(tester);
+      await tester.enterText(find.byType(EditableText), '/play abc');
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump();
+      await press(tester, LogicalKeyboardKey.arrowDown);
+      await tester.enterText(find.byType(EditableText), '/play abcd');
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump();
+      await press(tester, LogicalKeyboardKey.enter);
+      expect(sent, ['/play abcd']);
+    });
   });
 }

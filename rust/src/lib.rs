@@ -8,6 +8,8 @@ mod cue;
 mod deep_filter;
 #[cfg(target_os = "linux")]
 mod device_watch;
+#[cfg(target_os = "windows")]
+mod ducking;
 mod frb_generated;
 mod logging;
 #[cfg(any(target_os = "windows", target_os = "linux"))]

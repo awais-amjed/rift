@@ -7,6 +7,7 @@ import '../../../../logic/services/mic_volume.dart';
 import 'audio_device_section.dart';
 import 'mic_test/mic_test_section.dart';
 import 'section_divider.dart';
+import 'settings_tab.dart';
 import 'voice_audio/audio_ducking_section.dart';
 import 'voice_audio/audio_processing_section.dart';
 import 'voice_audio/call_shortcuts_section.dart';
@@ -20,7 +21,10 @@ import 'voice_audio/sounds/sounds_section.dart';
 /// mic volume beside the mic test, the soundboard and Rift's own sounds as this
 /// device hears them, and the desktop-only sections.
 class VoiceAudioContent extends StatelessWidget {
-  const VoiceAudioContent({super.key});
+  /// A section to scroll to and light up, for someone sent here to it.
+  final SettingsSection? focus;
+
+  const VoiceAudioContent({super.key, this.focus});
 
   /// Picking an input and an output by name is a desktop idea, and on a phone
   /// it is two dead controls: WebRTC's Android device module does not
@@ -66,7 +70,7 @@ class VoiceAudioContent extends StatelessWidget {
             // the rule was hanging under the last control.
             if (HostPlatform.ducksOtherApps) ...[
               const SectionDivider(),
-              const AudioDuckingSection(),
+              AudioDuckingSection(highlight: focus == SettingsSection.ducking),
             ],
             if (HostPlatform.hasPushToTalk) ...[
               const SectionDivider(),

@@ -8,8 +8,14 @@ List<String> _settingsCallers() {
   for (final entity in Directory('lib').listSync(recursive: true)) {
     if (entity is! File || !entity.path.endsWith('.dart')) continue;
     final source = entity.readAsStringSync();
-    // The route constant's own declaration is not a caller.
-    if (source.contains('AppRoutes.settings')) callers.add(entity.path);
+    // The route constant's own declaration is not a caller. Nor is a link
+    // to one section (a `SettingsTarget`), such as the ducking notice's
+    // "Fix it": that is a shortcut to a place, not another door to the
+    // screen.
+    if (source.contains('AppRoutes.settings') &&
+        !source.contains('SettingsTarget(')) {
+      callers.add(entity.path);
+    }
   }
   return callers..sort();
 }

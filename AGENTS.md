@@ -261,7 +261,7 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   the viewer may do there.
 - Toasts/errors go through `HelperMethods.showToast` / `showError` (toastification) — no
   SnackBars — called from the presentation layer, not from a cubit: a cubit sets a `Notice`
-  in its state and `NoticeListeners` shows it (`CODE_STYLE.md` §8). Debug logging through `HelperMethods.printDebug`, not bare `print` (Dart side).
+  in its state and `NoticeListeners` shows it (`CODE_STYLE.md` §8). Logging through `HelperMethods.printDebug`, not bare `print` (Dart side): its lines go to the app's log in every build, which people send with a bug report, so never log a secret or anything from a message (`ARCHITECTURE.md` §9).
 - `buildWhen` / `listenWhen` are used on hot-path builders to limit rebuilds (see
   `home_screen.dart`); do the same for anything rebuilding inside the call screen.
   A chat screen rebuilds per upload tick, keystroke and arrival, so each part of it
@@ -306,7 +306,8 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   `thumbnail.rs`) gated at the `mod` line, not item by item.
 - Functions crossing the bridge return `Result<T, String>` — errors are plain strings for Dart.
 - Log with `log::` (`info!`/`warn!`), never `println!`: `init_app` installs a logger on every
-  platform and stdout goes nowhere in a Windows release build.
+  platform and stdout goes nowhere in a Windows release build. On Linux and Windows the same
+  lines go to the app's log file (`logging.rs`), which people send, so no secrets in them.
 - Pure logic (frame sizing, pixel sampling, sample conversion) is a plain function with unit
   tests; `cargo test` runs them anywhere. `cargo test live_ -- --ignored --test-threads=1` runs a real share
   against a LiveKit server (see `rust/src/screenshare/live_test.rs`).

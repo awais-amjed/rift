@@ -76,6 +76,19 @@ pub(crate) struct EncoderInfo {
     pub vendor: String,
 }
 
+/// AMD's vendor id, as an encoder's hardware vendor attribute gives it.
+const AMD: &str = "VEN_1002";
+
+/// Whether a share may use this encoder: only AMD's. NVIDIA's and Intel's
+/// are FFmpeg's (`ffmpeg.rs`), and where FFmpeg's do not open the share goes
+/// out as VP9 rather than through theirs here: NVIDIA's crashed a share at
+/// 120 fps, twice in two runs (RTX 3070 Ti Laptop, Oct 9 2026). AMD's stays
+/// until FFmpeg's AMF encoder has been measured on an AMD GPU. A test naming
+/// an encoder by its index may use any.
+fn shares_use(info: &EncoderInfo) -> bool {
+    info.vendor.eq_ignore_ascii_case(AMD)
+}
+
 /// COM and Media Foundation, started for this thread and stopped with it.
 struct MediaFoundation {
     uninitialize_com: bool,
@@ -165,9 +178,10 @@ fn info(activate: &IMFActivate) -> EncoderInfo {
     }
 }
 
-/// Whether one of the hardware encoders for `codec` will actually open here.
-/// Listing is not enough: on a laptop with two GPUs, NVIDIA's is listed but
-/// only activates in a process Windows runs on the NVIDIA one.
+/// Whether one of the hardware encoders for `codec` a share may use
+/// ([`shares_use`]) will actually open here. Listing is not enough: on a
+/// laptop with two GPUs, NVIDIA's is listed but only activates in a process
+/// Windows runs on the NVIDIA one.
 pub(crate) fn opens(codec: GpuCodec) -> bool {
     let _mf = match MediaFoundation::start() {
         Ok(mf) => mf,
@@ -180,6 +194,9 @@ pub(crate) fn opens(codec: GpuCodec) -> bool {
         return false;
     };
     activates.iter().any(|activate| unsafe {
+        if !shares_use(&info(activate)) {
+            return false;
+        }
         let opened = activate.ActivateObject::<IMFTransform>().is_ok();
         let _ = activate.ShutdownObject();
         if opened {
@@ -222,9 +239,9 @@ pub(crate) struct GpuEncoder {
 }
 
 impl GpuEncoder {
-    /// Open the first hardware encoder that takes these settings, or the
-    /// `only`th of [`hardware_encoders`] when one is named, and start
-    /// feeding `sink`.
+    /// Open the first hardware encoder a share may use ([`shares_use`]) that
+    /// takes these settings, or the `only`th of [`hardware_encoders`] when
+    /// one is named, and start feeding `sink`.
     pub(crate) fn open(
         settings: EncoderSettings,
         sink: Box<dyn EncodedSink>,
@@ -369,6 +386,10 @@ fn open_transform(settings: EncoderSettings, only: Option<usize>) -> Result<Tran
     for (index, activate) in activates.into_iter().enumerate() {
         let info = info(&activate);
         if only.is_some_and(|only| only != index) {
+            continue;
+        }
+        if only.is_none() && !shares_use(&info) {
+            reasons.push(format!("{}: left to FFmpeg", info.name));
             continue;
         }
         match Transform::open(activate.clone(), info.clone(), settings) {

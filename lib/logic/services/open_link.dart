@@ -41,3 +41,9 @@ bool isOpenableLink(Uri uri) {
   final scheme = uri.scheme.toLowerCase();
   return (scheme == 'https' || scheme == 'http') && uri.host.isNotEmpty;
 }
+
+/// Opens one of Rift's own folders in the system's file manager — its logs,
+/// for someone sending them by hand. Never a path from anybody else, which is
+/// why it is not [openExternalLink]: that refuses `file:` on purpose.
+Future<bool> openOwnFolder(String path) =>
+    launchUrl(Uri.directory(path), mode: LaunchMode.externalApplication);

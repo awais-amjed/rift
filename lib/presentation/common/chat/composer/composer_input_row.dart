@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'composer_add_button.dart';
+import 'composer_command_backdrop.dart';
 import 'composer_icon_button.dart';
 import 'composer_send_button.dart';
 import 'composer_text_field.dart';
@@ -15,6 +16,9 @@ import 'emoji_picker_popup.dart';
 class ComposerInputRow extends StatelessWidget {
   final TextEditingController controller;
   final FocusNode focusNode;
+
+  /// Passed straight to [ComposerTextField] — see its doc.
+  final CommandShape? commandShape;
   final bool enabled;
   final bool canSend;
   final bool atAttachmentLimit;
@@ -29,6 +33,9 @@ class ComposerInputRow extends StatelessWidget {
 
   /// Passed straight to [ComposerTextField] — see its doc.
   final bool Function({bool sending})? onAcceptSuggestion;
+
+  /// Passed straight to [ComposerTextField] — see its doc.
+  final bool Function(int delta)? onMoveSuggestion;
   final VoidCallback onPickFiles;
 
   /// Start a poll, offered from the "+" beside attaching. Null where there
@@ -41,6 +48,7 @@ class ComposerInputRow extends StatelessWidget {
     super.key,
     required this.controller,
     required this.focusNode,
+    this.commandShape,
     required this.enabled,
     required this.canSend,
     required this.atAttachmentLimit,
@@ -49,6 +57,7 @@ class ComposerInputRow extends StatelessWidget {
     required this.onChanged,
     required this.onSubmit,
     this.onAcceptSuggestion,
+    this.onMoveSuggestion,
     required this.onPickFiles,
     this.onCreatePoll,
     required this.onStartRecording,
@@ -75,12 +84,13 @@ class ComposerInputRow extends StatelessWidget {
           child: ComposerTextField(
             controller: controller,
             focusNode: focusNode,
-
+            commandShape: commandShape,
             enabled: enabled,
             hintText: hintText,
             onChanged: onChanged,
             onSubmit: onSubmit,
             onAcceptSuggestion: onAcceptSuggestion,
+            onMoveSuggestion: onMoveSuggestion,
           ),
         ),
         // Builder so the popover can anchor to the button's own box.

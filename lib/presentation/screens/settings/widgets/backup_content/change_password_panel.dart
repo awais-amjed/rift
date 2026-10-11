@@ -19,6 +19,10 @@ import 'change_password_form.dart';
 /// needs a code from the address on file. That extra step is the difference
 /// between "someone walked past an unlocked laptop" and "someone has the
 /// password *and* the inbox".
+///
+/// A forgotten password skips the first step on an account: this device holds
+/// the seed already, so the code alone is enough
+/// (`supabase_backup_password_reset.dart`).
 class ChangePasswordPanel extends StatefulWidget {
   final SupabaseBackupState state;
 
@@ -123,6 +127,22 @@ class _ChangePasswordPanelState extends State<ChangePasswordPanel> {
                     ? null
                     : () => _submitCurrent(cubit),
               ),
+              // Only with an account: the emailed code stands in for the
+              // password, and privacy mode has no address to send one to.
+              if (state.isSignedIn) ...[
+                const SizedBox(width: 8),
+                TextButton(
+                  onPressed: state.isProcessing
+                      ? null
+                      : cubit.beginPasswordReset,
+                  child: Text(
+                    'Forgotten it?',
+                    style: AppText.secondary.copyWith(
+                      color: theme.textTertiary,
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ],

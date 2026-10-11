@@ -4,6 +4,7 @@ import '../../../../data/classes/server_member.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 import '../../popover_surface.dart';
+import 'composer_menu_row_visible.dart';
 
 /// The `/` menu: which bots are here and what they answer to.
 ///
@@ -21,10 +22,14 @@ class ComposerCommandMenu extends StatelessWidget {
   final List<({ServerMember bot, String name, String? description})> entries;
   final void Function(ServerMember bot, String name) onSelected;
 
+  /// The row the arrow keys are on, or null before one is pressed.
+  final int? highlighted;
+
   const ComposerCommandMenu({
     super.key,
     required this.entries,
     required this.onSelected,
+    this.highlighted,
   });
 
   @override
@@ -40,7 +45,10 @@ class ComposerCommandMenu extends StatelessWidget {
             shrinkWrap: true,
             padding: const EdgeInsets.symmetric(vertical: 4),
             itemCount: entries.length,
-            itemBuilder: (context, i) => _row(context, entries[i]),
+            itemBuilder: (context, i) => ComposerMenuRowVisible(
+              active: i == highlighted,
+              child: _row(context, entries[i], highlighted: i == highlighted),
+            ),
           ),
         ),
       ),
@@ -49,11 +57,14 @@ class ComposerCommandMenu extends StatelessWidget {
 
   Widget _row(
     BuildContext context,
-    ({ServerMember bot, String name, String? description}) entry,
-  ) {
+    ({ServerMember bot, String name, String? description}) entry, {
+    required bool highlighted,
+  }) {
     final themeState = context.theme;
     return Material(
-      type: MaterialType.transparency,
+      // The arrow keys' row lit as the pointer lights one, so the keyboard
+      // and the mouse are pointing at the same kind of thing.
+      color: highlighted ? themeState.bgHover : Colors.transparent,
       child: InkWell(
         mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () => onSelected(entry.bot, entry.name),

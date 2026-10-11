@@ -94,12 +94,21 @@ class BotCommandSpec extends Equatable {
   /// the next one is an ordinary command.
   final bool dismissesBot;
 
+  /// Whether the bot offers suggestions while this command is typed —
+  /// `/play thats so tr` listing songs above the composer (WIRE.md §7).
+  ///
+  /// The one place the composer asks the bot anything before Enter, so it is
+  /// the bot's to switch on, per command: what is typed after the verb goes to
+  /// the bot as it is typed.
+  final bool suggests;
+
   const BotCommandSpec({
     required this.name,
     this.description,
     this.usage,
     this.summonsBot = false,
     this.dismissesBot = false,
+    this.suggests = false,
   });
 
   factory BotCommandSpec.fromJson(Map<String, dynamic> json) => BotCommandSpec(
@@ -108,6 +117,7 @@ class BotCommandSpec extends Equatable {
     usage: json['usage'] as String?,
     summonsBot: json['summon'] == true,
     dismissesBot: json['dismiss'] == true,
+    suggests: json['suggest'] == true,
   );
 
   Map<String, dynamic> toJson() => {
@@ -116,6 +126,7 @@ class BotCommandSpec extends Equatable {
     if (usage != null) 'usage': usage,
     if (summonsBot) 'summon': true,
     if (dismissesBot) 'dismiss': true,
+    if (suggests) 'suggest': true,
   };
 
   @override
@@ -125,5 +136,6 @@ class BotCommandSpec extends Equatable {
     usage,
     summonsBot,
     dismissesBot,
+    suggests,
   ];
 }

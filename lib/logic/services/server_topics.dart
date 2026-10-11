@@ -93,6 +93,11 @@ class ServerEvent {
 
   // From clients.
   static const String typing = 'typing';
+
+  /// Asking a bot what to offer for a command being typed, on the bot's own
+  /// topic; and its answer, on the asker's (WIRE.md §7).
+  static const String botSuggest = 'bot_suggest';
+  static const String botSuggestions = 'bot_suggestions';
   static const String changed = 'changed';
   static const String sweep = 'sweep';
 }

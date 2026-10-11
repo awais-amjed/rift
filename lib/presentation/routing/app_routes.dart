@@ -63,7 +63,8 @@ class AppRoutes {
       ),
       GoRoute(
         path: settings,
-        builder: (context, state) => const SettingsScreen(),
+        builder: (context, state) =>
+            SettingsScreen(target: state.extra as SettingsTarget?),
       ),
     ],
   );

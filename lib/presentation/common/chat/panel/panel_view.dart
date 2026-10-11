@@ -4,6 +4,8 @@ import '../../../../data/classes/panel_block.dart';
 import '../../../../data/constants.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
+import '../attachments/attachment_image_thumb.dart';
+import '../attachments/attachment_loader.dart';
 import '../link_preview_card.dart';
 import 'panel_actions.dart';
 import 'panel_fields.dart';
@@ -26,7 +28,11 @@ class PanelView extends StatelessWidget {
   /// a panel is still worth reading when you cannot touch it.
   final void Function(String action, String? value)? onAction;
 
-  const PanelView({super.key, required this.panel, this.onAction});
+  /// The chat's own, which fetches an `image` block's picture the way it
+  /// fetches a member's. Without one an image block is left out.
+  final AttachmentLoader? loader;
+
+  const PanelView({super.key, required this.panel, this.onAction, this.loader});
 
   /// Only words: nothing to press, fill in or read off a bar.
   bool get _wordsOnly => panel.blocks.every(
@@ -111,10 +117,32 @@ class PanelView extends StatelessWidget {
       ),
       PanelBlockType.actions ||
       PanelBlockType.select => PanelActions(block: block, onAction: onAction),
+      PanelBlockType.image => _image(block),
       // Dropped in parsing; the switch is exhaustive so the compiler says so if
       // a type is ever added without a widget to draw it.
       PanelBlockType.unknown => const SizedBox.shrink(),
     };
+  }
+
+  /// Drawn by [AttachmentImageThumb], so a bot's picture is sized, checked
+  /// against its digest, covered by the sensitive-image setting and opened
+  /// full-screen exactly as a member's is.
+  Widget _image(PanelBlock block) {
+    final loader = this.loader;
+    if (loader == null) return const SizedBox.shrink();
+    final attachment = block.image!.attachment;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Semantics(
+        image: true,
+        label: block.text,
+        child: AttachmentImageThumb(
+          key: ValueKey(attachment.id),
+          attachment: attachment,
+          loader: loader,
+        ),
+      ),
+    );
   }
 
   Widget _progress(BuildContext context, PanelBlock block) {

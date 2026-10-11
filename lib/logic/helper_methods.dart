@@ -8,14 +8,18 @@ import 'package:toastification/toastification.dart';
 
 import '../presentation/common/app_toast.dart';
 import '../presentation/routing/app_routes.dart';
+import 'services/app_log.dart';
 
 /// The app's one way to log, show a toast or an error, and navigate, so none of
 /// those is done differently in two places.
 class HelperMethods {
+  /// Prints in a debug build, and always goes to the app's log
+  /// ([AppLog]), which someone can send with a bug report.
   static void printDebug(dynamic message) {
     if (kDebugMode) {
       print(message);
     }
+    AppLog.write('$message');
   }
 
   static void initEasyLoading() {
@@ -63,6 +67,7 @@ class HelperMethods {
     bool autoClose = true,
     Duration autoCloseDuration = const Duration(seconds: 3),
     VoidCallback? onTap,
+    List<ToastAction> actions = const [],
   }) {
     toastification.showCustom(
       autoCloseDuration: autoClose ? autoCloseDuration : null,
@@ -71,6 +76,7 @@ class HelperMethods {
         description: description,
         type: type,
         onClose: () => toastification.dismiss(item),
+        actions: actions,
         // Held while the mouse is on it: a toast that leaves halfway through
         // being read, or with its text half selected, is gone for good.
         onHover: (over) => over ? item.pause() : item.start(),

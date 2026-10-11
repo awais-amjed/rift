@@ -86,6 +86,28 @@ void main() {
       },
     );
 
+    test('a menu\'s options need only a label, as WIRE.md gives them', () {
+      // Each option comes back under the menu's own action id. Asking every
+      // option for an id of its own dropped them all, so no menu ever drew.
+      final menu = parse([
+        {
+          'type': 'select',
+          'action': 'volume',
+          'text': 'Volume 50%',
+          'options': [
+            {'label': '25%', 'value': '25'},
+            {'label': '50%', 'value': '50'},
+            {'value': 'no-label'},
+          ],
+        },
+      ])!.blocks.single;
+      expect(menu.type, PanelBlockType.select);
+      expect(menu.actions.map((o) => (o.label, o.action, o.value)), [
+        ('25%', 'volume', '25'),
+        ('50%', 'volume', '50'),
+      ]);
+    });
+
     test('a style is a weight, never a colour', () {
       // A bot picks how prominent an action is and nothing else. Anything it
       // does not recognise falls back to normal rather than being honoured,
@@ -103,6 +125,79 @@ void main() {
         PanelButtonStyle.primary,
         PanelButtonStyle.normal,
       ]);
+    });
+  });
+
+  group('a picture', () {
+    const channel = '0b5c7d9e-1f20-4a3b-8c4d-5e6f708192a3';
+    const other = '9f8e7d6c-5b4a-4321-8fed-cba987654321';
+    final sha = '${'A' * 43}=';
+
+    Map<String, Object?> image(String path, {Object? sha256}) => {
+      'type': 'image',
+      'path': path,
+      'sha256': sha256 ?? sha,
+      'width': 300,
+      'height': 300,
+      'text': 'Album art',
+    };
+
+    Panel? parseIn(List<Object?> blocks) =>
+        Panel.tryParse({'v': 1, 'blocks': blocks}, channelId: channel);
+
+    test('one stored under the panel\'s own channel is drawn', () {
+      final block = parseIn([image('$channel/cover_01.jpg')])!.blocks.single;
+      expect(block.type, PanelBlockType.image);
+      expect(block.text, 'Album art');
+      final attachment = block.image!.attachment;
+      // Drawn as a file sent unencrypted: checked against its digest rather
+      // than opened with a key it does not have.
+      expect(attachment.isEncrypted, isFalse);
+      expect(attachment.storagePath, '$channel/cover_01.jpg');
+      expect(attachment.mime, 'image/jpeg');
+      expect((attachment.width, attachment.height), (300, 300));
+    });
+
+    test('never a URL, and never a path out of the channel\'s folder', () {
+      // A URL is the whole reason there was no image block: every member's
+      // client fetching from wherever a bot pointed.
+      for (final path in [
+        'https://example.com/cover.jpg',
+        '$channel/../$other/cover.jpg',
+        '$channel/sub/cover.jpg',
+        'dm_${channel}_$other/cover.jpg',
+        '$channel/cover.svg',
+        '$channel/cover',
+      ]) {
+        expect(parseIn([image(path)]), isNull, reason: path);
+      }
+    });
+
+    test('one borrowed from another channel is dropped', () {
+      expect(parseIn([image('$other/cover.png')]), isNull);
+      // Nor drawn where the channel is not known at all.
+      expect(
+        Panel.tryParse({
+          'v': 1,
+          'blocks': [image('$channel/a.png')],
+        }),
+        isNull,
+      );
+    });
+
+    test('one without a digest is not drawn', () {
+      for (final digest in [null, '', 'abc', '${'A' * 44}=']) {
+        final block = image('$channel/a.png', sha256: digest)
+          ..update('sha256', (_) => digest);
+        expect(parseIn([block]), isNull, reason: '$digest');
+      }
+    });
+
+    test('a nonsense size is ignored rather than laid out', () {
+      final block = parseIn([
+        {...image('$channel/a.webp'), 'width': -4, 'height': 1e9},
+      ])!.blocks.single;
+      expect((block.image!.width, block.image!.height), (null, null));
     });
   });
 

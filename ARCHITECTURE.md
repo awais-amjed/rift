@@ -142,7 +142,13 @@ same seed — combines the two rather than asking which identity to keep.
 A **recovery key**, shown once at vault creation, is the second door. Central
 cannot reset a password into a readable vault — resetting the credential half
 leaves the ciphertext exactly as unreadable as before. That is the honest
-behaviour, and the support burden is the price.
+behaviour, and the support burden is the price. The one exception is a device
+still signed in: its seed is already unwrapped, so a forgotten password is
+replaced there with the emailed reauthentication code alone, which GoTrue
+checks before it takes the new verifier (it skips the check for a session
+signed in under 24 hours ago). The seed is re-wrapped from memory and a new
+recovery key is shown, since whoever forgot the password has probably lost
+the key too.
 
 Central also runs the **public server directory** (opt-in, each listing proved by
 a token the server's admin mints) and the **push relay**, which exists because an
@@ -587,8 +593,10 @@ share was encoded in software on the same CPU a game is using. So on Windows
 Rift encodes H264 itself and hands LiveKit the finished frames on its
 pre-encoded path (`rust/src/screenshare/encoder/`): through **FFmpeg's GPU
 encoders**, NVENC on NVIDIA's GPUs and Quick Sync on Intel's, from the same
-library as Linux's VAAPI below, and through **Media Foundation** where neither
-opens, and on AMD's GPUs until FFmpeg's AMF encoder has been measured on one.
+library as Linux's VAAPI below, and through **Media Foundation** on AMD's GPUs
+until FFmpeg's AMF encoder has been measured on one. Where neither opens, the
+share goes out as VP9. Media Foundation is not the fallback for NVIDIA's and
+Intel's GPUs: NVIDIA's encoder there crashed a 120 fps share twice in two runs.
 Media Foundation reaches all three makers' encoders but runs past WebRTC's
 target whenever the target is below what the picture costs: on a laptop's
 Iris Xe and RTX 3070 Ti the rate gate had to leave out 200 to 1000 pictures
@@ -617,7 +625,8 @@ RX 9070 XT (Mesa 26.2, Oct 9 2026) it stalled the viewer for 2 to 6 s every
 was decoded at 56 of 60 and 115 of 120, one dip in two minutes. FFmpeg cannot be linked beside libwebrtc, which carries Chromium's
 FFmpeg under the same symbol names, so it is built into a library of its own
 (`native/ffenc`): FFmpeg 9.0.2 with nothing but `h264_vaapi` on Linux (and
-`h264_nvenc`, `h264_qsv` and `h264_amf` on Windows), every FFmpeg symbol hidden, opened by the Rust crate at run time (`encoder/ffmpeg.rs`), and
+`h264_nvenc`, `h264_qsv` and `h264_amf` on Windows), every FFmpeg symbol
+hidden, opened by the Rust crate at run time (`encoder/ffmpeg.rs`), and
 VAAPI's first render node that opens an encoder is the one used. FFmpeg's
 encoder sends the bitrate to the GPU only with a keyframe, so the build patches
 it to send WebRTC's every move with the next picture
@@ -722,6 +731,60 @@ audience is exactly the call, and "turn their soundboard down" is a real control
 rather than a request. The cooldown and length cutoff are applied by the
 *listener*, because a limit the sender honours is one a modified client deletes.
 
+### How a call is played out on the desktop — [Implemented October 2026]
+
+On the desktop, everything a call plays — voices, a share's sound, a bot —
+passes through WebRTC's audio processing module on its way out, not around
+it. The library flutter_webrtc ships always installs a render
+pre-processor (an empty one unless set), and with one installed WebRTC plays
+the module's own copy of the audio instead of the audio. That copy is mono,
+and on Linux it runs at the capture rate, which is 16 kHz until the
+microphone has recorded something. Somebody who joined muted and stayed muted
+heard the whole call cut off just under 8 kHz; one unmute was enough to bring
+it to the module's 32 kHz, and that held after muting again.
+
+`PlayoutWarmup` closes that gap: joining without transmitting, the client
+sends the microphone from one peer connection to another inside the process
+for half a second, which is enough for the module to learn the rate, and closes
+both. Nothing leaves the app and the call does not see the microphone open.
+Once per session, since the rate holds until the app quits. Measured Oct 10
+2026 on Linux: muted from the start went from a 7.3 kHz cut-off to 14 kHz, the
+same as having unmuted.
+
+**Linux only.** Windows uses the same library and measured differently in the
+VM: about 14 kHz joined muted and unmuted alike, while the warm-up took it to
+7.4 kHz and made Windows turn other apps down — recording there opens a
+communications stream, which is what Windows ducks for.
+
+**Still true:** playback is mono, and nothing above about 16 kHz survives. Both
+come from the library, and fixing them means building it without the render
+pre-processor (or with multi-channel render), not anything in this repository.
+Web, Android and macOS use other WebRTC builds and are not affected (not
+measured).
+
+### Windows turning other apps down — [Implemented October 2026]
+
+Windows lowers every other sound while an app has playback open through the
+*communications* role ("ducking": 80% by default, set in the Sound window's
+Communications tab). Measured Oct 10 2026 in a Windows 11 VM: such a stream
+lowered a tone by 18 dB, the same speakers opened through the console role did
+nothing, and a microphone alone did nothing. People notice it on their first
+call and ask why their music went quiet.
+
+Rift does not try to stop it. The setting is Windows', for every calling app,
+and only takes effect when changed in that window (`WindowsSoundSettings`).
+It says what happened instead. `rust/src/ducking.rs` registers for Windows'
+duck notifications (`RegisterDuckNotification`, every session) and reads the
+choice from the registry (`UserDuckingPreference`). `DuckingCubit` counts the
+ducks while the choice lowers others, and `DuckingHintListener` shows a toast
+during a Rift call: it explains what happened, offers "Fix it" (Settings →
+Voice & audio, scrolled to the section and lit up) and "Don't show again"
+(`AppState.showDuckingHint`). The section shows the choice live, re-read when
+the window regains focus, and draws Windows' four options with the one to pick
+marked. **A change applies from the next call.** Windows keeps a duck until the
+stream that caused it closes, so the section says to rejoin when the person
+fixes it mid-call. With "Do nothing" set, Windows sends no duck at all.
+
 ---
 
 ## 6. Threat model summary
@@ -813,6 +876,46 @@ A copy not installed by Velopack — a build run from its folder, the
 update itself and says so in Settings. On Windows the first start of a
 Velopack copy offers to remove that old copy, behind one administrator
 prompt (`windows/runner/velopack_hooks.cpp`).
+
+## 9. The app's log and bug reports — [Implemented October 2026]
+
+Every session writes a log, so that someone whose share stopped or whose app
+closed can send what happened. **Rust owns the file** (`rust/src/logging.rs`):
+its own `log::` lines, Dart's `HelperMethods.printDebug` lines (through
+`write_log_line`), panics and the errors nothing caught (`AppLog.catchErrors`)
+all go into it, each written the moment it arrives. A crash in native code
+therefore loses nothing it had buffered, and the last lines before it are the
+ones that survive. Until Dart names the folder at startup, lines wait in
+memory.
+
+One file per session, `rift-<UTC time>-<pid>.log` in the profile's `logs`
+folder (Local AppData on Windows, the XDG data folder on Linux, the app's
+own folder on Android), the newest ten kept. A crash is reported from the
+session after it, so the one before has to survive a restart. A file past
+8 MB is moved to `.old.log` and started again, keeping a long session's
+latest lines. The web has no file: its last lines stay in memory for the tab.
+Rust's own lines on Android go to logcat only, because flutter_rust_bridge's
+logger there is not ours to tee.
+
+**What is in it is what a log line says**, and the log is something people
+send. So a line never carries a secret or anything from a sealed message — a
+link preview's failure names only the host. As a safety net, every line
+passes through `redact` before it is written: anything shaped like a JWT, the
+word after `Bearer`, and the value of `access_token`, `apikey`, `token`,
+`password` and the like become `[redacted]`. What it does carry: the version
+and system, server and room ids, error text, device names, and the title of a
+window being shared.
+
+**Report a bug** (Settings → General → Help) sends it. The person writes what
+happened; `BugReportRepository` files it on central (`submit_bug_report`, ten
+a day per account, a Rift account required), then uploads the newest four log
+files, gzipped, into `bug-reports/<uid>/<report id>/`. The bucket takes a file
+only under the uploader's own report, within an hour of filing it and four
+files to a report, so a report id is not somewhere to keep putting bytes. Only
+a moderator with a second factor reads them, on `rift-admin`'s Bug reports
+page; central deletes a report after 90 days and the nightly sweep its files.
+The dialog says what goes with it before anything is sent. On a desktop,
+Help also opens the logs folder, for someone sending them by hand.
 
 ---
 

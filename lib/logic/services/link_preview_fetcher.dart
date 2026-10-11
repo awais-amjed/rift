@@ -74,7 +74,11 @@ class LinkPreviewFetcher {
         image: image,
       );
     } catch (e) {
-      HelperMethods.printDebug('LinkPreviewFetcher: $url – $e');
+      // The host only: the link came out of a sealed message, and the log is
+      // something people send. The error's text can quote the link, so its type.
+      HelperMethods.printDebug(
+        'LinkPreviewFetcher: ${url.host} – ${e.runtimeType}',
+      );
       return null;
     }
   }

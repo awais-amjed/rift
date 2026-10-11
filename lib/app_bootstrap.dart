@@ -10,10 +10,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'data/constants.dart';
+import 'data/device_id.dart';
 import 'data/repositories/native_blob_cipher.dart';
 import 'data/repositories/update_repository.dart';
 import 'logic/cubits/app/app_cubit.dart';
 import 'logic/helper_methods.dart';
+import 'logic/services/app_log.dart';
 import 'logic/services/browser_apis.dart';
 import 'logic/services/file_save/save_target.dart';
 import 'logic/services/gpu_codecs.dart';
@@ -48,9 +50,19 @@ class AppBootstrap {
     final storageSuffix = _applyStorageNamespace();
     await StorageNamespace.useProfileSecureStorage(storageSuffix);
     _claimInviteLinks(storageSuffix);
+    AppLog.catchErrors();
+    // The first line of every log, held until the file opens below.
+    await AppLog.writeHeader();
 
     if (!kIsWeb) {
+      // Before anything joins a call: a restart rejoins as the same device.
+      await DeviceId.loadFrom(
+        File(
+          '${await StorageNamespace.profileDirectory(storageSuffix)}/device_id',
+        ),
+      );
       await RustLib.init();
+      await AppLog.start(storageSuffix);
       CryptoRepository.blobCipher = const NativeBlobCipher();
       // First after the bridge: it may put a downloaded update in place and
       // restart into it, and nothing should have started by then.

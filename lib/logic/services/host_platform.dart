@@ -87,6 +87,17 @@ class HostPlatform {
   static bool get playsCuesOnChosenOutput =>
       !kIsWeb && (Platform.isWindows || Platform.isLinux);
 
+  /// Whether a call heard before the microphone has run plays at 16 kHz.
+  ///
+  /// The desktop WebRTC library flutter_webrtc ships always installs a
+  /// render pre-processor, so every frame played is rebuilt from the audio
+  /// processing module's copy, and on Linux that copy runs at 16 kHz until
+  /// something has been recorded. See `PlayoutWarmup`. Not Windows: there a
+  /// call joined muted already played at about 14 kHz, and the warm-up made
+  /// it worse — 7.4 kHz, and Windows turned other apps down for it, since
+  /// recording there opens a communications stream.
+  static bool get playoutFollowsMicRate => !kIsWeb && Platform.isLinux;
+
   /// Whether WebRTC lists the system default as an audio device of its own.
   ///
   /// Its PulseAudio module puts an extra "default: …" entry, named after the

@@ -142,6 +142,7 @@ only a structure.
 | `divider` | — | a rule |
 | `actions` | `items: [{label, action, style?}]` | a row of buttons |
 | `select` | `action`, `text?`, `options: [{label, value?}]` | a menu |
+| `image` | `path`, `sha256`, `width?`, `height?`, `text?` | a picture |
 
 `style` is `primary`, `danger`, or absent. It is a **weight, not a colour** —
 a bot cannot paint a button into looking like part of Rift's own chrome.
@@ -159,7 +160,16 @@ The bot redraws by writing `blocks` again on the same row and ringing
 `message_changed` with its id. Ringing `new_message` makes clients fetch what is
 *newer* than they have, and a redraw is not newer than anything.
 
-`image` is deliberately absent from v1 — see BOTS.md §5.
+An `image` is never a URL. `path` names an object in the server's own
+attachment bucket (`chat-<server id>`), uploaded unencrypted by the bot:
+`<channel id>/<name>.<png|jpg|jpeg|webp|gif>`, where the channel is the one the
+panel is in and the name is letters, digits, `_` and `-`. A block naming any
+other channel, a folder below it, or any other kind of file is dropped.
+`sha256` is the base64 SHA-256 of the bytes (44 characters); a download that
+does not match is not drawn. `width` and `height` are the picture's size in
+pixels, 1 to 16384, kept so the panel holds room for it before it arrives;
+anything else is ignored. `text` describes it for a screen reader. Why it is
+built this way is in BOTS.md §5.
 
 ---
 
@@ -246,6 +256,51 @@ is the slot, and members read a bot's key from 0 for exactly this reason
 A port that applied the arithmetic above to a bot's key would put it in slot 1
 on a channel at version 1 and the bot would be inaudible — which is the failure
 this section exists to prevent, arrived at by following this section.
+
+---
+
+## 7. Suggestions
+
+A command the manifest marks `"suggest": true` asks its bot what to offer while
+somebody types it — `/play thats so tr` lists songs above the composer. Both
+halves are Realtime broadcasts sent with `POST /realtime/v1/api/broadcast` and
+`private: true`; nothing is written to a table.
+
+The member's client sends `bot_suggest` to `user:<bot id>`, which any co-member
+may send to and only the bot hears:
+
+```
+{ "v": 1, "id": "<8–64 of A–Z a–z 0–9 _ ->", "from": "<asker's user id>",
+  "channel": "<channel id>", "command": "play", "text": "thats so tr" }
+```
+
+`command` is the lower-case name without its slash; `text` is everything after
+`/play `, up to 200 characters. The bot answers `bot_suggestions` on
+`user:<from>`:
+
+```
+{ "v": 1, "id": "<the request's id>", "bot": "<bot id>",
+  "items": [ { "label": "That's So True — Gracie Abrams · 2:47",
+               "value": "https://example.com/songs/thats-so-true" } ] }
+```
+
+At most ten items; a `label` of at most 100 characters and a `value` of at most
+500 with no line break. Picking one sends `/<command> <value>` as an ordinary
+command, signed and addressed like anything typed.
+
+**Neither side is vouched for by the server**, and the rules follow from that.
+`from` is the asking client's word, so a bot only looks things up for a
+suggestion and acts on nothing until the command itself arrives. The answer
+is accepted only when its `id` is one this client sent and has not had answered:
+nobody else hears `user:<bot id>`, so nobody else knows the id, and an answer
+naming any other id is dropped. A request sent while an earlier one from the
+same asker is still being worked out replaces any waiting one, so only the
+newest is answered next.
+
+What somebody types after the command goes to the bot before they press Enter,
+unencrypted, like the command it becomes. The client asks only once a
+`suggest` command and a space have been typed, so nothing reaches the bot
+before the person has chosen to talk to it.
 
 ---
 

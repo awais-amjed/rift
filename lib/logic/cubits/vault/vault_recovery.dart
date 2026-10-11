@@ -91,6 +91,33 @@ mixin _VaultRecoveryMixin on Cubit<VaultState> {
     }
   }
 
+  /// Replace the recovery key from the seed in memory, proving nothing.
+  ///
+  /// For a password reset on a signed-in device only, called once the account
+  /// has accepted the emailed code. That code is the proof [regenerateRecoveryKey]
+  /// asks the password for: an unlocked device alone does not mint a key.
+  Future<({bool success, String? error})> reissueRecoveryKey() async {
+    final masterSeedB64 = state.masterSeed;
+    if (masterSeedB64 == null) {
+      return (success: false, error: 'Vault is locked');
+    }
+    try {
+      final fresh = await _issueRecoveryKey(masterSeedB64);
+      emit(state.copyWith(pendingRecoveryKey: fresh));
+      return (success: true, error: null);
+    } catch (e) {
+      HelperMethods.printDebug('[Vault] reissueRecoveryKey error: $e');
+      return (success: false, error: e.toString());
+    }
+  }
+
+  /// The password wrap as stored, for putting back with [restoreSeedBlob]
+  /// when a [rewrapSeed] has to be undone.
+  Future<EncryptedSeed?> storedSeedBlob() => _storage.getEncryptedSeed();
+
+  Future<void> restoreSeedBlob(EncryptedSeed blob) =>
+      _storage.saveEncryptedSeed(blob);
+
   /// Re-wrap the in-memory master seed under [newPassword].
   ///
   /// Unlike [changeVaultPassword] this proves nothing first, because in the

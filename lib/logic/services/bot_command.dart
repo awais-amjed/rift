@@ -1,3 +1,5 @@
+import 'dart:ui' show TextRange;
+
 import '../../data/classes/server_member.dart';
 
 /// A composer line that resolved to a command for a particular bot.
@@ -106,6 +108,73 @@ class BotCommands {
       }
     }
     return false;
+  }
+
+  /// Where the command sits in [text], for drawing it apart from what is
+  /// typed after it: the verb (`/play`, slash included) and the argument,
+  /// with the verb's `usage` to show while the argument is still empty.
+  ///
+  /// Only once a space follows the verb — before that the `/` menu is still
+  /// finishing it — and only for a line [parse] would send to a bot, so what
+  /// is drawn as a command is exactly what goes out as one. Offsets are into
+  /// [text] as it stands, leading spaces included.
+  static ({TextRange verb, TextRange argument, String? usage})? shapeOf(
+    String text,
+    List<ServerMember> bots,
+  ) {
+    final start = text.length - text.trimLeft().length;
+    if (!text.startsWith('/', start)) return null;
+    final rest = text.substring(start);
+    final firstBreak = rest.indexOf(RegExp(r'\s'));
+    if (firstBreak <= 1) return null;
+    if (parse(text, bots) == null) return null;
+    final head = rest.substring(1, firstBreak).toLowerCase();
+    String? usage;
+    for (final bot in bots) {
+      final spec = bot.manifest.commands.where((c) => c.name == head);
+      if (spec.isNotEmpty) {
+        usage = spec.first.usage;
+        break;
+      }
+    }
+    final verbEnd = start + firstBreak;
+    // The argument starts after the run of spaces, so its box hugs the words.
+    final afterSpaces = text.length - text.substring(verbEnd).trimLeft().length;
+    return (
+      verb: TextRange(start: start, end: verbEnd),
+      argument: TextRange(start: afterSpaces, end: text.length),
+      usage: usage,
+    );
+  }
+
+  /// What to ask a bot for while [text] is typed, or null when there is
+  /// nothing to ask: the line must be a verb the bot declared with
+  /// `suggest`, a space, and something after it.
+  ///
+  /// By verb only, never by a bot's own name: `/musicbot play x` carries no
+  /// manifest entry to have switched suggestions on.
+  static ({ServerMember bot, String command, String query})? suggestionQuery(
+    String text,
+    List<ServerMember> bots,
+  ) {
+    final trimmed = text.trimLeft();
+    if (!trimmed.startsWith('/')) return null;
+    final firstBreak = trimmed.indexOf(RegExp(r'\s'));
+    if (firstBreak == -1) return null;
+    final query = trimmed.substring(firstBreak + 1).trim();
+    // WIRE.md §7 caps what is asked about; a line longer than that is not
+    // somebody looking for a song.
+    if (query.isEmpty || query.length > 200) return null;
+    final head = trimmed.substring(1, firstBreak).toLowerCase();
+    for (final bot in bots) {
+      for (final spec in bot.manifest.commands) {
+        if (spec.name != head) continue;
+        // The first bot to declare the verb is the one [parse] sends to, so
+        // it is the one to ask — even when it does not offer suggestions.
+        return spec.suggests ? (bot: bot, command: head, query: query) : null;
+      }
+    }
+    return null;
   }
 
   /// The commands to offer for [text], as a `/` menu.

@@ -9,6 +9,7 @@ import '../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../logic/cubits/dm/dm_cubit.dart';
 import '../logic/cubits/dm_call/dm_call_cubit.dart';
+import '../logic/cubits/ducking/ducking_cubit.dart';
 import '../logic/cubits/livekit/livekit_cubit.dart';
 import '../logic/cubits/media/media_cubit.dart';
 import '../logic/cubits/network/network_cubit.dart';
@@ -67,6 +68,7 @@ class AppProviders extends StatelessWidget {
       providers: [
         BlocProvider(create: (_) => ThemeCubit()),
         BlocProvider(create: (_) => MediaCubit()),
+        BlocProvider(create: (_) => DuckingCubit()),
         BlocProvider(create: (_) => _createServerCubit()),
         BlocProvider(create: _createNetworkCubit),
         BlocProvider(create: (_) => ServerReachCubit.of(session)),

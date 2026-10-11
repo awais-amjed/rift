@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/classes/attachment.dart';
+import '../../../../data/classes/bot_suggestion.dart';
 import '../../../../data/classes/chat_message.dart';
 import '../../../../data/classes/pending_attachment.dart';
 import '../../../../data/classes/server_limits.dart';
@@ -27,7 +28,9 @@ import '../../../theme/theme_context.dart';
 import '../../emoji_text.dart';
 import '../../tap_to_focus.dart';
 import '../drop/chat_drop_relay.dart';
+import 'composer_bot_suggestions.dart';
 import 'composer_channel_plain_notice.dart';
+import 'composer_command_backdrop.dart';
 import 'composer_command_menu.dart';
 import 'composer_input_row.dart';
 import 'composer_link_preview.dart';
@@ -39,7 +42,9 @@ import 'composer_reply_bar.dart';
 import 'composer_staged_row.dart';
 
 part 'chat_composer_attachments.dart';
+part 'chat_composer_bot_suggest.dart';
 part 'chat_composer_link_preview.dart';
+part 'chat_composer_menu_keys.dart';
 part 'chat_composer_menus.dart';
 part 'chat_composer_recording.dart';
 
@@ -85,6 +90,16 @@ class ChatComposer extends StatefulWidget {
   /// caps the menu — and it agrees with `search_members` by design, so the rows
   /// do not reorder themselves when the server's reply lands.
   final Future<List<ServerMember>> Function(String query)? onMentionSearch;
+
+  /// What a bot offers for `/<command> <text>`, asked while it is typed
+  /// (WIRE.md §7). Only for a command whose bot declared `suggest`; null turns
+  /// the asking off, which is right wherever there are no bots.
+  final Future<List<BotSuggestion>> Function(
+    ServerMember bot,
+    String command,
+    String text,
+  )?
+  onCommandSuggest;
 
   /// The sender, left out of their own `@` menu: a message that pings its own
   /// author is only ever a mistake, and `Mentions.resolve` drops it anyway.
@@ -179,6 +194,7 @@ class ChatComposer extends StatefulWidget {
     this.onCreatePoll,
     this.bots = const [],
     this.onMentionSearch,
+    this.onCommandSuggest,
     this.selfUserId,
     this.replyingTo,
     this.onCancelReply,
@@ -195,10 +211,12 @@ class _ChatComposerState extends State<ChatComposer>
         _ComposerAttachmentsMixin,
         _ComposerRecordingMixin,
         _ComposerLinkPreviewMixin,
-        _ComposerMenusMixin {
+        _ComposerMenusMixin,
+        _ComposerBotSuggestMixin,
+        _ComposerMenuKeysMixin {
   // Colours emoji as they are typed, matching how they render once sent.
   @override
-  final TextEditingController _controller = EmojiTextEditingController();
+  final EmojiTextEditingController _controller = EmojiTextEditingController();
   @override
   final FocusNode _focusNode = FocusNode();
   @override
@@ -216,6 +234,7 @@ class _ChatComposerState extends State<ChatComposer>
     // Fires for edits *and* caret moves; both change whether the caret is
     // inside a mention.
     _controller.addListener(_syncMentionMenu);
+    _controller.addListener(_syncBotSuggest);
   }
 
   @override
@@ -247,14 +266,17 @@ class _ChatComposerState extends State<ChatComposer>
     _releaseDropRelay();
     _disposeRecording();
     _disposeMenus();
+    _disposeBotSuggest();
     _disposeLinkPreview();
     _controller.removeListener(_syncMentionMenu);
+    _controller.removeListener(_syncBotSuggest);
     _controller.dispose();
     _focusNode.removeListener(_onFocusChanged);
     _focusNode.dispose();
     super.dispose();
   }
 
+  @override
   void _send() {
     // The field holds display names; a mention has to travel as a username.
     final text = MentionSuggestions.toWire(_controller.text, _picked).trim();
@@ -273,6 +295,19 @@ class _ChatComposerState extends State<ChatComposer>
       }),
     );
     _focusNode.requestFocus();
+  }
+
+  /// Where the command is in the line, for the field to draw it apart — and
+  /// the verb handed to the controller to colour. Worked out on each build
+  /// from the text, like [_command], so the drawing and what is sent cannot
+  /// disagree: a staged file turns a command back into a message, and the
+  /// boxes go with it.
+  CommandShape? _commandShape() {
+    final shape = _staged.isNotEmpty || !widget.enabled
+        ? null
+        : BotCommands.shapeOf(_controller.text, widget.bots);
+    _controller.command = shape?.verb;
+    return shape;
   }
 
   /// Put a refused message back as it was typed: the field's own text (names,
@@ -344,6 +379,7 @@ class _ChatComposerState extends State<ChatComposer>
                   heightFactor: 1,
                   child: ComposerMentionMenu(
                     members: _mentions,
+                    highlighted: _highlighted,
 
                     onSelected: _pickMention,
                   ),
@@ -406,6 +442,15 @@ class _ChatComposerState extends State<ChatComposer>
             entries: _suggestions,
 
             onSelected: (_, name) => _pickCommand(name),
+            highlighted: _highlighted,
+          )
+        else if (_showsBotSuggestions)
+          ComposerBotSuggestions(
+            bot: _botQuery!.bot,
+            suggestions: _botSuggestions,
+            searching: _botSearching,
+            onSelected: _pickBotSuggestion,
+            highlighted: _highlighted,
           ),
         _buildBar(themeState),
         // No gap of its own: a footer with nothing to say draws nothing, and
@@ -455,6 +500,7 @@ class _ChatComposerState extends State<ChatComposer>
           : ComposerInputRow(
               controller: _controller,
               focusNode: _focusNode,
+              commandShape: _commandShape(),
 
               enabled: widget.enabled,
               canSend:
@@ -467,6 +513,7 @@ class _ChatComposerState extends State<ChatComposer>
               onChanged: _onTextChanged,
               onSubmit: _send,
               onAcceptSuggestion: _acceptSuggestion,
+              onMoveSuggestion: _moveHighlight,
               onPickFiles: _pickFiles,
               onCreatePoll: widget.onCreatePoll,
               onStartRecording: _startRecording,

@@ -17,3 +17,18 @@ extension SettingsTabLabel on SettingsTab {
     SettingsTab.backup => 'Account & backup',
   };
 }
+
+/// A place in Settings to open at: a tab, and optionally one section in it
+/// to scroll to and light up — for a notice whose "Fix it" leads there.
+class SettingsTarget {
+  final SettingsTab tab;
+  final SettingsSection? section;
+
+  const SettingsTarget(this.tab, {this.section});
+}
+
+/// Sections something outside Settings can point at.
+enum SettingsSection {
+  /// Voice & audio's "Other apps' volume during calls".
+  ducking,
+}

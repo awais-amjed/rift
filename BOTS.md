@@ -2,8 +2,8 @@
 
 Design reference for third-party integrations. **Everything here is implemented** — the bot
 itself, panels, the grants and encrypted voice, plus the SDK (§10). What is left is in §11 and in
-the SDK's README, and it is choices rather than a backlog: attachments, joining from an invite
-link, and an `image` block that points at this server's own bucket. A bot reads over realtime — it
+the SDK's README, and it is choices rather than a backlog: attachments and joining from an
+invite link. A bot reads over realtime — it
 is told what it may hear on its own topic, and polls slowly behind that as a backstop.
 Sections are marked as they land, the same way `ARCHITECTURE.md` marks its own.
 
@@ -156,6 +156,15 @@ plain, something unmissable — **before** it is sent.
 `/roll 2d6` in the clear is nothing. Someone typing `/ask` and pasting something personal is a
 different event, and they need to know while they can still stop.
 
+The line itself changes too, once the verb and a space are typed: the verb turns accent and what
+follows it is set like inline code — the code face, in a box — with the verb's `usage` as a
+placeholder until something is typed (`ComposerCommandBackdrop`). Drawn behind the field's text
+rather than replacing it, so the field still holds exactly the line that is sent, and drawn only for
+a line `BotCommands.parse` would send to a bot — `/shrug x` stays plain text because it goes out
+sealed. The sent command reads the same way in the channel (`commandMessageSpan`, for any row with
+`to_bot`), and without markup: the bot gets the characters, so `*` in a title is drawn as `*`.
+Addresses in it are still links that open, found by the same rules as in a message (`linkStretches`).
+
 ### Only `/` is a command
 
 A normal message that mentions a bot does **nothing**. No natural-language triggering, no
@@ -200,6 +209,31 @@ arguments. With the list open, Enter on a verb typed in full that has no `usage`
 one with a `usage`, or a half-typed verb, is completed and waits for the rest. A bot that takes
 arguments but declares no `usage` gets sent the bare verb.
 
+### Suggestions while you type — [Implemented October 2026]
+
+A command the manifest marks `suggest` gets a second menu once its verb and a space are typed:
+`/play thats so tr` lists songs, and clicking one sends `/play <its value>` — for the music bot,
+the song's own link, so what plays is what was shown. Enter without picking sends the line as typed.
+
+This is the one place the composer talks to a bot before Enter, and it is the bot's to switch on,
+per command: what follows the verb reaches the bot as it is typed, unencrypted, in a pause-driven
+trickle of questions. Nothing is asked for a bare verb, for a bot addressed by its own name, or for
+a verb whose bot did not opt in, and the composer's unencrypted notice is already up by the time
+anything is asked.
+
+Both halves are Realtime broadcasts (WIRE.md §7), so nothing is stored: the question goes to the
+bot's own `user:` topic, which any co-member may send to and only the bot hears, and the answer
+comes back on the asker's. The server vouches for neither. That shapes both ends:
+
+- **The bot acts on nothing it is asked here.** `from` is the asking client's claim, so a handler
+  only looks things up; the song is queued when the signed command arrives.
+- **The client takes only the answer to its own question.** The request carries a random id only
+  the bot heard, and an answer naming any other id — somebody else on the server writing to this
+  person's topic — is dropped. The rows are the bot's words, so the menu says whose they are.
+
+No migration was needed: `app.can_use_topic` already lets a co-member send on another member's
+`user:` topic, because a DM's typing indicator travels the same way.
+
 ---
 
 ## 5. Replies — [Implemented]
@@ -241,16 +275,39 @@ Start with the smallest useful set and add on demand:
 | `divider` | a rule |
 | `actions` | a row of `button`s |
 | `select` | a dropdown |
+| `image` | a picture from this server's own bucket |
 
 The bot sends that as JSON and the app draws each block with its own widget. The vocabulary is
 fixed and versioned, because third-party bots make it public API — **anything not in the list
 cannot be drawn**, which is the safety property rather than a shortcoming of the first version.
-`WIRE.md` §5 freezes the seven, field by field.
+`WIRE.md` §5 freezes the eight, field by field.
 
-**There is no `image` block, and that is a decision rather than an omission.** A URL a bot chose
-makes every member's client fetch from it, which hands a third party the IP address of everybody
-in the room and a per-member read receipt. It comes back when it can point at the server's own
-attachment bucket.
+### Pictures — [Implemented October 2026]
+
+**An `image` block is never a URL.** A URL a bot chose makes every member's client fetch from it,
+which hands a third party the IP address of everybody in the room and a per-member read receipt.
+That is why the first set had no picture at all.
+
+So the bot uploads the picture to the server's own attachment bucket, unencrypted, under the
+channel the panel is in, and the block names that object. Every member's client already talks to
+that server, so fetching from it tells nobody anything new. Three rules hold it:
+
+- **Only somebody who can see the channel reads it.** The object sits under the channel's folder,
+  and `chat_attachments_select` asks `app.can_read_attachment` the same question it asks of a
+  member's own files. The upload is held to `chat_attachments_insert`, so a bot needs
+  `ATTACH_FILES`, and the server's cap and file-size limit count it like any other file.
+- **A panel shows only its own channel's pictures.** The client drops a block whose path names a
+  different channel, so a panel cannot draw a picture kept alive by another channel's history.
+  The orphan sweep keeps the object while its channel has messages older than it, as with any
+  attachment, and a bot replacing a picture deletes the old one itself (an uploader may delete its
+  own object).
+- **It carries a digest.** `sha256` is checked on download, as for a member's file sent
+  unencrypted. It does not make the picture secret: the panel and the picture are both readable
+  by the server, the same as every bot message. What it adds is that a bot can only name bytes
+  it had, so it cannot make a panel show a member's file it never held.
+
+The client draws it with the code that draws a member's picture, so it is sized before it arrives,
+covered by the sensitive-image setting, and opened full-screen when tapped.
 
 ### The round trip
 
