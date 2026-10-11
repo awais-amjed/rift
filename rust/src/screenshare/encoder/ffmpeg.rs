@@ -194,8 +194,8 @@ fn candidates() -> Vec<Candidate> {
 /// with Intel graphics beside an NVIDIA or AMD card gets the card's encoder,
 /// as on Linux. The pictures come from memory, so which GPU the screen is on
 /// does not matter. AMD's (`h264_amf`) followed a moved rate like the other
-/// two on an RX 9070 XT (Oct 11 2026, `GPU_ENCODING_AMD_WINDOWS_RESULTS.md`).
-/// [`ENCODER_ENV`] names the one to try instead.
+/// two on an RX 9070 XT (Oct 11 2026, `GPU_ENCODING_AMD_WINDOWS_RESULTS.md` on
+/// the `gpu-encoding` branch). [`ENCODER_ENV`] names the one to try instead.
 #[cfg(target_os = "windows")]
 fn candidates() -> Vec<Candidate> {
     const ENCODERS: [(&CStr, &str); 3] = [

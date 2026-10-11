@@ -77,7 +77,7 @@ Measured Oct 11 2026 on an RX 9070 XT (driver 32.0.31041.1004), 2560x1440 at
 5.29 to 5.57 after, 11.25 to 12.09 at 12, and keyframes only at the start and
 where one was asked for. So AMD's GPUs now encode through it
 (`rust/src/screenshare/encoder/ffmpeg.rs`); the numbers are in
-`GPU_ENCODING_AMD_WINDOWS_RESULTS.md`.
+`GPU_ENCODING_AMD_WINDOWS_RESULTS.md` on the `gpu-encoding` branch.
 
 ## Quick Sync needs no patch, but its settings matter
 
