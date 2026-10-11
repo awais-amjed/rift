@@ -42,8 +42,12 @@ class _ChangePasswordFormState extends State<ChangePasswordForm> {
     super.dispose();
   }
 
+  bool get _resetting =>
+      widget.state.passwordChange == PasswordChangeStage.reset;
+
   bool get _needsCode =>
-      widget.state.passwordChange == PasswordChangeStage.enterCode;
+      widget.state.passwordChange == PasswordChangeStage.enterCode ||
+      _resetting;
 
   void _submit() {
     final password = _password.text;
@@ -64,7 +68,12 @@ class _ChangePasswordFormState extends State<ChangePasswordForm> {
     }
     setState(() => _validationError = null);
 
-    context.read<SupabaseBackupCubit>().submitPasswordChange(
+    final cubit = context.read<SupabaseBackupCubit>();
+    if (_resetting) {
+      cubit.submitPasswordReset(newPassword: password, code: _code.text.trim());
+      return;
+    }
+    cubit.submitPasswordChange(
       newPassword: password,
       code: _needsCode ? _code.text.trim() : null,
     );
@@ -130,11 +139,15 @@ class _ChangePasswordFormState extends State<ChangePasswordForm> {
         // being hypothetical: the old blobs in the cloud are about to be
         // replaced, and anything still encrypted under the old password
         // becomes unreadable.
-        const MessageBanner(
-          message:
-              'Backups made with the old password can no longer be restored '
-              'once this goes through. Your recovery key keeps working — it '
-              'wraps the same vault independently of the password.',
+        MessageBanner(
+          message: _resetting
+              ? 'Backups made with the old password can no longer be '
+                    'restored once this goes through. You will get a new '
+                    'recovery key, and the old one stops working.'
+              : 'Backups made with the old password can no longer be '
+                    'restored once this goes through. Your recovery key '
+                    'keeps working — it wraps the same vault independently '
+                    'of the password.',
           kind: MessageBannerKind.caution,
         ),
 

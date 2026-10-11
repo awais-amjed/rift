@@ -17,6 +17,7 @@ import '../vault/vault_cubit.dart';
 part 'supabase_backup_account_recovery.dart';
 part 'supabase_backup_auth.dart';
 part 'supabase_backup_password.dart';
+part 'supabase_backup_password_reset.dart';
 part 'supabase_backup_restore.dart';
 part 'supabase_backup_state.dart';
 part 'supabase_backup_transfer.dart';
@@ -45,6 +46,7 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState>
         _SupabaseBackupRestoreMixin,
         _SupabaseBackupTransferMixin,
         _SupabaseBackupPasswordMixin,
+        _SupabaseBackupPasswordResetMixin,
         _SupabaseBackupAccountRecoveryMixin {
   /// How long the resend button stays locked after asking.
   ///

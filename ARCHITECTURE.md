@@ -142,7 +142,13 @@ same seed — combines the two rather than asking which identity to keep.
 A **recovery key**, shown once at vault creation, is the second door. Central
 cannot reset a password into a readable vault — resetting the credential half
 leaves the ciphertext exactly as unreadable as before. That is the honest
-behaviour, and the support burden is the price.
+behaviour, and the support burden is the price. The one exception is a device
+still signed in: its seed is already unwrapped, so a forgotten password is
+replaced there with the emailed reauthentication code alone, which GoTrue
+checks before it takes the new verifier (it skips the check for a session
+signed in under 24 hours ago). The seed is re-wrapped from memory and a new
+recovery key is shown, since whoever forgot the password has probably lost
+the key too.
 
 Central also runs the **public server directory** (opt-in, each listing proved by
 a token the server's admin mints) and the **push relay**, which exists because an
