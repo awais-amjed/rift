@@ -72,8 +72,12 @@ WebRTC asked for. AMF takes all three as dynamic properties, so the patch notes
 what it last sent and, when the caller has moved any of them, sets them on the
 encoder before the next picture goes in, with no keyframe.
 
-**Not yet measured**: there was no AMD GPU to run it on. Rift leaves AMD's GPUs
-to Media Foundation until it has been (`rust/src/screenshare/encoder/ffmpeg.rs`).
+Measured Oct 11 2026 on an RX 9070 XT (driver 32.0.31041.1004), 2560x1440 at
+60 fps, the rate moved 20 → 5 → 12 Mbps: 5.31 Mbps in the second it fell and
+5.29 to 5.57 after, 11.25 to 12.09 at 12, and keyframes only at the start and
+where one was asked for. So AMD's GPUs now encode through it
+(`rust/src/screenshare/encoder/ffmpeg.rs`); the numbers are in
+`GPU_ENCODING_AMD_WINDOWS_RESULTS.md`.
 
 ## Quick Sync needs no patch, but its settings matter
 

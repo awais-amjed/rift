@@ -1,6 +1,6 @@
 //! H264 on a GPU through FFmpeg: its VAAPI encoder for Intel's and AMD's GPUs
-//! on Linux, and on Windows its NVENC encoder for NVIDIA's and its Quick Sync
-//! encoder for Intel's.
+//! on Linux, and on Windows its NVENC encoder for NVIDIA's, its Quick Sync
+//! encoder for Intel's and its AMF encoder for AMD's.
 //!
 //! LiveKit has a VAAPI encoder of its own, but on AMD (RX 9070 XT, Mesa 26.2,
 //! Oct 9 2026) it stalled the viewer for seconds at a time and made 34 of 60
@@ -189,11 +189,12 @@ fn candidates() -> Vec<Candidate> {
         .collect()
 }
 
-/// The encoders worth trying, in order: NVIDIA's, then Intel's. Each
+/// The encoders worth trying, in order: NVIDIA's, Intel's, then AMD's. Each
 /// vendor's driver finds its own GPU, so there is no adapter to name; a
-/// laptop with both gets NVIDIA's, the better encoder, as on Linux. AMD's
-/// (`h264_amf`) is built but left to Media Foundation until it has been
-/// measured on an AMD GPU. [`ENCODER_ENV`] names the one to try instead.
+/// laptop with NVIDIA's and another gets NVIDIA's, the better encoder, as on
+/// Linux. AMD's (`h264_amf`) followed a moved rate like the other two on an
+/// RX 9070 XT (Oct 11 2026, `GPU_ENCODING_AMD_WINDOWS_RESULTS.md`).
+/// [`ENCODER_ENV`] names the one to try instead.
 #[cfg(target_os = "windows")]
 fn candidates() -> Vec<Candidate> {
     const ENCODERS: [(&CStr, &str); 3] = [
@@ -206,7 +207,7 @@ fn candidates() -> Vec<Candidate> {
         .into_iter()
         .filter(|(encoder, _)| match &named {
             Some(named) => encoder.to_str() == Ok(named.as_str()),
-            None => *encoder != c"h264_amf",
+            None => true,
         })
         .map(|(encoder, label)| Candidate {
             encoder,
@@ -217,8 +218,8 @@ fn candidates() -> Vec<Candidate> {
 }
 
 /// The one FFmpeg encoder to try on Windows, by FFmpeg's name: Quick Sync on
-/// a laptop that would pick NVIDIA's, or AMF on an AMD GPU, for a test or a
-/// bench.
+/// a laptop that would pick NVIDIA's, or AMF on a PC whose Intel graphics
+/// would be picked before its AMD card, for a test or a bench.
 #[cfg(target_os = "windows")]
 const ENCODER_ENV: &str = "RIFT_FFENC_ENCODER";
 
