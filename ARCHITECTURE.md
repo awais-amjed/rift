@@ -592,19 +592,25 @@ LiveKit's Rust SDK has no hardware video encoder on Windows: every frame of a
 share was encoded in software on the same CPU a game is using. So on Windows
 Rift encodes H264 itself and hands LiveKit the finished frames on its
 pre-encoded path (`rust/src/screenshare/encoder/`): through **FFmpeg's GPU
-encoders**, NVENC on NVIDIA's GPUs and Quick Sync on Intel's, from the same
-library as Linux's VAAPI below, and through **Media Foundation** on AMD's GPUs
-until FFmpeg's AMF encoder has been measured on one. Where neither opens, the
-share goes out as VP9. Media Foundation is not the fallback for NVIDIA's and
-Intel's GPUs: NVIDIA's encoder there crashed a 120 fps share twice in two runs.
+encoders**, NVENC on NVIDIA's GPUs, AMF on AMD's and Quick Sync on Intel's,
+from the same library as Linux's VAAPI below, tried in that order. **Media
+Foundation** is the fallback on AMD's GPUs only, where the library will not
+load or AMF will not open; where neither opens, the share goes out as VP9.
+Media Foundation is not the fallback for NVIDIA's and Intel's GPUs: NVIDIA's
+encoder there crashed a 120 fps share twice in two runs.
 Media Foundation reaches all three makers' encoders but runs past WebRTC's
 target whenever the target is below what the picture costs: on a laptop's
 Iris Xe and RTX 3070 Ti the rate gate had to leave out 200 to 1000 pictures
 while WebRTC's estimate climbed at the start of a share (Oct 9 2026), and a
 friend's 120 fps share on a 4070 Ti Super collapsed. FFmpeg's NVENC and Quick
 Sync, on the same laptop, followed a rate moved from 20 to 5 to 12 Mbps
-within a few percent, with no keyframe at a move. A laptop with both gets
-NVENC, as on Linux. Measured Oct 5 2026 through Media Foundation at 60 fps: 52
+within a few percent, with no keyframe at a move, and so did FFmpeg's AMF on
+an RX 9070 XT (Oct 11 2026), which left the rate gate under half of
+Media Foundation's work there and held 98 to 116 fps on an upload capped at 8
+to 30 Mbit where Media Foundation fell to 75 to 106. A PC with Intel graphics
+beside an NVIDIA or AMD card gets the card's encoder, as on Linux; the
+pictures reach the encoder from memory, so the GPU the screen is on does not
+matter. Measured Oct 5 2026 through Media Foundation at 60 fps: 52
 to 67% of a core, against VP9's 186 to 196% (`TESTING.md`).
 
 On Linux an NVIDIA GPU is driven by Rift itself, through NVENC, and the frames

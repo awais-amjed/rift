@@ -1,9 +1,9 @@
-//! Windows' GPU encoder: FFmpeg's for NVIDIA's and Intel's GPUs, and Media
-//! Foundation's for AMD's.
+//! Windows' GPU encoder: FFmpeg's for NVIDIA's, Intel's and AMD's GPUs.
 //!
-//! Media Foundation stays only for what FFmpeg does not cover yet: AMD's GPUs
-//! until FFmpeg's AMF encoder has been measured on one, and AV1, which only
-//! its tests make. Where neither opens, a share goes out as VP9.
+//! Media Foundation stays only for what FFmpeg does not cover: an AMD GPU
+//! where FFmpeg's library will not load or its AMF encoder will not open, and
+//! AV1, which only its tests make. Where neither opens, a share goes out as
+//! VP9.
 use super::media_foundation;
 use super::{ffmpeg, worker, EncodedSink, EncoderSettings, GpuCodec, Nv12Frame};
 

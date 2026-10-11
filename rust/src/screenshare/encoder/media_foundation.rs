@@ -83,8 +83,10 @@ const AMD: &str = "VEN_1002";
 /// are FFmpeg's (`ffmpeg.rs`), and where FFmpeg's do not open the share goes
 /// out as VP9 rather than through theirs here: NVIDIA's crashed a share at
 /// 120 fps, twice in two runs (RTX 3070 Ti Laptop, Oct 9 2026). AMD's stays
-/// until FFmpeg's AMF encoder has been measured on an AMD GPU. A test naming
-/// an encoder by its index may use any.
+/// for an AMD GPU where FFmpeg's AMF encoder does not open: it ran past
+/// WebRTC's target more than AMF, but no run on an RX 9070 XT crashed it
+/// (Oct 5 to 11 2026). A test naming an
+/// encoder by its index may use any.
 fn shares_use(info: &EncoderInfo) -> bool {
     info.vendor.eq_ignore_ascii_case(AMD)
 }

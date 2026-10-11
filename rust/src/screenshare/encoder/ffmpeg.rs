@@ -1,6 +1,6 @@
 //! H264 on a GPU through FFmpeg: its VAAPI encoder for Intel's and AMD's GPUs
-//! on Linux, and on Windows its NVENC encoder for NVIDIA's and its Quick Sync
-//! encoder for Intel's.
+//! on Linux, and on Windows its NVENC encoder for NVIDIA's, its Quick Sync
+//! encoder for Intel's and its AMF encoder for AMD's.
 //!
 //! LiveKit has a VAAPI encoder of its own, but on AMD (RX 9070 XT, Mesa 26.2,
 //! Oct 9 2026) it stalled the viewer for seconds at a time and made 34 of 60
@@ -189,24 +189,26 @@ fn candidates() -> Vec<Candidate> {
         .collect()
 }
 
-/// The encoders worth trying, in order: NVIDIA's, then Intel's. Each
-/// vendor's driver finds its own GPU, so there is no adapter to name; a
-/// laptop with both gets NVIDIA's, the better encoder, as on Linux. AMD's
-/// (`h264_amf`) is built but left to Media Foundation until it has been
-/// measured on an AMD GPU. [`ENCODER_ENV`] names the one to try instead.
+/// The encoders worth trying, in order: NVIDIA's, AMD's, then Intel's. Each
+/// vendor's driver finds its own GPU, so there is no adapter to name; a PC
+/// with Intel graphics beside an NVIDIA or AMD card gets the card's encoder,
+/// as on Linux. The pictures come from memory, so which GPU the screen is on
+/// does not matter. AMD's (`h264_amf`) followed a moved rate like the other
+/// two on an RX 9070 XT (Oct 11 2026, `GPU_ENCODING_AMD_WINDOWS_RESULTS.md` on
+/// the `gpu-encoding` branch). [`ENCODER_ENV`] names the one to try instead.
 #[cfg(target_os = "windows")]
 fn candidates() -> Vec<Candidate> {
     const ENCODERS: [(&CStr, &str); 3] = [
         (c"h264_nvenc", "NVENC"),
-        (c"h264_qsv", "Quick Sync"),
         (c"h264_amf", "AMF"),
+        (c"h264_qsv", "Quick Sync"),
     ];
     let named = std::env::var(ENCODER_ENV).ok();
     ENCODERS
         .into_iter()
         .filter(|(encoder, _)| match &named {
             Some(named) => encoder.to_str() == Ok(named.as_str()),
-            None => *encoder != c"h264_amf",
+            None => true,
         })
         .map(|(encoder, label)| Candidate {
             encoder,
@@ -217,8 +219,7 @@ fn candidates() -> Vec<Candidate> {
 }
 
 /// The one FFmpeg encoder to try on Windows, by FFmpeg's name: Quick Sync on
-/// a laptop that would pick NVIDIA's, or AMF on an AMD GPU, for a test or a
-/// bench.
+/// a PC that would pick its NVIDIA or AMD card, for a test or a bench.
 #[cfg(target_os = "windows")]
 const ENCODER_ENV: &str = "RIFT_FFENC_ENCODER";
 

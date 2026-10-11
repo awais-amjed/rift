@@ -2,9 +2,10 @@
 //! encoders would spend the CPU a game needs (`ARCHITECTURE.md`, "Encoding a
 //! share on the GPU").
 //!
-//! On Windows, where LiveKit has no hardware encoder, through FFmpeg's NVENC
-//! and Quick Sync encoders on NVIDIA's and Intel's GPUs (`ffmpeg.rs`), and
-//! through Media Foundation on AMD's (`windows_gpu.rs`). On Linux
+//! On Windows, where LiveKit has no hardware encoder, through FFmpeg's NVENC,
+//! Quick Sync and AMF encoders on NVIDIA's, Intel's and AMD's GPUs
+//! (`ffmpeg.rs`), with Media Foundation behind AMF on AMD's
+//! (`windows_gpu.rs`). On Linux
 //! through NVENC (`nvenc.rs`), since LiveKit's own NVENC carries code the GPL
 //! client cannot, and through FFmpeg's VAAPI encoder on Intel's and AMD's GPUs
 //! (`ffmpeg.rs`), since LiveKit's own VAAPI encoder stalls. H264 and AV1 are
@@ -66,7 +67,8 @@ impl std::fmt::Display for GpuCodec {
 /// find out takes a moment, and the GPUs do not change under a running app,
 /// so the first answer is kept.
 ///
-/// On Windows that is FFmpeg's encoder, or Media Foundation's on an AMD GPU. On Linux it is Rift's NVENC, or FFmpeg's VAAPI where
+/// On Windows that is FFmpeg's encoder, or Media Foundation's on an AMD GPU
+/// where FFmpeg's does not open. On Linux it is Rift's NVENC, or FFmpeg's VAAPI where
 /// NVIDIA's is missing; without either LiveKit would make H264 with OpenH264
 /// on the CPU, which Rift never does.
 pub(crate) fn gpu_codecs() -> Vec<VideoCodec> {
