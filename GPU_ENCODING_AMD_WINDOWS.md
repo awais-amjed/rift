@@ -16,7 +16,7 @@ an agent on this PC.
 
 ## Part 1: in the app (the user, about 15 minutes)
 
-Rift 1.4.0-beta.10 or later already carries the AMF encoder; one setting
+Rift 1.4.0-beta.6 or later already carries the AMF encoder; one setting
 switches it on.
 
 1. Quit Rift completely (right-click its tray icon → Quit). A second launch
