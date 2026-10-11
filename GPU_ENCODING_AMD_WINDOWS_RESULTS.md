@@ -1,8 +1,8 @@
 # AMF on Windows: results
 
 The answer to `GPU_ENCODING_AMD_WINDOWS.md`, run Oct 11 2026 by an agent on the
-user's AMD PC booted into Windows: Part 2. Part 1, the app, is the user's and
-had not been reported when this was written.
+user's AMD PC booted into Windows: Part 2. Part 1, the app, is the user's,
+added below the same day.
 
 **Verdict.** FFmpeg's AMF encoder, with Rift's patch, follows a moved rate the
 way NVENC and Quick Sync do, makes no keyframe at a move, and passes the
@@ -24,13 +24,17 @@ target has settled or while it falls.
 | Server | livekit-server 1.13.7 on 127.0.0.1, a fresh one per run |
 | Toolchain | MSYS2 (UCRT64): gcc 16.2.0, CMake 4.4.4, Ninja, pkgconf; Rust 1.97.1; Flutter 3.47.6 |
 
-Which of the two AMD GPUs AMF opened was not settled; it names itself only "AMD
-AMF H.264 Encoder", and NVENC ("Cannot load nvcuda.dll") and Quick Sync ("Error
+AMF names itself only "AMD AMF H.264 Encoder", so the logs cannot say which of
+the two AMD GPUs it opened; the user saw it on the RX 9070 XT. NVENC ("Cannot load nvcuda.dll") and Quick Sync ("Error
 creating a MFX session") fail on this PC, as they should.
 
 ## Part 1, in the app
 
-Not reported yet. The user's notes go here.
+Run by the user on 1.4.0-beta.9, started with `RIFT_FFENC_ENCODER=h264_amf`:
+a share in H264 at 60 fps and at 120 fps both reached the viewer smoothly, with
+no crash, encoding on the RX 9070 XT. The log was not read, so the
+`encoder: AMF (...)` line and the rate gate's `left out` lines were not
+checked, and there was no run through Media Foundation to set beside it.
 
 ## Part 2
 
@@ -131,9 +135,11 @@ they do without the change (tract's bug, #2611).
 ### The change
 
 AMF is no longer left out of `candidates()` in `encoder/ffmpeg.rs`: the order
-is NVENC, Quick Sync, AMF, and with nothing named this PC logged "no H264 from
+was NVENC, Quick Sync, AMF, and with nothing named this PC logged "no H264 from
 NVENC", "no H264 from Quick Sync", then "AMF (AMD AMF H.264 Encoder) encodes
-H264". Media Foundation stays for an AMD GPU where FFmpeg's library will not load
+H264". Afterwards AMF was moved ahead of Quick Sync (NVENC, AMF, Quick Sync),
+so a PC with Intel graphics beside an AMD card uses the card, as one beside an
+NVIDIA card already did; that order has not been run here. Media Foundation stays for an AMD GPU where FFmpeg's library will not load
 or AMF will not open. `windows_gpu.rs`, `encoder/mod.rs`, `ARCHITECTURE.md`,
 `RIFT_PATCHES.md` and `TESTING.md` say so.
 
@@ -145,11 +151,11 @@ or AMF will not open. `windows_gpu.rs`, `encoder/mod.rs`, `ARCHITECTURE.md`,
 
 ## Not covered
 
-- **The app (Part 1)**, and with it the sound against the picture.
+- **The app's log and the sound against the picture**: Part 1 was watched,
+  not measured.
 - **Sharer CPU** was not measured in these runs.
-- **A PC with Intel graphics beside an AMD card**: Quick Sync is tried before
-  AMF and would encode there. Whether AMF should come first on such a PC is
-  open.
+- **A PC with Intel graphics beside an AMD card**: AMF now comes first and
+  should encode on the card, but no such PC has run it.
 - **Other AMD GPUs and drivers**: one RX 9070 XT, one driver.
 - **AMF's first-second overshoot**, left as found; the rate gate covers it.
 - **Real 120 fps content**: the clip at double speed, not a game.
