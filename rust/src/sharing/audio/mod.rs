@@ -7,7 +7,7 @@
 use crate::api::screenshare::types::{AudioSource, ScreenShareConfig};
 use crate::api::soundshare::SoundShareConfig;
 use catch_up::CatchUp;
-use livekit::options::TrackPublishOptions;
+use livekit::options::{audio, TrackPublishOptions};
 use livekit::prelude::*;
 use livekit::track::{LocalAudioTrack, LocalTrack, TrackSource};
 use livekit::webrtc::audio_frame::AudioFrame;
@@ -22,6 +22,8 @@ use tokio::sync::mpsc::Sender as FrameSender;
 use tokio::task::JoinHandle as TaskHandle;
 
 mod catch_up;
+#[cfg(test)]
+mod live_test;
 #[cfg(target_os = "linux")]
 mod linux;
 #[cfg(target_os = "linux")]
@@ -217,6 +219,8 @@ pub(crate) async fn publish_and_feed(
             LocalTrack::Audio(track),
             TrackPublishOptions {
                 source: TrackSource::ScreenshareAudio,
+                // The default is a mono rate; two channels need twice it.
+                audio_encoding: Some(audio::MUSIC_HIGH_QUALITY_STEREO.encoding),
                 ..Default::default()
             },
         )

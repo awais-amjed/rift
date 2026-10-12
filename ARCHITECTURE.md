@@ -31,7 +31,7 @@ The schema and the endpoints for both servers are in their own repositories, so 
 migration named here is a file there. They are the source of truth; this document
 is the reasoning behind them.
 
-Two dependencies are kept in this repository and patched, each until upstream
+Three dependencies are kept in this repository and patched, each until upstream
 releases its fix. `RIFT_PATCHES.md` beside each lists the changes, and says when
 the copy can go back:
 - supabase's Realtime client, in `third_party/realtime_client`. Its 2.13.0
@@ -40,6 +40,10 @@ the copy can go back:
 - LiveKit's `webrtc-sys`, in `third_party/webrtc-sys`, with one line changed.
   Without it WebRTC dropped frames a Windows share's GPU encoder had already
   made, and the viewer's picture broke until the next keyframe.
+- LiveKit's `livekit`, in `third_party/livekit`. Its Rust SDK never told the
+  server a track was stereo, so a share's sound, captured in two channels,
+  went out in mono. Desktop listeners still hear it in mono, for the reason in
+  *How a call is played out on the desktop*.
 
 Where the two schemas hold the same idea they use the same names — `users`,
 `dm_messages`, `read_state`. Central's account row was `dm_profiles` until it was

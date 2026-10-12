@@ -31,4 +31,4 @@ mod bench_test;
 #[cfg(all(test, gpu_encoder))]
 mod gpu_live_test;
 #[cfg(all(test, desktop))]
-mod live_test;
+pub(crate) mod live_test;

@@ -94,5 +94,8 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
 # LiveKit's webrtc-sys with one line changed: WebRTC must not drop frames a
 # screen share's GPU encoder already made. See
 # third_party/webrtc-sys/RIFT_PATCHES.md for why and when it goes.
+# And LiveKit's livekit, changed so a share's two-channel sound goes out in
+# stereo: third_party/livekit/RIFT_PATCHES.md.
 [patch.crates-io]
 webrtc-sys = { path = "../third_party/webrtc-sys" }
+livekit = { path = "../third_party/livekit" }

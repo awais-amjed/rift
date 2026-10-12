@@ -28,18 +28,18 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::time::timeout;
 
 /// Not slot 0, so a sender that ignores the index cannot pass by accident.
-pub(super) const KEY_INDEX: i32 = 3;
+pub(crate) const KEY_INDEX: i32 = 3;
 const FRAMES_WANTED: usize = 10;
 const WAIT: Duration = Duration::from_secs(20);
 
-pub(super) struct Server {
+pub(crate) struct Server {
     pub url: String,
     key: String,
     secret: String,
 }
 
 impl Server {
-    pub(super) fn from_env() -> Server {
+    pub(crate) fn from_env() -> Server {
         let var = |name: &str| {
             std::env::var(name).unwrap_or_else(|_| panic!("{name} is not set; see the module doc"))
         };
@@ -54,7 +54,7 @@ impl Server {
     /// share: the share connection only publishes, and one that could
     /// subscribe was a way to sit in a call as nothing but a "screen share"
     /// that no roster lists.
-    pub(super) fn token(&self, room: &str, identity: &str, subscribe: bool) -> String {
+    pub(crate) fn token(&self, room: &str, identity: &str, subscribe: bool) -> String {
         AccessToken::with_api_key(&self.key, &self.secret)
             .with_identity(identity)
             .with_name(identity)
@@ -71,7 +71,7 @@ impl Server {
     }
 }
 
-pub(super) fn shared_key() -> Vec<u8> {
+pub(crate) fn shared_key() -> Vec<u8> {
     (0..32).collect()
 }
 
@@ -106,7 +106,7 @@ async fn viewer(
 }
 
 /// A participant that subscribes, holding the share's key.
-pub(super) async fn viewer_as(
+pub(crate) async fn viewer_as(
     server: &Server,
     room: &str,
     identity: &str,
@@ -123,7 +123,7 @@ pub(super) async fn viewer_as(
         .expect("viewer connects")
 }
 
-fn fresh_room() -> String {
+pub(crate) fn fresh_room() -> String {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()

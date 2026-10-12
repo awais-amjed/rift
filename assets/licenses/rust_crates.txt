@@ -914,6 +914,7 @@ Used by:
 Apache License 2.0
 
 Used by:
+  livekit 0.9.1
   webrtc-sys 0.3.45
   allo-isolate 0.1.27
 
@@ -1345,7 +1346,6 @@ Used by:
   livekit-region 0.1.1
   livekit-rpc 0.1.1
   livekit-signaling 0.1.2
-  livekit 0.9.1
   prost 0.12.6
   ryu 1.0.23
   shiguredo_nvcodec 2026.2.0
