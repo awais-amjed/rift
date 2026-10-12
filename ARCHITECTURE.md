@@ -31,7 +31,7 @@ The schema and the endpoints for both servers are in their own repositories, so 
 migration named here is a file there. They are the source of truth; this document
 is the reasoning behind them.
 
-Three dependencies are kept in this repository and patched, each until upstream
+Four dependencies are kept in this repository and patched, each until upstream
 releases its fix. `RIFT_PATCHES.md` beside each lists the changes, and says when
 the copy can go back:
 - supabase's Realtime client, in `third_party/realtime_client`. Its 2.13.0
@@ -42,8 +42,10 @@ the copy can go back:
   made, and the viewer's picture broke until the next keyframe.
 - LiveKit's `livekit`, in `third_party/livekit`. Its Rust SDK never told the
   server a track was stereo, so a share's sound, captured in two channels,
-  went out in mono. Desktop listeners still hear it in mono, for the reason in
-  *How a call is played out on the desktop*.
+  went out in mono.
+- LiveKit's Flutter SDK, in `third_party/livekit_client`. It never asked to
+  decode a track in stereo, so a stereo track was heard in mono on the
+  desktop and on phones.
 
 Where the two schemas hold the same idea they use the same names — `users`,
 `dm_messages`, `read_state`. Central's account row was `dm_profiles` until it was
@@ -747,8 +749,8 @@ On the desktop, everything a call plays — voices, a share's sound, a bot —
 passes through WebRTC's audio processing module on its way out, not around
 it. The library flutter_webrtc ships always installs a render
 pre-processor (an empty one unless set), and with one installed WebRTC plays
-the module's own copy of the audio instead of the audio. That copy is mono,
-and on Linux it runs at the capture rate, which is 16 kHz until the
+the module's own copy of the audio instead of the audio. That copy runs at the
+module's processing rate, and on Linux that is the capture rate, 16 kHz until the
 microphone has recorded something. Somebody who joined muted and stayed muted
 heard the whole call cut off just under 8 kHz; one unmute was enough to bring
 it to the module's 32 kHz, and that held after muting again.
@@ -766,10 +768,15 @@ VM: about 14 kHz joined muted and unmuted alike, while the warm-up took it to
 7.4 kHz and made Windows turn other apps down — recording there opens a
 communications stream, which is what Windows ducks for.
 
-**Still true:** playback is mono, and nothing above about 16 kHz survives. Both
-come from the library, and fixing them means building it without the render
-pre-processor (or with multi-channel render), not anything in this repository.
-Web, Android and macOS use other WebRTC builds and are not affected (not
+**Still true:** nothing above about 15 kHz survives. It comes from the
+library, and fixing it means building it without the render pre-processor.
+That was done and measured on Oct 12 2026 (the same stereo test sound, Linux:
+15.0 kHz with the shipped library, 20.1 kHz without the pre-processor) and
+left out: the gain is above most people's hearing, and it means building and
+hosting WebRTC for every desktop platform. The copy keeps both channels: a
+stereo share reached a Linux listener with each ear's tone 94 dB below the
+other (earlier notes calling it mono had measured a mono sender). Web,
+Android and macOS use other WebRTC builds and are not affected (not
 measured).
 
 ### Windows turning other apps down — [Implemented October 2026]

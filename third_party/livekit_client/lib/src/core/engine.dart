@@ -41,6 +41,7 @@ import '../publication/local.dart';
 import '../support/disposable.dart';
 import '../support/platform.dart' show lkPlatformIsTest, lkPlatformIs, PlatformType;
 import '../support/region_url_provider.dart';
+import '../support/stereo_answer.dart';
 import '../support/websocket.dart';
 import '../track/local/local.dart';
 import '../track/local/video.dart';
@@ -1540,6 +1541,8 @@ class Engine extends Disposable with EventsEmittable<EngineEvent> {
 
       try {
         final answer = await subscriber!.pc.createAnswer();
+        // RIFT PATCH: decode a stereo track in stereo.
+        answer.sdp = addStereoToAnswer(offer: event.sd.sdp, answer: answer.sdp);
         logger.fine('Created answer');
         logger.finer('sdp: ${answer.sdp}');
         await subscriber!.pc.setLocalDescription(answer);

@@ -138,6 +138,11 @@ dependency_overrides:
   # can go.
   realtime_client:
     path: third_party/realtime_client
+  # LiveKit's Flutter SDK, kept here so a stereo track is heard in stereo.
+  # third_party/livekit_client/RIFT_PATCHES.md says what differs and when this
+  # can go.
+  livekit_client:
+    path: third_party/livekit_client
 
 flutter:
 

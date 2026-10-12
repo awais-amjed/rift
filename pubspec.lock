@@ -1024,10 +1024,9 @@ packages:
   livekit_client:
     dependency: "direct main"
     description:
-      name: livekit_client
-      sha256: a410348effd06f4220c2d6ed9ad3935406e81fffbd1c366eba1c39fe0558f449
-      url: "https://pub.dev"
-    source: hosted
+      path: "third_party/livekit_client"
+      relative: true
+    source: path
     version: "2.13.0"
   loading_animation_widget:
     dependency: "direct main"
