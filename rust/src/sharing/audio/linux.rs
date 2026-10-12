@@ -8,10 +8,13 @@ use super::{
 use crate::pulse::Connection;
 use libpulse_binding as pa;
 use livekit::prelude::*;
+use pa::context::subscribe::{Facility, InterestMaskSet, Operation};
 use pa::def::BufferAttr;
 use pa::sample::{Format, Spec};
 use pa::stream::{FlagSet, PeekResult, State, Stream};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, TryRecvError};
+use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use tokio::sync::mpsc::Sender as FrameSender;
 
@@ -53,6 +56,7 @@ fn spawn_capture_thread(
         let Some(mut stream) = open_stream(&mut connection, sink_input, &monitor) else {
             return;
         };
+        let removed = watch_for_removal(&mut connection, sink_input);
         log::info!("audio: recording from {monitor}");
         let mut pending: Vec<u8> = Vec::with_capacity(FRAME_BYTES * 2);
         loop {
@@ -70,6 +74,11 @@ fn spawn_capture_thread(
             // that upwards and ends; a screen share carries on in silence.
             if !matches!(stream.get_state(), State::Ready) {
                 log::info!("audio: the record stream is no longer ready");
+                break;
+            }
+            // PipeWire keeps the stream ready instead: see `watch_for_removal`.
+            if removed.load(Ordering::SeqCst) {
+                log::info!("audio: the application's stream ended");
                 break;
             }
             match stream.peek() {
@@ -101,6 +110,32 @@ fn spawn_capture_thread(
     })
 }
 
+/// Set once `sink_input` goes away.
+///
+/// PulseAudio ends a monitor of a sink-input that is gone. PipeWire does not:
+/// it links the record stream to the default output's monitor instead, and
+/// the stream stays ready, so a share of one application went on with
+/// everything the desktop played once that application stopped its stream —
+/// seen Oct 12 2026 on PipeWire 1.4 with WirePlumber. `DONT_MOVE` stops the
+/// relinking (pipewire-pulse makes it `node.dont-reconnect`), and this ends
+/// the capture the way a stream that is no longer ready does.
+fn watch_for_removal(connection: &mut Connection, sink_input: u32) -> Arc<AtomicBool> {
+    let removed = Arc::new(AtomicBool::new(false));
+    let flag = Arc::clone(&removed);
+    connection
+        .context
+        .set_subscribe_callback(Some(Box::new(move |facility, operation, index| {
+            if facility == Some(Facility::SinkInput)
+                && operation == Some(Operation::Removed)
+                && index == sink_input
+            {
+                flag.store(true, Ordering::SeqCst);
+            }
+        })));
+    let _ = connection.context.subscribe(InterestMaskSet::SINK_INPUT, |_| {});
+    removed
+}
+
 /// A record stream on `monitor`, restricted to one sink-input, ready to read.
 fn open_stream(connection: &mut Connection, sink_input: u32, monitor: &str) -> Option<Stream> {
     let spec = Spec {
@@ -121,7 +156,12 @@ fn open_stream(connection: &mut Connection, sink_input: u32, monitor: &str) -> O
         fragsize: FRAME_BYTES as u32,
     };
     if stream
-        .connect_record(Some(monitor), Some(&attr), FlagSet::ADJUST_LATENCY)
+        .connect_record(
+            Some(monitor),
+            Some(&attr),
+            // Never moved elsewhere: see `watch_for_removal`.
+            FlagSet::ADJUST_LATENCY | FlagSet::DONT_MOVE,
+        )
         .is_err()
     {
         log::warn!("audio: could not open a record stream on {monitor}");
