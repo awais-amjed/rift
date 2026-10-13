@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../../../data/classes/webhook.dart';
 import '../../../../../../data/constants.dart';
 import '../../../../../common/app_button.dart';
+import '../../../../../common/context_menu/text_field_context_menu.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/custom_colors.dart';
 import '../../../../../theme/theme_context.dart';
@@ -73,6 +74,7 @@ class WebhookSecretCard extends StatelessWidget {
               border: Border.all(color: themeState.borderElevated),
             ),
             child: SelectableText(
+              contextMenuBuilder: TextFieldContextMenu.builder,
               created.url,
               style: AppText.meta.copyWith(
                 fontFamily: 'monospace',

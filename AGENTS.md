@@ -243,6 +243,12 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   while disabled), and a bare `GestureDetector` tap sits in a
   `MouseRegion(cursor: SystemMouseCursors.click)`. `test/clickable_cursor_test.dart` fails on an
   `InkWell` that forgets.
+- **Every text field gets the app's right-click menu.** Flutter's own lists only what applies
+  at that moment, so an empty field with no text on the clipboard opened nothing at all. A raw
+  `TextField` or `SelectableText` passes `contextMenuBuilder: TextFieldContextMenu.builder` as
+  its first argument (`AppTextField` already does), or `TextFieldContextMenu.pasting(...)` where
+  Paste can attach more than text, as in the composer. `test/text_field_menu_test.dart` fails on
+  one that forgets.
 - **Shared UI to reuse before hand-rolling:** `AppPanel` (a floating panel), `CanvasBackdrop`
   (the lit ground), `NavRow` (any navigable sidebar row), `SquircleAvatar` / `UserAvatar`,
   `SpeakingRing`, `StatusChip`, `ContextMenuPanel` + `ContextMenuItem`, `TapToFocus`,

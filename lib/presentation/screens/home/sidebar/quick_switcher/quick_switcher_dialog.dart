@@ -13,6 +13,7 @@ import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/services/channel_search.dart';
+import '../../../../common/context_menu/text_field_context_menu.dart';
 import '../../../../common/tap_to_focus.dart';
 import '../../../../theme/app_shadows.dart';
 import '../../../../theme/app_text.dart';
@@ -162,6 +163,7 @@ class _QuickSwitcherDialogState extends State<QuickSwitcherDialog> {
             child: Focus(
               onKeyEvent: _onKey,
               child: TextField(
+                contextMenuBuilder: TextFieldContextMenu.builder,
                 controller: _controller,
                 focusNode: _focusNode,
                 autofocus: true,

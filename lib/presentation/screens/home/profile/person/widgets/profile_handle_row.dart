@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../../../data/constants.dart';
+import '../../../../../common/context_menu/text_field_context_menu.dart';
 import '../../../../../theme/app_motion.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
@@ -56,6 +57,7 @@ class _ProfileHandleRowState extends State<ProfileHandleRow> {
         children: [
           Expanded(
             child: SelectableText(
+              contextMenuBuilder: TextFieldContextMenu.builder,
               '@${widget.handle}',
               maxLines: 1,
               style: AppText.code.copyWith(color: theme.textSecondary),

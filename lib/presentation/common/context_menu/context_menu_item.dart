@@ -17,7 +17,11 @@ class ContextMenuItem extends StatelessWidget {
   final IconData? icon;
   final String label;
   final bool isDangerous;
-  final VoidCallback onTap;
+
+  /// Null greys the row out: a choice that does not apply right now, kept in
+  /// its place so a menu reads the same each time it opens — a text field's
+  /// Cut with nothing selected.
+  final VoidCallback? onTap;
 
   /// Trailing widget — an unread count on "Mark as read", a shortcut hint.
   final Widget? trailing;
@@ -34,7 +38,9 @@ class ContextMenuItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
-    final color = isDangerous
+    final color = onTap == null
+        ? themeState.textQuaternary
+        : isDangerous
         ? themeState.statusInk(CustomColors.error)
         : themeState.textSecondary;
     final radius = BorderRadius.circular(K.radiusRow);

@@ -7,6 +7,7 @@ import '../../logic/cubits/theme/theme_cubit.dart';
 import '../theme/app_shadows.dart';
 import '../theme/app_text.dart';
 import '../theme/theme_context.dart';
+import 'context_menu/text_field_context_menu.dart';
 import 'tap_to_focus.dart';
 
 /// Over the widget budget and one job: a search field and the results it drops
@@ -223,6 +224,7 @@ class _SearchDropdownFieldState<T> extends State<SearchDropdownField<T>> {
           ),
           Expanded(
             child: TextField(
+              contextMenuBuilder: TextFieldContextMenu.builder,
               controller: _controller,
               focusNode: _focusNode,
               style: AppText.secondary.copyWith(color: themeState.textPrimary),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../common/context_menu/text_field_context_menu.dart';
 import '../../../../common/tap_to_focus.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
@@ -96,6 +97,7 @@ class _MembersSearchFieldState extends State<MembersSearchField> {
           ),
           Expanded(
             child: TextField(
+              contextMenuBuilder: TextFieldContextMenu.builder,
               controller: _controller,
               focusNode: _focusNode,
               onChanged: _onChanged,

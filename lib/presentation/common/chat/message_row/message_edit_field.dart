@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../../data/constants.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
+import '../../context_menu/text_field_context_menu.dart';
 
 /// Inline editor that replaces a message's text while it is being edited —
 /// Discord-style, rather than lifting the message into a dialog.
@@ -81,6 +82,7 @@ class _MessageEditFieldState extends State<MessageEditField> {
         Focus(
           onKeyEvent: _onKey,
           child: TextField(
+            contextMenuBuilder: TextFieldContextMenu.builder,
             controller: _controller,
             focusNode: _focusNode,
             maxLines: null,

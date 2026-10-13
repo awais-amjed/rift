@@ -8,6 +8,7 @@ import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_motion.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
+import '../../context_menu/text_field_context_menu.dart';
 import '../../loading_dots.dart';
 import '../../tap_to_focus.dart';
 import 'emoji_category_button.dart';
@@ -195,6 +196,7 @@ class _EmojiPickerPanelState extends State<EmojiPickerPanel> {
           ),
           Expanded(
             child: TextField(
+              contextMenuBuilder: TextFieldContextMenu.builder,
               controller: _searchController,
               focusNode: _searchFocus,
               onChanged: _onSearch,

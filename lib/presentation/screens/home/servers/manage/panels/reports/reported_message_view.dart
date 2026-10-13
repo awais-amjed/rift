@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../../../../data/constants.dart';
 import '../../../../../../../logic/cubits/reports/reports_cubit.dart';
 import '../../../../../../../logic/services/reported_message_opener.dart';
+import '../../../../../../common/context_menu/text_field_context_menu.dart';
 import '../../../../../../theme/app_text.dart';
 import '../../../../../../theme/theme_context.dart';
 
@@ -63,6 +64,7 @@ class ReportedMessageView extends StatelessWidget {
         children: [
           if (message != null && message.text.isNotEmpty)
             SelectableText(
+              contextMenuBuilder: TextFieldContextMenu.builder,
               message.text,
               style: AppText.body.copyWith(color: theme.textPrimary),
             ),

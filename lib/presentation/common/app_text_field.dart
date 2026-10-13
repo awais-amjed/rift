@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../data/constants.dart';
 import '../theme/app_text.dart';
 import '../theme/theme_context.dart';
+import 'context_menu/text_field_context_menu.dart';
 import 'tap_to_focus.dart';
 
 /// Over the widget budget and one job: the app's text field and its label,
@@ -129,6 +130,7 @@ class _AppTextFieldState extends State<AppTextField> {
           const SizedBox(height: 7),
         ],
         TextField(
+          contextMenuBuilder: TextFieldContextMenu.builder,
           controller: widget.controller,
           obscureText: _obscured,
           enabled: widget.enabled,

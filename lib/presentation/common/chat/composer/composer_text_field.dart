@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../../data/constants.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
+import '../../context_menu/text_field_context_menu.dart';
 import 'composer_command_backdrop.dart';
 import 'composer_paste_action.dart';
 
@@ -124,6 +125,9 @@ class ComposerTextField extends StatelessWidget {
                   height: K.composerLineHeight,
                 ),
                 child: TextField(
+                  contextMenuBuilder: onPasteFiles == null
+                      ? TextFieldContextMenu.builder
+                      : TextFieldContextMenu.pasting(onPasteFiles!),
                   controller: controller,
                   focusNode: focusNode,
                   enabled: enabled,
