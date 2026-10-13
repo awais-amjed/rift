@@ -3,12 +3,14 @@ import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:livekit_client/livekit_client.dart' show RemoteParticipant;
 import 'package:supabase/supabase.dart';
 
 import '../../../data/apis/voice_api.dart';
 import '../../../data/classes/equality_props.dart';
 import '../../../data/classes/region_load.dart';
 import '../../../data/classes/server.dart';
+import '../../../data/participant_identity.dart';
 import '../../../data/repositories/session_repository.dart';
 import '../../../data/repositories/voice_region_probe.dart';
 import '../../services/call_start_times.dart';
@@ -20,6 +22,7 @@ import '../livekit/livekit_cubit.dart';
 
 part 'channel_presence_state.dart';
 part 'channel_presence_tracking.dart';
+part 'channel_presence_room.dart';
 
 /// Who is online on the selected server, and who is in which voice channel.
 ///
@@ -43,9 +46,10 @@ part 'channel_presence_tracking.dart';
 /// gets to say it left, and doesn't have to — it drops off presence, and its
 /// last known location stops being believed.
 class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
-    with _PresenceTrackingMixin {
+    with _PresenceTrackingMixin, _RoomPeopleMixin {
   @override
   final SessionRepository _session;
+  @override
   final LiveKitCubit _livekitCubit;
   final VoiceApi _voiceApi;
   final VoiceRegionProbe _probe;
@@ -60,6 +64,7 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
   RealtimeLease? _presenceTopic;
   @override
   RealtimeChannel? get _channel => _presenceTopic?.channel;
+  @override
   VoiceBroadcast? _voice;
   String? _currentServerId;
   String? _currentUserId;
@@ -103,6 +108,7 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
     _lkSub = livekitCubit.stream.listen((_) {
       _announceLocation();
       _onOwnChannel();
+      _onRoomPeople();
     });
     // Bootstrap with current state
     _onServerChanged();

@@ -49,6 +49,9 @@ class VoiceBroadcast {
   /// The one second look at the roster — see [recheckAfter].
   Timer? _recheck;
 
+  /// A look asked for by [recheckSoon], pending.
+  Timer? _soon;
+
   /// How long after joining to ask LiveKit again.
   ///
   /// A killed app stays in LiveKit's room until its departure timeout, about
@@ -57,6 +60,10 @@ class VoiceBroadcast {
   /// it — it says nothing — so a client that joined in that window drew the
   /// ghost until its next reconnect. One more read, after the window, does.
   static const recheckAfter = Duration(seconds: 30);
+
+  /// How long [recheckSoon] waits: long enough for LiveKit to have let the
+  /// departed go, so the read does not put them straight back.
+  static const recheckSoonAfter = Duration(seconds: 3);
 
   /// [initial] carries the last known map through a reconnect, so the channel
   /// list doesn't blink empty while the replacement snapshot is in flight.
@@ -87,6 +94,17 @@ class VoiceBroadcast {
         });
       },
     )?..onBroadcast(VoiceLocations.event, _onDelta);
+  }
+
+  /// Read the roster again shortly: someone left our call and never said so
+  /// (`VoiceLocations.leftSilently`). Several departures in a row share one
+  /// read.
+  void recheckSoon() {
+    if (_disposed || _soon != null) return;
+    _soon = Timer(recheckSoonAfter, () {
+      _soon = null;
+      if (!_disposed) unawaited(_snapshot());
+    });
   }
 
   /// Where each member is, the local user included if they've been heard about.
@@ -145,6 +163,7 @@ class VoiceBroadcast {
   Future<void> dispose() async {
     _disposed = true;
     _recheck?.cancel();
+    _soon?.cancel();
     final topic = _topic;
     _topic = null;
     await topic?.release();

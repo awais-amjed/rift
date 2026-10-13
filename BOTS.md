@@ -504,6 +504,19 @@ for the next member to seal it a key and then turn up in a conversation nobody i
 sidebar draws the ones that have not arrived, from `voice_summons`, because "Send away" needs a bot
 to be in the call and a summon that nothing answered would otherwise be invisible.
 
+**A bot says where it is, the way a member does.** The sidebar places people from `voice_roster`
+when the app connects and from the `here` broadcasts on `voice:<serverId>` after that, and presence
+only decides whether a placed person is still believed. A bot used to say nothing, so roster reads
+alone placed it. A member whose app connected before the bot arrived never saw it come, and one
+whose app read the roster while it was in the call kept drawing it there after it left (online,
+so still believed) until the app restarted. Both SDKs now send the app's own `here` message when a
+connection joins and when it closes for any reason (`voice_location` in each). They send it over
+Realtime's HTTP broadcast, since a bot holds no socket on that topic. For a bot on an older SDK,
+a member in the call whose room loses somebody still placed there reads the roster again
+(`VoiceLocations.leftSilently`). Reproduced and fixed Oct 13 2026 on the local server: each SDK's
+real `joinVoice` and leave, watched by a member probe that applied the broadcasts as
+`VoiceBroadcast` does. The app's re-read has not been driven in a live client.
+
 **A bot always encrypts in slot 0**, whatever version its media key is. Not a choice: a LiveKit
 frame cryptor is created when its track is published and keeps the index it was born with, and
 `@livekit/rtc-node` cannot move one — `FrameCryptor.setKeyIndex` builds an FFI request missing a

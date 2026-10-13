@@ -156,4 +156,52 @@ void main() {
       expect(rosters['general'], ['u1']);
     });
   });
+
+  group('leftSilently', () {
+    test('someone gone from the room but still placed in it', () {
+      // A bot on an old SDK: placed by a roster read, and leaving says nothing.
+      expect(
+        VoiceLocations.leftSilently(
+          before: {'bot', 'ann'},
+          after: {'ann'},
+          locations: {'bot': 'c1', 'ann': 'c1'},
+          channelId: 'c1',
+        ),
+        {'bot'},
+      );
+    });
+
+    test('someone who announced the move is not asked about', () {
+      expect(
+        VoiceLocations.leftSilently(
+          before: {'ann'},
+          after: {},
+          locations: {'ann': 'c2'},
+          channelId: 'c1',
+        ),
+        isEmpty,
+      );
+      expect(
+        VoiceLocations.leftSilently(
+          before: {'ann'},
+          after: {},
+          locations: {},
+          channelId: 'c1',
+        ),
+        isEmpty,
+      );
+    });
+
+    test('nobody left, nobody asked about', () {
+      expect(
+        VoiceLocations.leftSilently(
+          before: {'ann'},
+          after: {'ann', 'bob'},
+          locations: {'ann': 'c1'},
+          channelId: 'c1',
+        ),
+        isEmpty,
+      );
+    });
+  });
 }

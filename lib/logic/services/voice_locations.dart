@@ -18,8 +18,8 @@
 class VoiceLocations {
   VoiceLocations._();
 
-  /// Broadcast topic and event. Keep in sync with nothing else — both ends of
-  /// this conversation are Rift clients.
+  /// Broadcast topic and event. Bots say them too: both bot SDKs announce a
+  /// join and a leave in this format (`voice_location` in each).
   static String topic(String serverId) => 'voice:$serverId';
   static const String event = 'here';
   static const int version = 1;
@@ -90,6 +90,24 @@ class VoiceLocations {
     }
     return next;
   }
+
+  /// Who left our call without a word: in [before] and gone from [after]
+  /// (the people in our room, as user ids), while [locations] still says
+  /// they are in [channelId].
+  ///
+  /// Anyone who announces a move is already elsewhere in [locations] by the
+  /// time LiveKit drops them. Someone still placed here left silently: a bot
+  /// on an SDK from before bots announced, which a roster read had put here
+  /// and nothing would ever take away. Only a fresh roster read can.
+  static Set<String> leftSilently({
+    required Set<String> before,
+    required Set<String> after,
+    required Map<String, String> locations,
+    required String channelId,
+  }) => {
+    for (final userId in before.difference(after))
+      if (locations[userId] == channelId) userId,
+  };
 
   /// The per-channel rosters to draw, as user ids.
   ///
