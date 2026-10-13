@@ -714,7 +714,7 @@ grants.
 
 ---
 
-## 10. The SDKs — [Implemented: `rift-bot-sdk`, on npm as `@joinrift/bot-sdk` since Oct 12 2026; `rift-bot-sdk-rust`, started Oct 13 2026]
+## 10. The SDKs — [Implemented: `rift-bot-sdk-node`, on npm as `@joinrift/bot-sdk` since Oct 12 2026; `rift-bot-sdk-rust`, started Oct 13 2026]
 
 Everything in this document that a bot has to *do* is in each of them: identity
 from a seed, SIWS login, joining from an invite link, commands, replies, panels,

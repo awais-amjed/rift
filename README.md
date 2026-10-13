@@ -14,7 +14,7 @@
   <a href="https://joinrift.app">Website</a> ·
   <a href="https://docs.joinrift.app">Run a server</a> ·
   <a href="ARCHITECTURE.md">How it works</a> ·
-  <a href="https://github.com/awais-amjed/rift-bot-sdk">Build a bot</a>
+  <a href="https://github.com/awais-amjed/rift-bot-sdk-node">Build a bot</a>
 </p>
 
 <p align="center">
@@ -320,7 +320,7 @@ of the wire contract, and the docs refer to the others by name.
 | **`rift`** | this: the app | — |
 | [`rift-self-host`](https://github.com/awais-amjed/rift-self-host) | a server's schema, endpoints and console | anyone |
 | [`rift-central`](https://github.com/awais-amjed/rift-central) | accounts, the server and bot directories, the push relay | the project |
-| [`rift-bot-sdk`](https://github.com/awais-amjed/rift-bot-sdk) | the TypeScript bot SDK | bot authors |
+| [`rift-bot-sdk-node`](https://github.com/awais-amjed/rift-bot-sdk-node) | the TypeScript bot SDK | bot authors |
 | [`rift-bot-sdk-rust`](https://github.com/awais-amjed/rift-bot-sdk-rust) | the Rust bot SDK, whose bots play in stereo | bot authors |
 
 ## License

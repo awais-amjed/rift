@@ -115,8 +115,11 @@ Future<void> main() async {
     // `dm:v1` — ARCHITECTURE.md §4. The one key a bot derives rather than is
     // given, and the only chat crypto it does (BOTS.md §3).
     'dm_key': {
-      'note': 'HMAC-SHA256(X25519(chat_identity, peer_chat_public_key), "dm:v1")',
-      'peer_chat_public_key': CryptoRepository.toBase64(peerChat.publicKeyBytes),
+      'note':
+          'HMAC-SHA256(X25519(chat_identity, peer_chat_public_key), "dm:v1")',
+      'peer_chat_public_key': CryptoRepository.toBase64(
+        peerChat.publicKeyBytes,
+      ),
       'key_base64': CryptoRepository.toBase64(dmKey),
     },
     'signed_payload': {
@@ -185,8 +188,16 @@ Future<void> main() async {
   // that matters is a format change made by somebody who has both and forgot
   // one.
   const sdks = [
-    (repo: 'rift-bot-sdk', vectors: 'test/wire_vectors.json', test: 'npm test'),
-    (repo: 'rift-bot-sdk-rust', vectors: 'tests/wire_vectors.json', test: 'cargo test'),
+    (
+      repo: 'rift-bot-sdk-node',
+      vectors: 'test/wire_vectors.json',
+      test: 'npm test',
+    ),
+    (
+      repo: 'rift-bot-sdk-rust',
+      vectors: 'tests/wire_vectors.json',
+      test: 'cargo test',
+    ),
   ];
   for (final sdk in sdks) {
     final dir = Directory('../${sdk.repo}');

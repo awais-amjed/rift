@@ -23,7 +23,7 @@ built.
 | Rust core (`rust/`) | Screen capture + audio pipeline, publishes to LiveKit via flutter_rust_bridge | `rift` |
 | Self-hosted server | One Supabase project (Postgres + Edge Functions) + one or more LiveKit servers. Anyone can run one; holds users, channels, messages, and E2E keyring material | `rift-self-host` |
 | Central Supabase | Optional convenience service run by the project: account (email+password) + encrypted vault backups. Never required — privacy mode works without it | `rift-central` |
-| Bot SDKs | TypeScript and Rust. Each a second implementation of the wire format, not a binding | `rift-bot-sdk`, `rift-bot-sdk-rust` |
+| Bot SDKs | TypeScript and Rust. Each a second implementation of the wire format, not a binding | `rift-bot-sdk-node`, `rift-bot-sdk-rust` |
 | Directory moderation | A separate site with its own accounts for reviewing reports against central's public directory. Never part of the app | `rift-admin` |
 | On-device models | The image classifier each device runs on pictures it has decrypted, to decide whether to show them plainly — the server never sees a picture, so this is the only place one can be judged | `rift-models` |
 
