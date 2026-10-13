@@ -73,7 +73,9 @@ class MemberManagePanel extends StatelessWidget {
   }
 
   Future<void> _kick(BuildContext context) async {
-    if (await confirmKick(context, member.displayName)) onModerate(kick: true);
+    if (await confirmKick(context, member.displayName, isBot: member.isBot)) {
+      onModerate(kick: true);
+    }
   }
 
   void _openBotAccess(BuildContext context) {

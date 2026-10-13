@@ -97,7 +97,7 @@ class MemberModerationRow extends StatelessWidget {
                   // refuses anybody who could ban back.
                   // `KICK_MEMBERS`. Not for somebody already out: kicking a
                   // banned member would make the ban liftable by an invite.
-                  if (canKick && !member.isBot && !member.isBanned)
+                  if (canKick && !member.isBanned)
                     QuietDangerButton(
                       icon: Icons.logout_rounded,
                       label: 'Kick',

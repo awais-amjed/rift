@@ -37,8 +37,11 @@ class ParticipantAdminSection extends StatelessWidget {
   final bool isModerator;
   final bool isServerAdmin;
 
-  /// Holds `KICK_MEMBERS`, and the target is not a bot.
+  /// Holds `KICK_MEMBERS`.
   final bool canKick;
+
+  /// The kick's confirmation says what a bot loses and how it comes back.
+  final bool targetIsBot;
 
   /// Whether they're in a voice channel with us, which is the only place their
   /// live moderation state can be read from.
@@ -65,6 +68,7 @@ class ParticipantAdminSection extends StatelessWidget {
     required this.isModerator,
     required this.isServerAdmin,
     required this.canKick,
+    this.targetIsBot = false,
     required this.isLive,
     required this.voiceChannelId,
     required this.name,
@@ -162,6 +166,7 @@ class ParticipantAdminSection extends StatelessWidget {
           name: name,
           canDisconnect: _canDisconnect,
           canKick: _canKick,
+          targetIsBot: targetIsBot,
           // Admin only, matching `moderate_user`'s own `app.is_admin()`,
           // and never against another admin, which it also refuses.
           canBan: isServerAdmin && !targetIsAdmin,

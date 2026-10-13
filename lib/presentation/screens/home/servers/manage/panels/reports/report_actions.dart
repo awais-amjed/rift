@@ -43,7 +43,8 @@ class _ReportActionsState extends State<ReportActions> {
       'That didn\'t go through, so the report is still open. The message '
           'may be in a channel you can\'t moderate.',
     'already_resolved' => 'Someone else closed this report already.',
-    'cannot_kick_bot' => 'A bot is removed from Bots, not kicked.',
+    // A server older than bot kicks. Ban removes one there.
+    'cannot_kick_bot' => 'This server can\'t kick a bot yet. Ban it instead.',
     'cannot_moderate_peer' ||
     'cannot_kick_peer' ||
     'cannot_moderate_admin' => 'You can\'t do that to this person.',

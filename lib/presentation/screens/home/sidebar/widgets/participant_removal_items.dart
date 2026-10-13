@@ -39,8 +39,10 @@ class ParticipantRemovalItems extends StatelessWidget {
   /// May disconnect: staff, and only when there is a call to remove them from.
   final bool canDisconnect;
 
-  /// May kick: `KICK_MEMBERS`, and not against an admin or a bot.
+  /// May kick: `KICK_MEMBERS`, and not against an admin.
   final bool canKick;
+
+  final bool targetIsBot;
 
   /// May ban: server admins, matching `moderate_user`'s own rule.
   final bool canBan;
@@ -51,6 +53,7 @@ class ParticipantRemovalItems extends StatelessWidget {
     required this.name,
     required this.canDisconnect,
     required this.canKick,
+    this.targetIsBot = false,
     required this.canBan,
   });
 
@@ -72,7 +75,7 @@ class ParticipantRemovalItems extends StatelessWidget {
     final moderation = ModerationApi(
       session: context.read<SessionRepository>(),
     );
-    if (!await confirmKick(context, name)) return;
+    if (!await confirmKick(context, name, isBot: targetIsBot)) return;
     final response = await moderation.kickMember(userId: targetUserId);
     if (response.success) {
       HelperMethods.showToast(

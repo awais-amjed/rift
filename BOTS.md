@@ -364,6 +364,13 @@ removals share one key change an hour (`ARCHITECTURE.md` §4). The server stops 
 at once. The bot keeps what it already saw — nobody can take back what has been unwrapped — and
 gets nothing further.
 
+**Removing a bot** is a kick, the same as for a person (`KICK_MEMBERS`, from the members list,
+its profile or its menu in a call). It takes every grant at once, as if each were revoked: the
+channel keys, with a line in each channel saying so, what it may hear and any call it was summoned
+to, and it is taken out of the call it is in. A new **bot** invite brings it back with nothing; a
+person's invite does not. Until Oct 13 2026 a bot could not be kicked, only banned, and the Bots
+page that was meant to remove one never could.
+
 Both signals are shaped so they **clear themselves**: a granted bot whose grant starts above the
 current version, and a revoked bot still sealed into the current one. The rotation makes each check
 false again, so there is no flag to set, and an admin who grants and revokes twice in a minute

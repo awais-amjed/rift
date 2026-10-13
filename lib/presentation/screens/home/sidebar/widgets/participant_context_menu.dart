@@ -283,10 +283,10 @@ class ParticipantContextMenu extends StatelessWidget {
                 name: name,
                 isServerAdmin: isServerAdmin,
                 // `KICK_MEMBERS`, which a role can hold without managing
-                // channels. Never a bot, which `kick_member` refuses.
+                // channels.
                 canKick:
-                    (permissions?.can(ServerPermission.kickMembers) ?? false) &&
-                    !targetIsBot,
+                    permissions?.can(ServerPermission.kickMembers) ?? false,
+                targetIsBot: targetIsBot,
                 isLive: isLive,
                 voiceChannelId: voiceChannelId,
                 targetIsAdmin: targetIsAdmin,

@@ -96,7 +96,9 @@ class ProfileModeration extends StatelessWidget {
   }
 
   Future<void> _kick(BuildContext context) async {
-    if (await confirmKick(context, member.displayName)) onKick();
+    if (await confirmKick(context, member.displayName, isBot: member.isBot)) {
+      onKick();
+    }
   }
 
   void _openRoles(BuildContext context) {
