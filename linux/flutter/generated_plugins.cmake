@@ -3,13 +3,13 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  app_links_linux
   audioplayers_linux
   desktop_drop
   emoji_picker_flutter
   file_selector_linux
   flutter_secure_storage_linux
   flutter_webrtc
-  gtk
   livekit_client
   record_linux
   screen_retriever_linux
@@ -18,7 +18,6 @@ list(APPEND FLUTTER_PLUGIN_LIST
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
-  cnativeapi
   flutter_litert
   jni
   rust_lib_rift

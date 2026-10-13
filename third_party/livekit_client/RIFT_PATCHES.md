@@ -1,6 +1,6 @@
 # livekit_client, kept here and patched
 
-LiveKit's Flutter SDK, `livekit_client` 2.13.0 as published on pub.dev (from
+LiveKit's Flutter SDK, `livekit_client` 2.13.1 as published on pub.dev (from
 [livekit/client-sdk-flutter](https://github.com/livekit/client-sdk-flutter),
 Apache-2.0 — see `LICENSE` and `NOTICE`). Kept is what an app builds with:
 `lib/`, the platform folders and `pubspec.yaml`; the example, tests and docs
