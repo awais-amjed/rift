@@ -312,7 +312,7 @@ What a client may call on a server, and over which transport, is `API.md` in
 
 ## Related repositories
 
-Clone them side by side: `tool/gen_wire_vectors.dart` writes the bot SDK's copy
+Clone them side by side: `tool/gen_wire_vectors.dart` writes each bot SDK's copy
 of the wire contract, and the docs refer to the others by name.
 
 | Repository | What it is | Who runs it |
@@ -321,6 +321,7 @@ of the wire contract, and the docs refer to the others by name.
 | [`rift-self-host`](https://github.com/awais-amjed/rift-self-host) | a server's schema, endpoints and console | anyone |
 | [`rift-central`](https://github.com/awais-amjed/rift-central) | accounts, the server and bot directories, the push relay | the project |
 | [`rift-bot-sdk`](https://github.com/awais-amjed/rift-bot-sdk) | the TypeScript bot SDK | bot authors |
+| [`rift-bot-sdk-rust`](https://github.com/awais-amjed/rift-bot-sdk-rust) | the Rust bot SDK, whose bots play in stereo | bot authors |
 
 ## License
 

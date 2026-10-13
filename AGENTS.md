@@ -375,7 +375,7 @@ Rift repository — the siblings have no AGENTS.md of their own, so this is the 
 |---|---|
 | the shape of the system, a trust boundary, or who can see what | `ARCHITECTURE.md` (and its threat table) |
 | an endpoint, an RPC's inputs or a refusal code | `API.md` in `rift-self-host` |
-| a byte format another implementation must match | `WIRE.md`, then regenerate with `tool/gen_wire_vectors.dart`, which writes the SDK's copy too |
+| a byte format another implementation must match | `WIRE.md`, then regenerate with `tool/gen_wire_vectors.dart`, which writes each bot SDK's copy too |
 | what a bot may see, hear or say | `BOTS.md` |
 | a convention this code follows | this file, or `CODE_STYLE.md` |
 | something you verified by driving the real app | its row in `TESTING.md` (and the local `MANUAL_TESTING.md` log) — what was checked, and what was not |

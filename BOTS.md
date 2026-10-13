@@ -714,12 +714,12 @@ grants.
 
 ---
 
-## 10. The SDK — [Implemented, `rift-bot-sdk` repo; on npm as `@joinrift/bot-sdk` since Oct 12 2026]
+## 10. The SDKs — [Implemented: `rift-bot-sdk`, on npm as `@joinrift/bot-sdk` since Oct 12 2026; `rift-bot-sdk-rust`, started Oct 13 2026]
 
-Everything in this document that a bot has to *do* is in that package: identity
+Everything in this document that a bot has to *do* is in each of them: identity
 from a seed, SIWS login, joining from an invite link, commands, replies, panels,
-DMs, publishing audio, and reading a channel it was granted. Its README is the
-reference; what follows is why it exists in the shape it does.
+DMs, publishing audio, and reading a channel it was granted. Their READMEs are the
+reference; what follows is why they exist in the shape they do.
 
 ### The contract comes before the second implementation
 
@@ -740,7 +740,7 @@ So before there is a second SDK there is a **spec plus test vectors** — a fixe
 signature, in a JSON file any implementation proves itself against in one test. That is what makes
 *an SDK in every language* safe to want, and it is a day of work rather than a policy.
 
-### Why TypeScript, and why there is only one SDK
+### Why TypeScript and Rust, and not Dart
 
 There was a Dart one first. It could share `CryptoRepository` directly, and it proved the rest of
 this document end to end before any of it existed in another language. It is **deleted**, and the
@@ -752,14 +752,24 @@ reason is not that it stopped working:
   participants by identity without asking what they are.
 - **Everything after voice landed in TypeScript only**, so it fell a feature behind per session and
   the two READMEs started disagreeing about what a bot can do.
-- Bot authors are, overwhelmingly, the discord.js population, and the edge functions are already
-  TypeScript, so wire types are shared rather than mirrored.
 
-Two SDKs at different depths is worse than one: it reads as a choice when it is really a trap. A
-second implementation is still worth having — it is the only thing that makes "they agree" mean
-anything — but the one that matters is the **app**, which is Dart, generates
-`test/wire_vectors.json`, and is held to it by `test/wire_test.dart`. The SDK proves itself
-against the same file. Nothing is lost by the deletion except a second copy of the easy half.
+**TypeScript** is the SDK most authors want: they are, overwhelmingly, the discord.js population,
+and the edge functions are already TypeScript.
+
+**Rust** is the one whose bots play in stereo. LiveKit's Node, Python and .NET SDKs are all
+bindings to its Rust SDK, and that SDK never tells the server a two-channel track is stereo, so a
+bot on any of them is mono (livekit/rust-sdks #1018). Rift's app carries its own copy of the
+crate with that fixed, and `rift-bot-sdk-rust` carries the same copy — measured Oct 13 2026: a
+tone in one ear arrives in that ear alone, and without the change in both. Go was the other
+candidate, since its LiveKit client is not built on Rust: it has call encryption, but its PCM
+track is mono only and its encryption has never been tried against Rift's clients. And a Rust
+core can be wrapped for Node and Python later, the way LiveKit wraps its own, which would leave
+one implementation of the wire formats instead of one per language.
+
+Two SDKs are two second implementations, and both meet the app at the same file:
+`tool/gen_wire_vectors.dart` writes `test/wire_vectors.json` and each SDK's copy of it and of
+`WIRE.md`, and each SDK's tests check itself against its copy. The app, which is Dart and the
+reference, is held to it by `test/wire_test.dart`.
 
 Python comes next if anything does, and only because LiveKit Agents is Python-first: an AI that
 listens and talks in a voice channel is a different ecosystem, not a different opinion. The vectors
@@ -784,7 +794,8 @@ Documented honestly, not to be "fixed":
   that works on install. Deliberate, and the affordable version of it: a music
   bot needs nothing, so the strict default costs the common case nothing (§6b).
 - **A Dart bot cannot publish audio at all.** Not a policy — the only Dart
-  LiveKit client needs Flutter. Music bots are TypeScript here (§10).
+  LiveKit client needs Flutter. Music bots are TypeScript or Rust here (§10),
+  and only Rust's are stereo.
 - **Central has no bots.** Friend-gated, quota'd, 30-day TTL — that tier is first contact. Bots are
   a self-hosted feature, which matches the funnel/home split.
 - **The bots people actually use want the §6 grant.** The read-everything shape is most of the top

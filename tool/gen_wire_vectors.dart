@@ -172,34 +172,42 @@ Future<void> main() async {
   file.writeAsStringSync(json);
   stdout.writeln('wrote ${file.path}');
 
-  // And the TypeScript SDK's copy, in the sibling repository.
+  // And each bot SDK's copy, in its sibling repository.
   //
-  // Written here rather than left to a sync script, because the two must not be
-  // refreshable apart. The SDK used to read this repo's copy by relative
-  // path; now that it is its own repository it vendors one, and a vendored
-  // contract that can go stale is worse than no vectors at all — the SDK would
-  // go on passing against a format nobody uses.
+  // Written here rather than left to a sync script, because the copies must
+  // not be refreshable apart. The TypeScript SDK used to read this repo's copy
+  // by relative path; now each SDK is its own repository and vendors one, and
+  // a vendored contract that can go stale is worse than no vectors at all —
+  // the SDK would go on passing against a format nobody uses.
   //
-  // Absent when somebody has only cloned this repo, which is ordinary and not a
-  // failure. It says so rather than passing in silence, because the case that
-  // matters is a format change made by somebody who has both and forgot one.
-  final sdk = File('../rift-bot-sdk/test/wire_vectors.json');
-  if (sdk.parent.existsSync()) {
-    sdk.writeAsStringSync(json);
-    stdout.writeln('wrote ${sdk.path}');
+  // Absent when somebody has only cloned this repo, which is ordinary and not
+  // a failure. It says so rather than passing in silence, because the case
+  // that matters is a format change made by somebody who has both and forgot
+  // one.
+  const sdks = [
+    (repo: 'rift-bot-sdk', vectors: 'test/wire_vectors.json', test: 'npm test'),
+    (repo: 'rift-bot-sdk-rust', vectors: 'tests/wire_vectors.json', test: 'cargo test'),
+  ];
+  for (final sdk in sdks) {
+    final dir = Directory('../${sdk.repo}');
+    if (!dir.existsSync()) {
+      stdout.writeln(
+        'note: ../${sdk.repo} is not checked out beside this repo, so its copy\n'
+        '      was not updated. Refresh it before releasing an SDK built on this.',
+      );
+      continue;
+    }
+    final copy = File('${dir.path}/${sdk.vectors}');
+    copy.writeAsStringSync(json);
+    stdout.writeln('wrote ${copy.path}');
 
     // WIRE.md goes with the numbers. It is the other half of the same contract
     // — the prose the vectors freeze — and it was vendored by hand once, which
     // is exactly long enough for it to drift by a line nobody noticed.
-    final spec = File('../rift-bot-sdk/WIRE.md');
+    final spec = File('${dir.path}/WIRE.md');
     spec.writeAsStringSync(File('WIRE.md').readAsStringSync());
     stdout.writeln('wrote ${spec.path}');
 
-    stdout.writeln('  now run its tests: (cd ../rift-bot-sdk && npm test)');
-  } else {
-    stdout.writeln(
-      'note: ../rift-bot-sdk is not checked out beside this repo, so its copy\n'
-      '      was not updated. Refresh it before releasing an SDK built on this.',
-    );
+    stdout.writeln('  now run its tests: (cd ../${sdk.repo} && ${sdk.test})');
   }
 }
