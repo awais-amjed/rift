@@ -11,7 +11,8 @@ import '../../../sidebar/widgets/participant_volume_slider.dart';
 import 'profile_section.dart';
 import 'profile_setting_row.dart';
 
-/// How loud this person is **in your ears**, and nothing else.
+/// How loud this person is **in your ears** — and the one setting the other
+/// way round, whether they hear you at all, which is as personal and as quiet.
 ///
 /// Until now the only way to reach either control was to right-click a roster
 /// row, which is not a thing anybody discovers. Both settings are stored per
@@ -29,7 +30,9 @@ class ProfileLocalAudio extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final settings = context.watch<AppCubit>().state.participantSettings;
+    final app = context.watch<AppCubit>().state;
+    final settings = app.participantSettings;
+    final voiceHidden = app.voiceHiddenFrom.contains(userId);
     final setting = settings[userId];
     final muted = setting?.muted ?? false;
     final volume = setting?.volume ?? 1.0;
@@ -60,6 +63,15 @@ class ProfileLocalAudio extends StatelessWidget {
               value: muted,
               onChanged: (next) =>
                   context.read<LiveKitCubit>().setParticipantMute(userId, next),
+            ),
+          ),
+          ProfileSettingRow(
+            title: 'Hide my voice from them',
+            hint: "They won't hear you in any call. Everyone else still does.",
+            control: AppSwitch(
+              value: voiceHidden,
+              onChanged: (next) =>
+                  context.read<LiveKitCubit>().setVoiceHiddenFrom(userId, next),
             ),
           ),
           _volumeRow(

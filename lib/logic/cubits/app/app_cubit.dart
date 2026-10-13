@@ -304,6 +304,15 @@ class AppCubit extends HydratedCubit<AppState> {
     emit(state.copyWith(participantSettings: updated));
   }
 
+  // ── Persisted: people your voice is hidden from ─────────
+
+  /// Hides your voice from [userId] in every call, or lets them hear you
+  /// again — see [AppState.voiceHiddenFrom].
+  void setVoiceHiddenFrom(String userId, bool hidden) {
+    final rest = state.voiceHiddenFrom.where((id) => id != userId);
+    emit(state.copyWith(voiceHiddenFrom: [...rest, if (hidden) userId]));
+  }
+
   // ── Persisted: the soundboard, as this device hears it ───
   // Neither of these asks a server anything. Everybody in a call plays a
   // clip out of their own speakers, so how loud it is here is settled here.

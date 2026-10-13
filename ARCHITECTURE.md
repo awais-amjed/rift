@@ -575,6 +575,34 @@ already knows. **What they may do** is the database's, because that is where
 permissions live. Muting somebody for yourself is local state; muting them for
 everybody is a row.
 
+### Hiding your voice from somebody — [Implemented October 2026]
+
+"Hide my voice from them" is the other direction from a mute for yourself:
+they stop hearing you, in every call, until you take it back. It is this
+device's setting, kept like a mute for yourself (`AppState.voiceHiddenFrom`), and
+nobody is told, not even them.
+
+**The SFU enforces it, not their app.** Your app tells LiveKit who may subscribe
+to your tracks (`VoicePrivacy`), and the server sends your microphone to nobody
+else, so a modified app hears no more than a stock one. LiveKit has no "everyone
+but these", so once anybody is hidden the call runs on an allow-list: everyone
+present is named, a hidden person with every track of yours except the
+microphone, and all of their connections (each device, each share) are covered,
+since the list goes by user id. Somebody who joins later hears you once your app
+has named them, about a fifth of a second after they arrive. A track you publish
+is named only by the next list, which never names the microphone. While anybody
+is hidden, the microphone is not published inside the connect: it waits until
+the first list has gone, or it would reach everyone present before the list
+could. Verified Oct 14 with the Linux app against a local LiveKit and scripted
+listeners (`TESTING.md`): the hidden person, and their second device, received
+nothing, including across a rejoin; somebody arriving later got the mic as they
+joined; hiding mid-call cut them within a second; and un-hiding reconnected them.
+
+What it does not hide: they still see you in the call, and your speaking ring,
+which comes from the server's active-speaker reports (*Speaking indicator*).
+They also hold the room key, so it rests on whoever runs the server's LiveKit
+forwarding as told.
+
 ### What a share sends, and to whom — [Implemented October 2026]
 
 A viewer receives a share only after pressing Watch, so most shares spend

@@ -21,6 +21,7 @@ import '../../../../theme/theme_context.dart';
 import '../../profile/person/show_person_profile.dart';
 import 'participant_admin_section.dart';
 import 'participant_bot_section.dart';
+import 'participant_hide_voice_item.dart';
 import 'participant_volume_control.dart';
 
 /// Over the widget budget and one job: what you can do to one participant, and
@@ -265,6 +266,8 @@ class ParticipantContextMenu extends StatelessWidget {
                   !soundboardMuted,
                 ),
               ),
+            // The other direction: what they hear of you.
+            if (!isLocal) ParticipantHideVoiceItem(targetUserId: targetUserId),
             // Sending a summoned bot away — not moderation, and not
             // behind the same permission. Above the admin section because
             // for a bot it is the only item on here anybody usually wants.

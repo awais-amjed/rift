@@ -139,6 +139,15 @@ class AppState extends Equatable {
   /// until somebody moves one, so [AppSound.settingIn] supplies the default.
   final Map<String, ParticipantSetting> appSounds;
 
+  // ── People your voice is hidden from ──────────────────────
+  /// User ids of the people who must not hear you, in any call — see
+  /// `VoicePrivacy`. The call server enforces it, not their app.
+  ///
+  /// Kept here rather than on [ParticipantSetting]: those are how *you* hear
+  /// somebody, and this is the other direction. Like them it stays on this
+  /// device; another device of yours does not know about it.
+  final List<String> voiceHiddenFrom;
+
   // ── People whose keys you have checked ────────────────────
   /// The safety code you saw when you marked somebody verified, under
   /// `<tier>:<their id>` — see `SafetyCode`. Kept rather than a bare flag, so
@@ -220,6 +229,7 @@ class AppState extends Equatable {
     this.titleBarVisible = true,
     this.screenShareSettings = const ScreenShareSettings(),
     this.participantSettings = const {},
+    this.voiceHiddenFrom = const [],
     this.windowWidth,
     this.windowHeight,
     this.windowX,
@@ -297,6 +307,7 @@ class AppState extends Equatable {
     bool? titleBarVisible,
     ScreenShareSettings? screenShareSettings,
     Map<String, ParticipantSetting>? participantSettings,
+    List<String>? voiceHiddenFrom,
     double? windowWidth,
     double? windowHeight,
     double? windowX,
@@ -359,6 +370,7 @@ class AppState extends Equatable {
       titleBarVisible: titleBarVisible ?? this.titleBarVisible,
       screenShareSettings: screenShareSettings ?? this.screenShareSettings,
       participantSettings: participantSettings ?? this.participantSettings,
+      voiceHiddenFrom: voiceHiddenFrom ?? this.voiceHiddenFrom,
       windowWidth: windowWidth ?? this.windowWidth,
       windowHeight: windowHeight ?? this.windowHeight,
       windowX: windowX ?? this.windowX,
@@ -431,6 +443,7 @@ class AppState extends Equatable {
     titleBarVisible,
     screenShareSettings,
     participantSettings,
+    voiceHiddenFrom,
     windowWidth,
     windowHeight,
     windowX,

@@ -647,6 +647,11 @@ is not the whole story any more, and the confirm dialog says so.
 What is genuinely free is the other case, and it is the common one: **a music
 bot needs no grant at all.** Speaking was never the half that had to be allowed.
 
+A member can also keep one listening bot from hearing *them*, without asking
+an admin: "Hide my voice from them" works on a bot as on a person, and the
+call server stops sending the bot their microphone (`ARCHITECTURE.md` §5,
+*Hiding your voice from somebody*). The bot still hears everyone else.
+
 ### The room still says so
 
 Rule 4 applies unchanged: the admin decides, and everybody who speaks in that

@@ -28,6 +28,11 @@ AppState _$AppStateFromJson(Map<String, dynamic> json) => AppState(
             MapEntry(k, ParticipantSetting.fromJson(e as Map<String, dynamic>)),
       ) ??
       const {},
+  voiceHiddenFrom:
+      (json['voiceHiddenFrom'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList() ??
+      const [],
   windowWidth: (json['windowWidth'] as num?)?.toDouble(),
   windowHeight: (json['windowHeight'] as num?)?.toDouble(),
   windowX: (json['windowX'] as num?)?.toDouble(),
@@ -132,6 +137,7 @@ Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
   'soundboardMuted': instance.soundboardMuted,
   'soundboardVolume': instance.soundboardVolume,
   'appSounds': instance.appSounds.map((k, e) => MapEntry(k, e.toJson())),
+  'voiceHiddenFrom': instance.voiceHiddenFrom,
   'verifiedCodes': instance.verifiedCodes,
   'seenKeys': instance.seenKeys.map((k, e) => MapEntry(k, e.toJson())),
   'recentEmojis': instance.recentEmojis,

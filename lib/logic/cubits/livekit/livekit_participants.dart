@@ -18,11 +18,9 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
 
     final userId = ParticipantIdentity.userIdOf(participantIdentity);
 
-    final response = await ModerationApi(session: session).moderateUser(
-      userId: userId,
-      isMuted: muted,
-      isDeafened: deafened,
-    );
+    final response = await ModerationApi(
+      session: session,
+    ).moderateUser(userId: userId, isMuted: muted, isDeafened: deafened);
     if (!response.success) {
       HelperMethods.printDebug('moderateParticipant error: ${response.error}');
     }
@@ -99,6 +97,39 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
   /// [setParticipantMute] for why [target] may be a bare user id.
   Future<void> setParticipantVolume(String target, double volume) =>
       setVolumeFor(ParticipantIdentity.userIdOf(target), volume);
+
+  /// Hides your voice from [target] in every call, or lets them hear you
+  /// again. Saved, and put on the call you are in at once.
+  ///
+  /// [target] may be an identity or a bare user id, as for
+  /// [setParticipantMute].
+  void setVoiceHiddenFrom(String target, bool hidden) {
+    _appCubit.setVoiceHiddenFrom(ParticipantIdentity.userIdOf(target), hidden);
+    _applyVoicePrivacy();
+  }
+
+  /// Tells the call server who may receive your microphone — see
+  /// [VoicePrivacy]. Sent again whenever somebody joins or a track of yours
+  /// is published, since the list names both.
+  ///
+  /// [room] is for the moment before it is in the state: the connect.
+  void _applyVoicePrivacy([Room? room]) {
+    room ??= state.room;
+    final local = room?.localParticipant;
+    if (room == null || local == null) return;
+    final result = VoicePrivacy.permissions(
+      remoteIdentities: room.remoteParticipants.values.map((p) => p.identity),
+      hiddenFrom: _appCubit.state.voiceHiddenFrom,
+      nonMicTrackSids: [
+        for (final pub in local.trackPublications.values)
+          if (pub.source != TrackSource.microphone) pub.sid,
+      ],
+    );
+    local.setTrackSubscriptionPermissions(
+      allParticipantsAllowed: result.allowAll,
+      trackPermissions: result.permissions,
+    );
+  }
 }
 
 /// Puts this device's mute and volume on one remote audio track, the volume

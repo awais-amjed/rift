@@ -17,6 +17,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
   void _syncParticipants();
   void setupRoomListeners(Room room);
   void _applyStoredSettings();
+  void _applyVoicePrivacy([Room? room]);
 
   Future<void> _syncMicrophoneTransmission();
 
@@ -275,7 +276,13 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
     try {
       final useMicEnabled = micEnabled ?? state.isMicEnabled;
       final useCameraEnabled = cameraEnabled ?? state.isCameraEnabled;
-      final joinMicEnabled = _shouldTransmitMic(micEnabled: useMicEnabled);
+      // With anybody's ears shut to you, the mic waits until the server has
+      // been told who may receive it: published inside the connect, it would
+      // reach everyone present before the list could be sent ([VoicePrivacy]).
+      // The sync further down turns it on.
+      final joinMicEnabled =
+          _appCubit.state.voiceHiddenFrom.isEmpty &&
+          _shouldTransmitMic(micEnabled: useMicEnabled);
 
       await room.connect(
         livekitUrl,
@@ -302,6 +309,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       // publish after this one — unmuting, the camera, a track rebuilt when
       // the input device moved.
       await room.e2eeManager?.setKeyIndex(_callKeyIndex);
+      _applyVoicePrivacy(room);
       onConnected?.call();
 
       emit(

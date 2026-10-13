@@ -24,6 +24,7 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
   Future<void> rejoinDmCall();
 
   void _applyStoredSettings();
+  void _applyVoicePrivacy([Room? room]);
   void _applyScreenshareQualitySettings(Participant participant);
   void _onRemoteAudioArrived(RemoteTrackPublication publication);
   void _onRemoteAudioMayHaveGone();
@@ -40,12 +41,17 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
     _watchingSeen.clear();
 
     listener
+      // Whoever was here before us is filled in after `room.connect` returns,
+      // so the list sent at the connect named nobody — see [VoicePrivacy].
+      ..on<RoomConnectedEvent>((e) => _applyVoicePrivacy(e.room))
       ..on<ParticipantConnectedEvent>((e) {
         final identity = e.participant.identity;
         // Their key before their audio: a frame cryptor with no key for a
         // participant drops their frames, and somebody who joined a moment
         // before you registered them would simply never be audible.
         unawaited(_registerParticipantKey(identity));
+        // Nobody may receive your voice until named, while anyone is hidden.
+        _applyVoicePrivacy();
         _seedWatching(e.participant);
         if (ParticipantIdentity.isShare(identity)) {
           SoundService.instance.play(AppSound.stream);
@@ -163,6 +169,11 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
         // costs. Every later publish comes through here too: unmuting, the
         // camera, a rebuilt track after the input device moved.
         unawaited(_registerTrackKey(e.participant.identity));
+        // A new track is nobody's until named; a camera reaches the people
+        // your voice is hidden from only once they are sent its id. One
+        // published inside the connect finds no room in the state yet, and
+        // is named by the list the connect sends after it.
+        _applyVoicePrivacy();
         if (e.publication.source == TrackSource.screenShareVideo) {
           SoundService.instance.play(AppSound.stream);
         }
