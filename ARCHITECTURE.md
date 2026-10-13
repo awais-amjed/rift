@@ -31,18 +31,21 @@ The schema and the endpoints for both servers are in their own repositories, so 
 migration named here is a file there. They are the source of truth; this document
 is the reasoning behind them.
 
-Four dependencies are kept in this repository and patched, each until upstream
-releases its fix. `RIFT_PATCHES.md` beside each lists the changes, and says when
-the copy can go back:
+Patched dependencies are kept until upstream releases each fix. LiveKit's
+Rust SDKs come from a public fork, `awais-amjed/livekit-rust-sdks`: its `rift`
+branch is a LiveKit release with our changes on top, `RIFT.md` there says what
+and why, and `rust/Cargo.toml` pins one of its commits. The rest are kept in
+this repository, with a `RIFT_PATCHES.md` beside each that lists the changes and
+says when the copy can go back. All of them:
 - supabase's Realtime client, in `third_party/realtime_client`. Its 2.13.0
   release could leave a topic stuck off the socket after a reconnect, so a
   server's live updates stopped until a restart.
-- LiveKit's `webrtc-sys`, in `third_party/webrtc-sys`, with one line changed.
-  Without it WebRTC dropped frames a Windows share's GPU encoder had already
-  made, and the viewer's picture broke until the next keyframe.
-- LiveKit's `livekit`, in `third_party/livekit`. Its Rust SDK never told the
-  server a track was stereo, so a share's sound, captured in two channels,
-  went out in mono.
+- LiveKit's `webrtc-sys`, from the fork, with one line changed. Without it
+  WebRTC dropped frames a Windows share's GPU encoder had already made, and
+  the viewer's picture broke until the next keyframe.
+- LiveKit's `livekit`, from the fork. Its Rust SDK never told the server a
+  track was stereo, so a share's sound, captured in two channels, went out in
+  mono.
 - LiveKit's Flutter SDK, in `third_party/livekit_client`. It never asked to
   decode a track in stereo, so a stereo track was heard in mono on the
   desktop and on phones.
@@ -690,7 +693,7 @@ share asked for in H264 goes out as VP9.
 - **GPU H264 stays constrained baseline**: LiveKit offers only that profile for
   pre-encoded tracks, and Firefox viewers cannot take High.
 - **A GPU encoder is held to WebRTC's target before it encodes, not after.**
-  WebRTC's frame dropper is off for pre-encoded frames (`third_party/webrtc-sys`),
+  WebRTC's frame dropper is off for pre-encoded frames (our `webrtc-sys`),
   since a dropped H264 frame breaks every frame after it until the next
   keyframe. That leaves whatever an encoder makes beyond the target — variable
   bitrate on a fast game, or a moment's lag behind a falling estimate — waiting

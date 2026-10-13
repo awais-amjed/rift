@@ -44,6 +44,7 @@ lib/
 rust/src/api/     # Rust API surface exposed to Flutter — bridge functions and types only
 rust/src/screenshare/  # What those functions call: session, capture, audio/ per platform
 third_party/      # Code kept here: packages to patch, and RNNoise — each says why in its RIFT_PATCHES.md
+                  # (LiveKit's Rust SDKs are patched in a fork instead, pinned in rust/Cargo.toml)
 native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model inside
                       # libwebrtc's processing of the mic — RNNoise, or DeepFilterNet from
                       # rust/src/deep_filter.rs — then the mic volume, with a limiter,

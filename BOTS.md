@@ -758,9 +758,10 @@ and the edge functions are already TypeScript.
 
 **Rust** is the one whose bots play in stereo. LiveKit's Node, Python and .NET SDKs are all
 bindings to its Rust SDK, and that SDK never tells the server a two-channel track is stereo, so a
-bot on any of them is mono (livekit/rust-sdks #1018). Rift's app carries its own copy of the
-crate with that fixed, and `rift-bot-sdk-rust` carries the same copy — measured Oct 13 2026: a
-tone in one ear arrives in that ear alone, and without the change in both. Go was the other
+bot on any of them is mono (livekit/rust-sdks #1018). Rift's app and `rift-bot-sdk-rust`
+both build on a public fork of that SDK with it fixed (`awais-amjed/livekit-rust-sdks`, branch
+`rift`) — measured Oct 13 2026: a tone in one ear arrives in that ear alone, and without the
+change in both. Go was the other
 candidate, since its LiveKit client is not built on Rust: it has call encryption, but its PCM
 track is mono only and its encryption has never been tried against Rift's clients. And a Rust
 core can be wrapped for Node and Python later, the way LiveKit wraps its own, which would leave

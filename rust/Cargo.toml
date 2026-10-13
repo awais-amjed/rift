@@ -91,11 +91,12 @@ futures-util = "0.3"
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
 
-# LiveKit's webrtc-sys with one line changed: WebRTC must not drop frames a
-# screen share's GPU encoder already made. See
-# third_party/webrtc-sys/RIFT_PATCHES.md for why and when it goes.
-# And LiveKit's livekit, changed so a share's two-channel sound goes out in
-# stereo: third_party/livekit/RIFT_PATCHES.md.
+# LiveKit's Rust SDKs from our fork's `rift` branch, which changes two things:
+# livekit publishes a share's two-channel sound in stereo, and webrtc-sys stops
+# WebRTC dropping frames a share's GPU encoder already made. RIFT.md on that
+# branch says why, and when each change can go. Every crate of LiveKit's this
+# library builds comes from the one commit, so they always match.
 [patch.crates-io]
-webrtc-sys = { path = "../third_party/webrtc-sys" }
-livekit = { path = "../third_party/livekit" }
+livekit = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "8aa5c96d862b2c329d003f6e86016429afdf1e1f" }
+livekit-api = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "8aa5c96d862b2c329d003f6e86016429afdf1e1f" }
+webrtc-sys = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "8aa5c96d862b2c329d003f6e86016429afdf1e1f" }

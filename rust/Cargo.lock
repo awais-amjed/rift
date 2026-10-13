@@ -786,8 +786,7 @@ dependencies = [
 [[package]]
 name = "device-info"
 version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2ca8e71544c1b67dcdbc2699ab258828aff985e5bc8d5f6b486d90d7df2f848"
+source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=8aa5c96d862b2c329d003f6e86016429afdf1e1f#8aa5c96d862b2c329d003f6e86016429afdf1e1f"
 dependencies = [
  "core-foundation",
  "jni",
@@ -1741,8 +1740,7 @@ dependencies = [
 [[package]]
 name = "libwebrtc"
 version = "0.3.48"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bebf1c45174252b9c07588c5639a5e408a092d237b573f07787dcde2f3239b12"
+source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=8aa5c96d862b2c329d003f6e86016429afdf1e1f#8aa5c96d862b2c329d003f6e86016429afdf1e1f"
 dependencies = [
  "cxx",
  "jni",
@@ -1843,6 +1841,7 @@ checksum = "47d9d19d1d6efa0109d2f65ff4c85cddd50bd572e5a00127ab10987290bcefae"
 [[package]]
 name = "livekit"
 version = "0.9.1"
+source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=8aa5c96d862b2c329d003f6e86016429afdf1e1f#8aa5c96d862b2c329d003f6e86016429afdf1e1f"
 dependencies = [
  "base64 0.22.1",
  "bmrng",
@@ -1872,8 +1871,7 @@ dependencies = [
 [[package]]
 name = "livekit-api"
 version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6b1120c4ea5a95f28d8aed783c49fb5ebd57cb9ad3b8270c583c71404bbd4372"
+source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=8aa5c96d862b2c329d003f6e86016429afdf1e1f#8aa5c96d862b2c329d003f6e86016429afdf1e1f"
 dependencies = [
  "http",
  "livekit-protocol",
@@ -1891,8 +1889,7 @@ dependencies = [
 [[package]]
 name = "livekit-common"
 version = "0.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed16f156f1b6669cb17d7a910ab97d61d01ef24a7b3d14caade3edde9b02339f"
+source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=8aa5c96d862b2c329d003f6e86016429afdf1e1f#8aa5c96d862b2c329d003f6e86016429afdf1e1f"
 dependencies = [
  "livekit-protocol",
 ]
@@ -1900,8 +1897,7 @@ dependencies = [
 [[package]]
 name = "livekit-data-stream"
 version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "612f03368ce843d9a8947fc1fd1af1fd3ee15a1f052b1a3951891915914e8da3"
+source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=8aa5c96d862b2c329d003f6e86016429afdf1e1f#8aa5c96d862b2c329d003f6e86016429afdf1e1f"
 dependencies = [
  "async-compression",
  "bmrng",
@@ -1923,8 +1919,7 @@ dependencies = [
 [[package]]
 name = "livekit-datatrack"
 version = "0.1.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "04807eb67d0796ab4c225a99dec0d9ac8062a6bf6ea5cb13a5c1776f2c3b2f74"
+source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=8aa5c96d862b2c329d003f6e86016429afdf1e1f#8aa5c96d862b2c329d003f6e86016429afdf1e1f"
 dependencies = [
  "anyhow",
  "bytes",
@@ -1943,8 +1938,7 @@ dependencies = [
 [[package]]
 name = "livekit-net"
 version = "0.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f9528a26c807f49d3fa6d075c01db5fd77bf32454b1e700c530fb8c670892008"
+source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=8aa5c96d862b2c329d003f6e86016429afdf1e1f#8aa5c96d862b2c329d003f6e86016429afdf1e1f"
 dependencies = [
  "async-trait",
  "base64 0.21.7",
@@ -1963,8 +1957,7 @@ dependencies = [
 [[package]]
 name = "livekit-protocol"
 version = "0.7.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a76389797ee45f81577ee00d9f8a5d816bec8f9284988374bd20cdc1119c13e4"
+source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=8aa5c96d862b2c329d003f6e86016429afdf1e1f#8aa5c96d862b2c329d003f6e86016429afdf1e1f"
 dependencies = [
  "pbjson",
  "pbjson-types",
@@ -1975,8 +1968,7 @@ dependencies = [
 [[package]]
 name = "livekit-region"
 version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e94621b7d7cbb4544cd568c8e632852cc174d383055b0e77f4638eb91e43d3b"
+source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=8aa5c96d862b2c329d003f6e86016429afdf1e1f#8aa5c96d862b2c329d003f6e86016429afdf1e1f"
 dependencies = [
  "serde",
 ]
@@ -1984,8 +1976,7 @@ dependencies = [
 [[package]]
 name = "livekit-rpc"
 version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a8b6a55a457c665692be228aff9ef229a62545f703f8820dd886adb024a5b88"
+source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=8aa5c96d862b2c329d003f6e86016429afdf1e1f#8aa5c96d862b2c329d003f6e86016429afdf1e1f"
 dependencies = [
  "livekit-common",
  "livekit-data-stream",
@@ -2001,8 +1992,7 @@ dependencies = [
 [[package]]
 name = "livekit-signaling"
 version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1c1a9b518fa5434cae1dd679e60254070f203241c0319f239fd836e216960f36"
+source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=8aa5c96d862b2c329d003f6e86016429afdf1e1f#8aa5c96d862b2c329d003f6e86016429afdf1e1f"
 dependencies = [
  "base64 0.21.7",
  "device-info",
@@ -2025,8 +2015,7 @@ dependencies = [
 [[package]]
 name = "livekit-token"
 version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc9c914fdcfb38e7e48acfe5dfa1a64eb01a4e3f42c37f792e48b0705a8cc7c4"
+source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=8aa5c96d862b2c329d003f6e86016429afdf1e1f#8aa5c96d862b2c329d003f6e86016429afdf1e1f"
 dependencies = [
  "hmac",
  "jsonwebtoken",
@@ -4355,6 +4344,7 @@ dependencies = [
 [[package]]
 name = "webrtc-sys"
 version = "0.3.45"
+source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=8aa5c96d862b2c329d003f6e86016429afdf1e1f#8aa5c96d862b2c329d003f6e86016429afdf1e1f"
 dependencies = [
  "cc",
  "cxx",
@@ -4368,8 +4358,7 @@ dependencies = [
 [[package]]
 name = "webrtc-sys-build"
 version = "0.3.19"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0cd4f418e16f4b7ba028e6b5c70e4f532c7d2b5ca39726d42b699f3e4591ed5c"
+source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=8aa5c96d862b2c329d003f6e86016429afdf1e1f#8aa5c96d862b2c329d003f6e86016429afdf1e1f"
 dependencies = [
  "anyhow",
  "fs2",

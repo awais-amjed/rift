@@ -6,7 +6,7 @@
 //! What it proves: the two channels a share captures reach a listener as two.
 //! A tone fed into only the left ear has to come out of only the left ear.
 //! LiveKit encodes a track in mono unless the publisher says it is stereo,
-//! and our own copy of the SDK is what says so (`third_party/livekit`).
+//! and our fork of the SDK is what says so (`rust/Cargo.toml`).
 use super::{publish_and_feed, Command, Pcm, NUM_CHANNELS, SAMPLE_RATE};
 use crate::screenshare::live_test::{fresh_room, shared_key, viewer_as, Server, KEY_INDEX};
 use futures_util::StreamExt;

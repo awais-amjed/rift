@@ -13,8 +13,16 @@ set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
 out="$root/assets/licenses"
-registry="${CARGO_HOME:-$HOME/.cargo}/registry/src"
 cd "$root/rust"
+
+# Where cargo keeps a crate's sources: the registry, or the checkout of the git
+# fork rust/Cargo.toml patches LiveKit's crates from.
+crate_dir() {
+  cargo metadata --format-version 1 --locked |
+    python3 -c 'import json, os, sys
+d = json.load(sys.stdin)
+print(next(os.path.dirname(p["manifest_path"]) for p in d["packages"] if p["name"] == sys.argv[1]))' "$1"
+}
 
 # ── Crates ──────────────────────────────────────────────
 cargo about generate -c about.toml about.hbs -o "$out/rust_crates.txt"
@@ -24,9 +32,7 @@ cargo about generate -c about.toml about.hbs -o "$out/rust_crates.txt"
 # script dependency.
 for crate in webrtc-sys; do
   version=$(awk -v n="$crate" '$0 == "name = \"" n "\"" {getline; gsub(/version = |"/, ""); print}' Cargo.lock)
-  # A crate kept in third_party (patched, see its RIFT_PATCHES.md) is built from
-  # there, so the registry may not have it.
-  for notice in "$root/third_party/$crate"/NOTICE* "$registry"/*/"$crate-$version"/NOTICE*; do
+  for notice in "$(crate_dir "$crate")"/NOTICE*; do
     [ -f "$notice" ] || continue
     printf '\n%s\nNOTICE from %s %s\n\n' "$(printf '=%.0s' {1..80})" "$crate" "$version" >> "$out/rust_crates.txt"
     cat "$notice" >> "$out/rust_crates.txt"
@@ -37,8 +43,7 @@ done
 # ── libwebrtc ───────────────────────────────────────────
 # The tag webrtc-sys downloads is a constant in webrtc-sys-build; the licence
 # file sits beside the library it downloaded.
-build_version=$(awk '$0 == "name = \"webrtc-sys-build\"" {getline; gsub(/version = |"/, ""); print}' Cargo.lock)
-tag=$(grep -h -o 'WEBRTC_TAG: &str = "[^"]*"' "$registry"/*/"webrtc-sys-build-$build_version"/src/lib.rs | cut -d'"' -f2)
+tag=$(grep -h -o 'WEBRTC_TAG: &str = "[^"]*"' "$(crate_dir webrtc-sys-build)"/src/lib.rs | cut -d'"' -f2)
 licence=$(ls -t target/*/build/scratch-*/out/livekit_webrtc/livekit/*-"$tag"/*/LICENSE.md 2>/dev/null | head -1 || true)
 if [ -z "$licence" ]; then
   echo "No LICENSE.md for $tag under rust/target — build the native library first." >&2

@@ -2,7 +2,7 @@
 //! before they are encoded.
 //!
 //! WebRTC drops nothing of a GPU share. Its frame dropper is off for
-//! pre-encoded frames (`third_party/webrtc-sys`), because a dropped H264
+//! pre-encoded frames (our fork of `webrtc-sys`), because a dropped H264
 //! frame breaks every frame after it until the next keyframe. So whatever an
 //! encoder makes beyond WebRTC's target waits in WebRTC's send queue, and on
 //! a link that cannot carry it the picture falls further behind its sound

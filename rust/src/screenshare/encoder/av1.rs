@@ -1,7 +1,7 @@
 //! What an AV1 temporal unit holds, read from its OBUs.
 //!
 //! LiveKit's pass-through tidies an AV1 frame before WebRTC packetizes it
-//! (`third_party/webrtc-sys/src/av1_bitstream.cpp`), but sends each one as a
+//! (`av1_bitstream.cpp` in `webrtc-sys`), but sends each one as a
 //! single picture: a frame the encoder held back to show later, or two
 //! pictures in one sample, would reach the viewer out of step. So the frame
 //! headers are read here, to tell a keyframe and to check what an encoder
