@@ -30,7 +30,7 @@ permissions:
 env:
   # The versions the app is developed against; move them together with it.
   FLUTTER_VERSION: 3.47.7
-  RUST_VERSION: 1.97.0
+  RUST_VERSION: 1.99.0
   # vpk must match the velopack crate in rust/Cargo.toml.
   VPK_VERSION: 1.2.161
   REPO_URL: https://github.com/awais-amjed/rift

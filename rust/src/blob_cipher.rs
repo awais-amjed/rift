@@ -8,8 +8,8 @@
 //! CPU's AES instructions on one of the bridge's worker threads.
 //!
 //! A big file is sealed a chunk at a time instead ([seal_chunk]), so no copy
-//! of it ever has to fit in memory: the STREAM construction from aead's
-//! `stream` module, which puts each chunk's position and a last-chunk flag in
+//! of it ever has to fit in memory: the STREAM construction from the
+//! aead-stream crate, which puts each chunk's position and a last-chunk flag in
 //! its nonce. Chunks cannot be reordered, dropped or cut off at the end
 //! without a tag failing.
 //!
@@ -18,9 +18,9 @@
 //! swap it. [digest] is that hash, and [StreamDigest] the same hash fed a
 //! piece at a time.
 
-use aes_gcm::aead::stream::{NewStream, StreamBE32, StreamPrimitive};
-use aes_gcm::aead::{AeadInPlace, KeyInit};
-use aes_gcm::{Aes256Gcm, Key, Nonce};
+use aead_stream::{NewStream, StreamBE32, StreamPrimitive};
+use aes_gcm::aead::{AeadInOut, KeyInit, Nonce};
+use aes_gcm::Aes256Gcm;
 use sha2::{Digest, Sha256};
 
 const KEY_LEN: usize = 32;
@@ -30,24 +30,22 @@ const TAG_LEN: usize = 16;
 /// 1-byte last-chunk flag.
 const PREFIX_LEN: usize = 7;
 
-fn cipher(key: &[u8], nonce: &[u8]) -> Result<Aes256Gcm, String> {
-    if key.len() != KEY_LEN {
-        return Err(format!("A blob key is {KEY_LEN} bytes, not {}", key.len()));
-    }
-    if nonce.len() != NONCE_LEN {
-        return Err(format!("A blob nonce is {NONCE_LEN} bytes, not {}", nonce.len()));
-    }
-    Ok(Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key)))
+fn cipher(key: &[u8], nonce: &[u8]) -> Result<(Aes256Gcm, Nonce<Aes256Gcm>), String> {
+    let cipher = Aes256Gcm::new_from_slice(key)
+        .map_err(|_| format!("A blob key is {KEY_LEN} bytes, not {}", key.len()))?;
+    let nonce = Nonce::<Aes256Gcm>::try_from(nonce)
+        .map_err(|_| format!("A blob nonce is {NONCE_LEN} bytes, not {}", nonce.len()))?;
+    Ok((cipher, nonce))
 }
 
 /// Encrypts `data` in place and appends the tag.
 pub(crate) fn seal(key: &[u8], nonce: &[u8], mut data: Vec<u8>) -> Result<Vec<u8>, String> {
-    let cipher = cipher(key, nonce)?;
+    let (cipher, nonce) = cipher(key, nonce)?;
     // The tag would otherwise make the vector reallocate, which on a big file
     // is a second copy of it.
     data.reserve_exact(TAG_LEN);
     cipher
-        .encrypt_in_place(Nonce::from_slice(nonce), b"", &mut data)
+        .encrypt_in_place(&nonce, b"", &mut data)
         .map_err(|_| "Could not encrypt the blob".to_string())?;
     Ok(data)
 }
@@ -55,23 +53,22 @@ pub(crate) fn seal(key: &[u8], nonce: &[u8], mut data: Vec<u8>) -> Result<Vec<u8
 /// Checks the tag on `sealed` and decrypts it in place. Fails on a wrong key
 /// or nonce and on any change to the bytes.
 pub(crate) fn open(key: &[u8], nonce: &[u8], mut sealed: Vec<u8>) -> Result<Vec<u8>, String> {
-    let cipher = cipher(key, nonce)?;
+    let (cipher, nonce) = cipher(key, nonce)?;
     if sealed.len() < TAG_LEN {
         return Err("The blob is shorter than its tag".to_string());
     }
     cipher
-        .decrypt_in_place(Nonce::from_slice(nonce), b"", &mut sealed)
+        .decrypt_in_place(&nonce, b"", &mut sealed)
         .map_err(|_| "The blob did not decrypt: wrong key, or it was changed".to_string())?;
     Ok(sealed)
 }
 
 fn stream(key: &[u8], prefix: &[u8]) -> Result<StreamBE32<Aes256Gcm>, String> {
-    if prefix.len() != PREFIX_LEN {
-        return Err(format!("A stream nonce is {PREFIX_LEN} bytes, not {}", prefix.len()));
-    }
+    let prefix = aead_stream::Nonce::<Aes256Gcm, StreamBE32<Aes256Gcm>>::try_from(prefix)
+        .map_err(|_| format!("A stream nonce is {PREFIX_LEN} bytes, not {}", prefix.len()))?;
     // A full nonce's worth of checks on the key, then the prefix in its place.
-    let aead = cipher(key, &[0; NONCE_LEN])?;
-    Ok(StreamBE32::from_aead(aead, prefix.into()))
+    let (aead, _) = cipher(key, &[0; NONCE_LEN])?;
+    Ok(StreamBE32::from_aead(aead, &prefix))
 }
 
 /// Encrypts chunk `position` of a file sealed under `key` and the 7-byte

@@ -310,7 +310,9 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   platform and stdout goes nowhere in a Windows release build. On Linux and Windows the same
   lines go to the app's log file (`logging.rs`), which people send, so no secrets in them.
 - Pure logic (frame sizing, pixel sampling, sample conversion) is a plain function with unit
-  tests; `cargo test` runs them anywhere. `cargo test live_ -- --ignored --test-threads=1` runs a real share
+  tests; `cargo test --release` runs them anywhere. A debug build fails the DeepFilterNet
+  tests: tract checks the model's graph only with debug assertions on, and refuses it there
+  ("duplicate name"), while the release build loads and runs it. `cargo test live_ -- --ignored --test-threads=1` runs a real share
   against a LiveKit server (see `rust/src/screenshare/live_test.rs`).
 - `rust/src/frb_generated.rs` and `lib/src/rust/` are generated. After changing the API surface,
   regenerate with flutter_rust_bridge codegen (config in `flutter_rust_bridge.yaml`,

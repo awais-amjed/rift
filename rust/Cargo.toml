@@ -12,12 +12,12 @@ tokio = { version = "1.49.0", features = ["full"] }
 log = "0.4.29"
 # Attachments and saved conversations are sealed here rather than in Dart
 # (src/blob_cipher.rs): pure Rust, with the CPU's AES and carry-less multiply
-# picked at run time, so it builds the same on every target. aead's `stream`
+# picked at run time, so it builds the same on every target. aead-stream
 # is the STREAM construction a big file is sealed with, a chunk at a time.
 # sha2 is the digest an unencrypted attachment carries instead of a tag.
-aes-gcm = "0.10"
-aead = { version = "0.5", features = ["stream"] }
-sha2 = "0.10"
+aes-gcm = "0.11"
+aead-stream = "0.6"
+sha2 = "0.11"
 
 # Desktop only, and deliberately so.
 #
@@ -32,7 +32,7 @@ sha2 = "0.10"
 # ANDROID_NDK_HOME happens to be set, to link code that could never run. Now
 # the mobile build never sees it.
 [target.'cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))'.dependencies]
-livekit = { version = "0.9.1", features = ["rustls-tls-native-roots"] }
+livekit = { version = "0.9.5", features = ["rustls-tls-native-roots"] }
 
 # flutter_rust_bridge installs a logger on Android, iOS and macOS; these two
 # get env_logger from src/logging.rs.
@@ -50,7 +50,7 @@ livekit = { version = "0.9.1", features = ["rustls-tls-native-roots"] }
 # Opens Rift's FFmpeg library (native/ffenc) for a share's H264 on the GPU
 # (src/screenshare/encoder/ffmpeg.rs), so a computer it cannot load on still
 # runs the app.
-libloading = "0.8.9"
+libloading = "0.9"
 env_logger = { version = "0.11", default-features = false }
 nanomp3 = "0.2.0"
 deep_filter = { git = "https://github.com/Rikorose/DeepFilterNet", rev = "d375b2d8309e0935d165700c91da9de862a99c31", default-features = false, features = ["tract", "default-model"] }
@@ -63,7 +63,7 @@ tract-pulse = "=0.21.4"
 # is already in the build through rustls.
 velopack = { version = "=1.2.161", features = ["public-utils"] }
 ring = "0.17"
-base64 = "0.22"
+base64 = "0.23"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
@@ -75,7 +75,7 @@ libpulse-binding = "2.30.1"
 shiguredo_nvcodec = "2026.2.0"
 
 [target.'cfg(target_os = "windows")'.dependencies]
-wasapi = "0.22.0"
+wasapi = "0.26.0"
 windows = { version = "0.62.2", features = ["Win32_Devices_FunctionDiscovery", "Win32_Foundation", "Win32_Graphics_Dwm", "Win32_UI_WindowsAndMessaging", "Win32_System_Threading", "Win32_System_Diagnostics_ToolHelp", "Win32_Media", "Win32_Media_Audio", "Win32_Media_MediaFoundation", "Win32_System_Com", "Win32_System_Ole", "Win32_System_Registry", "Win32_System_Variant", "Win32_System_WinRT", "Win32_UI_Shell_PropertiesSystem", "UI_Notifications", "Data_Xml_Dom"] }
 # `#[implement]` expands to paths in windows-core, so it has to be a direct
 # dependency for the ducking listener (`ducking.rs`).
@@ -85,18 +85,17 @@ image = { version = "0.25", default-features = false, features = ["jpeg"] }
 # For the live test in src/screenshare/live_test.rs: minting tokens and
 # reading the viewer's frames. Desktop only for the same reason livekit is.
 [target.'cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))'.dev-dependencies]
-livekit-api = { version = "0.7.1", default-features = false, features = ["access-token"] }
+livekit-api = { version = "0.9.0", default-features = false, features = ["access-token"] }
 futures-util = "0.3"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
 
-# LiveKit's Rust SDKs from our fork's `rift` branch, which changes two things:
-# livekit publishes a share's two-channel sound in stereo, and webrtc-sys stops
-# WebRTC dropping frames a share's GPU encoder already made. RIFT.md on that
-# branch says why, and when each change can go. Every crate of LiveKit's this
+# LiveKit's Rust SDKs from our fork's `rift` branch, which changes one thing:
+# livekit publishes a share's two-channel sound in stereo. RIFT.md on that
+# branch says why, and when the change can go. Every crate of LiveKit's this
 # library builds comes from the one commit, so they always match.
 [patch.crates-io]
-livekit = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "8aa5c96d862b2c329d003f6e86016429afdf1e1f" }
-livekit-api = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "8aa5c96d862b2c329d003f6e86016429afdf1e1f" }
-webrtc-sys = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "8aa5c96d862b2c329d003f6e86016429afdf1e1f" }
+livekit = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "4305c5f5b141fca6513d44894078012db41ba6e1" }
+livekit-api = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "4305c5f5b141fca6513d44894078012db41ba6e1" }
+webrtc-sys = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "4305c5f5b141fca6513d44894078012db41ba6e1" }

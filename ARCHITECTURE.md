@@ -42,9 +42,6 @@ says when the copy can go back. All of them:
   server's live updates stopped until a restart. 2.13.2 fixed most of that;
   the copy is 2.13.2 with three changes, so a slow join after a reconnect is
   not cut short.
-- LiveKit's `webrtc-sys`, from the fork, with one line changed. Without it
-  WebRTC dropped frames a Windows share's GPU encoder had already made, and
-  the viewer's picture broke until the next keyframe.
 - LiveKit's `livekit`, from the fork. Its Rust SDK never told the server a
   track was stereo, so a share's sound, captured in two channels, went out in
   mono.
@@ -695,7 +692,7 @@ share asked for in H264 goes out as VP9.
 - **GPU H264 stays constrained baseline**: LiveKit offers only that profile for
   pre-encoded tracks, and Firefox viewers cannot take High.
 - **A GPU encoder is held to WebRTC's target before it encodes, not after.**
-  WebRTC's frame dropper is off for pre-encoded frames (our `webrtc-sys`),
+  WebRTC's frame dropper is off for pre-encoded frames (`webrtc-sys` 0.3.49),
   since a dropped H264 frame breaks every frame after it until the next
   keyframe. That leaves whatever an encoder makes beyond the target — variable
   bitrate on a fast game, or a moment's lag behind a falling estimate — waiting

@@ -61,9 +61,9 @@ impl Server {
             .with_grants(VideoGrants {
                 room_join: true,
                 room: room.to_string(),
-                can_publish: true,
-                can_subscribe: subscribe,
-                can_update_own_metadata: true,
+                can_publish: Some(true),
+                can_subscribe: Some(subscribe),
+                can_update_own_metadata: Some(true),
                 ..Default::default()
             })
             .to_jwt()

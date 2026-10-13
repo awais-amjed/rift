@@ -500,8 +500,8 @@ impl Transform {
             // (7.7 Mbps of 8, against 1.1 in VBR, Oct 4-5 2026), on the
             // sharer's upload and every viewer's download. VBR's sizes swing,
             // which WebRTC's frame dropper punished by dropping encoded
-            // frames; the patched webrtc-sys in third_party stops it acting
-            // on pre-encoded ones. Unconstrained, not peak-constrained: under
+            // frames; webrtc-sys (0.3.49 on) stops it acting on pre-encoded
+            // ones. Unconstrained, not peak-constrained: under
             // a peak, Intel's encoder inserted keyframes nobody asked for
             // (32 for 5 requests in a share's first seconds, against 5 for 3),
             // and each one held the viewer's picture up. CBR where an encoder
