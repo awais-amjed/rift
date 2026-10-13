@@ -108,6 +108,39 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
     _applyVoicePrivacy();
   }
 
+  /// Whether a full reconnect is holding the mic silent — see
+  /// [_holdMicThroughRestart].
+  bool _micHeldForPrivacy = false;
+
+  /// A full reconnect is a new session on the server, which lets everybody
+  /// subscribe until it is told otherwise, and LiveKit publishes the mic
+  /// again before it says the call is back. So while anybody is hidden, the
+  /// mic sends silence from the moment the call drops until the list has gone
+  /// again ([_releaseMicAfterRestart]): a hidden person may be subscribed for
+  /// that moment, and hears nothing.
+  void _holdMicThroughRestart() {
+    if (_appCubit.state.voiceHiddenFrom.isEmpty) return;
+    final track = state.room?.localParticipant
+        ?.getTrackPublicationBySource(TrackSource.microphone)
+        ?.track;
+    if (track == null) return;
+    track.mediaStreamTrack.enabled = false;
+    _micHeldForPrivacy = true;
+  }
+
+  /// Sends the list for the call that came back, then lets the mic speak —
+  /// unless it was muted meanwhile, which a mute does by the same switch.
+  void _releaseMicAfterRestart() {
+    _applyVoicePrivacy();
+    if (!_micHeldForPrivacy) return;
+    _micHeldForPrivacy = false;
+    final pub = state.room?.localParticipant?.getTrackPublicationBySource(
+      TrackSource.microphone,
+    );
+    final track = pub?.track;
+    if (track != null && !pub!.muted) track.mediaStreamTrack.enabled = true;
+  }
+
   /// Tells the call server who may receive your microphone — see
   /// [VoicePrivacy]. Sent again whenever somebody joins or a track of yours
   /// is published, since the list names both.

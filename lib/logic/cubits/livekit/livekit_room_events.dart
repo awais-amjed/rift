@@ -2,12 +2,11 @@ part of 'livekit_cubit.dart';
 
 /// Over the cubit-part budget and one job: answering the room's events. It is a
 /// list of listeners, each short.
-mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
+mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
   List<EventsListener<RoomEvent>> get _listeners;
   Map<String, Set<String>> get _watchingSeen;
   WatchResume get _watchResume;
   SoundboardCubit? get _soundboardCubit;
-  AppCubit get _appCubit;
   TokenCubit get _tokenCubit;
   void _syncParticipants({bool speakingOnly});
   Future<void> _publishSelfState();
@@ -24,7 +23,6 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
   Future<void> rejoinDmCall();
 
   void _applyStoredSettings();
-  void _applyVoicePrivacy([Room? room]);
   void _applyScreenshareQualitySettings(Participant participant);
   void _onRemoteAudioArrived(RemoteTrackPublication publication);
   void _onRemoteAudioMayHaveGone();
@@ -44,6 +42,10 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin {
       // Whoever was here before us is filled in after `room.connect` returns,
       // so the list sent at the connect named nobody — see [VoicePrivacy].
       ..on<RoomConnectedEvent>((e) => _applyVoicePrivacy(e.room))
+      // A full reconnect starts a server session that lets everyone hear you
+      // and publishes the mic again before this hears it is back.
+      ..on<RoomReconnectingEvent>((e) => _holdMicThroughRestart())
+      ..on<RoomReconnectedEvent>((e) => _releaseMicAfterRestart())
       ..on<ParticipantConnectedEvent>((e) {
         final identity = e.participant.identity;
         // Their key before their audio: a frame cryptor with no key for a

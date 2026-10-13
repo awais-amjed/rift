@@ -598,6 +598,16 @@ listeners (`TESTING.md`): the hidden person, and their second device, received
 nothing, including across a rejoin; somebody arriving later got the mic as they
 joined; hiding mid-call cut them within a second; and un-hiding reconnected them.
 
+A **full reconnect** is a new session on the server, which lets everybody
+subscribe until told otherwise, and LiveKit publishes the microphone again
+before the app hears the call is back. So while anybody is hidden, the
+microphone sends silence from the moment the call drops until the list has been
+sent for the new session. A hidden person may be subscribed for that moment, but
+only to silence. Verified Oct 14 with three forced full reconnects
+(`sendSimulateScenario`) while speech played into the test mic: the hidden
+person was never subscribed, and everyone else had speech again within a
+quarter of a second.
+
 What it does not hide: they still see you in the call, and your speaking ring,
 which comes from the server's active-speaker reports (*Speaking indicator*).
 They also hold the room key, so it rests on whoever runs the server's LiveKit
