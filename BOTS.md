@@ -769,12 +769,15 @@ reason is not that it stopped working:
 **TypeScript** is the SDK most authors want: they are, overwhelmingly, the discord.js population,
 and the edge functions are already TypeScript.
 
-**Rust** is the one whose bots play in stereo. LiveKit's Node, Python and .NET SDKs are all
+**Rust** was the first whose bots played in stereo. LiveKit's Node, Python and .NET SDKs are all
 bindings to its Rust SDK, and that SDK never tells the server a two-channel track is stereo, so a
 bot on any of them is mono (livekit/rust-sdks #1018). Rift's app and `rift-bot-sdk-rust`
 both build on a public fork of that SDK with it fixed (`awais-amjed/livekit-rust-sdks`, branch
 `rift`) — measured Oct 13 2026: a tone in one ear arrives in that ear alone, and without the
-change in both. Go was the other
+change in both. Since 0.2.0 the TypeScript SDK plays in stereo too, through
+`@joinrift/rtc-node`: LiveKit's Node SDK unchanged, on native bindings built from the same fork
+(`awais-amjed/node-sdks`, branch `rift`). Measured the same way the same day, through the
+SDK's own `joinVoice` and `play`. Go was the other
 candidate, since its LiveKit client is not built on Rust: it has call encryption, but its PCM
 track is mono only and its encryption has never been tried against Rift's clients. And a Rust
 core can be wrapped for Node and Python later, the way LiveKit wraps its own, which would leave

@@ -321,7 +321,7 @@ of the wire contract, and the docs refer to the others by name.
 | [`rift-self-host`](https://github.com/awais-amjed/rift-self-host) | a server's schema, endpoints and console | anyone |
 | [`rift-central`](https://github.com/awais-amjed/rift-central) | accounts, the server and bot directories, the push relay | the project |
 | [`rift-bot-sdk-node`](https://github.com/awais-amjed/rift-bot-sdk-node) | the TypeScript bot SDK | bot authors |
-| [`rift-bot-sdk-rust`](https://github.com/awais-amjed/rift-bot-sdk-rust) | the Rust bot SDK, whose bots play in stereo | bot authors |
+| [`rift-bot-sdk-rust`](https://github.com/awais-amjed/rift-bot-sdk-rust) | the Rust bot SDK | bot authors |
 
 ## License
 
