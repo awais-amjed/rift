@@ -50,7 +50,8 @@ class ShareOptions extends StatelessWidget {
   });
 
   /// Linux shares one application's sound, screen or window; elsewhere a
-  /// whole screen takes the system's sound and a window its own app's.
+  /// whole screen takes every app's sound but Rift's, and a window its own
+  /// app's.
   bool get _showsAudioSourcePicker =>
       HostPlatform.picksShareAudioSource && settings.shareAudio;
 

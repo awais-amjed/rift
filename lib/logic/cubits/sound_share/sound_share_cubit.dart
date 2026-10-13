@@ -102,7 +102,7 @@ class SoundShareCubit extends Cubit<SoundShareState> {
           selectedAudioSourceSink: source.sink,
           // Windows lists a source by its process, with the process id in
           // `index`, and captures by process; without the id the capture
-          // falls back to the whole mix, which carries the call back in.
+          // takes every app playing, not the one picked.
           selectedAudioSourcePid: HostPlatform.listsAudioSourcesByProcess
               ? source.index
               : null,

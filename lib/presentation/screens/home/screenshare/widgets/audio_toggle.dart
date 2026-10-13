@@ -67,7 +67,8 @@ class AudioToggle extends StatelessWidget {
                           // Linux shares one app's sound, picked below.
                           : HostPlatform.picksShareAudioSource
                           ? 'The app picked below will be heard'
-                          : 'System audio will be captured',
+                          // Never Rift's own: the call would hear itself.
+                          : 'Your apps will be heard, but not Rift',
                       style: AppText.label.copyWith(
                         color: themeState.textTertiary,
                       ),

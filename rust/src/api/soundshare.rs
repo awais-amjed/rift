@@ -24,7 +24,7 @@ pub struct SoundShareConfig {
     /// Linux: the PulseAudio sink-input to capture, and the sink it plays to.
     pub selected_audio_source_index: Option<u32>,
     pub selected_audio_source_sink: Option<u32>,
-    /// Windows: the process whose audio to capture; none means the whole mix.
+    /// Windows: the process whose audio to capture; none means everything but Rift.
     pub selected_audio_source_pid: Option<u32>,
 
     /// What the application calls itself, published as the track's name so

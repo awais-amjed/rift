@@ -1,4 +1,4 @@
-//! Windows: WASAPI loopback, of one process or of the whole default output.
+//! Windows: WASAPI loopback, of one process or of everything but Rift.
 use super::{
     samples_from_le_bytes, AudioCapture, AudioCaptureHandle, Command, Pcm, NUM_CHANNELS,
     SAMPLE_RATE,
@@ -35,7 +35,7 @@ pub(crate) async fn start(room: &Room, request: AudioCapture) -> Option<AudioCap
     let pid = request.selection.pid;
     match pid {
         Some(pid) => log::info!("audio: capturing process {pid}"),
-        None => log::info!("audio: capturing the default output"),
+        None => log::info!("audio: capturing everything but Rift"),
     }
     super::publish_and_feed(
         room,
@@ -56,10 +56,7 @@ fn spawn_capture_thread(
             log::warn!("audio: could not initialise COM on the capture thread");
             return;
         }
-        let Some(mut client) = open_client(pid) else {
-            return;
-        };
-        let Some(capture) = start_capture(&mut client) else {
+        let Some((_client, capture)) = open_capture(pid) else {
             return;
         };
         let process = pid.and_then(ProcessWatch::open);
@@ -121,22 +118,38 @@ impl Drop for ProcessWatch {
     }
 }
 
-fn open_client(pid: Option<u32>) -> Option<AudioClient> {
+/// The client stays with the capture: dropping it ends the stream.
+fn open_capture(pid: Option<u32>) -> Option<(AudioClient, wasapi::AudioCaptureClient)> {
+    let started = |mut client: AudioClient| start_capture(&mut client).map(|c| (client, c));
     match pid {
         Some(pid) => AudioClient::new_application_loopback_client(pid, true)
             .map_err(|e| log::warn!("audio: no loopback client for process {pid}: {e:?}"))
-            .ok(),
-        None => {
-            let device = DeviceEnumerator::new()
-                .and_then(|enumerator| enumerator.get_default_device(&Direction::Render))
-                .map_err(|e| log::warn!("audio: no default output device: {e:?}"))
-                .ok()?;
-            device
-                .get_iaudioclient()
-                .map_err(|e| log::warn!("audio: no client for the default output: {e:?}"))
-                .ok()
-        }
+            .ok()
+            .and_then(started),
+        // Everything playing but Rift: the call, the soundboard and Rift's
+        // own sounds, recorded into a share, play everyone's voices back to
+        // them. Windows 10 2004 and newer can leave a process tree out; an
+        // older one records the whole default output, as before.
+        None => AudioClient::new_application_loopback_client(std::process::id(), false)
+            .map_err(|e| log::warn!("audio: no loopback client leaving Rift out: {e:?}"))
+            .ok()
+            .and_then(started)
+            .or_else(|| {
+                log::warn!("audio: recording the whole default output, Rift included");
+                default_output_client().and_then(started)
+            }),
     }
+}
+
+fn default_output_client() -> Option<AudioClient> {
+    let device = DeviceEnumerator::new()
+        .and_then(|enumerator| enumerator.get_default_device(&Direction::Render))
+        .map_err(|e| log::warn!("audio: no default output device: {e:?}"))
+        .ok()?;
+    device
+        .get_iaudioclient()
+        .map_err(|e| log::warn!("audio: no client for the default output: {e:?}"))
+        .ok()
 }
 
 fn start_capture(client: &mut AudioClient) -> Option<wasapi::AudioCaptureClient> {

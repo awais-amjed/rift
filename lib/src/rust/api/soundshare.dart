@@ -37,7 +37,7 @@ class SoundShareConfig {
   final int? selectedAudioSourceIndex;
   final int? selectedAudioSourceSink;
 
-  /// Windows: the process whose audio to capture; none means the whole mix.
+  /// Windows: the process whose audio to capture; none means everything but Rift.
   final int? selectedAudioSourcePid;
 
   /// What the application calls itself, published as the track's name so

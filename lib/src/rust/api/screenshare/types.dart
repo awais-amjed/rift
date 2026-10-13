@@ -107,7 +107,7 @@ class ScreenShareConfig {
   final int? selectedAudioSourceIndex;
   final int? selectedAudioSourceSink;
 
-  /// Windows: the process whose audio to capture; none means the whole mix.
+  /// Windows: the process whose audio to capture; none means everything but Rift.
   final int? selectedAudioSourcePid;
 
   /// The channel key this call is encrypted with, and the LiveKit key-ring

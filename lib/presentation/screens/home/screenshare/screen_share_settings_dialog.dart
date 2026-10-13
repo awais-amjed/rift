@@ -62,7 +62,7 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
       HostPlatform.picksShareAudioSource && _draft.shareAudio;
 
   /// Whether the picked app is dropped for a whole screen — only where a
-  /// whole screen takes the system's sound instead.
+  /// whole screen takes every app's sound but Rift's instead.
   bool _dropsAudioSource(bool captureFullScreen) =>
       captureFullScreen && !HostPlatform.picksShareAudioSource;
 

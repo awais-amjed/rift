@@ -78,7 +78,7 @@ pub(crate) struct AudioSelection {
     /// Linux: the PulseAudio sink-input to capture, and the sink it plays to.
     pub sink_input: Option<u32>,
     pub sink: Option<u32>,
-    /// Windows: the process whose audio to capture; none means the whole mix.
+    /// Windows: the process whose audio to capture; none means everything but Rift.
     pub pid: Option<u32>,
 }
 
