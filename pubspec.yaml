@@ -111,6 +111,9 @@ dependencies:
   html: ^0.15.7
   url_launcher: ^6.3.2
   desktop_drop: ^0.8.4
+  # Ctrl+V of a picture or of files copied in a file manager: Flutter's own
+  # clipboard reads text only (see ClipboardFiles).
+  pasteboard: ^0.5.0
   # Picking and saving files on a phone without holding them in memory:
   # file_selector's Android side reads a picked file whole and has no save
   # dialog at all. file_picker copies a pick to a cache file natively;

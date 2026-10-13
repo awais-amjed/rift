@@ -64,6 +64,18 @@ mixin _ComposerAttachmentsMixin on State<ChatComposer> {
     }
   }
 
+  /// Ctrl+V with a copied picture or copied files on the clipboard: staged
+  /// like a drop. False hands the paste back to the field, which pastes text.
+  Future<bool> _pasteFiles() async {
+    if (!_takesDrops) return false;
+    final files = await ClipboardFiles.read();
+    // The composer went while the clipboard was read: nowhere to paste.
+    if (!mounted) return true;
+    if (files == null) return false;
+    await _onDropped(files);
+    return true;
+  }
+
   /// Whether a drop on the pane would be taken: the same conditions that
   /// show the attach button.
   bool get _takesDrops =>

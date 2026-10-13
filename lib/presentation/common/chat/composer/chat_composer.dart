@@ -28,6 +28,7 @@ import '../../../theme/theme_context.dart';
 import '../../emoji_text.dart';
 import '../../tap_to_focus.dart';
 import '../drop/chat_drop_relay.dart';
+import '../drop/clipboard_files.dart';
 import 'composer_bot_suggestions.dart';
 import 'composer_channel_plain_notice.dart';
 import 'composer_command_backdrop.dart';
@@ -526,6 +527,7 @@ class _ChatComposerState extends State<ChatComposer>
               onAcceptSuggestion: _acceptSuggestion,
               onMoveSuggestion: _moveHighlight,
               onPickFiles: _pickFiles,
+              onPasteFiles: _pasteFiles,
               onCreatePoll: widget.onCreatePoll,
               onStartRecording: _startRecording,
               onEmojiInserted: () => setState(() {}),

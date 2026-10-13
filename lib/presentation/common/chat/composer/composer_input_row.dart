@@ -38,6 +38,9 @@ class ComposerInputRow extends StatelessWidget {
   final bool Function(int delta)? onMoveSuggestion;
   final VoidCallback onPickFiles;
 
+  /// Passed straight to [ComposerTextField] — see its doc.
+  final Future<bool> Function()? onPasteFiles;
+
   /// Start a poll, offered from the "+" beside attaching. Null where there
   /// are no polls.
   final VoidCallback? onCreatePoll;
@@ -59,6 +62,7 @@ class ComposerInputRow extends StatelessWidget {
     this.onAcceptSuggestion,
     this.onMoveSuggestion,
     required this.onPickFiles,
+    this.onPasteFiles,
     this.onCreatePoll,
     required this.onStartRecording,
     required this.onEmojiInserted,
@@ -91,6 +95,7 @@ class ComposerInputRow extends StatelessWidget {
             onSubmit: onSubmit,
             onAcceptSuggestion: onAcceptSuggestion,
             onMoveSuggestion: onMoveSuggestion,
+            onPasteFiles: onPasteFiles,
           ),
         ),
         // Builder so the popover can anchor to the button's own box.
