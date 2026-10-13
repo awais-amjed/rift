@@ -12,6 +12,7 @@ import '../../../../../../../theme/app_motion.dart';
 import '../../../../../../../theme/custom_colors.dart';
 import '../../../../../../../theme/theme_context.dart';
 import '../../../../../sidebar/widgets/participant_context_menu.dart';
+import '../../../../../sidebar/widgets/voice_status_row_icons.dart';
 import 'roster_row_metrics.dart';
 
 /// A member of a voice channel you're not in — rendered from Realtime
@@ -26,7 +27,15 @@ class PresenceMemberRow extends StatelessWidget {
   final PresenceUser user;
   final ParticipantSetting? setting;
 
-  const PresenceMemberRow({super.key, required this.user, this.setting});
+  /// A bot with no listening grant for this channel.
+  final bool cannotHear;
+
+  const PresenceMemberRow({
+    super.key,
+    required this.user,
+    this.setting,
+    this.cannotHear = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -87,6 +96,15 @@ class PresenceMemberRow extends StatelessWidget {
                 ),
               ),
             ),
+            if (cannotHear)
+              Tooltip(
+                message: VoiceStatusRowIcons.cannotHearTooltip,
+                child: Icon(
+                  Icons.headset_off,
+                  size: RosterRowMetrics.of(context).iconSize,
+                  color: themeState.textTertiary,
+                ),
+              ),
             // Locally muted, even though they're in another channel —
             // otherwise the mute is invisible until you next join them.
             if (isMuted)

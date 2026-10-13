@@ -11,6 +11,10 @@ enum VoiceStatusIcon {
   /// They have deafened themselves.
   deafened,
 
+  /// A bot that has not been allowed to hear this channel: it can play into
+  /// the call, but nothing said there reaches it.
+  cannotHear,
+
   /// A moderator has deafened them.
   deafenedByModerator,
 
@@ -44,6 +48,10 @@ List<VoiceStatusIcon> voiceStatusIcons(
   /// Whether this listener has muted them locally, which is nobody's business
   /// but this client's and so is not in [participant].
   required bool mutedForYou,
+
+  /// A bot without a listening grant here. Unlike deafening it leaves the
+  /// microphone alone: the bot is in the call to be heard.
+  bool cannotHear = false,
 }) {
   final icons = <VoiceStatusIcon>[];
   if (participant.isSharingScreen) icons.add(VoiceStatusIcon.sharingScreen);
@@ -54,6 +62,8 @@ List<VoiceStatusIcon> voiceStatusIcons(
     icons.add(VoiceStatusIcon.deafenedByModerator);
   } else if (participant.isDeafened) {
     icons.add(VoiceStatusIcon.deafened);
+  } else if (cannotHear) {
+    icons.add(VoiceStatusIcon.cannotHear);
   }
 
   if (mutedForYou) {

@@ -57,6 +57,12 @@ class ChannelRoster extends StatelessWidget {
           (permissions?.isChannelManager ?? false);
     });
     final roster = context.watch<ServerMembersCubit>().state;
+    final listeners = context.watch<VoiceListenersCubit>();
+    // A bot is in a call to be heard; whether it hears is a grant of its own
+    // (`bot_voice_grants`), and without one the row says so.
+    bool cannotHear(String userId) =>
+        (roster.byId[userId]?.isBot ?? false) &&
+        !listeners.hears(channelId, userId);
     final keys = _RowKeys();
 
     // Rows touch, as the sidebar's do: a row is [RosterRowMetrics.rowHeight]
@@ -74,6 +80,7 @@ class ChannelRoster extends StatelessWidget {
             child: ParticipantListItem(
               participant: participant,
               setting: settings[participant.userId],
+              cannotHear: cannotHear(participant.userId),
               contextMenu: ParticipantContextMenu(
                 identity: participant.identity,
                 name: roster.nameFor(participant.userId, participant.name),
@@ -89,8 +96,8 @@ class ChannelRoster extends StatelessWidget {
             enabled: canMoveOthers,
             child: PresenceMemberRow(
               user: user,
-
               setting: settings[user.userId],
+              cannotHear: cannotHear(user.userId),
             ),
           ),
         // Bots that were called in and have not turned up. The two lists above

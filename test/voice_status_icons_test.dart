@@ -24,9 +24,27 @@ ParticipantInfo person({
 List<VoiceStatusIcon> icons(
   ParticipantInfo participant, {
   bool mutedForYou = false,
-}) => voiceStatusIcons(participant, mutedForYou: mutedForYou);
+  bool cannotHear = false,
+}) => voiceStatusIcons(
+  participant,
+  mutedForYou: mutedForYou,
+  cannotHear: cannotHear,
+);
 
 void main() {
+  // A bot summoned to play hears nothing without a grant of its own. It is
+  // there to be heard, so the ears go and the microphone stays.
+  test('a bot that cannot hear shows the ears and not the microphone', () {
+    expect(icons(person(), cannotHear: true), [VoiceStatusIcon.cannotHear]);
+  });
+
+  test('a deafen says it in its own words, not as a bot that cannot hear', () {
+    expect(icons(person(deafened: true), cannotHear: true), [
+      VoiceStatusIcon.deafened,
+      VoiceStatusIcon.muted,
+    ]);
+  });
+
   test('somebody who can be heard shows nothing', () {
     expect(icons(person()), isEmpty);
   });

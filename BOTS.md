@@ -662,6 +662,11 @@ room pays for it. Two of the three carriers work here —
 The third — a system message in the channel — has nowhere to go: a voice channel
 holds no messages. It carries the columns and ignores them (§3).
 
+The other way round is marked too. A bot in a call without a grant there has a grey
+headphones-off mark on its row, the same icon as a deafen but without the muted
+microphone, since it is there to be heard. Without it a music bot's row looked
+like anyone's, and people reasonably assumed it could hear them.
+
 ### No server-wide form
 
 §6 has a bulk grant because thirty channels one at a time produces a button

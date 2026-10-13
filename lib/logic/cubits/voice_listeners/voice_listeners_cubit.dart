@@ -11,6 +11,9 @@ import '../../services/server_topics.dart';
 /// One bot summoned into a voice channel.
 typedef SummonedBot = ({String id, String name});
 
+/// One bot that can hear a voice channel.
+typedef ListeningBot = ({String id, String name});
+
 /// What the sidebar knows about bots and voice channels.
 ///
 /// Two lists rather than one because they are two different facts. A listener
@@ -19,8 +22,8 @@ typedef SummonedBot = ({String id, String name});
 /// which is furniture, and is here mostly so one that never arrived can still
 /// be seen and sent away.
 class VoiceBotsState {
-  /// Display names of the bots that can hear each channel.
-  final Map<String, List<String>> listeners;
+  /// The bots that can hear each channel.
+  final Map<String, List<ListeningBot>> listeners;
 
   /// Bots summoned into each channel, with the id needed to dismiss one.
   final Map<String, List<SummonedBot>> summons;
@@ -60,8 +63,15 @@ class VoiceListenersCubit extends Cubit<VoiceBotsState> {
 
   /// The bots that can hear [channelId], by name. Empty is the common case and
   /// the one that draws nothing.
-  List<String> listening(String channelId) =>
-      state.listeners[channelId] ?? const [];
+  List<String> listening(String channelId) => [
+    for (final bot in state.listeners[channelId] ?? const <ListeningBot>[])
+      bot.name,
+  ];
+
+  /// Whether [botId] may hear [channelId]. A bot in a call without it only
+  /// speaks, and its row says so (`VoiceStatusIcon.cannotHear`).
+  bool hears(String channelId, String botId) =>
+      state.listeners[channelId]?.any((bot) => bot.id == botId) ?? false;
 
   /// The bots summoned into [channelId], whether or not they have turned up.
   List<SummonedBot> summoned(String channelId) =>

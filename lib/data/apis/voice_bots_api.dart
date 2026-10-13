@@ -124,17 +124,19 @@ class VoiceBotsApi {
     );
   }
 
-  /// Who can hear each voice channel on this server: channel id → bot names.
+  /// Who can hear each voice channel on this server: channel id → bots.
   ///
   /// The whole server in one call, because the sidebar draws every voice
   /// channel at once and a query per row would be a query per row.
-  Future<Map<String, List<String>>> voiceListenersByChannel() async {
+  Future<Map<String, List<({String id, String name})>>>
+  voiceListenersByChannel() async {
     final rows = await _voiceListenerRows(null);
-    final byChannel = <String, List<String>>{};
+    final byChannel = <String, List<({String id, String name})>>{};
     for (final row in rows) {
-      (byChannel[row['channel_id'] as String] ??= []).add(
-        (row['bot_name'] as String?) ?? 'a bot',
-      );
+      (byChannel[row['channel_id'] as String] ??= []).add((
+        id: row['bot_id'] as String,
+        name: (row['bot_name'] as String?) ?? 'a bot',
+      ));
     }
     return byChannel;
   }
