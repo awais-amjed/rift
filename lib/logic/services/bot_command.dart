@@ -44,12 +44,20 @@ class BotCommands {
   ///   * `/musicbot play a song` — the first word is a bot's username, for a
   ///     bot with no manifest, or when two bots declare the same verb.
   ///
+  /// [preferBotId] is the bot picked from the `/` menu. Two bots can declare
+  /// the same verb, and the line alone cannot say which row was chosen, so
+  /// the pick wins for as long as that bot still declares the verb typed.
+  ///
   /// **Anything unrecognised is not a command**, and that is the important
   /// half. `/shrug`, `/usr/share/doc`, or a half-typed `/pl` must go out
   /// encrypted like any other message. A slash that fell through to plaintext
   /// because nothing matched would be the exact failure this design exists to
   /// prevent — and it would look like a typo, not a leak.
-  static BotCommand? parse(String text, List<ServerMember> bots) {
+  static BotCommand? parse(
+    String text,
+    List<ServerMember> bots, {
+    String? preferBotId,
+  }) {
     final trimmed = text.trim();
     if (!trimmed.startsWith('/') || trimmed.length < 2) return null;
 
@@ -63,8 +71,9 @@ class BotCommands {
 
     // A declared verb wins. Iteration order is the roster's, which the sidebar
     // has already sorted by display name — so two bots claiming `/play`
-    // resolve the same way every time rather than by whoever loaded first.
-    for (final bot in bots) {
+    // resolve the same way every time rather than by whoever loaded first,
+    // unless one of them was picked.
+    for (final bot in _inOrder(bots, preferBotId)) {
       for (final spec in bot.manifest.commands) {
         if (spec.name != head) continue;
         return BotCommand(
@@ -95,13 +104,17 @@ class BotCommands {
   /// a verb that wants arguments (`/play <song>`) and a bot's bare name still
   /// complete first, because what Enter would send then is not what was meant.
   /// The verb resolves to the same bot [parse] would pick.
-  static bool isReadyToSend(String text, List<ServerMember> bots) {
+  static bool isReadyToSend(
+    String text,
+    List<ServerMember> bots, {
+    String? preferBotId,
+  }) {
     final trimmed = text.trim();
     if (!trimmed.startsWith('/') || trimmed.contains(RegExp(r'\s'))) {
       return false;
     }
     final name = trimmed.substring(1).toLowerCase();
-    for (final bot in bots) {
+    for (final bot in _inOrder(bots, preferBotId)) {
       for (final spec in bot.manifest.commands) {
         if (spec.name != name) continue;
         return spec.usage == null || spec.usage!.trim().isEmpty;
@@ -120,17 +133,18 @@ class BotCommands {
   /// [text] as it stands, leading spaces included.
   static ({TextRange verb, TextRange argument, String? usage})? shapeOf(
     String text,
-    List<ServerMember> bots,
-  ) {
+    List<ServerMember> bots, {
+    String? preferBotId,
+  }) {
     final start = text.length - text.trimLeft().length;
     if (!text.startsWith('/', start)) return null;
     final rest = text.substring(start);
     final firstBreak = rest.indexOf(RegExp(r'\s'));
     if (firstBreak <= 1) return null;
-    if (parse(text, bots) == null) return null;
+    if (parse(text, bots, preferBotId: preferBotId) == null) return null;
     final head = rest.substring(1, firstBreak).toLowerCase();
     String? usage;
-    for (final bot in bots) {
+    for (final bot in _inOrder(bots, preferBotId)) {
       final spec = bot.manifest.commands.where((c) => c.name == head);
       if (spec.isNotEmpty) {
         usage = spec.first.usage;
@@ -155,8 +169,9 @@ class BotCommands {
   /// manifest entry to have switched suggestions on.
   static ({ServerMember bot, String command, String query})? suggestionQuery(
     String text,
-    List<ServerMember> bots,
-  ) {
+    List<ServerMember> bots, {
+    String? preferBotId,
+  }) {
     final trimmed = text.trimLeft();
     if (!trimmed.startsWith('/')) return null;
     final firstBreak = trimmed.indexOf(RegExp(r'\s'));
@@ -166,7 +181,7 @@ class BotCommands {
     // somebody looking for a song.
     if (query.isEmpty || query.length > 200) return null;
     final head = trimmed.substring(1, firstBreak).toLowerCase();
-    for (final bot in bots) {
+    for (final bot in _inOrder(bots, preferBotId)) {
       for (final spec in bot.manifest.commands) {
         if (spec.name != head) continue;
         // The first bot to declare the verb is the one [parse] sends to, so
@@ -176,6 +191,17 @@ class BotCommands {
     }
     return null;
   }
+
+  /// [bots] with the one picked from the menu first, the rest in roster order.
+  static List<ServerMember> _inOrder(
+    List<ServerMember> bots,
+    String? preferBotId,
+  ) => preferBotId == null
+      ? bots
+      : [
+          ...bots.where((b) => b.id == preferBotId),
+          ...bots.where((b) => b.id != preferBotId),
+        ];
 
   /// The commands to offer for [text], as a `/` menu.
   ///

@@ -60,9 +60,10 @@ part 'chat_composer_recording.dart';
 /// with neither text nor attachments never sends. [footer] is an optional slot
 /// below the bar — central DMs put the quota meter there.
 class ChatComposer extends StatefulWidget {
-  /// Called with the trimmed text, any staged attachments, and the preview
+  /// Called with the trimmed text, any staged attachments, the preview
   /// this device is building for the first link — null when there was none,
-  /// it was dismissed, or previews are off. A future, because a link sent
+  /// it was dismissed, or previews are off — and the bot a command line is
+  /// for, which the text alone cannot say when two bots declare its verb. A future, because a link sent
   /// before its card was ready waits for it (`_ComposerLinkPreviewMixin`).
   ///
   /// Completes with true when the server refused the message outright — a
@@ -73,6 +74,7 @@ class ChatComposer extends StatefulWidget {
     String text,
     List<PendingAttachment> attachments,
     Future<PendingLinkPreview?>? preview,
+    String? toBotId,
   )
   onSend;
 
@@ -286,12 +288,15 @@ class _ChatComposerState extends State<ChatComposer>
     final preview = _takePreview();
     final typed = _controller.text;
     final picked = Map.of(_picked);
+    final toBot = _commandBotId;
+    final toBotId = _command?.bot.id;
     _controller.clear();
     _picked.clear();
+    _commandBotId = null;
     setState(_staged.clear);
     unawaited(
-      widget.onSend(text, attachments, preview).then((refused) {
-        if (refused) _giveBack(typed, picked, attachments);
+      widget.onSend(text, attachments, preview, toBotId).then((refused) {
+        if (refused) _giveBack(typed, picked, attachments, toBot);
       }),
     );
     _focusNode.requestFocus();
@@ -305,7 +310,11 @@ class _ChatComposerState extends State<ChatComposer>
   CommandShape? _commandShape() {
     final shape = _staged.isNotEmpty || !widget.enabled
         ? null
-        : BotCommands.shapeOf(_controller.text, widget.bots);
+        : BotCommands.shapeOf(
+            _controller.text,
+            widget.bots,
+            preferBotId: _commandBotId,
+          );
     _controller.command = shape?.verb;
     return shape;
   }
@@ -318,6 +327,7 @@ class _ChatComposerState extends State<ChatComposer>
     String typed,
     Map<String, String> picked,
     List<PendingAttachment> attachments,
+    String? toBot,
   ) {
     if (!mounted || _controller.text.isNotEmpty || _staged.isNotEmpty) {
       // Nowhere to put the files back, so their copies have no reader left.
@@ -325,6 +335,7 @@ class _ChatComposerState extends State<ChatComposer>
       return;
     }
     _picked.addAll(picked);
+    _commandBotId = toBot;
     _controller.value = TextEditingValue(
       text: typed,
       selection: TextSelection.collapsed(offset: typed.length),
@@ -441,7 +452,7 @@ class _ChatComposerState extends State<ChatComposer>
           ComposerCommandMenu(
             entries: _suggestions,
 
-            onSelected: (_, name) => _pickCommand(name),
+            onSelected: _pickCommand,
             highlighted: _highlighted,
           )
         else if (_showsBotSuggestions)

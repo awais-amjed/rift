@@ -189,7 +189,7 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
                     canSend: ready,
                     maxAttachmentBytes: ServerLimits.centralMaxAttachmentBytes,
                     footer: const QuotaMeter(),
-                    onSend: (text, attachments, preview) =>
+                    onSend: (text, attachments, preview, _) =>
                         _send(context, text, attachments, preview),
                     replyingTo: replyingTo,
                     onCancelReply: cancelReply,

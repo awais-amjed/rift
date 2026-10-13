@@ -22,10 +22,15 @@ class OutboxEntry {
   /// The local bytes, still unuploaded. Empty for a plain text message.
   final List<PendingAttachment> attachments;
 
+  /// The bot a command was for, which its text cannot say when two bots
+  /// declare the verb. Null for anything else.
+  final String? toBotId;
+
   const OutboxEntry({
     required this.destination,
     required this.row,
     this.attachments = const [],
+    this.toBotId,
   });
 
   String get pendingId => row.id;

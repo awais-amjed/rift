@@ -49,6 +49,10 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
   /// fact about the person sending, and the alternative is this cubit knowing
   /// about LiveKit so it can ask on their behalf.
   ///
+  /// [toBotId] is the bot a command was picked for in the `/` menu, which
+  /// the line alone cannot name when two bots declare its verb
+  /// ([BotCommands.parse]).
+  ///
   /// [replyToId] is the message being answered. It is sealed into the body,
   /// never sent as a column, and the author it names is added to the
   /// mentions below so the reply rings — which is the only thing the server
@@ -61,6 +65,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
     String text, {
     List<PendingAttachment> attachments = const [],
     Future<PendingLinkPreview?>? preview,
+    String? toBotId,
     String? inVoiceChannel,
     String? replyToId,
     bool pingReplyTo = true,
@@ -69,6 +74,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
       text,
       attachments: attachments,
       preview: preview,
+      toBotId: toBotId,
       inVoiceChannel: inVoiceChannel,
       replyToId: replyToId,
       pingReplyTo: pingReplyTo,
@@ -82,6 +88,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
     String text, {
     List<PendingAttachment> attachments = const [],
     Future<PendingLinkPreview?>? preview,
+    String? toBotId,
     String? inVoiceChannel,
     String? replyToId,
     bool pingReplyTo = true,
@@ -123,6 +130,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
             // plaintext to say so: unparsed, it goes out sealed like any other
             // message.
             state.bots,
+            preferBotId: toBotId,
           )
         : null;
 
@@ -302,6 +310,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
           pending: pending,
           channelId: channelId,
           attachments: attachments,
+          toBotId: command?.bot.id,
           errorCode: response.errorCode,
           error: response.error ?? 'Failed to send message',
         );
@@ -338,6 +347,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
         pending: pending,
         channelId: channelId,
         attachments: attachments,
+        toBotId: command?.bot.id,
         errorCode: e.errorCode,
         error: 'Failed to upload attachment',
       );
@@ -350,6 +360,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
         pending: pending,
         channelId: channelId,
         attachments: attachments,
+        toBotId: command?.bot.id,
         errorCode: null,
         error: 'Failed to send message',
       );
@@ -378,6 +389,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
     required ChatMessage pending,
     required String channelId,
     required List<PendingAttachment> attachments,
+    required String? toBotId,
     required String? errorCode,
     required String error,
   }) {
@@ -394,6 +406,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
         destination: channelId,
         row: pending.copyWith(sendFailed: true),
         attachments: attachments,
+        toBotId: toBotId,
       ),
     );
     if (open) {
@@ -422,6 +435,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
     await sendMessage(
       entry.text,
       attachments: entry.attachments,
+      toBotId: entry.toBotId,
       replyToId: entry.row.replyToId,
     );
   }

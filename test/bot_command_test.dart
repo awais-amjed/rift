@@ -108,6 +108,26 @@ void main() {
       expect(BotCommands.parse('/play x', [b, a])?.bot.username, 'beta');
     });
 
+    test('the bot picked from the menu wins a shared verb', () {
+      final a = bot('alpha', commands: ['play']);
+      final b = bot('beta', commands: ['play']);
+      final pick = BotCommands.parse('/play x', [a, b], preferBotId: b.id);
+      expect(pick?.bot.username, 'beta');
+      expect(
+        BotCommands.suggestionQuery('/play x', [a, b], preferBotId: b.id),
+        isNull, // beta declares `play` without suggestions, so nobody is asked
+      );
+    });
+
+    test('a pick that does not declare the verb typed is ignored', () {
+      final a = bot('alpha', commands: ['play']);
+      final b = bot('beta', commands: ['skip']);
+      expect(
+        BotCommands.parse('/play x', [a, b], preferBotId: b.id)?.bot.username,
+        'alpha',
+      );
+    });
+
     test('a declared verb beats a bot name', () {
       // `/helper` is both a bot and somebody else's verb; the verb wins, and
       // `/helper` the bot is still reachable by its own name only when nothing

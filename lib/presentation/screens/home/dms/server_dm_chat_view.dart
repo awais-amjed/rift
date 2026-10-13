@@ -367,7 +367,7 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
               canAttach: _canAttach(),
               maxAttachmentBytes: _maxAttachmentBytes(),
               remainingStorageBytes: _remainingStorage(),
-              onSend: (text, attachments, preview) =>
+              onSend: (text, attachments, preview, _) =>
                   _send(context, text, attachments, preview),
               replyingTo: replyingTo,
               onCancelReply: cancelReply,

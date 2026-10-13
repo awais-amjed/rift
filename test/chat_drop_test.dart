@@ -43,7 +43,7 @@ Future<void> _pump(
               child: Align(
                 alignment: Alignment.bottomCenter,
                 child: ChatComposer(
-                  onSend: (_, _, _) async => false,
+                  onSend: (_, _, _, _) async => false,
                   canAttach: canAttach,
                   maxAttachmentBytes: maxBytes,
                 ),

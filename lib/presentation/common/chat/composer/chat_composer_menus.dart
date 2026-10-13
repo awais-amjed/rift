@@ -23,7 +23,18 @@ mixin _ComposerMenusMixin
   /// into an ordinary message would be the worst kind of surprise.
   BotCommand? get _command => _staged.isNotEmpty
       ? null
-      : BotCommands.parse(_controller.text, widget.bots);
+      : BotCommands.parse(
+          _controller.text,
+          widget.bots,
+          preferBotId: _commandBotId,
+        );
+
+  /// The bot whose row was picked from the `/` menu, or null.
+  ///
+  /// The row writes only `/play ` into the field, which two bots can both
+  /// declare; this is what says it was DJ Rust's and not the first one's
+  /// ([BotCommands.parse]). Cleared with the field when the line is sent.
+  String? _commandBotId;
 
   /// The `@` fragment the caret is inside, or null when it is not in one.
   ///
@@ -102,12 +113,17 @@ mixin _ComposerMenusMixin
       _pickMention(_mentions.first);
       return true;
     }
-    if (sending && BotCommands.isReadyToSend(_controller.text, widget.bots)) {
+    if (sending &&
+        BotCommands.isReadyToSend(
+          _controller.text,
+          widget.bots,
+          preferBotId: _commandBotId,
+        )) {
       return false;
     }
     final commands = _suggestions;
     if (commands.isNotEmpty) {
-      _pickCommand(commands.first.name);
+      _pickCommand(commands.first.bot, commands.first.name);
       return true;
     }
     return false;
@@ -115,7 +131,8 @@ mixin _ComposerMenusMixin
 
   /// Replace the typed fragment with the chosen command and leave the caret
   /// after it, ready for arguments.
-  void _pickCommand(String name) {
+  void _pickCommand(ServerMember bot, String name) {
+    _commandBotId = bot.id;
     _controller.text = '/$name ';
     _controller.selection = TextSelection.collapsed(
       offset: _controller.text.length,

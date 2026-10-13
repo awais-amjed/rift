@@ -46,7 +46,7 @@ Future<List<String>> _pumpComposer(
           child: Align(
             alignment: Alignment.bottomCenter,
             child: ChatComposer(
-              onSend: (text, _, _) {
+              onSend: (text, _, _, _) {
                 sent.add(text);
                 return answer().future;
               },

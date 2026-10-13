@@ -83,7 +83,7 @@ mixin _ComposerMenuKeysMixin
       }
       final commands = _suggestions;
       if (commands.isNotEmpty) {
-        _pickCommand(commands[i].name);
+        _pickCommand(commands[i].bot, commands[i].name);
         return true;
       }
       if (_showsBotSuggestions) {

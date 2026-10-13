@@ -45,7 +45,23 @@ const _music = ServerMember(
   ),
 );
 
-Future<List<String>> _pumpComposer(WidgetTester tester) async {
+/// A second bot declaring the same `/play`, after [_music] in the roster.
+const _rust = ServerMember(
+  id: 'id-djrust',
+  username: 'djrust',
+  displayName: 'DJ Rust',
+  permissions: UserPermissions(),
+  isBot: true,
+  manifest: BotManifest(
+    commands: [BotCommandSpec(name: 'play', usage: '<song>')],
+  ),
+);
+
+Future<List<String>> _pumpComposer(
+  WidgetTester tester, {
+  List<ServerMember> bots = const [_music],
+  List<String?>? sentTo,
+}) async {
   final sent = <String>[];
   await tester.pumpWidget(
     MaterialApp(
@@ -58,13 +74,14 @@ Future<List<String>> _pumpComposer(WidgetTester tester) async {
           child: Align(
             alignment: Alignment.bottomCenter,
             child: ChatComposer(
-              bots: const [_music],
+              bots: bots,
               onCommandSuggest: (_, _, text) => Future.value([
                 BotSuggestion(label: '$text one', value: 'v1'),
                 BotSuggestion(label: '$text two', value: 'v2'),
               ]),
-              onSend: (text, _, _) {
+              onSend: (text, _, _, toBotId) {
                 sent.add(text);
+                sentTo?.add(toBotId);
                 return Future.value(false);
               },
             ),
@@ -143,6 +160,30 @@ void main() {
       await press(tester, LogicalKeyboardKey.enter);
       expect(sent, isEmpty);
       expect(_field(tester), '/stop ');
+    });
+
+    testWidgets("a second bot's /play, picked, is sent to that bot", (
+      tester,
+    ) async {
+      // The row wrote only `/play `, and the send used to work the bot out
+      // from that again: the first bot to declare `play` won every time.
+      final sentTo = <String?>[];
+      final sent = await _pumpComposer(
+        tester,
+        bots: const [_music, _rust],
+        sentTo: sentTo,
+      );
+      await tester.enterText(find.byType(EditableText), '/pl');
+      await tester.pump();
+      await press(tester, LogicalKeyboardKey.arrowDown);
+      await press(tester, LogicalKeyboardKey.arrowDown);
+      await press(tester, LogicalKeyboardKey.enter);
+      expect(_field(tester), '/play ');
+      await tester.enterText(find.byType(EditableText), '/play a song');
+      await tester.pump();
+      await press(tester, LogicalKeyboardKey.enter);
+      expect(sent, ['/play a song']);
+      expect(sentTo, ['id-djrust']);
     });
 
     testWidgets('Up first lands on the last row', (tester) async {

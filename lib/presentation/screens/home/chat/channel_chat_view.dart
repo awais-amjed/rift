@@ -154,8 +154,8 @@ class _ChannelChatViewState extends State<ChannelChatView>
                     ),
                     child: ChatComposer(
                       canSend: status == ChannelChatStatus.ready,
-                      onSend: (text, attachments, preview) =>
-                          _send(context, text, attachments, preview),
+                      onSend: (text, attachments, preview, toBotId) =>
+                          _send(context, text, attachments, preview, toBotId),
                       replyingTo: replyingTo,
                       onCancelReply: cancelReply,
                       // A channel is the one surface with somebody to ring
@@ -211,6 +211,7 @@ class _ChannelChatViewState extends State<ChannelChatView>
     String text,
     List<PendingAttachment> attachments,
     Future<PendingLinkPreview?>? preview,
+    String? toBotId,
   ) async {
     // Read at send time rather than watched: joining a call should not rebuild
     // the composer.
@@ -229,6 +230,7 @@ class _ChannelChatViewState extends State<ChannelChatView>
       text,
       attachments: attachments,
       preview: preview,
+      toBotId: toBotId,
       inVoiceChannel: inVoice,
       replyToId: answering?.id,
       pingReplyTo: pings,

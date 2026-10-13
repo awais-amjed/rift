@@ -11,6 +11,7 @@ mixin _ComposerBotSuggestMixin on State<ChatComposer> {
   /// Implemented by the State class, which owns the field.
   TextEditingController get _controller;
   FocusNode get _focusNode;
+  String? get _commandBotId;
   void _send();
 
   /// The line being asked about, so a caret move or a repeated keystroke is
@@ -39,7 +40,11 @@ mixin _ComposerBotSuggestMixin on State<ChatComposer> {
     final ask = widget.onCommandSuggest;
     final query = ask == null || !widget.enabled
         ? null
-        : BotCommands.suggestionQuery(_controller.text, widget.bots);
+        : BotCommands.suggestionQuery(
+            _controller.text,
+            widget.bots,
+            preferBotId: _commandBotId,
+          );
     final key = query == null
         ? null
         : '${query.bot.id}/${query.command}/${query.query}';

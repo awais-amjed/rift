@@ -73,13 +73,13 @@ void main() {
     Future<Rect> pumpComposer(
       WidgetTester tester, {
       bool enabled = true,
-      Future<bool> Function(String, List, Object?)? onSend,
+      Future<bool> Function(String, List, Object?, String?)? onSend,
     }) async {
       await host(
         tester,
         ChatComposer(
           enabled: enabled,
-          onSend: onSend ?? (_, _, _) async => false,
+          onSend: onSend ?? (_, _, _, _) async => false,
         ),
       );
       // The painted bar, not the outer padding around it.
@@ -119,7 +119,7 @@ void main() {
       var sent = 0;
       final bar = await pumpComposer(
         tester,
-        onSend: (_, _, _) async {
+        onSend: (_, _, _, _) async {
           sent++;
           return false;
         },
