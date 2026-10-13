@@ -15,7 +15,7 @@ jobs:
           - windows-latest
           - macos-latest
     steps:
-      - uses: actions/checkout@v4 # Updated to v4 for better performance/security
+      - uses: actions/checkout@v7 # Updated to v4 for better performance/security
 
       - uses: dart-lang/setup-dart@v1
 

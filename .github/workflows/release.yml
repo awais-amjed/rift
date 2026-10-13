@@ -41,7 +41,7 @@ jobs:
     outputs:
       version: ${{ steps.read.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: read
         run: |
           version=$(sed -n 's/^version: //p' pubspec.yaml)
@@ -84,7 +84,7 @@ jobs:
       # The container runs as root over folders the runner owns, and git
       # (Flutter's included) refuses to work in those.
       - run: git config --global --add safe.directory '*'
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ env.RUST_VERSION }}
@@ -100,7 +100,7 @@ jobs:
         env:
           CC: clang-21
           CXX: clang++-21
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 8.0.x
       # vpk_pack.sh finds it in ~/.dotnet/tools, where a global tool goes.
@@ -111,7 +111,7 @@ jobs:
           VERSION: ${{ needs.version.outputs.version }}
           GH_TOKEN: ${{ github.token }}
         run: scripts/vpk_pack.sh linux build/linux/x64/release/bundle
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: linux
           path: build/release/*
@@ -121,7 +121,7 @@ jobs:
     needs: version
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ env.RUST_VERSION }}
@@ -149,7 +149,7 @@ jobs:
           make diffutils patch mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake
           mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-pkgconf"
       - run: ./scripts/build_windows.ps1
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 8.0.x
       - name: Install vpk
@@ -161,7 +161,7 @@ jobs:
           VERSION: ${{ needs.version.outputs.version }}
           GH_TOKEN: ${{ github.token }}
         run: scripts/vpk_pack.sh win build/windows/x64/runner/Release
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: windows
           path: build/release/*
@@ -174,10 +174,10 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # The checkout holds the tag without its message, which is the notes.
       - run: git fetch --force origin "refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: release
           merge-multiple: true
