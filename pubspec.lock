@@ -1378,7 +1378,7 @@ packages:
       path: "third_party/realtime_client"
       relative: true
     source: path
-    version: "2.13.0"
+    version: "2.13.2"
   record:
     dependency: "direct main"
     description:

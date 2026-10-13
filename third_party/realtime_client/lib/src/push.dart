@@ -42,11 +42,12 @@ class Push {
 
   Duration get timeout => _timeout;
 
+  /// Whether this push was sent and is still waiting for a reply or timeout.
+  bool get isAwaitingReply => _timeoutTimer != null;
+
   void resend(Duration newTimeout) {
     _timeout = newTimeout;
     _cancelRefEvent();
-    // RIFT PATCH (upstream #1822): with the old timer alive, startTimeout()
-    // returned early and the join went out with an empty ref nothing matched.
     _cancelTimeout();
     _ref = '';
     _refEvent = null;

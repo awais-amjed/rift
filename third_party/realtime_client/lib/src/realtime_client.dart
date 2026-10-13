@@ -456,10 +456,12 @@ class RealtimeClient {
   bool get isConnected => connState == SocketStates.open;
 
   /// Removes a subscription from the socket.
+  ///
+  /// Matches on identity rather than on [RealtimeChannel.joinRef], which is
+  /// the empty string until a channel is subscribed and is therefore shared
+  /// by every channel that has not joined yet.
   @internal
   void remove(RealtimeChannel channel) {
-    // RIFT PATCH (upstream #1669): by identity. `joinRef` is '' until a join
-    // is sent, so matching on it removed every channel that had not joined.
     channels = channels.where((c) => !identical(c, channel)).toList();
     if (channels.isEmpty) {
       log('transport', 'no channels remaining, scheduling disconnect');
@@ -635,17 +637,13 @@ class RealtimeClient {
     }
   }
 
-  /// Unsubscribe from joined or joining channels with the specified topic.
+  /// Unsubscribes a joined or joining channel on [topic] other than [except].
   @internal
-  void leaveOpenTopic(String topic, {RealtimeChannel? except}) {
-    // RIFT PATCH: never the channel that is rejoining. A rejoin while it was
-    // itself joining or joined found itself here, unsubscribed itself — which
-    // takes it off [channels] — and then sent a join whose reply no channel
-    // on the socket was left to hear: stuck "joining" for good.
+  void leaveOpenTopic(String topic, {required RealtimeChannel except}) {
     final dupChannel = channels.firstWhereOrNull(
       (c) =>
-          !identical(c, except) &&
           c.topic == topic &&
+          !identical(c, except) &&
           (c.isJoined || c.isJoining),
     );
     if (dupChannel != null) {

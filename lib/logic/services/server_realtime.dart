@@ -248,9 +248,9 @@ class ServerRealtime {
   ///
   /// Never for a channel that failed with the socket: the client joins that
   /// one again itself when the socket reopens, and a replacement beside it is
-  /// a second join of the topic. (Unpatched, realtime_client also dropped the
-  /// replacement from its list along with the old channel, by the empty
-  /// `joinRef` both had — see third_party/realtime_client/RIFT_PATCHES.md.)
+  /// a second join of the topic. (Before 2.13.1, realtime_client also dropped
+  /// the replacement from its list along with the old channel, by the empty
+  /// `joinRef` both had.)
   void _rejoin(_Connection connection, _Topic joined) {
     if (!identical(connection.topics[joined.name], joined)) return;
     final refused = joined.channel;

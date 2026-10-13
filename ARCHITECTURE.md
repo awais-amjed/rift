@@ -39,7 +39,9 @@ this repository, with a `RIFT_PATCHES.md` beside each that lists the changes and
 says when the copy can go back. All of them:
 - supabase's Realtime client, in `third_party/realtime_client`. Its 2.13.0
   release could leave a topic stuck off the socket after a reconnect, so a
-  server's live updates stopped until a restart.
+  server's live updates stopped until a restart. 2.13.2 fixed most of that;
+  the copy is 2.13.2 with three changes, so a slow join after a reconnect is
+  not cut short.
 - LiveKit's `webrtc-sys`, from the fork, with one line changed. Without it
   WebRTC dropped frames a Windows share's GPU encoder had already made, and
   the viewer's picture broke until the next keyframe.

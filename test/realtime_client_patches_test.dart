@@ -7,11 +7,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:supabase/supabase.dart';
 
 // The patches to supabase's realtime client in third_party/realtime_client
-// (RIFT_PATCHES.md). Each of the first four fails on the 2.13.0 release, so
-// these also catch the dependency override being dropped while upstream still
-// lacks the fixes. Measured live: a gateway outage left a client with its
-// `server:`, `user:` and open `chat:` topics stuck joining and off the socket,
-// no live messages until a restart.
+// (RIFT_PATCHES.md), and the fixes upstream has since made. The last case
+// fails on the 2.13.2 release the copy is taken from, so it catches the
+// dependency override being dropped while upstream still lacks the fix; the
+// first three failed on 2.13.0. Measured live: a gateway outage left a client
+// with its `server:`, `user:` and open `chat:` topics stuck joining and off
+// the socket, no live messages until a restart.
 
 /// A client that believes its socket is open. There is no connection, so
 /// nothing is sent anywhere; what is under test is the bookkeeping.
