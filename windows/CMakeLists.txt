@@ -119,6 +119,11 @@ else()
     "so shares encode H264 through Media Foundation (native/ffenc/build.sh)")
 endif()
 
+include("${CMAKE_SOURCE_DIR}/../native/onnxruntime/onnxruntime.cmake")
+rift_bundle_onnxruntime("onnxruntime-win-x64-${ONNXRUNTIME_VERSION}.zip"
+  c4eedd29489d5feca21866d054638416f3655bf6b18851b3b6b85c8313e95c35
+  "lib/onnxruntime.dll" "onnxruntime.dll")
+
 # Copy the native assets provided by the build.dart from all packages.
 set(NATIVE_ASSETS_DIR "${PROJECT_BUILD_DIR}native_assets/windows/")
 install(DIRECTORY "${NATIVE_ASSETS_DIR}"

@@ -15,7 +15,7 @@ namespace rift {
 
 namespace {
 
-// Both models work on 10 ms at 48 kHz, which is also what libwebrtc hands
+// Every model works on 10 ms at 48 kHz, which is also what libwebrtc hands
 // over at that rate.
 constexpr int kFrameSize = 480;
 
@@ -28,10 +28,22 @@ struct RatePath {
 };
 
 // The model values Dart passes to rift_noise_filter_set_model.
-enum Model : int32_t { kNone = 0, kRnnoise = 1, kDeepFilter = 2 };
+enum Model : int32_t { kNone = 0, kRnnoise = 1, kDeepFilter = 2, kDpdfnet = 3 };
 
-using DeepFilterProcess = int32_t (*)(float* samples, int32_t count);
-using DeepFilterReset = void (*)();
+// A model in the Rust library (DeepFilterNet, DPDFNet): its frame function,
+// which leaves the frame as it was if the model cannot take it, and its reset.
+using LibraryProcess = int32_t (*)(float* samples, int32_t count);
+using LibraryReset = void (*)();
+
+struct LibraryModel {
+  std::atomic<LibraryProcess> process{nullptr};
+  std::atomic<LibraryReset> reset{nullptr};
+
+  void Set(LibraryProcess p, LibraryReset r) {
+    reset.store(r, std::memory_order_relaxed);
+    process.store(p, std::memory_order_release);
+  }
+};
 
 // How long the filter takes over each 10 ms it is handed, kept for Dart to
 // read after a call (rift_noise_filter_take_timings) rather than logged: the
@@ -84,13 +96,16 @@ class NoiseProcessing final
   bool ok() const { return rnnoise_ != nullptr; }
 
   void SetModel(int32_t model) {
-    model_.store(model == kRnnoise || model == kDeepFilter ? model : kNone,
+    model_.store(model >= kRnnoise && model <= kDpdfnet ? model : kNone,
                  std::memory_order_release);
   }
 
-  void SetDeepFilter(DeepFilterProcess process, DeepFilterReset reset) {
-    deep_filter_reset_.store(reset, std::memory_order_relaxed);
-    deep_filter_process_.store(process, std::memory_order_release);
+  void SetDeepFilter(LibraryProcess process, LibraryReset reset) {
+    deep_filter_.Set(process, reset);
+  }
+
+  void SetDpdfnet(LibraryProcess process, LibraryReset reset) {
+    dpdfnet_.Set(process, reset);
   }
 
   // The mic volume, as a gain: 1 leaves the voice as it is.
@@ -124,9 +139,11 @@ class NoiseProcessing final
   // Whether a model ran on the frame.
   bool Denoise(int num_frames, float* buffer) {
     const int32_t model = model_.load(std::memory_order_acquire);
-    const DeepFilterProcess deep_filter =
-        deep_filter_process_.load(std::memory_order_acquire);
-    if (model == kNone || (model == kDeepFilter && deep_filter == nullptr)) {
+    LibraryModel* library = Library(model);
+    const LibraryProcess process =
+        library != nullptr ? library->process.load(std::memory_order_acquire)
+                           : nullptr;
+    if (model == kNone || (library != nullptr && process == nullptr)) {
       // Started afresh when one comes back on, rather than carrying on from
       // whatever it last heard.
       restart_ = true;
@@ -137,10 +154,10 @@ class NoiseProcessing final
     }
 
     if (num_frames == kFrameSize) {
-      RunModel(buffer, deep_filter);
+      RunModel(buffer, process);
     } else if (path_ != nullptr) {
       path_->up.Process(buffer, num_frames, frame_);
-      RunModel(frame_, deep_filter);
+      RunModel(frame_, process);
       path_->down.Process(frame_, kFrameSize, buffer);
     } else {
       // Any other rate passes through untouched.
@@ -160,21 +177,29 @@ class NoiseProcessing final
     limiter_.Process(buffer, num_frames, gain_.load(std::memory_order_acquire));
   }
 
-  void RunModel(float* frame, DeepFilterProcess deep_filter) {
+  // The Rust library's model `model` stands for, or null for RNNoise and
+  // none.
+  LibraryModel* Library(int32_t model) {
+    if (model == kDeepFilter) return &deep_filter_;
+    if (model == kDpdfnet) return &dpdfnet_;
+    return nullptr;
+  }
+
+  void RunModel(float* frame, LibraryProcess library) {
     if (running_ == kRnnoise) {
       rnnoise_process_frame(rnnoise_, frame, frame);
     } else {
-      // Leaves the frame as it was if the model cannot take it.
-      deep_filter(frame, kFrameSize);
+      library(frame, kFrameSize);
     }
   }
 
   void Restart(int32_t model, int num_frames) {
     if (model == kRnnoise) {
       rnnoise_init(rnnoise_, nullptr);
-    } else if (DeepFilterReset reset =
-                   deep_filter_reset_.load(std::memory_order_relaxed)) {
-      reset();
+    } else if (LibraryModel* library = Library(model)) {
+      if (LibraryReset reset = library->reset.load(std::memory_order_relaxed)) {
+        reset();
+      }
     }
     running_ = model;
     frames_ = num_frames;
@@ -200,8 +225,8 @@ class NoiseProcessing final
   int limiter_frames_ = 0;
   std::atomic<float> gain_{1.0f};
   std::atomic<int32_t> model_{kNone};
-  std::atomic<DeepFilterProcess> deep_filter_process_{nullptr};
-  std::atomic<DeepFilterReset> deep_filter_reset_{nullptr};
+  LibraryModel deep_filter_;
+  LibraryModel dpdfnet_;
   Timings timings_;
 };
 
@@ -254,8 +279,15 @@ void rift_noise_filter_set_gain(float gain) {
 void rift_noise_filter_set_deep_filter(void* process, void* reset) {
   if (rift::g_processing == nullptr) return;
   rift::g_processing->SetDeepFilter(
-      reinterpret_cast<rift::DeepFilterProcess>(process),
-      reinterpret_cast<rift::DeepFilterReset>(reset));
+      reinterpret_cast<rift::LibraryProcess>(process),
+      reinterpret_cast<rift::LibraryReset>(reset));
+}
+
+void rift_noise_filter_set_dpdfnet(void* process, void* reset) {
+  if (rift::g_processing == nullptr) return;
+  rift::g_processing->SetDpdfnet(
+      reinterpret_cast<rift::LibraryProcess>(process),
+      reinterpret_cast<rift::LibraryReset>(reset));
 }
 
 void rift_noise_filter_take_timings(int64_t* out) {

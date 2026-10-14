@@ -10,16 +10,26 @@ import '../frb_generated.dart';
 /// Loads DeepFilterNet's model, if it is not loaded already, and says where
 /// to call it. On a blocking thread, since loading takes a quarter of a
 /// second. Off Windows and Linux there is no model, and this says so.
-Future<DeepFilterEntry> loadDeepFilter() =>
+Future<NoiseModelEntry> loadDeepFilter() =>
     RustLib.instance.api.crateApiNoiseFilterLoadDeepFilter();
 
-/// Where the runner's filter calls the model: the addresses of the frame
+/// The same for DPDFNet, which loads in about a tenth of a second.
+Future<NoiseModelEntry> loadDpdfnet() =>
+    RustLib.instance.api.crateApiNoiseFilterLoadDpdfnet();
+
+/// Whether DPDFNet went over to its small model since the last call, because
+/// this computer was too slow for the large one; Dart writes it to the log
+/// after a call. Starts the count again.
+bool takeDpdfnetFellBack() =>
+    RustLib.instance.api.crateApiNoiseFilterTakeDpdfnetFellBack();
+
+/// Where the runner's filter calls a model: the addresses of the frame
 /// function and the reset function, for Dart to pass on.
-class DeepFilterEntry {
+class NoiseModelEntry {
   final BigInt process;
   final BigInt reset;
 
-  const DeepFilterEntry({required this.process, required this.reset});
+  const NoiseModelEntry({required this.process, required this.reset});
 
   @override
   int get hashCode => process.hashCode ^ reset.hashCode;
@@ -27,7 +37,7 @@ class DeepFilterEntry {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is DeepFilterEntry &&
+      other is NoiseModelEntry &&
           runtimeType == other.runtimeType &&
           process == other.process &&
           reset == other.reset;

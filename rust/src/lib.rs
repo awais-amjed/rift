@@ -6,6 +6,8 @@ mod blob_cipher;
 mod cue;
 #[cfg(any(target_os = "windows", target_os = "linux"))]
 mod deep_filter;
+#[cfg(any(target_os = "windows", target_os = "linux"))]
+mod dpdfnet;
 #[cfg(target_os = "linux")]
 mod device_watch;
 #[cfg(target_os = "windows")]

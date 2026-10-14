@@ -68,6 +68,7 @@ enum MicTestNoise {
   standard,
   rnnoise,
   deepFilter,
+  dpdfnet,
 }
 
 /// Where the test plays the microphone back.

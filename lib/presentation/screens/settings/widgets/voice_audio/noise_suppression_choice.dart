@@ -25,6 +25,7 @@ class NoiseSuppressionChoice extends StatelessWidget {
     NoiseSuppression.standard => 'Best for a quiet room.',
     NoiseSuppression.rnnoise => 'Best for fans, keyboards and street noise.',
     NoiseSuppression.deepFilter => 'Best for loud, busy rooms.',
+    NoiseSuppression.dpdfnet => 'Best for a natural voice in a noisy room.',
   };
 
   @override

@@ -80,6 +80,7 @@ pub enum MicTestNoise {
     Standard,
     Rnnoise,
     DeepFilter,
+    Dpdfnet,
 }
 
 /// How the test processes the microphone: the noise filter, and whether gain
@@ -93,6 +94,7 @@ pub fn set_mic_test_processing(noise: MicTestNoise, auto_gain: bool) {
             MicTestNoise::Standard => mic_test::Noise::Standard,
             MicTestNoise::Rnnoise => mic_test::Noise::Rnnoise,
             MicTestNoise::DeepFilter => mic_test::Noise::DeepFilter,
+            MicTestNoise::Dpdfnet => mic_test::Noise::Dpdfnet,
         },
         auto_gain,
     });

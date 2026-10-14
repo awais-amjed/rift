@@ -12,7 +12,7 @@
 //!   canceller handed your own voice as the far end takes it out of the near
 //!   end too. In a call it only acts while someone else is talking.
 //! - **The model**: RNNoise from the runner, whose addresses Dart passes on
-//!   ([`set_rnnoise`]), or DeepFilterNet. Each a state of its own, apart from
+//!   ([`set_rnnoise`]), DeepFilterNet or DPDFNet. Each a state of its own, apart from
 //!   the call's, so a call muted under the test never shares what a model has
 //!   heard with it.
 //! - **The mic volume** ([`Boost`]).
@@ -22,6 +22,7 @@
 
 use super::Boost;
 use crate::deep_filter::{self, FRAME};
+use crate::dpdfnet;
 use livekit::webrtc::native::apm::AudioProcessingModule;
 use std::ffi::c_void;
 use std::sync::Mutex;
@@ -37,6 +38,7 @@ pub(crate) enum Noise {
     Standard,
     Rnnoise,
     DeepFilter,
+    Dpdfnet,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -53,9 +55,10 @@ static SETTINGS: Mutex<Settings> = Mutex::new(Settings {
 /// The runner's `rift_noise_filter_rnnoise_create`, `_process` and `_destroy`.
 static RNNOISE: Mutex<Option<RnnoiseEntry>> = Mutex::new(None);
 
-/// A DeepFilterNet kept from one test to the next: loading one takes a quarter
-/// of a second, and flipping to it should not.
+/// The library's models, each kept from one test to the next: loading one
+/// takes a tenth of a second or more, and flipping to it should not.
 static SPARE_DEEP_FILTER: Mutex<Option<deep_filter::Model>> = Mutex::new(None);
+static SPARE_DPDFNET: Mutex<Option<dpdfnet::Model>> = Mutex::new(None);
 
 pub(crate) fn set(settings: Settings) {
     *SETTINGS.lock().unwrap() = settings;
@@ -118,13 +121,68 @@ impl Drop for Rnnoise {
     }
 }
 
-/// DeepFilterNet, handed back to [`SPARE_DEEP_FILTER`] once done with.
-struct DeepFilter(Option<deep_filter::Model>);
+/// A model of the library's own rather than the runner's.
+trait LibraryModel: Sized + 'static {
+    fn spare() -> &'static Mutex<Option<Self>>;
+    fn load() -> Result<Self, String>;
+    fn reset(&mut self);
+    /// Leaves the frame as it was if the model cannot take it.
+    fn process(&mut self, frame: &mut [f32; FRAME]);
+}
 
-impl Drop for DeepFilter {
+impl LibraryModel for deep_filter::Model {
+    fn spare() -> &'static Mutex<Option<Self>> {
+        &SPARE_DEEP_FILTER
+    }
+    fn load() -> Result<Self, String> {
+        Self::new()
+    }
+    fn reset(&mut self) {
+        deep_filter::Model::reset(self);
+    }
+    fn process(&mut self, frame: &mut [f32; FRAME]) {
+        deep_filter::Model::process(self, frame);
+    }
+}
+
+impl LibraryModel for dpdfnet::Model {
+    fn spare() -> &'static Mutex<Option<Self>> {
+        &SPARE_DPDFNET
+    }
+    fn load() -> Result<Self, String> {
+        Self::new()
+    }
+    fn reset(&mut self) {
+        dpdfnet::Model::reset(self);
+    }
+    fn process(&mut self, frame: &mut [f32; FRAME]) {
+        dpdfnet::Model::process(self, frame);
+    }
+}
+
+/// One of the library's models, handed back to its spare once done with.
+struct Kept<M: LibraryModel>(Option<M>);
+
+impl<M: LibraryModel> Kept<M> {
+    /// The spare, or a newly loaded one, started afresh.
+    fn take() -> Result<Box<Self>, String> {
+        let spare = M::spare().lock().unwrap().take();
+        let mut model = spare.map(Ok).unwrap_or_else(M::load)?;
+        model.reset();
+        Ok(Box::new(Kept(Some(model))))
+    }
+
+    fn process(&mut self, frame: &mut [f32; FRAME]) {
+        if let Some(model) = self.0.as_mut() {
+            model.process(frame);
+        }
+    }
+}
+
+impl<M: LibraryModel> Drop for Kept<M> {
     fn drop(&mut self) {
         if let Some(model) = self.0.take() {
-            *SPARE_DEEP_FILTER.lock().unwrap() = Some(model);
+            *M::spare().lock().unwrap() = Some(model);
         }
     }
 }
@@ -132,30 +190,24 @@ impl Drop for DeepFilter {
 enum Model {
     None,
     Rnnoise(Rnnoise),
-    DeepFilter(Box<DeepFilter>),
+    DeepFilter(Box<Kept<deep_filter::Model>>),
+    Dpdfnet(Box<Kept<dpdfnet::Model>>),
 }
 
 impl Model {
-    /// The model `noise` asks for, started afresh. DeepFilterNet that will not
-    /// load falls back to RNNoise, as the call's does.
+    /// The model `noise` asks for, started afresh. One of the library's that
+    /// will not load falls back to RNNoise, as the call's does.
     fn for_noise(noise: Noise) -> Model {
-        match noise {
-            Noise::Off | Noise::Standard => Model::None,
-            Noise::Rnnoise => Self::rnnoise(),
-            Noise::DeepFilter => {
-                let spare = SPARE_DEEP_FILTER.lock().unwrap().take();
-                match spare.map(Ok).unwrap_or_else(deep_filter::Model::new) {
-                    Ok(mut model) => {
-                        model.reset();
-                        Model::DeepFilter(Box::new(DeepFilter(Some(model))))
-                    }
-                    Err(message) => {
-                        log::warn!("mic test: {message}");
-                        Self::rnnoise()
-                    }
-                }
-            }
-        }
+        let loaded = match noise {
+            Noise::Off | Noise::Standard => return Model::None,
+            Noise::Rnnoise => return Self::rnnoise(),
+            Noise::DeepFilter => Kept::take().map(Model::DeepFilter),
+            Noise::Dpdfnet => Kept::take().map(Model::Dpdfnet),
+        };
+        loaded.unwrap_or_else(|message| {
+            log::warn!("mic test: {message}");
+            Self::rnnoise()
+        })
     }
 
     fn rnnoise() -> Model {
@@ -172,12 +224,8 @@ impl Model {
         match self {
             Model::None => {}
             Model::Rnnoise(rnnoise) => rnnoise.process(frame),
-            // Leaves the frame as it was if the model cannot take it.
-            Model::DeepFilter(deep_filter) => {
-                if let Some(model) = deep_filter.0.as_mut() {
-                    model.process(frame);
-                }
-            }
+            Model::DeepFilter(model) => model.process(frame),
+            Model::Dpdfnet(model) => model.process(frame),
         }
     }
 }
@@ -312,7 +360,8 @@ mod tests {
         assert!(off < 4.0, "off took {off:.1} dB");
         // libwebrtc's own suppressor takes it well down.
         assert!(reduction(Noise::Standard) > off + 6.0);
-        // DeepFilterNet, a model of the test's own.
+        // DeepFilterNet, a model of the test's own. DPDFNet is too, but needs
+        // ONNX Runtime, which is not part of the crate (dpdfnet's tests).
         assert!(reduction(Noise::DeepFilter) > off + 20.0);
         // No runner here, so no RNNoise: the test runs without a model rather
         // than failing.

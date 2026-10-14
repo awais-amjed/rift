@@ -125,9 +125,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CueStarted dco_decode_cue_started(dynamic raw);
 
   @protected
-  DeepFilterEntry dco_decode_deep_filter_entry(dynamic raw);
-
-  @protected
   DuckingEvent dco_decode_ducking_event(dynamic raw);
 
   @protected
@@ -165,6 +162,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   MicTestPlayback dco_decode_mic_test_playback(dynamic raw);
+
+  @protected
+  NoiseModelEntry dco_decode_noise_model_entry(dynamic raw);
 
   @protected
   String? dco_decode_opt_String(dynamic raw);
@@ -321,9 +321,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CueStarted sse_decode_cue_started(SseDeserializer deserializer);
 
   @protected
-  DeepFilterEntry sse_decode_deep_filter_entry(SseDeserializer deserializer);
-
-  @protected
   DuckingEvent sse_decode_ducking_event(SseDeserializer deserializer);
 
   @protected
@@ -365,6 +362,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   MicTestPlayback sse_decode_mic_test_playback(SseDeserializer deserializer);
+
+  @protected
+  NoiseModelEntry sse_decode_noise_model_entry(SseDeserializer deserializer);
 
   @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
@@ -550,12 +550,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_cue_started(CueStarted self, SseSerializer serializer);
 
   @protected
-  void sse_encode_deep_filter_entry(
-    DeepFilterEntry self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_ducking_event(DuckingEvent self, SseSerializer serializer);
 
   @protected
@@ -612,6 +606,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_mic_test_playback(
     MicTestPlayback self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_noise_model_entry(
+    NoiseModelEntry self,
     SseSerializer serializer,
   );
 

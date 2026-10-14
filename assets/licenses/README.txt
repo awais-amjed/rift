@@ -6,6 +6,8 @@ geist_ofl.txt                  Geist and Geist Mono fonts (assets/fonts/)
 image_safety_classifier.txt    assets/models/image_safety.tflite
 profanity_list.txt             assets/models/profanity_en.json
 rnnoise.txt                    RNNoise, the microphone noise filter (third_party/rnnoise)
+dpdfnet.txt                    DPDFNet, another noise model for the microphone (rust/models/)
+onnxruntime.txt                ONNX Runtime, which runs DPDFNet (native/onnxruntime)
 nvenc_api_header.txt           NVIDIA's NVENC API header (Linux, through shiguredo_nvcodec)
 ffmpeg.txt                     FFmpeg, driving the GPU's H264 encoder (native/ffenc)
 nv_codec_headers.txt           NVIDIA's NVENC headers FFmpeg is built with (Windows)

@@ -127,6 +127,11 @@ add_custom_target(rift_ffenc ALL DEPENDS "${FFENC_LIBRARY}")
 install(FILES "${FFENC_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
   COMPONENT Runtime)
 
+include("${CMAKE_SOURCE_DIR}/../native/onnxruntime/onnxruntime.cmake")
+rift_bundle_onnxruntime("onnxruntime-linux-x64-${ONNXRUNTIME_VERSION}.tgz"
+  d7209b8751b27b862b0c76332c2e20e203396edb5dab700ecf4bb485cf147415
+  "lib/libonnxruntime.so.${ONNXRUNTIME_VERSION}" "libonnxruntime.so")
+
 foreach(bundled_library ${PLUGIN_BUNDLED_LIBRARIES})
   install(FILES "${bundled_library}"
     DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"

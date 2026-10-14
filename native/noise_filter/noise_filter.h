@@ -12,12 +12,12 @@
 
 namespace rift {
 
-// Puts a noise model — RNNoise, or DeepFilterNet from the Rust library — and
-// the mic volume into libwebrtc's processing of the microphone, after its own
-// echo cancellation, noise suppression and gain control. Off until Dart picks
-// one. Call once, after the plugins are registered: flutter_webrtc makes its
-// one peer connection factory, and with it the audio processing every capture
-// track goes through, as it registers.
+// Puts a noise model — RNNoise, or DeepFilterNet or DPDFNet from the Rust
+// library — and the mic volume into libwebrtc's processing of the microphone,
+// after its own echo cancellation, noise suppression and gain control. Off
+// until Dart picks one. Call once, after the plugins are registered:
+// flutter_webrtc makes its one peer connection factory, and with it the audio
+// processing every capture track goes through, as it registers.
 //
 // Returns false, and the filter stays unavailable, when there is no factory.
 bool InstallNoiseFilter();
@@ -31,8 +31,9 @@ bool InstallNoiseFilter();
 RIFT_NOISE_FILTER_EXPORT int32_t rift_noise_filter_available(void);
 
 // Which model filters every capture track, from the next 10 ms: 0 for none,
-// 1 for RNNoise, 2 for DeepFilterNet. Anything else is treated as none, and
-// DeepFilterNet as none until rift_noise_filter_set_deep_filter.
+// 1 for RNNoise, 2 for DeepFilterNet, 3 for DPDFNet. Anything else is treated
+// as none, and DeepFilterNet and DPDFNet as none until their set function
+// below has been called.
 RIFT_NOISE_FILTER_EXPORT void rift_noise_filter_set_model(int32_t model);
 
 // The mic volume, as a gain on every capture track, after the model: 1 as it
@@ -40,10 +41,16 @@ RIFT_NOISE_FILTER_EXPORT void rift_noise_filter_set_model(int32_t model);
 RIFT_NOISE_FILTER_EXPORT void rift_noise_filter_set_gain(float gain);
 
 // Where DeepFilterNet is, once the Rust library has loaded it: its
-// rift_deep_filter_process and rift_deep_filter_reset (rust/src/deep_filter.rs).
-// The runner does not link that library, so Dart passes the addresses on.
+// rift_deep_filter_process and rift_deep_filter_reset
+// (rust/src/deep_filter.rs). The runner does not link that library, so Dart
+// passes the addresses on.
 RIFT_NOISE_FILTER_EXPORT void rift_noise_filter_set_deep_filter(void* process,
                                                                 void* reset);
+
+// The same for DPDFNet: rift_dpdfnet_process and rift_dpdfnet_reset
+// (rust/src/dpdfnet.rs).
+RIFT_NOISE_FILTER_EXPORT void rift_noise_filter_set_dpdfnet(void* process,
+                                                            void* reset);
 
 // How long the model and the mic volume took over each 10 ms since the last
 // call, for the app's log after a call: writes four numbers to `out` — frames
