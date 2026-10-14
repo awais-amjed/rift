@@ -24,6 +24,13 @@ use std::sync::mpsc::Receiver;
 /// 20 ms of mono 16-bit audio: how much the server hands over at a time.
 const FRAGMENT_BYTES: u32 = SAMPLE_RATE / 50 * 2;
 
+/// How far past its 60 ms the playback may be filled, in samples: one
+/// fragment. The server frees room a block of its own at a time, and a
+/// PipeWire running 512-sample blocks never frees room for exactly the
+/// 480-sample frames written into it. Cut to the room, the tail of nearly
+/// every write was dropped, which was heard as a crackle 10 ms apart (Oct 14).
+const PLAYBACK_SLACK_SAMPLES: usize = FRAGMENT_BYTES as usize / 2;
+
 /// How WebRTC's PulseAudio module labels the extra first entry it lists for
 /// the default device.
 const WEBRTC_DEFAULT_PREFIX: &str = "default: ";
@@ -89,7 +96,7 @@ fn read(
                     continue;
                 }
                 if let Some((out, volume)) = output.as_deref_mut() {
-                    let room = out.writable_size().unwrap_or(0) / 2;
+                    let room = out.writable_size().unwrap_or(0) / 2 + PLAYBACK_SLACK_SAMPLES;
                     let played = for_playback(&samples, room, *volume);
                     if !played.is_empty() {
                         out.write(&le_bytes(&played), None, 0, SeekMode::Relative)
