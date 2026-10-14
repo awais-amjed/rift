@@ -25,10 +25,15 @@ import 'waiting_view.dart';
 /// Room is connected — shows participant tiles + control bar.
 ///
 /// Owns the "chrome visible" state that drives focus mode: after a short
-/// idle the context strip and control pill fade out together (the strip also
-/// collapses), so the video goes edge-to-edge. Any pointer activity brings
-/// them back. Combined with an unpinned sidebar (edge handle), this is the
-/// full focus-mode payoff.
+/// idle the context strip and control pill fade out together. Any pointer
+/// activity brings them back. Combined with an unpinned sidebar (edge
+/// handle), this is the full focus-mode payoff.
+///
+/// The grid keeps their room whether they show or not, so a hover fades them
+/// and moves nothing: room that came and went with them shrank and regrew
+/// every tile each time the pointer crossed the stage. A focused cell, and
+/// watched streams over a row of everyone else, take the whole stage, and
+/// the strip floats over them instead.
 class RoomView extends StatefulWidget {
   final Room room;
 
@@ -62,7 +67,7 @@ class _RoomViewState extends State<RoomView> {
   bool _menuOpen = false;
 
   /// Whether one tile fills the stage. The context strip then floats over it
-  /// instead of taking a row, so showing it does not resize the video.
+  /// instead of taking a row.
   bool _focused = false;
 
   /// Read once: [dispose] has to reach it after the context is gone.
@@ -138,6 +143,13 @@ class _RoomViewState extends State<RoomView> {
       builder: (context, livekitState) {
         // Get participants directly from the cubit state
         final participants = livekitState.participants;
+        // The stage runs under the bars: the strip floats over it.
+        final fullStage =
+            _focused ||
+            ParticipantGridLayout.showsStreamRow(
+              participants,
+              livekitState.subscribedScreenshares,
+            );
 
         return BlocBuilder<AppCubit, AppState>(
           // The one field this reads. `identical` because the cubit copies the
@@ -166,18 +178,13 @@ class _RoomViewState extends State<RoomView> {
                 children: [
                   Column(
                     children: [
-                      // Context strip fades and collapses with the control
-                      // pill so the video goes edge-to-edge. In focus it is
-                      // drawn over the stage instead, below.
-                      if (!_focused)
-                        ClipRect(
-                          child: AnimatedAlign(
-                            alignment: Alignment.topCenter,
-                            heightFactor: _chromeVisible ? 1.0 : 0.0,
-                            duration: AppMotion.enter,
-                            curve: Curves.easeInOut,
-                            child: _fadingStrip(),
-                          ),
+                      // The strip fades with the control pill and keeps its
+                      // row, so the grid under it stays put. Over a full
+                      // stage it is drawn on top instead, below.
+                      if (!fullStage)
+                        IgnorePointer(
+                          ignoring: !_chromeVisible,
+                          child: _fadingStrip(),
                         ),
                       Expanded(
                         child: participants.isEmpty
@@ -198,6 +205,7 @@ class _RoomViewState extends State<RoomView> {
                                     : context.layoutMode.isCompact
                                     ? K.callPillClearance
                                     : 0,
+                                stageInset: K.callBarClearance,
                                 onFocusChanged: (focused) {
                                   setState(() => _focused = focused);
                                   _reportStage();
@@ -206,7 +214,7 @@ class _RoomViewState extends State<RoomView> {
                       ),
                     ],
                   ),
-                  if (_focused)
+                  if (fullStage)
                     Positioned(
                       top: 0,
                       left: 0,
