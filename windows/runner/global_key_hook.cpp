@@ -23,10 +23,24 @@ static HHOOK g_mouse_hook = nullptr;
 // nothing because the key is already "down". So while the hook believes any
 // key is down, a timer on the hook thread asks Windows whether it still is,
 // and reports the release itself when it is not.
+//
+// Windows' answer can be wrong the other way. Another program's hook that
+// swallows the key — a macro tool, keyboard software, some games — runs after
+// ours, and Windows then never records the key as down at all. Believing it
+// reported a release every 100 ms of a hold, and each auto-repeat after it a
+// new press: the push-to-talk tones played over and over, piling up louder
+// (a tester's report, Oct 14; reproduced in the Windows VM with such a hook).
+// A held key keeps sending auto-repeat downs, so a key still repeating is
+// held whatever Windows says, and its release is believed only once the
+// repeats stop. Mouse buttons do not repeat, and keep the plain check.
 
 // When each key the hook reported down went down, 0 for keys that are up.
 // Hook thread only: the procedures and the timer both run on it.
 static ULONGLONG g_down_since[256] = {};
+// The latest down the hook saw for each keyboard key, auto-repeats included,
+// and the gap before it (0 until the second down). Mouse buttons stay 0.
+static ULONGLONG g_last_down[256] = {};
+static ULONGLONG g_repeat_gap[256] = {};
 static UINT_PTR g_held_check_timer = 0;
 
 // How often a held key is checked, and how long a fresh press is left alone
@@ -40,17 +54,37 @@ static void PostKey(UINT vk, bool is_down) {
               static_cast<LPARAM>(is_down ? 1 : 0));
 }
 
+// How long after a keyboard key's latest down another one is still due: the
+// typematic delay before the first repeat, then a few repeat gaps. Either way
+// with room for a busy machine, and never more than the first wait.
+static ULONGLONG RepeatDueWithin(UINT vk) {
+  UINT delay = 1;  // Windows' default, 500 ms
+  SystemParametersInfo(SPI_GETKEYBOARDDELAY, 0, &delay, 0);
+  const ULONGLONG first = (delay + 1) * 250ULL + 150;
+  const ULONGLONG gap = g_repeat_gap[vk];
+  if (gap == 0) return first;
+  return gap * 3 + 50 < first ? gap * 3 + 50 : first;
+}
+
+static bool StillRepeating(UINT vk, ULONGLONG now) {
+  const ULONGLONG last = g_last_down[vk];
+  return last != 0 && now - last < RepeatDueWithin(vk);
+}
+
 static VOID CALLBACK CheckHeldKeys(HWND, UINT, UINT_PTR, DWORD) {
   const ULONGLONG now = GetTickCount64();
   bool any_held = false;
   for (UINT vk = 0; vk < 256; ++vk) {
     const ULONGLONG since = g_down_since[vk];
     if (since == 0) continue;
-    if (now - since < kHeldCheckMs || (GetAsyncKeyState(vk) & 0x8000)) {
+    if (now - since < kHeldCheckMs || (GetAsyncKeyState(vk) & 0x8000) ||
+        StillRepeating(vk, now)) {
       any_held = true;
       continue;
     }
     g_down_since[vk] = 0;
+    g_last_down[vk] = 0;
+    g_repeat_gap[vk] = 0;
     if (g_target_hwnd != nullptr) PostKey(vk, false);
   }
   if (!any_held && g_held_check_timer != 0) {
@@ -60,7 +94,8 @@ static VOID CALLBACK CheckHeldKeys(HWND, UINT, UINT_PTR, DWORD) {
 }
 
 // Posts a key or button event and keeps the held-key record in step with it.
-static void ReportKey(UINT vk, bool is_down) {
+// |from_keyboard| for a key, whose auto-repeat says it is still held.
+static void ReportKey(UINT vk, bool is_down, bool from_keyboard) {
   PostKey(vk, is_down);
   // The main buttons are left out: Windows reports their logical state to the
   // hook but their physical one to GetAsyncKeyState, and the two differ on a
@@ -68,10 +103,17 @@ static void ReportKey(UINT vk, bool is_down) {
   if (vk >= 256 || vk == VK_LBUTTON || vk == VK_RBUTTON) return;
   if (!is_down) {
     g_down_since[vk] = 0;
+    g_last_down[vk] = 0;
+    g_repeat_gap[vk] = 0;
     return;
   }
+  const ULONGLONG now = GetTickCount64();
+  if (from_keyboard) {
+    if (g_last_down[vk] != 0) g_repeat_gap[vk] = now - g_last_down[vk];
+    g_last_down[vk] = now;
+  }
   // Auto-repeat sends more downs; the press is when it first went down.
-  if (g_down_since[vk] == 0) g_down_since[vk] = GetTickCount64();
+  if (g_down_since[vk] == 0) g_down_since[vk] = now;
   if (g_held_check_timer == 0) {
     g_held_check_timer = SetTimer(nullptr, 0, kHeldCheckMs, CheckHeldKeys);
   }
@@ -96,7 +138,7 @@ LRESULT CALLBACK GlobalKeyHook::LowLevelKeyboardProc(int nCode, WPARAM wParam,
         (wParam == WM_KEYUP || wParam == WM_SYSKEYUP);
 
     if (is_down || is_up) {
-      ReportKey(static_cast<UINT>(kbd->vkCode), is_down);
+      ReportKey(static_cast<UINT>(kbd->vkCode), is_down, true);
     }
   }
   return CallNextHookEx(nullptr, nCode, wParam, lParam);
@@ -126,7 +168,7 @@ LRESULT CALLBACK GlobalKeyHook::LowLevelMouseProc(int nCode, WPARAM wParam,
     if (vk != 0) {
       // The same message as a key: a button's VK_*BUTTON code is one more
       // virtual-key code, and Dart compares codes without caring which.
-      ReportKey(vk, is_down);
+      ReportKey(vk, is_down, false);
     }
   }
   return CallNextHookEx(nullptr, nCode, wParam, lParam);
@@ -167,6 +209,8 @@ void GlobalKeyHook::Start(HWND hwnd) {
     if (g_held_check_timer != 0) KillTimer(nullptr, g_held_check_timer);
     g_held_check_timer = 0;
     for (auto& since : g_down_since) since = 0;
+    for (auto& last : g_last_down) last = 0;
+    for (auto& gap : g_repeat_gap) gap = 0;
   });
 
   // Wait until the hook thread has stored its ID.
