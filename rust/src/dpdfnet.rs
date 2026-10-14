@@ -55,6 +55,10 @@ const SLOW_FRAME: Duration = Duration::from_millis(7);
 const SLOW_LIMIT: u32 = 10;
 const WATCHED: usize = 100;
 
+/// Set when the person chose DPDFNet-2 in settings ([`choose_small`]), for
+/// the call's model and the mic test's alike.
+static SMALL_CHOSEN: AtomicBool = AtomicBool::new(false);
+
 /// Set when a model went over to DPDFNet-2, for Dart to write to the log
 /// after the call ([`take_fell_back`]): the capture thread never writes to
 /// the log itself.
@@ -149,6 +153,8 @@ pub(crate) struct Model {
     /// Whether this computer was too slow for the large model. Kept through
     /// a reset, which push to talk does on every press.
     slow: bool,
+    /// Which of the two ran the last frame.
+    ran_large: bool,
     watch: Watch,
     /// The window and transforms: libDF's, the same vorbis window over 960
     /// samples that DPDFNet was trained with.
@@ -166,6 +172,7 @@ impl Model {
             large: Net::load(LARGE)?,
             small: Net::load(SMALL)?,
             slow: false,
+            ran_large: true,
             watch: Watch::new(),
             stft: DFState::new(48000, WINDOW, FRAME, 32, 1),
             spec: vec![Complex32::default(); BINS],
@@ -184,15 +191,27 @@ impl Model {
     /// Filters 10 ms in place; false, with the frame untouched, if the model
     /// failed on it.
     pub(crate) fn process(&mut self, frame: &mut [f32; FRAME]) -> bool {
+        self.process_as_chosen(frame, SMALL_CHOSEN.load(Ordering::Relaxed))
+    }
+
+    fn process_as_chosen(&mut self, frame: &mut [f32; FRAME], small_chosen: bool) -> bool {
         crate::fast_core::keep_on_fast_cores();
-        let large = !self.slow;
+        let large = !self.slow && !small_chosen;
+        // The one taking over stood still meanwhile, and would carry on from
+        // what it heard back then. It starts from nothing instead, so the
+        // voice is thin for a moment.
+        if large != self.ran_large {
+            if large {
+                self.large.reset();
+            } else {
+                self.small.reset();
+            }
+            self.ran_large = large;
+        }
         let started = Instant::now();
         let ok = self.process_with(frame, large);
-        // The small model starts from nothing, so the voice is thin for a
-        // moment, once.
         if large && self.watch.add(started.elapsed()) {
             self.slow = true;
-            self.small.reset();
             FELL_BACK.store(true, Ordering::Relaxed);
         }
         ok
@@ -232,6 +251,12 @@ impl Model {
         self.stft.reset();
         self.watch = Watch::new();
     }
+}
+
+/// Runs DPDFNet-2 alone when `small`, as the person chose in settings, or
+/// DPDFNet-8 until the computer proves too slow for it.
+pub(crate) fn choose_small(small: bool) {
+    SMALL_CHOSEN.store(small, Ordering::Relaxed);
 }
 
 /// Whether a model went over to DPDFNet-2 since the last call, which starts
@@ -446,6 +471,29 @@ mod tests {
         }
         let reduction_db = 10.0 * (energy_in / energy_out.max(1e-9)).log10();
         assert!(reduction_db > 20.0, "only {reduction_db:.1} dB quieter");
+    }
+
+    #[test]
+    #[ignore = "needs ONNX Runtime at RIFT_ONNXRUNTIME"]
+    fn choosing_dpdfnet_2_runs_it_from_the_start() {
+        let mut seed = 1u32;
+        let before = noise(50, &mut seed);
+        let after = noise(50, &mut seed);
+        let mut switched = Model::new().unwrap();
+        let mut fresh = Model::new().unwrap();
+        for frame in &before {
+            let (mut a, mut b) = (*frame, *frame);
+            assert!(switched.process_as_chosen(&mut a, false));
+            // The same window history, and a DPDFNet-2 that has heard none
+            // of it.
+            assert!(fresh.process_with(&mut b, true));
+        }
+        for (i, frame) in after.iter().enumerate() {
+            let (mut a, mut b) = (*frame, *frame);
+            assert!(switched.process_as_chosen(&mut a, true));
+            assert!(fresh.process_with(&mut b, false));
+            assert!(a == b, "frame {i} differs from a DPDFNet-2 started afresh");
+        }
     }
 
     #[test]

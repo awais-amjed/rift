@@ -33,6 +33,7 @@ class AppCubit extends HydratedCubit<AppState> {
   AppCubit() : super(const AppState()) {
     // The filter lives in the native audio pipeline, which starts with none.
     unawaited(NoiseFilter.use(state.noiseSuppression));
+    NoiseFilter.useSmallDpdfnet(state.dpdfnetSmall);
     MicVolume.apply(state.inputVolume);
   }
 
@@ -168,6 +169,11 @@ class AppCubit extends HydratedCubit<AppState> {
   void setNoiseSuppression(NoiseSuppression value) {
     unawaited(NoiseFilter.use(value));
     emit(state.copyWith(noiseSuppression: value));
+  }
+
+  void setDpdfnetSmall(bool value) {
+    NoiseFilter.useSmallDpdfnet(value);
+    emit(state.copyWith(dpdfnetSmall: value));
   }
 
   void setEchoCancellation(bool value) {

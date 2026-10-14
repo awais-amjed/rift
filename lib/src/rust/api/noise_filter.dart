@@ -23,6 +23,11 @@ Future<NoiseModelEntry> loadDpdfnet() =>
 bool takeDpdfnetFellBack() =>
     RustLib.instance.api.crateApiNoiseFilterTakeDpdfnetFellBack();
 
+/// Runs DPDFNet-2 alone when `small`, as chosen in settings, in calls and the
+/// mic test; otherwise DPDFNet-8, until this computer proves too slow for it.
+void setDpdfnetSmall({required bool small}) =>
+    RustLib.instance.api.crateApiNoiseFilterSetDpdfnetSmall(small: small);
+
 /// Where the runner's filter calls a model: the addresses of the frame
 /// function and the reset function, for Dart to pass on.
 class NoiseModelEntry {

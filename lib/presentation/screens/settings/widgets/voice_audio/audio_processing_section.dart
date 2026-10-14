@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/enums/noise_suppression.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../../logic/services/noise_filter.dart';
 import '../section_title.dart';
 import '../setting_toggle_row.dart';
+import 'dpdfnet_size_choice.dart';
 import 'noise_suppression_choice.dart';
 
 /// How the mic is cleaned up before a call hears it: the noise suppressor,
@@ -27,6 +30,14 @@ class AudioProcessingSection extends StatelessWidget {
           value: appState.noiseSuppression,
           onChanged: cubit.setNoiseSuppression,
         ),
+        if (appState.noiseSuppression == NoiseSuppression.dpdfnet &&
+            NoiseFilter.choices.contains(NoiseSuppression.dpdfnet)) ...[
+          const SizedBox(height: 14),
+          DpdfnetSizeChoice(
+            small: appState.dpdfnetSmall,
+            onChanged: cubit.setDpdfnetSmall,
+          ),
+        ],
         const SizedBox(height: 14),
         SettingToggleRow(
           title: 'Echo cancellation',

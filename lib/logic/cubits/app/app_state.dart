@@ -115,6 +115,10 @@ class AppState extends Equatable {
   /// reads both.
   @JsonKey(fromJson: NoiseSuppression.fromJson)
   final NoiseSuppression noiseSuppression;
+
+  /// DPDFNet-2 alone, when [noiseSuppression] is DPDFNet. Otherwise it runs
+  /// DPDFNet-8, and goes over to DPDFNet-2 by itself on a computer too slow.
+  final bool dpdfnetSmall;
   final bool echoCancellation;
   final bool autoGainControl;
 
@@ -252,6 +256,7 @@ class AppState extends Equatable {
     this.outputVolume = 1.0,
     this.inputVolume = 1.0,
     this.noiseSuppression = NoiseSuppression.rnnoise,
+    this.dpdfnetSmall = false,
     this.echoCancellation = true,
     this.autoGainControl = true,
     this.recentEmojis = const [],
@@ -332,6 +337,7 @@ class AppState extends Equatable {
     double? inputVolume,
     bool clearInputDeviceId = false,
     NoiseSuppression? noiseSuppression,
+    bool? dpdfnetSmall,
     bool? echoCancellation,
     bool? autoGainControl,
     List<String>? recentEmojis,
@@ -397,6 +403,7 @@ class AppState extends Equatable {
       outputVolume: outputVolume ?? this.outputVolume,
       inputVolume: inputVolume ?? this.inputVolume,
       noiseSuppression: noiseSuppression ?? this.noiseSuppression,
+      dpdfnetSmall: dpdfnetSmall ?? this.dpdfnetSmall,
       echoCancellation: echoCancellation ?? this.echoCancellation,
       autoGainControl: autoGainControl ?? this.autoGainControl,
       recentEmojis: recentEmojis ?? this.recentEmojis,
@@ -468,6 +475,7 @@ class AppState extends Equatable {
     outputVolume,
     inputVolume,
     noiseSuppression,
+    dpdfnetSmall,
     echoCancellation,
     autoGainControl,
     soundboardMuted,

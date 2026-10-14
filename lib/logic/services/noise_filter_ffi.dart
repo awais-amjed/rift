@@ -115,6 +115,13 @@ abstract final class NoiseFilter {
     native.setModel(_loaded.contains(mode) ? model : _Model.rnnoise);
   }
 
+  /// Has DPDFNet run DPDFNet-2 alone when [small], in calls and the mic test
+  /// alike, or DPDFNet-8 until this computer proves too slow for it.
+  static void useSmallDpdfnet(bool small) {
+    if (_native == null) return;
+    setDpdfnetSmall(small: small);
+  }
+
   /// Writes how long the model took over each 10 ms of the call just ended
   /// to the app's log, as one line of numbers, and starts counting again. The
   /// runner counts on libwebrtc's capture thread and never logs from there,

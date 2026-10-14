@@ -17,6 +17,8 @@ abstract final class NoiseFilter {
 
   static void setGain(double gain) {}
 
+  static void useSmallDpdfnet(bool small) {}
+
   static void logTimings() {}
 
   static Future<void> forMicTest(

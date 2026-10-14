@@ -56,3 +56,13 @@ pub fn take_dpdfnet_fell_back() -> bool {
         false
     }
 }
+
+/// Runs DPDFNet-2 alone when `small`, as chosen in settings, in calls and the
+/// mic test; otherwise DPDFNet-8, until this computer proves too slow for it.
+#[flutter_rust_bridge::frb(sync)]
+pub fn set_dpdfnet_small(small: bool) {
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    crate::dpdfnet::choose_small(small);
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
+    let _ = small;
+}
