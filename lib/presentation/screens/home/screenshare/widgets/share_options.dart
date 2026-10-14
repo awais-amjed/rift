@@ -49,9 +49,9 @@ class ShareOptions extends StatelessWidget {
     required this.onAdvancedToggled,
   });
 
-  /// Linux shares one application's sound, screen or window; elsewhere a
-  /// whole screen takes every app's sound but Rift's, and a window its own
-  /// app's.
+  /// Linux shares every app's sound but Rift's, or one app's, screen or
+  /// window alike; elsewhere a whole screen takes every app's sound but
+  /// Rift's, and a window its own app's.
   bool get _showsAudioSourcePicker =>
       HostPlatform.picksShareAudioSource && settings.shareAudio;
 
@@ -108,7 +108,13 @@ class ShareOptions extends StatelessWidget {
         Text(PrioritySection.explain(settings.priority), style: hint),
         if (HostPlatform.capturesSystemAudio) ...[
           const SizedBox(height: 16),
-          AudioToggle(shareAudio: settings.shareAudio, onToggle: onAudioToggle),
+          AudioToggle(
+            shareAudio: settings.shareAudio,
+            oneApp:
+                HostPlatform.picksShareAudioSource &&
+                settings.selectedAudioSource != null,
+            onToggle: onAudioToggle,
+          ),
         ],
         if (_showsAudioSourcePicker) ...[
           const SizedBox(height: 16),
@@ -116,8 +122,11 @@ class ShareOptions extends StatelessWidget {
             audioSources: audioSources,
             selectedAudioSource: settings.selectedAudioSource,
             isLoading: loadingAudioSources,
-            onChanged: (source) =>
-                onChanged(settings.copyWith(selectedAudioSource: source)),
+            onChanged: (source) => onChanged(
+              source == null
+                  ? settings.copyWith(clearAudioSource: true)
+                  : settings.copyWith(selectedAudioSource: source),
+            ),
             onRefresh: onRefreshAudioSources,
           ),
         ],

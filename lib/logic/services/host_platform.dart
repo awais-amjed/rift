@@ -146,9 +146,10 @@ class HostPlatform {
   /// Windows capturer produces them.
   static bool get hasShareThumbnails => !kIsWeb && Platform.isWindows;
 
-  /// Whether sharing one window's audio needs a PulseAudio source picked by
-  /// hand. Full-screen capture uses loopback everywhere, and Windows finds a
-  /// window's audio by its process.
+  /// Whether a screen share's sound is picked by hand: every app but Rift,
+  /// or one PulseAudio stream. Linux cannot tell which app a window's sound
+  /// comes from; Windows finds it by the window's process, and takes every
+  /// app's but Rift's for a whole screen.
   static bool get picksShareAudioSource => !kIsWeb && Platform.isLinux;
 
   /// Whether an audio source's `index` is a process id rather than a

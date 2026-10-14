@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../../data/classes/screen_share_settings.dart';
 import '../../../../../../data/constants.dart';
 import '../../../../../../logic/cubits/screenshare/screenshare_cubit.dart';
+import '../../../../../../logic/services/host_platform.dart';
 import '../../../../../common/context_menu/context_menu_item.dart';
 import '../../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../../common/context_menu/context_menu_submenu_item.dart';
@@ -46,7 +47,9 @@ class ScreenShareMenu extends StatelessWidget {
               label: 'Stream quality',
               submenuBuilder: (_) => const StreamQualityMenu(),
             ),
-            if (canToggleStreamSound(settings))
+            // Never without something to turn on: a Linux share with no app
+            // picked takes every app's sound but Rift's.
+            if (HostPlatform.capturesSystemAudio)
               ContextMenuItem(
                 icon: settings.shareAudio
                     ? Icons.volume_up_outlined

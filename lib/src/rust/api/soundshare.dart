@@ -33,7 +33,8 @@ class SoundShareConfig {
   final String livekitUrl;
   final String livekitToken;
 
-  /// Linux: the PulseAudio sink-input to capture, and the sink it plays to.
+  /// Linux: the PulseAudio sink-input to capture, and the sink it plays to;
+  /// none means everything but Rift.
   final int? selectedAudioSourceIndex;
   final int? selectedAudioSourceSink;
 

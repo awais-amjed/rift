@@ -40,7 +40,8 @@ pub struct ScreenShareConfig {
     pub selected_video_source_index: Option<u32>,
     pub codec: VideoCodec,
     pub priority: SharePriority,
-    /// Linux: the PulseAudio sink-input to capture, and the sink it plays to.
+    /// Linux: the PulseAudio sink-input to capture, and the sink it plays to;
+    /// none means everything but Rift.
     pub selected_audio_source_index: Option<u32>,
     pub selected_audio_source_sink: Option<u32>,
     /// Windows: the process whose audio to capture; none means everything but Rift.

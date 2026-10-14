@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/constants.dart';
-import '../../../../../logic/services/host_platform.dart';
 import '../../../../common/app_switch.dart';
 import '../../../../theme/app_motion.dart';
 import '../../../../theme/app_text.dart';
@@ -10,11 +9,15 @@ import '../../../../theme/theme_context.dart';
 /// Audio sharing toggle widget
 class AudioToggle extends StatelessWidget {
   final bool shareAudio;
+
+  /// One app picked below, rather than every app but Rift.
+  final bool oneApp;
   final VoidCallback onToggle;
 
   const AudioToggle({
     super.key,
     required this.shareAudio,
+    required this.oneApp,
     required this.onToggle,
   });
 
@@ -64,8 +67,7 @@ class AudioToggle extends StatelessWidget {
                     Text(
                       !shareAudio
                           ? 'No audio will be shared'
-                          // Linux shares one app's sound, picked below.
-                          : HostPlatform.picksShareAudioSource
+                          : oneApp
                           ? 'The app picked below will be heard'
                           // Never Rift's own: the call would hear itself.
                           : 'Your apps will be heard, but not Rift',

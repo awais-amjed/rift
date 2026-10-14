@@ -22,10 +22,14 @@ use tokio::sync::mpsc::Sender as FrameSender;
 use tokio::task::JoinHandle as TaskHandle;
 
 mod catch_up;
-#[cfg(test)]
-mod live_test;
 #[cfg(target_os = "linux")]
 mod linux;
+#[cfg(target_os = "linux")]
+mod linux_all;
+#[cfg(test)]
+mod live_test;
+#[cfg(any(target_os = "linux", test))]
+mod mixer;
 #[cfg(target_os = "linux")]
 mod pulse;
 #[cfg(target_os = "windows")]
@@ -75,7 +79,8 @@ impl Pcm {
 #[allow(dead_code)]
 #[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct AudioSelection {
-    /// Linux: the PulseAudio sink-input to capture, and the sink it plays to.
+    /// Linux: the PulseAudio sink-input to capture, and the sink it plays to;
+    /// none means everything but Rift.
     pub sink_input: Option<u32>,
     pub sink: Option<u32>,
     /// Windows: the process whose audio to capture; none means everything but Rift.

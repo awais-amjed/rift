@@ -103,7 +103,8 @@ class ScreenShareConfig {
   final VideoCodec codec;
   final SharePriority priority;
 
-  /// Linux: the PulseAudio sink-input to capture, and the sink it plays to.
+  /// Linux: the PulseAudio sink-input to capture, and the sink it plays to;
+  /// none means everything but Rift.
   final int? selectedAudioSourceIndex;
   final int? selectedAudioSourceSink;
 

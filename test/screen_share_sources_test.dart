@@ -134,6 +134,27 @@ void main() {
         expect(ScreenShareSources.pickAudioSource(const [], audio(3)), isNull);
       },
     );
+
+    // A Linux screen share: no source is every app but Rift.
+    test('a screen share starts on every app, not the first one', () {
+      expect(ScreenShareSources.keepAudioSource([audio(3)], null), isNull);
+    });
+
+    test('a screen share keeps the app picked while it plays', () {
+      final fresh = audio(9, title: 'the next song');
+      final picked = ScreenShareSources.keepAudioSource([
+        audio(2, app: 'mpv', binary: 'mpv'),
+        fresh,
+      ], audio(5));
+      expect(identical(picked, fresh), isTrue);
+    });
+
+    test('a screen share goes back to every app when the app is gone', () {
+      final picked = ScreenShareSources.keepAudioSource([
+        audio(2, app: 'mpv', binary: 'mpv'),
+      ], audio(5));
+      expect(picked, isNull);
+    });
   });
 
   // F-10: the Share sound picker offered other Rift windows on the same PC,

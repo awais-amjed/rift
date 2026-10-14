@@ -55,9 +55,9 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
   List<AudioSource>? _audioSources;
   bool _loadingAudioSources = false;
 
-  /// Linux shares one application's sound, picked here, whatever is being
-  /// shown: there is no system loopback to fall back on, so a whole screen
-  /// with no app picked went out silent.
+  /// Linux shares the sound of the app picked here, or of every app but
+  /// Rift, whatever is being shown: nothing ties a window to the app playing
+  /// its sound.
   bool get _needsAudioSources =>
       HostPlatform.picksShareAudioSource && _draft.shareAudio;
 
@@ -121,7 +121,7 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
     setState(() {
       _audioSources = sources;
       _loadingAudioSources = false;
-      final selected = ScreenShareSources.pickAudioSource(
+      final selected = ScreenShareSources.keepAudioSource(
         sources,
         _draft.selectedAudioSource,
       );

@@ -56,10 +56,10 @@ class ScreenShareSources {
     }
   }
 
-  /// Applications playing sound: PulseAudio sink inputs on Linux (also for
-  /// window-capture audio), processes on Windows (for a sound share; a screen
-  /// share finds a window's audio by its process). Full-screen capture uses
-  /// loopback and never asks.
+  /// Applications playing sound: PulseAudio sink inputs on Linux (for a
+  /// screen share of either kind, beside "All apps"), processes on Windows
+  /// (for a sound share; a screen share finds a window's audio by its
+  /// process, and a whole screen takes every app's but Rift's).
   static Future<List<AudioSource>> listAudio() async {
     try {
       // A repeated entry would make the picker's value ambiguous, which the
@@ -147,23 +147,30 @@ class ScreenShareSources {
   static AudioSource? pickAudioSource(
     List<AudioSource> sources,
     AudioSource? previous,
-  ) {
-    if (sources.isEmpty) return null;
-    if (previous != null) {
-      for (final source in sources) {
-        if (source.index == previous.index && source.sink == previous.sink) {
-          return source;
-        }
-      }
-      if (previous.binary.isNotEmpty || previous.appName.isNotEmpty) {
-        for (final source in sources) {
-          if (source.binary == previous.binary &&
-              source.appName == previous.appName) {
-            return source;
-          }
-        }
+  ) => _find(sources, previous) ?? sources.firstOrNull;
+
+  /// The same for a screen share on Linux, where no app means every app but
+  /// Rift: that is where it starts, and where it goes back to when the app
+  /// picked stops playing, rather than to whichever app is listed first.
+  static AudioSource? keepAudioSource(
+    List<AudioSource> sources,
+    AudioSource? previous,
+  ) => _find(sources, previous);
+
+  static AudioSource? _find(List<AudioSource> sources, AudioSource? previous) {
+    if (previous == null) return null;
+    for (final source in sources) {
+      if (source.index == previous.index && source.sink == previous.sink) {
+        return source;
       }
     }
-    return sources.first;
+    if (previous.binary.isEmpty && previous.appName.isEmpty) return null;
+    for (final source in sources) {
+      if (source.binary == previous.binary &&
+          source.appName == previous.appName) {
+        return source;
+      }
+    }
+    return null;
   }
 }

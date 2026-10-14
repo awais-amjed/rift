@@ -1,5 +1,7 @@
 //! Linux: record one application's stream through the monitor of the sink
-//! it plays to.
+//! it plays to. With none picked, every application's but Rift's
+//! (`linux_all`).
+use super::linux_all;
 use super::pulse;
 use super::{
     samples_from_le_bytes, AudioCapture, AudioCaptureHandle, Command, Pcm, NUM_CHANNELS,
@@ -24,8 +26,13 @@ const FRAME_BYTES: usize = (SAMPLE_RATE as usize / 100) * NUM_CHANNELS as usize 
 pub(crate) async fn start(room: &Room, request: AudioCapture) -> Option<AudioCaptureHandle> {
     let (Some(sink_input), Some(sink)) = (request.selection.sink_input, request.selection.sink)
     else {
-        log::info!("audio: sharing enabled but no application selected");
-        return None;
+        return super::publish_and_feed(
+            room,
+            Box::new(linux_all::spawn_capture_thread),
+            &request.track_name,
+            request.on_ended,
+        )
+        .await;
     };
     let Some(monitor) = pulse::monitor_source_name(sink) else {
         log::warn!("audio: sink #{sink} has no monitor source");
@@ -138,6 +145,28 @@ fn watch_for_removal(connection: &mut Connection, sink_input: u32) -> Arc<Atomic
 
 /// A record stream on `monitor`, restricted to one sink-input, ready to read.
 fn open_stream(connection: &mut Connection, sink_input: u32, monitor: &str) -> Option<Stream> {
+    let stream = connect_stream(connection, sink_input, monitor)?;
+    loop {
+        if !connection.turn() {
+            return None;
+        }
+        match stream.get_state() {
+            State::Ready => return Some(stream),
+            State::Failed | State::Terminated => {
+                log::warn!("audio: record stream failed to start");
+                return None;
+            }
+            _ => {}
+        }
+    }
+}
+
+/// The same, asked for and not waited on: it is ready some turns later.
+pub(super) fn connect_stream(
+    connection: &mut Connection,
+    sink_input: u32,
+    monitor: &str,
+) -> Option<Stream> {
     let spec = Spec {
         format: Format::S16le,
         channels: NUM_CHANNELS as u8,
@@ -167,17 +196,5 @@ fn open_stream(connection: &mut Connection, sink_input: u32, monitor: &str) -> O
         log::warn!("audio: could not open a record stream on {monitor}");
         return None;
     }
-    loop {
-        if !connection.turn() {
-            return None;
-        }
-        match stream.get_state() {
-            State::Ready => return Some(stream),
-            State::Failed | State::Terminated => {
-                log::warn!("audio: record stream failed to start");
-                return None;
-            }
-            _ => {}
-        }
-    }
+    Some(stream)
 }

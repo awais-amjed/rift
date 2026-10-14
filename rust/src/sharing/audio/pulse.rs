@@ -1,17 +1,33 @@
-//! The two introspection queries the share needs, over the connection in
+//! The introspection queries the share needs, over the connection in
 //! `crate::pulse`.
 use crate::api::screenshare::types::AudioSource;
 use crate::pulse::Connection;
 use libpulse_binding as pa;
 use pa::callbacks::ListResult;
+use pa::context::introspect::SinkInputInfo;
 use std::sync::{Arc, Mutex};
 
 /// Every application stream currently playing.
 pub(crate) fn list_sink_inputs() -> Vec<AudioSource> {
+    sink_inputs()
+        .into_iter()
+        .map(|input| input.source)
+        .collect()
+}
+
+/// A playing stream, and the process playing it.
+pub(crate) struct SinkInput {
+    pub source: AudioSource,
+    pub pid: Option<u32>,
+}
+
+/// Every application stream currently playing, with its process. Empty if the
+/// server does not answer.
+pub(crate) fn sink_inputs() -> Vec<SinkInput> {
     let Some(mut connection) = Connection::open("rift-audio-list") else {
         return Vec::new();
     };
-    let entries: Arc<Mutex<Vec<AudioSource>>> = Arc::new(Mutex::new(Vec::new()));
+    let entries: Arc<Mutex<Vec<SinkInput>>> = Arc::new(Mutex::new(Vec::new()));
     let done = Arc::new(Mutex::new(false));
     let (out, finished) = (Arc::clone(&entries), Arc::clone(&done));
     let _op =
@@ -19,23 +35,13 @@ pub(crate) fn list_sink_inputs() -> Vec<AudioSource> {
             .context
             .introspect()
             .get_sink_input_info_list(move |result| match result {
-                ListResult::Item(info) => out.lock().unwrap().push(AudioSource {
-                    index: info.index,
-                    sink: info.sink,
-                    app_name: info
-                        .proplist
-                        .get_str("application.name")
-                        .unwrap_or_default(),
-                    binary: info
-                        .proplist
-                        .get_str("application.process.binary")
-                        .unwrap_or_default(),
-                    media_name: info.proplist.get_str("media.name").unwrap_or_default(),
-                }),
+                ListResult::Item(info) => out.lock().unwrap().push(sink_input(info)),
                 ListResult::End | ListResult::Error => *finished.lock().unwrap() = true,
             });
-    connection.run_until(&done);
-    let list = entries.lock().unwrap().clone();
+    if !connection.run_until(&done) {
+        return Vec::new();
+    }
+    let list = std::mem::take(&mut *entries.lock().unwrap());
     list
 }
 
@@ -59,4 +65,18 @@ pub(crate) fn monitor_source_name(sink_index: u32) -> Option<String> {
     connection.run_until(&done);
     let found = name.lock().unwrap().clone();
     found
+}
+
+pub(crate) fn sink_input(info: &SinkInputInfo) -> SinkInput {
+    let get = |key: &str| info.proplist.get_str(key).unwrap_or_default();
+    SinkInput {
+        source: AudioSource {
+            index: info.index,
+            sink: info.sink,
+            app_name: get("application.name"),
+            binary: get("application.process.binary"),
+            media_name: get("media.name"),
+        },
+        pid: get("application.process.id").parse().ok(),
+    }
 }

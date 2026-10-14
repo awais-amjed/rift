@@ -8,12 +8,15 @@ import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 import '../widgets/settings_section.dart';
 
-/// Section for selecting Linux audio source for screen sharing
+/// Which apps a Linux screen share is heard from: every app but Rift — no
+/// source, and the first choice — or the one app picked.
 class AudioSourceSection extends StatelessWidget {
   final List<AudioSource>? audioSources;
   final AudioSource? selectedAudioSource;
   final bool isLoading;
-  final ValueChanged<AudioSource> onChanged;
+
+  /// Null for every app but Rift.
+  final ValueChanged<AudioSource?> onChanged;
   final VoidCallback onRefresh;
 
   const AudioSourceSection({
@@ -24,6 +27,8 @@ class AudioSourceSection extends StatelessWidget {
     required this.onChanged,
     required this.onRefresh,
   });
+
+  static const allApps = 'All apps (except Rift)';
 
   String _buildLabel(AudioSource source) {
     final mainLabel = source.mediaName.isNotEmpty
@@ -41,6 +46,7 @@ class AudioSourceSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
+    final sources = audioSources ?? const <AudioSource>[];
     return SettingsSection(
       label: 'Audio source',
       children: [
@@ -51,41 +57,46 @@ class AudioSourceSection extends StatelessWidget {
               child: LoadingDots(color: context.theme.accentBright, dotSize: 4),
             ),
           )
-        else if (audioSources == null || audioSources!.isEmpty)
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.info_outline,
-                  size: K.iconRow,
-                  color: themeState.textTertiary,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'No audio sources found. Make sure an application is playing audio.',
-                    style: AppText.secondary.copyWith(
-                      color: themeState.textTertiary,
-                    ),
-                  ),
-                ),
-                TextButton(onPressed: onRefresh, child: const Text('Refresh')),
-              ],
-            ),
-          )
-        else
+        else ...[
           AppDropdown<AudioSource?>(
             value: selectedAudioSource,
-            hint: 'Select audio source',
+            hint: allApps,
             options: [
-              for (final source in audioSources!)
+              const AppDropdownOption(value: null, label: allApps),
+              for (final source in sources)
                 AppDropdownOption(value: source, label: _buildLabel(source)),
             ],
-            onChanged: (source) {
-              if (source != null) onChanged(source);
-            },
+            onChanged: onChanged,
           ),
+          // An app that starts later is heard anyway; this is only for
+          // picking it on its own.
+          if (sources.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    size: K.iconRow,
+                    color: themeState.textTertiary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'No app is playing sound right now.',
+                      style: AppText.secondary.copyWith(
+                        color: themeState.textTertiary,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: onRefresh,
+                    child: const Text('Refresh'),
+                  ),
+                ],
+              ),
+            ),
+        ],
       ],
     );
   }
