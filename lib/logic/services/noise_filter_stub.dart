@@ -17,6 +17,8 @@ abstract final class NoiseFilter {
 
   static void setGain(double gain) {}
 
+  static void logTimings() {}
+
   static Future<void> forMicTest(
     NoiseSuppression mode, {
     required bool autoGain,

@@ -45,6 +45,12 @@ RIFT_NOISE_FILTER_EXPORT void rift_noise_filter_set_gain(float gain);
 RIFT_NOISE_FILTER_EXPORT void rift_noise_filter_set_deep_filter(void* process,
                                                                 void* reset);
 
+// How long the model and the mic volume took over each 10 ms since the last
+// call, for the app's log after a call: writes four numbers to `out` — frames
+// a model ran on, how many took over 5 ms, how many over 10 ms (late), and the
+// slowest in microseconds — and starts counting again. All 0 with no filter.
+RIFT_NOISE_FILTER_EXPORT void rift_noise_filter_take_timings(int64_t* out);
+
 // RNNoise for the settings mic test, which reads the microphone in the Rust
 // library rather than through libwebrtc (rust/src/mic_test). Its own state,
 // apart from the call's, so a test and a call never share what the model has

@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:ffi';
 import 'dart:io';
 
+import 'package:ffi/ffi.dart';
+
 import '../../data/enums/noise_suppression.dart';
 import '../../src/rust/api/mic_test.dart';
 import '../../src/rust/api/noise_filter.dart';
@@ -92,6 +94,21 @@ abstract final class NoiseFilter {
     }
   }
 
+  /// Writes how long the model took over each 10 ms of the call just ended
+  /// to the app's log, as one line of numbers, and starts counting again. The
+  /// runner counts on libwebrtc's capture thread and never logs from there,
+  /// so this is how a machine too slow for a model shows itself. Nothing when
+  /// no model ran, or from a runner built before it counted.
+  static void logTimings() {
+    final timings = _native?.takeTimings();
+    if (timings == null || timings.frames == 0) return;
+    final worst = (timings.worstMicros / 1000).toStringAsFixed(1);
+    HelperMethods.printDebug(
+      'Noise filter: ${timings.frames} frames, worst $worst ms, '
+      '${timings.over5ms} over 5 ms, ${timings.over10ms} over 10 ms',
+    );
+  }
+
   /// Has the settings mic test process the microphone as a call would under
   /// [mode] and [autoGain], here: the test reads the device itself, so the
   /// runner's filter never sees it (`rust/src/mic_test/clean.rs`). Reaches a
@@ -141,6 +158,9 @@ class _NativeFilter {
   final void Function(double) setGain;
   final void Function(Pointer<Void>, Pointer<Void>) _setDeepFilter;
 
+  /// `rift_noise_filter_take_timings`; null from a runner built before it.
+  final void Function(Pointer<Int64>)? _takeTimings;
+
   /// The runner's RNNoise for the mic test, by address; null from a runner
   /// built before it exported them.
   final ({int create, int process, int destroy})? rnnoise;
@@ -149,11 +169,29 @@ class _NativeFilter {
     this.setModel,
     this.setGain,
     this._setDeepFilter,
+    this._takeTimings,
     this.rnnoise,
   );
 
   void setDeepFilter(int process, int reset) =>
       _setDeepFilter(Pointer.fromAddress(process), Pointer.fromAddress(reset));
+
+  ({int frames, int over5ms, int over10ms, int worstMicros})? takeTimings() {
+    final take = _takeTimings;
+    if (take == null) return null;
+    final out = calloc<Int64>(4);
+    try {
+      take(out);
+      return (
+        frames: out[0],
+        over5ms: out[1],
+        over10ms: out[2],
+        worstMicros: out[3],
+      );
+    } finally {
+      calloc.free(out);
+    }
+  }
 
   static _NativeFilter? load() {
     if (!Platform.isLinux && !Platform.isWindows) return null;
@@ -175,6 +213,12 @@ class _NativeFilter {
           Void Function(Pointer<Void>, Pointer<Void>),
           void Function(Pointer<Void>, Pointer<Void>)
         >('rift_noise_filter_set_deep_filter'),
+        exe.providesSymbol(_takeTimingsName)
+            ? exe.lookupFunction<
+                Void Function(Pointer<Int64>),
+                void Function(Pointer<Int64>)
+              >(_takeTimingsName)
+            : null,
         _rnnoiseIn(exe),
       );
     } catch (e) {
@@ -182,6 +226,8 @@ class _NativeFilter {
       return null;
     }
   }
+
+  static const _takeTimingsName = 'rift_noise_filter_take_timings';
 
   static ({int create, int process, int destroy})? _rnnoiseIn(
     DynamicLibrary exe,

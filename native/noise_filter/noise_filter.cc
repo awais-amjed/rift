@@ -1,6 +1,7 @@
 #include "noise_filter.h"
 
 #include <atomic>
+#include <chrono>
 #include <cmath>
 
 #include <flutter_webrtc.h>
@@ -42,6 +43,41 @@ constexpr float kReleaseSeconds = 0.1f;
 using DeepFilterProcess = int32_t (*)(float* samples, int32_t count);
 using DeepFilterReset = void (*)();
 
+// How long the filter takes over each 10 ms it is handed, kept for Dart to
+// read after a call (rift_noise_filter_take_timings) rather than logged: the
+// capture thread must never wait on a file. A frame that takes longer than
+// the 10 ms it holds is late, and enough late frames are heard as holes.
+class Timings {
+ public:
+  void Add(std::chrono::steady_clock::duration took) {
+    const int64_t micros =
+        std::chrono::duration_cast<std::chrono::microseconds>(took).count();
+    frames_.fetch_add(1, std::memory_order_relaxed);
+    if (micros > 5000) over_5ms_.fetch_add(1, std::memory_order_relaxed);
+    if (micros > 10000) over_10ms_.fetch_add(1, std::memory_order_relaxed);
+    int64_t worst = worst_micros_.load(std::memory_order_relaxed);
+    while (micros > worst &&
+           !worst_micros_.compare_exchange_weak(worst, micros,
+                                                std::memory_order_relaxed)) {
+    }
+  }
+
+  // Frames, frames over 5 ms, frames over 10 ms and the slowest in
+  // microseconds, since the last read; each starts again from 0.
+  void Take(int64_t* out) {
+    out[0] = frames_.exchange(0, std::memory_order_relaxed);
+    out[1] = over_5ms_.exchange(0, std::memory_order_relaxed);
+    out[2] = over_10ms_.exchange(0, std::memory_order_relaxed);
+    out[3] = worst_micros_.exchange(0, std::memory_order_relaxed);
+  }
+
+ private:
+  std::atomic<int64_t> frames_{0};
+  std::atomic<int64_t> over_5ms_{0};
+  std::atomic<int64_t> over_10ms_{0};
+  std::atomic<int64_t> worst_micros_{0};
+};
+
 // Called by libwebrtc on its capture thread, under a lock it holds for
 // Initialize, Reset and Process alike. What Dart sets is atomic.
 class NoiseProcessing final
@@ -81,12 +117,17 @@ class NoiseProcessing final
   void Release() override {}
 
   void Process(int, int num_frames, int, float* buffer) override {
-    Denoise(num_frames, buffer);
+    const auto start = std::chrono::steady_clock::now();
+    const bool modelled = Denoise(num_frames, buffer);
     Boost(num_frames, buffer);
+    if (modelled) timings_.Add(std::chrono::steady_clock::now() - start);
   }
 
+  void TakeTimings(int64_t* out) { timings_.Take(out); }
+
  private:
-  void Denoise(int num_frames, float* buffer) {
+  // Whether a model ran on the frame.
+  bool Denoise(int num_frames, float* buffer) {
     const int32_t model = model_.load(std::memory_order_acquire);
     const DeepFilterProcess deep_filter =
         deep_filter_process_.load(std::memory_order_acquire);
@@ -94,7 +135,7 @@ class NoiseProcessing final
       // Started afresh when one comes back on, rather than carrying on from
       // whatever it last heard.
       restart_ = true;
-      return;
+      return false;
     }
     if (restart_ || model != running_ || num_frames != frames_) {
       Restart(model, num_frames);
@@ -106,8 +147,11 @@ class NoiseProcessing final
       path_->up.Process(buffer, num_frames, frame_);
       RunModel(frame_, deep_filter);
       path_->down.Process(frame_, kFrameSize, buffer);
+    } else {
+      // Any other rate passes through untouched.
+      return false;
     }
-    // Any other rate passes through untouched.
+    return true;
   }
 
   // The mic volume, after the model, so the model hears the voice at the
@@ -182,6 +226,7 @@ class NoiseProcessing final
   std::atomic<int32_t> model_{kNone};
   std::atomic<DeepFilterProcess> deep_filter_process_{nullptr};
   std::atomic<DeepFilterReset> deep_filter_reset_{nullptr};
+  Timings timings_;
 };
 
 NoiseProcessing* g_processing = nullptr;
@@ -235,6 +280,15 @@ void rift_noise_filter_set_deep_filter(void* process, void* reset) {
   rift::g_processing->SetDeepFilter(
       reinterpret_cast<rift::DeepFilterProcess>(process),
       reinterpret_cast<rift::DeepFilterReset>(reset));
+}
+
+void rift_noise_filter_take_timings(int64_t* out) {
+  if (out == nullptr) return;
+  if (rift::g_processing == nullptr) {
+    for (int i = 0; i < 4; ++i) out[i] = 0;
+    return;
+  }
+  rift::g_processing->TakeTimings(out);
 }
 
 void* rift_noise_filter_rnnoise_create(void) {
