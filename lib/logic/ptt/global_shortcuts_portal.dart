@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dbus/dbus.dart';
 import '../helper_methods.dart';
+import '../services/portal_request.dart';
 
 /// Push-to-talk outside the window on Linux, through the desktop's
 /// GlobalShortcuts portal.
@@ -18,9 +19,7 @@ import '../helper_methods.dart';
 /// from every other app, so [close] must run whenever push-to-talk is turned
 /// off, or a key the user bound for talking stops typing anywhere.
 class GlobalShortcutsPortal {
-  static const _service = 'org.freedesktop.portal.Desktop';
   static const _interface = 'org.freedesktop.portal.GlobalShortcuts';
-  static final _object = DBusObjectPath('/org/freedesktop/portal/desktop');
   static const _shortcutId = 'push-to-talk';
 
   /// Tries at binding before giving up on a desktop that keeps failing.
@@ -39,10 +38,15 @@ class GlobalShortcutsPortal {
   static const _responseTimeout = Duration(minutes: 2);
 
   final DBusClient _client = DBusClient.session();
+  late final _requests = PortalRequests(
+    _client,
+    interface: _interface,
+    tag: 'GlobalShortcutsPortal',
+    timeout: _responseTimeout,
+  );
   _Session? _current;
   int _epoch = 0;
   bool _registered = false;
-  int _tokens = 0;
 
   /// Opens a session and binds the push-to-talk shortcut.
   ///
@@ -100,12 +104,12 @@ class GlobalShortcutsPortal {
     const giveUp = (trigger: null, retry: false);
     _Session? mine;
     try {
-      final created = await _request(
+      final created = await _requests.call(
         'CreateSession',
         (token) => [
           DBusDict.stringVariant({
             'handle_token': DBusString(token),
-            'session_handle_token': DBusString('rift_ptt_${_tokens++}'),
+            'session_handle_token': DBusString(_requests.nextToken('rift_ptt')),
           }),
         ],
       );
@@ -122,7 +126,7 @@ class GlobalShortcutsPortal {
         ..add(_listen('Deactivated', mine.path, onRelease))
         ..add(_listenForChanges(mine.path, onTriggerChanged));
 
-      final bound = await _request(
+      final bound = await _requests.call(
         'BindShortcuts',
         (token) => [
           mine!.path,
@@ -176,18 +180,7 @@ class GlobalShortcutsPortal {
     for (final sub in signals) {
       await sub.cancel();
     }
-    try {
-      await _client.callMethod(
-        destination: _service,
-        path: session.path,
-        interface: 'org.freedesktop.portal.Session',
-        name: 'Close',
-        replySignature: DBusSignature(''),
-      );
-    } catch (e) {
-      // Already closed by the portal, e.g. after a declined dialog.
-      HelperMethods.printDebug('GlobalShortcutsPortal: close failed – $e');
-    }
+    await _requests.closeSession(session.path);
   }
 
   Future<void> dispose() async {
@@ -198,79 +191,11 @@ class GlobalShortcutsPortal {
 
   // ── Plumbing ──────────────────────────────────────────────────────────
 
-  /// Tells the portal which app this is. Once per connection: a second call
-  /// is refused.
+  /// Once per connection: a second call is refused.
   Future<void> _register(String appId) async {
     if (_registered) return;
-    // Tried once per connection, and never fatal. A sandboxed app (Flatpak,
-    // Snap) is already known to the portal by its sandbox and may have this
-    // refused, and a portal older than 1.20 has no Registry at all — in both
-    // cases the calls that follow work without it. Only a GNOME host app
-    // truly needs it, and there the refusal shows up on those calls anyway.
     _registered = true;
-    try {
-      await _client.callMethod(
-        destination: _service,
-        path: _object,
-        interface: 'org.freedesktop.host.portal.Registry',
-        name: 'Register',
-        values: [DBusString(appId), DBusDict.stringVariant({})],
-        replySignature: DBusSignature(''),
-      );
-    } catch (e) {
-      HelperMethods.printDebug(
-        'GlobalShortcutsPortal: Register refused, going on – $e',
-      );
-    }
-  }
-
-  /// Calls a portal method that answers later, on a Request object, and
-  /// waits for that answer. `results` is null unless the code is 0
-  /// (success).
-  ///
-  /// The Request's path is derived from our bus name and a token we choose,
-  /// so the subscription goes in *before* the call — the answer can arrive
-  /// before the call itself returns.
-  Future<({int code, Map<String, DBusValue>? results})> _request(
-    String method,
-    List<DBusValue> Function(String token) args,
-  ) async {
-    final token = 'rift_${_tokens++}';
-    final sender = _client.uniqueName.substring(1).replaceAll('.', '_');
-    final answer = Completer<DBusSignal>();
-    final sub =
-        DBusSignalStream(
-          _client,
-          interface: 'org.freedesktop.portal.Request',
-          name: 'Response',
-          path: DBusObjectPath(
-            '/org/freedesktop/portal/desktop/request/$sender/$token',
-          ),
-        ).listen((signal) {
-          if (!answer.isCompleted) answer.complete(signal);
-        });
-    try {
-      await _client.callMethod(
-        destination: _service,
-        path: _object,
-        interface: _interface,
-        name: method,
-        values: args(token),
-        replySignature: DBusSignature('o'),
-      );
-      final signal = await answer.future.timeout(_responseTimeout);
-      final code = signal.values[0].asUint32();
-      if (code != 0) {
-        // 1 is the user saying no, 2 anything else the desktop refused.
-        HelperMethods.printDebug(
-          'GlobalShortcutsPortal: $method answered $code',
-        );
-        return (code: code, results: null);
-      }
-      return (code: 0, results: signal.values[1].asStringVariantDict());
-    } finally {
-      await sub.cancel();
-    }
+    await _requests.register(appId);
   }
 
   StreamSubscription<DBusSignal> _listen(
@@ -280,10 +205,10 @@ class GlobalShortcutsPortal {
   ) {
     return DBusSignalStream(
       _client,
-      sender: _service,
+      sender: PortalRequests.service,
       interface: _interface,
       name: name,
-      path: _object,
+      path: PortalRequests.object,
     ).listen((signal) {
       // One portal carries every app's sessions; only ours, and only our
       // shortcut, is a push-to-talk key.
@@ -301,10 +226,10 @@ class GlobalShortcutsPortal {
   ) {
     return DBusSignalStream(
       _client,
-      sender: _service,
+      sender: PortalRequests.service,
       interface: _interface,
       name: 'ShortcutsChanged',
-      path: _object,
+      path: PortalRequests.object,
     ).listen((signal) {
       if (signal.values[0] != session) return;
       final trigger = _triggerOf({'shortcuts': signal.values[1]});
