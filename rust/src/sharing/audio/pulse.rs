@@ -7,27 +7,13 @@ use pa::callbacks::ListResult;
 use pa::context::introspect::SinkInputInfo;
 use std::sync::{Arc, Mutex};
 
-/// Every application stream currently playing.
+/// Every application stream currently playing. Empty if the server does not
+/// answer.
 pub(crate) fn list_sink_inputs() -> Vec<AudioSource> {
-    sink_inputs()
-        .into_iter()
-        .map(|input| input.source)
-        .collect()
-}
-
-/// A playing stream, and the process playing it.
-pub(crate) struct SinkInput {
-    pub source: AudioSource,
-    pub pid: Option<u32>,
-}
-
-/// Every application stream currently playing, with its process. Empty if the
-/// server does not answer.
-pub(crate) fn sink_inputs() -> Vec<SinkInput> {
     let Some(mut connection) = Connection::open("rift-audio-list") else {
         return Vec::new();
     };
-    let entries: Arc<Mutex<Vec<SinkInput>>> = Arc::new(Mutex::new(Vec::new()));
+    let entries: Arc<Mutex<Vec<AudioSource>>> = Arc::new(Mutex::new(Vec::new()));
     let done = Arc::new(Mutex::new(false));
     let (out, finished) = (Arc::clone(&entries), Arc::clone(&done));
     let _op =
@@ -67,16 +53,18 @@ pub(crate) fn monitor_source_name(sink_index: u32) -> Option<String> {
     found
 }
 
-pub(crate) fn sink_input(info: &SinkInputInfo) -> SinkInput {
+pub(crate) fn sink_input(info: &SinkInputInfo) -> AudioSource {
     let get = |key: &str| info.proplist.get_str(key).unwrap_or_default();
-    SinkInput {
-        source: AudioSource {
-            index: info.index,
-            sink: info.sink,
-            app_name: get("application.name"),
-            binary: get("application.process.binary"),
-            media_name: get("media.name"),
-        },
+    let app_id = Some(get("application.id"))
+        .filter(|id| !id.is_empty())
+        .unwrap_or_else(|| get("application.icon_name"));
+    AudioSource {
+        index: info.index,
+        sink: info.sink,
+        app_name: get("application.name"),
+        binary: get("application.process.binary"),
+        media_name: get("media.name"),
+        app_id,
         pid: get("application.process.id").parse().ok(),
     }
 }

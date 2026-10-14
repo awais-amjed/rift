@@ -19,12 +19,22 @@ class AudioSource {
   final String binary;
   final String mediaName;
 
+  /// What the desktop calls the app (`application.id`, else its icon
+  /// name), to match against a window's app. Empty where it said neither,
+  /// and on Windows.
+  final String appId;
+
+  /// The process playing it.
+  final int? pid;
+
   const AudioSource({
     required this.index,
     required this.sink,
     required this.appName,
     required this.binary,
     required this.mediaName,
+    required this.appId,
+    this.pid,
   });
 
   @override
@@ -33,7 +43,9 @@ class AudioSource {
       sink.hashCode ^
       appName.hashCode ^
       binary.hashCode ^
-      mediaName.hashCode;
+      mediaName.hashCode ^
+      appId.hashCode ^
+      pid.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -44,7 +56,9 @@ class AudioSource {
           sink == other.sink &&
           appName == other.appName &&
           binary == other.binary &&
-          mediaName == other.mediaName;
+          mediaName == other.mediaName &&
+          appId == other.appId &&
+          pid == other.pid;
 }
 
 /// A screen or window that can be captured.
@@ -52,8 +66,12 @@ class CaptureSource {
   final int index;
   final String title;
 
-  /// Windows only: the owning process, for app-loopback audio capture.
+  /// The owning process: on Windows for app-loopback audio capture, and on
+  /// Windows and X11 to find the sound that goes with the window.
   final int? audioSourcePid;
+
+  /// X11: the app, as the window's `WM_CLASS` names it. Empty elsewhere.
+  final String appId;
 
   /// Windows only: a minimised window. There is no picture of it until it
   /// is back on screen, so a share of it starts paused and begins when the
@@ -64,6 +82,7 @@ class CaptureSource {
     required this.index,
     required this.title,
     this.audioSourcePid,
+    required this.appId,
     required this.minimised,
   });
 
@@ -72,6 +91,7 @@ class CaptureSource {
       index.hashCode ^
       title.hashCode ^
       audioSourcePid.hashCode ^
+      appId.hashCode ^
       minimised.hashCode;
 
   @override
@@ -82,6 +102,7 @@ class CaptureSource {
           index == other.index &&
           title == other.title &&
           audioSourcePid == other.audioSourcePid &&
+          appId == other.appId &&
           minimised == other.minimised;
 }
 
@@ -100,6 +121,11 @@ class ScreenShareConfig {
 
   /// Index into `list_capture_sources` for the same `capture_full_screen`.
   final int? selectedVideoSourceIndex;
+
+  /// Linux under Wayland: the restore token of a window Rift already had
+  /// the user pick in the desktop's own picker, so the capture opens it
+  /// without asking again. None asks.
+  final String? portalChoice;
   final VideoCodec codec;
   final SharePriority priority;
 
@@ -131,6 +157,7 @@ class ScreenShareConfig {
     required this.shareAudio,
     required this.captureFullScreen,
     this.selectedVideoSourceIndex,
+    this.portalChoice,
     required this.codec,
     required this.priority,
     this.selectedAudioSourceIndex,
@@ -150,6 +177,7 @@ class ScreenShareConfig {
       shareAudio.hashCode ^
       captureFullScreen.hashCode ^
       selectedVideoSourceIndex.hashCode ^
+      portalChoice.hashCode ^
       codec.hashCode ^
       priority.hashCode ^
       selectedAudioSourceIndex.hashCode ^
@@ -171,6 +199,7 @@ class ScreenShareConfig {
           shareAudio == other.shareAudio &&
           captureFullScreen == other.captureFullScreen &&
           selectedVideoSourceIndex == other.selectedVideoSourceIndex &&
+          portalChoice == other.portalChoice &&
           codec == other.codec &&
           priority == other.priority &&
           selectedAudioSourceIndex == other.selectedAudioSourceIndex &&

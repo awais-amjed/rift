@@ -25,8 +25,18 @@ void main() {
           home: Scaffold(
             body: SourceThumbnailGrid(
               sources: const [
-                CaptureSource(index: 0, title: 'Browser', minimised: false),
-                CaptureSource(index: 1, title: 'Game', minimised: true),
+                CaptureSource(
+                  index: 0,
+                  title: 'Browser',
+                  appId: '',
+                  minimised: false,
+                ),
+                CaptureSource(
+                  index: 1,
+                  title: 'Game',
+                  appId: '',
+                  minimised: true,
+                ),
               ],
               selectedIndex: 0,
               thumbnails: const {},
@@ -62,9 +72,24 @@ void main() {
                   width: width,
                   child: SourceThumbnailGrid(
                     sources: const [
-                      CaptureSource(index: 0, title: 'Game', minimised: true),
-                      CaptureSource(index: 1, title: 'Chat', minimised: true),
-                      CaptureSource(index: 2, title: 'Music', minimised: true),
+                      CaptureSource(
+                        index: 0,
+                        title: 'Game',
+                        appId: '',
+                        minimised: true,
+                      ),
+                      CaptureSource(
+                        index: 1,
+                        title: 'Chat',
+                        appId: '',
+                        minimised: true,
+                      ),
+                      CaptureSource(
+                        index: 2,
+                        title: 'Music',
+                        appId: '',
+                        minimised: true,
+                      ),
                     ],
                     selectedIndex: 0,
                     thumbnails: const {},

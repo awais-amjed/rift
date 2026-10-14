@@ -91,8 +91,13 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
     }
   }
 
-  /// Starts screen sharing with the given settings.
-  Future<void> startScreenShare({required ScreenShareSettings settings}) async {
+  /// Starts screen sharing with the given settings. [portalChoice] is a
+  /// window already picked in the desktop's own picker
+  /// (`ScreenShareConfig.portalChoice`).
+  Future<void> startScreenShare({
+    required ScreenShareSettings settings,
+    String? portalChoice,
+  }) async {
     emit(state.copyWith(status: ScreenshareStatus.connecting));
 
     try {
@@ -229,6 +234,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
         shareAudio: settings.shareAudio && HostPlatform.capturesSystemAudio,
         captureFullScreen: settings.captureFullScreen,
         selectedVideoSourceIndex: settings.selectedVideoSourceIndex,
+        portalChoice: portalChoice,
         codec: codec,
         priority: settings.priority,
         selectedAudioSourceIndex: settings.selectedAudioSource?.index,

@@ -93,8 +93,9 @@ class ScreenShareSettingsForm extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (!HostPlatform.picksShareSourceInApp ||
-            !constraints.hasBoundedHeight) {
+        // Only a grid of thumbnails fills the height; a dropdown of windows
+        // (X11) given it left the rest blank.
+        if (!HostPlatform.hasShareThumbnails || !constraints.hasBoundedHeight) {
           return SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,

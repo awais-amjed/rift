@@ -197,6 +197,7 @@ async fn bench_share() {
         share_audio: false,
         capture_full_screen: full_screen,
         selected_video_source_index: Some(index),
+        portal_choice: None,
         codec: codec(),
         priority: SharePriority::Smoothness,
         selected_audio_source_index: None,

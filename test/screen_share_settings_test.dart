@@ -99,7 +99,12 @@ void main() {
             codec: 'VP9',
             codecChosen: true,
           ).withVideoSource(
-            const CaptureSource(index: 0, title: 'Game', minimised: false),
+            const CaptureSource(
+              index: 0,
+              title: 'Game',
+              appId: '',
+              minimised: false,
+            ),
           );
       expect(settings.codecChosen, isTrue);
     });
@@ -224,7 +229,12 @@ void main() {
     test('stay open after picking a window', () {
       final settings = const ScreenShareSettings(showsAdvanced: true)
           .withVideoSource(
-            const CaptureSource(index: 0, title: 'Game', minimised: false),
+            const CaptureSource(
+              index: 0,
+              title: 'Game',
+              appId: '',
+              minimised: false,
+            ),
           );
       expect(settings.showsAdvanced, isTrue);
     });
@@ -259,7 +269,12 @@ void main() {
           const ScreenShareSettings(
             priority: SharePriority.balanced,
           ).withVideoSource(
-            const CaptureSource(index: 0, title: 'Game', minimised: false),
+            const CaptureSource(
+              index: 0,
+              title: 'Game',
+              appId: '',
+              minimised: false,
+            ),
           );
       expect(settings.priority, SharePriority.balanced);
     });
@@ -271,6 +286,7 @@ void main() {
         index: 2,
         title: 'Explorer',
         audioSourcePid: 10,
+        appId: '',
         minimised: false,
       ),
     );
@@ -282,7 +298,12 @@ void main() {
   test("picking a window without a process drops the last one's", () {
     final settings = const ScreenShareSettings(selectedVideoSourcePid: 10)
         .withVideoSource(
-          const CaptureSource(index: 0, title: 'Screen', minimised: false),
+          const CaptureSource(
+            index: 0,
+            title: 'Screen',
+            appId: '',
+            minimised: false,
+          ),
         );
     expect(settings.selectedVideoSourcePid, isNull);
   });

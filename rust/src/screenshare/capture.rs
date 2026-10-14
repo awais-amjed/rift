@@ -31,6 +31,9 @@ const WAITING_POLL: Duration = Duration::from_millis(250);
 pub(crate) struct CaptureRequest {
     pub source_type: DesktopCaptureSourceType,
     pub selected_index: Option<u32>,
+    /// A window already picked in the desktop's own picker: see
+    /// [`ScreenShareConfig::portal_choice`](crate::api::screenshare::types::ScreenShareConfig).
+    pub portal_choice: Option<String>,
     pub fps: u32,
     pub capture_cursor: bool,
     /// Told `true` when the shared window is minimised and `false` when it
@@ -201,18 +204,34 @@ fn run(
         return;
     };
 
-    let source = match find_source(&capturer, &request, &progress, &command_rx) {
-        Ok(Some(source)) => source,
-        // Stopped while waiting for the window.
-        Ok(None) => return,
-        Err(reason) => {
-            let _ = progress.send(Progress::Failed(reason));
-            return;
+    // A choice the portal saved is the capturer's to restore, and takes no
+    // source from its list: selecting one would replace the choice.
+    let restored = request
+        .portal_choice
+        .as_deref()
+        .is_some_and(|token| capturer.select_restore_token(token));
+    let source = if restored {
+        log::info!("capture: the window picked in the desktop's picker");
+        None
+    } else {
+        match find_source(&capturer, &request, &progress, &command_rx) {
+            Ok(Some(source)) => Some(source),
+            // Stopped while waiting for the window.
+            Ok(None) => return,
+            Err(reason) => {
+                let _ = progress.send(Progress::Failed(reason));
+                return;
+            }
         }
     };
-    log::info!("capture: source {}", source.title());
+    if let Some(source) = &source {
+        log::info!("capture: source {}", source.title());
+    }
     #[cfg(target_os = "windows")]
-    let window = (request.source_type == DesktopCaptureSourceType::Window).then(|| source.id());
+    let window = source
+        .as_ref()
+        .filter(|_| request.source_type == DesktopCaptureSourceType::Window)
+        .map(|source| source.id());
 
     let (frame_tx, frame_rx) = mpsc::sync_channel::<SendableFrame>(FRAME_QUEUE);
     let _processing = frames::spawn_processing(frame_rx, source_slot);
@@ -222,7 +241,7 @@ fn run(
     let source_lost = Arc::new(AtomicBool::new(false));
     let lost = Arc::clone(&source_lost);
     let mut first_frame = Some(progress);
-    capturer.start_capture(Some(source), move |result| match result {
+    capturer.start_capture(source, move |result| match result {
         Ok(frame) => {
             if let Some(tx) = first_frame.take() {
                 let _ = tx.send(Progress::FirstFrame(Size {

@@ -1847,12 +1847,16 @@ impl SseDecode for crate::api::screenshare::types::AudioSource {
         let mut var_appName = <String>::sse_decode(deserializer);
         let mut var_binary = <String>::sse_decode(deserializer);
         let mut var_mediaName = <String>::sse_decode(deserializer);
+        let mut var_appId = <String>::sse_decode(deserializer);
+        let mut var_pid = <Option<u32>>::sse_decode(deserializer);
         return crate::api::screenshare::types::AudioSource {
             index: var_index,
             sink: var_sink,
             app_name: var_appName,
             binary: var_binary,
             media_name: var_mediaName,
+            app_id: var_appId,
+            pid: var_pid,
         };
     }
 }
@@ -1884,11 +1888,13 @@ impl SseDecode for crate::api::screenshare::types::CaptureSource {
         let mut var_index = <u32>::sse_decode(deserializer);
         let mut var_title = <String>::sse_decode(deserializer);
         let mut var_audioSourcePid = <Option<u32>>::sse_decode(deserializer);
+        let mut var_appId = <String>::sse_decode(deserializer);
         let mut var_minimised = <bool>::sse_decode(deserializer);
         return crate::api::screenshare::types::CaptureSource {
             index: var_index,
             title: var_title,
             audio_source_pid: var_audioSourcePid,
+            app_id: var_appId,
             minimised: var_minimised,
         };
     }
@@ -2129,6 +2135,7 @@ impl SseDecode for crate::api::screenshare::types::ScreenShareConfig {
         let mut var_shareAudio = <bool>::sse_decode(deserializer);
         let mut var_captureFullScreen = <bool>::sse_decode(deserializer);
         let mut var_selectedVideoSourceIndex = <Option<u32>>::sse_decode(deserializer);
+        let mut var_portalChoice = <Option<String>>::sse_decode(deserializer);
         let mut var_codec = <crate::api::screenshare::types::VideoCodec>::sse_decode(deserializer);
         let mut var_priority =
             <crate::api::screenshare::types::SharePriority>::sse_decode(deserializer);
@@ -2146,6 +2153,7 @@ impl SseDecode for crate::api::screenshare::types::ScreenShareConfig {
             share_audio: var_shareAudio,
             capture_full_screen: var_captureFullScreen,
             selected_video_source_index: var_selectedVideoSourceIndex,
+            portal_choice: var_portalChoice,
             codec: var_codec,
             priority: var_priority,
             selected_audio_source_index: var_selectedAudioSourceIndex,
@@ -2500,6 +2508,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::screenshare::types::AudioSour
             self.app_name.into_into_dart().into_dart(),
             self.binary.into_into_dart().into_dart(),
             self.media_name.into_into_dart().into_dart(),
+            self.app_id.into_into_dart().into_dart(),
+            self.pid.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -2544,6 +2554,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::screenshare::types::CaptureSo
             self.index.into_into_dart().into_dart(),
             self.title.into_into_dart().into_dart(),
             self.audio_source_pid.into_into_dart().into_dart(),
+            self.app_id.into_into_dart().into_dart(),
             self.minimised.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -2679,6 +2690,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::screenshare::types::ScreenSha
             self.selected_video_source_index
                 .into_into_dart()
                 .into_dart(),
+            self.portal_choice.into_into_dart().into_dart(),
             self.codec.into_into_dart().into_dart(),
             self.priority.into_into_dart().into_dart(),
             self.selected_audio_source_index
@@ -2969,6 +2981,8 @@ impl SseEncode for crate::api::screenshare::types::AudioSource {
         <String>::sse_encode(self.app_name, serializer);
         <String>::sse_encode(self.binary, serializer);
         <String>::sse_encode(self.media_name, serializer);
+        <String>::sse_encode(self.app_id, serializer);
+        <Option<u32>>::sse_encode(self.pid, serializer);
     }
 }
 
@@ -2994,6 +3008,7 @@ impl SseEncode for crate::api::screenshare::types::CaptureSource {
         <u32>::sse_encode(self.index, serializer);
         <String>::sse_encode(self.title, serializer);
         <Option<u32>>::sse_encode(self.audio_source_pid, serializer);
+        <String>::sse_encode(self.app_id, serializer);
         <bool>::sse_encode(self.minimised, serializer);
     }
 }
@@ -3191,6 +3206,7 @@ impl SseEncode for crate::api::screenshare::types::ScreenShareConfig {
         <bool>::sse_encode(self.share_audio, serializer);
         <bool>::sse_encode(self.capture_full_screen, serializer);
         <Option<u32>>::sse_encode(self.selected_video_source_index, serializer);
+        <Option<String>>::sse_encode(self.portal_choice, serializer);
         <crate::api::screenshare::types::VideoCodec>::sse_encode(self.codec, serializer);
         <crate::api::screenshare::types::SharePriority>::sse_encode(self.priority, serializer);
         <Option<u32>>::sse_encode(self.selected_audio_source_index, serializer);

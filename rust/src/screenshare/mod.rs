@@ -25,6 +25,8 @@ pub(crate) mod thumbnail;
 mod track;
 #[cfg(target_os = "windows")]
 mod window_win;
+#[cfg(target_os = "linux")]
+mod window_x11;
 
 #[cfg(all(test, desktop))]
 mod bench_test;

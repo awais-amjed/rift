@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -8,12 +10,14 @@ import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/screenshare/screenshare_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/services/host_platform.dart';
+import '../../../../../logic/services/window_share_portal.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/context_menu/context_menu_overlay.dart';
 import '../../screenshare/screen_share_settings_dialog.dart';
 import '../widgets/control_button.dart';
 import 'widgets/screen_share_menu.dart';
 import 'widgets/sharing_button.dart';
+import 'window_sound_step.dart';
 
 /// Screen share's place in the call's control bar: a button that starts a
 /// share, and while one runs, a button that stops it with a menu beside it
@@ -49,7 +53,7 @@ class _ScreenShareControlState extends State<ScreenShareControl> {
     // Android shows the MediaProjection consent sheet, which is the picker.
     // Putting ours in front of either would be asking twice, the first time
     // about things that cannot be chosen.
-    final ScreenShareSettings settings;
+    ScreenShareSettings settings;
     if (kIsWeb || HostPlatform.isMobile) {
       settings = const ScreenShareSettings();
     } else {
@@ -69,9 +73,23 @@ class _ScreenShareControlState extends State<ScreenShareControl> {
       settings = dialogSettings;
     }
 
-    if (!livekitCubit.state.inCall) return;
+    String? portalChoice;
+    if (WindowSoundStep.appliesTo(settings)) {
+      if (!mounted) return;
+      final share = await WindowSoundStep.run(context, settings);
+      if (share == null) return;
+      (:settings, :portalChoice) = share;
+    }
 
-    await screenshareCubit.startScreenShare(settings: settings);
+    if (livekitCubit.state.inCall) {
+      await screenshareCubit.startScreenShare(
+        settings: settings,
+        portalChoice: portalChoice,
+      );
+    }
+    // Used by the share, the desktop has deleted it already; one the share
+    // never reached is deleted here.
+    if (portalChoice != null) unawaited(WindowSharePortal.forget(portalChoice));
   }
 
   /// Opens the menu above the button, its left edge on the button's.

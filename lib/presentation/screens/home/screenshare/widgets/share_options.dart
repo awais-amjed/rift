@@ -5,8 +5,10 @@ import '../../../../../data/classes/server_limits.dart';
 import '../../../../../logic/services/gpu_codecs.dart';
 import '../../../../../logic/services/host_platform.dart';
 import '../../../../../src/rust/api/screenshare/types.dart';
+import '../../../../common/checkbox_row.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
+import '../../controls/screen_share/window_sound_step.dart';
 import '../sections/audio_source_section.dart';
 import '../sections/bitrate_section.dart';
 import '../sections/codec_section.dart';
@@ -49,11 +51,19 @@ class ShareOptions extends StatelessWidget {
     required this.onAdvancedToggled,
   });
 
-  /// Linux shares every app's sound but Rift's, or one app's, screen or
-  /// window alike; elsewhere a whole screen takes every app's sound but
-  /// Rift's, and a window its own app's.
+  /// Linux shares every app's sound but Rift's, or one app's; elsewhere a
+  /// whole screen takes every app's sound but Rift's, and a window its own
+  /// app's. A Linux window whose app is known has its sound picked after the
+  /// window instead.
   bool get _showsAudioSourcePicker =>
-      HostPlatform.picksShareAudioSource && settings.shareAudio;
+      HostPlatform.picksShareAudioSource &&
+      settings.shareAudio &&
+      !WindowSoundStep.appliesTo(settings);
+
+  /// Picked after the window, the sound may be one remembered for its app,
+  /// which this asks about again.
+  bool get _offersChoosingSound =>
+      WindowSoundStep.appliesTo(settings) && settings.soundForApps.isNotEmpty;
 
   /// The codec [of] would go out in, given what the GPU encodes, which is
   /// asked at startup.
@@ -113,7 +123,17 @@ class ShareOptions extends StatelessWidget {
             oneApp:
                 HostPlatform.picksShareAudioSource &&
                 settings.selectedAudioSource != null,
+            windowSound: WindowSoundStep.appliesTo(settings),
             onToggle: onAudioToggle,
+          ),
+        ],
+        if (_offersChoosingSound) ...[
+          const SizedBox(height: 8),
+          CheckboxRow(
+            label: 'Choose the sound this time',
+            value: settings.choosesSoundThisTime,
+            onChanged: (value) =>
+                onChanged(settings.copyWith(choosesSoundThisTime: value)),
           ),
         ],
         if (_showsAudioSourcePicker) ...[

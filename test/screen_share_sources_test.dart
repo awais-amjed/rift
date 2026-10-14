@@ -7,6 +7,7 @@ CaptureSource src(int index, {int? pid, String? title}) => CaptureSource(
   index: index,
   title: title ?? 'source $index',
   audioSourcePid: pid,
+  appId: '',
   minimised: false,
 );
 
@@ -98,6 +99,7 @@ void main() {
       appName: app,
       binary: binary,
       mediaName: title,
+      appId: '',
     );
 
     test(
@@ -166,6 +168,7 @@ void main() {
       appName: app,
       binary: binary,
       mediaName: '',
+      appId: '',
     );
 
     test('drops every Rift on Windows, whatever the case', () {

@@ -91,11 +91,13 @@ futures-util = "0.3"
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
 
-# LiveKit's Rust SDKs from our fork's `rift` branch, which changes one thing:
-# livekit publishes a share's two-channel sound in stereo. RIFT.md on that
-# branch says why, and when the change can go. Every crate of LiveKit's this
+# LiveKit's Rust SDKs from our fork's `rift` branch, which changes two things:
+# livekit publishes a share's two-channel sound in stereo, and a desktop
+# capture can start from a ScreenCast pick Rift already made (Linux, so the
+# window's sound can be matched before sharing). RIFT.md on that branch says
+# why, and when each change can go. Every crate of LiveKit's this
 # library builds comes from the one commit, so they always match.
 [patch.crates-io]
-livekit = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "4305c5f5b141fca6513d44894078012db41ba6e1" }
-livekit-api = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "4305c5f5b141fca6513d44894078012db41ba6e1" }
-webrtc-sys = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "4305c5f5b141fca6513d44894078012db41ba6e1" }
+livekit = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "57839687dd0a10baee71f0d0d6492ce17194bff5" }
+livekit-api = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "57839687dd0a10baee71f0d0d6492ce17194bff5" }
+webrtc-sys = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "57839687dd0a10baee71f0d0d6492ce17194bff5" }

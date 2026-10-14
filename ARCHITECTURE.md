@@ -632,6 +632,33 @@ holds it to its camera bitrates: a share set to 6 Mbps sent 2. Real VP9
 simulcast needs a setting LiveKit's Rust SDK does not expose. And the path
 the GPU's H264 goes through carries one picture.
 
+### Which sound goes with a shared window — [Implemented October 2026]
+
+Windows records a window's sound by its process. Linux has no such tie: a
+window is the desktop's, a sound is a PulseAudio stream. So a window share on
+Linux finds the window's app, guesses its stream (`ShareSoundMatch`: the
+window's process or one it started, then the app's id word by word, then a
+player naming its track in the title), and asks the user to confirm in a popup
+after the window is picked. The popup can **remember** the answer per app, and
+the next share of that app's window skips it while that app is playing. No good
+guess means every app but Rift, which still carries the window's sound.
+
+Finding the app is where the platforms differ. X11 says it outright
+(`_NET_WM_PID`, `WM_CLASS`), so the window is picked in Rift's own dialog.
+Under Wayland the ScreenCast portal tells an app nothing about the window
+picked, and libwebrtc runs that portal itself. On **GNOME** Rift runs the
+picker first, asking for the pick to be kept (`persist_mode` 2): GNOME then
+saves the window's app id and title in the PermissionStore under the pick's
+restore token, Rift reads them, and libwebrtc is handed the token
+(`select_restore_token`, a patch in our LiveKit fork) and opens the same
+window with no second picker. The portal deletes the saved pick once it is
+used, and Rift deletes one that never was. Both ask as the same app: GTK
+registers the app's own connection with the portal, so Rift's picker
+registers its connection too, or the pick is saved for an unnamed app that
+libwebrtc's request cannot see. KDE saves the same facts in a form not yet
+read, and other Wayland desktops save nothing by default; there the app picks
+the sound in the share dialog as before.
+
 ### Encoding a share on the GPU — [Implemented October 2026]
 
 LiveKit's Rust SDK has no hardware video encoder on Windows: every frame of a

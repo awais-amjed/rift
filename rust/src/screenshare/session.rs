@@ -376,6 +376,7 @@ async fn bring_up(
             DesktopCaptureSourceType::Window
         },
         selected_index: config.selected_video_source_index,
+        portal_choice: config.portal_choice.clone(),
         fps: config.fps,
         capture_cursor: true,
         on_minimised: Some(announce_paused(participant.clone())),

@@ -38,6 +38,10 @@ pub struct ScreenShareConfig {
     pub capture_full_screen: bool,
     /// Index into `list_capture_sources` for the same `capture_full_screen`.
     pub selected_video_source_index: Option<u32>,
+    /// Linux under Wayland: the restore token of a window Rift already had
+    /// the user pick in the desktop's own picker, so the capture opens it
+    /// without asking again. None asks.
+    pub portal_choice: Option<String>,
     pub codec: VideoCodec,
     pub priority: SharePriority,
     /// Linux: the PulseAudio sink-input to capture, and the sink it plays to;
@@ -86,8 +90,11 @@ pub struct ShareQuality {
 pub struct CaptureSource {
     pub index: u32,
     pub title: String,
-    /// Windows only: the owning process, for app-loopback audio capture.
+    /// The owning process: on Windows for app-loopback audio capture, and on
+    /// Windows and X11 to find the sound that goes with the window.
     pub audio_source_pid: Option<u32>,
+    /// X11: the app, as the window's `WM_CLASS` names it. Empty elsewhere.
+    pub app_id: String,
     /// Windows only: a minimised window. There is no picture of it until it
     /// is back on screen, so a share of it starts paused and begins when the
     /// user opens it.
@@ -103,6 +110,12 @@ pub struct AudioSource {
     pub app_name: String,
     pub binary: String,
     pub media_name: String,
+    /// What the desktop calls the app (`application.id`, else its icon
+    /// name), to match against a window's app. Empty where it said neither,
+    /// and on Windows.
+    pub app_id: String,
+    /// The process playing it.
+    pub pid: Option<u32>,
 }
 
 /// Lifecycle events pushed from Rust up to Flutter.
@@ -169,6 +182,7 @@ mod tests {
             share_audio: false,
             capture_full_screen: true,
             selected_video_source_index: None,
+            portal_choice: None,
             codec: VideoCodec::VP9,
             priority: SharePriority::Smoothness,
             selected_audio_source_index: None,

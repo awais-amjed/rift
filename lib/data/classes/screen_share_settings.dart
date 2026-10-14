@@ -3,6 +3,7 @@ import 'package:equatable/equatable.dart';
 import '../../src/rust/api/screenshare/types.dart';
 import 'server_limits.dart';
 import 'share_encoding.dart';
+import 'share_sound_choice.dart';
 
 /// Over the model budget and one job: a share's settings, each with its JSON
 /// key, default and the rule for what it sends.
@@ -26,10 +27,13 @@ class ScreenShareSettings extends Equatable {
   /// share started from that same list may use it: windows open and close in
   /// between, so in the next list it can name somebody else's window.
   final int? selectedVideoSourceIndex;
-  final int? selectedVideoSourcePid; // Windows-only PID for selected window
+  final int? selectedVideoSourcePid; // the window's process: Windows and X11
 
   /// The chosen source's title, which is what finds it again in a later list.
   final String? selectedVideoSourceTitle;
+
+  /// X11: the chosen window's app, which a remembered sound is kept under.
+  final String? selectedVideoSourceAppId;
   final String codec; // "VP8", "H264" or "VP9", as the picker shows it
 
   /// Whether [codec] was picked by hand. One that was not is Auto, which
@@ -44,6 +48,17 @@ class ScreenShareSettings extends Equatable {
   final SharePriority priority;
   final AudioSource? selectedAudioSource; // Linux PulseAudio source
 
+  /// Linux: the sound a window of each app is shared with, by the app's id
+  /// (`ShareSoundMatch.appKey`), for the ones the user said to remember.
+  final Map<String, ShareSoundChoice> soundForApps;
+
+  // ── Transient ──
+
+  /// This share asks which sound goes with the window even where one is
+  /// remembered, and keeps the new answer if told to. Only for the share the
+  /// dialog was confirmed for: the dialog starts it off every time.
+  final bool choosesSoundThisTime;
+
   const ScreenShareSettings({
     this.resolution = 1080,
     this.fps = 60,
@@ -54,11 +69,14 @@ class ScreenShareSettings extends Equatable {
     this.selectedVideoSourceIndex,
     this.selectedVideoSourcePid,
     this.selectedVideoSourceTitle,
+    this.selectedVideoSourceAppId,
     this.codec = 'VP9',
     this.codecChosen = false,
     this.showsAdvanced = false,
     this.priority = defaultPriority,
     this.selectedAudioSource,
+    this.soundForApps = const {},
+    this.choosesSoundThisTime = false,
   });
 
   /// The bitrate every share started at before there was Auto.
@@ -80,12 +98,20 @@ class ScreenShareSettings extends Equatable {
       selectedVideoSourceIndex: json['selectedVideoSourceIndex'] as int?,
       selectedVideoSourcePid: json['selectedVideoSourcePid'] as int?,
       selectedVideoSourceTitle: json['selectedVideoSourceTitle'] as String?,
+      selectedVideoSourceAppId: json['selectedVideoSourceAppId'] as String?,
       codec: codec,
       codecChosen:
           json['codecChosen'] as bool? ?? codecFromName(codec) != defaultCodec,
       showsAdvanced: json['showsAdvanced'] as bool? ?? false,
       priority: priorityFromName(json['priority'] as String?),
       // selectedAudioSource is not persisted in JSON (runtime only)
+      soundForApps: {
+        for (final entry
+            in (json['soundForApps'] as Map<String, dynamic>? ?? {}).entries)
+          entry.key: ShareSoundChoice.fromJson(
+            Map<String, dynamic>.from(entry.value as Map),
+          ),
+      },
     );
   }
 
@@ -99,10 +125,14 @@ class ScreenShareSettings extends Equatable {
     'selectedVideoSourceIndex': selectedVideoSourceIndex,
     'selectedVideoSourcePid': selectedVideoSourcePid,
     'selectedVideoSourceTitle': selectedVideoSourceTitle,
+    'selectedVideoSourceAppId': selectedVideoSourceAppId,
     'codec': codec,
     'codecChosen': codecChosen,
     'showsAdvanced': showsAdvanced,
     'priority': priority.name,
+    'soundForApps': {
+      for (final entry in soundForApps.entries) entry.key: entry.value.toJson(),
+    },
   };
 
   /// [codec] as the Rust side takes it. The string is what is persisted and
@@ -229,11 +259,14 @@ class ScreenShareSettings extends Equatable {
         selectedVideoSourceIndex: source.index,
         selectedVideoSourcePid: source.audioSourcePid,
         selectedVideoSourceTitle: source.title,
+        selectedVideoSourceAppId: source.appId,
         codec: codec,
         codecChosen: codecChosen,
         showsAdvanced: showsAdvanced,
         priority: priority,
         selectedAudioSource: selectedAudioSource,
+        soundForApps: soundForApps,
+        choosesSoundThisTime: choosesSoundThisTime,
       );
 
   /// Passing null keeps the current value, so removing a selection needs an
@@ -249,11 +282,14 @@ class ScreenShareSettings extends Equatable {
     int? selectedVideoSourceIndex,
     int? selectedVideoSourcePid,
     String? selectedVideoSourceTitle,
+    String? selectedVideoSourceAppId,
     String? codec,
     bool? codecChosen,
     bool? showsAdvanced,
     SharePriority? priority,
     AudioSource? selectedAudioSource,
+    Map<String, ShareSoundChoice>? soundForApps,
+    bool? choosesSoundThisTime,
     bool clearVideoSource = false,
     bool clearAudioSource = false,
   }) {
@@ -273,6 +309,9 @@ class ScreenShareSettings extends Equatable {
       selectedVideoSourceTitle: clearVideoSource
           ? null
           : selectedVideoSourceTitle ?? this.selectedVideoSourceTitle,
+      selectedVideoSourceAppId: clearVideoSource
+          ? null
+          : selectedVideoSourceAppId ?? this.selectedVideoSourceAppId,
       codec: codec ?? this.codec,
       codecChosen: codecChosen ?? this.codecChosen,
       showsAdvanced: showsAdvanced ?? this.showsAdvanced,
@@ -280,6 +319,8 @@ class ScreenShareSettings extends Equatable {
       selectedAudioSource: clearAudioSource
           ? null
           : selectedAudioSource ?? this.selectedAudioSource,
+      soundForApps: soundForApps ?? this.soundForApps,
+      choosesSoundThisTime: choosesSoundThisTime ?? this.choosesSoundThisTime,
     );
   }
 
@@ -294,10 +335,13 @@ class ScreenShareSettings extends Equatable {
     selectedVideoSourceIndex,
     selectedVideoSourcePid,
     selectedVideoSourceTitle,
+    selectedVideoSourceAppId,
     codec,
     codecChosen,
     showsAdvanced,
     priority,
     selectedAudioSource,
+    soundForApps,
+    choosesSoundThisTime,
   ];
 }

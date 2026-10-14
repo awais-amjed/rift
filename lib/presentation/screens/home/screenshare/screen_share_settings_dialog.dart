@@ -15,6 +15,7 @@ import '../../../../logic/services/screen_share_sources.dart';
 import '../../../../src/rust/api/screenshare/types.dart';
 import '../../../common/app_button.dart';
 import '../../../theme/theme_context.dart';
+import '../controls/screen_share/window_sound_step.dart';
 import 'widgets/screen_share_settings_form.dart';
 import 'widgets/settings_dialog_header.dart';
 
@@ -56,10 +57,12 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
   bool _loadingAudioSources = false;
 
   /// Linux shares the sound of the app picked here, or of every app but
-  /// Rift, whatever is being shown: nothing ties a window to the app playing
-  /// its sound.
+  /// Rift: nothing ties a window to the app playing its sound. Except where
+  /// a window's app is known, and its sound is picked after the window.
   bool get _needsAudioSources =>
-      HostPlatform.picksShareAudioSource && _draft.shareAudio;
+      HostPlatform.picksShareAudioSource &&
+      _draft.shareAudio &&
+      !WindowSoundStep.appliesTo(_draft);
 
   /// Whether the picked app is dropped for a whole screen — only where a
   /// whole screen takes every app's sound but Rift's instead.
@@ -69,7 +72,9 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
   @override
   void initState() {
     super.initState();
-    _draft = context.read<AppCubit>().state.screenShareSettings;
+    _draft = context.read<AppCubit>().state.screenShareSettings.copyWith(
+      choosesSoundThisTime: false,
+    );
 
     // On Linux the system portal picker handles source selection at capture
     // time, so there is nothing to enumerate up front.

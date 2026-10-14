@@ -1815,14 +1815,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AudioSource dco_decode_audio_source(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return AudioSource(
       index: dco_decode_u_32(arr[0]),
       sink: dco_decode_u_32(arr[1]),
       appName: dco_decode_String(arr[2]),
       binary: dco_decode_String(arr[3]),
       mediaName: dco_decode_String(arr[4]),
+      appId: dco_decode_String(arr[5]),
+      pid: dco_decode_opt_box_autoadd_u_32(arr[6]),
     );
   }
 
@@ -1891,13 +1893,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   CaptureSource dco_decode_capture_source(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
     return CaptureSource(
       index: dco_decode_u_32(arr[0]),
       title: dco_decode_String(arr[1]),
       audioSourcePid: dco_decode_opt_box_autoadd_u_32(arr[2]),
-      minimised: dco_decode_bool(arr[3]),
+      appId: dco_decode_String(arr[3]),
+      minimised: dco_decode_bool(arr[4]),
     );
   }
 
@@ -2050,8 +2053,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ScreenShareConfig dco_decode_screen_share_config(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 15)
-      throw Exception('unexpected arr length: expect 15 but see ${arr.length}');
+    if (arr.length != 16)
+      throw Exception('unexpected arr length: expect 16 but see ${arr.length}');
     return ScreenShareConfig(
       livekitUrl: dco_decode_String(arr[0]),
       livekitToken: dco_decode_String(arr[1]),
@@ -2061,13 +2064,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       shareAudio: dco_decode_bool(arr[5]),
       captureFullScreen: dco_decode_bool(arr[6]),
       selectedVideoSourceIndex: dco_decode_opt_box_autoadd_u_32(arr[7]),
-      codec: dco_decode_video_codec(arr[8]),
-      priority: dco_decode_share_priority(arr[9]),
-      selectedAudioSourceIndex: dco_decode_opt_box_autoadd_u_32(arr[10]),
-      selectedAudioSourceSink: dco_decode_opt_box_autoadd_u_32(arr[11]),
-      selectedAudioSourcePid: dco_decode_opt_box_autoadd_u_32(arr[12]),
-      e2EeKey: dco_decode_list_prim_u_8_strict(arr[13]),
-      e2EeKeyIndex: dco_decode_i_32(arr[14]),
+      portalChoice: dco_decode_opt_String(arr[8]),
+      codec: dco_decode_video_codec(arr[9]),
+      priority: dco_decode_share_priority(arr[10]),
+      selectedAudioSourceIndex: dco_decode_opt_box_autoadd_u_32(arr[11]),
+      selectedAudioSourceSink: dco_decode_opt_box_autoadd_u_32(arr[12]),
+      selectedAudioSourcePid: dco_decode_opt_box_autoadd_u_32(arr[13]),
+      e2EeKey: dco_decode_list_prim_u_8_strict(arr[14]),
+      e2EeKeyIndex: dco_decode_i_32(arr[15]),
     );
   }
 
@@ -2288,12 +2292,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_appName = sse_decode_String(deserializer);
     var var_binary = sse_decode_String(deserializer);
     var var_mediaName = sse_decode_String(deserializer);
+    var var_appId = sse_decode_String(deserializer);
+    var var_pid = sse_decode_opt_box_autoadd_u_32(deserializer);
     return AudioSource(
       index: var_index,
       sink: var_sink,
       appName: var_appName,
       binary: var_binary,
       mediaName: var_mediaName,
+      appId: var_appId,
+      pid: var_pid,
     );
   }
 
@@ -2374,11 +2382,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_index = sse_decode_u_32(deserializer);
     var var_title = sse_decode_String(deserializer);
     var var_audioSourcePid = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_appId = sse_decode_String(deserializer);
     var var_minimised = sse_decode_bool(deserializer);
     return CaptureSource(
       index: var_index,
       title: var_title,
       audioSourcePid: var_audioSourcePid,
+      appId: var_appId,
       minimised: var_minimised,
     );
   }
@@ -2588,6 +2598,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_selectedVideoSourceIndex = sse_decode_opt_box_autoadd_u_32(
       deserializer,
     );
+    var var_portalChoice = sse_decode_opt_String(deserializer);
     var var_codec = sse_decode_video_codec(deserializer);
     var var_priority = sse_decode_share_priority(deserializer);
     var var_selectedAudioSourceIndex = sse_decode_opt_box_autoadd_u_32(
@@ -2610,6 +2621,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       shareAudio: var_shareAudio,
       captureFullScreen: var_captureFullScreen,
       selectedVideoSourceIndex: var_selectedVideoSourceIndex,
+      portalChoice: var_portalChoice,
       codec: var_codec,
       priority: var_priority,
       selectedAudioSourceIndex: var_selectedAudioSourceIndex,
@@ -2904,6 +2916,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.appName, serializer);
     sse_encode_String(self.binary, serializer);
     sse_encode_String(self.mediaName, serializer);
+    sse_encode_String(self.appId, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.pid, serializer);
   }
 
   @protected
@@ -2989,6 +3003,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_u_32(self.index, serializer);
     sse_encode_String(self.title, serializer);
     sse_encode_opt_box_autoadd_u_32(self.audioSourcePid, serializer);
+    sse_encode_String(self.appId, serializer);
     sse_encode_bool(self.minimised, serializer);
   }
 
@@ -3204,6 +3219,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self.shareAudio, serializer);
     sse_encode_bool(self.captureFullScreen, serializer);
     sse_encode_opt_box_autoadd_u_32(self.selectedVideoSourceIndex, serializer);
+    sse_encode_opt_String(self.portalChoice, serializer);
     sse_encode_video_codec(self.codec, serializer);
     sse_encode_share_priority(self.priority, serializer);
     sse_encode_opt_box_autoadd_u_32(self.selectedAudioSourceIndex, serializer);

@@ -14,8 +14,9 @@
 //! app started.
 use super::linux::connect_stream;
 use super::mixer::Mixer;
-use super::pulse::{self, SinkInput};
+use super::pulse;
 use super::{samples_from_le_bytes, Command, Pcm};
+use crate::api::screenshare::types::AudioSource;
 use crate::pulse::Connection;
 use libpulse_binding as pa;
 use pa::callbacks::ListResult;
@@ -133,12 +134,12 @@ fn watch_sink_inputs(connection: &mut Connection) -> Arc<AtomicBool> {
 /// answered over later turns of the capture's own loop.
 #[derive(Default)]
 struct Listing {
-    playing: Option<Vec<SinkInput>>,
+    playing: Option<Vec<AudioSource>>,
     monitors: Option<HashMap<u32, String>>,
     failed: bool,
 }
 
-type Answer = Option<(Vec<SinkInput>, HashMap<u32, String>)>;
+type Answer = Option<(Vec<AudioSource>, HashMap<u32, String>)>;
 
 impl Listing {
     fn ask(connection: &mut Connection) -> Arc<Mutex<Listing>> {
@@ -181,11 +182,11 @@ fn follow(
     connection: &mut Connection,
     followed: &mut HashMap<u32, Followed>,
     mixer: &mut Mixer,
-    playing: impl Iterator<Item = SinkInput>,
+    playing: impl Iterator<Item = AudioSource>,
     monitors: &HashMap<u32, String>,
 ) {
     let playing: HashMap<u32, u32> = playing
-        .map(|input| (input.source.index, input.source.sink))
+        .map(|input| (input.index, input.sink))
         .collect();
     followed.retain(|index, f| {
         let keep = playing.get(index) == Some(&f.sink);
@@ -254,8 +255,8 @@ impl Rift {
         }
     }
 
-    fn plays(&self, input: &SinkInput) -> bool {
+    fn plays(&self, input: &AudioSource) -> bool {
         input.pid == Some(self.pid)
-            || (!self.binary.is_empty() && input.source.binary.trim().to_lowercase() == self.binary)
+            || (!self.binary.is_empty() && input.binary.trim().to_lowercase() == self.binary)
     }
 }

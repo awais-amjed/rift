@@ -49,9 +49,9 @@ pub(crate) fn listed(source_type: DesktopCaptureSourceType, index: u32) -> Optio
         .cloned()
 }
 
-/// Screens or windows, in the order their indexes refer to. On Windows each
-/// window carries its process so audio can follow the picked window, and
-/// minimised windows are listed too.
+/// Screens or windows, in the order their indexes refer to. On Windows and
+/// X11 each window carries its process so audio can follow the picked window
+/// (X11 its app too), and on Windows minimised windows are listed as well.
 pub(crate) fn list(capture_full_screen: bool) -> Vec<CaptureSource> {
     let source_type = source_type(capture_full_screen);
     let found = match DesktopCapturer::new(DesktopCapturerOptions::new(source_type)) {
@@ -72,18 +72,22 @@ pub(crate) fn list(capture_full_screen: bool) -> Vec<CaptureSource> {
     };
     log::info!("capture: {} sources", listed.len());
 
+    let owners = (!capture_full_screen).then(Owners::open).flatten();
     let sources = listed
         .iter()
         .enumerate()
-        .map(|(index, source)| CaptureSource {
-            index: index as u32,
-            title: source.title.clone(),
-            audio_source_pid: if capture_full_screen {
-                None
-            } else {
-                window_pid(source.id)
-            },
-            minimised: source.minimised,
+        .map(|(index, source)| {
+            let (pid, app_id) = owners
+                .as_ref()
+                .map(|owners| owners.of(source.id))
+                .unwrap_or_default();
+            CaptureSource {
+                index: index as u32,
+                title: source.title.clone(),
+                audio_source_pid: pid,
+                app_id,
+                minimised: source.minimised,
+            }
         })
         .collect();
     *shown(source_type).lock().unwrap() = listed;
@@ -91,18 +95,51 @@ pub(crate) fn list(capture_full_screen: bool) -> Vec<CaptureSource> {
 }
 
 #[cfg(target_os = "windows")]
-use super::window_win::{list_minimised as minimised_windows, pid as window_pid};
+use super::window_win::list_minimised as minimised_windows;
 
 /// Elsewhere a minimised window is the desktop's to offer (the Wayland
-/// portal), and sound is picked by stream rather than by window.
+/// portal), or not offered at all (X11).
 #[cfg(not(target_os = "windows"))]
 fn minimised_windows() -> Vec<(u64, String)> {
     Vec::new()
 }
 
-#[cfg(not(target_os = "windows"))]
-fn window_pid(_id: u64) -> Option<u32> {
-    None
+/// Who each window belongs to: its process, and on X11 its app.
+struct Owners {
+    #[cfg(target_os = "linux")]
+    x11: super::window_x11::Windows,
+}
+
+impl Owners {
+    #[cfg(target_os = "windows")]
+    fn open() -> Option<Self> {
+        Some(Self {})
+    }
+
+    #[cfg(target_os = "linux")]
+    fn open() -> Option<Self> {
+        super::window_x11::Windows::open().map(|x11| Self { x11 })
+    }
+
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
+    fn open() -> Option<Self> {
+        None
+    }
+
+    #[cfg(target_os = "windows")]
+    fn of(&self, window: u64) -> (Option<u32>, String) {
+        (super::window_win::pid(window), String::new())
+    }
+
+    #[cfg(target_os = "linux")]
+    fn of(&self, window: u64) -> (Option<u32>, String) {
+        (self.x11.pid(window), self.x11.app_id(window))
+    }
+
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
+    fn of(&self, _window: u64) -> (Option<u32>, String) {
+        (None, String::new())
+    }
 }
 
 /// The capturer's list followed by the minimised windows it left out. A

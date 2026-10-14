@@ -12,12 +12,16 @@ class AudioToggle extends StatelessWidget {
 
   /// One app picked below, rather than every app but Rift.
   final bool oneApp;
+
+  /// A window whose sound is picked after it, from a guess at its app.
+  final bool windowSound;
   final VoidCallback onToggle;
 
   const AudioToggle({
     super.key,
     required this.shareAudio,
     required this.oneApp,
+    this.windowSound = false,
     required this.onToggle,
   });
 
@@ -67,6 +71,8 @@ class AudioToggle extends StatelessWidget {
                     Text(
                       !shareAudio
                           ? 'No audio will be shared'
+                          : windowSound
+                          ? 'The window’s sound will be heard'
                           : oneApp
                           ? 'The app picked below will be heard'
                           // Never Rift's own: the call would hear itself.

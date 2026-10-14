@@ -88,6 +88,7 @@ fn config(server: &Server, room: &str) -> ScreenShareConfig {
         share_audio: false,
         capture_full_screen: true,
         selected_video_source_index: Some(0),
+        portal_choice: None,
         codec: VideoCodec::VP8,
         priority: SharePriority::Smoothness,
         selected_audio_source_index: None,
