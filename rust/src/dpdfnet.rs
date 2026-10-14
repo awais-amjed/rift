@@ -10,6 +10,8 @@
 //! (Oct 14; DeepFilterNet 0.6 on a performance core). So both are loaded, and
 //! the large one runs until frames show the computer cannot keep up with it
 //! ([`SLOW_FRAME`]), when the small one takes over until the app restarts.
+//! Before either runs, the thread is moved onto the performance cores
+//! (`fast_core`), which on that i7 kept DPDFNet-8 for the whole call.
 //! tract, which runs DeepFilterNet, runs these too, but its GRU layers took
 //! DPDFNet-8 to 12 ms a frame.
 //!
@@ -182,6 +184,7 @@ impl Model {
     /// Filters 10 ms in place; false, with the frame untouched, if the model
     /// failed on it.
     pub(crate) fn process(&mut self, frame: &mut [f32; FRAME]) -> bool {
+        crate::fast_core::keep_on_fast_cores();
         let large = !self.slow;
         let started = Instant::now();
         let ok = self.process_with(frame, large);
