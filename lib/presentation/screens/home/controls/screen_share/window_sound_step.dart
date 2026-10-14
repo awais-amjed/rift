@@ -7,6 +7,7 @@ import '../../../../../data/classes/screen_share_settings.dart';
 import '../../../../../data/classes/share_sound_choice.dart';
 import '../../../../../data/classes/shared_window.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../../logic/helper_methods.dart';
 import '../../../../../logic/services/host_platform.dart';
 import '../../../../../logic/services/screen_share_sources.dart';
 import '../../../../../logic/services/share_sound_match.dart';
@@ -63,15 +64,24 @@ class WindowSoundStep {
 
     final key = window == null ? null : ShareSoundMatch.appKey(window);
     final saved = key == null ? null : settings.soundForApps[key];
+    HelperMethods.printDebug(
+      '$_tag: ${_describe(key)}, '
+      '${saved == null ? 'no sound kept for it' : 'a sound kept for it'}'
+      '${settings.choosesSoundThisTime ? ', choosing again' : ''}',
+    );
     if (saved != null && !settings.choosesSoundThisTime) {
       final playing = await ScreenShareSources.listAudio();
       final found = ShareSoundMatch.remembered(saved, playing);
       if (found.found) {
+        HelperMethods.printDebug(
+          '$_tag: sharing the kept sound, ${found.source?.appName ?? 'every app'}',
+        );
         return (
           settings: _withSound(settings, found.source),
           portalChoice: token,
         );
       }
+      HelperMethods.printDebug('$_tag: the kept app is not playing, asking');
     }
 
     final answer = context.mounted
@@ -94,9 +104,22 @@ class WindowSoundStep {
         app.state.screenShareSettings.copyWith(soundForApps: sounds),
       );
       chosen = chosen.copyWith(soundForApps: sounds);
+      HelperMethods.printDebug(
+        '$_tag: kept ${answer.source?.appName ?? 'every app'} for it',
+      );
     }
     return (settings: chosen, portalChoice: token);
   }
+
+  static const _tag = 'WindowSoundStep';
+
+  /// The window as the log may name it: by its app, never by its title,
+  /// which can say what is open in it.
+  static String _describe(String? key) => key == null
+      ? 'a window of no known app or title'
+      : ShareSoundMatch.byTitle(key)
+      ? 'a window known by its title'
+      : 'a window of $key';
 
   static ScreenShareSettings _withSound(
     ScreenShareSettings settings,

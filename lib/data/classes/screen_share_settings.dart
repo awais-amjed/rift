@@ -48,7 +48,8 @@ class ScreenShareSettings extends Equatable {
   final SharePriority priority;
   final AudioSource? selectedAudioSource; // Linux PulseAudio source
 
-  /// Linux: the sound a window of each app is shared with, by the app's id
+  /// Linux: the sound a window of each app is shared with, by the app's id,
+  /// or by the window's title where the desktop did not say whose it is
   /// (`ShareSoundMatch.appKey`), for the ones the user said to remember.
   final Map<String, ShareSoundChoice> soundForApps;
 

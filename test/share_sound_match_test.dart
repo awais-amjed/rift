@@ -110,6 +110,32 @@ void main() {
       expect(ShareSoundMatch.guess(window, [shell]), isNull);
     });
 
+    test('finds a game by the initials of its title', () {
+      // What Counter-Strike 2 played as: a name, and no binary.
+      final cs2 = sound(60, app: 'cs2', media: 'cs2');
+      const window = SharedWindow(
+        appId: 'window:12',
+        title: 'Counter-Strike 2',
+      );
+      expect(ShareSoundMatch.guess(window, [chrome, cs2]), cs2);
+    });
+
+    test('two letters of initials are too few to name an app', () {
+      final te = sound(61, app: 'te');
+      const window = SharedWindow(appId: '', title: 'Text Editor');
+      expect(ShareSoundMatch.guess(window, [te]), isNull);
+    });
+
+    test('a remembered game is found again without a binary', () {
+      final cs2 = sound(60, app: 'cs2', media: 'cs2');
+      final again = sound(62, app: 'cs2', media: 'cs2');
+      final found = ShareSoundMatch.remembered(ShareSoundChoice.of(cs2), [
+        chrome,
+        again,
+      ]);
+      expect(found.source, again);
+    });
+
     test('no match is every app, never some other app', () {
       const window = SharedWindow(appId: 'org.gnome.TextEditor', title: 'x');
       expect(ShareSoundMatch.guess(window, [chrome, spotify]), isNull);
@@ -122,18 +148,38 @@ void main() {
       expect(ShareSoundMatch.appKey(window), 'google-chrome');
     });
 
-    test('an app GNOME knows only by its window has no key', () {
+    test('an app GNOME knows only by its window is kept by its title', () {
+      // Counter-Strike 2 from Steam, on GNOME 50, Oct 15 2026: the window
+      // matched no menu entry, and nothing was ever remembered for it.
+      const window = SharedWindow(
+        appId: 'window:12',
+        title: 'Counter-Strike 2',
+      );
+      final key = ShareSoundMatch.appKey(window);
+      expect(key, 'title:counter-strike 2');
+      expect(ShareSoundMatch.byTitle(key!), isTrue);
+      expect(
+        ShareSoundMatch.appKey(
+          const SharedWindow(appId: 'window:31', title: ' Counter-Strike 2'),
+        ),
+        key,
+      );
+    });
+
+    test('an app id is never taken for a title', () {
+      const window = SharedWindow(appId: 'firefox', title: 'Title');
+      expect(ShareSoundMatch.byTitle(ShareSoundMatch.appKey(window)!), isFalse);
+    });
+
+    test('has nothing to keep a choice under without an app or a title', () {
       expect(
         ShareSoundMatch.appKey(
           const SharedWindow(appId: 'window:12', title: ''),
         ),
         isNull,
       );
-    });
-
-    test('has nothing to keep a choice under without an app', () {
       expect(
-        ShareSoundMatch.appKey(const SharedWindow(appId: ' ', title: 't')),
+        ShareSoundMatch.appKey(const SharedWindow(appId: ' ', title: ' ')),
         isNull,
       );
     });

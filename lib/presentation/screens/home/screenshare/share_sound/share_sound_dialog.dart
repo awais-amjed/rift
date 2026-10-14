@@ -44,9 +44,15 @@ class _ShareSoundDialogState extends State<ShareSoundDialog> {
   /// an app that starts playing after the popup opened is still found.
   bool _picked = false;
 
+  /// What a ticked Remember keeps the answer under ([ShareSoundMatch.appKey]),
+  /// or null when there is nothing to keep it by and no box is shown.
+  String? _key;
+
   @override
   void initState() {
     super.initState();
+    final window = widget.window;
+    _key = window == null ? null : ShareSoundMatch.appKey(window);
     _load();
   }
 
@@ -113,10 +119,12 @@ class _ShareSoundDialogState extends State<ShareSoundDialog> {
                 }),
                 onRefresh: _load,
               ),
-              if (window != null && ShareSoundMatch.appKey(window) != null) ...[
+              if (_key != null) ...[
                 const SizedBox(height: 8),
                 CheckboxRow(
-                  label: 'Remember for this app',
+                  label: ShareSoundMatch.byTitle(_key!)
+                      ? 'Remember for this window'
+                      : 'Remember for this app',
                   value: _remember,
                   onChanged: (value) => setState(() => _remember = value),
                 ),

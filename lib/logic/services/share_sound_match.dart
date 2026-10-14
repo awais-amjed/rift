@@ -26,12 +26,22 @@ class ShareSoundMatch {
   };
 
   /// The name a remembered choice is kept under: the window's app id in
-  /// lower case, without `.desktop`. Null when the desktop did not say, and
-  /// then there is nothing to remember it by.
+  /// lower case, without `.desktop`. Where the desktop did not say whose
+  /// window it is, its title instead ([byTitle]): GNOME knows a game started
+  /// from Steam only by its window, since Steam's menu entry does not name
+  /// the game's window, and a game keeps its title. Null with neither.
   static String? appKey(SharedWindow window) {
-    final key = _app(window);
-    return key.isEmpty ? null : key;
+    final app = _app(window);
+    if (app.isNotEmpty) return app;
+    final title = window.title.trim().toLowerCase();
+    return title.isEmpty ? null : '$_titlePrefix$title';
   }
+
+  /// Whether [key] is a window's title rather than its app's id. A title can
+  /// say what is open in it, so it is never logged.
+  static bool byTitle(String key) => key.startsWith(_titlePrefix);
+
+  static const _titlePrefix = 'title:';
 
   /// The source most likely playing [window]'s sound, from [sources], or
   /// null for every app.
@@ -39,7 +49,8 @@ class ShareSoundMatch {
   /// In order: the window's own process or one it started (X11 says which,
   /// and a browser plays from a helper process); the app by its id,
   /// whole and then word by word (`com.spotify.Client` is `spotify`); a
-  /// player naming what it plays in the window's title. Of several streams
+  /// player naming what it plays in the window's title; an app called by the
+  /// title's initials (Counter-Strike 2 plays as `cs2`). Of several streams
   /// that match, the newest.
   ///
   /// [parentOf] names a process's parent (`ProcessTree.parentOf`).
@@ -72,17 +83,19 @@ class ShareSoundMatch {
     }
 
     final title = window.title.toLowerCase();
-    if (title.isNotEmpty) {
-      return _newest(
-        sources.where((s) {
-          final media = s.mediaName.trim().toLowerCase();
-          return media.length >= 4 &&
-              !_genericMedia.contains(media) &&
-              title.contains(media);
-        }),
-      );
-    }
-    return null;
+    if (title.isEmpty) return null;
+    final playing = _newest(
+      sources.where((s) {
+        final media = s.mediaName.trim().toLowerCase();
+        return media.length >= 4 &&
+            !_genericMedia.contains(media) &&
+            title.contains(media);
+      }),
+    );
+    if (playing != null) return playing;
+    final initials = _initials(title);
+    if (initials.length < 3) return null;
+    return _newest(sources.where((s) => _names(s).contains(initials)));
   }
 
   /// A remembered [choice] among what is playing now: `found` false when its
@@ -135,6 +148,13 @@ class ShareSoundMatch {
         ? lower.substring(0, lower.length - '.desktop'.length)
         : lower;
   }
+
+  /// The first letter of each word in [title], and a number whole:
+  /// `counter-strike 2` is `cs2`, `left 4 dead 2` is `l4d2`.
+  static String _initials(String title) => [
+    for (final word in title.split(RegExp(r'[\s\-_:]+')))
+      if (word.isNotEmpty) RegExp(r'^\d+$').hasMatch(word) ? word : word[0],
+  ].join();
 
   static Set<String> _words(String name) => {
     for (final word in name.split(RegExp(r'[.\-_ ]+')))
