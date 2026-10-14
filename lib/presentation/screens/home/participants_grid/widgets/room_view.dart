@@ -31,9 +31,10 @@ import 'waiting_view.dart';
 ///
 /// The grid keeps their room whether they show or not, so a hover fades them
 /// and moves nothing: room that came and went with them shrank and regrew
-/// every tile each time the pointer crossed the stage. A focused cell, and
-/// watched streams over a row of everyone else, take the whole stage, and
-/// the strip floats over them instead.
+/// every tile each time the pointer crossed the stage. Watched streams over a
+/// row of everyone else do grow into that room while the chrome is hidden,
+/// the strip collapsing with it; a focused cell takes the whole stage, with
+/// the strip floating over it.
 class RoomView extends StatefulWidget {
   final Room room;
 
@@ -143,13 +144,11 @@ class _RoomViewState extends State<RoomView> {
       builder: (context, livekitState) {
         // Get participants directly from the cubit state
         final participants = livekitState.participants;
-        // The stage runs under the bars: the strip floats over it.
-        final fullStage =
-            _focused ||
-            ParticipantGridLayout.showsStreamRow(
-              participants,
-              livekitState.subscribedScreenshares,
-            );
+        // Watched streams over the row grow into the chrome's room.
+        final streamRow = ParticipantGridLayout.showsStreamRow(
+          participants,
+          livekitState.subscribedScreenshares,
+        );
 
         return BlocBuilder<AppCubit, AppState>(
           // The one field this reads. `identical` because the cubit copies the
@@ -178,10 +177,21 @@ class _RoomViewState extends State<RoomView> {
                 children: [
                   Column(
                     children: [
-                      // The strip fades with the control pill and keeps its
-                      // row, so the grid under it stays put. Over a full
-                      // stage it is drawn on top instead, below.
-                      if (!fullStage)
+                      // The strip fades with the control pill. Over the grid it
+                      // keeps its row, so the tiles stay put; over streams
+                      // with the row it collapses too, and they grow into
+                      // it. In focus it is drawn over the stage, below.
+                      if (!_focused && streamRow)
+                        ClipRect(
+                          child: AnimatedAlign(
+                            alignment: Alignment.topCenter,
+                            heightFactor: _chromeVisible ? 1.0 : 0.0,
+                            duration: AppMotion.enter,
+                            curve: Curves.easeInOut,
+                            child: _fadingStrip(),
+                          ),
+                        )
+                      else if (!_focused)
                         IgnorePointer(
                           ignoring: !_chromeVisible,
                           child: _fadingStrip(),
@@ -214,7 +224,7 @@ class _RoomViewState extends State<RoomView> {
                       ),
                     ],
                   ),
-                  if (fullStage)
+                  if (_focused)
                     Positioned(
                       top: 0,
                       left: 0,

@@ -5,7 +5,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:livekit_client/livekit_client.dart';
 
 import '../../../../../data/classes/participant_setting.dart';
-import '../../../../../data/constants.dart';
 import '../../../../../data/participant_identity.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
@@ -14,6 +13,7 @@ import '../../../../../logic/services/room_tiles.dart';
 import '../../../../../logic/services/stage_fit.dart';
 import '../../../../../logic/services/voice_tiles.dart';
 import '../../../../responsive/shell_scope.dart';
+import '../../../../theme/app_motion.dart';
 import '../participants_tile/participant_tile.dart';
 import '../participants_tile/sound_share_tile.dart';
 import 'camera_rail.dart';
@@ -33,15 +33,15 @@ class ParticipantGridLayout extends StatefulWidget {
   final double focusTopInset;
 
   /// How much of the stage's foot the call controls cover right now: their
-  /// full height while they show, nothing once they fade. A focused stream
-  /// lifts its badges past it.
+  /// full height while they show, nothing once they fade. Watched streams
+  /// over a row of everyone else ([showsStreamRow]) keep it free, following
+  /// the controls as they come and go, and a focused stream lifts its badges
+  /// past it.
   final double controlsInset;
 
   /// What the grid keeps clear at its foot for the controls, whether they
   /// show or not. Room that came and went with them resized every tile each
-  /// time the pointer moved. Watched streams over a row of everyone else
-  /// ([showsStreamRow]) keep none: they take the whole stage, and the
-  /// controls float over them.
+  /// time the pointer moved.
   final double stageInset;
 
   const ParticipantGridLayout({
@@ -55,9 +55,9 @@ class ParticipantGridLayout extends StatefulWidget {
   });
 
   /// Whether the stage shows the streams being watched with a row of everyone
-  /// else under them, the one layout that runs under the call's bars rather
-  /// than keeping clear of them. Unless a cell is focused, which only the
-  /// layout's state knows.
+  /// else under them, the one layout that grows into the call's bars' room
+  /// while they are hidden. Unless a cell is focused, which only the layout's
+  /// state knows.
   static bool showsStreamRow(
     List<Participant> participants,
     Set<String> watching,
@@ -215,15 +215,25 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
       }
     }
 
-    return _stage(context, tiles, watching);
+    // Streams over the row follow the controls as they fade in and out:
+    // room at the foot while they show, the full height once they go.
+    return TweenAnimationBuilder<double>(
+      tween: Tween(end: widget.controlsInset),
+      duration: AppMotion.enter,
+      curve: Curves.easeInOut,
+      builder: (context, inset, _) =>
+          _stage(context, tiles, watching, streamRoom: _roomFor(inset)),
+    );
   }
 
-  /// Everything but a focused cell.
+  /// Everything but a focused cell; watched streams over the row keep
+  /// [streamRoom] clear at the foot.
   Widget _stage(
     BuildContext context,
     List<VoiceTile<Participant>> tiles,
-    Set<String> watching,
-  ) {
+    Set<String> watching, {
+    required double streamRoom,
+  }) {
     // Watched screenshares get a hero layout: each share's box is the shape
     // of its picture, as large as fits, with everything else in a row right
     // under it. The row stays under the share rather than beside it so the
@@ -238,10 +248,9 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
       ...tiles.where((t) => !t.isScreenshare),
     ];
     if (shares.isNotEmpty && cameras.isNotEmpty) {
-      // A phone's height is scarcer, and keeps a pill up when its bar fades.
-      final compact = context.layoutMode.isCompact;
-      final railHeight = compact ? 84.0 : 100.0;
-      final barRoom = compact ? _roomFor(K.callPillClearance) : 0.0;
+      // A phone's height is scarcer.
+      final railHeight = context.layoutMode.isCompact ? 84.0 : 100.0;
+      final barRoom = streamRoom;
       const padding = 12.0;
       const gap = 8.0;
       return LayoutBuilder(
