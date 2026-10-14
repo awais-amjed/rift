@@ -133,8 +133,9 @@ mixin _MediaControlsMixin on Cubit<LiveKitState> {
   /// lost, and the server stops forwarding the moment the mute signal lands.
   /// The signal travels over the reliable socket while the audio does not, so
   /// it can arrive first. Holding transmission open for a moment lets all of
-  /// that drain before anything is torn down.
-  static const Duration _pushToTalkReleaseDelay = Duration(milliseconds: 200);
+  /// that drain before anything is torn down. Half a second (200ms until
+  /// Oct 15), so a word finished just as the key comes up gets through too.
+  static const Duration _pushToTalkReleaseDelay = Duration(milliseconds: 500);
 
   Timer? _pushToTalkReleaseTimer;
 
@@ -167,7 +168,7 @@ mixin _MediaControlsMixin on Cubit<LiveKitState> {
     if (!state.isPushToTalkPressed || _pushToTalkReleaseTimer != null) return;
 
     // On the key, not when the timer fires: the delay is for the encoder to
-    // drain, and a tone 200ms after the finger lifts reads as lag.
+    // drain, and a tone half a second after the finger lifts reads as lag.
     _playPushToTalkTone(false);
 
     _pushToTalkReleaseTimer = Timer(_pushToTalkReleaseDelay, () {

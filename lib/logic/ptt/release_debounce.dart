@@ -27,7 +27,7 @@ import 'dart:async';
 class ReleaseDebounce {
   /// How long a same-instant release waits for the next repeat. Comfortably
   /// over GNOME's default 30ms repeat interval, and short enough to vanish
-  /// inside the 200ms the mic stays open after release anyway.
+  /// inside the half second the mic stays open after release anyway.
   static const Duration defaultWindow = Duration(milliseconds: 100);
 
   /// A repeat's press and release have been seen 0 and 1ms apart; a finger
