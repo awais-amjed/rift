@@ -972,7 +972,10 @@ its own `log::` lines, Dart's `HelperMethods.printDebug` lines (through
 all go into it, each written the moment it arrives. A crash in native code
 therefore loses nothing it had buffered, and the last lines before it are the
 ones that survive. Until Dart names the folder at startup, lines wait in
-memory.
+memory. Rust's lines are kept from `info` up, except DeepFilterNet's own,
+which are kept only at `error`: it warns on every frame it thinks is
+clipping, from libwebrtc's capture thread, and that thread must never wait on
+a file.
 
 One file per session, `rift-<UTC time>-<pid>.log` in the profile's `logs`
 folder (Local AppData on Windows, the XDG data folder on Linux, the app's

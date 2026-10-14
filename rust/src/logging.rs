@@ -43,9 +43,7 @@ pub fn init() {
     flutter_rust_bridge::setup_default_user_utils();
     #[cfg(any(target_os = "linux", target_os = "windows"))]
     {
-        let stderr =
-            env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
-                .build();
+        let stderr = stderr_logger();
         let level = stderr.filter();
         if log::set_boxed_logger(Box::new(Tee { stderr })).is_ok() {
             log::set_max_level(level);
@@ -56,6 +54,21 @@ pub fn init() {
         write_line("PANIC", "rust", &info.to_string());
         previous(info);
     }));
+}
+
+/// `info` and up, as `RUST_LOG` can change, but DeepFilterNet's own lines
+/// only at `error`. libDF warns of clipping on every frame peaking near full
+/// scale, and Rift hands it the voice 12 dB louder (`deep_filter::LIFT`), so
+/// a loud voice made a line every few frames, each written to the file on
+/// libwebrtc's capture thread, which must never wait on a file. `RUST_LOG`
+/// still reaches it by name (`df=warn`).
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+fn stderr_logger() -> env_logger::Logger {
+    env_logger::Builder::new()
+        .filter_level(log::LevelFilter::Info)
+        .filter_module("df", log::LevelFilter::Error)
+        .parse_env(env_logger::Env::default())
+        .build()
 }
 
 /// Sends each record to stderr as before, and the same records to the file.
@@ -412,6 +425,22 @@ mod tests {
         assert_eq!(left[0], "notes.txt");
         assert_eq!(left[1], "rift-03.log");
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(any(target_os = "linux", target_os = "windows"))]
+    #[test]
+    fn deep_filter_warnings_stay_out_of_the_log() {
+        let logger = stderr_logger();
+        let enabled = |level, target| {
+            log::Log::enabled(
+                &logger,
+                &log::Metadata::builder().level(level).target(target).build(),
+            )
+        };
+        assert!(!enabled(log::Level::Warn, "df::tract"));
+        assert!(enabled(log::Level::Error, "df::tract"));
+        assert!(enabled(log::Level::Info, "rust_lib_rift::deep_filter"));
+        assert!(enabled(log::Level::Warn, "livekit"));
     }
 
     #[test]
