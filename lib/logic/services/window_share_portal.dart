@@ -1,7 +1,10 @@
+import 'dart:typed_data';
+
 import 'package:dbus/dbus.dart';
 
 import '../../data/classes/shared_window.dart';
 import '../helper_methods.dart';
+import 'kde_saved_pick.dart';
 import 'linux_desktop_entry.dart';
 import 'portal_request.dart';
 
@@ -37,14 +40,14 @@ class WindowPicked extends WindowPick {
 ///
 /// The ScreenCast portal tells an app nothing about what was picked — only a
 /// PipeWire stream. But a pick asked to be remembered (`persist_mode` 2) is
-/// saved in the PermissionStore under its restore token, and GNOME saves the
-/// window's app id and title there. Rift reads that, and hands the token to
-/// libwebrtc, which restores the same window with no second picker
-/// (verified Oct 14 2026 on GNOME 50). The portal deletes the saved pick
-/// once the token is used; [forget] deletes one that never was.
+/// saved in the PermissionStore under its restore token, and GNOME and KDE
+/// save the window's app id and title there. Rift reads that, and hands the
+/// token to libwebrtc, which restores the same window with no second picker
+/// (verified Oct 14 2026 on GNOME 50 and KDE Plasma 6.6). GNOME
+/// deletes the saved pick once the token is used and KDE keeps it, so
+/// [forget] is called after every share.
 ///
-/// Only GNOME's saved form is read. KDE's is serialised Qt, and other
-/// desktops save nothing unless the user ticks a box (`HostPlatform`).
+/// Other desktops save nothing Rift can read (`HostPlatform`).
 class WindowSharePortal {
   const WindowSharePortal._();
 
@@ -151,8 +154,9 @@ class WindowSharePortal {
     }
   }
 
-  /// What GNOME saved about the pick: `('GNOME', 1, <(t, t, [(id, type,
-  /// <(app id, title)>)])>)`.
+  /// What the desktop saved about the pick. GNOME's:
+  /// `('GNOME', 1, <(t, t, [(id, type, <(app id, title)>)])>)`.
+  /// KDE's: `('KDE', 1, <bytes>)` ([KdeSavedPick]).
   static Future<SharedWindow?> _saved(DBusClient client, String token) async {
     try {
       final reply = await client.callMethod(
@@ -164,21 +168,30 @@ class WindowSharePortal {
         replySignature: DBusSignature('a{sas}v'),
       );
       final data = reply.values[1].asVariant().asStruct();
-      if (data[0].asString() != 'GNOME' || data[1].asUint32() != 1) {
-        return null;
-      }
-      final streams = data[2].asVariant().asStruct()[2].asArray();
-      for (final stream in streams) {
-        final fields = stream.asStruct();
-        if (fields[1].asUint32() != _window) continue;
-        final window = fields[2].asVariant().asStruct();
-        return SharedWindow(
-          appId: window[0].asString(),
-          title: unescape(window[1].asString()),
-        );
-      }
+      if (data[1].asUint32() != 1) return null;
+      return switch (data[0].asString()) {
+        'GNOME' => _gnome(data[2].asVariant()),
+        'KDE' => KdeSavedPick.window(
+          Uint8List.fromList(data[2].asVariant().asByteArray().toList()),
+        ),
+        _ => null,
+      };
     } catch (e) {
       HelperMethods.printDebug('$_tag: no saved pick to read – $e');
+    }
+    return null;
+  }
+
+  static SharedWindow? _gnome(DBusValue saved) {
+    final streams = saved.asStruct()[2].asArray();
+    for (final stream in streams) {
+      final fields = stream.asStruct();
+      if (fields[1].asUint32() != _window) continue;
+      final window = fields[2].asVariant().asStruct();
+      return SharedWindow(
+        appId: window[0].asString(),
+        title: unescape(window[1].asString()),
+      );
     }
     return null;
   }

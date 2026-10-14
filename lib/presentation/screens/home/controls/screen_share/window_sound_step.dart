@@ -16,14 +16,14 @@ import '../../../../common/show_custom_dialog.dart';
 import '../../screenshare/share_sound/share_sound_dialog.dart';
 
 /// A window share to start, once its window and sound are known: the
-/// settings, and on GNOME the desktop's pick to share
+/// settings, and on GNOME and KDE the desktop's pick to share
 /// (`ScreenShareConfig.portalChoice`).
 typedef WindowShare = ({ScreenShareSettings settings, String? portalChoice});
 
 /// Linux: what starting a window share with sound asks after the share
-/// dialog. First the window — on GNOME the desktop's own picker, run here
-/// rather than by the capture, so Rift learns whose window it is — then the
-/// sound to go with it: the one remembered for the window's app, or the
+/// dialog. First the window — on GNOME and KDE the desktop's own picker, run
+/// here rather than by the capture, so Rift learns whose window it is — then
+/// the sound to go with it: the one remembered for the window's app, or the
 /// sound popup with a guess already picked.
 class WindowSoundStep {
   const WindowSoundStep._();

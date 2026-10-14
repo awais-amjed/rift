@@ -1,7 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 /// A window about to be shared, as far as the desktop said who it belongs
-/// to: on GNOME under Wayland the app and title it saved for the pick, on
+/// to: on GNOME or KDE under Wayland the app and title saved for the pick, on
 /// X11 the window's own app (`WM_CLASS`), process and title. What finds the
 /// sound that goes with it (`ShareSoundMatch`).
 class SharedWindow extends Equatable {

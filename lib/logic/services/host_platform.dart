@@ -146,17 +146,17 @@ class HostPlatform {
 
   /// Whether Rift runs the desktop's window picker itself, before the share,
   /// to learn which app the window belongs to (`WindowSharePortal`). Only
-  /// GNOME saves that where Rift can read it; elsewhere under Wayland the
-  /// capture asks with no app known, and the sound is picked in the share
-  /// dialog.
+  /// GNOME and KDE save that where Rift can read it; elsewhere under Wayland
+  /// the capture asks with no app known, and the sound is picked in the
+  /// share dialog.
   static bool get picksShareWindowItself =>
-      !kIsWeb && Platform.isLinux && _underWayland && _onGnome;
+      !kIsWeb && Platform.isLinux && _underWayland && _savesPickedApp;
 
   /// Whether a window share's sound is picked after the window, from a guess
   /// at its app (`ShareSoundMatch`), and can be remembered per app: Linux,
   /// where the window's app is known — X11, or [picksShareWindowItself].
   static bool get matchesWindowSound =>
-      !kIsWeb && Platform.isLinux && (!_underWayland || _onGnome);
+      !kIsWeb && Platform.isLinux && (!_underWayland || _savesPickedApp);
 
   /// The test libwebrtc makes before choosing the portal over X11.
   static bool get _underWayland {
@@ -165,11 +165,13 @@ class HostPlatform {
         env.containsKey('WAYLAND_DISPLAY');
   }
 
-  static bool get _onGnome =>
-      (Platform.environment['XDG_CURRENT_DESKTOP'] ?? '')
-          .toUpperCase()
-          .split(':')
-          .contains('GNOME');
+  /// GNOME or KDE, whose ScreenCast portals save a picked window's app.
+  static bool get _savesPickedApp {
+    final desktops = (Platform.environment['XDG_CURRENT_DESKTOP'] ?? '')
+        .toUpperCase()
+        .split(':');
+    return desktops.contains('GNOME') || desktops.contains('KDE');
+  }
 
   /// Whether the source list can show a thumbnail of each window. Only the
   /// Windows capturer produces them.

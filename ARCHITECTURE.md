@@ -646,18 +646,18 @@ guess means every app but Rift, which still carries the window's sound.
 Finding the app is where the platforms differ. X11 says it outright
 (`_NET_WM_PID`, `WM_CLASS`), so the window is picked in Rift's own dialog.
 Under Wayland the ScreenCast portal tells an app nothing about the window
-picked, and libwebrtc runs that portal itself. On **GNOME** Rift runs the
-picker first, asking for the pick to be kept (`persist_mode` 2): GNOME then
-saves the window's app id and title in the PermissionStore under the pick's
-restore token, Rift reads them, and libwebrtc is handed the token
+picked, and libwebrtc runs that portal itself. On **GNOME and KDE** Rift runs
+the picker first, asking for the pick to be kept (`persist_mode` 2): the
+desktop then saves the window's app id and title in the PermissionStore under
+the pick's restore token, Rift reads them, and libwebrtc is handed the token
 (`select_restore_token`, a patch in our LiveKit fork) and opens the same
-window with no second picker. The portal deletes the saved pick once it is
-used, and Rift deletes one that never was. Both ask as the same app: GTK
-registers the app's own connection with the portal, so Rift's picker
+window with no second picker. GNOME saves a D-Bus structure; KDE saves a Qt
+`QDataStream` (`KdeSavedPick`). GNOME deletes the saved pick once it is used
+and KDE keeps it, so Rift deletes it after every share. Both ask as the same
+app: GTK registers the app's own connection with the portal, so Rift's picker
 registers its connection too, or the pick is saved for an unnamed app that
-libwebrtc's request cannot see. KDE saves the same facts in a form not yet
-read, and other Wayland desktops save nothing by default; there the app picks
-the sound in the share dialog as before.
+libwebrtc's request cannot see. Other Wayland desktops save nothing by
+default; there the app picks the sound in the share dialog as before.
 
 ### Encoding a share on the GPU — [Implemented October 2026]
 
