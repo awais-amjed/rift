@@ -8,6 +8,7 @@
 #include <flutter_webrtc/flutter_web_r_t_c_plugin.h>
 #include <rnnoise.h>
 
+#include "limiter.h"
 #include "rate_converter.h"
 
 namespace rift {
@@ -29,17 +30,6 @@ struct RatePath {
 // The model values Dart passes to rift_noise_filter_set_model.
 enum Model : int32_t { kNone = 0, kRnnoise = 1, kDeepFilter = 2 };
 
-// The loudest a boosted voice may come out: 2 dB under full scale, in the
-// units libwebrtc processes in (16-bit range, as floats). Opus does not give
-// back exactly the wave it was handed, and at 1 dB under its peaks came out
-// past full scale at the listener.
-constexpr float kCeiling = 0.79f * 32767.0f;
-
-// How fast the limiter lets go once a loud syllable has passed. Short enough
-// that the next quiet word is not held down; long enough that the gain does
-// not follow the waveform, which would be distortion of its own.
-constexpr float kReleaseSeconds = 0.1f;
-
 using DeepFilterProcess = int32_t (*)(float* samples, int32_t count);
 using DeepFilterReset = void (*)();
 
@@ -56,9 +46,8 @@ class Timings {
     if (micros > 5000) over_5ms_.fetch_add(1, std::memory_order_relaxed);
     if (micros > 10000) over_10ms_.fetch_add(1, std::memory_order_relaxed);
     int64_t worst = worst_micros_.load(std::memory_order_relaxed);
-    while (micros > worst &&
-           !worst_micros_.compare_exchange_weak(worst, micros,
-                                                std::memory_order_relaxed)) {
+    while (micros > worst && !worst_micros_.compare_exchange_weak(
+                                 worst, micros, std::memory_order_relaxed)) {
     }
   }
 
@@ -110,9 +99,15 @@ class NoiseProcessing final
                 std::memory_order_release);
   }
 
-  void Initialize(int, int) override { restart_ = true; }
+  void Initialize(int, int) override {
+    restart_ = true;
+    limiter_frames_ = 0;
+  }
 
-  void Reset(int) override { restart_ = true; }
+  void Reset(int) override {
+    restart_ = true;
+    limiter_frames_ = 0;
+  }
 
   void Release() override {}
 
@@ -155,33 +150,14 @@ class NoiseProcessing final
   }
 
   // The mic volume, after the model, so the model hears the voice at the
-  // level it was trained on. Turned up, a voice that already peaks near full
-  // scale would be cut off flat, so a limiter holds the peaks under
-  // [kCeiling] instead: it takes the gain down at once on a peak and gives it
-  // back over [kReleaseSeconds]. The mic test does the same in Rust
-  // (`mic_test::boost`).
+  // level it was trained on (Limiter).
   void Boost(int num_frames, float* buffer) {
-    const float gain = gain_.load(std::memory_order_acquire);
-    if (gain == 1.0f) {
-      envelope_ = 0;
-      return;
-    }
-    if (gain < 1.0f) {
-      envelope_ = 0;
-      for (int i = 0; i < num_frames; ++i) buffer[i] *= gain;
-      return;
-    }
     // Each call is 10 ms, so the rate follows from the frame count.
-    if (num_frames != release_frames_) {
-      release_ = std::exp(-1.0f / (kReleaseSeconds * num_frames * 100.0f));
-      release_frames_ = num_frames;
+    if (num_frames != limiter_frames_) {
+      limiter_.Reset(num_frames * 100);
+      limiter_frames_ = num_frames;
     }
-    for (int i = 0; i < num_frames; ++i) {
-      const float boosted = buffer[i] * gain;
-      envelope_ = std::fmax(std::fabs(boosted), envelope_ * release_);
-      buffer[i] = envelope_ > kCeiling ? boosted * (kCeiling / envelope_)
-                                       : boosted;
-    }
+    limiter_.Process(buffer, num_frames, gain_.load(std::memory_order_acquire));
   }
 
   void RunModel(float* frame, DeepFilterProcess deep_filter) {
@@ -219,9 +195,9 @@ class NoiseProcessing final
   int frames_ = 0;
   int32_t running_ = kNone;
   bool restart_ = true;
-  float envelope_ = 0;
-  float release_ = 0;
-  int release_frames_ = 0;
+  Limiter limiter_;
+  // The frame count the limiter was last started for; 0 to start it again.
+  int limiter_frames_ = 0;
   std::atomic<float> gain_{1.0f};
   std::atomic<int32_t> model_{kNone};
   std::atomic<DeepFilterProcess> deep_filter_process_{nullptr};
@@ -291,9 +267,7 @@ void rift_noise_filter_take_timings(int64_t* out) {
   rift::g_processing->TakeTimings(out);
 }
 
-void* rift_noise_filter_rnnoise_create(void) {
-  return rnnoise_create(nullptr);
-}
+void* rift_noise_filter_rnnoise_create(void) { return rnnoise_create(nullptr); }
 
 void rift_noise_filter_rnnoise_process(void* state, float* frame) {
   if (state == nullptr || frame == nullptr) return;

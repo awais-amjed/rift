@@ -40,6 +40,7 @@ else()
 endif()
 
 add_library(rift_noise_filter STATIC
+  "limiter.cc"
   "noise_filter.cc"
   "rate_converter.cc"
 )
