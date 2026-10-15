@@ -59,6 +59,17 @@ It shows what each feed offers, asks, signs with the release key from the
 system keyring, checks the signature and uploads `releases.<channel>.json.sig`
 beside the feed. It needs `gh` signed in to the GitHub account.
 
+Then it posts the release notes, betas too, to a Rift channel through a
+webhook, since signing is when people can have the release. The webhook's URL
+is kept in the keyring, as it holds the webhook's secret:
+
+```bash
+secret-tool store --label='Rift release webhook' service rift-release-webhook
+```
+
+With none there it posts nothing. `scripts/sign_release.sh --announce v1.0.3`
+posts a release's announcement on its own.
+
 The key was made once with `scripts/release_key.sh generate` (Oct 6 2026). Its
 public half is in `RELEASE_KEYS` in `rust/src/updater/signature.rs`. If the
 key is lost, no installed copy can be updated again without a reinstall, so
