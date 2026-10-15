@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../logic/services/broadcast_payload.dart';
 import '../../logic/services/chat_message_ops.dart';
 import '../../logic/services/paging.dart';
+import '../central_failure.dart';
 import '../classes/api_response.dart';
 import '../classes/friend.dart';
 import '../classes/friend_buckets.dart';
@@ -29,6 +30,7 @@ part 'central_dm_repository_read_state.dart';
 /// here, once, because both the send path and every friends RPC need it and
 /// two copies of a list of error codes is two lists that drift.
 APIResponse _rpcFailure(PostgrestException e, List<String> known) {
+  if (CentralFailure.isUnreachable(e)) return CentralFailure.response(e);
   final code = known.firstWhere(
     (candidate) => e.message.contains(candidate),
     orElse: () => '',
@@ -110,7 +112,7 @@ class CentralDmRepository
         'not_friends',
       ]);
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 
@@ -120,7 +122,7 @@ class CentralDmRepository
       final result = await _client.rpc('dm_quota');
       return APIResponse.success(result);
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 
@@ -154,7 +156,7 @@ class CentralDmRepository
       }
       return APIResponse.success(rows.first);
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 
@@ -174,7 +176,7 @@ class CentralDmRepository
       }
       return APIResponse.success(rows.first);
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 
@@ -212,7 +214,7 @@ class CentralDmRepository
         'has_more': page.hasMore,
       });
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 
@@ -248,7 +250,7 @@ class CentralDmRepository
       );
       return APIResponse.success(result);
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 
@@ -333,7 +335,7 @@ class CentralDmRepository
         'message': row == null ? null : _CentralDmPinsMixin.liftPin(row),
       });
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 

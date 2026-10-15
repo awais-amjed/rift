@@ -117,6 +117,10 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   the re-read from `SessionRepository.details` before the call answers. An API call a dialog can open for a server other than the current one takes an
   optional `serverId` and resolves it with `SessionRepository.target` — reading the
   selected server inside such a call is how a form ends up writing to the wrong server.
+- A call to central (the account, Rift DMs, the directories, cloud backup) returns its failure through
+  `CentralFailure.response`, and a typed catch (`on PostgrestException`) asks
+  `CentralFailure.isUnreachable` first. Each Supabase client reports central being down its own way,
+  and shown as it came a new user's first sign-in failed with a socket error.
 - Enums carry their own `fromString` / `toJson` conversions (see `channel_type.dart`).
 - **A picture from storage has one copy, in `MediaStore`, and widgets draw it from
   `MediaCubit`.** A widget asks with `want` and selects its own entry (`StoredPicture`,

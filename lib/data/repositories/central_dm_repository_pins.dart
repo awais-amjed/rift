@@ -28,7 +28,7 @@ mixin _CentralDmPinsMixin {
     } on PostgrestException catch (e) {
       return _rpcFailure(e, const ['pin_limit', 'message_not_found']);
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 
@@ -52,7 +52,7 @@ mixin _CentralDmPinsMixin {
         ],
       });
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 }

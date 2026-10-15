@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../logic/services/paging.dart';
+import '../central_failure.dart';
 import '../classes/api_response.dart';
 import '../classes/public_server.dart';
 
@@ -70,7 +71,7 @@ class PublicServerRepository {
         'has_more': page.hasMore,
       });
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 
@@ -94,7 +95,7 @@ class PublicServerRepository {
           .maybeSingle();
       return APIResponse.success(row != null);
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 
@@ -113,7 +114,7 @@ class PublicServerRepository {
         rows.map((r) => PublicServer.fromJson(r)).toList(),
       );
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 
@@ -136,7 +137,7 @@ class PublicServerRepository {
         row == null ? null : PublicServer.fromJson(row),
       );
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 
@@ -195,6 +196,7 @@ class PublicServerRepository {
         PublicServer.fromJson(data as Map<String, dynamic>),
       );
     } on FunctionException catch (e) {
+      if (CentralFailure.isUnreachable(e)) return CentralFailure.response(e);
       final detail = e.details;
       final identifier = detail is Map && detail['error'] != null
           ? '${detail['error']}'
@@ -204,7 +206,7 @@ class PublicServerRepository {
         errorCode: identifier,
       );
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 
@@ -225,7 +227,7 @@ class PublicServerRepository {
       }
       return APIResponse.success(null);
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 
@@ -235,7 +237,7 @@ class PublicServerRepository {
       final value = await _client.rpc('max_public_servers');
       return APIResponse.success((value as num).toInt());
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 

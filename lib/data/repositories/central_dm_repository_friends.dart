@@ -43,7 +43,7 @@ mixin _CentralDmFriendsMixin {
         blocked: at('blocked'),
       ));
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 
@@ -113,7 +113,7 @@ mixin _CentralDmFriendsMixin {
         ),
       );
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 
@@ -159,7 +159,7 @@ mixin _CentralDmFriendsMixin {
     } on PostgrestException catch (e) {
       return _rpcFailure(e, _codes);
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 
@@ -194,7 +194,7 @@ mixin _CentralDmFriendsMixin {
     } on PostgrestException catch (e) {
       return _rpcFailure(e, _codes);
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 }

@@ -30,7 +30,7 @@ mixin _CentralDmDirectoryMixin {
           .maybeSingle();
       return APIResponse.success(row);
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 
@@ -57,6 +57,7 @@ mixin _CentralDmDirectoryMixin {
       );
       return APIResponse.success(null);
     } on PostgrestException catch (e) {
+      if (CentralFailure.isUnreachable(e)) return CentralFailure.response(e);
       if (e.code == '23505') {
         return APIResponse(
           success: false,
@@ -66,7 +67,7 @@ mixin _CentralDmDirectoryMixin {
       }
       return APIResponse.error(e.message);
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 
@@ -92,7 +93,7 @@ mixin _CentralDmDirectoryMixin {
       );
       return APIResponse.success(rows);
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 }

@@ -48,7 +48,7 @@ mixin _CentralDmPrefsMixin {
       }
       return APIResponse.success(null);
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 }

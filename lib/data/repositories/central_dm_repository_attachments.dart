@@ -43,7 +43,7 @@ mixin _CentralDmAttachmentsMixin {
       );
       return APIResponse.success(uploaded);
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 
@@ -61,7 +61,7 @@ mixin _CentralDmAttachmentsMixin {
       await _client.storage.from(_attachmentsBucket).remove(paths);
       return APIResponse.success({'deleted': paths.length});
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 
@@ -88,7 +88,7 @@ mixin _CentralDmAttachmentsMixin {
       );
       return APIResponse.success(clear);
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 }

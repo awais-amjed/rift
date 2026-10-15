@@ -29,7 +29,7 @@ mixin _CentralDmPushMixin {
       }, onConflict: 'token');
       return APIResponse.success(null);
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 
@@ -40,7 +40,7 @@ mixin _CentralDmPushMixin {
       await _client.from('device_tokens').delete().eq('token', token);
       return APIResponse.success(null);
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 
@@ -75,6 +75,7 @@ mixin _CentralDmPushMixin {
       );
       return APIResponse.success(result);
     } on PostgrestException catch (e) {
+      if (CentralFailure.isUnreachable(e)) return CentralFailure.response(e);
       final known = [
         'too_many_relays',
         'not_authenticated',
@@ -85,7 +86,7 @@ mixin _CentralDmPushMixin {
         errorCode: known.isNotEmpty ? known : null,
       );
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 
@@ -96,7 +97,7 @@ mixin _CentralDmPushMixin {
       await _client.from('push_relays').delete().eq('id', relayId);
       return APIResponse.success(null);
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 }

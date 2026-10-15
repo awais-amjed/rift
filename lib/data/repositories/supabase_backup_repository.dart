@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../supabase_config.dart';
+import '../central_failure.dart';
 import '../classes/api_response.dart';
 
 /// Repository that manages all interactions with the central Supabase server
@@ -71,7 +72,7 @@ class SupabaseBackupRepository {
     } on AuthException catch (e) {
       return _authFailure(e);
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 
@@ -86,7 +87,7 @@ class SupabaseBackupRepository {
       );
       return APIResponse.success(free == true);
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 
@@ -110,7 +111,7 @@ class SupabaseBackupRepository {
     } on AuthException catch (e) {
       return _authFailure(e);
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 
@@ -138,7 +139,7 @@ class SupabaseBackupRepository {
     } on AuthException catch (e) {
       return _authFailure(e);
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 
@@ -154,7 +155,7 @@ class SupabaseBackupRepository {
     } on AuthException catch (e) {
       return _authFailure(e);
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 
@@ -180,7 +181,7 @@ class SupabaseBackupRepository {
     } on AuthException catch (e) {
       return _authFailure(e);
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 
@@ -197,7 +198,7 @@ class SupabaseBackupRepository {
     } on AuthException catch (e) {
       return _authFailure(e);
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 
@@ -224,7 +225,7 @@ class SupabaseBackupRepository {
     } on AuthException catch (e) {
       return _authFailure(e);
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 
@@ -234,8 +235,12 @@ class SupabaseBackupRepository {
   /// nothing else, so "your address is not confirmed yet" was indistinguishable
   /// from "that password is wrong" — one of which has an obvious next step and
   /// the other of which does not.
-  APIResponse _authFailure(AuthException e) =>
-      APIResponse(success: false, error: e.message, errorCode: e.code);
+  ///
+  /// Central not answering is not one of GoTrue's codes, and its message is
+  /// the socket error — so that is worded first ([CentralFailure]).
+  APIResponse _authFailure(AuthException e) => CentralFailure.isUnreachable(e)
+      ? CentralFailure.response(e)
+      : APIResponse(success: false, error: e.message, errorCode: e.code);
 
   /// Signs out the current user.
   Future<APIResponse> signOut() async {
@@ -243,7 +248,7 @@ class SupabaseBackupRepository {
       await _client.auth.signOut();
       return APIResponse.success(null);
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 
@@ -271,7 +276,7 @@ class SupabaseBackupRepository {
 
       return APIResponse.success(null);
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 
@@ -290,13 +295,14 @@ class SupabaseBackupRepository {
 
       return APIResponse.success(utf8.decode(bytes));
     } on StorageException catch (e) {
+      if (CentralFailure.isUnreachable(e)) return CentralFailure.response(e);
       // Object not found — no backup uploaded yet.
       if (e.statusCode == '404' || (e.message.contains('not found'))) {
         return APIResponse.success(null);
       }
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 
