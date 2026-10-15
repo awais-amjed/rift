@@ -5,7 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rift/data/classes/participant_info.dart';
 import 'package:rift/data/classes/role.dart';
+import 'package:rift/data/classes/server.dart';
 import 'package:rift/data/classes/server_member.dart';
+import 'package:rift/data/classes/server_user.dart';
 import 'package:rift/data/classes/user_permissions.dart';
 import 'package:rift/logic/cubits/app/app_cubit.dart';
 import 'package:rift/logic/cubits/dm/dm_cubit.dart';
@@ -22,7 +24,28 @@ import 'support/memory_storage.dart';
 import 'support/stub_members_cubit.dart';
 
 class _StubServerCubit extends Cubit<ServerState> implements ServerCubit {
-  _StubServerCubit() : super(const ServerState());
+  _StubServerCubit({bool moderator = false})
+    : super(
+        moderator
+            ? ServerState(
+                selectedServerId: 's1',
+                servers: [
+                  Server(
+                    id: 's1',
+                    name: 'Server1',
+                    supabaseUrl: 'http://localhost',
+                    token: 't',
+                    user: ServerUser(
+                      id: 'me',
+                      username: 'me',
+                      displayName: 'Me',
+                      permissions: UserPermissions(isChannelManager: true),
+                    ),
+                  ),
+                ],
+              )
+            : const ServerState(),
+      );
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -79,6 +102,7 @@ void main() {
     LiveKitState call = const LiveKitState(),
     ServerMembersState? members,
     AppCubit? app,
+    bool moderator = false,
   }) async {
     final watched = <String>[];
     await tester.pumpWidget(
@@ -90,7 +114,9 @@ void main() {
           BlocProvider<VoiceListenersCubit>(
             create: (_) => _StubVoiceListenersCubit(),
           ),
-          BlocProvider<ServerCubit>(create: (_) => _StubServerCubit()),
+          BlocProvider<ServerCubit>(
+            create: (_) => _StubServerCubit(moderator: moderator),
+          ),
           BlocProvider<ServerMembersCubit>(
             create: (_) => StubMembersCubit(members),
           ),
@@ -278,6 +304,34 @@ void main() {
     expect(find.text('Deafened'), findsOneWidget);
     // Deafened already says the microphone is off.
     expect(find.text('Muted'), findsNothing);
+  });
+
+  testWidgets('a lone moderation button says what it does', (tester) async {
+    // An admin cannot be muted, deafened or disconnected, which leaves Move
+    // on its own — with room for its name.
+    await pump(
+      tester,
+      sharing: false,
+      moderator: true,
+      members: ServerMembersState(
+        loaded: true,
+        known: {
+          'alice': ServerMember(
+            id: 'alice',
+            username: 'alice',
+            displayName: 'Alice',
+            permissions: UserPermissions(isServerAdmin: true),
+          ),
+        },
+      ),
+    );
+    await tester.tap(find.text('Alice'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('MODERATION'), findsOneWidget);
+    expect(find.text('Move to'), findsOneWidget);
+    expect(find.text('Disconnect'), findsNothing);
+    expect(find.byTooltip('Server mute'), findsNothing);
   });
 
   group('where the card goes', () {

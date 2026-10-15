@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/constants.dart';
+import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../../../theme/theme_context.dart';
 
@@ -24,6 +25,11 @@ class ControlButton extends StatelessWidget {
   /// its own, where a bare glyph in a row of four reads as a label.
   final bool dense;
 
+  /// A word beside the icon, for a [dense] tile with room to say what it
+  /// does: a row of one or two is wide enough, and a lone icon on a wide tile
+  /// reads as decoration.
+  final String? label;
+
   const ControlButton({
     super.key,
     required this.icon,
@@ -33,6 +39,7 @@ class ControlButton extends StatelessWidget {
     this.isDimmed = false,
     this.isError = false,
     this.dense = false,
+    this.label,
   });
 
   @override
@@ -68,11 +75,28 @@ class ControlButton extends StatelessWidget {
           child: SizedBox(
             width: dense ? double.infinity : 46,
             height: dense ? K.dockCallButtonHeight : 46,
-            child: Icon(
-              icon,
-              size: dense ? K.iconButton : K.iconLarge,
-              color: iconColor,
-            ),
+            child: switch (label) {
+              final label? => Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                spacing: 6,
+                children: [
+                  Icon(icon, size: K.iconButton, color: iconColor),
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.label.copyWith(color: iconColor),
+                    ),
+                  ),
+                ],
+              ),
+              null => Icon(
+                icon,
+                size: dense ? K.iconButton : K.iconLarge,
+                color: iconColor,
+              ),
+            },
           ),
         ),
       ),

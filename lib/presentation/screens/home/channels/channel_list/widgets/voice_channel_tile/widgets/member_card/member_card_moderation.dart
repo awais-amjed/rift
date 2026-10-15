@@ -78,6 +78,11 @@ class _MemberCardModerationState extends State<MemberCardModeration> {
     });
     final theme = context.theme;
     final livekit = context.read<LiveKitCubit>();
+    final canMute = live != null && !admin;
+    // One or two buttons have the width to say what they do; four share it
+    // and lean on their tooltips, like the row above.
+    final count = (canMute ? 2 : 0) + 1 + (admin ? 0 : 1);
+    String? named(String label) => count <= 2 ? label : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -90,7 +95,7 @@ class _MemberCardModerationState extends State<MemberCardModeration> {
         Row(
           spacing: 6,
           children: [
-            if (live != null && !admin) ...[
+            if (canMute) ...[
               Expanded(
                 child: ControlButton(
                   dense: true,
@@ -126,6 +131,7 @@ class _MemberCardModerationState extends State<MemberCardModeration> {
                 dense: true,
                 icon: Icons.moving_rounded,
                 tooltip: 'Move to',
+                label: named('Move to'),
                 onTap: _openMove,
               ),
             ),
@@ -135,6 +141,7 @@ class _MemberCardModerationState extends State<MemberCardModeration> {
                   dense: true,
                   icon: Icons.call_end_rounded,
                   tooltip: 'Disconnect',
+                  label: named('Disconnect'),
                   onTap: _disconnect,
                 ),
               ),
