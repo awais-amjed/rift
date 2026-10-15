@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../../../../responsive/shell_scope.dart';
 import '../../../../../../../../theme/app_motion.dart';
+import '../../../../../../profile/person/show_person_profile.dart';
 import 'member_card.dart';
 import 'member_card_layout.dart';
 
@@ -76,6 +79,9 @@ class _MemberCardAnchorState extends State<MemberCardAnchor> {
       _close();
     } else {
       _scroll = Scrollable.maybeOf(context)?.position?..addListener(_close);
+      // Their roles are read for the rows on screen, which a call's roster
+      // is not one of.
+      context.read<ServerMembersCubit>().resolve([widget.userId]);
       _portal.show();
     }
   }
@@ -86,6 +92,13 @@ class _MemberCardAnchorState extends State<MemberCardAnchor> {
     final ground = overlay.findRenderObject() as RenderBox?;
     if (row == null || ground == null || !row.hasSize) return null;
     return row.localToGlobal(Offset.zero, ancestor: ground) & row.size;
+  }
+
+  /// From the row's context, not the card's: the card is gone by the time
+  /// the dialog looks for a navigator.
+  void _profile() {
+    _close();
+    showMemberProfile(context, userId: widget.userId, name: widget.name);
   }
 
   void _watch() {
@@ -136,6 +149,8 @@ class _MemberCardAnchorState extends State<MemberCardAnchor> {
                     userId: widget.userId,
                     name: widget.name,
                     channelId: widget.channelId,
+                    onProfile: _profile,
+                    onClose: _close,
                     // Only while their share is up: the card stays open
                     // when it ends, and the button goes.
                     onWatch: widget.sharing && widget.onWatch != null

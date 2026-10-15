@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:toastification/toastification.dart';
 
+import '../../../../../../../../../data/enums/server_permission.dart';
 import '../../../../../../../../../data/participant_identity.dart';
 import '../../../../../../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../../../../../../logic/cubits/dm/dm_cubit.dart';
+import '../../../../../../../../../logic/cubits/dm_call/dm_call_cubit.dart';
 import '../../../../../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../../../../logic/cubits/server_members/server_members_cubit.dart';
-import '../../../../../../../../../logic/helper_methods.dart';
 import '../../../../../../controls/widgets/control_button.dart';
 import '../../../../../../sidebar/widgets/participant_volume_control.dart';
 
@@ -19,8 +20,17 @@ import '../../../../../../sidebar/widgets/participant_volume_control.dart';
 /// row it is your own microphone and headphones instead, as in the dock.
 class MemberCardControls extends StatelessWidget {
   final String userId;
+  final String name;
 
-  const MemberCardControls({super.key, required this.userId});
+  /// Closes the card: a call leaves the voice channel it was opened from.
+  final VoidCallback? onCall;
+
+  const MemberCardControls({
+    super.key,
+    required this.userId,
+    required this.name,
+    this.onCall,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +38,7 @@ class MemberCardControls extends StatelessWidget {
       (cubit) => cubit.state.selectedServer?.user?.id,
     );
     if (userId == me) return const _OwnControls();
-    return _TheirControls(userId: userId);
+    return _TheirControls(userId: userId, name: name, onCall: onCall);
   }
 }
 
@@ -72,11 +82,14 @@ class _OwnControls extends StatelessWidget {
 }
 
 /// Somebody else: their volume for you, then a row of toggles, each red while
-/// it is on.
+/// it is on, and a call. Moderation is its own section
+/// ([MemberCardModeration]).
 class _TheirControls extends StatelessWidget {
   final String userId;
+  final String name;
+  final VoidCallback? onCall;
 
-  const _TheirControls({required this.userId});
+  const _TheirControls({required this.userId, required this.name, this.onCall});
 
   @override
   Widget build(BuildContext context) {
@@ -91,29 +104,10 @@ class _TheirControls extends StatelessWidget {
             ?.muted ??
         false;
     final voiceHidden = app.voiceHiddenFrom.contains(userId);
-    // Their moderation state only reaches us from a call we share with them,
-    // the same rule the menu keeps — anywhere else it would be a guess.
-    final live = app.participants
-        .where((p) => p.userId == userId && !p.isShare)
-        .firstOrNull;
-    final permissions = context.select<ServerCubit, bool>((cubit) {
-      final mine = cubit.state.myPermissions;
-      return (mine?.isServerAdmin ?? false) ||
-          (mine?.isChannelManager ?? false);
-    });
-    final member = context.select<ServerMembersCubit, ({bool bot, bool admin})>(
-      (cubit) {
-        final row = cubit.state.byId[userId];
-        return (
-          bot: row?.isBot ?? false,
-          admin: row?.permissions.isServerAdmin ?? false,
-        );
-      },
+    final isBot = context.select<ServerMembersCubit, bool>(
+      (cubit) => cubit.state.byId[userId]?.isBot ?? false,
     );
-    final isBot = member.bot;
-    // The server refuses to moderate an admin (`cannot_moderate_admin`), so
-    // the buttons are not offered for one.
-    final moderates = permissions && live != null && !member.admin;
+    final canCall = !isBot && _canCall(context);
     final livekit = context.read<LiveKitCubit>();
 
     return Column(
@@ -166,51 +160,45 @@ class _TheirControls extends StatelessWidget {
                 onTap: () => livekit.setVoiceHiddenFrom(userId, !voiceHidden),
               ),
             ),
-            if (moderates) ...[
+            // A DM call, as the conversation's header places it. A refusal
+            // (requests, blocks) comes back from the server and is said by
+            // the call's own notice.
+            if (canCall)
               Expanded(
                 child: ControlButton(
                   dense: true,
-                  icon: Icons.mic_off_rounded,
-                  tooltip: live.isServerMuted ? 'Server unmute' : 'Server mute',
-                  isError: live.isServerMuted,
-                  onTap: () => _moderate(
-                    livekit.moderateParticipant(
-                      participantIdentity: userId,
-                      muted: !live.isServerMuted,
-                    ),
-                  ),
+                  icon: Icons.call_rounded,
+                  tooltip: 'Call',
+                  onTap: () {
+                    final calls = context.read<DmCallCubit>();
+                    onCall?.call();
+                    calls.startCall(peerId: userId, peerName: name);
+                  },
                 ),
               ),
-              Expanded(
-                child: ControlButton(
-                  dense: true,
-                  icon: Icons.headset_off_rounded,
-                  tooltip: live.isServerDeafened
-                      ? 'Server undeafen'
-                      : 'Server deafen',
-                  isError: live.isServerDeafened,
-                  onTap: () => _moderate(
-                    livekit.moderateParticipant(
-                      participantIdentity: userId,
-                      deafened: !live.isServerDeafened,
-                    ),
-                  ),
-                ),
-              ),
-            ],
           ],
         ),
       ],
     );
   }
 
-  /// A refusal would otherwise look like a button that does nothing.
-  Future<void> _moderate(Future<bool> call) async {
-    if (await call) return;
-    HelperMethods.showToast(
-      title: 'Could not change that',
-      description: 'The server refused. Try again in a moment.',
-      type: ToastificationType.error,
+  /// The same gate the DM conversation's call button keeps, less what only
+  /// an open conversation knows (whether a request was accepted): the server
+  /// says that.
+  bool _canCall(BuildContext context) {
+    final server = context.select<ServerCubit, ({bool voice, bool connect})>((
+      cubit,
+    ) {
+      final selected = cubit.state.selectedServer;
+      return (
+        voice: selected?.livekitUrl != null,
+        connect:
+            selected?.user?.permissions.can(ServerPermission.connect) ?? false,
+      );
+    });
+    final blocked = context.select<DmCubit, bool>(
+      (cubit) => cubit.state.blockedIds.contains(userId),
     );
+    return server.voice && server.connect && !blocked;
   }
 }

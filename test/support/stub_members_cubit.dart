@@ -10,7 +10,13 @@ import 'package:rift/logic/cubits/server_members/server_members_cubit.dart';
 /// ```
 class StubMembersCubit extends Cubit<ServerMembersState>
     implements ServerMembersCubit {
-  StubMembersCubit() : super(ServerMembersState(loaded: true));
+  StubMembersCubit([ServerMembersState? state])
+    : super(state ?? ServerMembersState(loaded: true));
+
+  /// Asked by anything that wants a member's row and roles read in; the
+  /// state handed in already holds whatever the test wants known.
+  @override
+  Future<void> resolve(Iterable<String> userIds) async {}
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

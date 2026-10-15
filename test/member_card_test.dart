@@ -3,12 +3,17 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
+import 'package:rift/data/classes/participant_info.dart';
+import 'package:rift/data/classes/role.dart';
+import 'package:rift/data/classes/server_member.dart';
+import 'package:rift/data/classes/user_permissions.dart';
 import 'package:rift/logic/cubits/app/app_cubit.dart';
 import 'package:rift/logic/cubits/dm/dm_cubit.dart';
 import 'package:rift/logic/cubits/livekit/livekit_cubit.dart';
 import 'package:rift/logic/cubits/server/server_cubit.dart';
 import 'package:rift/logic/cubits/server_members/server_members_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
+import 'package:rift/logic/cubits/voice_listeners/voice_listeners_cubit.dart';
 import 'package:rift/presentation/screens/home/channels/channel_list/widgets/voice_channel_tile/widgets/member_card/member_card_anchor.dart';
 import 'package:rift/presentation/screens/home/channels/channel_list/widgets/voice_channel_tile/widgets/member_card/member_card_layout.dart';
 import 'package:toastification/toastification.dart';
@@ -18,6 +23,18 @@ import 'support/stub_members_cubit.dart';
 
 class _StubServerCubit extends Cubit<ServerState> implements ServerCubit {
   _StubServerCubit() : super(const ServerState());
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// No bot hears any channel.
+class _StubVoiceListenersCubit extends Cubit<VoiceBotsState>
+    implements VoiceListenersCubit {
+  _StubVoiceListenersCubit() : super(const VoiceBotsState());
+
+  @override
+  bool hears(String channelId, String botId) => false;
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -60,16 +77,23 @@ void main() {
     WidgetTester tester, {
     required bool sharing,
     LiveKitState call = const LiveKitState(),
+    ServerMembersState? members,
+    AppCubit? app,
   }) async {
     final watched = <String>[];
     await tester.pumpWidget(
       MultiBlocProvider(
         providers: [
           BlocProvider<ThemeCubit>(create: (_) => ThemeCubit()),
-          BlocProvider<AppCubit>(create: (_) => AppCubit()),
+          BlocProvider<AppCubit>(create: (_) => app ?? AppCubit()),
           BlocProvider<DmCubit>.value(value: dms),
+          BlocProvider<VoiceListenersCubit>(
+            create: (_) => _StubVoiceListenersCubit(),
+          ),
           BlocProvider<ServerCubit>(create: (_) => _StubServerCubit()),
-          BlocProvider<ServerMembersCubit>(create: (_) => StubMembersCubit()),
+          BlocProvider<ServerMembersCubit>(
+            create: (_) => StubMembersCubit(members),
+          ),
           BlocProvider<LiveKitCubit>(create: (_) => _StubLiveKitCubit(call)),
         ],
         child: ToastificationWrapper(
@@ -197,6 +221,63 @@ void main() {
     // Let the sent toast run out.
     await tester.pump(const Duration(seconds: 5));
     await tester.pumpAndSettle();
+  });
+
+  testWidgets('says who they are: roles, a Bot tag, a time-out', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      sharing: false,
+      members: ServerMembersState(
+        loaded: true,
+        known: {
+          'alice': ServerMember(
+            id: 'alice',
+            username: 'alice_bot',
+            displayName: 'Alice',
+            permissions: const UserPermissions(),
+            isBot: true,
+            timedOutUntil: DateTime.now().add(const Duration(hours: 1)),
+          ),
+        },
+        memberRoles: const {
+          'alice': [Role(id: 'r', name: 'Mods', position: 1, permissions: 0)],
+        },
+      ),
+    );
+    await tester.tap(find.text('Alice'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('@alice_bot'), findsOneWidget);
+    expect(find.text('BOT'), findsOneWidget);
+    expect(find.text('MODS'), findsOneWidget);
+    expect(find.textContaining('Timed out until'), findsOneWidget);
+    // A bot has no soundboard to turn down, and is not called.
+    expect(find.byTooltip('Mute their soundboard'), findsNothing);
+    expect(find.byTooltip('Call'), findsNothing);
+    // Nobody here moderates.
+    expect(find.text('MODERATION'), findsNothing);
+  });
+
+  testWidgets('says how they are in the call, in words', (tester) async {
+    final app = AppCubit()
+      ..setParticipants(const [
+        ParticipantInfo(
+          identity: 'alice~d1',
+          userId: 'alice',
+          name: 'Alice',
+          isDeafened: true,
+          isMicrophoneEnabled: false,
+        ),
+      ]);
+    await pump(tester, sharing: false, app: app);
+    await tester.tap(find.text('Alice'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Deafened'), findsOneWidget);
+    // Deafened already says the microphone is off.
+    expect(find.text('Muted'), findsNothing);
   });
 
   group('where the card goes', () {

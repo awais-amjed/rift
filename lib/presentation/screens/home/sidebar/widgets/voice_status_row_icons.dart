@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/classes/participant_info.dart';
+import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/services/voice_status_icons.dart';
 import '../../../../theme/app_motion.dart';
 import '../../../../theme/custom_colors.dart';
@@ -69,21 +70,9 @@ class VoiceStatusRowIcons extends StatelessWidget {
             Tooltip(
               message: _tooltip(icon),
               child: Icon(
-                _icon(icon),
+                iconOf(icon),
                 size: size,
-                color: switch (icon) {
-                  VoiceStatusIcon.sharingScreen ||
-                  VoiceStatusIcon.sharingSound => theme.accentBright,
-                  VoiceStatusIcon.cannotHear ||
-                  VoiceStatusIcon.waitingToTalk => theme.textTertiary,
-                  VoiceStatusIcon.mutedForYou => CustomColors.error.withValues(
-                    alpha: 0.7,
-                  ),
-                  VoiceStatusIcon.deafenedByModerator ||
-                  VoiceStatusIcon.mutedByModerator =>
-                    CustomColors.error.withValues(alpha: 0.85),
-                  _ => CustomColors.error,
-                },
+                color: colorOf(icon, theme),
               ),
             ),
         ],
@@ -91,7 +80,23 @@ class VoiceStatusRowIcons extends StatelessWidget {
     );
   }
 
-  IconData _icon(VoiceStatusIcon icon) => switch (icon) {
+  /// The mark for [icon], shared with the member card's words so a state
+  /// looks the same in both places.
+  static Color colorOf(
+    VoiceStatusIcon icon,
+    ThemeState theme,
+  ) => switch (icon) {
+    VoiceStatusIcon.sharingScreen ||
+    VoiceStatusIcon.sharingSound => theme.accentBright,
+    VoiceStatusIcon.cannotHear ||
+    VoiceStatusIcon.waitingToTalk => theme.textTertiary,
+    VoiceStatusIcon.mutedForYou => CustomColors.error.withValues(alpha: 0.7),
+    VoiceStatusIcon.deafenedByModerator || VoiceStatusIcon.mutedByModerator =>
+      CustomColors.error.withValues(alpha: 0.85),
+    _ => CustomColors.error,
+  };
+
+  static IconData iconOf(VoiceStatusIcon icon) => switch (icon) {
     // The same screen the call controls show while you are sharing one, so
     // the icon means one thing wherever it turns up.
     VoiceStatusIcon.sharingScreen => Icons.monitor_outlined,
