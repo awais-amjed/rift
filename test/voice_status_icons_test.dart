@@ -9,6 +9,7 @@ ParticipantInfo person({
   bool serverDeafened = false,
   bool screen = false,
   bool sound = false,
+  bool pttIdle = false,
 }) => ParticipantInfo(
   identity: 'alice~dev1',
   userId: 'alice',
@@ -19,6 +20,7 @@ ParticipantInfo person({
   isServerDeafened: serverDeafened,
   isSharingScreen: screen,
   isSharingSound: sound,
+  isPushToTalkIdle: pttIdle,
 );
 
 List<VoiceStatusIcon> icons(
@@ -51,6 +53,24 @@ void main() {
 
   test('a muted microphone is shown as one', () {
     expect(icons(person(micOn: false)), [VoiceStatusIcon.muted]);
+  });
+
+  // Not talking is not a mute: grey, not the red of somebody refusing.
+  test('a push-to-talk key that is up is not drawn as a mute', () {
+    expect(icons(person(micOn: false, pttIdle: true)), [
+      VoiceStatusIcon.waitingToTalk,
+    ]);
+  });
+
+  // An attribute arriving late must not soften a deafen or a moderator.
+  test('deafening and moderation outrank a waiting push-to-talk key', () {
+    expect(icons(person(micOn: false, pttIdle: true, deafened: true)), [
+      VoiceStatusIcon.deafened,
+      VoiceStatusIcon.muted,
+    ]);
+    expect(icons(person(micOn: false, pttIdle: true, serverMuted: true)), [
+      VoiceStatusIcon.mutedByModerator,
+    ]);
   });
 
   // The headphones alone would read as "can't hear you, but go ahead" —

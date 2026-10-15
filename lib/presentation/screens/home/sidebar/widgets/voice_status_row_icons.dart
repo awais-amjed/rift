@@ -10,7 +10,9 @@ import '../../channels/channel_list/widgets/voice_channel_tile/widgets/roster_ro
 /// The status icons at the end of a roster row: what somebody is sharing, and
 /// whether they can hear or be heard.
 ///
-/// Red is something being *denied* — a microphone off, ears closed. Sharing is
+/// Red is something being *denied* — a microphone off, ears closed. A
+/// push-to-talk microphone waiting for its key is grey: nobody has refused
+/// anything, they are just not talking. Sharing is
 /// the accent instead: it is not a problem, it is the thing you might want to
 /// go and look at. A bot that cannot hear is grey: that is how a bot comes,
 /// not something anybody did to it, and a red mark on every music bot would
@@ -72,7 +74,8 @@ class VoiceStatusRowIcons extends StatelessWidget {
                 color: switch (icon) {
                   VoiceStatusIcon.sharingScreen ||
                   VoiceStatusIcon.sharingSound => theme.accentBright,
-                  VoiceStatusIcon.cannotHear => theme.textTertiary,
+                  VoiceStatusIcon.cannotHear ||
+                  VoiceStatusIcon.waitingToTalk => theme.textTertiary,
                   VoiceStatusIcon.mutedForYou => CustomColors.error.withValues(
                     alpha: 0.7,
                   ),
@@ -96,7 +99,9 @@ class VoiceStatusRowIcons extends StatelessWidget {
     VoiceStatusIcon.deafened ||
     VoiceStatusIcon.deafenedByModerator ||
     VoiceStatusIcon.cannotHear => Icons.headset_off,
-    VoiceStatusIcon.muted || VoiceStatusIcon.mutedByModerator => Icons.mic_off,
+    VoiceStatusIcon.muted ||
+    VoiceStatusIcon.mutedByModerator ||
+    VoiceStatusIcon.waitingToTalk => Icons.mic_off,
     // Not a crossed microphone: they have not muted themselves, you have
     // turned them off — the same distinction the volume slider makes.
     VoiceStatusIcon.mutedForYou => Icons.volume_off,
@@ -110,6 +115,7 @@ class VoiceStatusRowIcons extends StatelessWidget {
     VoiceStatusIcon.cannotHear => cannotHearTooltip,
     VoiceStatusIcon.muted => 'Muted',
     VoiceStatusIcon.mutedByModerator => 'Muted by a moderator',
+    VoiceStatusIcon.waitingToTalk => 'Push to talk',
     VoiceStatusIcon.mutedForYou => 'Muted for you',
   };
 }

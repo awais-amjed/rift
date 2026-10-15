@@ -29,6 +29,9 @@ class CollapsedParticipantTile extends StatelessWidget {
   final String userId;
   final bool isMicEnabled;
   final bool isMuted;
+
+  /// See [ParticipantNameBadge.isPushToTalkIdle].
+  final bool isPushToTalkIdle;
   final bool isDeafened;
   final bool isScreenshare;
 
@@ -60,6 +63,7 @@ class CollapsedParticipantTile extends StatelessWidget {
     required this.userId,
     required this.isMicEnabled,
     required this.isMuted,
+    this.isPushToTalkIdle = false,
     this.isDeafened = false,
     required this.isScreenshare,
     this.isPaused = false,
@@ -146,6 +150,7 @@ class CollapsedParticipantTile extends StatelessWidget {
                             name: name,
                             isMicEnabled: isMicEnabled,
                             isMuted: isMuted,
+                            isPushToTalkIdle: isPushToTalkIdle,
                             isDeafened: isDeafened,
                             isScreenshare: isScreenshare,
                           ),

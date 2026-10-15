@@ -20,9 +20,10 @@ class VoiceAttributes {
 
   static const deafenedKey = 'deafened';
 
-  /// Push-to-talk with the key up, where the client keeps its microphone
-  /// track live and sends silence (`NoiseFilter.setSilenced`): the track looks
-  /// unmuted to LiveKit, so this is what says the mic is closed.
+  /// Push-to-talk with the key up. On Linux and Windows the client keeps its
+  /// microphone track live and sends silence (`NoiseFilter.setSilenced`): the
+  /// track looks unmuted to LiveKit, so this is what says the mic is closed.
+  /// Elsewhere the track is muted too, and this says why.
   static const pushToTalkIdleKey = 'ptt_idle';
 
   /// The streams this client is watching, as a JSON list of share identities.

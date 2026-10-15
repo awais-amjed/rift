@@ -19,6 +19,10 @@ class ParticipantNameBadge extends StatelessWidget {
   final bool isDeafened;
   final bool isScreenshare;
 
+  /// The mic is closed only because their push-to-talk key is up: drawn
+  /// grey, since they are not muted, just not talking.
+  final bool isPushToTalkIdle;
+
   /// Shown before the name. Defaults to the screen icon for a screen share;
   /// a shared track passes its own, having no picture to put a screen on.
   final IconData? leadingIcon;
@@ -30,6 +34,7 @@ class ParticipantNameBadge extends StatelessWidget {
     required this.isMuted,
     this.isDeafened = false,
     this.isScreenshare = false,
+    this.isPushToTalkIdle = false,
     this.leadingIcon,
   });
 
@@ -74,10 +79,12 @@ class ParticipantNameBadge extends StatelessWidget {
                   color: CustomColors.error,
                 ),
               if (!isScreenshare && (!isMicEnabled || isMuted || isDeafened))
-                const Icon(
+                Icon(
                   Icons.mic_off_rounded,
                   size: K.iconInline,
-                  color: CustomColors.error,
+                  color: isPushToTalkIdle && !isMuted && !isDeafened
+                      ? themeState.textTertiary
+                      : CustomColors.error,
                 ),
             ],
           ),

@@ -303,6 +303,9 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                         widget.participant,
                       ),
                       isMuted: widget.isMuted,
+                      isPushToTalkIdle: VoiceAttributes.isPushToTalkIdle(
+                        widget.participant.attributes,
+                      ),
                       isDeafened: isDeafened,
                       isScreenshare: _isScreenshare,
                       shareIdentity: _isScreenshare
@@ -372,6 +375,9 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
           userId: userId,
           isMicEnabled: VoiceAttributes.isMicOpen(widget.participant),
           isMuted: widget.isMuted,
+          isPushToTalkIdle: VoiceAttributes.isPushToTalkIdle(
+            widget.participant.attributes,
+          ),
           isDeafened: isDeafened,
           isScreenshare: _isScreenshare,
           isPaused: isPaused,

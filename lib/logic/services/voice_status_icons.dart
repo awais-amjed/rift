@@ -25,6 +25,10 @@ enum VoiceStatusIcon {
   /// A moderator is holding their microphone.
   mutedByModerator,
 
+  /// Their microphone opens while they hold their push-to-talk key, which is
+  /// up. Not a mute, so not drawn as one.
+  waitingToTalk,
+
   /// *You* have muted them, for yourself only.
   mutedForYou,
 }
@@ -70,7 +74,11 @@ List<VoiceStatusIcon> voiceStatusIcons(
     icons.add(VoiceStatusIcon.mutedForYou);
   } else if (participant.isServerMuted) {
     icons.add(VoiceStatusIcon.mutedByModerator);
-  } else if (deafened || !participant.isMicrophoneEnabled) {
+  } else if (deafened) {
+    icons.add(VoiceStatusIcon.muted);
+  } else if (participant.isPushToTalkIdle) {
+    icons.add(VoiceStatusIcon.waitingToTalk);
+  } else if (!participant.isMicrophoneEnabled) {
     icons.add(VoiceStatusIcon.muted);
   }
   return icons;

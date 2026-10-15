@@ -46,6 +46,11 @@ class ParticipantInfo {
   final bool isServerMuted;
   final bool isServerDeafened;
 
+  /// Their mic is closed only because their push-to-talk key is up — see
+  /// `VoiceAttributes.pushToTalkIdleKey`. Drawn unlike a mute: they are not
+  /// refusing to talk, just not talking yet.
+  final bool isPushToTalkIdle;
+
   /// A screen share whose window is minimised, so its picture is standing
   /// still — see `VoiceAttributes.isSharePaused`. False for anything else.
   final bool isSharePaused;
@@ -76,6 +81,7 @@ class ParticipantInfo {
     this.isSharingSound = false,
     this.isServerMuted = false,
     this.isServerDeafened = false,
+    this.isPushToTalkIdle = false,
     this.isSharePaused = false,
     this.shareQuality,
     this.watching = const {},
@@ -99,6 +105,7 @@ class ParticipantInfo {
     isSharingSound: isSharingSound,
     isServerMuted: isServerMuted,
     isServerDeafened: isServerDeafened,
+    isPushToTalkIdle: isPushToTalkIdle,
     isSharePaused: isSharePaused,
     shareQuality: shareQuality,
     watching: watching,
@@ -124,6 +131,7 @@ class ParticipantInfo {
       isSharingSound == other.isSharingSound &&
       isServerMuted == other.isServerMuted &&
       isServerDeafened == other.isServerDeafened &&
+      isPushToTalkIdle == other.isPushToTalkIdle &&
       isSharePaused == other.isSharePaused &&
       shareQuality == other.shareQuality &&
       setEquals(watching, other.watching);

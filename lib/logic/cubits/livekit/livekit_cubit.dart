@@ -332,6 +332,9 @@ class LiveKitCubit extends Cubit<LiveKitState>
         isSharingSound: sharing.sharesSound(userId),
         isServerMuted: moderation.muted,
         isServerDeafened: moderation.deafened,
+        isPushToTalkIdle: p is LocalParticipant
+            ? _pushToTalkIdle
+            : VoiceAttributes.isPushToTalkIdle(p.attributes),
         isSharePaused:
             ParticipantIdentity.isScreenshare(p.identity) &&
             VoiceAttributes.isSharePaused(p.attributes),
@@ -512,10 +515,11 @@ class LiveKitCubit extends Cubit<LiveKitState>
     final capture = _shouldCaptureMic();
     // Set before any track is touched, so one published live below never
     // carries a moment of the room — see [_pushToTalkIdle].
-    final silenced = capture && !transmit && NoiseFilter.canSilence;
+    final idle = capture && !transmit;
+    final silenced = idle && NoiseFilter.canSilence;
     NoiseFilter.setSilenced(silenced);
-    if (silenced != _pushToTalkIdle) {
-      _pushToTalkIdle = silenced;
+    if (idle != _pushToTalkIdle) {
+      _pushToTalkIdle = idle;
       unawaited(_publishSelfState());
     }
     // A mic whose capture may have died under it is published afresh rather
@@ -558,8 +562,9 @@ class LiveKitCubit extends Cubit<LiveKitState>
     if (syncParticipants) _syncParticipants();
   }
 
-  /// Push-to-talk with the key up, sending silence through the runner's
-  /// processing rather than muting the track.
+  /// Push-to-talk with the key up. Where the runner can, the mic keeps
+  /// running and sends silence through its processing rather than muting the
+  /// track.
   ///
   /// libwebrtc stops the microphone whenever every track sending it is muted,
   /// so muting on release meant opening the device again on every press, and
@@ -571,7 +576,8 @@ class LiveKitCubit extends Cubit<LiveKitState>
   /// ([VoiceAttributes.pushToTalkIdleKey]).
   ///
   /// Only where the runner can do it (Linux and Windows); elsewhere the key
-  /// mutes the track as before.
+  /// mutes the track as before. The attribute goes out either way, so a
+  /// waiting push-to-talk mic is drawn as one and not as a muted one.
   bool _pushToTalkIdle = false;
 
   @override
