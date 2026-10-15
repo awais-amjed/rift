@@ -23,18 +23,14 @@ import '../../../../../../sidebar/widgets/participant_move_menu.dart';
 /// section: mute and deafen only for somebody in this device's call, where
 /// their current state is known; move and disconnect for anybody in a call.
 /// Nothing against an admin, whom the server refuses — except a move, which
-/// it allows.
+/// it allows — and nothing at all for somebody in no call.
 class MemberCardModeration extends StatefulWidget {
   final String userId;
 
-  /// The voice channel their row is in.
-  final String channelId;
+  /// The voice channel they are in, or null when they are in none.
+  final String? channelId;
 
-  const MemberCardModeration({
-    super.key,
-    required this.userId,
-    required this.channelId,
-  });
+  const MemberCardModeration({super.key, required this.userId, this.channelId});
 
   @override
   State<MemberCardModeration> createState() => _MemberCardModerationState();
@@ -78,10 +74,15 @@ class _MemberCardModerationState extends State<MemberCardModeration> {
     });
     final theme = context.theme;
     final livekit = context.read<LiveKitCubit>();
+    final channelId = widget.channelId;
     final canMute = live != null && !admin;
+    final canMove = channelId != null;
+    final canDisconnect = canMove && !admin;
     // One or two buttons have the width to say what they do; four share it
     // and lean on their tooltips, like the row above.
-    final count = (canMute ? 2 : 0) + 1 + (admin ? 0 : 1);
+    final count =
+        (canMute ? 2 : 0) + (canMove ? 1 : 0) + (canDisconnect ? 1 : 0);
+    if (count == 0) return const SizedBox.shrink();
     String? named(String label) => count <= 2 ? label : null;
 
     return Column(
@@ -125,17 +126,18 @@ class _MemberCardModerationState extends State<MemberCardModeration> {
                 ),
               ),
             ],
-            Expanded(
-              child: ControlButton(
-                key: _moveKey,
-                dense: true,
-                icon: Icons.moving_rounded,
-                tooltip: 'Move to',
-                label: named('Move to'),
-                onTap: _openMove,
+            if (canMove)
+              Expanded(
+                child: ControlButton(
+                  key: _moveKey,
+                  dense: true,
+                  icon: Icons.moving_rounded,
+                  tooltip: 'Move to',
+                  label: named('Move to'),
+                  onTap: _openMove,
+                ),
               ),
-            ),
-            if (!admin)
+            if (canDisconnect)
               Expanded(
                 child: ControlButton(
                   dense: true,
@@ -155,7 +157,8 @@ class _MemberCardModerationState extends State<MemberCardModeration> {
   /// its own overlay entry, so it is handed the cubits it reads.
   void _openMove() {
     final box = _moveKey.currentContext?.findRenderObject() as RenderBox?;
-    if (box == null) return;
+    final from = widget.channelId;
+    if (box == null || from == null) return;
     final at = box.localToGlobal(box.size.bottomLeft(Offset.zero));
     _moveMenu.show(
       context,
@@ -164,10 +167,7 @@ class _MemberCardModerationState extends State<MemberCardModeration> {
           BlocProvider.value(value: context.read<ServerCubit>()),
           BlocProvider.value(value: context.read<ThemeCubit>()),
         ],
-        child: ParticipantMoveMenu(
-          userId: widget.userId,
-          fromChannelId: widget.channelId,
-        ),
+        child: ParticipantMoveMenu(userId: widget.userId, fromChannelId: from),
       ),
       at,
     );

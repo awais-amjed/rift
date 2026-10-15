@@ -1,21 +1,15 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/channel.dart';
 import '../../../../../data/enums/channel_type.dart';
-import '../../../../../data/enums/home_surface.dart';
 import '../../../../../data/enums/server_permission.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
-import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
-import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../responsive/shell_scope.dart';
-import '../../mobile/mobile_shell_scope.dart';
-import '../confirm_voice_switch.dart';
 import '../create_channel_dialog.dart';
+import '../open_voice_channel.dart';
 import 'widgets/channel_section.dart';
 import 'widgets/empty_channels_view.dart';
 import 'widgets/section_header.dart';
@@ -26,13 +20,11 @@ import 'widgets/voice_channel_tile/voice_channel_tile.dart';
 class ChannelList extends StatelessWidget {
   final List<Channel> channels;
   final String? selectedChannelId;
-  final ValueChanged<String?>? onChannelSelect;
 
   const ChannelList({
     super.key,
     required this.channels,
     this.selectedChannelId,
-    this.onChannelSelect,
   });
 
   @override
@@ -144,8 +136,8 @@ class ChannelList extends StatelessWidget {
                       channel: ch,
                       isSelected: selectedChannelId == ch.id,
                       headerGrip: grip,
-                      onTap: () => _openVoice(context, ch),
-                      onWatch: (userId) => _watchStream(context, ch, userId),
+                      onTap: () => openVoiceChannel(context, ch),
+                      onWatch: (userId) => watchStreamIn(context, ch, userId),
                     ),
                   ),
                 ],
@@ -155,42 +147,5 @@ class ChannelList extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  /// Opens the call in [ch], joining it unless already in it. False when the
-  /// person cancelled the switch from another call.
-  Future<bool> _openVoice(BuildContext context, Channel ch) async {
-    // On a phone the call is a page: tapping the one you are already in takes
-    // you back into it.
-    final shell = MobileShellScope.maybeOf(context);
-    if (shell != null && selectedChannelId == ch.id) {
-      shell.openCall();
-      return true;
-    }
-    // Asked before anything moves, so cancelling leaves the screen exactly as
-    // it was — the chat you were reading included.
-    if (!await confirmVoiceSwitch(context, ch)) return false;
-    if (!context.mounted) return false;
-    if (shell != null) {
-      onChannelSelect?.call(ch.id);
-      return true;
-    }
-    // Joining voice brings the voice pane back to the front.
-    context.read<AppCubit>().setSurface(HomeSurface.server);
-    unawaited(context.read<ChannelChatCubit>().closeChannel());
-    if (selectedChannelId != ch.id) onChannelSelect?.call(ch.id);
-    return true;
-  }
-
-  /// Into [userId]'s call, if not there already, and onto their stream. The
-  /// stream opens once the call has connected and it has arrived.
-  Future<void> _watchStream(
-    BuildContext context,
-    Channel ch,
-    String userId,
-  ) async {
-    final livekit = context.read<LiveKitCubit>();
-    if (!await _openVoice(context, ch)) return;
-    livekit.watchStreamOf(userId, channelId: ch.id);
   }
 }

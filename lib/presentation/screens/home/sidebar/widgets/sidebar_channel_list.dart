@@ -5,7 +5,8 @@ import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../channels/channel_list/channel_list.dart';
 
-/// Wrapper for the channel list that handles channel selection.
+/// Wrapper for the channel list that feeds it the channels and which one
+/// is selected. Joining a voice channel is `openVoiceChannel`'s.
 class SidebarChannelList extends StatelessWidget {
   const SidebarChannelList({super.key});
 
@@ -22,8 +23,6 @@ class SidebarChannelList extends StatelessWidget {
             return ChannelList(
               channels: channels,
               selectedChannelId: appState.selectedChannelId,
-              onChannelSelect: (id) =>
-                  context.read<AppCubit>().setSelectedChannelId(id),
             );
           },
         );

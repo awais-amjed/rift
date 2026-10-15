@@ -10,6 +10,7 @@ import 'package:rift/data/classes/server_member.dart';
 import 'package:rift/data/classes/server_user.dart';
 import 'package:rift/data/classes/user_permissions.dart';
 import 'package:rift/logic/cubits/app/app_cubit.dart';
+import 'package:rift/logic/cubits/channel_presence/channel_presence_cubit.dart';
 import 'package:rift/logic/cubits/dm/dm_cubit.dart';
 import 'package:rift/logic/cubits/livekit/livekit_cubit.dart';
 import 'package:rift/logic/cubits/server/server_cubit.dart';
@@ -91,14 +92,29 @@ class _StubLiveKitCubit extends Cubit<LiveKitState> implements LiveKitCubit {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+/// Presence holding whatever the test says about who is where.
+class _StubPresenceCubit extends Cubit<ChannelPresenceState>
+    implements ChannelPresenceCubit {
+  _StubPresenceCubit(super.initial);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 void main() {
   late _StubDmCubit dms;
   setUp(() => dms = _StubDmCubit());
   setUpAll(() => HydratedBloc.storage = MemoryStorage());
 
+  /// A card on Alice's row. [sharing] and [channelId] are what a voice
+  /// channel's row knows; leave both null for a members-sidebar row, which
+  /// has the card look them up in [presence] and the call.
   Future<List<String>> pump(
     WidgetTester tester, {
-    required bool sharing,
+    required bool? sharing,
+    String? channelId = 'vc-1',
+    ChannelPresenceState presence = const ChannelPresenceState(),
+    bool inkWell = false,
     LiveKitState call = const LiveKitState(),
     ServerMembersState? members,
     AppCubit? app,
@@ -121,6 +137,9 @@ void main() {
             create: (_) => StubMembersCubit(members),
           ),
           BlocProvider<LiveKitCubit>(create: (_) => _StubLiveKitCubit(call)),
+          BlocProvider<ChannelPresenceCubit>(
+            create: (_) => _StubPresenceCubit(presence),
+          ),
         ],
         child: ToastificationWrapper(
           child: MaterialApp(
@@ -133,9 +152,21 @@ void main() {
                       sharing: sharing,
                       userId: 'alice',
                       name: 'Alice',
-                      channelId: 'vc-1',
-                      onWatch: () => watched.add('alice'),
-                      child: const SizedBox(height: 32, child: Text('Alice')),
+                      channelId: channelId,
+                      onWatch: (channel) => watched.add('alice in $channel'),
+                      builder: inkWell
+                          ? (open) => InkWell(
+                              mouseCursor: WidgetStateMouseCursor.clickable,
+                              onTap: open,
+                              child: const SizedBox(
+                                height: 32,
+                                child: Text('Alice'),
+                              ),
+                            )
+                          : null,
+                      child: inkWell
+                          ? null
+                          : const SizedBox(height: 32, child: Text('Alice')),
                     ),
                   ),
                   const SizedBox(height: 400, child: Text('elsewhere')),
@@ -161,7 +192,7 @@ void main() {
 
     await tester.tap(find.text('Join and watch'));
     await tester.pumpAndSettle();
-    expect(watched, ['alice']);
+    expect(watched, ['alice in vc-1']);
     expect(find.text('Join and watch'), findsNothing);
   });
 
@@ -334,6 +365,86 @@ void main() {
     expect(find.byTooltip('Server mute'), findsNothing);
   });
 
+  group('from a members-sidebar row', () {
+    testWidgets('a well opens it, and it finds their call and their share', (
+      tester,
+    ) async {
+      final watched = await pump(
+        tester,
+        sharing: null,
+        channelId: null,
+        inkWell: true,
+        moderator: true,
+        presence: const ChannelPresenceState(
+          channelPresence: {
+            'vc-2': [
+              PresenceUser(
+                userId: 'alice',
+                displayName: 'Alice',
+                isSharingScreen: true,
+              ),
+            ],
+          },
+        ),
+      );
+      await tester.tap(find.text('Alice'));
+      await tester.pumpAndSettle();
+      expect(find.text('Sharing their screen'), findsOneWidget);
+      // In a call, so a moderator can move them or disconnect them.
+      expect(find.byTooltip('Move to'), findsOneWidget);
+      expect(find.byTooltip('Disconnect'), findsOneWidget);
+
+      await tester.tap(find.text('Join and watch'));
+      await tester.pumpAndSettle();
+      expect(watched, ['alice in vc-2']);
+    });
+
+    testWidgets('somebody in this device\'s call is read from it', (
+      tester,
+    ) async {
+      final app = AppCubit()
+        ..setParticipants(const [
+          ParticipantInfo(
+            identity: 'alice~d1',
+            userId: 'alice',
+            name: 'Alice',
+            isSharingScreen: true,
+          ),
+        ]);
+      await pump(
+        tester,
+        sharing: null,
+        channelId: null,
+        app: app,
+        call: const LiveKitState(
+          connectionState: LiveKitConnectionState.connected,
+          currentChannelId: 'vc-1',
+        ),
+      );
+      await tester.tap(find.text('Alice'));
+      await tester.pumpAndSettle();
+      expect(find.text('Watch stream'), findsOneWidget);
+    });
+
+    testWidgets('somebody in no call: no Watch, nothing to moderate', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        sharing: null,
+        channelId: null,
+        inkWell: true,
+        moderator: true,
+      );
+      await tester.tap(find.text('Alice'));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Mute for you'), findsOneWidget);
+      expect(find.widgetWithText(TextField, 'Message Alice'), findsOneWidget);
+      expect(find.text('Join and watch'), findsNothing);
+      expect(find.text('MODERATION'), findsNothing);
+    });
+  });
+
   group('where the card goes', () {
     const window = Size(800, 600);
     const card = Size(248, 340);
@@ -341,7 +452,7 @@ void main() {
     test('beside its row, centred on it', () {
       const layout = MemberCardLayout(
         anchor: Rect.fromLTWH(10, 250, 240, 32),
-        below: false,
+        side: MemberCardSide.right,
       );
       expect(
         layout.getPositionForChild(window, card),
@@ -349,15 +460,26 @@ void main() {
       );
     });
 
+    test('to the left of a row in the members sidebar', () {
+      const layout = MemberCardLayout(
+        anchor: Rect.fromLTWH(550, 250, 240, 32),
+        side: MemberCardSide.left,
+      );
+      expect(
+        layout.getPositionForChild(window, card),
+        Offset(550 - MemberCardLayout.gap - card.width, 266 - card.height / 2),
+      );
+    });
+
     test('pushed down from the top and up from the foot', () {
       const top = MemberCardLayout(
         anchor: Rect.fromLTWH(10, 0, 240, 32),
-        below: false,
+        side: MemberCardSide.right,
       );
       expect(top.getPositionForChild(window, card).dy, MemberCardLayout.margin);
       const foot = MemberCardLayout(
         anchor: Rect.fromLTWH(10, 568, 240, 32),
-        below: false,
+        side: MemberCardSide.right,
       );
       expect(
         foot.getPositionForChild(window, card).dy,
@@ -368,7 +490,7 @@ void main() {
     test('under its row on a phone, inside the screen', () {
       const layout = MemberCardLayout(
         anchor: Rect.fromLTWH(0, 100, 390, 32),
-        below: true,
+        side: MemberCardSide.below,
       );
       final at = layout.getPositionForChild(const Size(390, 844), card);
       expect(at.dx, (390 - card.width) / 2);

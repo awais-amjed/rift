@@ -24,7 +24,12 @@ import '../../../../../../participants_grid/participants_tile/stream_watchers.da
 class MemberCardStream extends StatelessWidget {
   final String userId;
 
-  const MemberCardStream({super.key, required this.userId});
+  /// Space under it when it draws something, for the button that follows —
+  /// carried here because a gap of the card's own would stand there empty
+  /// when it draws nothing.
+  final double gapBelow;
+
+  const MemberCardStream({super.key, required this.userId, this.gapBelow = 0});
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +55,7 @@ class MemberCardStream extends StatelessWidget {
     // No spacing of the column's own: the preview and the watchers draw
     // nothing until there is something to show, and a gap kept for each
     // left the card uneven.
-    return Column(
+    final lines = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (screen != null) ...[
@@ -86,6 +91,10 @@ class MemberCardStream extends StatelessWidget {
             ],
           ),
       ],
+    );
+    return Padding(
+      padding: EdgeInsets.only(bottom: gapBelow),
+      child: lines,
     );
   }
 }

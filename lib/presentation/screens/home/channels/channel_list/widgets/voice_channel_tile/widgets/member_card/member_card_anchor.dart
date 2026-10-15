@@ -9,42 +9,57 @@ import '../../../../../../profile/person/show_person_profile.dart';
 import 'member_card.dart';
 import 'member_card_layout.dart';
 
-/// A roster row that opens its person's card on a click ([MemberCard]):
-/// quick controls, a message box, and — while they have a screen up — a
-/// button to watch it, from a call you are not in yet if need be.
+/// A person's row that opens their card on a click ([MemberCard]): quick
+/// controls, a message box, and — while they have a screen up — a button to
+/// watch it, from a call you are not in yet if need be. Rows in a voice
+/// channel's roster and in the members sidebar both open it.
 ///
 /// A click, not a hover: a card that sprang open under a pointer passing down
 /// the sidebar would cover the rows below it. A click also works on a phone.
-/// Their profile and everything else stay in the right-click menu.
+/// Everything else stays in the right-click menu.
 ///
-/// The card hangs off the row's right edge, out over the page — below the row
-/// on a phone, where there is nothing to the right — kept inside the window
+/// The card hangs off the row's [side], out over the page — below the row on
+/// a phone, where there is nothing beside it — kept inside the window
 /// ([MemberCardLayout]). A click anywhere else, the row again, Escape or a
 /// scroll of the sidebar closes it.
 class MemberCardAnchor extends StatefulWidget {
   /// Whether the row's person is sharing a screen, which puts a Watch button
-  /// on the card.
-  final bool sharing;
+  /// on the card. Null to have the card work it out, as for [channelId].
+  final bool? sharing;
   final String userId;
   final String name;
 
-  /// The voice channel the row is in.
-  final String channelId;
+  /// The voice channel the row is in, or null when the row is not in one —
+  /// the members sidebar — and the card looks up where they are.
+  final String? channelId;
 
-  /// Watch their stream, joining the call first if need be.
-  final VoidCallback? onWatch;
+  /// Watch their stream in this voice channel, joining the call first if
+  /// need be.
+  final ValueChanged<String>? onWatch;
 
-  final Widget child;
+  /// Which side of the row the card opens on, away from the window edge the
+  /// row's sidebar sits against. Below on a phone, whatever this says.
+  final MemberCardSide side;
+
+  /// The row, made clickable here.
+  final Widget? child;
+
+  /// The row, for one that draws its own press — an [InkWell] — and is
+  /// handed what to call for it. A tap detector round a well would lose the
+  /// tap to it.
+  final Widget Function(VoidCallback open)? builder;
 
   const MemberCardAnchor({
     super.key,
-    required this.sharing,
+    this.sharing,
     required this.userId,
     required this.name,
-    required this.channelId,
+    this.channelId,
     required this.onWatch,
-    required this.child,
-  });
+    this.side = MemberCardSide.right,
+    this.child,
+    this.builder,
+  }) : assert((child == null) != (builder == null));
 
   @override
   State<MemberCardAnchor> createState() => _MemberCardAnchorState();
@@ -101,22 +116,26 @@ class _MemberCardAnchorState extends State<MemberCardAnchor> {
     showMemberProfile(context, userId: widget.userId, name: widget.name);
   }
 
-  void _watch() {
+  void _watch(String channelId) {
     _close();
-    widget.onWatch?.call();
+    widget.onWatch?.call(channelId);
   }
 
   @override
   Widget build(BuildContext context) {
-    final below = context.layoutMode.isCompact;
-    final row = MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: _toggle,
-        child: widget.child,
-      ),
-    );
+    final side = context.layoutMode.isCompact
+        ? MemberCardSide.below
+        : widget.side;
+    final row =
+        widget.builder?.call(_toggle) ??
+        MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _toggle,
+            child: widget.child,
+          ),
+        );
     return OverlayPortal(
       controller: _portal,
       overlayChildBuilder: (overlayContext) {
@@ -124,7 +143,7 @@ class _MemberCardAnchorState extends State<MemberCardAnchor> {
         if (rect == null) return const SizedBox.shrink();
         return Positioned.fill(
           child: CustomSingleChildLayout(
-            delegate: MemberCardLayout(anchor: rect, below: below),
+            delegate: MemberCardLayout(anchor: rect, side: side),
             child: TapRegion(
               groupId: _tapGroup,
               onTapOutside: (_) => _close(),
@@ -139,9 +158,11 @@ class _MemberCardAnchorState extends State<MemberCardAnchor> {
                   builder: (context, t, child) => Opacity(
                     opacity: t,
                     child: Transform.translate(
-                      offset: below
-                          ? Offset(0, -6 * (1 - t))
-                          : Offset(-6 * (1 - t), 0),
+                      offset: switch (side) {
+                        MemberCardSide.right => Offset(-6 * (1 - t), 0),
+                        MemberCardSide.left => Offset(6 * (1 - t), 0),
+                        MemberCardSide.below => Offset(0, -6 * (1 - t)),
+                      },
                       child: child,
                     ),
                   ),
@@ -149,13 +170,10 @@ class _MemberCardAnchorState extends State<MemberCardAnchor> {
                     userId: widget.userId,
                     name: widget.name,
                     channelId: widget.channelId,
+                    sharing: widget.sharing,
                     onProfile: _profile,
                     onClose: _close,
-                    // Only while their share is up: the card stays open
-                    // when it ends, and the button goes.
-                    onWatch: widget.sharing && widget.onWatch != null
-                        ? _watch
-                        : null,
+                    onWatch: widget.onWatch == null ? null : _watch,
                   ),
                 ),
               ),

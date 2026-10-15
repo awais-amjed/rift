@@ -149,7 +149,7 @@ class ChannelRoster extends StatelessWidget {
     userId: userId,
     name: name,
     channelId: channelId,
-    onWatch: onWatch == null ? null : () => onWatch!(userId),
+    onWatch: onWatch == null ? null : (_) => onWatch!(userId),
     child: child,
   );
 

@@ -1,17 +1,21 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/participant_setting.dart';
 import '../../../../../data/classes/role.dart';
 import '../../../../../data/classes/server_member.dart';
 import '../../../../../data/constants.dart';
+import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/context_menu_region.dart';
 import '../../../../common/user_avatar.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../../../theme/theme_context.dart';
-import '../../profile/person/show_person_profile.dart';
+import '../../channels/channel_list/widgets/voice_channel_tile/widgets/member_card/member_card_anchor.dart';
+import '../../channels/channel_list/widgets/voice_channel_tile/widgets/member_card/member_card_layout.dart';
+import '../../channels/open_voice_channel.dart';
 import '../../sidebar/widgets/participant_context_menu.dart';
 import 'role_chip.dart';
 
@@ -54,10 +58,34 @@ class MemberRow extends StatelessWidget {
       name: member.displayName,
       isLocal: isMe,
     );
-    return ContextMenuRegion(contextMenu: menu, child: _buildRow(context));
+    return ContextMenuRegion(
+      contextMenu: menu,
+      // The card a voice channel's rows open, from the other side: it looks
+      // up which call they are in, and opens to the left, over the page.
+      child: MemberCardAnchor(
+        userId: member.id,
+        name: member.displayName,
+        side: MemberCardSide.left,
+        onWatch: (channelId) => _watch(context, channelId),
+        builder: (open) => _buildRow(context, open),
+      ),
+    );
   }
 
-  Widget _buildRow(BuildContext context) {
+  /// Into the call they are sharing in, and onto their stream.
+  void _watch(BuildContext context, String channelId) {
+    final channel = context
+        .read<ServerCubit>()
+        .state
+        .selectedServer
+        ?.channels
+        .where((ch) => ch.id == channelId)
+        .firstOrNull;
+    if (channel == null) return;
+    unawaited(watchStreamIn(context, channel, member.id));
+  }
+
+  Widget _buildRow(BuildContext context, VoidCallback openCard) {
     final themeState = context.theme;
     final locallyMuted = setting?.muted ?? false;
     // Offline members stay on the list but recede — the roster should be a
@@ -67,10 +95,10 @@ class MemberRow extends StatelessWidget {
 
     return Opacity(
       opacity: dim,
-      // A well, because clicking a person opens their profile. It used to
-      // do nothing at all — the profile was in the right-click menu and the
-      // row did not even change the cursor, so there was nothing to say the
-      // row was live.
+      // A well, because clicking a person opens their card — their profile
+      // is a click on its avatar. It used to do nothing at all: the profile
+      // was in the right-click menu and the row did not even change the
+      // cursor, so there was nothing to say the row was live.
       child: Material(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(K.radiusRow),
@@ -78,13 +106,7 @@ class MemberRow extends StatelessWidget {
           mouseCursor: WidgetStateMouseCursor.clickable,
           borderRadius: BorderRadius.circular(K.radiusRow),
           hoverColor: themeState.bgHover,
-          onTap: () => unawaited(
-            showMemberProfile(
-              context,
-              userId: member.id,
-              name: member.displayName,
-            ),
-          ),
+          onTap: openCard,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
             child: Row(

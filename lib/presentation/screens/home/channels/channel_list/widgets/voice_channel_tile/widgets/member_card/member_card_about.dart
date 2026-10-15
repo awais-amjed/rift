@@ -21,13 +21,11 @@ import '../../../../../../sidebar/widgets/voice_status_row_icons.dart';
 /// has not reached us, and a guess would be worse than nothing.
 class MemberCardAbout extends StatelessWidget {
   final String userId;
-  final String channelId;
 
-  const MemberCardAbout({
-    super.key,
-    required this.userId,
-    required this.channelId,
-  });
+  /// The voice channel they are in, if any.
+  final String? channelId;
+
+  const MemberCardAbout({super.key, required this.userId, this.channelId});
 
   @override
   Widget build(BuildContext context) {
@@ -88,10 +86,12 @@ class MemberCardAbout extends StatelessWidget {
   /// them. Selected as names, so a breath — which changes the roster but not
   /// this — redraws nothing.
   List<VoiceStatusIcon>? _states(BuildContext context) {
+    final channelId = this.channelId;
     final cannotHear =
         context.select<ServerMembersCubit, bool>(
           (cubit) => cubit.state.byId[userId]?.isBot ?? false,
         ) &&
+        channelId != null &&
         !context.watch<VoiceListenersCubit>().hears(channelId, userId);
     final key = context.select<AppCubit, String?>((cubit) {
       final live = cubit.state.participants
