@@ -5,10 +5,18 @@ class PresenceUser extends Equatable {
   final String userId;
   final String displayName;
 
-  const PresenceUser({required this.userId, required this.displayName});
+  /// Whether they have a screen up in their call, as their own app last said
+  /// — see `VoiceLocations.encode`.
+  final bool isSharingScreen;
+
+  const PresenceUser({
+    required this.userId,
+    required this.displayName,
+    this.isSharingScreen = false,
+  });
 
   @override
-  List<Object?> get props => [userId, displayName];
+  List<Object?> get props => [userId, displayName, isSharingScreen];
 }
 
 /// Who is online on the selected server, and which voice channel each is in.

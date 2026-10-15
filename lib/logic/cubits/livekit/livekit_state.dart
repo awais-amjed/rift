@@ -60,6 +60,13 @@ class LiveKitState extends Equatable {
   /// operator may rename a region while somebody is in a call on it.
   final String? connectedLivekitUrl;
 
+  /// A stream the stage should open full size, by identity: one asked for
+  /// from the sidebar ([LiveKitCubit.watchStreamOf]), which has no stage of
+  /// its own to tell. Held until the stage says it has (`streamOpened`),
+  /// since it may not be built yet when the stream arrives. Dropped with the
+  /// call.
+  final String? streamToOpen;
+
   const LiveKitState({
     this.connectionState = LiveKitConnectionState.disconnected,
     this.room,
@@ -78,6 +85,7 @@ class LiveKitState extends Equatable {
     this.isServerDeafened = false,
     this.connectedAt,
     this.connectedLivekitUrl,
+    this.streamToOpen,
   });
 
   /// In a call of either kind, connected or on the way.
@@ -157,6 +165,8 @@ class LiveKitState extends Equatable {
     bool? isServerDeafened,
     DateTime? connectedAt,
     String? connectedLivekitUrl,
+    String? streamToOpen,
+    bool clearStreamToOpen = false,
     bool clearRoom = false,
     bool clearChannelId = false,
     bool clearDmCall = false,
@@ -192,6 +202,11 @@ class LiveKitState extends Equatable {
       connectedLivekitUrl: nextConnection == LiveKitConnectionState.connected
           ? (connectedLivekitUrl ?? this.connectedLivekitUrl)
           : null,
+      streamToOpen:
+          nextConnection == LiveKitConnectionState.connected &&
+              !clearStreamToOpen
+          ? (streamToOpen ?? this.streamToOpen)
+          : null,
     );
   }
 
@@ -214,5 +229,6 @@ class LiveKitState extends Equatable {
     isServerDeafened,
     connectedAt,
     connectedLivekitUrl,
+    streamToOpen,
   ];
 }

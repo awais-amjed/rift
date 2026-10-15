@@ -191,6 +191,19 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
         if (mounted) _setExpanded(null);
       });
     }
+    // A stream asked for from the sidebar opens the way one started here
+    // does: full size. Asked through the cubit, since the sidebar has no tile
+    // to press — and the stage may only now be built for it.
+    final toOpen = context.select<LiveKitCubit, String?>(
+      (cubit) => cubit.state.streamToOpen,
+    );
+    if (toOpen != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _setExpanded('$toOpen#share');
+        context.read<LiveKitCubit>().streamOpened();
+      });
+    }
 
     // If a tile is expanded, show only that tile in full view
     if (_expandedKey != null) {

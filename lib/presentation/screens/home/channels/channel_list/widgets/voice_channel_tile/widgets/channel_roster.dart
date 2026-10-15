@@ -13,6 +13,7 @@ import '../../../../../sidebar/widgets/draggable_member.dart';
 import '../../../../../sidebar/widgets/participant_context_menu.dart';
 import '../../../../../sidebar/widgets/participant_list_item.dart';
 import 'presence_member_row.dart';
+import 'stream_card/stream_card_anchor.dart';
 import 'summoned_bot_row.dart';
 
 /// The people inside one voice channel, from both of the places we know about
@@ -35,6 +36,11 @@ class ChannelRoster extends StatelessWidget {
   final List<PresenceUser> presenceUsers;
 
   final Map<String, ParticipantSetting> settings;
+
+  /// Watch this person's stream, joining the call first if need be. A row of
+  /// somebody sharing opens a card offering it.
+  final ValueChanged<String>? onWatch;
+
   const ChannelRoster({
     super.key,
     required this.channelId,
@@ -42,6 +48,7 @@ class ChannelRoster extends StatelessWidget {
     required this.presenceUsers,
     this.summoned = const [],
     required this.settings,
+    this.onWatch,
   });
 
   @override
@@ -77,14 +84,19 @@ class ChannelRoster extends StatelessWidget {
             name: roster.nameFor(participant.userId, participant.name),
             isLocal: participant.isLocal,
             enabled: canMoveOthers || participant.isLocal,
-            child: ParticipantListItem(
-              participant: participant,
-              setting: settings[participant.userId],
-              cannotHear: cannotHear(participant.userId),
-              contextMenu: ParticipantContextMenu(
-                identity: participant.identity,
-                name: roster.nameFor(participant.userId, participant.name),
-                isLocal: participant.isLocal,
+            child: _streamCard(
+              userId: participant.userId,
+              name: roster.nameFor(participant.userId, participant.name),
+              sharing: participant.isSharingScreen,
+              child: ParticipantListItem(
+                participant: participant,
+                setting: settings[participant.userId],
+                cannotHear: cannotHear(participant.userId),
+                contextMenu: ParticipantContextMenu(
+                  identity: participant.identity,
+                  name: roster.nameFor(participant.userId, participant.name),
+                  isLocal: participant.isLocal,
+                ),
               ),
             ),
           ),
@@ -94,10 +106,15 @@ class ChannelRoster extends StatelessWidget {
             userId: user.userId,
             name: roster.nameFor(user.userId, user.displayName),
             enabled: canMoveOthers,
-            child: PresenceMemberRow(
-              user: user,
-              setting: settings[user.userId],
-              cannotHear: cannotHear(user.userId),
+            child: _streamCard(
+              userId: user.userId,
+              name: roster.nameFor(user.userId, user.displayName),
+              sharing: user.isSharingScreen,
+              child: PresenceMemberRow(
+                user: user,
+                setting: settings[user.userId],
+                cannotHear: cannotHear(user.userId),
+              ),
             ),
           ),
         // Bots that were called in and have not turned up. The two lists above
@@ -121,6 +138,20 @@ class ChannelRoster extends StatelessWidget {
   bool _present(String botId) =>
       participants.any((p) => p.userId == botId) ||
       presenceUsers.any((u) => u.userId == botId);
+
+  Widget _streamCard({
+    required String userId,
+    required String name,
+    required bool sharing,
+    required Widget child,
+  }) => StreamCardAnchor(
+    sharing: sharing,
+    userId: userId,
+    name: name,
+    channelId: channelId,
+    onWatch: onWatch == null ? null : () => onWatch!(userId),
+    child: child,
+  );
 
   Widget _draggable({
     required Key key,

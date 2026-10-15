@@ -9,6 +9,7 @@ import '../../../../../data/enums/home_surface.dart';
 import '../../../../../data/enums/server_permission.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
+import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../responsive/shell_scope.dart';
@@ -144,6 +145,7 @@ class ChannelList extends StatelessWidget {
                       isSelected: selectedChannelId == ch.id,
                       headerGrip: grip,
                       onTap: () => _openVoice(context, ch),
+                      onWatch: (userId) => _watchStream(context, ch, userId),
                     ),
                   ),
                 ],
@@ -155,25 +157,40 @@ class ChannelList extends StatelessWidget {
     );
   }
 
-  Future<void> _openVoice(BuildContext context, Channel ch) async {
+  /// Opens the call in [ch], joining it unless already in it. False when the
+  /// person cancelled the switch from another call.
+  Future<bool> _openVoice(BuildContext context, Channel ch) async {
     // On a phone the call is a page: tapping the one you are already in takes
     // you back into it.
     final shell = MobileShellScope.maybeOf(context);
     if (shell != null && selectedChannelId == ch.id) {
       shell.openCall();
-      return;
+      return true;
     }
     // Asked before anything moves, so cancelling leaves the screen exactly as
     // it was — the chat you were reading included.
-    if (!await confirmVoiceSwitch(context, ch)) return;
-    if (!context.mounted) return;
+    if (!await confirmVoiceSwitch(context, ch)) return false;
+    if (!context.mounted) return false;
     if (shell != null) {
       onChannelSelect?.call(ch.id);
-      return;
+      return true;
     }
     // Joining voice brings the voice pane back to the front.
     context.read<AppCubit>().setSurface(HomeSurface.server);
     unawaited(context.read<ChannelChatCubit>().closeChannel());
     if (selectedChannelId != ch.id) onChannelSelect?.call(ch.id);
+    return true;
+  }
+
+  /// Into [userId]'s call, if not there already, and onto their stream. The
+  /// stream opens once the call has connected and it has arrived.
+  Future<void> _watchStream(
+    BuildContext context,
+    Channel ch,
+    String userId,
+  ) async {
+    final livekit = context.read<LiveKitCubit>();
+    if (!await _openVoice(context, ch)) return;
+    livekit.watchStreamOf(userId, channelId: ch.id);
   }
 }

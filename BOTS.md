@@ -518,7 +518,9 @@ alone placed it. A member whose app connected before the bot arrived never saw i
 whose app read the roster while it was in the call kept drawing it there after it left (online,
 so still believed) until the app restarted. Both SDKs now send the app's own `here` message when a
 connection joins and when it closes for any reason (`voice_location` in each). They send it over
-Realtime's HTTP broadcast, since a bot holds no socket on that topic. For a bot on an older SDK,
+Realtime's HTTP broadcast, since a bot holds no socket on that topic. An app adds `sharing: true`
+while it has a screen up, so the sidebar can offer to watch it; a bot never sends it, and its
+absence means nothing is shared. For a bot on an older SDK,
 a member in the call whose room loses somebody still placed there reads the roster again
 (`VoiceLocations.leftSilently`). Reproduced and fixed Oct 13 2026 on the local server: each SDK's
 real `joinVoice` and leave, watched by a member probe that applied the broadcasts as

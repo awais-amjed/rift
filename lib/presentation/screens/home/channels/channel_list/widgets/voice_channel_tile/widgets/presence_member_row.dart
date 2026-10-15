@@ -65,7 +65,9 @@ class PresenceMemberRow extends StatelessWidget {
     final isMuted = setting?.muted ?? false;
 
     // A tint, not an ink well: clicking a person does nothing — their profile
-    // is in the menu — and the tint is what says the row has one.
+    // is in the menu — and the tint is what says the row has one. Somebody
+    // sharing is the exception, and the roster wraps the row for that
+    // (`StreamCardAnchor`).
     return AnimatedContainer(
       duration: AppMotion.react,
       curve: AppMotion.settle,
@@ -96,6 +98,17 @@ class PresenceMemberRow extends StatelessWidget {
                 ),
               ),
             ),
+            // What their own app last said; the accent, as in a call you
+            // are in, because it is something you might go and look at.
+            if (user.isSharingScreen)
+              Tooltip(
+                message: 'Sharing their screen',
+                child: Icon(
+                  Icons.monitor_outlined,
+                  size: RosterRowMetrics.of(context).iconSize,
+                  color: themeState.accentBright,
+                ),
+              ),
             if (cannotHear)
               Tooltip(
                 message: VoiceStatusRowIcons.cannotHearTooltip,

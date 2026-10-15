@@ -3,7 +3,8 @@ import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:livekit_client/livekit_client.dart' show RemoteParticipant;
+import 'package:livekit_client/livekit_client.dart'
+    show RemoteParticipant, TrackSource;
 import 'package:supabase/supabase.dart';
 
 import '../../../data/apis/voice_api.dart';
@@ -16,6 +17,7 @@ import '../../../data/repositories/voice_region_probe.dart';
 import '../../services/call_start_times.dart';
 import '../../services/presence_ration.dart';
 import '../../services/server_realtime.dart';
+import '../../services/share_presence.dart';
 import '../../services/voice_broadcast.dart';
 import '../../services/voice_locations.dart';
 import '../livekit/livekit_cubit.dart';
@@ -137,6 +139,7 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
   void _connectPresence(
     Server server, {
     Map<String, String> locations = const {},
+    Set<String> sharing = const {},
   }) {
     _currentServerId = server.id;
     _currentUserId = server.user?.id;
@@ -163,6 +166,7 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
         fetchRoster: _fetchRoster,
         onChanged: _emit,
         initial: locations,
+        initialSharing: sharing,
       );
       _announceLocation();
     }
@@ -225,15 +229,31 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
     // that then fails ends in `error`, which says "nowhere" like leaving
     // does. A DM call connects with no channel, and so leaves the one it
     // came from straight away too.
-    _voice?.announce(switch (lkState.connectionState) {
-      LiveKitConnectionState.connecting ||
-      LiveKitConnectionState.connected => lkState.currentChannelId,
-      _ => null,
-    });
+    final userId = _currentUserId;
+    _voice?.announce(
+      switch (lkState.connectionState) {
+        LiveKitConnectionState.connecting ||
+        LiveKitConnectionState.connected => lkState.currentChannelId,
+        _ => null,
+      },
+      // A desktop's screen is a connection of its own, which comes back to
+      // us like anybody else's; a phone's rides our own. The sweep the
+      // roster rows use finds either.
+      sharing:
+          userId != null &&
+          sharePresenceOf(
+            lkState.participants,
+            identityOf: (p) => p.identity,
+            publishesScreenshare: (p) => p.videoTrackPublications.any(
+              (pub) => pub.source == TrackSource.screenShareVideo,
+            ),
+          ).sharesScreen(userId),
+    );
   }
 
   /// The authoritative roster from LiveKit, or null when it can't be had.
-  Future<Map<String, String>?> _fetchRoster() async {
+  Future<({Map<String, String> locations, Set<String>? sharing})?>
+  _fetchRoster() async {
     // The subscribe that asked for this can land after the selection moved on.
     if (_session.selectedServer == null) return null;
     final asked = _currentServerId;
@@ -255,11 +275,17 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
     }
     final roster = data['roster'];
     if (roster is! Map) return null;
-    return {
-      for (final entry in roster.entries)
-        if (entry.key is String && entry.value is String)
-          entry.key as String: entry.value as String,
-    };
+    // Who has a screen up. Absent from a server older than the list, which
+    // is not the same as nobody sharing.
+    final sharing = data['sharing'];
+    return (
+      locations: {
+        for (final entry in roster.entries)
+          if (entry.key is String && entry.value is String)
+            entry.key as String: entry.value as String,
+      },
+      sharing: sharing is List ? sharing.whereType<String>().toSet() : null,
+    );
   }
 
   /// Ask how busy each region is now, for a picker about to open.
@@ -296,10 +322,11 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
     if (server == null || server.supabaseKey == null) return;
 
     final locations = _voice?.locations ?? const <String, String>{};
+    final sharing = _voice?.sharing ?? const <String>{};
     final epoch = ++_connectEpoch;
     await _disconnectPresence(keepState: true);
     if (isClosed || epoch != _connectEpoch) return;
-    _connectPresence(server, locations: locations);
+    _connectPresence(server, locations: locations, sharing: sharing);
   }
 
   void _syncPresence() {
@@ -366,12 +393,17 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
       excluding: _session.selectedServer?.user?.id,
     );
 
+    final sharing = _voice?.sharing ?? const <String>{};
     final rosters = <String, List<PresenceUser>>{};
     for (final entry in byChannel.entries) {
       rosters[entry.key] = [
         for (final userId in entry.value)
           if (_names[userId] case final name?)
-            PresenceUser(userId: userId, displayName: name),
+            PresenceUser(
+              userId: userId,
+              displayName: name,
+              isSharingScreen: sharing.contains(userId),
+            ),
       ]..sort((a, b) => a.displayName.compareTo(b.displayName));
     }
 

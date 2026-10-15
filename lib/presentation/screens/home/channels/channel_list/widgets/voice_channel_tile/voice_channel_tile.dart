@@ -39,12 +39,16 @@ class VoiceChannelTile extends StatelessWidget {
   /// the header: the people below it are dragged too, into other calls.
   final Widget Function(Widget header)? headerGrip;
 
+  /// Watch somebody's stream in this channel, by user id.
+  final ValueChanged<String>? onWatch;
+
   const VoiceChannelTile({
     super.key,
     required this.channel,
     required this.isSelected,
     this.onTap,
     this.headerGrip,
+    this.onWatch,
   });
 
   @override
@@ -226,6 +230,7 @@ class VoiceChannelTile extends StatelessWidget {
             presenceUsers: presenceUsers,
             summoned: summoned,
             settings: settings,
+            onWatch: onWatch,
           ),
         ],
       ),

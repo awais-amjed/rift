@@ -90,4 +90,54 @@ void main() {
       expect(sharesWithoutOwner(['benny~d2']), isEmpty);
     });
   });
+
+  group('screenOf', () {
+    String? screen(List<P> participants, String userId) => screenOf(
+      participants,
+      userId,
+      identityOf: (p) => p.identity,
+      publishesScreenshare: (p) => p.publishesScreen,
+    );
+
+    test('finds a desktop share by its own connection', () {
+      expect(
+        screen([
+          const P('alice~d1'),
+          const P('alice~d1_screenshare', publishesScreen: true),
+        ], 'alice'),
+        'alice~d1_screenshare',
+      );
+    });
+
+    test('finds a phone share on the connection it talks on', () {
+      expect(
+        screen([const P('bob~p1', publishesScreen: true)], 'bob'),
+        'bob~p1',
+      );
+    });
+
+    test('prefers the desktop share over a phone', () {
+      expect(
+        screen([
+          const P('bob~p1', publishesScreen: true),
+          const P('bob~d1_screenshare', publishesScreen: true),
+        ], 'bob'),
+        'bob~d1_screenshare',
+      );
+    });
+
+    test('waits for a share that has not published its picture', () {
+      expect(screen([const P('alice~d1_screenshare')], 'alice'), isNull);
+    });
+
+    test('never picks somebody else, or a shared track', () {
+      expect(
+        screen([
+          const P('carol~d1_screenshare', publishesScreen: true),
+          const P('alice~d1_soundshare', publishesScreen: true),
+        ], 'alice'),
+        isNull,
+      );
+    });
+  });
 }

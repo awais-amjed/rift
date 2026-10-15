@@ -72,6 +72,7 @@ part 'livekit_room_events.dart';
 part 'livekit_screenshare.dart';
 part 'livekit_state.dart';
 part 'livekit_voice_activity.dart';
+part 'livekit_watch_request.dart';
 
 /// Over the cubit-hub budget and one job: one call. What is left here after
 /// eight parts is the internals several of them share, which CODE_STYLE §5 says
@@ -90,7 +91,8 @@ class LiveKitCubit extends Cubit<LiveKitState>
         _ScreenshareMixin,
         _RoomEventsMixin,
         _VoiceActivityMixin,
-        _CaptureReviveMixin {
+        _CaptureReviveMixin,
+        _WatchRequestMixin {
   @override
   final AppCubit _appCubit;
   @override
@@ -350,6 +352,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
 
     _appCubit.setParticipants(ParticipantRoster.dedupeByUser(infos));
     _syncSelfModeration(infos);
+    _openWanted();
   }
 
   static bool _sameConnections(List<Participant> a, List<Participant> b) {

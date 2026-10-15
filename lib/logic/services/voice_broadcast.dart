@@ -18,26 +18,34 @@ import 'voice_locations.dart';
 /// So on subscribe we fetch a snapshot from LiveKit ([fetchRoster]) and say
 /// again where we are, because a client that has just connected has missed
 /// every change so far and everyone else has missed ours.
+///
+/// Who has a screen up rides the same messages ([sharing]): it changes about
+/// as often as a location does, and only ever for somebody in a call.
 class VoiceBroadcast {
   /// The local user, whose location we're the only one who can report.
   final String userId;
 
-  /// The authoritative roster, `{userId: channelId}`, or null if it can't be
+  /// The authoritative roster, `{userId: channelId}`, and who is sharing a
+  /// screen (null from a server that does not say), or null if it can't be
   /// fetched right now — a failed snapshot is survivable, we just start from
   /// what the deltas tell us.
-  final Future<Map<String, String>?> Function() fetchRoster;
+  final Future<({Map<String, String> locations, Set<String>? sharing})?>
+  Function()
+  fetchRoster;
 
   /// [locations] moved.
   final void Function() onChanged;
 
   RealtimeLease? _topic;
   Map<String, String> _locations;
+  Set<String> _sharing;
   bool _subscribed = false;
 
   /// Where we last told everyone we are. Held separately from the map because
   /// broadcast doesn't echo to the sender, so our own entry never arrives — and
   /// "we've said nothing yet" is not the same as "we said we're nowhere".
   String? _announced;
+  bool _announcedSharing = false;
   bool _hasAnnounced = false;
 
   /// Everyone whose own broadcast reached us since the in-flight snapshot was
@@ -74,7 +82,9 @@ class VoiceBroadcast {
     required this.fetchRoster,
     required this.onChanged,
     Map<String, String> initial = const {},
-  }) : _locations = initial {
+    Set<String> initialSharing = const {},
+  }) : _locations = initial,
+       _sharing = initialSharing {
     _topic = realtime.join(
       server,
       VoiceLocations.topic(server.id),
@@ -110,14 +120,24 @@ class VoiceBroadcast {
   /// Where each member is, the local user included if they've been heard about.
   Map<String, String> get locations => _locations;
 
-  /// Tell everyone we're now in [channelId], or nowhere when it's null.
+  /// Who has a screen up, by user id.
+  Set<String> get sharing => _sharing;
+
+  /// Tell everyone we're now in [channelId], or nowhere when it's null, and
+  /// whether we have a screen up there.
   ///
   /// Repeating ourselves is dropped: LiveKit emits state far more often than it
   /// changes rooms, and every one of those would otherwise be a message to the
   /// whole server.
-  void announce(String? channelId) {
-    if (_hasAnnounced && channelId == _announced) return;
+  void announce(String? channelId, {bool sharing = false}) {
+    sharing = sharing && channelId != null;
+    if (_hasAnnounced &&
+        channelId == _announced &&
+        sharing == _announcedSharing) {
+      return;
+    }
     _announced = channelId;
+    _announcedSharing = sharing;
     _hasAnnounced = true;
     _send();
   }
@@ -129,7 +149,11 @@ class VoiceBroadcast {
     if (!_subscribed) return;
     _topic?.send(
       VoiceLocations.event,
-      VoiceLocations.encode(userId: userId, channelId: _announced),
+      VoiceLocations.encode(
+        userId: userId,
+        channelId: _announced,
+        sharing: _announcedSharing,
+      ),
     );
   }
 
@@ -143,6 +167,12 @@ class VoiceBroadcast {
       userId: delta.userId,
       channelId: delta.channelId,
     );
+    _sharing = VoiceLocations.applySharing(
+      _sharing,
+      userId: delta.userId,
+      channelId: delta.channelId,
+      sharing: delta.sharing,
+    );
     onChanged();
   }
 
@@ -153,9 +183,15 @@ class VoiceBroadcast {
     // A newer snapshot started while this one was out, or we were torn down.
     if (roster == null || _disposed || epoch != _epoch) return;
     _locations = VoiceLocations.mergeSnapshot(
-      roster,
+      roster.locations,
       current: _locations,
       heard: _heard,
+    );
+    _sharing = VoiceLocations.mergeSharing(
+      roster.sharing,
+      current: _sharing,
+      heard: _heard,
+      locations: _locations,
     );
     onChanged();
   }

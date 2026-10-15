@@ -67,3 +67,27 @@ Set<String> sharesWithoutOwner(Iterable<String> identities) {
         identity,
   };
 }
+
+/// The connection carrying [userId]'s screen, to watch it by, or null while
+/// none has one up yet.
+///
+/// A desktop's share is a connection of its own, and is preferred; a phone's
+/// rides the connection its owner talks on. Only a connection that has
+/// published the picture counts: one that has joined and not yet published
+/// has nothing to subscribe to, and asking would come back empty.
+String? screenOf<T>(
+  Iterable<T> participants,
+  String userId, {
+  required String Function(T) identityOf,
+  required bool Function(T) publishesScreenshare,
+}) {
+  String? phone;
+  for (final participant in participants) {
+    final identity = identityOf(participant);
+    if (ParticipantIdentity.userIdOf(identity) != userId) continue;
+    if (!publishesScreenshare(participant)) continue;
+    if (ParticipantIdentity.isScreenshare(identity)) return identity;
+    if (!ParticipantIdentity.isShare(identity)) phone ??= identity;
+  }
+  return phone;
+}

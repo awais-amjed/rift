@@ -50,6 +50,101 @@ void main() {
     });
   });
 
+  group('sharing', () {
+    test('round-trips a screen up', () {
+      final delta = VoiceLocations.decode(
+        VoiceLocations.encode(
+          userId: 'u1',
+          channelId: 'general',
+          sharing: true,
+        ),
+      );
+
+      expect(delta?.sharing, isTrue);
+    });
+
+    test('says nothing extra when nothing is shared', () {
+      // The same message an older app and every bot send.
+      final message = VoiceLocations.encode(userId: 'u1', channelId: 'general');
+
+      expect(message.containsKey('sharing'), isFalse);
+      expect(VoiceLocations.decode(message)?.sharing, isFalse);
+    });
+
+    test('leaving voice takes the share with it', () {
+      final delta = VoiceLocations.decode({
+        'v': 1,
+        'userId': 'u1',
+        'channelId': null,
+        'sharing': true,
+      });
+
+      expect(delta?.sharing, isFalse);
+      expect(
+        VoiceLocations.applySharing(
+          const {'u1'},
+          userId: 'u1',
+          channelId: null,
+          sharing: true,
+        ),
+        isEmpty,
+      );
+    });
+
+    test('a delta turns a screen on and off', () {
+      final on = VoiceLocations.applySharing(
+        const {},
+        userId: 'u1',
+        channelId: 'general',
+        sharing: true,
+      );
+      expect(on, {'u1'});
+      expect(
+        VoiceLocations.applySharing(
+          on,
+          userId: 'u1',
+          channelId: 'general',
+          sharing: false,
+        ),
+        isEmpty,
+      );
+    });
+
+    test('a snapshot decides for everyone not heard from since', () {
+      final next = VoiceLocations.mergeSharing(
+        const {'u2'},
+        current: const {'u1'},
+        heard: const {},
+        locations: const {'u1': 'a', 'u2': 'a'},
+      );
+
+      expect(next, {'u2'});
+    });
+
+    test('a live delta beats the snapshot it raced', () {
+      final next = VoiceLocations.mergeSharing(
+        const {'u2'},
+        current: const {'u1'},
+        heard: const {'u1', 'u2'},
+        locations: const {'u1': 'a', 'u2': 'a'},
+      );
+
+      expect(next, {'u1'});
+    });
+
+    test('a server that does not say keeps what the broadcasts said', () {
+      final next = VoiceLocations.mergeSharing(
+        null,
+        current: const {'u1', 'u2'},
+        heard: const {},
+        // u2 is no longer in a call.
+        locations: const {'u1': 'a'},
+      );
+
+      expect(next, {'u1'});
+    });
+  });
+
   group('applying a delta', () {
     test('moves someone into a channel', () {
       final next = VoiceLocations.applyDelta(

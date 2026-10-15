@@ -24,10 +24,21 @@ class VoiceLocations {
   static const String event = 'here';
   static const int version = 1;
 
+  /// [sharing] says they have a screen up, so the sidebar can offer to watch
+  /// it from a call the reader is not in. Written only when true: a message
+  /// without it — every bot's, and an older app's — means nothing is shared,
+  /// which is what it always meant. Still version 1, since an older reader
+  /// ignores a key it does not know.
   static Map<String, dynamic> encode({
     required String userId,
     required String? channelId,
-  }) => {'v': version, 'userId': userId, 'channelId': channelId};
+    bool sharing = false,
+  }) => {
+    'v': version,
+    'userId': userId,
+    'channelId': channelId,
+    if (sharing && channelId != null) 'sharing': true,
+  };
 
   /// The delta in a broadcast [message], or null if it isn't one we understand.
   ///
@@ -37,7 +48,7 @@ class VoiceLocations {
   /// A null `channelId` is a real value — it means *left voice* — so "absent"
   /// and "null" have to stay distinguishable, hence the record rather than a
   /// bare string.
-  static ({String userId, String? channelId})? decode(
+  static ({String userId, String? channelId, bool sharing})? decode(
     Map<String, dynamic> message,
   ) {
     final payload = (message['payload'] ?? message) as Map<String, dynamic>?;
@@ -49,7 +60,49 @@ class VoiceLocations {
     if (channelId != null && (channelId is! String || channelId.isEmpty)) {
       return null;
     }
-    return (userId: userId, channelId: channelId as String?);
+    return (
+      userId: userId,
+      channelId: channelId as String?,
+      sharing: channelId != null && payload['sharing'] == true,
+    );
+  }
+
+  /// [current] with [userId]'s screen up or down. Leaving voice takes a
+  /// share with it, whatever the message said.
+  static Set<String> applySharing(
+    Set<String> current, {
+    required String userId,
+    required String? channelId,
+    required bool sharing,
+  }) {
+    final on = sharing && channelId != null;
+    if (on == current.contains(userId)) return current;
+    return on ? {...current, userId} : ({...current}..remove(userId));
+  }
+
+  /// Folds the sharers a roster read reported into what we already have,
+  /// the way [mergeSnapshot] folds the locations: anyone in [heard] spoke
+  /// after the read was taken, so [current] decides for them.
+  ///
+  /// A null [snapshot] is a server from before the roster listed sharers. It
+  /// knows nothing either way, so what the broadcasts said stands, for
+  /// whoever the merged [locations] still place in a call.
+  static Set<String> mergeSharing(
+    Set<String>? snapshot, {
+    required Set<String> current,
+    required Set<String> heard,
+    required Map<String, String> locations,
+  }) {
+    final next = <String>{
+      for (final userId in snapshot ?? current)
+        if (!heard.contains(userId)) userId,
+      for (final userId in heard)
+        if (current.contains(userId)) userId,
+    };
+    return {
+      for (final userId in next)
+        if (locations.containsKey(userId)) userId,
+    };
   }
 
   /// [current] with [userId] moved to [channelId], or dropped when it's null.
