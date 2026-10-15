@@ -38,7 +38,10 @@ class _ShareSoundDialogState extends State<ShareSoundDialog> {
   List<AudioSource>? _sources;
   AudioSource? _selected;
   bool _loading = false;
-  bool _remember = false;
+
+  /// Ticked to start with: the same window nearly always wants the same
+  /// sound, and asking every share is what the box exists to stop.
+  bool _remember = true;
 
   /// Whether the user picked by hand. Until then a reload guesses again, so
   /// an app that starts playing after the popup opened is still found.
