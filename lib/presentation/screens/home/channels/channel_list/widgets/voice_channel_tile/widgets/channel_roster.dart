@@ -12,8 +12,8 @@ import '../../../../../../../common/animated_keyed_column.dart';
 import '../../../../../sidebar/widgets/draggable_member.dart';
 import '../../../../../sidebar/widgets/participant_context_menu.dart';
 import '../../../../../sidebar/widgets/participant_list_item.dart';
+import 'member_card/member_card_anchor.dart';
 import 'presence_member_row.dart';
-import 'stream_card/stream_card_anchor.dart';
 import 'summoned_bot_row.dart';
 
 /// The people inside one voice channel, from both of the places we know about
@@ -84,7 +84,7 @@ class ChannelRoster extends StatelessWidget {
             name: roster.nameFor(participant.userId, participant.name),
             isLocal: participant.isLocal,
             enabled: canMoveOthers || participant.isLocal,
-            child: _streamCard(
+            child: _memberCard(
               userId: participant.userId,
               name: roster.nameFor(participant.userId, participant.name),
               sharing: participant.isSharingScreen,
@@ -106,7 +106,7 @@ class ChannelRoster extends StatelessWidget {
             userId: user.userId,
             name: roster.nameFor(user.userId, user.displayName),
             enabled: canMoveOthers,
-            child: _streamCard(
+            child: _memberCard(
               userId: user.userId,
               name: roster.nameFor(user.userId, user.displayName),
               sharing: user.isSharingScreen,
@@ -139,12 +139,12 @@ class ChannelRoster extends StatelessWidget {
       participants.any((p) => p.userId == botId) ||
       presenceUsers.any((u) => u.userId == botId);
 
-  Widget _streamCard({
+  Widget _memberCard({
     required String userId,
     required String name,
     required bool sharing,
     required Widget child,
-  }) => StreamCardAnchor(
+  }) => MemberCardAnchor(
     sharing: sharing,
     userId: userId,
     name: name,

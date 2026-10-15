@@ -11,16 +11,16 @@ import '../../../../../../../../../logic/helper_methods.dart';
 import '../../../../../../controls/widgets/control_button.dart';
 import '../../../../../../sidebar/widgets/participant_volume_control.dart';
 
-/// The quick controls on a stream card: the few things the person's
+/// The quick controls on a member card: the few things the person's
 /// right-click menu offers that are worth one press — how loud they are, and
 /// whether you hear them, they hear you, or anybody does.
 ///
 /// The same calls the menu makes, so the two can never disagree. For your own
 /// row it is your own microphone and headphones instead, as in the dock.
-class StreamCardControls extends StatelessWidget {
+class MemberCardControls extends StatelessWidget {
   final String userId;
 
-  const StreamCardControls({super.key, required this.userId});
+  const MemberCardControls({super.key, required this.userId});
 
   @override
   Widget build(BuildContext context) {

@@ -3,15 +3,15 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
-import 'package:toastification/toastification.dart';
 import 'package:rift/logic/cubits/app/app_cubit.dart';
 import 'package:rift/logic/cubits/dm/dm_cubit.dart';
 import 'package:rift/logic/cubits/livekit/livekit_cubit.dart';
 import 'package:rift/logic/cubits/server/server_cubit.dart';
 import 'package:rift/logic/cubits/server_members/server_members_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
-import 'package:rift/presentation/screens/home/channels/channel_list/widgets/voice_channel_tile/widgets/stream_card/stream_card_anchor.dart';
-import 'package:rift/presentation/screens/home/channels/channel_list/widgets/voice_channel_tile/widgets/stream_card/stream_card_layout.dart';
+import 'package:rift/presentation/screens/home/channels/channel_list/widgets/voice_channel_tile/widgets/member_card/member_card_anchor.dart';
+import 'package:rift/presentation/screens/home/channels/channel_list/widgets/voice_channel_tile/widgets/member_card/member_card_layout.dart';
+import 'package:toastification/toastification.dart';
 
 import 'support/memory_storage.dart';
 import 'support/stub_members_cubit.dart';
@@ -79,7 +79,7 @@ void main() {
                 children: [
                   SizedBox(
                     width: 240,
-                    child: StreamCardAnchor(
+                    child: MemberCardAnchor(
                       sharing: sharing,
                       userId: 'alice',
                       name: 'Alice',
@@ -135,11 +135,16 @@ void main() {
     expect(find.text('Sharing their screen'), findsNothing);
   });
 
-  testWidgets('somebody not sharing opens nothing', (tester) async {
+  testWidgets('somebody not sharing opens the card, without Watch', (
+    tester,
+  ) async {
     await pump(tester, sharing: false);
     await tester.tap(find.text('Alice'));
     await tester.pumpAndSettle();
+    expect(find.byTooltip('Mute for you'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Message Alice'), findsOneWidget);
     expect(find.text('Sharing their screen'), findsNothing);
+    expect(find.text('Join and watch'), findsNothing);
   });
 
   testWidgets('from inside their call the button only watches', (tester) async {
@@ -199,40 +204,40 @@ void main() {
     const card = Size(248, 340);
 
     test('beside its row, centred on it', () {
-      const layout = StreamCardLayout(
+      const layout = MemberCardLayout(
         anchor: Rect.fromLTWH(10, 250, 240, 32),
         below: false,
       );
       expect(
         layout.getPositionForChild(window, card),
-        Offset(250 + StreamCardLayout.gap, 266 - card.height / 2),
+        Offset(250 + MemberCardLayout.gap, 266 - card.height / 2),
       );
     });
 
     test('pushed down from the top and up from the foot', () {
-      const top = StreamCardLayout(
+      const top = MemberCardLayout(
         anchor: Rect.fromLTWH(10, 0, 240, 32),
         below: false,
       );
-      expect(top.getPositionForChild(window, card).dy, StreamCardLayout.margin);
-      const foot = StreamCardLayout(
+      expect(top.getPositionForChild(window, card).dy, MemberCardLayout.margin);
+      const foot = MemberCardLayout(
         anchor: Rect.fromLTWH(10, 568, 240, 32),
         below: false,
       );
       expect(
         foot.getPositionForChild(window, card).dy,
-        window.height - card.height - StreamCardLayout.margin,
+        window.height - card.height - MemberCardLayout.margin,
       );
     });
 
     test('under its row on a phone, inside the screen', () {
-      const layout = StreamCardLayout(
+      const layout = MemberCardLayout(
         anchor: Rect.fromLTWH(0, 100, 390, 32),
         below: true,
       );
       final at = layout.getPositionForChild(const Size(390, 844), card);
       expect(at.dx, (390 - card.width) / 2);
-      expect(at.dy, 132 + StreamCardLayout.gap / 2);
+      expect(at.dy, 132 + MemberCardLayout.gap / 2);
     });
   });
 

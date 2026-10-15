@@ -2,10 +2,10 @@ import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
 
-/// Where a stream card goes: beside its row, centred on it, or under it on a
+/// Where a member card goes: beside its row, centred on it, or under it on a
 /// phone — then pushed back inside the window, since a card centred on a row
 /// near the top or the foot of the sidebar would hang off the edge.
-class StreamCardLayout extends SingleChildLayoutDelegate {
+class MemberCardLayout extends SingleChildLayoutDelegate {
   /// The row, in the overlay's coordinates.
   final Rect anchor;
   final bool below;
@@ -14,7 +14,7 @@ class StreamCardLayout extends SingleChildLayoutDelegate {
   static const double gap = 12;
   static const double margin = 12;
 
-  const StreamCardLayout({required this.anchor, required this.below});
+  const MemberCardLayout({required this.anchor, required this.below});
 
   @override
   BoxConstraints getConstraintsForChild(BoxConstraints constraints) =>
@@ -45,6 +45,6 @@ class StreamCardLayout extends SingleChildLayoutDelegate {
   }
 
   @override
-  bool shouldRelayout(StreamCardLayout old) =>
+  bool shouldRelayout(MemberCardLayout old) =>
       old.anchor != anchor || old.below != below;
 }

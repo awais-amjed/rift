@@ -58,10 +58,9 @@ class ParticipantListItem extends StatelessWidget {
     final textQuaternary = themeState.textQuaternary;
     final hoverColor = themeState.bgHover;
 
-    // A tint rather than an ink well: clicking a person does nothing —
-    // their profile and everything else is in the menu — and a well with
-    // no tap would not light up at all. Somebody sharing is the exception,
-    // and the roster wraps the row for that (`StreamCardAnchor`).
+    // A tint rather than an ink well: a click opens the person's card,
+    // which the roster wraps the row in (`MemberCardAnchor`), and their
+    // profile and everything else is in the menu.
     //
     // Speaking is the ring's alone. The row used to take a tint and the name
     // a heavier, brighter weight as well, so a busy call was a column of

@@ -1,8 +1,8 @@
 part of 'dm_cubit.dart';
 
 /// Sending a server DM to somebody without opening the conversation: the
-/// message box on a stream card, which lets a person answer a stream without
-/// leaving it.
+/// message box on a voice roster row's card, which lets a person write to
+/// somebody in a call without leaving the call or the stream they watch.
 ///
 /// Text only, sealed exactly as [sendDm] seals it. Into a conversation that is
 /// already open it *is* [sendDm], so the open page draws the row the usual

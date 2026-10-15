@@ -64,10 +64,9 @@ class PresenceMemberRow extends StatelessWidget {
     final themeState = context.theme;
     final isMuted = setting?.muted ?? false;
 
-    // A tint, not an ink well: clicking a person does nothing — their profile
-    // is in the menu — and the tint is what says the row has one. Somebody
-    // sharing is the exception, and the roster wraps the row for that
-    // (`StreamCardAnchor`).
+    // A tint, not an ink well: a click opens the person's card, which the
+    // roster wraps the row in (`MemberCardAnchor`), and their profile is in
+    // the menu.
     return AnimatedContainer(
       duration: AppMotion.react,
       curve: AppMotion.settle,

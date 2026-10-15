@@ -50,8 +50,9 @@ class ParticipantContextMenu extends StatelessWidget {
     this.isLocal = false,
   });
 
-  /// Open their profile. The menu is the one way in: a click on the row is
-  /// left alone, so pressing someone in a call never throws a dialog over it.
+  /// Open their profile. The menu is the one way in: a click on the row opens
+  /// their card beside it (`MemberCardAnchor`), so pressing someone in a call
+  /// never throws a dialog over it.
   ///
   /// Dismissed first and opened in the same frame — the menu's context is
   /// still mounted until the next build, which is all the dialog needs to

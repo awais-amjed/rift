@@ -3,23 +3,24 @@ import 'package:flutter/services.dart';
 
 import '../../../../../../../../responsive/shell_scope.dart';
 import '../../../../../../../../theme/app_motion.dart';
-import 'stream_card.dart';
-import 'stream_card_layout.dart';
+import 'member_card.dart';
+import 'member_card_layout.dart';
 
-/// A roster row that, while its person has a screen up, opens a card on a
-/// click with a button to watch it, so a stream can be opened from a call you
-/// are not in yet.
+/// A roster row that opens its person's card on a click ([MemberCard]):
+/// quick controls, a message box, and — while they have a screen up — a
+/// button to watch it, from a call you are not in yet if need be.
 ///
-/// A click, not a hover: a person's row otherwise does nothing on a click,
-/// and a card that sprang open under a pointer passing down the sidebar
-/// would cover the rows below it. A click also works on a phone.
+/// A click, not a hover: a card that sprang open under a pointer passing down
+/// the sidebar would cover the rows below it. A click also works on a phone.
+/// Their profile and everything else stay in the right-click menu.
 ///
 /// The card hangs off the row's right edge, out over the page — below the row
 /// on a phone, where there is nothing to the right — kept inside the window
-/// ([StreamCardLayout]). A click anywhere else, the row again, Escape or a
+/// ([MemberCardLayout]). A click anywhere else, the row again, Escape or a
 /// scroll of the sidebar closes it.
-class StreamCardAnchor extends StatefulWidget {
-  /// Whether the row's person is sharing a screen. Nothing happens when not.
+class MemberCardAnchor extends StatefulWidget {
+  /// Whether the row's person is sharing a screen, which puts a Watch button
+  /// on the card.
   final bool sharing;
   final String userId;
   final String name;
@@ -32,7 +33,7 @@ class StreamCardAnchor extends StatefulWidget {
 
   final Widget child;
 
-  const StreamCardAnchor({
+  const MemberCardAnchor({
     super.key,
     required this.sharing,
     required this.userId,
@@ -43,10 +44,10 @@ class StreamCardAnchor extends StatefulWidget {
   });
 
   @override
-  State<StreamCardAnchor> createState() => _StreamCardAnchorState();
+  State<MemberCardAnchor> createState() => _MemberCardAnchorState();
 }
 
-class _StreamCardAnchorState extends State<StreamCardAnchor> {
+class _MemberCardAnchorState extends State<MemberCardAnchor> {
   final _portal = OverlayPortalController();
 
   /// The sidebar's scroll, listened to while the card is open: the card is
@@ -57,17 +58,6 @@ class _StreamCardAnchorState extends State<StreamCardAnchor> {
   /// The row and the card are one region, so a click on either is not a
   /// click outside.
   final _tapGroup = Object();
-
-  bool get _enabled => widget.sharing && widget.onWatch != null;
-
-  @override
-  void didUpdateWidget(StreamCardAnchor oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // Their share ended with the card open.
-    if (!_enabled && _portal.isShowing) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _close());
-    }
-  }
 
   @override
   void dispose() {
@@ -84,7 +74,7 @@ class _StreamCardAnchorState extends State<StreamCardAnchor> {
   void _toggle() {
     if (_portal.isShowing) {
       _close();
-    } else if (_enabled) {
+    } else {
       _scroll = Scrollable.maybeOf(context)?.position?..addListener(_close);
       _portal.show();
     }
@@ -106,17 +96,14 @@ class _StreamCardAnchorState extends State<StreamCardAnchor> {
   @override
   Widget build(BuildContext context) {
     final below = context.layoutMode.isCompact;
-    Widget row = widget.child;
-    if (_enabled) {
-      row = MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: _toggle,
-          child: row,
-        ),
-      );
-    }
+    final row = MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _toggle,
+        child: widget.child,
+      ),
+    );
     return OverlayPortal(
       controller: _portal,
       overlayChildBuilder: (overlayContext) {
@@ -124,7 +111,7 @@ class _StreamCardAnchorState extends State<StreamCardAnchor> {
         if (rect == null) return const SizedBox.shrink();
         return Positioned.fill(
           child: CustomSingleChildLayout(
-            delegate: StreamCardLayout(anchor: rect, below: below),
+            delegate: MemberCardLayout(anchor: rect, below: below),
             child: TapRegion(
               groupId: _tapGroup,
               onTapOutside: (_) => _close(),
@@ -145,11 +132,15 @@ class _StreamCardAnchorState extends State<StreamCardAnchor> {
                       child: child,
                     ),
                   ),
-                  child: StreamCard(
+                  child: MemberCard(
                     userId: widget.userId,
                     name: widget.name,
                     channelId: widget.channelId,
-                    onWatch: _watch,
+                    // Only while their share is up: the card stays open
+                    // when it ends, and the button goes.
+                    onWatch: widget.sharing && widget.onWatch != null
+                        ? _watch
+                        : null,
                   ),
                 ),
               ),
