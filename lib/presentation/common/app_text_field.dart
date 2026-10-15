@@ -51,6 +51,10 @@ class AppTextField extends StatefulWidget {
   /// and then scrolls — for prose (a server description), not for a value.
   final int maxLines;
 
+  /// How many lines a box shows before anything is typed: a message box
+  /// that should look like room to write, not a one-line value.
+  final int? minLines;
+
   /// Caps the text and shows the remaining count. Set it where a database
   /// column has a limit, so the field refuses the 301st character rather than
   /// the save doing it.
@@ -77,6 +81,7 @@ class AppTextField extends StatefulWidget {
     this.focusNode,
     this.autofocus = false,
     this.maxLines = 1,
+    this.minLines,
     this.maxLength,
     this.trailing,
   });
@@ -149,6 +154,7 @@ class _AppTextFieldState extends State<AppTextField> {
             focusNode: _node,
             autofocus: widget.autofocus,
             maxLines: widget.obscureText ? 1 : widget.maxLines,
+            minLines: widget.obscureText ? null : widget.minLines,
             maxLength: widget.maxLength,
             style: AppText.input.copyWith(
               height: K.fieldLineHeight,

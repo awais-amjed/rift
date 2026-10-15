@@ -39,6 +39,7 @@ import '../../services/chat_message_ops.dart';
 import '../../services/dm_refusal.dart';
 import '../../services/edit_refusal.dart';
 import '../../services/link_preview_fetcher.dart';
+import '../../services/message_cache.dart';
 import '../../services/new_message_notifier.dart';
 import '../../services/notification_ids.dart';
 import '../../services/outbox.dart';
@@ -57,6 +58,7 @@ part 'dm_decrypt.dart';
 part 'dm_edit.dart';
 part 'dm_history.dart';
 part 'dm_pins.dart';
+part 'dm_quick_send.dart';
 part 'dm_reactions.dart';
 part 'dm_requests.dart';
 part 'dm_send.dart';
@@ -82,7 +84,8 @@ class DmCubit extends Cubit<DmState>
         _DmPinsMixin,
         _DmRequestsMixin,
         _DmCallLogMixin,
-        _DmSetAsideMixin {
+        _DmSetAsideMixin,
+        _DmQuickSendMixin {
   @override
   final SessionRepository _session;
   @override

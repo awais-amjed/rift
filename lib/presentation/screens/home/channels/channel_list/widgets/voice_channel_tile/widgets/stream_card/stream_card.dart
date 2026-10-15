@@ -10,9 +10,11 @@ import '../../../../../../../../common/popover_surface.dart';
 import '../../../../../../../../theme/app_text.dart';
 import '../../../../../../../../theme/theme_context.dart';
 import 'stream_card_controls.dart';
+import 'stream_card_message.dart';
 
 /// The card a sharing person's roster row opens: who, that they are live,
-/// quick controls for them ([StreamCardControls]), and one button to watch.
+/// quick controls for them ([StreamCardControls]), one button to watch, and
+/// a box to message them ([StreamCardMessage]).
 ///
 /// The button says what it will do from where you are: join their call and
 /// watch, watch from inside it, or bring back a stream already being watched.
@@ -115,6 +117,7 @@ class StreamCard extends StatelessWidget {
               expanded: true,
               onPressed: onWatch,
             ),
+            if (!isMe) StreamCardMessage(userId: userId, name: name),
           ],
         ),
       ),
