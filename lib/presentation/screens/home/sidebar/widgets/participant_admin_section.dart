@@ -83,8 +83,11 @@ class ParticipantAdminSection extends StatelessWidget {
   /// against an admin, who `kick_user` refuses.
   bool get _canDisconnect => _canMove && !targetIsAdmin;
 
+  /// Not against an admin, whom `moderate_user` refuses.
+  bool get _canModerate => isModerator && isLive && !targetIsAdmin;
+
   bool get _showsAnything =>
-      (isModerator && isLive) || _canMove || isServerAdmin || _canKick;
+      _canModerate || _canMove || isServerAdmin || _canKick;
 
   /// Not against an admin, whom `kick_member` refuses.
   bool get _canKick => canKick && !targetIsAdmin;
@@ -111,7 +114,7 @@ class ParticipantAdminSection extends StatelessWidget {
             ),
           ),
         ),
-        if (isModerator && isLive) ...[
+        if (_canModerate) ...[
           ContextMenuItem(
             icon: isServerMuted ? Icons.mic : Icons.mic_off,
             label: isServerMuted ? 'Server unmute' : 'Server mute',

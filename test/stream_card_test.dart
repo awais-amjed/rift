@@ -2,13 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
+import 'package:rift/logic/cubits/app/app_cubit.dart';
 import 'package:rift/logic/cubits/livekit/livekit_cubit.dart';
+import 'package:rift/logic/cubits/server/server_cubit.dart';
 import 'package:rift/logic/cubits/server_members/server_members_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/presentation/screens/home/channels/channel_list/widgets/voice_channel_tile/widgets/stream_card/stream_card_anchor.dart';
 
 import 'support/memory_storage.dart';
 import 'support/stub_members_cubit.dart';
+
+class _StubServerCubit extends Cubit<ServerState> implements ServerCubit {
+  _StubServerCubit() : super(const ServerState());
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 /// A call cubit holding whatever state the test gives it, and nothing else.
 class _StubLiveKitCubit extends Cubit<LiveKitState> implements LiveKitCubit {
@@ -31,6 +40,8 @@ void main() {
       MultiBlocProvider(
         providers: [
           BlocProvider<ThemeCubit>(create: (_) => ThemeCubit()),
+          BlocProvider<AppCubit>(create: (_) => AppCubit()),
+          BlocProvider<ServerCubit>(create: (_) => _StubServerCubit()),
           BlocProvider<ServerMembersCubit>(create: (_) => StubMembersCubit()),
           BlocProvider<LiveKitCubit>(create: (_) => _StubLiveKitCubit(call)),
         ],
@@ -114,6 +125,23 @@ void main() {
     await tester.tap(find.text('Alice'));
     await tester.pumpAndSettle();
     expect(find.text('Watch stream'), findsOneWidget);
+  });
+
+  testWidgets('the card carries quick controls for them', (tester) async {
+    await pump(tester, sharing: true);
+    await tester.tap(find.text('Alice'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('VOLUME'), findsOneWidget);
+    expect(find.byTooltip('Mute for you'), findsOneWidget);
+    expect(find.byTooltip('Hide my voice from them'), findsOneWidget);
+    // Moderation needs the permission and a call shared with them.
+    expect(find.byTooltip('Server mute'), findsNothing);
+
+    // A press is a toggle that leaves the card open.
+    await tester.tap(find.byTooltip('Mute their soundboard'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Unmute their soundboard'), findsOneWidget);
   });
 
   test('a stream asked for is forgotten with the call', () {

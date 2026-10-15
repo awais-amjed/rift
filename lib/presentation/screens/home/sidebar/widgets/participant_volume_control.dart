@@ -23,19 +23,24 @@ class ParticipantVolumeControl extends StatelessWidget {
   /// owner down with it.
   final ValueChanged<double>? onChanged;
 
+  /// Round the heading and slider: a menu row's inset by default, and none
+  /// where the surface it sits on is already padded.
+  final EdgeInsets padding;
+
   const ParticipantVolumeControl({
     super.key,
     required this.target,
     required this.isMuted,
     required this.volume,
     this.onChanged,
+    this.padding = const EdgeInsets.fromLTRB(12, 8, 12, 8),
   });
 
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      padding: padding,
       child: Column(
         children: [
           Row(

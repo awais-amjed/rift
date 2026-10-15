@@ -3,14 +3,16 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../../../../data/participant_identity.dart';
 import '../../../../../../../../../logic/cubits/livekit/livekit_cubit.dart';
+import '../../../../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../../../common/app_button.dart';
 import '../../../../../../../../common/member_avatar.dart';
 import '../../../../../../../../common/popover_surface.dart';
 import '../../../../../../../../theme/app_text.dart';
 import '../../../../../../../../theme/theme_context.dart';
+import 'stream_card_controls.dart';
 
 /// The card a sharing person's roster row opens: who, that they are live,
-/// and one button to watch.
+/// quick controls for them ([StreamCardControls]), and one button to watch.
 ///
 /// The button says what it will do from where you are: join their call and
 /// watch, watch from inside it, or bring back a stream already being watched.
@@ -20,7 +22,7 @@ class StreamCard extends StatelessWidget {
   final String channelId;
   final VoidCallback onWatch;
 
-  static const double width = 232;
+  static const double width = 248;
 
   const StreamCard({
     super.key,
@@ -45,6 +47,9 @@ class StreamCard extends StatelessWidget {
           ? _Where.watching
           : _Where.inCall;
     });
+    final isMe = context.select<ServerCubit, bool>(
+      (cubit) => cubit.state.selectedServer?.user?.id == userId,
+    );
     return SizedBox(
       width: width,
       child: PopoverSurface(
@@ -82,7 +87,9 @@ class StreamCard extends StatelessWidget {
                           ),
                           Flexible(
                             child: Text(
-                              'Sharing their screen',
+                              isMe
+                                  ? 'Sharing your screen'
+                                  : 'Sharing their screen',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: AppText.secondary.copyWith(
@@ -97,6 +104,7 @@ class StreamCard extends StatelessWidget {
                 ),
               ],
             ),
+            StreamCardControls(userId: userId),
             AppButton(
               label: switch (where) {
                 _Where.elsewhere => 'Join and watch',
