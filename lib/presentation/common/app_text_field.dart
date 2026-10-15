@@ -51,8 +51,9 @@ class AppTextField extends StatefulWidget {
   /// and then scrolls — for prose (a server description), not for a value.
   final int maxLines;
 
-  /// How many lines a box shows before anything is typed: a message box
-  /// that should look like room to write, not a one-line value.
+  /// How many lines the box shows before anything is typed. Unset, a box of
+  /// several [maxLines] is drawn that tall from the start; 1 makes it a
+  /// one-line field that grows as the words wrap.
   final int? minLines;
 
   /// Caps the text and shows the remaining count. Set it where a database

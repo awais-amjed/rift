@@ -86,7 +86,7 @@ class _MemberCardMessageState extends State<MemberCardMessage> {
       child: AppTextField(
         controller: _controller,
         hint: 'Message ${widget.name}',
-        minLines: 2,
+        minLines: 1,
         maxLines: 3,
       ),
     );
