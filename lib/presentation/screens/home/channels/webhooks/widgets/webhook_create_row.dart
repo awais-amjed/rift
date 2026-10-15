@@ -27,33 +27,19 @@ class WebhookCreateRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      spacing: 8,
-      children: [
-        Expanded(
-          child: AppTextField(
-            controller: controller,
-            label: 'New webhook',
-            hint: 'GitHub',
-            maxLength: 80,
-            enabled: !isBusy,
-            onChanged: onChanged,
-            onSubmitted: (_) => onCreate?.call(),
-          ),
-        ),
-        Padding(
-          // Clears the character counter Material puts under the field, so the
-          // button lines up with the box rather than with the box plus its
-          // helper line.
-          padding: const EdgeInsets.only(bottom: 22),
-          child: AppButton(
-            label: 'Create',
-            isLoading: isBusy,
-            onPressed: onCreate,
-          ),
-        ),
-      ],
+    return AppTextField(
+      controller: controller,
+      label: 'New webhook',
+      hint: 'GitHub',
+      maxLength: 80,
+      enabled: !isBusy,
+      onChanged: onChanged,
+      onSubmitted: (_) => onCreate?.call(),
+      trailing: AppButton(
+        label: 'Create',
+        isLoading: isBusy,
+        onPressed: onCreate,
+      ),
     );
   }
 }

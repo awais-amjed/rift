@@ -56,6 +56,11 @@ class AppTextField extends StatefulWidget {
   /// the save doing it.
   final int? maxLength;
 
+  /// A control beside the box, such as the button that submits it. Lined up
+  /// with the box itself, top to top: a row around the whole field would line
+  /// it up with the box plus the label and the [maxLength] counter instead.
+  final Widget? trailing;
+
   const AppTextField({
     super.key,
     required this.controller,
@@ -73,6 +78,7 @@ class AppTextField extends StatefulWidget {
     this.autofocus = false,
     this.maxLines = 1,
     this.maxLength,
+    this.trailing,
   });
 
   @override
@@ -129,92 +135,111 @@ class _AppTextFieldState extends State<AppTextField> {
           ),
           const SizedBox(height: 7),
         ],
-        TextField(
-          contextMenuBuilder: TextFieldContextMenu.builder,
-          controller: widget.controller,
-          obscureText: _obscured,
-          enabled: widget.enabled,
-          keyboardType: widget.keyboardType,
-          inputFormatters: widget.inputFormatters,
-          onChanged: widget.onChanged,
-          onEditingComplete: widget.onEditingComplete,
-          onSubmitted: widget.onSubmitted,
-          focusNode: _node,
-          autofocus: widget.autofocus,
-          maxLines: widget.obscureText ? 1 : widget.maxLines,
-          maxLength: widget.maxLength,
-          style: AppText.input.copyWith(
-            height: K.fieldLineHeight,
-            color: themeState.textPrimary,
-          ),
-          // Pin the line box, as the composer does: a taller glyph (an emoji)
-          // would otherwise stretch the line and the field with it.
-          strutStyle: StrutStyle(
-            fontSize: _fontSize,
-            height: K.fieldLineHeight,
-            forceStrutHeight: true,
-          ),
-          decoration: InputDecoration(
-            hintText: widget.hint,
-            suffixIcon: widget.obscureText && widget.canReveal
-                ? _RevealButton(
-                    revealed: _revealed,
-                    onPressed: () => setState(() => _revealed = !_revealed),
-                  )
-                : null,
-            // The button sits inside the field's height rather than setting
-            // it, so a revealable field is no taller than a plain one.
-            suffixIconConstraints: const BoxConstraints.tightFor(
-              width: K.iconButtonSize,
-              height: K.iconButtonSize,
+        _besideTrailing(
+          TextField(
+            contextMenuBuilder: TextFieldContextMenu.builder,
+            controller: widget.controller,
+            obscureText: _obscured,
+            enabled: widget.enabled,
+            keyboardType: widget.keyboardType,
+            inputFormatters: widget.inputFormatters,
+            onChanged: widget.onChanged,
+            onEditingComplete: widget.onEditingComplete,
+            onSubmitted: widget.onSubmitted,
+            focusNode: _node,
+            autofocus: widget.autofocus,
+            maxLines: widget.obscureText ? 1 : widget.maxLines,
+            maxLength: widget.maxLength,
+            style: AppText.input.copyWith(
+              height: K.fieldLineHeight,
+              color: themeState.textPrimary,
             ),
-            hintStyle: AppText.input.copyWith(color: themeState.textQuaternary),
-            filled: true,
-            fillColor: themeState.bgTertiary,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(K.radiusRow),
-              borderSide: BorderSide(color: borderColor),
+            // Pin the line box, as the composer does: a taller glyph (an emoji)
+            // would otherwise stretch the line and the field with it.
+            strutStyle: StrutStyle(
+              fontSize: _fontSize,
+              height: K.fieldLineHeight,
+              forceStrutHeight: true,
             ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(K.radiusRow),
-              borderSide: BorderSide(color: borderColor),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(K.radiusRow),
-              borderSide: BorderSide(color: focusColor, width: 1.5),
-            ),
-            disabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(K.radiusRow),
-              borderSide: BorderSide(color: borderColor.withValues(alpha: 0.5)),
-            ),
-            // The shared control height, so a field and the button beside it
-            // are one size: one pinned line plus this padding comes to exactly
-            // [K.fieldHeight], and a prose box still grows with its lines.
-            //
-            // Padding rather than a `minHeight` constraint, which is what this
-            // used to be. Material applies that to the field's *slot*, not to
-            // the outline it paints, so the field took 44px and drew a 34px
-            // box at the top of it — ten pixels shorter than the button beside
-            // it, with a strip of nothing underneath.
-            contentPadding: EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: (K.fieldHeight - _fontSize * K.fieldLineHeight) / 2,
-            ),
-            // Dense, or Material floors the box at its own 48 first.
-            isDense: true,
-            // And standard, for the reason [AppButton] gives: on a desktop the
-            // adaptive default is compact, which takes another 8px off the box
-            // and nothing else around it.
-            visualDensity: VisualDensity.standard,
-            // Material's counter is a second line of text under the field, in
-            // the wrong colour and at the wrong weight. Keep the count — it is
-            // the point of setting a limit — and dress it like every other
-            // helper line in the app.
-            counterStyle: AppText.secondary.copyWith(
-              color: themeState.textTertiary,
+            decoration: InputDecoration(
+              hintText: widget.hint,
+              suffixIcon: widget.obscureText && widget.canReveal
+                  ? _RevealButton(
+                      revealed: _revealed,
+                      onPressed: () => setState(() => _revealed = !_revealed),
+                    )
+                  : null,
+              // The button sits inside the field's height rather than setting
+              // it, so a revealable field is no taller than a plain one.
+              suffixIconConstraints: const BoxConstraints.tightFor(
+                width: K.iconButtonSize,
+                height: K.iconButtonSize,
+              ),
+              hintStyle: AppText.input.copyWith(
+                color: themeState.textQuaternary,
+              ),
+              filled: true,
+              fillColor: themeState.bgTertiary,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(K.radiusRow),
+                borderSide: BorderSide(color: borderColor),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(K.radiusRow),
+                borderSide: BorderSide(color: borderColor),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(K.radiusRow),
+                borderSide: BorderSide(color: focusColor, width: 1.5),
+              ),
+              disabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(K.radiusRow),
+                borderSide: BorderSide(
+                  color: borderColor.withValues(alpha: 0.5),
+                ),
+              ),
+              // The shared control height, so a field and the button beside it
+              // are one size: one pinned line plus this padding comes to exactly
+              // [K.fieldHeight], and a prose box still grows with its lines.
+              //
+              // Padding rather than a `minHeight` constraint, which is what this
+              // used to be. Material applies that to the field's *slot*, not to
+              // the outline it paints, so the field took 44px and drew a 34px
+              // box at the top of it — ten pixels shorter than the button beside
+              // it, with a strip of nothing underneath.
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: (K.fieldHeight - _fontSize * K.fieldLineHeight) / 2,
+              ),
+              // Dense, or Material floors the box at its own 48 first.
+              isDense: true,
+              // And standard, for the reason [AppButton] gives: on a desktop the
+              // adaptive default is compact, which takes another 8px off the box
+              // and nothing else around it.
+              visualDensity: VisualDensity.standard,
+              // Material's counter is a second line of text under the field, in
+              // the wrong colour and at the wrong weight. Keep the count — it is
+              // the point of setting a limit — and dress it like every other
+              // helper line in the app.
+              counterStyle: AppText.secondary.copyWith(
+                color: themeState.textTertiary,
+              ),
             ),
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _besideTrailing(Widget field) {
+    final trailing = widget.trailing;
+    if (trailing == null) return field;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      spacing: 8,
+      children: [
+        Expanded(child: field),
+        trailing,
       ],
     );
   }
