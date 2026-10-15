@@ -8,6 +8,14 @@ import '../theme/theme_context.dart';
 ///
 /// The box alone is an 18px target; the sentence is what people aim at.
 class CheckboxRow extends StatelessWidget {
+  /// How tall the compact, shrink-wrapped [Checkbox] is laid out.
+  static final double boxHeight =
+      kMinInteractiveDimension -
+      8 +
+      VisualDensity.compact.baseSizeAdjustment.dy;
+
+  static const _style = AppText.body;
+
   final String label;
   final bool value;
   final ValueChanged<bool> onChanged;
@@ -22,6 +30,9 @@ class CheckboxRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
+    // The first line centred on the box, not the whole sentence, so a label
+    // that wraps keeps the box beside where it starts.
+    final line = _style.fontSize! * _style.height!;
     return InkWell(
       mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () => onChanged(!value),
@@ -40,10 +51,10 @@ class CheckboxRow extends StatelessWidget {
             const SizedBox(width: 10),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.only(top: 2),
+                padding: EdgeInsets.only(top: (boxHeight - line) / 2),
                 child: Text(
                   label,
-                  style: AppText.body.copyWith(color: themeState.textSecondary),
+                  style: _style.copyWith(color: themeState.textSecondary),
                 ),
               ),
             ),
