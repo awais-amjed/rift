@@ -19,7 +19,16 @@ class RowDeleteButton extends StatelessWidget {
   final String tooltip;
   final VoidCallback? onPressed;
 
-  const RowDeleteButton({super.key, required this.tooltip, this.onPressed});
+  /// The trash can, unless the row's removal is not a deletion: a bot kicked
+  /// from the Bots page leaves the server, it is not destroyed.
+  final IconData icon;
+
+  const RowDeleteButton({
+    super.key,
+    required this.tooltip,
+    this.onPressed,
+    this.icon = Icons.delete_outline_rounded,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +37,7 @@ class RowDeleteButton extends StatelessWidget {
     return IconButton(
       tooltip: tooltip,
       mouseCursor: WidgetStateMouseCursor.clickable,
-      icon: const Icon(Icons.delete_outline_rounded, size: K.iconButton),
+      icon: Icon(icon, size: K.iconButton),
       hoverColor: CustomColors.error.withValues(alpha: 0.10),
       style: ButtonStyle(
         foregroundColor: WidgetStateProperty.resolveWith(

@@ -1,16 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../../data/apis/moderation_api.dart';
 import '../../../../../../data/classes/server.dart';
 import '../../../../../../data/classes/server_member.dart';
 import '../../../../../../data/constants.dart';
+import '../../../../../../data/enums/server_permission.dart';
+import '../../../../../../data/repositories/session_repository.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/cubits/server_members/server_members_cubit.dart';
+import '../../../../../../logic/helper_methods.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/hint_card.dart';
 import '../../../../../common/loading_block.dart';
 import '../../../bots/bot_directory_dialog.dart';
 import '../../../channels/bots/bot_access_dialog.dart';
+import '../../../members/widgets/kick_confirm.dart';
 import '../widgets/bot_row.dart';
 import '../widgets/manage_panel.dart';
 
@@ -25,6 +30,10 @@ import '../widgets/manage_panel.dart';
 /// ([showBotDirectory]) belongs here rather than beside "Add server" on the
 /// rail: a bot is not something you join, and adding one is minting an invite
 /// on this server — which is the thing this page is already about.
+///
+/// And it is where a bot is taken off the server: a kick, the same one the
+/// voice menu and a report offer, so a bot that is not in a call and was
+/// never reported can still be removed from the one page that lists it.
 ///
 /// The list is [ServerMembersCubit]'s bots, the dialog's copy for [server]:
 /// a bot joining is a `users` row like anybody's, so it turns up here from
@@ -45,8 +54,40 @@ class BotsPanel extends StatelessWidget {
     );
   }
 
+  Future<void> _kick(BuildContext context, ServerMember bot) async {
+    // Read before the await: the confirmation is a route over this page.
+    final moderation = ModerationApi(
+      session: context.read<SessionRepository>(),
+    );
+    final members = context.read<ServerMembersCubit>();
+    if (!await confirmKick(context, bot.displayName, isBot: true)) return;
+    final response = await moderation.kickMember(
+      userId: bot.id,
+      serverId: server.id,
+    );
+    if (!response.success) {
+      HelperMethods.showToast(
+        title: 'Could not kick',
+        description: '${response.error}',
+      );
+      return;
+    }
+    HelperMethods.showToast(
+      title: 'Kicked',
+      description: '${bot.displayName} is out until a new bot invite.',
+    );
+    // The doorbell brings the same answer a moment later; the row should not
+    // wait for it.
+    await members.refresh();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final mayKick = context.select<ServerCubit, bool>(
+      (c) =>
+          c.state.permissionsOn(server.id)?.can(ServerPermission.kickMembers) ??
+          false,
+    );
     final loaded = context.select<ServerMembersCubit, bool>(
       (c) => c.state.loaded,
     );
@@ -87,7 +128,13 @@ class BotsPanel extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             for (final bot in bots)
-              BotRow(bot: bot, onTap: () => _openAccess(context, bot)),
+              BotRow(
+                bot: bot,
+                onTap: () => _openAccess(context, bot),
+                onKick: mayKick && !bot.isBanned
+                    ? () => _kick(context, bot)
+                    : null,
+              ),
           ],
         ],
       ),
