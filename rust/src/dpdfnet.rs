@@ -9,7 +9,11 @@
 //! frames late, which is heard as crackle. DPDFNet-2 took 1.2 and 2.8 ms
 //! (Oct 14; DeepFilterNet 0.6 on a performance core). So both are loaded, and
 //! the large one runs until frames show the computer cannot keep up with it
-//! ([`SLOW_FRAME`]), when the small one takes over until the app restarts.
+//! ([`SLOW_FRAME`]), when the small one takes over until the call ends
+//! ([`retry_large`]): the large one gets another go with each call, since a
+//! computer is often slow only for a while (a game loading, a build), and a
+//! slow one costs a second of crackle at the start of a call, not of every
+//! unmute.
 //! Before either runs, the thread is moved onto the performance cores
 //! (`fast_core`), which on that i7 kept DPDFNet-8 for the whole call.
 //! tract, which runs DeepFilterNet, runs these too, but its GRU layers took
@@ -21,7 +25,7 @@
 //! The settings mic test runs a [`Model`] of its own (`mic_test::clean`).
 
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
@@ -58,6 +62,12 @@ const WATCHED: usize = 100;
 /// Set when the person chose DPDFNet-2 in settings ([`choose_small`]), for
 /// the call's model and the mic test's alike.
 static SMALL_CHOSEN: AtomicBool = AtomicBool::new(false);
+
+/// Moved on at the end of each call ([`retry_large`]). A model that sees it
+/// move forgets that the computer was too slow for the large model: one
+/// count for the call's model and the mic test's, which each read it
+/// themselves.
+static RETRIES: AtomicU32 = AtomicU32::new(0);
 
 /// Set when a model went over to DPDFNet-2, for Dart to write to the log
 /// after the call ([`take_fell_back`]): the capture thread never writes to
@@ -151,8 +161,10 @@ pub(crate) struct Model {
     large: Net,
     small: Net,
     /// Whether this computer was too slow for the large model. Kept through
-    /// a reset, which push to talk does on every press.
+    /// a reset, which push to talk does on every press, until the call ends.
     slow: bool,
+    /// The [`RETRIES`] count `slow` belongs to.
+    retries_seen: u32,
     /// Which of the two ran the last frame.
     ran_large: bool,
     watch: Watch,
@@ -172,6 +184,7 @@ impl Model {
             large: Net::load(LARGE)?,
             small: Net::load(SMALL)?,
             slow: false,
+            retries_seen: RETRIES.load(Ordering::Relaxed),
             ran_large: true,
             watch: Watch::new(),
             stft: DFState::new(48000, WINDOW, FRAME, 32, 1),
@@ -196,6 +209,12 @@ impl Model {
 
     fn process_as_chosen(&mut self, frame: &mut [f32; FRAME], small_chosen: bool) -> bool {
         crate::fast_core::keep_on_fast_cores();
+        let retries = RETRIES.load(Ordering::Relaxed);
+        if retries != self.retries_seen {
+            self.retries_seen = retries;
+            self.slow = false;
+            self.watch = Watch::new();
+        }
         let large = !self.slow && !small_chosen;
         // The one taking over stood still meanwhile, and would carry on from
         // what it heard back then. It starts from nothing instead, so the
@@ -257,6 +276,14 @@ impl Model {
 /// DPDFNet-8 until the computer proves too slow for it.
 pub(crate) fn choose_small(small: bool) {
     SMALL_CHOSEN.store(small, Ordering::Relaxed);
+}
+
+/// Gives DPDFNet-8 another go, on a computer it was too slow on: at the end
+/// of a call, so the next one starts on it. Not on a mute, which a slow
+/// computer would answer with a second of crackle on every unmute, just as
+/// the person starts to speak.
+pub(crate) fn retry_large() {
+    RETRIES.fetch_add(1, Ordering::Relaxed);
 }
 
 /// Whether a model went over to DPDFNet-2 since the last call, which starts
@@ -494,6 +521,28 @@ mod tests {
             assert!(fresh.process_with(&mut b, false));
             assert!(a == b, "frame {i} differs from a DPDFNet-2 started afresh");
         }
+    }
+
+    #[test]
+    #[ignore = "needs ONNX Runtime at RIFT_ONNXRUNTIME"]
+    fn the_large_model_comes_back_with_the_next_call_only() {
+        let mut model = Model::new().unwrap();
+        let mut seed = 1u32;
+        let mut run = |model: &mut Model| {
+            for mut frame in noise(5, &mut seed) {
+                assert!(model.process_as_chosen(&mut frame, false));
+            }
+        };
+        model.slow = true;
+        run(&mut model);
+        assert!(!model.ran_large);
+        // Push to talk resets the model on every press: still too slow.
+        model.reset();
+        run(&mut model);
+        assert!(!model.ran_large);
+        retry_large();
+        run(&mut model);
+        assert!(model.ran_large);
     }
 
     #[test]

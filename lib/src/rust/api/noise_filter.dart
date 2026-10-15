@@ -23,6 +23,11 @@ Future<NoiseModelEntry> loadDpdfnet() =>
 bool takeDpdfnetFellBack() =>
     RustLib.instance.api.crateApiNoiseFilterTakeDpdfnetFellBack();
 
+/// Gives DPDFNet-8 another go in the next call, on a computer that was too
+/// slow for it in this one.
+void retryLargeDpdfnet() =>
+    RustLib.instance.api.crateApiNoiseFilterRetryLargeDpdfnet();
+
 /// Runs DPDFNet-2 alone when `small`, as chosen in settings, in calls and the
 /// mic test; otherwise DPDFNet-8, until this computer proves too slow for it.
 void setDpdfnetSmall({required bool small}) =>

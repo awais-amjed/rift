@@ -57,6 +57,14 @@ pub fn take_dpdfnet_fell_back() -> bool {
     }
 }
 
+/// Gives DPDFNet-8 another go in the next call, on a computer that was too
+/// slow for it in this one.
+#[flutter_rust_bridge::frb(sync)]
+pub fn retry_large_dpdfnet() {
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    crate::dpdfnet::retry_large();
+}
+
 /// Runs DPDFNet-2 alone when `small`, as chosen in settings, in calls and the
 /// mic test; otherwise DPDFNet-8, until this computer proves too slow for it.
 #[flutter_rust_bridge::frb(sync)]

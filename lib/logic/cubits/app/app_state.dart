@@ -117,7 +117,8 @@ class AppState extends Equatable {
   final NoiseSuppression noiseSuppression;
 
   /// DPDFNet-2 alone, when [noiseSuppression] is DPDFNet. Otherwise it runs
-  /// DPDFNet-8, and goes over to DPDFNet-2 by itself on a computer too slow.
+  /// DPDFNet-8, and goes over to DPDFNet-2 by itself for the rest of a call
+  /// on a computer too slow.
   final bool dpdfnetSmall;
   final bool echoCancellation;
   final bool autoGainControl;

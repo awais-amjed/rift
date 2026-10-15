@@ -125,25 +125,31 @@ abstract final class NoiseFilter {
   }
 
   /// Has DPDFNet run DPDFNet-2 alone when [small], in calls and the mic test
-  /// alike, or DPDFNet-8 until this computer proves too slow for it.
+  /// alike, or DPDFNet-8 until this computer proves too slow for it in a
+  /// call.
   static void useSmallDpdfnet(bool small) {
     if (_native == null) return;
     setDpdfnetSmall(small: small);
   }
 
-  /// Writes how long the model took over each 10 ms of the call just ended
-  /// to the app's log, as one line of numbers, and starts counting again. The
+  /// For the end of a call. Writes how long the model took over each 10 ms
+  /// of the call just ended to the app's log, as one line of numbers, and
+  /// starts counting again. The
   /// runner counts on libwebrtc's capture thread and never logs from there,
   /// so this is how a machine too slow for a model shows itself. Nothing when
   /// no model ran, or from a runner built before it counted.
   ///
   /// Also says when DPDFNet went over to its small model, which it does by
-  /// itself on a computer too slow for the large one.
-  static void logTimings() {
-    if (_loaded.contains(NoiseSuppression.dpdfnet) && takeDpdfnetFellBack()) {
-      HelperMethods.printDebug(
-        'DPDFNet: too slow here for DPDFNet-8, running DPDFNet-2',
-      );
+  /// itself on a computer too slow for the large one, and has the next call
+  /// start on the large one again: the computer may only have been busy.
+  static void callEnded() {
+    if (_loaded.contains(NoiseSuppression.dpdfnet)) {
+      if (takeDpdfnetFellBack()) {
+        HelperMethods.printDebug(
+          'DPDFNet: too slow here for DPDFNet-8, ran DPDFNet-2',
+        );
+      }
+      retryLargeDpdfnet();
     }
     final timings = _native?.takeTimings();
     if (timings == null || timings.frames == 0) return;

@@ -19,7 +19,7 @@ abstract final class NoiseFilter {
 
   static void useSmallDpdfnet(bool small) {}
 
-  static void logTimings() {}
+  static void callEnded() {}
 
   static bool get canSilence => false;
 
