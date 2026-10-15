@@ -9,6 +9,7 @@ import 'package:screen_retriever/screen_retriever.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:window_manager/window_manager.dart';
 
+import 'data/central_http_client.dart';
 import 'data/constants.dart';
 import 'data/device_id.dart';
 import 'data/repositories/native_blob_cipher.dart';
@@ -186,6 +187,7 @@ class AppBootstrap {
       url: SupabaseConfig.supabaseUrl,
       publishableKey: SupabaseConfig.supabaseKey,
       authOptions: authOptions,
+      httpClient: CentralHttpClient(),
     );
   }
 
