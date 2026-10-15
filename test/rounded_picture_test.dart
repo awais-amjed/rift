@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -23,7 +24,9 @@ void main() {
     });
 
     await tester.pumpWidget(
-      Center(child: RoundedPicture(bytes: png!, size: 28, radius: 7.84)),
+      Center(
+        child: RoundedPicture(image: MemoryImage(png!), size: 28, radius: 7.84),
+      ),
     );
     // Decoding happens off the test's fake clock.
     await tester.runAsync(
@@ -44,5 +47,29 @@ void main() {
         ),
       ),
     );
+  });
+
+  testWidgets('a picture that cannot be decoded shows the fallback', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: Center(
+          child: RoundedPicture(
+            image: MemoryImage(Uint8List.fromList([1, 2, 3, 4])),
+            size: 28,
+            radius: 7.84,
+            fallback: const Text('L'),
+          ),
+        ),
+      ),
+    );
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 200)),
+    );
+    await tester.pump();
+
+    expect(find.text('L'), findsOneWidget);
   });
 }

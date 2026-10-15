@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/constants.dart';
 import '../theme/identity_gradients.dart';
+import 'rounded_picture.dart';
 
 /// The app's one avatar: a squircle showing an image, or the identity's
 /// initial on its own gradient.
@@ -60,15 +61,12 @@ class SquircleAvatar extends StatelessWidget {
     );
 
     if (imageUrl != null && imageUrl!.isNotEmpty) {
-      return ClipRRect(
-        borderRadius: radius,
-        child: CachedNetworkImage(
-          imageUrl: imageUrl!,
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          errorWidget: (_, _, _) => _buildInitial(radius),
-        ),
+      // Painted as the shape's fill, not clipped: see [RoundedPicture].
+      return RoundedPicture(
+        image: CachedNetworkImageProvider(imageUrl!),
+        size: size,
+        radius: this.radius ?? size * K.avatarRadiusRatio,
+        fallback: _buildInitial(radius),
       );
     }
     return _buildInitial(radius);

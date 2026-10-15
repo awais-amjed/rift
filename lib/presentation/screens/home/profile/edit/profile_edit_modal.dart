@@ -13,6 +13,7 @@ import '../../../../../logic/services/pick_picture.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/app_text_field.dart';
+import '../../../../common/rounded_picture.dart';
 import '../../../../common/user_avatar.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
@@ -170,26 +171,20 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
           children: [
             // The avatar's own squircle, not a circle: this is a preview of
             // how everybody else will see it, and nowhere else draws it round.
-            ClipRRect(
-              borderRadius: BorderRadius.circular(
-                _avatarSize * K.avatarRadiusRatio,
-              ),
-              child: picked != null
-                  ? Image.memory(
-                      picked,
-                      width: _avatarSize,
-                      height: _avatarSize,
-                      fit: BoxFit.cover,
-                    )
-                  : UserAvatar(
-                      avatarPath: currentPath,
-                      name: _nameController.text,
-                      // By id: seeded by the name, the colour changed with
-                      // every letter typed into the field below.
-                      seed: userId,
-                      size: _avatarSize,
-                    ),
-            ),
+            picked != null
+                ? RoundedPicture(
+                    image: MemoryImage(picked),
+                    size: _avatarSize,
+                    radius: _avatarSize * K.avatarRadiusRatio,
+                  )
+                : UserAvatar(
+                    avatarPath: currentPath,
+                    name: _nameController.text,
+                    // By id: seeded by the name, the colour changed with
+                    // every letter typed into the field below.
+                    seed: userId,
+                    size: _avatarSize,
+                  ),
             Positioned(
               right: -2,
               bottom: -2,

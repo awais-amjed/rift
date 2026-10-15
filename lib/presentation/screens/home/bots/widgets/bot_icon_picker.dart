@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../../data/constants.dart';
 import '../../../../common/directory_icon.dart';
+import '../../../../common/rounded_picture.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 
@@ -78,10 +79,7 @@ class BotIconPicker extends StatelessWidget {
         if (hasPicture && onClear != null)
           TextButton(
             onPressed: onClear,
-            child: Text(
-              'Remove',
-              style: TextStyle(color: theme.textTertiary),
-            ),
+            child: Text('Remove', style: TextStyle(color: theme.textTertiary)),
           ),
       ],
     );
@@ -90,15 +88,10 @@ class BotIconPicker extends StatelessWidget {
   Widget _preview() {
     final bytes = picked;
     if (bytes != null) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(_size * K.avatarRadiusRatio),
-        child: Image.memory(
-          bytes,
-          width: _size,
-          height: _size,
-          fit: BoxFit.cover,
-          gaplessPlayback: true,
-        ),
+      return RoundedPicture(
+        image: MemoryImage(bytes),
+        size: _size,
+        radius: _size * K.avatarRadiusRatio,
       );
     }
     return DirectoryIcon(

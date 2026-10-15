@@ -44,7 +44,7 @@ class StoredPicture extends StatelessWidget {
         // two members rather than two different kinds of thing.
         if (bytes == null) return _fallback();
         return RoundedPicture(
-          bytes: bytes,
+          image: MemoryImage(bytes),
           size: size,
           radius: size * K.avatarRadiusRatio,
         );

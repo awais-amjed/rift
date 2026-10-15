@@ -14,15 +14,19 @@ import 'package:flutter/material.dart';
 /// beside them, which are fills, never did. So a picture avatar is drawn the
 /// same way as a gradient one.
 class RoundedPicture extends StatefulWidget {
-  final Uint8List bytes;
+  final ImageProvider image;
   final double size;
   final double radius;
 
+  /// Drawn until the picture is decoded, and instead of it if it fails.
+  final Widget? fallback;
+
   const RoundedPicture({
     super.key,
-    required this.bytes,
+    required this.image,
     required this.size,
     required this.radius,
+    this.fallback,
   });
 
   @override
@@ -32,7 +36,8 @@ class RoundedPicture extends StatefulWidget {
 class _RoundedPictureState extends State<RoundedPicture> {
   ImageStream? _stream;
   ImageInfo? _info;
-  late final _listener = ImageStreamListener(_onImage);
+  bool _failed = false;
+  late final _listener = ImageStreamListener(_onImage, onError: _onError);
 
   @override
   void didChangeDependencies() {
@@ -43,15 +48,13 @@ class _RoundedPictureState extends State<RoundedPicture> {
   @override
   void didUpdateWidget(RoundedPicture oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.bytes, widget.bytes)) _resolve();
+    if (oldWidget.image != widget.image) _resolve();
   }
 
   /// Keeps drawing the old picture until the new one is decoded, as
   /// `gaplessPlayback` did.
   void _resolve() {
-    final stream = MemoryImage(
-      widget.bytes,
-    ).resolve(createLocalImageConfiguration(context));
+    final stream = widget.image.resolve(createLocalImageConfiguration(context));
     if (stream.key == _stream?.key) return;
     _stream?.removeListener(_listener);
     _stream = stream..addListener(_listener);
@@ -61,6 +64,15 @@ class _RoundedPictureState extends State<RoundedPicture> {
     setState(() {
       _info?.dispose();
       _info = info;
+      _failed = false;
+    });
+  }
+
+  void _onError(Object _, StackTrace? _) {
+    setState(() {
+      _info?.dispose();
+      _info = null;
+      _failed = true;
     });
   }
 
@@ -72,12 +84,16 @@ class _RoundedPictureState extends State<RoundedPicture> {
   }
 
   @override
-  Widget build(BuildContext context) => CustomPaint(
-    size: Size.square(widget.size),
-    painter: _info == null
-        ? null
-        : _RoundedPicturePainter(_info!.image, widget.radius),
-  );
+  Widget build(BuildContext context) {
+    final info = _info;
+    if (info == null || _failed) {
+      return widget.fallback ?? SizedBox.square(dimension: widget.size);
+    }
+    return CustomPaint(
+      size: Size.square(widget.size),
+      painter: _RoundedPicturePainter(info.image, widget.radius),
+    );
+  }
 }
 
 class _RoundedPicturePainter extends CustomPainter {
