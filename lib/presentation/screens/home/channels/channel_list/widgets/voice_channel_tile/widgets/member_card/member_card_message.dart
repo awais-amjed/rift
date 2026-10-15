@@ -6,14 +6,14 @@ import 'package:toastification/toastification.dart';
 import '../../../../../../../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../../../../../../../logic/helper_methods.dart';
 import '../../../../../../../../common/app_text_field.dart';
-import '../../../../../../../../common/chat/composer/composer_send_button.dart';
 
 /// A message box on the member card: a server DM to them, without leaving
 /// the call, or the stream being watched, for their conversation.
 ///
-/// Enter sends and Shift+Enter starts a new line, as in the composer. The
-/// words stay in the box until the server has the message, so a refusal
-/// loses nothing.
+/// Enter sends and Shift+Enter starts a new line, as in the composer. No
+/// send button: beside a box this small it read as clutter, and Enter is
+/// how the composer sends too. The words stay in the box until the server has the
+/// message, so a refusal loses nothing.
 class MemberCardMessage extends StatefulWidget {
   final String userId;
   final String name;
@@ -33,18 +33,10 @@ class _MemberCardMessageState extends State<MemberCardMessage> {
   bool _sending = false;
 
   @override
-  void initState() {
-    super.initState();
-    _controller.addListener(_onText);
-  }
-
-  @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
-
-  void _onText() => setState(() {});
 
   bool get _canSend => !_sending && _controller.text.trim().isNotEmpty;
 
@@ -96,7 +88,6 @@ class _MemberCardMessageState extends State<MemberCardMessage> {
         hint: 'Message ${widget.name}',
         minLines: 2,
         maxLines: 3,
-        trailing: ComposerSendButton(enabled: _canSend, onPressed: _send),
       ),
     );
   }
