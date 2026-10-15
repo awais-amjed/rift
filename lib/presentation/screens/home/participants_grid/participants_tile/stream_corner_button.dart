@@ -5,15 +5,17 @@ import 'package:flutter/material.dart';
 import '../../../../../data/constants.dart';
 import '../../../../theme/theme_context.dart';
 
-/// Full screen, or back out of it, in the corner of a watched stream. The same
-/// glass as the badges in the opposite corner, so the two read as one set.
-class StreamFullscreenButton extends StatelessWidget {
-  final bool isFullscreen;
+/// One glass button in the corner of a watched stream. The same glass as the
+/// badges in the opposite corner, so the two read as one set.
+class StreamCornerButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
   final VoidCallback onTap;
 
-  const StreamFullscreenButton({
+  const StreamCornerButton({
     super.key,
-    required this.isFullscreen,
+    required this.icon,
+    required this.tooltip,
     required this.onTap,
   });
 
@@ -22,7 +24,7 @@ class StreamFullscreenButton extends StatelessWidget {
     final theme = context.theme;
     final radius = BorderRadius.circular(K.radiusRow);
     return Tooltip(
-      message: isFullscreen ? 'Exit full screen' : 'Full screen',
+      message: tooltip,
       child: ClipRRect(
         borderRadius: radius,
         child: BackdropFilter(
@@ -44,7 +46,7 @@ class StreamFullscreenButton extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.all(6),
                   child: Icon(
-                    isFullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
+                    icon,
                     size: K.iconButton,
                     color: theme.textSecondary,
                   ),

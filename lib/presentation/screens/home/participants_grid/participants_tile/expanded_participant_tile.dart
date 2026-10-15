@@ -9,10 +9,11 @@ import 'avatar_placeholder.dart';
 import 'decrypted_video.dart';
 import 'participant_name_badge.dart';
 import 'share_paused_notice.dart';
-import 'stream_fullscreen_button.dart';
 import 'stream_quality_badge.dart';
 import 'stream_stats_overlay.dart';
 import 'stream_stats_poller.dart';
+import 'stream_view.dart';
+import 'stream_view_buttons.dart';
 import 'stream_watchers.dart';
 import 'watch_stream_button.dart';
 
@@ -57,13 +58,14 @@ class ExpandedParticipantTile extends StatelessWidget {
   /// turns into Stop watching.
   final bool isWatching;
 
-  /// Whether this stage is the stream shown full screen, which hides the
-  /// pointer along with the overlays — a film does.
-  final bool isFullscreen;
+  /// How the stream is shown. On a page of its own, edge to edge or full
+  /// screen, the pointer hides along with the overlays — a film does.
+  final StreamView view;
 
-  /// Into or out of full screen. Null for anything that has no button for
-  /// it: only a stream being watched does.
-  final VoidCallback? onFullscreen;
+  /// Asks for edge to edge or full screen, or out of the one it is in. Null
+  /// for anything that has no buttons for it: only a stream being watched
+  /// does.
+  final ValueChanged<StreamView>? onView;
   final bool showOverlays;
   final bool statsPinned;
   final VoidCallback onActivity;
@@ -98,8 +100,8 @@ class ExpandedParticipantTile extends StatelessWidget {
     this.sentQuality,
     required this.showWatchButton,
     required this.isWatching,
-    this.isFullscreen = false,
-    this.onFullscreen,
+    this.view = StreamView.inCall,
+    this.onView,
     required this.showOverlays,
     required this.statsPinned,
     required this.onActivity,
@@ -142,7 +144,7 @@ class ExpandedParticipantTile extends StatelessWidget {
         },
       ),
     );
-    if (!isFullscreen) return listener;
+    if (!view.isAlone) return listener;
     return MouseRegion(
       cursor: showOverlays ? MouseCursor.defer : SystemMouseCursors.none,
       child: listener,
@@ -224,7 +226,7 @@ class ExpandedParticipantTile extends StatelessWidget {
             ),
           ),
         ),
-        if (onFullscreen != null)
+        if (onView != null)
           AnimatedPositioned(
             duration: _fade,
             curve: Curves.easeInOut,
@@ -232,10 +234,7 @@ class ExpandedParticipantTile extends StatelessWidget {
             right: 12,
             child: _fading(
               visible: showOverlays,
-              child: StreamFullscreenButton(
-                isFullscreen: isFullscreen,
-                onTap: onFullscreen!,
-              ),
+              child: StreamViewButtons(view: view, onView: onView!),
             ),
           ),
       ],

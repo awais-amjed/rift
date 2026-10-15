@@ -10,9 +10,10 @@ import 'decrypted_video.dart';
 import 'participant_name_badge.dart';
 import 'shape_reporting_video.dart';
 import 'share_paused_notice.dart';
-import 'stream_fullscreen_button.dart';
 import 'stream_quality_badge.dart';
 import 'stream_stats_poller.dart';
+import 'stream_view.dart';
+import 'stream_view_buttons.dart';
 import 'watch_stream_button.dart';
 
 /// A participant as they appear in the grid: video or avatar in a rounded
@@ -47,8 +48,9 @@ class CollapsedParticipantTile extends StatelessWidget {
   /// Someone else's stream with its picture here, which has receive stats.
   final bool isWatching;
 
-  /// Opens the stream full screen; null for a tile with no button for it.
-  final VoidCallback? onFullscreen;
+  /// Opens the stream edge to edge or full screen; null for a tile with no
+  /// buttons for it.
+  final ValueChanged<StreamView>? onView;
   final VoidCallback onWatch;
 
   /// Told the video's shape when one arrives. Null for tiles whose box does
@@ -70,7 +72,7 @@ class CollapsedParticipantTile extends StatelessWidget {
     this.sentQuality,
     required this.showWatchButton,
     required this.isWatching,
-    this.onFullscreen,
+    this.onView,
     required this.onWatch,
     this.onAspectRatio,
   });
@@ -122,13 +124,13 @@ class CollapsedParticipantTile extends StatelessWidget {
               // on a minimised window has no picture until the window is opened.
               if (isPaused && !showWatchButton) const SharePausedNotice(),
               if (showWatchButton) WatchStreamButton(onTap: onWatch),
-              if (onFullscreen != null)
+              if (onView != null)
                 Positioned(
                   bottom: 12,
                   right: 12,
-                  child: StreamFullscreenButton(
-                    isFullscreen: false,
-                    onTap: onFullscreen!,
+                  child: StreamViewButtons(
+                    view: StreamView.inCall,
+                    onView: onView!,
                   ),
                 ),
               Positioned(

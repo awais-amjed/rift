@@ -20,6 +20,11 @@ class WindowFullscreen {
   static final ValueNotifier<bool> active = ValueNotifier(false);
   static bool get isOn => active.value;
 
+  /// A stream watched edge to edge: it has the whole window, which keeps its
+  /// size. The app's own title bar hides, and comes back while the pointer
+  /// is at the top edge, so the window can still be moved and closed.
+  static final ValueNotifier<bool> edgeToEdge = ValueNotifier(false);
+
   static Future<void> set(bool on) async {
     if (on) active.value = true;
     try {

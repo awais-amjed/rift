@@ -55,9 +55,12 @@ class _TitleBarOverlayState extends State<TitleBarOverlay> {
     return BlocBuilder<AppCubit, AppState>(
       buildWhen: (p, c) => p.titleBarVisible != c.titleBarVisible,
       builder: (context, appState) {
-        final visible = appState.titleBarVisible;
         return ListenableBuilder(
-          listenable: Listenable.merge([_hovering, WindowFullscreen.active]),
+          listenable: Listenable.merge([
+            _hovering,
+            WindowFullscreen.active,
+            WindowFullscreen.edgeToEdge,
+          ]),
           builder: (_, _) => Stack(
             clipBehavior: Clip.none,
             children: [
@@ -65,13 +68,19 @@ class _TitleBarOverlayState extends State<TitleBarOverlay> {
               widget.child,
               // A stream watched full screen has the whole window; the bar
               // would be the one thing left over it.
-              if (!WindowFullscreen.isOn) _bar(context, visible),
+              if (!WindowFullscreen.isOn) _bar(context, _pinned(appState)),
             ],
           ),
         );
       },
     );
   }
+
+  /// Shown all the time, rather than only while the pointer is at the top.
+  /// A stream edge to edge has the window to itself, so the bar waits up
+  /// there whatever the setting says.
+  bool _pinned(AppState appState) =>
+      appState.titleBarVisible && !WindowFullscreen.edgeToEdge.value;
 
   Widget _bar(BuildContext context, bool visible) {
     final hovering = _hovering.value;
@@ -105,8 +114,7 @@ class _TitleBarOverlayState extends State<TitleBarOverlay> {
     return MouseRegion(
       onHover: (e) {
         // Read current state directly — no rebuild needed here.
-        final visible = context.read<AppCubit>().state.titleBarVisible;
-        if (visible) return;
+        if (_pinned(context.read<AppCubit>().state)) return;
         final nearTop = e.localPosition.dy <= _hotZone;
         if (nearTop != _hovering.value) _hovering.value = nearTop;
       },
