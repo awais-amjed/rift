@@ -101,6 +101,11 @@ for 7 to 11 keyframes in 30 to 40 s; patched, 60.0 fps with none asked for, and
 each joining viewer had a picture within 136 to 204 ms. Unencrypted, the
 unpatched encoder had held 60.0 fps too, which is how it was found.
 
+The patch does nothing on AMD: Mesa's VCN encoder writes the slice header
+itself, always type 7 and `idr_pic_id` 0, though it takes FFmpeg's SPS and PPS
+(Mesa 26.2.4 on an RX 9070 XT, Oct 16 2026). There the Rust side rewrites each
+IDR's first bytes instead (`h264::with_short_idr_slice_types`).
+
 ## Quick Sync needs no patch, but its settings matter
 
 FFmpeg's Quick Sync encoder passes a moved rate on by resetting the encoder. On

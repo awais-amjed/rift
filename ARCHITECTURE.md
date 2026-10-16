@@ -771,9 +771,14 @@ share asked for in H264 goes out as VP9.
   id one bit into the ciphertext, so about one keyframe in two named a PPS
   that did not exist; whoever was watching dropped it and the pictures after,
   for up to a second each time somebody joined. The build patches it to the
-  short slice types NVENC writes (`third_party/ffmpeg/RIFT_PATCHES.md`), and a
-  share logs a warning if any encoder's keyframes do it again
-  (`h264::idr_readable_when_encrypted`); the GPU live test fails on one.
+  short slice types NVENC writes (`third_party/ffmpeg/RIFT_PATCHES.md`). AMD's
+  VCN writes its own slice header whatever FFmpeg hands it, so an H264 IDR
+  that still has the long type is rewritten on its way to LiveKit
+  (`h264::with_short_idr_slice_types`, from `ParameterSets::complete`): the
+  type made short and `idr_pic_id` made as much longer, so every bit after them
+  stays where it was (Oct 16 2026). A share logs a warning if any encoder's
+  keyframes still do it (`h264::idr_readable_when_encrypted`); the GPU live
+  test fails on one.
 - **A GPU encoder is held to WebRTC's target before it encodes, not after.**
   WebRTC's frame dropper is off for pre-encoded frames (`webrtc-sys` 0.3.49),
   since a dropped H264 frame breaks every frame after it until the next
