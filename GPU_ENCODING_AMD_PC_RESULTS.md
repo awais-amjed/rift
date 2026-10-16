@@ -1,7 +1,7 @@
 # GPU encoding results: the AMD PC
 
-The answer to `GPU_ENCODING_AMD_PC.md`. One section per part; Part B (Windows)
-adds its own when it runs.
+The answer to `GPU_ENCODING_AMD_PC.md`. One section per part: Part A (Linux)
+and its round 2, then Part B (Windows).
 
 ## Part A: Linux (VAAPI on Mesa), Oct 16 2026
 
@@ -230,3 +230,190 @@ isolated.
 
 Not run, as before: the app (step 7), a slow link, and real game content.
 Logs are kept on the machine and are not committed.
+
+## Part B: Windows (AMF, and Media Foundation behind it), Oct 16 2026 (evening)
+
+Run by an agent on `gpu-encoding-amd` at `39d5b7b5`, the merged code, with
+round 2's stop rule: the probe reads the encoder's raw output, so a `FAIL`
+there is expected, and the share rewrites the keyframe. Steps 1 to 4 were run;
+step 5 (the app) was not.
+
+**Verdict: the shipped rewrite holds on Windows too, for AMF and for Media
+Foundation.** Both encoders write slice type 7 in every IDR, as Mesa does. No
+share logged `could not be rewritten`, both live tests passed with no
+unreadable keyframes, and in every churn run the viewer already watching
+asked for no keyframes while 15 others joined and left. Two things are left
+open. AMF reaches only about 94 fps at 1080p120. And Media Foundation's test
+failed twice on its second encoder, then passed four times.
+
+### The machine
+
+| | |
+|---|---|
+| GPU | AMD Radeon RX 9070 XT, driver 32.0.31041.1004, beside the CPU's own Radeon graphics (32.0.21045.5002), as on Oct 11 |
+| OS | Windows 11 Pro 26200.9457 |
+| Screen | one 5120x1440 at 240 Hz, captured whole: 4096x1152 published at 60 fps (`encoder::MAX_SIZE`), 3840x1080 at 120 |
+| Server | livekit-server 1.13.7 on 127.0.0.1, `--dev`, a fresh one per run |
+| Toolchain | MSYS2 UCRT64 for the library and the probe, plus its Python 3.14.8 for `check_h264.py` (installed for this run); Rust 1.97.1 |
+| Build | **every Rust step in release** (`--release`). It builds on Windows, so the old "never `--release` on Windows" no longer applies here |
+
+### 1. The library and the tests
+
+`native/ffenc/build.sh` built `rift_ffenc.dll` at ABI 3 (4.3 MB), and it
+loads. `cargo test --release`: 146 passed, 0 failed, 15 ignored.
+
+### 2. AMF
+
+**The probe**, `h264_amf`, the RX 9070 XT:
+
+| Size, pictures | IDR slice type | Other slices | `check_h264.py` |
+|---|---|---|---|
+| 1920x1080, 120 | 7 (6 of 6) | 5 | FAIL: 6 of 6, expected |
+| 2560x1440, 600 | 7 (30 of 30) | 5 | FAIL: 30 of 30, expected |
+
+So AMF writes its IDR slice headers like Mesa does. Nobody knew this before.
+**Colour tags**: `color_range=tv`, and `smpte170m` for the colour space,
+transfer and primaries.
+
+**The live test** (`GPU_LIVE_ONLY=gpu`, `live_gpu_h264`) passed with AMF opened
+as the default (NVENC tried first and failed: "Cannot load nvcuda.dll"). Decoded
+and recognisable: 233 unencrypted, 215 with the key, 12 decoded without it (0
+recognisable), 0 with the wrong one.
+
+**The churn bench.** `bench_view`, `bench_share` and `bench_churn`, encrypted,
+60 s each, from one release test binary. The moving picture was `ffplay -fs`
+drawing `testsrc2=size=2560x1440:rate=120,noise=alls=10:allf=t` over the whole
+screen, since no Counter-Strike clip was left on the machine. The still
+picture was this repository's `ARCHITECTURE.md` maximised in Notepad. Lows are
+2-second samples.
+
+| | Moving, 1440p60 / 20 Mbps | Moving, 1080p120 / 30 Mbps | Still text, 1440p60 / 20 Mbps |
+|---|---|---|---|
+| Viewer decoded | 53.4 fps | **94.0 fps** | 59.1 fps |
+| Lowest sample; samples under 90% of best | 48.0; 5 of 30 | 88.0; 1 of 30 | 50.0; 8 of 30 |
+| Freezes, PLIs | **0, 0** | **0, 0** | 7, **0** |
+| Packets lost | 0 | 1 | 0 |
+| Joiners' first picture, median and slowest | 160, 192 ms | 138, 158 ms | 266, 411 ms |
+| Keyframes made by the sharer | 29 | 29 | 28 |
+| Encoder's `send` per picture, longest | 9.6 to 11.1 ms, 17.8 | 9.5 to 10.1 ms, 27.9 | 5.1 to 5.2 ms, 17.9 |
+
+- **At 1440p60 the rate gate kept the rate, nothing stalled.** The gate runs
+  before the encoder. Encoded pictures plus those left out came to about 60 a
+  second, so capture kept up. Full-screen noise at 4096x1152 costs more than
+  20 Mbps, so the gate left out about 6 pictures a second. Part A's window was
+  2560 wide, which is why it held 60.
+- **At 1080p120 AMF itself is the limit.** Its `send` took about 9.8 ms a
+  picture, which caps it near 100 fps. The encoder took 447 to 484 pictures per
+  5 s. On Oct 11 the same GPU sent 117.4 fps at 120, but that was a 1080p60 clip
+  at double speed in the debug bench, and the harness then timed 3.1 ms a
+  picture.
+- **About two keyframes per join** (29 in 60 s for 15 joins), against 14 on
+  Linux. The watching viewer asked for none of them.
+
+### 3. Media Foundation
+
+Reached by pointing `RIFT_FFENC_LIB` at a file that does not exist. The log
+said `no FFmpeg here: FFmpeg's library did not load from …: LoadLibraryExW
+failed`, then `opened AMDh264Encoder (VEN_1002)`.
+
+**`each_hardware_encoder_makes_decodable_h264`** lists two encoders, both
+`AMDh264Encoder` with vendor VEN_1002: one per AMD adapter, most likely.
+
+| Run | Encoder 0 | Encoder 1 | Result |
+|---|---|---|---|
+| 1 and 2, just after the AMF bench | 173 pictures, keyframes at 0 and 90 | **103** pictures, keyframes at 0 and 52 | failed: `AMDh264Encoder: 103 frames` (the test wants 150 of 180) |
+| 3 to 6, about ten minutes later | 180, at 0 and 90 | 180, at 0 and 90 | passed |
+
+- Encoder 0 passed every check in every run, including the readable PPS id
+  after `h264::for_encryption`.
+- In the failing runs encoder 1 managed about 31 pictures a second at 1080p60.
+  It failed the picture count, so its keyframes were never checked.
+- In the passing runs both encoders wrote byte-identical streams (21,366,853
+  bytes), so both may have been encoding on the same adapter.
+- Which adapter each index is was not found. The test logs only the name and
+  vendor, and sampling Windows' per-adapter video-encode counters during a run
+  caught nothing.
+- The test was left as it is. A share falls back to Media Foundation only when
+  AMF fails, and then takes the first encoder that opens: encoder 0, which
+  passed. The bench share's log opened the first one listed, with no `would
+  not open` before it.
+
+Every dumped stream (`gpu-*.h264`) went through `check_h264.py`: slice type 7
+in every IDR (2 of 2 each), 5 elsewhere. The encoder writes this raw, and the
+share rewrites it.
+
+**The live test** passed: 216 decoded unencrypted, 216 with the key, 12 decoded
+without it (0 recognisable), 0 with the wrong one.
+
+**The churn bench**, the same moving picture:
+
+| | Moving, 1440p60 / 20 Mbps | Moving, 1080p120 / 30 Mbps |
+|---|---|---|
+| Viewer decoded | 46.7 fps | 69.4 fps |
+| Lowest sample; samples under 90% of best | 38.0; 19 of 30 | 47.5; 11 of 30 |
+| Freezes, PLIs | **0, 0** | **0, 0** |
+| Joiners' first picture, median and slowest | 154, 223 ms | 135, 193 ms |
+| Left out by the gate | 36 to 99 per 5 s once the target settled | 0 once at 30 Mbps, yet 68 fps sent |
+
+AMF beat Media Foundation at both sizes, as on Oct 11.
+
+### 4. The rate gate's keyframe lines (AMF)
+
+| Picture, setting | Keyframe size | Left out per 5 s, once settled (within 1 s of a keyframe) | WebRTC's target |
+|---|---|---|---|
+| Moving, 1440p60 / 20 Mbps | 140 to 210 KB | 7 to 39 (5 to 29) | 20 Mbps |
+| Moving, 1080p120 / 30 Mbps | 110 to 175 KB | 0 to 21 (0 to 16) | 30 Mbps |
+| Still text, 1440p60 / 20 Mbps | 220 to 238 KB | 0 to 5, all within 1 s of a keyframe | 5.8, climbing to 12.4 Mbps |
+
+On the still screen AMF's keyframes are a little larger than Mesa's (207 KB).
+The 7 freezes are fewer than Linux's 14, and no keyframe was asked for.
+Nothing was changed.
+
+### An experiment: AMF's `async_depth` above 60 fps (not kept)
+
+`ffenc.c` sets `async_depth` to 1 for every encoder. In FFmpeg 9.0.2's
+`amfenc.c` that makes `receive_packet` wait for each picture's output once
+`hwsurfaces_in_queue >= hwsurfaces_in_queue_max`, and `avcodec_send_frame`
+runs that wait. That looked like the wait NVENC had at idle clocks. So AMF was
+tried with `async_depth` 2 when `delay_frames >= 2` (above 60 fps), with the
+DLL rebuilt:
+
+| AMF | `async_depth` 1 | `async_depth` 2 |
+|---|---|---|
+| 1080p120 / 30 Mbps: `send` per picture | 9.5 to 10.1 ms | 8.4 to 9.0 ms |
+| 1080p120: viewer, lowest sample | 94.0 fps, 88.0 | 92.3 fps, 77.0 |
+| 1080p120: freezes, PLIs; joiners median | 0, 0; 138 ms | 0, 0; 115 ms |
+| 1440p60 / 20 Mbps: `send`; viewer | 9.6 to 11.1 ms; 53.4 fps | 10.0 to 10.5 ms; 54.5 fps |
+
+It did not help, so it was not committed, and `ffenc.c` is as it was. The
+time per picture is therefore mostly not AMF's own queue. **Not explained:**
+where the ~9 ms goes at these sizes, for example the copy into AMF's surface
+or the GPU's clocks. Nothing here isolates it.
+
+**Capture's rate at 120 fps, for the throttling fix.** No log line counts
+capture, and the encoder is still the limit, so only a floor can be read. With
+`async_depth` 2, pictures encoded plus pictures left out came to about 101 to
+103 a second. Pictures replaced in the waiting slot before the encoder took
+them are counted nowhere. So capture ran at least that fast, against the
+92-a-second ceiling the laptop had under throttling. Nothing logged `power
+throttling left to Windows`. Whether capture reaches 120 here is not shown.
+
+### Not covered
+
+- The app (step 5): an encrypted share with someone joining and leaving, at
+  60 and 120 fps, and the app's `encoder: AMF (…) encodes H264` line.
+- Real game content. The moving picture was full-screen noise, which costs
+  more than the cap at 4096x1152.
+- A slow link. Everything ran over loopback.
+- Which AMD adapter each Media Foundation index is, and why encoder 1 slowed
+  down twice.
+
+### How it was run
+
+- No proxy variables were set. The bench scripts started a fresh LiveKit per
+  run and the three bench processes from one copy of the release test binary,
+  3 s and then 8 s apart.
+- `ffplay` and Notepad covered the screen during the runs, and were closed
+  after.
+- Logs, the probe's output, the dumps and the scripts stay on the machine in
+  the test folder (`oct16`), and none are committed.
