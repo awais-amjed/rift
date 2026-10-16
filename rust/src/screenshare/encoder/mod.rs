@@ -5,11 +5,11 @@
 //! On Windows, where LiveKit has no hardware encoder, through FFmpeg's NVENC,
 //! Quick Sync and AMF encoders on NVIDIA's, Intel's and AMD's GPUs
 //! (`ffmpeg.rs`), with Media Foundation behind AMF on AMD's
-//! (`windows_gpu.rs`). On Linux
-//! through NVENC (`nvenc.rs`), since LiveKit's own NVENC carries code the GPL
-//! client cannot, and through FFmpeg's VAAPI encoder on Intel's and AMD's GPUs
-//! (`ffmpeg.rs`), since LiveKit's own VAAPI encoder stalls. H264 and AV1 are
-//! only ever encoded by the GPU or the OS, never by Rift itself.
+//! (`windows_gpu.rs`). On Linux through FFmpeg's NVENC on NVIDIA's, since
+//! LiveKit's own NVENC carries code the GPL client cannot, and its VAAPI
+//! encoder on Intel's and AMD's (`ffmpeg.rs`), since LiveKit's own VAAPI
+//! encoder stalls. H264 and AV1 are only ever encoded by the GPU or the OS,
+//! never by Rift itself.
 #![cfg_attr(not(gpu_encoder), allow(dead_code))]
 // AV1 is made by the Windows encoder alone, and only in its tests.
 #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
@@ -19,8 +19,6 @@ mod ffmpeg;
 pub(crate) mod h264;
 #[cfg(target_os = "windows")]
 mod media_foundation;
-#[cfg(target_os = "linux")]
-mod nvenc;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 mod timings;
 #[cfg(target_os = "windows")]
@@ -70,9 +68,9 @@ impl std::fmt::Display for GpuCodec {
 /// so the first answer is kept.
 ///
 /// On Windows that is FFmpeg's encoder, or Media Foundation's on an AMD GPU
-/// where FFmpeg's does not open. On Linux it is Rift's NVENC, or FFmpeg's VAAPI where
-/// NVIDIA's is missing; without either LiveKit would make H264 with OpenH264
-/// on the CPU, which Rift never does.
+/// where FFmpeg's does not open. On Linux it is FFmpeg's NVENC, or its VAAPI
+/// where NVIDIA's is missing; without either LiveKit would make H264 with
+/// OpenH264 on the CPU, which Rift never does.
 pub(crate) fn gpu_codecs() -> Vec<VideoCodec> {
     #[cfg(target_os = "windows")]
     {
@@ -103,11 +101,11 @@ pub(crate) fn gpu_codecs() -> Vec<VideoCodec> {
 
 /// Whether a share in `codec` is encoded by Rift's own GPU encoder here. On
 /// Windows always: a failure to open moves the share to VP9. On Linux where
-/// NVENC or FFmpeg's VAAPI opens one, each asked once.
+/// FFmpeg opens one, asked once.
 pub(crate) fn encodes_itself(codec: GpuCodec) -> bool {
     #[cfg(target_os = "linux")]
     {
-        codec == GpuCodec::H264 && (nvenc_here() || ffmpeg::opens(codec))
+        ffmpeg::opens(codec)
     }
     #[cfg(not(target_os = "linux"))]
     {
@@ -116,35 +114,17 @@ pub(crate) fn encodes_itself(codec: GpuCodec) -> bool {
     }
 }
 
-/// Whether NVENC encodes H264 here, which on a computer with both is
-/// preferred to VAAPI: asked once.
-#[cfg(target_os = "linux")]
-fn nvenc_here() -> bool {
-    // A test on a computer with both runs VAAPI this way.
-    #[cfg(test)]
-    if std::env::var_os("GPU_NO_NVENC").is_some() {
-        return false;
-    }
-    static NVENC: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *NVENC.get_or_init(|| nvenc::opens(GpuCodec::H264))
-}
-
 #[cfg(target_os = "linux")]
 impl GpuEncoder {
-    /// Open the GPU's encoder for these settings and start feeding `sink`:
-    /// NVENC where NVIDIA's driver has one, else FFmpeg's VAAPI. `_only`,
-    /// which picks one of several encoders on Windows, has nothing to pick
-    /// here.
+    /// Open the GPU's encoder for these settings and start feeding `sink`.
+    /// `_only`, which picks one of several encoders on Windows, has nothing
+    /// to pick here: FFmpeg's is the first that opened (`ffmpeg::opens`).
     pub(crate) fn open(
         settings: EncoderSettings,
         sink: Box<dyn EncodedSink>,
         _only: Option<usize>,
     ) -> Result<GpuEncoder, String> {
-        if nvenc_here() {
-            GpuEncoder::start(settings, sink, nvenc::open)
-        } else {
-            GpuEncoder::start(settings, sink, ffmpeg::open)
-        }
+        GpuEncoder::start(settings, sink, ffmpeg::open)
     }
 }
 

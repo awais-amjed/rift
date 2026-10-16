@@ -686,16 +686,22 @@ pictures reach the encoder from memory, so the GPU the screen is on does not
 matter. Measured Oct 5 2026 through Media Foundation at 60 fps: 52
 to 67% of a core, against VP9's 186 to 196% (`TESTING.md`).
 
-On Linux an NVIDIA GPU is driven by Rift itself, through NVENC, and the frames
-go out on the same pre-encoded path as on Windows. LiveKit has an NVENC encoder
-too, but it is built from NVIDIA's Video Codec SDK samples, which are under
-NVIDIA's licence and not one the GPL client can carry, so Rift's build leaves it
-out (it only goes in when CUDA's headers are found, and the release build has
-none). Rift's goes through `shiguredo_nvcodec` (Apache-2.0): NVIDIA's
-MIT-licensed API header, with the driver's libraries opened at run time, the
-way OBS and Sunshine use NVENC. Measured Oct 5 2026 on an RTX 3070 Ti Laptop: a
-moving 60 fps window at 15% of a core against VP9's 67%, held at 60 fps with
-every core busy; a still one at 0.18 Mbps.
+On Linux an NVIDIA GPU is driven through **FFmpeg's NVENC encoder**, as on
+Windows, and the frames go out on the same pre-encoded path. LiveKit has an
+NVENC encoder too, but it is built from NVIDIA's Video Codec SDK samples, which
+are under NVIDIA's licence and not one the GPL client can carry, so Rift's
+build leaves it out (it only goes in when CUDA's headers are found, and the
+release build has none). FFmpeg's reaches NVENC through nv-codec-headers: NVIDIA's
+MIT-licensed API header and FFmpeg's loader, with the driver's libraries opened
+at run time, the way OBS and Sunshine use NVENC. Measured Oct 16 2026 on an
+RTX 3070 Ti Laptop: a moving 960x1000 window at 60 fps on 14% of a core, and
+at 120 fps on 25% with nothing dropped (`TESTING.md`). Until then Rift drove
+NVENC on Linux through the `shiguredo_nvcodec` crate; one encoder library for
+both systems put the Windows fixes on Linux too: the
+moved bitrate without a keyframe, the picture NVENC holds above 60 fps, the
+colour tag. NVIDIA's encoder library waits on its threads for ever when the
+process exits with an encoder open, so the library closes any still open at
+exit (`ffenc.c`).
 
 Intel's and AMD's GPUs on Linux are driven through **FFmpeg's VAAPI encoder**,
 on the same pre-encoded path. LiveKit has a VAAPI encoder too, but on an AMD
@@ -703,10 +709,11 @@ RX 9070 XT (Mesa 26.2, Oct 9 2026) it stalled the viewer for 2 to 6 s every
 8 to 25 s and made 34 of 60 frames a second; Rift's FFmpeg on the same GPU
 was decoded at 56 of 60 and 115 of 120, one dip in two minutes. FFmpeg cannot be linked beside libwebrtc, which carries Chromium's
 FFmpeg under the same symbol names, so it is built into a library of its own
-(`native/ffenc`): FFmpeg 9.0.2 with nothing but `h264_vaapi` on Linux (and
-`h264_nvenc`, `h264_qsv` and `h264_amf` on Windows), every FFmpeg symbol
-hidden, opened by the Rust crate at run time (`encoder/ffmpeg.rs`), and
-VAAPI's first render node that opens an encoder is the one used. FFmpeg's
+(`native/ffenc`): FFmpeg 9.0.2 with nothing but `h264_nvenc` and `h264_vaapi`
+on Linux (and `h264_nvenc`, `h264_qsv` and `h264_amf` on Windows), every
+FFmpeg symbol hidden, opened by the Rust crate at run time
+(`encoder/ffmpeg.rs`), and the first that opens an encoder is the one used:
+NVENC, then VAAPI's render nodes in order. FFmpeg's VAAPI
 encoder sends the bitrate to the GPU only with a keyframe, so the build patches
 it to send WebRTC's every move with the next picture
 (`third_party/ffmpeg/RIFT_PATCHES.md`); unpatched, an Intel GPU stayed at its
@@ -716,11 +723,10 @@ bitrate Intel's GPU padded a still picture out to the full rate, and without
 the floor it re-coded one at 4 Mbps of 20; a shared screen is mostly still.
 FFmpeg's encoders, on both systems, say in the stream that its pictures are
 BT.601 in limited range, which is how libyuv converts them (`ffenc.c`), so no
-decoder guesses BT.709 for an HD picture and shifts its colours. Rift's Linux
-NVENC cannot say it (`shiguredo_nvcodec` sets no colour description), and
-Media Foundation's fallback is left as it was; both leave it to the decoder,
-whose guess in libwebrtc is BT.601 anyway. NVENC comes first where both
-are present. With neither, or without the library, H264 is not offered, and a
+decoder guesses BT.709 for an HD picture and shifts its colours. Media
+Foundation's fallback is left as it was, which leaves it to the decoder, whose
+guess in libwebrtc is BT.601 anyway. NVENC comes first where both are
+present. With neither, or without the library, H264 is not offered, and a
 share asked for in H264 goes out as VP9.
 
 - **H264 and AV1 are only ever encoded by the GPU or the OS, never by Rift.**

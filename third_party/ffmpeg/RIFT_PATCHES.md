@@ -10,17 +10,18 @@ rest.
 Built with everything off but `libavcodec`, `libavutil` and the GPU encoders,
 statically, where every FFmpeg symbol stays hidden: LiveKit's libwebrtc
 carries Chromium's FFmpeg under the same names. On Linux that is
-`librift_ffenc.so` (`native/ffenc`) with the VAAPI encoder; on Windows,
-`rift_ffenc.dll` with the NVENC, Quick Sync and AMF encoders, built with
-MSYS2's MinGW against NVIDIA's codec headers (nv-codec-headers n11.1.5.4, for
-drivers from 471.41), AMD's AMF headers (1.5.2, the oldest FFmpeg 9 takes)
+`librift_ffenc.so` (`native/ffenc`) with the NVENC and VAAPI encoders; on
+Windows, `rift_ffenc.dll` with the NVENC, Quick Sync and AMF encoders, built
+with MSYS2's MinGW. Both are built against NVIDIA's codec headers
+(nv-codec-headers n11.1.5.4, for drivers from 471.41), and Windows' also
+against AMD's AMF headers (1.5.2, the oldest FFmpeg 9 takes)
 and Intel's libvpl dispatcher (2.17.0), each pinned by sha256 in
 `native/ffenc/build.sh`. libvpl's stand-ins for old MSVC's string functions
 break MinGW's headers, so the build narrows their guard to MSVC with `sed`
 rather than carrying a patch for one line.
 
-Every patch applies to both builds; each touches only encoders one of them
-builds.
+Every patch applies to both builds; the NVENC one is in both, the VAAPI one
+only in Linux's and the AMF one only in Windows'.
 
 ## `vaapi-encode-moving-bitrate.patch`
 
@@ -62,7 +63,10 @@ with the rate moved 20 → 5 → 12 Mbps and a keyframe asked for at 7 s:
 unpatched, a keyframe at each move, and 5.66 and 13.90 Mbps in the seconds the
 rate moved; patched, keyframes only at the start and where asked, 4.98 in the
 second the rate fell and 5.2 to 5.4 after, and the climb to 12 took three
-seconds (9.2, 10.7, 11.8).
+seconds (9.2, 10.7, 11.8). That was the Windows build. Measured again Oct 16
+2026 on the same GPU in the Linux build (driver 610.57), 720p60 testsrc2 with
+noise, the rate moved 8 → 2 → 6 Mbps: 8.5 before, 1.0 to 1.9 after the fall,
+6.2 to 7.0 after the rise, and no keyframe at either move.
 
 ## `amf-encode-moving-bitrate.patch`
 

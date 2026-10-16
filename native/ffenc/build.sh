@@ -5,9 +5,9 @@
 #
 #   native/ffenc/build.sh OUT_DIR
 #
-# On Linux it makes librift_ffenc.so with the VAAPI encoder, and needs a C
-# compiler, make and libva's headers (libva-dev). On Windows it makes
-# rift_ffenc.dll with NVIDIA's, Intel's and AMD's encoders, and runs in
+# On Linux it makes librift_ffenc.so with the VAAPI and NVENC encoders, and
+# needs a C compiler, make and libva's headers (libva-dev). On Windows it
+# makes rift_ffenc.dll with NVIDIA's, Intel's and AMD's encoders, and runs in
 # MSYS2's UCRT64 shell with make, MinGW's gcc, CMake, Ninja and pkgconf
 # (windows/CMakeLists.txt starts it there). Every download is taken once
 # into OUT_DIR, or FFmpeg's from RIFT_FFMPEG_TARBALL, and its sha256 checked
@@ -38,26 +38,29 @@ configure_flags=(
   --disable-swscale --disable-swresample --disable-x86asm --disable-debug
   --enable-static --disable-shared --enable-pic
 )
+# NVENC, on both, reaches NVIDIA's driver at run time through NVIDIA's API
+# headers (nv-codec-headers, MIT), which open libcuda and libnvidia-encode
+# when it is first asked for; a computer without them has no NVENC. It needs
+# no --enable-nonfree.
+nv_headers=n11.1.5.4
+nv_headers_sha256=cbad7c68365ae50b03fe4cfbea05975c94406bdcc0a995bd094a3ea355656ffb
+configure_flags+=(--enable-ffnvcodec --enable-nvenc)
 if [[ $os == linux ]]; then
   library=$out/librift_ffenc.so
-  configure_flags+=(--enable-vaapi --enable-encoder=h264_vaapi)
+  configure_flags+=(--enable-vaapi --enable-encoder=h264_vaapi,h264_nvenc)
 else
   library=$out/rift_ffenc.dll
-  # Each vendor's encoder reaches its driver at run time: NVENC through
-  # NVIDIA's API headers (nv-codec-headers), AMF through AMD's (AMF headers),
-  # Quick Sync through Intel's dispatcher (libvpl), which finds the runtime
-  # Intel's driver installs. Direct3D 11 is how AMF and Quick Sync reach the
-  # GPU. All three are MIT; none needs --enable-nonfree.
+  # AMF reaches AMD's driver through AMD's headers (AMF headers), and Quick
+  # Sync Intel's through Intel's dispatcher (libvpl), which finds the runtime
+  # Intel's driver installs. Direct3D 11 is how both reach the GPU. Both are
+  # MIT; neither needs --enable-nonfree.
   configure_flags+=(
-    --enable-w32threads --enable-d3d11va
-    --enable-ffnvcodec --enable-nvenc --enable-amf --enable-libvpl
+    --enable-w32threads --enable-d3d11va --enable-amf --enable-libvpl
     --enable-encoder=h264_nvenc,h264_qsv,h264_amf
     # libvpl is C++, and the pkg-config file it installs leaves its runtime
     # out.
     --pkg-config-flags=--static --extra-libs=-lstdc++
   )
-  nv_headers=n11.1.5.4
-  nv_headers_sha256=cbad7c68365ae50b03fe4cfbea05975c94406bdcc0a995bd094a3ea355656ffb
   amf_headers=v1.5.2
   amf_headers_sha256=d3c12eb324edf05e214608b6a395a51dd95770ed9d45520185d6c3a206811c99
   libvpl=2.17.0
@@ -98,20 +101,19 @@ rm -f "$out/build.log"
 prefix=$out/prefix
 rm -rf "$prefix"
 
-# The headers and dispatcher Windows' encoders build against, into PREFIX
-# where FFmpeg's configure finds them through pkg-config.
+# The headers and dispatcher the encoders build against, into PREFIX where
+# FFmpeg's configure finds them through pkg-config.
+deps=$out/deps
+rm -rf "$deps"
+mkdir -p "$deps" "$prefix/include"
+fetch "$out/nv-codec-headers-$nv_headers.tar.gz" \
+  "https://github.com/FFmpeg/nv-codec-headers/archive/refs/tags/$nv_headers.tar.gz" \
+  "$nv_headers_sha256"
+tar -C "$deps" -xzf "$out/nv-codec-headers-$nv_headers.tar.gz"
+quietly "$out/build.log" make -C "$deps/nv-codec-headers-$nv_headers" \
+  PREFIX="$prefix" install
+export PKG_CONFIG_PATH=$prefix/lib/pkgconfig
 if [[ $os == windows ]]; then
-  deps=$out/deps
-  rm -rf "$deps"
-  mkdir -p "$deps" "$prefix/include"
-
-  fetch "$out/nv-codec-headers-$nv_headers.tar.gz" \
-    "https://github.com/FFmpeg/nv-codec-headers/archive/refs/tags/$nv_headers.tar.gz" \
-    "$nv_headers_sha256"
-  tar -C "$deps" -xzf "$out/nv-codec-headers-$nv_headers.tar.gz"
-  quietly "$out/build.log" make -C "$deps/nv-codec-headers-$nv_headers" \
-    PREFIX="$prefix" install
-
   fetch "$out/AMF-headers-$amf_headers.tar.gz" \
     "https://github.com/GPUOpen-LibrariesAndSDKs/AMF/releases/download/$amf_headers/AMF-headers-$amf_headers.tar.gz" \
     "$amf_headers_sha256"
@@ -133,7 +135,6 @@ if [[ $os == windows ]]; then
     -DINSTALL_EXAMPLES=OFF
   quietly "$out/build.log" cmake --build "$deps/libvpl-build"
   quietly "$out/build.log" cmake --install "$deps/libvpl-build"
-  export PKG_CONFIG_PATH=$prefix/lib/pkgconfig
 fi
 
 fetch "${RIFT_FFMPEG_TARBALL:-$out/ffmpeg-$version.tar.xz}" \
@@ -158,7 +159,7 @@ if [[ $os == linux ]]; then
   "$cc" -shared -fPIC -O2 -fvisibility=hidden -I"$prefix/include" \
     "$here/ffenc.c" -o "$library.part" \
     "$prefix/lib/libavcodec.a" "$prefix/lib/libavutil.a" \
-    -lva -lva-drm -lm -pthread \
+    -lva -lva-drm -lm -ldl -pthread \
     -Wl,--exclude-libs,ALL -Wl,-Bsymbolic -Wl,-z,defs
 else
   # A DLL exports only what is marked to (RIFT_FFENC_EXPORT), and carries
@@ -173,5 +174,5 @@ else
     -Wl,--exclude-libs,ALL
 fi
 mv "$library.part" "$library"
-rm -rf "$src" "${deps:-}"
+rm -rf "$src" "$deps"
 echo "$stamp" >"$out/.stamp"

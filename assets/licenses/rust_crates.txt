@@ -1348,7 +1348,6 @@ Used by:
   livekit 0.9.5
   webrtc-sys 0.3.49
   ryu 1.0.23
-  shiguredo_nvcodec 2026.2.0
   sync_wrapper 1.0.2
 
 Apache License

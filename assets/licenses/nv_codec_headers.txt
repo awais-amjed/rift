@@ -1,8 +1,9 @@
 nv-codec-headers n11.1.5.4 (https://github.com/FFmpeg/nv-codec-headers):
 NVIDIA's NVENC API header (nvEncodeAPI.h) and the FFmpeg project's headers
-that load NVIDIA's driver at run time. rift_ffenc.dll in the Windows app is
-built against them to drive NVIDIA's encoder through FFmpeg; the encoder
-itself is NVIDIA's driver, loaded at run time.
+that load NVIDIA's driver at run time. lib/librift_ffenc.so in the Linux app
+and rift_ffenc.dll in the Windows app are built against them to drive
+NVIDIA's encoder through FFmpeg; the encoder itself is NVIDIA's driver,
+loaded at run time.
 
 nvEncodeAPI.h:
 

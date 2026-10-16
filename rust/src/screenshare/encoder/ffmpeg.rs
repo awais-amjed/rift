@@ -1,10 +1,13 @@
-//! H264 on a GPU through FFmpeg: its VAAPI encoder for Intel's and AMD's GPUs
-//! on Linux, and on Windows its NVENC encoder for NVIDIA's, its Quick Sync
-//! encoder for Intel's and its AMF encoder for AMD's.
+//! H264 on a GPU through FFmpeg: its NVENC encoder for NVIDIA's GPUs on both
+//! systems, its VAAPI encoder for Intel's and AMD's on Linux, and on Windows
+//! its Quick Sync encoder for Intel's and its AMF encoder for AMD's.
 //!
 //! LiveKit has a VAAPI encoder of its own, but on AMD (RX 9070 XT, Mesa 26.2,
 //! Oct 9 2026) it stalled the viewer for seconds at a time and made 34 of 60
 //! pictures a second, where FFmpeg's `h264_vaapi` on the same GPU was clean.
+//! Its NVENC encoder is built from NVIDIA's SDK samples, under a licence the
+//! GPL client cannot carry; FFmpeg's reaches NVIDIA's driver through MIT
+//! headers alone, opening its libraries at run time.
 //! On Windows LiveKit has no GPU encoder at all, and Media Foundation's, which
 //! Rift used before, ran past WebRTC's target whenever the target was below
 //! what the picture cost (`ARCHITECTURE.md`, "Encoding a share on the GPU").
@@ -21,8 +24,7 @@ use super::{Encoded, EncoderSettings, GpuCodec, Nv12Frame};
 use libloading::Library;
 use std::ffi::{c_char, c_void, CStr, CString};
 use std::path::PathBuf;
-use std::sync::atomic::AtomicBool;
-use std::sync::{Arc, OnceLock};
+use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
 /// The library's interface version this crate was written against
@@ -164,14 +166,21 @@ struct Candidate {
     label: String,
 }
 
-/// The encoders worth trying, in order: VAAPI on each render node, first to
-/// last.
+/// The encoders worth trying, in order: NVENC, then VAAPI on each render
+/// node, first to last. NVIDIA's driver finds its own GPU, which on a laptop
+/// with two is the NVIDIA one whichever drives the screen; the pictures come
+/// from memory, so that does not matter. [`ENCODER_ENV`] names the one to try
+/// instead.
 #[cfg(target_os = "linux")]
 fn candidates() -> Vec<Candidate> {
-    let Ok(entries) = std::fs::read_dir("/dev/dri") else {
-        return Vec::new();
-    };
-    let mut nodes: Vec<PathBuf> = entries
+    let mut candidates = vec![Candidate {
+        encoder: c"h264_nvenc",
+        device: None,
+        label: "NVENC".to_string(),
+    }];
+    let mut nodes: Vec<PathBuf> = std::fs::read_dir("/dev/dri")
+        .into_iter()
+        .flatten()
         .filter_map(|entry| entry.ok().map(|entry| entry.path()))
         .filter(|path| {
             path.file_name()
@@ -180,16 +189,14 @@ fn candidates() -> Vec<Candidate> {
         })
         .collect();
     nodes.sort();
-    nodes
-        .into_iter()
-        .filter_map(|node| {
-            Some(Candidate {
-                encoder: c"h264_vaapi",
-                device: Some(CString::new(node.to_string_lossy().as_bytes()).ok()?),
-                label: format!("VAAPI on {}", node.display()),
-            })
+    candidates.extend(nodes.into_iter().filter_map(|node| {
+        Some(Candidate {
+            encoder: c"h264_vaapi",
+            device: Some(CString::new(node.to_string_lossy().as_bytes()).ok()?),
+            label: format!("VAAPI on {}", node.display()),
         })
-        .collect()
+    }));
+    named_only(candidates)
 }
 
 /// The encoders worth trying, in order: NVIDIA's, AMD's, then Intel's. Each
@@ -206,25 +213,40 @@ fn candidates() -> Vec<Candidate> {
         (c"h264_amf", "AMF"),
         (c"h264_qsv", "Quick Sync"),
     ];
-    let named = std::env::var(ENCODER_ENV).ok();
-    ENCODERS
-        .into_iter()
-        .filter(|(encoder, _)| match &named {
-            Some(named) => encoder.to_str() == Ok(named.as_str()),
-            None => true,
-        })
-        .map(|(encoder, label)| Candidate {
-            encoder,
-            device: None,
-            label: label.to_string(),
-        })
-        .collect()
+    named_only(
+        ENCODERS
+            .into_iter()
+            .map(|(encoder, label)| Candidate {
+                encoder,
+                device: None,
+                label: label.to_string(),
+            })
+            .collect(),
+    )
 }
 
-/// The one FFmpeg encoder to try on Windows, by FFmpeg's name: Quick Sync on
-/// a PC that would pick its NVIDIA or AMD card, for a test or a bench.
-#[cfg(target_os = "windows")]
+/// The one FFmpeg encoder to try, by FFmpeg's name: Quick Sync on a PC that
+/// would pick its NVIDIA or AMD card, or VAAPI on a Linux laptop with NVIDIA's
+/// beside it, for a test or a bench.
 const ENCODER_ENV: &str = "RIFT_FFENC_ENCODER";
+
+/// `candidates` without those [`ENCODER_ENV`] leaves out. A test also skips
+/// NVENC with `GPU_NO_NVENC`, to run VAAPI on a computer with both.
+fn named_only(candidates: Vec<Candidate>) -> Vec<Candidate> {
+    let named = std::env::var(ENCODER_ENV).ok();
+    #[cfg(test)]
+    let no_nvenc = std::env::var_os("GPU_NO_NVENC").is_some();
+    #[cfg(not(test))]
+    let no_nvenc = false;
+    candidates
+        .into_iter()
+        .filter(|candidate| match &named {
+            Some(named) => candidate.encoder.to_str() == Ok(named.as_str()),
+            None => true,
+        })
+        .filter(|candidate| !(no_nvenc && candidate.encoder == c"h264_nvenc"))
+        .collect()
+}
 
 /// The encoder that makes H264 here, and its driver's name: the first
 /// [`candidates`] entry that opens. Found once, since opening one takes a
@@ -285,8 +307,10 @@ pub(crate) fn opens(codec: GpuCodec) -> bool {
 /// (P8, video 555 MHz) a few seconds into a share, after which a 1080p
 /// picture took 11.4 ms: 87 fps at 120. Holding one, the wait overlaps the
 /// next picture: 1.4 ms a picture, the GPU settling at P3, and the viewer at
-/// 118.0 fps (Oct 16 2026, Windows). At 60 the wait fits in a picture's time,
-/// so nothing is held, and the picture is not a frame later. FFmpeg hands a
+/// 118.0 fps (Oct 16 2026, Windows). On Linux the same GPU stayed at P0 and
+/// made 120 either way, a picture taking 0.3 ms to send held and 2.1 ms not
+/// (same day, a 960x1000 window). At 60 the wait fits in a picture's time, so
+/// nothing is held, and the picture is not a frame later. FFmpeg hands a
 /// picture out once `delay` are ready or waiting, and the newest is ready as
 /// soon as it is in, so 1 holds nothing.
 fn delay_frames(fps: u32) -> i32 {
@@ -371,7 +395,6 @@ unsafe impl Send for FfmpegSession {}
 pub(super) fn open(
     settings: &EncoderSettings,
     sink: SharedSink,
-    _failed: Arc<AtomicBool>,
 ) -> Result<(FfmpegSession, String), String> {
     let api = api()?;
     let (candidate, driver) = h264_encoder().ok_or("no GPU here encodes H264 through FFmpeg")?;

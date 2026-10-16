@@ -10,6 +10,10 @@
 #include <libavutil/pixdesc.h>
 
 #if defined(__linux__)
+#include <pthread.h>
+#include <stdatomic.h>
+#include <stdlib.h>
+
 #include <libavutil/hwcontext_vaapi.h>
 #include <va/va.h>
 #endif
@@ -37,7 +41,79 @@ struct RiftFfenc {
   AVPacket* packet;
   int32_t peak_percent;
   char driver[128];
+#if defined(__linux__)
+  // Held for every call into the encoder, so the exit handler below never
+  // closes it under the encoder's thread; `shut` once it has.
+  pthread_mutex_t lock;
+  int shut;
+  RiftFfenc* next_nvenc;
+#endif
 };
+
+// ── NVENC at exit (Linux) ─────────────────────────────────────────────────
+//
+// NVIDIA's encoder library waits on its own threads when the process exits,
+// and for ever while an encoder is still open: a test harness that returned
+// from main with one open never ended (driver 610.57, Oct 16 2026), where one
+// that closed it first ended at once. A share is stopped before the app quits,
+// but quitting is not held up for it (lib/logic/services/before_quit.dart), so
+// the encoders still open are closed here, before NVIDIA's own handler runs:
+// registered after the first NVENC encoder opened, which loaded NVIDIA's
+// library, so it runs first. A closed encoder fails every later call, and
+// every call fails once the process is exiting: the encoder's thread, taking
+// the lock again straight after each picture, kept the handler waiting for
+// seconds.
+
+#if defined(__linux__)
+static pthread_mutex_t nvenc_lock = PTHREAD_MUTEX_INITIALIZER;
+static RiftFfenc* nvenc_open;
+static atomic_int exiting;
+
+static void close_nvenc_at_exit(void) {
+  atomic_store(&exiting, 1);
+  pthread_mutex_lock(&nvenc_lock);
+  for (RiftFfenc* enc = nvenc_open; enc; enc = enc->next_nvenc) {
+    pthread_mutex_lock(&enc->lock);
+    avcodec_free_context(&enc->codec);
+    enc->shut = 1;
+    pthread_mutex_unlock(&enc->lock);
+  }
+  nvenc_open = NULL;
+  pthread_mutex_unlock(&nvenc_lock);
+}
+
+static void register_exit_handler(void) { atexit(close_nvenc_at_exit); }
+
+static void note_nvenc(RiftFfenc* enc) {
+  static pthread_once_t once = PTHREAD_ONCE_INIT;
+  pthread_once(&once, register_exit_handler);
+  pthread_mutex_lock(&nvenc_lock);
+  enc->next_nvenc = nvenc_open;
+  nvenc_open = enc;
+  pthread_mutex_unlock(&nvenc_lock);
+}
+
+static void forget_nvenc(RiftFfenc* enc) {
+  pthread_mutex_lock(&nvenc_lock);
+  for (RiftFfenc** at = &nvenc_open; *at; at = &(*at)->next_nvenc) {
+    if (*at == enc) {
+      *at = enc->next_nvenc;
+      break;
+    }
+  }
+  pthread_mutex_unlock(&nvenc_lock);
+}
+
+#define LOCK(enc) pthread_mutex_lock(&(enc)->lock)
+#define UNLOCK(enc) pthread_mutex_unlock(&(enc)->lock)
+#define SHUT(enc) ((enc)->shut)
+#define EXITING() atomic_load(&exiting)
+#else
+#define LOCK(enc) ((void)0)
+#define UNLOCK(enc) ((void)0)
+#define SHUT(enc) 0
+#define EXITING() 0
+#endif
 
 static RiftFfencLog log_sink;
 static int32_t log_max_level = AV_LOG_WARNING;
@@ -290,6 +366,9 @@ RiftFfenc* rift_ffenc_open(const RiftFfencConfig* config, char* error,
   if (!enc) return NULL;
   enc->api = api;
   enc->peak_percent = config->peak_percent < 100 ? 100 : config->peak_percent;
+#if defined(__linux__)
+  pthread_mutex_init(&enc->lock, NULL);
+#endif
 
   if (api == API_VAAPI && open_device(enc, config, error, error_len) < 0) {
     goto fail;
@@ -329,6 +408,9 @@ RiftFfenc* rift_ffenc_open(const RiftFfencConfig* config, char* error,
       }
     }
   }
+#if defined(__linux__)
+  if (api == API_NVENC) note_nvenc(enc);
+#endif
   return enc;
 
 fail:
@@ -342,11 +424,20 @@ void rift_ffenc_set_bitrate(RiftFfenc* enc, int64_t bitrate_bps) {
   // Read by the encoder before the next picture: by NVENC and QSV
   // themselves, by VAAPI and AMF once patched
   // (third_party/ffmpeg/RIFT_PATCHES.md).
-  set_rates(enc, bitrate_bps);
+  if (EXITING()) return;
+  LOCK(enc);
+  if (!SHUT(enc)) set_rates(enc, bitrate_bps);
+  UNLOCK(enc);
 }
 
 int32_t rift_ffenc_send(RiftFfenc* enc, const uint8_t* nv12,
                         int64_t timestamp_us, int32_t keyframe) {
+  if (EXITING()) return AVERROR_EXIT;
+  LOCK(enc);
+  if (SHUT(enc)) {
+    UNLOCK(enc);
+    return AVERROR_EXIT;
+  }
   AVFrame* picture = enc->picture;
   picture->data[0] = (uint8_t*)nv12;
   picture->data[1] = (uint8_t*)nv12 + (size_t)picture->width * picture->height;
@@ -376,7 +467,10 @@ int32_t rift_ffenc_send(RiftFfenc* enc, const uint8_t* nv12,
     err = avcodec_send_frame(enc->codec, own);
   } else {
     AVFrame* gpu = av_frame_alloc();
-    if (!gpu) return AVERROR(ENOMEM);
+    if (!gpu) {
+      err = AVERROR(ENOMEM);
+      goto done;
+    }
     err = av_hwframe_get_buffer(enc->frames, gpu, 0);
     if (err >= 0) err = av_hwframe_transfer_data(gpu, picture, 0);
     if (err >= 0) {
@@ -389,12 +483,20 @@ int32_t rift_ffenc_send(RiftFfenc* enc, const uint8_t* nv12,
 done:
   picture->data[0] = NULL;
   picture->data[1] = NULL;
+  UNLOCK(enc);
   return err < 0 ? err : 0;
 }
 
 int32_t rift_ffenc_receive(RiftFfenc* enc, RiftFfencPacket* packet) {
+  if (EXITING()) return AVERROR_EXIT;
+  LOCK(enc);
+  if (SHUT(enc)) {
+    UNLOCK(enc);
+    return AVERROR_EXIT;
+  }
   av_packet_unref(enc->packet);
   int err = avcodec_receive_packet(enc->codec, enc->packet);
+  UNLOCK(enc);
   if (err == AVERROR(EAGAIN) || err == AVERROR_EOF) return 0;
   if (err < 0) return err;
   packet->data = enc->packet->data;
@@ -406,6 +508,10 @@ int32_t rift_ffenc_receive(RiftFfenc* enc, RiftFfencPacket* packet) {
 
 void rift_ffenc_close(RiftFfenc* enc) {
   if (!enc) return;
+#if defined(__linux__)
+  if (enc->api == API_NVENC) forget_nvenc(enc);
+  pthread_mutex_destroy(&enc->lock);
+#endif
   av_packet_free(&enc->packet);
   av_frame_free(&enc->picture);
   for (int i = 0; i < OWN_PICTURES; i++) av_frame_free(&enc->own[i]);

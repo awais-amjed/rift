@@ -1,11 +1,10 @@
-//! The thread a GPU encoder runs on, whichever API it drives: Rift's NVENC
-//! and FFmpeg's on Linux, FFmpeg's on Windows.
+//! The thread a GPU encoder runs on: FFmpeg's, on Linux and Windows.
 //!
 //! One picture waits for the encoder, and a newer one replaces it, since a
 //! picture that waited behind a newer one is only delay. WebRTC's keyframe and
 //! bitrate requests are applied before each one; encoded frames go to the
-//! [`EncodedSink`]. What differs between NVENC and FFmpeg is only how a
-//! picture is encoded and how the rate is moved: a [`Session`].
+//! [`EncodedSink`]. How a picture is encoded and how the rate is moved is the
+//! encoder's: a [`Session`].
 use super::{clamp_bitrate, EncodedSink, EncoderSettings, Nv12Frame};
 use crate::screenshare::latest::{self, Putter, Taker};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
@@ -17,19 +16,13 @@ use std::thread::{self, JoinHandle};
 /// viewer joins or loses packets, so this is only a safety net.
 pub(super) const GOP_SECONDS: u32 = 60;
 
-/// The sink, shared between the thread feeding the encoder and whichever
-/// thread the encoder delivers on.
+/// The sink, as the encoder thread and its session share it.
 pub(super) type SharedSink = Arc<Mutex<Box<dyn EncodedSink>>>;
 
 /// One open encoder, as the thread drives it.
 pub(super) trait Session {
     /// Move the average rate; an error leaves the old one.
     fn set_bitrate(&mut self, bps: u32) -> Result<(), String>;
-    /// Whether the encoder can take another picture now. One that would be
-    /// one too many is dropped rather than queued behind the rest.
-    fn ready(&self) -> bool {
-        true
-    }
     /// Encode a picture. What comes out goes to the sink, now or from the
     /// encoder's own thread. An error ends the share's use of the encoder.
     fn encode(&mut self, frame: &Nv12Frame, keyframe: bool) -> Result<(), String>;
@@ -37,8 +30,7 @@ pub(super) trait Session {
 
 /// How a backend opens its [`Session`], on the encoder thread: the session
 /// and the encoder's name, or why it would not open.
-pub(super) type Opener<S> =
-    fn(&EncoderSettings, SharedSink, Arc<AtomicBool>) -> Result<(S, String), String>;
+pub(super) type Opener<S> = fn(&EncoderSettings, SharedSink) -> Result<(S, String), String>;
 
 /// A running GPU encoder.
 pub(crate) struct GpuEncoder {
@@ -173,7 +165,7 @@ fn run<S: Session>(
     shared: Shared,
 ) {
     let sink: SharedSink = Arc::new(Mutex::new(sink));
-    let (mut session, name) = match open(&settings, sink.clone(), shared.failed.clone()) {
+    let (mut session, name) = match open(&settings, sink.clone()) {
         Ok(opened) => opened,
         Err(reason) => {
             let _ = opened.send(Err(reason));
@@ -226,10 +218,6 @@ fn run<S: Session>(
                     Err(e) => log::warn!("encoder: moving the bitrate to {rate}: {e}"),
                 }
             }
-        }
-        if !session.ready() {
-            shared.spare.lock().unwrap().push(frame.data);
-            continue;
         }
         let result = session.encode(&frame, keyframe);
         shared.spare.lock().unwrap().push(frame.data);

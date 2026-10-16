@@ -1,6 +1,6 @@
 // A GPU encoder through FFmpeg, as a library of its own: librift_ffenc.so
-// with VAAPI's on Linux, rift_ffenc.dll with NVENC's, QSV's and AMF's on
-// Windows.
+// with NVENC's and VAAPI's on Linux, rift_ffenc.dll with NVENC's, QSV's and
+// AMF's on Windows.
 //
 // LiveKit's libwebrtc already carries an FFmpeg (Chromium's, decoders only)
 // under the same symbol names, so Rift's FFmpeg cannot be linked beside it.
