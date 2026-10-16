@@ -174,6 +174,10 @@ class AppState extends Equatable {
   /// app's own picker doesn't use.
   final List<String> recentEmojis;
 
+  /// The call Restart to update left, for the next start to rejoin — see
+  /// [CallToResume]. Taken, and cleared, by the first start after it.
+  final CallToResume? callToResume;
+
   // ── Transient (not stored in JSON) ─────────────────────────
   @JsonKey(includeFromJson: false, includeToJson: false)
   final bool isHovered;
@@ -261,6 +265,7 @@ class AppState extends Equatable {
     this.echoCancellation = true,
     this.autoGainControl = true,
     this.recentEmojis = const [],
+    this.callToResume,
     this.soundboardMuted = false,
     this.soundboardVolume = 0.6,
     this.appSounds = const {},
@@ -342,6 +347,8 @@ class AppState extends Equatable {
     bool? echoCancellation,
     bool? autoGainControl,
     List<String>? recentEmojis,
+    CallToResume? callToResume,
+    bool clearCallToResume = false,
     bool? soundboardMuted,
     double? soundboardVolume,
     Map<String, ParticipantSetting>? appSounds,
@@ -408,6 +415,9 @@ class AppState extends Equatable {
       echoCancellation: echoCancellation ?? this.echoCancellation,
       autoGainControl: autoGainControl ?? this.autoGainControl,
       recentEmojis: recentEmojis ?? this.recentEmojis,
+      callToResume: clearCallToResume
+          ? null
+          : (callToResume ?? this.callToResume),
       soundboardMuted: soundboardMuted ?? this.soundboardMuted,
       soundboardVolume: soundboardVolume ?? this.soundboardVolume,
       appSounds: appSounds ?? this.appSounds,
@@ -485,6 +495,7 @@ class AppState extends Equatable {
     verifiedCodes,
     seenKeys,
     recentEmojis,
+    callToResume,
     isHovered,
     selectedChannelId,
     participants,

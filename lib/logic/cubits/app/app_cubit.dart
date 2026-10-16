@@ -6,6 +6,7 @@ import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:json_annotation/json_annotation.dart';
 
 import '../../../data/classes/call_shortcuts.dart';
+import '../../../data/classes/call_to_resume.dart';
 import '../../../data/classes/key_shortcut.dart';
 import '../../../data/classes/participant_info.dart';
 import '../../../data/classes/participant_setting.dart';
@@ -409,6 +410,22 @@ class AppCubit extends HydratedCubit<AppState> {
     final seen = state.seenKeys[person];
     if (seen == null || !seen.unacknowledgedChange) return null;
     return {...state.seenKeys, person: seen.acknowledge()};
+  }
+
+  // ── Persisted: the call to rejoin after an update ────────
+
+  /// Saved by Restart to update just before Rift quits.
+  void rememberCallToResume(CallToResume call) {
+    emit(state.copyWith(callToResume: call));
+  }
+
+  /// The call to rejoin at this start, if Rift restarted out of one moments
+  /// ago. Cleared whatever the answer, so it is rejoined once at most.
+  CallToResume? takeCallToResume(DateTime now) {
+    final call = state.callToResume;
+    if (call == null) return null;
+    emit(state.copyWith(clearCallToResume: true));
+    return call.isFreshAt(now) ? call : null;
   }
 
   // ── Transient: sidebar hover ─────────────────────────────

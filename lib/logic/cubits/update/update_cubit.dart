@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../data/classes/call_to_resume.dart';
 import '../../../data/repositories/update_repository.dart';
 import '../../../src/rust/api/updater.dart' show UpdateDownloadProgress;
 import '../../helper_methods.dart';
@@ -191,9 +192,9 @@ class UpdateCubit extends Cubit<UpdateState> {
   }
 
   /// Quits Rift for the updater, which starts the new version once it is in
-  /// place. Leaving a call is the caller's to confirm first: quitting leaves
-  /// it, as Quit in the tray does.
-  Future<void> restartToUpdate() async {
+  /// place. Quitting leaves a call, as Quit in the tray does; [call] is the
+  /// one to rejoin when the new version starts.
+  Future<void> restartToUpdate({CallToResume? call}) async {
     if (state.status != UpdateStatus.ready) return;
     emit(state.copyWith(status: UpdateStatus.restarting));
     try {
@@ -205,6 +206,9 @@ class UpdateCubit extends Cubit<UpdateState> {
       }
       return;
     }
+    // Only once the update is sure to run: a failed apply keeps Rift open,
+    // and the call with it.
+    if (call != null) _appCubit.rememberCallToResume(call);
     await TrayService.instance.quit();
   }
 

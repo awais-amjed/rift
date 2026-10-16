@@ -78,6 +78,9 @@ AppState _$AppStateFromJson(Map<String, dynamic> json) => AppState(
           ?.map((e) => e as String)
           .toList() ??
       const [],
+  callToResume: json['callToResume'] == null
+      ? null
+      : CallToResume.fromJson(json['callToResume'] as Map<String, dynamic>),
   soundboardMuted: json['soundboardMuted'] as bool? ?? false,
   soundboardVolume: (json['soundboardVolume'] as num?)?.toDouble() ?? 0.6,
   appSounds:
@@ -143,6 +146,7 @@ Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
   'verifiedCodes': instance.verifiedCodes,
   'seenKeys': instance.seenKeys.map((k, e) => MapEntry(k, e.toJson())),
   'recentEmojis': instance.recentEmojis,
+  'callToResume': instance.callToResume?.toJson(),
 };
 
 const _$SensitiveContentModeEnumMap = {
