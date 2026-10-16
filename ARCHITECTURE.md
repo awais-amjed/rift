@@ -753,7 +753,12 @@ share asked for in H264 goes out as VP9.
   at 1920x1080 VP9 sent 119.8 fps at 147% of a core, 3.7 ms a frame; at
   2560x1440 VP9 sent 105 fps at 268%, 7.8 ms a frame against the 8.3 that
   120 allows, and the GPU's H264 112 fps at 86%. At 2K neither encoder was
-  the limit: grabbing a window that size over X11 takes 7 to 9 ms.
+  the limit: grabbing a window that size over X11 takes 7 to 9 ms. On
+  Windows a share asks not to be power-throttled while it runs
+  (`capture.rs`): Windows 11 slows a process it judges out of sight, as Rift
+  is behind a game, and capture at 120 fell to about 92 pictures a second
+  within seconds; unthrottled it held 119.8 (Oct 16 2026, a test process
+  with no window, so the app's own case is inferred, not measured).
 - **H265 is skipped**: too many viewers cannot play it.
 - **AV1 is parked.** AMD's encoder makes AV1 that WebRTC carries, but no viewer
   gets it encrypted: LiveKit's Rust SDK does not negotiate what the server needs
