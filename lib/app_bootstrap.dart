@@ -29,6 +29,7 @@ import 'logic/services/notification_service.dart';
 import 'logic/services/preferences_file.dart';
 import 'logic/services/profile_auth_storage.dart';
 import 'logic/services/push_service.dart';
+import 'logic/services/push_wake/wake_central_reader.dart';
 import 'logic/services/sound_service.dart';
 import 'logic/services/storage_namespace.dart';
 import 'logic/services/text_safety.dart';
@@ -163,19 +164,20 @@ class AppBootstrap {
   /// own, since a key in the shared preferences file was overwritten by the
   /// other profiles (see [ProfileAuthStorage]). The web keeps the key: its
   /// storage is the browser's, and it has no file to give each profile.
+  ///
+  /// Windows and Linux give the release default that file too. There the
+  /// plugin rewrites its JSON file in place, and a power cut mid-write left
+  /// a PC with a file of zeros that ended every start (see
+  /// [PreferencesFile]); this one is written to a temporary file and renamed.
+  /// Android and iOS keep the plugin's storage, which the push wake reads
+  /// ([WakeCentralReader]).
   static Future<void> _initSupabase(String storageSuffix) async {
-    final host = Uri.parse(SupabaseConfig.supabaseUrl).host.split('.').first;
-    final legacyKey = 'sb-$host-auth-token-$storageSuffix';
+    final legacyKey = WakeCentralReader.sessionKey(storageSuffix);
+    final ownFile =
+        !kIsWeb &&
+        (storageSuffix.isNotEmpty || Platform.isWindows || Platform.isLinux);
     final FlutterAuthClientOptions authOptions;
-    if (storageSuffix.isEmpty) {
-      authOptions = const FlutterAuthClientOptions();
-    } else if (kIsWeb) {
-      authOptions = FlutterAuthClientOptions(
-        localStorage: SharedPreferencesLocalStorage(
-          persistSessionKey: legacyKey,
-        ),
-      );
-    } else {
+    if (ownFile) {
       final directory = await StorageNamespace.profileDirectory(storageSuffix);
       final storage = ProfileAuthStorage(
         File('$directory/central_auth.json'),
@@ -184,6 +186,14 @@ class AppBootstrap {
       authOptions = FlutterAuthClientOptions(
         localStorage: storage,
         pkceAsyncStorage: storage,
+      );
+    } else if (storageSuffix.isEmpty) {
+      authOptions = const FlutterAuthClientOptions();
+    } else {
+      authOptions = FlutterAuthClientOptions(
+        localStorage: SharedPreferencesLocalStorage(
+          persistSessionKey: legacyKey,
+        ),
       );
     }
     await Supabase.initialize(

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rift/logic/services/profile_auth_storage.dart';
+import 'package:rift/logic/services/push_wake/wake_central_reader.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Profiles side by side used to share one preferences file, and each wrote
@@ -83,5 +84,22 @@ void main() {
       legacySessionKey: 'sb-x-auth-token-wa',
     );
     expect(await reopened.accessToken(), 'old');
+  });
+
+  test('the release default moves the session supabase_flutter kept', () async {
+    // supabase_flutter's own key: "sb-" + the first label of the host. Spelt
+    // wrong, every Windows and Linux install is signed out of central by the
+    // update.
+    final key = WakeCentralReader.sessionKey('');
+    expect(key, 'sb-api-auth-token');
+    SharedPreferences.setMockInitialValues({key: 'session', 'recent': 'x'});
+    final storage = ProfileAuthStorage(
+      File('${dir.path}/central_auth.json'),
+      legacySessionKey: key,
+    );
+    expect(await storage.accessToken(), 'session');
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString(key), isNull);
+    expect(prefs.getString('recent'), 'x');
   });
 }

@@ -11,11 +11,13 @@ import '../helper_methods.dart';
 ///
 /// The plugin keeps every preference in one JSON file and rewrites it in
 /// place, so a PC that loses power mid-write can leave it full of zeros. The
-/// plugin's read then throws, and so does `Supabase.initialize`, whose central
-/// session lives there: the start ends before the first frame and the window
-/// stays white, every launch, through any number of reinstalls (the file is in
-/// Roaming AppData, which an uninstall leaves). Set aside, the file costs a
-/// sign-in to central and nothing else.
+/// plugin's read then throws, and so did `Supabase.initialize`, whose central
+/// session lived there: the start ended before the first frame and the window
+/// stayed white, every launch, through any number of reinstalls (the file is
+/// in Roaming AppData, which an uninstall leaves). The session has its own
+/// file now (`ProfileAuthStorage`), but its first start still reads the old
+/// one to move the session over, and the emoji picker keeps its recent
+/// emojis there. Set aside, the file costs those and nothing else.
 class PreferencesFile {
   const PreferencesFile._();
 

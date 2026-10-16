@@ -17,8 +17,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// PKCE values Auth keeps during a sign-in went through the same file, and
 /// could do the same.
 ///
-/// Only profiles use this; the release default keeps its original storage, so
-/// existing installs are untouched.
+/// On Windows and Linux the release default uses it too, since the plugin
+/// rewrites its file in place and a power cut can leave it unreadable. Its
+/// session moves over at its first start, as a profile's did.
 class ProfileAuthStorage extends LocalStorage implements GotrueAsyncStorage {
   final File _file;
 
