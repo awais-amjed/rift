@@ -124,10 +124,19 @@ impl GpuFeed {
         let now = Instant::now();
         let target = self.encoder.bitrate();
         let mut gate = self.gate.lock().unwrap();
-        if let Some(left_out) = gate.report(now) {
+        if let Some(report) = gate.report(now) {
+            let average_kb = if report.keyframes > 0 {
+                report.keyframe_bytes / u64::from(report.keyframes) / 1000
+            } else {
+                0
+            };
             log::info!(
-                "screenshare: left out {left_out} pictures to keep {} within {target} bps",
-                self.encoder.name()
+                "screenshare: left out {} pictures ({} within 1 s of a keyframe) to keep {} \
+                 within {target} bps; keyframes: {}, {average_kb} KB average",
+                report.left_out,
+                report.left_out_after_keyframes,
+                self.encoder.name(),
+                report.keyframes,
             );
         }
         gate.admits(target, now)
@@ -169,7 +178,7 @@ impl EncodedSink for SourceSink {
         self.gate
             .lock()
             .unwrap()
-            .spent(frame.payload.len(), Instant::now());
+            .spent(frame.payload.len(), frame.keyframe, Instant::now());
         self.source.capture_encoded_frame(&EncodedVideoFrame {
             codec,
             payload: long.as_deref().unwrap_or(frame.payload),

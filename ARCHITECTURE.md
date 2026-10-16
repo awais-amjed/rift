@@ -776,6 +776,17 @@ share asked for in H264 goes out as VP9.
   queue, the link lost them and the viewer decoded nothing; with it nothing
   waited or was lost and the viewer got 36 fps. An encoder that follows the
   target lost 56 pictures in 30 s, as the estimate fell, and held 120 fps.
+  A keyframe, made whenever a viewer joins or loses packets, can cost a few
+  pictures' worth at once, and what the gate leaves out after it is left out
+  for every viewer; its log line counts those apart. Measured Oct 16 2026 at
+  1440p60 and 8 Mbps with a viewer joining every 4 s: on a still screen of
+  text Intel's VAAPI made keyframes of about 300 KB and left out about 12
+  pictures after each, NVENC on Linux about 110 KB and 1 to 6; on a moving
+  picture keyframes were 50 to 65 KB and nothing was left out. Halving the
+  encoder's buffer took VAAPI's 12 to about 6 but left the keyframe of text
+  softer (29.6 against 30.5 dB), and a still screen is what text is shared
+  on, where a picture left out changes nothing on screen. So the buffer stays
+  at one second.
 
 ### Regions — [Implemented September 2026]
 

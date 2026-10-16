@@ -23,6 +23,22 @@ const AHEAD_SECONDS: f64 = 0.2;
 /// How often the pictures left out are reported in the log.
 const REPORT_SECONDS: f64 = 5.0;
 
+/// How long after a keyframe a picture left out is counted as the
+/// keyframe's doing. A keyframe is asked for whenever a viewer joins or loses
+/// packets, and costs many pictures' worth at once, so what it leaves out is
+/// left out for every viewer.
+const AFTER_KEYFRAME_SECONDS: f64 = 1.0;
+
+/// What the gate saw since its last report.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub(crate) struct GateReport {
+    pub left_out: u32,
+    /// Of those, the ones within [`AFTER_KEYFRAME_SECONDS`] of a keyframe.
+    pub left_out_after_keyframes: u32,
+    pub keyframes: u32,
+    pub keyframe_bytes: u64,
+}
+
 /// A leaky bucket of encoded bits, emptied at WebRTC's target.
 #[derive(Debug)]
 pub(crate) struct RateGate {
@@ -30,7 +46,8 @@ pub(crate) struct RateGate {
     ahead_bits: f64,
     target_bps: u32,
     at: Option<Instant>,
-    left_out: u32,
+    last_keyframe: Option<Instant>,
+    counts: GateReport,
     reported_at: Option<Instant>,
 }
 
@@ -40,15 +57,21 @@ impl RateGate {
             ahead_bits: 0.0,
             target_bps: 0,
             at: None,
-            left_out: 0,
+            last_keyframe: None,
+            counts: GateReport::default(),
             reported_at: None,
         }
     }
 
     /// Count a frame the encoder made.
-    pub(crate) fn spent(&mut self, bytes: usize, now: Instant) {
+    pub(crate) fn spent(&mut self, bytes: usize, keyframe: bool, now: Instant) {
         self.drain(now);
         self.ahead_bits += bytes as f64 * 8.0;
+        if keyframe {
+            self.last_keyframe = Some(now);
+            self.counts.keyframes += 1;
+            self.counts.keyframe_bytes += bytes as u64;
+        }
     }
 
     /// Whether the next picture goes to the encoder, at what WebRTC now asks
@@ -58,20 +81,27 @@ impl RateGate {
         self.target_bps = target_bps;
         let open = self.ahead_bits <= f64::from(target_bps) * AHEAD_SECONDS;
         if !open {
-            self.left_out += 1;
+            self.counts.left_out += 1;
+            if self
+                .last_keyframe
+                .is_some_and(|key| now.duration_since(key).as_secs_f64() <= AFTER_KEYFRAME_SECONDS)
+            {
+                self.counts.left_out_after_keyframes += 1;
+            }
         }
         open
     }
 
-    /// The pictures left out since the last report, once every
-    /// [`REPORT_SECONDS`] while there are any.
-    pub(crate) fn report(&mut self, now: Instant) -> Option<u32> {
+    /// The pictures left out and the keyframes made since the last report,
+    /// once every [`REPORT_SECONDS`] while there are any.
+    pub(crate) fn report(&mut self, now: Instant) -> Option<GateReport> {
         let since = *self.reported_at.get_or_insert(now);
-        if self.left_out == 0 || now.duration_since(since).as_secs_f64() < REPORT_SECONDS {
+        let quiet = self.counts.left_out == 0 && self.counts.keyframes == 0;
+        if quiet || now.duration_since(since).as_secs_f64() < REPORT_SECONDS {
             return None;
         }
         self.reported_at = Some(now);
-        Some(std::mem::take(&mut self.left_out))
+        Some(std::mem::take(&mut self.counts))
     }
 
     fn drain(&mut self, now: Instant) {
@@ -99,7 +129,7 @@ mod tests {
             let now = start + Duration::from_secs_f64(f64::from(n) / f64::from(FPS));
             if gate.admits(TARGET, now) {
                 admitted += 1;
-                gate.spent(bytes(n), now);
+                gate.spent(bytes(n), n == 0, now);
             }
         }
         admitted
@@ -156,7 +186,7 @@ mod tests {
             let now = later + Duration::from_secs_f64(f64::from(n) / f64::from(FPS));
             if gate.admits(TARGET / 3, now) {
                 admitted += 1;
-                gate.spent(frame_at(TARGET), now);
+                gate.spent(frame_at(TARGET), false, now);
             }
         }
         assert!(admitted.abs_diff(FPS / 3) <= FPS / 10, "{admitted}");
@@ -168,10 +198,60 @@ mod tests {
         let start = Instant::now();
         assert_eq!(gate.report(start), None);
         run(&mut gate, start, 6, |_| frame_at(2 * TARGET));
-        let left_out = gate
+        let report = gate
             .report(start + Duration::from_secs(6))
             .expect("a report");
-        assert!(left_out > 0);
+        assert!(report.left_out > 0);
         assert_eq!(gate.report(start + Duration::from_secs(7)), None);
+    }
+
+    #[test]
+    fn what_a_keyframe_leaves_out_is_counted_apart() {
+        let mut gate = RateGate::new();
+        let start = Instant::now();
+        assert_eq!(gate.report(start), None);
+        // A keyframe of 30 pictures' worth, the rest at the target.
+        run(&mut gate, start, 6, |n| {
+            frame_at(TARGET) * if n == 0 { 30 } else { 1 }
+        });
+        let report = gate
+            .report(start + Duration::from_secs(6))
+            .expect("a report");
+        assert_eq!(report.keyframes, 1);
+        assert_eq!(report.keyframe_bytes, 30 * frame_at(TARGET) as u64);
+        assert!(report.left_out > 0);
+        assert_eq!(report.left_out_after_keyframes, report.left_out);
+    }
+
+    #[test]
+    fn an_overshoot_away_from_keyframes_is_not_theirs() {
+        let mut gate = RateGate::new();
+        let start = Instant::now();
+        assert_eq!(gate.report(start), None);
+        // The first picture is a keyframe at the target; then the encoder
+        // runs at twice the target for good.
+        run(&mut gate, start, 6, |_| frame_at(2 * TARGET));
+        let report = gate
+            .report(start + Duration::from_secs(6))
+            .expect("a report");
+        assert_eq!(report.keyframes, 1);
+        // Half of every second's pictures are left out; only the first
+        // second's count as the keyframe's.
+        assert!(report.left_out_after_keyframes <= FPS / 2 + 1, "{report:?}");
+        let rest = report.left_out - report.left_out_after_keyframes;
+        assert!(rest.abs_diff(5 * FPS / 2) <= FPS / 4, "{report:?}");
+    }
+
+    #[test]
+    fn keyframes_alone_are_reported() {
+        let mut gate = RateGate::new();
+        let start = Instant::now();
+        assert_eq!(gate.report(start), None);
+        gate.spent(1000, true, start);
+        let report = gate
+            .report(start + Duration::from_secs(6))
+            .expect("a report");
+        assert_eq!(report.keyframes, 1);
+        assert_eq!(report.left_out, 0);
     }
 }
