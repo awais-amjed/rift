@@ -5,6 +5,7 @@
 #   scripts/sign_release.sh v1.5.0         # the GitHub release of that tag
 #   scripts/sign_release.sh --dir DIR      # the feeds in a folder (testing)
 #   scripts/sign_release.sh --announce v1.5.0   # only post the announcement
+#   scripts/sign_release.sh --announce v1.5.0 discord   # ...to one place only
 #
 # The release workflow publishes each feed (releases.win.json and
 # releases.linux.json) without a signature, and Rift skips a feed it cannot
@@ -20,7 +21,9 @@
 # a webhook, betas included: signing, not publishing, is when people can have
 # it. The webhook's URL holds its secret, so it lives in the keyring
 # (`secret-tool store --label='Rift release webhook' service
-# rift-release-webhook`), and without one nothing is posted.
+# rift-release-webhook`), and without one nothing is posted. The same notes go
+# to a Discord channel through its webhook, kept the same way under
+# `service rift-discord-webhook`.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -55,16 +58,31 @@ for a in json.load(open(sys.argv[1]))["Assets"]:
 ' "$1"
 }
 
+# Posts a release's notes to each webhook in the keyring: `rift`, `discord`, or
+# both when `where` is left out.
+announce() {
+  local tag=$1 where=${2:-all}
+  gh release view "$tag" -R "$repo" --json name,isPrerelease,body,url,assets >"$work/release.json"
+  [[ $where == discord ]] || announce_rift
+  [[ $where == rift ]] || announce_discord
+}
+
+# Hands curl the webhook URL on stdin, not its command line, where ps shows it.
+post_to() {
+  local url=$1 body=$2 reply=$3
+  printf 'url = "%s"\n' "$url" | curl -sS -K - -o "$reply" -w '%{http_code}' \
+    -H 'Content-Type: application/json' --data-binary "@$body"
+}
+
 # The notes as plain text, since a chat message draws no markdown, then the
 # Windows installer, which most people want, and the release's page.
-announce() {
-  local tag=$1 url
+announce_rift() {
+  local url
   url=$(secret-tool lookup service rift-release-webhook || true)
   if [[ -z $url ]]; then
     echo "announce: no rift-release-webhook in the keyring, nothing posted"
     return
   fi
-  gh release view "$tag" -R "$repo" --json name,isPrerelease,body,url,assets >"$work/release.json"
   python3 -c '
 import json, re, sys
 r = json.load(open(sys.argv[1]))
@@ -78,9 +96,7 @@ if len(text) > 16000:
     text = "%s is out (%s)\n\n%s" % (r["name"], kind, links)
 json.dump({"text": text}, open(sys.argv[2], "w"))
 ' "$work/release.json" "$work/announce.json"
-  # The URL goes to curl on stdin, not its command line, where ps shows it.
-  printf 'url = "%s"\n' "$url" | curl -sS -K - -o "$work/reply.json" \
-    -H 'Content-Type: application/json' --data-binary "@$work/announce.json" ||
+  post_to "$url" "$work/announce.json" "$work/reply.json" >/dev/null ||
     { echo "announce: could not reach the webhook"; return; }
   if python3 -c 'import json, sys; sys.exit(0 if json.load(open(sys.argv[1])).get("success") else 1)' \
     "$work/reply.json" 2>/dev/null; then
@@ -90,8 +106,42 @@ json.dump({"text": text}, open(sys.argv[2], "w"))
   fi
 }
 
+# Discord draws markdown, so the notes keep their bold and code. A message holds
+# 2000 characters; longer notes give way to the links alone. Nobody is pinged,
+# and the links draw no previews.
+announce_discord() {
+  local url status
+  url=$(secret-tool lookup service rift-discord-webhook || true)
+  if [[ -z $url ]]; then
+    echo "discord: no rift-discord-webhook in the keyring, nothing posted"
+    return
+  fi
+  python3 -c '
+import json, sys
+r = json.load(open(sys.argv[1]))
+kind = "beta" if r["isPrerelease"] else "release"
+links = "".join("Windows installer: %s\n" % a["url"] for a in r["assets"]
+                if a["name"].endswith("-setup.exe"))
+links += "Release page: %s" % r["url"]
+head = "## %s is out (%s)" % (r["name"], kind)
+text = "%s\n\n%s\n\n%s" % (head, r["body"].strip(), links)
+if len(text) > 2000:
+    text = "%s\n\n%s" % (head, links)
+json.dump({"content": text, "allowed_mentions": {"parse": []}, "flags": 4},
+          open(sys.argv[2], "w"))
+' "$work/release.json" "$work/discord.json"
+  # ?wait=true makes Discord answer with the message, or with why not.
+  status=$(post_to "$url?wait=true" "$work/discord.json" "$work/discord-reply.json") ||
+    { echo "discord: could not reach the webhook"; return; }
+  if [[ $status == 200 ]]; then
+    echo "discord: posted"
+  else
+    echo "discord: the webhook refused it ($status): $(python3 -c 'import json, sys; print(json.load(open(sys.argv[1])).get("message"))' "$work/discord-reply.json" 2>/dev/null)"
+  fi
+}
+
 if [[ ${1:-} == --announce ]]; then
-  announce "${2:?usage: scripts/sign_release.sh --announce <tag>}"
+  announce "${2:?usage: scripts/sign_release.sh --announce <tag> [rift|discord]}" "${3:-}"
   exit 0
 fi
 

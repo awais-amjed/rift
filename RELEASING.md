@@ -67,8 +67,18 @@ is kept in the keyring, as it holds the webhook's secret:
 secret-tool store --label='Rift release webhook' service rift-release-webhook
 ```
 
-With none there it posts nothing. `scripts/sign_release.sh --announce v1.0.3`
-posts a release's announcement on its own.
+It posts the same notes to a Discord channel through that channel's webhook,
+kept the same way:
+
+```bash
+secret-tool store --label='Rift Discord webhook' service rift-discord-webhook
+```
+
+Discord draws markdown, so its copy keeps the notes' bold and code, pings
+nobody and shows no link previews. A webhook missing from the keyring is
+skipped. `scripts/sign_release.sh --announce v1.0.3` posts a release's
+announcement on its own, and `--announce v1.0.3 discord` (or `rift`) to one
+place only. First posted to Discord with 1.5.0-beta.11 (Oct 17 2026).
 
 The key was made once with `scripts/release_key.sh generate` (Oct 6 2026). Its
 public half is in `RELEASE_KEYS` in `rust/src/updater/signature.rs`. If the
