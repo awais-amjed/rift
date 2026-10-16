@@ -771,9 +771,17 @@ share asked for in H264 goes out as VP9.
   id one bit into the ciphertext, so about one keyframe in two named a PPS
   that did not exist; whoever was watching dropped it and the pictures after,
   for up to a second each time somebody joined. The build patches it to the
-  short slice types NVENC writes (`third_party/ffmpeg/RIFT_PATCHES.md`), and a
-  share logs a warning if any encoder's keyframes do it again
-  (`h264::idr_readable_when_encrypted`); the GPU live test fails on one.
+  short slice types NVENC writes (`third_party/ffmpeg/RIFT_PATCHES.md`). On
+  Windows Intel's runtime writes the header itself, as type 7, for Quick Sync
+  and Media Foundation alike, with no setting to change it, so a share
+  rewrites such a keyframe's header before LiveKit sees it
+  (`h264::with_readable_pps_id`): the short type, and `idr_pic_id` made as
+  many bits longer, so the slice data stays where it was. Measured Oct 16
+  2026 on an Iris Xe, a viewer joining every 4 s: before, the one already
+  watching fell to 36 fps with 45 keyframes asked for in a minute; after,
+  60.0 fps and none. A share logs a warning if a keyframe still puts the id
+  past the readable byte (`h264::idr_readable_when_encrypted`); the GPU live
+  test fails on one.
 - **A GPU encoder is held to WebRTC's target before it encodes, not after.**
   WebRTC's frame dropper is off for pre-encoded frames (`webrtc-sys` 0.3.49),
   since a dropped H264 frame breaks every frame after it until the next

@@ -41,22 +41,20 @@ static UNREADABLE_KEYFRAMES: std::sync::atomic::AtomicU32 = std::sync::atomic::A
 
 impl EncodedSink for ToSource {
     fn deliver(&mut self, frame: Encoded<'_>) {
+        let (codec, rewritten) = match frame.codec {
+            GpuCodec::H264 => (EncodedVideoCodec::H264, h264::for_encryption(frame.payload)),
+            GpuCodec::Av1 => (EncodedVideoCodec::AV1, None),
+        };
+        let payload = rewritten.as_deref().unwrap_or(frame.payload);
         if frame.keyframe
             && frame.codec == GpuCodec::H264
-            && !h264::idr_readable_when_encrypted(frame.payload)
+            && !h264::idr_readable_when_encrypted(payload)
         {
             UNREADABLE_KEYFRAMES.fetch_add(1, Ordering::Relaxed);
         }
-        let (codec, long) = match frame.codec {
-            GpuCodec::H264 => (
-                EncodedVideoCodec::H264,
-                h264::with_long_start_codes(frame.payload),
-            ),
-            GpuCodec::Av1 => (EncodedVideoCodec::AV1, None),
-        };
         self.0.capture_encoded_frame(&EncodedVideoFrame {
             codec,
-            payload: long.as_deref().unwrap_or(frame.payload),
+            payload,
             timestamp_us: frame.timestamp_us,
             frame_type: if frame.keyframe {
                 EncodedFrameType::Key

@@ -171,23 +171,22 @@ impl EncodedSink for SourceSink {
     fn deliver(&mut self, frame: Encoded<'_>) {
         #[cfg(test)]
         DELIVERED.fetch_add(1, Ordering::Relaxed);
-        let (codec, long) = match frame.codec {
+        let (codec, rewritten) = match frame.codec {
             // So the receiver authenticates the same bytes the sender
-            // encrypted.
-            GpuCodec::H264 => (
-                EncodedVideoCodec::H264,
-                h264::with_long_start_codes(frame.payload),
-            ),
+            // encrypted, and can find a keyframe's PPS.
+            GpuCodec::H264 => (EncodedVideoCodec::H264, h264::for_encryption(frame.payload)),
             GpuCodec::Av1 => (EncodedVideoCodec::AV1, None),
         };
+        let payload = rewritten.as_deref().unwrap_or(frame.payload);
         if frame.keyframe
             && frame.codec == GpuCodec::H264
             && !self.warned_unreadable
-            && !h264::idr_readable_when_encrypted(frame.payload)
+            && !h264::idr_readable_when_encrypted(payload)
         {
             log::warn!(
                 "screenshare: this encoder's keyframes put the slice's PPS id past what \
-                 encryption leaves readable; encrypted viewers will drop about half of them"
+                 encryption leaves readable, and could not be rewritten; encrypted viewers \
+                 will drop about half of them"
             );
             self.warned_unreadable = true;
         }
@@ -197,7 +196,7 @@ impl EncodedSink for SourceSink {
             .spent(frame.payload.len(), frame.keyframe, Instant::now());
         self.source.capture_encoded_frame(&EncodedVideoFrame {
             codec,
-            payload: long.as_deref().unwrap_or(frame.payload),
+            payload,
             timestamp_us: frame.timestamp_us,
             frame_type: if frame.keyframe {
                 EncodedFrameType::Key

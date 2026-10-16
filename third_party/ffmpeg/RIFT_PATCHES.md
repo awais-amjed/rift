@@ -114,3 +114,10 @@ buffer once, when it opens, so a buffer sized for the opening rate could leave
 no room for a keyframe later. Measured as for NVENC: 19.6 to 20.0 Mbps at 20,
 7.2 in the second it fell to 5 and 4.7 to 5.3 after, 11.5 to 12.8 at 12, and
 no keyframe at any move.
+
+Quick Sync writes its IDRs as slice type 7 too, the same fault the VAAPI patch
+above fixes, but here Intel's runtime in the driver writes the slice header,
+not FFmpeg, so there is nothing to patch: FFmpeg's `low_power`, profile, slice
+count and `repeat_pps` all left it at 7 (Oct 16 2026, the same Iris Xe). The
+share rewrites the header instead (`h264::with_readable_pps_id` in the Rust
+crate), which also covers Media Foundation's Intel encoder.
