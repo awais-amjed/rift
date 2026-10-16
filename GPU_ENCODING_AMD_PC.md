@@ -16,6 +16,52 @@ Read first: `AGENTS.md`, `ARCHITECTURE.md` ("Encoding a share on the GPU"),
 numbers to compare against. `TESTING.md`'s rows on GPU shares say what has and
 has not been driven.
 
+## Round 2: the merged code (Oct 16 2026, evening) — start here
+
+Part A ran once, and its results are in `GPU_ENCODING_AMD_PC_RESULTS.md`. Since
+then this branch has taken `dev`, which merged both machines' work:
+
+- **The keyframe rewrite is a different copy now.** The NVIDIA laptop found the
+  same fault on Windows (Intel's Quick Sync and Media Foundation write type 7
+  from the driver) and wrote its own rewrite at the same time you did. The two
+  write the same bytes — your Mesa keyframe is a unit test in `h264.rs` now
+  (`amds_keyframe_is_rewritten_too`) — so only one was kept:
+  `h264::with_readable_pps_id`, run in `gpu_feed.rs` (`h264::for_encryption`)
+  on every encoder's output just before LiveKit, **not** your
+  `with_short_idr_slice_types` in `ParameterSets::complete`, which is gone.
+  So the measured fix is not the code that ships until you rerun it.
+- **The library's ABI is 3** (`ffenc.h`, a new `delay_frames` for NVENC). A
+  library built before refuses to load, so **rebuild it** with `build.sh`
+  before anything else. `gpu_test/ffenc_probe.c` is updated to match.
+- **Windows**: a share asks not to be power-throttled while it runs
+  (`capture.rs`), which took capture at 120 fps from about 92 pictures a
+  second to 119.8 on the NVIDIA laptop. FFmpeg's NVENC holds one picture above
+  60 fps (no effect on AMF). Details in `GPU_ENCODING_NVIDIA_LAPTOP_RESULTS.md`.
+
+**What to run:**
+
+1. **Linux (Part A again, short)**, on the rebuilt library only, no "before"
+   library this time:
+   - `cargo test --release` (all of it) passes;
+   - the probe still says `FAIL` with slice type 7: it reads the encoder's own
+     output, and the rewrite happens later, in the share. Just confirm;
+   - the live test passes with no unreadable keyframes;
+   - the churn bench, moving picture, at 1440p60 / 20 Mbps and 1080p120 /
+     30 Mbps, and the still text at 1440p60 / 20 Mbps once. Set the numbers
+     beside your "after" column: they should match. `bench_share`'s log must
+     not have the `could not be rewritten` warning.
+2. **Windows (Part B)**, as written below, with one change to what counts as a
+   problem: the probe (`check_h264.py`) reads the encoder's raw output, so a
+   `FAIL` there is now expected to be fixed by the share. Write down the slice
+   types it printed and go on. **Stop and tell the user only if** the live test
+   or Media Foundation's test fails, a share logs `could not be rewritten`, or
+   the watching viewer in the churn bench still asks for keyframes (PLIs) when
+   others join. In the 1080p120 runs also note capture's rate in the log, for
+   the throttling fix.
+
+Add your results to `GPU_ENCODING_AMD_PC_RESULTS.md` as "Part A, round 2" and
+"Part B", and keep Part A as it is.
+
 ## What changed since the last runs (Oct 16 2026, tested on Intel and NVIDIA only)
 
 1. **The newest picture wins** (`rust/src/screenshare/latest.rs`). The capture
@@ -85,7 +131,9 @@ Without anyone joining, both held 60.0.
   `%USERPROFILE%\rift-gpu-test\oct16\` (Windows). Never commit them.
 
 **If any encoder's keyframes come out unreadable** (beyond the unpatched VAAPI
-library, which should): stop and tell the user before changing anything. Write
+library, which should): stop and tell the user before changing anything.
+*(Round 2: superseded by the stop rule in "Round 2" above, since the share now
+rewrites such keyframes.)* Write
 down the slice types `check_h264.py` printed. The fix is a design decision: an
 encoder option that writes the short slice types (2 and 0) if FFmpeg has one,
 a patch in `third_party/ffmpeg/` if FFmpeg writes the header itself, or

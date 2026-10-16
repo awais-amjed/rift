@@ -5,6 +5,8 @@
 //! harness on the same library, and nothing said where the rest went (Oct 9
 //! 2026). So the session times handing the picture in, waiting for the
 //! encoder, and handing the result to LiveKit, and says so every few seconds.
+//! That found it (Oct 16): the wait for each picture at the GPU's idle clocks
+//! (`ffmpeg.rs`, `delay_frames`).
 //! People send the log with a bug report, and none of this is secret.
 
 use std::time::{Duration, Instant};

@@ -26,7 +26,7 @@ extern "C" {
 
 // Bumped whenever a function or struct below changes, so the crate refuses a
 // library from another build instead of calling it wrongly.
-#define RIFT_FFENC_ABI 2
+#define RIFT_FFENC_ABI 3
 
 typedef struct RiftFfenc RiftFfenc;
 
@@ -49,6 +49,9 @@ typedef struct RiftFfencConfig {
   // The most the rate will be moved to: what an encoder that cannot resize
   // its buffers once open (QSV) sizes them for.
   int64_t max_bitrate_bps;
+  // NVENC's "delay": a picture comes out once this many are encoded or
+  // waiting, so 0 and 1 hold none and 2 holds one. Other encoders ignore it.
+  int32_t delay_frames;
 } RiftFfencConfig;
 
 typedef struct RiftFfencPacket {

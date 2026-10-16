@@ -65,15 +65,19 @@ pub(crate) fn with_long_start_codes(payload: &[u8]) -> Option<Vec<u8>> {
     }
     let mut whole = Vec::with_capacity(payload.len() + codes.len());
     for (_, unit) in nal_units(payload) {
-        let code = if unit.starts_with(&[0, 0, 0, 1]) {
-            4
-        } else {
-            3
-        };
         whole.extend_from_slice(&[0, 0, 0, 1]);
-        whole.extend_from_slice(&unit[code..]);
+        whole.extend_from_slice(&unit[start_code_len(unit)..]);
     }
     Some(whole)
+}
+
+/// The access unit as LiveKit is to be handed it, or `None` when that is
+/// the encoder's own bytes: an IDR's PPS id brought within what encryption
+/// leaves readable ([`with_readable_pps_id`]), then every start code in the
+/// four-byte form ([`with_long_start_codes`]).
+pub(crate) fn for_encryption(payload: &[u8]) -> Option<Vec<u8>> {
+    let readable = with_readable_pps_id(payload);
+    with_long_start_codes(readable.as_deref().unwrap_or(payload)).or(readable)
 }
 
 /// Whether a viewer can still find this access unit's parameter sets once
@@ -96,7 +100,8 @@ pub(crate) fn idr_readable_when_encrypted(payload: &[u8]) -> bool {
         return true;
     };
     // first_mb_in_slice, slice_type, pic_parameter_set_id: each ue(v), read
-    // from the bytes after the NAL header.
+    // from the bytes after the NAL header. Emulation prevention bytes cannot
+    // occur in the first two, which is all this is asked about.
     let mut bits = Bits::new(&unit[start_code_len(unit) + 1..]);
     for _ in 0..3 {
         if bits.exp_golomb().is_none() {
@@ -107,194 +112,228 @@ pub(crate) fn idr_readable_when_encrypted(payload: &[u8]) -> bool {
     bits.at <= 8
 }
 
-/// The access unit with each IDR slice's type said in the short form (7 as 2,
-/// 9 as 4), so [`idr_readable_when_encrypted`] holds; `None` when there is
-/// nothing to shorten, or the slices are not ones this can rewrite.
+/// The access unit with its IDR slices' headers rewritten so the PPS id
+/// falls within what encryption leaves readable, or `None` when it already
+/// does or the header cannot be rewritten.
 ///
-/// FFmpeg's patch (`third_party/ffmpeg/RIFT_PATCHES.md`) is enough where FFmpeg
-/// writes the slice header. AMD's VCN writes its own whatever it is handed,
-/// always type 7 and `idr_pic_id` 0 (Mesa 26.2.4 on an RX 9070 XT, Oct 16
-/// 2026), so the header is rewritten here. To leave every bit after it where
-/// it was — the slice data, and CABAC's byte alignment — the bits the shorter
-/// type saves go to a longer `idr_pic_id`: v becomes v + (2^z − 1)·2^k, which
-/// has z more leading zeros, and different ids stay different, which is all a
-/// decoder asks of two IDRs in a row.
-fn with_short_idr_slice_types(payload: &[u8], sps: &[u8]) -> Option<Vec<u8>> {
-    let layout = SliceLayout::of_sps(&rbsp(&sps[start_code_len(sps) + 1..]))?;
-    let units = nal_units(payload);
-    let mut rewritten = Vec::with_capacity(units.len());
-    let mut saved = None;
-    for &(kind, unit) in &units {
-        if kind != NAL_IDR {
-            rewritten.push(None);
-            continue;
-        }
-        let code = start_code_len(unit);
-        let mut body = rbsp(&unit[code + 1..]);
-        let bits = layout.shorten(&mut body)?;
-        // Every slice of a picture has the same idr_pic_id, so every one
-        // must have been moved by the same amount.
-        if *saved.get_or_insert(bits) != bits {
-            return None;
-        }
-        let mut whole = unit[..code + 1].to_vec();
-        whole.extend_from_slice(&escaped(&body));
-        rewritten.push(Some(whole));
+/// Intel's encoders on Windows, Quick Sync through FFmpeg and Media
+/// Foundation's alike, write every IDR as slice type 7, and the slice header
+/// is written by Intel's runtime in the driver, which has no setting for it
+/// (Oct 16 2026, an RTX 3070 Ti laptop's Iris Xe; FFmpeg's `low_power`,
+/// profile, slice count and `repeat_pps` all left it at 7). So the header is
+/// rewritten here: the slice type as the same type without "every slice
+/// alike" (7 to 2, 5 to 0), and the IDR's `idr_pic_id`, a few fields further
+/// on, made as many bits longer as the type got shorter. The header keeps its
+/// length, so the slice data after it stays where it was, bit for bit, which
+/// CABAC's and PCM macroblocks' byte alignment needs. Every IDR slice of the
+/// picture gets the same new id, and distinct ids stay distinct, as
+/// consecutive IDRs' must.
+pub(crate) fn with_readable_pps_id(payload: &[u8]) -> Option<Vec<u8>> {
+    if idr_readable_when_encrypted(payload) {
+        return None;
     }
-    saved?;
+    let units = nal_units(payload);
     let mut whole = Vec::with_capacity(payload.len() + 8);
-    for ((_, unit), new) in units.iter().zip(&rewritten) {
-        whole.extend_from_slice(new.as_deref().unwrap_or(unit));
+    for &(kind, unit) in &units {
+        let code = start_code_len(unit);
+        whole.extend_from_slice(&unit[..code]);
+        if kind == NAL_IDR {
+            whole.extend_from_slice(&shorter_slice_type(&unit[code..], &units)?);
+        } else {
+            whole.extend_from_slice(&unit[code..]);
+        }
     }
     Some(whole)
 }
 
-/// What an IDR slice header holds between its type and `idr_pic_id`, from the
-/// SPS (H.264 7.3.2.1.1 and 7.3.3).
-struct SliceLayout {
+/// One IDR slice NAL unit (header byte first, no start code) with the slice
+/// type shortened and `idr_pic_id` lengthened to match; see
+/// [`with_readable_pps_id`].
+fn shorter_slice_type(nal: &[u8], units: &[(u8, &[u8])]) -> Option<Vec<u8>> {
+    let (&header, ebsp) = nal.split_first()?;
+    let mut rbsp = unescape(ebsp);
+    let mut bits = Bits::new(&rbsp);
+    let first_mb = bits.exp_golomb()?;
+    let slice_type = bits.exp_golomb()?;
+    if !(5..=9).contains(&slice_type) {
+        return None;
+    }
+    let pps_id = bits.exp_golomb()?;
+    let between = bits.at;
+    let numbering = frame_numbering(units, pps_id)?;
+    if numbering.separate_colour_planes {
+        bits.read(2)?;
+    }
+    bits.read(numbering.frame_num_bits)?;
+    if !numbering.frames_only && bits.read(1)? == 1 {
+        bits.read(1)?;
+    }
+    let id_at = bits.at;
+    let idr_pic_id = bits.exp_golomb()?;
+    let end = bits.at;
+    let short_type = slice_type - 5;
+    let saved = exp_golomb_len(slice_type) - exp_golomb_len(short_type);
+    let longer_id = longer_by(idr_pic_id, saved)?;
+
+    let mut prefix = Vec::with_capacity(end);
+    push_exp_golomb(&mut prefix, first_mb);
+    push_exp_golomb(&mut prefix, short_type);
+    push_exp_golomb(&mut prefix, pps_id);
+    let mut copy = Bits::new(&rbsp);
+    copy.at = between;
+    while copy.at < id_at {
+        prefix.push(copy.bit()?);
+    }
+    push_exp_golomb(&mut prefix, longer_id);
+    debug_assert_eq!(prefix.len(), end);
+    for (at, &bit) in prefix.iter().enumerate() {
+        let mask = 0x80 >> (at % 8);
+        if bit {
+            rbsp[at / 8] |= mask;
+        } else {
+            rbsp[at / 8] &= !mask;
+        }
+    }
+    let mut out = vec![header];
+    out.extend_from_slice(&escape(&rbsp));
+    Some(out)
+}
+
+/// What an IDR slice header holds between its PPS id and its `idr_pic_id`,
+/// as the SPS it names says.
+struct FrameNumbering {
     separate_colour_planes: bool,
     frame_num_bits: u32,
-    frame_mbs_only: bool,
+    frames_only: bool,
 }
 
-impl SliceLayout {
-    fn of_sps(sps: &[u8]) -> Option<SliceLayout> {
-        let mut bits = Bits::new(sps);
-        let profile = bits.read(8)?;
-        bits.read(16)?; // constraint flags, level
-        bits.exp_golomb()?; // seq_parameter_set_id
-        let mut separate_colour_planes = false;
-        if matches!(
-            profile,
-            100 | 110 | 122 | 244 | 44 | 83 | 86 | 118 | 128 | 138 | 139 | 134 | 135
-        ) {
-            if bits.exp_golomb()? == 3 {
-                separate_colour_planes = bits.read(1)? == 1;
-            }
-            bits.exp_golomb()?; // bit depths
-            bits.exp_golomb()?;
-            bits.read(1)?; // qpprime_y_zero_transform_bypass_flag
-            if bits.read(1)? == 1 {
-                // Scaling lists: none of Rift's encoders send them.
-                return None;
-            }
-        }
-        let frame_num_bits = bits.exp_golomb()? + 4;
-        match bits.exp_golomb()? {
-            0 => {
-                bits.exp_golomb()?;
-            }
-            1 => {
-                bits.read(1)?;
-                // se(v) is as long as ue(v), so both step over the same way.
-                bits.exp_golomb()?;
-                bits.exp_golomb()?;
-                for _ in 0..bits.exp_golomb()? {
-                    bits.exp_golomb()?;
-                }
-            }
-            _ => {}
-        }
-        bits.exp_golomb()?; // max_num_ref_frames
-        bits.read(1)?; // gaps_in_frame_num_value_allowed_flag
-        bits.exp_golomb()?; // width and height
-        bits.exp_golomb()?;
-        let frame_mbs_only = bits.read(1)? == 1;
-        Some(SliceLayout {
-            separate_colour_planes,
-            frame_num_bits,
-            frame_mbs_only,
-        })
-    }
-
-    /// Rewrite the header at the start of an IDR slice's RBSP in place, and
-    /// say how many bits went from its type to its `idr_pic_id`.
-    fn shorten(&self, body: &mut [u8]) -> Option<u32> {
-        let mut bits = Bits::new(body);
-        let first_mb = bits.exp_golomb()?;
-        let slice_type = bits.exp_golomb()?;
-        let pps_id = bits.exp_golomb()?;
-        let colour_plane = if self.separate_colour_planes {
-            Some(bits.read(2)?)
-        } else {
-            None
-        };
-        let frame_num = bits.read(self.frame_num_bits)?;
-        let mut field = Vec::new();
-        if !self.frame_mbs_only {
-            let field_pic = bits.read(1)?;
-            field.push(field_pic);
-            if field_pic == 1 {
-                field.push(bits.read(1)?);
-            }
-        }
-        let idr_pic_id = bits.exp_golomb()?;
-        let end = bits.at;
-        if slice_type < 5 {
-            return None;
-        }
-        let short = slice_type - 5;
-        let saved = exp_golomb_len(slice_type) - exp_golomb_len(short);
-        let zeros = saved / 2;
-        let leading = exp_golomb_len(idr_pic_id) / 2;
-        let longer = idr_pic_id + ((1 << zeros) - 1) * (1 << leading);
-        // idr_pic_id is at most 65535 (7.4.3).
-        if longer > 65535 {
-            return None;
-        }
-        let mut out = BitWriter::new(body);
-        out.exp_golomb(first_mb);
-        out.exp_golomb(short);
-        out.exp_golomb(pps_id);
-        if let Some(plane) = colour_plane {
-            out.write(plane, 2);
-        }
-        out.write(frame_num, self.frame_num_bits);
-        for flag in field {
-            out.write(flag, 1);
-        }
-        out.exp_golomb(longer);
-        debug_assert_eq!(out.at, end);
-        Some(saved)
-    }
+/// [`FrameNumbering`] from the SPS that the PPS numbered `pps_id` names,
+/// both from the same access unit, where every encoder here puts them in
+/// front of an IDR ([`ParameterSets`]).
+fn frame_numbering(units: &[(u8, &[u8])], pps_id: u32) -> Option<FrameNumbering> {
+    let body = |unit: &[u8]| unescape(&unit[(start_code_len(unit) + 1).min(unit.len())..]);
+    let sps_id = units
+        .iter()
+        .filter(|&&(kind, _)| kind == NAL_PPS)
+        .find_map(|&(_, unit)| {
+            let pps = body(unit);
+            let mut bits = Bits::new(&pps);
+            (bits.exp_golomb()? == pps_id).then(|| bits.exp_golomb())?
+        })?;
+    units
+        .iter()
+        .filter(|&&(kind, _)| kind == NAL_SPS)
+        .find_map(|&(_, unit)| sps_numbering(&body(unit), sps_id))
 }
 
-/// How many bits ue(v) takes for `value`.
+/// The fields of an SPS (its RBSP after the NAL header) that a slice header
+/// depends on up to `idr_pic_id`, if its id is `sps_id`.
+fn sps_numbering(sps: &[u8], sps_id: u32) -> Option<FrameNumbering> {
+    let mut bits = Bits::new(sps);
+    let profile = bits.read(8)?;
+    bits.read(16)?; // constraint flags, level
+    if bits.exp_golomb()? != sps_id {
+        return None;
+    }
+    let mut separate_colour_planes = false;
+    if matches!(
+        profile,
+        100 | 110 | 122 | 244 | 44 | 83 | 86 | 118 | 128 | 138 | 139 | 134 | 135
+    ) {
+        if bits.exp_golomb()? == 3 {
+            separate_colour_planes = bits.read(1)? == 1;
+        }
+        bits.exp_golomb()?; // bit_depth_luma_minus8
+        bits.exp_golomb()?; // bit_depth_chroma_minus8
+        bits.read(1)?; // qpprime_y_zero_transform_bypass_flag
+        if bits.read(1)? == 1 {
+            // Scaling matrices, which no encoder here writes: not read.
+            return None;
+        }
+    }
+    let frame_num_bits = bits.exp_golomb()? + 4;
+    match bits.exp_golomb()? {
+        0 => {
+            bits.exp_golomb()?; // log2_max_pic_order_cnt_lsb_minus4
+        }
+        1 => {
+            bits.read(1)?; // delta_pic_order_always_zero_flag
+            bits.exp_golomb()?; // offset_for_non_ref_pic
+            bits.exp_golomb()?; // offset_for_top_to_bottom_field
+            for _ in 0..bits.exp_golomb()? {
+                bits.exp_golomb()?;
+            }
+        }
+        _ => {}
+    }
+    bits.exp_golomb()?; // max_num_ref_frames
+    bits.read(1)?; // gaps_in_frame_num_value_allowed_flag
+    bits.exp_golomb()?; // pic_width_in_mbs_minus1
+    bits.exp_golomb()?; // pic_height_in_map_units_minus1
+    let frames_only = bits.read(1)? == 1;
+    Some(FrameNumbering {
+        separate_colour_planes,
+        frame_num_bits,
+        frames_only,
+    })
+}
+
+/// Bits in `value` written as ue(v).
 fn exp_golomb_len(value: u32) -> u32 {
-    2 * (32 - (value + 1).leading_zeros() - 1) + 1
+    2 * (value + 1).ilog2() + 1
 }
 
-/// A NAL unit's payload without its emulation prevention bytes.
-fn rbsp(escaped: &[u8]) -> Vec<u8> {
-    let mut out = Vec::with_capacity(escaped.len());
+/// Another `idr_pic_id` whose ue(v) is `extra` bits longer: the same offset
+/// within the longer codes, so distinct ids stay distinct. `None` past the
+/// largest id H264 allows.
+fn longer_by(id: u32, extra: u32) -> Option<u32> {
+    if id > 65_535 {
+        return None;
+    }
+    let size = (id + 1).ilog2();
+    let longer = (1u32 << (size + extra / 2)) - 1 + (id - ((1 << size) - 1));
+    (longer <= 65_535).then_some(longer)
+}
+
+fn push_exp_golomb(bits: &mut Vec<bool>, value: u32) {
+    let code = value + 1;
+    let size = code.ilog2();
+    bits.extend(std::iter::repeat_n(false, size as usize));
+    bits.extend((0..=size).rev().map(|at| code >> at & 1 == 1));
+}
+
+/// A NAL unit's payload without its emulation prevention bytes: the 3 the
+/// encoder put after every two zero bytes so no start code appears inside.
+fn unescape(ebsp: &[u8]) -> Vec<u8> {
+    let mut rbsp = Vec::with_capacity(ebsp.len());
     let mut zeros = 0;
-    for &byte in escaped {
+    for &byte in ebsp {
         if zeros >= 2 && byte == 3 {
             zeros = 0;
             continue;
         }
         zeros = if byte == 0 { zeros + 1 } else { 0 };
-        out.push(byte);
+        rbsp.push(byte);
     }
-    out
+    rbsp
 }
 
-/// An RBSP with emulation prevention bytes put back (H.264 7.4.1).
-fn escaped(rbsp: &[u8]) -> Vec<u8> {
-    let mut out = Vec::with_capacity(rbsp.len() + rbsp.len() / 64);
+/// [`unescape`] undone.
+fn escape(rbsp: &[u8]) -> Vec<u8> {
+    let mut ebsp = Vec::with_capacity(rbsp.len() + rbsp.len() / 256 + 1);
     let mut zeros = 0;
     for &byte in rbsp {
         if zeros >= 2 && byte <= 3 {
-            out.push(3);
+            ebsp.push(3);
             zeros = 0;
         }
         zeros = if byte == 0 { zeros + 1 } else { 0 };
-        out.push(byte);
+        ebsp.push(byte);
     }
-    if out.last() == Some(&0) {
-        out.push(3);
+    if ebsp.last() == Some(&0) {
+        ebsp.push(3);
     }
-    out
+    ebsp
 }
 
 fn start_code_len(unit: &[u8]) -> usize {
@@ -305,10 +344,7 @@ fn start_code_len(unit: &[u8]) -> usize {
     }
 }
 
-/// A reader of the leading bits of an SPS or a slice header. It reads the
-/// bytes as they are: [`idr_readable_when_encrypted`] needs only the first
-/// two after the NAL header, where no emulation prevention byte can fall, and
-/// the rest is handed an RBSP.
+/// A reader of the bits of a NAL unit's payload.
 struct Bits<'a> {
     bytes: &'a [u8],
     at: usize,
@@ -319,61 +355,33 @@ impl<'a> Bits<'a> {
         Bits { bytes, at: 0 }
     }
 
-    fn bit(&mut self) -> Option<u32> {
+    fn bit(&mut self) -> Option<bool> {
         let byte = self.bytes.get(self.at / 8)?;
-        let bit = byte >> (7 - self.at % 8) & 1;
+        let bit = byte >> (7 - self.at % 8) & 1 == 1;
         self.at += 1;
-        Some(bit.into())
+        Some(bit)
     }
 
+    /// `count` bits, at most 32, as a number.
     fn read(&mut self, count: u32) -> Option<u32> {
-        let mut value = 0;
+        let mut value = 0u32;
         for _ in 0..count {
-            value = value << 1 | self.bit()?;
+            value = value << 1 | u32::from(self.bit()?);
         }
         Some(value)
     }
 
-    /// One ue(v): as many zeros, a one, then as many bits again.
+    /// One ue(v): as many zeros, a one, then as many bits again. An se(v) is
+    /// stepped over the same way.
     fn exp_golomb(&mut self) -> Option<u32> {
         let mut zeros = 0;
-        while self.bit()? == 0 {
+        while !self.bit()? {
             zeros += 1;
             if zeros > 31 {
                 return None;
             }
         }
         Some((1u32 << zeros) - 1 + self.read(zeros)?)
-    }
-}
-
-/// Writes bits over the start of a buffer, leaving the rest of it as it was.
-struct BitWriter<'a> {
-    bytes: &'a mut [u8],
-    at: usize,
-}
-
-impl<'a> BitWriter<'a> {
-    fn new(bytes: &'a mut [u8]) -> BitWriter<'a> {
-        BitWriter { bytes, at: 0 }
-    }
-
-    fn write(&mut self, value: u32, count: u32) {
-        for i in (0..count).rev() {
-            let mask = 0x80 >> (self.at % 8);
-            if value >> i & 1 == 1 {
-                self.bytes[self.at / 8] |= mask;
-            } else {
-                self.bytes[self.at / 8] &= !mask;
-            }
-            self.at += 1;
-        }
-    }
-
-    fn exp_golomb(&mut self, value: u32) {
-        let len = exp_golomb_len(value);
-        self.write(0, len / 2);
-        self.write(value + 1, len / 2 + 1);
     }
 }
 
@@ -386,18 +394,9 @@ pub(crate) struct ParameterSets {
 
 impl ParameterSets {
     /// Note the parameter sets in `payload`, and return it ready to send: an
-    /// IDR without them gets the last ones seen in front, and one whose PPS id
-    /// encryption would hide has its slice types shortened
-    /// ([`with_short_idr_slice_types`]). Anything else is handed back as it is.
+    /// IDR without them gets the last ones seen in front. Anything else is
+    /// handed back as it is.
     pub(crate) fn complete(&mut self, payload: Vec<u8>) -> Vec<u8> {
-        let whole = self.with_parameter_sets(payload);
-        if self.sps.is_empty() || idr_readable_when_encrypted(&whole) {
-            return whole;
-        }
-        with_short_idr_slice_types(&whole, &self.sps).unwrap_or(whole)
-    }
-
-    fn with_parameter_sets(&mut self, payload: Vec<u8>) -> Vec<u8> {
         let units = nal_units(&payload);
         let (mut has_sps, mut has_pps, mut idr) = (false, false, false);
         for &(kind, bytes) in &units {
@@ -455,6 +454,158 @@ mod tests {
         // FFmpeg's VAAPI encoder wrote them before the patch.
         let idr = [0, 0, 0, 1, 0x65, 0b1000_1000, 0b1000_0000];
         assert!(!idr_readable_when_encrypted(&join(&[SPS, PPS, &idr])));
+    }
+
+    /// The start of an access unit from Quick Sync through FFmpeg on an Iris
+    /// Xe (Oct 16 2026): its SPS and PPS, and the first bytes of its IDR,
+    /// slice type 7, `frame_num` 8 bits, `idr_pic_id` 0.
+    const QSV_SPS: &[u8] = &[
+        0, 0, 0, 1, 0x27, 0x42, 0x00, 0x2a, 0x95, 0xb0, 0x1e, 0x00, 0x89, 0xf9, 0x70, 0x14, 0x20,
+        0xc0, 0xc0, 0xc8, 0x00, 0x00, 0x03, 0x00, 0x08, 0x00, 0x00, 0x03, 0x03, 0xc4, 0xed, 0x0e,
+        0x19, 0x70,
+    ];
+    const QSV_PPS: &[u8] = &[0, 0, 0, 1, 0x28, 0xce, 0x3c, 0x80];
+    const QSV_IDR: &[u8] = &[
+        0, 0, 1, 0x25, 0x88, 0x80, 0x4f, 0xff, 0xff, 0xd3, 0x14, 0x00, 0x04, 0x0e, 0x6a,
+    ];
+
+    /// first_mb_in_slice, slice_type, pic_parameter_set_id and
+    /// `idr_pic_id` of the first IDR slice, for a header with 8 bits of
+    /// `frame_num`.
+    fn idr_fields(payload: &[u8]) -> [u32; 4] {
+        let (_, unit) = nal_units(payload)
+            .into_iter()
+            .find(|&(kind, _)| kind == NAL_IDR)
+            .unwrap();
+        let rbsp = unescape(&unit[start_code_len(unit) + 1..]);
+        let mut bits = Bits::new(&rbsp);
+        let first = [0; 3].map(|_| bits.exp_golomb().unwrap());
+        bits.read(8).unwrap();
+        [first[0], first[1], first[2], bits.exp_golomb().unwrap()]
+    }
+
+    #[test]
+    fn intels_keyframe_is_rewritten_to_slice_type_2_at_the_same_length() {
+        let payload = join(&[QSV_SPS, QSV_PPS, QSV_IDR]);
+        assert!(!idr_readable_when_encrypted(&payload));
+        assert_eq!(idr_fields(&payload), [0, 7, 0, 0]);
+        let rewritten = with_readable_pps_id(&payload).expect("rewritten");
+        assert!(idr_readable_when_encrypted(&rewritten));
+        assert_eq!(idr_fields(&rewritten), [0, 2, 0, 3]);
+        // 1 011 1 00000000 00100: 18 bits as before, then the slice's own
+        // bits from the 19th on, untouched.
+        assert_eq!(
+            rewritten,
+            join(&[
+                QSV_SPS,
+                QSV_PPS,
+                &[0, 0, 1, 0x25, 0xb8, 0x01, 0x0f, 0xff, 0xff, 0xd3, 0x14, 0x00, 0x04, 0x0e, 0x6a],
+            ])
+        );
+    }
+
+    #[test]
+    fn every_idr_slice_of_the_picture_gets_the_same_new_id() {
+        // first_mb 1 (010), slice type 7, PPS 0, frame_num 0, idr_pic_id 0.
+        let second_slice: &[u8] = &[0, 0, 1, 0x25, 0b0100_0010, 0b0010_0000, 0b0001_0111, 0xf0];
+        let payload = join(&[QSV_SPS, QSV_PPS, QSV_IDR, second_slice]);
+        let rewritten = with_readable_pps_id(&payload).expect("rewritten");
+        let units = nal_units(&rewritten);
+        assert_eq!(units.len(), 4);
+        let rbsp = unescape(&units[3].1[4..]);
+        let mut bits = Bits::new(&rbsp);
+        // first_mb 1, slice type 2, PPS 0, frame_num 0, idr_pic_id 3.
+        let fields = [0; 3].map(|_| bits.exp_golomb().unwrap());
+        assert_eq!(fields, [1, 2, 0]);
+        bits.read(8).unwrap();
+        assert_eq!(bits.exp_golomb(), Some(3));
+    }
+
+    /// The parameter sets and the start of the first IDR from AMD's VCN
+    /// (Mesa 26.2.4, RX 9070 XT) through FFmpeg's VAAPI encoder, Oct 16 2026:
+    /// Mesa writes the slice header itself, type 7 and `idr_pic_id` 0
+    /// whatever FFmpeg asks. The SPS has emulation prevention bytes in it.
+    const AMD_SPS: &[u8] = &[
+        0, 0, 0, 1, 0x67, 0x42, 0x40, 0x2a, 0x95, 0xa0, 0x1e, 0x00, 0x89, 0xf9, 0x66, 0xa0, 0xc0,
+        0xc0, 0xc8, 0x00, 0x00, 0x03, 0x00, 0x08, 0x00, 0x00, 0x03, 0x03, 0xc4, 0x78, 0x44, 0x23,
+        0x50,
+    ];
+    const AMD_PPS: &[u8] = &[0, 0, 0, 1, 0x68, 0xce, 0x38, 0x80];
+    const AMD_IDR: &[u8] = &[
+        0, 0, 0, 1, 0x65, 0x88, 0x80, 0x42, 0x88, 0xc0, 0x38, 0x98, 0x33, 0x80, 0x00, 0x89,
+    ];
+
+    #[test]
+    fn amds_keyframe_is_rewritten_too() {
+        let mut sets = ParameterSets::default();
+        let whole = sets.complete(join(&[AMD_SPS, AMD_PPS, AMD_IDR]));
+        assert!(!idr_readable_when_encrypted(&whole));
+        // first_mb 0 (1), slice type 2 (011), PPS 0 (1), frame_num 0
+        // (00000000), idr_pic_id 3 (00100): 18 bits as before, and every bit
+        // after them where it was.
+        let idr = [
+            0, 0, 0, 1, 0x65, 0xb8, 0x01, 0x02, 0x88, 0xc0, 0x38, 0x98, 0x33, 0x80, 0x00, 0x89,
+        ];
+        assert_eq!(
+            for_encryption(&whole).expect("rewritten"),
+            join(&[AMD_SPS, AMD_PPS, &idr])
+        );
+        // An IDR sent bare gets the parameter sets first, so it is rewritten
+        // the same way.
+        let bare = sets.complete(AMD_IDR.to_vec());
+        assert!(idr_readable_when_encrypted(
+            &for_encryption(&bare).expect("rewritten")
+        ));
+    }
+
+    #[test]
+    fn an_idr_whose_slices_disagree_is_left_alone() {
+        // The second slice already says type 2: moving only the first one's
+        // idr_pic_id would give the picture two.
+        let short = [0, 0, 0, 1, 0x65, 0b1011_1000, 0x00, 0x80];
+        assert_eq!(
+            with_readable_pps_id(&join(&[AMD_SPS, AMD_PPS, AMD_IDR, &short])),
+            None
+        );
+    }
+
+    #[test]
+    fn a_readable_keyframe_or_one_without_its_sps_is_left_alone() {
+        let idr = [0, 0, 0, 1, 0x65, 0b1011_1000, 0x40];
+        assert_eq!(with_readable_pps_id(&join(&[SPS, PPS, &idr])), None);
+        assert_eq!(with_readable_pps_id(DELTA), None);
+        assert_eq!(with_readable_pps_id(&join(&[QSV_PPS, QSV_IDR])), None);
+    }
+
+    #[test]
+    fn what_is_sent_is_readable_with_long_start_codes() {
+        let sent = for_encryption(&join(&[QSV_SPS, QSV_PPS, QSV_IDR])).expect("rewritten");
+        assert!(idr_readable_when_encrypted(&sent));
+        assert!(start_codes(&sent).iter().all(|&(_, len)| len == 4));
+        assert_eq!(for_encryption(&join(&[SPS, PPS, DELTA])), None);
+    }
+
+    #[test]
+    fn longer_ids_stay_distinct() {
+        for extra in [2, 4] {
+            let ids: Vec<u32> = (0..2000).map(|id| longer_by(id, extra).unwrap()).collect();
+            let mut unique = ids.clone();
+            unique.sort();
+            unique.dedup();
+            assert_eq!(unique.len(), ids.len());
+            for (id, longer) in ids.iter().enumerate() {
+                assert_eq!(exp_golomb_len(*longer), exp_golomb_len(id as u32) + extra);
+            }
+        }
+        assert_eq!(longer_by(65_535, 4), None);
+    }
+
+    #[test]
+    fn emulation_prevention_comes_off_and_goes_back() {
+        let rbsp = [0x25, 0, 0, 1, 0, 0, 0, 2, 0xff, 0, 0];
+        let ebsp = escape(&rbsp);
+        assert_eq!(ebsp, [0x25, 0, 0, 3, 1, 0, 0, 3, 0, 2, 0xff, 0, 0, 3]);
+        assert_eq!(unescape(&ebsp[..ebsp.len() - 1]), rbsp);
     }
 
     #[test]
@@ -527,111 +678,5 @@ mod tests {
             sets.complete(join(&[newer_pps, IDR])),
             join(&[SPS, newer_pps, IDR])
         );
-    }
-
-    /// The parameter sets and the start of the first IDR from AMD's VCN
-    /// (Mesa 26.2.4, RX 9070 XT) through FFmpeg's VAAPI encoder, Oct 16 2026.
-    /// The SPS has emulation prevention bytes in it.
-    const AMD_SPS: &[u8] = &[
-        0, 0, 0, 1, 0x67, 0x42, 0x40, 0x2a, 0x95, 0xa0, 0x1e, 0x00, 0x89, 0xf9, 0x66, 0xa0, 0xc0,
-        0xc0, 0xc8, 0x00, 0x00, 0x03, 0x00, 0x08, 0x00, 0x00, 0x03, 0x03, 0xc4, 0x78, 0x44, 0x23,
-        0x50,
-    ];
-    const AMD_PPS: &[u8] = &[0, 0, 0, 1, 0x68, 0xce, 0x38, 0x80];
-    /// first_mb 0, slice_type 7, pps_id 0, frame_num 0 (8 bits), idr_pic_id 0:
-    /// 18 bits, the PPS id ending at the ninth.
-    const AMD_IDR: &[u8] = &[
-        0, 0, 0, 1, 0x65, 0x88, 0x80, 0x42, 0x88, 0xc0, 0x38, 0x98, 0x33, 0x80, 0x00, 0x89,
-    ];
-
-    #[test]
-    fn an_amd_idr_is_rewritten_to_short_slice_types_and_the_same_length() {
-        let mut sets = ParameterSets::default();
-        let before = join(&[AMD_SPS, AMD_PPS, AMD_IDR]);
-        assert!(!idr_readable_when_encrypted(&before));
-        let after = sets.complete(before.clone());
-        assert!(idr_readable_when_encrypted(&after));
-        // first_mb 0 (1), slice_type 2 (011), pps_id 0 (1), frame_num 0
-        // (00000000), idr_pic_id 3 (00100): 18 bits again, and every bit
-        // after them where it was.
-        let idr = [
-            0, 0, 0, 1, 0x65, 0xb8, 0x01, 0x02, 0x88, 0xc0, 0x38, 0x98, 0x33, 0x80, 0x00, 0x89,
-        ];
-        assert_eq!(after, join(&[AMD_SPS, AMD_PPS, &idr]));
-    }
-
-    #[test]
-    fn a_bare_amd_idr_is_rewritten_with_the_sps_seen_before() {
-        let mut sets = ParameterSets::default();
-        sets.complete(join(&[AMD_SPS, AMD_PPS, AMD_IDR]));
-        let after = sets.complete(AMD_IDR.to_vec());
-        assert!(idr_readable_when_encrypted(&after));
-        assert_eq!(after.len(), join(&[AMD_SPS, AMD_PPS, AMD_IDR]).len());
-    }
-
-    #[test]
-    fn every_slice_of_the_idr_is_rewritten_alike() {
-        let mut sets = ParameterSets::default();
-        let after = sets.complete(join(&[AMD_SPS, AMD_PPS, AMD_IDR, AMD_IDR]));
-        let slices: Vec<&[u8]> = nal_units(&after)
-            .into_iter()
-            .filter(|&(kind, _)| kind == NAL_IDR)
-            .map(|(_, unit)| unit)
-            .collect();
-        assert_eq!(slices.len(), 2);
-        assert_eq!(slices[0], slices[1]);
-        assert_eq!(slices[0][5], 0xb8);
-    }
-
-    #[test]
-    fn an_idr_whose_slices_disagree_is_left_alone() {
-        // The second slice already says type 2: moving only the first one's
-        // idr_pic_id would give the picture two.
-        let short = [0, 0, 0, 1, 0x65, 0b1011_1000, 0x00, 0x80];
-        let payload = join(&[AMD_SPS, AMD_PPS, AMD_IDR, &short]);
-        assert_eq!(ParameterSets::default().complete(payload.clone()), payload);
-    }
-
-    #[test]
-    fn a_longer_idr_pic_id_keeps_ids_apart_and_takes_the_bits_saved() {
-        for saved in [2, 4] {
-            let zeros = saved / 2;
-            let ids: Vec<u32> = (0..200)
-                .map(|id| id + ((1 << zeros) - 1) * (1 << (exp_golomb_len(id) / 2)))
-                .collect();
-            for (id, &longer) in ids.iter().enumerate() {
-                assert_eq!(
-                    exp_golomb_len(longer),
-                    exp_golomb_len(id as u32) + saved,
-                    "{id}"
-                );
-            }
-            let mut sorted = ids.clone();
-            sorted.dedup();
-            assert_eq!(sorted.len(), ids.len());
-        }
-    }
-
-    #[test]
-    fn exp_golomb_is_written_as_it_is_read() {
-        for value in [0, 1, 2, 3, 6, 7, 14, 15, 255, 65535] {
-            let mut bytes = [0xffu8; 8];
-            let mut out = BitWriter::new(&mut bytes);
-            out.exp_golomb(value);
-            let written = out.at;
-            let mut bits = Bits::new(&bytes);
-            assert_eq!(bits.exp_golomb(), Some(value));
-            assert_eq!(bits.at, written);
-            assert_eq!(written as u32, exp_golomb_len(value));
-        }
-    }
-
-    #[test]
-    fn emulation_prevention_is_taken_out_and_put_back() {
-        let escaped_bytes = [0x00, 0x00, 0x03, 0x01, 0x42, 0x00, 0x00, 0x03, 0x00, 0x07];
-        let raw = rbsp(&escaped_bytes);
-        assert_eq!(raw, [0x00, 0x00, 0x01, 0x42, 0x00, 0x00, 0x00, 0x07]);
-        assert_eq!(escaped(&raw), escaped_bytes);
-        assert_eq!(escaped(&[0x12, 0x00, 0x00]), [0x12, 0x00, 0x00, 0x03]);
     }
 }

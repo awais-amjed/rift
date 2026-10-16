@@ -104,7 +104,7 @@ unpatched encoder had held 60.0 fps too, which is how it was found.
 The patch does nothing on AMD: Mesa's VCN encoder writes the slice header
 itself, always type 7 and `idr_pic_id` 0, though it takes FFmpeg's SPS and PPS
 (Mesa 26.2.4 on an RX 9070 XT, Oct 16 2026). There the Rust side rewrites each
-IDR's first bytes instead (`h264::with_short_idr_slice_types`).
+IDR's header instead (`h264::with_readable_pps_id`), as for Quick Sync below.
 
 ## Quick Sync needs no patch, but its settings matter
 
@@ -119,3 +119,10 @@ buffer once, when it opens, so a buffer sized for the opening rate could leave
 no room for a keyframe later. Measured as for NVENC: 19.6 to 20.0 Mbps at 20,
 7.2 in the second it fell to 5 and 4.7 to 5.3 after, 11.5 to 12.8 at 12, and
 no keyframe at any move.
+
+Quick Sync writes its IDRs as slice type 7 too, the same fault the VAAPI patch
+above fixes, but here Intel's runtime in the driver writes the slice header,
+not FFmpeg, so there is nothing to patch: FFmpeg's `low_power`, profile, slice
+count and `repeat_pps` all left it at 7 (Oct 16 2026, the same Iris Xe). The
+share rewrites the header instead (`h264::with_readable_pps_id` in the Rust
+crate), which also covers Media Foundation's Intel encoder.

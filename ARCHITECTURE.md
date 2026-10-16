@@ -753,7 +753,16 @@ share asked for in H264 goes out as VP9.
   at 1920x1080 VP9 sent 119.8 fps at 147% of a core, 3.7 ms a frame; at
   2560x1440 VP9 sent 105 fps at 268%, 7.8 ms a frame against the 8.3 that
   120 allows, and the GPU's H264 112 fps at 86%. At 2K neither encoder was
-  the limit: grabbing a window that size over X11 takes 7 to 9 ms.
+  the limit: grabbing a window that size over X11 takes 7 to 9 ms. On
+  Windows a share asks not to be power-throttled while it runs
+  (`capture.rs`): Windows 11 slows a process it judges out of sight, as Rift
+  is behind a game, and capture at 120 fell to about 92 pictures a second
+  within seconds; unthrottled it held 119.8 (Oct 16 2026, a test process
+  with no window, so the app's own case is inferred, not measured). FFmpeg's
+  NVENC also holds one picture above 60 fps (`ffmpeg.rs`, `delay_frames`):
+  waiting out each one at the idle clocks NVIDIA's driver drops to a few
+  seconds into a share had kept it near 87 fps, and with it the viewer got
+  118.7, at one more picture of delay (8 ms).
 - **H265 is skipped**: too many viewers cannot play it.
 - **AV1 is parked.** AMD's encoder makes AV1 that WebRTC carries, but no viewer
   gets it encrypted: LiveKit's Rust SDK does not negotiate what the server needs
@@ -771,13 +780,18 @@ share asked for in H264 goes out as VP9.
   id one bit into the ciphertext, so about one keyframe in two named a PPS
   that did not exist; whoever was watching dropped it and the pictures after,
   for up to a second each time somebody joined. The build patches it to the
-  short slice types NVENC writes (`third_party/ffmpeg/RIFT_PATCHES.md`). AMD's
-  VCN writes its own slice header whatever FFmpeg hands it, so an H264 IDR
-  that still has the long type is rewritten on its way to LiveKit
-  (`h264::with_short_idr_slice_types`, from `ParameterSets::complete`): the
-  type made short and `idr_pic_id` made as much longer, so every bit after them
-  stays where it was (Oct 16 2026). A share logs a warning if any encoder's
-  keyframes still do it (`h264::idr_readable_when_encrypted`); the GPU live
+  short slice types NVENC writes (`third_party/ffmpeg/RIFT_PATCHES.md`). On
+  Windows Intel's runtime writes the header itself, as type 7, for Quick Sync
+  and Media Foundation alike, with no setting to change it, and on Linux so
+  does Mesa's encoder for AMD whatever FFmpeg hands it. So a share
+  rewrites such a keyframe's header before LiveKit sees it
+  (`h264::with_readable_pps_id`): the short type, and `idr_pic_id` made as
+  many bits longer, so the slice data stays where it was. Measured Oct 16
+  2026 on an Iris Xe, a viewer joining every 4 s: before, the one already
+  watching fell to 36 fps with 45 keyframes asked for in a minute; after,
+  60.0 fps and none; on an RX 9070 XT at 1440p60, 42.0 fps with 46 asked
+  for, then 59.8 and none. A share logs a warning if a keyframe still puts the id
+  past the readable byte (`h264::idr_readable_when_encrypted`); the GPU live
   test fails on one.
 - **A GPU encoder is held to WebRTC's target before it encodes, not after.**
   WebRTC's frame dropper is off for pre-encoded frames (`webrtc-sys` 0.3.49),

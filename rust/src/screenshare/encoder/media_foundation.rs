@@ -1012,6 +1012,18 @@ mod tests {
                 started.elapsed().as_secs_f64(),
                 bytes
             );
+            // Written before anything is checked, so a stream that fails can
+            // be looked at.
+            if let Ok(dir) = std::env::var("GPU_ENCODER_DUMP") {
+                let stream: Vec<u8> = frames.iter().flat_map(|(p, _)| p.iter().copied()).collect();
+                let extension = match codec {
+                    GpuCodec::H264 => "h264",
+                    GpuCodec::Av1 => "obu",
+                };
+                let path = format!("{dir}/gpu-{index}.{extension}");
+                std::fs::write(&path, stream).unwrap();
+                log::info!("wrote {path}");
+            }
             assert!(!failed, "{} failed", encoder.name);
             assert!(
                 frames.len() >= 150,
@@ -1031,27 +1043,22 @@ mod tests {
                 encoder.name
             );
             if codec == GpuCodec::H264 {
-                // What LiveKit's encryption leaves readable must still name
-                // the PPS (`h264::idr_readable_when_encrypted`).
+                // What LiveKit's encryption leaves readable of what a share
+                // sends must still name the PPS
+                // (`h264::idr_readable_when_encrypted`). Intel's encoder
+                // writes it too far and the share rewrites it.
                 let unreadable = keyframes
                     .iter()
-                    .filter(|&&i| !h264::idr_readable_when_encrypted(&frames[i].0))
+                    .filter(|&&i| {
+                        let sent = h264::for_encryption(&frames[i].0);
+                        !h264::idr_readable_when_encrypted(sent.as_deref().unwrap_or(&frames[i].0))
+                    })
                     .count();
                 assert_eq!(
                     unreadable, 0,
                     "{}: keyframes encrypted viewers cannot find the parameter sets of",
                     encoder.name
                 );
-            }
-            if let Ok(dir) = std::env::var("GPU_ENCODER_DUMP") {
-                let stream: Vec<u8> = frames.iter().flat_map(|(p, _)| p.iter().copied()).collect();
-                let extension = match codec {
-                    GpuCodec::H264 => "h264",
-                    GpuCodec::Av1 => "obu",
-                };
-                let path = format!("{dir}/gpu-{index}.{extension}");
-                std::fs::write(&path, stream).unwrap();
-                log::info!("wrote {path}");
             }
             runs.push(Run {
                 index,
