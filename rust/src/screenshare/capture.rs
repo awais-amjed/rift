@@ -164,12 +164,29 @@ pub(crate) fn spawn(request: CaptureRequest) -> (Capture, Started) {
 /// RAII guard that raises the Windows timer resolution to 1 ms and restores
 /// it on drop, so `recv_timeout` does not sleep in ~15.6 ms steps on a machine
 /// where nothing else has asked for a finer clock.
+///
+/// It also asks Windows not to throttle the process while it shares. Windows
+/// 11 slows a process it judges out of sight (EcoQoS) and may ignore its
+/// finer clock, and a share runs while the game it shows covers Rift. In a
+/// test process with no window, capture at 120 fps fell from about 106
+/// pictures a second to 92 a few seconds in, and FFmpeg's Quick Sync sent
+/// 88.7 fps; with throttling off, 119.8 and 118.3 (Oct 16 2026, an i7-12700H
+/// laptop). On drop, Windows decides again.
 #[cfg(target_os = "windows")]
 struct TimerResolutionGuard;
 
 #[cfg(target_os = "windows")]
 impl TimerResolutionGuard {
     fn new() -> Self {
+        use windows::Win32::System::Threading::{
+            PROCESS_POWER_THROTTLING_EXECUTION_SPEED,
+            PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION,
+        };
+        // Execution speed and the timer resolution both held unthrottled.
+        set_power_throttling(
+            PROCESS_POWER_THROTTLING_EXECUTION_SPEED
+                | PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION,
+        );
         unsafe { windows::Win32::Media::timeBeginPeriod(1) };
         Self
     }
@@ -179,6 +196,35 @@ impl TimerResolutionGuard {
 impl Drop for TimerResolutionGuard {
     fn drop(&mut self) {
         unsafe { windows::Win32::Media::timeEndPeriod(1) };
+        set_power_throttling(0);
+    }
+}
+
+/// Turn off Windows' power throttling for this process in the ways `held`
+/// names, leaving the rest to Windows: 0 hands all of it back.
+#[cfg(target_os = "windows")]
+fn set_power_throttling(held: u32) {
+    use windows::Win32::System::Threading::{
+        GetCurrentProcess, ProcessPowerThrottling, SetProcessInformation,
+        PROCESS_POWER_THROTTLING_CURRENT_VERSION, PROCESS_POWER_THROTTLING_STATE,
+    };
+    let state = PROCESS_POWER_THROTTLING_STATE {
+        Version: PROCESS_POWER_THROTTLING_CURRENT_VERSION,
+        ControlMask: held,
+        StateMask: 0,
+    };
+    // SAFETY: `state` is the structure this information class takes, and
+    // outlives the call.
+    let set = unsafe {
+        SetProcessInformation(
+            GetCurrentProcess(),
+            ProcessPowerThrottling,
+            std::ptr::from_ref(&state).cast(),
+            std::mem::size_of::<PROCESS_POWER_THROTTLING_STATE>() as u32,
+        )
+    };
+    if let Err(e) = set {
+        log::info!("capture: power throttling left to Windows: {e}");
     }
 }
 

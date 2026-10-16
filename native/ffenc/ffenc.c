@@ -201,11 +201,11 @@ static int open_codec(RiftFfenc* enc, const AVCodec* codec,
     case API_NVENC:
       // NVIDIA's settings for streaming: the middle preset, as Rift's own
       // NVENC on Linux uses, tuned for the lowest latency, with no look-ahead
-      // and nothing held back.
+      // and no more held back than the crate asks (delay_frames).
       av_opt_set(c->priv_data, "preset", "p4", 0);
       av_opt_set(c->priv_data, "tune", "ull", 0);
       av_opt_set(c->priv_data, "zerolatency", "1", 0);
-      av_opt_set(c->priv_data, "delay", "0", 0);
+      av_opt_set_int(c->priv_data, "delay", config->delay_frames, 0);
       av_opt_set(c->priv_data, "rc-lookahead", "0", 0);
       // A keyframe asked for is one a viewer can start from, not just an
       // intra picture.
