@@ -2,8 +2,10 @@
 
 A brief for the agent on the user's dual-boot laptop, **booted into Windows**:
 RTX 3070 Ti Laptop beside Intel Iris Xe (Alder Lake), one 1920x1080 screen at
-165 Hz wired to the Iris Xe. It lives on the `gpu-encoding` branch only and goes
-when its questions are answered. Your results go in
+165 Hz wired to the Iris Xe. It lives on the GPU test branches only and goes
+when its questions are answered. **Your branch is `gpu-encoding-nvidia`**, made
+from `gpu-encoding`; the AMD PC tests at the same time on `gpu-encoding-amd`.
+Your results go in
 `GPU_ENCODING_NVIDIA_LAPTOP_RESULTS.md` beside it.
 
 Read first: `AGENTS.md`, `ARCHITECTURE.md` ("Encoding a share on the GPU"),
@@ -48,7 +50,7 @@ against. `TESTING.md`'s rows on GPU shares say what has and has not been driven.
 
 ## Setup
 
-1. `git fetch` and check out `gpu-encoding`. Ask the user before installing
+1. `git fetch` and check out `gpu-encoding-nvidia`. Ask the user before installing
    anything, and before anything that needs administrator rights.
 2. Check the toolchain: MSYS2 UCRT64 at `C:\msys64` (gcc, make, CMake, Ninja,
    pkgconf), Rust, Flutter, Visual Studio Build Tools, and `ffmpeg`/`ffprobe`/
@@ -177,9 +179,9 @@ should not have the `PPS id past what encryption leaves readable` line.
 
 ## Rules
 
-- **Commit on `gpu-encoding` only, and push it** (`git pull --rebase` first:
-  the AMD PC pushes to it too). Never push `dev` or `production`, never tag,
-  never release. **No `Co-Authored-By`, `Claude-Session` or other attribution
+- **Commit on `gpu-encoding-nvidia` only, and push it.** Never push any other
+  branch (`gpu-encoding`, `gpu-encoding-amd`, `dev`, `production`), never
+  tag, never release. **No `Co-Authored-By`, `Claude-Session` or other attribution
   lines in any commit message, and never mention leaving them out.**
 - Stage files by name, never `git add -A`. One logical change per commit, the
   docs in the commit that makes them wrong (`AGENTS.md`). `cargo test` passing
@@ -194,4 +196,4 @@ should not have the `PPS id past what encryption leaves readable` line.
 Write `GPU_ENCODING_NVIDIA_LAPTOP_RESULTS.md`: the machine (GPUs and driver
 versions, screen, Windows build, power plan), each section's numbers with the
 build mode, what passed and failed, and what was not run. Commit it, push
-`gpu-encoding`, and tell the user the Linux side merges the code into `dev`.
+`gpu-encoding-nvidia`, and tell the user the Linux side merges the code into `dev`.

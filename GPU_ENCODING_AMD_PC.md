@@ -3,8 +3,10 @@
 A brief for the agent on the user's AMD PC: Radeon RX 9070 XT beside the CPU's
 own Radeon graphics, one 5120x1440 screen at 240 Hz. It boots both Linux and
 Windows; **Part A is on Linux, Part B on Windows**, and the user says which you
-are on. It lives on the `gpu-encoding` branch only and goes when its questions
-are answered. Your results go in `GPU_ENCODING_AMD_PC_RESULTS.md` beside it,
+are on. It lives on the GPU test branches only and goes when its questions
+are answered. **Your branch is `gpu-encoding-amd`**, made from `gpu-encoding`;
+the NVIDIA laptop tests at the same time on `gpu-encoding-nvidia`.
+Your results go in `GPU_ENCODING_AMD_PC_RESULTS.md` beside it,
 one section per part; whichever part runs second adds to the file.
 
 Read first: `AGENTS.md`, `ARCHITECTURE.md` ("Encoding a share on the GPU"),
@@ -59,7 +61,7 @@ Without anyone joining, both held 60.0.
 
 ## Common to both parts
 
-- `git fetch` and check out `gpu-encoding`. Ask the user before installing
+- `git fetch` and check out `gpu-encoding-amd`. Ask the user before installing
   anything, and before anything that needs administrator rights.
 - A LiveKit server: `livekit-server --dev` (1.13.7 last time), a fresh one per
   run, with `LIVEKIT_URL=ws://127.0.0.1:7880`, `LIVEKIT_API_KEY=devkey`,
@@ -161,8 +163,8 @@ on the last without the user's go-ahead.
 
 ## Rules
 
-- **Commit on `gpu-encoding` only, and push it** (`git pull --rebase` first:
-  the NVIDIA laptop pushes to it too). Never push `dev` or `production`, never
+- **Commit on `gpu-encoding-amd` only, and push it.** Never push any other
+  branch (`gpu-encoding`, `gpu-encoding-nvidia`, `dev`, `production`), never
   tag, never release. **No `Co-Authored-By`, `Claude-Session` or other
   attribution lines in any commit message, and never mention leaving them
   out.**
@@ -178,5 +180,5 @@ on the last without the user's go-ahead.
 
 Write `GPU_ENCODING_AMD_PC_RESULTS.md`: the machine (GPU, driver or Mesa
 version, render node, OS build), each step's numbers with the build mode, what
-passed and failed, and what was not run. Commit it, push `gpu-encoding`, and
+passed and failed, and what was not run. Commit it, push `gpu-encoding-amd`, and
 tell the user the Linux side merges the code into `dev`.
