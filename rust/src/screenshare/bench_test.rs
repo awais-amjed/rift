@@ -20,6 +20,12 @@
 //! `BENCH_SECS`: the share once for each simulcast layer, and both every
 //! [`SAMPLE`] as well, so a move between layers shows, or the share falling
 //! behind on a slow link. More viewers take a `BENCH_VIEWER` name each.
+//!
+//! `bench_churn`, run beside the other two, is viewers coming and going: one
+//! joins every `BENCH_CHURN_EVERY` seconds (4), stays `BENCH_CHURN_STAY` (2)
+//! after its first picture and leaves. Each join asks the share for a
+//! keyframe, so `bench_view`'s numbers then say what that costs whoever was
+//! already watching.
 use super::live_test::Server;
 use super::session;
 use crate::api::screenshare::types::{ScreenShareConfig, SharePriority, VideoCodec};
@@ -351,7 +357,7 @@ async fn bench_view() {
         let now = track.get_stats().await.expect("stats");
         if let (Some(p), Some(n)) = (inbound(&last), inbound(&now)) {
             log::info!(
-                "bench view: {:>4.0} s | {}x{} | {:.1} fps | {:.2} Mbps | freezes {} | lost {}",
+                "bench view: {:>4.0} s | {}x{} | {:.1} fps | {:.2} Mbps | freezes {} | lost {} | PLIs {}",
                 started.elapsed().as_secs_f64(),
                 n.inbound.frame_width,
                 n.inbound.frame_height,
@@ -362,6 +368,7 @@ async fn bench_view() {
                     / 1e6,
                 n.inbound.freeze_count - p.inbound.freeze_count,
                 n.received.packets_lost - p.received.packets_lost,
+                n.inbound.pli_count - p.inbound.pli_count,
             );
         }
         last = now;
@@ -388,5 +395,61 @@ async fn bench_view() {
         b.inbound.pli_count - a.inbound.pli_count,
         (b.inbound.bytes_received - a.inbound.bytes_received) as f64 * 8.0 / wall / 1e6,
         wall,
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a LiveKit server and a share to watch; see the module doc"]
+async fn bench_churn() {
+    let _ = env_logger::builder()
+        .is_test(true)
+        .filter_level(log::LevelFilter::Info)
+        .try_init();
+    let server = Server::from_env();
+    let room = env_or("BENCH_ROOM", "bench");
+    let every = Duration::from_secs(env_num("BENCH_CHURN_EVERY", 4).into());
+    let stay = Duration::from_secs(env_num("BENCH_CHURN_STAY", 2).into());
+    let started = Instant::now();
+    let mut joins = 0u32;
+    let mut firsts = Vec::new();
+    while started.elapsed() < bench_secs() {
+        let began = Instant::now();
+        let identity = format!("churn-{joins}");
+        let (viewer, mut events) = super::live_test::viewer_as(&server, &room, &identity).await;
+        let first = timeout(Duration::from_secs(10), async {
+            loop {
+                if let RoomEvent::TrackSubscribed {
+                    track: RemoteTrack::Video(track),
+                    ..
+                } = events.recv().await?
+                {
+                    let mut stream = NativeVideoStream::new(track.rtc_track());
+                    return stream.next().await.map(|_| began.elapsed());
+                }
+            }
+        })
+        .await;
+        match first {
+            Ok(Some(first)) => {
+                log::info!(
+                    "bench churn: {identity} had a picture {:.0} ms after joining",
+                    first.as_secs_f64() * 1000.0
+                );
+                firsts.push(first);
+            }
+            _ => log::info!("bench churn: {identity} had no picture in 10 s"),
+        }
+        tokio::time::sleep(stay).await;
+        viewer.close().await.unwrap();
+        joins += 1;
+        tokio::time::sleep(every.saturating_sub(began.elapsed())).await;
+    }
+    firsts.sort();
+    let ms = |d: Option<&Duration>| d.map_or(0.0, |d| d.as_secs_f64() * 1000.0);
+    log::info!(
+        "bench churn: {joins} joins, {} had a picture | first picture median {:.0} ms, slowest {:.0} ms",
+        firsts.len(),
+        ms(firsts.get(firsts.len() / 2)),
+        ms(firsts.last()),
     );
 }

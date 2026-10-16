@@ -1030,6 +1030,19 @@ mod tests {
                 "{} made the keyframe asked for",
                 encoder.name
             );
+            if codec == GpuCodec::H264 {
+                // What LiveKit's encryption leaves readable must still name
+                // the PPS (`h264::idr_readable_when_encrypted`).
+                let unreadable = keyframes
+                    .iter()
+                    .filter(|&&i| !h264::idr_readable_when_encrypted(&frames[i].0))
+                    .count();
+                assert_eq!(
+                    unreadable, 0,
+                    "{}: keyframes encrypted viewers cannot find the parameter sets of",
+                    encoder.name
+                );
+            }
             if let Ok(dir) = std::env::var("GPU_ENCODER_DUMP") {
                 let stream: Vec<u8> = frames.iter().flat_map(|(p, _)| p.iter().copied()).collect();
                 let extension = match codec {
