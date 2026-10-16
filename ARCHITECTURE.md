@@ -782,8 +782,9 @@ share asked for in H264 goes out as VP9.
   for up to a second each time somebody joined. The build patches it to the
   short slice types NVENC writes (`third_party/ffmpeg/RIFT_PATCHES.md`). On
   Windows Intel's runtime writes the header itself, as type 7, for Quick Sync
-  and Media Foundation alike, with no setting to change it, and on Linux so
-  does Mesa's encoder for AMD whatever FFmpeg hands it. So a share
+  and Media Foundation alike, with no setting to change it, on Linux so
+  does Mesa's encoder for AMD whatever FFmpeg hands it, and on Windows so do
+  AMD's AMF and its Media Foundation encoder. So a share
   rewrites such a keyframe's header before LiveKit sees it
   (`h264::with_readable_pps_id`): the short type, and `idr_pic_id` made as
   many bits longer, so the slice data stays where it was. Measured Oct 16
