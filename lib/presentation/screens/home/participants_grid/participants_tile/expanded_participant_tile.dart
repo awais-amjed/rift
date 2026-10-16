@@ -44,8 +44,8 @@ class ExpandedParticipantTile extends StatelessWidget {
   /// Null on a camera tile.
   final String? shareIdentity;
 
-  /// The stream's shared window is minimised, so the picture is the last
-  /// frame, or there is none yet — see [SharePausedNotice].
+  /// The stream's shared window is minimised or gone, so the picture is the
+  /// last frame, or there is none yet — see [SharePausedNotice].
   final bool isPaused;
 
   /// What the sharer says the stream is sent at ("1080p · 60fps"), which the

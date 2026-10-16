@@ -4,7 +4,8 @@ import '../../../../../data/constants.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/media_colors.dart';
 
-/// Said over a stream whose shared window is minimised.
+/// Said over a stream whose shared window is minimised, or gone for a moment
+/// while a fullscreen game swaps it for a new one.
 ///
 /// Windows gives a capturer nothing for a minimised window, so viewers keep
 /// the last frame — or, for a share started on a window still on the
@@ -34,7 +35,7 @@ class SharePausedNotice extends StatelessWidget {
             ),
             Flexible(
               child: Text(
-                'Paused — the shared window is minimised',
+                'Paused — the shared window is hidden',
                 style: AppText.secondary.copyWith(color: MediaColors.onMedia),
                 textAlign: TextAlign.center,
               ),

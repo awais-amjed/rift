@@ -1,8 +1,13 @@
 //! Windows: asking the window manager about a window source directly. A
 //! window source's id is its `HWND`, so these need nothing from libwebrtc.
 use windows::core::BOOL;
-use windows::Win32::Foundation::{HWND, LPARAM};
+use windows::Win32::Foundation::{
+    CloseHandle, ERROR_INVALID_PARAMETER, HWND, LPARAM, STILL_ACTIVE,
+};
 use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_CLOAKED};
+use windows::Win32::System::Threading::{
+    GetExitCodeProcess, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION,
+};
 use windows::Win32::UI::WindowsAndMessaging::{
     EnumWindows, GetWindow, GetWindowLongW, GetWindowTextLengthW, GetWindowTextW,
     GetWindowThreadProcessId, IsIconic, IsWindow, IsWindowVisible, GWL_EXSTYLE, GW_OWNER,
@@ -26,6 +31,23 @@ pub(crate) fn minimised(id: u64) -> bool {
 /// (measured Sep 30 2026).
 pub(crate) fn closed(id: u64) -> bool {
     !unsafe { IsWindow(Some(hwnd(id))) }.as_bool()
+}
+
+/// Whether the program `pid` names is still running. One Windows will not
+/// say anything about is taken to be.
+pub(crate) fn running(pid: u32) -> bool {
+    // SAFETY: the handle is closed before returning, and `code` outlives the
+    // call that writes it.
+    unsafe {
+        let process = match OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid) {
+            Ok(process) => process,
+            Err(e) => return e.code() != ERROR_INVALID_PARAMETER.to_hresult(),
+        };
+        let mut code = 0u32;
+        let asked = GetExitCodeProcess(process, &mut code);
+        let _ = CloseHandle(process);
+        asked.is_err() || code == STILL_ACTIVE.0 as u32
+    }
 }
 
 /// The process that owns the window, for capturing its sound.

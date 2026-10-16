@@ -101,7 +101,8 @@ class ParticipantRoster {
     return false;
   }
 
-  /// Whether the screen share with [identity] says its window is minimised.
+  /// Whether the screen share with [identity] says its window is minimised or
+  /// gone.
   static bool isSharePaused(List<ParticipantInfo> roster, String identity) {
     for (final info in roster) {
       if (info.identity == identity) return info.isSharePaused;

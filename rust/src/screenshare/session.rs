@@ -379,7 +379,7 @@ async fn bring_up(
         portal_choice: config.portal_choice.clone(),
         fps: config.fps,
         capture_cursor: true,
-        on_minimised: Some(announce_paused(participant.clone())),
+        on_paused: Some(announce_paused(participant.clone())),
     });
 
     let first = match tokio::time::timeout(FIRST_FRAME_TIMEOUT, started.recv()).await {
@@ -827,8 +827,9 @@ async fn publish_when_opened(video: Arc<Video>, mut started: Started) {
 }
 
 /// Tells the room, as an attribute of the share's own connection, when the
-/// shared window is minimised and when it is back. Called from the capture
-/// thread, so the request is handed to the runtime rather than awaited there.
+/// shared window is minimised or gone and when it is back. Called from the
+/// capture thread, so the request is handed to the runtime rather than awaited
+/// there.
 fn announce_paused(participant: SharedParticipant) -> Box<dyn Fn(bool) + Send> {
     let runtime = tokio::runtime::Handle::current();
     Box::new(move |paused| {

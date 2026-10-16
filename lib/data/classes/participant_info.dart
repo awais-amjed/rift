@@ -51,8 +51,9 @@ class ParticipantInfo {
   /// refusing to talk, just not talking yet.
   final bool isPushToTalkIdle;
 
-  /// A screen share whose window is minimised, so its picture is standing
-  /// still — see `VoiceAttributes.isSharePaused`. False for anything else.
+  /// A screen share whose window is minimised or gone, so its picture is
+  /// standing still — see `VoiceAttributes.isSharePaused`. False for anything
+  /// else.
   final bool isSharePaused;
 
   /// What a screen share says it is sending, as the badge words it

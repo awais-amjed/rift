@@ -57,9 +57,10 @@ class VoiceAttributes {
       !(pushToTalkIdle ?? isPushToTalkIdle(participant.attributes));
 
   /// Set by a desktop screen share's own connection, not by [forSelf]: the
-  /// Rust session publishes it while the shared window is minimised, when
-  /// Windows hands the capturer nothing new and viewers would otherwise be
-  /// left looking at a frozen picture with no idea why.
+  /// Rust session publishes it while the shared window is minimised, or gone
+  /// while the session looks for it again, when Windows hands the capturer
+  /// nothing new and viewers would otherwise be left looking at a frozen
+  /// picture with no idea why.
   static const sharePausedKey = 'paused';
 
   static bool isSharePaused(Map<String, String> attributes) =>
