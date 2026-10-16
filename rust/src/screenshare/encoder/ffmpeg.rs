@@ -27,7 +27,7 @@ use std::time::{Duration, Instant};
 
 /// The library's interface version this crate was written against
 /// (`RIFT_FFENC_ABI` in `ffenc.h`).
-const ABI: i32 = 2;
+const ABI: i32 = 3;
 
 /// The library's name: in the bundle's `lib` folder on Linux, beside the app
 /// on Windows.
@@ -60,6 +60,7 @@ struct Config {
     peak_percent: i32,
     gop: i32,
     max_bitrate_bps: i64,
+    delay_frames: i32,
 }
 
 #[repr(C)]
@@ -276,6 +277,26 @@ pub(crate) fn opens(codec: GpuCodec) -> bool {
     codec == GpuCodec::H264 && h264_encoder().is_some()
 }
 
+/// NVENC's `delay` for a share at `fps`: 2 above 60 fps, which has it hold
+/// one picture while the next goes in, and 0, nothing held, at 60 and below.
+///
+/// FFmpeg's NVENC waits for each picture to be encoded before taking the
+/// next, and NVIDIA's driver drops an RTX 3070 Ti Laptop to its idle clocks
+/// (P8, video 555 MHz) a few seconds into a share, after which a 1080p
+/// picture took 11.4 ms: 87 fps at 120. Holding one, the wait overlaps the
+/// next picture: 1.4 ms a picture, the GPU settling at P3, and the viewer at
+/// 118.0 fps (Oct 16 2026, Windows). At 60 the wait fits in a picture's time,
+/// so nothing is held, and the picture is not a frame later. FFmpeg hands a
+/// picture out once `delay` are ready or waiting, and the newest is ready as
+/// soon as it is in, so 1 holds nothing.
+fn delay_frames(fps: u32) -> i32 {
+    if fps > 60 {
+        2
+    } else {
+        0
+    }
+}
+
 fn open_raw(
     api: &Api,
     settings: &EncoderSettings,
@@ -297,6 +318,7 @@ fn open_raw(
         peak_percent: PEAK_PERCENT,
         gop: (settings.fps * GOP_SECONDS) as i32,
         max_bitrate_bps: i64::from(settings.max_bitrate_bps),
+        delay_frames: delay_frames(settings.fps),
     };
     let mut error = [0 as c_char; 256];
     // SAFETY: `config` and the strings it points at outlive the call, and

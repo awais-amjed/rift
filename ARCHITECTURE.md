@@ -758,7 +758,11 @@ share asked for in H264 goes out as VP9.
   (`capture.rs`): Windows 11 slows a process it judges out of sight, as Rift
   is behind a game, and capture at 120 fell to about 92 pictures a second
   within seconds; unthrottled it held 119.8 (Oct 16 2026, a test process
-  with no window, so the app's own case is inferred, not measured).
+  with no window, so the app's own case is inferred, not measured). FFmpeg's
+  NVENC also holds one picture above 60 fps (`ffmpeg.rs`, `delay_frames`):
+  waiting out each one at the idle clocks NVIDIA's driver drops to a few
+  seconds into a share had kept it near 87 fps, and with it the viewer got
+  118.7, at one more picture of delay (8 ms).
 - **H265 is skipped**: too many viewers cannot play it.
 - **AV1 is parked.** AMD's encoder makes AV1 that WebRTC carries, but no viewer
   gets it encrypted: LiveKit's Rust SDK does not negotiate what the server needs

@@ -62,7 +62,7 @@ int main(int argc, char** argv) {
     return 1;
   }
   RiftFfencConfig config = {argv[2], argv[3][0] ? argv[3] : NULL, w, h, 60,
-                            8000000, 100, 3600, 8000000};
+                            8000000, 100, 3600, 8000000, 0};
   char error[512] = {0};
   RiftFfenc* enc = open(&config, error, sizeof error);
   if (!enc) {
