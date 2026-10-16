@@ -182,3 +182,51 @@ yet proved.
   bench script.
 - Logs, probe outputs and both test binaries stay on the machine in the test
   folder, and none are committed.
+
+## Part A, round 2: the merged code on Linux, Oct 16 2026 (evening)
+
+This round ran the code at `f805aaa9`. It is the same machine, windows and
+settings as Part A, run in release, with the library rebuilt at ABI 3. The
+keyframe rewrite measured here is the one that ships:
+`h264::with_readable_pps_id`, run in `gpu_feed.rs` through
+`h264::for_encryption`. Part A's `with_short_idr_slice_types` is gone.
+
+**Verdict: the shipped rewrite works on AMD, and it matches Part A's "after"
+numbers.** No run logged `could not be rewritten`.
+
+| Check | Result |
+|---|---|
+| Library | `native/ffenc/build.sh`, ABI 3, loads |
+| `cargo test --release` | 150 passed, 0 failed, 13 ignored |
+| Probe | `FAIL`, 6 of 6 IDRs with slice type 7, as expected: it reads the encoder's own output, before the share rewrites it. Colour tags unchanged (`tv`, `smpte170m`) |
+| Live test | passed; decoded and recognisable: 216 unencrypted, 217 with the key, 24 without it (0 recognisable), 0 with the wrong one |
+
+The churn bench was set up as in Part A: `bench_view`, `bench_share` and
+`bench_churn`, encrypted, 60 s, a fresh LiveKit for each run. The moving
+pattern was captured at 2560x1403, and the still text in gedit at 2560x1440.
+
+| | Moving, 1440p60 / 20 Mbps | Part A after | Moving, 1080p120 / 30 Mbps | Part A after | Still text, 1440p60 / 20 Mbps | Part A |
+|---|---|---|---|---|---|---|
+| Viewer decoded | **59.9 fps** | 59.8 | **108.8 fps** | 109.0 | **58.9 fps** | 59.1 |
+| Lowest 2 s sample | 58.5 | 58.0 | 104.5 | 105.0 | 57.5 | 58.0 |
+| Freezes, PLIs | **0, 0** | 0, 0 | **0, 0** | 0, 0 | 14, **0** | 14, 0 |
+| Joiners' first picture, median and slowest | 183, 206 ms | 201, 236 | 174, 196 ms | 175, 217 | 400, 420 ms | 336, 403 |
+| Keyframes made by the sharer | 14 | 15 | 14 | 14 | 14 | 14 |
+| Keyframe size | 116 KB | 117 | 78 KB | 90 | 189 to 207 KB | 207 |
+| Left out by the gate (within 1 s of a keyframe) | 21 (13) | 23 (17) | 627 (179) | 657 (185) | 114 (114) | 4 to 7 per keyframe |
+| Encoder's `send` per picture, longest | 8.0 to 8.4 ms, 18.4 | 3.8 to 4.6, 17.4 | 5.3 to 5.8 ms, 17.7 | 4.5 to 5.0, 18.9 | 10.8 to 11.6 ms, 30.8 | 4.1 to 5.7, 6.2 |
+
+No packet was lost in any run. The 1080p120 rate is the rate gate's, as in
+Part A: this noise needs more than 30 Mbps at 120 fps.
+
+On the still screen, the 14 freezes are again one per join, each from sending
+a 207 KB keyframe at WebRTC's 5.5 to 5.9 Mbps, with no keyframe asked for.
+
+**Not explained:** the encoder's time per picture was about twice Part A's at
+1440p, on both the moving and the still picture. The rewrite runs after the
+encoder, and the viewers' numbers did not change, so this was only recorded.
+Whether it is the GPU's clocks or something in the merged code was not
+isolated.
+
+Not run, as before: the app (step 7), a slow link, and real game content.
+Logs are kept on the machine and are not committed.
