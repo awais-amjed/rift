@@ -3,6 +3,7 @@
 use super::frames::{self, SendableFrame};
 #[cfg(gpu_encoder)]
 use super::gpu_feed::GpuFeed;
+use super::latest;
 use super::resolution::Size;
 use super::sources;
 #[cfg(target_os = "windows")]
@@ -19,10 +20,6 @@ use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
-
-/// Raw frames waiting for the processing thread. Two is one being converted
-/// and one queued; anything older is stale and better dropped.
-const FRAME_QUEUE: usize = 2;
 
 /// How often a share waiting on a minimised window looks for it again.
 #[cfg(target_os = "windows")]
@@ -233,7 +230,8 @@ fn run(
         .filter(|_| request.source_type == DesktopCaptureSourceType::Window)
         .map(|source| source.id());
 
-    let (frame_tx, frame_rx) = mpsc::sync_channel::<SendableFrame>(FRAME_QUEUE);
+    // One raw frame waits for the processing thread, a newer one replacing it.
+    let (frame_tx, frame_rx) = latest::channel::<SendableFrame>();
     let _processing = frames::spawn_processing(frame_rx, source_slot);
 
     // Set when the source reports a permanent error, which for a window means
@@ -249,8 +247,9 @@ fn run(
                     height: frame.height() as u32,
                 }));
             }
-            // A full queue means the converter is behind; drop this one.
-            let _ = frame_tx.try_send(SendableFrame(frame));
+            // One still waiting means the converter is behind; it is dropped
+            // for this newer one.
+            let _ = frame_tx.put(SendableFrame(frame));
         }
         Err(CaptureError::Permanent) => {
             if let Some(tx) = first_frame.take() {

@@ -4,12 +4,12 @@
 use super::capture::{Feed, VideoSlot};
 #[cfg(gpu_encoder)]
 use super::gpu_feed::Picture;
+use super::latest::Taker;
 use super::pixels::copy_plane;
 use super::resolution::{letterbox, Size};
 use livekit::webrtc::desktop_capturer::DesktopFrame;
 use livekit::webrtc::native::yuv_helper;
 use livekit::webrtc::prelude::{I420Buffer, VideoBuffer, VideoFrame, VideoRotation};
-use std::sync::mpsc::Receiver;
 use std::thread::{self, JoinHandle};
 
 /// A `DesktopFrame` on its way to another thread.
@@ -22,20 +22,20 @@ pub(crate) struct SendableFrame(pub DesktopFrame);
 unsafe impl Send for SendableFrame {}
 
 pub(crate) fn spawn_processing(
-    frame_rx: Receiver<SendableFrame>,
+    frame_rx: Taker<SendableFrame>,
     source_slot: VideoSlot,
 ) -> JoinHandle<()> {
     thread::spawn(move || run(frame_rx, source_slot))
 }
 
-fn run(frame_rx: Receiver<SendableFrame>, source_slot: VideoSlot) {
+fn run(frame_rx: Taker<SendableFrame>, source_slot: VideoSlot) {
     // Reused across frames; reallocated only if the capture size changes.
     // `VideoFrame::new` rather than a struct literal: libwebrtc keeps adding
     // fields to this (0.3.48 added `frame_metadata`), and a literal has to be
     // edited for every one of them.
     let mut native = VideoFrame::new(VideoRotation::VideoRotation0, I420Buffer::new(2, 2));
 
-    while let Ok(SendableFrame(frame)) = frame_rx.recv() {
+    while let Some(SendableFrame(frame)) = frame_rx.take() {
         let width = frame.width();
         let height = frame.height();
         let size = Size {

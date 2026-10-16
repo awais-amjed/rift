@@ -11,6 +11,8 @@ pub(crate) mod encoder;
 mod frames;
 #[cfg(gpu_encoder)]
 mod gpu_feed;
+#[cfg_attr(not(desktop), allow(dead_code))]
+mod latest;
 mod pixels;
 #[cfg(gpu_encoder)]
 mod rate_gate;

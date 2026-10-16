@@ -3,16 +3,17 @@
 //! A hardware encoder is an asynchronous transform: it says when it wants a
 //! picture and when it has output, as events. It runs on a thread of its own,
 //! which owns every COM object here, so nothing crosses threads but plain
-//! bytes. Pictures come in on a short queue, newest kept; output goes straight
-//! to the [`EncodedSink`]. The two codecs differ only in what is asked of the
-//! encoder (output type, profile, quantiser floor) and in how a keyframe is
-//! told from its bytes.
+//! bytes. One picture waits for the encoder, a newer one replacing it; output
+//! goes straight to the [`EncodedSink`]. The two codecs differ only in what is
+//! asked of the encoder (output type, profile, quantiser floor) and in how a
+//! keyframe is told from its bytes.
 use super::av1;
 use super::h264::{self, ParameterSets};
 use super::{clamp_bitrate, Encoded, EncodedSink, EncoderSettings, GpuCodec, Nv12Frame};
+use crate::screenshare::latest::{self, Closed, Putter, Taker};
 use std::mem::ManuallyDrop;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-use std::sync::mpsc::{self, Receiver, RecvTimeoutError, SyncSender, TrySendError};
+use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
@@ -22,10 +23,6 @@ use windows::Win32::System::Com::{
     CoInitializeEx, CoTaskMemFree, CoUninitialize, COINIT_MULTITHREADED,
 };
 use windows::Win32::System::Variant::VARIANT;
-
-/// Pictures waiting for the encoder. Two is one going in and one behind it;
-/// anything older is stale and better dropped.
-const FRAME_QUEUE: usize = 2;
 
 /// How often the encoder thread looks for the transform's events while it has
 /// nothing else to wait on.
@@ -229,7 +226,7 @@ pub(crate) fn hardware_encoders(codec: GpuCodec) -> Vec<EncoderInfo> {
 
 /// A running GPU encoder.
 pub(crate) struct GpuEncoder {
-    frames: Option<SyncSender<Nv12Frame>>,
+    frames: Option<Putter<Nv12Frame>>,
     /// Picture buffers coming back from the encoder thread, to be filled again
     /// rather than allocated a frame at a time.
     spare: Arc<Mutex<Vec<Vec<u8>>>>,
@@ -249,7 +246,7 @@ impl GpuEncoder {
         sink: Box<dyn EncodedSink>,
         only: Option<usize>,
     ) -> Result<GpuEncoder, String> {
-        let (frames_tx, frames_rx) = mpsc::sync_channel(FRAME_QUEUE);
+        let (frames_tx, frames_rx) = latest::channel();
         let (opened_tx, opened_rx) = mpsc::channel();
         let spare = Arc::new(Mutex::new(Vec::new()));
         let failed = Arc::new(AtomicBool::new(false));
@@ -299,15 +296,13 @@ impl GpuEncoder {
         buffer
     }
 
-    /// Queue a picture. A full queue means the encoder is behind; the picture
-    /// is dropped, as the capture side drops its own when conversion lags.
+    /// Leave a picture for the encoder. One still waiting means the encoder is
+    /// behind; that older one is dropped, as the capture side drops its own
+    /// when conversion lags.
     pub(crate) fn submit(&self, frame: Nv12Frame) {
         if let Some(frames) = &self.frames {
-            match frames.try_send(frame) {
-                Ok(()) => {}
-                Err(TrySendError::Full(frame)) | Err(TrySendError::Disconnected(frame)) => {
-                    self.spare.lock().unwrap().push(frame.data);
-                }
+            if let Some(dropped) = frames.put(frame) {
+                self.spare.lock().unwrap().push(dropped.data);
             }
         }
     }
@@ -326,7 +321,7 @@ impl GpuEncoder {
 
 impl Drop for GpuEncoder {
     fn drop(&mut self) {
-        // Closing the queue is the stop signal.
+        // Closing the mailbox is the stop signal.
         self.frames.take();
         if let Some(handle) = self.handle.take() {
             if handle.join().is_err() {
@@ -340,7 +335,7 @@ fn encoder_thread(
     settings: EncoderSettings,
     only: Option<usize>,
     mut sink: Box<dyn EncodedSink>,
-    frames: Receiver<Nv12Frame>,
+    frames: Taker<Nv12Frame>,
     opened: mpsc::Sender<Result<String, String>>,
     spare: Arc<Mutex<Vec<Vec<u8>>>>,
     failed: Arc<AtomicBool>,
@@ -609,11 +604,11 @@ impl Transform {
     }
 
     /// Feed pictures as the encoder asks for them and hand on what it makes,
-    /// until the queue closes. An error is the encoder failing.
+    /// until the mailbox closes. An error is the encoder failing.
     fn run(
         &mut self,
         sink: &mut dyn EncodedSink,
-        frames: &Receiver<Nv12Frame>,
+        frames: &Taker<Nv12Frame>,
         spare: &Mutex<Vec<Vec<u8>>>,
     ) -> windows::core::Result<()> {
         let mut wanted = 0u32;
@@ -665,14 +660,14 @@ impl Transform {
                     continue;
                 }
             }
-            match frames.recv_timeout(POLL) {
-                Ok(frame) => {
+            match frames.take_timeout(POLL) {
+                Ok(Some(frame)) => {
                     if let Some(stale) = pending.replace(frame) {
                         spare.lock().unwrap().push(stale.data);
                     }
                 }
-                Err(RecvTimeoutError::Timeout) => {}
-                Err(RecvTimeoutError::Disconnected) => return Ok(()),
+                Ok(None) => {}
+                Err(Closed) => return Ok(()),
             }
         }
     }

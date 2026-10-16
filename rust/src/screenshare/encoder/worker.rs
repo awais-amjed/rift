@@ -1,19 +1,17 @@
 //! The thread a GPU encoder runs on, whichever API it drives: Rift's NVENC
 //! and FFmpeg's on Linux, FFmpeg's on Windows.
 //!
-//! Pictures come in on a short queue, newest kept; WebRTC's keyframe and
+//! One picture waits for the encoder, and a newer one replaces it, since a
+//! picture that waited behind a newer one is only delay. WebRTC's keyframe and
 //! bitrate requests are applied before each one; encoded frames go to the
 //! [`EncodedSink`]. What differs between NVENC and FFmpeg is only how a
 //! picture is encoded and how the rate is moved: a [`Session`].
 use super::{clamp_bitrate, EncodedSink, EncoderSettings, Nv12Frame};
+use crate::screenshare::latest::{self, Putter, Taker};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-use std::sync::mpsc::{self, Receiver, SyncSender, TrySendError};
+use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
-
-/// Pictures waiting for the encoder. Two is one going in and one behind it;
-/// anything older is stale and better dropped.
-const FRAME_QUEUE: usize = 2;
 
 /// Frames between keyframes when nobody asks for one. WebRTC asks whenever a
 /// viewer joins or loses packets, so this is only a safety net.
@@ -44,7 +42,7 @@ pub(super) type Opener<S> =
 
 /// A running GPU encoder.
 pub(crate) struct GpuEncoder {
-    frames: Option<SyncSender<Nv12Frame>>,
+    frames: Option<Putter<Nv12Frame>>,
     /// Picture buffers coming back from the encoder thread, to be filled again
     /// rather than allocated a frame at a time.
     spare: Arc<Mutex<Vec<Vec<u8>>>>,
@@ -67,7 +65,7 @@ impl GpuEncoder {
         if super::test_hooks::NO_GPU.load(Ordering::Relaxed) {
             return Err("a test took the GPU away".to_string());
         }
-        let (frames_tx, frames_rx) = mpsc::sync_channel(FRAME_QUEUE);
+        let (frames_tx, frames_rx) = latest::channel();
         let (opened_tx, opened_rx) = mpsc::channel();
         let spare = Arc::new(Mutex::new(Vec::new()));
         let failed = Arc::new(AtomicBool::new(false));
@@ -108,15 +106,13 @@ impl GpuEncoder {
         buffer
     }
 
-    /// Queue a picture. A full queue means the encoder is behind; the picture
-    /// is dropped, as the capture side drops its own when conversion lags.
+    /// Leave a picture for the encoder. One still waiting means the encoder is
+    /// behind; that older one is dropped, as the capture side drops its own
+    /// when conversion lags.
     pub(crate) fn submit(&self, frame: Nv12Frame) {
         if let Some(frames) = &self.frames {
-            match frames.try_send(frame) {
-                Ok(()) => {}
-                Err(TrySendError::Full(frame)) | Err(TrySendError::Disconnected(frame)) => {
-                    self.spare.lock().unwrap().push(frame.data);
-                }
+            if let Some(dropped) = frames.put(frame) {
+                self.spare.lock().unwrap().push(dropped.data);
             }
         }
     }
@@ -139,7 +135,7 @@ impl GpuEncoder {
 
 impl Drop for GpuEncoder {
     fn drop(&mut self) {
-        // Closing the queue is the stop signal.
+        // Closing the mailbox is the stop signal.
         self.frames.take();
         if let Some(handle) = self.handle.take() {
             if handle.join().is_err() {
@@ -172,7 +168,7 @@ fn run<S: Session>(
     settings: EncoderSettings,
     sink: Box<dyn EncodedSink>,
     open: Opener<S>,
-    frames: Receiver<Nv12Frame>,
+    frames: Taker<Nv12Frame>,
     opened: mpsc::Sender<Result<String, String>>,
     shared: Shared,
 ) {
@@ -193,7 +189,7 @@ fn run<S: Session>(
     let mut keyframe = true;
     #[cfg(test)]
     let mut fed = 0u32;
-    while let Ok(frame) = frames.recv() {
+    while let Some(frame) = frames.take() {
         if shared.failed.load(Ordering::Relaxed) {
             break;
         }
