@@ -782,13 +782,15 @@ share asked for in H264 goes out as VP9.
   for up to a second each time somebody joined. The build patches it to the
   short slice types NVENC writes (`third_party/ffmpeg/RIFT_PATCHES.md`). On
   Windows Intel's runtime writes the header itself, as type 7, for Quick Sync
-  and Media Foundation alike, with no setting to change it, so a share
+  and Media Foundation alike, with no setting to change it, and on Linux so
+  does Mesa's encoder for AMD whatever FFmpeg hands it. So a share
   rewrites such a keyframe's header before LiveKit sees it
   (`h264::with_readable_pps_id`): the short type, and `idr_pic_id` made as
   many bits longer, so the slice data stays where it was. Measured Oct 16
   2026 on an Iris Xe, a viewer joining every 4 s: before, the one already
   watching fell to 36 fps with 45 keyframes asked for in a minute; after,
-  60.0 fps and none. A share logs a warning if a keyframe still puts the id
+  60.0 fps and none; on an RX 9070 XT at 1440p60, 42.0 fps with 46 asked
+  for, then 59.8 and none. A share logs a warning if a keyframe still puts the id
   past the readable byte (`h264::idr_readable_when_encrypted`); the GPU live
   test fails on one.
 - **A GPU encoder is held to WebRTC's target before it encodes, not after.**

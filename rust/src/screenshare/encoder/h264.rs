@@ -521,6 +521,54 @@ mod tests {
         assert_eq!(bits.exp_golomb(), Some(3));
     }
 
+    /// The parameter sets and the start of the first IDR from AMD's VCN
+    /// (Mesa 26.2.4, RX 9070 XT) through FFmpeg's VAAPI encoder, Oct 16 2026:
+    /// Mesa writes the slice header itself, type 7 and `idr_pic_id` 0
+    /// whatever FFmpeg asks. The SPS has emulation prevention bytes in it.
+    const AMD_SPS: &[u8] = &[
+        0, 0, 0, 1, 0x67, 0x42, 0x40, 0x2a, 0x95, 0xa0, 0x1e, 0x00, 0x89, 0xf9, 0x66, 0xa0, 0xc0,
+        0xc0, 0xc8, 0x00, 0x00, 0x03, 0x00, 0x08, 0x00, 0x00, 0x03, 0x03, 0xc4, 0x78, 0x44, 0x23,
+        0x50,
+    ];
+    const AMD_PPS: &[u8] = &[0, 0, 0, 1, 0x68, 0xce, 0x38, 0x80];
+    const AMD_IDR: &[u8] = &[
+        0, 0, 0, 1, 0x65, 0x88, 0x80, 0x42, 0x88, 0xc0, 0x38, 0x98, 0x33, 0x80, 0x00, 0x89,
+    ];
+
+    #[test]
+    fn amds_keyframe_is_rewritten_too() {
+        let mut sets = ParameterSets::default();
+        let whole = sets.complete(join(&[AMD_SPS, AMD_PPS, AMD_IDR]));
+        assert!(!idr_readable_when_encrypted(&whole));
+        // first_mb 0 (1), slice type 2 (011), PPS 0 (1), frame_num 0
+        // (00000000), idr_pic_id 3 (00100): 18 bits as before, and every bit
+        // after them where it was.
+        let idr = [
+            0, 0, 0, 1, 0x65, 0xb8, 0x01, 0x02, 0x88, 0xc0, 0x38, 0x98, 0x33, 0x80, 0x00, 0x89,
+        ];
+        assert_eq!(
+            for_encryption(&whole).expect("rewritten"),
+            join(&[AMD_SPS, AMD_PPS, &idr])
+        );
+        // An IDR sent bare gets the parameter sets first, so it is rewritten
+        // the same way.
+        let bare = sets.complete(AMD_IDR.to_vec());
+        assert!(idr_readable_when_encrypted(
+            &for_encryption(&bare).expect("rewritten")
+        ));
+    }
+
+    #[test]
+    fn an_idr_whose_slices_disagree_is_left_alone() {
+        // The second slice already says type 2: moving only the first one's
+        // idr_pic_id would give the picture two.
+        let short = [0, 0, 0, 1, 0x65, 0b1011_1000, 0x00, 0x80];
+        assert_eq!(
+            with_readable_pps_id(&join(&[AMD_SPS, AMD_PPS, AMD_IDR, &short])),
+            None
+        );
+    }
+
     #[test]
     fn a_readable_keyframe_or_one_without_its_sps_is_left_alone() {
         let idr = [0, 0, 0, 1, 0x65, 0b1011_1000, 0x40];
