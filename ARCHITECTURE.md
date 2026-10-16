@@ -713,7 +713,13 @@ it to send WebRTC's every move with the next picture
 opening 8 Mbps while WebRTC asked for 2. It runs in variable bitrate capped at
 the target, with the finest quantiser held at 18 as on Windows: in constant
 bitrate Intel's GPU padded a still picture out to the full rate, and without
-the floor it re-coded one at 4 Mbps of 20; a shared screen is mostly still. NVENC comes first where both
+the floor it re-coded one at 4 Mbps of 20; a shared screen is mostly still.
+FFmpeg's encoders, on both systems, say in the stream that its pictures are
+BT.601 in limited range, which is how libyuv converts them (`ffenc.c`), so no
+decoder guesses BT.709 for an HD picture and shifts its colours. Rift's Linux
+NVENC cannot say it (`shiguredo_nvcodec` sets no colour description), and
+Media Foundation's fallback is left as it was; both leave it to the decoder,
+whose guess in libwebrtc is BT.601 anyway. NVENC comes first where both
 are present. With neither, or without the library, H264 is not offered, and a
 share asked for in H264 goes out as VP9.
 

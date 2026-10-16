@@ -157,6 +157,13 @@ static int open_codec(RiftFfenc* enc, const AVCodec* codec,
     }
     // No encoder identification or timing SEI: bytes nobody reads.
     av_opt_set(c->priv_data, "sei", "0", 0);
+    // The pictures are converted by libyuv with BT.601's matrix in limited
+    // range (gpu_feed.rs). Said in the stream, so no decoder guesses BT.709
+    // for an HD picture and shifts its colours.
+    c->color_range = AVCOL_RANGE_MPEG;
+    c->colorspace = AVCOL_SPC_SMPTE170M;
+    c->color_primaries = AVCOL_PRI_SMPTE170M;
+    c->color_trc = AVCOL_TRC_SMPTE170M;
     // The finest quantiser the GPU may use, as on Windows
     // (media_foundation.rs): with rate to spare a still picture never
     // settles otherwise. Intel re-coded a still 1440p one at 4 Mbps of 20,
