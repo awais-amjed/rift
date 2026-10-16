@@ -15,6 +15,7 @@
 //! encoder made a keyframe of every move, so the build patches them
 //! (`third_party/ffmpeg/RIFT_PATCHES.md`).
 use super::h264::{self, ParameterSets};
+use super::timings::EncodeTimes;
 use super::worker::{self, Session, SharedSink, GOP_SECONDS};
 use super::{Encoded, EncoderSettings, GpuCodec, Nv12Frame};
 use libloading::Library;
@@ -22,6 +23,7 @@ use std::ffi::{c_char, c_void, CStr, CString};
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, OnceLock};
+use std::time::{Duration, Instant};
 
 /// The library's interface version this crate was written against
 /// (`RIFT_FFENC_ABI` in `ffenc.h`).
@@ -336,6 +338,8 @@ pub(super) struct FfmpegSession {
     /// An IDR sent without SPS and PPS gets the last ones put back in front,
     /// since a viewer can only start from one that has them.
     parameter_sets: ParameterSets,
+    /// Where each picture's time goes, for the log.
+    times: EncodeTimes,
 }
 
 // SAFETY: the encoder is used from the one thread that owns the session.
@@ -360,6 +364,7 @@ pub(super) fn open(
             pictures: 0,
             reopened: false,
             parameter_sets: ParameterSets::default(),
+            times: EncodeTimes::default(),
         },
         format!("{} ({driver})", candidate.label),
     ))
@@ -396,6 +401,7 @@ impl Session for FfmpegSession {
 
 impl FfmpegSession {
     fn encode_once(&mut self, frame: &Nv12Frame, keyframe: bool) -> Result<(), String> {
+        let started = Instant::now();
         // SAFETY: `raw` is live, and the picture is copied before the call
         // returns.
         let sent = unsafe {
@@ -409,6 +415,8 @@ impl FfmpegSession {
         if sent < 0 {
             return Err(format!("FFmpeg refused a picture ({sent})"));
         }
+        let send = started.elapsed();
+        let mut deliver = Duration::ZERO;
         loop {
             let mut packet = Packet {
                 data: std::ptr::null(),
@@ -424,10 +432,12 @@ impl FfmpegSession {
             }
             if got == 0 || packet.data.is_null() {
                 self.pictures += 1;
+                self.note_times(send, started.elapsed() - send - deliver, deliver);
                 return Ok(());
             }
             // SAFETY: as above.
             let payload = unsafe { std::slice::from_raw_parts(packet.data, packet.len) };
+            let delivering = Instant::now();
             let keyframe = packet.keyframe != 0 || h264::is_idr(payload);
             let payload = self.parameter_sets.complete(payload.to_vec());
             self.sink.lock().unwrap().deliver(Encoded {
@@ -436,6 +446,24 @@ impl FfmpegSession {
                 timestamp_us: packet.timestamp_us,
                 keyframe,
             });
+            deliver += delivering.elapsed();
+        }
+    }
+
+    /// Count one picture's times, and say them every few seconds.
+    fn note_times(&mut self, send: Duration, encode: Duration, deliver: Duration) {
+        self.times.add(send, encode, deliver);
+        if let Some(report) = self.times.report(Instant::now()) {
+            log::info!(
+                "encoder: {}: send {:.1} ms, encode {:.1} ms, deliver {:.1} ms a picture over {} \
+                 (longest {:.1})",
+                self.candidate.label,
+                report.send_ms,
+                report.encode_ms,
+                report.deliver_ms,
+                report.pictures,
+                report.longest_ms,
+            );
         }
     }
 }

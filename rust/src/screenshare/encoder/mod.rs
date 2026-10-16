@@ -21,6 +21,8 @@ pub(crate) mod h264;
 mod media_foundation;
 #[cfg(target_os = "linux")]
 mod nvenc;
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+mod timings;
 #[cfg(target_os = "windows")]
 mod windows_gpu;
 #[cfg(target_os = "windows")]
