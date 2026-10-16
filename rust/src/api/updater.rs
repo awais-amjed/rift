@@ -13,6 +13,16 @@ pub struct AvailableUpdate {
     pub download_bytes: u32,
 }
 
+/// How far a download is.
+pub struct UpdateDownloadProgress {
+    pub downloaded_bytes: u32,
+    /// What it weighs in all. It changes once, when a delta fails to apply
+    /// and the full package is fetched instead, and the count starts again.
+    pub total_bytes: u32,
+    /// Over the last few seconds; 0 while paused, and for the first second.
+    pub bytes_per_second: u32,
+}
+
 /// Run once at start, as early as possible. May apply an update downloaded
 /// before and restart into it, in which case it does not return. Returns the
 /// installed version, or `None` when this copy cannot update itself — it was
@@ -41,9 +51,10 @@ pub fn updater_check(include_prereleases: bool) -> Result<Option<AvailableUpdate
     }
 }
 
-/// Downloads what [updater_check] last found. The stream carries progress
-/// from 0 to 100 and ends once the update is ready, or with an error.
-pub fn updater_download(sink: StreamSink<i32>) {
+/// Downloads what [updater_check] last found. The stream says how far it is
+/// several times a second, and ends once the update is ready, or with an
+/// error — also when [updater_cancel] ended it.
+pub fn updater_download(sink: StreamSink<UpdateDownloadProgress>) {
     #[cfg(any(target_os = "windows", target_os = "linux"))]
     {
         crate::updater::download(sink);
@@ -52,6 +63,24 @@ pub fn updater_download(sink: StreamSink<i32>) {
     {
         let _ = sink.add_error("Rift updates itself only on Windows and Linux".to_string());
     }
+}
+
+/// Holds the download where it is, letting the connection go.
+pub fn updater_pause() {
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    crate::updater::pause();
+}
+
+/// Carries a paused download on from where it stopped.
+pub fn updater_resume() {
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    crate::updater::resume();
+}
+
+/// Ends the download and throws away what it brought.
+pub fn updater_cancel() {
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    crate::updater::cancel();
 }
 
 /// The version already downloaded and waiting for a restart, if any.

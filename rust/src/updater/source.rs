@@ -3,20 +3,22 @@
 //!
 //! Velopack's own `GithubSource` reads the same releases, but trusts each
 //! feed as it finds it; this is that source with the check added, and with
-//! each package fetched from the release whose signed feed listed it.
+//! each package fetched from the release whose signed feed listed it, by the
+//! download the person can pause (`transfer`).
 
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::mpsc::Sender;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use serde::Deserialize;
 use velopack::bundle::Manifest;
-use velopack::download::{download_url_as_string, download_url_to_file};
+use velopack::download::download_url_as_string;
 use velopack::sources::UpdateSource;
 use velopack::{Error, HttpHeader, HttpOptions, VelopackAsset, VelopackAssetFeed};
 
 use super::signature;
+use super::transfer::Transfer;
 
 /// The public repository the release workflow publishes to.
 const RELEASES_API: &str = "https://api.github.com/repos/awais-amjed/rift/releases?per_page=10";
@@ -59,11 +61,12 @@ pub(crate) struct SignedSource {
     include_prereleases: bool,
     /// Each package the last feed listed, and where to fetch it from.
     packages: Mutex<HashMap<String, String>>,
+    transfer: Arc<Transfer>,
 }
 
 impl SignedSource {
-    pub(crate) fn new(include_prereleases: bool) -> Self {
-        SignedSource { include_prereleases, packages: Mutex::new(HashMap::new()) }
+    pub(crate) fn new(include_prereleases: bool, transfer: Arc<Transfer>) -> Self {
+        SignedSource { include_prereleases, packages: Mutex::new(HashMap::new()), transfer }
     }
 
     fn options(timeout_ms: u64) -> HttpOptions {
@@ -138,16 +141,14 @@ impl UpdateSource for SignedSource {
         Ok(VelopackAssetFeed { Assets: assets })
     }
 
-    fn download_release_entry(&self, asset: &VelopackAsset, local_file: &Path, progress: Option<Sender<i16>>) -> Result<(), Error> {
+    /// Velopack's progress goes unused: the transfer counts bytes, and a
+    /// delta's download is given no progress at all.
+    fn download_release_entry(&self, asset: &VelopackAsset, local_file: &Path, _progress: Option<Sender<i16>>) -> Result<(), Error> {
         let url = self.packages.lock().unwrap().get(&asset.FileName).cloned().ok_or_else(|| {
             Error::Other(format!("{} is in no signed feed read so far", asset.FileName))
         })?;
         // Velopack checks the file against the feed's size and SHA-256 once
         // it is down, and throws it away if either is off.
-        download_url_to_file(&url, local_file, Some(&Self::options(30 * 60_000)), |p| {
-            if let Some(progress) = &progress {
-                let _ = progress.send(p);
-            }
-        })
+        self.transfer.fetch(&url, asset, local_file)
     }
 }

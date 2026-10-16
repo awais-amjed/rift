@@ -1000,7 +1000,12 @@ prompt to install or update), an AppImage, and for each a full package, a
 delta from the release before, and a feed, `releases.<channel>.json`, listing
 every package with its size and SHA-256. Installed copies read the feeds of
 the last ten GitHub releases, download the newest in the background, and
-replace themselves when the person restarts, or at the next start.
+replace themselves when the person restarts, or at the next start. A check
+the person makes in Settings only finds: the download waits for them. Rift
+fetches the packages itself (`rust/src/updater/transfer.rs`) rather than
+through Velopack's download, so the person can pause one — the connection is
+let go and the rest asked for with a `Range` request — resume it, or cancel
+it, which the background check then respects for that version.
 
 **The feed is the trust boundary.** Velopack refuses a package that does not
 match the feed, so whoever writes the feed chooses the code — and GitHub, or

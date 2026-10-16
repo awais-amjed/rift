@@ -7,7 +7,12 @@ enum UpdateStatus {
   /// Nothing asked yet, or nothing newer the last time.
   upToDate,
   checking,
+
+  /// Found by a check the person made, or left by a cancelled download:
+  /// waiting for the person to download it.
+  available,
   downloading,
+  paused,
 
   /// Downloaded, and put in place by a restart.
   ready,
@@ -23,14 +28,22 @@ class UpdateState extends Equatable {
   /// The version this copy was installed as; null when [UpdateStatus.unsupported].
   final String? installedVersion;
 
-  /// The release being downloaded or ready to restart into.
+  /// The release found, being downloaded, or ready to restart into.
   final String? version;
 
   /// Its notes, as the release tag's message has them.
   final String notes;
 
-  /// How far the download is, 0 to 100.
-  final int progress;
+  /// What the download weighs: what the check found, until the download
+  /// says otherwise (a delta that fails to apply is replaced by the full
+  /// package).
+  final int totalBytes;
+
+  /// How much of it is down.
+  final int downloadedBytes;
+
+  /// How fast it is coming; 0 while paused, and for the first second.
+  final int bytesPerSecond;
 
   /// Why the last check or download failed.
   final String? error;
@@ -40,7 +53,9 @@ class UpdateState extends Equatable {
     this.installedVersion,
     this.version,
     this.notes = '',
-    this.progress = 0,
+    this.totalBytes = 0,
+    this.downloadedBytes = 0,
+    this.bytesPerSecond = 0,
     this.error,
   });
 
@@ -50,14 +65,29 @@ class UpdateState extends Equatable {
   bool get busy =>
       status == UpdateStatus.checking ||
       status == UpdateStatus.downloading ||
+      status == UpdateStatus.paused ||
       status == UpdateStatus.ready ||
       status == UpdateStatus.restarting;
+
+  /// Every byte is down and Velopack is putting the package together (a
+  /// delta is applied to the installed one), which cannot be paused or
+  /// cancelled.
+  bool get preparing =>
+      status == UpdateStatus.downloading &&
+      totalBytes > 0 &&
+      downloadedBytes >= totalBytes;
+
+  /// How far the download is, 0 to 1.
+  double get fraction =>
+      totalBytes == 0 ? 0 : (downloadedBytes / totalBytes).clamp(0.0, 1.0);
 
   UpdateState copyWith({
     UpdateStatus? status,
     String? version,
     String? notes,
-    int? progress,
+    int? totalBytes,
+    int? downloadedBytes,
+    int? bytesPerSecond,
     String? error,
     bool clearError = false,
   }) {
@@ -66,7 +96,9 @@ class UpdateState extends Equatable {
       installedVersion: installedVersion,
       version: version ?? this.version,
       notes: notes ?? this.notes,
-      progress: progress ?? this.progress,
+      totalBytes: totalBytes ?? this.totalBytes,
+      downloadedBytes: downloadedBytes ?? this.downloadedBytes,
+      bytesPerSecond: bytesPerSecond ?? this.bytesPerSecond,
       error: clearError ? null : (error ?? this.error),
     );
   }
@@ -77,7 +109,9 @@ class UpdateState extends Equatable {
     installedVersion,
     version,
     notes,
-    progress,
+    totalBytes,
+    downloadedBytes,
+    bytesPerSecond,
     error,
   ];
 }

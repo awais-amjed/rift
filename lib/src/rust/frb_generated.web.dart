@@ -64,9 +64,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  RustStreamSink<int> dco_decode_StreamSink_i_32_Sse(dynamic raw);
-
-  @protected
   RustStreamSink<Int16List> dco_decode_StreamSink_list_prim_i_16_strict_Sse(
     dynamic raw,
   );
@@ -83,6 +80,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RustStreamSink<void> dco_decode_StreamSink_unit_Sse(dynamic raw);
+
+  @protected
+  RustStreamSink<UpdateDownloadProgress>
+  dco_decode_StreamSink_update_download_progress_Sse(dynamic raw);
 
   @protected
   String dco_decode_String(dynamic raw);
@@ -214,6 +215,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void dco_decode_unit(dynamic raw);
 
   @protected
+  UpdateDownloadProgress dco_decode_update_download_progress(dynamic raw);
+
+  @protected
   BigInt dco_decode_usize(dynamic raw);
 
   @protected
@@ -246,11 +250,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  RustStreamSink<int> sse_decode_StreamSink_i_32_Sse(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   RustStreamSink<Int16List> sse_decode_StreamSink_list_prim_i_16_strict_Sse(
     SseDeserializer deserializer,
   );
@@ -267,6 +266,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RustStreamSink<void> sse_decode_StreamSink_unit_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  RustStreamSink<UpdateDownloadProgress>
+  sse_decode_StreamSink_update_download_progress_Sse(
     SseDeserializer deserializer,
   );
 
@@ -420,6 +425,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_decode_unit(SseDeserializer deserializer);
 
   @protected
+  UpdateDownloadProgress sse_decode_update_download_progress(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   BigInt sse_decode_usize(SseDeserializer deserializer);
 
   @protected
@@ -459,12 +469,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_StreamSink_i_32_Sse(
-    RustStreamSink<int> self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_StreamSink_list_prim_i_16_strict_Sse(
     RustStreamSink<Int16List> self,
     SseSerializer serializer,
@@ -485,6 +489,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_StreamSink_unit_Sse(
     RustStreamSink<void> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_StreamSink_update_download_progress_Sse(
+    RustStreamSink<UpdateDownloadProgress> self,
     SseSerializer serializer,
   );
 
@@ -682,6 +692,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_unit(void self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_update_download_progress(
+    UpdateDownloadProgress self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_usize(BigInt self, SseSerializer serializer);

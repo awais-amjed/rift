@@ -66,8 +66,10 @@ ort = { version = "=2.0.0-rc.13", default-features = false, features = ["std", "
 # Velopack installs Rift and replaces it with a newer release (src/updater);
 # `public-utils` opens its HTTP download helpers to the update source there.
 # ring checks the release key's signature on each release feed (Ed25519), and
-# is already in the build through rustls.
+# is already in the build through rustls. ureq is Velopack's own HTTP client,
+# which the update's pausable download (src/updater/transfer.rs) reads with.
 velopack = { version = "=1.2.161", features = ["public-utils"] }
+ureq = "3.4"
 ring = "0.17"
 base64 = "0.23"
 serde = { version = "1", features = ["derive"] }

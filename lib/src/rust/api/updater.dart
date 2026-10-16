@@ -20,10 +20,23 @@ Future<AvailableUpdate?> updaterCheck({required bool includePrereleases}) =>
       includePrereleases: includePrereleases,
     );
 
-/// Downloads what [updater_check] last found. The stream carries progress
-/// from 0 to 100 and ends once the update is ready, or with an error.
-Stream<int> updaterDownload() =>
+/// Downloads what [updater_check] last found. The stream carries how far it
+/// is several times a second, and ends once the update is ready, or with an
+/// error — also when [updater_cancel] ended it.
+Stream<UpdateDownloadProgress> updaterDownload() =>
     RustLib.instance.api.crateApiUpdaterUpdaterDownload();
+
+/// Holds the download where it is, letting the connection go.
+Future<void> updaterPause() =>
+    RustLib.instance.api.crateApiUpdaterUpdaterPause();
+
+/// Carries a paused download on from where it stopped.
+Future<void> updaterResume() =>
+    RustLib.instance.api.crateApiUpdaterUpdaterResume();
+
+/// Ends the download and throws away what it brought.
+Future<void> updaterCancel() =>
+    RustLib.instance.api.crateApiUpdaterUpdaterCancel();
 
 /// The version already downloaded and waiting for a restart, if any.
 Future<String?> updaterPendingVersion() =>
@@ -63,4 +76,35 @@ class AvailableUpdate {
           version == other.version &&
           notesMarkdown == other.notesMarkdown &&
           downloadBytes == other.downloadBytes;
+}
+
+/// How far a download is.
+class UpdateDownloadProgress {
+  final int downloadedBytes;
+
+  /// What it weighs in all. It changes once, when a delta fails to apply
+  /// and the full package is fetched instead, and the count starts again.
+  final int totalBytes;
+
+  /// Over the last few seconds; 0 while paused, and for the first second.
+  final int bytesPerSecond;
+
+  const UpdateDownloadProgress({
+    required this.downloadedBytes,
+    required this.totalBytes,
+    required this.bytesPerSecond,
+  });
+
+  @override
+  int get hashCode =>
+      downloadedBytes.hashCode ^ totalBytes.hashCode ^ bytesPerSecond.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UpdateDownloadProgress &&
+          runtimeType == other.runtimeType &&
+          downloadedBytes == other.downloadedBytes &&
+          totalBytes == other.totalBytes &&
+          bytesPerSecond == other.bytesPerSecond;
 }

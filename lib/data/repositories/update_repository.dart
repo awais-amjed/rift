@@ -17,6 +17,10 @@ class UpdateRepository {
   static String? get installedVersion => _installedVersion;
   static String? _installedVersion;
 
+  /// [installedVersion], for the cubit, which a test hands another
+  /// repository.
+  String? get installed => _installedVersion;
+
   /// Velopack's start-up, run once as early as the bridge allows. If an
   /// update was downloaded in a run that quit without restarting for it, this
   /// puts it in place and starts the new version — and this process ends
@@ -36,9 +40,19 @@ class UpdateRepository {
   Future<rust.AvailableUpdate?> check({required bool includePrereleases}) =>
       rust.updaterCheck(includePrereleases: includePrereleases);
 
-  /// Downloads what the last [check] found: progress from 0 to 100, ending
-  /// when the update is ready, or with an error.
-  Stream<int> download() => rust.updaterDownload();
+  /// Downloads what the last [check] found: how far it is, several times a
+  /// second, ending when the update is ready, or with an error.
+  Stream<rust.UpdateDownloadProgress> download() => rust.updaterDownload();
+
+  /// Holds the download, letting its connection go; [resume] asks for the
+  /// rest.
+  Future<void> pause() => rust.updaterPause();
+
+  Future<void> resume() => rust.updaterResume();
+
+  /// Ends the download and throws away what it brought. Its stream ends with
+  /// an error, which nobody needs to hear.
+  Future<void> cancel() => rust.updaterCancel();
 
   /// Hands the downloaded update to the updater, which waits for this
   /// process to end, puts the update in place and starts Rift again.

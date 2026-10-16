@@ -3137,6 +3137,7 @@ dependencies = [
  "tokio",
  "tract-onnx",
  "tract-pulse",
+ "ureq",
  "velopack",
  "wasapi",
  "windows",
