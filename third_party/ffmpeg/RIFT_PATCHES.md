@@ -79,6 +79,28 @@ where one was asked for. So AMD's GPUs now encode through it
 (`rust/src/screenshare/encoder/ffmpeg.rs`); the numbers are in
 `GPU_ENCODING_AMD_WINDOWS_RESULTS.md` on the `gpu-encoding` branch.
 
+## `vaapi-encode-h264-short-slice-types.patch`
+
+FFmpeg's VAAPI encoder writes H264's slice header itself, and writes each
+slice's type as 7, 5 or 6 (I, P, B, with every slice of the picture alike)
+rather than 2, 0 or 1 (the same types, said slice by slice). Either is valid,
+and the driver is handed the type modulo 5 whichever is written. But 7 takes
+seven bits, and in an IDR it pushes the PPS id that follows to the ninth bit
+after the NAL header. LiveKit's frame encryption leaves only eight readable, and
+a receiver reads that id to find the IDR's PPS: read from ciphertext, it named
+a PPS that does not exist about one keyframe in two, and the receiver dropped
+the keyframe and every picture after it until another came. Since a keyframe
+is made whenever somebody joins, whoever was already watching froze for up to a
+second each time. The patch writes 2, 0 and 1, as NVENC does, which leaves the
+id within the readable byte.
+
+Measured Oct 16 2026 on Intel's Alder Lake (iHD 26.2.4), a 2560x1440 noisy
+pattern at 60 fps and 8 Mbps, encrypted, a viewer joining every 4 s: before, the
+viewer already watching decoded 50.6 to 52.7 fps, dipping to 17.5, and asked
+for 7 to 11 keyframes in 30 to 40 s; patched, 60.0 fps with none asked for, and
+each joining viewer had a picture within 136 to 204 ms. Unencrypted, the
+unpatched encoder had held 60.0 fps too, which is how it was found.
+
 ## Quick Sync needs no patch, but its settings matter
 
 FFmpeg's Quick Sync encoder passes a moved rate on by resetting the encoder. On

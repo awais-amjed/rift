@@ -762,6 +762,18 @@ share asked for in H264 goes out as VP9.
   notes, including the AV1 findings, are kept on the `gpu-encoding` branch.
 - **GPU H264 stays constrained baseline**: LiveKit offers only that profile for
   pre-encoded tracks, and Firefox viewers cannot take High.
+- **What LiveKit's encryption leaves readable has to be enough.** Its frame
+  cryptor leaves an H264 frame's bytes up to the first slice in the clear and
+  authenticates them, plus that slice's NAL header and the byte after it, and
+  a receiver reads two things from there: the start codes, which it rebuilds
+  in the four-byte form (`h264::with_long_start_codes`, Oct 4 2026), and the
+  IDR's PPS id. FFmpeg's VAAPI encoder wrote slice types whose bits pushed the
+  id one bit into the ciphertext, so about one keyframe in two named a PPS
+  that did not exist; whoever was watching dropped it and the pictures after,
+  for up to a second each time somebody joined. The build patches it to the
+  short slice types NVENC writes (`third_party/ffmpeg/RIFT_PATCHES.md`), and a
+  share logs a warning if any encoder's keyframes do it again
+  (`h264::idr_readable_when_encrypted`); the GPU live test fails on one.
 - **A GPU encoder is held to WebRTC's target before it encodes, not after.**
   WebRTC's frame dropper is off for pre-encoded frames (`webrtc-sys` 0.3.49),
   since a dropped H264 frame breaks every frame after it until the next

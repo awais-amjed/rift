@@ -45,6 +45,7 @@ impl GpuFeed {
                     height: settings.height,
                 },
                 gate: gate.clone(),
+                warned_unreadable: false,
             }),
             None,
         )?;
@@ -155,6 +156,10 @@ struct SourceSink {
     source: NativeVideoSource,
     resolution: VideoResolution,
     gate: Arc<Mutex<RateGate>>,
+    /// Whether the log has been told this encoder's keyframes are lost to
+    /// encrypted viewers ([`h264::idr_readable_when_encrypted`]); once is
+    /// enough.
+    warned_unreadable: bool,
 }
 
 /// Frames handed to LiveKit, for a test to set against what WebRTC says it
@@ -175,6 +180,17 @@ impl EncodedSink for SourceSink {
             ),
             GpuCodec::Av1 => (EncodedVideoCodec::AV1, None),
         };
+        if frame.keyframe
+            && frame.codec == GpuCodec::H264
+            && !self.warned_unreadable
+            && !h264::idr_readable_when_encrypted(frame.payload)
+        {
+            log::warn!(
+                "screenshare: this encoder's keyframes put the slice's PPS id past what \
+                 encryption leaves readable; encrypted viewers will drop about half of them"
+            );
+            self.warned_unreadable = true;
+        }
         self.gate
             .lock()
             .unwrap()

@@ -35,8 +35,18 @@ const FPS: u32 = 30;
 
 struct ToSource(NativeVideoSource);
 
+/// H264 keyframes an encrypted viewer could not have found the parameter sets
+/// of ([`h264::idr_readable_when_encrypted`]).
+static UNREADABLE_KEYFRAMES: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
 impl EncodedSink for ToSource {
     fn deliver(&mut self, frame: Encoded<'_>) {
+        if frame.keyframe
+            && frame.codec == GpuCodec::H264
+            && !h264::idr_readable_when_encrypted(frame.payload)
+        {
+            UNREADABLE_KEYFRAMES.fetch_add(1, Ordering::Relaxed);
+        }
         let (codec, long) = match frame.codec {
             GpuCodec::H264 => (
                 EncodedVideoCodec::H264,
@@ -313,6 +323,11 @@ async fn seen_with_the_key_and_by_nobody_else(path: &str, gpu: Option<GpuCodec>)
         );
         assert_eq!(without_key.recognisable, 0, "{path}: seen without the key");
         assert_eq!(wrong_key.recognisable, 0, "{path}: seen with the wrong key");
+        assert_eq!(
+            UNREADABLE_KEYFRAMES.load(Ordering::Relaxed),
+            0,
+            "{path}: keyframes encrypted viewers cannot find the parameter sets of"
+        );
     }
 }
 

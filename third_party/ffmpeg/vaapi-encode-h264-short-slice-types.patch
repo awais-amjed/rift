@@ -1,0 +1,28 @@
+--- a/libavcodec/vaapi_encode_h264.c
++++ b/libavcodec/vaapi_encode_h264.c
+@@ -425,7 +425,7 @@
+         hpic->idr_pic_id     = hprev ? hprev->idr_pic_id + 1 : 0;
+ 
+         hpic->primary_pic_type = 0;
+-        hpic->slice_type       = 7;
++        hpic->slice_type       = 2;
+     } else {
+         av_assert0(prev);
+ 
+@@ -435,13 +435,13 @@
+         hpic->idr_pic_id     = hprev->idr_pic_id;
+ 
+         if (pic->type == FF_HW_PICTURE_TYPE_I) {
+-            hpic->slice_type       = 7;
++            hpic->slice_type       = 2;
+             hpic->primary_pic_type = 0;
+         } else if (pic->type == FF_HW_PICTURE_TYPE_P) {
+-            hpic->slice_type       = 5;
++            hpic->slice_type       = 0;
+             hpic->primary_pic_type = 1;
+         } else {
+-            hpic->slice_type       = 6;
++            hpic->slice_type       = 1;
+             hpic->primary_pic_type = 2;
+         }
+     }

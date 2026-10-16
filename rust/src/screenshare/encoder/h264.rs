@@ -76,6 +76,78 @@ pub(crate) fn with_long_start_codes(payload: &[u8]) -> Option<Vec<u8>> {
     Some(whole)
 }
 
+/// Whether a viewer can still find this access unit's parameter sets once
+/// LiveKit has encrypted it. Always true of anything but an IDR.
+///
+/// The frame cryptor leaves only the first slice's NAL header and the byte
+/// after it readable, and a receiver reads the IDR's `pic_parameter_set_id`
+/// from there to find its PPS. An id that runs past that byte is read from
+/// ciphertext, so about one keyframe in two names a PPS that does not exist;
+/// the receiver drops it and every picture after it, and asks for another.
+/// FFmpeg's VAAPI encoder wrote slice type 7 (I, every slice alike), whose
+/// seven bits pushed the id one bit too far: whoever was watching froze for a
+/// moment each time somebody joined (found Oct 16 2026). Types 2 and 0, as
+/// NVENC writes them, leave it room.
+pub(crate) fn idr_readable_when_encrypted(payload: &[u8]) -> bool {
+    let Some((_, unit)) = nal_units(payload)
+        .into_iter()
+        .find(|&(kind, _)| kind == NAL_IDR)
+    else {
+        return true;
+    };
+    let code = if unit.starts_with(&[0, 0, 0, 1]) {
+        4
+    } else {
+        3
+    };
+    // first_mb_in_slice, slice_type, pic_parameter_set_id: each ue(v), read
+    // from the bytes after the NAL header.
+    let mut bits = Bits::new(&unit[code + 1..]);
+    for _ in 0..3 {
+        if bits.skip_exp_golomb().is_none() {
+            // Too short to tell; nothing to warn about.
+            return true;
+        }
+    }
+    bits.at <= 8
+}
+
+/// A reader of the leading bits of a slice header, for
+/// [`idr_readable_when_encrypted`]. Emulation prevention bytes cannot occur
+/// in the first two bytes after the header, which is all it is asked about.
+struct Bits<'a> {
+    bytes: &'a [u8],
+    at: usize,
+}
+
+impl<'a> Bits<'a> {
+    fn new(bytes: &'a [u8]) -> Bits<'a> {
+        Bits { bytes, at: 0 }
+    }
+
+    fn bit(&mut self) -> Option<bool> {
+        let byte = self.bytes.get(self.at / 8)?;
+        let bit = byte >> (7 - self.at % 8) & 1 == 1;
+        self.at += 1;
+        Some(bit)
+    }
+
+    /// Step over one ue(v): as many zeros, a one, then as many bits again.
+    fn skip_exp_golomb(&mut self) -> Option<()> {
+        let mut zeros = 0;
+        while !self.bit()? {
+            zeros += 1;
+            if zeros > 31 {
+                return None;
+            }
+        }
+        for _ in 0..zeros {
+            self.bit()?;
+        }
+        Some(())
+    }
+}
+
 /// The last SPS and PPS the encoder emitted.
 #[derive(Default)]
 pub(crate) struct ParameterSets {
@@ -130,6 +202,27 @@ mod tests {
 
     fn join(parts: &[&[u8]]) -> Vec<u8> {
         parts.concat()
+    }
+
+    #[test]
+    fn an_idr_with_short_slice_types_stays_readable_encrypted() {
+        // first_mb 0 (1), slice_type 2 (011), pps_id 0 (1): five bits.
+        let idr = [0, 0, 0, 1, 0x65, 0b1011_1000, 0x40];
+        assert!(idr_readable_when_encrypted(&join(&[SPS, PPS, &idr])));
+    }
+
+    #[test]
+    fn an_idr_of_slice_type_7_is_not() {
+        // first_mb 0 (1), slice_type 7 (0001000), pps_id 0 (1): nine bits, as
+        // FFmpeg's VAAPI encoder wrote them before the patch.
+        let idr = [0, 0, 0, 1, 0x65, 0b1000_1000, 0b1000_0000];
+        assert!(!idr_readable_when_encrypted(&join(&[SPS, PPS, &idr])));
+    }
+
+    #[test]
+    fn a_delta_or_a_cut_off_idr_is_not_warned_about() {
+        assert!(idr_readable_when_encrypted(DELTA));
+        assert!(idr_readable_when_encrypted(&[0, 0, 0, 1, 0x65]));
     }
 
     #[test]
