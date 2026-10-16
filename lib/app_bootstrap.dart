@@ -26,6 +26,7 @@ import 'logic/services/invite_scheme.dart';
 import 'logic/services/linux_desktop_entry.dart';
 import 'logic/services/login_launch/login_launch.dart';
 import 'logic/services/notification_service.dart';
+import 'logic/services/preferences_file.dart';
 import 'logic/services/profile_auth_storage.dart';
 import 'logic/services/push_service.dart';
 import 'logic/services/sound_service.dart';
@@ -76,6 +77,8 @@ class AppBootstrap {
       unawaited(sweepCopies());
     }
 
+    // Before Supabase, which reads its session from that file.
+    await PreferencesFile.setAsideIfUnreadable();
     await _initSupabase(storageSuffix);
     await _initHydratedStorage(storageSuffix);
 
