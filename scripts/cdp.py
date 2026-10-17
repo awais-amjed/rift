@@ -172,15 +172,17 @@ def key(ws, name):
         "Backspace": (8, "Backspace", None),
         "Tab": (9, "Tab", None),
         "Escape": (27, "Escape", None),
+        "ArrowUp": (38, "ArrowUp", None),
+        "ArrowDown": (40, "ArrowDown", None),
     }
     code, k, text = codes[name]
-    down = {"type": "keyDown", "windowsVirtualKeyCode": code, "key": k,
+    down = {"type": "keyDown", "windowsVirtualKeyCode": code, "key": k, "code": k,
             "nativeVirtualKeyCode": code}
     if text:
         down["text"] = text
     ws.call("Input.dispatchKeyEvent", down)
     ws.call("Input.dispatchKeyEvent", {"type": "keyUp", "windowsVirtualKeyCode": code,
-                                       "key": k, "nativeVirtualKeyCode": code})
+                                       "key": k, "code": k, "nativeVirtualKeyCode": code})
 
 
 def attach_file(ws, x, y, path):
@@ -254,5 +256,6 @@ if __name__ == "__main__":
         set_file_input(ws, sys.argv[3])
     elif cmd == "eval":
         print(ws.call("Runtime.evaluate",
-                      {"expression": sys.argv[3], "returnByValue": True}))
+                      {"expression": sys.argv[3], "returnByValue": True,
+                       "awaitPromise": True}))
     print("ok")

@@ -378,6 +378,12 @@ python3 scripts/cdp.py $port setfile <path>    # the only way to hand the page a
 - Pin the viewport with `Emulation.setDeviceMetricsOverride` so coordinates are stable,
   and to test breakpoints without resizing a window.
 - A backgrounded tab stops rendering and screenshots time out — bring it forward first.
+- A Chrome window that another window covers draws no frames at all, so a dialog
+  freezes half faded in and a closed one stays on screen, which reads exactly like a
+  bug. Launch test browsers with `--disable-backgrounding-occluded-windows
+  --disable-renderer-backgrounding`. `cdp.py eval` awaits a promise, so
+  `requestAnimationFrame` counted over two seconds tells whether a page is drawing.
+- `cdp.py key` takes `Enter`, `Backspace`, `Tab`, `Escape`, `ArrowUp` and `ArrowDown`.
 - `flutter build web` while `flutter run -d chrome` is live fails with a bare "Failed to
   compile": both write `.dart_tool/flutter_build`.
 
