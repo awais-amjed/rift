@@ -134,7 +134,33 @@ void main() {
 
       // No Draggable in the tree is the point: a row that can't go anywhere
       // must not follow the pointer and then snap back.
-      expect(find.byType(Draggable<VoiceDrag>), findsNothing);
+      expect(
+        find.byWidgetPredicate((widget) => widget is Draggable<VoiceDrag>),
+        findsNothing,
+      );
+    });
+
+    // On a phone a swipe through the voice channels picked up whoever was
+    // under the finger and moved them to wherever it ended.
+    testWidgets('a finger moving over the row moves nobody', (tester) async {
+      VoiceDrag? dropped;
+      await tester.pumpWidget(
+        _harness(
+          enabled: true,
+          channelId: 'gaming',
+          onDropped: (member) => dropped = member,
+        ),
+      );
+
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byType(DraggableMember)),
+      );
+      await gesture.moveTo(tester.getCenter(_target));
+      await tester.pump();
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(dropped, isNull);
     });
   });
 
