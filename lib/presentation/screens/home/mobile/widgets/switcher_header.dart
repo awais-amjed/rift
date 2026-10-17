@@ -146,18 +146,21 @@ class SwitcherHeader extends StatelessWidget {
               ),
             ),
           ),
-          SizedBox.square(
-            dimension: K.touchTargetMin,
-            child: IconButton(
-              tooltip: 'Jump to a channel',
-              onPressed: () => openQuickSwitcher(context),
-              icon: Icon(
-                Icons.search_rounded,
-                size: K.iconLarge,
-                color: theme.textSecondary,
+          // With no server and Home not picked there is nothing to jump to,
+          // and a search over nothing is a button that only disappoints.
+          if (onHome || server != null)
+            SizedBox.square(
+              dimension: K.touchTargetMin,
+              child: IconButton(
+                tooltip: 'Jump to a channel',
+                onPressed: () => openQuickSwitcher(context),
+                icon: Icon(
+                  Icons.search_rounded,
+                  size: K.iconLarge,
+                  color: theme.textSecondary,
+                ),
               ),
             ),
-          ),
         ],
       ),
     );

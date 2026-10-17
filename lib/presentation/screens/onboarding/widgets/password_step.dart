@@ -166,7 +166,9 @@ class _PasswordStepState extends State<PasswordStep> {
                     if (isProcessing) ...[
                       const SizedBox(height: 20),
                       Text(
-                        'Setting up your account…',
+                        // Privacy mode has no account; what is being made
+                        // is the vault this step is named for.
+                        'Creating your vault…',
                         textAlign: TextAlign.center,
                         style: AppText.secondary.copyWith(
                           color: theme.textQuaternary,

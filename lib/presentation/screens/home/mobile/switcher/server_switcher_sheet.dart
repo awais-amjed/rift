@@ -7,7 +7,6 @@ import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../common/app_modal.dart';
 import '../../../../common/app_modal_header_button.dart';
 import '../../../../common/title_bar_overlay.dart';
 import '../../../../responsive/compact_only.dart';
@@ -16,8 +15,7 @@ import '../../../../theme/app_shadows.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/media_colors.dart';
 import '../../../../theme/theme_context.dart';
-import '../../profile/user_dock/user_dock.dart';
-import '../../servers/add_server/add_server_dialog.dart';
+import '../../servers/add_server/show_add_server_dialog.dart';
 import 'switcher_add_row.dart';
 import 'switcher_home_row.dart';
 import 'switcher_server_list.dart';
@@ -34,8 +32,7 @@ Future<void> showServerSwitcherSheet(BuildContext context) {
     barrierLabel: 'Close switcher',
     barrierColor: MediaColors.scrim,
     transitionDuration: K.sidebarMotion,
-    pageBuilder: (_, _, _) =>
-        const CompactOnly(child: ServerSwitcherSheet()),
+    pageBuilder: (_, _, _) => const CompactOnly(child: ServerSwitcherSheet()),
     transitionBuilder: (_, animation, _, child) => SlideTransition(
       position: Tween(
         begin: const Offset(-1, 0),
@@ -46,14 +43,15 @@ Future<void> showServerSwitcherSheet(BuildContext context) {
   );
 }
 
-/// Over the widget budget and one job: the phone's rail and dock.
+/// Over the widget budget and one job: the phone's rail.
 ///
-/// The phone's replacement for the server rail and the user dock.
+/// The phone's replacement for the server rail.
 ///
 /// The rail's job was to say, at a glance, which servers want you and where
 /// people are — so every row here carries that, in words the rail had no room
-/// for. The dock moves to the foot, beside a gear for settings, so mic and
-/// deafen stay reachable without leaving the screen you are on.
+/// for. The user dock is not repeated here: it sits at the foot of the list
+/// this panel slides over, still showing beside it, and a second copy of
+/// mute and deafen a few pixels from the first only asked which one counted.
 class ServerSwitcherSheet extends StatelessWidget {
   const ServerSwitcherSheet({super.key});
 
@@ -184,15 +182,10 @@ class ServerSwitcherSheet extends StatelessWidget {
                                 final serverCubit = context.read<ServerCubit>();
                                 final appCubit = context.read<AppCubit>();
                                 navigator.pop();
-                                showCustomDialog(
-                                  context: navigator.context,
-                                  build: (_) => MultiBlocProvider(
-                                    providers: [
-                                      BlocProvider.value(value: serverCubit),
-                                      BlocProvider.value(value: appCubit),
-                                    ],
-                                    child: const AddServerDialog(),
-                                  ),
+                                showAddServerDialog(
+                                  navigator.context,
+                                  servers: serverCubit,
+                                  app: appCubit,
                                 );
                               },
                             ),
@@ -201,7 +194,6 @@ class ServerSwitcherSheet extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const UserDock(showSettings: true),
                 ],
               ),
             ),

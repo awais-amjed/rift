@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../common/app_button.dart';
 import '../../../../common/hint_card.dart';
 import '../../../../responsive/shell_scope.dart';
+import '../../../../routing/app_routes.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
+import '../../../settings/widgets/settings_tab.dart';
 import 'central_conversation_list.dart';
 import 'central_handle_panel.dart';
 import 'central_identity_line.dart';
@@ -89,15 +93,27 @@ class CentralDmListPanel extends StatelessWidget {
     if (state.status == CentralDmStatus.signedOut) {
       // Top-aligned: in the column's Expanded slot a bare card is handed the
       // whole height and stretches into a tall empty box.
-      return const Align(
+      // The way there is a button on the card, not a path spelled out in
+      // brackets for the reader to go and follow.
+      return Align(
         alignment: Alignment.topCenter,
         child: Padding(
-          padding: EdgeInsets.all(12),
+          padding: const EdgeInsets.all(12),
           child: HintCard(
             icon: Icons.cloud_off_outlined,
             text:
-                'Sign in to your Rift account (Settings → Account & backup) '
-                'to message people across servers.',
+                'Sign in to your Rift account to message people across '
+                'servers.',
+            action: Builder(
+              builder: (context) => AppButton(
+                label: 'Sign in',
+                variant: AppButtonVariant.secondary,
+                onPressed: () => context.push(
+                  AppRoutes.settings,
+                  extra: const SettingsTarget(SettingsTab.backup),
+                ),
+              ),
+            ),
           ),
         ),
       );

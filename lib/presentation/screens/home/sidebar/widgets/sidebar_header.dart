@@ -7,7 +7,7 @@ import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_modal.dart';
 import '../../invites/show_invite_modal.dart';
-import '../../servers/add_server/add_server_dialog.dart';
+import '../../servers/add_server/show_add_server_dialog.dart';
 import '../../servers/widgets/no_server_button.dart';
 import '../quick_switcher/quick_switcher_dialog.dart';
 import 'jump_field.dart';
@@ -28,7 +28,7 @@ class SidebarHeader extends StatelessWidget {
       builder: (context, serverState) {
         final server = serverState.selectedServer;
         if (server == null) {
-          return NoServerButton(onTap: () => _openAddServerDialog(context));
+          return NoServerButton(onTap: () => showAddServerDialog(context));
         }
 
         return Column(
@@ -44,20 +44,6 @@ class SidebarHeader extends StatelessWidget {
           ],
         );
       },
-    );
-  }
-
-  /// Joining or creating a server.
-  void _openAddServerDialog(BuildContext context) {
-    showCustomDialog(
-      context: context,
-      build: (_) => MultiBlocProvider(
-        providers: [
-          BlocProvider.value(value: context.read<ServerCubit>()),
-          BlocProvider.value(value: context.read<AppCubit>()),
-        ],
-        child: const AddServerDialog(),
-      ),
     );
   }
 }

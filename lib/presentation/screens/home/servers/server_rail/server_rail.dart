@@ -6,12 +6,10 @@ import '../../../../../data/constants.dart';
 import '../../../../../data/enums/home_surface.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
-import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../common/app_modal.dart';
 import '../../../../routing/app_routes.dart';
 import '../../../../theme/theme_context.dart';
-import '../add_server/add_server_dialog.dart';
+import '../add_server/show_add_server_dialog.dart';
 import 'widgets/rail_chip_button.dart';
 import 'widgets/rail_server_list.dart';
 
@@ -99,22 +97,9 @@ class ServerRail extends StatelessWidget {
           icon: Icons.add_rounded,
           tooltip: 'Add a server',
           ghostRing: true,
-          onTap: () => _openAddServerDialog(context),
+          onTap: () => showAddServerDialog(context),
         ),
       ],
-    );
-  }
-
-  void _openAddServerDialog(BuildContext context) {
-    showCustomDialog(
-      context: context,
-      build: (_) => MultiBlocProvider(
-        providers: [
-          BlocProvider.value(value: context.read<ServerCubit>()),
-          BlocProvider.value(value: context.read<AppCubit>()),
-        ],
-        child: const AddServerDialog(),
-      ),
     );
   }
 }

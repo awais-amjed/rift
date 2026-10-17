@@ -3,11 +3,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../logic/cubits/vault/vault_cubit.dart';
 import '../../common/app_button.dart';
-import '../../common/button_footer.dart';
 import '../../common/canvas_backdrop.dart';
 import '../../common/centered_scroll_view.dart';
 import '../../common/feature_header.dart';
 import '../../common/message_banner.dart';
+import '../onboarding/widgets/onboarding_footer.dart';
 import 'widgets/recovery_key_acknowledgement.dart';
 import 'widgets/recovery_key_card.dart';
 
@@ -77,17 +77,18 @@ class _RecoveryKeyScreenState extends State<RecoveryKeyScreen> {
                   onChanged: (v) => setState(() => _acknowledged = v),
                 ),
                 const SizedBox(height: 20),
-                ButtonFooter(
-                  buttons: [
-                    AppButton(
-                      label: 'Continue',
-                      onPressed: _acknowledged
-                          ? () => context
-                                .read<VaultCubit>()
-                                .acknowledgeRecoveryKey()
-                          : null,
-                    ),
-                  ],
+                // The onboarding steps' own footer, so the screen that ends
+                // the flow has the same full-width button the steps before it
+                // did, rather than a dialog's button parked in the corner.
+                OnboardingFooter(
+                  primary: AppButton(
+                    label: 'Continue',
+                    onPressed: _acknowledged
+                        ? () => context
+                              .read<VaultCubit>()
+                              .acknowledgeRecoveryKey()
+                        : null,
+                  ),
                 ),
               ],
             ),

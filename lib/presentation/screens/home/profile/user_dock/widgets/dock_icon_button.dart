@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../../data/constants.dart';
+import '../../../../../responsive/shell_scope.dart';
 import '../../../../../theme/custom_colors.dart';
 import '../../../../../theme/theme_context.dart';
 
@@ -27,6 +28,12 @@ class DockIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeState = context.theme;
     final radius = BorderRadius.circular(K.radiusRow);
+    // A thumb's target on a phone, where mute and deafen are the controls
+    // pressed most often and the dock is the only place they live; a
+    // pointer's on a desktop, where the dock is a strip of chrome.
+    final size = context.layoutMode.isCompact
+        ? K.touchTargetMin
+        : K.iconButtonSmall;
 
     return Tooltip(
       message: tooltip,
@@ -42,11 +49,11 @@ class DockIconButton extends StatelessWidget {
           hoverColor: themeState.bgActive,
           onTap: onTap,
           child: SizedBox(
-            width: K.iconButtonSmall,
-            height: K.iconButtonSmall,
+            width: size,
+            height: size,
             child: Icon(
               icon,
-              size: K.iconRow,
+              size: size == K.touchTargetMin ? K.iconButton : K.iconRow,
               color: isError ? CustomColors.error : themeState.textSecondary,
             ),
           ),

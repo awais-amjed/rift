@@ -19,7 +19,42 @@ class RecoveryKeyCard extends StatefulWidget {
 }
 
 class _RecoveryKeyCardState extends State<RecoveryKeyCard> {
+  static const double _groupSpacing = 14;
+  static const double _runSpacing = 10;
+
   bool _copied = false;
+
+  /// The groups split into lines of as even a length as the width allows.
+  ///
+  /// A plain wrap fills each line before starting the next, so on a phone
+  /// five groups land as four and one — and a group alone on the last line
+  /// reads as a separate thing rather than the end of the key. Working out
+  /// how many lines are needed and then sharing the groups between them
+  /// gives three and two instead. Every group is the same length, so one
+  /// measurement covers them all.
+  static List<List<String>> _balancedLines(
+    List<String> groups,
+    TextStyle style,
+    double maxWidth,
+    TextScaler scaler,
+  ) {
+    final painter = TextPainter(
+      text: TextSpan(text: groups.first, style: style),
+      textDirection: TextDirection.ltr,
+      textScaler: scaler,
+    )..layout();
+    final groupWidth = painter.width;
+    painter.dispose();
+    final perLine = ((maxWidth + _groupSpacing) / (groupWidth + _groupSpacing))
+        .floor()
+        .clamp(1, groups.length);
+    final lineCount = (groups.length / perLine).ceil();
+    final even = (groups.length / lineCount).ceil();
+    return [
+      for (var i = 0; i < groups.length; i += even)
+        groups.sublist(i, (i + even).clamp(0, groups.length)),
+    ];
+  }
 
   Future<void> _copy() async {
     await Clipboard.setData(ClipboardData(text: widget.recoveryKey));
@@ -42,17 +77,29 @@ class _RecoveryKeyCardState extends State<RecoveryKeyCard> {
             border: Border.all(color: theme.borderPrimary),
             borderRadius: BorderRadius.circular(K.radiusCard),
           ),
-          child: Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 14,
-            runSpacing: 10,
-            children: [
-              for (final group in groups)
-                Text(
-                  group,
-                  style: AppText.mnemonic.copyWith(color: theme.textPrimary),
-                ),
-            ],
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final style = AppText.mnemonic.copyWith(color: theme.textPrimary);
+              final lines = _balancedLines(
+                groups,
+                style,
+                constraints.maxWidth,
+                MediaQuery.textScalerOf(context),
+              );
+              return Column(
+                spacing: _runSpacing,
+                children: [
+                  for (final line in lines)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      spacing: _groupSpacing,
+                      children: [
+                        for (final group in line) Text(group, style: style),
+                      ],
+                    ),
+                ],
+              );
+            },
           ),
         ),
         const SizedBox(height: 10),

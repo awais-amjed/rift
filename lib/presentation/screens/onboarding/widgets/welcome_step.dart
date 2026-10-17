@@ -90,8 +90,7 @@ class WelcomeStep extends StatelessWidget {
               'Rift lets you voice chat, share screens, and hang out '
               'in communities — all self-hosted and on your terms.\n\n'
               'Sign in with an account to keep your identity backed up and '
-              'synced across devices — or skip the account entirely and keep '
-              'everything on this device.',
+              'synced across your devices.',
               textAlign: TextAlign.center,
               style: AppText.body.copyWith(
                 height: 1.55,
