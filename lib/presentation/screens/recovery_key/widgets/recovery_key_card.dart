@@ -94,7 +94,11 @@ class _RecoveryKeyCardState extends State<RecoveryKeyCard> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       spacing: _groupSpacing,
                       children: [
-                        for (final group in line) Text(group, style: style),
+                        // Flexible, so a group wider than the card on its
+                        // own — very large system text on a phone — wraps
+                        // inside its line instead of running off the edge.
+                        for (final group in line)
+                          Flexible(child: Text(group, style: style)),
                       ],
                     ),
                 ],
