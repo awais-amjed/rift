@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:supabase/supabase.dart';
 
 import '../../data/classes/server.dart';
+import '../helper_methods.dart';
 
 typedef RealtimePayload = Map<String, dynamic>;
 typedef RealtimeListener = void Function(RealtimePayload payload);
@@ -202,6 +203,7 @@ class ServerRealtime {
   void _sendJoin(_Connection connection, _Topic joined) {
     joined.awaitingToken = false;
     joined.joinedWith = connection.token;
+    joined.joinSentAt = DateTime.now();
     final channel = joined.channel;
     channel.subscribe((status, [_]) {
       // Read now. A server can only refuse over an open socket; a failure with
@@ -233,6 +235,7 @@ class ServerRealtime {
   }) {
     joined.status = status;
     joined.refused = _Topic.isRefusal(status) && !clientRetries;
+    _logJoin(joined, status);
     for (final listener in [...joined.statusListeners]) {
       listener(status);
     }
@@ -241,6 +244,23 @@ class ServerRealtime {
     if (joined.refused && joined.joinedWith != connection.token) {
       _rejoin(connection, joined);
     }
+  }
+
+  /// How long the server took to answer a join, in the app's log. A socket's
+  /// joins are answered one at a time, each after its own policy check, so a
+  /// topic opening late is usually one queued behind the others. The kind of
+  /// topic only: its id says nothing a bug report needs.
+  ///
+  /// A timeout is logged and the clock left running, since the client asks
+  /// again by itself, and the answer to that is the wait people saw.
+  void _logJoin(_Topic joined, RealtimeSubscribeStatus status) {
+    final sent = joined.joinSentAt;
+    if (sent == null || status == RealtimeSubscribeStatus.closed) return;
+    if (status != RealtimeSubscribeStatus.timedOut) joined.joinSentAt = null;
+    final waited = DateTime.now().difference(sent).inMilliseconds;
+    HelperMethods.printDebug(
+      'Realtime: ${joined.name.split(':').first} ${status.name} after $waited ms',
+    );
   }
 
   /// Joins [joined] again on a new channel and drops the refused one. The
@@ -583,6 +603,10 @@ class _Topic {
 
   /// The token the current join went out with.
   String? joinedWith;
+
+  /// When the current join went out, until it is answered
+  /// ([ServerRealtime._logJoin]).
+  DateTime? joinSentAt;
   final Map<String, Set<RealtimeListener>> listeners = {};
   final Set<String> boundBroadcasts = {};
   final Set<void Function(RealtimeSubscribeStatus status)> statusListeners = {};
