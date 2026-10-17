@@ -36,7 +36,7 @@ import 'switcher_server_line.dart';
 class SwitcherHeader extends StatelessWidget {
   const SwitcherHeader({super.key});
 
-  static const double height = 56;
+  static const double height = K.paneHeaderHeightTouch;
   static const double avatarSize = 36;
 
   @override

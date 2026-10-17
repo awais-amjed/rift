@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/constants.dart';
+import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
-import '../../chat/widgets/chat_header.dart';
 import '../../chat/widgets/chat_header_button.dart';
 
 /// The top of the messages beside an expanded DM call: whose conversation it
@@ -22,7 +22,7 @@ class DmCallSideChatHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.theme;
     return Container(
-      height: ChatHeader.height,
+      height: context.layoutMode.paneHeaderHeight,
       padding: const EdgeInsets.fromLTRB(16, 0, 10, 0),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: theme.borderPrimary)),

@@ -29,9 +29,9 @@ class ContextStrip extends StatelessWidget {
 
   const ContextStrip({super.key, this.embedded = false});
 
-  /// How tall the strip is; a phone's is taller for its back button.
+  /// How tall the strip is: a pane header's, which is taller on a phone.
   static double heightFor({required bool compact}) =>
-      compact ? K.paneHeaderHeight + 8 : K.paneHeaderHeight;
+      compact ? K.paneHeaderHeightTouch : K.paneHeaderHeight;
 
   /// People in the call, once each however many devices or shares they have.
   static int _peopleIn(LiveKitState state) => state.participants

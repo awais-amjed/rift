@@ -27,6 +27,12 @@ class K {
   /// the content under it by the difference.
   static const double paneHeaderHeight = 52;
 
+  /// [paneHeaderHeight] on a phone, where the bar is the top of the screen
+  /// and its back button and title are pressed with a thumb. Every phone bar
+  /// shares it — Home, a conversation, Settings, the call — so moving between
+  /// them does not jump the content under it. 64 is Material 3's top app bar.
+  static const double paneHeaderHeightTouch = 64;
+
   // ── Controls ──────────────────────────────────────────────
   /// A button. The same as [touchTargetMin], so the app has one control
   /// height rather than a mouse one and a finger one.

@@ -34,7 +34,6 @@ import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 import '../calls/dm_call_stage.dart';
 import '../calls/widgets/dm_call_side_chat_header.dart';
-import '../chat/widgets/chat_header.dart';
 import '../mobile/widgets/mini_call_bar.dart';
 import '../participants_grid/participants_grid.dart';
 import '../profile/person/show_person_profile.dart';
@@ -239,7 +238,9 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
                   ..._top(context, state, callHere),
                   if (stage)
                     DmCallStage(
-                      available: constraints.maxHeight - ChatHeader.height,
+                      available:
+                          constraints.maxHeight -
+                          context.layoutMode.paneHeaderHeight,
                     ),
                   ..._conversation(context, state, themeState),
                 ],

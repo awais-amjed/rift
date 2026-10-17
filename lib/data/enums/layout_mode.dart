@@ -56,4 +56,9 @@ enum LayoutMode {
   /// The gap around the workspace and between the panels in it. Nothing on a
   /// phone — see [panelsAreIslands].
   double get panelGutter => panelsAreIslands ? K.panelGutter : 0;
+
+  /// How tall the bar across the top of a pane is — see
+  /// [K.paneHeaderHeightTouch].
+  double get paneHeaderHeight =>
+      isCompact ? K.paneHeaderHeightTouch : K.paneHeaderHeight;
 }

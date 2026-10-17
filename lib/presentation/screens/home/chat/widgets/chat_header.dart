@@ -52,7 +52,7 @@ class ChatHeader extends StatelessWidget {
     final compact = context.layoutMode.isCompact;
 
     return Container(
-      height: height,
+      height: context.layoutMode.paneHeaderHeight,
       padding: EdgeInsets.fromLTRB(compact ? 6 : 18, 0, compact ? 6 : 10, 0),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: themeState.borderPrimary)),

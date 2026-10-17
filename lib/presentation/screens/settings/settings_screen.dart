@@ -94,7 +94,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     // It was 70: a 36px tile with padding round it, the one header in the
     // app that was taller than the rest.
     return Container(
-      height: K.paneHeaderHeight,
+      height: context.layoutMode.paneHeaderHeight,
       padding: EdgeInsets.symmetric(horizontal: showBack ? 12 : 24),
       child: Row(
         spacing: 12,

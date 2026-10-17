@@ -8,7 +8,6 @@ import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../../../theme/theme_context.dart';
-import '../../chat/widgets/chat_header.dart';
 import '../../chat/widgets/chat_header_button.dart';
 import '../../chat/widgets/header_back_button.dart';
 import '../../pane_toggles/show_sidebar_button.dart';
@@ -104,7 +103,7 @@ class DmChatHeader extends StatelessWidget {
     final compact = context.layoutMode.isCompact;
 
     return Container(
-      height: ChatHeader.height,
+      height: context.layoutMode.paneHeaderHeight,
       padding: EdgeInsets.fromLTRB(compact ? 6 : 18, 0, compact ? 6 : 10, 0),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: themeState.borderPrimary)),
