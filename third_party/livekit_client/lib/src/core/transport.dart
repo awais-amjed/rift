@@ -265,8 +265,13 @@ class Transport extends Disposable {
         }
       }
 
-      await pc.close();
+      // RIFT PATCH: dispose before close. On Windows and Linux, close()
+      // forgets the connection, so a dispose() after it finds nothing and
+      // leaves the connection's tracks registered. A volume or mute for a
+      // track with the same id later (the same person, after a rejoin) can
+      // land on the dead one. Dispose leaves the connection for close().
       await pc.dispose();
+      await pc.close();
     });
   }
 

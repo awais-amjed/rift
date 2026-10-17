@@ -47,7 +47,10 @@ says when the copy can go back. All of them:
   mono.
 - LiveKit's Flutter SDK, in `third_party/livekit_client`. It never asked to
   decode a track in stereo, so a stereo track was heard in mono on the
-  desktop and on phones.
+  desktop and on phones. And it closed a call's connection before disposing
+  it, which on Windows and Linux left the connection's tracks registered, so
+  turning somebody down or muting them after a rejoin could reach a dead
+  track and change nothing.
 
 Where the two schemas hold the same idea they use the same names — `users`,
 `dm_messages`, `read_state`. Central's account row was `dm_profiles` until it was

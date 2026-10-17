@@ -7,8 +7,8 @@ Apache-2.0 — see `LICENSE` and `NOTICE`). Kept is what an app builds with:
 are left out. `pubspec.yaml` at the root swaps it in with
 `dependency_overrides`.
 
-The change is marked `RIFT PATCH`; `git diff` against the commit that brought
-the copy in shows it.
+Each change is marked `RIFT PATCH`; `git diff` against the commit that brought
+the copy in shows them.
 
 ## Why
 
@@ -33,9 +33,31 @@ uncorrelated.
    `SignalOfferEvent` handler in `lib/src/core/engine.dart`). A mono track's
    section is left alone.
 
+2. **A peer connection is disposed before it is closed** (`onDispose` in
+   `lib/src/core/transport.dart`). The SDK closed, then disposed. On Windows
+   and Linux, `flutter_webrtc`'s `peerConnectionClose` drops the connection
+   from its map, and `peerConnectionDispose` then finds nothing and returns
+   without removing the connection's observer, which keeps every remote track
+   it received. A volume or mute is sent by track id, and the plugin answers
+   with the first registered track that has it. A track keeps its id when the
+   same person is received again, after leaving a call and coming back while
+   they stayed, so the change could go to the dead track and nothing in the
+   call changed. Reported Oct 17 2026 by two Windows testers who could not
+   turn someone down or mute them until they rejoined. On Android and Apple
+   platforms, and in the browser, a close after a dispose does nothing. The
+   plugin's side is flutter-webrtc/flutter-webrtc#2180, open and unreleased as
+   of Oct 17 2026; the order has been the SDK's on `main` throughout.
+
+   Measured Oct 17 2026 on Linux with `flutter_webrtc` 1.6.2+hotfix.4: one
+   audio track received, its receiver closed then disposed, the same track id
+   received again on a new one. Volume 0 and then disabling it left it playing
+   at −20 dBFS. Disposed then closed, volume 0 brought it to −49 dBFS and
+   disabling it to silence.
+
 ## When to remove it
 
-When a `livekit_client` release answers a stereo track with `stereo=1`: bump
-to it, delete this folder and its `dependency_overrides` entry. Until then, a
-`livekit_client` upgrade needs this copy replaced with the new version and the
-change put back.
+Patch 1 goes when a `livekit_client` release answers a stereo track with
+`stereo=1`, patch 2 when a release disposes before it closes or the
+`flutter_webrtc` it pins includes #2180. With both gone, bump, delete this folder and its `dependency_overrides`
+entry. Until then, a `livekit_client` upgrade needs this copy replaced with the
+new version and the changes put back.

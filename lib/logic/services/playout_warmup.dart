@@ -93,8 +93,13 @@ class PlayoutWarmup {
       // and the next join tries again.
       HelperMethods.printDebug('[PlayoutWarmup] skipped: $e');
     } finally {
-      await sender?.close();
-      await receiver?.close();
+      // Disposed before closed, as the call's own connections are
+      // (third_party/livekit_client/RIFT_PATCHES.md): a close alone, or
+      // first, leaves the receiver's track registered with the plugin.
+      for (final pc in [sender, receiver]) {
+        await pc?.dispose();
+        await pc?.close();
+      }
       await track?.stop();
     }
   }
