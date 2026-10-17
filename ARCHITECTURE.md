@@ -170,7 +170,10 @@ folders (the backup, DM files, bug-report logs, directory icons), then deletes t
 user. The servers on the device are untouched, since they never belonged to the
 account, and the device re-wraps its seed under the typed password, the one a
 vault with no account opens with. The person's DM partners lose those
-conversations too, because each one is a single shared record.
+conversations too, because each one is a single shared record. An account
+banned from publishing in the directory leaves a hash of its address and the
+servers it listed, so deleting it does not lift the ban (`directory_ban_marks`,
+described in `rift-central`'s `docs/DIRECTORY.md`).
 
 Central also runs the **public server directory** (opt-in, each listing proved by
 a token the server's admin mints) and the **push relay**, which exists because an

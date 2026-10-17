@@ -255,6 +255,9 @@ class PublicServerRepository {
     'publisher_banned':
         'Rift moderators have stopped this account listing servers in the '
         'directory.',
+    'server_banned':
+        'Rift moderators have stopped this server being listed in the '
+        'directory.',
     'listing_cap_reached':
         'You have listed as many servers as one account may. Remove one first.',
     // The three the proof round trip can produce. Each is actionable, and
