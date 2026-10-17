@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -94,9 +95,17 @@ Future<void> _pump(
 );
 
 /// Picks up [name] and carries it down by [dy], a step at a time, the way
-/// a hand does.
-Future<void> _drag(WidgetTester tester, String name, double dy) async {
-  final gesture = await tester.startGesture(tester.getCenter(find.text(name)));
+/// a hand does — with a mouse unless [kind] says otherwise.
+Future<void> _drag(
+  WidgetTester tester,
+  String name,
+  double dy, {
+  PointerDeviceKind kind = PointerDeviceKind.mouse,
+}) async {
+  final gesture = await tester.startGesture(
+    tester.getCenter(find.text(name)),
+    kind: kind,
+  );
   for (var i = 0; i < 10; i++) {
     await gesture.moveBy(Offset(0, dy / 10));
     await tester.pump(const Duration(milliseconds: 16));
@@ -145,6 +154,19 @@ void main() {
     // The refusal is a toast; let it time out before the tree goes.
     await tester.pump(const Duration(seconds: 30));
     await tester.pumpAndSettle();
+  });
+
+  // A tablet in the wide layout: a swipe through the channels picked one up.
+  testWidgets('a finger swiping over the rows moves none of them', (
+    tester,
+  ) async {
+    final servers = _StubServers();
+    await _pump(tester, servers, abc);
+
+    await _drag(tester, 'a', 100, kind: PointerDeviceKind.touch);
+
+    expect(servers.asked, isEmpty);
+    expect(_order(tester), ['a', 'b', 'c']);
   });
 
   testWidgets('a member cannot pick a row up', (tester) async {

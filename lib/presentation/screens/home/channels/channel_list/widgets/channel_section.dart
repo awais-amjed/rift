@@ -6,6 +6,7 @@ import '../../../../../../data/classes/channel.dart';
 import '../../../../../../data/constants.dart';
 import '../../../../../../data/repositories/session_repository.dart';
 import '../../../../../../logic/helper_methods.dart';
+import '../../../../../common/reorder_grip.dart';
 import '../../../../../theme/app_shadows.dart';
 import '../../../../../theme/theme_context.dart';
 
@@ -104,7 +105,8 @@ class _ChannelSectionState extends State<ChannelSection> {
       itemBuilder: (context, i) => _row(
         context,
         shown[i],
-        (w) => ReorderableDragStartListener(index: i, child: w),
+        // A mouse only: a finger swiping through the channels scrolls them.
+        (w) => ReorderGrip(index: i, child: w),
       ),
     );
   }

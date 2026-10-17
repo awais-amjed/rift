@@ -5,7 +5,7 @@ import '../../../../../../data/classes/server.dart';
 import '../../../../../../data/enums/home_surface.dart';
 import '../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../../responsive/shell_scope.dart';
+import '../../../../../common/reorder_grip.dart';
 import 'rail_server_chip.dart';
 
 /// The servers in the rail, in the order their owner put them in.
@@ -115,7 +115,8 @@ class RailServerList extends StatelessWidget {
   }
 }
 
-/// Whichever drag listener suits the pointer that is on the screen.
+/// A server chip that can be carried: by a mouse at once, by a finger after a
+/// hold, so a swipe down the rail scrolls it.
 class _Draggable extends StatelessWidget {
   final int index;
   final Widget child;
@@ -123,10 +124,6 @@ class _Draggable extends StatelessWidget {
   const _Draggable({super.key, required this.index, required this.child});
 
   @override
-  Widget build(BuildContext context) {
-    if (context.layoutMode.isCompact) {
-      return ReorderableDelayedDragStartListener(index: index, child: child);
-    }
-    return ReorderableDragStartListener(index: index, child: child);
-  }
+  Widget build(BuildContext context) =>
+      ReorderGrip(index: index, touchAfterHold: true, child: child);
 }
