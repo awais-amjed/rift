@@ -31,6 +31,21 @@ mixin _ServerDetailsMixin on Cubit<ServerState> {
     );
   }
 
+  /// Drop a server our own row says we left — on another device, since
+  /// leaving here forgets it before the server is asked again.
+  void _forgetLeftServer(Server server) {
+    noteServerGone(supabaseUrl: server.supabaseUrl, id: server.id);
+    removeServer(server.id);
+    emit(
+      state.copyWith(
+        notice: Notice.info(
+          'You left ${server.name}',
+          'A new invite from someone there brings you back.',
+        ),
+      ),
+    );
+  }
+
   // ──────────────────────────────────────────────────────────
   // Server details
   // ──────────────────────────────────────────────────────────

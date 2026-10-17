@@ -26,6 +26,11 @@ class ServerUser extends Equatable {
   /// notice says "removed" and how to come back, not "banned".
   final bool isKicked;
 
+  /// The kick was our own: we left this server, on this device or another.
+  /// A device still holding the server drops it rather than showing it
+  /// shut, the way it drops one that is gone.
+  final bool hasLeft;
+
   /// Until when we cannot post, DM or react here, or null. From the server
   /// on every refresh and never persisted, like [isBanned].
   final DateTime? timedOutUntil;
@@ -41,6 +46,7 @@ class ServerUser extends Equatable {
     this.avatarPath,
     this.isBanned = false,
     this.isKicked = false,
+    this.hasLeft = false,
     this.timedOutUntil,
     this.dmPolicy = DmPolicy.everyone,
   });
@@ -62,6 +68,7 @@ class ServerUser extends Equatable {
     avatarPath: avatarPath ?? this.avatarPath,
     isBanned: isBanned ?? this.isBanned,
     isKicked: isKicked,
+    hasLeft: hasLeft,
     timedOutUntil: timedOutUntil,
     dmPolicy: dmPolicy ?? this.dmPolicy,
   );
@@ -81,6 +88,7 @@ class ServerUser extends Equatable {
       // come from the server, not from what we believed last time.
       isBanned: json['is_banned'] as bool? ?? false,
       isKicked: json['is_kicked'] as bool? ?? false,
+      hasLeft: json['has_left'] as bool? ?? false,
       timedOutUntil: DateTime.tryParse(
         json['timed_out_until'] as String? ?? '',
       )?.toLocal(),
@@ -105,6 +113,7 @@ class ServerUser extends Equatable {
     avatarPath,
     isBanned,
     isKicked,
+    hasLeft,
     timedOutUntil,
     dmPolicy,
   ];

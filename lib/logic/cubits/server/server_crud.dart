@@ -4,6 +4,7 @@ mixin _ServerCrudMixin on Cubit<ServerState> {
   void Function()? get _onServersChanged;
   SecureStorageRepository get _storage;
   PushApi get _push;
+  OwnershipApi get _ownership;
 
   // ──────────────────────────────────────────────────────────
   // CRUD
@@ -89,6 +90,46 @@ mixin _ServerCrudMixin on Cubit<ServerState> {
   /// user has just deliberately joined again.
   void _clearServerGone({required String supabaseUrl, required String id}) {
     _goneKeys.remove(BackupMerge.keyFor(supabaseUrl: supabaseUrl, id: id));
+  }
+
+  /// Leave [server]: ask it to take us off its list (`leave_server`), then
+  /// forget it here.
+  ///
+  /// The owner is not asked — the server refuses them, and their dialog has
+  /// already said that leaving only forgets it here. Nor is a server too old
+  /// to have the call. One that does not answer is forgotten all the same,
+  /// since otherwise a server that is gone for good could never be left, and
+  /// the notice says it may still list us. Only a refusal keeps it.
+  ///
+  /// Noted gone before anything is asked: the leave rings the server, and a
+  /// re-read landing before the removal would draw it shut for a moment, or
+  /// the cloud's copy would bring it back.
+  Future<LeaveOutcome> leaveServer(Server server) async {
+    noteServerGone(supabaseUrl: server.supabaseUrl, id: server.id);
+    final isOwner = server.user?.permissions.isOwner ?? false;
+    final result = isOwner
+        ? (outcome: LeaveOutcome.unsupported, error: null)
+        : await _ownership.leaveServer(serverId: server.id);
+
+    switch (result.outcome) {
+      case LeaveOutcome.refused:
+        _clearServerGone(supabaseUrl: server.supabaseUrl, id: server.id);
+        emit(state.copyWith(notice: Notice.error(result.error!)));
+      case LeaveOutcome.unreachable:
+        removeServer(server.id);
+        emit(
+          state.copyWith(
+            notice: Notice.info(
+              'Left ${server.name} on this device',
+              "The server didn't answer, so it may still list you as a "
+                  'member.',
+            ),
+          ),
+        );
+      case LeaveOutcome.left || LeaveOutcome.unsupported:
+        removeServer(server.id);
+    }
+    return result.outcome;
   }
 
   void removeServer(String serverId) {

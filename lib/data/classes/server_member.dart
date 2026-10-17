@@ -20,6 +20,10 @@ class ServerMember extends Equatable {
   /// lift, because an invite already lifts it.
   final bool isKicked;
 
+  /// The kick was their own: they left (`users.left_at`). A moderator's
+  /// list says "Left", and the banned list never holds them.
+  final bool hasLeft;
+
   /// A program, not a person (`users.is_bot`). Set at registration from the
   /// invite and never afterwards.
   ///
@@ -64,6 +68,7 @@ class ServerMember extends Equatable {
     this.isDeafened = false,
     this.isBanned = false,
     this.isKicked = false,
+    this.hasLeft = false,
     this.isBot = false,
     this.manifest = BotManifest.empty,
     this.chatPublicKey,
@@ -91,6 +96,7 @@ class ServerMember extends Equatable {
       isDeafened: json['is_deafened'] == true,
       isBanned: json['is_banned'] == true,
       isKicked: json['is_kicked'] == true,
+      hasLeft: json['has_left'] == true,
       isBot: json['is_bot'] == true,
       manifest: BotManifest.fromJson(json['manifest'] as Map<String, dynamic>?),
       chatPublicKey: json['chat_public_key'] as String?,
@@ -124,6 +130,7 @@ class ServerMember extends Equatable {
     bool? isDeafened,
     bool? isBanned,
     bool? isKicked,
+    bool? hasLeft,
     DateTime? timedOutUntil,
     bool clearTimedOut = false,
   }) {
@@ -136,6 +143,7 @@ class ServerMember extends Equatable {
       isDeafened: isDeafened ?? this.isDeafened,
       isBanned: isBanned ?? this.isBanned,
       isKicked: isKicked ?? this.isKicked,
+      hasLeft: hasLeft ?? this.hasLeft,
       // Not a parameter: `is_bot` is pinned server-side (`users_pin_is_bot`) and a
       // copyWith that could change it would be the one place in the client
       // where a person turns into a program.
@@ -161,6 +169,7 @@ class ServerMember extends Equatable {
     isDeafened,
     isBanned,
     isKicked,
+    hasLeft,
     isBot,
     manifest,
     chatPublicKey,

@@ -1,7 +1,9 @@
+import '../enums/leave_outcome.dart';
 import '../repositories/server_repository.dart';
 import '../repositories/session_repository.dart';
 
-/// The owner's two calls: hand the server on, or end it.
+/// The owner's two calls: hand the server on, or end it. And everybody
+/// else's one: leave it.
 ///
 /// Neither touches the local list beyond what the server says back. A transfer
 /// re-reads our own standing ([SessionRepository.refreshDetails]); the caller
@@ -71,6 +73,45 @@ class OwnershipApi {
       );
     }
     return (success: true, error: null);
+  }
+
+  /// Leave [serverId], or the selected server: a kick by our own hand
+  /// (`leave_server`), so we drop off its member list and a new invite
+  /// brings us back as ourselves. Forgetting the server is the caller's.
+  ///
+  /// [LeaveOutcome.unsupported] is a server from before 020, which has no
+  /// such call: there, leaving can only ever have meant forgetting it here.
+  Future<({LeaveOutcome outcome, String? error})> leaveServer({
+    String? serverId,
+  }) async {
+    final server = _session.target(serverId);
+    if (server == null) {
+      return (
+        outcome: LeaveOutcome.unreachable,
+        error: _session.noTarget(serverId),
+      );
+    }
+
+    final response = await _session.callFor(
+      server,
+      (token) => _repository.leaveServer(
+        server.supabaseUrl,
+        anonKey: server.supabaseKey ?? '',
+        bearerToken: token,
+      ),
+    );
+    if (response.success) return (outcome: LeaveOutcome.left, error: null);
+    return switch (response.errorCode) {
+      'PGRST202' => (outcome: LeaveOutcome.unsupported, error: null),
+      'owner_cannot_leave' => (
+        outcome: LeaveOutcome.refused,
+        error: 'Hand the server to someone else before you leave',
+      ),
+      _ => (
+        outcome: LeaveOutcome.unreachable,
+        error: response.error ?? 'Could not leave the server',
+      ),
+    };
   }
 
   /// The RPC's reasons, in words. Anything unnamed is passed through.

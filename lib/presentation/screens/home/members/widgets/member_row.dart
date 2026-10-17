@@ -145,7 +145,11 @@ class MemberRow extends StatelessWidget {
                       // has to say so.
                       if (member.isBanned)
                         LabelPill(
-                          label: member.isKicked ? 'Kicked' : 'Banned',
+                          label: member.hasLeft
+                              ? 'Left'
+                              : member.isKicked
+                              ? 'Kicked'
+                              : 'Banned',
                           color: CustomColors.error,
                         ),
                     ],

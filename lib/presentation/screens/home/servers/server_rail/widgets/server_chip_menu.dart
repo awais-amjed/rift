@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/classes/server.dart';
 import '../../../../../../data/enums/notification_level.dart';
+import '../../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../../../../../../logic/cubits/reports/reports_cubit.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
@@ -140,19 +141,21 @@ class ServerChipMenu extends StatelessWidget {
         build: (ctx) => serverManageDialog(ctx, server: server, initial: tab),
       );
 
-  /// Leaving is local: the row on the server stays, and so does everything
-  /// that row carries.
+  /// Leaving takes us off the server's member list (`leave_server`): a kick
+  /// by our own hand, so the roles and private channels go, what we wrote
+  /// stays, and any new invite brings us back as ourselves.
   ///
-  /// Which is worth saying out loud to an **owner**, because for them the
-  /// consequence is not "you need a new invite" — it is that the one person
-  /// who can end the server or hand it on has walked out of the only place
-  /// they could do either from. Nobody else can do it for them, and an invite
-  /// back has to come from an admin who is still there. The danger zone
-  /// already points at Transfer ownership; this is the other door into the
-  /// same mistake.
+  /// Except for an **owner**, whom the server will not let go, because the
+  /// one person who can end the server or hand it on would be walking out of
+  /// the only place they could do either from. For them leaving still only
+  /// forgets the server here, and the dialog says so: nobody else can do it
+  /// for them, and an invite back has to come from an admin who is still
+  /// there. The danger zone already points at Transfer ownership; this is the
+  /// other door into the same mistake.
   Future<void> _leave(BuildContext context) async {
     final dismiss = ContextMenuScope.of(context);
     final serverCubit = context.read<ServerCubit>();
+    final call = context.read<LiveKitCubit>();
     final host = context;
     final isOwner = server.user?.permissions.isOwner ?? false;
     dismiss?.call();
@@ -167,14 +170,21 @@ class ServerChipMenu extends StatelessWidget {
                 'getting back in needs an invite from an admin who is still '
                 'there. To step down properly, open Members and choose '
                 'Transfer ownership first.'
-          : 'This removes the server and its keys from this device. You will '
-                'need a new invite to rejoin, and you come back as the same '
-                'member, with your messages and roles.',
+          : 'You leave its member list, and lose your roles and private '
+                'channels. Your messages stay. A new invite brings you back '
+                'as yourself.',
       confirmLabel: 'Leave',
       icon: Icons.logout_rounded,
       isDestructive: true,
     );
     if (!confirmed) return;
-    serverCubit.removeServer(server.id);
+    // Hung up first: the server takes away what the call stood on, and a
+    // call left running would talk on into a server we are no longer in.
+    final state = call.state;
+    final inCallHere =
+        state.dmCall?.serverId == server.id ||
+        server.channels.any((c) => c.id == state.currentChannelId);
+    if (inCallHere) await call.disconnect();
+    await serverCubit.leaveServer(server);
   }
 }

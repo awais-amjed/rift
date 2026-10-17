@@ -4,6 +4,7 @@ import 'package:equatable/equatable.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:json_annotation/json_annotation.dart';
 
+import '../../../data/apis/ownership_api.dart';
 import '../../../data/apis/push_api.dart';
 import '../../../data/classes/channel.dart';
 import '../../../data/classes/livekit_node.dart';
@@ -14,6 +15,7 @@ import '../../../data/classes/server_details.dart';
 import '../../../data/classes/server_limits.dart';
 import '../../../data/classes/server_user.dart';
 import '../../../data/classes/user_permissions.dart';
+import '../../../data/enums/leave_outcome.dart';
 import '../../../data/repositories/secure_storage_repository.dart';
 import '../../../data/repositories/server_db.dart';
 import '../../../data/repositories/session_repository.dart';
@@ -44,6 +46,8 @@ class ServerCubit extends HydratedCubit<ServerState>
   /// change ([PushApi]).
   @override
   late final PushApi _push = PushApi(session: _session);
+  @override
+  late final OwnershipApi _ownership = OwnershipApi(session: _session);
 
   /// Keeps the snapshot the push background isolate wakes up into in step with
   /// the server list. See [_refreshWakeIndex].
@@ -241,6 +245,13 @@ class ServerCubit extends HydratedCubit<ServerState>
     ServerDetails details, {
     String? token,
   }) {
+    // Our own row says we left, on another device: drop the server the way
+    // a deleted one is dropped, rather than draw it shut.
+    if (details.user?.hasLeft ?? false) {
+      final server = state.serverById(serverId);
+      if (server != null) _forgetLeftServer(server);
+      return;
+    }
     updateServer(
       serverId,
       token: token,

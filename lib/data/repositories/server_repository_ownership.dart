@@ -1,7 +1,7 @@
 part of 'server_repository.dart';
 
 /// The two things only an owner does (`transfer_ownership`, `delete_server`): hand the server on, and
-/// end it.
+/// end it. And the one thing anybody else does instead (`leave_server`): go.
 ///
 /// Transfer is an RPC because the policies refuse the owner role in both
 /// directions, on purpose, and the one write that moves it has to make the
@@ -27,6 +27,18 @@ mixin _OwnershipApiMixin {
     return ServerDb.run(() async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
       await db.rpc('transfer_ownership', params: {'p_user': userId});
+      return const <String, dynamic>{};
+    });
+  }
+
+  Future<APIResponse> leaveServer(
+    String supabaseUrl, {
+    required String anonKey,
+    String? bearerToken,
+  }) {
+    return ServerDb.run(() async {
+      final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      await db.rpc('leave_server');
       return const <String, dynamic>{};
     });
   }

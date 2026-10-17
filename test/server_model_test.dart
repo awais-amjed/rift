@@ -5,6 +5,7 @@ import 'package:rift/data/classes/server_limits.dart';
 import 'package:rift/data/classes/server_member.dart';
 import 'package:rift/data/classes/server_user.dart';
 import 'package:rift/data/enums/channel_type.dart';
+import 'package:rift/data/repositories/server_user_row.dart';
 
 void main() {
   Server base() => Server(
@@ -175,6 +176,40 @@ void main() {
       final member = ServerMember.fromJson({...row}..remove('is_kicked'));
       expect(member.isBanned, isTrue);
       expect(member.isKicked, isFalse);
+    });
+  });
+
+  // Leaving is a kick by your own hand (020), told apart by `has_left`: your
+  // other devices drop the server, and a moderator's list says "Left".
+  group('Left', () {
+    const row = {
+      'id': 'u1',
+      'username': 'kim',
+      'display_name': 'Kim',
+      'is_banned': true,
+      'is_kicked': true,
+      'has_left': true,
+    };
+
+    test('our own row says we left, and is not persisted', () {
+      final me = ServerUser.fromJson(row);
+      expect(me.hasLeft, isTrue);
+      expect(me.toJson().containsKey('has_left'), isFalse);
+      expect(ServerUser.fromJson(me.toJson()).hasLeft, isFalse);
+    });
+
+    test('a member row carries it through the row reshaper', () {
+      final member = ServerMember.fromJson(ServerUserRow.of(row));
+      expect(member.hasLeft, isTrue);
+      expect(member.copyWith(isMuted: true).hasLeft, isTrue);
+      expect(member.copyWith(hasLeft: false).hasLeft, isFalse);
+    });
+
+    test('an older server that sends no flag means nobody left', () {
+      expect(
+        ServerMember.fromJson({...row}..remove('has_left')).hasLeft,
+        isFalse,
+      );
     });
   });
 }

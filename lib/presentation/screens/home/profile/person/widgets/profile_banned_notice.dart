@@ -16,12 +16,19 @@ import '../../../../../theme/theme_context.dart';
 /// was asked.
 ///
 /// A kick is drawn the same way with its own words: the same lock-out, but one
-/// any new invite ends.
+/// any new invite ends. So is a leave, which is a kick they gave themselves.
 class ProfileBannedNotice extends StatelessWidget {
   /// Kicked rather than banned.
   final bool kicked;
 
-  const ProfileBannedNotice({super.key, this.kicked = false});
+  /// The kick was their own: they left.
+  final bool left;
+
+  const ProfileBannedNotice({
+    super.key,
+    this.kicked = false,
+    this.left = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +55,9 @@ class ProfileBannedNotice extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  kicked
+                  left
+                      ? 'Left this server'
+                      : kicked
                       ? 'Kicked from this server'
                       : 'Banned from this server',
                   style: AppText.secondaryStrong.copyWith(

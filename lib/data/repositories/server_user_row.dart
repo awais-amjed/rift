@@ -25,6 +25,7 @@ class ServerUserRow {
     'is_deafened': u['is_deafened'],
     'is_banned': u['is_banned'],
     'is_kicked': u['is_kicked'],
+    'has_left': u['has_left'],
     'is_bot': u['is_bot'],
     'manifest': u['manifest'],
     'dm_policy': u['dm_policy'],

@@ -975,6 +975,14 @@ the calls it could hear; only a new bot invite brings it back (`BOTS.md`). It is
 offered wherever a ban is, a voice participant's menu and an
 open report included, and a report closed by one is recorded as `kicked`.
 
+**Leaving** a server is a kick by your own hand (`leave_server`), so it is enforced
+the same way and lifted the same way: you drop off the member list and out of the
+member cap, lose your roles and private seats, and any new invite brings you back
+as yourself. `users.left_at` marks it yours, which keeps you off the banned list a
+moderator reads and tells your other devices to drop the server rather than show it
+shut. The owner cannot leave without handing the server on; for them, and on a
+server too old to ask, leaving only forgets the server on the device.
+
 **DM spam** is the member's own call. Each member chooses, per server, who may
 start a conversation with them: everyone, *ask me first* (a first message waits as
 a request — no ring, no push, one message until accepted), or nobody new. Existing

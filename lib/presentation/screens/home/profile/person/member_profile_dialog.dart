@@ -111,8 +111,10 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
           isMuted: muted,
           isDeafened: deafened,
           isBanned: banned,
-          // A ban either way settles a kick (`moderate_user`).
+          // A ban either way settles a kick (`moderate_user`), and with it
+          // a leave.
           isKicked: banned == null ? null : false,
+          hasLeft: banned == null ? null : false,
         );
       }
     });
@@ -197,6 +199,7 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
             isDeafened: changed.isDeafened,
             isBanned: changed.isBanned,
             isKicked: changed.isKicked,
+            hasLeft: changed.hasLeft,
             timedOutUntil: changed.timedOutUntil,
             clearTimedOut: changed.timedOutUntil == null,
           );
@@ -259,7 +262,10 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
           children: [
             if (member != null) ..._tags(member),
             if (member?.isBanned ?? false)
-              ProfileBannedNotice(kicked: member!.isKicked),
+              ProfileBannedNotice(
+                kicked: member!.isKicked,
+                left: member.hasLeft,
+              ),
             // Who they are on the left, what you can do about them on the
             // right — and stacked in that order on anything too narrow, which
             // is the order the dialog had when it was one column.
