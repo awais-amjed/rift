@@ -27,17 +27,25 @@ class VoiceStatusRowIcons extends StatelessWidget {
   /// A bot with no listening grant for this channel.
   final bool cannotHear;
 
+  /// Whether this listener hides their voice from them.
+  final bool hiddenFromThem;
+
   const VoiceStatusRowIcons({
     super.key,
     required this.participant,
     required this.mutedForYou,
     this.cannotHear = false,
+    this.hiddenFromThem = false,
   });
 
   /// Shared with the row for a call you are not in, which has no live state
   /// but knows the grant all the same.
   static const cannotHearTooltip =
       'Can’t hear the call. This bot hasn’t been allowed to listen here';
+
+  /// Shared with the row for a call you are not in: the choice holds in
+  /// every call, so it shows before you meet them in one.
+  static const hiddenFromThemTooltip = 'Your voice is hidden from them';
 
   @override
   Widget build(BuildContext context) {
@@ -47,6 +55,7 @@ class VoiceStatusRowIcons extends StatelessWidget {
       participant,
       mutedForYou: mutedForYou,
       cannotHear: cannotHear,
+      hiddenFromThem: hiddenFromThem,
     );
 
     // Somebody muting is something that happened to the row, not a redraw:
@@ -82,19 +91,20 @@ class VoiceStatusRowIcons extends StatelessWidget {
 
   /// The mark for [icon], shared with the member card's words so a state
   /// looks the same in both places.
-  static Color colorOf(
-    VoiceStatusIcon icon,
-    ThemeState theme,
-  ) => switch (icon) {
-    VoiceStatusIcon.sharingScreen ||
-    VoiceStatusIcon.sharingSound => theme.accentBright,
-    VoiceStatusIcon.cannotHear ||
-    VoiceStatusIcon.waitingToTalk => theme.textTertiary,
-    VoiceStatusIcon.mutedForYou => CustomColors.error.withValues(alpha: 0.7),
-    VoiceStatusIcon.deafenedByModerator || VoiceStatusIcon.mutedByModerator =>
-      CustomColors.error.withValues(alpha: 0.85),
-    _ => CustomColors.error,
-  };
+  static Color colorOf(VoiceStatusIcon icon, ThemeState theme) =>
+      switch (icon) {
+        VoiceStatusIcon.sharingScreen ||
+        VoiceStatusIcon.sharingSound => theme.accentBright,
+        VoiceStatusIcon.cannotHear ||
+        VoiceStatusIcon.waitingToTalk => theme.textTertiary,
+        VoiceStatusIcon.mutedForYou || VoiceStatusIcon.hiddenFromThem =>
+          CustomColors.error.withValues(alpha: 0.7),
+        VoiceStatusIcon.deafenedByModerator ||
+        VoiceStatusIcon.mutedByModerator => CustomColors.error.withValues(
+          alpha: 0.85,
+        ),
+        _ => CustomColors.error,
+      };
 
   static IconData iconOf(VoiceStatusIcon icon) => switch (icon) {
     // The same screen the call controls show while you are sharing one, so
@@ -110,6 +120,8 @@ class VoiceStatusRowIcons extends StatelessWidget {
     // Not a crossed microphone: they have not muted themselves, you have
     // turned them off — the same distinction the volume slider makes.
     VoiceStatusIcon.mutedForYou => Icons.volume_off,
+    // The one the menu item and the card's button use.
+    VoiceStatusIcon.hiddenFromThem => Icons.voice_over_off_rounded,
   };
 
   String _tooltip(VoiceStatusIcon icon) => switch (icon) {
@@ -122,5 +134,6 @@ class VoiceStatusRowIcons extends StatelessWidget {
     VoiceStatusIcon.mutedByModerator => 'Muted by a moderator',
     VoiceStatusIcon.waitingToTalk => 'Push to talk',
     VoiceStatusIcon.mutedForYou => 'Muted for you',
+    VoiceStatusIcon.hiddenFromThem => hiddenFromThemTooltip,
   };
 }

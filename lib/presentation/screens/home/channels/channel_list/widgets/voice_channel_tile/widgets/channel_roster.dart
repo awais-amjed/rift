@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../../../../data/classes/participant_info.dart';
 import '../../../../../../../../data/classes/participant_setting.dart';
 import '../../../../../../../../data/classes/voice_drag.dart';
+import '../../../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../../../logic/cubits/server_members/server_members_cubit.dart';
@@ -70,6 +71,10 @@ class ChannelRoster extends StatelessWidget {
     bool cannotHear(String userId) =>
         (roster.byId[userId]?.isBot ?? false) &&
         !listeners.hears(channelId, userId);
+    // Who you hide your voice from, which every call keeps to.
+    final voiceHiddenFrom = context.select<AppCubit, List<String>>(
+      (cubit) => cubit.state.voiceHiddenFrom,
+    );
     final keys = _RowKeys();
 
     // Rows touch, as the sidebar's do: a row is [RosterRowMetrics.rowHeight]
@@ -92,6 +97,7 @@ class ChannelRoster extends StatelessWidget {
                 participant: participant,
                 setting: settings[participant.userId],
                 cannotHear: cannotHear(participant.userId),
+                voiceHidden: voiceHiddenFrom.contains(participant.userId),
                 contextMenu: ParticipantContextMenu(
                   identity: participant.identity,
                   name: roster.nameFor(participant.userId, participant.name),
@@ -114,6 +120,7 @@ class ChannelRoster extends StatelessWidget {
                 user: user,
                 setting: settings[user.userId],
                 cannotHear: cannotHear(user.userId),
+                voiceHidden: voiceHiddenFrom.contains(user.userId),
               ),
             ),
           ),

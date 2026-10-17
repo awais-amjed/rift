@@ -27,10 +27,12 @@ List<VoiceStatusIcon> icons(
   ParticipantInfo participant, {
   bool mutedForYou = false,
   bool cannotHear = false,
+  bool hiddenFromThem = false,
 }) => voiceStatusIcons(
   participant,
   mutedForYou: mutedForYou,
   cannotHear: cannotHear,
+  hiddenFromThem: hiddenFromThem,
 );
 
 void main() {
@@ -105,6 +107,18 @@ void main() {
   // talking, you are not listening.
   test('muting somebody yourself replaces the microphone icon', () {
     expect(icons(person(), mutedForYou: true), [VoiceStatusIcon.mutedForYou]);
+  });
+
+  // Hiding your voice is about what they hear, so it sits beside what they
+  // are doing rather than replacing any of it.
+  test('hiding your voice from them adds its own icon, last', () {
+    expect(icons(person(), hiddenFromThem: true), [
+      VoiceStatusIcon.hiddenFromThem,
+    ]);
+    expect(
+      icons(person(micOn: false), mutedForYou: true, hiddenFromThem: true),
+      [VoiceStatusIcon.mutedForYou, VoiceStatusIcon.hiddenFromThem],
+    );
   });
 
   test('sharing is shown alongside whatever else is true', () {

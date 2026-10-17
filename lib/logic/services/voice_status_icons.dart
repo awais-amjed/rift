@@ -31,6 +31,10 @@ enum VoiceStatusIcon {
 
   /// *You* have muted them, for yourself only.
   mutedForYou,
+
+  /// *You* are hiding your voice from them: the call server does not send
+  /// them your microphone.
+  hiddenFromThem,
 }
 
 /// The icons for one row, left to right.
@@ -56,6 +60,10 @@ List<VoiceStatusIcon> voiceStatusIcons(
   /// A bot without a listening grant here. Unlike deafening it leaves the
   /// microphone alone: the bot is in the call to be heard.
   bool cannotHear = false,
+
+  /// Whether this listener hides their voice from them (`VoicePrivacy`).
+  /// Last, after what they are doing: it is about you, not them.
+  bool hiddenFromThem = false,
 }) {
   final icons = <VoiceStatusIcon>[];
   if (participant.isSharingScreen) icons.add(VoiceStatusIcon.sharingScreen);
@@ -81,5 +89,7 @@ List<VoiceStatusIcon> voiceStatusIcons(
   } else if (!participant.isMicrophoneEnabled) {
     icons.add(VoiceStatusIcon.muted);
   }
+
+  if (hiddenFromThem) icons.add(VoiceStatusIcon.hiddenFromThem);
   return icons;
 }

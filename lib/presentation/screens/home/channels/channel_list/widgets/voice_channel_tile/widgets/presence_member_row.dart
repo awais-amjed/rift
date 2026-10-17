@@ -5,6 +5,7 @@ import '../../../../../../../../data/classes/participant_setting.dart';
 import '../../../../../../../../data/constants.dart';
 import '../../../../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../../../../../logic/cubits/server_members/server_members_cubit.dart';
+import '../../../../../../../../logic/services/voice_status_icons.dart';
 import '../../../../../../../common/context_menu_region.dart';
 import '../../../../../../../common/hover_builder.dart';
 import '../../../../../../../common/member_avatar.dart';
@@ -30,11 +31,15 @@ class PresenceMemberRow extends StatelessWidget {
   /// A bot with no listening grant for this channel.
   final bool cannotHear;
 
+  /// Whether you hide your voice from them.
+  final bool voiceHidden;
+
   const PresenceMemberRow({
     super.key,
     required this.user,
     this.setting,
     this.cannotHear = false,
+    this.voiceHidden = false,
   });
 
   @override
@@ -124,6 +129,20 @@ class PresenceMemberRow extends StatelessWidget {
                 Icons.volume_off_rounded,
                 size: RosterRowMetrics.of(context).iconSize + 2,
                 color: CustomColors.error,
+              ),
+            // Like the mute: it holds in every call, so it shows before you
+            // meet them in one.
+            if (voiceHidden)
+              Tooltip(
+                message: VoiceStatusRowIcons.hiddenFromThemTooltip,
+                child: Icon(
+                  VoiceStatusRowIcons.iconOf(VoiceStatusIcon.hiddenFromThem),
+                  size: RosterRowMetrics.of(context).iconSize,
+                  color: VoiceStatusRowIcons.colorOf(
+                    VoiceStatusIcon.hiddenFromThem,
+                    themeState,
+                  ),
+                ),
               ),
           ],
         ),

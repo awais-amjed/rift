@@ -25,12 +25,16 @@ class ParticipantListItem extends StatelessWidget {
   /// A bot with no listening grant for this channel.
   final bool cannotHear;
 
+  /// Whether you hide your voice from them.
+  final bool voiceHidden;
+
   const ParticipantListItem({
     super.key,
     required this.participant,
     this.setting,
     this.contextMenu,
     this.cannotHear = false,
+    this.voiceHidden = false,
   });
 
   @override
@@ -139,11 +143,13 @@ class ParticipantListItem extends StatelessWidget {
                 ),
               ),
             ),
-            // What they are doing: sharing, deafened, muted.
+            // What they are doing: sharing, deafened, muted — and whether
+            // they hear you.
             VoiceStatusRowIcons(
               participant: participant,
               mutedForYou: isMuted,
               cannotHear: cannotHear,
+              hiddenFromThem: voiceHidden,
             ),
           ],
         ),

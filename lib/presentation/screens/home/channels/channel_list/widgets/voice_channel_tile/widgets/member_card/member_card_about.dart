@@ -131,6 +131,7 @@ class MemberCardAbout extends StatelessWidget {
     VoiceStatusIcon.mutedByModerator => 'Muted by a moderator',
     VoiceStatusIcon.waitingToTalk => 'Push to talk',
     VoiceStatusIcon.mutedForYou => 'Muted for you',
+    VoiceStatusIcon.hiddenFromThem => 'Your voice is hidden from them',
     VoiceStatusIcon.sharingScreen => 'Sharing their screen',
     VoiceStatusIcon.sharingSound => 'Sharing sound',
   };
