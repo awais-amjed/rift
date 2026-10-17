@@ -63,6 +63,17 @@ void main() {
       expect(stats.framesDroppedPerSec, 2);
     });
 
+    test('a browser\'s millisecond timestamps give the same rates', () {
+      final sampler = VideoStatsSampler(millisecondTimestamps: true);
+      sampler.sample([inbound(at: 0, bytesReceived: 0, framesDecoded: 0)]);
+      final stats = sampler.sample([
+        inbound(at: 1000, bytesReceived: 125000, framesDecoded: 15),
+      ]);
+      expect(stats!.fps, closeTo(15, 0.001));
+      expect(stats.bitrateKbps, closeTo(1000, 0.001));
+      expect(stats.qualityLabel, '1080p · 15fps');
+    });
+
     test(
       'a repeated timestamp yields no rates rather than a divide by zero',
       () {

@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
+
 import 'video_stream_stats.dart';
 
 /// How many keyframes the inbound video stream has decoded, or null before
@@ -18,6 +20,15 @@ int? keyFramesDecodedIn(List<StatsReport> reports) {
 class VideoStatsSampler {
   _Counters? _previous;
 
+  /// Milliseconds in one unit of a report's timestamp. libwebrtc's own stats
+  /// count in microseconds; a browser's `RTCStats.timestamp` is milliseconds,
+  /// and read as microseconds it put every rate on the web 1000 times too
+  /// high (a 15 fps share read "240fps", the top of the badge's scale).
+  final double _msPerTick;
+
+  VideoStatsSampler({bool? millisecondTimestamps})
+    : _msPerTick = (millisecondTimestamps ?? kIsWeb) ? 1 : 0.001;
+
   /// Reads the inbound video stream out of [reports], or null when it isn't
   /// there yet (the track may not be subscribed).
   VideoStreamStats? sample(List<StatsReport> reports) {
@@ -33,7 +44,7 @@ class VideoStatsSampler {
       framesDecoded: (values['framesDecoded'] as num?)?.toDouble(),
       framesDropped: (values['framesDropped'] as num?)?.toInt(),
     );
-    final rates = current.since(_previous);
+    final rates = current.since(_previous, _msPerTick);
     _previous = current;
 
     final jitter = values['jitter'] as num?;
@@ -94,12 +105,12 @@ class _Counters {
 
   ({double? fps, double? bitrateKbps, int? framesDroppedPerSec}) since(
     _Counters? previous,
+    double msPerTick,
   ) {
     const none = (fps: null, bitrateKbps: null, framesDroppedPerSec: null);
     if (previous == null) return none;
 
-    // Report timestamps are microseconds.
-    final dtMs = (timestamp - previous.timestamp) / 1000;
+    final dtMs = (timestamp - previous.timestamp) * msPerTick;
     if (dtMs <= 0) return none;
 
     double? bitrateKbps;
