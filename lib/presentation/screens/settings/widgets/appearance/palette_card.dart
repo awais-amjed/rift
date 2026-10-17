@@ -16,12 +16,24 @@ class PaletteCard extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onTap;
 
+  /// How wide the card is; [width] by default. Narrower than two of those,
+  /// the page hands each card half the row instead (see `AppearanceContent`).
+  final double width;
+
   const PaletteCard({
     super.key,
     required this.palette,
     required this.isSelected,
     required this.onTap,
+    this.width = PaletteCard.defaultWidth,
   });
+
+  /// A card's width where the row has room for several side by side.
+  static const double defaultWidth = 172;
+
+  /// The narrowest a card is stretched or shrunk to share a row; below this
+  /// there is one card to a row.
+  static const double minWidth = 140;
 
   /// [AppText.secondary]'s size at [_lineSpacing], twice over — the two lines
   /// every card's description is given whether it fills them or not.
@@ -36,7 +48,7 @@ class PaletteCard extends StatelessWidget {
     final preview = themeState.isDarkTheme ? palette.dark : palette.light;
 
     return SizedBox(
-      width: 172,
+      width: width,
       child: SelectableSurface(
         selected: isSelected,
         onTap: onTap,
