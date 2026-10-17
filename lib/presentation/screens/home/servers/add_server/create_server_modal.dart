@@ -128,7 +128,9 @@ class _CreateServerModalState extends State<CreateServerModal> {
   Widget build(BuildContext context) {
     return AppModal(
       title: 'Create server',
-      subtitle: 'Connect a Rift server you run yourself',
+      // A new server, not a way in to one that exists: the console's own is
+      // joined with the invite it prints, and this would make a second.
+      subtitle: 'A new server on a backend you set up by hand',
       maxWidth: K.dialogWidthWide,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

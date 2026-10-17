@@ -46,7 +46,11 @@ class ServerModePicker extends StatelessWidget {
         _ModeCard(
           icon: Icons.build_outlined,
           title: 'Create server',
-          subtitle: 'Connect a Rift server you run yourself',
+          // Said here, where the choice is made: someone who set up with the
+          // console already has a server, and creating one makes a second.
+          subtitle:
+              'On a backend set up by hand. Used the console? Join with '
+              'its invite',
           onTap: onCreate,
         ),
       ],
