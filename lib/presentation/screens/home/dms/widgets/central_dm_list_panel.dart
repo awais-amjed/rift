@@ -82,6 +82,7 @@ class CentralDmListPanel extends StatelessWidget {
           const SizedBox(height: 1),
           CentralIdentityLine(
             handle: state.myHandle,
+            signedIn: state.status != CentralDmStatus.signedOut,
             onChangeHandle: () => showChangeHandle(context, state.myHandle!),
           ),
         ],

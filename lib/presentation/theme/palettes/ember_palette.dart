@@ -34,7 +34,9 @@ const emberPalette = AppPalette(
     channelActiveBorder: Color(0x38FB923C),
   ),
   light: PaletteColors(
-    primary: Color(0xFFEA580C),
+    // The accent's deeper step, so white on it reads at 5.2:1; the brighter
+    // orange it replaced gave a button's label 3.6:1.
+    primary: Color(0xFFC2410C),
     onPrimary: Color(0xFFFFFFFF),
     accentBright: Color(0xFFC2410C),
     accentGradientEnd: Color(0xFFE11D48),

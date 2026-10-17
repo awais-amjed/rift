@@ -192,7 +192,9 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   ordering or drops body text below WCAG AA on the content panel.
 - **Type:** `AppText` (`theme/app_text.dart`) holds the scale: seven sizes, 11 / 12 / 13 / 14 /
   15 / 18 / 21, and every style is one of them. A call site never sets a size —
-  `copyWith(fontSize:)` is banned; a place that needs a size needs a token. Styles carry size,
+  `copyWith(fontSize:)` is banned; a place that needs a size needs a token. In a phone-width
+  window `PhoneTextScale` sets the whole scale a step larger (body 15) through the text scaler,
+  so the tokens keep their ratios and nothing needs a phone size of its own. Styles carry size,
   weight, spacing and family but never colour — finish one with
   `.copyWith(color: theme.textSecondary)`. Geist for UI; `figure`/`kbd`/`code`/`mnemonic` are
   mono, reserved for figures that line up or tick in place, keyboard chips and strings copied

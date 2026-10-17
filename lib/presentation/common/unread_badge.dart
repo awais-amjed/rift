@@ -93,8 +93,8 @@ class _UnreadBadgeState extends State<UnreadBadge>
           widget.count > 99 ? '99+' : '${widget.count}',
           // The count is knocked *out* of the accent rather than written on it, so
           // the ink is the canvas the pill floats over — near-black in dark,
-          // near-white in light. `onPrimary` is white in both, which turns the
-          // dark palette's bright accent into a low-contrast smudge.
+          // near-white in light — so the badge reads as a hole in the pill
+          // whatever a palette puts on its buttons.
           style: AppText.badge.copyWith(
             height: 1.2,
             color: isMuted ? themeState.textTertiary : themeState.bgPrimary,

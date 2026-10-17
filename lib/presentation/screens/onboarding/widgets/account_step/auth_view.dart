@@ -80,7 +80,7 @@ class _AuthViewState extends State<AuthView>
 
     return OnboardingPage(
       step: 1,
-      stepLabel: 'account',
+      stepLabel: 'Account',
       onBack: isProcessing ? null : widget.onBack,
       footer: OnboardingFooter(
         onBack: widget.onBack,

@@ -421,6 +421,21 @@ class K {
   /// of this size, and the text field is floored to it, so the icons and the
   /// text share one centre line whatever the font's metrics are.
   static const double composerControlSize = 36;
+
+  /// [composerControlSize] on a phone. The composer row is the most-tapped
+  /// strip in the app, and 36 is a pointer's target, not a thumb's; the field
+  /// is floored to this too, so the row stays on one centre line.
+  static const double composerControlSizeTouch = touchTargetMin;
+
+  /// How wide the icon controls are on a phone: the full touch height, a
+  /// little narrower. Four 44px squares left the text a field so thin that a
+  /// short message wrapped; send keeps the whole square, as the one control
+  /// that has to be hit first time.
+  static const double composerIconWidthTouch = 40;
+
+  /// The gap either side of the composer on a phone, down from a desktop's
+  /// 14 — the panel is the screen there, and the field needs the room.
+  static const double composerSideInsetTouch = 8;
   static const double composerIconSize = 19;
   static const double composerLineHeight = 1.4;
 

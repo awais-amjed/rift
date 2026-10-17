@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../data/constants.dart';
+import '../../../responsive/shell_scope.dart';
 import '../../../theme/app_motion.dart';
 import '../../../theme/theme_context.dart';
 
@@ -37,6 +38,9 @@ class _ComposerSendButtonState extends State<ComposerSendButton> {
     final enabled = widget.enabled;
     final lit = enabled && _hovering;
     final radius = BorderRadius.circular(K.radiusRow);
+    final size = context.layoutMode.isCompact
+        ? K.composerControlSizeTouch
+        : K.composerControlSize;
 
     return Tooltip(
       message: 'Send',
@@ -48,8 +52,8 @@ class _ComposerSendButtonState extends State<ComposerSendButton> {
         borderRadius: radius,
         child: AnimatedContainer(
           duration: AppMotion.react,
-          width: K.composerControlSize,
-          height: K.composerControlSize,
+          width: size,
+          height: size,
           decoration: BoxDecoration(
             // Enabled, this is the accent, flat: the one filled control in
             // the composer is loud enough without a glow under it.

@@ -46,10 +46,6 @@ class OnboardingPage extends StatelessWidget {
   /// footer instead.
   final VoidCallback? onBack;
 
-  /// The progress bar's colour on a phone, for a step that is claiming safety
-  /// rather than counting — the vault's green.
-  final Color? progressColor;
-
   const OnboardingPage({
     super.key,
     required this.child,
@@ -57,7 +53,6 @@ class OnboardingPage extends StatelessWidget {
     this.stepLabel,
     this.footer,
     this.onBack,
-    this.progressColor,
   });
 
   @override
@@ -114,12 +109,7 @@ class OnboardingPage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (showTopBar)
-            OnboardingPhoneTopBar(
-              onBack: onBack,
-              step: step,
-              label: stepLabel,
-              color: progressColor,
-            ),
+            OnboardingPhoneTopBar(onBack: onBack, step: step, label: stepLabel),
           Expanded(
             // Centred while it fits, so a short step doesn't cling to the top
             // of a tall screen.

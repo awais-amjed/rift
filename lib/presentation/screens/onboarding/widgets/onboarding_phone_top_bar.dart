@@ -12,14 +12,12 @@ class OnboardingPhoneTopBar extends StatelessWidget {
   final VoidCallback? onBack;
   final int? step;
   final String? label;
-  final Color? color;
 
   const OnboardingPhoneTopBar({
     super.key,
     required this.onBack,
     required this.step,
     required this.label,
-    required this.color,
   });
 
   @override
@@ -51,7 +49,7 @@ class OnboardingPhoneTopBar extends StatelessWidget {
                             height: 3,
                             decoration: BoxDecoration(
                               color: i <= step
-                                  ? (color ?? theme.primary)
+                                  ? theme.primary
                                   : theme.borderElevated,
                               borderRadius: BorderRadius.circular(K.radiusPill),
                             ),

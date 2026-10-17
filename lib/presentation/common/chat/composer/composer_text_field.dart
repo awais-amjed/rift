@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../data/constants.dart';
+import '../../../responsive/shell_scope.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 import '../../context_menu/text_field_context_menu.dart';
@@ -105,7 +106,11 @@ class ComposerTextField extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeState = context.theme;
     return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: K.composerControlSize),
+      constraints: BoxConstraints(
+        minHeight: context.layoutMode.isCompact
+            ? K.composerControlSizeTouch
+            : K.composerControlSize,
+      ),
       child: Align(
         alignment: Alignment.center,
         heightFactor: 1,

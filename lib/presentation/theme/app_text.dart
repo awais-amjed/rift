@@ -18,6 +18,10 @@ import 'package:flutter/material.dart';
 /// `.copyWith(color: theme.textSecondary)`. Keeping the two apart is what
 /// stops a hard-coded colour from sneaking in behind a text style.
 ///
+/// On a phone the whole scale is set one step larger — body text on 15 —
+/// by `PhoneTextScale`, which multiplies the text scaler rather than adding
+/// sizes here, so the seven keep their ratios.
+///
 /// Mono is reserved for the things proportional type handles badly: figures
 /// that must line up or tick in place, keyboard chips, and strings meant to
 /// be copied exactly (invite links, recovery keys).

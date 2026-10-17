@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../data/constants.dart';
+import '../../../responsive/shell_scope.dart';
 import '../../../theme/theme_context.dart';
 
 /// A uniform, square tap target for the composer's actions (attach, emoji,
@@ -27,6 +28,9 @@ class ComposerIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeState = context.theme;
     final enabled = onPressed != null;
+    final compact = context.layoutMode.isCompact;
+    final height = compact ? K.composerControlSizeTouch : K.composerControlSize;
+    final width = compact ? K.composerIconWidthTouch : K.composerControlSize;
     final color = active
         ? themeState.primary
         : (enabled ? themeState.textTertiary : themeState.textQuaternary);
@@ -49,8 +53,8 @@ class ComposerIconButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(K.radiusRow),
           hoverColor: themeState.bgHover,
           child: SizedBox(
-            width: K.composerControlSize,
-            height: K.composerControlSize,
+            width: width,
+            height: height,
             child: Center(
               child: Icon(icon, size: K.composerIconSize, color: color),
             ),

@@ -10,7 +10,10 @@ const indigoPalette = AppPalette(
   description: 'The classic Rift look',
   dark: PaletteColors(
     primary: Color(0xFF7B83FF),
-    onPrimary: Color(0xFFFFFFFF),
+    // Ink, not white: white on this indigo is 3.2:1, under the 4.5:1 a
+    // button's label needs. Ink is 6:1, and is what every other dark palette
+    // already put on its accent.
+    onPrimary: Color(0xFF0A0B24),
     accentBright: Color(0xFF9BA3FF),
     accentGradientEnd: Color(0xFFA56BFA),
     gradientPartner: Color(0xFFEC4899),

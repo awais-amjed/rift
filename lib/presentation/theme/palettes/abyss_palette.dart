@@ -34,7 +34,9 @@ const abyssPalette = AppPalette(
     channelActiveBorder: Color(0x382DD4BF),
   ),
   light: PaletteColors(
-    primary: Color(0xFF0D9488),
+    // The accent's deeper step, so white on it reads at 5.5:1; the brighter
+    // teal it replaced gave a button's label 3.7:1.
+    primary: Color(0xFF0F766E),
     onPrimary: Color(0xFFFFFFFF),
     accentBright: Color(0xFF0F766E),
     accentGradientEnd: Color(0xFF0284C7),

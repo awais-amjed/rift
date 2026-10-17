@@ -54,7 +54,7 @@ class _VaultPasswordViewState extends State<VaultPasswordView> {
 
     return OnboardingPage(
       step: 1,
-      stepLabel: 'account',
+      stepLabel: 'Account',
       onBack: isProcessing ? null : back,
       footer: OnboardingFooter(
         onBack: back,

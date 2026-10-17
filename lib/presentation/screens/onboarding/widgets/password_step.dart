@@ -65,10 +65,7 @@ class _PasswordStepState extends State<PasswordStep> {
 
         return OnboardingPage(
           step: 1,
-          stepLabel: 'vault',
-          // Green on a phone, as the badge is: this step claims safety rather
-          // than counting.
-          progressColor: CustomColors.success,
+          stepLabel: 'Vault',
           onBack: isProcessing ? null : widget.onBack,
           footer: OnboardingFooter(
             onBack: widget.onBack,

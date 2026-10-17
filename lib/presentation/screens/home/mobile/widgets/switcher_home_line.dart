@@ -15,8 +15,12 @@ class SwitcherHomeLine extends StatelessWidget {
     final handle = context.select<CentralDmCubit, String?>(
       (c) => c.state.myHandle,
     );
+    final signedIn = context.select<CentralDmCubit, bool>(
+      (c) => c.state.status != CentralDmStatus.signedOut,
+    );
     return CentralIdentityLine(
       handle: handle,
+      signedIn: signedIn,
       onChangeHandle: () => showChangeHandle(context, handle!),
     );
   }

@@ -18,6 +18,10 @@ import '../../../../theme/theme_context.dart';
 class CentralIdentityLine extends StatelessWidget {
   final String? handle;
 
+  /// False while there is no central session at all. The line then says so,
+  /// rather than naming an account that isn't there.
+  final bool signedIn;
+
   /// Asked for when the line is tapped. There is nothing to tap without a
   /// handle, so this is only ever called with one already claimed.
   final VoidCallback onChangeHandle;
@@ -26,11 +30,31 @@ class CentralIdentityLine extends StatelessWidget {
     super.key,
     required this.handle,
     required this.onChangeHandle,
+    this.signedIn = true,
   });
 
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
+    if (!signedIn) {
+      return Row(
+        spacing: 5,
+        children: [
+          Icon(
+            Icons.cloud_off_outlined,
+            size: K.iconTiny,
+            color: themeState.textQuaternary,
+          ),
+          Text(
+            'Not signed in',
+            style: AppText.label.copyWith(
+              fontWeight: FontWeight.w400,
+              color: themeState.textTertiary,
+            ),
+          ),
+        ],
+      );
+    }
     final line = Row(
       spacing: 5,
       children: [

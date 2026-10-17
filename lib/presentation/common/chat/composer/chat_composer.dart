@@ -23,6 +23,7 @@ import '../../../../logic/services/link_preview_fetcher.dart';
 import '../../../../logic/services/link_preview_parser.dart';
 import '../../../../logic/services/mention_suggestions.dart';
 import '../../../../logic/services/voice_note_recorder.dart';
+import '../../../responsive/shell_scope.dart';
 import '../../../theme/app_motion.dart';
 import '../../../theme/theme_context.dart';
 import '../../emoji_text.dart';
@@ -365,8 +366,9 @@ class _ChatComposerState extends State<ChatComposer>
     //
     // The `/` menu still takes space, and should: it only ever opens on an
     // empty composer, where there is no message right above it to hide.
+    final side = context.layoutMode.isCompact ? K.composerSideInsetTouch : 14.0;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
+      padding: EdgeInsets.fromLTRB(side, 4, side, 14),
       child: Builder(
         builder: (context) {
           return CompositedTransformTarget(

@@ -26,6 +26,7 @@ import 'presentation/common/app_toast.dart';
 import 'presentation/common/ducking/ducking_hint_listener.dart';
 import 'presentation/common/notices/notice_listeners.dart';
 import 'presentation/common/title_bar_overlay.dart';
+import 'presentation/responsive/phone_text_scale.dart';
 import 'presentation/routing/app_routes.dart';
 import 'presentation/screens/home/calls/incoming_call_overlay.dart';
 import 'presentation/screens/pip/pip_overlay.dart';
@@ -159,21 +160,23 @@ class _MyAppState extends State<MyApp>
                   // this `MaterialApp` installs — around it there is no theme
                   // to read and every toast fell back to the package's own.
                   builder: EasyLoading.init(
-                    builder: (context, child) => ToastificationWrapper(
-                      // Clear of the title bar: a toast arrives in the same
-                      // corner the window buttons live in.
-                      config: const ToastificationConfig(
-                        alignment: Alignment.topRight,
-                        itemWidth: AppToast.maxWidth,
-                        marginBuilder: _toastMargin,
-                      ),
-                      // Around the navigator, so a ringing call is above
-                      // every page, dialog and sheet — see IncomingCallOverlay.
-                      child: NoticeListeners(
-                        child: DuckingHintListener(
-                          child: PipOverlay(
-                            child: TitleBarOverlay(
-                              child: IncomingCallOverlay(child: child!),
+                    builder: (context, child) => PhoneTextScale(
+                      child: ToastificationWrapper(
+                        // Clear of the title bar: a toast arrives in the same
+                        // corner the window buttons live in.
+                        config: const ToastificationConfig(
+                          alignment: Alignment.topRight,
+                          itemWidth: AppToast.maxWidth,
+                          marginBuilder: _toastMargin,
+                        ),
+                        // Around the navigator, so a ringing call is above
+                        // every page, dialog and sheet — see IncomingCallOverlay.
+                        child: NoticeListeners(
+                          child: DuckingHintListener(
+                            child: PipOverlay(
+                              child: TitleBarOverlay(
+                                child: IncomingCallOverlay(child: child!),
+                              ),
                             ),
                           ),
                         ),
