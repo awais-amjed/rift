@@ -15,6 +15,7 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
   /// through the same path as a click.
   Future<void> connectToChannel({
     required String channelId,
+    String? serverId,
     bool? micEnabled,
     bool? cameraEnabled,
   });
@@ -229,7 +230,12 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
           final here = state.currentChannelId;
           if (here != null) {
             _tokenCubit.invalidateToken(here);
-            unawaited(connectToChannel(channelId: here));
+            unawaited(
+              connectToChannel(
+                channelId: here,
+                serverId: state.currentServerId,
+              ),
+            );
           }
           return;
         }
@@ -260,7 +266,12 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
         final channelId = state.currentChannelId;
         if (channelId != null && VoiceRejoin.rejoinsAfter(e.reason)) {
           _tokenCubit.invalidateToken(channelId);
-          unawaited(connectToChannel(channelId: channelId));
+          unawaited(
+            connectToChannel(
+              channelId: channelId,
+              serverId: state.currentServerId,
+            ),
+          );
           return;
         }
         // A DM call's room is the call's for as long as the row says so, and

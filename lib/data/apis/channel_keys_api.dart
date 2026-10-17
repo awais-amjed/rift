@@ -57,23 +57,26 @@ class ChannelKeysApi {
         ),
       );
 
-  /// List key-distribution work available to the local user.
-  Future<APIResponse> sweepChannelKeys() => _onServer(
-    null,
+  /// List key-distribution work available to the local user on [serverId],
+  /// or the selected server.
+  Future<APIResponse> sweepChannelKeys({String? serverId}) => _onServer(
+    serverId,
     (server, token) =>
         _repository.sweepChannelKeys(server.supabaseUrl, bearerToken: token),
   );
 
   /// Store sealed keyring entries for a key version — a new one when [mint],
-  /// with the [link] that opens the version before it.
+  /// with the [link] that opens the version before it — on [serverId], or the
+  /// selected server.
   Future<APIResponse> postChannelKeys({
     required String channelId,
     required int keyVersion,
     required List<Map<String, dynamic>> entries,
     required bool mint,
     ({String ciphertext, String nonce})? link,
+    String? serverId,
   }) => _onServer(
-    null,
+    serverId,
     (server, token) => _repository.postChannelKeys(
       server.supabaseUrl,
       channelId: channelId,
@@ -85,16 +88,20 @@ class ChannelKeysApi {
     ),
   );
 
-  /// Drop our own keyring rows the channel's links already cover.
-  Future<APIResponse> pruneChannelKeys(String channelId, List<int> versions) =>
-      _onServer(
-        null,
-        (server, token) => _repository.pruneChannelKeys(
-          server.supabaseUrl,
-          anonKey: server.supabaseKey ?? '',
-          bearerToken: token,
-          channelId: channelId,
-          versions: versions,
-        ),
-      );
+  /// Drop our own keyring rows the channel's links already cover, on
+  /// [serverId] or the selected server.
+  Future<APIResponse> pruneChannelKeys(
+    String channelId,
+    List<int> versions, {
+    String? serverId,
+  }) => _onServer(
+    serverId,
+    (server, token) => _repository.pruneChannelKeys(
+      server.supabaseUrl,
+      anonKey: server.supabaseKey ?? '',
+      bearerToken: token,
+      channelId: channelId,
+      versions: versions,
+    ),
+  );
 }

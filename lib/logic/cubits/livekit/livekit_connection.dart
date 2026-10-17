@@ -90,10 +90,16 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
   String? _unresolvedDefault() =>
       _appCubit.state.inputDeviceId == null ? null : _captureDeviceId;
 
-  /// Connects to a LiveKit channel. Server context is resolved internally via
-  /// [_session]; callers only supply the channel and media preferences.
+  /// Connects to a LiveKit channel on [serverId] — named by a rejoin of the
+  /// call already running — or else the server that lists the channel.
+  ///
+  /// Never simply the selected server, which is only where the person is
+  /// looking. A call that drops and rejoins, or a moderator moving somebody,
+  /// happens while they read another server, and a join that asked that one
+  /// got no token and stayed out.
   Future<void> connectToChannel({
     required String channelId,
+    String? serverId,
     bool? micEnabled,
     bool? cameraEnabled,
   }) async {
@@ -116,10 +122,18 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
     // Emit 'connecting' before cleanup so the RoomDisconnectedEvent fired during
     // _cleanupRoom is not misread as an unexpected disconnect and doesn't clear
     // the new channel ID.
+    final session = _session;
+    final server = serverId != null
+        ? session?.serverById(serverId)
+        : session?.serverWithChannel(channelId) ?? session?.selectedServer;
+
     emit(
       state.copyWith(
         connectionState: LiveKitConnectionState.connecting,
         currentChannelId: channelId,
+        currentServerId: server?.id,
+        // So a join with no server cannot keep the last call's.
+        clearServerId: server == null,
         clearDmCall: true,
         clearFailure: true,
       ),
@@ -130,7 +144,6 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
 
     emit(state.copyWith(clearRoom: true));
 
-    final server = _session?.selectedServer;
     if (server == null) {
       emit(
         state.copyWith(
@@ -168,7 +181,10 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       livekitToken = cached.token;
       mintedUrl = cached.livekitUrl;
     } else {
-      final response = await _voiceApi!.getChannelToken(channelId);
+      final response = await _voiceApi!.getChannelToken(
+        channelId,
+        serverId: server.id,
+      );
       if (!response.success) {
         HelperMethods.printDebug(
           '[LiveKit] Failed to get channel token: ${response.error}',
@@ -212,7 +228,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
     // The key before the room. A call joined without one would connect, work,
     // and be readable by the server — the single thing this is here to stop —
     // so there is no unencrypted fallback path to take by accident.
-    final e2ee = await _prepareE2EE(channelId);
+    final e2ee = await _prepareE2EE(channelId, server);
     if (e2ee == null) {
       emit(
         state.copyWith(
@@ -240,6 +256,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       _tokenCubit.invalidateToken(channelId);
       await connectToChannel(
         channelId: channelId,
+        serverId: server.id,
         micEnabled: micEnabled,
         cameraEnabled: cameraEnabled,
       );
@@ -392,11 +409,19 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       // exception used to escape from here, past everything below: nobody saw
       // it while the error had already been shown, but it skipped the second
       // attempt and left "Connecting…" on screen for good.
+      //
+      // Disposed whatever the disconnect did. A disconnect that timed out used
+      // to skip the dispose with it, and the half-joined room went on holding
+      // its tracks and native observers into the next call.
       try {
         await room.disconnect();
-        await room.dispose();
       } catch (e) {
         HelperMethods.printDebug('[LiveKit] teardown after a failed join: $e');
+      }
+      try {
+        await room.dispose();
+      } catch (e) {
+        HelperMethods.printDebug('[LiveKit] dispose after a failed join: $e');
       }
       return mintAgain;
     }

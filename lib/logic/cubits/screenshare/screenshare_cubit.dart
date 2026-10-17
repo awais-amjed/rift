@@ -8,7 +8,6 @@ import 'package:flutter_webrtc/flutter_webrtc.dart' show Helper;
 import '../../../data/classes/notice.dart';
 import '../../../data/classes/screen_share_settings.dart';
 import '../../../data/classes/server_limits.dart';
-import '../../../data/repositories/session_repository.dart';
 import '../../../src/rust/api/screenshare.dart';
 import '../../../src/rust/api/screenshare/types.dart';
 import '../../helper_methods.dart';
@@ -31,17 +30,13 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
   /// Whether the LiveKit SDK captures the screen here, rather than Rust.
   static bool get _sdkCapturesScreen => kIsWeb || HostPlatform.isMobile;
 
-  final SessionRepository _session;
   final LiveKitCubit? _livekitCubit;
 
   StreamSubscription<ScreenshareEvent>? _eventSub;
 
-  ScreenshareCubit({
-    required SessionRepository session,
-    LiveKitCubit? livekitCubit,
-  }) : _session = session,
-       _livekitCubit = livekitCubit,
-       super(const ScreenshareState()) {
+  ScreenshareCubit({LiveKitCubit? livekitCubit})
+    : _livekitCubit = livekitCubit,
+      super(const ScreenshareState()) {
     // Desktop screen sharing runs in Rust; listen for its lifecycle events
     // (e.g. the shared window being closed) so we can stop and update the UI.
     // Nothing to listen to where the SDK is doing the capturing.
@@ -142,10 +137,11 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
         return;
       }
 
-      // Resolve server context
-      final server = _session.selectedServer;
+      // The call's server, not the selected one: the person may be reading
+      // another while the call runs.
+      final server = _livekitCubit?.callServer;
       if (server == null) {
-        _fail('No server selected');
+        _fail('Not in a call');
         return;
       }
 
@@ -427,7 +423,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState> {
     final response = await livekit.shareToken(screenShare: true);
     final livekitUrl =
         response.data?['livekit_url'] as String? ??
-        _session.selectedServer?.livekitUrl;
+        livekit.callServer?.livekitUrl;
     final encryption = livekit.callEncryption;
     if (!response.success || livekitUrl == null || encryption == null) {
       return _endUnmoved(response.error ?? 'the call is not ready');

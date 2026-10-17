@@ -11,6 +11,14 @@ class LiveKitState extends Equatable {
   final Room? room;
   final String? currentChannelId;
 
+  /// The server [currentChannelId] is on, set and cleared with it.
+  ///
+  /// Kept because the call is not where the person is looking. They read
+  /// another server while it runs, and everything the call asks a server for
+  /// afterwards — a rejoin's token, a share's, a rotated key — has to go to
+  /// this one, not to the selection.
+  final String? currentServerId;
+
   /// The DM call this device is in, when the call is one. Never set together
   /// with [currentChannelId]: a call is in a channel or between two people.
   final DmCallPlace? dmCall;
@@ -71,6 +79,7 @@ class LiveKitState extends Equatable {
     this.connectionState = LiveKitConnectionState.disconnected,
     this.room,
     this.currentChannelId,
+    this.currentServerId,
     this.dmCall,
     this.failure,
     this.participants = const [],
@@ -151,6 +160,7 @@ class LiveKitState extends Equatable {
     LiveKitConnectionState? connectionState,
     Room? room,
     String? currentChannelId,
+    String? currentServerId,
     DmCallPlace? dmCall,
     ConnectionFailure? failure,
     List<Participant>? participants,
@@ -169,6 +179,7 @@ class LiveKitState extends Equatable {
     bool clearStreamToOpen = false,
     bool clearRoom = false,
     bool clearChannelId = false,
+    bool clearServerId = false,
     bool clearDmCall = false,
     bool clearFailure = false,
   }) {
@@ -179,6 +190,9 @@ class LiveKitState extends Equatable {
       currentChannelId: clearChannelId
           ? null
           : (currentChannelId ?? this.currentChannelId),
+      currentServerId: clearChannelId || clearServerId
+          ? null
+          : (currentServerId ?? this.currentServerId),
       dmCall: clearDmCall ? null : (dmCall ?? this.dmCall),
       failure: clearFailure ? null : (failure ?? this.failure),
       participants: participants ?? this.participants,
@@ -215,6 +229,7 @@ class LiveKitState extends Equatable {
     connectionState,
     room,
     currentChannelId,
+    currentServerId,
     dmCall,
     failure,
     participants,

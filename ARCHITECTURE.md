@@ -578,6 +578,18 @@ not in. Viewers keep
 watching a stream that drops out and is back within half a minute
 (`WatchResume`), whoever's connection it was that dropped.
 
+**A call belongs to its server, not to the selection.** It carries on while
+its member reads another server, so the call keeps its own
+(`LiveKitState.currentServerId`), and everything it asks a server for names
+that one: a rejoin's token, a share's, the key it loads and the rotations,
+heals and bot seals that follow (`ChannelKeyring` keeps the server it loaded
+from). A join that starts from a channel finds the server listing it
+(`SessionRepository.serverWithChannel`), since a moderator's move or a resumed
+call can arrive while another server is open. Following the selection was a
+real bug: the call's key work went to the server being read, failed there, and
+the call stayed on a key the rest of the room had rotated off — connected,
+with no sound and no streams.
+
 **Media is end-to-end encrypted** with the channel's own key — the same key the
 text keyring seals per member — so the SFU forwards frames it cannot open. DTLS
 protects the hop; this protects the room.

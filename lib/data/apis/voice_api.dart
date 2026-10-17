@@ -19,7 +19,9 @@ class VoiceApi {
   ServerRepository get _repository => _session.repository;
   VoiceRegionProbe get _probe => _session.regionProbe;
 
-  /// Returns a LiveKit JWT for [channelId] on the selected server.
+  /// Returns a LiveKit JWT for [channelId] on [serverId], or the selected
+  /// server. A call names its own: it carries on while the person reads
+  /// another server, and a rejoin or a share's token comes from there.
   ///
   /// Measures which of the server's LiveKit nodes is nearest first, and sends
   /// that along — see [VoiceRegionProbe]. It costs nothing on the usual
@@ -32,9 +34,10 @@ class VoiceApi {
     String channelId, {
     bool screenShare = false,
     bool soundShare = false,
+    String? serverId,
   }) async {
-    final server = _session.selectedServer;
-    if (server == null) return APIResponse.error(_session.noTarget(null));
+    final server = _session.target(serverId);
+    if (server == null) return APIResponse.error(_session.noTarget(serverId));
 
     final preferred = await _probe.nearest(server.id, server.livekitNodes);
     final response = await _session.callFor(

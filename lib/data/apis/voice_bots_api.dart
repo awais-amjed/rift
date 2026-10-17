@@ -97,14 +97,18 @@ class VoiceBotsApi {
   /// this only posts them. Failure is swallowed by the caller on purpose — a
   /// bot short of a key is inaudible until the next member opens the call, and
   /// that is not worth failing somebody's own join over.
+  ///
+  /// [serverId] is the call's server, which the person may have stopped
+  /// looking at; null is the selected one.
   Future<void> postBotVoiceKey({
     required String channelId,
     required String botId,
     required int keyVersion,
     required bool isChannelKey,
     required WrappedKey wrapped,
+    String? serverId,
   }) async {
-    final server = _session.selectedServer;
+    final server = _session.target(serverId);
     final me = server?.user?.id;
     if (server == null || me == null) return;
 
@@ -178,9 +182,13 @@ class VoiceBotsApi {
 
   /// The ids of the bots that can hear [channelId] — for the dialog that
   /// changes them, where [voiceListenersByChannel] is names for the marker
-  /// every member reads.
-  Future<Set<String>> voiceListenerIds(String channelId) async {
-    final rows = await _voiceListenerRows(channelId);
+  /// every member reads. [serverId] names the server for a call the person
+  /// is not looking at.
+  Future<Set<String>> voiceListenerIds(
+    String channelId, {
+    String? serverId,
+  }) async {
+    final rows = await _voiceListenerRows(channelId, serverId: serverId);
     return {for (final row in rows) row['bot_id'] as String};
   }
 

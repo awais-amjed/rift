@@ -34,7 +34,11 @@ mixin _ChatSweepMixin on Cubit<ChannelChatState> {
       // versions. A pass that stored nothing ends it, so a batch that keeps
       // failing is not asked for forever.
       for (var pass = 0; pass < _maxSweepPasses; pass++) {
-        final response = await _channelKeys.sweepChannelKeys();
+        // The server the sweep started on, throughout: the identity above is
+        // that server's, and the selection can move while a pass runs.
+        final response = await _channelKeys.sweepChannelKeys(
+          serverId: server.id,
+        );
         if (!response.success) break;
         final data = response.data as Map<String, dynamic>;
         final work = (data['work'] as List).cast<Map<String, dynamic>>();
@@ -42,7 +46,9 @@ mixin _ChatSweepMixin on Cubit<ChannelChatState> {
         var stored = false;
         for (final job in work) {
           try {
-            if (await _performSweepJob(job, identity)) stored = true;
+            if (await _performSweepJob(job, identity, server.id)) {
+              stored = true;
+            }
           } catch (e) {
             HelperMethods.printDebug('[Chat] sweep job failed: $e');
           }
@@ -61,6 +67,7 @@ mixin _ChatSweepMixin on Cubit<ChannelChatState> {
   Future<bool> _performSweepJob(
     Map<String, dynamic> job,
     ChatIdentity identity,
+    String serverId,
   ) async {
     final channelId = job['channel_id'] as String;
     final version = job['key_version'] as int;
@@ -99,6 +106,7 @@ mixin _ChatSweepMixin on Cubit<ChannelChatState> {
       link: rotate && job['link'] == true
           ? await _linkBack(job, identity, channelId, channelKey, postVersion)
           : null,
+      serverId: serverId,
     );
     // A conflict just means another client won the same race — fine.
     return posted.success;

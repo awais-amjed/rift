@@ -126,6 +126,14 @@ mixin _DmCallConnectMixin on Cubit<LiveKitState>, _E2EEMixin {
     await connectToDmCall(server: server, place: place, mediaKey: key);
   }
 
+  /// The server the call this device is in is on, whichever kind of call.
+  /// What a share reads instead of the selection, which is only where the
+  /// person happens to be looking.
+  Server? get callServer {
+    final id = state.dmCall?.serverId ?? state.currentServerId;
+    return id == null ? null : _session?.serverById(id);
+  }
+
   /// A token for a second connection into the call this device is in — a
   /// screen share or a sound share — from whichever mint the call came from.
   Future<APIResponse> shareToken({
@@ -154,6 +162,9 @@ mixin _DmCallConnectMixin on Cubit<LiveKitState>, _E2EEMixin {
       channelId,
       screenShare: screenShare,
       soundShare: soundShare,
+      // The call's server: a share started while reading another one used
+      // to ask that one, which has no such channel.
+      serverId: state.currentServerId,
     );
   }
 }

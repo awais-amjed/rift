@@ -15,6 +15,11 @@ mixin _KeyringSealingMixin {
   void Function()? get onHealed;
   Map<int, Uint8List> get keys;
 
+  /// The server the keys came from — see [ChannelKeyring._serverId]. Read once
+  /// at the start of each seal, so a ring reloaded mid-seal cannot send the
+  /// rest of it somewhere else.
+  String? get _serverId;
+
   /// Seal each bot the key it publishes with in this voice channel.
   ///
   /// A bot with no listening grant gets [VoiceKeys.forBot] — derived from the
@@ -36,6 +41,7 @@ mixin _KeyringSealingMixin {
   ) async {
     final channelKey = keys[keyVersion];
     if (channelKey == null) return;
+    final serverId = _serverId;
 
     for (final bot in bots) {
       final botId = bot['bot_id'] as String?;
@@ -58,6 +64,7 @@ mixin _KeyringSealingMixin {
             key: sealed.key,
             recipientPublicKey: CryptoRepository.fromBase64(publicKey),
           ),
+          serverId: serverId,
         );
       } catch (e) {
         HelperMethods.printDebug('[Keyring] bot key seal failed: $e');
@@ -74,6 +81,7 @@ mixin _KeyringSealingMixin {
   ) async {
     final channelKey = keys[keyVersion];
     if (channelKey == null) return;
+    final serverId = _serverId;
     try {
       final entries = await _crypto.sealKeyringEntries(
         key: channelKey,
@@ -84,6 +92,7 @@ mixin _KeyringSealingMixin {
         keyVersion: keyVersion,
         entries: entries,
         mint: false,
+        serverId: serverId,
       );
       // Wake the healed members so their waiting screens refetch.
       if (response.success) onHealed?.call();

@@ -80,13 +80,16 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
   /// taken back (BOTS.md §6, §6b).
   Set<String> _callListeningBots = const {};
 
-  Future<Set<String>> _listeningBots(String channelId) async {
+  Future<Set<String>> _listeningBots(String channelId, String? serverId) async {
     final session = _session;
     if (session == null) return const {};
-    return VoiceBotsApi(session: session).voiceListenerIds(channelId);
+    return VoiceBotsApi(
+      session: session,
+    ).voiceListenerIds(channelId, serverId: serverId);
   }
 
-  /// Load the channel's key and build the options `room.connect` takes.
+  /// Load the channel's key from [server], the call's, and build the options
+  /// `room.connect` takes.
   ///
   /// Returns null when there is no key to be had — a locked vault, or a channel
   /// nobody has sealed a key to us for yet. **The caller must refuse to
@@ -94,11 +97,13 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
   /// unencrypted would work, sound fine, and be the exact property this is here
   /// to provide. A call you cannot join is a bug; a call that is quietly
   /// readable is a broken promise.
-  Future<E2EEOptions?> _prepareE2EE(String channelId) async {
+  Future<E2EEOptions?> _prepareE2EE(String channelId, Server server) async {
     final keyring = _keyring;
     if (keyring == null) return null;
 
-    var outcome = await keyring.loadOrBootstrap(channelId);
+    // The ring keeps the server it loads from, so the heals, seals and
+    // rotations that follow go there too, whatever the person reads meanwhile.
+    var outcome = await keyring.loadOrBootstrap(channelId, serverId: server.id);
 
     // Nobody has sealed this channel's key to us yet, which is the ordinary
     // state of a member joining their first call. Somebody online can seal it,
@@ -109,13 +114,12 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
     // "waiting for this channel's key" until another member happened to open
     // that channel by hand, and the "Try again" button could not help, because
     // trying again rang nothing either.
-    final server = _session?.selectedServer;
-    if (outcome.isWaiting && server != null) {
+    if (outcome.isWaiting) {
       // Subscribing before ringing: an unsubscribed doorbell has no client to
       // ring with, and the heal being asked for is announced on the same topic.
       _watchKeyRotations(server, channelId);
       _rotations.ring();
-      outcome = await _awaitHeal(keyring, channelId);
+      outcome = await _awaitHeal(keyring, channelId, server.id);
     }
 
     final key = keyring.currentKey;
@@ -132,7 +136,7 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
 
     _callChannelKey = key;
     _callKeyIndex = VoiceKeys.keyIndex(keyring.currentVersion);
-    _callListeningBots = await _listeningBots(channelId);
+    _callListeningBots = await _listeningBots(channelId, server.id);
 
     // `sharedKey: false` is the whole point — see the class comment.
     final provider = await BaseKeyProvider.create(sharedKey: false);
@@ -171,13 +175,14 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
   Future<KeyringOutcome> _awaitHeal(
     ChannelKeyring keyring,
     String channelId,
+    String serverId,
   ) async {
     final deadline = DateTime.now().add(_healGrace);
     var outcome = const KeyringOutcome.waiting();
     while (DateTime.now().isBefore(deadline)) {
       await Future.delayed(_healPoll);
       if (isClosed) break;
-      outcome = await keyring.loadOrBootstrap(channelId);
+      outcome = await keyring.loadOrBootstrap(channelId, serverId: serverId);
       if (!outcome.isWaiting) return outcome;
     }
     return outcome;
@@ -305,6 +310,7 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
     if (keyring == null || room == null) return;
 
     final before = keyring.currentVersion;
+    // From the server the ring was loaded from, which is the call's.
     await keyring.absorbNewVersions(channelId);
     final after = keyring.currentVersion;
     if (after == before) return;
@@ -317,7 +323,7 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
     // A grant can have changed in the same breath as the rotation — revoking
     // one is what rotates the key — so which bot gets which kind is re-read
     // rather than carried over.
-    _callListeningBots = await _listeningBots(channelId);
+    _callListeningBots = await _listeningBots(channelId, state.currentServerId);
 
     await _registerAllParticipantKeys(room);
     // Registering the keys is half of it: the frame cryptors were told an index

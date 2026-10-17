@@ -4,7 +4,6 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../data/classes/notice.dart';
-import '../../../data/repositories/session_repository.dart';
 import '../../../src/rust/api/screenshare/types.dart';
 import '../../../src/rust/api/soundshare.dart' as rust;
 import '../../helper_methods.dart';
@@ -25,7 +24,6 @@ part 'sound_share_state.dart';
 /// WASAPI, so on a phone and on the web [isSupported] is false and the control
 /// is not offered at all.
 class SoundShareCubit extends Cubit<SoundShareState> {
-  final SessionRepository _session;
   final LiveKitCubit? _livekitCubit;
 
   StreamSubscription<rust.SoundShareEvent>? _eventSub;
@@ -33,12 +31,9 @@ class SoundShareCubit extends Cubit<SoundShareState> {
   /// Whether this platform can share an application's sound.
   static bool get isSupported => HostPlatform.capturesSystemAudio;
 
-  SoundShareCubit({
-    required SessionRepository session,
-    LiveKitCubit? livekitCubit,
-  }) : _session = session,
-       _livekitCubit = livekitCubit,
-       super(const SoundShareState()) {
+  SoundShareCubit({LiveKitCubit? livekitCubit})
+    : _livekitCubit = livekitCubit,
+      super(const SoundShareState()) {
     if (isSupported) {
       _eventSub = rust.soundShareEventStream().listen(_onRustEvent);
     }
@@ -58,9 +53,9 @@ class SoundShareCubit extends Cubit<SoundShareState> {
     emit(state.copyWith(status: SoundShareStatus.connecting));
 
     try {
-      final server = _session.selectedServer;
-
       final livekit = _livekitCubit;
+      // The call's server, not the selected one — see [LiveKitCubit.callServer].
+      final server = livekit?.callServer;
       final channelId = livekit?.state.callKey;
       if (livekit == null || channelId == null) {
         return _fail('Not in a call');

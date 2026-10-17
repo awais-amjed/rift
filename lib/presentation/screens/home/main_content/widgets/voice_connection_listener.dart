@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/repositories/session_repository.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
-import '../../../../../logic/cubits/server/server_cubit.dart';
 
 /// Joins the voice channel [AppCubit] has selected, and leaves when it is
 /// cleared.
@@ -24,21 +24,27 @@ class VoiceConnectionListener extends StatelessWidget {
           prev.selectedChannelId != curr.selectedChannelId,
       listener: (context, appState) {
         final livekitCubit = context.read<LiveKitCubit>();
-        final server = context.read<ServerCubit>().state.selectedServer;
+        final channelId = appState.selectedChannelId;
 
-        if (appState.selectedChannelId == null) {
+        if (channelId == null) {
           // A DM call clears the channel as it starts, because a device is in
           // one call at a time — that is a switch, not somebody leaving.
           if (livekitCubit.state.dmCall == null) livekitCubit.disconnect();
           return;
         }
 
+        // The channel's own server, which is the selected one for a click but
+        // not for a moderator moving you while you read another server.
+        final session = context.read<SessionRepository>();
+        final server =
+            session.serverWithChannel(channelId) ?? session.selectedServer;
         if (server == null) return;
         if (server.user == null) return;
         if (server.livekitUrl == null) return;
 
         livekitCubit.connectToChannel(
-          channelId: appState.selectedChannelId!,
+          channelId: channelId,
+          serverId: server.id,
           micEnabled: appState.audioEnabled,
           cameraEnabled: appState.videoEnabled,
         );

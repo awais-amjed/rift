@@ -67,6 +67,17 @@ class ChannelKeyring with _KeyringSealingMixin {
   @override
   final Map<int, Uint8List> keys = {};
 
+  /// The server [keys] came from, which every later fetch, heal and seal for
+  /// them goes to.
+  ///
+  /// Not the selected server. A call goes on while its member reads another
+  /// one, and a ring that followed the selection asked that other server for
+  /// the call's channel: the rotation and the heals went nowhere, and the call
+  /// stayed on a key everybody else had left — no sound, no streams, and a
+  /// `channel_not_found` in the wrong server's log.
+  @override
+  String? _serverId;
+
   /// The newest version this client holds a key for. 0 means none yet.
   int currentVersion = 0;
 
@@ -84,6 +95,7 @@ class ChannelKeyring with _KeyringSealingMixin {
   void clear() {
     keys.clear();
     currentVersion = 0;
+    _serverId = null;
   }
 
   Future<ChatIdentity?> chatIdentity(Server server) async {
@@ -147,10 +159,10 @@ class ChannelKeyring with _KeyringSealingMixin {
   /// network failure must not cost it the keys it already holds.
   ///
   /// [serverId] names the server for a reader who is not looking at it — a
-  /// reviewer opening reports on another server's page. Null is the selected
-  /// one, which is every other caller.
+  /// reviewer opening reports on another server's page. Null is the server
+  /// the ring was loaded from, or the selected one before it was loaded.
   Future<bool> absorbNewVersions(String channelId, {String? serverId}) async {
-    final server = _session.target(serverId);
+    final server = _session.target(serverId ?? _serverId);
     if (server == null) return false;
     final identity = await chatIdentity(server);
     if (identity == null) return false;
@@ -219,7 +231,10 @@ class ChannelKeyring with _KeyringSealingMixin {
     final version = currentVersion;
     if (!keys.containsKey(version)) return;
 
-    final response = await _channelKeys.getChannelKey(channelId);
+    final response = await _channelKeys.getChannelKey(
+      channelId,
+      serverId: _serverId,
+    );
     if (!response.success) return;
 
     final data = response.data as Map<String, dynamic>;
@@ -229,15 +244,20 @@ class ChannelKeyring with _KeyringSealingMixin {
     await sealBotKeys(channelId, version, bots);
   }
 
-  /// Fetch + unwrap the keyring for [channelId]; bootstrap v1 when the channel
-  /// has no key yet; heal members missing current-version entries.
-  Future<KeyringOutcome> loadOrBootstrap(String channelId) async {
+  /// Fetch + unwrap the keyring for [channelId] on [serverId], or the
+  /// selected server; bootstrap v1 when the channel has no key yet; heal
+  /// members missing current-version entries.
+  Future<KeyringOutcome> loadOrBootstrap(
+    String channelId, {
+    String? serverId,
+  }) async {
     clear();
 
-    final server = _session.selectedServer;
+    final server = _session.target(serverId);
     if (server == null) {
       return const KeyringOutcome.failed(ChatFailure.noServer());
     }
+    _serverId = server.id;
     final identity = await chatIdentity(server);
     if (identity == null) {
       return const KeyringOutcome.failed(ChatFailure.vaultLocked());
@@ -246,7 +266,10 @@ class ChannelKeyring with _KeyringSealingMixin {
     // Bootstrap can race another member: retry once on conflict, using the
     // winner's keyring.
     for (var attempt = 0; attempt < 2; attempt++) {
-      final response = await _channelKeys.getChannelKey(channelId);
+      final response = await _channelKeys.getChannelKey(
+        channelId,
+        serverId: server.id,
+      );
       if (!response.success) {
         return KeyringOutcome.failed(ChatFailure.fromResponse(response));
       }
@@ -287,7 +310,13 @@ class ChannelKeyring with _KeyringSealingMixin {
       // from it, and nothing newer links down to it yet.
       final droppable = covered.where((v) => v < version).toList();
       if (droppable.isNotEmpty) {
-        unawaited(_channelKeys.pruneChannelKeys(channelId, droppable));
+        unawaited(
+          _channelKeys.pruneChannelKeys(
+            channelId,
+            droppable,
+            serverId: server.id,
+          ),
+        );
       }
 
       if (!keys.containsKey(version)) return const KeyringOutcome.waiting();
@@ -329,6 +358,7 @@ class ChannelKeyring with _KeyringSealingMixin {
       keyVersion: 1,
       entries: entries,
       mint: true,
+      serverId: _serverId,
     );
 
     if (response.success) {

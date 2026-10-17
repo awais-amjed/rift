@@ -85,6 +85,22 @@ class SessionRepository {
     return null;
   }
 
+  /// The server that lists [channelId], the selected one first.
+  ///
+  /// Where a voice call is, which is not always where the person is looking:
+  /// a moderator moves them, or Restart to update brings their call back,
+  /// while they read another server.
+  Server? serverWithChannel(String channelId) {
+    bool lists(Server server) =>
+        server.channels.any((channel) => channel.id == channelId);
+    final selected = selectedServer;
+    if (selected != null && lists(selected)) return selected;
+    for (final server in _list) {
+      if (lists(server)) return server;
+    }
+    return null;
+  }
+
   /// The server a call is about: [serverId] when the caller named one, the
   /// selection when it didn't. A page that can open for a server other than
   /// the current one names it, or its form writes to the wrong server.
