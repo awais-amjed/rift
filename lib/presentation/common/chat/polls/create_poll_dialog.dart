@@ -24,11 +24,19 @@ typedef PollPoster =
 ///
 /// The words are sealed like any message. What the server is told is only
 /// how many answers there are, whether several may be picked, and when it
-/// closes — the rules it enforces.
+/// closes — the rules it enforces. In a channel whose encryption is off the
+/// words go in the clear like the rest of it, and the subtitle says so.
 class CreatePollDialog extends StatefulWidget {
   final PollPoster onPost;
 
-  const CreatePollDialog({super.key, required this.onPost});
+  /// The channel's encryption is off, so the server can read the poll.
+  final bool notEncrypted;
+
+  const CreatePollDialog({
+    super.key,
+    required this.onPost,
+    this.notEncrypted = false,
+  });
 
   @override
   State<CreatePollDialog> createState() => _CreatePollDialogState();
@@ -106,7 +114,9 @@ class _CreatePollDialogState extends State<CreatePollDialog> {
     final label = AppText.sectionLabel.copyWith(color: themeState.textTertiary);
     return AppModal(
       title: 'Create poll',
-      subtitle: 'Only the people in this channel can read it',
+      subtitle: widget.notEncrypted
+          ? 'Encryption is off here, so the server can read it'
+          : 'Only the people in this channel can read it',
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -210,7 +220,8 @@ class _CreatePollDialogState extends State<CreatePollDialog> {
 Future<void> showCreatePollDialog(
   BuildContext context, {
   required PollPoster onPost,
+  bool notEncrypted = false,
 }) => showAppModal<void>(
   context: context,
-  modal: CreatePollDialog(onPost: onPost),
+  modal: CreatePollDialog(onPost: onPost, notEncrypted: notEncrypted),
 );

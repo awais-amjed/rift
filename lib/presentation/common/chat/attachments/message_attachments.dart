@@ -13,10 +13,17 @@ import 'audio_message_player.dart';
 class MessageAttachments extends StatelessWidget {
   final List<Attachment> attachments;
   final AttachmentLoader loader;
+
+  /// The message is a member's in a channel whose encryption is off, where
+  /// the header and composer already say nothing is encrypted. A file there
+  /// gets no pill of its own, as the message gets no badge.
+  final bool inPlainChannel;
+
   const MessageAttachments({
     super.key,
     required this.attachments,
     required this.loader,
+    this.inPlainChannel = false,
   });
 
   Widget _body(Attachment a) => switch (a.kind) {
@@ -56,7 +63,8 @@ class MessageAttachments extends StatelessWidget {
         children: [
           // Keyed by attachment so each keeps its own state — an in-flight
           // fetch, a playback position — if the message's list ever shifts.
-          for (final a in attachments) a.isEncrypted ? _body(a) : _plain(a),
+          for (final a in attachments)
+            a.isEncrypted || inPlainChannel ? _body(a) : _plain(a),
         ],
       ),
     );

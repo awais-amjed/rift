@@ -4,7 +4,7 @@ part of 'channel_chat_cubit.dart';
 /// counts current.
 ///
 /// A poll is two halves. Its question and options are sealed in the body
-/// like any message; its rules — how many options, one pick or several, when
+/// like any message (in the clear where the channel's encryption is off); its rules — how many options, one pick or several, when
 /// it closes — are on the row in the clear, because the server enforces them.
 /// Votes are counted by the server and read back as totals: nothing here, or
 /// anywhere a member can reach, learns who voted for what.

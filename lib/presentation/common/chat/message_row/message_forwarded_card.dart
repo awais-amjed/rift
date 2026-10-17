@@ -30,10 +30,14 @@ class MessageForwardedCard extends StatelessWidget {
   /// for this surface is the right one.
   final AttachmentLoader? attachmentLoader;
 
+  /// See [MessageAttachments.inPlainChannel]: the message carrying the card.
+  final bool inPlainChannel;
+
   const MessageForwardedCard({
     super.key,
     required this.forwarded,
     this.attachmentLoader,
+    this.inPlainChannel = false,
   });
 
   @override
@@ -75,6 +79,7 @@ class MessageForwardedCard extends StatelessWidget {
               MessageAttachments(
                 attachments: forwarded.attachments,
                 loader: loader,
+                inPlainChannel: inPlainChannel,
               ),
           ],
         ),

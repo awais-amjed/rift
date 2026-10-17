@@ -243,7 +243,7 @@ channel manager can turn it off for a public text channel
 voice stay encrypted; closing a channel turns it back on.
 
 While it is off, members post their messages in the clear (`key_version = 0`) in
-the same body they would have sealed, files uploaded as they are, and still
+the same body they would have sealed, polls included, files uploaded as they are, and still
 signed, so the server cannot put words under anybody's name. The key never
 changes there, so bans cost nothing; members are still sealed the key, so what was
 encrypted before the switch stays readable to whoever joins, and turning it back
@@ -253,7 +253,8 @@ bare text, so an older client shows the words rather than the body's JSON.
 The danger is a server switching it off quietly, so every switch posts who did it
 in the channel, and every client draws the channel as "Not encrypted" — an amber
 chip in the header, a notice over the composer — from the flag the server sends.
-Those stand in for the per-message badge, which would otherwise be on every row.
+Those stand in for the per-message badge, which would otherwise be on every row,
+and for the NOT ENCRYPTED pill a file sent unencrypted carries elsewhere.
 The client also holds the line the database does: a private or voice channel is
 encrypted whatever the server says (`Channel.isEncrypted`), since whoever runs the
 database can skip its own rule, and the system message with it.
@@ -524,7 +525,7 @@ these live in; they are sealed there too, but not excluded yet. See
   reading the message; the operator learns who was addressed, not what was said.
 - **Reactions, pins and poll votes are visible** to the server: who reacted with what, which
   messages are pinned, and who picked which option *number* of a poll. The question and the
-  options are sealed in the body; the rules the server enforces (how many options, one pick or
+  options are sealed in the body (in the clear where a channel's encryption is off); the rules the server enforces (how many options, one pick or
   several, when it closes) are in the clear on the row (`messages.poll`). Members read a poll's
   totals only — `poll_votes` shows each member their own rows — which hides a ballot from the
   room, not from whoever runs the server.

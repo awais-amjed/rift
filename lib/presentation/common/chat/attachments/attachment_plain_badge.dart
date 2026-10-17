@@ -8,7 +8,8 @@ import '../../../theme/theme_context.dart';
 /// Says a file was sent unencrypted: the server holds its bytes, not a
 /// ciphertext. The same pill as `MessageOriginBadge`, and like it always
 /// shown, with no setting. The message around it is still sealed, so the
-/// pill sits on the file rather than the message.
+/// pill sits on the file rather than the message. Not drawn in a channel
+/// whose encryption is off, where nothing is sealed and the header says so.
 class AttachmentPlainBadge extends StatelessWidget {
   const AttachmentPlainBadge({super.key});
 

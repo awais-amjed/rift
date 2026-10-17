@@ -445,6 +445,7 @@ class _ChatMessageRowState extends State<ChatMessageRow>
             MessageForwardedCard(
               forwarded: forwarded,
               attachmentLoader: widget.attachmentLoader,
+              inPlainChannel: message.inPlainChannel,
             ),
           if (message.text.isNotEmpty)
             GuardedMessageText(
@@ -492,6 +493,7 @@ class _ChatMessageRowState extends State<ChatMessageRow>
           MessageAttachments(
             attachments: message.attachments,
             loader: widget.attachmentLoader!,
+            inPlainChannel: message.inPlainChannel,
           ),
         if (message.preview case final preview? when preview.hasContent)
           LinkPreviewCard(preview: preview, loader: widget.attachmentLoader),
