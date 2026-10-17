@@ -16,11 +16,17 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 flutter pub get >/dev/null
+# A package from pub is an absolute file:// URI; one kept in third_party (as
+# livekit_client is) is a path relative to .dart_tool/.
 livekit=$(python3 -c '
-import json
+import json, os
 for p in json.load(open(".dart_tool/package_config.json"))["packages"]:
     if p["name"] == "livekit_client":
-        print(p["rootUri"].removeprefix("file://"))
+        uri = p["rootUri"]
+        if uri.startswith("file://"):
+            print(uri.removeprefix("file://"))
+        else:
+            print(os.path.normpath(os.path.join(".dart_tool", uri)))
 ')
 dart compile js "$livekit/web/e2ee.worker.dart" \
   --packages=.dart_tool/package_config.json \
