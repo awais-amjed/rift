@@ -109,3 +109,25 @@ release by hand. Its first start finds the old copy (its uninstall key,
 prompt, before it registers the `rift://` scheme and notifications again. A
 refused prompt is remembered and not asked again. Settings and servers live in
 `%AppData%`, which neither install owns, so they carry over.
+
+## The web app
+
+`web.joinrift.app` is the Pages project `rift-web` on the joinrift.app
+Cloudflare account. Pages cannot build Flutter, so the build is made here and
+uploaded:
+
+```bash
+scripts/build_web.sh
+wrangler pages deploy build/web --project-name rift-web --branch production
+```
+
+with `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` set. Deploy from a
+clean checkout of a commit that has been pushed, so the deployment names it.
+
+Flutter's file names carry no version, so browsers must ask for each file
+again or a deploy reaches them half at a time. `web/_headers` (copied into the
+build) says so, but on `web.joinrift.app` the zone's Browser Cache TTL replaces
+it with four hours for `.js` and `.wasm`. A response-header Transform Rule on
+the zone, "web app: revalidate every file", sets `Cache-Control: no-cache` for
+that host after it. Check it after a deploy:
+`curl -sI https://web.joinrift.app/main.dart.js` shows `no-cache`.
