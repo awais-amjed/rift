@@ -22,6 +22,11 @@ mixin _ChannelChatPollsMixin on Cubit<ChannelChatState> {
 
   /// Post a poll asking [body], open for [duration].
   ///
+  /// [notEncrypted] is what the dialog told its author. A poll they were told
+  /// only the channel could read is not sent in the clear because encryption
+  /// went off while they wrote it: it is refused, and the dialog, which now
+  /// says so, can post it again.
+  ///
   /// Not drawn until the server has it. A pending row is how an ordinary
   /// message appears at once, and it works because the text is the whole of
   /// it; a poll is also its rules, and the closing time the server settles on
@@ -30,6 +35,7 @@ mixin _ChannelChatPollsMixin on Cubit<ChannelChatState> {
     PollBody body, {
     required bool multiple,
     required Duration duration,
+    required bool notEncrypted,
   }) async {
     final channelId = state.channelId;
     final server = _session.selectedServer;
@@ -41,6 +47,17 @@ mixin _ChannelChatPollsMixin on Cubit<ChannelChatState> {
         user == null ||
         (key == null && !plain) ||
         state.status != ChannelChatStatus.ready) {
+      return false;
+    }
+    if (plain && !notEncrypted) {
+      emit(
+        state.copyWith(
+          notice: Notice.error(
+            'Encryption was turned off in this channel. Post again to send '
+            'the poll anyway.',
+          ),
+        ),
+      );
       return false;
     }
 

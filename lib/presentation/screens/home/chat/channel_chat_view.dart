@@ -176,10 +176,7 @@ class _ChannelChatViewState extends State<ChannelChatView>
                         (ChannelChatCubit c) => c.state.bots,
                       ),
                       onCreatePoll: _canCreatePoll(context)
-                          ? _pollOpener(
-                              context,
-                              notEncrypted: _notEncrypted(context),
-                            )
+                          ? () => _createPoll(context)
                           : null,
                       onMentionSearch: (query) =>
                           _searchMentionable(context, query),
@@ -267,22 +264,24 @@ class _ChannelChatViewState extends State<ChannelChatView>
     );
   }
 
-  /// Opens the poll dialog. [notEncrypted] is read during build, where
-  /// `_notEncrypted` may watch the channel; a tap handler cannot.
-  VoidCallback _pollOpener(
-    BuildContext context, {
-    required bool notEncrypted,
-  }) => () {
+  void _createPoll(BuildContext context) {
     final cubit = context.read<ChannelChatCubit>();
+    final channelId = cubit.state.channelId;
+    if (channelId == null) return;
     unawaited(
       showCreatePollDialog(
         context,
-        notEncrypted: notEncrypted,
-        onPost: (body, multiple, duration) =>
-            cubit.sendPoll(body, multiple: multiple, duration: duration),
+        channelId: channelId,
+        onPost: (body, multiple, duration, {required notEncrypted}) =>
+            cubit.sendPoll(
+              body,
+              multiple: multiple,
+              duration: duration,
+              notEncrypted: notEncrypted,
+            ),
       ),
     );
-  };
+  }
 
   void _forward(
     BuildContext context,

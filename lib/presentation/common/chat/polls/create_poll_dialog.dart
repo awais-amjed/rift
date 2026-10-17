@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/classes/poll.dart';
+import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/services/poll_ops.dart';
 import '../../../screens/settings/widgets/setting_toggle_row.dart';
 import '../../../theme/app_text.dart';
@@ -13,8 +15,15 @@ import '../../chip_selector.dart';
 import '../../row_delete_button.dart';
 
 /// Posts the poll; answers whether it went out, so the dialog knows to close.
+/// [notEncrypted] is what the dialog said when it was pressed, so a poll
+/// promised to the channel alone is never sent in the clear.
 typedef PollPoster =
-    Future<bool> Function(PollBody body, bool multiple, Duration duration);
+    Future<bool> Function(
+      PollBody body,
+      bool multiple,
+      Duration duration, {
+      required bool notEncrypted,
+    });
 
 /// Over the widget budget and one job: the poll form, whose parts are four
 /// inputs that only mean something together.
@@ -25,17 +34,19 @@ typedef PollPoster =
 /// The words are sealed like any message. What the server is told is only
 /// how many answers there are, whether several may be picked, and when it
 /// closes — the rules it enforces. In a channel whose encryption is off the
-/// words go in the clear like the rest of it, and the subtitle says so.
+/// words go in the clear like the rest of it, and the subtitle says so. It is
+/// watched rather than read once: the dialog covers the header's chip, so a
+/// switch made while it is open would otherwise go unseen.
 class CreatePollDialog extends StatefulWidget {
   final PollPoster onPost;
 
-  /// The channel's encryption is off, so the server can read the poll.
-  final bool notEncrypted;
+  /// The channel the poll is for.
+  final String channelId;
 
   const CreatePollDialog({
     super.key,
     required this.onPost,
-    this.notEncrypted = false,
+    required this.channelId,
   });
 
   @override
@@ -58,6 +69,9 @@ class _CreatePollDialogState extends State<CreatePollDialog> {
   /// short enough that it is still the question when it closes.
   int _duration = PollOps.durations.indexOf(const Duration(days: 1));
   bool _posting = false;
+
+  /// What the subtitle last said, which is what posting is held to.
+  bool _shownNotEncrypted = false;
 
   List<String> get _filled => [
     for (final option in _options)
@@ -99,6 +113,7 @@ class _CreatePollDialogState extends State<CreatePollDialog> {
       PollBody(question: _question.text.trim(), options: _filled),
       _multiple,
       PollOps.durations[_duration],
+      notEncrypted: _shownNotEncrypted,
     );
     if (!mounted) return;
     if (posted) {
@@ -112,9 +127,18 @@ class _CreatePollDialogState extends State<CreatePollDialog> {
   Widget build(BuildContext context) {
     final themeState = context.theme;
     final label = AppText.sectionLabel.copyWith(color: themeState.textTertiary);
+    final notEncrypted = context.select(
+      (ServerCubit c) =>
+          c.state.selectedServer?.channels
+              .where((ch) => ch.id == widget.channelId)
+              .firstOrNull
+              ?.isEncrypted ==
+          false,
+    );
+    _shownNotEncrypted = notEncrypted;
     return AppModal(
       title: 'Create poll',
-      subtitle: widget.notEncrypted
+      subtitle: notEncrypted
           ? 'Encryption is off here, so the server can read it'
           : 'Only the people in this channel can read it',
       content: Column(
@@ -220,8 +244,8 @@ class _CreatePollDialogState extends State<CreatePollDialog> {
 Future<void> showCreatePollDialog(
   BuildContext context, {
   required PollPoster onPost,
-  bool notEncrypted = false,
+  required String channelId,
 }) => showAppModal<void>(
   context: context,
-  modal: CreatePollDialog(onPost: onPost, notEncrypted: notEncrypted),
+  modal: CreatePollDialog(onPost: onPost, channelId: channelId),
 );
