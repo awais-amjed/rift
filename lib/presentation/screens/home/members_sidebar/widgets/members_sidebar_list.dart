@@ -43,6 +43,10 @@ class MembersSidebarList extends StatefulWidget {
   /// for want of an answer, so everyone is listed under one busy heading,
   /// none of them dimmed, instead of all under Offline.
   final bool onlineKnown;
+
+  /// False while the server is out of reach, when no answer is coming: the
+  /// one heading stays, without the dots that say one is on its way.
+  final bool reachable;
   final String? myId;
 
   /// Asked for when the list is scrolled near its end. Safe to fire often —
@@ -55,6 +59,7 @@ class MembersSidebarList extends StatefulWidget {
     required this.roster,
     required this.onlineIds,
     required this.onlineKnown,
+    this.reachable = true,
     required this.myId,
     required this.onLoadMore,
   });
@@ -117,7 +122,7 @@ class _MembersSidebarListState extends State<MembersSidebarList> {
           members: split.offline,
           drawn: drawn,
           total: roster.peopleCount.clamp(split.offline.length, 1 << 30),
-          busy: true,
+          busy: widget.reachable,
         )
       else ...[
         ..._group(label: 'Online', members: split.online, drawn: drawn),

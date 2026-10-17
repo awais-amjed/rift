@@ -14,6 +14,7 @@ import '../../../data/classes/server.dart';
 import '../../../data/participant_identity.dart';
 import '../../../data/repositories/session_repository.dart';
 import '../../../data/repositories/voice_region_probe.dart';
+import '../../helper_methods.dart';
 import '../../services/call_start_times.dart';
 import '../../services/presence_ration.dart';
 import '../../services/server_realtime.dart';
@@ -85,6 +86,10 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
   bool _onlineKnown = false;
   bool _rosterRead = false;
 
+  /// When the server was opened, for the log line that says how long
+  /// presence took to answer ([_syncPresence]).
+  DateTime? _openedAt;
+
   /// When each occupied channel's call began — see [CallStartTimes].
   CallStartTimes _starts = const CallStartTimes();
 
@@ -150,6 +155,7 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
     _currentServerId = server.id;
     _currentUserId = server.user?.id;
     _subscribed = false;
+    _openedAt ??= DateTime.now();
     _startTrackingSession();
     final realtime = _session.realtime;
     final topic = realtime.join(
@@ -219,6 +225,7 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
       _online = const {};
       _onlineKnown = false;
       _rosterRead = false;
+      _openedAt = null;
       _starts = const CallStartTimes();
       _regionLoad = const {};
       emit(const ChannelPresenceState());
@@ -352,6 +359,12 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
       }
     }
     _names = names;
+    if (!_onlineKnown && _openedAt != null) {
+      // The wait the member list shows dots for, from opening the server to
+      // the first answer: the joins' own lines say which part of it they were.
+      final waited = DateTime.now().difference(_openedAt!).inMilliseconds;
+      HelperMethods.printDebug('Presence: first answer after $waited ms');
+    }
     _onlineKnown = true;
     // The same set when nobody came or went, so a reader can select it by
     // identity: the member list does, and every move between voice channels

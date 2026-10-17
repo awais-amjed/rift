@@ -42,6 +42,7 @@ void main() {
     WidgetTester tester, {
     required bool known,
     Set<String> online = const {},
+    bool reachable = true,
   }) {
     return tester.pumpWidget(
       MultiBlocProvider(
@@ -58,6 +59,7 @@ void main() {
                 roster: roster,
                 onlineIds: online,
                 onlineKnown: known,
+                reachable: reachable,
                 myId: 'm0',
                 onLoadMore: () {},
               ),
@@ -93,6 +95,16 @@ void main() {
     expect(find.textContaining('ONLINE'), findsNothing);
     expect(find.byType(LoadingDots), findsOneWidget);
     expect(rowOpacities(tester), everyElement(1.0));
+  });
+
+  testWidgets('a server out of reach gets no dots, since no answer is coming', (
+    tester,
+  ) async {
+    await pump(tester, known: false, reachable: false);
+
+    expect(find.text('MEMBERS — 6'), findsOneWidget);
+    expect(find.byType(LoadingDots), findsNothing);
+    expect(find.textContaining('OFFLINE'), findsNothing);
   });
 
   testWidgets('once it answers, the list splits as before', (tester) async {

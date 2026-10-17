@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
+import '../../../../../logic/cubits/server_reach/server_reach_cubit.dart';
 import '../../../../common/loading_dots.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
@@ -23,6 +24,9 @@ class SwitcherServerLine extends StatelessWidget {
     final online = context.select<ChannelPresenceCubit, int?>(
       (c) => c.state.onlineKnown ? c.state.onlineUserIds.length : null,
     );
+    final reachable = context.select<ServerReachCubit, bool>(
+      (c) => c.state.unreachableName == null,
+    );
     return Row(
       spacing: 5,
       children: [
@@ -32,9 +36,10 @@ class SwitcherServerLine extends StatelessWidget {
           color: context.theme.statusInk(CustomColors.success),
         ),
         // Not "0 online" while presence has yet to answer.
-        if (online == null)
-          LoadingDots(color: theme.textQuaternary, dotSize: 3)
-        else
+        if (online == null) ...[
+          // Out of reach, there is no count to wait for.
+          if (reachable) LoadingDots(color: theme.textQuaternary, dotSize: 3),
+        ] else
           Text(
             '$online online',
             style: AppText.label.copyWith(color: theme.textTertiary),

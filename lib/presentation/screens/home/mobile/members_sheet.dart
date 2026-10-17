@@ -7,6 +7,7 @@ import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/server_members/server_members_cubit.dart';
+import '../../../../logic/cubits/server_reach/server_reach_cubit.dart';
 import '../../../common/loading_dots.dart';
 import '../../../common/popover_surface.dart';
 import '../../../common/sheet_handle.dart';
@@ -90,6 +91,9 @@ class _MembersSheet extends StatelessWidget {
                     roster: roster,
                     onlineIds: presence.onlineUserIds,
                     onlineKnown: presence.onlineKnown,
+                    reachable: context.select(
+                      (ServerReachCubit c) => c.state.unreachableName == null,
+                    ),
                     myId: myId,
                     onLoadMore: () => unawaited(
                       context.read<ServerMembersCubit>().loadMorePeople(),

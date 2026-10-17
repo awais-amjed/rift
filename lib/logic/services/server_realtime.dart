@@ -194,6 +194,9 @@ class ServerRealtime {
     // [_follow] sends the join when it lands.
     if (connection.tokenExpired) {
       joined.awaitingToken = true;
+      HelperMethods.printDebug(
+        'Realtime: ${joined.name.split(':').first} waits for a fresh token',
+      );
       return;
     }
     _sendJoin(connection, joined);
@@ -353,8 +356,19 @@ class ServerRealtime {
       _markReachable(serverId, reachable: !down);
     }
 
+    // The first open only, beside the joins' own times: a join is timed from
+    // when it was sent, and one sent before the socket opened waits for it.
+    final started = DateTime.now();
+    var opened = false;
     socket
-      ..onOpen(() => mark(down: false))
+      ..onOpen(() {
+        if (!opened) {
+          opened = true;
+          final waited = DateTime.now().difference(started).inMilliseconds;
+          HelperMethods.printDebug('Realtime: socket open after $waited ms');
+        }
+        mark(down: false);
+      })
       ..onError((_) => mark(down: true))
       ..onClose((_) {
         if (socket.connState == SocketStates.closed) mark(down: true);

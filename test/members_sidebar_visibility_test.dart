@@ -7,6 +7,7 @@ import 'package:rift/logic/cubits/app/app_cubit.dart';
 import 'package:rift/logic/cubits/channel_presence/channel_presence_cubit.dart';
 import 'package:rift/logic/cubits/server/server_cubit.dart';
 import 'package:rift/logic/cubits/server_members/server_members_cubit.dart';
+import 'package:rift/logic/cubits/server_reach/server_reach_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/presentation/screens/home/members_sidebar/members_sidebar.dart';
 import 'package:rift/presentation/screens/home/sidebar/widgets/sidebar_resize_handle.dart';
@@ -83,6 +84,12 @@ Future<void> _pump(
                 create: (_) => _StubPresenceCubit(),
               ),
               BlocProvider<ServerCubit>(create: (_) => _StubServerCubit()),
+              BlocProvider<ServerReachCubit>(
+                create: (_) => ServerReachCubit(
+                  unreachable: ValueNotifier(const <String>{}),
+                  selected: const Stream.empty(),
+                ),
+              ),
               BlocProvider<ServerMembersCubit>(
                 create: (_) => _StubMembersCubit(),
               ),

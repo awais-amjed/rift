@@ -7,6 +7,7 @@ import '../../../../../data/enums/server_permission.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../logic/cubits/server_reach/server_reach_cubit.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../responsive/shell_scope.dart';
 import '../create_channel_dialog.dart';
@@ -42,6 +43,10 @@ class ChannelList extends StatelessWidget {
     // call, and this list only needs to know when the first answer is in.
     final voiceKnown = context.select(
       (ChannelPresenceCubit c) => c.state.voiceKnown,
+    );
+    // Out of reach, no answer is coming, and dots would say one is.
+    final reachable = context.select(
+      (ServerReachCubit c) => c.state.unreachableName == null,
     );
 
     // A ban leaves your permissions untouched — it only stops any of them
@@ -129,7 +134,7 @@ class ChannelList extends StatelessWidget {
                   SliverToBoxAdapter(
                     child: SectionHeader(
                       label: 'Voice',
-                      busy: !voiceKnown,
+                      busy: !voiceKnown && reachable,
                       addTooltip: 'Create voice channel',
                       onAdd: canCreate
                           ? () => openCreateChannel(ChannelType.voice)

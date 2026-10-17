@@ -8,6 +8,7 @@ import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/server_members/server_members_cubit.dart';
+import '../../../../logic/cubits/server_reach/server_reach_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/services/sidebar_sizing.dart';
 import '../../../common/app_panel.dart';
@@ -217,6 +218,9 @@ class _MembersSidebarState extends State<MembersSidebar> {
     final onlineKnown = context.select(
       (ChannelPresenceCubit c) => c.state.onlineKnown,
     );
+    final reachable = context.select(
+      (ServerReachCubit c) => c.state.unreachableName == null,
+    );
     final roster = context.watch<ServerMembersCubit>().state;
 
     return Column(
@@ -242,6 +246,7 @@ class _MembersSidebarState extends State<MembersSidebar> {
                   roster: roster,
                   onlineIds: onlineIds,
                   onlineKnown: onlineKnown,
+                  reachable: reachable,
                   myId: myId,
                   onLoadMore: () => unawaited(
                     context.read<ServerMembersCubit>().loadMorePeople(),
