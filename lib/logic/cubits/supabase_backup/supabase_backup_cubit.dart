@@ -16,6 +16,7 @@ import '../vault/vault_cubit.dart';
 
 part 'supabase_backup_account_recovery.dart';
 part 'supabase_backup_auth.dart';
+part 'supabase_backup_delete.dart';
 part 'supabase_backup_password.dart';
 part 'supabase_backup_password_reset.dart';
 part 'supabase_backup_restore.dart';
@@ -43,6 +44,7 @@ part 'supabase_backup_transfer.dart';
 class SupabaseBackupCubit extends Cubit<SupabaseBackupState>
     with
         _SupabaseBackupAuthMixin,
+        _SupabaseBackupDeleteMixin,
         _SupabaseBackupRestoreMixin,
         _SupabaseBackupTransferMixin,
         _SupabaseBackupPasswordMixin,

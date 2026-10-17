@@ -161,6 +161,17 @@ signed in under 24 hours ago). The seed is re-wrapped from memory and a new
 recovery key is shown, since whoever forgot the password has probably lost
 the key too.
 
+**Deleting the account** (Settings → Account & backup) is central's
+`delete_account`. It asks for the password again and signs in with it, because the
+function refuses a session that did not begin with a password in the last ten
+minutes: a phone left unlocked is not enough to destroy an account. Every central
+row cascades from the Auth user, so the function empties the person's Storage
+folders (the backup, DM files, bug-report logs, directory icons), then deletes the
+user. The servers on the device are untouched, since they never belonged to the
+account, and the device re-wraps its seed under the typed password, the one a
+vault with no account opens with. The person's DM partners lose those
+conversations too, because each one is a single shared record.
+
 Central also runs the **public server directory** (opt-in, each listing proved by
 a token the server's admin mints) and the **push relay**, which exists because an
 FCM token is scoped to the app's Firebase project, so a self-hosted server cannot

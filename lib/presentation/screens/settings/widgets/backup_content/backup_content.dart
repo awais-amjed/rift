@@ -9,6 +9,7 @@ import 'auth_panel.dart';
 import 'change_password_panel.dart';
 import 'confirm_email_panel.dart';
 import 'conflict_panel.dart';
+import 'delete_account_section.dart';
 import 'file_backup_panel.dart';
 import 'recovery_key_panel.dart';
 import 'signed_in_panel.dart';
@@ -93,6 +94,10 @@ class _BackupBody extends StatelessWidget {
               signedIn: state.isSignedIn,
               onResetVault: onResetVault,
             ),
+            if (state.isSignedIn && state.email != null) ...[
+              const SectionDivider(),
+              DeleteAccountSection(email: state.email!),
+            ],
           ],
         );
       },

@@ -252,6 +252,53 @@ class SupabaseBackupRepository {
     }
   }
 
+  /// Deletes the signed-in account and everything central holds for it
+  /// (`delete_account`): the profile, DMs, contacts, listings and the backup.
+  ///
+  /// Signs in again with [password] (the auth verifier) first, because the
+  /// function refuses a session that did not start with a password minutes
+  /// ago — an unlocked phone is not enough to destroy an account. Afterwards
+  /// only this device's session is dropped: the server has no user left to
+  /// sign out of, and the other devices find out when theirs cannot refresh.
+  Future<APIResponse> deleteAccount({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      await _client.auth.signInWithPassword(email: email, password: password);
+      await _client.functions.invoke('delete_account');
+    } on AuthException catch (e) {
+      return _authFailure(e);
+    } on FunctionException catch (e) {
+      if (CentralFailure.isUnreachable(e)) return CentralFailure.response(e);
+      final detail = e.details;
+      final code = detail is Map && detail['error'] != null
+          ? '${detail['error']}'
+          : 'unexpected_error';
+      return APIResponse(
+        success: false,
+        error: _deleteFailure(code),
+        errorCode: code,
+      );
+    } catch (e) {
+      return CentralFailure.response(e);
+    }
+    try {
+      await _client.auth.signOut(scope: SignOutScope.local);
+    } catch (_) {
+      // The account is gone either way; a session left on disk cannot
+      // refresh, and the next start drops it.
+    }
+    return APIResponse.success(null);
+  }
+
+  static String _deleteFailure(String code) => switch (code) {
+    'reauthentication_needed' => 'Sign in again, then try once more.',
+    'moderator_account' => 'A moderator account cannot be deleted here.',
+    'not_authenticated' => 'You are signed out. Sign in, then try again.',
+    _ => "Couldn't delete the account. Try again in a moment.",
+  };
+
   // ── Backup ────────────────────────────────────────────────
 
   /// Uploads (upserts) the encrypted backup for the current user.
