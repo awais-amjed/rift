@@ -55,6 +55,7 @@ void main() {
                 appState: appState,
                 roster: roster,
                 onlineIds: online,
+                onlineKnown: true,
                 myId: 'm0',
                 onLoadMore: () {},
               ),

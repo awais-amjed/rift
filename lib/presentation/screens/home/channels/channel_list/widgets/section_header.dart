@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../../data/constants.dart';
+import '../../../../../common/loading_dots.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
 
@@ -17,11 +18,16 @@ class SectionHeader extends StatelessWidget {
 
   final String addTooltip;
 
+  /// Still finding out what goes under it: who is online, who is in a call.
+  /// Without it an empty group and one not yet heard from look the same.
+  final bool busy;
+
   const SectionHeader({
     super.key,
     required this.label,
     this.onAdd,
     this.addTooltip = 'Create',
+    this.busy = false,
   });
 
   @override
@@ -32,11 +38,22 @@ class SectionHeader extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Text(
-              label.toUpperCase(),
-              style: AppText.sectionLabel.copyWith(
-                color: themeState.textTertiary,
-              ),
+            child: Row(
+              spacing: 8,
+              children: [
+                Flexible(
+                  child: Text(
+                    label.toUpperCase(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.sectionLabel.copyWith(
+                      color: themeState.textTertiary,
+                    ),
+                  ),
+                ),
+                if (busy)
+                  LoadingDots(color: themeState.textQuaternary, dotSize: 3),
+              ],
             ),
           ),
           if (onAdd != null) _AddButton(onTap: onAdd!, tooltip: addTooltip),

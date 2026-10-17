@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
+import '../../../../common/loading_dots.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../../../theme/theme_context.dart';
@@ -19,8 +20,8 @@ class SwitcherServerLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    final online = context.select<ChannelPresenceCubit, int>(
-      (c) => c.state.onlineUserIds.length,
+    final online = context.select<ChannelPresenceCubit, int?>(
+      (c) => c.state.onlineKnown ? c.state.onlineUserIds.length : null,
     );
     return Row(
       spacing: 5,
@@ -30,10 +31,14 @@ class SwitcherServerLine extends StatelessWidget {
           size: K.iconTiny,
           color: context.theme.statusInk(CustomColors.success),
         ),
-        Text(
-          '$online online',
-          style: AppText.label.copyWith(color: theme.textTertiary),
-        ),
+        // Not "0 online" while presence has yet to answer.
+        if (online == null)
+          LoadingDots(color: theme.textQuaternary, dotSize: 3)
+        else
+          Text(
+            '$online online',
+            style: AppText.label.copyWith(color: theme.textTertiary),
+          ),
       ],
     );
   }

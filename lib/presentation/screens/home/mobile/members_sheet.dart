@@ -89,6 +89,7 @@ class _MembersSheet extends StatelessWidget {
                     appState: appState,
                     roster: roster,
                     onlineIds: presence.onlineUserIds,
+                    onlineKnown: presence.onlineKnown,
                     myId: myId,
                     onLoadMore: () => unawaited(
                       context.read<ServerMembersCubit>().loadMorePeople(),

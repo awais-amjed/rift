@@ -214,6 +214,9 @@ class _MembersSidebarState extends State<MembersSidebar> {
     final onlineIds = context.select(
       (ChannelPresenceCubit c) => c.state.onlineUserIds,
     );
+    final onlineKnown = context.select(
+      (ChannelPresenceCubit c) => c.state.onlineKnown,
+    );
     final roster = context.watch<ServerMembersCubit>().state;
 
     return Column(
@@ -238,6 +241,7 @@ class _MembersSidebarState extends State<MembersSidebar> {
                   appState: appState,
                   roster: roster,
                   onlineIds: onlineIds,
+                  onlineKnown: onlineKnown,
                   myId: myId,
                   onLoadMore: () => unawaited(
                     context.read<ServerMembersCubit>().loadMorePeople(),

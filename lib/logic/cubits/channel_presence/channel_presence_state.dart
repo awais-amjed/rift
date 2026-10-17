@@ -45,11 +45,24 @@ class ChannelPresenceState extends Equatable {
   /// reading from `SessionRepository.regionProbe`, which is where it lands.
   final Map<String, RegionLoad> regionLoad;
 
+  /// Whether presence has answered since the server was opened. Until it has,
+  /// [onlineUserIds] is empty because nothing is known yet, not because
+  /// nobody is there, and the member list says it is still looking instead
+  /// of drawing everyone offline.
+  final bool onlineKnown;
+
+  /// Whether [channelPresence] is the picture yet: presence has answered and
+  /// so has a roster read. Before both, an empty voice channel may only be
+  /// one we have not heard about.
+  final bool voiceKnown;
+
   const ChannelPresenceState({
     this.channelPresence = const {},
     this.onlineUserIds = const {},
     this.callStartedAt = const {},
     this.regionLoad = const {},
+    this.onlineKnown = false,
+    this.voiceKnown = false,
   });
 
   List<PresenceUser> usersIn(String channelId) =>
@@ -91,5 +104,7 @@ class ChannelPresenceState extends Equatable {
     SetProp(onlineUserIds),
     callStartedAt,
     regionLoad,
+    onlineKnown,
+    voiceKnown,
   ];
 }

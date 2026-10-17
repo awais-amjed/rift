@@ -38,6 +38,11 @@ class MembersSidebarList extends StatefulWidget {
   final AppState appState;
   final ServerMembersState roster;
   final Set<String> onlineIds;
+
+  /// Whether presence has answered yet. Until it has, [onlineIds] is empty
+  /// for want of an answer, so everyone is listed under one busy heading,
+  /// none of them dimmed, instead of all under Offline.
+  final bool onlineKnown;
   final String? myId;
 
   /// Asked for when the list is scrolled near its end. Safe to fire often —
@@ -49,6 +54,7 @@ class MembersSidebarList extends StatefulWidget {
     required this.appState,
     required this.roster,
     required this.onlineIds,
+    required this.onlineKnown,
     required this.myId,
     required this.onLoadMore,
   });
@@ -65,7 +71,7 @@ class MembersSidebarList extends StatefulWidget {
 /// by identity, which the cubits keep for anything that did not change.
 typedef _RowInputs = ({
   ServerMember member,
-  bool isOnline,
+  bool? isOnline,
   bool isMe,
   ParticipantSetting? setting,
   Role? role,
@@ -103,21 +109,33 @@ class _MembersSidebarListState extends State<MembersSidebarList> {
       // Each row still shows whether it is connected — for a bot that is "is
       // it running", which is worth seeing.
       ..._group(label: 'Bots', members: split.bots, drawn: drawn),
-      ..._group(label: 'Online', members: split.online, drawn: drawn),
-      ..._group(
-        label: 'Offline',
-        members: split.offline,
-        drawn: drawn,
-        // What the server says, not what has been scrolled to. The people
-        // count excludes bots and banned members, and everybody not in the
-        // online set is offline whether or not their page has arrived.
-        total: (roster.peopleCount - split.online.length).clamp(
-          split.offline.length,
-          // A count that has not loaded yet must never read as *fewer* than
-          // the rows already on screen.
-          1 << 30,
+      if (!widget.onlineKnown)
+        // The same alphabetical window Offline is, under a heading that
+        // claims nothing about anybody yet.
+        ..._group(
+          label: 'Members',
+          members: split.offline,
+          drawn: drawn,
+          total: roster.peopleCount.clamp(split.offline.length, 1 << 30),
+          busy: true,
+        )
+      else ...[
+        ..._group(label: 'Online', members: split.online, drawn: drawn),
+        ..._group(
+          label: 'Offline',
+          members: split.offline,
+          drawn: drawn,
+          // What the server says, not what has been scrolled to. The people
+          // count excludes bots and banned members, and everybody not in the
+          // online set is offline whether or not their page has arrived.
+          total: (roster.peopleCount - split.online.length).clamp(
+            split.offline.length,
+            // A count that has not loaded yet must never read as *fewer*
+            // than the rows already on screen.
+            1 << 30,
+          ),
         ),
-      ),
+      ],
       if (roster.hasMorePeople) const _Entry.footer(),
     ];
     final placeOf = <Key, int>{
@@ -150,14 +168,21 @@ class _MembersSidebarListState extends State<MembersSidebarList> {
     if (member == null) {
       return entry.label == null
           ? ListLoadingFooter(key: entry.key)
-          : SectionHeader(key: entry.key, label: entry.label!);
+          : SectionHeader(
+              key: entry.key,
+              label: entry.label!,
+              busy: entry.busy,
+            );
     }
     final _RowInputs inputs = (
       member: member,
       // Takes the online set rather than a flag, because the Bots group holds
       // both — its rows are grouped by *being a bot* and lit by whether that
       // bot is currently connected.
-      isOnline: widget.onlineIds.contains(member.id),
+      isOnline: widget.onlineKnown
+          ? widget.onlineIds.contains(member.id)
+          // Nobody's answer is in yet, but this one needs none.
+          : (member.id == widget.myId ? true : null),
       isMe: member.id == widget.myId,
       setting: widget.appState.participantSettings[member.id],
       role: widget.roster.topRoleFor(member.id),
@@ -189,10 +214,11 @@ class _MembersSidebarListState extends State<MembersSidebarList> {
     required List<ServerMember> members,
     required Set<String> drawn,
     int? total,
+    bool busy = false,
   }) {
     if (members.isEmpty) return const [];
     return [
-      _Entry.header('$label — ${total ?? members.length}', label),
+      _Entry.header('$label — ${total ?? members.length}', label, busy: busy),
       for (final member in members)
         if (drawn.add(member.id)) _Entry.member(member),
     ];
@@ -210,9 +236,17 @@ class _Entry {
   /// Which group a header heads. Its label carries a count, which changes.
   final String? group;
 
-  const _Entry.header(this.label, this.group) : member = null;
-  const _Entry.member(this.member) : label = null, group = null;
-  const _Entry.footer() : label = null, member = null, group = null;
+  /// A header over a group still being found out ([SectionHeader.busy]).
+  final bool busy;
+
+  const _Entry.header(this.label, this.group, {this.busy = false})
+    : member = null;
+  const _Entry.member(this.member) : label = null, group = null, busy = false;
+  const _Entry.footer()
+    : label = null,
+      member = null,
+      group = null,
+      busy = false;
 
   static Key memberKey(String id) => ValueKey('member:$id');
 

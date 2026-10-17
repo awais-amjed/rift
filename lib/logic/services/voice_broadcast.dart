@@ -54,6 +54,11 @@ class VoiceBroadcast {
   int _epoch = 0;
   bool _disposed = false;
 
+  /// Whether a roster read has answered, or failed, since this was built.
+  /// Until then an empty channel may only be one we have not heard about.
+  bool get rosterRead => _rosterRead;
+  bool _rosterRead = false;
+
   /// The one second look at the roster — see [recheckAfter].
   Timer? _recheck;
 
@@ -104,6 +109,12 @@ class VoiceBroadcast {
         });
       },
     )?..onBroadcast(VoiceLocations.event, _onDelta);
+    // Read now as well, not only once the topic is joined. The read is an
+    // ordinary request, and a server answers a socket's joins one at a time,
+    // so the voice topic can be seconds behind the others; the sidebar had
+    // no calls to draw until it was. The read after the join still comes,
+    // for whatever moved before the deltas could reach us.
+    if (_topic != null) unawaited(_snapshot());
   }
 
   /// Read the roster again shortly: someone left our call and never said so
@@ -181,7 +192,16 @@ class VoiceBroadcast {
     _heard.clear();
     final roster = await fetchRoster();
     // A newer snapshot started while this one was out, or we were torn down.
-    if (roster == null || _disposed || epoch != _epoch) return;
+    if (_disposed || epoch != _epoch) return;
+    if (roster == null) {
+      // Nothing more to wait for: the deltas are all there will be.
+      if (!_rosterRead) {
+        _rosterRead = true;
+        onChanged();
+      }
+      return;
+    }
+    _rosterRead = true;
     _locations = VoiceLocations.mergeSnapshot(
       roster.locations,
       current: _locations,

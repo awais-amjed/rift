@@ -26,7 +26,10 @@ import 'role_chip.dart';
 /// per user and apply the next time you share a voice channel.
 class MemberRow extends StatelessWidget {
   final ServerMember member;
-  final bool isOnline;
+
+  /// Null until presence has answered: drawn at full strength with no dot,
+  /// since dimming somebody says they are offline, which nobody knows yet.
+  final bool? isOnline;
   final bool isMe;
   final ParticipantSetting? setting;
 
@@ -91,7 +94,7 @@ class MemberRow extends StatelessWidget {
     // Offline members stay on the list but recede — the roster should be a
     // stable thing you can right-click, not a list that reshuffles as people
     // come and go.
-    final dim = isOnline ? 1.0 : 0.4;
+    final dim = isOnline == false ? 0.4 : 1.0;
 
     return Opacity(
       opacity: dim,
@@ -148,21 +151,22 @@ class MemberRow extends StatelessWidget {
           size: 28,
         ),
         // Presence dot, ringed in the panel colour so it reads as a cut-out.
-        Positioned(
-          right: -1,
-          bottom: -1,
-          child: Container(
-            width: 9,
-            height: 9,
-            decoration: BoxDecoration(
-              color: isOnline
-                  ? CustomColors.userStatusOnline
-                  : themeState.textQuaternary,
-              shape: BoxShape.circle,
-              border: Border.all(color: themeState.bgSecondary, width: 2),
+        if (isOnline != null)
+          Positioned(
+            right: -1,
+            bottom: -1,
+            child: Container(
+              width: 9,
+              height: 9,
+              decoration: BoxDecoration(
+                color: isOnline!
+                    ? CustomColors.userStatusOnline
+                    : themeState.textQuaternary,
+                shape: BoxShape.circle,
+                border: Border.all(color: themeState.bgSecondary, width: 2),
+              ),
             ),
           ),
-        ),
       ],
     );
   }

@@ -5,6 +5,7 @@ import '../../../../../data/classes/channel.dart';
 import '../../../../../data/enums/channel_type.dart';
 import '../../../../../data/enums/server_permission.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../responsive/shell_scope.dart';
@@ -37,6 +38,11 @@ class ChannelList extends StatelessWidget {
         .toList();
 
     final me = context.watch<ServerCubit>().state.selectedServer?.user;
+    // Selected, not watched: presence moves several times a second in a busy
+    // call, and this list only needs to know when the first answer is in.
+    final voiceKnown = context.select(
+      (ChannelPresenceCubit c) => c.state.voiceKnown,
+    );
 
     // A ban leaves your permissions untouched — it only stops any of them
     // working — so a banned channel manager was still being offered the "+"
@@ -123,6 +129,7 @@ class ChannelList extends StatelessWidget {
                   SliverToBoxAdapter(
                     child: SectionHeader(
                       label: 'Voice',
+                      busy: !voiceKnown,
                       addTooltip: 'Create voice channel',
                       onAdd: canCreate
                           ? () => openCreateChannel(ChannelType.voice)

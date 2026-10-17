@@ -79,6 +79,12 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
   Map<String, String> _names = const {};
   Set<String> _online = const {};
 
+  /// What has answered since the server was opened — see
+  /// [ChannelPresenceState.onlineKnown]. Kept through a rebuild, like the
+  /// state it vouches for.
+  bool _onlineKnown = false;
+  bool _rosterRead = false;
+
   /// When each occupied channel's call began — see [CallStartTimes].
   CallStartTimes _starts = const CallStartTimes();
 
@@ -211,6 +217,8 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
     if (!isClosed && !keepState) {
       _names = const {};
       _online = const {};
+      _onlineKnown = false;
+      _rosterRead = false;
       _starts = const CallStartTimes();
       _regionLoad = const {};
       emit(const ChannelPresenceState());
@@ -344,6 +352,7 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
       }
     }
     _names = names;
+    _onlineKnown = true;
     // The same set when nobody came or went, so a reader can select it by
     // identity: the member list does, and every move between voice channels
     // would otherwise redraw it.
@@ -393,6 +402,8 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
       excluding: _session.selectedServer?.user?.id,
     );
 
+    if (_voice?.rosterRead ?? false) _rosterRead = true;
+
     final sharing = _voice?.sharing ?? const <String>{};
     final rosters = <String, List<PresenceUser>>{};
     for (final entry in byChannel.entries) {
@@ -413,6 +424,8 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
         onlineUserIds: _online,
         callStartedAt: _starts.started,
         regionLoad: _regionLoad,
+        onlineKnown: _onlineKnown,
+        voiceKnown: _onlineKnown && _rosterRead,
       ),
     );
   }
