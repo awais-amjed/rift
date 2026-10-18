@@ -56,14 +56,23 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+    }
 
-        // The ABIs an APK carries, when scripts/build_android.sh names them
-        // (-P riftAbis=arm64-v8a). Flutter's --target-platform limits only
-        // Flutter's and Rust's libraries: every plugin's prebuilt ones came
-        // for all three ABIs, so an APK "for" two still held x86_64 libraries,
-        // and a device that chose x86_64 for them found no Flutter there.
-        (project.findProperty("riftAbis") as String?)?.let { abis ->
-            ndk { abiFilters += abis.split(",") }
+    // The ABIs an APK carries, when scripts/build_android.sh names them
+    // (-P riftAbis=arm64-v8a). Flutter's --target-platform limits only
+    // Flutter's and Rust's libraries: every plugin's prebuilt ones came for
+    // all three ABIs, so an APK "for" two still held x86_64 libraries, and a
+    // device that chose x86_64 for them found no Flutter there. Excluded at
+    // packaging rather than with ndk.abiFilters, which the Flutter plugin
+    // clears and fills with every ABI it supports.
+    (project.findProperty("riftAbis") as String?)?.let { abis ->
+        val keep = abis.split(",")
+        packaging {
+            jniLibs {
+                listOf("arm64-v8a", "armeabi-v7a", "x86_64", "x86")
+                    .filterNot { it in keep }
+                    .forEach { excludes += "**/$it/*.so" }
+            }
         }
     }
 
