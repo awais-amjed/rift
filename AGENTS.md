@@ -287,9 +287,15 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
 - **A widget learns its server from `ServerScope`, never from the selection.** It builds its
   `data/apis` class from `ServerScope.of(context)` (`read` in a callback) and asks
   `ServerState.serverOn`, `meOn` or `permissionsOn(ServerScope.idOf(context))` about it —
-  hoisted out of a `select`, which runs again outside the build. None of them falls back on
+  hoisted out of a `select`, which runs again outside the build. Ask in a `select`, never in
+  a `BlocBuilder`'s `buildWhen`: a builder keeps the last state its filter let through, so a
+  filter holding the old id kept out the change that added and selected a server, and the
+  header and dock looked the new one up in a list from before it existed
+  (`test/scope_follows_new_server_test.dart`). None of them falls back on
   the selected server; only what chooses, marks or switches the selection reads it, and the
-  guard test lists those.
+  guard test lists those. A dialog that moves the selection while it is open — joining a
+  server from Add server — still carries the scope it opened in, so what it asks about the
+  new server it names by id.
   `SelectedServerScope`, round the navigator, makes the selected server the default for every
   page, dialog and menu; what is about another server provides its own over it. Manage server
   does, for the server it opened on, and so does the call (`CallServerScope`, round the grid and

@@ -41,41 +41,42 @@ class UserDock extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeState = context.theme;
     final serverId = ServerScope.idOf(context);
-    return BlocBuilder<ServerCubit, ServerState>(
-      buildWhen: (a, b) => a.meOn(serverId) != b.meOn(serverId),
-      builder: (context, serverState) {
-        final user = serverState.meOn(serverId);
+    // Selected with the id this build was given, not filtered by a
+    // `buildWhen` holding the last one: a builder only takes a new state
+    // when its filter lets one through, so the server just joined was looked
+    // up in the list from before it existed, and the dock read "Guest".
+    final user = context.select<ServerCubit, ServerUser?>(
+      (cubit) => cubit.state.meOn(serverId),
+    );
 
-        return Container(
-          margin: const EdgeInsets.all(10),
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: themeState.bgHover,
-            borderRadius: BorderRadius.circular(K.radiusCard),
-            border: Border.all(color: themeState.borderElevated),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+    return Container(
+      margin: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: themeState.bgHover,
+        borderRadius: BorderRadius.circular(K.radiusCard),
+        border: Border.all(color: themeState.borderElevated),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (showCall) const DockCallPanel(),
+          Row(
+            spacing: 9,
             children: [
-              if (showCall) const DockCallPanel(),
-              Row(
-                spacing: 9,
-                children: [
-                  DockAvatarButton(
-                    user: user,
-                    onTap: () => showAppModal<bool>(
-                      context: context,
-                      modal: const ProfileEditModal(),
-                    ),
-                  ),
-                  Expanded(child: _buildIdentity(themeState, user)),
-                  _buildControls(context),
-                ],
+              DockAvatarButton(
+                user: user,
+                onTap: () => showAppModal<bool>(
+                  context: context,
+                  modal: const ProfileEditModal(),
+                ),
               ),
+              Expanded(child: _buildIdentity(themeState, user)),
+              _buildControls(context),
             ],
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 

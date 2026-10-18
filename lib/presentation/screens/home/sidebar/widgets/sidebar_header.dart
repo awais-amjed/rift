@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/classes/server.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
@@ -25,27 +26,29 @@ class SidebarHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final serverId = ServerScope.idOf(context);
-    return BlocBuilder<ServerCubit, ServerState>(
-      buildWhen: (a, b) => a.serverOn(serverId) != b.serverOn(serverId),
-      builder: (context, serverState) {
-        final server = serverState.serverOn(serverId);
-        if (server == null) {
-          return NoServerButton(onTap: () => showAddServerDialog(context));
-        }
+    // Selected with the id this build was given, not filtered by a
+    // `buildWhen` holding the last one: a builder only takes a new state when
+    // its filter lets one through, so a server just joined was looked up in
+    // the list from before it existed and the header read "No server
+    // selected" over its channels.
+    final server = context.select<ServerCubit, Server?>(
+      (cubit) => cubit.state.serverOn(serverId),
+    );
+    if (server == null) {
+      return NoServerButton(onTap: () => showAddServerDialog(context));
+    }
 
-        return Column(
-          children: [
-            ServerHeader(
-              server: server,
-              showHideButton: showHideButton,
-              onInvite: (server.user?.permissions.canCreateTokens ?? false)
-                  ? () => showInviteModal(context, server: server)
-                  : null,
-            ),
-            JumpField(onTap: () => openQuickSwitcher(context)),
-          ],
-        );
-      },
+    return Column(
+      children: [
+        ServerHeader(
+          server: server,
+          showHideButton: showHideButton,
+          onInvite: (server.user?.permissions.canCreateTokens ?? false)
+              ? () => showInviteModal(context, server: server)
+              : null,
+        ),
+        JumpField(onTap: () => openQuickSwitcher(context)),
+      ],
     );
   }
 }
