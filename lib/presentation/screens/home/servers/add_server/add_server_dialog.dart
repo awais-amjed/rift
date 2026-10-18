@@ -75,7 +75,10 @@ class _AddServerDialogState extends State<AddServerDialog> {
       if (!mounted) return;
       if (listed) return _handleSuccess();
     }
-    setState(() => _joined = true);
+    setState(() {
+      _joined = true;
+      _newServerId = _invite!.serverId;
+    });
     _go(_Step.publish);
   }
 
@@ -84,6 +87,9 @@ class _AddServerDialogState extends State<AddServerDialog> {
   /// Whether the publish step follows a join rather than a create, which is
   /// all that changes what it is headed.
   bool _joined = false;
+
+  /// The server the publish step is about: the one just joined or created.
+  String? _newServerId;
 
   void _join(ResolvedInvite invite, {required bool fromBrowser}) =>
       setState(() {
@@ -134,11 +140,15 @@ class _AddServerDialogState extends State<AddServerDialog> {
       // one *as its admin* — see [_handleJoined]. An ordinary joiner is not
       // asked, because it is not their call to make.
       _Step.create => CreateServerModal(
-        onSuccess: () => _go(_Step.publish),
+        onSuccess: (serverId) => setState(() {
+          _newServerId = serverId;
+          _step = _Step.publish;
+        }),
         onCancel: () => _go(_Step.pick),
       ),
       _Step.publish => PublishNewServerModal(
         onDone: _handleSuccess,
+        serverId: _newServerId!,
         joined: _joined,
       ),
     };

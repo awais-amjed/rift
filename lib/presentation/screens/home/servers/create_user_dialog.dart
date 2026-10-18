@@ -15,6 +15,7 @@ import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 
 /// Dialog shown when user joins a server and needs to create a profile.
+/// Pops the new server's id once it is on the list, or null.
 class CreateUserDialog extends StatefulWidget {
   final String supabaseUrl;
   final String inviteCode;
@@ -76,18 +77,22 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
     // Step 2: Persist the new server (token + full context) into HydratedBloc.
     final data = result.data!;
     final token = data['token'] as String;
-    context.read<ServerCubit>().addServer(widget.supabaseUrl, token, data);
+    final server = context.read<ServerCubit>().addServer(
+      widget.supabaseUrl,
+      token,
+      data,
+    );
 
     HelperMethods.showSuccess(
       message: data['rejoined'] == true
           ? 'Signed back in to your account'
           : 'Account created',
     );
-    Navigator.of(context).pop(true);
+    Navigator.of(context).pop(server.id);
   }
 
   void _dismiss() {
-    if (!_isLoading) Navigator.of(context).pop(false);
+    if (!_isLoading) Navigator.of(context).pop();
   }
 
   @override

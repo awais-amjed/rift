@@ -25,8 +25,9 @@ import 'widgets/credential_group.dart';
 /// step — as it already changes title and subtitle.
 class CreateServerModal extends StatefulWidget {
   /// The server exists and the caller is registered on it as admin — not that
-  /// the flow is over. Creating a server has one more question to ask.
-  final VoidCallback onSuccess;
+  /// the flow is over. Creating a server has one more question to ask. Called
+  /// with the new server's id.
+  final ValueChanged<String> onSuccess;
 
   final VoidCallback onCancel;
 
@@ -110,7 +111,7 @@ class _CreateServerModalState extends State<CreateServerModal> {
     if (!mounted) return;
 
     // Register as admin using the single-use invite code generated for us.
-    final registered = await showDialog<bool>(
+    final serverId = await showDialog<String>(
       context: context,
       barrierDismissible: false,
       builder: (_) =>
@@ -121,7 +122,7 @@ class _CreateServerModalState extends State<CreateServerModal> {
 
     // No toast: the step this hands off to opens with "Server created" as its
     // title, and saying it twice in two places at once reads as two events.
-    if (registered == true) widget.onSuccess();
+    if (serverId != null) widget.onSuccess(serverId);
   }
 
   @override
