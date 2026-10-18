@@ -28,8 +28,8 @@
 #
 # The workflow keeps the Android APK and app bundle with its run instead of
 # publishing them, signed only with the debug key. This downloads them, signs
-# both with the keystore android/key.properties names, attaches the APK to the
-# release and leaves the bundle in build/release/ for Google Play. The keystore
+# them with the keystore android/key.properties names, attaches the APKs to
+# the release and leaves the bundle in build/release/ for Google Play. The keystore
 # is the one Play is given as the app signing key, so an install from either
 # place updates the other.
 set -euo pipefail
@@ -136,8 +136,8 @@ sign_android_dir() {
 sign_android() {
   local tag=$1 version=${1#v}
   sign_android_dir "$work/android"
-  gh release upload "$tag" -R "$repo" --clobber "$work/android/rift-$version-android.apk"
-  echo "android: APK uploaded"
+  gh release upload "$tag" -R "$repo" --clobber "$work"/android/*.apk
+  echo "android: APKs uploaded"
   mkdir -p build/release
   cp -f "$work/android/rift-$version-android.aab" build/release/
   echo "android: bundle for Google Play in build/release/rift-$version-android.aab"

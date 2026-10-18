@@ -39,15 +39,19 @@ each platform (`scripts/vpk_pack.sh`):
   system would start the app and lose the sensitive-image check without
   saying so. It uses GTK 3, libsecret, GStreamer, PulseAudio (PipeWire's
   stands in) and Ayatana AppIndicator from the system.
-- `rift-<version>-android.apk` and `rift-<version>-android.aab`, the APK
-  people download and the app bundle Google Play takes, built by
-  `scripts/build_android.sh`. These are not published by the workflow: it has
-  no keystore, so Gradle signs them with the debug key, and they wait with the
-  run until `scripts/sign_release.sh` signs them (below). The APK holds both
-  ARM ABIs, so nobody has to pick one, and leaves x86_64 to the bundle. It does not update itself; Play installs
-  are updated by Play. The build writes `android/app/google-services.json`
-  from the `GOOGLE_SERVICES_JSON` secret (the file, base64), since the file
-  is gitignored and the Google services plugin will not build without it.
+- `rift-<version>-android.apk`, the APK the website offers, holding both ARM
+  ABIs so nobody has to pick one; `rift-<version>-android-<abi>.apk` for
+  arm64-v8a, armeabi-v7a and x86_64, for whoever knows which they need; and
+  `rift-<version>-android.aab`, the app bundle Google Play takes, with all
+  three. Built by `scripts/build_android.sh`, every APK with the same
+  versionCode, so any of them updates any other and Play's build updates
+  them all. These are not published by the workflow: it has no keystore, so
+  Gradle signs them with the debug key, and they wait with the run until
+  `scripts/sign_release.sh` signs them (below). An APK does not update
+  itself; Play installs are updated by Play. The build writes
+  `android/app/google-services.json` from the `GOOGLE_SERVICES_JSON` secret
+  (the file, base64), since the file is gitignored and the Google services
+  plugin will not build without it.
 
 Run by hand from the Actions tab, the workflow builds the same files and keeps
 them with the run instead of publishing anything. It was first run that way on
@@ -68,10 +72,10 @@ It shows what each feed offers, asks, signs with the release key from the
 system keyring, checks the signature and uploads `releases.<channel>.json.sig`
 beside the feed. It needs `gh` signed in to the GitHub account.
 
-It signs the Android build in the same pass. It downloads the APK and the
-bundle from the release's workflow run, signs both with the keystore that
+It signs the Android build in the same pass. It downloads the APKs and the
+bundle from the release's workflow run, signs them with the keystore that
 `android/key.properties` names (a symlink to where the keystore lives),
-attaches the APK to the release, and leaves the bundle in `build/release/`
+attaches the APKs to the release, and leaves the bundle in `build/release/`
 to upload to Google Play by hand: a beta to a testing track, a release to
 production. It finds `apksigner` in the newest Android build tools and the
 JDK Flutter uses. Play is given this same key as the app signing key ("use
