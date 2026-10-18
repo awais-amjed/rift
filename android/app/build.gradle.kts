@@ -56,6 +56,15 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // The ABIs an APK carries, when scripts/build_android.sh names them
+        // (-P riftAbis=arm64-v8a). Flutter's --target-platform limits only
+        // Flutter's and Rust's libraries: every plugin's prebuilt ones came
+        // for all three ABIs, so an APK "for" two still held x86_64 libraries,
+        // and a device that chose x86_64 for them found no Flutter there.
+        (project.findProperty("riftAbis") as String?)?.let { abis ->
+            ndk { abiFilters += abis.split(",") }
+        }
     }
 
     signingConfigs {

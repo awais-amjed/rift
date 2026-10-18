@@ -37,14 +37,36 @@ version=${version%%+*}
 mkdir -p build/release
 apk=build/app/outputs/flutter-apk/app-release.apk
 
+# Each names its ABIs twice: --target-platform for Flutter's and Rust's
+# libraries, riftAbis (android/app/build.gradle.kts) for every plugin's.
 for abi in arm64-v8a:android-arm64 armeabi-v7a:android-arm x86_64:android-x64; do
-  flutter build apk --release --target-platform "${abi#*:}"
+  flutter build apk --release --target-platform "${abi#*:}" -P "riftAbis=${abi%%:*}"
   cp -f "$apk" "build/release/rift-$version-android-${abi%%:*}.apk"
 done
 
-flutter build apk --release --target-platform android-arm,android-arm64
+flutter build apk --release --target-platform android-arm,android-arm64 \
+  -P riftAbis=arm64-v8a,armeabi-v7a
 cp -f "$apk" "build/release/rift-$version-android.apk"
 
 flutter build appbundle --release
 cp -f build/app/outputs/bundle/release/app-release.aab "build/release/rift-$version-android.aab"
 ls -l build/release/rift-"$version"-android*
+
+# Each APK must hold exactly the ABIs it is named for, or a device can choose
+# one it has no Flutter library for.
+check() {
+  local file=$1 want=$2 files got abi lib
+  files=$(unzip -Z1 "$file")
+  got=$(sed -n 's|^lib/\([^/]*\)/.*|\1|p' <<<"$files" | sort -u | paste -sd, -)
+  [[ $got == "$want" ]] || { echo "$file holds $got, not $want" >&2; exit 1; }
+  for abi in ${want//,/ }; do
+    for lib in libflutter.so libapp.so librust_lib_rift.so; do
+      grep -qx "lib/$abi/$lib" <<<"$files" ||
+        { echo "$file has no lib/$abi/$lib" >&2; exit 1; }
+    done
+  done
+}
+check "build/release/rift-$version-android.apk" arm64-v8a,armeabi-v7a
+for abi in arm64-v8a armeabi-v7a x86_64; do
+  check "build/release/rift-$version-android-$abi.apk" "$abi"
+done
