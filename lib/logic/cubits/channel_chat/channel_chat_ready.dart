@@ -62,9 +62,14 @@ mixin _ChatReadyMixin on Cubit<ChannelChatState>, _ChatSweepMixin {
     _readyServerId = server.id;
 
     await _teardownSweepRealtime();
+    // Shown another server while the last one's doorbell was let go: that
+    // setup runs instead, and this one finishing behind it would leave the
+    // doorbell on this server.
+    if (_readyServerId != server.id) return;
     _setupSweepRealtime(server);
 
     final newlyPublished = await _keyring.ensureChatKeyPublished(server);
+    if (_readyServerId != server.id) return;
     // A newly keyed member: tell online members to wrap for us right away.
     if (newlyPublished) _ringKeySweepDoorbell();
     // If the publish didn't stick (locked vault, network/auth failure), leave

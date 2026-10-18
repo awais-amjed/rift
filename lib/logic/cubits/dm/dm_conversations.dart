@@ -34,6 +34,11 @@ mixin _DmConversationsMixin on Cubit<DmState> {
 
   String? get _localUserId => _server?.user?.id;
 
+  /// The server these DMs are set up for. A read that comes back after a
+  /// switch is the last server's and is dropped: drawn, it listed that
+  /// server's conversations on this one.
+  String? get _readyServerId;
+
   /// Guards a scroll that asks again before the last answer has landed.
   ///
   /// Cubit-internal rather than state: nothing on screen draws it, and the only
@@ -51,12 +56,13 @@ mixin _DmConversationsMixin on Cubit<DmState> {
   /// in is at the top of it by definition.
   Future<void> refreshConversations() async {
     if (_localUserId == null) return;
+    final serverId = _readyServerId;
     final openPeer = state.openPeerId;
     final openKeyBefore = openPeer == null ? null : _dmKeySources[openPeer];
     emit(state.copyWith(conversationsLoading: true));
 
     final page = await _fetchConversations();
-    if (isClosed) return;
+    if (isClosed || _readyServerId != serverId) return;
     _conversationsListed = true;
     if (page == null) {
       emit(
@@ -108,10 +114,11 @@ mixin _DmConversationsMixin on Cubit<DmState> {
     final before = int.tryParse(last ?? '');
     if (before == null) return;
 
+    final serverId = _readyServerId;
     _loadingMoreConversations = true;
     final page = await _fetchConversations(before: before);
     _loadingMoreConversations = false;
-    if (isClosed || page == null) return;
+    if (isClosed || page == null || _readyServerId != serverId) return;
 
     emit(
       state.copyWith(
@@ -141,12 +148,15 @@ mixin _DmConversationsMixin on Cubit<DmState> {
 
   /// Rows in the `dm_conversations` shape, previews decrypted. The requests
   /// list comes in the same shape and goes through here too. Null when the
-  /// cubit closed partway.
+  /// cubit closed or moved to another server partway, whose keys cannot read
+  /// these.
   Future<List<DmConversation>?> _conversationsFrom(
     List<Map<String, dynamic>> rows,
   ) async {
+    final serverId = _readyServerId;
     final conversations = <DmConversation>[];
     for (final row in rows) {
+      if (_readyServerId != serverId) return null;
       final peerId = row['peer_id'] as String;
       final peerName = row['peer_name'] as String? ?? 'Unknown';
       final peerChatKey = row['peer_chat_public_key'] as String?;
@@ -174,7 +184,7 @@ mixin _DmConversationsMixin on Cubit<DmState> {
         ),
       );
     }
-    if (isClosed) return null;
+    if (isClosed || _readyServerId != serverId) return null;
     return conversations;
   }
 }

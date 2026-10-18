@@ -14,12 +14,14 @@ mixin _DmRequestsMixin on Cubit<DmState> {
     List<Map<String, dynamic>> rows,
   );
   Future<void> refreshConversations();
+  String? get _readyServerId;
 
   /// The requests waiting on us, previews decrypted like the conversation
   /// list's — the recipient of a request can read it, which is the point.
   Future<void> refreshRequests() async {
+    final serverId = _readyServerId;
     final response = await _moderation.dmRequests();
-    if (isClosed || !response.success) return;
+    if (isClosed || !response.success || _readyServerId != serverId) return;
     final rows = (response.data as List? ?? const [])
         .cast<Map<String, dynamic>>();
     final requests = await _conversationsFrom(rows);
@@ -28,8 +30,9 @@ mixin _DmRequestsMixin on Cubit<DmState> {
   }
 
   Future<void> refreshBlocks() async {
+    final serverId = _readyServerId;
     final response = await _moderation.listBlocks();
-    if (isClosed || !response.success) return;
+    if (isClosed || !response.success || _readyServerId != serverId) return;
     emit(
       state.copyWith(
         blockedIds: (response.data as List).cast<String>().toSet(),

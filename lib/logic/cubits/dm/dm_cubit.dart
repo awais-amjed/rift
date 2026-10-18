@@ -151,7 +151,14 @@ class DmCubit extends Cubit<DmState>
   /// The server [showServer] named, and the one set up for it once its user
   /// and the vault are there.
   String? _wantedServerId;
+  @override
   String? _readyServerId;
+
+  /// Counts [_onServerChanged]s, so a switch still letting the last server go
+  /// when a newer one starts gives way to it. Without this a quick A, B, C
+  /// finished B's setup last: B's DMs listed while C was on screen, and C's
+  /// realtime joins were never let go.
+  int _switches = 0;
 
   /// The server these DMs are on, or null before one is set up.
   String? get serverId => _readyServerId;
@@ -223,6 +230,7 @@ class DmCubit extends Cubit<DmState>
   }
 
   Future<void> _onServerChanged() async {
+    final switchId = ++_switches;
     final wanted = _wantedServerId;
     final server = wanted == null ? null : _session.serverById(wanted);
     if (server == null ||
@@ -233,6 +241,7 @@ class DmCubit extends Cubit<DmState>
     }
     if (server.id == _readyServerId) return;
     await _reset();
+    if (isClosed || switchId != _switches) return;
     _readyServerId = server.id;
     _setupRealtime(server);
     unawaited(refreshLists());
