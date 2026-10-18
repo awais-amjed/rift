@@ -63,7 +63,8 @@
 |:--|:--|
 | **Windows** · 64-bit | [`Rift-<version>-windows-x64-setup.exe`](https://github.com/awais-amjed/rift/releases/latest) |
 | **Linux** · x86-64 | [`rift-<version>-linux-x64.AppImage`](https://github.com/awais-amjed/rift/releases/latest) |
-| **Android** and the **browser** | Coming soon |
+| **Android** · 7 or newer | [`rift-<version>-android.apk`](https://github.com/awais-amjed/rift/releases/latest) (Google Play coming soon) |
+| **Browser** | [web.joinrift.app](https://web.joinrift.app) |
 | **macOS** and **iOS** | On the way |
 
 **Windows** — run the installer. It isn't signed yet, so Windows may say
@@ -81,6 +82,12 @@ From its first start Rift is in your app menu, with its icon. It needs Ubuntu
 
 Both keep themselves up to date: Rift downloads a new version in the
 background, says so in the title bar, and a restart puts it in place.
+
+**Android** — open the APK once it has downloaded and allow installs from
+your browser when Android asks. It works on every phone; the release also has
+one APK per architecture (`arm64-v8a`, `armeabi-v7a`, `x86_64`) for whoever
+knows theirs. It does not update itself: install the next release's APK over
+it.
 
 <details>
 <summary><b>Rather have a folder?</b> Use the <code>.tar.gz</code></summary>
