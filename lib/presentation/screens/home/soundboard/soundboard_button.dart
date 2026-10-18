@@ -10,7 +10,9 @@ import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/call_server_scope.dart';
 import '../../../common/popover_surface.dart';
 import '../../../common/server_scope.dart';
+import '../../../common/show_custom_dialog.dart';
 import '../../../responsive/shell_scope.dart';
+import '../../../theme/app_motion.dart';
 import '../../../theme/theme_context.dart';
 import '../controls/widgets/control_button.dart';
 import 'soundboard_popover.dart';
@@ -50,16 +52,25 @@ class _CallSoundboardButton extends StatefulWidget {
 
 class _CallSoundboardButtonState extends State<_CallSoundboardButton> {
   final _buttonKey = GlobalKey();
-  OverlayEntry? _entry;
+
+  /// The card while it is open, and the navigator it is on, so a call that
+  /// ends under it takes it away.
+  ///
+  /// A route rather than an entry put straight on the overlay. A route pushed
+  /// later goes above the last route, not above everything, so a dialog
+  /// opened while the card was up — Leave server from the rail — drew under
+  /// it, and the card heard neither Escape nor a right-click outside.
+  Route<void>? _route;
+  NavigatorState? _navigator;
 
   void _toggle() {
-    if (_entry != null) {
-      _dismiss();
+    if (_route != null) {
+      setState(_dismiss);
       return;
     }
-    // A hand-rolled overlay pinned to a control at the bottom of a phone is
-    // a card under the thumb that opened it. The overlay stays for pointer
-    // platforms, where it is the right object and the anchoring is done.
+    // A card pinned to a control at the bottom of a phone is a card under
+    // the thumb that opened it. The card stays for pointer platforms, where
+    // it is the right object and the anchoring is done.
     if (context.layoutMode.isCompact) {
       _showSheet();
       return;
@@ -104,7 +115,7 @@ class _CallSoundboardButtonState extends State<_CallSoundboardButton> {
     );
   }
 
-  void _show() {
+  Future<void> _show() async {
     final box = _buttonKey.currentContext?.findRenderObject() as RenderBox?;
     if (box == null) return;
 
@@ -119,36 +130,50 @@ class _CallSoundboardButtonState extends State<_CallSoundboardButton> {
 
     final providers = _providers();
 
-    _entry = OverlayEntry(
-      builder: (_) => Stack(
-        children: [
-          Positioned.fill(
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onTap: _dismiss,
+    // A press outside closes it and goes no further, as every other menu's
+    // does; a press inside leaves it open, since two in a row is the normal
+    // case.
+    final route = RawDialogRoute<void>(
+      barrierDismissible: true,
+      barrierLabel: 'Close',
+      barrierColor: Colors.transparent,
+      transitionDuration: AppMotion.react,
+      pageBuilder: (routeContext, _, _) => FocusScope(
+        autofocus: true,
+        onKeyEvent: (_, event) => closeOnEscape(routeContext, event),
+        child: Stack(
+          children: [
+            Positioned(
+              left: left,
+              bottom: screen.height - origin.dy + 8,
+              child: MultiBlocProvider(
+                providers: providers,
+                // Clamped at the top as well as the left. Without a ceiling a
+                // full list — the clips plus the divider and the listener
+                // controls — ran off the top of a short window and took the
+                // header with it; with one, a short window shortens the list.
+                child: SoundboardPopover(maxHeight: origin.dy - 16),
+              ),
             ),
-          ),
-          Positioned(
-            left: left,
-            bottom: screen.height - origin.dy + 8,
-            child: MultiBlocProvider(
-              providers: providers,
-              // Clamped at the top as well as the left. Without a ceiling a
-              // full list — the clips plus the divider and the listener
-              // controls — ran off the top of a short window and took the
-              // header with it; with one, a short window shortens the list.
-              child: SoundboardPopover(maxHeight: origin.dy - 16),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
+      transitionBuilder: (_, animation, _, child) =>
+          FadeTransition(opacity: animation, child: child),
     );
-    Overlay.of(context).insert(_entry!);
+    final navigator = Navigator.of(context, rootNavigator: true);
+    setState(() {
+      _route = route;
+      _navigator = navigator;
+    });
+    await navigator.push(route);
+    if (mounted && _route == route) setState(() => _route = null);
   }
 
   void _dismiss() {
-    _entry?.remove();
-    _entry = null;
+    final route = _route;
+    _route = null;
+    if (route != null && route.isActive) _navigator?.removeRoute(route);
   }
 
   @override
@@ -178,7 +203,7 @@ class _CallSoundboardButtonState extends State<_CallSoundboardButton> {
         final button = ControlButton(
           key: _buttonKey,
           icon: Icons.campaign_rounded,
-          isActive: _entry != null,
+          isActive: _route != null,
           tooltip: 'Soundboard',
           onTap: _toggle,
           dense: widget.dense,
