@@ -1,6 +1,6 @@
 part of 'soundboard_cubit.dart';
 
-/// Whether the selected server's clip library has loaded.
+/// Whether the server's clip library has loaded.
 enum SoundboardStatus { idle, loading, ready, error }
 
 /// One clip somebody else just played here.
@@ -35,7 +35,7 @@ class SoundboardHeard extends Equatable {
   List<Object?> get props => [id, userId, soundId, at];
 }
 
-/// The selected server's soundboard: its clips, what this device just fired,
+/// One server's soundboard: its clips, what this device just fired,
 /// and who else just played one.
 class SoundboardState extends Equatable {
   final SoundboardStatus status;

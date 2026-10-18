@@ -11,8 +11,8 @@ import '../channel_chat/channel_chat_cubit.dart';
 import '../livekit/livekit_cubit.dart';
 import '../server/server_cubit.dart';
 
-/// Realtime "something changed on this server" doorbell: a `changed` on the
-/// selected server's topic (`server:<serverId>`, private to its members).
+/// Realtime "something changed on this server" doorbell: a `changed` on one
+/// server's topic (`server:<serverId>`, private to its members).
 ///
 /// Any member who makes a structural change (creating a channel, …) pings the
 /// topic via [notifyServerChanged]; every subscribed member refreshes their
@@ -20,8 +20,10 @@ import '../server/server_cubit.dart';
 /// restart. The payload is just "go refresh", and the authoritative state
 /// still comes from `get_server_details`.
 ///
-/// Scoped to the selected server (that's the one whose channel list is shown);
-/// other servers refresh on select.
+/// Each server's context holds one (`ServerContext`): the selected server's,
+/// whose channel list is shown, and the call's, so a channel deleted under a
+/// call is left whichever server is being read. Other servers refresh on
+/// select.
 class ServerEventsCubit extends Cubit<int> {
   final ServerCubit _serverCubit;
   final SessionRepository _session;
@@ -29,8 +31,9 @@ class ServerEventsCubit extends Cubit<int> {
   final ChannelChatCubit _chatCubit;
   StreamSubscription<void>? _serverSub;
 
+  /// The server this is about.
+  final String _serverId;
   RealtimeLease? _topic;
-  String? _serverId;
 
   /// The doorbell above is a courtesy — it only rings if the member who made
   /// the change remembered to ring it, and never for someone who was offline.
@@ -56,7 +59,9 @@ class ServerEventsCubit extends Cubit<int> {
     required SessionRepository session,
     required LiveKitCubit livekitCubit,
     required ChannelChatCubit chatCubit,
-  }) : _serverCubit = serverCubit,
+    required String serverId,
+  }) : _serverId = serverId,
+       _serverCubit = serverCubit,
        _session = session,
        _livekitCubit = livekitCubit,
        _chatCubit = chatCubit,
@@ -65,6 +70,7 @@ class ServerEventsCubit extends Cubit<int> {
     _sync();
     _channelsWatcher = ServerTopicWatcher(
       session: session,
+      watchedServerId: serverId,
       topicOf: (server) => ServerTopics.server(server.id),
       event: ServerEvent.channels,
       onChanged: () => unawaited(_onChannelsChanged()),
@@ -72,10 +78,11 @@ class ServerEventsCubit extends Cubit<int> {
     );
     _membershipWatcher = ServerTopicWatcher(
       session: session,
+      watchedServerId: serverId,
       topicOf: (server) => ServerTopics.user(server.user!.id),
       event: ServerEvent.me,
       onChanged: () => unawaited(_onMembershipChanged()),
-      // Selecting a server re-reads it anyway; this only has to keep up with
+      // Opening a server re-reads it anyway; this only has to keep up with
       // changes after that.
       onServerChanged: (_) {},
     );
@@ -88,11 +95,11 @@ class ServerEventsCubit extends Cubit<int> {
   /// A ban that arrives while we're in a call is left to `moderate_user`,
   /// which removes us from LiveKit itself.
   Future<void> _onMembershipChanged() async {
-    await _serverCubit.refreshServerDetails();
+    await _serverCubit.refreshServerDetails(serverId: _serverId);
   }
 
   Future<void> _onChannelsChanged() async {
-    final result = await _serverCubit.refreshServerDetails();
+    final result = await _serverCubit.refreshServerDetails(serverId: _serverId);
     if (isClosed || !result.success) return;
     _evictFromDeletedChannels();
   }
@@ -108,44 +115,47 @@ class ServerEventsCubit extends Cubit<int> {
   /// drops every device in it. This is the local tidy-up: leaving the call
   /// properly rather than sitting in a room the server has removed, and closing
   /// a chat whose channel no longer exists.
+  ///
+  /// Only what is on this server: a call or a chat on another one is that
+  /// one's to judge, and against this server's channels it would look gone.
   void _evictFromDeletedChannels() {
-    final channels = _session.selectedServer?.channels;
+    final channels = _session.serverById(_serverId)?.channels;
     if (channels == null) return;
     final live = ChannelEviction.liveIds(channels);
 
-    if (ChannelEviction.isGone(_livekitCubit.state.currentChannelId, live)) {
+    final call = _livekitCubit.state;
+    if (call.currentServerId == _serverId &&
+        ChannelEviction.isGone(call.currentChannelId, live)) {
       unawaited(_livekitCubit.disconnect());
     }
-    if (ChannelEviction.isGone(_chatCubit.state.channelId, live)) {
+    if (_chatCubit.openServerId == _serverId &&
+        ChannelEviction.isGone(_chatCubit.state.channelId, live)) {
       _chatCubit.closeChannel();
     }
   }
 
   void _sync() {
-    final server = _session.selectedServer;
+    final server = _session.serverById(_serverId);
     if (server == null || server.supabaseKey == null) {
       _teardown();
       return;
     }
-    if (server.id == _serverId) return; // already subscribed to this server
+    if (_topic != null) return; // already subscribed
 
-    _teardown();
-    _serverId = server.id;
     _topic = _session.realtime.join(server, ServerTopics.server(server.id))
       ?..onBroadcast(ServerEvent.changed, (_) => _onChanged());
   }
 
   void _onChanged() {
     if (isClosed) return;
-    unawaited(_serverCubit.refreshServerDetails());
+    unawaited(_serverCubit.refreshServerDetails(serverId: _serverId));
   }
 
   /// Ping [serverId]'s topic so other members refresh.
   ///
-  /// Only one server is subscribed at a time — the one being looked at — so a
-  /// change applied to another server (its settings, from the rail's menu) has
-  /// no topic to ring here and is dropped. Those members hear it from Realtime
-  /// on the row itself instead; the doorbell is only what makes it immediate.
+  /// Rung on the cubit of the server the change was made on, which the
+  /// widget that made it finds in its scope. One for another server has no
+  /// topic here and is dropped.
   void notifyServerChanged(String serverId) {
     if (serverId != _serverId) return;
     _topic?.send(ServerEvent.changed, const {});
@@ -154,7 +164,6 @@ class ServerEventsCubit extends Cubit<int> {
   void _teardown() {
     final topic = _topic;
     _topic = null;
-    _serverId = null;
     unawaited(topic?.release());
   }
 

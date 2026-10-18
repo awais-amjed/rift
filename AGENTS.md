@@ -271,22 +271,27 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   (`data/constants.dart`), not magic numbers.
 - Dialogs use `showCustomDialog` / `AppModal` from `presentation/common/`; pass existing cubits
   in with `MultiBlocProvider` + `BlocProvider.value` (never construct a new cubit for a dialog).
-  The one exception is a page about a server the person is not looking at: Manage server opens
-  from the rail's menu for any server, and the cubits that follow the selection
-  (`ServerMembersCubit`, `ReportsCubit`, and `SoundboardCubit`, which follows the call during
-  one) take a `serverId` that pins them to that server. `serverManageDialog` builds those for it
-  and closes them with the dialog, so the page reads that server's one live copy instead of the
-  selected server's.
+- **What the app keeps live about a server is that server's `ServerContext`**
+  (`logic/services/`): its roster, presence, soundboard, voice listeners, reports and doorbell,
+  each cubit bound to that one server. `ServerHub` keeps one per server something holds — it
+  holds the selected server's and the call's itself, and a page about another server holds one
+  through `ServerContextScope` while it is open — and shuts a context down the moment the last
+  hold goes. None of these cubits follows the selection: a second copy for the call, or a
+  pinned one for a dialog, is what this replaced. With nothing selected, `ServerHub.none` is
+  provided instead — the same cubits, empty — since the channel list and the call's pane are
+  drawn either way. A new per-server cubit goes in the context.
 - **A widget learns its server from `ServerScope`, never from the selection.** It builds its
   `data/apis` class from `ServerScope.of(context)` (`read` in a callback) and asks
   `ServerState.permissionsOn(scope.serverId)` what the viewer may do there.
   `SelectedServerScope`, round the navigator, makes the selected server the default for every
   page, dialog and menu; what is about another server provides its own over it. Manage server
-  does, for the server it opened on, and so does the call (`CallServerScope`, with the call's
-  roster, `CallMembersCubit`), which stays on screen while another server is read. What a
+  does, for the server it opened on, and so does the call (`CallServerScope`, round the grid and
+  the soundboard button), which stays on screen while another server is read. Each of these is
+  a `ServerContextScope`, which provides that server's context's cubits below the scope, so the
+  roster or soundboard a widget reads is its server's. What a
   widget opens outside its tree takes the scope along: `showCustomDialog`,
   `showDialogFromMenu`, `showAppSheet`, `showAnchoredPanel` and the context menu do it themselves
-  (`ServerScope.carry`), which is why a dialog opens through them and not a bare
+  (`ServerScope.carry`, holding the context while open), which is why a dialog opens through them and not a bare
   `showDialog` — that one opens on the selected server, whatever it was opened from.
 - Toasts/errors go through `HelperMethods.showToast` / `showError` (toastification) — no
   SnackBars — called from the presentation layer, not from a cubit: a cubit sets a `Notice`

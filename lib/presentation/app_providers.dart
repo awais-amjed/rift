@@ -1,13 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../data/participant_identity.dart';
 import '../data/repositories/server_reach_probe.dart';
 import '../data/repositories/session_repository.dart';
 import '../logic/cubits/app/app_cubit.dart';
 import '../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../logic/cubits/channel_chat/channel_chat_cubit.dart';
-import '../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../logic/cubits/dm/dm_cubit.dart';
 import '../logic/cubits/dm_call/dm_call_cubit.dart';
 import '../logic/cubits/ducking/ducking_cubit.dart';
@@ -16,23 +16,18 @@ import '../logic/cubits/media/media_cubit.dart';
 import '../logic/cubits/network/network_cubit.dart';
 import '../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../logic/cubits/public_servers/public_servers_cubit.dart';
-import '../logic/cubits/reports/reports_cubit.dart';
 import '../logic/cubits/screenshare/screenshare_cubit.dart';
 import '../logic/cubits/server/server_cubit.dart';
-import '../logic/cubits/server_events/server_events_cubit.dart';
-import '../logic/cubits/server_members/call_members_cubit.dart';
-import '../logic/cubits/server_members/server_members_cubit.dart';
 import '../logic/cubits/server_reach/server_reach_cubit.dart';
 import '../logic/cubits/sound_share/sound_share_cubit.dart';
-import '../logic/cubits/soundboard/soundboard_cubit.dart';
 import '../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../logic/cubits/theme/theme_cubit.dart';
 import '../logic/cubits/token/token_cubit.dart';
 import '../logic/cubits/update/update_cubit.dart';
 import '../logic/cubits/vault/vault_cubit.dart';
-import '../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
 import '../logic/cubits/voice_stats/voice_stats_cubit.dart';
-import '../logic/services/server_topic_watcher.dart';
+import '../logic/services/server_context.dart';
+import '../logic/services/server_hub.dart';
 
 /// Over the widget budget and one job: every app-wide cubit and the wiring
 /// between them, which is only readable in one place.
@@ -92,35 +87,8 @@ class AppProviders extends StatelessWidget {
         BlocProvider(create: _createScreenshareCubit),
         BlocProvider(create: _createSoundShareCubit),
         BlocProvider(
-          // Not lazy: this is the ear on the call's data channel. A clip
-          // somebody presses has to be heard whether or not anything on
-          // screen has ever asked for the library.
-          lazy: false,
-          create: _createSoundboardCubit,
-        ),
-        BlocProvider(
           create: (context) =>
               VoiceStatsCubit(livekitCubit: context.read<LiveKitCubit>()),
-        ),
-        BlocProvider(create: (_) => VoiceListenersCubit(session: session)),
-        BlocProvider(
-          create: (context) => ChannelPresenceCubit(
-            livekitCubit: context.read<LiveKitCubit>(),
-            session: session,
-          ),
-        ),
-        BlocProvider(
-          // Not lazy: the roster subscription is also how a member learns that
-          // their own moderation state changed, and that has to invalidate
-          // their cached LiveKit token whether or not a sidebar is watching.
-          lazy: false,
-          create: _createServerMembersCubit,
-        ),
-        BlocProvider(
-          // Not lazy, for the same reason, and because the call's bots are
-          // told apart by it before anything draws the call.
-          lazy: false,
-          create: _createCallMembersCubit,
         ),
         BlocProvider(
           create: (context) =>
@@ -168,19 +136,6 @@ class AppProviders extends StatelessWidget {
           },
         ),
         BlocProvider(
-          // Not lazy: the Reports badge has to move when a report arrives,
-          // not when somebody first opens the page.
-          lazy: false,
-          create: (context) =>
-              ReportsCubit(session: session, vaultCubit: vaultCubit),
-        ),
-        BlocProvider(
-          // Not lazy: subscribes to the selected server's realtime event
-          // doorbell so structural changes (new channels, …) show live.
-          lazy: false,
-          create: _createServerEventsCubit,
-        ),
-        BlocProvider(
           // Not lazy: must exist at startup to receive vault/server change
           // callbacks for cloud auto-backup.
           lazy: false,
@@ -197,7 +152,16 @@ class AppProviders extends StatelessWidget {
           create: (_) => UpdateCubit(appCubit: appCubit),
         ),
       ],
-      child: child,
+      child: RepositoryProvider(
+        // Not lazy: it holds the selected server's context and the call's —
+        // the roster that tells a member their own moderation changed, the
+        // Reports badge, the doorbell, the call's ear for soundboard presses
+        // — whether or not anything on screen reads them yet.
+        lazy: false,
+        create: _createServerHub,
+        dispose: (hub) => unawaited(hub.dispose()),
+        child: child,
+      ),
     );
   }
 
@@ -239,87 +203,39 @@ class AppProviders extends StatelessWidget {
     return soundShareCubit;
   }
 
-  SoundboardCubit _createSoundboardCubit(BuildContext context) {
-    final soundboardCubit = SoundboardCubit(
-      session: session,
-      appCubit: appCubit,
-      livekitCubit: context.read<LiveKitCubit>(),
-      follow: WatchedServer.callOrSelected,
-    );
-    // So a press arriving on the data channel reaches it, and so leaving a
-    // call or deafening cuts off a clip already playing.
-    context.read<LiveKitCubit>().setSoundboardCubit(soundboardCubit);
-    return soundboardCubit;
-  }
-
-  ServerMembersCubit _createServerMembersCubit(BuildContext context) {
+  /// Each server's live cubits ([ServerContext]), and the call's two
+  /// questions of its server's: which participants are bots, and whose
+  /// soundboard a press comes from.
+  ServerHub _createServerHub(BuildContext context) {
+    final livekit = context.read<LiveKitCubit>();
     final serverCubit = context.read<ServerCubit>();
     final tokenCubit = context.read<TokenCubit>();
-    final members = ServerMembersCubit(session: session);
-    // A cached LiveKit token still grants what it was minted with, so being
-    // muted has to throw it away — otherwise rejoining restores the old
-    // permissions until it expires.
-    members.setOnSelfModerationChanged(() {
-      final url = serverCubit.state.selectedServer?.supabaseUrl;
-      if (url != null) tokenCubit.invalidateServerTokens(url);
-    });
-    // Presence reports ids; with the roster paged, an id is routinely somebody
-    // no page has reached. Resolving them is what keeps the sidebar's Online
-    // group from being "the online people who sort early in the alphabet".
-    members.watchPresence(
-      context.read<ChannelPresenceCubit>().stream.map(
-        (state) => state.onlineUserIds,
+    final chatCubit = context.read<ChannelChatCubit>();
+    final hub = ServerHub(
+      session: session,
+      open: (serverId) => ServerContext.open(
+        serverId,
+        session: session,
+        appCubit: appCubit,
+        vaultCubit: vaultCubit,
+        tokenCubit: tokenCubit,
+        serverCubit: serverCubit,
+        livekitCubit: livekit,
+        chatCubit: chatCubit,
       ),
     );
-    return members;
-  }
-
-  CallMembersCubit _createCallMembersCubit(BuildContext context) {
-    final tokenCubit = context.read<TokenCubit>();
-    final livekit = context.read<LiveKitCubit>();
-    final members = CallMembersCubit(session: session);
-    // Being muted on the call's server while reading another one drops its
-    // token the same way.
-    members.setOnSelfModerationChanged(() {
-      final url = session.callServer?.supabaseUrl;
-      if (url != null) tokenCubit.invalidateServerTokens(url);
-    });
-    // Everybody in the call, named and pictured whoever else is on screen.
-    members.watchPresence(
-      livekit.stream.map(
-        (state) => {
-          for (final participant in state.participants)
-            ParticipantIdentity.userIdOf(participant.identity),
-        },
-      ),
-    );
+    // So a press arriving on the data channel reaches the call's library, and
+    // so leaving a call or deafening cuts off a clip already playing.
+    livekit.setSoundboardOf(() => hub[livekit.state.callServerId]?.soundboard);
     // Which participants in a call are bots, so their media is keyed with the
     // derived key rather than the channel key (BOTS.md §6b). Asked of the
     // call's server, never the selected one: a rotation taken while the
     // member reads another server keyed the call's bots as people, and they
-    // went silent. The selected roster answers too while it is the call's
-    // and has loaded, which at a join it usually has and this one has not.
-    // Set here rather than injected because the rosters are built after
-    // LiveKitCubit and would otherwise be a construction cycle.
-    final selected = context.read<ServerMembersCubit>();
-    livekit.isBotResolver = (userId) {
-      final own = selected.state;
-      final roster = own.serverId == session.callServerId && own.loaded
-          ? own
-          : members.state;
-      return roster.byId[userId]?.isBot ?? false;
-    };
-    return members;
-  }
-
-  ServerEventsCubit _createServerEventsCubit(BuildContext context) {
-    return ServerEventsCubit(
-      serverCubit: context.read<ServerCubit>(),
-      session: session,
-      // A deleted channel has to put you out of its call and close its chat.
-      livekitCubit: context.read<LiveKitCubit>(),
-      chatCubit: context.read<ChannelChatCubit>(),
-    );
+    // went silent.
+    livekit.isBotResolver = (userId) =>
+        hub[livekit.state.callServerId]?.members.state.byId[userId]?.isBot ??
+        false;
+    return hub;
   }
 
   SupabaseBackupCubit _createBackupCubit(BuildContext context) {

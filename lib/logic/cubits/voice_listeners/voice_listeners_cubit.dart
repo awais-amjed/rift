@@ -31,8 +31,8 @@ class VoiceBotsState {
   const VoiceBotsState({this.listeners = const {}, this.summons = const {}});
 }
 
-/// Which bots can hear which voice channels, and which have been called into
-/// one — for the markers in the sidebar.
+/// Which bots can hear which of one server's voice channels, and which have
+/// been called into one — for the markers in the sidebar.
 ///
 /// Its own cubit rather than a field on [ChannelPresenceCubit], which is next
 /// door and answers a question that sounds similar. That one is about *live*
@@ -49,11 +49,14 @@ class VoiceListenersCubit extends Cubit<VoiceBotsState> {
   final SessionRepository _session;
   late final ServerTopicWatcher _watcher;
 
-  VoiceListenersCubit({required SessionRepository session})
-    : _session = session,
-      super(const VoiceBotsState()) {
+  VoiceListenersCubit({
+    required SessionRepository session,
+    required String serverId,
+  }) : _session = session,
+       super(const VoiceBotsState()) {
     _watcher = ServerTopicWatcher(
       session: session,
+      watchedServerId: serverId,
       topicOf: (server) => ServerTopics.server(server.id),
       event: ServerEvent.voiceBots,
       onChanged: () => unawaited(refresh()),
@@ -78,9 +81,9 @@ class VoiceListenersCubit extends Cubit<VoiceBotsState> {
       state.summons[channelId] ?? const [];
 
   void _onServerChanged(Server? server) {
-    // Clear first. Carrying the previous server's grants across a switch would
-    // put a recording light on a channel that never had one, which is the one
-    // direction this marker must never be wrong in.
+    // Clear first. Carrying grants read under an old session across would
+    // put a recording light on a channel that may no longer have one, which
+    // is the one direction this marker must never be wrong in.
     emit(const VoiceBotsState());
     if (server != null) unawaited(refresh());
   }

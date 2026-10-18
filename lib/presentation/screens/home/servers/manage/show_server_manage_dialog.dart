@@ -2,84 +2,36 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/server.dart';
-import '../../../../../data/repositories/session_repository.dart';
-import '../../../../../logic/cubits/app/app_cubit.dart';
-import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
-import '../../../../../logic/cubits/reports/reports_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
-import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
-import '../../../../../logic/cubits/soundboard/soundboard_cubit.dart';
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
-import '../../../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../../common/app_modal.dart';
-import '../../../../common/server_scope.dart';
+import '../../../../common/server_context_scope.dart';
 import 'server_manage_dialog.dart';
 import 'server_manage_tab.dart';
 
 /// The dialog with everything its pages read, for whichever route opens it.
 ///
 /// Several cubits rather than one because the pages reach several places:
-/// the server itself, the central listing, the account behind it, the
-/// soundboard's library, the roster, and the reports.
-///
-/// The last three follow the selected server in the app, the soundboard the
-/// call's during one. Opened for a server they are not on — from the rail's
-/// menu for a server the person is *not* looking at — the dialog holds
-/// that server's own for as long as it is open — live, from that server's
-/// doorbells — rather than switching them, or the person, over. And it is
-/// about that server ([ServerScope]), so every call its pages and the dialogs
-/// they open make goes there.
+/// the server itself, the central listing and the account behind it — and
+/// that server's own roster, soundboard and reports, which come with its
+/// context ([ServerContextScope]). Opened from the rail's menu for a server
+/// the person is *not* looking at, the dialog holds that server's context for
+/// as long as it is open — live, from that server's doorbells — rather than
+/// switching the person over, and every call its pages and the dialogs they
+/// open make goes there.
 Widget serverManageDialog(
   BuildContext context, {
   required Server server,
   ServerManageTab? initial,
 }) {
-  // Read now, not inside the `create`s below: those run when a page first
-  // asks, by which time [context] — the rail menu's — is gone.
-  final serverCubit = context.read<ServerCubit>();
-  final appCubit = context.read<AppCubit>();
-  final livekitCubit = context.read<LiveKitCubit>();
-  final vaultCubit = context.read<VaultCubit>();
-  final session = context.read<SessionRepository>();
-  final isSelected = serverCubit.state.selectedServer?.id == server.id;
-  // The app's soundboard is the call's during one, which need not be the
-  // server on screen: its own is lent only when it is this one.
-  final soundboard = context.read<SoundboardCubit>();
-  return ServerScope(
-    server: session.on(server.id),
+  return ServerContextScope(
+    serverId: server.id,
     child: MultiBlocProvider(
       providers: [
-        BlocProvider.value(value: serverCubit),
+        BlocProvider.value(value: context.read<ServerCubit>()),
         BlocProvider.value(value: context.read<PublicServersCubit>()),
         BlocProvider.value(value: context.read<SupabaseBackupCubit>()),
-        if (soundboard.state.serverId == server.id)
-          BlocProvider.value(value: soundboard)
-        else
-          BlocProvider(
-            create: (_) => SoundboardCubit(
-              session: session,
-              appCubit: appCubit,
-              livekitCubit: livekitCubit,
-              serverId: server.id,
-            ),
-          ),
-        if (isSelected) ...[
-          BlocProvider.value(value: context.read<ServerMembersCubit>()),
-          BlocProvider.value(value: context.read<ReportsCubit>()),
-        ] else ...[
-          BlocProvider(
-            create: (_) =>
-                ServerMembersCubit(session: session, serverId: server.id),
-          ),
-          BlocProvider(
-            create: (_) => ReportsCubit(
-              session: session,
-              vaultCubit: vaultCubit,
-              serverId: server.id,
-            ),
-          ),
-        ],
       ],
       child: ServerManageDialog(server: server, initial: initial),
     ),

@@ -20,7 +20,9 @@ import 'package:rift/logic/cubits/server/server_cubit.dart';
 import 'package:rift/logic/cubits/server_members/server_members_cubit.dart';
 import 'package:rift/logic/cubits/vault/vault_cubit.dart';
 import 'package:rift/logic/services/channel_keyring.dart';
-import 'package:rift/logic/services/server_topic_watcher.dart';
+import 'package:rift/logic/services/server_context.dart';
+import 'package:rift/logic/services/server_hub.dart';
+import 'package:rift/presentation/common/server_context_scope.dart';
 import 'package:rift/presentation/common/server_scope.dart';
 import 'package:rift_crypto/rift_crypto.dart';
 
@@ -143,6 +145,39 @@ final _callServer = _server(
   ],
 );
 final _otherServer = _server('other', _otherUrl);
+
+/// A server's context with nothing live in it: what [ServerHub] keeps and
+/// shuts, and the one roster a scope test reads.
+class _FakeContext implements ServerContext {
+  @override
+  final String serverId;
+  @override
+  final ServerSession session;
+  final ServerMembersCubit? _members;
+  final void Function(String serverId)? onClose;
+
+  _FakeContext(
+    SessionRepository session,
+    this.serverId, {
+    ServerMembersCubit? members,
+    this.onClose,
+  }) : session = session.on(serverId),
+       _members = members;
+
+  @override
+  ServerMembersCubit get members => _members!;
+
+  @override
+  Widget provide(Widget child) => _members == null
+      ? child
+      : BlocProvider<ServerMembersCubit>.value(value: _members, child: child);
+
+  @override
+  Future<void> close() async => onClose?.call(serverId);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 void main() {
   setUp(() => HydratedBloc.storage = _MemoryStorage());
@@ -300,62 +335,64 @@ void main() {
       },
     );
 
-    test('a watcher following the call ignores the selection', () async {
+    test('the hub holds the call\'s server while another is read', () async {
       final session = SessionRepository()
         ..publish(
           servers: [signedIn('call', _callUrl), signedIn('other', _otherUrl)],
           selectedServerId: 'call',
         );
-      final seen = <String?>[];
-      final watcher = ServerTopicWatcher(
+      final opened = <String>[];
+      final closed = <String>[];
+      final hub = ServerHub(
         session: session,
-        follow: WatchedServer.call,
-        topicOf: (server) => 'server:${server.id}',
-        event: 'members',
-        onChanged: () {},
-        onServerChanged: (server) => seen.add(server?.id),
+        open: (id) {
+          opened.add(id);
+          return _FakeContext(session, id, onClose: closed.add);
+        },
       );
-      await Future<void>.delayed(Duration.zero);
-      expect(seen, isEmpty, reason: 'no call, nothing to watch');
+      expect(opened, ['call']);
 
       session.publishCall('call');
       await Future<void>.delayed(Duration.zero);
       session.publish(servers: session.servers, selectedServerId: 'other');
       await Future<void>.delayed(Duration.zero);
-      expect(seen, ['call'], reason: 'opening another server moves nothing');
+      expect(opened, ['call', 'other']);
+      expect(closed, isEmpty, reason: 'the call still holds its server');
+      expect(hub['call'], isNotNull);
 
       session.publishCall(null);
       await Future<void>.delayed(Duration.zero);
-      expect(seen, ['call', null]);
-      await watcher.dispose();
+      expect(closed, ['call'], reason: 'nothing holds it once the call ends');
+      expect(hub['call'], isNull);
+      expect(hub['other']?.serverId, 'other');
+      await hub.dispose();
+      expect(closed, ['call', 'other']);
     });
 
-    test(
-      'the soundboard\'s follows the call, and the selection outside one',
-      () async {
-        final session = SessionRepository()
-          ..publish(
-            servers: [signedIn('call', _callUrl), signedIn('other', _otherUrl)],
-            selectedServerId: 'other',
-          );
-        final seen = <String?>[];
-        final watcher = ServerTopicWatcher(
-          session: session,
-          follow: WatchedServer.callOrSelected,
-          topicOf: (server) => 'server:${server.id}',
-          event: 'soundboard',
-          onChanged: () {},
-          onServerChanged: (server) => seen.add(server?.id),
-        );
-        await Future<void>.delayed(Duration.zero);
-        session.publishCall('call');
-        await Future<void>.delayed(Duration.zero);
-        session.publishCall(null);
-        await Future<void>.delayed(Duration.zero);
-        expect(seen, ['other', 'call', 'other']);
-        await watcher.dispose();
-      },
-    );
+    test('a server nothing holds is shut at once, and shared while held', () {
+      final session = SessionRepository()
+        ..publish(servers: [signedIn('call', _callUrl)]);
+      final closed = <String>[];
+      final hub = ServerHub(
+        session: session,
+        open: (id) => _FakeContext(session, id, onClose: closed.add),
+      );
+      final page = hub.hold('call');
+      final menu = hub.hold('call');
+      expect(menu.context, same(page.context));
+
+      page.release();
+      page.release();
+      expect(closed, isEmpty, reason: 'a hold is let go once');
+      menu.release();
+      expect(closed, ['call']);
+      expect(hub['call'], isNull);
+
+      // What the screen reads with nothing selected: never held, never shut.
+      expect(hub.none.serverId, isEmpty);
+      expect(hub[''], isNull);
+      expect(closed, ['call']);
+    });
 
     test('a call\'s channel is found on whichever server has it', () {
       final state = ServerState(
@@ -392,18 +429,24 @@ void main() {
     testWidgets('a menu built outside the call takes its server along', (
       tester,
     ) async {
-      final session = SessionRepository();
+      final session = SessionRepository()
+        ..publish(servers: [_callServer, _otherServer]);
       final callMembers = ServerMembersCubit(
         session: session,
         serverId: 'call',
       );
       addTearDown(callMembers.close);
+      final hub = ServerHub(
+        session: session,
+        open: (id) => _FakeContext(session, id, members: callMembers),
+      );
+      addTearDown(hub.dispose);
       late BuildContext inside;
       await tester.pumpWidget(
-        ServerScope(
-          server: session.on('call'),
-          child: BlocProvider<ServerMembersCubit>.value(
-            value: callMembers,
+        RepositoryProvider.value(
+          value: hub,
+          child: ServerContextScope(
+            serverId: 'call',
             child: Builder(
               builder: (context) {
                 inside = context;
@@ -420,18 +463,22 @@ void main() {
       ServerMembersCubit? roster;
       final carry = ServerScope.carrier(inside);
       await tester.pumpWidget(
-        carry(
-          Builder(
-            builder: (context) {
-              scoped = ServerScope.of(context);
-              roster = context.read<ServerMembersCubit>();
-              return const SizedBox();
-            },
+        RepositoryProvider.value(
+          value: hub,
+          child: carry(
+            Builder(
+              builder: (context) {
+                scoped = ServerScope.of(context);
+                roster = context.read<ServerMembersCubit>();
+                return const SizedBox();
+              },
+            ),
           ),
         ),
       );
       expect(scoped?.serverId, 'call');
       expect(roster, same(callMembers));
+      expect(hub['call'], isNotNull, reason: 'the menu holds it open');
     });
 
     testWidgets('outside a scope nothing is carried', (tester) async {

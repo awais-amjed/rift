@@ -7,7 +7,9 @@ import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/soundboard/soundboard_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../common/call_server_scope.dart';
 import '../../../common/popover_surface.dart';
+import '../../../common/server_scope.dart';
 import '../../../responsive/shell_scope.dart';
 import '../../../theme/theme_context.dart';
 import '../controls/widgets/control_button.dart';
@@ -21,7 +23,10 @@ import 'soundboard_popover.dart';
 /// permissions are. It is only hidden when the server has no soundboard at
 /// all and this member could not add one — a button onto an empty list with
 /// no way to fill it.
-class SoundboardButton extends StatefulWidget {
+///
+/// The call's server's soundboard ([CallServerScope]), whichever server is
+/// being read: a press is played from the call's library by everyone in it.
+class SoundboardButton extends StatelessWidget {
   /// Drawn for the user dock's call row (see [ControlButton.dense]), last in
   /// it. It then takes its own share of the row, so it must sit straight in
   /// the dock's [Row].
@@ -30,10 +35,20 @@ class SoundboardButton extends StatefulWidget {
   const SoundboardButton({super.key, this.dense = false});
 
   @override
-  State<SoundboardButton> createState() => _SoundboardButtonState();
+  Widget build(BuildContext context) =>
+      CallServerScope(child: _CallSoundboardButton(dense: dense));
 }
 
-class _SoundboardButtonState extends State<SoundboardButton> {
+class _CallSoundboardButton extends StatefulWidget {
+  final bool dense;
+
+  const _CallSoundboardButton({required this.dense});
+
+  @override
+  State<_CallSoundboardButton> createState() => _CallSoundboardButtonState();
+}
+
+class _CallSoundboardButtonState extends State<_CallSoundboardButton> {
   final _buttonKey = GlobalKey();
   OverlayEntry? _entry;
 
@@ -55,12 +70,18 @@ class _SoundboardButtonState extends State<SoundboardButton> {
   /// The cubits the picker needs, captured while this widget's context is
   /// still the live one — an overlay is a sibling of the route and a sheet
   /// is a route of its own, so neither sees any of these from here.
+  ///
+  /// Each typed by hand: in a `List<BlocProvider>` the list's type is what
+  /// `BlocProvider.value` infers from, so every one of these was provided as
+  /// the base type and found by nothing. The picker read the soundboard above
+  /// the overlay instead — the selected server's, an empty library mid-call
+  /// on another server (`test/provider_types_test.dart`).
   List<BlocProvider> _providers() => [
-    BlocProvider.value(value: context.read<SoundboardCubit>()),
-    BlocProvider.value(value: context.read<ThemeCubit>()),
-    BlocProvider.value(value: context.read<AppCubit>()),
+    BlocProvider<SoundboardCubit>.value(value: context.read<SoundboardCubit>()),
+    BlocProvider<ThemeCubit>.value(value: context.read<ThemeCubit>()),
+    BlocProvider<AppCubit>.value(value: context.read<AppCubit>()),
     // Read live by the picker now, so a role granted mid-call reaches it.
-    BlocProvider.value(value: context.read<ServerCubit>()),
+    BlocProvider<ServerCubit>.value(value: context.read<ServerCubit>()),
   ];
 
   Future<void> _showSheet() {
@@ -141,9 +162,12 @@ class _SoundboardButtonState extends State<SoundboardButton> {
     // From the server's state, not a getter on the soundboard cubit: a role
     // granted with the library still empty has to bring the button in, and
     // only a change to this state rebuilds the button when it happens.
+    final serverId = ServerScope.of(context).serverId;
     final canManage = context.select<ServerCubit, bool>(
       (cubit) =>
-          cubit.state.myPermissions?.can(ServerPermission.manageSoundboard) ??
+          cubit.state
+              .permissionsOn(serverId)
+              ?.can(ServerPermission.manageSoundboard) ??
           false,
     );
     return BlocBuilder<SoundboardCubit, SoundboardState>(

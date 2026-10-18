@@ -23,27 +23,25 @@ import '../vault/vault_cubit.dart';
 
 part 'reports_state.dart';
 
-/// What members of the selected server have reported, for whoever may review
-/// it — and doing something about each one.
+/// What members of one server have reported, for whoever may review it — and
+/// doing something about each one.
 ///
-/// Alive for as long as the app is, like the notifications cubit: the badge
-/// on the Reports page has to move when a report arrives, not when somebody
-/// happens to open the page. For a member who cannot review, it holds nothing
+/// Alive for as long as the server's context is (`ServerContext`), which for
+/// the selected server is as long as it is selected: the badge on the Reports
+/// page has to move when a report arrives, not when somebody happens to open
+/// the page. For a member who cannot review, it holds nothing
 /// and listens to nothing.
 ///
 /// An action is two steps, in this order: do it (delete, time out, kick, ban)
 /// through the path that action always takes, then record it with
 /// `resolve_report`, which checks it happened. Recording first would log a
 /// ban the server then refused.
-///
-/// Given a [serverId] it is that one server's instead, for Manage server opened
-/// on a server the person is not looking at; that page owns it and closes it.
 class ReportsCubit extends Cubit<ReportsState> {
   final SessionRepository _session;
   final ReportedMessageOpener _opener;
 
-  /// The one server this watches, or null to follow the selection.
-  final String? _fixedServerId;
+  /// The server this is about. Watched only while the viewer may review it.
+  final String _serverId;
 
   StreamSubscription<void>? _serverSub;
   final List<RealtimeLease> _leases = [];
@@ -61,9 +59,9 @@ class ReportsCubit extends Cubit<ReportsState> {
   ReportsCubit({
     required SessionRepository session,
     required VaultCubit vaultCubit,
-    String? serverId,
+    required String serverId,
   }) : _session = session,
-       _fixedServerId = serverId,
+       _serverId = serverId,
        _opener = ReportedMessageOpener(
          session: session,
          vaultCubit: vaultCubit,
@@ -76,13 +74,10 @@ class ReportsCubit extends Cubit<ReportsState> {
   static bool _mayReview(Server? server) =>
       server?.user?.permissions.can(ServerPermission.reviewReports) ?? false;
 
-  /// A server switch, or a role change on this one, decides whether there is
+  /// A role change, or the server going away, decides whether there is
   /// anything to watch.
   void _onServerChanged() {
-    final fixed = _fixedServerId;
-    final server = fixed == null
-        ? _session.selectedServer
-        : _session.serverById(fixed);
+    final server = _session.serverById(_serverId);
     final canReview = _mayReview(server);
     final serverId = canReview ? server!.id : null;
     if (serverId == _watchingServerId) return;

@@ -464,6 +464,9 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   /// refreshing server details more often, and then it was every time.
   String? _openServerId;
 
+  /// The server the open channel is on, or null with none open.
+  String? get openServerId => _openServerId;
+
   void _onServerChanged() {
     _pruneSavedIfListChanged(_session.selectedServer);
     // Switching (or losing) the server closes the open chat.

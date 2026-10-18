@@ -23,8 +23,9 @@ import '../livekit/livekit_cubit.dart';
 part 'soundboard_library.dart';
 part 'soundboard_state.dart';
 
-/// The selected server's soundboard: the library, and what happens when
-/// somebody presses one.
+/// One server's soundboard: the library, and what happens when somebody
+/// presses one. Each server's context holds one (`ServerContext`); the call's
+/// server's is the one the call presses and hears.
 ///
 /// **A press never reaches the server.** It is a packet on the call's own
 /// LiveKit data channel, and everybody who receives it plays the clip out of
@@ -36,7 +37,6 @@ part 'soundboard_state.dart';
 class SoundboardCubit extends Cubit<SoundboardState>
     with _SoundboardLibraryMixin {
   final SessionRepository _session;
-  @override
   @override
   SoundboardApi _apiOn(String serverId) => SoundboardApi(_session.on(serverId));
   final AppCubit _appCubit;
@@ -63,32 +63,18 @@ class SoundboardCubit extends Cubit<SoundboardState>
 
   late final ServerTopicWatcher _watcher;
 
-  /// Whether this is the app's own soundboard, which plays into calls. One
-  /// pinned to a server for a settings page plays only previews, and closing
-  /// it must not cut off a clip the call is playing.
-  final bool _ownsPlayback;
-
-  /// The app's own soundboard follows [follow]: the call's server during a
-  /// call, since a press is played from the call's library by everyone in it
-  /// and the presser may be reading another server. Given [serverId], that
-  /// one server's library, for Manage server opened on a server the person
-  /// is not looking at. Whoever opens that page owns that one and closes it;
-  /// it plays only previews.
   SoundboardCubit({
     required SessionRepository session,
     required AppCubit appCubit,
+    required String serverId,
     LiveKitCubit? livekitCubit,
-    String? serverId,
-    WatchedServer follow = WatchedServer.selected,
   }) : _session = session,
        _appCubit = appCubit,
        _livekitCubit = livekitCubit,
-       _ownsPlayback = serverId == null,
        super(const SoundboardState()) {
     _watcher = ServerTopicWatcher(
       session: session,
-      fixedServerId: serverId,
-      follow: follow,
+      watchedServerId: serverId,
       topicOf: (server) => ServerTopics.server(server.id),
       event: ServerEvent.soundboard,
       onChanged: () => unawaited(refresh()),
@@ -298,8 +284,10 @@ class SoundboardCubit extends Cubit<SoundboardState>
   @override
   Future<void> close() async {
     _clearHeard();
+    // Never stops the player: the call cuts its own clips off as it ends
+    // (`silence`), and a server's context closing — a Manage page shut, a
+    // server no longer read — must not cut off one the call is playing.
     await _watcher.dispose();
-    if (_ownsPlayback) await SoundboardPlayer.instance.stopAll();
     return super.close();
   }
 }

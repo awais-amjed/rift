@@ -592,16 +592,18 @@ with no sound and no streams.
 
 The same holds for what the call draws and plays, and for where it is seen.
 `SessionRepository.callServer` names the call's server (published by
-`LiveKitCubit`), and three things follow it rather than the selection: the
-call's roster (`CallMembersCubit`), which its tiles read for faces and names
-and the call reads to tell its bots apart, whose key is a different one; the
-app's soundboard, whose library every press is played from; and, in
-`ChannelPresenceCubit`, the call's presence entry and voice location, held on
-the call's server's shared joins while another server is open and handed back
-without a gap. The call's surfaces sit under a `ServerScope` for the call's
-server (`CallServerScope`), which its menus, profile and full-screen stream
-carry with them, so a right-click on a tile moderates, moves, reports and
-messages on the call's server. Every call to a server is bound to the server it
+`LiveKitCubit`). What the app keeps live about a server — its roster,
+presence, soundboard, voice listeners, reports and doorbell — is that server's
+`ServerContext`, and `ServerHub` holds the call's server's context for as long
+as the call lasts, beside the selected server's. So the call's tiles read the
+call's roster for faces and names, and the call reads it to tell its bots
+apart, whose key is a different one; a press is played from the call's
+server's library; and our presence entry and voice location stay on the call's
+server while another is open, since its presence cubit is alive. A context
+nothing holds is shut at once. The call's surfaces sit under the call's
+server's scope (`CallServerScope`), which its menus, profile and full-screen
+stream carry with them, so a right-click on a tile moderates, moves, reports
+and messages on the call's server. Every call to a server is bound to the server it
 names (`ServerSession`); none falls back on the selection, so a surface that
 forgets to name one fails to compile rather than acting on the server being
 read. Before this, opening another server mid-call

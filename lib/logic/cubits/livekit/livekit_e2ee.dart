@@ -30,8 +30,9 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
 
   /// Whether a user id belongs to a bot, so its frames are keyed differently.
   ///
-  /// Set from outside rather than injected: the member roster is built after
-  /// this cubit and would otherwise be a construction cycle. Null answers "not
+  /// Set from outside rather than injected: the call's server's roster lives
+  /// in its context (`ServerContext`), built after this cubit, and would
+  /// otherwise be a construction cycle. Null answers "not
   /// a bot", which is the safe default — a member keyed as a member is readable
   /// by the room, where a member keyed as a bot would be audible to nobody.
   bool Function(String userId)? _isBotResolver;

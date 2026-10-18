@@ -4,26 +4,11 @@ import '../../data/classes/server.dart';
 import '../../data/repositories/session_repository.dart';
 import 'server_realtime.dart';
 
-/// Which server a watcher with no fixed one follows.
-enum WatchedServer {
-  /// The one the person is looking at.
-  selected,
-
-  /// The call's, and none outside a call: what the call draws has to stay
-  /// with it while the person reads another server.
-  call,
-
-  /// The call's during one, the selected one otherwise — the soundboard,
-  /// which is pressed into a call but managed outside one.
-  callOrSelected,
-}
-
-/// Listens for one thing the database says about one server — the selected
-/// one, the call's ([WatchedServer]) or a fixed one: its channels moved, its
-/// member list did, your own row did.
+/// Listens for one thing the database says about one server: its channels
+/// moved, its member list did, your own row did.
 ///
 /// The bookkeeping is the same wherever this is wanted, and it is all here:
-/// re-subscribing on a server switch, holding off the first join while a
+/// re-subscribing when the server becomes usable or goes away, holding off the first join while a
 /// hydrated token still reads as near-expiry, and coalescing a burst into one
 /// refresh. The join itself is on the server's shared connection
 /// ([ServerRealtime]), which follows the JWT as it rotates, and is shared with
@@ -39,15 +24,10 @@ class ServerTopicWatcher {
   /// Where the server list, the selection and the connection are.
   final SessionRepository session;
 
-  /// The one server to watch, or null to follow [follow].
-  ///
-  /// Named for a page about a server the person is not looking at — Manage
-  /// server opened from the rail's menu — which still has to hear that
-  /// server's changes while it is open.
-  final String? fixedServerId;
-
-  /// What to follow when there is no [fixedServerId].
-  final WatchedServer follow;
+  /// The server to watch. Always one named server: a watcher that followed
+  /// the selection moved a call's roster to whichever server was being read
+  /// (`ServerContext` holds one per server instead).
+  final String watchedServerId;
 
   /// The topic to listen on, for the watched server.
   final String Function(Server server) topicOf;
@@ -58,13 +38,12 @@ class ServerTopicWatcher {
   /// [event] was said on the watched server.
   final void Function() onChanged;
 
-  /// The watched server is now [server], or nothing — the selection moved,
-  /// or a fixed server became usable or went away. Always fires before the
+  /// The watched server is now [server], or nothing — it became usable or
+  /// went away. Always fires before the
   /// first [onChanged] for that server.
   final void Function(Server? server) onServerChanged;
 
   StreamSubscription<void>? _serverSub;
-  StreamSubscription<void>? _callSub;
   RealtimeLease? _lease;
   String? _serverId;
   Timer? _debounce;
@@ -76,13 +55,9 @@ class ServerTopicWatcher {
     required this.event,
     required this.onChanged,
     required this.onServerChanged,
-    this.fixedServerId,
-    this.follow = WatchedServer.selected,
+    required this.watchedServerId,
   }) {
     _serverSub = session.changes.listen((_) => _sync());
-    if (fixedServerId == null && follow != WatchedServer.selected) {
-      _callSub = session.callChanges.listen((_) => _sync());
-    }
     // Deferred a microtask, never called straight from here. Consumers hold
     // the watcher in a `late final` field that this very expression is
     // initialising, so a callback fired from the constructor reaches an object
@@ -100,19 +75,8 @@ class ServerTopicWatcher {
   /// The server currently being watched, or null.
   String? get serverId => _serverId;
 
-  Server? get _wanted {
-    final fixed = fixedServerId;
-    if (fixed != null) return session.serverById(fixed);
-    return switch (follow) {
-      WatchedServer.selected => session.selectedServer,
-      WatchedServer.call => session.callServer,
-      WatchedServer.callOrSelected =>
-        session.callServer ?? session.selectedServer,
-    };
-  }
-
   void _sync() {
-    final server = _wanted;
+    final server = session.serverById(watchedServerId);
     if (server == null || server.supabaseKey == null || server.user == null) {
       if (_serverId == null) return;
       _teardown();
@@ -157,8 +121,6 @@ class ServerTopicWatcher {
     _disposed = true;
     await _serverSub?.cancel();
     _serverSub = null;
-    await _callSub?.cancel();
-    _callSub = null;
     _teardown();
   }
 }

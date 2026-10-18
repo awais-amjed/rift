@@ -52,9 +52,9 @@ void main() {
       // cubit refreshed in response, and the refresh read the `_watcher` field
       // that this very constructor call was still in the middle of assigning —
       // an unhandled LateInitializationError, before the first frame.
-      final members = ServerMembersCubit(session: session);
+      final members = ServerMembersCubit(session: session, serverId: 'srv-1');
 
-      // Deferred, not dropped — the selection still arrives, a microtask later.
+      // Deferred, not dropped — the server still arrives, a microtask later.
       expect(members.state.serverId, isNull);
       await Future<void>.delayed(Duration.zero);
       expect(members.state.serverId, 'srv-1');

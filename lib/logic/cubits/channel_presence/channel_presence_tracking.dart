@@ -17,7 +17,8 @@ part of 'channel_presence_cubit.dart';
 /// rationing stays anyway — it costs a timer, and it is what stops anyone
 /// quietly putting a changing value back into this payload.
 mixin _PresenceTrackingMixin on Cubit<ChannelPresenceState> {
-  SessionRepository get _session;
+  /// The server this entry is on.
+  Server? get _server;
   RealtimeChannel? get _channel;
   bool get _subscribed;
 
@@ -57,7 +58,7 @@ mixin _PresenceTrackingMixin on Cubit<ChannelPresenceState> {
   void _ensureTracked() {
     if (isClosed || _hasPending || _tracked) return;
     if (_channel == null || !_subscribed) return;
-    if (_session.selectedServer?.user == null) return;
+    if (_server?.user == null) return;
     _hasPending = true;
     _publishTimer?.cancel();
     _publishTimer = Timer(
@@ -71,7 +72,7 @@ mixin _PresenceTrackingMixin on Cubit<ChannelPresenceState> {
   void _healTracking(Set<String> online) {
     if (!PresenceRation.shouldRetrack(
       tracked: _tracked,
-      localUserId: _session.selectedServer?.user?.id,
+      localUserId: _server?.user?.id,
       onlineUserIds: online,
     )) {
       return;
@@ -88,7 +89,7 @@ mixin _PresenceTrackingMixin on Cubit<ChannelPresenceState> {
 
   Future<void> _publishPending() async {
     if (isClosed || !_hasPending || _channel == null || _publishing) return;
-    final user = _session.selectedServer?.user;
+    final user = _server?.user;
     if (user == null) return;
 
     _publishing = true;

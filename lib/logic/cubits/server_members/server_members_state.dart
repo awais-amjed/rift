@@ -2,9 +2,7 @@ part of 'server_members_cubit.dart';
 
 /// What the client knows about a server's members right now.
 ///
-/// One per server being looked at: the app's own follows the selection, and
-/// Manage server opened for another server holds one for that server while it
-/// is open.
+/// One per server in use, in that server's context (`ServerContext`).
 ///
 /// It used to be one list: every member, fetched whole. That list was capped at
 /// 1000 rows by PostgREST, so on a large server it was not the roster — it was
@@ -24,7 +22,7 @@ part of 'server_members_cubit.dart';
 ///    scrolled. [peopleCount] is what says how many there are in total, since
 ///    the length of a page says only how far somebody has read.
 class ServerMembersState extends Equatable {
-  /// Which server this describes. Null when no server is selected.
+  /// Which server this describes. Null until it is usable, or once it is gone.
   final String? serverId;
 
   /// Every bot on the server.

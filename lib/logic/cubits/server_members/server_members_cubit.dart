@@ -16,7 +16,9 @@ import '../../services/server_topics.dart';
 
 part 'server_members_state.dart';
 
-/// The selected server's members, kept live and kept bounded.
+/// One server's members, kept live and kept bounded. Each server's context
+/// holds one (`ServerContext`), so a call's roster stays the call's server's
+/// whichever server is being read.
 ///
 /// Presence (who is *online*) has always been realtime; membership (who is
 /// *here at all*) was fetched once per server and cached until you switched
@@ -59,7 +61,7 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
   /// Guards a slow search landing after a newer one, or after a clear.
   int _searchId = 0;
 
-  StreamSubscription<void>? _presenceSub;
+  final List<StreamSubscription<void>> _idSubs = [];
 
   void Function()? _onSelfModerationChanged;
 
@@ -75,28 +77,21 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
   /// of the people who happen to sort early in the alphabet. So every presence
   /// tick resolves what it names; ids already held cost nothing.
   ///
-  /// Wired from the outside rather than injected because [ChannelPresenceCubit]
-  /// is built before this one, and reaching back for it would be a
-  /// construction cycle.
+  /// Wired from the outside rather than injected because the presence cubit
+  /// is built beside this one, not before it. Called once per source: the
+  /// server's presence, and the call's participants while the call is here.
   void watchPresence(Stream<Set<String>> onlineIds) {
-    _presenceSub?.cancel();
-    _presenceSub = onlineIds.listen((ids) => unawaited(resolve(ids)));
+    _idSubs.add(onlineIds.listen((ids) => unawaited(resolve(ids))));
   }
 
-  /// The selected server's members — the app's own — or, given [serverId],
-  /// that one server's, for Manage server opened on a server the person is
-  /// not looking at. Whoever opens that page owns that one and closes it.
-  /// [follow] is for [CallMembersCubit], which follows the call instead.
   ServerMembersCubit({
     required SessionRepository session,
-    String? serverId,
-    WatchedServer follow = WatchedServer.selected,
+    required String serverId,
   }) : _session = session,
        super(ServerMembersState()) {
     _watcher = ServerTopicWatcher(
       session: session,
-      fixedServerId: serverId,
-      follow: follow,
+      watchedServerId: serverId,
       topicOf: (server) => ServerTopics.server(server.id),
       event: ServerEvent.members,
       onChanged: () => unawaited(refresh()),
@@ -474,7 +469,9 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
 
   @override
   Future<void> close() async {
-    await _presenceSub?.cancel();
+    for (final sub in _idSubs) {
+      await sub.cancel();
+    }
     await _watcher.dispose();
     return super.close();
   }

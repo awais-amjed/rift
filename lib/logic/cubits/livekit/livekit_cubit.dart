@@ -117,11 +117,14 @@ class LiveKitCubit extends Cubit<LiveKitState>
   @override
   SoundShareCubit? _soundShareCubit;
 
-  /// The ear on the data channel for soundboard presses, and the thing that
-  /// stops a clip when the call ends. Injected after construction like the
-  /// two share cubits — it needs this cubit to publish a press.
+  /// The call's server's soundboard: the ear on the data channel for presses,
+  /// and the thing that stops a clip when the call ends. Asked for each time,
+  /// because it belongs to that server's context (`ServerContext`) and the
+  /// call moves between servers. Set after construction like the two share
+  /// cubits — the soundboard needs this cubit to publish a press.
+  SoundboardCubit? Function()? _soundboardOf;
   @override
-  SoundboardCubit? _soundboardCubit;
+  SoundboardCubit? get _soundboardCubit => _soundboardOf?.call();
   @override
   final List<EventsListener<RoomEvent>> _listeners = [];
 
@@ -182,8 +185,8 @@ class LiveKitCubit extends Cubit<LiveKitState>
     _soundShareCubit = cubit;
   }
 
-  void setSoundboardCubit(SoundboardCubit cubit) {
-    _soundboardCubit = cubit;
+  void setSoundboardOf(SoundboardCubit? Function() soundboardOf) {
+    _soundboardOf = soundboardOf;
   }
 
   /// Keeps the call notification's mute button honest.

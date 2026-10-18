@@ -70,7 +70,9 @@ widgets  →  cubits  →  repositories  →  network / storage / platform
   feature's class in `data/apis/`, built for that one server with
   `SessionRepository.on(serverId)`. The session also holds each
   server's one Realtime connection (`realtime`) and says when the list or the
-  selection moved (`changes`), which is all `ServerTopicWatcher` needs.
+  selection moved (`changes`), which is all `ServerTopicWatcher` needs. A cubit
+  about one server lives in that server's `ServerContext`, which wires it to its
+  siblings there (the roster resolving whom presence names) once, in one place.
 - **Instead, push it down or up:**
   - *Down* — both cubits take the same repository, and the repository exposes a
     `Stream` of the shared data. Each cubit subscribes and keeps its own state.

@@ -26,9 +26,14 @@ import '../livekit/livekit_cubit.dart';
 part 'channel_presence_state.dart';
 part 'channel_presence_tracking.dart';
 part 'channel_presence_room.dart';
-part 'channel_presence_call.dart';
 
-/// Who is online on the selected server, and who is in which voice channel.
+/// Who is online on one server, and who is in which voice channel.
+///
+/// Each server's context holds one (`ServerContext`), and holding it is what
+/// keeps us there: our presence entry, and the location our call is announced
+/// at. The call holds its server's while its member reads another, so nobody
+/// there sees us leave a call we are still talking in, and the server being
+/// read is never told we are in a channel it does not have.
 ///
 /// Two questions, and — the point of this class — **two transports**, because
 /// they change at completely different rates.
@@ -50,11 +55,13 @@ part 'channel_presence_call.dart';
 /// gets to say it left, and doesn't have to — it drops off presence, and its
 /// last known location stops being believed.
 class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
-    with _PresenceTrackingMixin, _RoomPeopleMixin, _CallSideMixin {
-  @override
+    with _PresenceTrackingMixin, _RoomPeopleMixin {
   final SessionRepository _session;
   @override
   final LiveKitCubit _livekitCubit;
+
+  /// The server this is about.
+  final String _serverId;
   final VoiceRegionProbe _probe;
 
   StreamSubscription<void>? _serverSub;
@@ -69,13 +76,8 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
   RealtimeChannel? get _channel => _presenceTopic?.channel;
   @override
   VoiceBroadcast? _voice;
-  @override
   String? _currentServerId;
   String? _currentUserId;
-
-  /// Whether the join being made is one [_CallSideMixin] held on to, whose
-  /// entry is already there — see [_onPresenceStatus].
-  bool _inheritedEntry = false;
   @override
   bool _subscribed = false;
 
@@ -117,14 +119,15 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
   ChannelPresenceCubit({
     required LiveKitCubit livekitCubit,
     required SessionRepository session,
+    required String serverId,
   }) : _session = session,
        _livekitCubit = livekitCubit,
+       _serverId = serverId,
        _probe = session.regionProbe,
        super(const ChannelPresenceState()) {
     _serverSub = session.changes.listen((_) => _onServerChanged());
     _lkSub = livekitCubit.stream.listen((_) {
       _announceLocation();
-      _syncCallSide();
       _onOwnChannel();
       _onRoomPeople();
     });
@@ -134,17 +137,18 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
 
   // ── Server changes ───────────────────────────────────────────────────────
 
+  /// This server's own row, for the one it is about.
+  @override
+  Server? get _server => _session.serverById(_serverId);
+
   Future<void> _onServerChanged() async {
-    final server = _session.selectedServer;
+    final server = _server;
     // The user arriving matters as much as the server doing: we connect before
     // registration finishes on first launch, and there is nobody to announce
     // until it has.
     if (server?.id == _currentServerId && server?.user?.id == _currentUserId) {
       return;
     }
-    // A call left behind on the server being closed keeps its joins, taken
-    // before ours go so there is no gap between the two.
-    _syncCallSide(mayRelease: false);
     final epoch = ++_connectEpoch;
     await _disconnectPresence();
     // Two selections in quick succession both wait here, and without this the
@@ -153,9 +157,6 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
     if (server != null && server.supabaseKey != null) {
       _connectPresence(server);
     }
-    // And back on the call's server, its joins are ours again: let them go
-    // only now that we hold them.
-    _syncCallSide();
   }
 
   void _connectPresence(
@@ -165,9 +166,6 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
   }) {
     _currentServerId = server.id;
     _currentUserId = server.user?.id;
-    final side = _callSide;
-    _inheritedEntry =
-        side != null && side.serverId == server.id && side.tracked;
     _subscribed = false;
     _openedAt ??= DateTime.now();
     _startTrackingSession();
@@ -204,11 +202,7 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
       // bring it back, so every subscribe re-establishes it.
       _subscribed = true;
       _rebuildAttempt = 0;
-      // A join the call's side held for us still carries our entry, and
-      // publishing it again on every switch would spend the ration; if it has
-      // gone after all, [_healTracking] notices at the next sync.
-      _tracked = _inheritedEntry;
-      _inheritedEntry = false;
+      _tracked = false;
       _ensureTracked();
     } else {
       _subscribed = false;
@@ -268,7 +262,6 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
     _voice?.announce(place.channelId, sharing: place.sharing);
   }
 
-  @override
   ({String? channelId, bool sharing}) _placeOn(String serverId, String userId) {
     final lkState = _livekitCubit.state;
     // Only the call's own server hears where it is. Read on another, its
@@ -300,7 +293,7 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
   /// The authoritative roster from LiveKit, or null when it can't be had.
   Future<({Map<String, String> locations, Set<String>? sharing})?>
   _fetchRoster() async {
-    // The subscribe that asked for this can land after the selection moved on.
+    // The subscribe that asked for this can land after a rebuild moved on.
     final asked = _currentServerId;
     if (asked == null) return null;
     final response = await VoiceApi(_session.on(asked)).voiceRoster();
@@ -346,8 +339,7 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
   }
 
   /// Take the reading [asked]'s roster read left in the probe — unless the
-  /// selection moved on while it was out, when it would put one server's
-  /// numbers beside another's regions.
+  /// server went away while it was out.
   void _landRegionLoad(String? asked) {
     if (isClosed || asked == null || asked != _currentServerId) return;
     _regionLoad = _probe.loadOf(asked);
@@ -364,7 +356,7 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
   @override
   Future<void> _rebuild() async {
     if (isClosed) return;
-    final server = _session.selectedServer;
+    final server = _server;
     if (server == null || server.supabaseKey == null) return;
 
     final locations = _voice?.locations ?? const <String, String>{};
@@ -433,7 +425,7 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
         for (final entry in VoiceLocations.rosters(
           locations: _voice!.locations,
           online: _online,
-          excluding: _session.selectedServer?.user?.id,
+          excluding: _server?.user?.id,
         ).entries)
           if (entry.value.isNotEmpty) entry.key,
         ?_ownChannel,
@@ -445,7 +437,7 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
       online: _online,
       // Our own channel is drawn from live LiveKit participants; without this
       // we'd be listed twice in the call we're actually in.
-      excluding: _session.selectedServer?.user?.id,
+      excluding: _server?.user?.id,
     );
 
     if (_voice?.rosterRead ?? false) _rosterRead = true;
@@ -483,7 +475,11 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
     await _serverSub?.cancel();
     await _lkSub?.cancel();
     _rebuildTimer?.cancel();
-    await _closeCallSide();
+    // Held by a call that has just ended, the context can close before the
+    // call's own "nowhere" reaches us, and everybody here would see us in
+    // the channel until presence gave up on us. Said once; a place already
+    // said is not said again.
+    _voice?.announce(null);
     await _disconnectPresence();
     return super.close();
   }
