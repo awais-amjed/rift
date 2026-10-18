@@ -52,9 +52,17 @@ mixin _ChatReadyMixin on Cubit<ChannelChatState>, _ChatSweepMixin {
     // the ban then changed nothing, because readiness was already "done": the
     // channel list came back and opening a channel did nothing at all. Being
     // unready is the honest state, and it is what makes the unban re-run this.
+    //
+    // Cleared before the teardown is awaited, not after. Joining a server sets
+    // off two of these back to back — this cubit's own, still showing no
+    // server, then the hub's for the new one — and the first, clearing once
+    // its teardown finished, wiped the second's claim halfway through the
+    // second's own. That one then stood down as if replaced, so a new member
+    // published no chat key until the app was started again: nobody could seal
+    // them a key, and a call they went straight to never got one.
     if (server == null || server.user == null || server.user!.isBanned) {
-      await _teardownSweepRealtime();
       _readyServerId = null;
+      await _teardownSweepRealtime();
       return;
     }
     if (_vaultCubit.state.masterSeed == null) return;
