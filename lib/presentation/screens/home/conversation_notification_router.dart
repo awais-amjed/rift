@@ -98,9 +98,9 @@ class _ConversationNotificationRouterState
       return;
     }
 
-    // A DM: once the list has moved to this server, open the person from it,
+    // A DM: once this server's list has come in, open the person from it,
     // which has the key the conversation needs.
-    await dms.readyFor(server.id);
+    await dms.listedFor(server.id);
     if (!mounted) return;
     final conversation = dms.state.conversations
         .where((c) => c.peerId == target.targetId)

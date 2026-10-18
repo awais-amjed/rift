@@ -249,11 +249,25 @@ class DmCubit extends Cubit<DmState>
         .timeout(const Duration(seconds: 5), onTimeout: () => state);
   }
 
+  /// Resolves once [serverId]'s conversation list has come in, after a
+  /// server switch. A message notification names the person but not the key
+  /// to read them with, and the list is where that key is: [readyFor] alone
+  /// resolved before the list arrived, so a press on a DM from another
+  /// server opened the DM page and not the conversation.
+  Future<void> listedFor(String serverId) async {
+    bool listed() => _readyServerId == serverId && _conversationsListed;
+    if (listed()) return;
+    await stream
+        .firstWhere((_) => listed())
+        .timeout(const Duration(seconds: 5), onTimeout: () => state);
+  }
+
   Future<void> _reset() async {
     // Whatever was open is saved to the server it belongs to — read now,
     // before the reset forgets which one that was.
     unawaited(_saved.flush(leaving: true));
     _readyServerId = null;
+    _conversationsListed = false;
     _forgetSetAside();
     _dmKeys.clear();
     _dmKeySources.clear();

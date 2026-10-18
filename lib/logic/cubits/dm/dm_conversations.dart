@@ -40,6 +40,11 @@ mixin _DmConversationsMixin on Cubit<DmState> {
   /// question the list needs answered is [DmState.hasMoreConversations].
   bool _loadingMoreConversations = false;
 
+  /// Whether the shown server's first page has come back, either way, since
+  /// the last switch. Cubit-internal for the same reason; `listedFor` waits
+  /// on it.
+  bool _conversationsListed = false;
+
   /// Reload from the top. Runs on open, on every incoming message and when
   /// the inbox rejoins after a dropped connection, so it deliberately
   /// re-reads only the first page — a conversation that has just been spoken
@@ -52,6 +57,7 @@ mixin _DmConversationsMixin on Cubit<DmState> {
 
     final page = await _fetchConversations();
     if (isClosed) return;
+    _conversationsListed = true;
     if (page == null) {
       emit(
         state.copyWith(conversationsLoading: false, conversationsFailed: true),
