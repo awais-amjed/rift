@@ -68,11 +68,12 @@ class _InviteModalState extends State<InviteModal> with _InviteRolesMixin {
       _inviteToken = null;
     });
 
-    final result = await InvitesApi(session: context.read<SessionRepository>())
-        .createInvite(
+    final result =
+        await InvitesApi(
+          context.read<SessionRepository>().on(widget.server.id),
+        ).createInvite(
           maxUses: inviteUsesOptions[_usesIndex].value,
           expiresInSeconds: inviteExpiryOptions[_expiryIndex].seconds,
-          serverId: widget.server.id,
           isBot: _isBot,
           roleId: roleId,
         );

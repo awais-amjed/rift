@@ -4,10 +4,11 @@ import 'dart:typed_data';
 import '../../logic/services/soundboard_cache.dart';
 import '../classes/soundboard_sound.dart';
 import '../repositories/server_repository.dart';
+import '../repositories/server_session.dart';
 import '../repositories/session_repository.dart';
 import '../repositories/soundboard_repository.dart';
 
-/// The soundboard library for [serverId], or for the selected server.
+/// One server's soundboard library.
 ///
 /// Nothing here holds state — `SoundboardCubit` does, because a picker that
 /// opens mid-call cannot wait for a round trip and a new clip has to appear
@@ -15,22 +16,19 @@ import '../repositories/soundboard_repository.dart';
 /// go with them, each through [SessionRepository] so an expired token signs
 /// in again rather than failing.
 class SoundboardApi {
-  final SessionRepository _session;
+  final ServerSession _target;
   final SoundboardRepository _sounds;
 
-  SoundboardApi({
-    required SessionRepository session,
-    SoundboardRepository? sounds,
-  }) : _session = session,
-       _sounds = sounds ?? SoundboardRepository();
+  SoundboardApi(this._target, {SoundboardRepository? sounds})
+    : _sounds = sounds ?? SoundboardRepository();
+
+  SessionRepository get _session => _target.session;
 
   ServerRepository get _repository => _session.repository;
 
   /// Every clip on the server.
-  Future<({List<SoundboardSound> sounds, String? error})> listSounds({
-    String? serverId,
-  }) async {
-    final server = _session.target(serverId);
+  Future<({List<SoundboardSound> sounds, String? error})> listSounds() async {
+    final server = _target.server;
     if (server == null) {
       return (sounds: const <SoundboardSound>[], error: 'No server');
     }
@@ -74,9 +72,8 @@ class SoundboardApi {
     required Uint8List bytes,
     required String contentType,
     required Duration duration,
-    String? serverId,
   }) async {
-    final server = _session.target(serverId);
+    final server = _target.server;
     if (server == null) return (sound: null, error: 'No server');
 
     final uploaded = await _session.callFor(
@@ -147,9 +144,8 @@ class SoundboardApi {
     required String soundId,
     required String name,
     String? emoji,
-    String? serverId,
   }) async {
-    final server = _session.target(serverId);
+    final server = _target.server;
     if (server == null) return (success: false, error: 'No server');
 
     final response = await _session.callFor(
@@ -174,9 +170,8 @@ class SoundboardApi {
   Future<({bool success, String? error})> deleteSound({
     required String soundId,
     required String objectPath,
-    String? serverId,
   }) async {
-    final server = _session.target(serverId);
+    final server = _target.server;
     if (server == null) return (success: false, error: 'No server');
 
     final response = await _session.callFor(
@@ -218,8 +213,8 @@ class SoundboardApi {
   }
 
   /// One clip's bytes, for a listener that has not heard it before.
-  Future<Uint8List?> loadSound(String objectPath, {String? serverId}) async {
-    final server = _session.target(serverId);
+  Future<Uint8List?> loadSound(String objectPath) async {
+    final server = _target.server;
     if (server == null) return null;
 
     final response = await _session.callFor(

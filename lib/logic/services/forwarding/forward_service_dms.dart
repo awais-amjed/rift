@@ -10,7 +10,7 @@ part of 'forward_service.dart';
 mixin _ForwardDmsMixin on _ForwardBlobsMixin {
   VaultCubit get vault;
   CryptoRepository get crypto;
-  DmsApi get dms;
+  DmsApi dmsOn(String serverId);
 
   Future<ServerIdentity?> _identityFor(Server server);
 
@@ -54,11 +54,9 @@ mixin _ForwardDmsMixin on _ForwardBlobsMixin {
       keyVersion: 1,
     );
 
-    final response = await dms.sendDm(
-      recipientId: target.peerId,
-      envelope: envelope.toJson(),
-      serverId: server.id,
-    );
+    final response = await dmsOn(
+      server.id,
+    ).sendDm(recipientId: target.peerId, envelope: envelope.toJson());
     return response.success ? null : (response.error?.toString() ?? 'Failed');
   }
 

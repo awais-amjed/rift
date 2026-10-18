@@ -3,11 +3,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/apis/voice_regions_api.dart';
 import '../../../../../../data/classes/livekit_node.dart';
-import '../../../../../../data/repositories/session_repository.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/helper_methods.dart';
 import '../../../../../common/confirm_dialog.dart';
 import '../../../../../common/hint_card.dart';
+import '../../../../../common/server_scope.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
 import 'voice_region_dialog.dart';
@@ -77,7 +77,7 @@ class _VoiceRegionsSectionState extends State<VoiceRegionsSection> {
     if (!confirmed || !mounted) return;
 
     setState(() => _busy = true);
-    final regions = VoiceRegionsApi(session: context.read<SessionRepository>());
+    final regions = VoiceRegionsApi(ServerScope.read(context));
     final result = await regions.deleteVoiceRegion(node.id);
     if (!mounted) return;
     setState(() => _busy = false);

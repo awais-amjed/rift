@@ -1,5 +1,6 @@
 import '../classes/api_response.dart';
 import '../repositories/server_repository.dart';
+import '../repositories/server_session.dart';
 import '../repositories/session_repository.dart';
 
 /// The one bot capability that is not arranged around a bot never holding a
@@ -13,13 +14,15 @@ import '../repositories/session_repository.dart';
 ///
 /// Holds nothing, so a widget builds one from the session.
 class BotKeysApi {
-  final SessionRepository _session;
+  final ServerSession _target;
 
-  BotKeysApi({required SessionRepository session}) : _session = session;
+  BotKeysApi(this._target);
+
+  SessionRepository get _session => _target.session;
 
   ServerRepository get _repository => _session.repository;
 
-  /// Hand a bot the key to a channel on the selected server, or take it back.
+  /// Hand a bot the key to a channel, or take it back.
   ///
   /// Every rule behind this is in the database and none of it is repeated here
   /// — the permission, the channel being one the caller can see, the version
@@ -30,8 +33,8 @@ class BotKeysApi {
     required String botId,
     required bool granted,
   }) async {
-    final server = _session.selectedServer;
-    if (server == null) return (success: false, error: _session.noTarget(null));
+    final server = _target.server;
+    if (server == null) return (success: false, error: ServerSession.gone);
 
     final response = await _session.callFor(
       server,
@@ -51,11 +54,10 @@ class BotKeysApi {
   Future<({bool success, String? error})> setBotServerKey({
     required String botId,
     required bool granted,
-    String? serverId,
   }) async {
-    final server = _session.target(serverId);
+    final server = _target.server;
     if (server == null) {
-      return (success: false, error: _session.noTarget(serverId));
+      return (success: false, error: ServerSession.gone);
     }
 
     final response = await _session.callFor(
@@ -95,10 +97,9 @@ class BotKeysApi {
 
   /// What one bot can read: the channels, and whether it is server-wide.
   Future<({Set<String> channelIds, bool serverWide})> botChannels(
-    String botId, {
-    String? serverId,
-  }) async {
-    final server = _session.target(serverId);
+    String botId,
+  ) async {
+    final server = _target.server;
     if (server == null) {
       return (channelIds: <String>{}, serverWide: false);
     }
@@ -126,7 +127,7 @@ class BotKeysApi {
     );
   }
 
-  /// The ids of the bots holding a key to [channelId] on the selected server.
+  /// The ids of the bots holding a key to [channelId].
   ///
   /// Separate from [channelListeners], which is the same query answered for a
   /// different audience: that one is names for a chip every member reads, this
@@ -136,8 +137,7 @@ class BotKeysApi {
     return {for (final r in rows) r['bot_id'] as String};
   }
 
-  /// The bots holding a key to [channelId] on the selected server, by display
-  /// name.
+  /// The bots holding a key to [channelId], by display name.
   ///
   /// Read on channel open and shown in the header, not behind a menu: a
   /// standing marker is the point (BOTS.md §6, rule 4). A dialog somebody has
@@ -151,7 +151,7 @@ class BotKeysApi {
   }
 
   Future<List<Map<String, dynamic>>> _listeners(String channelId) async {
-    final server = _session.selectedServer;
+    final server = _target.server;
     if (server == null) return const [];
 
     final response = await _session.callFor(

@@ -54,7 +54,7 @@ class DmCallCubit extends Cubit<DmCallState>
   @override
   final SessionRepository _session;
   @override
-  final DmCallsApi _calls;
+  DmCallsApi _callsOn(Server server) => DmCallsApi(_session.on(server.id));
   @override
   final LiveKitCubit _livekit;
   @override
@@ -92,7 +92,6 @@ class DmCallCubit extends Cubit<DmCallState>
     required AppCubit appCubit,
     CryptoRepository? crypto,
   }) : _session = session,
-       _calls = DmCallsApi(session: session),
        _livekit = livekitCubit,
        _vault = vaultCubit,
        _app = appCubit,
@@ -187,7 +186,7 @@ class DmCallCubit extends Cubit<DmCallState>
       for (final entry in state.incoming)
         if (entry.serverId == serverId) entry.call.id,
     ];
-    final response = await _calls.myDmCalls(server, known: known);
+    final response = await _callsOn(server).myDmCalls(known: known);
     if (!response.success || isClosed) return;
 
     final before = state.incoming;

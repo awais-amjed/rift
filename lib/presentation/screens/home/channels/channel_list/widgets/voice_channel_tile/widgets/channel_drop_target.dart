@@ -3,9 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../../../data/apis/voice_api.dart';
 import '../../../../../../../../data/classes/voice_drag.dart';
-import '../../../../../../../../data/repositories/session_repository.dart';
 import '../../../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../../../logic/helper_methods.dart';
+import '../../../../../../../common/server_scope.dart';
 
 /// A voice channel you can drop a member onto.
 ///
@@ -39,7 +39,7 @@ class ChannelDropTarget extends StatelessWidget {
       return;
     }
 
-    final voice = VoiceApi(session: context.read<SessionRepository>());
+    final voice = VoiceApi(ServerScope.read(context));
     final response = await voice.moveUser(
       userId: member.userId,
       channelId: channelId,

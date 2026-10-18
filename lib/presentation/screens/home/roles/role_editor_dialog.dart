@@ -4,12 +4,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../data/apis/roles_api.dart';
 import '../../../../data/classes/role.dart';
 import '../../../../data/enums/server_permission.dart';
-import '../../../../data/repositories/session_repository.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/app_text_field.dart';
 import '../../../common/confirm_dialog.dart';
+import '../../../common/server_scope.dart';
 import 'widgets/permission_matrix.dart';
 import 'widgets/role_colour_picker.dart';
 
@@ -26,15 +26,7 @@ class RoleEditorDialog extends StatefulWidget {
   /// The rank a new role is given — one below the author's own.
   final int newPosition;
 
-  /// The server the role is on, or null for the selected one.
-  final String? serverId;
-
-  const RoleEditorDialog({
-    super.key,
-    this.role,
-    required this.newPosition,
-    this.serverId,
-  });
+  const RoleEditorDialog({super.key, this.role, required this.newPosition});
 
   @override
   State<RoleEditorDialog> createState() => _RoleEditorDialogState();
@@ -65,7 +57,11 @@ class _RoleEditorDialogState extends State<RoleEditorDialog> {
   bool get _canSave => _name.isNotEmpty && _changed && !_isSaving;
 
   int get _viewerPermissions =>
-      context.read<ServerCubit>().state.permissionsOn(widget.serverId)?.bits ??
+      context
+          .read<ServerCubit>()
+          .state
+          .permissionsOn(ServerScope.read(context).serverId)
+          ?.bits ??
       0;
 
   @override
@@ -79,7 +75,7 @@ class _RoleEditorDialogState extends State<RoleEditorDialog> {
       _isSaving = true;
       _error = null;
     });
-    final api = RolesApi(session: context.read<SessionRepository>());
+    final api = RolesApi(ServerScope.read(context));
 
     final result = _isNew
         ? await api
@@ -88,7 +84,6 @@ class _RoleEditorDialogState extends State<RoleEditorDialog> {
                 position: widget.newPosition,
                 permissions: _permissions,
                 color: _color,
-                serverId: widget.serverId,
               )
               .then((r) => (success: r.role != null, error: r.error))
         : await api.updateRole(
@@ -97,7 +92,6 @@ class _RoleEditorDialogState extends State<RoleEditorDialog> {
             permissions: _permissions,
             color: _color,
             clearColor: _color == null,
-            serverId: widget.serverId,
           );
     if (!mounted) return;
 
@@ -125,8 +119,8 @@ class _RoleEditorDialogState extends State<RoleEditorDialog> {
     if (!confirmed || !mounted) return;
 
     final result = await RolesApi(
-      session: context.read<SessionRepository>(),
-    ).deleteRole(widget.role!.id, serverId: widget.serverId);
+      ServerScope.read(context),
+    ).deleteRole(widget.role!.id);
     if (!mounted) return;
     if (!result.success) {
       setState(() => _error = result.error);

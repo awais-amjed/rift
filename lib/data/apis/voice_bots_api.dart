@@ -1,6 +1,7 @@
 import 'package:rift_crypto/rift_crypto.dart';
 
 import '../repositories/server_repository.dart';
+import '../repositories/server_session.dart';
 import '../repositories/session_repository.dart';
 
 /// What a bot may *hear*, and which bots were asked into a call — the voice
@@ -22,9 +23,11 @@ import '../repositories/session_repository.dart';
 ///
 /// Holds nothing, so a widget that needs one builds it from the session.
 class VoiceBotsApi {
-  final SessionRepository _session;
+  final ServerSession _target;
 
-  VoiceBotsApi({required SessionRepository session}) : _session = session;
+  VoiceBotsApi(this._target);
+
+  SessionRepository get _session => _target.session;
 
   ServerRepository get _repository => _session.repository;
 
@@ -34,7 +37,7 @@ class VoiceBotsApi {
     required String botId,
     required bool listen,
   }) async {
-    final server = _session.selectedServer;
+    final server = _target.server;
     if (server == null) return (success: false, error: 'No server');
 
     final response = await _session.callFor(
@@ -70,11 +73,10 @@ class VoiceBotsApi {
     required String channelId,
     required String botId,
     required bool summon,
-    String? serverId,
   }) async {
-    final server = _session.target(serverId);
+    final server = _target.server;
     if (server == null) {
-      return (success: false, error: _session.noTarget(serverId));
+      return (success: false, error: ServerSession.gone);
     }
 
     final response = await _session.callFor(
@@ -100,18 +102,14 @@ class VoiceBotsApi {
   /// this only posts them. Failure is swallowed by the caller on purpose — a
   /// bot short of a key is inaudible until the next member opens the call, and
   /// that is not worth failing somebody's own join over.
-  ///
-  /// [serverId] is the call's server, which the person may have stopped
-  /// looking at; null is the selected one.
   Future<void> postBotVoiceKey({
     required String channelId,
     required String botId,
     required int keyVersion,
     required bool isChannelKey,
     required WrappedKey wrapped,
-    String? serverId,
   }) async {
-    final server = _session.target(serverId);
+    final server = _target.server;
     final me = server?.user?.id;
     if (server == null || me == null) return;
 
@@ -156,7 +154,7 @@ class VoiceBotsApi {
   /// bot that was asked in and may not have arrived yet.
   Future<Map<String, List<({String id, String name})>>>
   voiceSummonsByChannel() async {
-    final server = _session.selectedServer;
+    final server = _target.server;
     if (server == null) return const {};
 
     final response = await _session.callFor(
@@ -185,13 +183,9 @@ class VoiceBotsApi {
 
   /// The ids of the bots that can hear [channelId] — for the dialog that
   /// changes them, where [voiceListenersByChannel] is names for the marker
-  /// every member reads. [serverId] names the server for a call the person
-  /// is not looking at.
-  Future<Set<String>> voiceListenerIds(
-    String channelId, {
-    String? serverId,
-  }) async {
-    final rows = await _voiceListenerRows(channelId, serverId: serverId);
+  /// every member reads.
+  Future<Set<String>> voiceListenerIds(String channelId) async {
+    final rows = await _voiceListenerRows(channelId);
     return {for (final row in rows) row['bot_id'] as String};
   }
 
@@ -201,11 +195,8 @@ class VoiceBotsApi {
   /// bot, because this is the same one round trip the sidebar already makes
   /// and the table has one row per grant — which is a number of rows an admin
   /// typed in by hand, one at a time.
-  Future<Set<String>> voiceChannelsHeardBy(
-    String botId, {
-    String? serverId,
-  }) async {
-    final rows = await _voiceListenerRows(null, serverId: serverId);
+  Future<Set<String>> voiceChannelsHeardBy(String botId) async {
+    final rows = await _voiceListenerRows(null);
     return {
       for (final row in rows)
         if (row['bot_id'] == botId) row['channel_id'] as String,
@@ -213,10 +204,9 @@ class VoiceBotsApi {
   }
 
   Future<List<Map<String, dynamic>>> _voiceListenerRows(
-    String? channelId, {
-    String? serverId,
-  }) async {
-    final server = _session.target(serverId);
+    String? channelId,
+  ) async {
+    final server = _target.server;
     if (server == null) return const [];
 
     final response = await _session.callFor(

@@ -76,8 +76,8 @@ class _AddBotModalState extends State<AddBotModal> {
     // spent the moment that program first runs. An unlimited one left in a
     // config file would mint a second bot on every fresh seed.
     final result = await InvitesApi(
-      session: context.read<SessionRepository>(),
-    ).createInvite(serverId: server.id, isBot: true, maxUses: 1);
+      context.read<SessionRepository>().on(server.id),
+    ).createInvite(isBot: true, maxUses: 1);
     if (!mounted) return;
 
     setState(() {

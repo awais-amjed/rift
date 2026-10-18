@@ -8,21 +8,23 @@ import '../classes/pending_attachment.dart';
 import '../classes/server.dart';
 import '../repositories/attachment_repository.dart';
 import '../repositories/blob/blob_sink.dart';
+import '../repositories/server_session.dart';
 import '../repositories/session_repository.dart';
 
 /// Attachment blobs on a server: encrypted and uploaded before the message
 /// that names them, downloaded and decrypted when it is drawn, and deleted
 /// with it.
 ///
-/// Every call takes an optional `serverId`. A forward fetches from one server
-/// and uploads to another, and a report's files are deleted from its own
-/// server's page; everyone else means the selected server.
+/// Bound to one server, like every class here. A forward fetches with one
+/// server's and uploads with another's.
 ///
 /// Holds nothing, so a widget that needs one builds it from the session.
 class AttachmentsApi {
-  final SessionRepository _session;
+  final ServerSession _target;
 
-  AttachmentsApi({required SessionRepository session}) : _session = session;
+  AttachmentsApi(this._target);
+
+  SessionRepository get _session => _target.session;
 
   AttachmentRepository get _attachments => _session.attachments;
 
@@ -33,13 +35,12 @@ class AttachmentsApi {
   /// exact.
   static String _bucketFor(Server server) => 'chat-${server.id}';
 
-  /// [serverId], or the selected server, with its key — or null when there is
-  /// none, or it has no key yet.
+  /// The server with its key — or null when it is gone, or has no key yet.
   ///
   /// Resolved once for both halves of a call: a blob sealed for one server and
   /// uploaded to another is a link nobody in either can open.
-  ({Server server, String anonKey})? _target(String? serverId) {
-    final server = _session.target(serverId);
+  ({Server server, String anonKey})? _withKey() {
+    final server = _target.server;
     final anonKey = server?.supabaseKey;
     if (server == null || anonKey == null) return null;
     return (server: server, anonKey: anonKey);
@@ -59,7 +60,6 @@ class AttachmentsApi {
   Future<APIResponse> uploadStaged(
     PendingAttachment file, {
     required String scopePrefix,
-    String? serverId,
     TransferProgress? onProgress,
     bool plain = false,
     bool mayGoPlain = false,
@@ -71,15 +71,9 @@ class AttachmentsApi {
             file: file.file!,
             length: file.size,
             plain: asItIs,
-            serverId: serverId,
             onProgress: onProgress,
           )
-        : _upload(
-            scopePrefix: scopePrefix,
-            data: file.bytes!,
-            plain: asItIs,
-            serverId: serverId,
-          );
+        : _upload(scopePrefix: scopePrefix, data: file.bytes!, plain: asItIs);
   }
 
   /// Encrypt + upload a blob held in memory, or upload it as it is when
@@ -88,10 +82,9 @@ class AttachmentsApi {
     required String scopePrefix,
     required Uint8List data,
     required bool plain,
-    String? serverId,
   }) async {
-    final target = _target(serverId);
-    if (target == null) return APIResponse.error(_session.noTarget(serverId));
+    final target = _withKey();
+    if (target == null) return APIResponse.error(ServerSession.gone);
     return _session.callFor(
       target.server,
       (token) => _attachments.upload(
@@ -114,11 +107,10 @@ class AttachmentsApi {
     required XFile file,
     required int length,
     required bool plain,
-    String? serverId,
     TransferProgress? onProgress,
   }) async {
-    final target = _target(serverId);
-    if (target == null) return APIResponse.error(_session.noTarget(serverId));
+    final target = _withKey();
+    if (target == null) return APIResponse.error(ServerSession.gone);
     return _attachments.uploadStreamed(
       baseUrl: target.server.supabaseUrl,
       anonKey: target.anonKey,
@@ -137,11 +129,10 @@ class AttachmentsApi {
   Future<APIResponse> saveAttachment({
     required Attachment attachment,
     required BlobSink sink,
-    String? serverId,
     TransferProgress? onProgress,
   }) async {
-    final target = _target(serverId);
-    if (target == null) return APIResponse.error(_session.noTarget(serverId));
+    final target = _withKey();
+    if (target == null) return APIResponse.error(ServerSession.gone);
     return _attachments.downloadTo(
       baseUrl: target.server.supabaseUrl,
       anonKey: target.anonKey,
@@ -161,10 +152,9 @@ class AttachmentsApi {
     required String nonceB64,
     String? sha256B64,
     int? chunkSize,
-    String? serverId,
   }) async {
-    final target = _target(serverId);
-    if (target == null) return APIResponse.error(_session.noTarget(serverId));
+    final target = _withKey();
+    if (target == null) return APIResponse.error(ServerSession.gone);
     return _session.callFor(
       target.server,
       (token) => _attachments.download(
@@ -186,12 +176,9 @@ class AttachmentsApi {
   /// Called when a message carrying them is deleted: the client has just
   /// decrypted that message, so it is the only party that knows which blobs
   /// belong to it. Best-effort — see [AttachmentRepository.deleteObjects].
-  Future<APIResponse> deleteAttachments(
-    List<String> paths, {
-    String? serverId,
-  }) async {
-    final target = _target(serverId);
-    if (target == null) return APIResponse.error(_session.noTarget(serverId));
+  Future<APIResponse> deleteAttachments(List<String> paths) async {
+    final target = _withKey();
+    if (target == null) return APIResponse.error(ServerSession.gone);
     return _session.callFor(
       target.server,
       (token) => _attachments.deleteObjects(
@@ -204,12 +191,12 @@ class AttachmentsApi {
     );
   }
 
-  /// Apply the selected server's retention settings and clear out the
+  /// Apply the server's retention settings and clear out the
   /// attachment blobs whose messages are gone. Safe for any member to call —
   /// it removes only unreferenced objects.
   Future<APIResponse> sweepAttachments() async {
-    final server = _session.selectedServer;
-    if (server == null) return APIResponse.error(_session.noTarget(null));
+    final server = _target.server;
+    if (server == null) return APIResponse.error(ServerSession.gone);
     return _session.callFor(
       server,
       (token) => _session.repository.sweepAttachments(

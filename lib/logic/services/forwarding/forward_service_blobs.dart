@@ -11,7 +11,7 @@ part of 'forward_service.dart';
 /// trimmed past it — leaving a forward that rendered correctly for a week
 /// and then quietly lost its picture.
 mixin _ForwardBlobsMixin {
-  AttachmentsApi get blobs;
+  AttachmentsApi blobsOn(String serverId);
   CentralDmRepository get central;
 
   /// Fetch and open every attachment once, whatever it is being forwarded to.
@@ -32,11 +32,9 @@ mixin _ForwardBlobsMixin {
         if (sourceServerId != null &&
             attachment.size > AttachmentStaging.inMemoryMaxBytes) {
           final sink = await scratchTarget(attachment.name);
-          final response = await blobs.saveAttachment(
-            attachment: attachment,
-            sink: sink,
-            serverId: sourceServerId,
-          );
+          final response = await blobsOn(
+            sourceServerId,
+          ).saveAttachment(attachment: attachment, sink: sink);
           if (!response.success) {
             files.add(null);
             continue;
@@ -64,13 +62,12 @@ mixin _ForwardBlobsMixin {
                 sha256B64: attachment.sha256B64,
                 chunkSize: attachment.chunkSize,
               )
-            : await blobs.downloadAttachment(
+            : await blobsOn(sourceServerId).downloadAttachment(
                 path: attachment.storagePath,
                 keyB64: attachment.keyB64,
                 nonceB64: attachment.nonceB64,
                 sha256B64: attachment.sha256B64,
                 chunkSize: attachment.chunkSize,
-                serverId: sourceServerId,
               );
         final bytes = response.success ? response.data as Uint8List? : null;
         files.add(
@@ -122,12 +119,9 @@ mixin _ForwardBlobsMixin {
                 scopePrefix: scopePrefix,
                 data: file.bytes ?? await file.source.readAsBytes(),
               )
-            : await blobs.uploadStaged(
-                file,
-                scopePrefix: scopePrefix,
-                serverId: serverId,
-                plain: plain,
-              );
+            : await blobsOn(
+                serverId,
+              ).uploadStaged(file, scopePrefix: scopePrefix, plain: plain);
         if (!response.success) continue;
         final blob = response.data as UploadedBlob;
         final source = attachments[i];

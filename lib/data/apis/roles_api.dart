@@ -3,10 +3,11 @@ import '../classes/api_response.dart';
 import '../classes/role.dart';
 import '../classes/server.dart';
 import '../repositories/server_repository.dart';
+import '../repositories/server_session.dart';
 import '../repositories/session_repository.dart';
 
-/// Roles for [serverId], or for the selected server. Named because the roles
-/// page opens for any server on the rail, not only the one on screen.
+/// Roles on one server. The roles page opens for any server on the rail, not
+/// only the one on screen.
 ///
 /// Nothing here is kept. The roles and who holds them are kept by
 /// `ServerMembersCubit`, which every screen showing them reads, and which the
@@ -22,15 +23,17 @@ import '../repositories/session_repository.dart';
 ///
 /// Holds nothing, so a widget builds one from the session.
 class RolesApi {
-  final SessionRepository _session;
+  final ServerSession _target;
 
-  RolesApi({required SessionRepository session}) : _session = session;
+  RolesApi(this._target);
+
+  SessionRepository get _session => _target.session;
 
   ServerRepository get _repository => _session.repository;
 
   /// Every role on this server, most senior first.
-  Future<List<Role>> listRoles({String? serverId}) async {
-    final server = _session.target(serverId);
+  Future<List<Role>> listRoles() async {
+    final server = _target.server;
     if (server == null) return const [];
 
     final response = await _session.callFor(
@@ -53,8 +56,8 @@ class RolesApi {
   /// Who holds what, as `{userId: [role, ...]}`, for the whole server. Null
   /// when the read failed, which is not the same answer as nobody holding
   /// anything.
-  Future<Map<String, List<Role>>?> listMemberRoles({String? serverId}) async {
-    final server = _session.target(serverId);
+  Future<Map<String, List<Role>>?> listMemberRoles() async {
+    final server = _target.server;
     if (server == null) return null;
 
     final response = await _session.callFor(
@@ -77,11 +80,8 @@ class RolesApi {
   /// role) and so hits the response ceiling sooner than the roster itself does.
   /// It is still the right call for a screen that shows everyone at once; this
   /// is the one for a list that pages.
-  Future<Map<String, List<Role>>> memberRolesFor(
-    List<String> userIds, {
-    String? serverId,
-  }) async {
-    final server = _session.target(serverId);
+  Future<Map<String, List<Role>>> memberRolesFor(List<String> userIds) async {
+    final server = _target.server;
     if (server == null || userIds.isEmpty) return const {};
 
     final response = await _session.callFor(
@@ -110,10 +110,9 @@ class RolesApi {
     required int position,
     required int permissions,
     String? color,
-    String? serverId,
   }) async {
-    final server = _session.target(serverId);
-    if (server == null) return (role: null, error: _session.noTarget(serverId));
+    final server = _target.server;
+    if (server == null) return (role: null, error: ServerSession.gone);
 
     final response = await _session.callFor(
       server,
@@ -144,9 +143,7 @@ class RolesApi {
     int? permissions,
     String? color,
     bool clearColor = false,
-    String? serverId,
   }) => _changeRole(
-    serverId,
     (server, token) => _repository.updateRole(
       server.supabaseUrl,
       roleId,
@@ -160,26 +157,21 @@ class RolesApi {
     ),
   );
 
-  Future<({bool success, String? error})> deleteRole(
-    String roleId, {
-    String? serverId,
-  }) => _changeRole(
-    serverId,
-    (server, token) => _repository.deleteRole(
-      server.supabaseUrl,
-      roleId,
-      anonKey: server.supabaseKey ?? '',
-      bearerToken: token,
-    ),
-  );
+  Future<({bool success, String? error})> deleteRole(String roleId) =>
+      _changeRole(
+        (server, token) => _repository.deleteRole(
+          server.supabaseUrl,
+          roleId,
+          anonKey: server.supabaseKey ?? '',
+          bearerToken: token,
+        ),
+      );
 
   Future<({bool success, String? error})> setMemberRole({
     required String userId,
     required String roleId,
     required bool held,
-    String? serverId,
   }) => _changeRole(
-    serverId,
     (server, token) => held
         ? _repository.assignRole(
             server.supabaseUrl,
@@ -200,12 +192,11 @@ class RolesApi {
   /// Every role write ends the same way: the three cached booleans on `users`
   /// have moved, and this device's own copy of its permissions with them.
   Future<({bool success, String? error})> _changeRole(
-    String? serverId,
     Future<APIResponse> Function(Server server, String token) call,
   ) async {
-    final server = _session.target(serverId);
+    final server = _target.server;
     if (server == null) {
-      return (success: false, error: _session.noTarget(serverId));
+      return (success: false, error: ServerSession.gone);
     }
 
     final response = await _session.callFor(

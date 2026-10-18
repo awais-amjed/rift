@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/apis/voice_bots_api.dart';
 import '../../../../../data/enums/server_permission.dart';
-import '../../../../../data/repositories/session_repository.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
@@ -44,10 +43,9 @@ class ParticipantBotSection extends StatelessWidget {
 
   Future<void> _dismiss(BuildContext context) async {
     final dismissMenu = ContextMenuScope.of(context);
-    final api = VoiceBotsApi(session: context.read<SessionRepository>());
+    final api = VoiceBotsApi(ServerScope.read(context));
     final voiceBots = context.read<VoiceListenersCubit>();
     final channelId = voiceChannelId;
-    final serverId = ServerScope.read(context);
     if (channelId == null) return;
 
     dismissMenu?.call();
@@ -55,7 +53,6 @@ class ParticipantBotSection extends StatelessWidget {
       channelId: channelId,
       botId: targetUserId,
       summon: false,
-      serverId: serverId,
     );
     if (result.success) {
       // The row is what the sidebar draws a summoned-but-absent bot from, so
@@ -80,7 +77,7 @@ class ParticipantBotSection extends StatelessWidget {
     if (!isBot) return const SizedBox.shrink();
 
     final permissions = context.watch<ServerCubit>().state.permissionsOn(
-      ServerScope.of(context),
+      ServerScope.of(context).serverId,
     );
     if (!(permissions?.can(ServerPermission.summonBots) ?? false)) {
       return const SizedBox.shrink();

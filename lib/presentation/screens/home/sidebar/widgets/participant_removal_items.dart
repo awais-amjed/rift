@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/apis/moderation_api.dart';
 import '../../../../../data/apis/voice_api.dart';
-import '../../../../../data/repositories/session_repository.dart';
 import '../../../../../logic/helper_methods.dart';
 import '../../../../common/confirm_dialog.dart';
 import '../../../../common/context_menu/context_menu_item.dart';
@@ -61,13 +59,9 @@ class ParticipantRemovalItems extends StatelessWidget {
   Future<void> _disconnect(BuildContext context) async {
     // Dismissed up front: the menu is about a participant who is about to stop
     // being one, and leaving it open over an empty tile reads as a no-op.
-    final serverId = ServerScope.read(context);
+    final voice = VoiceApi(ServerScope.read(context));
     ContextMenuScope.of(context)?.call();
-    final voice = VoiceApi(session: context.read<SessionRepository>());
-    final response = await voice.kickUser(
-      userId: targetUserId,
-      serverId: serverId,
-    );
+    final response = await voice.kickUser(userId: targetUserId);
     if (response.success) return;
     HelperMethods.showToast(
       title: 'Could not disconnect',
@@ -77,15 +71,9 @@ class ParticipantRemovalItems extends StatelessWidget {
 
   Future<void> _kick(BuildContext context) async {
     // Read before the await, for the same reason as [_ban].
-    final moderation = ModerationApi(
-      session: context.read<SessionRepository>(),
-    );
-    final serverId = ServerScope.read(context);
+    final moderation = ModerationApi(ServerScope.read(context));
     if (!await confirmKick(context, name, isBot: targetIsBot)) return;
-    final response = await moderation.kickMember(
-      userId: targetUserId,
-      serverId: serverId,
-    );
+    final response = await moderation.kickMember(userId: targetUserId);
     if (response.success) {
       HelperMethods.showToast(
         title: 'Kicked',
@@ -102,10 +90,7 @@ class ParticipantRemovalItems extends StatelessWidget {
   Future<void> _ban(BuildContext context) async {
     // Reads before the await: confirming dismisses the menu this widget lives
     // in, so the session has to be in hand before the tree goes.
-    final moderation = ModerationApi(
-      session: context.read<SessionRepository>(),
-    );
-    final serverId = ServerScope.read(context);
+    final moderation = ModerationApi(ServerScope.read(context));
     final confirmed = await showConfirmDialog(
       context: context,
       title: 'Ban $name?',
@@ -122,7 +107,6 @@ class ParticipantRemovalItems extends StatelessWidget {
     final response = await moderation.moderateUser(
       userId: targetUserId,
       isBanned: true,
-      serverId: serverId,
     );
     if (response.success) {
       HelperMethods.showToast(title: 'Banned', description: '$name is out.');

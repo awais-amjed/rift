@@ -12,6 +12,7 @@ import '../../../data/classes/member_report.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/enums/report_outcome.dart';
 import '../../../data/enums/server_permission.dart';
+import '../../../data/repositories/server_session.dart';
 import '../../../data/repositories/session_repository.dart';
 import '../../services/attachment_cleanup.dart';
 import '../../services/coalesced_refresh.dart';
@@ -39,9 +40,6 @@ part 'reports_state.dart';
 /// on a server the person is not looking at; that page owns it and closes it.
 class ReportsCubit extends Cubit<ReportsState> {
   final SessionRepository _session;
-  final ModerationApi _moderation;
-  final ChannelMessagesApi _messages;
-  final AttachmentsApi _attachments;
   final ReportedMessageOpener _opener;
 
   /// The one server this watches, or null to follow the selection.
@@ -51,6 +49,13 @@ class ReportsCubit extends Cubit<ReportsState> {
   final List<RealtimeLease> _leases = [];
   String? _watchingServerId;
 
+  /// The server watched, which every call goes to. Before there is one, a
+  /// call answers [ServerSession.gone].
+  ServerSession get _watching => _session.on(_watchingServerId ?? '');
+  ModerationApi get _moderation => ModerationApi(_watching);
+  ChannelMessagesApi get _messages => ChannelMessagesApi(_watching);
+  AttachmentsApi get _attachments => AttachmentsApi(_watching);
+
   late final CoalescedRefresh<void> _refresh = CoalescedRefresh(_readOpen);
 
   ReportsCubit({
@@ -58,9 +63,6 @@ class ReportsCubit extends Cubit<ReportsState> {
     required VaultCubit vaultCubit,
     String? serverId,
   }) : _session = session,
-       _moderation = ModerationApi(session: session),
-       _messages = ChannelMessagesApi(session: session),
-       _attachments = AttachmentsApi(session: session),
        _fixedServerId = serverId,
        _opener = ReportedMessageOpener(
          session: session,
@@ -141,10 +143,9 @@ class ReportsCubit extends Cubit<ReportsState> {
   }
 
   Future<List<ReportEntry>?> _read({required bool open}) async {
-    final response = await _moderation.listReports(
-      open: open,
-      serverId: _watchingServerId,
-    );
+    final serverId = _watchingServerId;
+    if (serverId == null) return null;
+    final response = await _moderation.listReports(open: open);
     if (!response.success) return null;
     final entries = <ReportEntry>[];
     for (final row in (response.data as List).cast<Map<String, dynamic>>()) {
@@ -153,7 +154,7 @@ class ReportsCubit extends Cubit<ReportsState> {
         entries.add(ReportEntry(report: report));
         continue;
       }
-      final opened = await _opener.open(report, serverId: _watchingServerId);
+      final opened = await _opener.open(report, serverId: serverId);
       entries.add(
         ReportEntry(
           report: report,
@@ -176,17 +177,14 @@ class ReportsCubit extends Cubit<ReportsState> {
   Future<APIResponse> deleteMessage(ReportEntry entry) async {
     final reported = entry.report.message;
     if (reported == null) return APIResponse.error('Not a message report');
-    final serverId = _watchingServerId;
-    final deleted = await _messages.deleteChatMessage(
-      messageId: reported.id,
-      serverId: serverId,
-    );
+    final messages = _messages;
+    final attachments = _attachments;
+    final deleted = await messages.deleteChatMessage(messageId: reported.id);
     if (!deleted.success) return deleted;
     unawaited(
       AttachmentCleanup.forMessage(
         entry.message,
-        delete: (paths) =>
-            _attachments.deleteAttachments(paths, serverId: serverId),
+        delete: attachments.deleteAttachments,
       ),
     );
     return _record(entry, ReportOutcome.deleted);
@@ -198,7 +196,6 @@ class ReportsCubit extends Cubit<ReportsState> {
     final done = await _moderation.timeOutMember(
       targetId: target,
       duration: duration,
-      serverId: _watchingServerId,
     );
     if (!done.success) return done;
     return _record(entry, ReportOutcome.timedOut);
@@ -207,11 +204,7 @@ class ReportsCubit extends Cubit<ReportsState> {
   Future<APIResponse> ban(ReportEntry entry) async {
     final target = entry.report.targetId;
     if (target == null) return APIResponse.error('Nobody to ban');
-    final done = await _moderation.moderateUser(
-      userId: target,
-      isBanned: true,
-      serverId: _watchingServerId,
-    );
+    final done = await _moderation.moderateUser(userId: target, isBanned: true);
     if (!done.success) return done;
     return _record(entry, ReportOutcome.banned);
   }
@@ -221,10 +214,7 @@ class ReportsCubit extends Cubit<ReportsState> {
   Future<APIResponse> kick(ReportEntry entry) async {
     final target = entry.report.targetId;
     if (target == null) return APIResponse.error('Nobody to kick');
-    final done = await _moderation.kickMember(
-      userId: target,
-      serverId: _watchingServerId,
-    );
+    final done = await _moderation.kickMember(userId: target);
     if (!done.success) return done;
     return _record(entry, ReportOutcome.kicked);
   }
@@ -233,7 +223,6 @@ class ReportsCubit extends Cubit<ReportsState> {
     final response = await _moderation.resolveReport(
       reportId: entry.report.id,
       outcome: outcome,
-      serverId: _watchingServerId,
     );
     if (!isClosed) unawaited(refresh());
     return response;

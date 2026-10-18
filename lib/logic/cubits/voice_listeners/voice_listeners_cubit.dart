@@ -46,11 +46,11 @@ class VoiceBotsState {
 /// notice that lived in the dialog where the decision was made would reach
 /// exactly the wrong people, so the channel says it, standing, to everyone.
 class VoiceListenersCubit extends Cubit<VoiceBotsState> {
-  final VoiceBotsApi _api;
+  final SessionRepository _session;
   late final ServerTopicWatcher _watcher;
 
   VoiceListenersCubit({required SessionRepository session})
-    : _api = VoiceBotsApi(session: session),
+    : _session = session,
       super(const VoiceBotsState()) {
     _watcher = ServerTopicWatcher(
       session: session,
@@ -93,11 +93,14 @@ class VoiceListenersCubit extends Cubit<VoiceBotsState> {
   /// sidebar wants them at the same moment, so serialising them would show a
   /// channel with its listeners and no summons for one frame.
   Future<void> refresh() async {
+    final serverId = _watcher.serverId;
+    if (serverId == null) return;
+    final api = VoiceBotsApi(_session.on(serverId));
     final (listeners, summons) = await (
-      _api.voiceListenersByChannel(),
-      _api.voiceSummonsByChannel(),
+      api.voiceListenersByChannel(),
+      api.voiceSummonsByChannel(),
     ).wait;
-    if (isClosed) return;
+    if (isClosed || _watcher.serverId != serverId) return;
     emit(VoiceBotsState(listeners: listeners, summons: summons));
   }
 

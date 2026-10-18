@@ -46,10 +46,6 @@ class MembersList extends StatelessWidget {
   })
   onModerate;
 
-  /// The server this is about, or null for the selected one. Manage server
-  /// opens from the rail for any server, and a row there acts on *that* one.
-  final String? serverId;
-
   const MembersList({
     super.key,
     required this.members,
@@ -63,7 +59,6 @@ class MembersList extends StatelessWidget {
     required this.busyId,
     required this.onTap,
     required this.onModerate,
-    this.serverId,
   });
 
   /// How close to the bottom counts as "nearly there".
@@ -118,7 +113,6 @@ class MembersList extends StatelessWidget {
             banned: banned,
             kick: kick,
           ),
-          serverId: serverId,
         );
       },
     );

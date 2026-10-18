@@ -7,13 +7,13 @@ import '../../../../../../data/apis/moderation_api.dart';
 import '../../../../../../data/classes/server.dart';
 import '../../../../../../data/classes/server_member.dart';
 import '../../../../../../data/constants.dart';
-import '../../../../../../data/repositories/session_repository.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/loading_block.dart';
 import '../../../../../common/message_banner.dart';
+import '../../../../../common/server_scope.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
 import '../../../invites/show_invite_modal.dart';
@@ -96,20 +96,14 @@ class _MembersPanelState extends State<MembersPanel> {
       _busyId = member.id;
       _error = null;
     });
-    final moderation = ModerationApi(
-      session: context.read<SessionRepository>(),
-    );
+    final moderation = ModerationApi(ServerScope.read(context));
     final response = kick
-        ? await moderation.kickMember(
-            userId: member.id,
-            serverId: widget.server.id,
-          )
+        ? await moderation.kickMember(userId: member.id)
         : await moderation.moderateUser(
             userId: member.id,
             isMuted: muted,
             isDeafened: deafened,
             isBanned: banned,
-            serverId: widget.server.id,
           );
     // Shown once the roster has re-read it: the doorbell would bring the same
     // answer a moment later, and a button that has said yes should not wait
@@ -236,7 +230,6 @@ class _MembersPanelState extends State<MembersPanel> {
       hasMore: !isSearching && roster.hasMorePeople,
       onLoadMore: () => unawaited(_members.loadMorePeople()),
       memberRoles: roster.memberRoles,
-      serverId: widget.server.id,
       viewerId: viewerId,
       viewerIsAdmin: viewerIsAdmin,
       viewerIsModerator: viewerIsModerator,

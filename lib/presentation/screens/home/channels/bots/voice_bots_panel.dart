@@ -6,12 +6,12 @@ import '../../../../../data/apis/voice_bots_api.dart';
 import '../../../../../data/classes/channel.dart';
 import '../../../../../data/classes/server_member.dart';
 import '../../../../../data/enums/server_permission.dart';
-import '../../../../../data/repositories/session_repository.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
 import '../../../../common/confirm_dialog.dart';
 import '../../../../common/hint_card.dart';
 import '../../../../common/loading_block.dart';
+import '../../../../common/server_scope.dart';
 import '../../servers/manage/widgets/manage_panel.dart';
 import 'widgets/channel_bot_row.dart';
 
@@ -58,9 +58,9 @@ class _VoiceBotsPanelState extends State<VoiceBotsPanel> {
   }
 
   Future<void> _load() async {
-    final session = context.read<SessionRepository>();
-    final members = MembersApi(session: session);
-    final voiceBots = VoiceBotsApi(session: session);
+    final session = ServerScope.read(context);
+    final members = MembersApi(session);
+    final voiceBots = VoiceBotsApi(session);
     // Every bot, not a page of them: this is a picker, and one that silently
     // left a bot out would be the bug the paged roster exists to fix.
     final bots = await members.listBots();
@@ -86,7 +86,7 @@ class _VoiceBotsPanelState extends State<VoiceBotsPanel> {
       _busyId = bot.id;
       _error = null;
     });
-    final voiceBots = VoiceBotsApi(session: context.read<SessionRepository>());
+    final voiceBots = VoiceBotsApi(ServerScope.read(context));
     final listeners = context.read<VoiceListenersCubit>();
 
     final result = await voiceBots.setBotVoiceListen(

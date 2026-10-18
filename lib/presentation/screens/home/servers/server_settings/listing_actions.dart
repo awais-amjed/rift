@@ -35,13 +35,13 @@ class ListingActions {
     // anything is minted. Central cannot tell an administrator from any other
     // member, so it redeems this against the server's own domain before
     // writing anything.
-    final proof = await serverApi.listingToken(serverId: server.id);
+    final proof = await serverApi.listingToken();
     if (proof.token == null) {
       return 'Server settings saved, but the public listing did not: '
           '${proof.error ?? 'this server would not confirm it.'}';
     }
 
-    final minted = await _inviteCode(draft, invites, server.id);
+    final minted = await _inviteCode(draft, invites);
     final code = minted.code;
     if (code == null) {
       return 'Server settings saved, but the listing needs a join link and '
@@ -67,7 +67,7 @@ class ListingActions {
       // never expires. The one the listing already had is left alone — it is
       // still in use by the row that is still there.
       if (minted.isNew) {
-        await invites.revokeInvite(inviteCode: code, serverId: server.id);
+        await invites.revokeInvite(inviteCode: code);
       }
       return 'Server settings saved, but the public listing did not: '
           '${publicServers.state.error ?? 'central could not be reached.'}';
@@ -118,7 +118,6 @@ class ListingActions {
   static Future<({String? code, bool isNew})> _inviteCode(
     ListingDraft draft,
     InvitesApi invites,
-    String serverId,
   ) async {
     final existing = draft.listing?.inviteCode;
     if (existing != null && !draft.resetLink) {
@@ -128,8 +127,6 @@ class ListingActions {
     final result = await invites.createInvite(
       maxUses: null,
       expiresInSeconds: null,
-      // The listing's server, which is not necessarily the one on screen.
-      serverId: serverId,
     );
     return (code: result.success ? result.inviteCode : null, isNew: true);
   }

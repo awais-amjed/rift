@@ -9,6 +9,7 @@ import '../../../data/classes/equality_props.dart';
 import '../../../data/classes/soundboard_sound.dart';
 import '../../../data/enums/server_permission.dart';
 import '../../../data/participant_identity.dart';
+import '../../../data/repositories/server_session.dart';
 import '../../../data/repositories/session_repository.dart';
 import '../../helper_methods.dart';
 import '../../services/server_topic_watcher.dart';
@@ -36,7 +37,8 @@ class SoundboardCubit extends Cubit<SoundboardState>
     with _SoundboardLibraryMixin {
   final SessionRepository _session;
   @override
-  final SoundboardApi _api;
+  @override
+  SoundboardApi _apiOn(String serverId) => SoundboardApi(_session.on(serverId));
   final AppCubit _appCubit;
   LiveKitCubit? _livekitCubit;
 
@@ -79,7 +81,6 @@ class SoundboardCubit extends Cubit<SoundboardState>
     String? serverId,
     WatchedServer follow = WatchedServer.selected,
   }) : _session = session,
-       _api = SoundboardApi(session: session),
        _appCubit = appCubit,
        _livekitCubit = livekitCubit,
        _ownsPlayback = serverId == null,
@@ -261,10 +262,11 @@ class SoundboardCubit extends Cubit<SoundboardState>
     SoundboardSound sound, {
     required double volume,
   }) async {
-    if (volume <= 0) return;
+    final library = _library;
+    if (volume <= 0 || library == null) return;
     final source = await SoundboardCache.instance.source(
       sound.objectPath,
-      () => _api.loadSound(sound.objectPath, serverId: _watcher.serverId),
+      () => library.loadSound(sound.objectPath),
     );
     if (source == null || isClosed) return;
     await SoundboardPlayer.instance.play(source, volume: volume);

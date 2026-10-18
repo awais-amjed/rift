@@ -11,7 +11,7 @@ import '../../../../../../logic/services/time_out_label.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/confirm_dialog.dart';
 import '../../../../../common/quiet_danger_button.dart';
-import '../../../../../common/server_scope.dart';
+import '../../../../../common/show_custom_dialog.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
 import '../../../members/widgets/kick_confirm.dart';
@@ -103,17 +103,15 @@ class ProfileModeration extends StatelessWidget {
   }
 
   void _openRoles(BuildContext context) {
-    showDialog<void>(
+    showCustomDialog<void>(
       context: context,
-      builder: (_) => MultiBlocProvider(
+      barrierDismissible: true,
+      build: (_) => MultiBlocProvider(
         providers: [
           BlocProvider.value(value: context.read<ServerCubit>()),
           BlocProvider.value(value: context.read<ServerMembersCubit>()),
         ],
-        child: MemberRolesDialog(
-          member: member,
-          serverId: ServerScope.read(context),
-        ),
+        child: MemberRolesDialog(member: member),
       ),
     );
   }

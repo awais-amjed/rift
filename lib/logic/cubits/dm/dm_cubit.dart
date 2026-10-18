@@ -28,6 +28,7 @@ import '../../../data/enums/dm_link_state.dart';
 import '../../../data/enums/dm_policy.dart';
 import '../../../data/repositories/attachment_repository.dart';
 import '../../../data/repositories/blob/blob_sink.dart';
+import '../../../data/repositories/server_session.dart';
 import '../../../data/repositories/session_repository.dart';
 import '../../helper_methods.dart';
 import '../../services/attachment_cleanup.dart';
@@ -88,20 +89,26 @@ class DmCubit extends Cubit<DmState>
         _DmQuickSendMixin {
   @override
   final SessionRepository _session;
+
+  /// The server this cubit is set up for, which every call it makes goes to.
+  /// Before one is, there is none, and a call made then answers
+  /// [ServerSession.gone].
+  ServerSession get _readyServer => _session.on(_readyServerId ?? '');
+
   @override
-  final ModerationApi _moderation;
+  ModerationApi get _moderation => ModerationApi(_readyServer);
   @override
-  final MembersApi _members;
+  MembersApi get _members => MembersApi(_readyServer);
   @override
-  final PinsPollsApi _pinsPolls;
+  PinsPollsApi get _pinsPolls => PinsPollsApi(_readyServer);
   @override
-  final DmsApi _dms;
+  DmsApi get _dms => DmsApi(_readyServer);
   @override
-  final DmCallsApi _calls;
+  DmCallsApi get _calls => DmCallsApi(_readyServer);
   @override
-  final ReactionsApi _reactions;
+  ReactionsApi get _reactions => ReactionsApi(_readyServer);
   @override
-  final AttachmentsApi _attachments;
+  AttachmentsApi get _attachments => AttachmentsApi(_readyServer);
   final VaultCubit _vaultCubit;
   @override
   final CryptoRepository _crypto;
@@ -177,13 +184,6 @@ class DmCubit extends Cubit<DmState>
     required VaultCubit vaultCubit,
     CryptoRepository? crypto,
   }) : _session = session,
-       _moderation = ModerationApi(session: session),
-       _members = MembersApi(session: session),
-       _pinsPolls = PinsPollsApi(session: session),
-       _dms = DmsApi(session: session),
-       _calls = DmCallsApi(session: session),
-       _reactions = ReactionsApi(session: session),
-       _attachments = AttachmentsApi(session: session),
        _vaultCubit = vaultCubit,
        _crypto = crypto ?? CryptoRepository(),
        super(const DmState()) {

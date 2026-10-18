@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../theme/app_motion.dart';
+import 'server_scope.dart';
 import 'show_custom_dialog.dart';
 
 /// Open [child] as a panel hanging from [anchor] — under it, its right edge
@@ -29,6 +30,7 @@ Future<T?> showAnchoredPanel<T>({
     return Future.value();
   }
   final rect = box.localToGlobal(Offset.zero, ancestor: overlay) & box.size;
+  final panel = ServerScope.carry(anchor, child);
 
   return showGeneralDialog<T>(
     context: anchor,
@@ -43,7 +45,7 @@ Future<T?> showAnchoredPanel<T>({
       onKeyEvent: (_, event) => closeOnEscape(context, event),
       child: CustomSingleChildLayout(
         delegate: _BelowAnchor(anchor: rect, width: width),
-        child: child,
+        child: panel,
       ),
     ),
     transitionBuilder: (context, animation, _, child) {

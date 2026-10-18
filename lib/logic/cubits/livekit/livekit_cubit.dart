@@ -100,11 +100,11 @@ class LiveKitCubit extends Cubit<LiveKitState>
   @override
   final SessionRepository? _session;
 
-  /// The call tokens, from the session; null without one, as in tests that
-  /// never join.
+  /// A server's call tokens, from the session; null without one, as in tests
+  /// that never join.
   @override
-  late final VoiceApi? _voiceApi = switch (_session) {
-    final session? => VoiceApi(session: session),
+  VoiceApi? _voiceOn(String serverId) => switch (_session) {
+    final session? => VoiceApi(session.on(serverId)),
     null => null,
   };
   @override

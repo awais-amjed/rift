@@ -7,6 +7,7 @@ import '../../supabase_config.dart';
 import '../classes/api_response.dart';
 import '../repositories/central_dm_repository.dart';
 import '../repositories/server_repository.dart';
+import '../repositories/server_session.dart';
 import '../repositories/session_repository.dart';
 
 /// Push notifications for a self-hosted server: registering this device, and
@@ -25,9 +26,11 @@ import '../repositories/session_repository.dart';
 ///
 /// Holds nothing, so a widget builds one from the session.
 class PushApi {
-  final SessionRepository _session;
+  final ServerSession _target;
 
-  PushApi({required SessionRepository session}) : _session = session;
+  PushApi(this._target);
+
+  SessionRepository get _session => _target.session;
 
   ServerRepository get _repository => _session.repository;
 
@@ -59,42 +62,40 @@ class PushApi {
 
   // ── This device ───────────────────────────────────────────
 
-  /// Tell every joined server that this device can be woken.
+  /// Tell the server that this device can be woken.
   ///
-  /// Runs on whatever token FCM has handed over, and again each time it
-  /// rotates. Registration is unconditional — a server with push switched off
-  /// simply keeps the row — because the alternative is that enabling push
-  /// works for whoever signs in next and for nobody who was already there.
-  Future<void> registerPushDevices() async {
+  /// Runs for every joined server on whatever token FCM has handed over, and
+  /// again each time it rotates. Registration is unconditional — a server with
+  /// push switched off simply keeps the row — because the alternative is that
+  /// enabling push works for whoever signs in next and for nobody who was
+  /// already there.
+  Future<void> registerDevice() async {
     if (!PushService.isSupported) return;
     final token = PushService.instance.token.value;
     if (token == null) return;
 
-    for (final server in _session.servers) {
-      await _session.callFor(
-        server,
-        (bearer) => _repository.registerDevice(
-          server.supabaseUrl,
-          anonKey: server.supabaseKey ?? '',
-          bearerToken: bearer,
-          token: token,
-          platform: PushService.platform,
-        ),
-      );
-    }
+    await _target.call(
+      (server, bearer) => _repository.registerDevice(
+        server.supabaseUrl,
+        anonKey: server.supabaseKey ?? '',
+        bearerToken: bearer,
+        token: token,
+        platform: PushService.platform,
+      ),
+    );
   }
 
-  /// Give up this device's registration on one server — on leaving it, so the
+  /// Give up this device's registration on the server — on leaving it, so the
   /// phone stops being woken for a place it is no longer in.
   ///
   /// The server is looked up before the first await, so a caller can start
   /// this and then drop the server from the list. Best-effort and deliberately
   /// not awaited by its caller: leaving must not wait on, or fail because of,
   /// a server that has already stopped answering.
-  Future<void> forgetPushDevice(String serverId) async {
+  Future<void> forgetDevice() async {
     if (!PushService.isSupported) return;
     final token = PushService.instance.token.value;
-    final server = _session.target(serverId);
+    final server = _target.server;
     if (token == null || server == null) return;
 
     await _session.callFor(
@@ -112,9 +113,9 @@ class PushApi {
 
   /// Whether this server can currently ring its members' phones.
   /// Returns `{enabled, relay_id}` — the id, never the secret.
-  Future<APIResponse> pushStatus({String? serverId}) async {
-    final server = _session.target(serverId);
-    if (server == null) return APIResponse.error(_session.noTarget(serverId));
+  Future<APIResponse> pushStatus() async {
+    final server = _target.server;
+    if (server == null) return APIResponse.error(ServerSession.gone);
     return _session.callFor(
       server,
       (bearer) =>
@@ -129,9 +130,9 @@ class PushApi {
   /// minted-but-unused credential behind would spend one of the small number
   /// an account may hold, and a few failed attempts would then look like a
   /// limit on how many servers somebody may run.
-  Future<APIResponse> enablePush({String? serverId}) async {
-    final server = _session.target(serverId);
-    if (server == null) return APIResponse.error(_session.noTarget(serverId));
+  Future<APIResponse> enablePush() async {
+    final server = _target.server;
+    if (server == null) return APIResponse.error(ServerSession.gone);
 
     if (!await _relayAlive()) {
       return APIResponse.error(
@@ -170,7 +171,7 @@ class PushApi {
       return configured;
     }
 
-    unawaited(registerPushDevices());
+    unawaited(registerDevice());
     return configured;
   }
 
@@ -180,9 +181,9 @@ class PushApi {
   /// the secret — so the revoke is about the slot rather than about safety,
   /// and a failure to reach central is not a reason to report that push is
   /// still on.
-  Future<APIResponse> disablePush({String? serverId}) async {
-    final server = _session.target(serverId);
-    if (server == null) return APIResponse.error(_session.noTarget(serverId));
+  Future<APIResponse> disablePush() async {
+    final server = _target.server;
+    if (server == null) return APIResponse.error(ServerSession.gone);
 
     final result = await _session.callFor(
       server,

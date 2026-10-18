@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/apis/profile_api.dart';
-import '../../data/repositories/session_repository.dart';
 import '../../logic/cubits/media/media_cubit.dart';
 import 'server_scope.dart';
 import 'stored_picture.dart';
@@ -50,12 +49,14 @@ class _UserAvatarState extends State<UserAvatar> {
   void _want() {
     final path = widget.avatarPath;
     if (path == null) return;
-    final profile = ProfileApi(session: context.read<SessionRepository>());
-    final serverId = ServerScope.read(context);
+    // Nothing to fetch it from outside every server (no server joined yet).
+    final server = ServerScope.maybeRead(context);
+    if (server == null) return;
+    final profile = ProfileApi(server);
     context.read<MediaCubit>().want(
       MediaKind.image,
       path,
-      () => profile.loadAvatar(path, serverId: serverId),
+      () => profile.loadAvatar(path),
     );
   }
 

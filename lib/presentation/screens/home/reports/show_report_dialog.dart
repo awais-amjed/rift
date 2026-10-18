@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/apis/moderation_api.dart';
 import '../../../../data/classes/chat_message.dart';
-import '../../../../data/repositories/session_repository.dart';
 import '../../../common/app_modal.dart';
+import '../../../common/server_scope.dart';
 import 'report_dialog.dart';
 
-/// Report a channel message on the selected server.
+/// Report a channel message on the server [context] is about.
 ///
 /// The disclosure is the part a reporter would want to know and could not
 /// otherwise find out: who sees the report, and that the words stay sealed —
@@ -16,7 +15,7 @@ Future<void> showReportMessageDialog(
   BuildContext context,
   ChatMessage message,
 ) {
-  final moderation = ModerationApi(session: context.read<SessionRepository>());
+  final moderation = ModerationApi(ServerScope.read(context));
   final id = int.tryParse(message.id);
   if (id == null) return Future.value();
   return showCustomDialog(
@@ -40,15 +39,14 @@ Future<void> showReportMessageDialog(
   );
 }
 
-/// Report a member of the selected server, or of [serverId]'s — from their
-/// profile, or from a DM, whose words no moderator could open.
+/// Report a member of the server [context] is about — from their profile, or
+/// from a DM, whose words no moderator could open.
 Future<void> showReportMemberDialog(
   BuildContext context, {
   required String userId,
   required String displayName,
-  String? serverId,
 }) {
-  final moderation = ModerationApi(session: context.read<SessionRepository>());
+  final moderation = ModerationApi(ServerScope.read(context));
   return showCustomDialog(
     context: context,
     barrierDismissible: true,
@@ -59,12 +57,8 @@ Future<void> showReportMemberDialog(
           '$displayName isn\'t told who reported them. Moderators see your '
           'name and what you write here. They can\'t read your DMs, so say '
           'what happened.',
-      onSend: (reason, note) => moderation.reportMember(
-        targetId: userId,
-        reason: reason,
-        note: note,
-        serverId: serverId,
-      ),
+      onSend: (reason, note) =>
+          moderation.reportMember(targetId: userId, reason: reason, note: note),
     ),
   );
 }

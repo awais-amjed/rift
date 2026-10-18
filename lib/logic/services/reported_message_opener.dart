@@ -49,11 +49,10 @@ class ReportedMessageOpener {
 
   void clear() => _rings.clear();
 
-  /// [serverId] is the server the report was made on, or null for the
-  /// selected one.
+  /// [serverId] is the server the report was made on.
   Future<({ReportedContent content, ChatMessage? message})> open(
     MemberReport report, {
-    String? serverId,
+    required String serverId,
   }) async {
     final reported = report.message!;
     final authorName =

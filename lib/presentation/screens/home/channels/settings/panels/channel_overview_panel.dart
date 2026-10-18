@@ -5,7 +5,6 @@ import '../../../../../../data/apis/channels_api.dart';
 import '../../../../../../data/apis/voice_api.dart';
 import '../../../../../../data/classes/channel.dart';
 import '../../../../../../data/classes/server_limits.dart';
-import '../../../../../../data/repositories/session_repository.dart';
 import '../../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/helper_methods.dart';
@@ -13,6 +12,7 @@ import '../../../../../../logic/services/limit_input.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/app_text_field.dart';
 import '../../../../../common/limit_field.dart';
+import '../../../../../common/server_scope.dart';
 import '../../../servers/manage/widgets/manage_panel.dart';
 import '../../widgets/voice_region_field.dart';
 
@@ -129,17 +129,16 @@ class _ChannelOverviewPanelState extends State<ChannelOverviewPanel> {
     final nodeChanged = _nodeChanged;
     final moveLiveCall = _shouldMoveLiveCall;
     final nodeId = _nodeId;
-    final result = await ChannelsApi(session: context.read<SessionRepository>())
-        .updateChannel(
-          channelId: widget.channel.id,
-          name: _nameChanged ? _name : null,
-          retentionDays: _retentionChanged ? retention : null,
-          clearRetentionDays: _retentionChanged && retention == null,
-          historyCap: _capChanged ? cap : null,
-          clearHistoryCap: _capChanged && cap == null,
-          livekitNodeId: nodeChanged ? nodeId : null,
-          clearLivekitNodeId: nodeChanged && nodeId == null,
-        );
+    final result = await ChannelsApi(ServerScope.read(context)).updateChannel(
+      channelId: widget.channel.id,
+      name: _nameChanged ? _name : null,
+      retentionDays: _retentionChanged ? retention : null,
+      clearRetentionDays: _retentionChanged && retention == null,
+      historyCap: _capChanged ? cap : null,
+      clearHistoryCap: _capChanged && cap == null,
+      livekitNodeId: nodeChanged ? nodeId : null,
+      clearLivekitNodeId: nodeChanged && nodeId == null,
+    );
     if (!mounted) return;
 
     if (!result.success) {
@@ -159,7 +158,7 @@ class _ChannelOverviewPanelState extends State<ChannelOverviewPanel> {
     // whether a call is up: see [_shouldMoveLiveCall]. With nothing running
     // this costs one request that answers `no_call`.
     if (nodeChanged && nodeId != null && moveLiveCall) {
-      final voice = VoiceApi(session: context.read<SessionRepository>());
+      final voice = VoiceApi(ServerScope.read(context));
       final moved = await voice.moveCall(
         channelId: widget.channel.id,
         nodeId: nodeId,

@@ -13,6 +13,7 @@ import '../../../../../logic/cubits/soundboard/soundboard_cubit.dart';
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../../common/app_modal.dart';
+import '../../../../common/server_scope.dart';
 import 'server_manage_dialog.dart';
 import 'server_manage_tab.dart';
 
@@ -26,7 +27,9 @@ import 'server_manage_tab.dart';
 /// call's during one. Opened for a server they are not on — from the rail's
 /// menu for a server the person is *not* looking at — the dialog holds
 /// that server's own for as long as it is open — live, from that server's
-/// doorbells — rather than switching them, or the person, over.
+/// doorbells — rather than switching them, or the person, over. And it is
+/// about that server ([ServerScope]), so every call its pages and the dialogs
+/// they open make goes there.
 Widget serverManageDialog(
   BuildContext context, {
   required Server server,
@@ -43,40 +46,43 @@ Widget serverManageDialog(
   // The app's soundboard is the call's during one, which need not be the
   // server on screen: its own is lent only when it is this one.
   final soundboard = context.read<SoundboardCubit>();
-  return MultiBlocProvider(
-    providers: [
-      BlocProvider.value(value: serverCubit),
-      BlocProvider.value(value: context.read<PublicServersCubit>()),
-      BlocProvider.value(value: context.read<SupabaseBackupCubit>()),
-      if (soundboard.state.serverId == server.id)
-        BlocProvider.value(value: soundboard)
-      else
-        BlocProvider(
-          create: (_) => SoundboardCubit(
-            session: session,
-            appCubit: appCubit,
-            livekitCubit: livekitCubit,
-            serverId: server.id,
+  return ServerScope(
+    server: session.on(server.id),
+    child: MultiBlocProvider(
+      providers: [
+        BlocProvider.value(value: serverCubit),
+        BlocProvider.value(value: context.read<PublicServersCubit>()),
+        BlocProvider.value(value: context.read<SupabaseBackupCubit>()),
+        if (soundboard.state.serverId == server.id)
+          BlocProvider.value(value: soundboard)
+        else
+          BlocProvider(
+            create: (_) => SoundboardCubit(
+              session: session,
+              appCubit: appCubit,
+              livekitCubit: livekitCubit,
+              serverId: server.id,
+            ),
           ),
-        ),
-      if (isSelected) ...[
-        BlocProvider.value(value: context.read<ServerMembersCubit>()),
-        BlocProvider.value(value: context.read<ReportsCubit>()),
-      ] else ...[
-        BlocProvider(
-          create: (_) =>
-              ServerMembersCubit(session: session, serverId: server.id),
-        ),
-        BlocProvider(
-          create: (_) => ReportsCubit(
-            session: session,
-            vaultCubit: vaultCubit,
-            serverId: server.id,
+        if (isSelected) ...[
+          BlocProvider.value(value: context.read<ServerMembersCubit>()),
+          BlocProvider.value(value: context.read<ReportsCubit>()),
+        ] else ...[
+          BlocProvider(
+            create: (_) =>
+                ServerMembersCubit(session: session, serverId: server.id),
           ),
-        ),
+          BlocProvider(
+            create: (_) => ReportsCubit(
+              session: session,
+              vaultCubit: vaultCubit,
+              serverId: server.id,
+            ),
+          ),
+        ],
       ],
-    ],
-    child: ServerManageDialog(server: server, initial: initial),
+      child: ServerManageDialog(server: server, initial: initial),
+    ),
   );
 }
 

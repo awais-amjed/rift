@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../responsive/compact_only.dart';
 import '../theme/theme_context.dart';
 import 'popover_surface.dart';
+import 'server_scope.dart';
 
 /// Open [child] as the bottom sheet a phone uses in place of a dialog.
 ///
@@ -18,8 +19,10 @@ import 'popover_surface.dart';
 /// [child] is built by the caller while its context is still mounted — a
 /// route rebuilds for reasons that have nothing to do with what opened it,
 /// and reading cubits inside the builder is how a resize becomes "Looking up
-/// a deactivated widget's ancestor".
+/// a deactivated widget's ancestor". It is about the server [context] is
+/// about ([ServerScope.carry]), as a dialog is.
 Future<T?> showAppSheet<T>(BuildContext context, Widget child) {
+  final sheet = ServerScope.carry(context, child);
   return showModalBottomSheet<T>(
     context: context,
     useRootNavigator: true,
@@ -31,6 +34,6 @@ Future<T?> showAppSheet<T>(BuildContext context, Widget child) {
         top: Radius.circular(PopoverSurface.radius),
       ),
     ),
-    builder: (_) => CompactOnly(child: child),
+    builder: (_) => CompactOnly(child: sheet),
   );
 }

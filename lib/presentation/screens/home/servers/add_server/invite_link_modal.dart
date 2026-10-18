@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../data/apis/invites_api.dart';
+import '../../../../../data/apis/joining_api.dart';
 import '../../../../../data/classes/resolved_invite.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../data/repositories/session_repository.dart';
@@ -69,8 +69,8 @@ class _InviteLinkModalState extends State<InviteLinkModal> {
       _error = null;
     });
 
-    final result = await InvitesApi(
-      session: context.read<SessionRepository>(),
+    final result = await JoiningApi(
+      context.read<SessionRepository>(),
     ).resolveInvite(_linkCtrl.text);
     if (!mounted) return;
 

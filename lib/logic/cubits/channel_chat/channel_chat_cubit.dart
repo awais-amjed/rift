@@ -29,6 +29,7 @@ import '../../../data/enums/message_origin.dart';
 import '../../../data/enums/notification_level.dart';
 import '../../../data/repositories/attachment_repository.dart';
 import '../../../data/repositories/blob/blob_sink.dart';
+import '../../../data/repositories/server_session.dart';
 import '../../../data/repositories/session_repository.dart';
 import '../../helper_methods.dart';
 import '../../services/attachment_cleanup.dart';
@@ -107,12 +108,17 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   @override
   final SessionRepository _session;
 
+  /// The open channel's server, which every call about the channel is made
+  /// to. With no channel open there is none, and a call made then answers
+  /// [ServerSession.gone].
+  ServerSession get _openServer => _session.on(_openServerId ?? '');
+
   /// Summoning a bot into a call, and sending it away, from a command.
   @override
-  final VoiceBotsApi _voiceBots;
+  VoiceBotsApi get _voiceBots => VoiceBotsApi(_openServer);
 
   /// Which bots hold this channel's key, for the header's standing marker.
-  final BotKeysApi _botKeys;
+  BotKeysApi get _botKeys => BotKeysApi(_openServer);
 
   /// The roster, for turning an `@name` into the user id the server rings.
   ///
@@ -121,22 +127,19 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   /// to find the names, and the recipients cannot be told which of them was
   /// meant without being told first.
   @override
-  final MembersApi _members;
+  MembersApi get _members => MembersApi(_openServer);
 
   @override
-  final PinsPollsApi _pinsPolls;
+  PinsPollsApi get _pinsPolls => PinsPollsApi(_openServer);
 
   @override
-  final ChannelKeysApi _channelKeys;
+  ReactionsApi get _reactions => ReactionsApi(_openServer);
 
   @override
-  final ReactionsApi _reactions;
+  ChannelMessagesApi get _channelMessages => ChannelMessagesApi(_openServer);
 
   @override
-  final ChannelMessagesApi _channelMessages;
-
-  @override
-  final AttachmentsApi _attachments;
+  AttachmentsApi get _attachments => AttachmentsApi(_openServer);
 
   /// What `@names` in the open channel resolve to, and which have been asked.
   ///
@@ -264,14 +267,6 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     CryptoRepository? crypto,
     MessageCache? messageCache,
   }) : _session = session,
-       _voiceBots = VoiceBotsApi(session: session),
-       _botKeys = BotKeysApi(session: session),
-       _members = MembersApi(session: session),
-       _pinsPolls = PinsPollsApi(session: session),
-       _channelKeys = ChannelKeysApi(session: session),
-       _reactions = ReactionsApi(session: session),
-       _channelMessages = ChannelMessagesApi(session: session),
-       _attachments = AttachmentsApi(session: session),
        _vaultCubit = vaultCubit,
        _crypto = crypto ?? CryptoRepository(),
        _messageCache = messageCache ?? MessageCache.instance,
@@ -341,7 +336,10 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     await _keyring.ensureChatKeyPublished(server);
     if (_isStale(generation)) return;
 
-    final keyring = await _keyring.loadOrBootstrap(channelId);
+    final keyring = await _keyring.loadOrBootstrap(
+      channelId,
+      serverId: server.id,
+    );
     if (_isStale(generation)) return;
 
     if (keyring.failure != null) {

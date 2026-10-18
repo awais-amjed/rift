@@ -38,10 +38,6 @@ part 'channel_keyring_sealing.dart';
 /// entries and can read none of them (ARCHITECTURE.md §4).
 class ChannelKeyring with _KeyringSealingMixin {
   final SessionRepository _session;
-  @override
-  final ChannelKeysApi _channelKeys;
-  @override
-  final VoiceBotsApi _voiceBots;
   final VaultCubit _vaultCubit;
   @override
   final CryptoRepository _crypto;
@@ -58,10 +54,14 @@ class ChannelKeyring with _KeyringSealingMixin {
     required CryptoRepository crypto,
     this.onHealed,
   }) : _session = session,
-       _channelKeys = ChannelKeysApi(session: session),
-       _voiceBots = VoiceBotsApi(session: session),
        _vaultCubit = vaultCubit,
        _crypto = crypto;
+
+  @override
+  ChannelKeysApi _keysOn(String serverId) =>
+      ChannelKeysApi(_session.on(serverId));
+  @override
+  VoiceBotsApi _botsOn(String serverId) => VoiceBotsApi(_session.on(serverId));
 
   /// Unwrapped keys for the channel this ring was last loaded for, by version.
   @override
@@ -129,10 +129,9 @@ class ChannelKeyring with _KeyringSealingMixin {
     if (publishedChatKey.contains(server.id)) return false;
     final identity = await chatIdentity(server);
     if (identity == null) return false;
-    final response = await _channelKeys.publishChatKey(
-      identity.publicKeyBase64,
-      serverId: server.id,
-    );
+    final response = await _keysOn(
+      server.id,
+    ).publishChatKey(identity.publicKeyBase64);
     if (!response.success) return false;
     publishedChatKey.add(server.id);
     final data = response.data as Map<String, dynamic>?;
@@ -158,19 +157,17 @@ class ChannelKeyring with _KeyringSealingMixin {
   /// this runs on a doorbell, against a client that is working, and a momentary
   /// network failure must not cost it the keys it already holds.
   ///
-  /// [serverId] names the server for a reader who is not looking at it — a
+  /// [serverId] names the server for a ring that was never loaded — a
   /// reviewer opening reports on another server's page. Null is the server
-  /// the ring was loaded from, or the selected one before it was loaded.
+  /// the ring was loaded from.
   Future<bool> absorbNewVersions(String channelId, {String? serverId}) async {
-    final server = _session.target(serverId ?? _serverId);
+    final id = serverId ?? _serverId;
+    final server = id == null ? null : _session.serverById(id);
     if (server == null) return false;
     final identity = await chatIdentity(server);
     if (identity == null) return false;
 
-    final response = await _channelKeys.getChannelKey(
-      channelId,
-      serverId: server.id,
-    );
+    final response = await _keysOn(server.id).getChannelKey(channelId);
     if (!response.success) return false;
 
     final data = response.data as Map<String, dynamic>;
@@ -229,12 +226,10 @@ class ChannelKeyring with _KeyringSealingMixin {
   /// a bot nobody can hear yet, not a reason to fail the caller.
   Future<void> sealMissingBotKeys(String channelId) async {
     final version = currentVersion;
-    if (!keys.containsKey(version)) return;
+    final serverId = _serverId;
+    if (!keys.containsKey(version) || serverId == null) return;
 
-    final response = await _channelKeys.getChannelKey(
-      channelId,
-      serverId: _serverId,
-    );
+    final response = await _keysOn(serverId).getChannelKey(channelId);
     if (!response.success) return;
 
     final data = response.data as Map<String, dynamic>;
@@ -244,16 +239,16 @@ class ChannelKeyring with _KeyringSealingMixin {
     await sealBotKeys(channelId, version, bots);
   }
 
-  /// Fetch + unwrap the keyring for [channelId] on [serverId], or the
-  /// selected server; bootstrap v1 when the channel has no key yet; heal
-  /// members missing current-version entries.
+  /// Fetch + unwrap the keyring for [channelId] on [serverId]; bootstrap v1
+  /// when the channel has no key yet; heal members missing current-version
+  /// entries.
   Future<KeyringOutcome> loadOrBootstrap(
     String channelId, {
-    String? serverId,
+    required String serverId,
   }) async {
     clear();
 
-    final server = _session.target(serverId);
+    final server = _session.serverById(serverId);
     if (server == null) {
       return const KeyringOutcome.failed(ChatFailure.noServer());
     }
@@ -266,10 +261,7 @@ class ChannelKeyring with _KeyringSealingMixin {
     // Bootstrap can race another member: retry once on conflict, using the
     // winner's keyring.
     for (var attempt = 0; attempt < 2; attempt++) {
-      final response = await _channelKeys.getChannelKey(
-        channelId,
-        serverId: server.id,
-      );
+      final response = await _keysOn(server.id).getChannelKey(channelId);
       if (!response.success) {
         return KeyringOutcome.failed(ChatFailure.fromResponse(response));
       }
@@ -282,7 +274,12 @@ class ChannelKeyring with _KeyringSealingMixin {
 
       if (version == 0) {
         // No key yet — we're the bootstrapper (or we lose the race and loop).
-        final bootstrapped = await _bootstrap(channelId, identity, missing);
+        final bootstrapped = await _bootstrap(
+          server.id,
+          channelId,
+          identity,
+          missing,
+        );
         if (!bootstrapped.isWaiting) return bootstrapped;
         continue; // conflict — refetch the winner's keyring
       }
@@ -310,13 +307,7 @@ class ChannelKeyring with _KeyringSealingMixin {
       // from it, and nothing newer links down to it yet.
       final droppable = covered.where((v) => v < version).toList();
       if (droppable.isNotEmpty) {
-        unawaited(
-          _channelKeys.pruneChannelKeys(
-            channelId,
-            droppable,
-            serverId: server.id,
-          ),
-        );
+        unawaited(_keysOn(server.id).pruneChannelKeys(channelId, droppable));
       }
 
       if (!keys.containsKey(version)) return const KeyringOutcome.waiting();
@@ -339,6 +330,7 @@ class ChannelKeyring with _KeyringSealingMixin {
 
   /// Generate v1 and seal it to every keyed member (including ourselves).
   Future<KeyringOutcome> _bootstrap(
+    String serverId,
     String channelId,
     ChatIdentity identity,
     List<Map<String, dynamic>> members,
@@ -353,12 +345,11 @@ class ChannelKeyring with _KeyringSealingMixin {
       members: members,
     );
 
-    final response = await _channelKeys.postChannelKeys(
+    final response = await _keysOn(serverId).postChannelKeys(
       channelId: channelId,
       keyVersion: 1,
       entries: entries,
       mint: true,
-      serverId: _serverId,
     );
 
     if (response.success) {

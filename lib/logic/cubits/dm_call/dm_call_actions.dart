@@ -5,7 +5,7 @@ part of 'dm_call_cubit.dart';
 /// to be in.
 mixin _DmCallActionsMixin on Cubit<DmCallState> {
   SessionRepository get _session;
-  DmCallsApi get _calls;
+  DmCallsApi _callsOn(Server server);
   LiveKitCubit get _livekit;
   VaultCubit get _vault;
   AppCubit get _app;
@@ -34,7 +34,7 @@ mixin _DmCallActionsMixin on Cubit<DmCallState> {
     if (state.active != null) await hangUp();
 
     emit(state.copyWith(busy: true));
-    final response = await _calls.startDmCall(server, peerId);
+    final response = await _callsOn(server).startDmCall(peerId);
     emit(state.copyWith(busy: false));
     if (!response.success) {
       emit(
@@ -63,7 +63,7 @@ mixin _DmCallActionsMixin on Cubit<DmCallState> {
     // A phone woken by the push may be showing this call in the shade too.
     unawaited(NotificationService.instance.cancelCall(incoming.call.id));
     emit(state.copyWith(busy: true));
-    final response = await _calls.answerDmCall(server, incoming.call.id);
+    final response = await _callsOn(server).answerDmCall(incoming.call.id);
     emit(
       state.copyWith(
         busy: false,
@@ -108,7 +108,7 @@ mixin _DmCallActionsMixin on Cubit<DmCallState> {
           .firstWhere((v) => v.masterSeed != null)
           .timeout(const Duration(minutes: 1), onTimeout: () => _vault.state);
     }
-    final response = await _calls.myDmCalls(server, known: [callId]);
+    final response = await _callsOn(server).myDmCalls(known: [callId]);
     final call = DmCall.listFrom(
       response.data,
     ).where((c) => c.id == callId).firstOrNull;
@@ -138,7 +138,7 @@ mixin _DmCallActionsMixin on Cubit<DmCallState> {
       ),
     );
     _syncSounds();
-    await _calls.endDmCall(server, callId);
+    await _callsOn(server).endDmCall(callId);
   }
 
   /// Refuse [incoming]. Recorded as declined, which the caller is told.
@@ -155,7 +155,7 @@ mixin _DmCallActionsMixin on Cubit<DmCallState> {
     _syncSounds();
     final server = _server(incoming.serverId);
     if (server == null) return;
-    await _calls.endDmCall(server, incoming.call.id);
+    await _callsOn(server).endDmCall(incoming.call.id);
   }
 
   /// End the call this device is in, from our end. Also what quitting does
@@ -166,7 +166,7 @@ mixin _DmCallActionsMixin on Cubit<DmCallState> {
     await _dropActive(hangUpRoom: true);
     final server = _server(active.serverId);
     if (server != null) {
-      await _calls.endDmCall(server, active.call.id);
+      await _callsOn(server).endDmCall(active.call.id);
     }
   }
 

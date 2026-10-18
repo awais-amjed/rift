@@ -1,6 +1,6 @@
 import '../classes/api_response.dart';
-import '../classes/server.dart';
 import '../repositories/server_repository.dart';
+import '../repositories/server_session.dart';
 import '../repositories/session_repository.dart';
 
 /// A channel's sealed keys on a server: publishing this member's chat key,
@@ -12,29 +12,16 @@ import '../repositories/session_repository.dart';
 ///
 /// Holds nothing, so a widget that needs one builds it from the session.
 class ChannelKeysApi {
-  final SessionRepository _session;
+  final ServerSession _target;
 
-  ChannelKeysApi({required SessionRepository session}) : _session = session;
+  ChannelKeysApi(this._target);
+
+  SessionRepository get _session => _target.session;
 
   ServerRepository get _repository => _session.repository;
 
-  /// [call] against [serverId], or the selected server.
-  Future<APIResponse> _onServer(
-    String? serverId,
-    Future<APIResponse> Function(Server server, String token) call,
-  ) async {
-    final server = _session.target(serverId);
-    if (server == null) return APIResponse.error(_session.noTarget(serverId));
-    return _session.callFor(server, (token) => call(server, token));
-  }
-
-  /// Publish the local user's X25519 chat public key on [serverId], or the
-  /// selected server (idempotent).
-  Future<APIResponse> publishChatKey(
-    String chatPublicKey, {
-    String? serverId,
-  }) => _onServer(
-    serverId,
+  /// Publish the local user's X25519 chat public key (idempotent).
+  Future<APIResponse> publishChatKey(String chatPublicKey) => _target.call(
     (server, token) => _repository.publishChatKey(
       server.supabaseUrl,
       anonKey: server.supabaseKey ?? '',
@@ -44,39 +31,30 @@ class ChannelKeysApi {
     ),
   );
 
-  /// Fetch my sealed channel keys + current version + healing set, from
-  /// [serverId] or the selected server — a reviewer reads a report's channel
-  /// on another server's page.
-  Future<APIResponse> getChannelKey(String channelId, {String? serverId}) =>
-      _onServer(
-        serverId,
-        (server, token) => _repository.getChannelKey(
-          server.supabaseUrl,
-          channelId: channelId,
-          bearerToken: token,
-        ),
-      );
+  /// Fetch my sealed channel keys + current version + healing set.
+  Future<APIResponse> getChannelKey(String channelId) => _target.call(
+    (server, token) => _repository.getChannelKey(
+      server.supabaseUrl,
+      channelId: channelId,
+      bearerToken: token,
+    ),
+  );
 
-  /// List key-distribution work available to the local user on [serverId],
-  /// or the selected server.
-  Future<APIResponse> sweepChannelKeys({String? serverId}) => _onServer(
-    serverId,
+  /// List key-distribution work available to the local user.
+  Future<APIResponse> sweepChannelKeys() => _target.call(
     (server, token) =>
         _repository.sweepChannelKeys(server.supabaseUrl, bearerToken: token),
   );
 
   /// Store sealed keyring entries for a key version — a new one when [mint],
-  /// with the [link] that opens the version before it — on [serverId], or the
-  /// selected server.
+  /// with the [link] that opens the version before it.
   Future<APIResponse> postChannelKeys({
     required String channelId,
     required int keyVersion,
     required List<Map<String, dynamic>> entries,
     required bool mint,
     ({String ciphertext, String nonce})? link,
-    String? serverId,
-  }) => _onServer(
-    serverId,
+  }) => _target.call(
     (server, token) => _repository.postChannelKeys(
       server.supabaseUrl,
       channelId: channelId,
@@ -88,20 +66,15 @@ class ChannelKeysApi {
     ),
   );
 
-  /// Drop our own keyring rows the channel's links already cover, on
-  /// [serverId] or the selected server.
-  Future<APIResponse> pruneChannelKeys(
-    String channelId,
-    List<int> versions, {
-    String? serverId,
-  }) => _onServer(
-    serverId,
-    (server, token) => _repository.pruneChannelKeys(
-      server.supabaseUrl,
-      anonKey: server.supabaseKey ?? '',
-      bearerToken: token,
-      channelId: channelId,
-      versions: versions,
-    ),
-  );
+  /// Drop our own keyring rows the channel's links already cover.
+  Future<APIResponse> pruneChannelKeys(String channelId, List<int> versions) =>
+      _target.call(
+        (server, token) => _repository.pruneChannelKeys(
+          server.supabaseUrl,
+          anonKey: server.supabaseKey ?? '',
+          bearerToken: token,
+          channelId: channelId,
+          versions: versions,
+        ),
+      );
 }

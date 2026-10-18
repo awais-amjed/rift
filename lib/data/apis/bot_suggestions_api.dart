@@ -5,6 +5,7 @@ import '../../logic/services/broadcast_payload.dart';
 import '../../logic/services/server_topics.dart';
 import '../classes/bot_suggestion.dart';
 import '../classes/server_member.dart';
+import '../repositories/server_session.dart';
 import '../repositories/session_repository.dart';
 
 /// Asking a bot what to offer while one of its commands is typed — the songs
@@ -15,9 +16,11 @@ import '../repositories/session_repository.dart';
 /// bot hears, and the answer comes back on this person's. Holds nothing
 /// between calls, so a widget builds one from the session.
 class BotSuggestionsApi {
-  final SessionRepository _session;
+  final ServerSession _target;
 
-  BotSuggestionsApi({required SessionRepository session}) : _session = session;
+  BotSuggestionsApi(this._target);
+
+  SessionRepository get _session => _target.session;
 
   /// Long enough for a bot that searches somewhere slow; short enough that a
   /// bot that is not running does not leave a "Searching…" row up for good.
@@ -25,7 +28,7 @@ class BotSuggestionsApi {
 
   static final Random _rng = Random.secure();
 
-  /// What [bot] offers for `/<command> <text>` in [channelId] on the selected
+  /// What [bot] offers for `/<command> <text>` in [channelId] on the
   /// server — empty when it offers nothing, does not answer in time, or the
   /// server is gone.
   Future<List<BotSuggestion>> ask({
@@ -34,7 +37,7 @@ class BotSuggestionsApi {
     required String command,
     required String text,
   }) async {
-    final server = _session.selectedServer;
+    final server = _target.server;
     final me = server?.user?.id;
     if (server == null || me == null) return const [];
     final realtime = _session.realtime;

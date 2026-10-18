@@ -3,8 +3,11 @@ part of 'server_cubit.dart';
 mixin _ServerCrudMixin on Cubit<ServerState> {
   void Function()? get _onServersChanged;
   SecureStorageRepository get _storage;
-  PushApi get _push;
-  OwnershipApi get _ownership;
+
+  /// Registering this device on a server, as the list and the FCM token
+  /// change.
+  PushApi _pushOn(String serverId);
+  OwnershipApi _ownershipOn(String serverId);
 
   // ──────────────────────────────────────────────────────────
   // CRUD
@@ -30,7 +33,7 @@ mixin _ServerCrudMixin on Cubit<ServerState> {
     // The FCM token listener only fires when the token changes, and joining is
     // not that — so a server joined mid-session would otherwise go unregistered
     // until the next launch.
-    unawaited(_push.registerPushDevices());
+    unawaited(_pushOn(newServer.id).registerDevice());
     return newServer;
   }
 
@@ -43,7 +46,7 @@ mixin _ServerCrudMixin on Cubit<ServerState> {
     final updated = [...state.servers, newServer];
     emit(state.copyWith(servers: updated, selectedServerId: newServer.id));
     _onServersChanged?.call();
-    unawaited(_push.registerPushDevices());
+    unawaited(_pushOn(newServer.id).registerDevice());
     return newServer;
   }
 
@@ -109,7 +112,7 @@ mixin _ServerCrudMixin on Cubit<ServerState> {
     final isOwner = server.user?.permissions.isOwner ?? false;
     final result = isOwner
         ? (outcome: LeaveOutcome.unsupported, error: null)
-        : await _ownership.leaveServer(serverId: server.id);
+        : await _ownershipOn(server.id).leaveServer();
 
     switch (result.outcome) {
       case LeaveOutcome.refused:
@@ -137,7 +140,7 @@ mixin _ServerCrudMixin on Cubit<ServerState> {
     // it with: a device that stays registered on a server you have left goes
     // on being woken for it. Not awaited — leaving must not wait on a server
     // that has already stopped answering.
-    unawaited(_push.forgetPushDevice(serverId));
+    unawaited(_pushOn(serverId).forgetDevice());
     _forgetSavedConversations(serverId);
     final updated = state.servers.where((s) => s.id != serverId).toList();
     String? newSelectedId = state.selectedServerId;

@@ -57,23 +57,27 @@ class ForwardService with _ForwardBlobsMixin, _ForwardDmsMixin {
   final CryptoRepository crypto;
   @override
   final CentralDmRepository central;
-  @override
-  final DmsApi dms;
-  @override
-  final AttachmentsApi blobs;
-  final ChannelKeysApi channelKeys;
-  final ChannelMessagesApi channelMessages;
+  final SessionRepository _session;
 
   ForwardService({
     required SessionRepository session,
     required this.vault,
     required this.crypto,
     CentralDmRepository? central,
-  }) : dms = DmsApi(session: session),
-       blobs = AttachmentsApi(session: session),
-       channelKeys = ChannelKeysApi(session: session),
-       channelMessages = ChannelMessagesApi(session: session),
+  }) : _session = session,
        central = central ?? CentralDmRepository();
+
+  // Each call names its server: a forward reads from one and writes to
+  // others.
+  @override
+  DmsApi dmsOn(String serverId) => DmsApi(_session.on(serverId));
+  @override
+  AttachmentsApi blobsOn(String serverId) =>
+      AttachmentsApi(_session.on(serverId));
+  ChannelKeysApi _channelKeysOn(String serverId) =>
+      ChannelKeysApi(_session.on(serverId));
+  ChannelMessagesApi _channelMessagesOn(String serverId) =>
+      ChannelMessagesApi(_session.on(serverId));
 
   /// Forward [message] to each of [targets], with an optional [note] of the
   /// forwarder's own.
@@ -172,10 +176,9 @@ class ForwardService with _ForwardBlobsMixin, _ForwardDmsMixin {
             keyVersion: key.version,
           );
 
-    final response = await channelMessages.sendChatMessage(
+    final response = await _channelMessagesOn(server.id).sendChatMessage(
       channelId: target.channel.id,
       envelope: envelope.toJson(),
-      serverId: server.id,
     );
     return response.success ? null : (response.error?.toString() ?? 'Failed');
   }
@@ -193,10 +196,7 @@ class ForwardService with _ForwardBlobsMixin, _ForwardDmsMixin {
     final identity = await _chatIdentityFor(server);
     if (identity == null) return null;
 
-    final response = await channelKeys.getChannelKey(
-      channelId,
-      serverId: server.id,
-    );
+    final response = await _channelKeysOn(server.id).getChannelKey(channelId);
     if (!response.success) return null;
 
     final data = response.data as Map<String, dynamic>;

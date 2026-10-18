@@ -5,7 +5,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/apis/profile_api.dart';
 import '../../../../../data/constants.dart';
-import '../../../../../data/repositories/session_repository.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
@@ -14,6 +13,7 @@ import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/app_text_field.dart';
 import '../../../../common/rounded_picture.dart';
+import '../../../../common/server_scope.dart';
 import '../../../../common/user_avatar.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
@@ -67,7 +67,7 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
 
   Future<void> _save() async {
     final user = context.read<ServerCubit>().state.selectedServer?.user;
-    final profile = ProfileApi(session: context.read<SessionRepository>());
+    final profile = ProfileApi(ServerScope.read(context));
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       setState(() => _error = 'Display name cannot be empty.');

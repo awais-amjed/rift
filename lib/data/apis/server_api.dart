@@ -1,5 +1,6 @@
 import '../classes/server_limits.dart';
 import '../repositories/server_repository.dart';
+import '../repositories/server_session.dart';
 import '../repositories/session_repository.dart';
 
 /// A server itself: creating one, its listing token, and its settings.
@@ -12,45 +13,15 @@ import '../repositories/session_repository.dart';
 ///
 /// Holds nothing, so a widget builds one from the session.
 class ServerApi {
-  final SessionRepository _session;
+  final ServerSession _target;
 
-  ServerApi({required SessionRepository session}) : _session = session;
+  ServerApi(this._target);
+
+  SessionRepository get _session => _target.session;
 
   ServerRepository get _repository => _session.repository;
 
-  /// Creates a new server. On success returns the single-use admin invite code.
-  ///
-  /// The one call here made on the operator's service key rather than a
-  /// session: there is no server to be signed in to yet.
-  Future<({bool success, String? inviteCode, String? error})> createServer({
-    required String supabaseUrl,
-    required String serviceKey,
-    required String name,
-    String? iconUrl,
-    required String livekitUrl,
-    required String livekitApiKey,
-    required String livekitSecretKey,
-  }) async {
-    final response = await _repository.createServer(
-      supabaseUrl,
-      serviceKey: serviceKey,
-      name: name,
-      iconUrl: iconUrl,
-      livekitUrl: livekitUrl,
-      livekitApiKey: livekitApiKey,
-      livekitSecretKey: livekitSecretKey,
-    );
-
-    if (!response.success) {
-      return (success: false, inviteCode: null, error: response.error);
-    }
-
-    final data = response.data as Map<String, dynamic>;
-    final inviteCode = data['invite_code'] as String;
-    return (success: true, inviteCode: inviteCode, error: null);
-  }
-
-  /// A one-time token proving an admin of [serverId] wants it listed.
+  /// A one-time token proving an admin of the server wants it listed.
   ///
   /// Handed to central, which redeems it against this server's own domain
   /// before writing a directory entry — see `publish_server` there.
@@ -60,10 +31,8 @@ class ServerApi {
   /// — "only a server admin can list this server publicly" — so an endpoint
   /// that was failing to boot, a server that was unreachable and a genuine
   /// refusal all arrived as an accusation that the admin was not an admin.
-  Future<({String? token, String? error})> listingToken({
-    String? serverId,
-  }) async {
-    final server = _session.target(serverId);
+  Future<({String? token, String? error})> listingToken() async {
+    final server = _target.server;
     if (server == null) {
       return (token: null, error: 'That server is not open here any more.');
     }
@@ -83,7 +52,7 @@ class ServerApi {
         : (token: token, error: null);
   }
 
-  /// Update the settings of [serverId], or of the selected server (admin only).
+  /// Update the server's settings (admin only).
   /// Only non-null fields are sent; the LiveKit API key / secret are write-only
   /// (never stored client side — the client only keeps the URL).
   ///
@@ -96,11 +65,10 @@ class ServerApi {
     String? livekitApiKey,
     String? livekitSecretKey,
     ServerLimits? limits,
-    String? serverId,
   }) async {
-    final server = _session.target(serverId);
+    final server = _target.server;
     if (server == null) {
-      return (success: false, error: _session.noTarget(serverId));
+      return (success: false, error: ServerSession.gone);
     }
 
     final response = await _session.callFor(
@@ -146,9 +114,9 @@ class ServerApi {
     String? apiKey,
     String? secret,
   }) async {
-    final server = _session.selectedServer;
+    final server = _target.server;
     if (server == null) {
-      return (success: false, error: 'No server selected');
+      return (success: false, error: ServerSession.gone);
     }
     if (url == null && apiKey == null && secret == null) {
       return (success: true, error: null);
@@ -158,7 +126,6 @@ class ServerApi {
       livekitUrl: url,
       livekitApiKey: apiKey,
       livekitSecretKey: secret,
-      serverId: server.id,
     );
     if (result.success) _session.regionProbe.invalidate(server.id);
     return result;

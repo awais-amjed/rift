@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../theme/app_motion.dart';
 import 'context_menu_region.dart';
+import 'server_scope.dart';
 
 /// Shows a dialog that:
 /// - Cannot be dismissed by tapping the barrier, unless [barrierDismissible]
@@ -10,6 +11,8 @@ import 'context_menu_region.dart';
 ///   typed, and wrong for a picker like the quick switcher, which holds
 ///   nothing and should go away when the eye moves on
 /// - CAN be dismissed by pressing Escape
+///
+/// The dialog is about the server [context] is about ([ServerScope.carry]).
 ///
 /// [build] runs **once, here, before the route exists**, and the route is
 /// handed the finished widget. That is the whole reason it is not called
@@ -26,7 +29,9 @@ Future<T?> showCustomDialog<T>({
   required WidgetBuilder build,
   bool barrierDismissible = false,
 }) {
-  final dialog = build(context);
+  // Built about the server [context] is about: the route is outside the tree
+  // it opens from, and would otherwise know of no server.
+  final dialog = ServerScope.carry(context, build(context));
   return showDialog<T>(
     context: context,
     barrierDismissible: barrierDismissible,
@@ -107,7 +112,7 @@ Future<T?> showDialogFromMenu<T>({
   required Widget Function(BuildContext) build,
 }) {
   final dismiss = ContextMenuScope.of(context);
-  final dialog = build(context);
+  final dialog = ServerScope.carry(context, build(context));
   final navigator = Navigator.of(context);
   dismiss?.call();
   return showCustomDialog<T>(context: navigator.context, build: (_) => dialog);

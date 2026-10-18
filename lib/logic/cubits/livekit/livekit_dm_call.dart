@@ -14,7 +14,7 @@ part of 'livekit_cubit.dart';
 /// join and when to leave.
 mixin _DmCallConnectMixin on Cubit<LiveKitState>, _E2EEMixin {
   AppCubit get _appCubit;
-  VoiceApi? get _voiceApi;
+  VoiceApi? _voiceOn(String serverId);
 
   /// Implemented by the other parts.
   Future<void> _cleanupRoom();
@@ -69,7 +69,7 @@ mixin _DmCallConnectMixin on Cubit<LiveKitState>, _E2EEMixin {
     emit(state.copyWith(clearRoom: true));
     _dmMediaKey = mediaKey;
 
-    final response = await _voiceApi!.getDmCallToken(server, place.callId);
+    final response = await _voiceOn(server.id)!.getDmCallToken(place.callId);
     // Hung up, or replaced by another call, while the token was on its way.
     if (state.dmCall != place) return;
     if (!response.success) {
@@ -140,17 +140,14 @@ mixin _DmCallConnectMixin on Cubit<LiveKitState>, _E2EEMixin {
     bool screenShare = false,
     bool soundShare = false,
   }) async {
-    final voice = _voiceApi;
-    final session = _session;
-    if (voice == null || session == null) {
-      return APIResponse.error('No server');
-    }
+    // The call's server: a share started while reading another one used to
+    // ask that one, which has no such channel.
+    final serverId = state.callServerId;
+    final voice = serverId == null ? null : _voiceOn(serverId);
+    if (voice == null) return APIResponse.error('No server');
     final place = state.dmCall;
     if (place != null) {
-      final server = session.serverById(place.serverId);
-      if (server == null) return APIResponse.error('No server');
       return voice.getDmCallToken(
-        server,
         place.callId,
         screenShare: screenShare,
         soundShare: soundShare,
@@ -162,9 +159,6 @@ mixin _DmCallConnectMixin on Cubit<LiveKitState>, _E2EEMixin {
       channelId,
       screenShare: screenShare,
       soundShare: soundShare,
-      // The call's server: a share started while reading another one used
-      // to ask that one, which has no such channel.
-      serverId: state.currentServerId,
     );
   }
 }

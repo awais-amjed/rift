@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../data/apis/server_api.dart';
+import '../../../../../data/apis/joining_api.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../data/repositories/session_repository.dart';
 import '../../../../../logic/services/open_link.dart';
@@ -83,7 +83,7 @@ class _CreateServerModalState extends State<CreateServerModal> {
 
     final supabaseUrl = _supabaseUrlCtrl.text.trim();
 
-    final response = await ServerApi(session: context.read<SessionRepository>())
+    final response = await JoiningApi(context.read<SessionRepository>())
         .createServer(
           supabaseUrl: supabaseUrl,
           serviceKey: _setupSecretCtrl.text.trim(),

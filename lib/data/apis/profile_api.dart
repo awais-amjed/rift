@@ -4,9 +4,10 @@ import '../../logic/services/media_store.dart';
 import '../classes/api_response.dart';
 import '../repositories/avatar_repository.dart';
 import '../repositories/server_repository.dart';
+import '../repositories/server_session.dart';
 import '../repositories/session_repository.dart';
 
-/// The caller's own profile on the selected server: display name and avatar,
+/// The caller's own profile on one server: display name and avatar,
 /// and the members' pictures read back.
 ///
 /// Per-server by design — each server is its own identity, so changing your
@@ -14,9 +15,11 @@ import '../repositories/session_repository.dart';
 ///
 /// Holds nothing, so a widget builds one from the session.
 class ProfileApi {
-  final SessionRepository _session;
+  final ServerSession _target;
 
-  ProfileApi({required SessionRepository session}) : _session = session;
+  ProfileApi(this._target);
+
+  SessionRepository get _session => _target.session;
 
   ServerRepository get _repository => _session.repository;
   AvatarRepository get _avatars => _session.avatars;
@@ -32,11 +35,11 @@ class ProfileApi {
   /// them. Before that sweep learned about this bucket, every picture anybody
   /// had ever set stayed on the operator's disk for good.
   Future<APIResponse> uploadAvatar(Uint8List imageBytes) async {
-    final server = _session.selectedServer;
+    final server = _target.server;
     final anonKey = server?.supabaseKey;
     final userId = server?.user?.id;
     if (server == null || anonKey == null || userId == null) {
-      return APIResponse.error('No server selected');
+      return APIResponse.error(ServerSession.gone);
     }
 
     final uploaded = await _session.callFor(
@@ -62,14 +65,11 @@ class ProfileApi {
 
   /// Fetch one member's avatar bytes, through [MediaStore.images] so every
   /// widget showing it sees the result. Null when the fetch fails.
-  ///
-  /// From [serverId]'s storage when named — a call's tile while another
-  /// server is open, whose picture that server does not hold.
-  Future<Uint8List?> loadAvatar(String path, {String? serverId}) =>
-      MediaStore.images.load(path, () => _downloadAvatar(path, serverId));
+  Future<Uint8List?> loadAvatar(String path) =>
+      MediaStore.images.load(path, () => _downloadAvatar(path));
 
-  Future<Uint8List?> _downloadAvatar(String path, String? serverId) async {
-    final server = _session.target(serverId);
+  Future<Uint8List?> _downloadAvatar(String path) async {
+    final server = _target.server;
     final anonKey = server?.supabaseKey;
     if (server == null || anonKey == null) return null;
 
@@ -98,10 +98,10 @@ class ProfileApi {
     String? avatarPath,
     bool clearAvatar = false,
   }) async {
-    final server = _session.selectedServer;
+    final server = _target.server;
     final userId = server?.user?.id;
     if (server == null || userId == null) {
-      return APIResponse.error('No server selected');
+      return APIResponse.error(ServerSession.gone);
     }
 
     final response = await _session.callFor(

@@ -9,8 +9,8 @@ part of 'channel_keyring.dart';
 /// runs fire-and-forget, its failures cost somebody else a wait rather than
 /// this client anything, and every one of them is swallowed on purpose.
 mixin _KeyringSealingMixin {
-  ChannelKeysApi get _channelKeys;
-  VoiceBotsApi get _voiceBots;
+  ChannelKeysApi _keysOn(String serverId);
+  VoiceBotsApi _botsOn(String serverId);
   CryptoRepository get _crypto;
   void Function()? get onHealed;
   Map<int, Uint8List> get keys;
@@ -40,8 +40,8 @@ mixin _KeyringSealingMixin {
     List<Map<String, dynamic>> bots,
   ) async {
     final channelKey = keys[keyVersion];
-    if (channelKey == null) return;
     final serverId = _serverId;
+    if (channelKey == null || serverId == null) return;
 
     for (final bot in bots) {
       final botId = bot['bot_id'] as String?;
@@ -55,7 +55,7 @@ mixin _KeyringSealingMixin {
           botId: botId,
           mayListen: bot['may_listen'] == true,
         );
-        await _voiceBots.postBotVoiceKey(
+        await _botsOn(serverId).postBotVoiceKey(
           channelId: channelId,
           botId: botId,
           keyVersion: keyVersion,
@@ -64,7 +64,6 @@ mixin _KeyringSealingMixin {
             key: sealed.key,
             recipientPublicKey: CryptoRepository.fromBase64(publicKey),
           ),
-          serverId: serverId,
         );
       } catch (e) {
         HelperMethods.printDebug('[Keyring] bot key seal failed: $e');
@@ -80,19 +79,18 @@ mixin _KeyringSealingMixin {
     List<Map<String, dynamic>> members,
   ) async {
     final channelKey = keys[keyVersion];
-    if (channelKey == null) return;
     final serverId = _serverId;
+    if (channelKey == null || serverId == null) return;
     try {
       final entries = await _crypto.sealKeyringEntries(
         key: channelKey,
         members: members,
       );
-      final response = await _channelKeys.postChannelKeys(
+      final response = await _keysOn(serverId).postChannelKeys(
         channelId: channelId,
         keyVersion: keyVersion,
         entries: entries,
         mint: false,
-        serverId: serverId,
       );
       // Wake the healed members so their waiting screens refetch.
       if (response.success) onHealed?.call();

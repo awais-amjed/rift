@@ -5,7 +5,6 @@ import '../../../../../data/apis/roles_api.dart';
 import '../../../../../data/classes/role.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../data/enums/server_permission.dart';
-import '../../../../../data/repositories/session_repository.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
@@ -51,14 +50,13 @@ class _ParticipantRolesMenuState extends State<ParticipantRolesMenu> {
       _error = null;
     });
 
-    final api = RolesApi(session: context.read<SessionRepository>());
+    final api = RolesApi(ServerScope.read(context));
     final members = context.read<ServerMembersCubit>();
 
     final result = await api.setMemberRole(
       userId: widget.userId,
       roleId: role.id,
       held: next,
-      serverId: ServerScope.read(context),
     );
 
     // `member_roles` announces nothing itself — a `users` row moving does, and
@@ -82,7 +80,7 @@ class _ParticipantRolesMenuState extends State<ParticipantRolesMenu> {
         context
             .read<ServerCubit>()
             .state
-            .permissionsOn(ServerScope.of(context))
+            .permissionsOn(ServerScope.of(context).serverId)
             ?.bits ??
         0;
     final assignable = {

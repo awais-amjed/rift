@@ -31,11 +31,7 @@ class ServerSettingsSave {
     required PublicServersCubit publicServers,
     required int memberCount,
   }) async {
-    final result = await serverApi.updateServerDetails(
-      name: name,
-      // Named, because this dialog is not always about the selected server.
-      serverId: server.id,
-    );
+    final result = await serverApi.updateServerDetails(name: name);
     if (!result.success) return result.error ?? 'Failed to update server';
     // A rename shows in every member's rail, so they re-read now.
     events.notifyServerChanged(server.id);

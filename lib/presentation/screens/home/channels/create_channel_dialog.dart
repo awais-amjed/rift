@@ -7,13 +7,13 @@ import '../../../../data/classes/server_member.dart';
 import '../../../../data/classes/user_permissions.dart';
 import '../../../../data/enums/channel_type.dart';
 import '../../../../data/enums/server_permission.dart';
-import '../../../../data/repositories/session_repository.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/helper_methods.dart';
 import '../../../../logic/services/member_selection.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/app_text_field.dart';
+import '../../../common/server_scope.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 import '../../settings/widgets/setting_toggle_row.dart';
@@ -77,7 +77,7 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
   Future<List<ServerMember>> _searchMembers(String query) async {
     final me = context.read<ServerCubit>().state.selectedServer?.user?.id;
     final results = await MembersApi(
-      session: context.read<SessionRepository>(),
+      ServerScope.read(context),
     ).searchMembers(query: query, bots: false);
     return [
       for (final member in results)
@@ -93,13 +93,12 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
       _error = null;
     });
 
-    final result = await ChannelsApi(session: context.read<SessionRepository>())
-        .createChannel(
-          name: _nameCtrl.text.trim(),
-          channelType: _type.name,
-          isPrivate: _isPrivate,
-          memberIds: _isPrivate ? _selection.ids.toList() : const [],
-        );
+    final result = await ChannelsApi(ServerScope.read(context)).createChannel(
+      name: _nameCtrl.text.trim(),
+      channelType: _type.name,
+      isPrivate: _isPrivate,
+      memberIds: _isPrivate ? _selection.ids.toList() : const [],
+    );
 
     if (!mounted) return;
 

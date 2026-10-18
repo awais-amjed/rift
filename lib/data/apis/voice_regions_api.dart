@@ -1,9 +1,10 @@
 import '../classes/api_response.dart';
 import '../classes/server.dart';
 import '../repositories/server_repository.dart';
+import '../repositories/server_session.dart';
 import '../repositories/session_repository.dart';
 
-/// Adding, renaming and removing the LiveKit nodes the selected server holds
+/// Adding, renaming and removing the LiveKit nodes the server holds
 /// calls on.
 ///
 /// All of them end the same way — the server re-read, so the node list and
@@ -20,9 +21,11 @@ import '../repositories/session_repository.dart';
 ///
 /// Holds nothing, so a widget builds one from the session.
 class VoiceRegionsApi {
-  final SessionRepository _session;
+  final ServerSession _target;
 
-  VoiceRegionsApi({required SessionRepository session}) : _session = session;
+  VoiceRegionsApi(this._target);
+
+  SessionRepository get _session => _target.session;
 
   ServerRepository get _repository => _session.repository;
 
@@ -100,8 +103,8 @@ class VoiceRegionsApi {
     Future<APIResponse> Function(Server server, String token) call, {
     required String failure,
   }) async {
-    final server = _session.selectedServer;
-    if (server == null) return (success: false, error: _session.noTarget(null));
+    final server = _target.server;
+    if (server == null) return (success: false, error: ServerSession.gone);
 
     final response = await _session.callFor(
       server,

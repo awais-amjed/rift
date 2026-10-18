@@ -86,8 +86,8 @@ class _PublishNewServerModalState extends State<PublishNewServerModal> {
   Future<void> _publish() async {
     final server = context.read<ServerCubit>().state.selectedServer;
     if (server == null) return;
-    final session = context.read<SessionRepository>();
-    final invites = InvitesApi(session: session);
+    final session = context.read<SessionRepository>().on(server.id);
+    final invites = InvitesApi(session);
 
     setState(() {
       _publishing = true;
@@ -98,9 +98,7 @@ class _PublishNewServerModalState extends State<PublishNewServerModal> {
     // Central redeems it against the server's own domain, because it has no
     // other way to tell an administrator from any other member — see the
     // publish_server edge function on central.
-    final proof = await ServerApi(
-      session: session,
-    ).listingToken(serverId: server.id);
+    final proof = await ServerApi(session).listingToken();
     if (!mounted) return;
     if (proof.token == null) {
       setState(() {
@@ -122,9 +120,6 @@ class _PublishNewServerModalState extends State<PublishNewServerModal> {
     final invite = await invites.createInvite(
       maxUses: null,
       expiresInSeconds: null,
-      // The server this listing is for, which is also what the publish below
-      // names. Same server either way; saying so keeps them from drifting.
-      serverId: server.id,
     );
     if (!mounted) return;
     if (!invite.success || invite.inviteCode == null) {
@@ -154,10 +149,7 @@ class _PublishNewServerModalState extends State<PublishNewServerModal> {
     if (!mounted) return;
 
     if (saved == null) {
-      await invites.revokeInvite(
-        inviteCode: invite.inviteCode!,
-        serverId: server.id,
-      );
+      await invites.revokeInvite(inviteCode: invite.inviteCode!);
       if (!mounted) return;
       setState(() {
         _publishing = false;

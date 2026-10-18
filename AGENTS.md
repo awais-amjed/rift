@@ -101,11 +101,15 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   the API always returns 200.
 - Session (JWT) expiry is handled centrally by `SessionRepository` (a silent SIWS re-login,
   signed with the seed from secure storage); new API calls must go through it rather than
-  re-implementing refresh/retry: `callSelected`, against the selected server, and
-  `callFor(server, …)`, the same thing for a **named** server. A feature's calls live in
-  its own class in `data/apis/` built on the repository, which the feature's cubit takes
-  instead of `ServerCubit`. The class holds nothing, so a widget that makes one of its
-  calls builds it from `context.read<SessionRepository>()`. A write other members must see at
+  re-implementing refresh/retry: `callFor(server, …)`. A feature's calls live in its own
+  class in `data/apis/`, **bound to one server**: it takes a `ServerSession`
+  (`SessionRepository.on(serverId)`), whose `call` signs in again and retries, and none of
+  its methods takes a `serverId` or falls back on the selected server — that fallback is how
+  a call kept running on one server sent its work to the server being read, and how a
+  dialog about one server wrote to another (`test/server_binding_test.dart` fails on it).
+  The calls made before there is a server — creating one, reading an invite — are
+  `JoiningApi`'s. The class holds nothing, so a cubit builds one for the server it is about
+  and a widget builds one from `ServerScope.read(context)`. A write other members must see at
   once is followed by the caller ringing `ServerEventsCubit.notifyServerChanged`, since the
   class cannot reach a cubit. `ServerCubit` publishes its server list into the repository on every change and writes back the
   token and details each re-login brings (`SessionRepository.logins`), so neither it nor the
@@ -114,9 +118,7 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   on `SessionRepository.realtime`; only what changes the list itself takes `ServerCubit`.
   A write that moves something the list holds — a role change moves
   your own permissions — ends with `SessionRepository.refreshDetails`, and the cubit lands
-  the re-read from `SessionRepository.details` before the call answers. An API call a dialog can open for a server other than the current one takes an
-  optional `serverId` and resolves it with `SessionRepository.target` — reading the
-  selected server inside such a call is how a form ends up writing to the wrong server.
+  the re-read from `SessionRepository.details` before the call answers.
 - A call to central (the account, Rift DMs, the directories, cloud backup) returns its failure through
   `CentralFailure.response`, and a typed catch (`on PostgrestException`) asks
   `CentralFailure.isUnreachable` first. Each Supabase client reports central being down its own way,
@@ -274,13 +276,18 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   (`ServerMembersCubit`, `ReportsCubit`, and `SoundboardCubit`, which follows the call during
   one) take a `serverId` that pins them to that server. `serverManageDialog` builds those for it
   and closes them with the dialog, so the page reads that server's one live copy instead of the
-  selected server's. Everything such a
-  page calls names its server too — `serverId` on the call, `ServerState.permissionsOn` for what
-  the viewer may do there. The call is the other such surface: it stays on screen while another
-  server is read, so it sits under `CallServerScope`, which provides a `ServerScope` and the
-  call's roster (`CallMembersCubit`). A widget in it that acts on a server takes its `serverId`
-  from `ServerScope.of` (`read` in a callback), and what it opens outside its tree — a menu
-  entry, a route, a dialog — takes the scope along with `ServerScope.carry`.
+  selected server's.
+- **A widget learns its server from `ServerScope`, never from the selection.** It builds its
+  `data/apis` class from `ServerScope.of(context)` (`read` in a callback) and asks
+  `ServerState.permissionsOn(scope.serverId)` what the viewer may do there.
+  `SelectedServerScope`, round the navigator, makes the selected server the default for every
+  page, dialog and menu; what is about another server provides its own over it. Manage server
+  does, for the server it opened on, and so does the call (`CallServerScope`, with the call's
+  roster, `CallMembersCubit`), which stays on screen while another server is read. What a
+  widget opens outside its tree takes the scope along: `showCustomDialog`,
+  `showDialogFromMenu`, `showAppSheet`, `showAnchoredPanel` and the context menu do it themselves
+  (`ServerScope.carry`), which is why a dialog opens through them and not a bare
+  `showDialog` — that one opens on the selected server, whatever it was opened from.
 - Toasts/errors go through `HelperMethods.showToast` / `showError` (toastification) — no
   SnackBars — called from the presentation layer, not from a cubit: a cubit sets a `Notice`
   in its state and `NoticeListeners` shows it (`CODE_STYLE.md` §8). Logging through `HelperMethods.printDebug`, not bare `print` (Dart side): its lines go to the app's log in every build, which people send with a bug report, so never log a secret or anything from a message (`ARCHITECTURE.md` §9).

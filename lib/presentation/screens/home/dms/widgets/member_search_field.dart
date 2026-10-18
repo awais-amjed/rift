@@ -3,12 +3,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/apis/members_api.dart';
 import '../../../../../data/classes/server_member.dart';
-import '../../../../../data/repositories/session_repository.dart';
 import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/search_dropdown_field.dart';
 import '../../../../common/search_result_row.dart';
+import '../../../../common/server_scope.dart';
 
 /// Starts a DM with a member of the selected server.
 ///
@@ -39,7 +39,7 @@ class _MemberSearchFieldState extends State<MemberSearchField> {
     // Read before awaiting: reaching back through the context afterwards
     // would be a use-after-dispose if the panel closed mid-flight.
     final myId = context.read<ServerCubit>().state.selectedServer?.user?.id;
-    final members = MembersApi(session: context.read<SessionRepository>());
+    final members = MembersApi(ServerScope.read(context));
     // Bots included, because a DM to a bot is a conversation like any other
     // — sealed between the two of you, unreadable by the server, and the one
     // way to say something to a bot that the rest of a channel does not see

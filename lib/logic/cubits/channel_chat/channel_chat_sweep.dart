@@ -8,7 +8,6 @@ part of 'channel_chat_cubit.dart';
 /// healed someone).
 mixin _ChatSweepMixin on Cubit<ChannelChatState> {
   SessionRepository get _session;
-  ChannelKeysApi get _channelKeys;
   CryptoRepository get _crypto;
   Future<ChatIdentity?> _chatIdentity(Server server);
   void _ringKeySweepDoorbell();
@@ -36,9 +35,9 @@ mixin _ChatSweepMixin on Cubit<ChannelChatState> {
       for (var pass = 0; pass < _maxSweepPasses; pass++) {
         // The server the sweep started on, throughout: the identity above is
         // that server's, and the selection can move while a pass runs.
-        final response = await _channelKeys.sweepChannelKeys(
-          serverId: server.id,
-        );
+        final response = await ChannelKeysApi(
+          _session.on(server.id),
+        ).sweepChannelKeys();
         if (!response.success) break;
         final data = response.data as Map<String, dynamic>;
         final work = (data['work'] as List).cast<Map<String, dynamic>>();
@@ -98,7 +97,7 @@ mixin _ChatSweepMixin on Cubit<ChannelChatState> {
       members: missing,
     );
 
-    final posted = await _channelKeys.postChannelKeys(
+    final posted = await ChannelKeysApi(_session.on(serverId)).postChannelKeys(
       channelId: channelId,
       keyVersion: postVersion,
       entries: entries,
@@ -106,7 +105,6 @@ mixin _ChatSweepMixin on Cubit<ChannelChatState> {
       link: rotate && job['link'] == true
           ? await _linkBack(job, identity, channelId, channelKey, postVersion)
           : null,
-      serverId: serverId,
     );
     // A conflict just means another client won the same race — fine.
     return posted.success;

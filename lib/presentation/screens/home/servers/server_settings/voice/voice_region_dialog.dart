@@ -4,12 +4,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../../data/apis/server_api.dart';
 import '../../../../../../data/apis/voice_regions_api.dart';
 import '../../../../../../data/classes/livekit_node.dart';
-import '../../../../../../data/repositories/session_repository.dart';
 import '../../../../../../logic/cubits/server_events/server_events_cubit.dart';
 import '../../../../../../logic/helper_methods.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/app_modal.dart';
 import '../../../../../common/app_text_field.dart';
+import '../../../../../common/server_scope.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
 
@@ -181,17 +181,13 @@ class _VoiceRegionDialogState extends State<VoiceRegionDialog> {
       _error = null;
     });
 
-    final session = context.read<SessionRepository>();
+    final session = ServerScope.read(context);
     final events = context.read<ServerEventsCubit>();
-    final result = await _write(
-      VoiceRegionsApi(session: session),
-      ServerApi(session: session),
-    );
+    final result = await _write(VoiceRegionsApi(session), ServerApi(session));
     // The default region's address is the server's own, which every member
     // re-reads on the doorbell; the other regions announce themselves.
     if (result.success && (_node?.isDefault ?? false)) {
-      final server = session.selectedServer;
-      if (server != null) events.notifyServerChanged(server.id);
+      events.notifyServerChanged(session.serverId);
     }
     if (!mounted) return;
 

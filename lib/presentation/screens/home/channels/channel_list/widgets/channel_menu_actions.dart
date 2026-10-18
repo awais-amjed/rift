@@ -7,7 +7,6 @@ import '../../../../../../data/apis/channel_access_api.dart';
 import '../../../../../../data/apis/channels_api.dart';
 import '../../../../../../data/classes/channel.dart';
 import '../../../../../../data/enums/channel_type.dart';
-import '../../../../../../data/repositories/session_repository.dart';
 import '../../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
@@ -16,6 +15,7 @@ import '../../../../../../logic/helper_methods.dart';
 import '../../../../../common/app_modal.dart';
 import '../../../../../common/confirm_dialog.dart';
 import '../../../../../common/context_menu_region.dart';
+import '../../../../../common/server_scope.dart';
 import '../../settings/channel_settings_dialog.dart';
 import '../../settings/channel_settings_tab.dart';
 
@@ -34,7 +34,7 @@ import '../../settings/channel_settings_tab.dart';
 ///
 /// True when the channel is now private.
 Future<bool> makeChannelPrivate(BuildContext context, Channel channel) async {
-  final access = ChannelAccessApi(session: context.read<SessionRepository>());
+  final access = ChannelAccessApi(ServerScope.read(context));
 
   final confirmed = await showConfirmDialog(
     context: context,
@@ -67,7 +67,7 @@ Future<bool> makeChannelPrivate(BuildContext context, Channel channel) async {
 /// and there is no way back in on your own.
 Future<void> leaveChannel(BuildContext context, Channel channel) async {
   ContextMenuScope.of(context)?.call();
-  final access = ChannelAccessApi(session: context.read<SessionRepository>());
+  final access = ChannelAccessApi(ServerScope.read(context));
 
   final confirmed = await showConfirmDialog(
     context: context,
@@ -89,7 +89,7 @@ Future<void> leaveChannel(BuildContext context, Channel channel) async {
 
 /// True when the channel is now open to everyone.
 Future<bool> openChannelUp(BuildContext context, Channel channel) async {
-  final access = ChannelAccessApi(session: context.read<SessionRepository>());
+  final access = ChannelAccessApi(ServerScope.read(context));
 
   final confirmed = await showConfirmDialog(
     context: context,
@@ -125,7 +125,7 @@ Future<bool> setChannelEncryption(
   Channel channel, {
   required bool encrypted,
 }) async {
-  final access = ChannelAccessApi(session: context.read<SessionRepository>());
+  final access = ChannelAccessApi(ServerScope.read(context));
 
   final confirmed = await showConfirmDialog(
     context: context,
@@ -165,7 +165,7 @@ Future<bool> deleteChannel(
   Channel channel, {
   VoidCallback? onConfirmed,
 }) async {
-  final channels = ChannelsApi(session: context.read<SessionRepository>());
+  final channels = ChannelsApi(ServerScope.read(context));
   final isVoice = channel.channelType == ChannelType.voice;
 
   final confirmed = await showConfirmDialog(

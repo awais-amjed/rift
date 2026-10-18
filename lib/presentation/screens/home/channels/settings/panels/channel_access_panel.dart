@@ -5,13 +5,13 @@ import '../../../../../../data/apis/channel_access_api.dart';
 import '../../../../../../data/apis/members_api.dart';
 import '../../../../../../data/classes/channel.dart';
 import '../../../../../../data/classes/server_member.dart';
-import '../../../../../../data/repositories/session_repository.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/helper_methods.dart';
 import '../../../../../../logic/services/member_selection.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/hint_card.dart';
 import '../../../../../common/loading_block.dart';
+import '../../../../../common/server_scope.dart';
 import '../../../servers/manage/widgets/manage_panel.dart';
 import '../../channel_list/widgets/channel_menu_actions.dart';
 import '../../widgets/channel_member_picker.dart';
@@ -71,11 +71,11 @@ class _ChannelAccessPanelState extends State<ChannelAccessPanel> {
   }
 
   Future<void> _load() async {
-    final session = context.read<SessionRepository>();
-    final members = MembersApi(session: session);
+    final session = ServerScope.read(context);
+    final members = MembersApi(session);
     final me = _me;
     final membership = await ChannelAccessApi(
-      session: session,
+      session,
     ).channelMembers(_channel.id);
     if (!mounted) return;
 
@@ -100,7 +100,7 @@ class _ChannelAccessPanelState extends State<ChannelAccessPanel> {
   Future<List<ServerMember>> _search(String query) async {
     final me = _me;
     final results = await MembersApi(
-      session: context.read<SessionRepository>(),
+      ServerScope.read(context),
     ).searchMembers(query: query, bots: false);
     return [
       for (final member in results)
@@ -118,10 +118,8 @@ class _ChannelAccessPanelState extends State<ChannelAccessPanel> {
     // replaces the membership with exactly what it is handed, and a private
     // channel that loses its last member is deleted.
     final me = _me;
-    final result =
-        await ChannelAccessApi(
-          session: context.read<SessionRepository>(),
-        ).setChannelMembers(
+    final result = await ChannelAccessApi(ServerScope.read(context))
+        .setChannelMembers(
           channelId: _channel.id,
           userIds: {?me, ..._selection.ids}.toList(),
         );

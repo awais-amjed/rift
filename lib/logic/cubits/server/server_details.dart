@@ -73,7 +73,7 @@ mixin _ServerDetailsMixin on Cubit<ServerState> {
     }
     final server = state.serverById(serverId);
     if (server == null) {
-      return Future.value((success: false, error: _session.noTarget(serverId)));
+      return Future.value((success: false, error: ServerSession.gone));
     }
     return _fetchDetailsOf(server);
   }

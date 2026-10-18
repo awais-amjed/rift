@@ -3,11 +3,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/apis/ownership_api.dart';
 import '../../../../../data/classes/server_member.dart';
-import '../../../../../data/repositories/session_repository.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/server_events/server_events_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
 import '../../../../common/confirm_dialog.dart';
+import '../../../../common/server_scope.dart';
 
 /// The one thing an owner does to a member that nobody else can: make them
 /// the owner instead.
@@ -25,7 +25,7 @@ class OwnershipActions {
   static bool canTransferTo(
     ServerCubit cubit,
     ServerMember member, {
-    String? serverId,
+    required String serverId,
   }) {
     final me = cubit.state.meOn(serverId);
     return (me?.permissions.isOwner ?? false) &&
@@ -34,12 +34,12 @@ class OwnershipActions {
         !member.isBanned;
   }
 
-  /// [serverId] is the server being handed on, or null for the selected one.
+  /// The server handed on is the one [context] is about ([ServerScope]).
   static Future<void> transfer(
     BuildContext context,
-    ServerMember member, {
-    String? serverId,
-  }) async {
+    ServerMember member,
+  ) async {
+    final server = ServerScope.read(context);
     final confirmed = await showConfirmDialog(
       context: context,
       title: 'Make ${member.displayName} the owner?',
@@ -52,17 +52,13 @@ class OwnershipActions {
     );
     if (!confirmed || !context.mounted) return;
 
-    final session = context.read<SessionRepository>();
     final events = context.read<ServerEventsCubit>();
-    final result = await OwnershipApi(
-      session: session,
-    ).transferOwnership(member.id, serverId: serverId);
+    final result = await OwnershipApi(server).transferOwnership(member.id);
     if (result.success) {
       // The new owner's row changed too, and they are the one person this has
       // to reach at once: the doorbell makes every other client re-read its
       // standing.
-      final server = session.target(serverId);
-      if (server != null) events.notifyServerChanged(server.id);
+      events.notifyServerChanged(server.serverId);
       HelperMethods.showSuccess(
         message: '${member.displayName} now owns this server',
       );

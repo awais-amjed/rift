@@ -1,27 +1,20 @@
 import '../classes/api_response.dart';
-import '../classes/server.dart';
 import '../repositories/server_repository.dart';
+import '../repositories/server_session.dart';
 import '../repositories/session_repository.dart';
 
-/// Pins and polls on the selected server. Pass-throughs — the chat cubits
+/// Pins and polls on one server. Pass-throughs — the chat cubits
 /// hold the state, decrypt the pinned rows, and merge the tallies.
 ///
 /// Holds nothing, so a widget that needs one builds it from the session.
 class PinsPollsApi {
-  final SessionRepository _session;
+  final ServerSession _target;
 
-  PinsPollsApi({required SessionRepository session}) : _session = session;
+  PinsPollsApi(this._target);
+
+  SessionRepository get _session => _target.session;
 
   ServerRepository get _repository => _session.repository;
-
-  /// [call] against the selected server.
-  Future<APIResponse> _onSelected(
-    Future<APIResponse> Function(Server server, String token) call,
-  ) async {
-    final server = _session.selectedServer;
-    if (server == null) return APIResponse.error(_session.noTarget(null));
-    return _session.callFor(server, (token) => call(server, token));
-  }
 
   // ── Pins ──────────────────────────────────────────────────
 
@@ -30,7 +23,7 @@ class PinsPollsApi {
     required String scope,
     required int messageId,
     required bool pinned,
-  }) => _onSelected(
+  }) => _target.call(
     (server, token) => _repository.setPinned(
       server.supabaseUrl,
       anonKey: server.supabaseKey ?? '',
@@ -43,7 +36,7 @@ class PinsPollsApi {
 
   /// A channel's pinned message rows, newest pin first.
   Future<APIResponse> listChannelPins({required String channelId}) =>
-      _onSelected(
+      _target.call(
         (server, token) => _repository.listChannelPins(
           server.supabaseUrl,
           anonKey: server.supabaseKey ?? '',
@@ -54,7 +47,7 @@ class PinsPollsApi {
       );
 
   /// The pinned rows of the server DM with [peerId], newest pin first.
-  Future<APIResponse> listDmPins({required String peerId}) => _onSelected(
+  Future<APIResponse> listDmPins({required String peerId}) => _target.call(
     (server, token) => _repository.listDmPins(
       server.supabaseUrl,
       anonKey: server.supabaseKey ?? '',
@@ -68,7 +61,7 @@ class PinsPollsApi {
 
   /// Tallies for the polls among [messageIds].
   Future<APIResponse> pollTallies({required List<int> messageIds}) =>
-      _onSelected(
+      _target.call(
         (server, token) => _repository.pollTallies(
           server.supabaseUrl,
           anonKey: server.supabaseKey ?? '',
@@ -81,7 +74,7 @@ class PinsPollsApi {
   Future<APIResponse> votePoll({
     required int messageId,
     required List<int> options,
-  }) => _onSelected(
+  }) => _target.call(
     (server, token) => _repository.votePoll(
       server.supabaseUrl,
       anonKey: server.supabaseKey ?? '',
@@ -92,7 +85,7 @@ class PinsPollsApi {
   );
 
   /// End a poll now (its author only).
-  Future<APIResponse> closePoll({required int messageId}) => _onSelected(
+  Future<APIResponse> closePoll({required int messageId}) => _target.call(
     (server, token) => _repository.closePoll(
       server.supabaseUrl,
       anonKey: server.supabaseKey ?? '',

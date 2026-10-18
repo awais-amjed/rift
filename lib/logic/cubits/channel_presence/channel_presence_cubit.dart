@@ -55,7 +55,6 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
   final SessionRepository _session;
   @override
   final LiveKitCubit _livekitCubit;
-  final VoiceApi _voiceApi;
   final VoiceRegionProbe _probe;
 
   StreamSubscription<void>? _serverSub;
@@ -120,7 +119,6 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
     required SessionRepository session,
   }) : _session = session,
        _livekitCubit = livekitCubit,
-       _voiceApi = VoiceApi(session: session),
        _probe = session.regionProbe,
        super(const ChannelPresenceState()) {
     _serverSub = session.changes.listen((_) => _onServerChanged());
@@ -303,9 +301,9 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
   Future<({Map<String, String> locations, Set<String>? sharing})?>
   _fetchRoster() async {
     // The subscribe that asked for this can land after the selection moved on.
-    if (_session.selectedServer == null) return null;
     final asked = _currentServerId;
-    final response = await _voiceApi.voiceRoster();
+    if (asked == null) return null;
+    final response = await VoiceApi(_session.on(asked)).voiceRoster();
     if (!response.success) return null;
     _landRegionLoad(asked);
     final data = response.data;
@@ -343,7 +341,7 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
   Future<void> refreshRegionLoad() async {
     final asked = _currentServerId;
     if (asked == null) return;
-    final response = await _voiceApi.voiceRoster();
+    final response = await VoiceApi(_session.on(asked)).voiceRoster();
     if (response.success) _landRegionLoad(asked);
   }
 

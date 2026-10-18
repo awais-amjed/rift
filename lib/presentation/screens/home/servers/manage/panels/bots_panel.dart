@@ -6,13 +6,14 @@ import '../../../../../../data/classes/server.dart';
 import '../../../../../../data/classes/server_member.dart';
 import '../../../../../../data/constants.dart';
 import '../../../../../../data/enums/server_permission.dart';
-import '../../../../../../data/repositories/session_repository.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../../logic/helper_methods.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/hint_card.dart';
 import '../../../../../common/loading_block.dart';
+import '../../../../../common/server_scope.dart';
+import '../../../../../common/show_custom_dialog.dart';
 import '../../../bots/bot_directory_dialog.dart';
 import '../../../channels/bots/bot_access_dialog.dart';
 import '../../../members/widgets/kick_confirm.dart';
@@ -45,26 +46,22 @@ class BotsPanel extends StatelessWidget {
   const BotsPanel({super.key, required this.server});
 
   void _openAccess(BuildContext context, ServerMember bot) {
-    showDialog<void>(
+    showCustomDialog<void>(
       context: context,
-      builder: (_) => BlocProvider.value(
+      barrierDismissible: true,
+      build: (_) => BlocProvider.value(
         value: context.read<ServerCubit>(),
-        child: BotAccessDialog(bot: bot, serverId: server.id),
+        child: BotAccessDialog(bot: bot),
       ),
     );
   }
 
   Future<void> _kick(BuildContext context, ServerMember bot) async {
     // Read before the await: the confirmation is a route over this page.
-    final moderation = ModerationApi(
-      session: context.read<SessionRepository>(),
-    );
+    final moderation = ModerationApi(ServerScope.read(context));
     final members = context.read<ServerMembersCubit>();
     if (!await confirmKick(context, bot.displayName, isBot: true)) return;
-    final response = await moderation.kickMember(
-      userId: bot.id,
-      serverId: server.id,
-    );
+    final response = await moderation.kickMember(userId: bot.id);
     if (!response.success) {
       HelperMethods.showToast(
         title: 'Could not kick',

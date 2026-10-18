@@ -6,13 +6,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../../data/apis/roles_api.dart';
 import '../../../../../../data/classes/role.dart';
 import '../../../../../../data/enums/server_permission.dart';
-import '../../../../../../data/repositories/session_repository.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../../logic/services/role_ladder.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/hint_card.dart';
 import '../../../../../common/loading_block.dart';
+import '../../../../../common/server_scope.dart';
+import '../../../../../common/show_custom_dialog.dart';
 import '../../../roles/role_editor_dialog.dart';
 import '../../../roles/widgets/role_row.dart';
 import '../widgets/manage_panel.dart';
@@ -87,15 +88,12 @@ class _RolesPanelState extends State<RolesPanel> {
       RoleLadder.below(_roles, _myRank, isAdministrator: _mayManage);
 
   Future<void> _edit(Role? role) async {
-    final changed = await showDialog<bool>(
+    final changed = await showCustomDialog<bool>(
       context: context,
-      builder: (ctx) => BlocProvider.value(
+      barrierDismissible: true,
+      build: (_) => BlocProvider.value(
         value: context.read<ServerCubit>(),
-        child: RoleEditorDialog(
-          role: role,
-          newPosition: _newPosition,
-          serverId: widget.serverId,
-        ),
+        child: RoleEditorDialog(role: role, newPosition: _newPosition),
       ),
     );
     if (changed == true) await _members.refreshRoles();
@@ -117,7 +115,7 @@ class _RolesPanelState extends State<RolesPanel> {
     if (neighbour.position == role.position) return;
 
     setState(() => _movingId = role.id);
-    final api = RolesApi(session: context.read<SessionRepository>());
+    final api = RolesApi(ServerScope.read(context));
 
     // Two writes for one swap, and neither result was being looked at. If the
     // second is refused — the connection drops, or somebody else reshaped the
@@ -129,24 +127,14 @@ class _RolesPanelState extends State<RolesPanel> {
     // a swap that happens in one statement on the server, which does not exist
     // yet. Either way the re-read below shows what actually happened rather
     // than what was asked for.
-    final serverId = widget.serverId;
-    final moved = await api.updateRole(
-      role.id,
-      position: neighbour.position,
-      serverId: serverId,
-    );
+    final moved = await api.updateRole(role.id, position: neighbour.position);
     if (moved.success) {
       final swapped = await api.updateRole(
         neighbour.id,
         position: role.position,
-        serverId: serverId,
       );
       if (!swapped.success) {
-        await api.updateRole(
-          role.id,
-          position: role.position,
-          serverId: serverId,
-        );
+        await api.updateRole(role.id, position: role.position);
       }
     }
     await _members.refreshRoles();

@@ -1,12 +1,12 @@
 import '../classes/member_page.dart';
 import '../classes/server_member.dart';
 import '../repositories/server_repository.dart';
+import '../repositories/server_session.dart';
 import '../repositories/session_repository.dart';
 
 /// Over the repository budget and one job: reading a server's roster.
 ///
-/// Reading the roster of a named server, or of the selected one: browsing it a
-/// page at a time, and resolving members the client did not page in.
+/// Reading one server's roster: browsing it a page at a time, and resolving members the client did not page in.
 ///
 /// **Nothing here returns the whole roster.** It used to — one call, every
 /// member, and PostgREST silently cut the answer at 1000 rows, so every reader
@@ -23,9 +23,11 @@ import '../repositories/session_repository.dart';
 ///
 /// Holds nothing, so a widget builds one from the session.
 class MembersApi {
-  final SessionRepository _session;
+  final ServerSession _target;
 
-  MembersApi({required SessionRepository session}) : _session = session;
+  MembersApi(this._target);
+
+  SessionRepository get _session => _target.session;
 
   ServerRepository get _repository => _session.repository;
 
@@ -39,16 +41,15 @@ class MembersApi {
   /// for both, true for only those, false for only the others — and [banned]
   /// defaults to excluding them, because a banned member is not in the room.
   Future<({bool success, MemberPage? page, String? error})> listMembers({
-    String? serverId,
     String? channelId,
     bool? bots,
     bool? banned = false,
     ({String name, String id})? after,
     int limit = MemberPage.pageSize,
   }) async {
-    final server = _session.target(serverId);
+    final server = _target.server;
     if (server == null) {
-      return (success: false, page: null, error: _session.noTarget(serverId));
+      return (success: false, page: null, error: ServerSession.gone);
     }
 
     final response = await _session.callFor(
@@ -99,28 +100,21 @@ class MembersApi {
   /// Still bounded. [_wholePageBudget] pages is far past any real server, and it
   /// is what stops this quietly becoming a full-table walk if somebody one day
   /// points it at people.
-  Future<List<ServerMember>> listBots({
-    String? serverId,
-    String? channelId,
-  }) async => (await _listWhole(
-    serverId: serverId,
-    channelId: channelId,
-    bots: true,
-  )).members;
+  Future<List<ServerMember>> listBots({String? channelId}) async =>
+      (await _listWhole(channelId: channelId, bots: true)).members;
 
   /// Every banned member, people and bots — the Members page's, which is the
   /// one place a ban can be lifted. Read whole for the reason bots are: a ban
   /// is somebody's deliberate act on one person, so there are few. Null when
   /// the read failed, which is not the same answer as nobody banned.
-  Future<List<ServerMember>?> listBanned({String? serverId}) async {
-    final read = await _listWhole(serverId: serverId, bots: null, banned: true);
+  Future<List<ServerMember>?> listBanned() async {
+    final read = await _listWhole(bots: null, banned: true);
     return read.failed ? null : read.members;
   }
 
   /// Every page of one filter of the roster, up to [_wholePageBudget], and
   /// whether a page failed on the way.
   Future<({List<ServerMember> members, bool failed})> _listWhole({
-    String? serverId,
     String? channelId,
     bool? bots,
     bool? banned = false,
@@ -130,7 +124,6 @@ class MembersApi {
 
     for (var page = 0; page < _wholePageBudget; page++) {
       final result = await listMembers(
-        serverId: serverId,
         channelId: channelId,
         bots: bots,
         banned: banned,
@@ -152,13 +145,10 @@ class MembersApi {
 
   /// A member by user id, from the cache or by asking for them by name.
   /// Null when they aren't a member of that server.
-  Future<ServerMember?> findMember(String userId, {String? serverId}) async {
-    final id = _session.target(serverId)?.id;
-    if (id == null) return null;
-
-    final cached = _session.members.lookup(id, userId);
+  Future<ServerMember?> findMember(String userId) async {
+    final cached = _session.members.lookup(_target.serverId, userId);
     if (cached != null) return cached;
-    final found = await membersByIds([userId], serverId: id);
+    final found = await membersByIds([userId]);
     return found.isEmpty ? null : found.first;
   }
 
@@ -170,13 +160,12 @@ class MembersApi {
   /// matches" for the empty case.
   Future<List<ServerMember>> searchMembers({
     String? query,
-    String? serverId,
     String? channelId,
     bool? bots,
     bool? banned = false,
     int limit = 25,
   }) async {
-    final server = _session.target(serverId);
+    final server = _target.server;
     if (server == null) return const [];
 
     final response = await _session.callFor(
@@ -210,11 +199,8 @@ class MembersApi {
 
   /// Resolve ids the caller already holds — Realtime presence, a message's
   /// sender, a voice room's participants.
-  Future<List<ServerMember>> membersByIds(
-    List<String> ids, {
-    String? serverId,
-  }) async {
-    final server = _session.target(serverId);
+  Future<List<ServerMember>> membersByIds(List<String> ids) async {
+    final server = _target.server;
     if (server == null || ids.isEmpty) return const [];
 
     final found = <ServerMember>[];
@@ -240,9 +226,8 @@ class MembersApi {
   Future<List<ServerMember>> membersByUsernames(
     List<String> usernames, {
     String? channelId,
-    String? serverId,
   }) async {
-    final server = _session.target(serverId);
+    final server = _target.server;
     if (server == null || usernames.isEmpty) return const [];
 
     final response = await _session.callFor(
@@ -264,11 +249,8 @@ class MembersApi {
 
   /// How many people and how many bots are in scope, so a paged list can say
   /// how long it is rather than how far it has been scrolled.
-  Future<({int people, int bots})> memberCounts({
-    String? serverId,
-    String? channelId,
-  }) async {
-    final server = _session.target(serverId);
+  Future<({int people, int bots})> memberCounts({String? channelId}) async {
+    final server = _target.server;
     if (server == null) return (people: 0, bots: 0);
 
     final response = await _session.callFor(

@@ -1,7 +1,7 @@
 import '../classes/api_response.dart';
 import '../classes/region_load.dart';
-import '../classes/server.dart';
 import '../repositories/server_repository.dart';
+import '../repositories/server_session.dart';
 import '../repositories/session_repository.dart';
 import '../repositories/voice_region_probe.dart';
 
@@ -12,16 +12,16 @@ import '../repositories/voice_region_probe.dart';
 /// of which region is nearest is the session's ([SessionRepository.regionProbe]),
 /// so it outlives every one of these.
 class VoiceApi {
-  final SessionRepository _session;
+  final ServerSession _target;
 
-  VoiceApi({required SessionRepository session}) : _session = session;
+  VoiceApi(this._target);
+
+  SessionRepository get _session => _target.session;
 
   ServerRepository get _repository => _session.repository;
   VoiceRegionProbe get _probe => _session.regionProbe;
 
-  /// Returns a LiveKit JWT for [channelId] on [serverId], or the selected
-  /// server. A call names its own: it carries on while the person reads
-  /// another server, and a rejoin or a share's token comes from there.
+  /// Returns a LiveKit JWT for [channelId].
   ///
   /// Measures which of the server's LiveKit nodes is nearest first, and sends
   /// that along — see [VoiceRegionProbe]. It costs nothing on the usual
@@ -34,10 +34,9 @@ class VoiceApi {
     String channelId, {
     bool screenShare = false,
     bool soundShare = false,
-    String? serverId,
   }) async {
-    final server = _session.target(serverId);
-    if (server == null) return APIResponse.error(_session.noTarget(serverId));
+    final server = _target.server;
+    if (server == null) return APIResponse.error(ServerSession.gone);
 
     final preferred = await _probe.nearest(server.id, server.livekitNodes);
     final response = await _session.callFor(
@@ -69,18 +68,17 @@ class VoiceApi {
     return response;
   }
 
-  /// A LiveKit token for [callId]'s room on [server], measured the same way a
-  /// channel's is: the nearest region is suggested, and forgotten again if
-  /// the join is refused, so a region that died is not suggested twice.
-  ///
-  /// Named rather than selected: a call rings on whichever server it was
-  /// placed on, and the person answering may be looking at another.
+  /// A LiveKit token for [callId]'s room, measured the same way a channel's
+  /// is: the nearest region is suggested, and forgotten again if the join is
+  /// refused, so a region that died is not suggested twice.
   Future<APIResponse> getDmCallToken(
-    Server server,
     String callId, {
     bool screenShare = false,
     bool soundShare = false,
   }) async {
+    final server = _target.server;
+    if (server == null) return APIResponse.error(ServerSession.gone);
+
     final preferred = await _probe.nearest(server.id, server.livekitNodes);
     final response = await _session.callFor(
       server,
@@ -105,8 +103,7 @@ class VoiceApi {
   Future<APIResponse> moveCall({
     required String channelId,
     required String nodeId,
-  }) => _onServer(
-    null,
+  }) => _target.call(
     (server, token) => _repository.moveCall(
       server.supabaseUrl,
       channelId: channelId,
@@ -117,14 +114,10 @@ class VoiceApi {
 
   /// Moves a member into another voice channel (requires channel manager or
   /// server admin). They have to be in a call for there to be anything to move.
-  /// [serverId] names the server when it is not the selected one: a call's
-  /// tile, while its member reads another server.
   Future<APIResponse> moveUser({
     required String userId,
     required String channelId,
-    String? serverId,
-  }) => _onServer(
-    serverId,
+  }) => _target.call(
     (server, token) => _repository.moveUser(
       server.supabaseUrl,
       bearerToken: token,
@@ -136,31 +129,15 @@ class VoiceApi {
   /// Disconnects a member from the voice channel they're in (requires channel
   /// manager or server admin). They have to be in a call for there to be
   /// anything to end, and nothing stops them rejoining — see `kick_user`.
-  /// [serverId] as for [moveUser].
-  Future<APIResponse> kickUser({required String userId, String? serverId}) =>
-      _onServer(
-        serverId,
-        (server, token) => _repository.kickUser(
-          server.supabaseUrl,
-          bearerToken: token,
-          userId: userId,
-        ),
-      );
+  Future<APIResponse> kickUser({required String userId}) => _target.call(
+    (server, token) => _repository.kickUser(
+      server.supabaseUrl,
+      bearerToken: token,
+      userId: userId,
+    ),
+  );
 
-  /// [call] against [serverId]'s server, or the selected one, with its
-  /// token.
-  Future<APIResponse> _onServer(
-    String? serverId,
-    Future<APIResponse> Function(Server server, String token) call,
-  ) {
-    final server = _session.target(serverId);
-    if (server == null) {
-      return Future.value(APIResponse.error(_session.noTarget(serverId)));
-    }
-    return _session.callFor(server, (token) => call(server, token));
-  }
-
-  /// Who is in which voice channel on the selected server, straight from
+  /// Who is in which voice channel on the server, straight from
   /// LiveKit: `{roster: {userId: channelId}}` — and how busy each region is
   /// while we are asking, which lands in [SessionRepository.regionProbe]
   /// under the server that was asked.
@@ -170,8 +147,8 @@ class VoiceApi {
   /// it costs nothing, and it is polled often enough to be current when a
   /// manager opens the picker.
   Future<APIResponse> voiceRoster() async {
-    final server = _session.selectedServer;
-    if (server == null) return APIResponse.error(_session.noTarget(null));
+    final server = _target.server;
+    if (server == null) return APIResponse.error(ServerSession.gone);
 
     final response = await _session.callFor(
       server,

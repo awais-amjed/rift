@@ -7,13 +7,13 @@ import '../../../../data/apis/roles_api.dart';
 import '../../../../data/classes/role.dart';
 import '../../../../data/classes/server_member.dart';
 import '../../../../data/enums/server_permission.dart';
-import '../../../../data/repositories/session_repository.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../logic/services/role_ladder.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/loading_block.dart';
+import '../../../common/server_scope.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 import 'widgets/role_row.dart';
@@ -30,10 +30,7 @@ import 'widgets/role_row.dart';
 class MemberRolesDialog extends StatefulWidget {
   final ServerMember member;
 
-  /// The server [member] is on, or null for the selected one.
-  final String? serverId;
-
-  const MemberRolesDialog({super.key, required this.member, this.serverId});
+  const MemberRolesDialog({super.key, required this.member});
 
   @override
   State<MemberRolesDialog> createState() => _MemberRolesDialogState();
@@ -61,13 +58,9 @@ class _MemberRolesDialogState extends State<MemberRolesDialog> {
     });
 
     final members = context.read<ServerMembersCubit>();
-    final result = await RolesApi(session: context.read<SessionRepository>())
-        .setMemberRole(
-          userId: widget.member.id,
-          roleId: role.id,
-          held: !held,
-          serverId: widget.serverId,
-        );
+    final result = await RolesApi(
+      ServerScope.read(context),
+    ).setMemberRole(userId: widget.member.id, roleId: role.id, held: !held);
     if (result.success) await members.reloadRolesOf(widget.member.id);
     if (!mounted) return;
 
@@ -86,10 +79,11 @@ class _MemberRolesDialogState extends State<MemberRolesDialog> {
     final heldRoles = context.select<ServerMembersCubit, List<Role>?>(
       (c) => c.state.memberRoles[widget.member.id],
     );
+    final serverId = ServerScope.of(context).serverId;
     final isAdministrator = context.select<ServerCubit, bool>(
       (c) =>
           c.state
-              .permissionsOn(widget.serverId)
+              .permissionsOn(serverId)
               ?.can(ServerPermission.administrator) ??
           false,
     );

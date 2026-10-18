@@ -13,6 +13,7 @@ import 'package:rift/data/classes/user_permissions.dart';
 import 'package:rift/data/enums/auth_status.dart';
 import 'package:rift/data/enums/channel_type.dart';
 import 'package:rift/data/repositories/server_repository.dart';
+import 'package:rift/data/repositories/server_session.dart';
 import 'package:rift/data/repositories/session_repository.dart';
 import 'package:rift/logic/cubits/livekit/livekit_cubit.dart';
 import 'package:rift/logic/cubits/server/server_cubit.dart';
@@ -400,7 +401,7 @@ void main() {
       late BuildContext inside;
       await tester.pumpWidget(
         ServerScope(
-          serverId: 'call',
+          server: session.on('call'),
           child: BlocProvider<ServerMembersCubit>.value(
             value: callMembers,
             child: Builder(
@@ -415,7 +416,7 @@ void main() {
 
       // What a menu, a sheet or a route does: build from that context
       // somewhere else entirely.
-      String? scoped;
+      ServerSession? scoped;
       ServerMembersCubit? roster;
       final carry = ServerScope.carrier(inside);
       await tester.pumpWidget(
@@ -429,7 +430,7 @@ void main() {
           ),
         ),
       );
-      expect(scoped, 'call');
+      expect(scoped?.serverId, 'call');
       expect(roster, same(callMembers));
     });
 

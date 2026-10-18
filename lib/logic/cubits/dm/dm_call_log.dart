@@ -36,11 +36,7 @@ mixin _DmCallLogMixin on Cubit<DmState> {
     final since = state.hasMoreHistory
         ? state.messages.firstOrNull?.sentAt
         : null;
-    final response = await _calls.dmCallLog(
-      server,
-      peerId: peerId,
-      since: since,
-    );
+    final response = await _calls.dmCallLog(peerId: peerId, since: since);
     if (!response.success || isClosed || state.openPeerId != peerId) return;
     var calls = DmCall.listFrom(response.data);
     // A window into the past has later history that is not loaded, and a

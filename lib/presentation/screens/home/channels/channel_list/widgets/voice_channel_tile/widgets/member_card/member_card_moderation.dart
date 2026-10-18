@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:toastification/toastification.dart';
 
 import '../../../../../../../../../data/apis/voice_api.dart';
-import '../../../../../../../../../data/repositories/session_repository.dart';
 import '../../../../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../../../../../logic/cubits/server/server_cubit.dart';
@@ -11,6 +10,7 @@ import '../../../../../../../../../logic/cubits/server_members/server_members_cu
 import '../../../../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../../../../../logic/helper_methods.dart';
 import '../../../../../../../../common/context_menu/context_menu_overlay.dart';
+import '../../../../../../../../common/server_scope.dart';
 import '../../../../../../../../theme/app_text.dart';
 import '../../../../../../../../theme/theme_context.dart';
 import '../../../../../../controls/widgets/control_button.dart';
@@ -175,7 +175,7 @@ class _MemberCardModerationState extends State<MemberCardModeration> {
 
   /// Ends their connections to the call, as the menu's Disconnect does.
   Future<void> _disconnect() async {
-    final voice = VoiceApi(session: context.read<SessionRepository>());
+    final voice = VoiceApi(ServerScope.read(context));
     final response = await voice.kickUser(userId: widget.userId);
     if (response.success) return;
     HelperMethods.showToast(

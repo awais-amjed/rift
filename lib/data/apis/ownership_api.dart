@@ -1,5 +1,6 @@
 import '../enums/leave_outcome.dart';
 import '../repositories/server_repository.dart';
+import '../repositories/server_session.dart';
 import '../repositories/session_repository.dart';
 
 /// The owner's two calls: hand the server on, or end it. And everybody
@@ -13,21 +14,22 @@ import '../repositories/session_repository.dart';
 ///
 /// Holds nothing, so a widget builds one from the session.
 class OwnershipApi {
-  final SessionRepository _session;
+  final ServerSession _target;
 
-  OwnershipApi({required SessionRepository session}) : _session = session;
+  OwnershipApi(this._target);
+
+  SessionRepository get _session => _target.session;
 
   ServerRepository get _repository => _session.repository;
 
-  /// Hand [serverId], or the selected server, to [userId]. We stay an admin;
+  /// Hand the server to [userId]. We stay an admin;
   /// they become the one person who can do this next.
   Future<({bool success, String? error})> transferOwnership(
-    String userId, {
-    String? serverId,
-  }) async {
-    final server = _session.target(serverId);
+    String userId,
+  ) async {
+    final server = _target.server;
     if (server == null) {
-      return (success: false, error: _session.noTarget(serverId));
+      return (success: false, error: ServerSession.gone);
     }
 
     final response = await _session.callFor(
@@ -48,17 +50,15 @@ class OwnershipApi {
     return (success: true, error: null);
   }
 
-  /// End [serverId], or the selected server, for everybody.
+  /// End the server for everybody.
   ///
   /// The server side is what decides — only the owner gets past the RPC — so
   /// the caller forgets the server only once this has said yes. Other members
   /// find out the way they find out about any server that stops answering.
-  Future<({bool success, String? error})> deleteServer({
-    String? serverId,
-  }) async {
-    final server = _session.target(serverId);
+  Future<({bool success, String? error})> deleteServer() async {
+    final server = _target.server;
     if (server == null) {
-      return (success: false, error: _session.noTarget(serverId));
+      return (success: false, error: ServerSession.gone);
     }
 
     final response = await _session.callFor(
@@ -75,21 +75,16 @@ class OwnershipApi {
     return (success: true, error: null);
   }
 
-  /// Leave [serverId], or the selected server: a kick by our own hand
+  /// Leave the server: a kick by our own hand
   /// (`leave_server`), so we drop off its member list and a new invite
   /// brings us back as ourselves. Forgetting the server is the caller's.
   ///
   /// [LeaveOutcome.unsupported] is a server from before 020, which has no
   /// such call: there, leaving can only ever have meant forgetting it here.
-  Future<({LeaveOutcome outcome, String? error})> leaveServer({
-    String? serverId,
-  }) async {
-    final server = _session.target(serverId);
+  Future<({LeaveOutcome outcome, String? error})> leaveServer() async {
+    final server = _target.server;
     if (server == null) {
-      return (
-        outcome: LeaveOutcome.unreachable,
-        error: _session.noTarget(serverId),
-      );
+      return (outcome: LeaveOutcome.unreachable, error: ServerSession.gone);
     }
 
     final response = await _session.callFor(

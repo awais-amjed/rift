@@ -1,9 +1,10 @@
 import '../classes/api_response.dart';
 import '../classes/server.dart';
 import '../repositories/server_repository.dart';
+import '../repositories/server_session.dart';
 import '../repositories/session_repository.dart';
 
-/// Channel create / update / delete / reorder on the selected server.
+/// Channel create / update / delete / reorder on one server.
 ///
 /// Every one of them changes the channel list, and so ends by bringing
 /// *everyone's* sidebar back in line: our own by re-reading the server
@@ -15,9 +16,11 @@ import '../repositories/session_repository.dart';
 ///
 /// Holds nothing, so a widget builds one from the session.
 class ChannelsApi {
-  final SessionRepository _session;
+  final ServerSession _target;
 
-  ChannelsApi({required SessionRepository session}) : _session = session;
+  ChannelsApi(this._target);
+
+  SessionRepository get _session => _target.session;
 
   ServerRepository get _repository => _session.repository;
 
@@ -31,8 +34,8 @@ class ChannelsApi {
     bool isPrivate = false,
     List<String> memberIds = const [],
   }) async {
-    final server = _session.selectedServer;
-    if (server == null) return (success: false, error: _session.noTarget(null));
+    final server = _target.server;
+    if (server == null) return (success: false, error: ServerSession.gone);
 
     final response = await _session.callFor(
       server,
@@ -78,7 +81,7 @@ class ChannelsApi {
     String? livekitNodeId,
     bool clearLivekitNodeId = false,
   }) => changeChannel(
-    _session,
+    _target,
     (server, token) => _repository.updateChannel(
       server.supabaseUrl,
       channelId,
@@ -99,7 +102,7 @@ class ChannelsApi {
   /// see [ServerRepository.deleteChannel].
   Future<({bool success, String? error})> deleteChannel(String channelId) =>
       changeChannel(
-        _session,
+        _target,
         (server, token) => _repository.deleteChannel(
           server.supabaseUrl,
           channelId,
@@ -116,8 +119,8 @@ class ChannelsApi {
   Future<({bool success, String? error})> reorderChannels(
     List<String> channelIds,
   ) async {
-    final server = _session.selectedServer;
-    if (server == null) return (success: false, error: _session.noTarget(null));
+    final server = _target.server;
+    if (server == null) return (success: false, error: ServerSession.gone);
 
     final response = await _session.callFor(
       server,
@@ -153,16 +156,17 @@ class ChannelsApi {
   };
 }
 
-/// Run a channel write on the selected server, then re-read the server so our
+/// Run a channel write on [target], then re-read the server so our
 /// own channel list holds the change before this answers. Shared with
 /// `ChannelAccessApi`, whose writes end the same way.
 Future<({bool success, String? error})> changeChannel(
-  SessionRepository session,
+  ServerSession target,
   Future<APIResponse> Function(Server server, String token) call, {
   required String failure,
 }) async {
-  final server = session.selectedServer;
-  if (server == null) return (success: false, error: session.noTarget(null));
+  final session = target.session;
+  final server = target.server;
+  if (server == null) return (success: false, error: ServerSession.gone);
 
   final response = await session.callFor(
     server,

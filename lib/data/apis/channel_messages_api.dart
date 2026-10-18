@@ -1,54 +1,41 @@
 import '../classes/api_response.dart';
 import '../classes/server.dart';
 import '../repositories/server_repository.dart';
+import '../repositories/server_session.dart';
 import '../repositories/session_repository.dart';
 
 /// A channel's messages on a server: sending, editing, deleting and paging
 /// sealed envelopes. Pass-throughs — all crypto happens in the chat cubit and
 /// `CryptoRepository`.
 ///
-/// Everything acts on the selected server except a send and a delete, which
-/// can name one. A forward's destination is routinely on another server, and
-/// a report is acted on from its own server's page.
-///
 /// Holds nothing, so a widget that needs one builds it from the session.
 class ChannelMessagesApi {
-  final SessionRepository _session;
+  final ServerSession _target;
 
-  ChannelMessagesApi({required SessionRepository session}) : _session = session;
+  ChannelMessagesApi(this._target);
+
+  SessionRepository get _session => _target.session;
 
   ServerRepository get _repository => _session.repository;
 
-  /// [call] against the selected server.
-  Future<APIResponse> _onSelected(
-    Future<APIResponse> Function(Server server, String token) call,
-  ) async {
-    final server = _session.selectedServer;
-    if (server == null) return APIResponse.error(_session.noTarget(null));
-    return _session.callFor(server, (token) => call(server, token));
-  }
-
-  /// [call] against [serverId], or the selected server, with that server's
-  /// key.
+  /// [call] against the server, with its key.
   ///
   /// A server with no key yet is refused here rather than sent an empty one:
   /// an envelope sealed for one server must not land anywhere else, and
   /// resolving the server once for both halves is what keeps them agreeing.
   Future<APIResponse> _onNamed(
-    String? serverId,
     Future<APIResponse> Function(Server server, String anonKey, String token)
     call,
   ) async {
-    final server = _session.target(serverId);
+    final server = _target.server;
     final anonKey = server?.supabaseKey;
     if (server == null || anonKey == null) {
-      return APIResponse.error(_session.noTarget(serverId));
+      return APIResponse.error(ServerSession.gone);
     }
     return _session.callFor(server, (token) => call(server, anonKey, token));
   }
 
-  /// Store one E2E message envelope for [channelId] on [serverId], or the
-  /// selected server.
+  /// Store one E2E message envelope for [channelId].
   Future<APIResponse> sendChatMessage({
     required String channelId,
     required Map<String, dynamic> envelope,
@@ -56,9 +43,7 @@ class ChannelMessagesApi {
     bool mentionsAll = false,
     String? toBot,
     Map<String, dynamic>? poll,
-    String? serverId,
   }) => _onNamed(
-    serverId,
     (server, anonKey, token) => _repository.sendMessage(
       server.supabaseUrl,
       anonKey: anonKey,
@@ -80,7 +65,7 @@ class ChannelMessagesApi {
     required int replyTo,
     required String actionId,
     String? actionValue,
-  }) => _onSelected(
+  }) => _target.call(
     (server, token) => _repository.sendPanelAction(
       server.supabaseUrl,
       anonKey: server.supabaseKey ?? '',
@@ -98,7 +83,7 @@ class ChannelMessagesApi {
   Future<APIResponse> editChatMessage({
     required int messageId,
     required Map<String, dynamic> envelope,
-  }) => _onSelected(
+  }) => _target.call(
     (server, token) => _repository.editMessage(
       server.supabaseUrl,
       anonKey: server.supabaseKey ?? '',
@@ -108,13 +93,8 @@ class ChannelMessagesApi {
     ),
   );
 
-  /// Hard-delete one channel message (sender, or a moderator) on [serverId],
-  /// or the selected server.
-  Future<APIResponse> deleteChatMessage({
-    required int messageId,
-    String? serverId,
-  }) => _onNamed(
-    serverId,
+  /// Hard-delete one channel message (sender, or a moderator).
+  Future<APIResponse> deleteChatMessage({required int messageId}) => _onNamed(
     (server, anonKey, token) => _repository.deleteMessage(
       server.supabaseUrl,
       anonKey: anonKey,
@@ -129,7 +109,7 @@ class ChannelMessagesApi {
     int? beforeId,
     int? afterId,
     int? limit,
-  }) => _onSelected(
+  }) => _target.call(
     (server, token) => _repository.listMessages(
       server.supabaseUrl,
       anonKey: server.supabaseKey ?? '',
@@ -147,7 +127,7 @@ class ChannelMessagesApi {
   Future<APIResponse> getChatMessage({
     required String channelId,
     required int messageId,
-  }) => _onSelected(
+  }) => _target.call(
     (server, token) => _repository.getMessage(
       server.supabaseUrl,
       anonKey: server.supabaseKey ?? '',

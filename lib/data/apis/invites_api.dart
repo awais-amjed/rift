@@ -1,36 +1,29 @@
-import '../classes/resolved_invite.dart';
-import '../invite_link.dart';
 import '../repositories/server_repository.dart';
+import '../repositories/server_session.dart';
 import '../repositories/session_repository.dart';
 
-/// Invite links: making one for a server, throwing one away, and reading one
-/// before joining.
-///
-/// Making and revoking take an optional `serverId`: the listing and publish
-/// flows mint an invite for a server the person may not be looking at.
+/// Invite links: making one for a server, and throwing one away. Reading one
+/// before joining is `JoiningApi`'s, since there is no server to be on yet.
 ///
 /// Holds nothing, so a widget builds one from the session.
 class InvitesApi {
-  final SessionRepository _session;
+  final ServerSession _target;
 
-  InvitesApi({required SessionRepository session}) : _session = session;
+  InvitesApi(this._target);
+
+  SessionRepository get _session => _target.session;
 
   ServerRepository get _repository => _session.repository;
 
   Future<({bool success, String? inviteCode, String? error})> createInvite({
     int? maxUses = 1,
     int? expiresInSeconds,
-    String? serverId,
     bool isBot = false,
     String? roleId,
   }) async {
-    final server = _session.target(serverId);
+    final server = _target.server;
     if (server == null) {
-      return (
-        success: false,
-        inviteCode: null,
-        error: _session.noTarget(serverId),
-      );
+      return (success: false, inviteCode: null, error: ServerSession.gone);
     }
 
     final response = await _session.callFor(
@@ -64,11 +57,8 @@ class InvitesApi {
   /// Best effort and deliberately quiet: the callers are failure paths that
   /// already have something to say, and "the listing failed, and so did
   /// tidying up after it" is not a second thing to put in front of somebody.
-  Future<void> revokeInvite({
-    required String inviteCode,
-    String? serverId,
-  }) async {
-    final server = _session.target(serverId);
+  Future<void> revokeInvite({required String inviteCode}) async {
+    final server = _target.server;
     if (server == null) return;
     await _session.callFor(
       server,
@@ -78,46 +68,6 @@ class InvitesApi {
         inviteCode: inviteCode,
         bearerToken: token,
       ),
-    );
-  }
-
-  /// Read an invite link and ask its server what it opens, without using it.
-  ///
-  /// The first of the two join steps, and needs no session: the person is not
-  /// on that server yet. A link that does not parse is refused here, in words;
-  /// one that parses is put to the server, which answers with the name — or
-  /// with why not, which is the same answer registration would have given a
-  /// screen later, after a username had been typed for nothing.
-  Future<({ResolvedInvite? invite, String? error})> resolveInvite(
-    String rawLink,
-  ) async {
-    final link = InviteLink.parse(rawLink);
-    if (link == null) {
-      return (
-        invite: null,
-        error:
-            "That doesn't look like a complete invite link. Ask the server "
-            'admin for a new one.',
-      );
-    }
-    final resolved = await _repository.resolveInvite(
-      link.serverUrl,
-      link.inviteCode,
-    );
-    if (!resolved.success || resolved.serverId == null) {
-      return (
-        invite: null,
-        error: resolved.error ?? 'That invite cannot be used any more.',
-      );
-    }
-    return (
-      invite: ResolvedInvite(
-        serverUrl: link.serverUrl,
-        inviteCode: link.inviteCode,
-        serverId: resolved.serverId!,
-        serverName: resolved.serverName ?? link.serverUrl,
-      ),
-      error: null,
     );
   }
 }

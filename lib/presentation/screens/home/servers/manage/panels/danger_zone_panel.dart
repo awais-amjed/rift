@@ -3,12 +3,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/apis/ownership_api.dart';
 import '../../../../../../data/classes/server.dart';
-import '../../../../../../data/repositories/session_repository.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/helper_methods.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/confirm_dialog.dart';
 import '../../../../../common/hint_card.dart';
+import '../../../../../common/server_scope.dart';
 import '../widgets/danger_row.dart';
 import '../widgets/manage_panel.dart';
 
@@ -46,9 +46,7 @@ class _DangerZonePanelState extends State<DangerZonePanel> {
 
     setState(() => _isBusy = true);
     final servers = context.read<ServerCubit>();
-    final result = await OwnershipApi(
-      session: context.read<SessionRepository>(),
-    ).deleteServer(serverId: widget.server.id);
+    final result = await OwnershipApi(ServerScope.read(context)).deleteServer();
     if (!result.success) {
       if (!mounted) return;
       setState(() => _isBusy = false);

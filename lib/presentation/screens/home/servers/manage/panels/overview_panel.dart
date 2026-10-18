@@ -6,12 +6,12 @@ import '../../../../../../data/apis/members_api.dart';
 import '../../../../../../data/apis/push_api.dart';
 import '../../../../../../data/apis/server_api.dart';
 import '../../../../../../data/classes/server.dart';
-import '../../../../../../data/repositories/session_repository.dart';
 import '../../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
 import '../../../../../../logic/cubits/server_events/server_events_cubit.dart';
 import '../../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../../../logic/helper_methods.dart';
 import '../../../../../common/app_button.dart';
+import '../../../../../common/server_scope.dart';
 import '../../server_settings/listing_actions.dart';
 import '../../server_settings/listing_draft.dart';
 import '../../server_settings/push_toggle.dart';
@@ -104,19 +104,14 @@ class _OverviewPanelState extends State<OverviewPanel> {
   /// PostgREST capped the response at 1000 rows, so a big server quietly
   /// advertised itself as having exactly a thousand members.
   Future<void> _loadMemberCount() async {
-    final counts = await MembersApi(
-      session: context.read<SessionRepository>(),
-    ).memberCounts(serverId: widget.server.id);
+    final counts = await MembersApi(ServerScope.read(context)).memberCounts();
     if (!mounted) return;
     setState(() => _memberCount = counts.people + counts.bots);
   }
 
   /// Also non-blocking, for the same reason as the two above.
   Future<void> _loadPushStatus() async {
-    final enabled = await PushToggle.status(
-      PushApi(session: context.read<SessionRepository>()),
-      widget.server.id,
-    );
+    final enabled = await PushToggle.status(PushApi(ServerScope.read(context)));
     if (!mounted || enabled == null) return;
     setState(() => _pushEnabled = enabled);
   }
@@ -127,8 +122,7 @@ class _OverviewPanelState extends State<OverviewPanel> {
       _error = null;
     });
     final error = await PushToggle.set(
-      PushApi(session: context.read<SessionRepository>()),
-      widget.server.id,
+      PushApi(ServerScope.read(context)),
       enabled: enabled,
     );
     if (!mounted) return;
@@ -163,9 +157,9 @@ class _OverviewPanelState extends State<OverviewPanel> {
       server: widget.server,
       name: name,
       draft: _listing,
-      serverApi: ServerApi(session: context.read<SessionRepository>()),
+      serverApi: ServerApi(ServerScope.read(context)),
       events: context.read<ServerEventsCubit>(),
-      invites: InvitesApi(session: context.read<SessionRepository>()),
+      invites: InvitesApi(ServerScope.read(context)),
       publicServers: context.read<PublicServersCubit>(),
       // Whatever the listing already says, if this server's roster never
       // arrived — better a stale count than publishing zero over a real one.

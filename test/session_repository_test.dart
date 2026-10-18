@@ -4,6 +4,7 @@ import 'package:rift/data/classes/server.dart';
 import 'package:rift/data/classes/server_details.dart';
 import 'package:rift/data/enums/error_code.dart';
 import 'package:rift/data/repositories/server_repository.dart';
+import 'package:rift/data/repositories/server_session.dart';
 import 'package:rift/data/repositories/session_repository.dart';
 
 /// A session whose sign-in answers at once, counting how often it is asked.
@@ -57,7 +58,7 @@ void main() {
       session.publish(servers: [_server()], selectedServerId: 's1');
       final tokens = <String>[];
 
-      final response = await session.callSelected((token) async {
+      final response = await session.on('s1').call((_, token) async {
         tokens.add(token);
         return token == 'fresh' ? APIResponse.success('ok') : _expired();
       });
@@ -73,7 +74,7 @@ void main() {
     session.publish(servers: [_server()], selectedServerId: 's1');
     var calls = 0;
 
-    final response = await session.callSelected((_) async {
+    final response = await session.on('s1').call((_, _) async {
       calls++;
       return _expired();
     });
@@ -111,7 +112,7 @@ void main() {
     expect(session.selectedServer?.token, 'fresh');
   });
 
-  test('a named server is the target, not the selection', () {
+  test('a call goes to the server it names, not the selection', () async {
     final session = _CountingSession();
     final other = Server(
       id: 's2',
@@ -120,23 +121,49 @@ void main() {
       token: 'other',
     );
     session.publish(servers: [_server(), other], selectedServerId: 's1');
+    final asked = <String>[];
 
-    expect(session.target('s2')?.id, 's2');
-    expect(session.target(null)?.id, 's1');
-    expect(session.target('gone'), isNull);
+    await session.on('s2').call((server, token) async {
+      asked.add('${server.id}:$token');
+      return APIResponse.success(null);
+    });
+
+    expect(asked, ['s2:other']);
   });
 
-  test('no server selected fails without calling anything', () async {
+  test('a server that is gone fails without calling anything', () async {
     final session = _CountingSession();
+    session.publish(servers: [_server()], selectedServerId: 's1');
     var calls = 0;
 
-    final response = await session.callSelected((_) async {
+    final response = await session.on('gone').call((_, _) async {
       calls++;
       return APIResponse.success(null);
     });
 
     expect(response.success, isFalse);
+    expect(response.error, ServerSession.gone);
     expect(calls, 0);
+  });
+
+  test('a call reads the server as the list now holds it', () async {
+    // Bound once, used after a re-login wrote a new token: the call carries
+    // the new one rather than the one there was when it was bound.
+    final session = _CountingSession();
+    session.publish(servers: [_server()], selectedServerId: 's1');
+    final bound = session.on('s1');
+    session.publish(
+      servers: [_server(token: 'later')],
+      selectedServerId: 's1',
+    );
+    final tokens = <String>[];
+
+    await bound.call((_, token) async {
+      tokens.add(token);
+      return APIResponse.success(null);
+    });
+
+    expect(tokens, ['later']);
   });
 
   test('a re-read after a write is announced before it answers', () async {
@@ -161,11 +188,5 @@ void main() {
 
     expect(await session.refreshDetails(_server()), isFalse);
     expect(heard, isEmpty);
-  });
-
-  test('a missing server is told apart from no selection', () {
-    final session = SessionRepository(servers: _DetailsServers());
-    expect(session.noTarget(null), 'No server selected');
-    expect(session.noTarget('gone'), contains('no longer on this device'));
   });
 }

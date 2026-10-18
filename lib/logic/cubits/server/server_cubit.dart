@@ -18,6 +18,7 @@ import '../../../data/classes/user_permissions.dart';
 import '../../../data/enums/leave_outcome.dart';
 import '../../../data/repositories/secure_storage_repository.dart';
 import '../../../data/repositories/server_db.dart';
+import '../../../data/repositories/server_session.dart';
 import '../../../data/repositories/session_repository.dart';
 import '../../services/backup_merge.dart';
 import '../../services/coalesced_refresh.dart';
@@ -42,12 +43,11 @@ part 'server_state.dart';
 /// The calls a feature makes to a server are its own class in `data/apis/`.
 class ServerCubit extends HydratedCubit<ServerState>
     with _ServerCrudMixin, _ServerSelectionMixin, _ServerDetailsMixin {
-  /// Registering this device on the servers, as the list and the FCM token
-  /// change ([PushApi]).
   @override
-  late final PushApi _push = PushApi(session: _session);
+  PushApi _pushOn(String serverId) => PushApi(_session.on(serverId));
   @override
-  late final OwnershipApi _ownership = OwnershipApi(session: _session);
+  OwnershipApi _ownershipOn(String serverId) =>
+      OwnershipApi(_session.on(serverId));
 
   /// Keeps the snapshot the push background isolate wakes up into in step with
   /// the server list. See [_refreshWakeIndex].
@@ -101,7 +101,11 @@ class ServerCubit extends HydratedCubit<ServerState>
   /// FCM hands the token over asynchronously and replaces it whenever it
   /// pleases, so registration is driven by the token rather than by startup —
   /// a stale one is a phone that has gone quiet without anyone noticing.
-  void _onPushToken() => unawaited(_push.registerPushDevices());
+  void _onPushToken() {
+    for (final server in state.servers) {
+      unawaited(_pushOn(server.id).registerDevice());
+    }
+  }
 
   /// Leave the push background isolate a snapshot of the server list.
   ///

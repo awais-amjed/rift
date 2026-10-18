@@ -9,12 +9,12 @@ import '../../../../../data/classes/channel.dart';
 import '../../../../../data/classes/server_member.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../data/enums/server_permission.dart';
-import '../../../../../data/repositories/session_repository.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/confirm_dialog.dart';
 import '../../../../common/loading_block.dart';
+import '../../../../common/server_scope.dart';
 import '../../../settings/widgets/setting_toggle_row.dart';
 import 'widgets/bot_access_list.dart';
 
@@ -25,6 +25,8 @@ import 'widgets/bot_access_list.dart';
 /// thing see?" is the question the whole grant design is answerable for
 /// (BOTS.md §6, rule 4).
 ///
+/// About the server [ServerScope] names — the one the bot is on.
+///
 /// Reading and hearing are listed separately because they are separate grants
 /// with separate consequences, and a single merged list would suggest one
 /// switch turns both off. It does not: a channel key cannot be taken back, and
@@ -32,10 +34,7 @@ import 'widgets/bot_access_list.dart';
 class BotAccessDialog extends StatefulWidget {
   final ServerMember bot;
 
-  /// The server the bot is on, or null for the selected one.
-  final String? serverId;
-
-  const BotAccessDialog({super.key, required this.bot, this.serverId});
+  const BotAccessDialog({super.key, required this.bot});
 
   @override
   State<BotAccessDialog> createState() => _BotAccessDialogState();
@@ -53,13 +52,17 @@ class _BotAccessDialogState extends State<BotAccessDialog> {
       context
           .read<ServerCubit>()
           .state
-          .permissionsOn(widget.serverId)
+          .permissionsOn(ServerScope.read(context).serverId)
           ?.can(ServerPermission.manageBots) ??
       false;
 
   List<Channel> _channelsIn(Set<String> ids) {
     final all =
-        context.read<ServerCubit>().state.serverOn(widget.serverId)?.channels ??
+        context
+            .read<ServerCubit>()
+            .state
+            .serverOn(ServerScope.read(context).serverId)
+            ?.channels ??
         const <Channel>[];
     return [
       for (final channel in all)
@@ -74,15 +77,11 @@ class _BotAccessDialogState extends State<BotAccessDialog> {
   }
 
   Future<void> _load() async {
-    final session = context.read<SessionRepository>();
-    final voiceBots = VoiceBotsApi(session: session);
-    final access = await BotKeysApi(
-      session: session,
-    ).botChannels(widget.bot.id, serverId: widget.serverId);
-    final heard = await voiceBots.voiceChannelsHeardBy(
-      widget.bot.id,
-      serverId: widget.serverId,
-    );
+    final server = ServerScope.read(context);
+    final access = await BotKeysApi(server).botChannels(widget.bot.id);
+    final heard = await VoiceBotsApi(
+      server,
+    ).voiceChannelsHeardBy(widget.bot.id);
     if (!mounted) return;
     setState(() {
       _channelIds = access.channelIds;
@@ -100,11 +99,10 @@ class _BotAccessDialogState extends State<BotAccessDialog> {
       _isBusy = true;
       _error = null;
     });
-    final keys = BotKeysApi(session: context.read<SessionRepository>());
+    final keys = BotKeysApi(ServerScope.read(context));
     final result = await keys.setBotServerKey(
       botId: widget.bot.id,
       granted: next,
-      serverId: widget.serverId,
     );
     if (!mounted) return;
     setState(() {

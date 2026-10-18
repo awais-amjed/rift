@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/repositories/session_repository.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/server_members/call_members_cubit.dart';
@@ -14,7 +15,8 @@ import '../../../../common/server_scope.dart';
 /// loaded by the time anyone joins; the call's own ([CallMembersCubit]) while
 /// another server is open. Always the same two widgets around [child], with
 /// only their values moving, so opening another server swaps whose faces the
-/// tiles read without rebuilding the call's video under them.
+/// tiles read without rebuilding the call's video under them. Before a call,
+/// the grid is about the selected server, as everything round it is.
 class CallServerScope extends StatelessWidget {
   final Widget child;
 
@@ -28,9 +30,11 @@ class CallServerScope extends StatelessWidget {
     final selectedId = context.select<ServerCubit, String?>(
       (cubit) => cubit.state.selectedServer?.id,
     );
+    final serverId = callServerId ?? selectedId;
+    if (serverId == null) return child;
     final elsewhere = callServerId != null && callServerId != selectedId;
     return ServerScope(
-      serverId: callServerId,
+      server: context.read<SessionRepository>().on(serverId),
       child: BlocProvider<ServerMembersCubit>.value(
         value: elsewhere
             ? context.read<CallMembersCubit>()

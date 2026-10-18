@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/apis/voice_api.dart';
 import '../../../../../data/classes/channel.dart';
-import '../../../../../data/repositories/session_repository.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/services/voice_move.dart';
@@ -50,13 +49,12 @@ class _ParticipantMoveMenuState extends State<ParticipantMoveMenu> {
       _error = null;
     });
 
-    final voice = VoiceApi(session: context.read<SessionRepository>());
+    final voice = VoiceApi(ServerScope.read(context));
     final dismiss = ContextMenuScope.of(context);
 
     final response = await voice.moveUser(
       userId: widget.userId,
       channelId: channel.id,
-      serverId: ServerScope.read(context),
     );
 
     if (!mounted) return;
@@ -77,7 +75,7 @@ class _ParticipantMoveMenuState extends State<ParticipantMoveMenu> {
     final channels = context
         .watch<ServerCubit>()
         .state
-        .serverOn(ServerScope.of(context))
+        .serverOn(ServerScope.of(context).serverId)
         ?.channels;
     final destinations = VoiceMove.destinations(
       channels ?? const [],

@@ -9,6 +9,8 @@ import '../../../../../data/enums/server_permission.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../common/confirm_dialog.dart';
+import '../../../../common/server_scope.dart';
+import '../../../../common/show_custom_dialog.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 import '../../channels/bots/bot_access_dialog.dart';
@@ -33,10 +35,6 @@ class MemberManagePanel extends StatelessWidget {
   final void Function({bool? muted, bool? deafened, bool? banned, bool kick})
   onModerate;
 
-  /// The server this is about, or null for the selected one. Manage server
-  /// opens from the rail for any server, and a row there acts on *that* one.
-  final String? serverId;
-
   const MemberManagePanel({
     super.key,
     required this.member,
@@ -44,7 +42,6 @@ class MemberManagePanel extends StatelessWidget {
     required this.canManagePermissions,
     required this.canModerate,
     required this.onModerate,
-    this.serverId,
   });
 
   /// Bans ask first; lifting one doesn't.
@@ -79,11 +76,12 @@ class MemberManagePanel extends StatelessWidget {
   }
 
   void _openBotAccess(BuildContext context) {
-    showDialog<void>(
+    showCustomDialog<void>(
       context: context,
-      builder: (ctx) => BlocProvider.value(
+      barrierDismissible: true,
+      build: (_) => BlocProvider.value(
         value: context.read<ServerCubit>(),
-        child: BotAccessDialog(bot: member, serverId: serverId),
+        child: BotAccessDialog(bot: member),
       ),
     );
   }
@@ -91,14 +89,15 @@ class MemberManagePanel extends StatelessWidget {
   Future<void> _openRoles(BuildContext context) async {
     // The roster draws the change itself — the dialog writes, the doorbell
     // and its own re-read land it — so there is nothing to tell anybody here.
-    await showDialog<void>(
+    await showCustomDialog<void>(
       context: context,
-      builder: (ctx) => MultiBlocProvider(
+      barrierDismissible: true,
+      build: (_) => MultiBlocProvider(
         providers: [
           BlocProvider.value(value: context.read<ServerCubit>()),
           BlocProvider.value(value: context.read<ServerMembersCubit>()),
         ],
-        child: MemberRolesDialog(member: member, serverId: serverId),
+        child: MemberRolesDialog(member: member),
       ),
     );
   }
@@ -106,6 +105,9 @@ class MemberManagePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
+    // Manage server opens from the rail for any server, and a row there acts
+    // on *that* one.
+    final serverId = ServerScope.of(context).serverId;
     return Container(
       margin: const EdgeInsets.fromLTRB(8, 4, 8, 8),
       decoration: BoxDecoration(
@@ -148,11 +150,7 @@ class MemberManagePanel extends StatelessWidget {
               label: 'Transfer ownership',
               onTap: isBusy
                   ? null
-                  : () => OwnershipActions.transfer(
-                      context,
-                      member,
-                      serverId: serverId,
-                    ),
+                  : () => OwnershipActions.transfer(context, member),
             ),
           MemberModerationRow(
             member: member,

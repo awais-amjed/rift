@@ -601,7 +601,10 @@ the call's server's shared joins while another server is open and handed back
 without a gap. The call's surfaces sit under a `ServerScope` for the call's
 server (`CallServerScope`), which its menus, profile and full-screen stream
 carry with them, so a right-click on a tile moderates, moves, reports and
-messages on the call's server. Before this, opening another server mid-call
+messages on the call's server. Every call to a server is bound to the server it
+names (`ServerSession`); none falls back on the selection, so a surface that
+forgets to name one fails to compile rather than acting on the server being
+read. Before this, opening another server mid-call
 turned every face in the call into a generated one, silenced the call's
 soundboard, and showed everybody still on the call's server that the member
 had left a call they were still talking in. Verified Oct 18 2026 with three web

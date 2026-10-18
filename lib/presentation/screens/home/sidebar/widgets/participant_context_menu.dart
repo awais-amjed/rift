@@ -5,7 +5,6 @@ import '../../../../../data/apis/members_api.dart';
 import '../../../../../data/enums/home_surface.dart';
 import '../../../../../data/enums/server_permission.dart';
 import '../../../../../data/participant_identity.dart';
-import '../../../../../data/repositories/session_repository.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
@@ -75,14 +74,14 @@ class ParticipantContextMenu extends StatelessWidget {
   /// encrypted chat" error even when they have.
   Future<void> _openServerDm(BuildContext context) async {
     final dismiss = ContextMenuScope.of(context);
-    final members = MembersApi(session: context.read<SessionRepository>());
+    final members = MembersApi(ServerScope.read(context));
     final opener = ServerDmOpener.of(context);
     // A call tile's menu is about the call's server; the DM is there too.
-    final serverId = ServerScope.read(context);
+    final serverId = ServerScope.read(context).serverId;
     final userId = ParticipantIdentity.userIdOf(identity);
 
     dismiss?.call();
-    final member = await members.findMember(userId, serverId: serverId);
+    final member = await members.findMember(userId);
     await opener.open(
       serverId: serverId,
       peerId: userId,
@@ -121,7 +120,9 @@ class ParticipantContextMenu extends StatelessWidget {
         // For local participant, use the LiveKit mic state
         final liveKitState = context.watch<LiveKitCubit>().state;
         final serverState = context.watch<ServerCubit>().state;
-        final permissions = serverState.permissionsOn(ServerScope.of(context));
+        final permissions = serverState.permissionsOn(
+          ServerScope.of(context).serverId,
+        );
         final isServerAdmin = permissions?.isServerAdmin ?? false;
         final isModerator =
             (permissions?.isChannelManager ?? false) || isServerAdmin;

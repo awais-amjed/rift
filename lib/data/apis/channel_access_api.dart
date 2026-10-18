@@ -1,8 +1,9 @@
 import '../repositories/server_repository.dart';
+import '../repositories/server_session.dart';
 import '../repositories/session_repository.dart';
 import 'channels_api.dart';
 
-/// The private half of a channel's life on the selected server: who is in it,
+/// The private half of a channel's life on a server: who is in it,
 /// who may say so, and how a channel crosses the line in either direction.
 ///
 /// Apart from [ChannelsApi] rather than in it, because these share something
@@ -14,9 +15,11 @@ import 'channels_api.dart';
 ///
 /// Holds nothing, so a widget builds one from the session.
 class ChannelAccessApi {
-  final SessionRepository _session;
+  final ServerSession _target;
 
-  ChannelAccessApi({required SessionRepository session}) : _session = session;
+  ChannelAccessApi(this._target);
+
+  SessionRepository get _session => _target.session;
 
   ServerRepository get _repository => _session.repository;
 
@@ -29,7 +32,7 @@ class ChannelAccessApi {
     required String channelId,
     required List<String> userIds,
   }) => changeChannel(
-    _session,
+    _target,
     (server, token) => _repository.setChannelMembers(
       server.supabaseUrl,
       channelId,
@@ -50,7 +53,7 @@ class ChannelAccessApi {
     required String channelId,
     required bool isPrivate,
   }) => changeChannel(
-    _session,
+    _target,
     (server, token) => _repository.setChannelPrivate(
       server.supabaseUrl,
       channelId,
@@ -71,7 +74,7 @@ class ChannelAccessApi {
     required String channelId,
     required bool encrypted,
   }) => changeChannel(
-    _session,
+    _target,
     (server, token) => _repository.setChannelEncrypted(
       server.supabaseUrl,
       channelId,
@@ -90,8 +93,8 @@ class ChannelAccessApi {
   /// which is the right answer for who *else* is in a room and the wrong one
   /// for whether you are. Leaving needs nobody's permission.
   Future<({bool success, String? error})> leaveChannel(String channelId) async {
-    final server = _session.selectedServer;
-    if (server == null) return (success: false, error: _session.noTarget(null));
+    final server = _target.server;
+    if (server == null) return (success: false, error: ServerSession.gone);
 
     final response = await _session.callFor(
       server,
@@ -136,7 +139,7 @@ class ChannelAccessApi {
   Future<({Set<String> memberIds, bool canManage})> channelMembers(
     String channelId,
   ) async {
-    final server = _session.selectedServer;
+    final server = _target.server;
     if (server == null) return (memberIds: <String>{}, canManage: false);
 
     final response = await _session.callFor(

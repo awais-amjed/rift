@@ -6,16 +6,22 @@ part of 'soundboard_cubit.dart';
 /// Nothing here plays a sound or knows a call exists — the other half of the
 /// cubit is the one listening on the data channel.
 mixin _SoundboardLibraryMixin on Cubit<SoundboardState> {
-  SoundboardApi get _api;
+  SoundboardApi _apiOn(String serverId);
 
   /// Whose library this is: the watched server.
   String? get _libraryServerId;
+
+  /// That server's library calls, or null with none watched.
+  SoundboardApi? get _library => switch (_libraryServerId) {
+    final serverId? => _apiOn(serverId),
+    null => null,
+  };
 
   Future<void> refresh() async {
     final serverId = _libraryServerId;
     if (serverId == null) return;
 
-    final result = await _api.listSounds(serverId: serverId);
+    final result = await _apiOn(serverId).listSounds();
     // The rail moved while this was in flight; the answer is another
     // server's and drawing it under this one's name would be a lie.
     if (isClosed || _libraryServerId != serverId) return;
@@ -82,13 +88,14 @@ mixin _SoundboardLibraryMixin on Cubit<SoundboardState> {
     required String contentType,
     required Duration duration,
   }) async {
-    final result = await _api.addSound(
+    final library = _library;
+    if (library == null) return ServerSession.gone;
+    final result = await library.addSound(
       name: name,
       emoji: emoji,
       bytes: bytes,
       contentType: contentType,
       duration: duration,
-      serverId: _libraryServerId,
     );
     if (result.error != null) return result.error;
     // Shown at once rather than waited for: the realtime doorbell will bring
@@ -105,11 +112,12 @@ mixin _SoundboardLibraryMixin on Cubit<SoundboardState> {
     required String name,
     String? emoji,
   }) async {
-    final result = await _api.renameSound(
+    final library = _library;
+    if (library == null) return ServerSession.gone;
+    final result = await library.renameSound(
       soundId: sound.id,
       name: name,
       emoji: emoji,
-      serverId: _libraryServerId,
     );
     if (!result.success) return result.error;
     if (!isClosed) {
@@ -129,10 +137,11 @@ mixin _SoundboardLibraryMixin on Cubit<SoundboardState> {
   }
 
   Future<String?> remove(SoundboardSound sound) async {
-    final result = await _api.deleteSound(
+    final library = _library;
+    if (library == null) return ServerSession.gone;
+    final result = await library.deleteSound(
       soundId: sound.id,
       objectPath: sound.objectPath,
-      serverId: _libraryServerId,
     );
     if (!result.success) return result.error;
     if (!isClosed) {

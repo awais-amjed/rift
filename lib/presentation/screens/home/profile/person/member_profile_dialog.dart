@@ -8,7 +8,6 @@ import '../../../../../data/classes/server.dart';
 import '../../../../../data/classes/server_member.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../data/enums/server_permission.dart';
-import '../../../../../data/repositories/session_repository.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
@@ -86,7 +85,7 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
   @override
   void initState() {
     super.initState();
-    _moderation = ModerationApi(session: context.read<SessionRepository>());
+    _moderation = ModerationApi(ServerScope.read(context));
     // Fills in the member *and* their roles for anybody the roster has not
     // paged in — which is most people, on a server of any size.
     context.read<ServerMembersCubit>().resolve([widget.userId]);
@@ -101,7 +100,6 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
       isMuted: muted,
       isDeafened: deafened,
       isBanned: banned,
-      serverId: ServerScope.read(context),
     );
     if (!mounted) return;
     setState(() {
@@ -127,10 +125,7 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
     final member = _member(context.read<ServerMembersCubit>().state);
     if (member == null) return;
     setState(() => _busy = true);
-    final response = await _moderation.kickMember(
-      userId: member.id,
-      serverId: ServerScope.read(context),
-    );
+    final response = await _moderation.kickMember(userId: member.id);
     if (!mounted) return;
     setState(() {
       _busy = false;
@@ -151,7 +146,6 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
     final response = await _moderation.timeOutMember(
       targetId: member.id,
       duration: duration,
-      serverId: ServerScope.read(context),
     );
     if (!mounted) return;
     setState(() {
@@ -212,7 +206,7 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
   /// Open the server DM with them, closing whatever DM surface was open.
   Future<void> _message(ServerMember member) async {
     final opener = ServerDmOpener.of(context);
-    final serverId = ServerScope.read(context);
+    final serverId = ServerScope.read(context).serverId;
     Navigator.of(context).pop();
     await opener.open(
       serverId: serverId,
@@ -230,11 +224,11 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
     // From a call's tile while another server is open, everything here is
     // about the call's server ([ServerScope]). Presence is the selected
     // server's, so there, being in the call is what says they are online.
-    final scopeId = ServerScope.of(context);
+    final scopeId = ServerScope.of(context).serverId;
     final serverState = context.watch<ServerCubit>().state;
     final server = serverState.serverOn(scopeId);
     final permissions = serverState.permissionsOn(scopeId);
-    final online = scopeId == null || scopeId == serverState.selectedServerId
+    final online = scopeId == serverState.selectedServerId
         ? context.watch<ChannelPresenceCubit>().state.isOnline(widget.userId)
         : context.select<AppCubit, bool>(
             (c) => c.state.participants.any((p) => p.userId == widget.userId),

@@ -12,6 +12,7 @@ import 'package:rift/data/enums/channel_type.dart';
 import 'package:rift/data/repositories/server_repository.dart';
 import 'package:rift/data/repositories/session_repository.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
+import 'package:rift/presentation/common/server_scope.dart';
 import 'package:rift/presentation/screens/home/channels/channel_list/widgets/channel_section.dart';
 import 'package:toastification/toastification.dart';
 
@@ -69,30 +70,37 @@ Future<void> _pump(
   _StubServers servers,
   List<Channel> channels, {
   bool canReorder = true,
-}) => tester.pumpWidget(
-  RepositoryProvider<SessionRepository>.value(
-    value: _session(servers),
-    child: BlocProvider<ThemeCubit>(
-      create: (_) => ThemeCubit(),
-      child: ToastificationWrapper(
-        child: MaterialApp(
-          home: Scaffold(
-            body: CustomScrollView(
-              slivers: [
-                ChannelSection(
-                  channels: channels,
-                  canReorder: canReorder,
-                  rowBuilder: (context, ch, grip) =>
-                      grip(SizedBox(height: 40, child: Text(ch.name))),
+}) {
+  final session = _session(servers);
+  return tester.pumpWidget(
+    RepositoryProvider<SessionRepository>.value(
+      value: session,
+      child: BlocProvider<ThemeCubit>(
+        create: (_) => ThemeCubit(),
+        child: ToastificationWrapper(
+          child: MaterialApp(
+            home: Scaffold(
+              // The list is the server's, as on the home screen.
+              body: ServerScope(
+                server: session.on('s1'),
+                child: CustomScrollView(
+                  slivers: [
+                    ChannelSection(
+                      channels: channels,
+                      canReorder: canReorder,
+                      rowBuilder: (context, ch, grip) =>
+                          grip(SizedBox(height: 40, child: Text(ch.name))),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
       ),
     ),
-  ),
-);
+  );
+}
 
 /// Picks up [name] and carries it down by [dy], a step at a time, the way
 /// a hand does — with a mouse unless [kind] says otherwise.

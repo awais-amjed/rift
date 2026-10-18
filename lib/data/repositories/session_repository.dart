@@ -14,6 +14,7 @@ import 'attachment_repository.dart';
 import 'avatar_repository.dart';
 import 'secure_storage_repository.dart';
 import 'server_repository.dart';
+import 'server_session.dart';
 import 'voice_region_probe.dart';
 
 /// A silent re-login that worked: the token it minted, and the server's own
@@ -101,18 +102,10 @@ class SessionRepository {
     return null;
   }
 
-  /// The server a call is about: [serverId] when the caller named one, the
-  /// selection when it didn't. A page that can open for a server other than
-  /// the current one names it, or its form writes to the wrong server.
-  Server? target(String? serverId) =>
-      serverId == null ? selectedServer : serverById(serverId);
-
-  /// What to say when [target] finds nothing. A named server that isn't here
-  /// is a different failure from having nothing selected, and telling them
-  /// apart is the difference between "pick a server" and "this one is gone".
-  String noTarget(String? serverId) => serverId == null
-      ? 'No server selected'
-      : 'That server is no longer on this device';
+  /// [serverId]'s server, for the calls in `data/apis`. Every one of them
+  /// names its server: none falls back on the selection, which a call
+  /// outlives and a dialog about another server never meant.
+  ServerSession on(String serverId) => ServerSession(this, serverId);
 
   /// Take the server list as it now stands. `ServerCubit` calls this from
   /// `onChange`, so the copy here is never a frame behind its state.
@@ -322,17 +315,6 @@ class SessionRepository {
       if (newToken != null) response = await call(newToken);
     }
     return response;
-  }
-
-  /// [callFor] against the selected server.
-  Future<APIResponse> callSelected(
-    Future<APIResponse> Function(String token) call,
-  ) {
-    final server = selectedServer;
-    if (server == null) {
-      return Future.value(APIResponse.error('No server selected'));
-    }
-    return callFor(server, call);
   }
 
   /// [server]'s token for a transfer that outlasts a single call: read from

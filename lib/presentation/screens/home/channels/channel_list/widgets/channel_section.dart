@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/apis/channels_api.dart';
 import '../../../../../../data/classes/channel.dart';
 import '../../../../../../data/constants.dart';
-import '../../../../../../data/repositories/session_repository.dart';
 import '../../../../../../logic/helper_methods.dart';
 import '../../../../../common/reorder_grip.dart';
+import '../../../../../common/server_scope.dart';
 import '../../../../../theme/app_shadows.dart';
 import '../../../../../theme/theme_context.dart';
 
@@ -81,7 +80,7 @@ class _ChannelSectionState extends State<ChannelSection> {
     setState(() => _pending = ids);
 
     final result = await ChannelsApi(
-      session: context.read<SessionRepository>(),
+      ServerScope.read(context),
     ).reorderChannels(ids);
     if (!result.success) {
       HelperMethods.showError(error: result.error);

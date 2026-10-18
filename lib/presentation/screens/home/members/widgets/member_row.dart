@@ -31,10 +31,6 @@ class MemberRow extends StatelessWidget {
   final void Function({bool? muted, bool? deafened, bool? banned, bool kick})
   onModerate;
 
-  /// The server this is about, or null for the selected one. Manage server
-  /// opens from the rail for any server, and a row there acts on *that* one.
-  final String? serverId;
-
   const MemberRow({
     super.key,
     required this.member,
@@ -46,7 +42,6 @@ class MemberRow extends StatelessWidget {
     this.roles = const [],
     required this.onTap,
     required this.onModerate,
-    this.serverId,
   });
 
   bool get _expandable => canManagePermissions || canModerate;
@@ -180,7 +175,6 @@ class MemberRow extends StatelessWidget {
             canManagePermissions: canManagePermissions,
             canModerate: canModerate,
             onModerate: onModerate,
-            serverId: serverId,
           ),
       ],
     );

@@ -1,8 +1,9 @@
 import '../classes/webhook.dart';
 import '../repositories/server_repository.dart';
+import '../repositories/server_session.dart';
 import '../repositories/session_repository.dart';
 
-/// Webhook management for a named server, or the selected one (BOTS.md §7).
+/// Webhook management for one server (BOTS.md §7).
 ///
 /// Nothing here is kept in a cubit. A webhook list is read when a dialog
 /// opens and thrown away when it closes — there is no badge, no sidebar entry
@@ -11,18 +12,19 @@ import '../repositories/session_repository.dart';
 ///
 /// Holds nothing, so the dialog builds one from the session.
 class WebhooksApi {
-  final SessionRepository _session;
+  final ServerSession _target;
 
-  WebhooksApi({required SessionRepository session}) : _session = session;
+  WebhooksApi(this._target);
+
+  SessionRepository get _session => _target.session;
 
   ServerRepository get _repository => _session.repository;
 
   /// Every webhook posting into [channelId].
   Future<({List<Webhook> webhooks, String? error})> listWebhooks(
-    String channelId, {
-    String? serverId,
-  }) async {
-    final server = _session.target(serverId);
+    String channelId,
+  ) async {
+    final server = _target.server;
     if (server == null) return (webhooks: <Webhook>[], error: 'No server');
 
     final response = await _session.callFor(
@@ -61,9 +63,8 @@ class WebhooksApi {
   Future<({WebhookSecret? created, String? error})> createWebhook({
     required String channelId,
     required String name,
-    String? serverId,
   }) async {
-    final server = _session.target(serverId);
+    final server = _target.server;
     if (server == null) return (created: null, error: 'No server');
 
     final response = await _session.callFor(
@@ -105,11 +106,8 @@ class WebhooksApi {
   };
 
   /// Revoke one. Its messages stay in the channel.
-  Future<({bool success, String? error})> deleteWebhook(
-    String id, {
-    String? serverId,
-  }) async {
-    final server = _session.target(serverId);
+  Future<({bool success, String? error})> deleteWebhook(String id) async {
+    final server = _target.server;
     if (server == null) return (success: false, error: 'No server');
 
     final response = await _session.callFor(

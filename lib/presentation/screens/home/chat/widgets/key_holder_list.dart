@@ -5,11 +5,11 @@ import '../../../../../data/apis/channel_access_api.dart';
 import '../../../../../data/apis/members_api.dart';
 import '../../../../../data/classes/channel.dart';
 import '../../../../../data/constants.dart';
-import '../../../../../data/repositories/session_repository.dart';
 import '../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../logic/services/key_holders.dart';
+import '../../../../common/server_scope.dart';
 import '../../../../common/squircle_avatar.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
@@ -46,10 +46,10 @@ class _KeyHolderListState extends State<KeyHolderList> {
   }
 
   Future<void> _loadSeated() async {
-    final session = context.read<SessionRepository>();
-    final members = MembersApi(session: session);
+    final session = ServerScope.read(context);
+    final members = MembersApi(session);
     final membership = await ChannelAccessApi(
-      session: session,
+      session,
     ).channelMembers(widget.channel.id);
     final rows = await members.membersByIds(membership.memberIds.toList());
     if (!mounted) return;

@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/apis/webhooks_api.dart';
 import '../../../../../data/classes/channel.dart';
 import '../../../../../data/classes/webhook.dart';
-import '../../../../../data/repositories/session_repository.dart';
 import '../../../../common/confirm_dialog.dart';
 import '../../../../common/message_banner.dart';
+import '../../../../common/server_scope.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 import 'widgets/webhook_create_row.dart';
@@ -26,10 +25,7 @@ import 'widgets/webhook_secret_card.dart';
 class ChannelWebhooksBody extends StatefulWidget {
   final Channel channel;
 
-  /// The server [channel] is on, or null for the selected one.
-  final String? serverId;
-
-  const ChannelWebhooksBody({super.key, required this.channel, this.serverId});
+  const ChannelWebhooksBody({super.key, required this.channel});
 
   @override
   State<ChannelWebhooksBody> createState() => _ChannelWebhooksBodyState();
@@ -53,7 +49,7 @@ class _ChannelWebhooksBodyState extends State<ChannelWebhooksBody> {
   @override
   void initState() {
     super.initState();
-    _api = WebhooksApi(session: context.read<SessionRepository>());
+    _api = WebhooksApi(ServerScope.read(context));
     _load();
   }
 
@@ -64,10 +60,7 @@ class _ChannelWebhooksBodyState extends State<ChannelWebhooksBody> {
   }
 
   Future<void> _load() async {
-    final result = await _api.listWebhooks(
-      widget.channel.id,
-      serverId: widget.serverId,
-    );
+    final result = await _api.listWebhooks(widget.channel.id);
     if (!mounted) return;
     setState(() {
       _webhooks = result.webhooks;
@@ -87,7 +80,6 @@ class _ChannelWebhooksBodyState extends State<ChannelWebhooksBody> {
     final result = await _api.createWebhook(
       channelId: widget.channel.id,
       name: _name,
-      serverId: widget.serverId,
     );
     if (!mounted) return;
 
@@ -116,10 +108,7 @@ class _ChannelWebhooksBodyState extends State<ChannelWebhooksBody> {
     );
     if (!confirmed) return;
 
-    final result = await _api.deleteWebhook(
-      webhook.id,
-      serverId: widget.serverId,
-    );
+    final result = await _api.deleteWebhook(webhook.id);
     if (!mounted) return;
     // The card is for the webhook that was just minted; revoking anything
     // afterwards makes it stale, and a URL on screen that may be the one just

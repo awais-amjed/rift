@@ -13,7 +13,6 @@ import '../../../../data/classes/server_limits.dart';
 import '../../../../data/classes/server_member.dart';
 import '../../../../data/classes/user_permissions.dart';
 import '../../../../data/enums/server_permission.dart';
-import '../../../../data/repositories/session_repository.dart';
 import '../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
@@ -34,6 +33,7 @@ import '../../../common/chat/time_out_builder.dart';
 import '../../../common/chat/time_out_gate.dart';
 import '../../../common/chat/typing_indicator.dart';
 import '../../../common/loading_block.dart';
+import '../../../common/server_scope.dart';
 import '../../../theme/theme_context.dart';
 import '../mobile/widgets/mini_call_bar.dart';
 import '../profile/person/show_person_profile.dart';
@@ -317,7 +317,7 @@ class _ChannelChatViewState extends State<ChannelChatView>
     final channelId = context.read<ChannelChatCubit>().state.channelId;
     if (channelId == null) return Future.value(const []);
     return MembersApi(
-      session: context.read<SessionRepository>(),
+      ServerScope.read(context),
     ).searchMembers(query: query, channelId: channelId, bots: false);
   }
 
@@ -331,7 +331,7 @@ class _ChannelChatViewState extends State<ChannelChatView>
     final channelId = context.read<ChannelChatCubit>().state.channelId;
     if (channelId == null) return Future.value(const []);
     return BotSuggestionsApi(
-      session: context.read<SessionRepository>(),
+      ServerScope.read(context),
     ).ask(channelId: channelId, bot: bot, command: command, text: text);
   }
 

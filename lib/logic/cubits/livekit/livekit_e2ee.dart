@@ -82,10 +82,8 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
 
   Future<Set<String>> _listeningBots(String channelId, String? serverId) async {
     final session = _session;
-    if (session == null) return const {};
-    return VoiceBotsApi(
-      session: session,
-    ).voiceListenerIds(channelId, serverId: serverId);
+    if (session == null || serverId == null) return const {};
+    return VoiceBotsApi(session.on(serverId)).voiceListenerIds(channelId);
   }
 
   /// Load the channel's key from [server], the call's, and build the options

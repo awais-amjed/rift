@@ -51,13 +51,10 @@ class ProfileSafetyActions extends StatelessWidget {
     // A block lives with the DM list, which is the selected server's. From a
     // call on another server it would be read and written on the wrong one,
     // so it waits until that server is open; a report names its server.
-    final serverId = ServerScope.of(context);
+    final serverId = ServerScope.of(context).serverId;
     final canBlock =
-        serverId == null ||
         serverId ==
-            context.select<ServerCubit, String?>(
-              (c) => c.state.selectedServer?.id,
-            );
+        context.select<ServerCubit, String?>((c) => c.state.selectedServer?.id);
     return Padding(
       padding: const EdgeInsets.only(top: 6),
       child: Row(
@@ -82,7 +79,6 @@ class ProfileSafetyActions extends StatelessWidget {
                   context,
                   userId: member.id,
                   displayName: member.displayName,
-                  serverId: serverId,
                 ),
               ),
             ),

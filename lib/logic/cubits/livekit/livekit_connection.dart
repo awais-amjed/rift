@@ -11,7 +11,7 @@ part of 'livekit_cubit.dart';
 mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
   AppCubit get _appCubit;
   TokenCubit get _tokenCubit;
-  VoiceApi? get _voiceApi;
+  VoiceApi? _voiceOn(String serverId);
 
   /// Implemented by the cubit and its other mixins.
   void _syncParticipants();
@@ -181,10 +181,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       livekitToken = cached.token;
       mintedUrl = cached.livekitUrl;
     } else {
-      final response = await _voiceApi!.getChannelToken(
-        channelId,
-        serverId: server.id,
-      );
+      final response = await _voiceOn(server.id)!.getChannelToken(channelId);
       if (!response.success) {
         HelperMethods.printDebug(
           '[LiveKit] Failed to get channel token: ${response.error}',

@@ -8,12 +8,12 @@ import '../../../../../data/apis/members_api.dart';
 import '../../../../../data/classes/channel.dart';
 import '../../../../../data/classes/server_member.dart';
 import '../../../../../data/enums/server_permission.dart';
-import '../../../../../data/repositories/session_repository.dart';
 import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/confirm_dialog.dart';
 import '../../../../common/hint_card.dart';
 import '../../../../common/loading_block.dart';
+import '../../../../common/server_scope.dart';
 import '../../servers/manage/widgets/manage_panel.dart';
 import 'widgets/channel_bot_row.dart';
 
@@ -55,13 +55,13 @@ class _ChannelBotsPanelState extends State<ChannelBotsPanel> {
   }
 
   Future<void> _load() async {
-    final session = context.read<SessionRepository>();
-    final members = MembersApi(session: session);
+    final session = ServerScope.read(context);
+    final members = MembersApi(session);
     // Every bot, not a page of them: this is a picker, and one that silently
     // left a bot out would be the bug the paged roster exists to fix.
     final bots = await members.listBots();
     final listeners = await BotKeysApi(
-      session: session,
+      session,
     ).channelListenerIds(widget.channel.id);
     if (!mounted) return;
 
@@ -84,7 +84,7 @@ class _ChannelBotsPanelState extends State<ChannelBotsPanel> {
       _busyId = bot.id;
       _error = null;
     });
-    final keys = BotKeysApi(session: context.read<SessionRepository>());
+    final keys = BotKeysApi(ServerScope.read(context));
     final result = await keys.setBotChannelKey(
       channelId: widget.channel.id,
       botId: bot.id,
