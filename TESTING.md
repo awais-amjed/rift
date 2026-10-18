@@ -303,7 +303,7 @@ Run two instances with separate profiles, so they have separate identities:
 
 ```sh
 RIFT_PROFILE=t1 GDK_BACKEND=x11 flutter run -d linux
-RIFT_PROFILE=t2 GDK_BACKEND=x11 ./build/linux/x64/debug/bundle/rift   # after the first build
+RIFT_PROFILE=t2 GDK_BACKEND=x11 ./build/linux/x64/debug/bundle/riftchat   # after the first build
 ```
 
 Launch the second from the built bundle: two `flutter run`s contend on

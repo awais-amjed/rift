@@ -3,7 +3,7 @@
 # Obfuscated, as the Windows release has been since the Inno Setup installer
 # (which always passed --obfuscate): saved state is keyed by fixed names
 # (HydratedKeys) for exactly this reason. The C++ runtime's DLLs are copied in
-# beside rift.exe, so nobody has to install the Visual C++ redistributable.
+# beside RiftChat.exe, so nobody has to install the Visual C++ redistributable.
 #
 #   powershell -File scripts\build_windows.ps1
 $ErrorActionPreference = 'Stop'

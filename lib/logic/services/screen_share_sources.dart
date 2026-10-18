@@ -81,7 +81,7 @@ class ScreenShareSources {
   /// process alone, and Linux left out nothing (F-10).
   ///
   /// Matched on the executable's file name, case-insensitively, since that is
-  /// what both platforms report: `rift.exe` on Windows, `rift` on Linux.
+  /// what both platforms report: `RiftChat.exe` on Windows, `riftchat` on Linux.
   static List<AudioSource> withoutRift(
     List<AudioSource> sources, {
     required String ownBinary,

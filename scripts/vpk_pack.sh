@@ -61,17 +61,17 @@ common=(-u CodingFries.Rift -v "$version" -p "$from" --channel "$channel"
   --packTitle Rift --packAuthors "Coding Fries" --releaseNotes "$notes" -o "$work")
 case $channel in
   win)
-    # The hooks are answered by the runner, not a VelopackApp in rift.exe
+    # The hooks are answered by the runner, not a VelopackApp in RiftChat.exe
     # (windows/runner/velopack_hooks.cpp), which vpk cannot see. The AUMID is
     # the one notifications are posted under (ToastIdentity).
-    vpk "[win]" pack "${common[@]}" -e rift.exe \
+    vpk "[win]" pack "${common[@]}" -e RiftChat.exe \
       -i windows/runner/resources/app_icon.ico \
       --aumid CodingFries.Rift --skipVeloAppCheck --noPortable
     mv "$work/CodingFries.Rift-win-Setup.exe" \
       "build/release/Rift-$version-windows-x64-setup.exe"
     ;;
   linux)
-    vpk "[linux]" pack "${common[@]}" -e rift -i linux/packaging/rift.png \
+    vpk "[linux]" pack "${common[@]}" -e riftchat -i linux/packaging/rift.png \
       --categories "Network;InstantMessaging;Chat;"
     mv "$work/CodingFries.Rift.AppImage" "build/release/rift-$version-linux-x64.AppImage"
     ;;

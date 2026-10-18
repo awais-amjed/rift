@@ -26,6 +26,6 @@ cp -r build/linux/x64/release/bundle "build/release/$name"
 tar -C build/release -czf "build/release/$name.tar.gz" "$name"
 rm -rf "build/release/$name"
 
-glibc=$(objdump -T build/linux/x64/release/bundle/rift build/linux/x64/release/bundle/lib/*.so |
+glibc=$(objdump -T build/linux/x64/release/bundle/riftchat build/linux/x64/release/bundle/lib/*.so |
   grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1)
 echo "build/release/$name.tar.gz (needs ${glibc/_/ } or newer)"

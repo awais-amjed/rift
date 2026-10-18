@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.codingfries" "\0"
-            VALUE "FileDescription", "rift" "\0"
+            VALUE "FileDescription", "Rift" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "rift" "\0"
+            VALUE "InternalName", "RiftChat" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.codingfries. All rights reserved." "\0"
-            VALUE "OriginalFilename", "rift.exe" "\0"
-            VALUE "ProductName", "rift" "\0"
+            VALUE "OriginalFilename", "RiftChat.exe" "\0"
+            VALUE "ProductName", "Rift" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

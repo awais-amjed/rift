@@ -4,7 +4,11 @@ project(runner LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
-set(BINARY_NAME "rift")
+#
+# The same name as on Windows, where "rift" is the RIFT MMO's executable and
+# got Rift taken for that game (windows/CMakeLists.txt). The desktop and the
+# portal know the app by APPLICATION_ID, not by this.
+set(BINARY_NAME "riftchat")
 # The unique GTK application identifier for this application. See:
 # https://wiki.gnome.org/HowDoI/ChooseApplicationID
 set(APPLICATION_ID "com.codingfries.rift")

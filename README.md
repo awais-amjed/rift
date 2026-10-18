@@ -91,7 +91,7 @@ to add itself to your app menu, but does not update itself:
 
 ```bash
 tar -xzf rift-*-linux-x64.tar.gz
-./rift-*-linux-x64/rift
+./rift-*-linux-x64/riftchat
 ```
 
 </details>

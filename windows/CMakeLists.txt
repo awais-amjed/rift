@@ -4,7 +4,12 @@ project(rift LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
-set(BINARY_NAME "rift")
+#
+# Not "rift": rift.exe is the RIFT MMO's, and Windows, Discord and GPU tools
+# recognise games by the executable's name, so Rift was shown as playing
+# RIFT and given a game's treatment. Everything that registers the program
+# (invite links, notifications, start at sign-in) reads the path at runtime.
+set(BINARY_NAME "RiftChat")
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.

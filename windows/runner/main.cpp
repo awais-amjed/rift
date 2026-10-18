@@ -13,10 +13,10 @@
 namespace {
 
 // Whether this copy was started to open a rift:// link — the browser's "Open
-// in Rift", which runs `rift.exe "<link>"` (registerInviteScheme). Only then
-// is a link handed to the copy already running: SendAppLinkToInstance raises
-// whichever window it finds, and a plain second launch has its own way to do
-// that (SingleInstance).
+// in Rift", which runs `RiftChat.exe "<link>"` (registerInviteScheme). Only
+// then is a link handed to the copy already running: SendAppLinkToInstance
+// raises whichever window it finds, and a plain second launch has its own way
+// to do that (SingleInstance).
 bool LaunchedWithLink() {
   int argc = 0;
   wchar_t** argv = ::CommandLineToArgvW(::GetCommandLineW(), &argc);
