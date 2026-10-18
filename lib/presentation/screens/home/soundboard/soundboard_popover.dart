@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../data/classes/user_permissions.dart';
 import '../../../../data/constants.dart';
 import '../../../../data/enums/server_permission.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
@@ -94,88 +95,83 @@ class SoundboardPopover extends StatelessWidget {
     final serverId = context.select<SoundboardCubit, String?>(
       (c) => c.state.serverId,
     );
-    return BlocBuilder<ServerCubit, ServerState>(
-      buildWhen: (before, after) =>
-          before.permissionsOn(serverId) != after.permissionsOn(serverId),
-      builder: (context, server) {
-        final permissions = server.permissionsOn(serverId);
-        final canPlay =
-            permissions?.can(ServerPermission.useSoundboard) ?? false;
-        final canManage =
-            permissions?.can(ServerPermission.manageSoundboard) ?? false;
+    // In a select rather than a builder's filter, which would hold the id
+    // from before the library loaded (AGENTS.md, *ServerScope*).
+    final permissions = context.select<ServerCubit, UserPermissions?>(
+      (cubit) => cubit.state.permissionsOn(serverId),
+    );
+    final canPlay = permissions?.can(ServerPermission.useSoundboard) ?? false;
+    final canManage =
+        permissions?.can(ServerPermission.manageSoundboard) ?? false;
 
-        return BlocBuilder<SoundboardCubit, SoundboardState>(
-          builder: (context, state) {
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'SOUNDBOARD',
-                  style: AppText.sectionLabel.copyWith(
-                    color: theme.textTertiary,
+    return BlocBuilder<SoundboardCubit, SoundboardState>(
+      builder: (context, state) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'SOUNDBOARD',
+              style: AppText.sectionLabel.copyWith(color: theme.textTertiary),
+            ),
+            SizedBox(height: compact ? 10 : 8),
+            if (state.status == SoundboardStatus.loading)
+              _note(context, 'Loading…')
+            else if (state.status == SoundboardStatus.error)
+              _note(context, state.error ?? 'Could not load the clips.')
+            else if (state.isEmpty)
+              // The button is only shown on an empty board to somebody
+              // who can fill it, so telling *them* that somebody who can
+              // manage the server does it is the app talking about the
+              // reader in the third person.
+              _note(
+                context,
+                canManage
+                    ? 'No clips yet. Add one under Manage server → '
+                          'Soundboard.'
+                    : 'No clips yet. Somebody who can manage the server '
+                          'adds them under Manage server → Soundboard.',
+              )
+            else ...[
+              if (!canPlay)
+                _note(
+                  context,
+                  'You cannot play clips on this server — everything '
+                  'below is somebody else\'s to press.',
+                ),
+              Flexible(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: maxHeight == null && !compact
+                        ? _listHeight
+                        : double.infinity,
+                  ),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        for (final sound in state.sounds) ...[
+                          SoundClipButton(
+                            sound: sound,
+                            compact: compact,
+                            justPressed: state.pressed.contains(sound.id),
+                            onTap: canPlay
+                                ? () => context.read<SoundboardCubit>().press(
+                                    sound,
+                                  )
+                                : null,
+                          ),
+                          SizedBox(height: compact ? 6 : 4),
+                        ],
+                      ],
+                    ),
                   ),
                 ),
-                SizedBox(height: compact ? 10 : 8),
-                if (state.status == SoundboardStatus.loading)
-                  _note(context, 'Loading…')
-                else if (state.status == SoundboardStatus.error)
-                  _note(context, state.error ?? 'Could not load the clips.')
-                else if (state.isEmpty)
-                  // The button is only shown on an empty board to somebody
-                  // who can fill it, so telling *them* that somebody who can
-                  // manage the server does it is the app talking about the
-                  // reader in the third person.
-                  _note(
-                    context,
-                    canManage
-                        ? 'No clips yet. Add one under Manage server → '
-                              'Soundboard.'
-                        : 'No clips yet. Somebody who can manage the server '
-                              'adds them under Manage server → Soundboard.',
-                  )
-                else ...[
-                  if (!canPlay)
-                    _note(
-                      context,
-                      'You cannot play clips on this server — everything '
-                      'below is somebody else\'s to press.',
-                    ),
-                  Flexible(
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxHeight: maxHeight == null && !compact
-                            ? _listHeight
-                            : double.infinity,
-                      ),
-                      child: SingleChildScrollView(
-                        child: Column(
-                          children: [
-                            for (final sound in state.sounds) ...[
-                              SoundClipButton(
-                                sound: sound,
-                                compact: compact,
-                                justPressed: state.pressed.contains(sound.id),
-                                onTap: canPlay
-                                    ? () => context
-                                          .read<SoundboardCubit>()
-                                          .press(sound)
-                                    : null,
-                              ),
-                              SizedBox(height: compact ? 6 : 4),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-                SizedBox(height: compact ? 8 : 6),
-                Divider(color: theme.borderPrimary, height: compact ? 15 : 13),
-                SoundboardListenerControls(compact: compact),
-              ],
-            );
-          },
+              ),
+            ],
+            SizedBox(height: compact ? 8 : 6),
+            Divider(color: theme.borderPrimary, height: compact ? 15 : 13),
+            SoundboardListenerControls(compact: compact),
+          ],
         );
       },
     );
