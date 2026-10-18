@@ -7,13 +7,10 @@ import '../../../../../data/classes/role.dart';
 import '../../../../../data/classes/server.dart';
 import '../../../../../data/classes/server_member.dart';
 import '../../../../../data/constants.dart';
-import '../../../../../data/enums/home_surface.dart';
 import '../../../../../data/enums/server_permission.dart';
 import '../../../../../data/repositories/session_repository.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
-import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
-import '../../../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
@@ -22,8 +19,10 @@ import '../../../../common/app_modal.dart';
 import '../../../../common/chat/time_out_builder.dart';
 import '../../../../common/label_pill.dart';
 import '../../../../common/modal_columns.dart';
+import '../../../../common/server_scope.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
+import '../../dms/open_server_dm.dart';
 import 'verification/profile_verification.dart';
 import 'widgets/profile_avatar.dart';
 import 'widgets/profile_banned_notice.dart';
@@ -102,6 +101,7 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
       isMuted: muted,
       isDeafened: deafened,
       isBanned: banned,
+      serverId: ServerScope.read(context),
     );
     if (!mounted) return;
     setState(() {
@@ -127,7 +127,10 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
     final member = _member(context.read<ServerMembersCubit>().state);
     if (member == null) return;
     setState(() => _busy = true);
-    final response = await _moderation.kickMember(userId: member.id);
+    final response = await _moderation.kickMember(
+      userId: member.id,
+      serverId: ServerScope.read(context),
+    );
     if (!mounted) return;
     setState(() {
       _busy = false;
@@ -148,6 +151,7 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
     final response = await _moderation.timeOutMember(
       targetId: member.id,
       duration: duration,
+      serverId: ServerScope.read(context),
     );
     if (!mounted) return;
     setState(() {
@@ -207,19 +211,15 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
 
   /// Open the server DM with them, closing whatever DM surface was open.
   Future<void> _message(ServerMember member) async {
-    final dmCubit = context.read<DmCubit>();
-    final centralCubit = context.read<CentralDmCubit>();
-    final appCubit = context.read<AppCubit>();
+    final opener = ServerDmOpener.of(context);
+    final serverId = ServerScope.read(context);
     Navigator.of(context).pop();
-
-    // Only one DM surface is open at a time.
-    centralCubit.closeConversation();
-    await dmCubit.openConversation(
+    await opener.open(
+      serverId: serverId,
       peerId: member.id,
       peerName: member.displayName,
       peerChatKey: member.chatPublicKey,
     );
-    appCubit.setSurface(HomeSurface.serverDms);
   }
 
   @override
@@ -227,13 +227,18 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
     final membersState = context.watch<ServerMembersCubit>().state;
     final member = _member(membersState);
     final roles = membersState.memberRoles[widget.userId] ?? const [];
-    final online = context.watch<ChannelPresenceCubit>().state.isOnline(
-      widget.userId,
-    );
-
+    // From a call's tile while another server is open, everything here is
+    // about the call's server ([ServerScope]). Presence is the selected
+    // server's, so there, being in the call is what says they are online.
+    final scopeId = ServerScope.of(context);
     final serverState = context.watch<ServerCubit>().state;
-    final server = serverState.selectedServer;
-    final permissions = serverState.myPermissions;
+    final server = serverState.serverOn(scopeId);
+    final permissions = serverState.permissionsOn(scopeId);
+    final online = scopeId == null || scopeId == serverState.selectedServerId
+        ? context.watch<ChannelPresenceCubit>().state.isOnline(widget.userId)
+        : context.select<AppCubit, bool>(
+            (c) => c.state.participants.any((p) => p.userId == widget.userId),
+          );
     final isAdmin = permissions?.isServerAdmin ?? false;
     final canModerate = isAdmin || (permissions?.isChannelManager ?? false);
     final canTimeOut = permissions?.can(ServerPermission.muteMembers) ?? false;

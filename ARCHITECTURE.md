@@ -590,6 +590,23 @@ real bug: the call's key work went to the server being read, failed there, and
 the call stayed on a key the rest of the room had rotated off — connected,
 with no sound and no streams.
 
+The same holds for what the call draws and plays, and for where it is seen.
+`SessionRepository.callServer` names the call's server (published by
+`LiveKitCubit`), and three things follow it rather than the selection: the
+call's roster (`CallMembersCubit`), which its tiles read for faces and names
+and the call reads to tell its bots apart, whose key is a different one; the
+app's soundboard, whose library every press is played from; and, in
+`ChannelPresenceCubit`, the call's presence entry and voice location, held on
+the call's server's shared joins while another server is open and handed back
+without a gap. The call's surfaces sit under a `ServerScope` for the call's
+server (`CallServerScope`), which its menus, profile and full-screen stream
+carry with them, so a right-click on a tile moderates, moves, reports and
+messages on the call's server. Before this, opening another server mid-call
+turned every face in the call into a generated one, silenced the call's
+soundboard, and showed everybody still on the call's server that the member
+had left a call they were still talking in. Verified Oct 18 2026 with three web
+clients on the local stack (`TESTING.md`).
+
 **Media is end-to-end encrypted** with the channel's own key — the same key the
 text keyring seals per member — so the SFU forwards frames it cannot open. DTLS
 protects the hop; this protects the room.

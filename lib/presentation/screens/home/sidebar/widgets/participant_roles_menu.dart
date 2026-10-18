@@ -13,6 +13,7 @@ import '../../../../../logic/services/role_ladder.dart';
 import '../../../../common/context_menu/context_menu_item.dart';
 import '../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../common/loading_dots.dart';
+import '../../../../common/server_scope.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../../../theme/theme_context.dart';
@@ -57,6 +58,7 @@ class _ParticipantRolesMenuState extends State<ParticipantRolesMenu> {
       userId: widget.userId,
       roleId: role.id,
       held: next,
+      serverId: ServerScope.read(context),
     );
 
     // `member_roles` announces nothing itself — a `users` row moving does, and
@@ -80,10 +82,8 @@ class _ParticipantRolesMenuState extends State<ParticipantRolesMenu> {
         context
             .read<ServerCubit>()
             .state
-            .selectedServer
-            ?.user
-            ?.permissions
-            .bits ??
+            .permissionsOn(ServerScope.of(context))
+            ?.bits ??
         0;
     final assignable = {
       for (final role in RoleLadder.assignable(

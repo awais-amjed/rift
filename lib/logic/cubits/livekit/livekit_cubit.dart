@@ -200,6 +200,9 @@ class LiveKitCubit extends Cubit<LiveKitState>
       );
     }
     _syncPictureInPicture(change.nextState);
+    // What follows the call rather than the selection — its soundboard, its
+    // roster, its presence — reads it there.
+    _session?.publishCall(change.nextState.callServerId);
     // A share is part of being in the call, and a connection of its own, so
     // nothing about the call ending reaches it by itself: it can even
     // reconnect, with the token it holds, after a call that could not get a

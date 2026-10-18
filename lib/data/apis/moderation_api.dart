@@ -122,8 +122,9 @@ class ModerationApi {
     required String targetId,
     required MemberReportReason reason,
     String? note,
+    String? serverId,
   }) => _onServer(
-    null,
+    serverId,
     (server, token) => _repository.reportMember(
       server.supabaseUrl,
       anonKey: server.supabaseKey ?? '',

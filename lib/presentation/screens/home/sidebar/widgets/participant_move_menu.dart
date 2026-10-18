@@ -11,6 +11,7 @@ import '../../../../common/context_menu/context_menu_item.dart';
 import '../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../common/context_menu_region.dart';
 import '../../../../common/loading_dots.dart';
+import '../../../../common/server_scope.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../../../theme/theme_context.dart';
@@ -55,6 +56,7 @@ class _ParticipantMoveMenuState extends State<ParticipantMoveMenu> {
     final response = await voice.moveUser(
       userId: widget.userId,
       channelId: channel.id,
+      serverId: ServerScope.read(context),
     );
 
     if (!mounted) return;
@@ -70,10 +72,12 @@ class _ParticipantMoveMenuState extends State<ParticipantMoveMenu> {
 
   @override
   Widget build(BuildContext context) {
+    // The scope's server: from a call's tile, the call's channels, not those
+    // of whichever server is open beside it.
     final channels = context
         .watch<ServerCubit>()
         .state
-        .selectedServer
+        .serverOn(ServerScope.of(context))
         ?.channels;
     final destinations = VoiceMove.destinations(
       channels ?? const [],

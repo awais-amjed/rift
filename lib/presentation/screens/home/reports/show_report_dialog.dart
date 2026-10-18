@@ -40,12 +40,13 @@ Future<void> showReportMessageDialog(
   );
 }
 
-/// Report a member of the selected server — from their profile, or from a DM,
-/// whose words no moderator could open.
+/// Report a member of the selected server, or of [serverId]'s — from their
+/// profile, or from a DM, whose words no moderator could open.
 Future<void> showReportMemberDialog(
   BuildContext context, {
   required String userId,
   required String displayName,
+  String? serverId,
 }) {
   final moderation = ModerationApi(session: context.read<SessionRepository>());
   return showCustomDialog(
@@ -58,8 +59,12 @@ Future<void> showReportMemberDialog(
           '$displayName isn\'t told who reported them. Moderators see your '
           'name and what you write here. They can\'t read your DMs, so say '
           'what happened.',
-      onSend: (reason, note) =>
-          moderation.reportMember(targetId: userId, reason: reason, note: note),
+      onSend: (reason, note) => moderation.reportMember(
+        targetId: userId,
+        reason: reason,
+        note: note,
+        serverId: serverId,
+      ),
     ),
   );
 }

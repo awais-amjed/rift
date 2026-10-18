@@ -10,6 +10,7 @@ import '../../../../../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
 import '../../../../common/context_menu/context_menu_item.dart';
 import '../../../../common/context_menu_region.dart';
+import '../../../../common/server_scope.dart';
 import '../../../../theme/theme_context.dart';
 
 /// Sending a summoned bot away.
@@ -46,6 +47,7 @@ class ParticipantBotSection extends StatelessWidget {
     final api = VoiceBotsApi(session: context.read<SessionRepository>());
     final voiceBots = context.read<VoiceListenersCubit>();
     final channelId = voiceChannelId;
+    final serverId = ServerScope.read(context);
     if (channelId == null) return;
 
     dismissMenu?.call();
@@ -53,6 +55,7 @@ class ParticipantBotSection extends StatelessWidget {
       channelId: channelId,
       botId: targetUserId,
       summon: false,
+      serverId: serverId,
     );
     if (result.success) {
       // The row is what the sidebar draws a summoned-but-absent bot from, so
@@ -76,12 +79,9 @@ class ParticipantBotSection extends StatelessWidget {
         false;
     if (!isBot) return const SizedBox.shrink();
 
-    final permissions = context
-        .watch<ServerCubit>()
-        .state
-        .selectedServer
-        ?.user
-        ?.permissions;
+    final permissions = context.watch<ServerCubit>().state.permissionsOn(
+      ServerScope.of(context),
+    );
     if (!(permissions?.can(ServerPermission.summonBots) ?? false)) {
       return const SizedBox.shrink();
     }

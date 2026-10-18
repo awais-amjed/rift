@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../data/participant_identity.dart';
 import '../data/repositories/server_reach_probe.dart';
 import '../data/repositories/session_repository.dart';
 import '../logic/cubits/app/app_cubit.dart';
@@ -19,6 +20,7 @@ import '../logic/cubits/reports/reports_cubit.dart';
 import '../logic/cubits/screenshare/screenshare_cubit.dart';
 import '../logic/cubits/server/server_cubit.dart';
 import '../logic/cubits/server_events/server_events_cubit.dart';
+import '../logic/cubits/server_members/call_members_cubit.dart';
 import '../logic/cubits/server_members/server_members_cubit.dart';
 import '../logic/cubits/server_reach/server_reach_cubit.dart';
 import '../logic/cubits/sound_share/sound_share_cubit.dart';
@@ -30,6 +32,7 @@ import '../logic/cubits/update/update_cubit.dart';
 import '../logic/cubits/vault/vault_cubit.dart';
 import '../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
 import '../logic/cubits/voice_stats/voice_stats_cubit.dart';
+import '../logic/services/server_topic_watcher.dart';
 
 /// Over the widget budget and one job: every app-wide cubit and the wiring
 /// between them, which is only readable in one place.
@@ -112,6 +115,12 @@ class AppProviders extends StatelessWidget {
           // their cached LiveKit token whether or not a sidebar is watching.
           lazy: false,
           create: _createServerMembersCubit,
+        ),
+        BlocProvider(
+          // Not lazy, for the same reason, and because the call's bots are
+          // told apart by it before anything draws the call.
+          lazy: false,
+          create: _createCallMembersCubit,
         ),
         BlocProvider(
           create: (context) =>
@@ -235,6 +244,7 @@ class AppProviders extends StatelessWidget {
       session: session,
       appCubit: appCubit,
       livekitCubit: context.read<LiveKitCubit>(),
+      follow: WatchedServer.callOrSelected,
     );
     // So a press arriving on the data channel reaches it, and so leaving a
     // call or deafening cuts off a clip already playing.
@@ -261,12 +271,44 @@ class AppProviders extends StatelessWidget {
         (state) => state.onlineUserIds,
       ),
     );
+    return members;
+  }
+
+  CallMembersCubit _createCallMembersCubit(BuildContext context) {
+    final tokenCubit = context.read<TokenCubit>();
+    final livekit = context.read<LiveKitCubit>();
+    final members = CallMembersCubit(session: session);
+    // Being muted on the call's server while reading another one drops its
+    // token the same way.
+    members.setOnSelfModerationChanged(() {
+      final url = session.callServer?.supabaseUrl;
+      if (url != null) tokenCubit.invalidateServerTokens(url);
+    });
+    // Everybody in the call, named and pictured whoever else is on screen.
+    members.watchPresence(
+      livekit.stream.map(
+        (state) => {
+          for (final participant in state.participants)
+            ParticipantIdentity.userIdOf(participant.identity),
+        },
+      ),
+    );
     // Which participants in a call are bots, so their media is keyed with the
-    // derived key rather than the channel key (BOTS.md §6b). Set here rather
-    // than injected because the roster is built after LiveKitCubit and would
-    // otherwise be a construction cycle.
-    context.read<LiveKitCubit>().isBotResolver = (userId) =>
-        members.state.byId[userId]?.isBot ?? false;
+    // derived key rather than the channel key (BOTS.md §6b). Asked of the
+    // call's server, never the selected one: a rotation taken while the
+    // member reads another server keyed the call's bots as people, and they
+    // went silent. The selected roster answers too while it is the call's
+    // and has loaded, which at a join it usually has and this one has not.
+    // Set here rather than injected because the rosters are built after
+    // LiveKitCubit and would otherwise be a construction cycle.
+    final selected = context.read<ServerMembersCubit>();
+    livekit.isBotResolver = (userId) {
+      final own = selected.state;
+      final roster = own.serverId == session.callServerId && own.loaded
+          ? own
+          : members.state;
+      return roster.byId[userId]?.isBot ?? false;
+    };
     return members;
   }
 

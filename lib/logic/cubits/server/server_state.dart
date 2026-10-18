@@ -67,6 +67,19 @@ class ServerState extends Equatable {
   UserPermissions? permissionsOn(String? serverId) =>
       meOn(serverId)?.permissions;
 
+  /// The server that lists [channelId], the selected one first — where a
+  /// call is, which need not be the server on screen.
+  Server? serverWithChannel(String channelId) {
+    bool lists(Server server) =>
+        server.channels.any((channel) => channel.id == channelId);
+    final selected = selectedServer;
+    if (selected != null && lists(selected)) return selected;
+    for (final server in servers) {
+      if (lists(server)) return server;
+    }
+    return null;
+  }
+
   /// The joined server with [id], or null when this device has no such server.
   ///
   /// Deliberately without [selectedServer]'s fall back to the first server: a

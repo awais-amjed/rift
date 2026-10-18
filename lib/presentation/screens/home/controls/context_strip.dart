@@ -51,8 +51,12 @@ class ContextStrip extends StatelessWidget {
 
         return BlocBuilder<ServerCubit, ServerState>(
           builder: (context, serverState) {
-            final channels = serverState.selectedServer?.channels ?? const [];
-            final channelName = channels
+            // Looked up on every server: the call stays on while another one
+            // is read, and it is named for its own.
+            final callServer = channelId == null
+                ? null
+                : serverState.serverWithChannel(channelId);
+            final channelName = callServer?.channels
                 .where((c) => c.id == channelId)
                 .map((c) => c.name)
                 .firstOrNull;
@@ -86,7 +90,8 @@ class ContextStrip extends StatelessWidget {
                 if (context.layoutMode.isCompact) {
                   return PhoneContextStrip(
                     channelName: callName,
-                    serverName: serverState.selectedServer?.name,
+                    serverName:
+                        callServer?.name ?? serverState.selectedServer?.name,
                     isDirectCall: dm != null,
                     elapsed: elapsed,
                   );

@@ -7,6 +7,7 @@ import '../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/services/connection_failure.dart';
 import '../pane_toggles/pane_corner_toggles.dart';
+import 'widgets/call_server_scope.dart';
 import 'widgets/connecting_view.dart';
 import 'widgets/dm_ringing_view.dart';
 import 'widgets/error_view.dart';
@@ -27,6 +28,10 @@ class ParticipantsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return CallServerScope(child: _view());
+  }
+
+  Widget _view() {
     return BlocBuilder<AppCubit, AppState>(
       // One field of thirty, and everything below it is the whole call view.
       // Without this a hover flag or a local mute rebuilt the grid, the tiles
@@ -53,7 +58,11 @@ class ParticipantsGrid extends StatelessWidget {
                 livekitState.dmCall == null) {
               return _headerless(const NoChannelView.nothingSelected());
             }
-            final server = context.read<ServerCubit>().state.selectedServer;
+            // The call's own server during one: the one being read may have
+            // no voice at all, and the call is not there.
+            final server = context.read<ServerCubit>().state.serverOn(
+              livekitState.callServerId,
+            );
 
             if (server?.user == null) {
               return _headerless(

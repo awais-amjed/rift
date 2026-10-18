@@ -62,11 +62,14 @@ class ProfileApi {
 
   /// Fetch one member's avatar bytes, through [MediaStore.images] so every
   /// widget showing it sees the result. Null when the fetch fails.
-  Future<Uint8List?> loadAvatar(String path) =>
-      MediaStore.images.load(path, () => _downloadAvatar(path));
+  ///
+  /// From [serverId]'s storage when named — a call's tile while another
+  /// server is open, whose picture that server does not hold.
+  Future<Uint8List?> loadAvatar(String path, {String? serverId}) =>
+      MediaStore.images.load(path, () => _downloadAvatar(path, serverId));
 
-  Future<Uint8List?> _downloadAvatar(String path) async {
-    final server = _session.selectedServer;
+  Future<Uint8List?> _downloadAvatar(String path, String? serverId) async {
+    final server = _session.target(serverId);
     final anonKey = server?.supabaseKey;
     if (server == null || anonKey == null) return null;
 

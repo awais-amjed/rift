@@ -131,6 +131,33 @@ class SessionRepository {
   /// and [selectedServerId]; this only says when.
   Stream<void> get changes => _changes.stream;
 
+  // ── The call's server ─────────────────────────────────────
+
+  String? _callServerId;
+
+  /// The server this device's call is on, voice channel or DM, while there is
+  /// one. Published by `LiveKitCubit`, because the call outlives the
+  /// selection: a member in a call on one server reads another, and what the
+  /// call draws and does — whose pictures, which soundboard, which key — has
+  /// to stay with the call's server, not follow them.
+  Server? get callServer =>
+      _callServerId == null ? null : serverById(_callServerId!);
+  String? get callServerId => _callServerId;
+
+  /// Take the call's server as it now stands, or null once there is no call.
+  void publishCall(String? serverId) {
+    if (serverId == _callServerId) return;
+    _callServerId = serverId;
+    if (!_callChanges.isClosed) _callChanges.add(null);
+  }
+
+  // Apart from [changes], whose listeners re-read the selection on every
+  // tick and have nothing to do when only the call moves.
+  final _callChanges = StreamController<void>.broadcast();
+
+  /// [callServer] moved: a call started, ended, or went to another server.
+  Stream<void> get callChanges => _callChanges.stream;
+
   /// Every server's one Realtime connection. Here because the session is
   /// what holds the servers and their tokens, which the connection follows
   /// as they rotate, and what every listener can reach without the cubit.
@@ -370,6 +397,7 @@ class SessionRepository {
   Future<void> dispose() async {
     await realtime.dispose();
     await _changes.close();
+    await _callChanges.close();
     await _logins.close();
     await _details.close();
   }

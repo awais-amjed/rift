@@ -88,12 +88,17 @@ class SoundboardPopover extends StatelessWidget {
     // library does: both of these were read once as the picker opened and
     // passed in, so a role granted or revoked mid-call left it wrong in
     // whichever direction it was wrong.
+    //
+    // On the library's own server — the call's, during one — since that is
+    // where a press is played from, whichever server is open.
+    final serverId = context.select<SoundboardCubit, String?>(
+      (c) => c.state.serverId,
+    );
     return BlocBuilder<ServerCubit, ServerState>(
       buildWhen: (before, after) =>
-          before.selectedServer?.user?.permissions !=
-          after.selectedServer?.user?.permissions,
+          before.permissionsOn(serverId) != after.permissionsOn(serverId),
       builder: (context, server) {
-        final permissions = server.myPermissions;
+        final permissions = server.permissionsOn(serverId);
         final canPlay =
             permissions?.can(ServerPermission.useSoundboard) ?? false;
         final canManage =

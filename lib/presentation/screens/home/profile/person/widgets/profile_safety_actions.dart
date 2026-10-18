@@ -5,9 +5,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/classes/server_member.dart';
 import '../../../../../../logic/cubits/dm/dm_cubit.dart';
+import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/helper_methods.dart';
 import '../../../../../common/confirm_dialog.dart';
 import '../../../../../common/quiet_danger_button.dart';
+import '../../../../../common/server_scope.dart';
 import '../../../reports/show_report_dialog.dart';
 
 /// Block and Report, for anybody looking at somebody else's profile.
@@ -46,19 +48,30 @@ class ProfileSafetyActions extends StatelessWidget {
     final blocked = context.select<DmCubit, bool>(
       (c) => c.state.blockedIds.contains(member.id),
     );
+    // A block lives with the DM list, which is the selected server's. From a
+    // call on another server it would be read and written on the wrong one,
+    // so it waits until that server is open; a report names its server.
+    final serverId = ServerScope.of(context);
+    final canBlock =
+        serverId == null ||
+        serverId ==
+            context.select<ServerCubit, String?>(
+              (c) => c.state.selectedServer?.id,
+            );
     return Padding(
       padding: const EdgeInsets.only(top: 6),
       child: Row(
         spacing: 6,
         children: [
-          Expanded(
-            child: QuietDangerButton(
-              icon: blocked ? Icons.lock_open_rounded : Icons.block_rounded,
-              label: blocked ? 'Unblock' : 'Block',
-              isDangerous: !blocked,
-              onTap: () => unawaited(_toggleBlock(context, blocked)),
+          if (canBlock)
+            Expanded(
+              child: QuietDangerButton(
+                icon: blocked ? Icons.lock_open_rounded : Icons.block_rounded,
+                label: blocked ? 'Unblock' : 'Block',
+                isDangerous: !blocked,
+                onTap: () => unawaited(_toggleBlock(context, blocked)),
+              ),
             ),
-          ),
           Expanded(
             child: QuietDangerButton(
               icon: Icons.flag_outlined,
@@ -69,6 +82,7 @@ class ProfileSafetyActions extends StatelessWidget {
                   context,
                   userId: member.id,
                   displayName: member.displayName,
+                  serverId: serverId,
                 ),
               ),
             ),

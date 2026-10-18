@@ -105,7 +105,8 @@ class VoiceApi {
   Future<APIResponse> moveCall({
     required String channelId,
     required String nodeId,
-  }) => _onSelected(
+  }) => _onServer(
+    null,
     (server, token) => _repository.moveCall(
       server.supabaseUrl,
       channelId: channelId,
@@ -116,10 +117,14 @@ class VoiceApi {
 
   /// Moves a member into another voice channel (requires channel manager or
   /// server admin). They have to be in a call for there to be anything to move.
+  /// [serverId] names the server when it is not the selected one: a call's
+  /// tile, while its member reads another server.
   Future<APIResponse> moveUser({
     required String userId,
     required String channelId,
-  }) => _onSelected(
+    String? serverId,
+  }) => _onServer(
+    serverId,
     (server, token) => _repository.moveUser(
       server.supabaseUrl,
       bearerToken: token,
@@ -131,21 +136,26 @@ class VoiceApi {
   /// Disconnects a member from the voice channel they're in (requires channel
   /// manager or server admin). They have to be in a call for there to be
   /// anything to end, and nothing stops them rejoining — see `kick_user`.
-  Future<APIResponse> kickUser({required String userId}) => _onSelected(
-    (server, token) => _repository.kickUser(
-      server.supabaseUrl,
-      bearerToken: token,
-      userId: userId,
-    ),
-  );
+  /// [serverId] as for [moveUser].
+  Future<APIResponse> kickUser({required String userId, String? serverId}) =>
+      _onServer(
+        serverId,
+        (server, token) => _repository.kickUser(
+          server.supabaseUrl,
+          bearerToken: token,
+          userId: userId,
+        ),
+      );
 
-  /// [call] against the selected server, with its token.
-  Future<APIResponse> _onSelected(
+  /// [call] against [serverId]'s server, or the selected one, with its
+  /// token.
+  Future<APIResponse> _onServer(
+    String? serverId,
     Future<APIResponse> Function(Server server, String token) call,
   ) {
-    final server = _session.selectedServer;
+    final server = _session.target(serverId);
     if (server == null) {
-      return Future.value(APIResponse.error(_session.noTarget(null)));
+      return Future.value(APIResponse.error(_session.noTarget(serverId)));
     }
     return _session.callFor(server, (token) => call(server, token));
   }

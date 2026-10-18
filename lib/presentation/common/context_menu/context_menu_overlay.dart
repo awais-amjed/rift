@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../responsive/shell_scope.dart';
 import '../context_menu_region.dart';
+import '../server_scope.dart';
 import 'context_menu_layout.dart';
 import 'context_menu_sheet.dart';
 import 'context_menu_watcher.dart';
@@ -31,6 +32,9 @@ class ContextMenuOverlay {
 
   void show(BuildContext context, Widget menu, Offset globalPosition) {
     dismiss();
+    // Built outside the tree it opened from, so about the selected server
+    // unless told otherwise — a call tile's menu is about the call's.
+    menu = ServerScope.carry(context, menu);
 
     // A phone gets the same menu as a sheet: there is no pointer to hang a
     // panel off, and a thumb needs rows the width of the screen.

@@ -8,7 +8,6 @@ import '../../../../../data/classes/screen_share_settings.dart';
 import '../../../../../data/classes/server_limits.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/screenshare/screenshare_cubit.dart';
-import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/services/host_platform.dart';
 import '../../../../../logic/services/window_share_portal.dart';
 import '../../../../common/app_modal.dart';
@@ -45,7 +44,6 @@ class _ScreenShareControlState extends State<ScreenShareControl> {
   Future<void> _start() async {
     final screenshareCubit = context.read<ScreenshareCubit>();
     final livekitCubit = context.read<LiveKitCubit>();
-    final serverCubit = context.read<ServerCubit>();
 
     // The settings dialog is a *desktop* capture dialog — capture type,
     // window list, bitrate, codec, system-audio toggle. None of it exists
@@ -64,8 +62,10 @@ class _ScreenShareControlState extends State<ScreenShareControl> {
       final dialogSettings = await showCustomDialog<ScreenShareSettings>(
         context: context,
         build: (_) => ScreenShareSettingsDialog(
+          // The call's server's limit, which is what carries the share;
+          // another server may be the one on screen.
           maxShareMbps:
-              serverCubit.state.selectedServer?.limits.maxShareMbps ??
+              livekitCubit.callServer?.limits.maxShareMbps ??
               ServerLimits.unlimited,
         ),
       );

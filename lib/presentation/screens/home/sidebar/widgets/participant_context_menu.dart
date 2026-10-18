@@ -9,7 +9,6 @@ import '../../../../../data/repositories/session_repository.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
-import '../../../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
@@ -17,7 +16,9 @@ import '../../../../common/context_menu/context_menu_item.dart';
 import '../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../common/context_menu_region.dart';
 import '../../../../common/member_avatar.dart';
+import '../../../../common/server_scope.dart';
 import '../../../../theme/theme_context.dart';
+import '../../dms/open_server_dm.dart';
 import '../../profile/person/show_person_profile.dart';
 import 'participant_admin_section.dart';
 import 'participant_bot_section.dart';
@@ -75,22 +76,19 @@ class ParticipantContextMenu extends StatelessWidget {
   Future<void> _openServerDm(BuildContext context) async {
     final dismiss = ContextMenuScope.of(context);
     final members = MembersApi(session: context.read<SessionRepository>());
-    final dmCubit = context.read<DmCubit>();
-    final centralCubit = context.read<CentralDmCubit>();
-    final appCubit = context.read<AppCubit>();
+    final opener = ServerDmOpener.of(context);
+    // A call tile's menu is about the call's server; the DM is there too.
+    final serverId = ServerScope.read(context);
     final userId = ParticipantIdentity.userIdOf(identity);
 
     dismiss?.call();
-    final member = await members.findMember(userId);
-
-    // Only one DM surface is open at a time.
-    centralCubit.closeConversation();
-    await dmCubit.openConversation(
+    final member = await members.findMember(userId, serverId: serverId);
+    await opener.open(
+      serverId: serverId,
       peerId: userId,
       peerName: member?.displayName ?? name,
       peerChatKey: member?.chatPublicKey,
     );
-    appCubit.setSurface(HomeSurface.serverDms);
   }
 
   /// Open the friends page with the add-friend field prefilled with this
@@ -123,7 +121,7 @@ class ParticipantContextMenu extends StatelessWidget {
         // For local participant, use the LiveKit mic state
         final liveKitState = context.watch<LiveKitCubit>().state;
         final serverState = context.watch<ServerCubit>().state;
-        final permissions = serverState.myPermissions;
+        final permissions = serverState.permissionsOn(ServerScope.of(context));
         final isServerAdmin = permissions?.isServerAdmin ?? false;
         final isModerator =
             (permissions?.isChannelManager ?? false) || isServerAdmin;

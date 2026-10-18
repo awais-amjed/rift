@@ -22,8 +22,9 @@ import 'server_manage_tab.dart';
 /// the server itself, the central listing, the account behind it, the
 /// soundboard's library, the roster, and the reports.
 ///
-/// The last three follow the selected server in the app. Opened from the
-/// rail's menu for a server the person is *not* looking at, the dialog holds
+/// The last three follow the selected server in the app, the soundboard the
+/// call's during one. Opened for a server they are not on — from the rail's
+/// menu for a server the person is *not* looking at — the dialog holds
 /// that server's own for as long as it is open — live, from that server's
 /// doorbells — rather than switching them, or the person, over.
 Widget serverManageDialog(
@@ -39,16 +40,17 @@ Widget serverManageDialog(
   final vaultCubit = context.read<VaultCubit>();
   final session = context.read<SessionRepository>();
   final isSelected = serverCubit.state.selectedServer?.id == server.id;
+  // The app's soundboard is the call's during one, which need not be the
+  // server on screen: its own is lent only when it is this one.
+  final soundboard = context.read<SoundboardCubit>();
   return MultiBlocProvider(
     providers: [
       BlocProvider.value(value: serverCubit),
       BlocProvider.value(value: context.read<PublicServersCubit>()),
       BlocProvider.value(value: context.read<SupabaseBackupCubit>()),
-      if (isSelected) ...[
-        BlocProvider.value(value: context.read<SoundboardCubit>()),
-        BlocProvider.value(value: context.read<ServerMembersCubit>()),
-        BlocProvider.value(value: context.read<ReportsCubit>()),
-      ] else ...[
+      if (soundboard.state.serverId == server.id)
+        BlocProvider.value(value: soundboard)
+      else
         BlocProvider(
           create: (_) => SoundboardCubit(
             session: session,
@@ -57,6 +59,10 @@ Widget serverManageDialog(
             serverId: server.id,
           ),
         ),
+      if (isSelected) ...[
+        BlocProvider.value(value: context.read<ServerMembersCubit>()),
+        BlocProvider.value(value: context.read<ReportsCubit>()),
+      ] else ...[
         BlocProvider(
           create: (_) =>
               ServerMembersCubit(session: session, serverId: server.id),

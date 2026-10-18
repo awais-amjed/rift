@@ -9,6 +9,7 @@ import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/app_sheet.dart';
+import '../../../../common/server_scope.dart';
 import '../../../../responsive/shell_scope.dart';
 import 'central_profile_dialog.dart';
 import 'member_profile_dialog.dart';
@@ -48,9 +49,14 @@ Future<void> showMemberProfile(
     BlocProvider.value(value: context.read<ServerMembersCubit>()),
     BlocProvider.value(value: context.read<ChannelPresenceCubit>()),
   ];
-  final dialog = MultiBlocProvider(
-    providers: providers,
-    child: MemberProfileDialog(userId: userId, fallbackName: name),
+  // From a call's tile, about the call's server: its roster is the one
+  // read above, and the dialog's actions go there too.
+  final dialog = ServerScope.carry(
+    context,
+    MultiBlocProvider(
+      providers: providers,
+      child: MemberProfileDialog(userId: userId, fallbackName: name),
+    ),
   );
   if (context.layoutMode.isCompact) return showAppSheet<void>(context, dialog);
   return showCustomDialog(

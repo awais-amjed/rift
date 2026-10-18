@@ -26,6 +26,7 @@ import '../livekit/livekit_cubit.dart';
 part 'channel_presence_state.dart';
 part 'channel_presence_tracking.dart';
 part 'channel_presence_room.dart';
+part 'channel_presence_call.dart';
 
 /// Who is online on the selected server, and who is in which voice channel.
 ///
@@ -49,7 +50,7 @@ part 'channel_presence_room.dart';
 /// gets to say it left, and doesn't have to — it drops off presence, and its
 /// last known location stops being believed.
 class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
-    with _PresenceTrackingMixin, _RoomPeopleMixin {
+    with _PresenceTrackingMixin, _RoomPeopleMixin, _CallSideMixin {
   @override
   final SessionRepository _session;
   @override
@@ -69,8 +70,13 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
   RealtimeChannel? get _channel => _presenceTopic?.channel;
   @override
   VoiceBroadcast? _voice;
+  @override
   String? _currentServerId;
   String? _currentUserId;
+
+  /// Whether the join being made is one [_CallSideMixin] held on to, whose
+  /// entry is already there — see [_onPresenceStatus].
+  bool _inheritedEntry = false;
   @override
   bool _subscribed = false;
 
@@ -120,6 +126,7 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
     _serverSub = session.changes.listen((_) => _onServerChanged());
     _lkSub = livekitCubit.stream.listen((_) {
       _announceLocation();
+      _syncCallSide();
       _onOwnChannel();
       _onRoomPeople();
     });
@@ -137,6 +144,9 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
     if (server?.id == _currentServerId && server?.user?.id == _currentUserId) {
       return;
     }
+    // A call left behind on the server being closed keeps its joins, taken
+    // before ours go so there is no gap between the two.
+    _syncCallSide(mayRelease: false);
     final epoch = ++_connectEpoch;
     await _disconnectPresence();
     // Two selections in quick succession both wait here, and without this the
@@ -145,6 +155,9 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
     if (server != null && server.supabaseKey != null) {
       _connectPresence(server);
     }
+    // And back on the call's server, its joins are ours again: let them go
+    // only now that we hold them.
+    _syncCallSide();
   }
 
   void _connectPresence(
@@ -154,6 +167,9 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
   }) {
     _currentServerId = server.id;
     _currentUserId = server.user?.id;
+    final side = _callSide;
+    _inheritedEntry =
+        side != null && side.serverId == server.id && side.tracked;
     _subscribed = false;
     _openedAt ??= DateTime.now();
     _startTrackingSession();
@@ -190,7 +206,11 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
       // bring it back, so every subscribe re-establishes it.
       _subscribed = true;
       _rebuildAttempt = 0;
-      _tracked = false;
+      // A join the call's side held for us still carries our entry, and
+      // publishing it again on every switch would spend the ration; if it has
+      // gone after all, [_healTracking] notices at the next sync.
+      _tracked = _inheritedEntry;
+      _inheritedEntry = false;
       _ensureTracked();
     } else {
       _subscribed = false;
@@ -236,7 +256,6 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
 
   /// Tells the server where we are now, if it isn't where we last said.
   void _announceLocation() {
-    final lkState = _livekitCubit.state;
     // A move says where it is going the moment it starts. Waiting for the new
     // room meant waiting for the old one to close, a token, the key and the
     // connect — half a second on a local server, more on a real one — and
@@ -244,18 +263,32 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
     // that then fails ends in `error`, which says "nowhere" like leaving
     // does. A DM call connects with no channel, and so leaves the one it
     // came from straight away too.
+    final serverId = _currentServerId;
     final userId = _currentUserId;
-    _voice?.announce(
-      switch (lkState.connectionState) {
-        LiveKitConnectionState.connecting ||
-        LiveKitConnectionState.connected => lkState.currentChannelId,
-        _ => null,
-      },
+    if (serverId == null || userId == null) return;
+    final place = _placeOn(serverId, userId);
+    _voice?.announce(place.channelId, sharing: place.sharing);
+  }
+
+  @override
+  ({String? channelId, bool sharing}) _placeOn(String serverId, String userId) {
+    final lkState = _livekitCubit.state;
+    // Only the call's own server hears where it is. Read on another, its
+    // channel is one that server does not have.
+    final channelId = lkState.currentServerId != serverId
+        ? null
+        : switch (lkState.connectionState) {
+            LiveKitConnectionState.connecting ||
+            LiveKitConnectionState.connected => lkState.currentChannelId,
+            _ => null,
+          };
+    return (
+      channelId: channelId,
       // A desktop's screen is a connection of its own, which comes back to
       // us like anybody else's; a phone's rides our own. The sweep the
       // roster rows use finds either.
       sharing:
-          userId != null &&
+          channelId != null &&
           sharePresenceOf(
             lkState.participants,
             identityOf: (p) => p.identity,
@@ -379,7 +412,9 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
   /// occupied, and presence leaves us out of its own count.
   void _onOwnChannel() {
     final lk = _livekitCubit.state;
-    final own = lk.connectionState == LiveKitConnectionState.connected
+    final own =
+        lk.connectionState == LiveKitConnectionState.connected &&
+            lk.currentServerId == _currentServerId
         ? lk.currentChannelId
         : null;
     if (own == _ownChannel) return;
@@ -450,6 +485,7 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
     await _serverSub?.cancel();
     await _lkSub?.cancel();
     _rebuildTimer?.cancel();
+    await _closeCallSide();
     await _disconnectPresence();
     return super.close();
   }

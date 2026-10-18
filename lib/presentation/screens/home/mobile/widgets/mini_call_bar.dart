@@ -37,12 +37,17 @@ class MiniCallBar extends StatelessWidget {
         final channelId = call.currentChannelId;
         // Asked whatever the call is, so the lookup is the same on every
         // build; a DM call simply does not use the answer.
+        // Any server's: the bar stays while another one is read.
         final channelName = context.select<ServerCubit, String>(
           (c) =>
-              c.state.selectedServer?.channels
-                  .where((ch) => ch.id == channelId)
-                  .map((ch) => ch.name)
-                  .firstOrNull ??
+              (channelId == null
+                  ? null
+                  : c.state
+                        .serverWithChannel(channelId)
+                        ?.channels
+                        .where((ch) => ch.id == channelId)
+                        .map((ch) => ch.name)
+                        .firstOrNull) ??
               'Voice',
         );
         final dm = call.dmCall;

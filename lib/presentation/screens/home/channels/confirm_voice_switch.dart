@@ -56,13 +56,17 @@ Future<bool> confirmVoiceSwitch(BuildContext context, Channel target) async {
   return answer.confirmed;
 }
 
-/// The call being left, by name when this server has it. A call on another
-/// server is not in the selected one's channel list.
+/// The call being left, by name — whichever server it is on, which need not
+/// be the one whose channel was pressed.
 String _nameOf(BuildContext context, String channelId) {
-  final channels =
-      context.read<ServerCubit>().state.selectedServer?.channels ?? const [];
-  for (final c in channels) {
-    if (c.id == channelId) return c.name;
+  final servers = context.read<ServerCubit>().state;
+  final server = servers.serverWithChannel(channelId);
+  for (final c in server?.channels ?? const <Channel>[]) {
+    if (c.id == channelId) {
+      return server!.id == servers.selectedServerId
+          ? c.name
+          : '${c.name} on ${server.name}';
+    }
   }
   return 'your current call';
 }

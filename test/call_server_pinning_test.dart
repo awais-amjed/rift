@@ -1,9 +1,12 @@
 import 'dart:typed_data';
 
+import 'package:flutter/widgets.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rift/data/classes/api_response.dart';
 import 'package:rift/data/classes/channel.dart';
+import 'package:rift/data/classes/dm_call_place.dart';
 import 'package:rift/data/classes/server.dart';
 import 'package:rift/data/classes/server_user.dart';
 import 'package:rift/data/classes/user_permissions.dart';
@@ -12,8 +15,12 @@ import 'package:rift/data/enums/channel_type.dart';
 import 'package:rift/data/repositories/server_repository.dart';
 import 'package:rift/data/repositories/session_repository.dart';
 import 'package:rift/logic/cubits/livekit/livekit_cubit.dart';
+import 'package:rift/logic/cubits/server/server_cubit.dart';
+import 'package:rift/logic/cubits/server_members/server_members_cubit.dart';
 import 'package:rift/logic/cubits/vault/vault_cubit.dart';
 import 'package:rift/logic/services/channel_keyring.dart';
+import 'package:rift/logic/services/server_topic_watcher.dart';
+import 'package:rift/presentation/common/server_scope.dart';
 import 'package:rift_crypto/rift_crypto.dart';
 
 /// A call's channel keys belong to the call's server, not to whichever server
@@ -21,6 +28,10 @@ import 'package:rift_crypto/rift_crypto.dart';
 /// member opened another, the key rotation and heals went to that one
 /// (`channel_not_found` in its log), and back in the call nobody could be
 /// heard and no stream played.
+///
+/// And everything else the call draws and does, found the day after: opening
+/// another server mid-call swapped every face in the call for a generated
+/// one, because the tiles read the selected server's roster.
 
 /// In-memory stand-in for the hydrated cubits the vault touches.
 class _MemoryStorage implements Storage {
@@ -240,6 +251,200 @@ void main() {
         containsAll(['get', 'bot', 'post']),
       );
       expect(servers.calls.map((c) => c.$2).toSet(), {_callUrl});
+    });
+  });
+
+  group('the call\'s server', () {
+    // Old enough that a watcher holds off joining, so nothing here opens a
+    // socket.
+    final stale = DateTime(2000);
+    Server signedIn(String id, String url) => Server(
+      id: id,
+      name: id,
+      supabaseUrl: url,
+      supabaseKey: 'key',
+      token: 'token',
+      tokenIssuedAt: stale,
+      user: const ServerUser(
+        id: 'me',
+        username: 'me',
+        displayName: 'Me',
+        permissions: UserPermissions(),
+      ),
+    );
+
+    test(
+      'the session says where the call is, and only when it moves',
+      () async {
+        final session = SessionRepository()
+          ..publish(
+            servers: [_callServer, _otherServer],
+            selectedServerId: 'other',
+          );
+        var moves = 0;
+        final sub = session.callChanges.listen((_) => moves++);
+
+        session.publishCall('call');
+        session.publishCall('call');
+        await Future<void>.delayed(Duration.zero);
+        expect(session.callServer?.id, 'call');
+        expect(session.selectedServer?.id, 'other');
+        expect(moves, 1);
+
+        session.publishCall(null);
+        await Future<void>.delayed(Duration.zero);
+        expect(session.callServer, isNull);
+        expect(moves, 2);
+        await sub.cancel();
+      },
+    );
+
+    test('a watcher following the call ignores the selection', () async {
+      final session = SessionRepository()
+        ..publish(
+          servers: [signedIn('call', _callUrl), signedIn('other', _otherUrl)],
+          selectedServerId: 'call',
+        );
+      final seen = <String?>[];
+      final watcher = ServerTopicWatcher(
+        session: session,
+        follow: WatchedServer.call,
+        topicOf: (server) => 'server:${server.id}',
+        event: 'members',
+        onChanged: () {},
+        onServerChanged: (server) => seen.add(server?.id),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(seen, isEmpty, reason: 'no call, nothing to watch');
+
+      session.publishCall('call');
+      await Future<void>.delayed(Duration.zero);
+      session.publish(servers: session.servers, selectedServerId: 'other');
+      await Future<void>.delayed(Duration.zero);
+      expect(seen, ['call'], reason: 'opening another server moves nothing');
+
+      session.publishCall(null);
+      await Future<void>.delayed(Duration.zero);
+      expect(seen, ['call', null]);
+      await watcher.dispose();
+    });
+
+    test(
+      'the soundboard\'s follows the call, and the selection outside one',
+      () async {
+        final session = SessionRepository()
+          ..publish(
+            servers: [signedIn('call', _callUrl), signedIn('other', _otherUrl)],
+            selectedServerId: 'other',
+          );
+        final seen = <String?>[];
+        final watcher = ServerTopicWatcher(
+          session: session,
+          follow: WatchedServer.callOrSelected,
+          topicOf: (server) => 'server:${server.id}',
+          event: 'soundboard',
+          onChanged: () {},
+          onServerChanged: (server) => seen.add(server?.id),
+        );
+        await Future<void>.delayed(Duration.zero);
+        session.publishCall('call');
+        await Future<void>.delayed(Duration.zero);
+        session.publishCall(null);
+        await Future<void>.delayed(Duration.zero);
+        expect(seen, ['other', 'call', 'other']);
+        await watcher.dispose();
+      },
+    );
+
+    test('a call\'s channel is found on whichever server has it', () {
+      final state = ServerState(
+        servers: [_otherServer, _callServer],
+        selectedServerId: 'other',
+      );
+      expect(state.serverWithChannel(_voiceId)?.id, 'call');
+      expect(state.serverWithChannel('nowhere'), isNull);
+    });
+
+    test(
+      'a DM call is on its own server, a channel call on its channel\'s',
+      () {
+        const inChannel = LiveKitState(
+          currentChannelId: _voiceId,
+          currentServerId: 'call',
+        );
+        expect(inChannel.callServerId, 'call');
+        expect(const LiveKitState().callServerId, isNull);
+        final dm = LiveKitState(
+          dmCall: DmCallPlace(
+            serverId: 'other',
+            callId: 'c1',
+            peerId: 'them',
+            peerName: 'Them',
+          ),
+        );
+        expect(dm.callServerId, 'other');
+      },
+    );
+  });
+
+  group('ServerScope', () {
+    testWidgets('a menu built outside the call takes its server along', (
+      tester,
+    ) async {
+      final session = SessionRepository();
+      final callMembers = ServerMembersCubit(
+        session: session,
+        serverId: 'call',
+      );
+      addTearDown(callMembers.close);
+      late BuildContext inside;
+      await tester.pumpWidget(
+        ServerScope(
+          serverId: 'call',
+          child: BlocProvider<ServerMembersCubit>.value(
+            value: callMembers,
+            child: Builder(
+              builder: (context) {
+                inside = context;
+                return const SizedBox();
+              },
+            ),
+          ),
+        ),
+      );
+
+      // What a menu, a sheet or a route does: build from that context
+      // somewhere else entirely.
+      String? scoped;
+      ServerMembersCubit? roster;
+      final carry = ServerScope.carrier(inside);
+      await tester.pumpWidget(
+        carry(
+          Builder(
+            builder: (context) {
+              scoped = ServerScope.of(context);
+              roster = context.read<ServerMembersCubit>();
+              return const SizedBox();
+            },
+          ),
+        ),
+      );
+      expect(scoped, 'call');
+      expect(roster, same(callMembers));
+    });
+
+    testWidgets('outside a scope nothing is carried', (tester) async {
+      late BuildContext outside;
+      await tester.pumpWidget(
+        Builder(
+          builder: (context) {
+            outside = context;
+            return const SizedBox();
+          },
+        ),
+      );
+      const child = SizedBox();
+      expect(ServerScope.carry(outside, child), same(child));
     });
   });
 

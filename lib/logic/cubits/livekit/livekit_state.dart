@@ -126,6 +126,9 @@ class LiveKitState extends Equatable {
   /// rest of the call is told.
   bool get isSelfDeafened => isDeafened || isMicTesting;
 
+  /// The server the call is on, whichever kind of call, or null outside one.
+  String? get callServerId => dmCall?.serverId ?? currentServerId;
+
   /// Deafened for any reason — their own choice, the mic test, or a
   /// moderator's.
   bool get isDeafenedEffective => isSelfDeafened || isServerDeafened;

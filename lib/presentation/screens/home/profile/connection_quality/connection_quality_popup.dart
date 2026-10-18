@@ -4,7 +4,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../data/classes/livekit_node.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
-import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/voice_stats/voice_stats_cubit.dart';
 import '../../../../common/popover_surface.dart';
 import '../../../../theme/app_text.dart';
@@ -30,12 +29,12 @@ class ConnectionQualityPopup extends StatelessWidget {
   /// The name of the region this call is on, or null when the server has
   /// only one — where naming it would be answering a question nobody has.
   String? _region(BuildContext context) {
-    final url = context.read<LiveKitCubit>().state.connectedLivekitUrl;
+    final livekit = context.read<LiveKitCubit>();
+    final url = livekit.state.connectedLivekitUrl;
     if (url == null) return null;
 
-    final nodes =
-        context.read<ServerCubit>().state.selectedServer?.livekitNodes ??
-        const <LiveKitNode>[];
+    // The call's server's regions, not those of whichever server is open.
+    final nodes = livekit.callServer?.livekitNodes ?? const <LiveKitNode>[];
     if (nodes.length < 2) return null;
 
     for (final node in nodes) {

@@ -130,7 +130,7 @@ mixin _DmCallConnectMixin on Cubit<LiveKitState>, _E2EEMixin {
   /// What a share reads instead of the selection, which is only where the
   /// person happens to be looking.
   Server? get callServer {
-    final id = state.dmCall?.serverId ?? state.currentServerId;
+    final id = state.callServerId;
     return id == null ? null : _session?.serverById(id);
   }
 

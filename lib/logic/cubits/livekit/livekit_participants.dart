@@ -18,9 +18,14 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
 
     final userId = ParticipantIdentity.userIdOf(participantIdentity);
 
-    final response = await ModerationApi(
-      session: session,
-    ).moderateUser(userId: userId, isMuted: muted, isDeafened: deafened);
+    // Only ever someone in our call, so on the call's server — which is not
+    // the selected one while its member reads another.
+    final response = await ModerationApi(session: session).moderateUser(
+      userId: userId,
+      isMuted: muted,
+      isDeafened: deafened,
+      serverId: state.currentServerId,
+    );
     if (!response.success) {
       HelperMethods.printDebug('moderateParticipant error: ${response.error}');
     }

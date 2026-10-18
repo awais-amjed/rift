@@ -85,14 +85,19 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
   /// The selected server's members — the app's own — or, given [serverId],
   /// that one server's, for Manage server opened on a server the person is
   /// not looking at. Whoever opens that page owns that one and closes it.
-  ServerMembersCubit({required SessionRepository session, String? serverId})
-    : _session = session,
-      _members = MembersApi(session: session),
-      _roles = RolesApi(session: session),
-      super(ServerMembersState()) {
+  /// [follow] is for [CallMembersCubit], which follows the call instead.
+  ServerMembersCubit({
+    required SessionRepository session,
+    String? serverId,
+    WatchedServer follow = WatchedServer.selected,
+  }) : _session = session,
+       _members = MembersApi(session: session),
+       _roles = RolesApi(session: session),
+       super(ServerMembersState()) {
     _watcher = ServerTopicWatcher(
       session: session,
       fixedServerId: serverId,
+      follow: follow,
       topicOf: (server) => ServerTopics.server(server.id),
       event: ServerEvent.members,
       onChanged: () => unawaited(refresh()),

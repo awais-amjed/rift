@@ -66,15 +66,18 @@ class SoundboardCubit extends Cubit<SoundboardState>
   /// it must not cut off a clip the call is playing.
   final bool _ownsPlayback;
 
-  /// The selected server's soundboard — the app's own — or, given
-  /// [serverId], that one server's library, for Manage server opened on a
-  /// server the person is not looking at. Whoever opens that page owns that
-  /// one and closes it; it plays only previews.
+  /// The app's own soundboard follows [follow]: the call's server during a
+  /// call, since a press is played from the call's library by everyone in it
+  /// and the presser may be reading another server. Given [serverId], that
+  /// one server's library, for Manage server opened on a server the person
+  /// is not looking at. Whoever opens that page owns that one and closes it;
+  /// it plays only previews.
   SoundboardCubit({
     required SessionRepository session,
     required AppCubit appCubit,
     LiveKitCubit? livekitCubit,
     String? serverId,
+    WatchedServer follow = WatchedServer.selected,
   }) : _session = session,
        _api = SoundboardApi(session: session),
        _appCubit = appCubit,
@@ -84,6 +87,7 @@ class SoundboardCubit extends Cubit<SoundboardState>
     _watcher = ServerTopicWatcher(
       session: session,
       fixedServerId: serverId,
+      follow: follow,
       topicOf: (server) => ServerTopics.server(server.id),
       event: ServerEvent.soundboard,
       onChanged: () => unawaited(refresh()),
@@ -112,11 +116,16 @@ class SoundboardCubit extends Cubit<SoundboardState>
 
   /// Whether this member may fire one into a call. Widgets read the same
   /// permission off `ServerState`, where a change to it rebuilds them.
-  bool get _canPlay =>
-      _session.selectedServer?.user?.permissions.can(
-        ServerPermission.useSoundboard,
-      ) ??
-      false;
+  bool get _canPlay {
+    final serverId = _watcher.serverId;
+    if (serverId == null) return false;
+    return _session
+            .serverById(serverId)
+            ?.user
+            ?.permissions
+            .can(ServerPermission.useSoundboard) ??
+        false;
+  }
 
   // ── Pressing one ────────────────────────────────────────
 

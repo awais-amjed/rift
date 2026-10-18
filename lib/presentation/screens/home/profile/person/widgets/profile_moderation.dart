@@ -11,6 +11,7 @@ import '../../../../../../logic/services/time_out_label.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/confirm_dialog.dart';
 import '../../../../../common/quiet_danger_button.dart';
+import '../../../../../common/server_scope.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
 import '../../../members/widgets/kick_confirm.dart';
@@ -109,7 +110,10 @@ class ProfileModeration extends StatelessWidget {
           BlocProvider.value(value: context.read<ServerCubit>()),
           BlocProvider.value(value: context.read<ServerMembersCubit>()),
         ],
-        child: MemberRolesDialog(member: member),
+        child: MemberRolesDialog(
+          member: member,
+          serverId: ServerScope.read(context),
+        ),
       ),
     );
   }

@@ -70,9 +70,12 @@ class VoiceBotsApi {
     required String channelId,
     required String botId,
     required bool summon,
+    String? serverId,
   }) async {
-    final server = _session.selectedServer;
-    if (server == null) return (success: false, error: 'No server');
+    final server = _session.target(serverId);
+    if (server == null) {
+      return (success: false, error: _session.noTarget(serverId));
+    }
 
     final response = await _session.callFor(
       server,

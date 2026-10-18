@@ -271,11 +271,16 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   in with `MultiBlocProvider` + `BlocProvider.value` (never construct a new cubit for a dialog).
   The one exception is a page about a server the person is not looking at: Manage server opens
   from the rail's menu for any server, and the cubits that follow the selection
-  (`ServerMembersCubit`, `ReportsCubit`, `SoundboardCubit`) take a `serverId` that pins them to
-  that server. `serverManageDialog` builds those for it and closes them with the dialog, so the
-  page reads that server's one live copy instead of the selected server's. Everything such a
+  (`ServerMembersCubit`, `ReportsCubit`, and `SoundboardCubit`, which follows the call during
+  one) take a `serverId` that pins them to that server. `serverManageDialog` builds those for it
+  and closes them with the dialog, so the page reads that server's one live copy instead of the
+  selected server's. Everything such a
   page calls names its server too — `serverId` on the call, `ServerState.permissionsOn` for what
-  the viewer may do there.
+  the viewer may do there. The call is the other such surface: it stays on screen while another
+  server is read, so it sits under `CallServerScope`, which provides a `ServerScope` and the
+  call's roster (`CallMembersCubit`). A widget in it that acts on a server takes its `serverId`
+  from `ServerScope.of` (`read` in a callback), and what it opens outside its tree — a menu
+  entry, a route, a dialog — takes the scope along with `ServerScope.carry`.
 - Toasts/errors go through `HelperMethods.showToast` / `showError` (toastification) — no
   SnackBars — called from the presentation layer, not from a cubit: a cubit sets a `Notice`
   in its state and `NoticeListeners` shows it (`CODE_STYLE.md` §8). Logging through `HelperMethods.printDebug`, not bare `print` (Dart side): its lines go to the app's log in every build, which people send with a bug report, so never log a secret or anything from a message (`ARCHITECTURE.md` §9).

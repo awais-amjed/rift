@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../data/constants.dart';
 import '../../theme/theme_context.dart';
 import '../context_menu_region.dart';
+import '../server_scope.dart';
 import 'context_menu_item.dart';
 import 'context_menu_layout.dart';
 import 'context_menu_sheet.dart';
@@ -78,6 +79,7 @@ class _ContextMenuSubmenuItemState extends State<ContextMenuSubmenuItem> {
     );
 
     final dismissAll = ContextMenuScope.of(context);
+    final carry = ServerScope.carrier(context);
 
     _entry = OverlayEntry(
       builder: (_) => Positioned.fill(
@@ -91,7 +93,7 @@ class _ContextMenuSubmenuItemState extends State<ContextMenuSubmenuItem> {
                 _close();
                 dismissAll?.call();
               },
-              child: Builder(builder: widget.submenuBuilder),
+              child: carry(Builder(builder: widget.submenuBuilder)),
             ),
           ),
         ),
@@ -135,7 +137,10 @@ class _ContextMenuSubmenuItemState extends State<ContextMenuSubmenuItem> {
       return ContextMenuItem(
         icon: widget.icon,
         label: widget.label,
-        onTap: () => sheet.pushSubmenu(widget.submenuBuilder),
+        onTap: () {
+          final carry = ServerScope.carrier(context);
+          sheet.pushSubmenu((inner) => carry(widget.submenuBuilder(inner)));
+        },
         trailing: chevron,
       );
     }

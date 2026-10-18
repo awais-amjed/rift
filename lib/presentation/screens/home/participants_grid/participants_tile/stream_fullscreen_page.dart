@@ -6,6 +6,7 @@ import 'package:livekit_client/livekit_client.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/services/window_fullscreen.dart';
+import '../../../../common/server_scope.dart';
 import '../../../../theme/app_motion.dart';
 import '../../../../theme/media_colors.dart';
 import 'participant_tile.dart';
@@ -41,14 +42,19 @@ class StreamFullscreenPage extends StatefulWidget {
     required bool isMuted,
     required StreamView view,
   }) {
+    // A route of its own, so it takes the call's server along — see
+    // [ServerScope].
+    final carry = ServerScope.carrier(context);
     return Navigator.of(context, rootNavigator: true).push(
       PageRouteBuilder<void>(
         transitionDuration: AppMotion.state,
         reverseTransitionDuration: AppMotion.state,
-        pageBuilder: (_, _, _) => StreamFullscreenPage(
-          participant: participant,
-          isMuted: isMuted,
-          view: view,
+        pageBuilder: (_, _, _) => carry(
+          StreamFullscreenPage(
+            participant: participant,
+            isMuted: isMuted,
+            view: view,
+          ),
         ),
         transitionsBuilder: (_, animation, _, child) =>
             FadeTransition(opacity: animation, child: child),
