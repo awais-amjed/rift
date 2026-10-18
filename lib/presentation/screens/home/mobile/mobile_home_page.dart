@@ -5,15 +5,13 @@ import '../../../../data/constants.dart';
 import '../../../../data/enums/home_surface.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
-import '../../../common/app_button.dart';
-import '../../../common/empty_state.dart';
 import '../../../common/server_scope.dart';
 import '../../../theme/theme_context.dart';
 import '../dms/server_dm_view.dart';
 import '../dms/widgets/central_dm_list_panel.dart';
 import '../main_content/widgets/banned_notice.dart';
 import '../profile/user_dock/user_dock.dart';
-import '../servers/add_server/show_add_server_dialog.dart';
+import '../servers/widgets/no_server_yet.dart';
 import '../sidebar/widgets/sidebar_channel_list.dart';
 import 'widgets/mini_call_bar.dart';
 import 'widgets/server_surface_tabs.dart';
@@ -49,20 +47,7 @@ class MobileHomePage extends StatelessWidget {
     if (surface == HomeSurface.centralDms) {
       body = const Expanded(child: CentralDmListPanel());
     } else if (!server.any) {
-      // A button rather than directions to one. "Tap the header" taught a
-      // gesture to someone with nothing else on the screen to press.
-      body = Expanded(
-        child: EmptyState(
-          icon: Icons.dns_outlined,
-          title: 'No server yet',
-          message: 'Join one with an invite link, or find a public one.',
-          action: AppButton(
-            label: 'Add a server',
-            icon: const Icon(Icons.add_rounded, size: K.iconRow),
-            onPressed: () => showAddServerDialog(context),
-          ),
-        ),
-      );
+      body = const Expanded(child: NoServerYet());
     } else if (server.banned != null) {
       // No tabs: every read on a server that banned you comes back empty, and
       // two halves of nothing would say the app is broken rather than closed.

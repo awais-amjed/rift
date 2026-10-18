@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../common/server_scope.dart';
+import '../../servers/widgets/no_server_yet.dart';
 import 'server_dms_row.dart';
 import 'sidebar_channel_list.dart';
 import 'sidebar_header.dart';
@@ -22,11 +26,18 @@ class ServerNavColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final serverId = ServerScope.idOf(context);
+    final any = context.select<ServerCubit, bool>(
+      (cubit) => cubit.state.serverOn(serverId) != null,
+    );
     return Column(
       children: [
         SidebarHeader(showHideButton: inSidebar),
-        const ServerDmsRow(),
-        const SidebarChannelList(),
+        if (any) ...[
+          const ServerDmsRow(),
+          const SidebarChannelList(),
+        ] else
+          const Expanded(child: NoServerYet()),
       ],
     );
   }
