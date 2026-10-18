@@ -72,7 +72,9 @@ class ReportsCubit extends Cubit<ReportsState> {
   }
 
   static bool _mayReview(Server? server) =>
-      server?.user?.permissions.can(ServerPermission.reviewReports) ?? false;
+      server != null &&
+      server.admitsUs &&
+      server.user!.permissions.can(ServerPermission.reviewReports);
 
   /// A role change, or the server going away, decides whether there is
   /// anything to watch.

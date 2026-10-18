@@ -35,6 +35,11 @@ class ServerTopicWatcher {
   /// What to listen for there.
   final String event;
 
+  /// Whether the topic is still open to a member the server has banned: only
+  /// their own, where the lifted ban is heard. Every other watcher stops at a
+  /// ban, as the server refuses its topic ([Server.admitsUs]).
+  final bool whileBanned;
+
   /// [event] was said on the watched server.
   final void Function() onChanged;
 
@@ -56,6 +61,7 @@ class ServerTopicWatcher {
     required this.onChanged,
     required this.onServerChanged,
     required this.watchedServerId,
+    this.whileBanned = false,
   }) {
     _serverSub = session.changes.listen((_) => _sync());
     // Deferred a microtask, never called straight from here. Consumers hold
@@ -77,7 +83,10 @@ class ServerTopicWatcher {
 
   void _sync() {
     final server = session.serverById(watchedServerId);
-    if (server == null || server.supabaseKey == null || server.user == null) {
+    if (server == null ||
+        server.supabaseKey == null ||
+        server.user == null ||
+        (!whileBanned && !server.admitsUs)) {
       if (_serverId == null) return;
       _teardown();
       onServerChanged(null);

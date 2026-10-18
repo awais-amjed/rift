@@ -59,6 +59,14 @@ class Server extends Equatable {
   bool get isTokenNearExpiry =>
       DateTime.now().difference(tokenIssuedAt) > const Duration(minutes: 50);
 
+  /// Whether this server lets us in: we are on it, and not banned or kicked.
+  ///
+  /// A banned member may still hear their own topic — which is how a lifted
+  /// ban arrives — and nothing else. Joined anyway, the server's other topics
+  /// were refused and retried every few seconds for as long as the server
+  /// stayed on the device, selected or not.
+  bool get admitsUs => user != null && !user!.isBanned;
+
   Server({
     required this.id,
     required this.name,

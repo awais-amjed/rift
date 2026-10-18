@@ -234,7 +234,7 @@ class DmCubit extends Cubit<DmState>
     final wanted = _wantedServerId;
     final server = wanted == null ? null : _session.serverById(wanted);
     if (server == null ||
-        server.user == null ||
+        !server.admitsUs ||
         _vaultCubit.state.masterSeed == null) {
       if (_readyServerId != null) await _reset();
       return;

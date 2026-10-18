@@ -82,6 +82,7 @@ class ServerEventsCubit extends Cubit<int> {
       topicOf: (server) => ServerTopics.user(server.user!.id),
       event: ServerEvent.me,
       onChanged: () => unawaited(_onMembershipChanged()),
+      whileBanned: true,
       // Opening a server re-reads it anyway; this only has to keep up with
       // changes after that.
       onServerChanged: (_) {},
@@ -136,7 +137,7 @@ class ServerEventsCubit extends Cubit<int> {
 
   void _sync() {
     final server = _session.serverById(_serverId);
-    if (server == null || server.supabaseKey == null) {
+    if (server == null || server.supabaseKey == null || !server.admitsUs) {
       _teardown();
       return;
     }

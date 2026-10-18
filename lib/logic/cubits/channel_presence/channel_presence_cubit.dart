@@ -142,7 +142,9 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
   Server? get _server => _session.serverById(_serverId);
 
   Future<void> _onServerChanged() async {
-    final server = _server;
+    // A server that has banned us refuses its presence topic, so it is no
+    // server here until the ban is lifted.
+    final server = _server?.admitsUs == true ? _server : null;
     // The user arriving matters as much as the server doing: we connect before
     // registration finishes on first launch, and there is nobody to announce
     // until it has.
@@ -357,7 +359,9 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
   Future<void> _rebuild() async {
     if (isClosed) return;
     final server = _server;
-    if (server == null || server.supabaseKey == null) return;
+    if (server == null || server.supabaseKey == null || !server.admitsUs) {
+      return;
+    }
 
     final locations = _voice?.locations ?? const <String, String>{};
     final sharing = _voice?.sharing ?? const <String>{};

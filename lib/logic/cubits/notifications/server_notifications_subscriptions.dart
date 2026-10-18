@@ -20,8 +20,11 @@ mixin _SubscriptionsMixin on Cubit<NotificationsState>, _PeerNamesMixin {
     final joined = <String>{};
 
     for (final server in servers) {
+      // A server that has banned us has nothing to announce to us, and
+      // refuses its topics: subscribed anyway, they were retried for as long
+      // as the server stayed on the device.
       if (server.supabaseKey == null ||
-          server.user == null ||
+          !server.admitsUs ||
           server.token.isEmpty) {
         continue;
       }
