@@ -11,6 +11,7 @@ add_executable(${BINARY_NAME} WIN32
   "global_key_hook.cpp"
   "main.cpp"
   "single_instance.cpp"
+  "startup_guard.cpp"
   "utils.cpp"
   "velopack_hooks.cpp"
   "win32_window.cpp"

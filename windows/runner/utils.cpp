@@ -63,3 +63,18 @@ std::string Utf8FromUtf16(const wchar_t* utf16_string) {
   }
   return utf8_string;
 }
+
+std::wstring RiftProfile() {
+  std::wstring profile;
+  const DWORD size = ::GetEnvironmentVariableW(L"RIFT_PROFILE", nullptr, 0);
+  if (size > 1) {
+    profile.resize(size);
+    profile.resize(::GetEnvironmentVariableW(L"RIFT_PROFILE", profile.data(),
+                                             size));
+  } else {
+#ifdef _DEBUG
+    profile = L"dev";
+#endif
+  }
+  return profile;
+}

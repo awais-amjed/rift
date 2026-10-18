@@ -7,6 +7,7 @@
 
 #include "flutter_window.h"
 #include "single_instance.h"
+#include "startup_guard.h"
 #include "utils.h"
 #include "velopack_hooks.h"
 
@@ -40,6 +41,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
     if (LaunchedWithLink()) SendAppLinkToInstance();
     return EXIT_SUCCESS;
   }
+  CheckLastStartAndMark();
 
   ApplyInstalledAppUserModelId();
   RemoveLegacyInstall();

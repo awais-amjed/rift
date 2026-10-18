@@ -12,6 +12,7 @@
 #include "global_key_hook.h"
 #include "noise_filter/noise_filter.h"
 #include "single_instance.h"
+#include "startup_guard.h"
 
 namespace {
 
@@ -54,14 +55,15 @@ bool FlutterWindow::OnCreate() {
 
   SetupPttChannel();
 
+  // The first frame is where a start counts as finished (startup_guard.h).
   // A start at sign-in that should stay in the tray never shows the window:
   // LoginLaunch puts `--minimized` in the Run value when the person asked for
   // that, and the tray's Show Rift shows it through window_manager.
-  if (!StartedMinimized()) {
-    flutter_controller_->engine()->SetNextFrameCallback([&]() {
-      this->Show();
-    });
-  }
+  const bool minimized = StartedMinimized();
+  flutter_controller_->engine()->SetNextFrameCallback([this, minimized]() {
+    MarkStartFinished();
+    if (!minimized) this->Show();
+  });
 
   // Flutter can complete the first frame before the "show window" callback is
   // registered. The following call ensures a frame is pending to ensure the

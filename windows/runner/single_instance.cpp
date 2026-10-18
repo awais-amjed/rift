@@ -2,21 +2,13 @@
 
 #include <string>
 
+#include "utils.h"
+
 namespace {
 
 // Named kernel objects for this profile, in the session's own namespace.
 std::wstring ObjectName(const wchar_t* what) {
-  std::wstring profile;
-  const DWORD size = ::GetEnvironmentVariableW(L"RIFT_PROFILE", nullptr, 0);
-  if (size > 1) {
-    profile.resize(size);
-    profile.resize(::GetEnvironmentVariableW(L"RIFT_PROFILE", profile.data(),
-                                             size));
-  } else {
-#ifdef _DEBUG
-    profile = L"dev";
-#endif
-  }
+  std::wstring profile = RiftProfile();
   // A backslash would start a namespace of its own.
   for (auto& c : profile) {
     if (c == L'\\') c = L'_';
