@@ -39,6 +39,15 @@ each platform (`scripts/vpk_pack.sh`):
   system would start the app and lose the sensitive-image check without
   saying so. It uses GTK 3, libsecret, GStreamer, PulseAudio (PipeWire's
   stands in) and Ayatana AppIndicator from the system.
+- `rift-<version>-android.apk` and `rift-<version>-android.aab`, the APK
+  people download and the app bundle Google Play takes, built by
+  `scripts/build_android.sh`. These are not published by the workflow: it has
+  no keystore, so Gradle signs them with the debug key, and they wait with the
+  run until `scripts/sign_release.sh` signs them (below). The APK holds every
+  ABI, so nobody has to pick one. It does not update itself; Play installs
+  are updated by Play. The build writes `android/app/google-services.json`
+  from the `GOOGLE_SERVICES_JSON` secret (the file, base64), since the file
+  is gitignored and the Google services plugin will not build without it.
 
 Run by hand from the Actions tab, the workflow builds the same files and keeps
 them with the run instead of publishing anything. It was first run that way on
@@ -58,6 +67,17 @@ scripts/sign_release.sh v1.0.3
 It shows what each feed offers, asks, signs with the release key from the
 system keyring, checks the signature and uploads `releases.<channel>.json.sig`
 beside the feed. It needs `gh` signed in to the GitHub account.
+
+It signs the Android build in the same pass. It downloads the APK and the
+bundle from the release's workflow run, signs both with the keystore that
+`android/key.properties` names (a symlink to where the keystore lives),
+attaches the APK to the release, and leaves the bundle in `build/release/`
+to upload to Google Play by hand: a beta to a testing track, a release to
+production. It finds `apksigner` in the newest Android build tools and the
+JDK Flutter uses. Play is given this same key as the app signing key ("use
+my own key" at the first upload, exported with Play's PEPK tool), so a
+person can move between the GitHub APK and Play without uninstalling, and
+`assetlinks.json` names one fingerprint.
 
 Then it posts the release notes, betas too, to a Rift channel through a
 webhook, since signing is when people can have the release. The webhook's URL

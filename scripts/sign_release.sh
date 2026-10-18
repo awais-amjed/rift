@@ -24,6 +24,13 @@
 # rift-release-webhook`), and without one nothing is posted. The same notes go
 # to a Discord channel through its webhook, kept the same way under
 # `service rift-discord-webhook`.
+#
+# The workflow keeps the Android APK and app bundle with its run instead of
+# publishing them, signed only with the debug key. This downloads them, signs
+# both with the keystore android/key.properties names, attaches the APK to the
+# release and leaves the bundle in build/release/ for Google Play. The keystore
+# is the one Play is given as the app signing key, so an install from either
+# place updates the other.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -48,6 +55,79 @@ sign_feed() {
   openssl pkeyutl -verify -rawin -pubin -inkey "$work/public.pem" \
     -in "$work/message" -sigfile "$work/signature" >/dev/null
   openssl base64 -A -in "$work/signature" >"$feed.sig"
+}
+
+# The release workflow's run for [tag]: where the Android build waits.
+fetch_android() {
+  local tag=$1 run
+  run=$(gh run list -R "$repo" -w release.yml -b "$tag" -e push -s success -L 1 \
+    --json databaseId --jq '.[0].databaseId // empty')
+  [[ -n $run ]] && gh run download "$run" -R "$repo" -n android -D "$work/android" 2>/dev/null
+}
+
+# The keystore android/key.properties names, its passwords handed to the tools
+# in the environment rather than on a command line, where ps shows them.
+read_keystore() {
+  local key value
+  while IFS='=' read -r key value; do
+    value=${value%$'\r'}
+    case ${key// /} in
+      storeFile) keystore=$value ;;
+      keyAlias) key_alias=$value ;;
+      storePassword) export RIFT_STORE_PASS=$value ;;
+      keyPassword) export RIFT_KEY_PASS=$value ;;
+    esac
+  done <android/key.properties
+  # Gradle reads a relative one from the app module.
+  [[ $keystore == /* ]] || keystore=android/app/$keystore
+  [[ -f $keystore ]] || { echo "android: no keystore where android/key.properties says" >&2; exit 1; }
+}
+
+# apksigner from the newest build tools, and the JDK Flutter builds with when
+# none is on the PATH (Android Studio's).
+android_tools() {
+  local sdk
+  sdk=$(sed -n 's/^sdk\.dir=//p' android/local.properties 2>/dev/null)
+  sdk=${sdk:-${ANDROID_HOME:-$HOME/Android/Sdk}}
+  apksigner=$(ls -d "$sdk"/build-tools/*/ | sort -V | tail -1)apksigner
+  [[ -x $apksigner ]] || { echo "android: no apksigner under $sdk/build-tools" >&2; exit 1; }
+  if ! command -v jarsigner >/dev/null; then
+    local java
+    java=$(flutter doctor -v 2>/dev/null | sed -n 's/.*Java binary at: //p' | head -1)
+    [[ -n $java ]] || { echo "android: no JDK found" >&2; exit 1; }
+    export JAVA_HOME=${java%/bin/java}
+    export PATH="$JAVA_HOME/bin:$PATH"
+  fi
+}
+
+sign_android() {
+  local tag=$1 version=${1#v} apk aab
+  apk="$work/android/rift-$version-android.apk"
+  aab="$work/android/rift-$version-android.aab"
+  read_keystore
+  android_tools
+  mkdir -p "$work/signed"
+  # Alignment kept as Gradle left it: native libraries sit on 16 KB pages,
+  # which Android 15 devices need to map them.
+  "$apksigner" sign --ks "$keystore" --ks-key-alias "$key_alias" \
+    --ks-pass env:RIFT_STORE_PASS --key-pass env:RIFT_KEY_PASS \
+    --alignment-preserved --out "$work/signed/${apk##*/}" "$apk"
+  "$apksigner" verify --print-certs "$work/signed/${apk##*/}" |
+    sed -n 's/.*certificate SHA-256 digest: /  APK signed by /p'
+  # A bundle is signed as a JAR. The debug key's signature goes first, or
+  # jarsigner adds a second signer, which Play refuses.
+  unzip -Z1 "$aab" | { grep -E '^META-INF/[^/]+\.(SF|RSA|EC|DSA)$|^META-INF/MANIFEST\.MF$' || true; } |
+    xargs -r zip -qd "$aab"
+  jarsigner -keystore "$keystore" -storepass:env RIFT_STORE_PASS \
+    -keypass:env RIFT_KEY_PASS "$aab" "$key_alias" >/dev/null
+  jarsigner -verify "$aab" | grep -q 'jar verified' ||
+    { echo "android: the bundle's signature does not verify" >&2; exit 1; }
+  unset RIFT_STORE_PASS RIFT_KEY_PASS
+  gh release upload "$tag" -R "$repo" --clobber "$work/signed/${apk##*/}"
+  echo "android: APK signed and uploaded"
+  mkdir -p build/release
+  cp -f "$aab" build/release/
+  echo "android: bundle for Google Play in build/release/${aab##*/}"
 }
 
 show_feed() {
@@ -90,6 +170,8 @@ kind = "beta" if r["isPrerelease"] else "release"
 notes = re.sub(r"\*\*|`", "", r["body"]).strip()
 links = "".join("Windows installer: %s\n" % a["url"] for a in r["assets"]
                 if a["name"].endswith("-setup.exe"))
+links += "".join("Android APK: %s\n" % a["url"] for a in r["assets"]
+                 if a["name"].endswith("-android.apk"))
 links += "Release page: %s" % r["url"]
 text = "%s is out (%s)\n\n%s\n\n%s" % (r["name"], kind, notes, links)
 if len(text) > 16000:
@@ -122,6 +204,8 @@ r = json.load(open(sys.argv[1]))
 kind = "beta" if r["isPrerelease"] else "release"
 links = "".join("Windows installer: %s\n" % a["url"] for a in r["assets"]
                 if a["name"].endswith("-setup.exe"))
+links += "".join("Android APK: %s\n" % a["url"] for a in r["assets"]
+                 if a["name"].endswith("-android.apk"))
 links += "Release page: %s" % r["url"]
 head = "## %s is out (%s)" % (r["name"], kind)
 text = "%s\n\n%s\n\n%s" % (head, r["body"].strip(), links)
@@ -166,6 +250,14 @@ for channel in "${channels[@]}"; do
   echo "$channel:"
   show_feed "$work/releases.$channel.json"
 done
+android=false
+if fetch_android "$tag"; then
+  android=true
+  echo "android:"
+  for f in "$work"/android/*; do printf '  %s\t%s bytes\n' "${f##*/}" "$(stat -c %s "$f")"; done
+else
+  echo "android: no build kept with the release's run, skipped"
+fi
 read -rp "Sign these? [y/N] " answer
 [[ $answer == [yY] ]] || exit 1
 for channel in "${channels[@]}"; do
@@ -173,4 +265,5 @@ for channel in "${channels[@]}"; do
   gh release upload "$tag" -R "$repo" --clobber "$work/releases.$channel.json.sig"
   echo "$channel: signed and uploaded"
 done
+if $android; then sign_android "$tag"; fi
 announce "$tag"

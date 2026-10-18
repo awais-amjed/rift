@@ -86,7 +86,7 @@ background, says so in the title bar, and a restart puts it in place.
 <summary><b>Rather have a folder?</b> Use the <code>.tar.gz</code></summary>
 <br>
 
-The release also has a `.tar.gz`. Unpack it and run `rift` inside; it offers
+The release also has a `.tar.gz`. Unpack it and run `riftchat` inside; it offers
 to add itself to your app menu, but does not update itself:
 
 ```bash

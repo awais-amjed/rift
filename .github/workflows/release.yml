@@ -1,5 +1,7 @@
 # Builds the Windows installer, the Linux AppImage and archive, and the
-# update packages, and publishes them as a GitHub Release.
+# update packages, and publishes them as a GitHub Release. It builds the
+# Android APK and app bundle too, but keeps those with the run until
+# scripts/sign_release.sh signs them.
 #
 # A version tag starts it: scripts/release.sh makes one (v1.0.3, or
 # v1.1.0-beta.1 for a pre-release; any tag with a `-` is one). The tag must
@@ -166,8 +168,50 @@ jobs:
           path: build/release/*
           if-no-files-found: error
 
+  # Kept with the run, not published: both files are signed with the debug key
+  # here, and scripts/sign_release.sh downloads them from the run, signs them
+  # with the release keystore and attaches the APK to the release.
+  android:
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+      # The ABIs Flutter builds a release APK for; cargokit builds the Rust
+      # library for each.
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      # Firebase's config for push, gitignored like the keystore.
+      - name: Write google-services.json
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [[ -z $GOOGLE_SERVICES_JSON ]]; then
+            echo "::error::The GOOGLE_SERVICES_JSON secret (base64 of android/app/google-services.json) is not set"
+            exit 1
+          fi
+          printf '%s' "$GOOGLE_SERVICES_JSON" | base64 -d > android/app/google-services.json
+      - run: scripts/build_android.sh
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: android
+          path: build/release/*
+          if-no-files-found: error
+
   publish:
-    needs: [version, linux, windows]
+    needs: [version, linux, windows, android]
     if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     permissions:
@@ -176,10 +220,15 @@ jobs:
       - uses: actions/checkout@v7
       # The checkout holds the tag without its message, which is the notes.
       - run: git fetch --force origin "refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
+      # Not android's: those wait to be signed.
       - uses: actions/download-artifact@v8
         with:
+          name: linux
           path: release
-          merge-multiple: true
+      - uses: actions/download-artifact@v8
+        with:
+          name: windows
+          path: release
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
