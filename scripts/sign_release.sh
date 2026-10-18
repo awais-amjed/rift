@@ -4,6 +4,7 @@
 #
 #   scripts/sign_release.sh v1.5.0         # the GitHub release of that tag
 #   scripts/sign_release.sh --dir DIR      # the feeds in a folder (testing)
+#   scripts/sign_release.sh --android DIR  # the APKs and bundles in a folder
 #   scripts/sign_release.sh --announce v1.5.0   # only post the announcement
 #   scripts/sign_release.sh --announce v1.5.0 discord   # ...to one place only
 #
@@ -100,34 +101,46 @@ android_tools() {
   fi
 }
 
-sign_android() {
-  local tag=$1 version=${1#v} apk aab
-  apk="$work/android/rift-$version-android.apk"
-  aab="$work/android/rift-$version-android.aab"
+# Signs, in place, each APK and bundle in [dir].
+sign_android_dir() {
+  local dir=$1 apk aab
   read_keystore
   android_tools
-  mkdir -p "$work/signed"
-  # Alignment kept as Gradle left it: native libraries sit on 16 KB pages,
-  # which Android 15 devices need to map them.
-  "$apksigner" sign --ks "$keystore" --ks-key-alias "$key_alias" \
-    --ks-pass env:RIFT_STORE_PASS --key-pass env:RIFT_KEY_PASS \
-    --alignment-preserved --out "$work/signed/${apk##*/}" "$apk"
-  "$apksigner" verify --print-certs "$work/signed/${apk##*/}" |
-    sed -n 's/.*certificate SHA-256 digest: /  APK signed by /p'
-  # A bundle is signed as a JAR. The debug key's signature goes first, or
-  # jarsigner adds a second signer, which Play refuses.
-  unzip -Z1 "$aab" | { grep -E '^META-INF/[^/]+\.(SF|RSA|EC|DSA)$|^META-INF/MANIFEST\.MF$' || true; } |
-    xargs -r zip -qd "$aab"
-  jarsigner -keystore "$keystore" -storepass:env RIFT_STORE_PASS \
-    -keypass:env RIFT_KEY_PASS "$aab" "$key_alias" >/dev/null
-  jarsigner -verify "$aab" | grep -q 'jar verified' ||
-    { echo "android: the bundle's signature does not verify" >&2; exit 1; }
+  for apk in "$dir"/*.apk; do
+    [[ -f $apk ]] || continue
+    # Alignment kept as Gradle left it: native libraries sit on 16 KB pages,
+    # which Android 15 devices need to map them.
+    "$apksigner" sign --ks "$keystore" --ks-key-alias "$key_alias" \
+      --ks-pass env:RIFT_STORE_PASS --key-pass env:RIFT_KEY_PASS \
+      --alignment-preserved --out "$work/signed.apk" "$apk"
+    mv -f "$work/signed.apk" "$apk"
+    rm -f "$apk.idsig"
+    "$apksigner" verify --print-certs "$apk" |
+      sed -n "s|.*certificate SHA-256 digest: |  ${apk##*/} signed by |p"
+  done
+  for aab in "$dir"/*.aab; do
+    [[ -f $aab ]] || continue
+    # A bundle is signed as a JAR. The debug key's signature goes first, or
+    # jarsigner adds a second signer, which Play refuses.
+    unzip -Z1 "$aab" | { grep -E '^META-INF/[^/]+\.(SF|RSA|EC|DSA)$|^META-INF/MANIFEST\.MF$' || true; } |
+      xargs -r zip -qd "$aab"
+    jarsigner -keystore "$keystore" -storepass:env RIFT_STORE_PASS \
+      -keypass:env RIFT_KEY_PASS "$aab" "$key_alias" >/dev/null
+    jarsigner -verify "$aab" | grep -q 'jar verified' ||
+      { echo "android: ${aab##*/}'s signature does not verify" >&2; exit 1; }
+    echo "  ${aab##*/} signed"
+  done
   unset RIFT_STORE_PASS RIFT_KEY_PASS
-  gh release upload "$tag" -R "$repo" --clobber "$work/signed/${apk##*/}"
-  echo "android: APK signed and uploaded"
+}
+
+sign_android() {
+  local tag=$1 version=${1#v}
+  sign_android_dir "$work/android"
+  gh release upload "$tag" -R "$repo" --clobber "$work/android/rift-$version-android.apk"
+  echo "android: APK uploaded"
   mkdir -p build/release
-  cp -f "$aab" build/release/
-  echo "android: bundle for Google Play in build/release/${aab##*/}"
+  cp -f "$work/android/rift-$version-android.aab" build/release/
+  echo "android: bundle for Google Play in build/release/rift-$version-android.aab"
 }
 
 show_feed() {
@@ -226,6 +239,11 @@ json.dump({"content": text, "allowed_mentions": {"parse": []}, "flags": 4},
 
 if [[ ${1:-} == --announce ]]; then
   announce "${2:?usage: scripts/sign_release.sh --announce <tag> [rift|discord]}" "${3:-}"
+  exit 0
+fi
+
+if [[ ${1:-} == --android ]]; then
+  sign_android_dir "${2:?usage: scripts/sign_release.sh --android DIR}"
   exit 0
 fi
 

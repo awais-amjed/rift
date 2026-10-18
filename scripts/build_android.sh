@@ -11,9 +11,11 @@
 # APK installs, but it cannot update a release-signed one or open invite links
 # (App Links verify the signature), so it is not something to hand out.
 #
-# One APK for every ABI rather than one each: a person choosing between
-# arm64-v8a and armeabi-v7a on a download page picks wrong. Play splits the
-# bundle by device itself.
+# One APK for both ARM ABIs rather than one each: a person choosing between
+# arm64-v8a and armeabi-v7a on a download page picks wrong. x86_64 is left
+# out of it, since phones are ARM and it added 66 MB of libraries for
+# emulators and a few Chromebooks; the bundle keeps it, and Play hands each
+# device only its own.
 #
 # Needs android/app/google-services.json (gitignored; the workflow writes it
 # from a secret), without which the Google services plugin refuses to build.
@@ -26,7 +28,7 @@ version=${version%%+*}
 [[ -f android/app/google-services.json ]] ||
   { echo "No android/app/google-services.json: the build needs it for push." >&2; exit 1; }
 
-flutter build apk --release
+flutter build apk --release --target-platform android-arm,android-arm64
 flutter build appbundle --release
 
 mkdir -p build/release

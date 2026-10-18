@@ -43,8 +43,8 @@ each platform (`scripts/vpk_pack.sh`):
   people download and the app bundle Google Play takes, built by
   `scripts/build_android.sh`. These are not published by the workflow: it has
   no keystore, so Gradle signs them with the debug key, and they wait with the
-  run until `scripts/sign_release.sh` signs them (below). The APK holds every
-  ABI, so nobody has to pick one. It does not update itself; Play installs
+  run until `scripts/sign_release.sh` signs them (below). The APK holds both
+  ARM ABIs, so nobody has to pick one, and leaves x86_64 to the bundle. It does not update itself; Play installs
   are updated by Play. The build writes `android/app/google-services.json`
   from the `GOOGLE_SERVICES_JSON` secret (the file, base64), since the file
   is gitignored and the Google services plugin will not build without it.
