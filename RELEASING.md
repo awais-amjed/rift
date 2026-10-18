@@ -78,10 +78,12 @@ bundle from the release's workflow run, signs them with the keystore that
 attaches the APKs to the release, and leaves the bundle in `build/release/`
 to upload to Google Play by hand: a beta to a testing track, a release to
 production. It finds `apksigner` in the newest Android build tools and the
-JDK Flutter uses. Play is given this same key as the app signing key ("use
-my own key" at the first upload, exported with Play's PEPK tool), so a
-person can move between the GitHub APK and Play without uninstalling, and
-`assetlinks.json` names one fingerprint.
+JDK Flutter uses. On Play this key is only the upload key: Play signs what
+it installs with an app signing key Google generated at the first upload.
+So a Play install and a GitHub APK cannot update one another (moving
+between them means uninstalling), and `assetlinks.json` in `rift-website`
+names both fingerprints. Play allows an app signing key upgrade once a year,
+from Oct 17 2027 for this app, which could move Play to this key.
 
 Then it posts the release notes, betas too, to a Rift channel through a
 webhook, since signing is when people can have the release. The webhook's URL
