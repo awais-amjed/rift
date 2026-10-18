@@ -10,6 +10,7 @@ import '../../../../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../common/app_button.dart';
 import '../../../common/hint_card.dart';
+import '../../../common/server_scope.dart';
 import 'new_server_dm_modal.dart';
 import 'server_dm_chat_view.dart';
 import 'widgets/dm_list_panel.dart';
@@ -42,7 +43,9 @@ class _ServerDmViewState extends State<ServerDmView> {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<DmCubit>().state;
-    final server = context.watch<ServerCubit>().state.selectedServer;
+    final server = context.watch<ServerCubit>().state.serverOn(
+      ServerScope.idOf(context),
+    );
     // Watched, not read: a DM arriving on this server has to move the badges
     // while the list is on screen.
     final notifications = context.watch<ServerNotificationsCubit>().state;

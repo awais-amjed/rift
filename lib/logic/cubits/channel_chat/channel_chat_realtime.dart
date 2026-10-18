@@ -17,6 +17,8 @@ mixin _ChannelChatRealtimeMixin
         _ChannelChatReactionsMixin,
         _ChannelChatPinsMixin,
         _ChannelChatPollsMixin {
+  SessionRepository get _session;
+
   /// Re-open the channel — how a member waiting for a key retries once someone
   /// who can heal them comes online.
   Future<void> retry();
@@ -133,7 +135,7 @@ mixin _ChannelChatRealtimeMixin
         now.difference(_lastTypingSent!) < _typingThrottle) {
       return;
     }
-    final user = _session.selectedServer?.user;
+    final user = _server?.user;
     final topic = _rtTopic;
     if (user == null || topic == null) return;
     _lastTypingSent = now;
@@ -144,7 +146,7 @@ mixin _ChannelChatRealtimeMixin
     if (isClosed) return;
     final from = BroadcastPayload.stringOf(payload, 'from');
     final name = BroadcastPayload.stringOf(payload, 'name');
-    final myId = _session.selectedServer?.user?.id;
+    final myId = _server?.user?.id;
     if (from == null || name == null || from == myId) return;
 
     _typingTimers[from]?.cancel();

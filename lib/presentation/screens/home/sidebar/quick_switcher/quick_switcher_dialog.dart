@@ -14,6 +14,7 @@ import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/services/channel_search.dart';
 import '../../../../common/context_menu/text_field_context_menu.dart';
+import '../../../../common/server_scope.dart';
 import '../../../../common/tap_to_focus.dart';
 import '../../../../theme/app_shadows.dart';
 import '../../../../theme/app_text.dart';
@@ -46,7 +47,12 @@ class _QuickSwitcherDialogState extends State<QuickSwitcherDialog> {
   }
 
   List<Channel> get _results => ChannelSearch.filter(
-    context.read<ServerCubit>().state.selectedServer?.channels ?? const [],
+    context
+            .read<ServerCubit>()
+            .state
+            .serverOn(ServerScope.readId(context))
+            ?.channels ??
+        const [],
     _controller.text,
   );
 
@@ -69,7 +75,10 @@ class _QuickSwitcherDialogState extends State<QuickSwitcherDialog> {
 
     if (channel.channelType == ChannelType.text) {
       appCubit.setSurface(HomeSurface.server);
-      unawaited(chatCubit.openChannel(channel.id));
+      final serverId = ServerScope.readId(context);
+      if (serverId != null) {
+        unawaited(chatCubit.openChannel(serverId, channel.id));
+      }
       Navigator.of(context).pop();
       return;
     }

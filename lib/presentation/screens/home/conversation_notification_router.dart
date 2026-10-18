@@ -87,17 +87,14 @@ class _ConversationNotificationRouterState
         .where((s) => s.id == target.serverId)
         .firstOrNull;
     if (server == null) return;
-    if (servers.state.selectedServer?.id != server.id) {
+    if (servers.state.selectedServerId != server.id) {
       servers.selectServer(server);
-      // The chat closes whatever it had open when it hears of the switch;
-      // opening before it has heard would be closed straight away.
-      if (target.isChannel) await Future<void>.delayed(Duration.zero);
     }
     if (!mounted) return;
 
     if (target.isChannel) {
       app.setSurface(HomeSurface.server);
-      unawaited(chat.openChannel(target.targetId));
+      unawaited(chat.openChannel(server.id, target.targetId));
       return;
     }
 

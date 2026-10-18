@@ -6,11 +6,11 @@ import '../../../../../../data/constants.dart';
 import '../../../../../../data/enums/channel_type.dart';
 import '../../../../../../data/enums/notification_level.dart';
 import '../../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
-import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../common/context_menu/context_menu_item.dart';
 import '../../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../../common/context_menu_region.dart';
 import '../../../../../common/notifications/notification_level_submenu.dart';
+import '../../../../../common/server_scope.dart';
 import '../../../../../theme/theme_context.dart';
 import '../../settings/channel_settings_tab.dart';
 import 'channel_menu_actions.dart';
@@ -46,7 +46,7 @@ class ChannelContextMenu extends StatelessWidget {
   }
 
   void _setLevel(BuildContext context, NotificationLevel level) {
-    final serverId = context.read<ServerCubit>().state.selectedServerId;
+    final serverId = ServerScope.readId(context);
     final notifications = context.read<ServerNotificationsCubit>();
     ContextMenuScope.of(context)?.call();
     if (serverId == null) return;
@@ -56,7 +56,7 @@ class ChannelContextMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isVoice = channel.channelType == ChannelType.voice;
-    final serverId = context.watch<ServerCubit>().state.selectedServerId;
+    final serverId = ServerScope.idOf(context);
     final canManage = canManageChannel(context, channel);
 
     return ContextMenuPanel(

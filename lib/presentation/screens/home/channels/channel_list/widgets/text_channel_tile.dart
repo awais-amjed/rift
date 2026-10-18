@@ -8,9 +8,9 @@ import '../../../../../../data/enums/notification_level.dart';
 import '../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
-import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../common/hover_builder.dart';
 import '../../../../../common/nav_row.dart';
+import '../../../../../common/server_scope.dart';
 import '../../../../../common/unread_badge.dart';
 import '../../../../../responsive/shell_scope.dart';
 import '../../../../../theme/theme_context.dart';
@@ -39,9 +39,7 @@ class TextChannelTile extends StatelessWidget {
         );
         final isSelected = onScreen && chatState.channelId == channel.id;
         // Unread count for this channel; the one on screen is read.
-        final serverId = context.select<ServerCubit, String?>(
-          (c) => c.state.selectedServerId,
-        );
+        final serverId = ServerScope.idOf(context);
         final unread = (isSelected || serverId == null)
             ? 0
             : context.select<ServerNotificationsCubit, int>(
@@ -89,8 +87,8 @@ class TextChannelTile extends StatelessWidget {
                 // way in — the page's back is the way out.
                 if (isSelected && !context.layoutMode.isCompact) {
                   cubit.closeChannel();
-                } else {
-                  cubit.openChannel(channel.id);
+                } else if (serverId != null) {
+                  cubit.openChannel(serverId, channel.id);
                 }
               },
             ),

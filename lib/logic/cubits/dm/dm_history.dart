@@ -121,12 +121,12 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
         peerId: peerId,
       ),
       latestPage: () async {
-        // Only while this is still the selected server: the read goes to the
-        // selected one, and an empty answer from another would be saved as
-        // this conversation having been emptied.
-        final selected = _session.selectedServer;
-        if (selected?.id != server.id ||
-            selected?.supabaseUrl != server.supabaseUrl) {
+        // Only while this cubit is still on that server: the read goes to the
+        // one it is on now, and an empty answer from another would be saved
+        // as this conversation having been emptied.
+        final current = _server;
+        if (current?.id != server.id ||
+            current?.supabaseUrl != server.supabaseUrl) {
           return null;
         }
         final response = await _dms.listDms(

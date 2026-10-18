@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/channel.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../common/server_scope.dart';
 
 /// The pages of a channel's settings, in nav order.
 enum ChannelSettingsTab { overview, access, bots, webhooks, delete }
@@ -33,8 +34,9 @@ extension ChannelSettingsTabLabel on ChannelSettingsTab {
 /// a role change takes the gear and the pages away while they are on screen.
 bool canManageChannel(BuildContext context, Channel channel) {
   if (channel.isPrivate) return channel.canManage;
+  final serverId = ServerScope.idOf(context);
   return context.select<ServerCubit, bool>(
-    (c) => c.state.selectedServer?.user?.permissions.isChannelManager ?? false,
+    (c) => c.state.permissionsOn(serverId)?.isChannelManager ?? false,
   );
 }
 

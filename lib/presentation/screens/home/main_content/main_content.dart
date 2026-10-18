@@ -6,6 +6,7 @@ import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../common/app_panel.dart';
+import '../../../common/server_scope.dart';
 import '../../../responsive/shell_scope.dart';
 import '../../../theme/app_motion.dart';
 import '../../../theme/theme_context.dart';
@@ -59,9 +60,10 @@ class MainContent extends StatelessWidget {
         // would show an empty channel that never loads. Central DMs are a
         // different tier and keep working, which is worth leaving reachable
         // — it is how you'd reach whoever banned you.
+        final serverId = ServerScope.idOf(context);
         final bannedFrom = context
             .select<ServerCubit, ({String name, bool kicked})?>((cubit) {
-              final server = cubit.state.selectedServer;
+              final server = cubit.state.serverOn(serverId);
               final user = server?.user;
               if (user == null || !user.isBanned) return null;
               return (name: server!.name, kicked: user.isKicked);

@@ -13,6 +13,7 @@ import '../../../../../common/context_menu/context_menu_item.dart';
 import '../../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../../common/context_menu_region.dart';
 import '../../../../../common/notifications/notification_level_submenu.dart';
+import '../../../../../common/server_scope.dart';
 import '../../../../../common/squircle_avatar.dart';
 import '../../../../../common/unread_badge.dart';
 import '../../../invites/show_invite_modal.dart';
@@ -116,10 +117,7 @@ class ServerChipMenu extends StatelessWidget {
             trailing: switch (context.select<ReportsCubit, int>(
               (c) => c.state.openCount,
             )) {
-              final n
-                  when n > 0 &&
-                      context.read<ServerCubit>().state.selectedServer?.id ==
-                          server.id =>
+              final n when n > 0 && ServerScope.readId(context) == server.id =>
                 UnreadBadge(count: n),
               _ => null,
             },

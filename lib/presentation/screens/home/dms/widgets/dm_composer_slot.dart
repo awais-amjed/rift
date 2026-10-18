@@ -9,6 +9,7 @@ import '../../../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/chat/composer_notice.dart';
 import '../../../../common/chat/time_out_gate.dart';
+import '../../../../common/server_scope.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 import 'dm_request_banner.dart';
@@ -39,8 +40,9 @@ class DmComposerSlot extends StatelessWidget {
   Widget build(BuildContext context) {
     final peerId = state.openPeerId;
     final name = state.openPeerName ?? 'They';
+    final serverId = ServerScope.idOf(context);
     final until = context.select<ServerCubit, DateTime?>(
-      (c) => c.state.selectedServer?.user?.timedOutUntil,
+      (c) => c.state.meOn(serverId)?.timedOutUntil,
     );
     if (peerId == null) return composer;
 

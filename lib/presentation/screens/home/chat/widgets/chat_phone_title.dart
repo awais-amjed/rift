@@ -5,6 +5,7 @@ import '../../../../../data/classes/channel.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
+import '../../../../common/server_scope.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../../../theme/theme_context.dart';
@@ -21,8 +22,9 @@ class ChatPhoneTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    final serverId = ServerScope.idOf(context);
     final server = context.select<ServerCubit, String?>(
-      (c) => c.state.selectedServer?.name,
+      (c) => c.state.serverOn(serverId)?.name,
     );
     final members = context.select<ServerMembersCubit, int?>(
       (c) => c.state.loaded ? c.state.peopleCount : null,

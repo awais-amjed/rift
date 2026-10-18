@@ -11,7 +11,7 @@ part of 'dm_cubit.dart';
 /// ([_DmConversationsMixin] calls [_decryptDmRow] directly), so there is no
 /// second, laxer way for a row to reach the screen.
 mixin _DmDecryptMixin on Cubit<DmState> {
-  SessionRepository get _session;
+  Server? get _server;
   CryptoRepository get _crypto;
   Future<Uint8List?> _dmKeyFor(String peerId, String? peerChatKey);
   Future<ServerIdentity> _vaultIdentityFor(Server server);
@@ -52,7 +52,7 @@ mixin _DmDecryptMixin on Cubit<DmState> {
     final senderId = row['sender_id'] as String;
     final isMine = senderId == localUserId;
     final authorName = isMine
-        ? (_session.selectedServer?.user?.displayName ?? 'Me')
+        ? (_server?.user?.displayName ?? 'Me')
         : (row['sender_name'] as String? ?? peerName);
 
     // No DM key at all — their key is not published, or not yet fetched.
@@ -70,7 +70,7 @@ mixin _DmDecryptMixin on Cubit<DmState> {
       if (senderKeyB64 != null) {
         senderKey = CryptoRepository.fromBase64(senderKeyB64);
       } else {
-        final server = _session.selectedServer!;
+        final server = _server!;
         final identity = await _vaultIdentityFor(server);
         senderKey = identity.publicKeyBytes;
       }

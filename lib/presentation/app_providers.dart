@@ -211,6 +211,7 @@ class AppProviders extends StatelessWidget {
     final serverCubit = context.read<ServerCubit>();
     final tokenCubit = context.read<TokenCubit>();
     final chatCubit = context.read<ChannelChatCubit>();
+    final dmCubit = context.read<DmCubit>();
     final hub = ServerHub(
       session: session,
       open: (serverId) => ServerContext.open(
@@ -223,6 +224,12 @@ class AppProviders extends StatelessWidget {
         livekitCubit: livekit,
         chatCubit: chatCubit,
       ),
+      // The conversations on screen are the selected server's: its channel
+      // and its DM list.
+      onSelected: (serverId) {
+        chatCubit.showServer(serverId);
+        dmCubit.showServer(serverId);
+      },
     );
     // So a press arriving on the data channel reaches the call's library, and
     // so leaving a call or deafening cuts off a clip already playing.

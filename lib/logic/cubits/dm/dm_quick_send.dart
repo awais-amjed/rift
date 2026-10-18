@@ -8,7 +8,7 @@ part of 'dm_cubit.dart';
 /// already open it *is* [sendDm], so the open page draws the row the usual
 /// way.
 mixin _DmQuickSendMixin on Cubit<DmState> {
-  SessionRepository get _session;
+  Server? get _server;
   DmsApi get _dms;
   MembersApi get _members;
   CryptoRepository get _crypto;
@@ -40,7 +40,7 @@ mixin _DmQuickSendMixin on Cubit<DmState> {
       return refused ? 'The message was not sent.' : null;
     }
 
-    final server = _session.selectedServer;
+    final server = _server;
     final user = server?.user;
     if (server == null || user == null) return 'Not signed in to this server.';
 

@@ -66,8 +66,11 @@ part 'dm_send.dart';
 part 'dm_set_aside.dart';
 part 'dm_state.dart';
 
-/// E2E direct messages between members of the selected server
-/// (ARCHITECTURE.md §4, Design 1 — encrypt to identity).
+/// E2E direct messages between members of one server
+/// (ARCHITECTURE.md §4, Design 1 — encrypt to identity): the one [showServer]
+/// last named, which is the selected one — `ServerHub` says when it moves.
+/// Everything here reads that server, never the selection, so work started on
+/// one server finishes there however quickly the selection moves on.
 ///
 /// The DM key is derived pairwise (X25519 DH between the two members' chat
 /// identities) — no keyring, no waiting states: if the peer has published a
@@ -87,7 +90,6 @@ class DmCubit extends Cubit<DmState>
         _DmCallLogMixin,
         _DmSetAsideMixin,
         _DmQuickSendMixin {
-  @override
   final SessionRepository _session;
 
   /// The server this cubit is set up for, which every call it makes goes to.
@@ -145,7 +147,18 @@ class DmCubit extends Cubit<DmState>
 
   /// Who the open conversation is with — the one we tell we are typing.
   String? _typingPeerId;
+
+  /// The server [showServer] named, and the one set up for it once its user
+  /// and the vault are there.
+  String? _wantedServerId;
   String? _readyServerId;
+
+  /// The server these DMs are on, or null before one is set up.
+  String? get serverId => _readyServerId;
+
+  @override
+  Server? get _server =>
+      _readyServerId == null ? null : _session.serverById(_readyServerId!);
 
   /// Diffs conversation snapshots to raise notifications for new DMs.
   final NewMessageNotifier _notifier = NewMessageNotifier();
@@ -167,7 +180,7 @@ class DmCubit extends Cubit<DmState>
   final SavedConversation _saved = SavedConversation();
 
   @override
-  Server? get _savedServer => _session.selectedServer;
+  Server? get _savedServer => _server;
 
   @override
   String? get _seed => _vaultCubit.state.masterSeed;
@@ -203,8 +216,15 @@ class DmCubit extends Cubit<DmState>
   // Server lifecycle
   // ──────────────────────────────────────────────────────────
 
+  /// List [serverId]'s DMs, closing whatever was open on another server.
+  void showServer(String? serverId) {
+    _wantedServerId = serverId;
+    unawaited(_onServerChanged());
+  }
+
   Future<void> _onServerChanged() async {
-    final server = _session.selectedServer;
+    final wanted = _wantedServerId;
+    final server = wanted == null ? null : _session.serverById(wanted);
     if (server == null ||
         server.user == null ||
         _vaultCubit.state.masterSeed == null) {
@@ -274,7 +294,7 @@ class DmCubit extends Cubit<DmState>
       return cached;
     }
     if (peerChatKey == null) return null;
-    final server = _session.selectedServer;
+    final server = _server;
     if (server == null || _vaultCubit.state.masterSeed == null) return null;
 
     final identity = await _vaultCubit.getChatIdentityForHost(_hostOf(server));
@@ -436,7 +456,7 @@ class DmCubit extends Cubit<DmState>
         now.difference(_lastTypingSent!) < _typingThrottle) {
       return;
     }
-    final server = _session.selectedServer;
+    final server = _server;
     final user = server?.user;
     final peerId = _typingPeerId;
     if (server == null || user == null || peerId == null) return;

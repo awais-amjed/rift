@@ -96,7 +96,7 @@ class _CallSectionState extends State<_CallSection> {
     final home = servers.state.servers
         .where((s) => s.channels.any((c) => c.id == channelId))
         .firstOrNull;
-    if (home != null && servers.state.selectedServer?.id != home.id) {
+    if (home != null && servers.state.selectedServerId != home.id) {
       servers.selectServer(home);
     }
     context.read<AppCubit>().setSurface(HomeSurface.server);

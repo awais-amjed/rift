@@ -17,6 +17,7 @@ import '../../../../common/app_text_field.dart';
 import '../../../../common/hint_card.dart';
 import '../../../../common/message_banner.dart';
 import '../../../../common/no_central_account.dart';
+import '../../../../common/server_scope.dart';
 import '../../../../common/tag_editor.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
@@ -84,7 +85,9 @@ class _PublishNewServerModalState extends State<PublishNewServerModal> {
   }
 
   Future<void> _publish() async {
-    final server = context.read<ServerCubit>().state.selectedServer;
+    final server = context.read<ServerCubit>().state.serverOn(
+      ServerScope.readId(context),
+    );
     if (server == null) return;
     final session = context.read<SessionRepository>().on(server.id);
     final invites = InvitesApi(session);
@@ -169,8 +172,9 @@ class _PublishNewServerModalState extends State<PublishNewServerModal> {
     final signedIn = context.select<SupabaseBackupCubit, bool>(
       (c) => c.state.isSignedIn,
     );
+    final serverId = ServerScope.idOf(context);
     final name = context.select<ServerCubit, String>(
-      (c) => c.state.selectedServer?.name ?? 'your server',
+      (c) => c.state.serverOn(serverId)?.name ?? 'your server',
     );
 
     return AppModal(

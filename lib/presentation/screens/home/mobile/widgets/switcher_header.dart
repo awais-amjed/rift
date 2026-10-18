@@ -7,6 +7,7 @@ import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../common/server_scope.dart';
 import '../../../../common/squircle_avatar.dart';
 import '../../../../common/unread_dot.dart';
 import '../../../../responsive/shell_scope.dart';
@@ -45,8 +46,9 @@ class SwitcherHeader extends StatelessWidget {
     final surface = context.select<AppCubit, HomeSurface>(
       (c) => c.state.surface,
     );
+    final serverId = ServerScope.idOf(context);
     final server = context.select<ServerCubit, _ServerIdentity?>((c) {
-      final s = c.state.selectedServer;
+      final s = c.state.serverOn(serverId);
       return s == null ? null : _ServerIdentity(s.id, s.name, s.iconUrl);
     });
     final onHome = surface == HomeSurface.centralDms;

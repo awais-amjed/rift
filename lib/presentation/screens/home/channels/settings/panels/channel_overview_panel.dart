@@ -96,7 +96,11 @@ class _ChannelOverviewPanelState extends State<ChannelOverviewPanel> {
       (_nameChanged || _retentionChanged || _capChanged || _nodeChanged);
 
   ServerLimits get _serverLimits =>
-      context.read<ServerCubit>().state.selectedServer?.limits ??
+      context
+          .read<ServerCubit>()
+          .state
+          .serverOn(ServerScope.readId(context))
+          ?.limits ??
       ServerLimits.defaults;
 
   /// What the channel falls back to, spelled out — an admin shouldn't have to
@@ -245,7 +249,7 @@ class _ChannelOverviewPanelState extends State<ChannelOverviewPanel> {
                   context
                       .read<ServerCubit>()
                       .state
-                      .selectedServer
+                      .serverOn(ServerScope.readId(context))
                       ?.livekitNodes ??
                   const [],
               // Watched rather than read once: the dialog can be open while

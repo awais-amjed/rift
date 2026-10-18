@@ -49,13 +49,14 @@ class _MemberCardModerationState extends State<MemberCardModeration> {
   @override
   Widget build(BuildContext context) {
     final userId = widget.userId;
+    final serverId = ServerScope.idOf(context);
     final moderator = context.select<ServerCubit, bool>((cubit) {
-      final mine = cubit.state.myPermissions;
+      final mine = cubit.state.permissionsOn(serverId);
       return (mine?.isServerAdmin ?? false) ||
           (mine?.isChannelManager ?? false);
     });
     final me = context.select<ServerCubit, String?>(
-      (cubit) => cubit.state.selectedServer?.user?.id,
+      (cubit) => cubit.state.meOn(serverId)?.id,
     );
     if (!moderator || userId == me) return const SizedBox.shrink();
 

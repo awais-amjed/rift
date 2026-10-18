@@ -14,7 +14,7 @@ part of 'dm_cubit.dart';
 /// last. `dm_conversations(p_limit, p_before)` gives it the
 /// cursor central's list already had.
 mixin _DmConversationsMixin on Cubit<DmState> {
-  SessionRepository get _session;
+  Server? get _server;
   DmsApi get _dms;
   Map<String, String> get _dmKeySources;
   Future<Uint8List?> _dmKeyFor(String peerId, String? peerChatKey);
@@ -32,7 +32,7 @@ mixin _DmConversationsMixin on Cubit<DmState> {
     required String? peerSigningKey,
   });
 
-  String? get _localUserId => _session.selectedServer?.user?.id;
+  String? get _localUserId => _server?.user?.id;
 
   /// Guards a scroll that asks again before the last answer has landed.
   ///

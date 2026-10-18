@@ -50,8 +50,10 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
   /// [ChannelMemberPicker] for why neither belongs in the list.
   MemberSelection _selection = MemberSelection.empty;
 
-  UserPermissions? get _permissions =>
-      context.read<ServerCubit>().state.myPermissions;
+  UserPermissions? get _permissions => context
+      .read<ServerCubit>()
+      .state
+      .permissionsOn(ServerScope.readId(context));
 
   bool get _canSubmit => _nameCtrl.text.trim().isNotEmpty;
 
@@ -75,7 +77,12 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
   /// local filter over one page is a filter that answers "No matches" about
   /// somebody who is really there.
   Future<List<ServerMember>> _searchMembers(String query) async {
-    final me = context.read<ServerCubit>().state.selectedServer?.user?.id;
+    final me = context
+        .read<ServerCubit>()
+        .state
+        .serverOn(ServerScope.readId(context))
+        ?.user
+        ?.id;
     final results = await MembersApi(
       ServerScope.read(context),
     ).searchMembers(query: query, bots: false);
@@ -117,7 +124,11 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
-    final serverName = context.read<ServerCubit>().state.selectedServer?.name;
+    final serverName = context
+        .read<ServerCubit>()
+        .state
+        .serverOn(ServerScope.readId(context))
+        ?.name;
     return AppModal(
       title: 'Create channel',
       // Which server it lands in, as the other dialogs that act on one say.

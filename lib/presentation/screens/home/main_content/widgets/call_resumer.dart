@@ -67,7 +67,7 @@ class _CallResumerState extends State<CallResumer> {
     HelperMethods.printDebug(
       '[Call] rejoining the call from before the update',
     );
-    if (servers.state.selectedServer?.id != home.id) {
+    if (servers.state.selectedServerId != home.id) {
       servers.selectServer(home);
     }
     // Before the join, so no sound is heard and the mic stays shut.

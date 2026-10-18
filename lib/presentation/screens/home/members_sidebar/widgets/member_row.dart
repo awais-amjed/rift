@@ -9,6 +9,7 @@ import '../../../../../data/classes/server_member.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/context_menu_region.dart';
+import '../../../../common/server_scope.dart';
 import '../../../../common/user_avatar.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
@@ -80,7 +81,7 @@ class MemberRow extends StatelessWidget {
     final channel = context
         .read<ServerCubit>()
         .state
-        .selectedServer
+        .serverOn(ServerScope.readId(context))
         ?.channels
         .where((ch) => ch.id == channelId)
         .firstOrNull;

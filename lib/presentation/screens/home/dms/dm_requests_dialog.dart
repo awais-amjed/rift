@@ -52,7 +52,9 @@ class DmRequestsDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    final server = context.watch<ServerCubit>().state.selectedServer;
+    final server = context.watch<ServerCubit>().state.serverOn(
+      ServerScope.idOf(context),
+    );
     final policy = server?.user?.dmPolicy ?? DmPolicy.everyone;
     final requests = context.watch<DmCubit>().state.requests;
 

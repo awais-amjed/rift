@@ -9,6 +9,7 @@ import '../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/server_reach/server_reach_cubit.dart';
 import '../../../../common/app_modal.dart';
+import '../../../../common/server_scope.dart';
 import '../../../../responsive/shell_scope.dart';
 import '../create_channel_dialog.dart';
 import '../open_voice_channel.dart';
@@ -38,7 +39,11 @@ class ChannelList extends StatelessWidget {
         .where((c) => c.channelType == ChannelType.voice)
         .toList();
 
-    final me = context.watch<ServerCubit>().state.selectedServer?.user;
+    final me = context
+        .watch<ServerCubit>()
+        .state
+        .serverOn(ServerScope.idOf(context))
+        ?.user;
     // Selected, not watched: presence moves several times a second in a busy
     // call, and this list only needs to know when the first answer is in.
     final voiceKnown = context.select(

@@ -36,7 +36,7 @@ class ServerDmOpener {
     required String peerName,
     required String? peerChatKey,
   }) async {
-    if (serverId != null && _servers.state.selectedServer?.id != serverId) {
+    if (serverId != null && _servers.state.selectedServerId != serverId) {
       final server = _servers.state.serverById(serverId);
       if (server == null) return;
       _servers.selectServer(server);

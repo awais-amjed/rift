@@ -77,7 +77,7 @@ void main() {
   group('retryConnection', () {
     test('attempts the channel that failed again', () async {
       final cubit = _buildCubit(TokenCubit());
-      await cubit.connectToChannel(channelId: _channelId);
+      await cubit.connectToChannel(channelId: _channelId, serverId: 'srv-1');
       expect(cubit.state.connectionState, LiveKitConnectionState.error);
 
       final seen = <LiveKitConnectionState>[];
@@ -102,7 +102,7 @@ void main() {
         );
 
         final cubit = _buildCubit(tokenCubit);
-        await cubit.connectToChannel(channelId: _channelId);
+        await cubit.connectToChannel(channelId: _channelId, serverId: 'srv-1');
         await cubit.retryConnection();
 
         // Without this, retrying an auth failure would fail identically forever

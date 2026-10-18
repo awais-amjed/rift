@@ -77,8 +77,9 @@ part 'channel_chat_send.dart';
 part 'channel_chat_state.dart';
 part 'channel_chat_sweep.dart';
 
-/// E2E chat for the selected server's text channels (ARCHITECTURE.md §4,
-/// Design 2). One channel is open at a time:
+/// E2E chat in a server's text channels (ARCHITECTURE.md §4, Design 2). One
+/// channel is open at a time, on the server [openChannel] names, and every
+/// call about it goes there whatever is selected meanwhile:
 ///
 /// - Keys: on open, the keyring is fetched and unwrapped with the local chat
 ///   identity; a channel with no key yet is bootstrapped (v1 generated and
@@ -213,7 +214,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   /// the very next message.
   @override
   bool get _plainChannel =>
-      _session.selectedServer?.channels
+      _server?.channels
           .where((c) => c.id == state.channelId)
           .firstOrNull
           ?.isEncrypted ==
@@ -223,7 +224,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   /// file may go up unencrypted in (`AttachmentsApi.uploadStaged`).
   @override
   bool get _publicChannel =>
-      _session.selectedServer?.channels
+      _server?.channels
           .where((c) => c.id == state.channelId)
           .firstOrNull
           ?.isPrivate ==
@@ -287,8 +288,14 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   /// saved copy — without clearing it first, so the list and the composer
   /// under it, with whatever was typed, stay where they are.
   @override
-  Future<void> openChannel(String channelId, {bool again = false}) async {
-    if (state.channelId == channelId && !again) return;
+  Future<void> openChannel(
+    String serverId,
+    String channelId, {
+    bool again = false,
+  }) async {
+    if (state.channelId == channelId && _openServerId == serverId && !again) {
+      return;
+    }
     // Before anything is awaited: the flush reads the channel being left
     // synchronously, and the next line begins replacing it.
     unawaited(_saved.flush(leaving: true));
@@ -298,6 +305,9 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     // rather than above it. On a connection that has stalled, the goodbye is
     // exactly what never comes back.
     final released = _teardownRealtime();
+    // Before the state below is emitted: whoever hears the channel open asks
+    // which server it is on.
+    _openServerId = serverId;
 
     if (again) {
       emit(
@@ -312,8 +322,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
       );
     }
 
-    final server = _session.selectedServer;
-    _openServerId = server?.id;
+    final server = _server;
     if (server == null || server.user == null) {
       unawaited(released);
       emit(
@@ -445,10 +454,13 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   @override
   Future<void> retry() async {
     final channelId = state.channelId;
-    if (channelId == null) return;
-    if (state.showingSaved) return openChannel(channelId, again: true);
+    final serverId = _openServerId;
+    if (channelId == null || serverId == null) return;
+    if (state.showingSaved) {
+      return openChannel(serverId, channelId, again: true);
+    }
     _resetTo(const ChannelChatState());
-    await openChannel(channelId);
+    await openChannel(serverId, channelId);
   }
 
   bool _isStale(int generation) => isClosed || generation != _openGeneration;
@@ -465,20 +477,38 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   String? _openServerId;
 
   /// The server the open channel is on, or null with none open.
+  @override
   String? get openServerId => _openServerId;
 
+  /// The open channel's server, or null with none open.
+  @override
+  Server? get _server =>
+      _openServerId == null ? null : _session.serverById(_openServerId!);
+
+  /// Be ready for chat on [serverId] — our key published there, its key
+  /// sweep heard — and close a channel open on any other. `ServerHub` calls
+  /// this with the selected server whenever that moves: the channel on screen
+  /// is always one of the selected server's.
+  void showServer(String? serverId) {
+    _shownServerId = serverId;
+    if (state.channelId != null && _openServerId != serverId) {
+      unawaited(closeChannel());
+    }
+    _onServerChanged();
+  }
+
   void _onServerChanged() {
-    _pruneSavedIfListChanged(_session.selectedServer);
-    // Switching (or losing) the server closes the open chat.
-    final serverId = _session.selectedServer?.id;
-    if (state.channelId != null &&
-        _openServerId != null &&
-        serverId != _openServerId) {
-      closeChannel();
+    _pruneSavedIfListChanged(_shownServer);
+    // Losing the open channel's server closes it.
+    if (state.channelId != null && _openServerId != null && _server == null) {
+      unawaited(closeChannel());
     }
     _restampPlainRows();
     _ensureServerChatReady();
   }
+
+  Server? get _shownServer =>
+      _shownServerId == null ? null : _session.serverById(_shownServerId!);
 
   /// Encryption switched while the channel is open: what is already drawn in
   /// the clear is badged again, or stops being, to match. The header and the

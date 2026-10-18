@@ -43,7 +43,11 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
   @override
   void initState() {
     super.initState();
-    final user = context.read<ServerCubit>().state.selectedServer?.user;
+    final user = context
+        .read<ServerCubit>()
+        .state
+        .serverOn(ServerScope.readId(context))
+        ?.user;
     _nameController = TextEditingController(text: user?.displayName ?? '');
   }
 
@@ -66,7 +70,11 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
   }
 
   Future<void> _save() async {
-    final user = context.read<ServerCubit>().state.selectedServer?.user;
+    final user = context
+        .read<ServerCubit>()
+        .state
+        .serverOn(ServerScope.readId(context))
+        ?.user;
     final profile = ProfileApi(ServerScope.read(context));
     final name = _nameController.text.trim();
     if (name.isEmpty) {
@@ -117,7 +125,9 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
-    final server = context.read<ServerCubit>().state.selectedServer;
+    final server = context.read<ServerCubit>().state.serverOn(
+      ServerScope.readId(context),
+    );
     final user = server?.user;
     return AppModal(
       title: 'Edit profile',

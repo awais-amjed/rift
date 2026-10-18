@@ -32,7 +32,11 @@ class ServerDmSettingsDialog extends StatefulWidget {
 
 class _ServerDmSettingsDialogState extends State<ServerDmSettingsDialog> {
   late final ServerLimits _initial =
-      context.read<ServerCubit>().state.selectedServer?.limits ??
+      context
+          .read<ServerCubit>()
+          .state
+          .serverOn(ServerScope.readId(context))
+          ?.limits ??
       ServerLimits.defaults;
 
   /// Blank when DMs inherit — including when they inherit a server that keeps

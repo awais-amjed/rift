@@ -8,6 +8,7 @@ import '../../../../../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../../../common/app_button.dart';
 import '../../../../../../../../common/popover_surface.dart';
+import '../../../../../../../../common/server_scope.dart';
 import 'member_card_about.dart';
 import 'member_card_controls.dart';
 import 'member_card_header.dart';
@@ -79,8 +80,9 @@ class MemberCard extends StatelessWidget {
           ? _Where.watching
           : _Where.inCall;
     });
+    final serverId = ServerScope.idOf(context);
     final isMe = context.select<ServerCubit, bool>(
-      (cubit) => cubit.state.selectedServer?.user?.id == userId,
+      (cubit) => cubit.state.meOn(serverId)?.id == userId,
     );
     final sharing = place.sharing;
     final watch = onWatch;

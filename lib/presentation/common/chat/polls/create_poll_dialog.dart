@@ -13,6 +13,7 @@ import '../../app_modal.dart';
 import '../../app_text_field.dart';
 import '../../chip_selector.dart';
 import '../../row_delete_button.dart';
+import '../../server_scope.dart';
 
 /// Posts the poll; answers whether it went out, so the dialog knows to close.
 /// [notEncrypted] is what the dialog said when it was pressed, so a poll
@@ -127,9 +128,12 @@ class _CreatePollDialogState extends State<CreatePollDialog> {
   Widget build(BuildContext context) {
     final themeState = context.theme;
     final label = AppText.sectionLabel.copyWith(color: themeState.textTertiary);
+    final serverId = ServerScope.idOf(context);
     final notEncrypted = context.select(
       (ServerCubit c) =>
-          c.state.selectedServer?.channels
+          c.state
+              .serverOn(serverId)
+              ?.channels
               .where((ch) => ch.id == widget.channelId)
               .firstOrNull
               ?.isEncrypted ==

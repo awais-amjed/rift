@@ -38,7 +38,12 @@ class _MemberSearchFieldState extends State<MemberSearchField> {
   Future<List<ServerMember>> _search(String query) async {
     // Read before awaiting: reaching back through the context afterwards
     // would be a use-after-dispose if the panel closed mid-flight.
-    final myId = context.read<ServerCubit>().state.selectedServer?.user?.id;
+    final myId = context
+        .read<ServerCubit>()
+        .state
+        .serverOn(ServerScope.readId(context))
+        ?.user
+        ?.id;
     final members = MembersApi(ServerScope.read(context));
     // Bots included, because a DM to a bot is a conversation like any other
     // — sealed between the two of you, unreadable by the server, and the one

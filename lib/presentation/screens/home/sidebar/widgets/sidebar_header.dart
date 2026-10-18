@@ -6,6 +6,7 @@ import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_modal.dart';
+import '../../../../common/server_scope.dart';
 import '../../invites/show_invite_modal.dart';
 import '../../servers/add_server/show_add_server_dialog.dart';
 import '../../servers/widgets/no_server_button.dart';
@@ -23,10 +24,11 @@ class SidebarHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final serverId = ServerScope.idOf(context);
     return BlocBuilder<ServerCubit, ServerState>(
-      buildWhen: (a, b) => a.selectedServer != b.selectedServer,
+      buildWhen: (a, b) => a.serverOn(serverId) != b.serverOn(serverId),
       builder: (context, serverState) {
-        final server = serverState.selectedServer;
+        final server = serverState.serverOn(serverId);
         if (server == null) {
           return NoServerButton(onTap: () => showAddServerDialog(context));
         }

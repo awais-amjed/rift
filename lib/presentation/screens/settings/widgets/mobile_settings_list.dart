@@ -8,6 +8,7 @@ import '../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/back_chevron_button.dart';
+import '../../../common/server_scope.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 import '../../home/profile/edit/profile_edit_modal.dart';
@@ -36,8 +37,9 @@ class MobileSettingsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    final serverId = ServerScope.idOf(context);
     final hasServer = context.select<ServerCubit, bool>(
-      (c) => c.state.selectedServer?.user != null,
+      (c) => c.state.meOn(serverId) != null,
     );
     final call = context.watch<LiveKitCubit>().state;
     final palette = context.select<ThemeCubit, String>(
@@ -151,8 +153,7 @@ class MobileSettingsList extends StatelessWidget {
                     SettingsLinkRow(
                       icon: Icons.cloud_outlined,
                       label: SettingsTab.backup.label,
-                      subtitle:
-                          backup ?? 'Sign in, cloud backup, recovery key',
+                      subtitle: backup ?? 'Sign in, cloud backup, recovery key',
                       onTap: () => onTabSelected(SettingsTab.backup),
                     ),
                   ],

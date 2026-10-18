@@ -81,8 +81,9 @@ class _ChannelChatViewState extends State<ChannelChatView>
     // Watched rather than read: a role edited while the channel is open
     // changes what the composer and the message menus offer, and nothing
     // else here rebuilds for it.
+    final serverId = ServerScope.idOf(context);
     context.select<ServerCubit, int?>(
-      (cubit) => cubit.state.selectedServer?.user?.permissions.bits,
+      (cubit) => cubit.state.permissionsOn(serverId)?.bits,
     );
     return BlocBuilder<ChannelChatCubit, ChannelChatState>(
       // Only what decides the frame: which state is drawn and what holds the
@@ -150,7 +151,7 @@ class _ChannelChatViewState extends State<ChannelChatView>
                   const MiniCallBar(),
                   TimeOutGate(
                     until: context.select<ServerCubit, DateTime?>(
-                      (c) => c.state.selectedServer?.user?.timedOutUntil,
+                      (c) => c.state.meOn(serverId)?.timedOutUntil,
                     ),
                     child: ChatComposer(
                       canSend: status == ChannelChatStatus.ready,
@@ -185,8 +186,7 @@ class _ChannelChatViewState extends State<ChannelChatView>
                       selfUserId: context
                           .read<ServerCubit>()
                           .state
-                          .selectedServer
-                          ?.user
+                          .meOn(serverId)
                           ?.id,
                     ),
                   ),
@@ -292,7 +292,11 @@ class _ChannelChatViewState extends State<ChannelChatView>
       showForwardDialog(
         context,
         message: message,
-        sourceServerId: context.read<ServerCubit>().state.selectedServer?.id,
+        sourceServerId: context
+            .read<ServerCubit>()
+            .state
+            .serverOn(ServerScope.readId(context))
+            ?.id,
         currentChannelId: chatState.channelId,
       ),
     );
@@ -337,14 +341,20 @@ class _ChannelChatViewState extends State<ChannelChatView>
 
   /// The operator's per-file attachment cap for this server.
   int _maxAttachmentBytes(BuildContext context) =>
-      (context.read<ServerCubit>().state.selectedServer?.limits ??
+      (context
+                  .read<ServerCubit>()
+                  .state
+                  .serverOn(ServerScope.readId(context))
+                  ?.limits ??
               ServerLimits.defaults)
           .maxAttachmentBytes;
 
   /// What the whole server has room for, or null when it has
   /// no storage limit.
   int? _remainingStorage(BuildContext context) {
-    final server = context.read<ServerCubit>().state.selectedServer;
+    final server = context.read<ServerCubit>().state.serverOn(
+      ServerScope.readId(context),
+    );
     if (server == null) return null;
     return server.limits.remainingStorage(server.storageUsed);
   }
@@ -353,7 +363,7 @@ class _ChannelChatViewState extends State<ChannelChatView>
   Channel? _channel(BuildContext context, String? channelId) => context
       .read<ServerCubit>()
       .state
-      .selectedServer
+      .serverOn(ServerScope.readId(context))
       ?.channels
       .where((c) => c.id == channelId)
       .firstOrNull;
@@ -365,8 +375,12 @@ class _ChannelChatViewState extends State<ChannelChatView>
         (permissions?.isServerAdmin ?? false);
   }
 
-  UserPermissions? _myPermissions(BuildContext context) =>
-      context.read<ServerCubit>().state.selectedServer?.user?.permissions;
+  UserPermissions? _myPermissions(BuildContext context) => context
+      .read<ServerCubit>()
+      .state
+      .serverOn(ServerScope.readId(context))
+      ?.user
+      ?.permissions;
 
   /// Asked here rather than inside the list, because the answer is the
   /// server's and a DM surface has no roles to ask about. The database
@@ -382,9 +396,12 @@ class _ChannelChatViewState extends State<ChannelChatView>
   /// composer changes the moment somebody switches it.
   bool _notEncrypted(BuildContext context) {
     final channelId = context.select((ChannelChatCubit c) => c.state.channelId);
+    final serverId = ServerScope.idOf(context);
     return context.select(
       (ServerCubit c) =>
-          c.state.selectedServer?.channels
+          c.state
+              .serverOn(serverId)
+              ?.channels
               .where((ch) => ch.id == channelId)
               .firstOrNull
               ?.isEncrypted ==
@@ -399,9 +416,12 @@ class _ChannelChatViewState extends State<ChannelChatView>
   /// open to the whole server, not just to the server's operator.
   bool _isPublic(BuildContext context) {
     final channelId = context.select((ChannelChatCubit c) => c.state.channelId);
+    final serverId = ServerScope.idOf(context);
     return context.select(
       (ServerCubit c) =>
-          c.state.selectedServer?.channels
+          c.state
+              .serverOn(serverId)
+              ?.channels
               .where((ch) => ch.id == channelId)
               .firstOrNull
               ?.isPrivate ==
@@ -506,9 +526,10 @@ class _ChannelChatViewState extends State<ChannelChatView>
     // (`app.timed_out` in the policies), so none of them is offered while
     // it lasts — nor Reply, which only leads to the composer the banner
     // has replaced. They come back by themselves when it runs out.
+    final serverId = ServerScope.idOf(context);
     return TimeOutBuilder(
       until: context.select<ServerCubit, DateTime?>(
-        (c) => c.state.selectedServer?.user?.timedOutUntil,
+        (c) => c.state.meOn(serverId)?.timedOutUntil,
       ),
       builder: (context, timedOut) {
         final acting = live && !timedOut;

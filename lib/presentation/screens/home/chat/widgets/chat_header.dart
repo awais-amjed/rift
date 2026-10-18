@@ -6,6 +6,7 @@ import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/context_menu/context_menu_sheet.dart';
+import '../../../../common/server_scope.dart';
 import '../../../../common/status_chip.dart';
 import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_text.dart';
@@ -41,8 +42,11 @@ class ChatHeader extends StatelessWidget {
     // Selected, not watched: the chat state changes with every message and
     // every keystroke someone else types, and all this needs is which channel.
     final channelId = context.select((ChannelChatCubit c) => c.state.channelId);
+    final serverId = ServerScope.idOf(context);
     final channels =
-        context.select((ServerCubit c) => c.state.selectedServer?.channels) ??
+        context.select(
+          (ServerCubit c) => c.state.serverOn(serverId)?.channels,
+        ) ??
         const [];
     final channel = channels.where((c) => c.id == channelId).firstOrNull;
     final name = channel?.name;

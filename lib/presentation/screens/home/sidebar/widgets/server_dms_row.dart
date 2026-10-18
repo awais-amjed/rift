@@ -4,8 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../data/enums/home_surface.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
-import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/nav_row.dart';
+import '../../../../common/server_scope.dart';
 import '../../../../common/unread_badge.dart';
 import 'server_dms_context_menu.dart';
 
@@ -23,9 +23,7 @@ class ServerDmsRow extends StatelessWidget {
     // Unread DMs, not a tally of open conversations: the badge used to show how
     // many people you'd ever talked to, which never changed when a message
     // arrived. It counts `notifications` rows now, exactly like a channel tile.
-    final serverId = context.select<ServerCubit, String?>(
-      (c) => c.state.selectedServerId,
-    );
+    final serverId = ServerScope.idOf(context);
     final unread = serverId == null
         ? 0
         : context.select<ServerNotificationsCubit, int>(

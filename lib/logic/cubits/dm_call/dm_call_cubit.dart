@@ -51,7 +51,6 @@ part 'dm_call_watch.dart';
 /// shared connections.
 class DmCallCubit extends Cubit<DmCallState>
     with _DmCallActionsMixin, _DmCallWatchMixin {
-  @override
   final SessionRepository _session;
   @override
   DmCallsApi _callsOn(Server server) => DmCallsApi(_session.on(server.id));

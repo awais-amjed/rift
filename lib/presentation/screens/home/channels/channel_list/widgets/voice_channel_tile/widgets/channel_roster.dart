@@ -10,6 +10,7 @@ import '../../../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../../../../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
 import '../../../../../../../common/animated_keyed_column.dart';
+import '../../../../../../../common/server_scope.dart';
 import '../../../../../sidebar/widgets/draggable_member.dart';
 import '../../../../../sidebar/widgets/participant_context_menu.dart';
 import '../../../../../sidebar/widgets/participant_list_item.dart';
@@ -59,8 +60,9 @@ class ChannelRoster extends StatelessWidget {
     if (participants.isEmpty && presenceUsers.isEmpty && summoned.isEmpty) {
       return const AnimatedKeyedColumn(children: []);
     }
+    final serverId = ServerScope.idOf(context);
     final canMoveOthers = context.select<ServerCubit, bool>((cubit) {
-      final permissions = cubit.state.myPermissions;
+      final permissions = cubit.state.permissionsOn(serverId);
       return (permissions?.isServerAdmin ?? false) ||
           (permissions?.isChannelManager ?? false);
     });

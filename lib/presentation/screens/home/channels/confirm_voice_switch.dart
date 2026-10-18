@@ -6,6 +6,7 @@ import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../common/confirm_dialog.dart';
+import '../../../common/server_scope.dart';
 
 /// Whether to go ahead with joining [target], asking first when that would
 /// leave another call.
@@ -63,7 +64,7 @@ String _nameOf(BuildContext context, String channelId) {
   final server = servers.serverWithChannel(channelId);
   for (final c in server?.channels ?? const <Channel>[]) {
     if (c.id == channelId) {
-      return server!.id == servers.selectedServerId
+      return server!.id == ServerScope.readId(context)
           ? c.name
           : '${c.name} on ${server.name}';
     }

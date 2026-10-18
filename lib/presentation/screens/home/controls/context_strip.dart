@@ -8,6 +8,7 @@ import '../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/services/call_duration.dart';
 import '../../../common/calls/call_clock.dart';
+import '../../../common/server_scope.dart';
 import '../../../common/status_chip.dart';
 import '../../../responsive/shell_scope.dart';
 import '../../../theme/app_text.dart';
@@ -91,7 +92,8 @@ class ContextStrip extends StatelessWidget {
                   return PhoneContextStrip(
                     channelName: callName,
                     serverName:
-                        callServer?.name ?? serverState.selectedServer?.name,
+                        callServer?.name ??
+                        serverState.serverOn(ServerScope.idOf(context))?.name,
                     isDirectCall: dm != null,
                     elapsed: elapsed,
                   );

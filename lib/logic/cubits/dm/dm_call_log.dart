@@ -8,7 +8,7 @@ part of 'dm_cubit.dart';
 /// conversation opens. The answer is metadata the server already holds; the
 /// call itself was never anywhere it could read.
 mixin _DmCallLogMixin on Cubit<DmState> {
-  SessionRepository get _session;
+  Server? get _server;
   DmCallsApi get _calls;
 
   /// What the last read was for, so a state that moved nothing the log
@@ -31,7 +31,7 @@ mixin _DmCallLogMixin on Cubit<DmState> {
 
   Future<void> refreshCallLog() async {
     final peerId = state.openPeerId;
-    final server = _session.selectedServer;
+    final server = _server;
     if (peerId == null || server == null) return;
     final since = state.hasMoreHistory
         ? state.messages.firstOrNull?.sentAt

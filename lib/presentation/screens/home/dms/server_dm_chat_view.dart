@@ -29,6 +29,7 @@ import '../../../common/chat/time_out_builder.dart';
 import '../../../common/chat/typing_indicator.dart';
 import '../../../common/loading_block.dart';
 import '../../../common/member_avatar.dart';
+import '../../../common/server_scope.dart';
 import '../../../responsive/shell_scope.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
@@ -103,7 +104,9 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
 
   Future<void> _verify(BuildContext context, DmState state) async {
     final peerId = state.openPeerId;
-    final server = context.read<ServerCubit>().state.selectedServer;
+    final server = context.read<ServerCubit>().state.serverOn(
+      ServerScope.readId(context),
+    );
     if (peerId == null || server == null) return;
     await showSafetyCodeFor(
       context,
@@ -122,7 +125,9 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
   /// only keeps a button off the screen that could only be refused.
   bool _canCall(DmState state) {
     final peerId = state.openPeerId;
-    final server = context.read<ServerCubit>().state.selectedServer;
+    final server = context.read<ServerCubit>().state.serverOn(
+      ServerScope.readId(context),
+    );
     if (peerId == null || server == null || server.livekitUrl == null) {
       return false;
     }
@@ -186,8 +191,9 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
     // What the call button and the composer read from the server and the
     // roster (`_canCall`, `_canAttach`, the limits): asked with `read`, so
     // selected here for a change to them to redraw the frame.
+    final serverId = ServerScope.idOf(context);
     context.select<ServerCubit, Object?>((c) {
-      final server = c.state.selectedServer;
+      final server = c.state.serverOn(serverId);
       return (
         server?.livekitUrl,
         server?.user?.permissions.bits,
@@ -199,9 +205,6 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
       (c) => c.state.byId[state.openPeerId]?.isBot,
     );
     final themeState = context.theme;
-    final serverId = context.select<ServerCubit, String?>(
-      (c) => c.state.selectedServer?.id,
-    );
     // This conversation's call, placed or answered on this device — drawn
     // above the messages on a desktop. A phone gives a call its own page.
     final callHere = context.select<LiveKitCubit, bool>((c) {
@@ -319,6 +322,7 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
       onCall: callHere || !_canCall(state)
           ? null
           : () => context.read<DmCallCubit>().startCall(
+              serverId: ServerScope.read(context).serverId,
               peerId: state.openPeerId!,
               peerName: state.openPeerName ?? '',
             ),
@@ -407,14 +411,22 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
   /// A server DM's attachments go into the server's own bucket, so the
   /// permission that governs the channels governs these too.
   bool _canAttach() =>
-      context.read<ServerCubit>().state.selectedServer?.user?.permissions.can(
-        ServerPermission.attachFiles,
-      ) ??
+      context
+          .read<ServerCubit>()
+          .state
+          .serverOn(ServerScope.readId(context))
+          ?.user
+          ?.permissions
+          .can(ServerPermission.attachFiles) ??
       false;
 
   /// The operator's per-file attachment cap for this server.
   int _maxAttachmentBytes() =>
-      (context.read<ServerCubit>().state.selectedServer?.limits ??
+      (context
+                  .read<ServerCubit>()
+                  .state
+                  .serverOn(ServerScope.readId(context))
+                  ?.limits ??
               ServerLimits.defaults)
           .maxAttachmentBytes;
 
@@ -422,7 +434,9 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
   /// no storage limit. Server DMs live in the same bucket as the channels,
   /// so they answer to the same ceiling.
   int? _remainingStorage() {
-    final server = context.read<ServerCubit>().state.selectedServer;
+    final server = context.read<ServerCubit>().state.serverOn(
+      ServerScope.readId(context),
+    );
     if (server == null) return null;
     return server.limits.remainingStorage(server.storageUsed);
   }
@@ -433,7 +447,12 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
   /// two people, so lighting up a third member's name would promise a ping
   /// that nobody will ever receive.
   Set<String> _mentionable(DmState state) {
-    final me = context.read<ServerCubit>().state.selectedServer?.user?.username;
+    final me = context
+        .read<ServerCubit>()
+        .state
+        .serverOn(ServerScope.readId(context))
+        ?.user
+        ?.username;
     final peer = state.openPeerId == null
         ? null
         : context
@@ -490,9 +509,10 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
     // as sending, so none of them is offered while it lasts — nor Reply,
     // which only leads to a composer the time-out has taken away. They
     // come back by themselves when it runs out.
+    final serverId = ServerScope.idOf(context);
     return TimeOutBuilder(
       until: context.select<ServerCubit, DateTime?>(
-        (c) => c.state.selectedServer?.user?.timedOutUntil,
+        (c) => c.state.meOn(serverId)?.timedOutUntil,
       ),
       builder: (context, timedOut) {
         final acting = live && !timedOut;
@@ -518,11 +538,7 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
                   showForwardDialog(
                     context,
                     message: message,
-                    sourceServerId: context
-                        .read<ServerCubit>()
-                        .state
-                        .selectedServer
-                        ?.id,
+                    sourceServerId: serverId,
                     currentPeerId: state.openPeerId,
                   ),
                 )
@@ -539,7 +555,12 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
           jumpRequests: _jumpRequests,
           mentionable: _mentionable(state),
           calls: state.calls,
-          myId: context.read<ServerCubit>().state.selectedServer?.user?.id,
+          myId: context
+              .read<ServerCubit>()
+              .state
+              .serverOn(ServerScope.readId(context))
+              ?.user
+              ?.id,
           keyChanges: KeyChangeLines(
             name: state.openPeerName ?? '',
             at: context.select<AppCubit, List<DateTime>>(

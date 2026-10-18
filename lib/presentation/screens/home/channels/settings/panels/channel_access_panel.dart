@@ -56,7 +56,12 @@ class _ChannelAccessPanelState extends State<ChannelAccessPanel> {
 
   /// The one person who is always in it and is not in the list. Removing
   /// yourself is leaving, which is a different act on the channel's menu.
-  String? get _me => context.read<ServerCubit>().state.selectedServer?.user?.id;
+  String? get _me => context
+      .read<ServerCubit>()
+      .state
+      .serverOn(ServerScope.readId(context))
+      ?.user
+      ?.id;
 
   bool get _changed => _selection.differsFrom(_original);
 

@@ -13,24 +13,35 @@ import 'server_context.dart';
 /// own (`ServerContextScope`) for as long as it is open. The last hold let go
 /// shuts that server's context down at once: its joins left, its watchers
 /// stopped, nobody there told we are about.
+///
+/// The one place below the server list that reads the selection. What shows
+/// the selected server's conversations — the open channel, the DM list — is
+/// told here when it moves and keeps the server it was told, rather than
+/// reading the selection whenever it happens to look.
 class ServerHub {
   final SessionRepository _session;
   final ServerContext Function(String serverId) _open;
+  final void Function(String? serverId)? _onSelected;
 
   final Map<String, ({ServerContext context, int holds})> _live = {};
   ServerContext? _none;
   ServerHold? _selected;
   ServerHold? _call;
+  String? _shownId;
+  bool _shown = false;
   StreamSubscription<void>? _selectionSub;
   StreamSubscription<void>? _callSub;
   bool _disposed = false;
 
-  /// [open] builds a server's context the first time something holds it.
+  /// [open] builds a server's context the first time something holds it;
+  /// [onSelected] hears the selected server's id, now and each time it moves.
   ServerHub({
     required SessionRepository session,
     required ServerContext Function(String serverId) open,
+    void Function(String? serverId)? onSelected,
   }) : _session = session,
-       _open = open {
+       _open = open,
+       _onSelected = onSelected {
     _selectionSub = session.changes.listen((_) => _follow());
     _callSub = session.callChanges.listen((_) => _follow());
     _follow();
@@ -68,8 +79,13 @@ class ServerHub {
 
   void _follow() {
     if (_disposed) return;
-    _selected = _move(_selected, _session.selectedServerId);
+    final selectedId = _session.selectedServerId;
+    _selected = _move(_selected, selectedId);
     _call = _move(_call, _session.callServerId);
+    if (_shown && selectedId == _shownId) return;
+    _shown = true;
+    _shownId = selectedId;
+    _onSelected?.call(selectedId);
   }
 
   /// [held] moved to [serverId]: the new one taken before the old one goes,

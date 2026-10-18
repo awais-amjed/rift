@@ -63,8 +63,9 @@ class _KeyHolderListState extends State<KeyHolderList> {
       (c) => c.state.onlineUserIds,
     );
     final roster = context.watch<ServerMembersCubit>().state;
+    final serverId = ServerScope.idOf(context);
     final me = context.select<ServerCubit, String?>(
-      (c) => c.state.selectedServer?.user?.id,
+      (c) => c.state.meOn(serverId)?.id,
     );
 
     final Map<String, String> names;

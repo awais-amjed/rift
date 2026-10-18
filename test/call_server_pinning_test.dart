@@ -369,6 +369,38 @@ void main() {
       expect(closed, ['call', 'other']);
     });
 
+    test(
+      'the hub names the selected server when it moves, and only then',
+      () async {
+        final session = SessionRepository()
+          ..publish(
+            servers: [signedIn('call', _callUrl), signedIn('other', _otherUrl)],
+            selectedServerId: 'call',
+          );
+        final shown = <String?>[];
+        final hub = ServerHub(
+          session: session,
+          open: (id) => _FakeContext(session, id),
+          onSelected: shown.add,
+        );
+        expect(shown, ['call'], reason: 'told at once, not on the first move');
+
+        // A call starting, and the list changing under the same selection, are
+        // not the selection moving.
+        session.publishCall('other');
+        session.publish(servers: session.servers, selectedServerId: 'call');
+        await Future<void>.delayed(Duration.zero);
+        expect(shown, ['call']);
+
+        session.publish(servers: session.servers, selectedServerId: 'other');
+        await Future<void>.delayed(Duration.zero);
+        session.publish(servers: const []);
+        await Future<void>.delayed(Duration.zero);
+        expect(shown, ['call', 'other', null]);
+        await hub.dispose();
+      },
+    );
+
     test('a server nothing holds is shut at once, and shared while held', () {
       final session = SessionRepository()
         ..publish(servers: [signedIn('call', _callUrl)]);

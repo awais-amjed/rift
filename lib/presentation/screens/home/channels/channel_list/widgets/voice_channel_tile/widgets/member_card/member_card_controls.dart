@@ -9,6 +9,7 @@ import '../../../../../../../../../logic/cubits/dm_call/dm_call_cubit.dart';
 import '../../../../../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../../../../logic/cubits/server_members/server_members_cubit.dart';
+import '../../../../../../../../common/server_scope.dart';
 import '../../../../../../controls/widgets/control_button.dart';
 import '../../../../../../sidebar/widgets/participant_volume_control.dart';
 
@@ -34,8 +35,9 @@ class MemberCardControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final serverId = ServerScope.idOf(context);
     final me = context.select<ServerCubit, String?>(
-      (cubit) => cubit.state.selectedServer?.user?.id,
+      (cubit) => cubit.state.meOn(serverId)?.id,
     );
     if (userId == me) return const _OwnControls();
     return _TheirControls(userId: userId, name: name, onCall: onCall);
@@ -172,7 +174,11 @@ class _TheirControls extends StatelessWidget {
                   onTap: () {
                     final calls = context.read<DmCallCubit>();
                     onCall?.call();
-                    calls.startCall(peerId: userId, peerName: name);
+                    calls.startCall(
+                      serverId: ServerScope.read(context).serverId,
+                      peerId: userId,
+                      peerName: name,
+                    );
                   },
                 ),
               ),
@@ -186,14 +192,14 @@ class _TheirControls extends StatelessWidget {
   /// an open conversation knows (whether a request was accepted): the server
   /// says that.
   bool _canCall(BuildContext context) {
+    final serverId = ServerScope.idOf(context);
     final server = context.select<ServerCubit, ({bool voice, bool connect})>((
       cubit,
     ) {
-      final selected = cubit.state.selectedServer;
+      final here = cubit.state.serverOn(serverId);
       return (
-        voice: selected?.livekitUrl != null,
-        connect:
-            selected?.user?.permissions.can(ServerPermission.connect) ?? false,
+        voice: here?.livekitUrl != null,
+        connect: here?.user?.permissions.can(ServerPermission.connect) ?? false,
       );
     });
     final blocked = context.select<DmCubit, bool>(

@@ -46,6 +46,13 @@ class ServerScope extends InheritedWidget {
   static ServerSession? maybeRead(BuildContext context) =>
       context.getInheritedWidgetOfExactType<ServerScope>()?.server;
 
+  /// [maybeOf]'s server id, for `ServerState.serverOn` and its kin: null with
+  /// nothing selected, where what is drawn anyway has no server to ask about.
+  static String? idOf(BuildContext context) => maybeOf(context)?.serverId;
+
+  /// [idOf] for a callback.
+  static String? readId(BuildContext context) => maybeRead(context)?.serverId;
+
   static Never _missing(BuildContext context) => throw FlutterError(
     'No ServerScope above ${context.widget.runtimeType}: a widget that acts '
     'on a server is drawn inside the part of the screen about that server.',

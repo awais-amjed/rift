@@ -99,7 +99,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
   /// got no token and stayed out.
   Future<void> connectToChannel({
     required String channelId,
-    String? serverId,
+    required String serverId,
     bool? micEnabled,
     bool? cameraEnabled,
   }) async {
@@ -123,17 +123,15 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
     // _cleanupRoom is not misread as an unexpected disconnect and doesn't clear
     // the new channel ID.
     final session = _session;
-    final server = serverId != null
-        ? session?.serverById(serverId)
-        : session?.serverWithChannel(channelId) ?? session?.selectedServer;
+    final server = session?.serverById(serverId);
 
     emit(
       state.copyWith(
         connectionState: LiveKitConnectionState.connecting,
         currentChannelId: channelId,
-        currentServerId: server?.id,
-        // So a join with no server cannot keep the last call's.
-        clearServerId: server == null,
+        // The server asked for, even one this device no longer has: the join
+        // fails below, and Retry asks the same server again.
+        currentServerId: serverId,
         clearDmCall: true,
         clearFailure: true,
       ),
@@ -458,8 +456,9 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
   Future<void> retryConnection() async {
     if (state.dmCall != null) return rejoinDmCall();
     final channelId = state.currentChannelId;
-    if (channelId == null) return;
+    final serverId = state.currentServerId;
+    if (channelId == null || serverId == null) return;
     _tokenCubit.invalidateToken(channelId);
-    await connectToChannel(channelId: channelId);
+    await connectToChannel(channelId: channelId, serverId: serverId);
   }
 }

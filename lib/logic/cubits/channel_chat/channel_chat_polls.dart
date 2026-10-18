@@ -9,7 +9,7 @@ part of 'channel_chat_cubit.dart';
 /// Votes are counted by the server and read back as totals: nothing here, or
 /// anywhere a member can reach, learns who voted for what.
 mixin _ChannelChatPollsMixin on Cubit<ChannelChatState> {
-  SessionRepository get _session;
+  Server? get _server;
   ChannelMessagesApi get _channelMessages;
   PinsPollsApi get _pinsPolls;
   VaultCubit get _vaultCubit;
@@ -38,7 +38,7 @@ mixin _ChannelChatPollsMixin on Cubit<ChannelChatState> {
     required bool notEncrypted,
   }) async {
     final channelId = state.channelId;
-    final server = _session.selectedServer;
+    final server = _server;
     final user = server?.user;
     final key = _keys[_currentKeyVersion];
     final plain = _plainChannel;

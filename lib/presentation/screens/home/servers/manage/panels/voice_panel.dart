@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/classes/server.dart';
-import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../common/app_button.dart';
 import '../../server_settings/voice/voice_region_dialog.dart';
 import '../../server_settings/voice/voice_regions_section.dart';
@@ -25,7 +23,7 @@ import '../widgets/manage_panel.dart';
 ///
 /// Takes the server rather than reading the selection, because the dialog
 /// opens from the rail's menu for any server, including one you are not
-/// looking at. The region list says why it still needs the server open.
+/// looking at.
 class VoicePanel extends StatelessWidget {
   final Server server;
 
@@ -33,21 +31,16 @@ class VoicePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Only for the server the app is on: the region list says why.
-    final isSelected = context.select<ServerCubit, bool>(
-      (c) => c.state.selectedServer?.id == server.id,
-    );
     return ManagePanel(
       title: 'Regions',
       subtitle: 'Where this server holds calls',
       // In the footer, where Roles keeps New role and Bots keeps Browse bots:
       // the page's one way to add something, found where the others are.
       footer: [
-        if (isSelected)
-          AppButton(
-            label: 'Add region',
-            onPressed: () => showVoiceRegionDialog(context),
-          ),
+        AppButton(
+          label: 'Add region',
+          onPressed: () => showVoiceRegionDialog(context),
+        ),
       ],
       child: VoiceRegionsSection(serverId: server.id),
     );

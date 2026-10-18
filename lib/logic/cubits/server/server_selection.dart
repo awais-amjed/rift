@@ -35,7 +35,7 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
   /// Implemented by the details part: re-read a server, and forget one that
   /// is gone.
   Future<({bool success, String? error})> refreshServerDetails({
-    String? serverId,
+    required String serverId,
   });
   void _forgetGoneServer(Server server);
   bool isServerGone({required String supabaseUrl, required String id});
@@ -237,7 +237,7 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
     if (server.isTokenNearExpiry) {
       loginSelectedServer();
     } else {
-      refreshServerDetails();
+      refreshServerDetails(serverId: server.id);
     }
   }
 }

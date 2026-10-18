@@ -54,8 +54,7 @@ mixin _ServerDetailsMixin on Cubit<ServerState> {
   late final CoalescedRefresh<({bool success, String? error})> _details =
       CoalescedRefresh(_fetchServerDetails);
 
-  /// Refresh the channel list and other details for [serverId], or for the
-  /// selected server.
+  /// Refresh the channel list and other details for [serverId].
   ///
   /// Coalesced, because one structural change reaches a member more than
   /// once — the database announces it, and the member who made it also
@@ -66,11 +65,9 @@ mixin _ServerDetailsMixin on Cubit<ServerState> {
   /// a settings page acting on it, once, not the stream of doorbells the
   /// selected one hears.
   Future<({bool success, String? error})> refreshServerDetails({
-    String? serverId,
+    required String serverId,
   }) {
-    if (serverId == null || serverId == state.selectedServer?.id) {
-      return _details();
-    }
+    if (serverId == state.selectedServer?.id) return _details();
     final server = state.serverById(serverId);
     if (server == null) {
       return Future.value((success: false, error: ServerSession.gone));

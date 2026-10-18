@@ -8,6 +8,7 @@ import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/hint_card.dart';
+import '../../../../common/server_scope.dart';
 import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/theme_context.dart';
 import '../../servers/manage/widgets/manage_nav.dart';
@@ -56,8 +57,11 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final serverId = ServerScope.idOf(context);
     final channel = context.select<ServerCubit, Channel?>(
-      (c) => c.state.selectedServer?.channels
+      (c) => c.state
+          .serverOn(serverId)
+          ?.channels
           .where((ch) => ch.id == widget.channel.id)
           .firstOrNull,
     );

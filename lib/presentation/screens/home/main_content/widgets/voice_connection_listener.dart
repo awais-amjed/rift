@@ -36,8 +36,7 @@ class VoiceConnectionListener extends StatelessWidget {
         // The channel's own server, which is the selected one for a click but
         // not for a moderator moving you while you read another server.
         final session = context.read<SessionRepository>();
-        final server =
-            session.serverWithChannel(channelId) ?? session.selectedServer;
+        final server = session.serverWithChannel(channelId);
         if (server == null) return;
         if (server.user == null) return;
         if (server.livekitUrl == null) return;

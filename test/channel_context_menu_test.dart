@@ -9,11 +9,13 @@ import 'package:rift/data/classes/server_user.dart';
 import 'package:rift/data/classes/user_permissions.dart';
 import 'package:rift/data/enums/channel_type.dart';
 import 'package:rift/data/enums/notification_level.dart';
+import 'package:rift/data/repositories/session_repository.dart';
 import 'package:rift/logic/cubits/notifications/server_notifications_cubit.dart';
 import 'package:rift/logic/cubits/server/server_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/presentation/common/context_menu_region.dart';
 import 'package:rift/presentation/common/notifications/notification_level_submenu.dart';
+import 'package:rift/presentation/common/server_scope.dart';
 import 'package:rift/presentation/screens/home/channels/channel_list/widgets/channel_context_menu.dart';
 
 class _MemoryStorage implements Storage {
@@ -102,17 +104,22 @@ void main() {
         ],
         child: MaterialApp(
           home: Scaffold(
-            body: Builder(
-              builder: (context) => ChannelContextMenu.wrap(
-                context: context,
-                channel: channel,
-                // Painted, not an empty box: a childless SizedBox answers no hit
-                // test, so the right-click would sail straight past the region.
-                child: Container(
-                  key: childKey,
-                  width: 100,
-                  height: 30,
-                  color: Colors.red,
+            // The list is the server's, as on the home screen; the menu takes
+            // the scope along into the overlay.
+            body: ServerScope(
+              server: SessionRepository().on('s1'),
+              child: Builder(
+                builder: (context) => ChannelContextMenu.wrap(
+                  context: context,
+                  channel: channel,
+                  // Painted, not an empty box: a childless SizedBox answers no hit
+                  // test, so the right-click would sail straight past the region.
+                  child: Container(
+                    key: childKey,
+                    width: 100,
+                    height: 30,
+                    color: Colors.red,
+                  ),
                 ),
               ),
             ),

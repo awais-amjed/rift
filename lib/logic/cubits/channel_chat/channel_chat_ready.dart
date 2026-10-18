@@ -17,21 +17,35 @@ mixin _ChatReadyMixin on Cubit<ChannelChatState>, _ChatSweepMixin {
 
   /// Implemented by the cubit class.
   Future<void> retry();
-  Future<void> openChannel(String channelId, {bool again = false});
+  String? get openServerId;
+  Future<void> openChannel(
+    String serverId,
+    String channelId, {
+    bool again = false,
+  });
+
+  /// The server to be ready on: the selected one, which `ServerHub` names
+  /// through `showServer`.
+  String? _shownServerId;
 
   /// The server we've completed chat setup for this run (published our chat
   /// key, subscribed the key-sweep topic, ran the initial sweep).
   String? _readyServerId;
 
-  /// Held for as long as a server is selected — this is how a member learns
+  @override
+  Server? get _readyServer =>
+      _readyServerId == null ? null : _session.serverById(_readyServerId!);
+
+  /// Held for as long as a server is shown — this is how a member learns
   /// somebody needs a key wrapped, and how they learn one rotated.
   KeySweepDoorbell get _sweepDoorbell;
 
-  /// Idempotent: brings chat readiness in line with the selected server.
+  /// Idempotent: brings chat readiness in line with [_shownServerId].
   /// Requires a logged-in server user and an unlocked vault; called on
   /// construction, server change, and vault unlock.
   Future<void> _ensureServerChatReady() async {
-    final server = _session.selectedServer;
+    final shown = _shownServerId;
+    final server = shown == null ? null : _session.serverById(shown);
     // A ban counts as having no server here. Without this the setup still ran
     // — publishing a key, sweeping, subscribing — and every call quietly
     // failed against RLS, but `_readyServerId` was set all the same. Lifting
@@ -98,10 +112,12 @@ mixin _ChatReadyMixin on Cubit<ChannelChatState>, _ChatSweepMixin {
   /// for, and without the reread its rows stayed locked until the channel was
   /// next opened.
   Future<void> _absorbKeys(String channelId) async {
+    final serverId = openServerId;
+    if (serverId == null) return;
     final gained = await _keyring.absorbNewVersions(channelId);
     if (!gained || isClosed || state.channelId != channelId) return;
     if (state.messages.any((m) => m.isLocked)) {
-      await openChannel(channelId, again: true);
+      await openChannel(serverId, channelId, again: true);
     }
   }
 }

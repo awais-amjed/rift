@@ -8,6 +8,7 @@ import '../../../../../../logic/cubits/server_members/server_members_cubit.dart'
 import '../../../../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../../../common/app_modal.dart';
 import '../../../../../common/app_sheet.dart';
+import '../../../../../common/server_scope.dart';
 import '../../../../../responsive/shell_scope.dart';
 import 'verify_people_dialog.dart';
 
@@ -21,7 +22,12 @@ import 'verify_people_dialog.dart';
 /// bots — a bot holds no chat key, and your own key is not yours to check.
 List<VerifiablePerson> _knownPeople(BuildContext context) {
   final members = context.read<ServerMembersCubit>().state;
-  final me = context.read<ServerCubit>().state.selectedServer?.user?.id;
+  final me = context
+      .read<ServerCubit>()
+      .state
+      .serverOn(ServerScope.readId(context))
+      ?.user
+      ?.id;
   final people = [
     for (final member in members.byId.values)
       if (member.id != me && !member.isBot)
@@ -60,7 +66,12 @@ void showCallEncryption(
   required List<ParticipantInfo> participants,
 }) {
   final members = context.read<ServerMembersCubit>().state.byId;
-  final me = context.read<ServerCubit>().state.selectedServer?.user?.id;
+  final me = context
+      .read<ServerCubit>()
+      .state
+      .serverOn(ServerScope.readId(context))
+      ?.user
+      ?.id;
   final seen = <String>{};
   final people = <VerifiablePerson>[];
   for (final participant in participants) {
@@ -95,7 +106,9 @@ void _show(
   required String explanation,
   required List<VerifiablePerson> people,
 }) {
-  final server = context.read<ServerCubit>().state.selectedServer;
+  final server = context.read<ServerCubit>().state.serverOn(
+    ServerScope.readId(context),
+  );
   if (server == null) return;
   // Asked for now, while this context is alive: the roster resolves names for
   // anybody it has not paged in, and the dialog is a route of its own.

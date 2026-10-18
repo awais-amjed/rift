@@ -214,14 +214,16 @@ void openChannelSettings(
   // Only for a voice channel on a server with somewhere to choose between —
   // anywhere else it is a request that would change no pixel.
   final serverCubit = context.read<ServerCubit>();
-  if (!channel.hasMessages &&
-      (serverCubit.state.selectedServer?.livekitNodes.length ?? 0) > 1) {
+  final serverId = ServerScope.readId(context);
+  if (serverId != null &&
+      !channel.hasMessages &&
+      (serverCubit.state.serverOn(serverId)?.livekitNodes.length ?? 0) > 1) {
     unawaited(context.read<ChannelPresenceCubit>().refreshRegionLoad());
     // And where a call here is running right now. That comes with the
     // server's details, which nothing refreshes when a call starts — so
     // without this the picker said "always held in this region" over a call
     // running somewhere else, and never warned that saving would move it.
-    unawaited(serverCubit.refreshServerDetails());
+    unawaited(serverCubit.refreshServerDetails(serverId: serverId));
   }
 
   // The bots pages refresh the markers other surfaces show — the header's

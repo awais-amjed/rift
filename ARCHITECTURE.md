@@ -612,6 +612,14 @@ soundboard, and showed everybody still on the call's server that the member
 had left a call they were still talking in. Verified Oct 18 2026 with three web
 clients on the local stack (`TESTING.md`).
 
+Nothing below the server list reads the selection but `ServerHub`. The open
+channel and the server DM list are the selected server's because the hub tells
+them when it moves; each keeps the server it was told, and a channel opens on
+the server the click names. So a send, a key sweep or a DM read begun on one
+server finishes on it, and which server notifications count as "open" is the
+one the chat and the DMs say they are on rather than whichever is selected by
+the time they ask.
+
 **Media is end-to-end encrypted** with the channel's own key — the same key the
 text keyring seals per member — so the SFU forwards frames it cannot open. DTLS
 protects the hop; this protects the room.

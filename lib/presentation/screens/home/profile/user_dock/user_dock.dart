@@ -8,6 +8,7 @@ import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../common/app_modal.dart';
+import '../../../../common/server_scope.dart';
 import '../../../../routing/app_routes.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
@@ -39,10 +40,11 @@ class UserDock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
+    final serverId = ServerScope.idOf(context);
     return BlocBuilder<ServerCubit, ServerState>(
-      buildWhen: (a, b) => a.selectedServer?.user != b.selectedServer?.user,
+      buildWhen: (a, b) => a.meOn(serverId) != b.meOn(serverId),
       builder: (context, serverState) {
-        final user = serverState.selectedServer?.user;
+        final user = serverState.meOn(serverId);
 
         return Container(
           margin: const EdgeInsets.all(10),

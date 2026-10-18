@@ -79,16 +79,16 @@ mixin _ChannelChatSavedMixin on Cubit<ChannelChatState>, _ChannelChatRowsMixin {
   /// [channelId]'s newest page — how this device's own messages reach its
   /// copy. See [SavedConversation.noteSent].
   ///
-  /// Null once [server] is no longer the selected one: the read goes to the
-  /// selected server, and a channel it does not have answers with an empty
-  /// page, which would be saved as the channel having been emptied.
+  /// Null once [server] is no longer the open channel's: the read goes to
+  /// the server open now, and a channel it does not have answers with an
+  /// empty page, which would be saved as the channel having been emptied.
   Future<List<Map<String, dynamic>>?> _savedLatestPage(
     Server server,
     String channelId,
   ) async {
-    final selected = _session.selectedServer;
-    if (selected?.id != server.id ||
-        selected?.supabaseUrl != server.supabaseUrl) {
+    final current = _server;
+    if (current?.id != server.id ||
+        current?.supabaseUrl != server.supabaseUrl) {
       return null;
     }
     final response = await _channelMessages.listChatMessages(

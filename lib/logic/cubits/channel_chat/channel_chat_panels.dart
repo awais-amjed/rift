@@ -8,7 +8,7 @@ part of 'channel_chat_cubit.dart';
 /// path is mostly made of. Splitting it out is also what got that file back
 /// under its budget (CODE_STYLE §1).
 mixin _ChannelChatPanelsMixin on Cubit<ChannelChatState> {
-  SessionRepository get _session;
+  Server? get _server;
   ChannelMessagesApi get _channelMessages;
   VaultCubit get _vaultCubit;
   CryptoRepository get _crypto;
@@ -30,7 +30,7 @@ mixin _ChannelChatPanelsMixin on Cubit<ChannelChatState> {
     String? value,
   ) async {
     final channelId = state.channelId;
-    final server = _session.selectedServer;
+    final server = _server;
     final user = server?.user;
     if (channelId == null || server == null || user == null) return;
 

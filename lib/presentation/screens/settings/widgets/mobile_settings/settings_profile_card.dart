@@ -5,6 +5,7 @@ import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/app_button.dart';
+import '../../../../common/server_scope.dart';
 import '../../../../common/user_avatar.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
@@ -22,7 +23,9 @@ class SettingsProfileCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    final server = context.watch<ServerCubit>().state.selectedServer;
+    final server = context.watch<ServerCubit>().state.serverOn(
+      ServerScope.idOf(context),
+    );
     final user = server?.user;
     if (user == null) return const SizedBox.shrink();
     final inCall = context.select<LiveKitCubit, bool>(

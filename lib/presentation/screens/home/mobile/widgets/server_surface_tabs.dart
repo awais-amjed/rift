@@ -5,8 +5,8 @@ import '../../../../../data/constants.dart';
 import '../../../../../data/enums/home_surface.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
-import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/selectable_surface.dart';
+import '../../../../common/server_scope.dart';
 import '../../../../common/unread_badge.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
@@ -25,9 +25,7 @@ class ServerSurfaceTabs extends StatelessWidget {
     final surface = context.select<AppCubit, HomeSurface>(
       (c) => c.state.surface,
     );
-    final serverId = context.select<ServerCubit, String?>(
-      (c) => c.state.selectedServerId,
-    );
+    final serverId = ServerScope.idOf(context);
     final (channels, direct) = serverId == null
         ? (0, 0)
         : context.select<ServerNotificationsCubit, (int, int)>((c) {

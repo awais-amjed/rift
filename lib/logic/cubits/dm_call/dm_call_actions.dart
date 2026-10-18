@@ -4,7 +4,6 @@ part of 'dm_call_cubit.dart';
 /// the room second, because the row is what decides whether there is a call
 /// to be in.
 mixin _DmCallActionsMixin on Cubit<DmCallState> {
-  SessionRepository get _session;
   DmCallsApi _callsOn(Server server);
   LiveKitCubit get _livekit;
   VaultCubit get _vault;
@@ -20,15 +19,17 @@ mixin _DmCallActionsMixin on Cubit<DmCallState> {
   /// "left from somewhere else" — the leave button, or a voice channel.
   String? _joinedCallId;
 
-  /// Ring [peerId] on the selected server.
+  /// Ring [peerId] on [serverId], the server the conversation or profile it
+  /// was pressed from is about.
   ///
   /// Already in a call with them is a no-op; in a call with somebody else
   /// ends that one first, as picking a voice channel does.
   Future<void> startCall({
+    required String serverId,
     required String peerId,
     required String peerName,
   }) async {
-    final server = _session.selectedServer;
+    final server = _server(serverId);
     if (server == null || state.busy) return;
     if (state.isWith(server.id, peerId)) return;
     if (state.active != null) await hangUp();

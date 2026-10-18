@@ -29,7 +29,7 @@ Future<void> openCallConversation(
       .where((s) => s.id == serverId)
       .firstOrNull;
   if (server == null) return;
-  if (servers.state.selectedServer?.id != serverId) {
+  if (servers.state.selectedServerId != serverId) {
     servers.selectServer(server);
     await dms.readyFor(serverId);
   }

@@ -113,9 +113,13 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   once is followed by the caller ringing `ServerEventsCubit.notifyServerChanged`, since the
   class cannot reach a cubit. `ServerCubit` publishes its server list into the repository on every change and writes back the
   token and details each re-login brings (`SessionRepository.logins`), so neither it nor the
-  vault holds the other. A cubit that follows the selection reads it there too
-  (`selectedServer`, `servers`, and `changes` for when they move), and joins Realtime topics
-  on `SessionRepository.realtime`; only what changes the list itself takes `ServerCubit`.
+  vault holds the other. A cubit reads the list there too (`servers`, `serverById`, and
+  `changes` for when it moves), and joins Realtime topics on `SessionRepository.realtime`;
+  only what changes the list itself takes `ServerCubit`. No cubit reads the selection: one
+  is told its server — `ServerHub` names the selected one to the open channel and the DM list
+  (`showServer`), `openChannel` and `startCall` take theirs — and keeps it, so work begun on
+  one server ends there however quickly the selection moves on
+  (`test/server_binding_test.dart` fails on a read anywhere but the hub).
   A write that moves something the list holds — a role change moves
   your own permissions — ends with `SessionRepository.refreshDetails`, and the cubit lands
   the re-read from `SessionRepository.details` before the call answers.
@@ -282,7 +286,10 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   drawn either way. A new per-server cubit goes in the context.
 - **A widget learns its server from `ServerScope`, never from the selection.** It builds its
   `data/apis` class from `ServerScope.of(context)` (`read` in a callback) and asks
-  `ServerState.permissionsOn(scope.serverId)` what the viewer may do there.
+  `ServerState.serverOn`, `meOn` or `permissionsOn(ServerScope.idOf(context))` about it —
+  hoisted out of a `select`, which runs again outside the build. None of them falls back on
+  the selected server; only what chooses, marks or switches the selection reads it, and the
+  guard test lists those.
   `SelectedServerScope`, round the navigator, makes the selected server the default for every
   page, dialog and menu; what is about another server provides its own over it. Manage server
   does, for the server it opened on, and so does the call (`CallServerScope`, round the grid and

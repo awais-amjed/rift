@@ -7,6 +7,7 @@ import '../../../../common/app_modal.dart';
 import '../../../../common/context_menu/context_menu_item.dart';
 import '../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../common/context_menu_region.dart';
+import '../../../../common/server_scope.dart';
 import '../../../../theme/theme_context.dart';
 import '../../dms/server_dm_settings_dialog.dart';
 
@@ -28,10 +29,8 @@ class ServerDmsContextMenu extends StatelessWidget {
         context
             .watch<ServerCubit>()
             .state
-            .selectedServer
-            ?.user
-            ?.permissions
-            .isServerAdmin ??
+            .permissionsOn(ServerScope.idOf(context))
+            ?.isServerAdmin ??
         false;
     if (!isAdmin) return child;
     return ContextMenuRegion(

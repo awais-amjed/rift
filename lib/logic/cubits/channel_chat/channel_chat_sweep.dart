@@ -10,6 +10,9 @@ mixin _ChatSweepMixin on Cubit<ChannelChatState> {
   SessionRepository get _session;
   CryptoRepository get _crypto;
   Future<ChatIdentity?> _chatIdentity(Server server);
+
+  /// The server chat is set up on — see `_ChatReadyMixin`.
+  Server? get _readyServer;
   void _ringKeySweepDoorbell();
 
   bool _sweeping = false;
@@ -22,7 +25,7 @@ mixin _ChatSweepMixin on Cubit<ChannelChatState> {
     if (_sweeping) return;
     _sweeping = true;
     try {
-      final server = _session.selectedServer;
+      final server = _readyServer;
       if (server == null) return;
       final identity = await _chatIdentity(server);
       if (identity == null) return;
@@ -34,7 +37,7 @@ mixin _ChatSweepMixin on Cubit<ChannelChatState> {
       // failing is not asked for forever.
       for (var pass = 0; pass < _maxSweepPasses; pass++) {
         // The server the sweep started on, throughout: the identity above is
-        // that server's, and the selection can move while a pass runs.
+        // that server's, and the server shown can move while a pass runs.
         final response = await ChannelKeysApi(
           _session.on(server.id),
         ).sweepChannelKeys();

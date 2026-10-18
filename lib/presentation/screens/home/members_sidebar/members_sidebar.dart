@@ -13,6 +13,7 @@ import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/services/sidebar_sizing.dart';
 import '../../../common/app_panel.dart';
 import '../../../common/loading_dots.dart';
+import '../../../common/server_scope.dart';
 import '../../../responsive/shell_scope.dart';
 import '../../../theme/app_motion.dart';
 import '../../../theme/app_shadows.dart';
@@ -209,9 +210,8 @@ class _MembersSidebarState extends State<MembersSidebar> {
     // Selected, not watched: presence also carries who is in which voice
     // channel and when each call started, and the server state changes for
     // reasons a list of members never shows.
-    final myId = context.select(
-      (ServerCubit c) => c.state.selectedServer?.user?.id,
-    );
+    final serverId = ServerScope.idOf(context);
+    final myId = context.select((ServerCubit c) => c.state.meOn(serverId)?.id);
     final onlineIds = context.select(
       (ChannelPresenceCubit c) => c.state.onlineUserIds,
     );

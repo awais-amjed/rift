@@ -23,7 +23,7 @@ class CallServerScope extends StatelessWidget {
       (cubit) => cubit.state.callServerId,
     );
     final selectedId = context.select<ServerCubit, String?>(
-      (cubit) => cubit.state.selectedServer?.id,
+      (cubit) => cubit.state.selectedServerId,
     );
     final serverId = callServerId ?? selectedId;
     if (serverId == null) return child;

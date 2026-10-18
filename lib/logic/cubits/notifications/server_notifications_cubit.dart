@@ -53,6 +53,8 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
   @override
   final SessionRepository _session;
   final AppCubit _appCubit;
+  final ChannelChatCubit _chatCubit;
+  final DmCubit _dmCubit;
   StreamSubscription<void>? _serverSub;
   StreamSubscription<ChannelChatState>? _chatSub;
   StreamSubscription<DmState>? _dmSub;
@@ -62,8 +64,7 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
   @override
   final Map<String, _ServerSub> _subs = {};
 
-  /// The open text channel and the server it belongs to (always the selected
-  /// server). Messages arriving here while it's on screen and focused are read,
+  /// The open text channel and the server it belongs to. Messages arriving here while it's on screen and focused are read,
   /// not badged.
   String? _openServerId;
   String? _openChannelId;
@@ -84,6 +85,8 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
     required DmCubit dmCubit,
     required AppCubit appCubit,
   }) : _session = session,
+       _chatCubit = chatCubit,
+       _dmCubit = dmCubit,
        _appCubit = appCubit,
        _lastSurface = appCubit.state.surface,
        super(const NotificationsState()) {
@@ -96,17 +99,17 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
     // channel interrupt" instead of two that drift.
     chatCubit.setNotificationLevelSource(
       (channelId) =>
-          state.channelLevel(_session.selectedServerId ?? '', channelId),
+          state.channelLevel(chatCubit.openServerId ?? '', channelId),
     );
     _dmSub = dmCubit.stream.listen(_onDmChanged);
     _appSub = appCubit.stream.listen(_onAppStateChanged);
     WindowFocusService.instance.focused.addListener(_onFocusChanged);
     if (chatCubit.state.channelId != null) {
-      _openServerId = session.selectedServerId;
+      _openServerId = chatCubit.openServerId;
       _openChannelId = chatCubit.state.channelId;
     }
     if (dmCubit.state.openPeerId != null) {
-      _openDmServerId = session.selectedServerId;
+      _openDmServerId = dmCubit.serverId;
       _openPeerId = dmCubit.state.openPeerId;
     }
     // Keep background servers' JWTs fresh so their subscriptions don't lapse.
@@ -245,10 +248,10 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
 
   /// Badge an incoming DM, and notify for it if no one else will.
   ///
-  /// [DmCubit] raises the notification for the **selected** server, off the
-  /// conversation list, where it holds the keys and can quote the message. It
-  /// is connected to one server at a time, though, so a DM arriving on any
-  /// other server used to badge in silence — the one place a message can
+  /// [DmCubit] raises the notification for the server it lists — the
+  /// selected one — off the conversation list, where it holds the keys and
+  /// can quote the message. It is connected to one server at a time, though,
+  /// so a DM arriving on any other server used to badge in silence — the one place a message can
   /// arrive with nobody able to speak for it.
   ///
   /// This covers exactly that gap. The row is ciphertext, so it names the
@@ -279,7 +282,7 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
       unawaited(SoundService.instance.play(AppSound.message));
       return;
     }
-    if (serverId != _session.selectedServerId) {
+    if (serverId != _dmCubit.serverId) {
       unawaited(_notifyBackgroundDm(serverId, peerId));
     }
   }
@@ -363,7 +366,7 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
       _openServerId = null;
       return;
     }
-    final serverId = _session.selectedServerId;
+    final serverId = _chatCubit.openServerId;
     _openServerId = serverId;
     if (serverId != null && _channelOnScreen) {
       markChannelRead(serverId, channelId);
@@ -378,7 +381,7 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
       _openDmServerId = null;
       return;
     }
-    final serverId = _session.selectedServerId;
+    final serverId = _dmCubit.serverId;
     _openDmServerId = serverId;
     if (serverId != null && _dmOnScreen) markDmRead(serverId, peerId);
   }

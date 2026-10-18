@@ -15,7 +15,7 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
   /// through the same path as a click.
   Future<void> connectToChannel({
     required String channelId,
-    String? serverId,
+    required String serverId,
     bool? micEnabled,
     bool? cameraEnabled,
   });
@@ -228,14 +228,10 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
           fromServer: e.participant == null,
         )) {
           final here = state.currentChannelId;
-          if (here != null) {
+          final serverId = state.currentServerId;
+          if (here != null && serverId != null) {
             _tokenCubit.invalidateToken(here);
-            unawaited(
-              connectToChannel(
-                channelId: here,
-                serverId: state.currentServerId,
-              ),
-            );
+            unawaited(connectToChannel(channelId: here, serverId: serverId));
           }
           return;
         }
@@ -264,14 +260,12 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
         // the user outside it without a word. The token the SDK spent its
         // retries on is the likeliest reason those retries failed.
         final channelId = state.currentChannelId;
-        if (channelId != null && VoiceRejoin.rejoinsAfter(e.reason)) {
+        final serverId = state.currentServerId;
+        if (channelId != null &&
+            serverId != null &&
+            VoiceRejoin.rejoinsAfter(e.reason)) {
           _tokenCubit.invalidateToken(channelId);
-          unawaited(
-            connectToChannel(
-              channelId: channelId,
-              serverId: state.currentServerId,
-            ),
-          );
+          unawaited(connectToChannel(channelId: channelId, serverId: serverId));
           return;
         }
         // A DM call's room is the call's for as long as the row says so, and

@@ -8,7 +8,6 @@ import '../../../../../data/classes/server.dart';
 import '../../../../../data/classes/server_member.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../data/enums/server_permission.dart';
-import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
@@ -222,17 +221,14 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
     final member = _member(membersState);
     final roles = membersState.memberRoles[widget.userId] ?? const [];
     // From a call's tile while another server is open, everything here is
-    // about the call's server ([ServerScope]). Presence is the selected
-    // server's, so there, being in the call is what says they are online.
+    // about the call's server ([ServerScope]), its presence included.
     final scopeId = ServerScope.of(context).serverId;
     final serverState = context.watch<ServerCubit>().state;
     final server = serverState.serverOn(scopeId);
     final permissions = serverState.permissionsOn(scopeId);
-    final online = scopeId == serverState.selectedServerId
-        ? context.watch<ChannelPresenceCubit>().state.isOnline(widget.userId)
-        : context.select<AppCubit, bool>(
-            (c) => c.state.participants.any((p) => p.userId == widget.userId),
-          );
+    final online = context.select<ChannelPresenceCubit, bool>(
+      (c) => c.state.isOnline(widget.userId),
+    );
     final isAdmin = permissions?.isServerAdmin ?? false;
     final canModerate = isAdmin || (permissions?.isChannelManager ?? false);
     final canTimeOut = permissions?.can(ServerPermission.muteMembers) ?? false;

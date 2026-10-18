@@ -7,6 +7,7 @@ import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../common/app_button.dart';
 import '../../../common/empty_state.dart';
+import '../../../common/server_scope.dart';
 import '../../../theme/theme_context.dart';
 import '../dms/server_dm_view.dart';
 import '../dms/widgets/central_dm_list_panel.dart';
@@ -30,12 +31,13 @@ class MobileHomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    final serverId = ServerScope.idOf(context);
     final surface = context.select<AppCubit, HomeSurface>(
       (c) => c.state.surface,
     );
     final server = context
         .select<ServerCubit, ({bool any, String? banned, bool kicked})>((c) {
-          final s = c.state.selectedServer;
+          final s = c.state.serverOn(serverId);
           return (
             any: s != null,
             banned: (s?.user?.isBanned ?? false) ? s!.name : null,

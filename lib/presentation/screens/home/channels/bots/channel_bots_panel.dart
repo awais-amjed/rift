@@ -44,9 +44,14 @@ class _ChannelBotsPanelState extends State<ChannelBotsPanel> {
   String? _busyId;
   String? _error;
 
-  bool get _mayManage => context.read<ServerCubit>().state.myPermissionBits.has(
-    ServerPermission.manageBots,
-  );
+  bool get _mayManage =>
+      (context
+                  .read<ServerCubit>()
+                  .state
+                  .permissionsOn(ServerScope.readId(context))
+                  ?.bits ??
+              0)
+          .has(ServerPermission.manageBots);
 
   @override
   void initState() {

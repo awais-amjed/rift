@@ -10,6 +10,7 @@ import '../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../logic/cubits/server_reach/server_reach_cubit.dart';
 import '../../../common/loading_dots.dart';
 import '../../../common/popover_surface.dart';
+import '../../../common/server_scope.dart';
 import '../../../common/sheet_handle.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
@@ -46,7 +47,12 @@ class _MembersSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.theme;
     final appState = context.watch<AppCubit>().state;
-    final myId = context.watch<ServerCubit>().state.selectedServer?.user?.id;
+    final myId = context
+        .watch<ServerCubit>()
+        .state
+        .serverOn(ServerScope.idOf(context))
+        ?.user
+        ?.id;
     final presence = context.watch<ChannelPresenceCubit>().state;
     final roster = context.watch<ServerMembersCubit>().state;
     // People only, as in the desktop header: the bots carry their own count

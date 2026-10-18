@@ -5,7 +5,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/classes/server_member.dart';
 import '../../../../../../logic/cubits/dm/dm_cubit.dart';
-import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/helper_methods.dart';
 import '../../../../../common/confirm_dialog.dart';
 import '../../../../../common/quiet_danger_button.dart';
@@ -48,13 +47,12 @@ class ProfileSafetyActions extends StatelessWidget {
     final blocked = context.select<DmCubit, bool>(
       (c) => c.state.blockedIds.contains(member.id),
     );
-    // A block lives with the DM list, which is the selected server's. From a
-    // call on another server it would be read and written on the wrong one,
-    // so it waits until that server is open; a report names its server.
+    // A block lives with the DM list, which is one server's. From a call on
+    // another server it would be read and written on the wrong one, so it
+    // waits until that server's DMs are listed; a report names its server.
     final serverId = ServerScope.of(context).serverId;
     final canBlock =
-        serverId ==
-        context.select<ServerCubit, String?>((c) => c.state.selectedServer?.id);
+        serverId == context.select<DmCubit, String?>((c) => c.serverId);
     return Padding(
       padding: const EdgeInsets.only(top: 6),
       child: Row(

@@ -9,6 +9,7 @@ import 'package:rift/data/classes/server.dart';
 import 'package:rift/data/classes/server_member.dart';
 import 'package:rift/data/classes/server_user.dart';
 import 'package:rift/data/classes/user_permissions.dart';
+import 'package:rift/data/repositories/session_repository.dart';
 import 'package:rift/logic/cubits/app/app_cubit.dart';
 import 'package:rift/logic/cubits/channel_presence/channel_presence_cubit.dart';
 import 'package:rift/logic/cubits/dm/dm_cubit.dart';
@@ -17,6 +18,7 @@ import 'package:rift/logic/cubits/server/server_cubit.dart';
 import 'package:rift/logic/cubits/server_members/server_members_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/logic/cubits/voice_listeners/voice_listeners_cubit.dart';
+import 'package:rift/presentation/common/server_scope.dart';
 import 'package:rift/presentation/screens/home/channels/channel_list/widgets/voice_channel_tile/widgets/member_card/member_card_anchor.dart';
 import 'package:rift/presentation/screens/home/channels/channel_list/widgets/voice_channel_tile/widgets/member_card/member_card_layout.dart';
 import 'package:toastification/toastification.dart';
@@ -144,33 +146,38 @@ void main() {
         child: ToastificationWrapper(
           child: MaterialApp(
             home: Scaffold(
-              body: Column(
-                children: [
-                  SizedBox(
-                    width: 240,
-                    child: MemberCardAnchor(
-                      sharing: sharing,
-                      userId: 'alice',
-                      name: 'Alice',
-                      channelId: channelId,
-                      onWatch: (channel) => watched.add('alice in $channel'),
-                      builder: inkWell
-                          ? (open) => InkWell(
-                              mouseCursor: WidgetStateMouseCursor.clickable,
-                              onTap: open,
-                              child: const SizedBox(
-                                height: 32,
-                                child: Text('Alice'),
-                              ),
-                            )
-                          : null,
-                      child: inkWell
-                          ? null
-                          : const SizedBox(height: 32, child: Text('Alice')),
+              // The card is about the server its roster is on, and opens in
+              // the overlay with that scope carried along.
+              body: ServerScope(
+                server: SessionRepository().on('s1'),
+                child: Column(
+                  children: [
+                    SizedBox(
+                      width: 240,
+                      child: MemberCardAnchor(
+                        sharing: sharing,
+                        userId: 'alice',
+                        name: 'Alice',
+                        channelId: channelId,
+                        onWatch: (channel) => watched.add('alice in $channel'),
+                        builder: inkWell
+                            ? (open) => InkWell(
+                                mouseCursor: WidgetStateMouseCursor.clickable,
+                                onTap: open,
+                                child: const SizedBox(
+                                  height: 32,
+                                  child: Text('Alice'),
+                                ),
+                              )
+                            : null,
+                        child: inkWell
+                            ? null
+                            : const SizedBox(height: 32, child: Text('Alice')),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 400, child: Text('elsewhere')),
-                ],
+                    const SizedBox(height: 400, child: Text('elsewhere')),
+                  ],
+                ),
               ),
             ),
           ),

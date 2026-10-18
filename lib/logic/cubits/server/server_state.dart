@@ -37,33 +37,19 @@ class ServerState extends Equatable {
     );
   }
 
-  /// What this member may do on the selected server, or null when there is no
-  /// selected server — or when its profile has not loaded yet.
-  ///
-  /// One place for a chain that was being written out at fifteen call sites,
-  /// each of them four `?.` hops deep and each free to disagree about what an
-  /// absent link means. It is the same question every time: what may I do
-  /// here.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  UserPermissions? get myPermissions => selectedServer?.user?.permissions;
-
-  /// The same, as the bitfield `ServerPermission.has` takes.
-  ///
-  /// Zero when anything along the way is missing, which is the safe reading:
-  /// a member whose profile has not arrived may do nothing yet.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  int get myPermissionBits => myPermissions?.bits ?? 0;
-
-  /// [serverId]'s server, or the selected one when it is null. For a page
-  /// that names its server — Manage server opens from the rail for any of
-  /// them — where "here" means *that* server, never a fallback to another.
+  /// [serverId]'s server, or null with no server named — a widget drawn
+  /// with nothing selected asks with its `ServerScope`'s id, which is null
+  /// there. Never the selected server in its place: a page names its server
+  /// (Manage server opens from the rail for any of them, the call stays on
+  /// its own while another is read), and "here" means *that* server.
   Server? serverOn(String? serverId) =>
-      serverId == null ? selectedServer : serverById(serverId);
+      serverId == null ? null : serverById(serverId);
 
   /// This member's own row on [serverId] — see [serverOn].
   ServerUser? meOn(String? serverId) => serverOn(serverId)?.user;
 
-  /// [myPermissions], on [serverId] — see [meOn].
+  /// What this member may do on [serverId], or null when it is not named —
+  /// or when its profile has not loaded yet, which reads as nothing allowed.
   UserPermissions? permissionsOn(String? serverId) =>
       meOn(serverId)?.permissions;
 

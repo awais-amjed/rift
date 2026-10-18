@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../common/server_scope.dart';
 import '../../channels/channel_list/channel_list.dart';
 
 /// Wrapper for the channel list that feeds it the channels and which one
@@ -14,7 +15,8 @@ class SidebarChannelList extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<ServerCubit, ServerState>(
       builder: (context, serverState) {
-        final channels = serverState.selectedServer?.channels ?? [];
+        final channels =
+            serverState.serverOn(ServerScope.idOf(context))?.channels ?? [];
 
         return BlocBuilder<AppCubit, AppState>(
           buildWhen: (prev, curr) =>

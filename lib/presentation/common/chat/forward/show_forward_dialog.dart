@@ -42,10 +42,10 @@ Future<void> showForwardDialog(
   final targets = ForwardTargets.gather(
     servers: servers.state.servers,
     serverDms: dms.state.conversations,
-    // Server DMs are loaded for the open server only, so those are the ones
-    // that can be offered. Naming the host here rather than guessing inside
-    // the gatherer keeps that limit visible.
-    serverDmHost: servers.state.selectedServer,
+    // Server DMs are loaded for one server only, so those are the ones that
+    // can be offered. Naming the host here rather than guessing inside the
+    // gatherer keeps that limit visible.
+    serverDmHost: servers.state.serverOn(dms.serverId),
     centralDms: central.state.conversations,
     currentChannelId: currentChannelId,
     currentPeerId: currentPeerId,
