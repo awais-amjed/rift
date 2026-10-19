@@ -32,7 +32,14 @@ static HHOOK g_mouse_hook = nullptr;
 // (a tester's report, Oct 14; reproduced in the Windows VM with such a hook).
 // A held key keeps sending auto-repeat downs, so a key still repeating is
 // held whatever Windows says, and its release is believed only once the
-// repeats stop. Mouse buttons do not repeat, and keep the plain check.
+// repeats stop.
+//
+// Mouse buttons do not repeat, so that cannot save them. A tester's Mouse 5,
+// which an AutoHotkey script also used, played both tones on every press and
+// went quiet a tenth of a second in (Oct 19; reproduced in the Windows VM
+// with a hook eating Mouse 5). So Windows saying "up" is believed only once
+// it has said "down" during this press. A key or button something else eats
+// is never down to Windows at all, and its release comes from the hook.
 
 // When each key the hook reported down went down, 0 for keys that are up.
 // Hook thread only: the procedures and the timer both run on it.
@@ -41,6 +48,8 @@ static ULONGLONG g_down_since[256] = {};
 // and the gap before it (0 until the second down). Mouse buttons stay 0.
 static ULONGLONG g_last_down[256] = {};
 static ULONGLONG g_repeat_gap[256] = {};
+// Whether Windows has reported each key down since the hook saw it pressed.
+static bool g_windows_saw_down[256] = {};
 static UINT_PTR g_held_check_timer = 0;
 
 // How often a held key is checked, and how long a fresh press is left alone
@@ -78,14 +87,23 @@ static VOID CALLBACK CheckHeldKeys(HWND, UINT, UINT_PTR, DWORD) {
   for (UINT vk = 0; vk < 256; ++vk) {
     const ULONGLONG since = g_down_since[vk];
     if (since == 0) continue;
-    if (now - since < kHeldCheckMs || (GetAsyncKeyState(vk) & 0x8000) ||
-        StillRepeating(vk, now)) {
+    if (now - since < kHeldCheckMs) {
+      any_held = true;
+      continue;
+    }
+    if (GetAsyncKeyState(vk) & 0x8000) {
+      g_windows_saw_down[vk] = true;
+      any_held = true;
+      continue;
+    }
+    if (!g_windows_saw_down[vk] || StillRepeating(vk, now)) {
       any_held = true;
       continue;
     }
     g_down_since[vk] = 0;
     g_last_down[vk] = 0;
     g_repeat_gap[vk] = 0;
+    g_windows_saw_down[vk] = false;
     if (g_target_hwnd != nullptr) PostKey(vk, false, true);
   }
   if (!any_held && g_held_check_timer != 0) {
@@ -106,6 +124,7 @@ static void ReportKey(UINT vk, bool is_down, bool from_keyboard) {
     g_down_since[vk] = 0;
     g_last_down[vk] = 0;
     g_repeat_gap[vk] = 0;
+    g_windows_saw_down[vk] = false;
     return;
   }
   const ULONGLONG now = GetTickCount64();
@@ -212,6 +231,7 @@ void GlobalKeyHook::Start(HWND hwnd) {
     for (auto& since : g_down_since) since = 0;
     for (auto& last : g_last_down) last = 0;
     for (auto& gap : g_repeat_gap) gap = 0;
+    for (auto& saw : g_windows_saw_down) saw = false;
   });
 
   // Wait until the hook thread has stored its ID.
