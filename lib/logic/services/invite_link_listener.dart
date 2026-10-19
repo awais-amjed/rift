@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:app_links/app_links.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../data/invite_link.dart';
 import '../helper_methods.dart';
@@ -45,6 +46,12 @@ class InviteLinkListener {
   /// Safe to call more than once: the later caller takes over, which is what
   /// makes this survive a hot restart in development.
   Future<void> start(void Function(InviteLink) onInvite) async {
+    // Nothing hands the web app a link: the invite page sends a browser to the
+    // web app's front door, invite left behind. What `app_links` reports there
+    // is the page's own address, and with the router's `#/onboarding` on it,
+    // that read as an invite — every reload opened Join server on a code of
+    // "/onboarding" and an error from fetching it.
+    if (kIsWeb) return;
     _onInvite = onInvite;
 
     final pending = _pending;
