@@ -48,10 +48,11 @@ static UINT_PTR g_held_check_timer = 0;
 // could hear the key as still up.
 static constexpr UINT kHeldCheckMs = 100;
 
-static void PostKey(UINT vk, bool is_down) {
-  // WPARAM carries the virtual-key code, LPARAM carries the direction.
+static void PostKey(UINT vk, bool is_down, bool by_check = false) {
+  // WPARAM carries the virtual-key code, LPARAM carries the direction, and
+  // for a release whether the check below made it, which Rift's log names.
   PostMessage(g_target_hwnd, kWmPttKeyEvent, static_cast<WPARAM>(vk),
-              static_cast<LPARAM>(is_down ? 1 : 0));
+              static_cast<LPARAM>(is_down ? 1 : by_check ? 2 : 0));
 }
 
 // How long after a keyboard key's latest down another one is still due: the
@@ -85,7 +86,7 @@ static VOID CALLBACK CheckHeldKeys(HWND, UINT, UINT_PTR, DWORD) {
     g_down_since[vk] = 0;
     g_last_down[vk] = 0;
     g_repeat_gap[vk] = 0;
-    if (g_target_hwnd != nullptr) PostKey(vk, false);
+    if (g_target_hwnd != nullptr) PostKey(vk, false, true);
   }
   if (!any_held && g_held_check_timer != 0) {
     KillTimer(nullptr, g_held_check_timer);

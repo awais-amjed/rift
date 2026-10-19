@@ -25,7 +25,8 @@ class LinuxPushToTalk {
   final LiveKitCubit _liveKit;
   final GlobalShortcutsPortal _portal = GlobalShortcutsPortal();
   late final ReleaseDebounce _debounce = ReleaseDebounce(
-    onChanged: _liveKit.setPushToTalkPressed,
+    onChanged: (pressed) =>
+        _liveKit.setPushToTalkPressed(pressed, via: 'portal'),
   );
   StreamSubscription<AppState>? _settings;
 

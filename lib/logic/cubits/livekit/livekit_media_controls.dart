@@ -146,7 +146,11 @@ mixin _MediaControlsMixin on Cubit<LiveKitState> {
     _pushToTalkReleaseTimer = null;
   }
 
-  Future<void> setPushToTalkPressed(bool pressed) async {
+  /// [via] names what reported the key, for the log: a tester's tones
+  /// repeating while the key was held could have come from the hook, its
+  /// held-key check, the window or a focus change, and a report from 1.5.0
+  /// could not tell which.
+  Future<void> setPushToTalkPressed(bool pressed, {String via = 'key'}) async {
     if (pressed) {
       // Pressing again inside the release window: the mic never stopped, so
       // there is nothing to restart, just a teardown to call off. Auto-repeat
@@ -156,9 +160,13 @@ mixin _MediaControlsMixin on Cubit<LiveKitState> {
       if (state.isPushToTalkPressed) {
         // The "off" tone already played on release, so a re-press inside the
         // window has to say "on" again even though the mic never stopped.
-        if (reopening) _playPushToTalkTone(true);
+        if (reopening) {
+          HelperMethods.printDebug('Push-to-talk: pressed again ($via)');
+          _playPushToTalkTone(true);
+        }
         return;
       }
+      HelperMethods.printDebug('Push-to-talk: pressed ($via)');
       emit(state.copyWith(isPushToTalkPressed: true));
       _playPushToTalkTone(true);
       await _syncMicrophoneTransmission(syncParticipants: true);
@@ -167,6 +175,7 @@ mixin _MediaControlsMixin on Cubit<LiveKitState> {
 
     if (!state.isPushToTalkPressed || _pushToTalkReleaseTimer != null) return;
 
+    HelperMethods.printDebug('Push-to-talk: released ($via)');
     // On the key, not when the timer fires: the delay is for the encoder to
     // drain, and a tone half a second after the finger lifts reads as lag.
     _playPushToTalkTone(false);

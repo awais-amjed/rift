@@ -81,7 +81,10 @@ class _PushToTalkListenerState extends State<PushToTalkListener>
     // leave the debounce believing the key is still held.
     if (_linux?.isBound ?? false) return;
     if (state != AppLifecycleState.resumed) {
-      context.read<LiveKitCubit>().setPushToTalkPressed(false);
+      context.read<LiveKitCubit>().setPushToTalkPressed(
+        false,
+        via: 'window ${state.name}',
+      );
     }
   }
 
@@ -98,12 +101,12 @@ class _PushToTalkListenerState extends State<PushToTalkListener>
     if (event.logicalKey.keyId != keyId) return false;
 
     if (event is KeyUpEvent) {
-      context.read<LiveKitCubit>().setPushToTalkPressed(false);
+      context.read<LiveKitCubit>().setPushToTalkPressed(false, via: 'window');
       return false;
     }
 
     if (event is KeyDownEvent || event is KeyRepeatEvent) {
-      context.read<LiveKitCubit>().setPushToTalkPressed(true);
+      context.read<LiveKitCubit>().setPushToTalkPressed(true, via: 'window');
     }
     return false;
   }
@@ -132,7 +135,7 @@ class _PushToTalkListenerState extends State<PushToTalkListener>
         event.buttons & button != 0;
     if (held == _buttonHeld) return;
     _buttonHeld = held;
-    context.read<LiveKitCubit>().setPushToTalkPressed(held);
+    context.read<LiveKitCubit>().setPushToTalkPressed(held, via: 'window');
   }
 
   // ── Background hook handler (native EventChannel) ────────────────────────
@@ -148,6 +151,8 @@ class _PushToTalkListenerState extends State<PushToTalkListener>
     final vkCode = event['vk_code'] as int?;
     final isDown = event['is_down'] as bool?;
     if (vkCode == null || isDown == null) return;
+    // A release the hook's held-key check decided on, not a key-up it saw.
+    final byCheck = event['by_check'] == true;
 
     final expectedVk = win32VkForLogicalKey(appState.pushToTalkKeyId!);
     if (expectedVk == null) {
@@ -156,7 +161,10 @@ class _PushToTalkListenerState extends State<PushToTalkListener>
     }
     if (vkCode != expectedVk) return;
 
-    context.read<LiveKitCubit>().setPushToTalkPressed(isDown);
+    context.read<LiveKitCubit>().setPushToTalkPressed(
+      isDown,
+      via: byCheck ? 'hook held-key check' : 'hook',
+    );
   }
 
   /// Keybinds already complained about, so an unmappable one is reported once

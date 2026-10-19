@@ -109,7 +109,9 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
             {flutter::EncodableValue("vk_code"),
              flutter::EncodableValue(static_cast<int>(wparam))},
             {flutter::EncodableValue("is_down"),
-             flutter::EncodableValue(lparam != 0)},
+             flutter::EncodableValue(lparam == 1)},
+            {flutter::EncodableValue("by_check"),
+             flutter::EncodableValue(lparam == 2)},
         };
         ptt_event_sink_->Success(flutter::EncodableValue(args));
       }

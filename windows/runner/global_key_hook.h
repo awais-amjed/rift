@@ -10,7 +10,8 @@
 // Flutter window on every key or mouse button down/up event.
 //   WPARAM = Win32 virtual-key code (DWORD); VK_LBUTTON..VK_XBUTTON2 for a
 //            mouse button
-//   LPARAM = 1 for key-down, 0 for key-up
+//   LPARAM = 1 for key-down, 0 for key-up, 2 for a key-up the held-key check
+//            decided on (global_key_hook.cpp) rather than one the hook saw
 static constexpr UINT kWmPttKeyEvent = WM_APP + 100;
 
 // Singleton that installs WH_KEYBOARD_LL and WH_MOUSE_LL hooks on a dedicated
