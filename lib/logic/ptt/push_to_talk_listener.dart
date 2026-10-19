@@ -18,9 +18,9 @@ import 'win32_key_codes.dart';
 ///
 /// On Windows a WH_KEYBOARD_LL hook installed in the native runner sends every
 /// key event through [_kPttChannel] so PTT continues to work while the app is
-/// running in the background.  Flutter's [HardwareKeyboard] still handles the
-/// in-focus case, but its events are ignored if the background hook is active
-/// to avoid ordering artefacts.
+/// running in the background.  Flutter's [HardwareKeyboard] reports the key
+/// too while Rift has focus; the two agree, and the cubit takes a press it
+/// already holds as nothing.
 ///
 /// On Linux the background half is the desktop's GlobalShortcuts portal
 /// ([LinuxPushToTalk]). Where it is missing or declined, the in-focus handler
@@ -80,6 +80,10 @@ class _PushToTalkListenerState extends State<PushToTalkListener>
     // so losing focus is no sign the key went up — and forcing one here would
     // leave the debounce believing the key is still held.
     if (_linux?.isBound ?? false) return;
+    // So does the Windows hook. There a mouse button pressed over another
+    // window takes the focus from Rift, and this let go of the key the moment
+    // it went down: both tones at once, and the mic shut while still held.
+    if (_bgSub != null) return;
     if (state != AppLifecycleState.resumed) {
       context.read<LiveKitCubit>().setPushToTalkPressed(
         false,
