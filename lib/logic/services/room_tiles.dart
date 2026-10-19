@@ -28,3 +28,8 @@ List<VoiceTile<Participant>> roomVoiceTiles(
     ),
   );
 }
+
+/// One cell, told apart from every other in the call — by more than its
+/// identity, since a person sharing from a phone owns two cells under one.
+String roomTileKey(VoiceTile<Participant> tile) =>
+    '${tile.participant.identity}${tile.isScreenshare ? '#share' : ''}';

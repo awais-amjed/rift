@@ -26,6 +26,18 @@ class LiveKitState extends Equatable {
   final ConnectionFailure? failure;
   final List<Participant> participants;
 
+  /// The grid's cells for [participants] (`roomTileKey`), taken when they were
+  /// set.
+  ///
+  /// LiveKit changes its participants in place. A phone shares on the
+  /// connection it talks on, so its stream starting left [participants]
+  /// holding the same objects as before: the state compared equal, the emit
+  /// was dropped as no change, and the stream had no tile for anyone until
+  /// watching it changed something else. These are strings taken at the time,
+  /// so the state differs when the cells do — and only then, since a tile
+  /// follows its own participant for everything else.
+  final List<String> cells;
+
   /// **The user's own mic toggle, and nothing else.** Not whether the mic is
   /// actually live — deafening yourself and being muted by a moderator both
   /// stop transmission without touching this, so that lifting either one
@@ -83,6 +95,7 @@ class LiveKitState extends Equatable {
     this.dmCall,
     this.failure,
     this.participants = const [],
+    this.cells = const [],
     this.isMicEnabled = true,
     this.isCameraEnabled = false,
     this.isScreenSharing = false,
@@ -199,6 +212,12 @@ class LiveKitState extends Equatable {
       dmCall: clearDmCall ? null : (dmCall ?? this.dmCall),
       failure: clearFailure ? null : (failure ?? this.failure),
       participants: participants ?? this.participants,
+      cells: participants == null
+          ? cells
+          : [
+              for (final tile in roomVoiceTiles(participants))
+                roomTileKey(tile),
+            ],
       isMicEnabled: isMicEnabled ?? this.isMicEnabled,
       isCameraEnabled: isCameraEnabled ?? this.isCameraEnabled,
       isScreenSharing: isScreenSharing ?? this.isScreenSharing,
@@ -236,6 +255,7 @@ class LiveKitState extends Equatable {
     dmCall,
     failure,
     participants,
+    cells,
     isMicEnabled,
     isCameraEnabled,
     isScreenSharing,

@@ -125,8 +125,7 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
   /// The streams watched as of the last build, to tell when one stops.
   Set<String> _watchingBefore = const {};
 
-  static String _keyOf(VoiceTile<Participant> tile) =>
-      '${tile.participant.identity}${tile.isScreenshare ? '#share' : ''}';
+  static String _keyOf(VoiceTile<Participant> tile) => roomTileKey(tile);
 
   /// The cells to draw. A share is a cell, not a participant — see
   /// [voiceTilesFor].
