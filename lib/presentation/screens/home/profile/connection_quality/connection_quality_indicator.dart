@@ -5,6 +5,8 @@ import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/cubits/voice_stats/voice_stats_cubit.dart';
+import '../../../../common/app_sheet.dart';
+import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 import 'connection_quality_popup.dart';
@@ -12,7 +14,7 @@ import 'connection_quality_style.dart';
 
 /// Compact signal-strength line rendered inside the user dock (under the
 /// display name) while in a voice channel. Tapping it opens a popup with
-/// detailed voice connection stats.
+/// detailed voice connection stats, or on a phone a bottom sheet.
 class ConnectionQualityIndicator extends StatefulWidget {
   const ConnectionQualityIndicator({super.key});
 
@@ -30,6 +32,17 @@ class _ConnectionQualityIndicatorState
   OverlayEntry? _entry;
 
   void _toggle() {
+    // A phone's sheet, as every other popover is there.
+    if (context.layoutMode.isCompact) {
+      showAppSheet<void>(
+        context,
+        BlocProvider.value(
+          value: context.read<VoiceStatsCubit>(),
+          child: const ConnectionQualityPopup(sheet: true),
+        ),
+      );
+      return;
+    }
     if (_entry != null) {
       _dismiss();
     } else {
