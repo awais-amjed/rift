@@ -10,6 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'data/central_http_client.dart';
+import 'data/classes/api_response.dart';
 import 'data/constants.dart';
 import 'data/device_id.dart';
 import 'data/repositories/native_blob_cipher.dart';
@@ -54,6 +55,7 @@ class AppBootstrap {
     await StorageNamespace.useProfileSecureStorage(storageSuffix);
     _claimInviteLinks(storageSuffix);
     AppLog.catchErrors();
+    APIResponse.log = HelperMethods.printDebug;
     // The first line of every log, held until the file opens below.
     await AppLog.writeHeader();
 

@@ -1,5 +1,3 @@
-import '../../logic/helper_methods.dart';
-
 /// What every server call hands back, success or not: the `{success, data, error,
 /// code}` envelope the Edge Functions always answer with a 200. Read [success]
 /// before [data]; an HTTP status never carries the outcome.
@@ -29,6 +27,11 @@ class APIResponse {
     this.serverTime,
   });
 
+  /// Where a failure is written down: the app's log, set at startup. This
+  /// class is plain Dart and cannot reach the log itself; left unset, as in a
+  /// test or a script, nothing is logged.
+  static void Function(Object? error)? log;
+
   factory APIResponse.success(dynamic data) {
     return APIResponse(success: true, data: data);
   }
@@ -42,8 +45,7 @@ class APIResponse {
   }
 
   static String _errorToString(dynamic e) {
-    // Log the error for debugging purposes
-    HelperMethods.printDebug(e);
+    log?.call(e);
 
     // If the error is already a string, return it directly
     if (e is String) return e;
