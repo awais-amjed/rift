@@ -132,6 +132,12 @@
             android:exported="false"
             android:stopWithTask="true"
             android:foregroundServiceType="microphone|camera|mediaProjection"/>
+        <!-- The call notification's icon, which flutter_foreground_task can
+             only find by this name (CallForegroundService). Unnamed, it falls
+             back to the launcher icon, which draws as an empty circle. -->
+        <meta-data
+            android:name="com.codingfries.rift.NOTIFICATION_ICON"
+            android:resource="@drawable/ic_notification"/>
 
         <!-- The Answer and Decline buttons on a call's notification. Without
              it the buttons draw and do nothing. -->

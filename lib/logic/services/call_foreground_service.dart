@@ -70,6 +70,15 @@ class CallForegroundService {
   static VoidCallback? _onToggleMute;
   static VoidCallback? _onLeave;
 
+  /// The status-bar icon, named in the manifest's meta-data — the only way the
+  /// plugin takes one. Without it the plugin uses the launcher icon, and
+  /// Android, which draws a notification icon from its alpha alone, showed an
+  /// empty circle. Given on every update too: one that leaves it out falls
+  /// back to the launcher icon again.
+  static const _icon = NotificationIcon(
+    metaDataName: 'com.codingfries.rift.NOTIFICATION_ICON',
+  );
+
   static void _ensureInitialised() {
     if (_initialised) return;
     // The port a button press comes back on. Opened here rather than in main
@@ -176,6 +185,7 @@ class CallForegroundService {
       serviceTypes: types,
       notificationTitle: content.title,
       notificationText: content.text,
+      notificationIcon: _icon,
       notificationButtons: _buttons(content),
       callback: callNotificationTask,
     );
@@ -193,6 +203,7 @@ class CallForegroundService {
     await FlutterForegroundTask.updateService(
       notificationTitle: content.title,
       notificationText: content.text,
+      notificationIcon: _icon,
       notificationButtons: _buttons(content),
     );
   }

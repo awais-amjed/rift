@@ -91,10 +91,10 @@ class NotificationService {
         _windowsAppId = identity.appUserModelId;
         _registerActivator(identity);
       }
-      // The launcher icon rather than a dedicated one: Android tints a
-      // notification icon to a flat silhouette, so a detailed mark would come
-      // out as a blob either way.
-      const android = AndroidInitializationSettings('@mipmap/ic_launcher');
+      // A flat silhouette of the mark, not the launcher icon: Android draws a
+      // notification icon from its alpha alone, and the launcher icon's opaque
+      // ground came out as an empty circle.
+      const android = AndroidInitializationSettings('@drawable/ic_notification');
       // macOS asks its permission inside initialize, so nothing is requested
       // separately. Badges are left out: the dock icon has no count to show.
       const macOS = DarwinInitializationSettings(

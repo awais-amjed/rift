@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The icon Rift's notifications carry in the status bar and the shade.
+
+     Android draws a notification icon from its alpha alone, so it has to be a
+     flat silhouette. The launcher icon is an adaptive one with an opaque
+     ground, and given that instead the call's notification showed an empty
+     circle. Same two half-discs as assets/brand/rift-mark.svg, in white,
+     scaled to the 20dp a status-bar icon fills within its 24. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+    <group
+        android:pivotX="50"
+        android:pivotY="50"
+        android:scaleX="1.04"
+        android:scaleY="1.04">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M46.5,10 A32,32 0 0,0 46.5,74 Z" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M53.5,26 A32,32 0 0,1 53.5,90 Z" />
+    </group>
+</vector>
