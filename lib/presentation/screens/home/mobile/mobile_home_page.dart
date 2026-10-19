@@ -13,7 +13,6 @@ import '../main_content/widgets/banned_notice.dart';
 import '../profile/user_dock/user_dock.dart';
 import '../servers/widgets/no_server_yet.dart';
 import '../sidebar/widgets/sidebar_channel_list.dart';
-import 'widgets/mini_call_bar.dart';
 import 'widgets/server_surface_tabs.dart';
 import 'widgets/switcher_header.dart';
 
@@ -79,9 +78,9 @@ class MobileHomePage extends StatelessWidget {
             const SwitcherHeader(),
             body,
             // You, at the foot of the list, the way you are at the foot of
-            // the sidebar on a desktop. It used to live only inside the
-            // switcher sheet, which made muting yourself something you did
-            // by opening a server picker.
+            // the sidebar on a desktop — the call's controls on top while in
+            // one. It used to live only inside the switcher sheet, which made
+            // muting yourself something you did by opening a server picker.
             const Padding(
               padding: EdgeInsets.fromLTRB(
                 K.panelGutter,
@@ -89,9 +88,8 @@ class MobileHomePage extends StatelessWidget {
                 K.panelGutter,
                 K.panelGutter,
               ),
-              child: UserDock(showSettings: true),
+              child: UserDock(showSettings: true, showCall: true),
             ),
-            const MiniCallBar(),
           ],
         ),
       ),

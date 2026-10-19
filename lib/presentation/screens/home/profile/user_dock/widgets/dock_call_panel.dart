@@ -16,6 +16,7 @@ import '../../../../../theme/app_text.dart';
 import '../../../../../theme/custom_colors.dart';
 import '../../../../../theme/theme_context.dart';
 import '../../../calls/open_call_conversation.dart';
+import '../../../mobile/mobile_shell_scope.dart';
 import 'dock_call_controls.dart';
 
 /// The call you are in, at the top of the user dock: where it is, how long,
@@ -80,8 +81,14 @@ class _CallSection extends StatefulWidget {
 
 class _CallSectionState extends State<_CallSection> {
   /// Puts the call in the centre: a DM call's conversation, or a channel's
-  /// stage on its own server, with any chat over it closed.
+  /// stage on its own server, with any chat over it closed. On a phone, the
+  /// call's page, as the call bar does.
   void _open() {
+    final shell = MobileShellScope.maybeOf(context);
+    if (shell != null) {
+      shell.openCall();
+      return;
+    }
     final dm = widget.call.dmCall;
     if (dm != null) {
       final row = context.read<DmCallCubit>().state.active?.call;

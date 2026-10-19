@@ -12,9 +12,10 @@ import '../mobile_shell_scope.dart';
 /// A desktop keeps the call in a pane beside whatever you are reading, so it
 /// has nothing like this. A phone pushes the call as a page and lets you leave
 /// the page without leaving the call — which would leave you in a call you
-/// can no longer see, unable to mute. So this sits over the list and above
-/// every composer: the channel, how long, your mic, and Leave, with the rest
-/// of the bar taking you back in.
+/// can no longer see, unable to mute. So this sits above every composer: the
+/// channel, how long, your mic, and Leave, with the rest of the bar taking you
+/// back in. The list of channels has the dock instead, with the call on top of
+/// it as on a desktop ([DockCallPanel]).
 ///
 /// Draws nothing outside the phone shell, outside a call, or while the call
 /// page itself is on top.

@@ -31,8 +31,9 @@ class UserDock extends StatelessWidget {
   /// this is where settings lives there.
   final bool showSettings;
 
-  /// Grows the call's controls on top while in one. A desktop's sidebar: a
-  /// phone has the call bar over every screen instead ([MiniCallBar]).
+  /// Grows the call's controls on top while in one: a desktop's sidebar, and
+  /// a phone's list of channels. A phone's chats have the call bar instead
+  /// ([MiniCallBar]), as they have no dock.
   final bool showCall;
 
   const UserDock({super.key, this.showSettings = false, this.showCall = false});

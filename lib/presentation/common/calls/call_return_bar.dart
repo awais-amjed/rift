@@ -11,8 +11,8 @@ import 'call_clock.dart';
 /// The call you are in, as one row: what it is, how long it has run, your
 /// mic, and Leave — with the rest of the row taking you back to it.
 ///
-/// The phone's [MiniCallBar], which keeps any call a tap away. A desktop has
-/// the call on top of the user dock instead ([DockCallPanel]).
+/// The phone's [MiniCallBar], which keeps any call a tap away from a chat.
+/// The user dock has the call on top of it instead ([DockCallPanel]).
 class CallReturnBar extends StatelessWidget {
   final String channelName;
   final bool failed;
