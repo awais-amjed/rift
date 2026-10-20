@@ -122,7 +122,7 @@ class SoundService {
         return;
       }
       await player.setVolume(gain);
-      await player.play(AssetSource(sound.startAsset));
+      await player.play(await _sourceOf(sound.startAsset));
     } catch (e) {
       HelperMethods.printDebug('SoundService: preview failed – $e');
     }
@@ -171,7 +171,7 @@ class SoundService {
     try {
       await player.setReleaseMode(ReleaseMode.loop);
       await player.setVolume(volume);
-      await player.play(AssetSource(sound.startAsset));
+      await player.play(await _sourceOf(sound.startAsset));
     } catch (e) {
       HelperMethods.printDebug('SoundService: loop failed – $e');
     }
@@ -238,6 +238,31 @@ class SoundService {
   Future<Uint8List> _bytesOf(String asset) async => _bytes[asset] ??=
       (await rootBundle.load('assets/$asset')).buffer.asUint8List();
 
+  /// Each sound's file written out for the player, shared by every play
+  /// that wants it before it is there.
+  ///
+  /// The player plays a copy of the asset in the temp folder, and its cache
+  /// writes the copy for each play that finds it missing. Several cues at
+  /// once (people leaving together) then each wrote the same file at the
+  /// same moment, and on Windows all but one failed with the file "being
+  /// used by another process" (a 1.5.0 report, two failures in the same
+  /// millisecond). A failed write is forgotten, so the next play tries again.
+  final Map<String, Future<void>> _written = {};
+
+  Future<AssetSource> _sourceOf(String asset) async {
+    final written = _written[asset] ??= AudioCache.instance
+        .load(asset)
+        .then<void>(
+          (_) {},
+          onError: (Object e) {
+            _written.remove(asset);
+            throw e;
+          },
+        );
+    await written;
+    return AssetSource(asset);
+  }
+
   Future<void> _play(String asset, double volume) async {
     if (await _playOnOutput(asset, volume) != null) return;
     // A fresh player per sound so simultaneous calls don't interfere — which
@@ -245,7 +270,7 @@ class SoundService {
     final player = AudioPlayer();
     try {
       await player.setVolume(volume);
-      await player.play(AssetSource(asset));
+      await player.play(await _sourceOf(asset));
     } catch (e) {
       HelperMethods.printDebug('SoundService: failed to play $asset – $e');
       await _dispose(player);
