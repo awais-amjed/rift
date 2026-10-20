@@ -18,7 +18,8 @@ import '../app_toast.dart';
 /// call on Windows: the music went quiet and nothing in Rift said why. A
 /// toast rather than a dialog, so it is never in the way of the call: it
 /// leaves after a few seconds unless the pointer is on it. Once per duck —
-/// Windows ducks once when a call's sound opens — until the person picks
+/// Windows ducks once when a call's sound opens, and the cubit counts the
+/// sound reopening a moment later as the same duck — until the person picks
 /// "Don't show again"; Settings can turn it back on.
 ///
 /// Rift's own call is the usual cause, and the duck says so
