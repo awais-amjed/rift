@@ -82,8 +82,44 @@ class ServerRepository
         _VoiceApiMixin,
         _VoiceRegionsMixin,
         _WebhookApiMixin {
+  /// [client] and [askAgainAfter] are for a test; the app posts with
+  /// `http.post`, a connection per call, as it always has.
+  ServerRepository({
+    http.Client? client,
+    this.askAgainAfter = const Duration(seconds: 2),
+  }) : _send = client?.post ?? http.post;
+
+  final Future<http.Response> Function(
+    Uri url, {
+    Map<String, String>? headers,
+    Object? body,
+    Encoding? encoding,
+  })
+  _send;
+
   @override
   final ServerDb _db = ServerDb();
+
+  /// What comes back when the functions' runtime is not there to answer. The
+  /// functions themselves always answer 200, so none of these is a function's
+  /// answer, and none carries the envelope. Seen on the local stack Oct 20
+  /// 2026: Kong answers 500 while the runtime's container is stopped (its name
+  /// no longer resolves) and 502 in the moment it comes back; the runtime's
+  /// own router answers 500 when a worker cannot start or dies mid-call. 503
+  /// and 504 are a proxy in front with nobody behind it, or one that gave up
+  /// waiting.
+  static const _gatewayTrouble = {500, 502, 503, 504};
+
+  /// The statuses asked once more, [askAgainAfter] later. Not 504: the
+  /// function may still be running, and it could write twice.
+  static const _askAgain = {500, 502, 503};
+
+  /// How long the second try waits. When the runtime dies — as it did on the
+  /// first voice join after a quiet spell, Oct 19 2026, out of memory — Docker
+  /// starts it again, and on the local stack Kong answered 502 then 503 for
+  /// about 1.4 s after (measured Oct 20 2026), with a lone 503 now and then
+  /// for a few seconds more. A second try one second on still landed in it.
+  final Duration askAgainAfter;
 
   /// POST to an edge function and normalise its envelope.
   ///
@@ -100,16 +136,29 @@ class ServerRepository
   }) async {
     try {
       final uri = Uri.parse('$supabaseUrl/functions/v1/$functionName');
-      final response = await http
-          .post(
-            uri,
-            headers: {
-              'Content-Type': 'application/json',
-              if (bearerToken != null) 'Authorization': 'Bearer $bearerToken',
-            },
-            body: jsonEncode(body),
-          )
-          .timeout(const Duration(seconds: 15));
+      Future<http.Response> send() => _send(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          if (bearerToken != null) 'Authorization': 'Bearer $bearerToken',
+        },
+        body: jsonEncode(body),
+      ).timeout(const Duration(seconds: 15));
+      var response = await send();
+      if (_askAgain.contains(response.statusCode)) {
+        APIResponse.log?.call(
+          '$functionName: the gateway answered ${response.statusCode}; '
+          'asking again',
+        );
+        await Future<void>.delayed(askAgainAfter);
+        response = await send();
+      }
+      if (_gatewayTrouble.contains(response.statusCode)) {
+        return APIResponse.error(
+          'This server is having trouble right now. Try again in a moment.',
+          errorCode: ErrorCode.serverTimeout,
+        );
+      }
       final result = jsonDecode(response.body) as Map<String, dynamic>;
       return _fromSupabaseCF(result, serverTime: _serverTime(response));
     } on TimeoutException {

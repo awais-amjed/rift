@@ -109,9 +109,12 @@ class ErrorCode {
   /// nobody to send a code.
   static const String serverUnreachable = 'server_unreachable';
 
-  /// A socket opened but the call ran out of time. Kept apart from
-  /// [serverUnreachable] because it means something different to the reader:
-  /// the server is there, it is just too slow or too busy to answer.
+  /// A socket opened but the call ran out of time, or the server's gateway
+  /// answered for a runtime behind it that did not (a 500, 502, 503 or 504
+  /// with no envelope, see `ServerRepository._post`). Kept
+  /// apart from [serverUnreachable] because it means something different to
+  /// the reader: the server is there, it is just too slow or too busy to
+  /// answer.
   static const String serverTimeout = 'server_timeout';
 
   // ── Central account (GoTrue) ─────────────────────────────────────────────────
