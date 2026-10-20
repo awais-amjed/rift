@@ -157,6 +157,7 @@ class SessionRepository {
   late final ServerRealtime realtime = ServerRealtime(
     servers: _changes.stream.map((_) => _list),
     current: () => _list,
+    onTokenRefused: (serverId) => unawaited(reAuthenticate(serverId)),
   );
 
   // ── Signing in ────────────────────────────────────────────

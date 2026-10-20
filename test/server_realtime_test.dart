@@ -36,9 +36,11 @@ class _Harness {
   final controller = StreamController<List<Server>>.broadcast();
   List<Server> servers;
   final posts = <({Uri url, Map<String, String> headers, Object? body})>[];
+  final signIns = <String>[];
   late final ServerRealtime realtime = ServerRealtime(
     servers: controller.stream,
     current: () => servers,
+    onTokenRefused: signIns.add,
     post: (url, {headers, body}) async {
       posts.add((url: url, headers: headers ?? const {}, body: body));
       return http.Response('', 202);
@@ -241,6 +243,67 @@ void main() {
       await h.close();
     },
   );
+
+  // The Lobby's signing keys were replaced on Oct 20 2026, and a member's
+  // Realtime went on offering the token from before, refused every few
+  // seconds: it had not run out, so nothing signed in again.
+  test('a token the server no longer trusts signs in again, once', () async {
+    final a = _server('a');
+    final h = _Harness([a]);
+    h.realtime.join(a, 'user:me');
+    h.realtime.join(a, 'server:a');
+    final refused = h.realtime.debugChannelOf('a', 'user:me');
+    final signer = Exception(
+      '"JwtSignerError: Failed to generate JWT signer for key ID (kid) '
+      '\\"0b7c\\", check your JWT secret or JWKS configuration"',
+    );
+
+    for (final topic in ['user:me', 'server:a', 'user:me']) {
+      h.realtime.debugReportStatus(
+        'a',
+        topic,
+        RealtimeSubscribeStatus.channelError,
+        error: signer,
+      );
+    }
+    expect(h.signIns, ['a'], reason: 'one sign-in for every refusal of it');
+
+    await h.publish([a.copyWith(token: 'jwt-2')]);
+    expect(h.realtime.debugChannelOf('a', 'user:me'), isNot(same(refused)));
+
+    // A server that refuses the new token too is not asked again at once.
+    h.realtime.debugReportStatus(
+      'a',
+      'user:me',
+      RealtimeSubscribeStatus.channelError,
+      error: signer,
+    );
+    expect(h.signIns, ['a']);
+    await h.close();
+  });
+
+  test('a topic the rules refuse does not sign in again', () async {
+    final a = _server('a');
+    final h = _Harness([a]);
+    h.realtime.join(a, 'chat:private');
+
+    for (final error in [
+      Exception(
+        '"Unauthorized: You do not have permissions to read from this '
+        'Channel topic: chat:private"',
+      ),
+      null,
+    ]) {
+      h.realtime.debugReportStatus(
+        'a',
+        'chat:private',
+        RealtimeSubscribeStatus.channelError,
+        error: error,
+      );
+    }
+    expect(h.signIns, isEmpty);
+    await h.close();
+  });
 
   // What a dropped socket does: realtime_client walks its channel list firing
   // each one's error, and only after the walk schedules the reconnect. Two

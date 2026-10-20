@@ -47,6 +47,7 @@ class ServerRealtime {
   })
   _post;
   final List<Server> Function() _current;
+  final void Function(String serverId)? _onTokenRefused;
   final Map<String, _Connection> _connections = {};
   StreamSubscription<List<Server>>? _serversSub;
 
@@ -64,9 +65,14 @@ class ServerRealtime {
   /// now — the only place a token is read from. A holder's own [Server] may be
   /// a snapshot from before the last rotation, and trusting it would put
   /// everybody's joins back on a token that has already expired.
+  ///
+  /// [onTokenRefused] signs in to a server again when its Realtime refuses
+  /// the token itself ([_askForToken]); the new token arrives through
+  /// [servers] like any other.
   ServerRealtime({
     required Stream<List<Server>> servers,
     required List<Server> Function() current,
+    void Function(String serverId)? onTokenRefused,
     SupabaseClient Function(String url, String key)? connect,
     Future<http.Response> Function(
       Uri url, {
@@ -76,7 +82,8 @@ class ServerRealtime {
     post,
   }) : _connect = connect ?? SupabaseClient.new,
        _post = post ?? http.post,
-       _current = current {
+       _current = current,
+       _onTokenRefused = onTokenRefused {
     _serversSub = servers.listen(_follow);
   }
 
@@ -208,7 +215,7 @@ class ServerRealtime {
     joined.joinedWith = connection.token;
     joined.joinSentAt = DateTime.now();
     final channel = joined.channel;
-    channel.subscribe((status, [_]) {
+    channel.subscribe((status, [error]) {
       // Read now. A server can only refuse over an open socket; a failure with
       // the socket down is the socket's, and the client joins that channel
       // again by itself once it reconnects, with whatever token `setAuth`
@@ -222,7 +229,13 @@ class ServerRealtime {
         // A replaced channel's last word — the `closed` of its own leave — is
         // not news about the topic.
         if (identical(joined.channel, channel)) {
-          _onStatus(connection, joined, status, clientRetries: clientRetries);
+          _onStatus(
+            connection,
+            joined,
+            status,
+            clientRetries: clientRetries,
+            error: error,
+          );
         }
       });
     });
@@ -230,11 +243,13 @@ class ServerRealtime {
 
   /// [clientRetries] is a failure realtime_client will join again by itself.
   /// Only one it won't — the server's own refusal — is ours to ask again.
+  /// [error] is the server's reason, when it gave one.
   void _onStatus(
     _Connection connection,
     _Topic joined,
     RealtimeSubscribeStatus status, {
     bool clientRetries = false,
+    Object? error,
   }) {
     joined.status = status;
     joined.refused = _Topic.isRefusal(status) && !clientRetries;
@@ -246,7 +261,35 @@ class ServerRealtime {
     // the answer was about the old one, so ask again with the new.
     if (joined.refused && joined.joinedWith != connection.token) {
       _rejoin(connection, joined);
+    } else if (joined.refused && _Topic.isTokenRefusal(error)) {
+      _askForToken(connection);
     }
+  }
+
+  /// How soon a server whose Realtime refused a token may be asked for another.
+  static const tokenAskGap = Duration(minutes: 1);
+
+  /// Signs in to [connection]'s server again: its Realtime refused the token
+  /// itself, not what the token may hear. A server whose signing keys were
+  /// replaced no longer trusts a token it issued minutes ago, and nothing
+  /// else notices — the token has not run out, and only a refused API call
+  /// signs in again — so a member stayed deaf to the server until the token
+  /// expired (the Lobby's rotation, Oct 20 2026). The new token rejoins every
+  /// refused topic ([_rejoinRefused]).
+  ///
+  /// Once per token, and not again within [tokenAskGap]: a server that
+  /// refuses every token it issues would otherwise be asked for one in a loop.
+  void _askForToken(_Connection connection) {
+    final now = DateTime.now();
+    final askedAt = connection.tokenAskedAt;
+    if (connection.tokenAskedFor == connection.token) return;
+    if (askedAt != null && now.difference(askedAt) < tokenAskGap) return;
+    connection.tokenAskedFor = connection.token;
+    connection.tokenAskedAt = now;
+    HelperMethods.printDebug(
+      'Realtime: the server refused the token; signing in again',
+    );
+    _onTokenRefused?.call(connection.serverId);
   }
 
   /// How long the server took to answer a join, in the app's log. A socket's
@@ -308,12 +351,13 @@ class ServerRealtime {
   void debugReportStatus(
     String serverId,
     String topic,
-    RealtimeSubscribeStatus status,
-  ) {
+    RealtimeSubscribeStatus status, {
+    Object? error,
+  }) {
     final connection = _connections[serverId];
     final joined = connection?.topics[topic];
     if (connection != null && joined != null) {
-      _onStatus(connection, joined, status);
+      _onStatus(connection, joined, status, error: error);
     }
   }
 
@@ -343,7 +387,10 @@ class ServerRealtime {
     final current = latest ?? server;
     final key = current.supabaseKey;
     if (key == null) return null;
-    final connection = _Connection(_connect(current.supabaseUrl, key));
+    final connection = _Connection(
+      server.id,
+      _connect(current.supabaseUrl, key),
+    );
     connection.authorise(current.token, key, receivedAt: current.tokenIssuedAt);
     _watchSocket(server.id, connection.client.realtime);
     return _connections[server.id] = connection;
@@ -544,11 +591,17 @@ class RealtimeLease {
 }
 
 class _Connection {
+  final String serverId;
   final SupabaseClient client;
   final Map<String, _Topic> topics = {};
   String? _token;
 
-  _Connection(this.client);
+  /// The token Realtime last refused for itself, and when a new one was
+  /// asked for ([ServerRealtime._askForToken]).
+  String? tokenAskedFor;
+  DateTime? tokenAskedAt;
+
+  _Connection(this.serverId, this.client);
 
   String? get token => _token;
 
@@ -645,6 +698,16 @@ class _Topic {
   /// closes one of them.
   static bool isRefusal(RealtimeSubscribeStatus status) =>
       status == RealtimeSubscribeStatus.channelError;
+
+  /// The refusal was about the token, not the topic. Realtime names a token
+  /// failure for the JWT — "JwtSignerError: …" for a key it does not know,
+  /// "JwtSignatureError: …" for a wrong secret (both read off a running
+  /// stack, Oct 20 2026) — and a topic its rules keep from this member is
+  /// "Unauthorized: You do not have permissions …".
+  static bool isTokenRefusal(Object? error) =>
+      error != null && _tokenReason.hasMatch('$error');
+
+  static final _tokenReason = RegExp(r'jwt|token', caseSensitive: false);
 
   void dispatch(String key, RealtimePayload payload) {
     for (final listener in [...?listeners[key]]) {
