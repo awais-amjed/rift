@@ -2,6 +2,9 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
+import 'package:rift/data/classes/api_response.dart';
+import 'package:rift/data/enums/error_code.dart';
+import 'package:rift/logic/services/chat_failure.dart';
 import 'package:rift/logic/services/connection_failure.dart';
 
 lk.ConnectException _connect(
@@ -141,6 +144,73 @@ void main() {
 
       expect(failure.canRetry, isTrue);
       expect(failure.detail, 'edge function 500');
+    });
+  });
+
+  group('ConnectionFailure.keyring', () {
+    ChatFailure fetchFailed(String code) =>
+        ChatFailure.fromResponse(APIResponse.error('raw', errorCode: code));
+
+    test('no key yet is the one case that waits for a key', () {
+      final failure = ConnectionFailure.keyring(null);
+      expect(failure.title, contains('Waiting'));
+      expect(failure.canRetry, isTrue);
+    });
+
+    test('a key fetch the server did not answer says so', () {
+      // Oct 19 2026: a server whose functions kept running out of memory
+      // showed every failed fetch as a key on its way.
+      for (final code in [
+        ErrorCode.serverTimeout,
+        ErrorCode.serverUnreachable,
+      ]) {
+        final failure = ConnectionFailure.keyring(fetchFailed(code));
+        expect(failure.title, isNot(contains('Waiting')), reason: code);
+        expect(failure.message, contains('not answering'), reason: code);
+        expect(failure.canRetry, isTrue, reason: code);
+      }
+    });
+
+    test('a refusal or a locked vault keeps its own words', () {
+      final refused = ConnectionFailure.keyring(
+        fetchFailed(ErrorCode.permissionDenied),
+      );
+      expect(refused.title, 'No access to this channel');
+
+      final locked = ConnectionFailure.keyring(const ChatFailure.vaultLocked());
+      expect(locked.title, 'Your vault is locked');
+    });
+  });
+
+  group('ConnectionFailure.tokenRefused', () {
+    APIResponse refused(String code) =>
+        APIResponse.error('raw', errorCode: code);
+
+    test('a server that did not answer is not a lost permission', () {
+      for (final code in [
+        ErrorCode.serverTimeout,
+        ErrorCode.serverUnreachable,
+      ]) {
+        final failure = ConnectionFailure.tokenRefused(refused(code));
+        expect(failure.title, contains('answering'), reason: code);
+        expect(failure.message, isNot(contains('access')), reason: code);
+        expect(failure.canRetry, isTrue, reason: code);
+      }
+    });
+
+    test('a full call and a refusal keep their own cases', () {
+      expect(
+        ConnectionFailure.tokenRefused(
+          refused(ErrorCode.voiceChannelFull),
+        ).title,
+        'This call is full',
+      );
+      expect(
+        ConnectionFailure.tokenRefused(
+          refused(ErrorCode.permissionDenied),
+        ).title,
+        'Could not get access to this channel',
+      );
     });
   });
 }

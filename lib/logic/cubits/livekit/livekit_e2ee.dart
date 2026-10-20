@@ -90,15 +90,21 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
   /// Load the channel's key from [server], the call's, and build the options
   /// `room.connect` takes.
   ///
-  /// Returns null when there is no key to be had — a locked vault, or a channel
-  /// nobody has sealed a key to us for yet. **The caller must refuse to
-  /// connect** rather than falling back to an unencrypted room: joining
-  /// unencrypted would work, sound fine, and be the exact property this is here
-  /// to provide. A call you cannot join is a bug; a call that is quietly
-  /// readable is a broken promise.
-  Future<E2EEOptions?> _prepareE2EE(String channelId, Server server) async {
+  /// Answers no options when there is no key to be had — a locked vault, a
+  /// server that did not answer, or a channel nobody has sealed a key to us
+  /// for yet — and [refused] says which, for the person who hit it. **The
+  /// caller must refuse to connect** rather than falling back to an
+  /// unencrypted room: joining unencrypted would work, sound fine, and be the
+  /// exact property this is here to provide. A call you cannot join is a bug;
+  /// a call that is quietly readable is a broken promise.
+  Future<({E2EEOptions? options, ConnectionFailure? refused})> _prepareE2EE(
+    String channelId,
+    Server server,
+  ) async {
     final keyring = _keyring;
-    if (keyring == null) return null;
+    if (keyring == null) {
+      return (options: null, refused: const ConnectionFailure.noChannelKey());
+    }
 
     // The ring keeps the server it loads from, so the heals, seals and
     // rotations that follow go there too, whatever the person reads meanwhile.
@@ -124,13 +130,17 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
     final key = keyring.currentKey;
     if (!outcome.isReady || key == null) {
       HelperMethods.printDebug(
-        '[LiveKit] no channel key for $channelId — refusing to join',
+        '[LiveKit] no channel key for $channelId — refusing to join'
+        '${outcome.failure == null ? '' : ': ${outcome.failure!.title}'}',
       );
       // Nothing is connecting, so nothing should be left holding a
       // subscription — the connect path is what hands this one over to the
       // call, and it is not being reached.
       unawaited(_rotations.stop());
-      return null;
+      return (
+        options: null,
+        refused: ConnectionFailure.keyring(outcome.failure),
+      );
     }
 
     _callChannelKey = key;
@@ -140,7 +150,7 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
     // `sharedKey: false` is the whole point — see the class comment.
     final provider = await BaseKeyProvider.create(sharedKey: false);
     _keyProvider = provider;
-    return E2EEOptions(keyProvider: provider);
+    return (options: E2EEOptions(keyProvider: provider), refused: null);
   }
 
   /// Build the options for a call whose key is already known — a DM call's,

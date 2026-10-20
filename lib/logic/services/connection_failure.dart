@@ -2,6 +2,10 @@ import 'dart:io';
 
 import 'package:livekit_client/livekit_client.dart' as lk;
 
+import '../../data/classes/api_response.dart';
+import '../../data/enums/error_code.dart';
+import 'chat_failure.dart';
+
 /// Over the helper budget and one job: turning a failed join into a sentence.
 /// Each case is a few lines and there are many cases.
 ///
@@ -72,6 +76,26 @@ class ConnectionFailure {
       detail = error,
       canRetry = true;
 
+  /// A failed token request, read by its code.
+  ///
+  /// A server that did not answer — down, or its functions restarting — is
+  /// said as that, not as [tokenRequest]'s "you may have lost access", which
+  /// sent people to check their roles when the server was the trouble.
+  factory ConnectionFailure.tokenRefused(APIResponse response) {
+    final code = response.errorCode;
+    if (code == ErrorCode.voiceChannelFull) {
+      return ConnectionFailure.callFull(response.error);
+    }
+    if (ErrorCode.isRetryable(code)) {
+      return ConnectionFailure(
+        title: 'This server isn’t answering',
+        message: 'It may be offline or restarting. Try again in a moment.',
+        detail: response.error,
+      );
+    }
+    return ConnectionFailure.tokenRequest(response.error);
+  }
+
   /// The call already holds as many people as the operator allows
   /// (`max_voice_participants`).
   ///
@@ -105,6 +129,29 @@ class ConnectionFailure {
           'this usually clears in a few seconds.',
       detail = null,
       canRetry = true;
+
+  /// The call's key could not be had, for the reason the keyring gave.
+  ///
+  /// [failure] is null when there was simply no key yet — nobody had sealed
+  /// one to us, and no heal arrived in time — which is [noChannelKey]. Every
+  /// other reason is its own, and saying "waiting for this channel's key" for
+  /// them sent people looking at the encryption: on Oct 19 2026 a server's
+  /// functions kept running out of memory, and each failed key fetch showed
+  /// up as a key that was on its way.
+  factory ConnectionFailure.keyring(ChatFailure? failure) {
+    if (failure == null) return const ConnectionFailure.noChannelKey();
+    // The chat's wording here says the channel opens when the server answers,
+    // which a call does not do by itself.
+    if (failure.offline) {
+      return const ConnectionFailure(
+        title: 'Could not get this call’s key',
+        message:
+            'The key comes from the server, and it is not answering right '
+            'now. It may be offline or restarting — try again in a moment.',
+      );
+    }
+    return ConnectionFailure(title: failure.title, message: failure.message);
+  }
 
   /// Translates whatever `room.connect` threw.
   factory ConnectionFailure.from(Object error) {

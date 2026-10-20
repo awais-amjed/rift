@@ -19,7 +19,6 @@ import '../../../data/classes/participant_setting.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/constants.dart';
 import '../../../data/enums/app_sound.dart';
-import '../../../data/enums/error_code.dart';
 import '../../../data/participant_identity.dart';
 import '../../../data/repositories/session_repository.dart';
 import '../../helper_methods.dart';

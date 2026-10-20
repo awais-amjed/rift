@@ -187,9 +187,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
         emit(
           state.copyWith(
             connectionState: LiveKitConnectionState.error,
-            failure: response.errorCode == ErrorCode.voiceChannelFull
-                ? ConnectionFailure.callFull(response.error)
-                : ConnectionFailure.tokenRequest(response.error),
+            failure: ConnectionFailure.tokenRefused(response),
           ),
         );
         return;
@@ -223,12 +221,12 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
     // The key before the room. A call joined without one would connect, work,
     // and be readable by the server — the single thing this is here to stop —
     // so there is no unencrypted fallback path to take by accident.
-    final e2ee = await _prepareE2EE(channelId, server);
-    if (e2ee == null) {
+    final (:options, :refused) = await _prepareE2EE(channelId, server);
+    if (options == null) {
       emit(
         state.copyWith(
           connectionState: LiveKitConnectionState.error,
-          failure: const ConnectionFailure.noChannelKey(),
+          failure: refused ?? const ConnectionFailure.noChannelKey(),
         ),
       );
       return;
@@ -237,7 +235,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
     final mintAgain = await _joinRoom(
       livekitUrl: livekitUrl,
       livekitToken: livekitToken,
-      e2ee: e2ee,
+      e2ee: options,
       micEnabled: micEnabled,
       cameraEnabled: cameraEnabled,
       tokenWasCached: cached != null,

@@ -79,7 +79,7 @@ mixin _DmCallConnectMixin on Cubit<LiveKitState>, _E2EEMixin {
       emit(
         state.copyWith(
           connectionState: LiveKitConnectionState.error,
-          failure: ConnectionFailure.tokenRequest(response.error),
+          failure: ConnectionFailure.tokenRefused(response),
         ),
       );
       return;
