@@ -19,6 +19,10 @@ part of 'livekit_cubit.dart';
 /// that disabled instead.
 mixin _AudioReceptionMixin on Cubit<LiveKitState> {
   void _applyStoredSettings();
+  Future<void> retryConnection();
+
+  /// When the receiver check last joined the call again.
+  DateTime? _lastReceiverRejoin;
 
   /// Whether [publication], on [participant] in [room], is one to hear.
   bool _hearsAudio(
@@ -63,5 +67,66 @@ mixin _AudioReceptionMixin on Cubit<LiveKitState> {
     }
     // Back on with the listener's own mute and volume, not simply on.
     if (turnedOn) _applyStoredSettings();
+  }
+
+  /// Joins the call again if two of its live audio receivers share an id.
+  ///
+  /// Holding audio keeps this client from causing that, but a track can still
+  /// be subscribed again from outside it, and the frame cryptor then goes on
+  /// the wrong receiver. Caught here it is caught early: on the local stack
+  /// the shared id was there at join, some fifteen seconds before anyone
+  /// heard static. A fresh connection has no shared ids. Not on the web,
+  /// which fits a cryptor to the receiver itself rather than finding it by
+  /// id.
+  ///
+  /// Pictures are only logged. They are still unsubscribed while unwatched,
+  /// so they can share an id often, and what that costs is one picture.
+  // Called from `_RoomEventsMixin` through its abstract declaration, which
+  // the unused-element check can't follow.
+  // ignore: unused_element
+  Future<void> _checkReceivers() async {
+    if (kIsWeb) return;
+    if (state.connectionState != LiveKitConnectionState.connected) return;
+    final room = state.room;
+    if (room == null) return;
+    // The receivers are the subscriber connection's, which the SDK keeps to
+    // itself; the call stats read it the same way (`VoiceStatsCubit`).
+    // ignore: invalid_use_of_internal_member
+    final pc = room.engine.subscriber?.pc;
+    if (pc == null) return;
+    final List<rtc.RTCRtpReceiver> receivers;
+    try {
+      receivers = await pc.getReceivers();
+    } catch (e) {
+      HelperMethods.printDebug('[LiveKit] receiver check failed: $e');
+      return;
+    }
+    List<String> ids(String kind) => [
+      for (final r in receivers)
+        if (r.track?.kind == kind) r.receiverId,
+    ];
+    final pictures = sharedReceiverIds(ids('video'));
+    if (pictures.isNotEmpty) {
+      HelperMethods.printDebug(
+        '[LiveKit] video receivers share an id: $pictures',
+      );
+    }
+    final shared = sharedReceiverIds(ids('audio'));
+    if (shared.isEmpty) return;
+    final now = DateTime.now();
+    final last = _lastReceiverRejoin;
+    if (last != null && now.difference(last) < K.receiverClashRejoinGap) {
+      HelperMethods.printDebug(
+        '[LiveKit] audio receivers share an id again ($shared); '
+        'not joining again so soon',
+      );
+      return;
+    }
+    _lastReceiverRejoin = now;
+    HelperMethods.printDebug(
+      '[LiveKit] audio receivers share an id ($shared); joining the call '
+      'again before it plays static',
+    );
+    await retryConnection();
   }
 }

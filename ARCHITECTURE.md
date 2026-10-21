@@ -984,9 +984,15 @@ join-time drop of streams nobody watched, and deafening all did that. Reported
 Oct 19 2026 after watching a stream on Windows and on Linux; reproduced Oct 21
 on the local stack with LiveKit's Flutter SDK and bot members in 4 of 12 runs,
 and in none of 12 holding instead (`TESTING.md`). The plugin's lookup is
-unchanged upstream as of Oct 21 2026; something other than this client can
+unchanged upstream as of Oct 21 2026, and something other than this client can
 still subscribe a track again (a member's voice hidden from you and shown
-again), which this does not cover.
+again). So each audio track's arrival also checks the subscriber connection
+for two receivers under one id (`_checkReceivers`, desktop and phone; the web
+fits a cryptor to the receiver itself) and joins the call again if it finds
+them, at most once a minute. On the local stack the shared id was there about
+fifteen seconds before the static, so the rejoin usually beats it. Pictures
+sharing an id are only logged: they are still unsubscribed, so it can happen
+often, and it costs one picture.
 
 ### Windows turning other apps down — [Implemented October 2026]
 

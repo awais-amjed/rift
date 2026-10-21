@@ -25,6 +25,7 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
 
   void _applyStoredSettings();
   void _syncAudioReception();
+  Future<void> _checkReceivers();
   void _applyScreenshareQualitySettings(Participant participant);
   void _onRemoteAudioArrived(RemoteTrackPublication publication);
   void _onRemoteAudioMayHaveGone();
@@ -130,6 +131,10 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
         // for people who arrive *after* you. Whoever joined second heard
         // silence — connected, subscribed, and decrypting nothing.
         unawaited(_registerTrackKey(e.participant.identity));
+        // A new audio receiver is where two can come to share an id.
+        if (e.publication.kind == TrackType.AUDIO) {
+          unawaited(_checkReceivers());
+        }
         // Deafening drops the audio there is at that moment; the SDK
         // subscribes to every track that comes after it by itself. Somebody
         // joining, a mic published afresh, or rejoining the call while

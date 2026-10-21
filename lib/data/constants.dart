@@ -301,6 +301,12 @@ class K {
   /// stream and stopped playout, which a fresh mic must come after.
   static const Duration captureReviveDelay = Duration(seconds: 2);
 
+  /// The least time between two rejoins for audio receivers that share an
+  /// id ([LiveKitCubit]'s receiver check). A fresh connection has none, so a
+  /// second within a minute means something else is wrong, and rejoining in
+  /// a loop would only take the call away.
+  static const Duration receiverClashRejoinGap = Duration(minutes: 1);
+
   /// How long a search field waits after the last keystroke before asking the
   /// server.
   ///

@@ -42,6 +42,11 @@ void main() {
     });
   });
 
+  test('receivers sharing an id are found, once each', () {
+    expect(sharedReceiverIds(['TR_a', 'TR_b', 'TR_c']), isEmpty);
+    expect(sharedReceiverIds(['TR_a', 'TR_b', 'TR_a', 'TR_a']), {'TR_a'});
+  });
+
   test('the call unsubscribes only from pictures and its own share', () {
     // Every `unsubscribe()` left in the call has to say, just above it, that
     // it is a picture or this client's own share — either is dropped for

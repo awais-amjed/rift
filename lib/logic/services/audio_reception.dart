@@ -19,3 +19,19 @@ bool hearsRemoteAudio({
   if (deafened || ownerless) return false;
   return !stream || watched;
 }
+
+/// The ids carried by more than one of [receiverIds] — receivers of one
+/// connection that each hold a live track.
+///
+/// A connection's receivers should never share one, but the call can still
+/// arrive at it from outside: a slot keeps the id of the track it was made
+/// for, so a track subscribed again — by the server, for a member who hid
+/// their voice and showed it again — gets a second slot under the same id,
+/// and flutter_webrtc puts its frame cryptor on whichever comes first.
+Set<String> sharedReceiverIds(Iterable<String> receiverIds) {
+  final seen = <String>{};
+  return {
+    for (final id in receiverIds)
+      if (!seen.add(id)) id,
+  };
+}
