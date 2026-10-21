@@ -1,5 +1,7 @@
 //! Windows: a shared-mode render stream on the chosen endpoint, through
-//! WASAPI, which converts the cue's format to whatever the device mixes at.
+//! WASAPI, which converts the cue's format to whatever the device mixes at —
+//! except a mono cue, which it plays on the front left speaker alone, so that
+//! one is widened to stereo first.
 
 use super::{le_bytes, Controls, Cue};
 use std::sync::mpsc::Sender;
@@ -31,6 +33,7 @@ pub(super) fn run(
     let mut client = device
         .get_iaudioclient()
         .map_err(|e| format!("could not open the output: {e:?}"))?;
+    cue.widen_to_stereo();
     let channels = usize::from(cue.channels);
     let format = WaveFormat::new(16, 16, &SampleType::Int, cue.rate as usize, channels, None);
     let mode = StreamMode::PollingShared {

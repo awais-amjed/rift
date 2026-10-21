@@ -75,6 +75,19 @@ impl Cue {
         }
     }
 
+    /// Copies each mono frame to both sides. Windows takes a one-channel
+    /// stream as the front left speaker alone, so the mono cues (mute, deafen,
+    /// push to talk) played as they were came out of the left ear only.
+    #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
+    pub(crate) fn widen_to_stereo(&mut self) {
+        if self.channels != 1 {
+            return;
+        }
+        self.samples = self.samples.iter().flat_map(|&s| [s, s]).collect();
+        self.position *= 2;
+        self.channels = 2;
+    }
+
     /// Writes the next whole frames into `out`, scaled by `volume`, and
     /// answers how many samples it wrote. Zero means the cue has ended; a
     /// looping one never ends.
@@ -231,6 +244,21 @@ mod tests {
         let mut loud = Cue::new(vec![i16::MAX], 1, 48_000, false);
         loud.fill(&mut out, 4.0);
         assert_eq!(out[0], i16::MAX);
+    }
+
+    #[test]
+    fn mono_widens_to_both_sides() {
+        let mut cue = Cue::new(vec![1, 2, 3], 1, 44_100, false);
+        let length = cue.duration_ms();
+        cue.widen_to_stereo();
+        assert_eq!(cue.channels, 2);
+        assert_eq!(cue.duration_ms(), length);
+        let mut out = [0i16; 6];
+        assert_eq!(cue.fill(&mut out, 1.0), 6);
+        assert_eq!(out, [1, 1, 2, 2, 3, 3]);
+        let mut stereo = Cue::new(vec![1, 2], 2, 44_100, false);
+        stereo.widen_to_stereo();
+        assert_eq!((stereo.channels, stereo.samples.len()), (2, 2));
     }
 
     #[test]
