@@ -139,10 +139,12 @@ class VoiceBroadcast {
   ///
   /// Repeating ourselves is dropped: LiveKit emits state far more often than it
   /// changes rooms, and every one of those would otherwise be a message to the
-  /// whole server.
-  void announce(String? channelId, {bool sharing = false}) {
+  /// whole server. [again] says it anyway, for a place everyone may have
+  /// stopped believing: we have just come back into a room we never left.
+  void announce(String? channelId, {bool sharing = false, bool again = false}) {
     sharing = sharing && channelId != null;
-    if (_hasAnnounced &&
+    if (!again &&
+        _hasAnnounced &&
         channelId == _announced &&
         sharing == _announcedSharing) {
       return;

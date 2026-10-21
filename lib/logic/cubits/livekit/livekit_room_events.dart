@@ -48,7 +48,10 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
       // A full reconnect starts a server session that lets everyone hear you
       // and publishes the mic again before this hears it is back.
       ..on<RoomReconnectingEvent>((e) => _holdMicThroughRestart())
-      ..on<RoomReconnectedEvent>((e) => _releaseMicAfterRestart())
+      ..on<RoomReconnectedEvent>((e) {
+        _releaseMicAfterRestart();
+        emit(state.copyWith(arrivals: state.arrivals + 1));
+      })
       ..on<ParticipantConnectedEvent>((e) {
         final identity = e.participant.identity;
         // Their key before their audio: a frame cryptor with no key for a

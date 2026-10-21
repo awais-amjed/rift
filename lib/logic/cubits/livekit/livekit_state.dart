@@ -88,6 +88,15 @@ class LiveKitState extends Equatable {
   /// call.
   final String? streamToOpen;
 
+  /// How many times this device has landed in a call's room: each connect,
+  /// and each time the connection came back after giving out.
+  ///
+  /// While it was out, the call server did not list us, and anyone who
+  /// read the roster then took us out of their sidebar. Only we can put
+  /// ourselves back, so presence says where we are again whenever this
+  /// moves, even though the channel has not.
+  final int arrivals;
+
   const LiveKitState({
     this.connectionState = LiveKitConnectionState.disconnected,
     this.room,
@@ -109,6 +118,7 @@ class LiveKitState extends Equatable {
     this.connectedAt,
     this.connectedLivekitUrl,
     this.streamToOpen,
+    this.arrivals = 0,
   });
 
   /// In a call of either kind, connected or on the way.
@@ -193,6 +203,7 @@ class LiveKitState extends Equatable {
     DateTime? connectedAt,
     String? connectedLivekitUrl,
     String? streamToOpen,
+    int? arrivals,
     bool clearStreamToOpen = false,
     bool clearRoom = false,
     bool clearChannelId = false,
@@ -244,6 +255,7 @@ class LiveKitState extends Equatable {
               !clearStreamToOpen
           ? (streamToOpen ?? this.streamToOpen)
           : null,
+      arrivals: arrivals ?? this.arrivals,
     );
   }
 
@@ -269,5 +281,6 @@ class LiveKitState extends Equatable {
     connectedAt,
     connectedLivekitUrl,
     streamToOpen,
+    arrivals,
   ];
 }

@@ -249,7 +249,19 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
 
   // ── Location ─────────────────────────────────────────────────────────────
 
-  /// Tells the server where we are now, if it isn't where we last said.
+  /// The call's [LiveKitState.arrivals] when we last said where we are.
+  int? _announcedArrivals;
+
+  /// Tells the server where we are now, if it isn't where we last said, or
+  /// again when the call has just landed in its room.
+  ///
+  /// Everyone else reads the roster from LiveKit now and then, and replaces
+  /// what they had with it. A read taken while we were between rooms — a
+  /// move still connecting, or a connection that gave out and is coming
+  /// back — leaves us out, and they take us out of the channel. Nothing they
+  /// do afterwards puts us back, and we used to say nothing more: the
+  /// channel had not changed. One person sat in a call for everyone else to
+  /// see only from inside it (Oct 21 2026).
   void _announceLocation() {
     // A move says where it is going the moment it starts. Waiting for the new
     // room meant waiting for the old one to close, a token, the key and the
@@ -262,7 +274,14 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
     final userId = _currentUserId;
     if (serverId == null || userId == null) return;
     final place = _placeOn(serverId, userId);
-    _voice?.announce(place.channelId, sharing: place.sharing);
+    final arrivals = _livekitCubit.state.arrivals;
+    final arrived =
+        place.channelId != null &&
+        _livekitCubit.state.connectionState ==
+            LiveKitConnectionState.connected &&
+        arrivals != _announcedArrivals;
+    if (arrived) _announcedArrivals = arrivals;
+    _voice?.announce(place.channelId, sharing: place.sharing, again: arrived);
   }
 
   ({String? channelId, bool sharing}) _placeOn(String serverId, String userId) {
