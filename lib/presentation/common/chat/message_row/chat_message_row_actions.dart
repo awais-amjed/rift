@@ -36,6 +36,7 @@ mixin _MessageRowActionsMixin on State<ChatMessageRow> {
       widget.onEdit != null && MessagePermissions.canEdit(message);
   bool get _canPin =>
       widget.onTogglePin != null && MessagePermissions.canPin(message);
+
   /// Anything somebody else said that this reader could read. Not a message
   /// still locked: reporting words you have not seen is a guess.
   bool get _canReport =>

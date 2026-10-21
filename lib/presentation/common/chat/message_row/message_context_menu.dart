@@ -7,7 +7,16 @@ import '../../../theme/app_text.dart';
 import '../../../theme/custom_colors.dart';
 
 /// What a message context-menu entry asked for.
-enum MessageMenuAction { react, reply, forward, copy, pin, edit, report, delete }
+enum MessageMenuAction {
+  react,
+  reply,
+  forward,
+  copy,
+  pin,
+  edit,
+  report,
+  delete,
+}
 
 /// Right-click — and long-press — menu for one message. Entries are filtered
 /// by what the caller says is allowed, so a menu never offers an action the
