@@ -1165,8 +1165,17 @@ frame cryptor's `raw_key` and `derived_key`, so each call left its channel's
 key behind; `setMinDebugLogLevel` no longer reaches that setting since m150.
 The desktop builds therefore take `.04`, which is silent, through the copy in
 `third_party/flutter_webrtc` (its `RIFT_PATCHES.md`). Verified Oct 21 2026 on
-Linux by counting those lines in a call's stderr. Android and the web use
-other WebRTC builds, not checked.
+Linux by counting those lines in a call's stderr. The web uses the browser's
+WebRTC, and its encryption worker logs nothing (its logger is off and nothing
+turns it on): no key lines in the page's or the worker's console, Oct 21 2026.
+**Android still prints them.** Its libwebrtc is a separate build
+(`io.github.webrtc-sdk:android`, still `150.7871.01`, the newest there is) with
+the same m150 default, and each key set puts both lines in logcat. Nothing
+outside the library can turn that off: its Java API sets only the old level,
+and the new setting is not exported. Logcat is readable by the app, the system
+and a computer with USB debugging (adb, a bug report), and is not kept across
+a restart, so this is far narrower than the journal, but it waits on a fixed
+Android build. iOS and macOS are not checked.
 
 **Report a bug** (Settings → General → Help) sends it. The person writes what
 happened; `BugReportRepository` files it on central (`submit_bug_report`, ten
