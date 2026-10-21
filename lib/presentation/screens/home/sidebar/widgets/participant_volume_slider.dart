@@ -45,19 +45,22 @@ class ParticipantVolumeSlider extends StatelessWidget {
       max: max ?? CallVolume.max,
       onChanged: isMuted
           ? null
-          : (value) {
-              final handler = onChanged;
-              if (handler != null) {
-                handler(value);
-                return;
-              }
-              context.read<LiveKitCubit>().setParticipantVolume(target, value);
-            },
+          : (value) => apply(context, target, onChanged, value),
     );
   }
 
-  /// The readout beside it: an em dash while muted rather than 0%, which
-  /// would look like a volume you'd chosen.
-  static String readout({required bool isMuted, required double volume}) =>
-      isMuted ? '—' : '${(volume * 100).round()}%';
+  /// Sets the volume where [onChanged] sends it, or as the participant's own
+  /// when it is null: the slider and the reset beside it go the same way.
+  static void apply(
+    BuildContext context,
+    String target,
+    ValueChanged<double>? onChanged,
+    double value,
+  ) {
+    if (onChanged != null) {
+      onChanged(value);
+      return;
+    }
+    context.read<LiveKitCubit>().setParticipantVolume(target, value);
+  }
 }

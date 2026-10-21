@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../../common/volume_readout.dart';
 import '../../../../common/volume_slider.dart';
 import '../../../../theme/app_text.dart';
-import '../../../../theme/theme_context.dart';
 
 /// A volume in Voice & Audio: the slider, and what it reads beside it.
 class VolumeRow extends StatelessWidget {
@@ -25,13 +25,11 @@ class VolumeRow extends StatelessWidget {
           child: VolumeSlider(value: value, max: max, onChanged: onChanged),
         ),
         // Wide enough for "200%", so dragging never shifts the track.
-        SizedBox(
+        VolumeReadout(
+          value: value,
+          style: AppText.meta,
           width: 40,
-          child: Text(
-            '${(value * 100).round()}%',
-            textAlign: TextAlign.right,
-            style: AppText.meta.copyWith(color: context.theme.textSecondary),
-          ),
+          onChanged: onChanged,
         ),
       ],
     );

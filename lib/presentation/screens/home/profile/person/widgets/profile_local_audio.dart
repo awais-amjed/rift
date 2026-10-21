@@ -5,6 +5,7 @@ import '../../../../../../data/participant_identity.dart';
 import '../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../common/app_switch.dart';
+import '../../../../../common/volume_readout.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
 import '../../../sidebar/widgets/participant_volume_slider.dart';
@@ -143,12 +144,16 @@ class ProfileLocalAudio extends StatelessWidget {
               ),
             ),
             // Wide enough for "200%", so dragging never shifts the track.
-            SizedBox(
+            VolumeReadout(
+              value: volume,
+              muted: muted,
+              style: AppText.meta,
               width: 40,
-              child: Text(
-                ParticipantVolumeSlider.readout(isMuted: muted, volume: volume),
-                textAlign: TextAlign.right,
-                style: AppText.meta.copyWith(color: themeState.textSecondary),
+              onChanged: (value) => ParticipantVolumeSlider.apply(
+                context,
+                target,
+                onChanged,
+                value,
               ),
             ),
           ],

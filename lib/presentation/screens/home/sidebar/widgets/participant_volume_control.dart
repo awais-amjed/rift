@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../common/volume_readout.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 import 'participant_volume_slider.dart';
@@ -52,12 +53,16 @@ class ParticipantVolumeControl extends StatelessWidget {
                   color: themeState.textTertiary,
                 ),
               ),
-              Text(
-                ParticipantVolumeSlider.readout(
-                  isMuted: isMuted,
-                  volume: volume,
+              VolumeReadout(
+                value: volume,
+                muted: isMuted,
+                style: AppText.chip,
+                onChanged: (value) => ParticipantVolumeSlider.apply(
+                  context,
+                  target,
+                  onChanged,
+                  value,
                 ),
-                style: AppText.chip.copyWith(color: themeState.textSecondary),
               ),
             ],
           ),

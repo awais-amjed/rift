@@ -7,6 +7,7 @@ import '../../../../../../data/enums/app_sound.dart';
 import '../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../logic/services/sound_service.dart';
 import '../../../../../common/app_switch.dart';
+import '../../../../../common/volume_readout.dart';
 import '../../../../../common/volume_slider.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
@@ -27,6 +28,11 @@ class SoundRow extends StatelessWidget {
     final theme = context.theme;
     final cubit = context.read<AppCubit>();
     final muted = setting.muted;
+    // The reset plays the cue too: it is a volume you hear before keeping.
+    void setVolume(double volume) {
+      cubit.setSoundVolume(sound, volume);
+      SoundService.instance.preview(sound, volume);
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -82,21 +88,15 @@ class SoundRow extends StatelessWidget {
             Expanded(
               child: VolumeSlider(
                 value: muted ? 0 : setting.volume,
-                onChanged: muted
-                    ? null
-                    : (volume) {
-                        cubit.setSoundVolume(sound, volume);
-                        SoundService.instance.preview(sound, volume);
-                      },
+                onChanged: muted ? null : setVolume,
               ),
             ),
-            SizedBox(
+            VolumeReadout(
+              value: setting.volume,
+              muted: muted,
+              style: AppText.chip,
               width: _readoutWidth,
-              child: Text(
-                muted ? '—' : '${(setting.volume * 100).round()}%',
-                textAlign: TextAlign.end,
-                style: AppText.chip.copyWith(color: theme.textSecondary),
-              ),
+              onChanged: setVolume,
             ),
           ],
         ),

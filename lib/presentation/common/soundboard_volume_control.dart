@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../logic/cubits/app/app_cubit.dart';
 import '../theme/app_text.dart';
 import '../theme/theme_context.dart';
+import 'volume_readout.dart';
 import 'volume_slider.dart';
 
 /// This device's soundboard volume: the label, the figure and the slider.
@@ -36,9 +37,10 @@ class SoundboardVolumeControl extends StatelessWidget {
               style: AppText.sectionLabel.copyWith(color: theme.textTertiary),
             ),
             const Spacer(),
-            Text(
-              '${(volume * 100).round()}%',
-              style: AppText.chip.copyWith(color: theme.textSecondary),
+            VolumeReadout(
+              value: volume,
+              style: AppText.chip,
+              onChanged: context.read<AppCubit>().setSoundboardVolume,
             ),
           ],
         ),
