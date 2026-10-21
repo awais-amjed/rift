@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../logic/services/call_duration.dart';
+import '../../../logic/services/steady_clock.dart';
 
-/// How long a call has run since [since], ticking once a second.
+/// How long a call has run since [since], a time on [SteadyClock], ticking
+/// once a second.
 ///
 /// A widget of its own so the tick rebuilds this text and nothing else. Each
 /// place that shows a call's length used to tick its whole self — the call
@@ -53,7 +55,7 @@ class _CallClockState extends State<CallClock> {
 
   @override
   Widget build(BuildContext context) => Text(
-    '${formatCallDuration(DateTime.now().difference(widget.since))}'
+    '${formatCallDuration(SteadyClock.now().difference(widget.since))}'
     '${widget.suffix}',
     maxLines: widget.maxLines,
     overflow: widget.overflow,

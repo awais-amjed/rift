@@ -47,6 +47,7 @@ import '../../services/share_presence.dart';
 import '../../services/sound_service.dart';
 import '../../services/soundboard_play.dart';
 import '../../services/speech_detector.dart';
+import '../../services/steady_clock.dart';
 import '../../services/voice_attributes.dart';
 import '../../services/voice_keys.dart';
 import '../../services/voice_privacy.dart';

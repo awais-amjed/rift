@@ -70,7 +70,8 @@ class LiveKitState extends Equatable {
   /// When this call reached [LiveKitConnectionState.connected], so every
   /// timer drawn for it — the call's own header and the bar that stands in
   /// for it elsewhere — counts from the same moment rather than from whenever
-  /// each happened to be built. Null whenever the state is anything else.
+  /// each happened to be built. On [SteadyClock], which is what the timers
+  /// read. Null whenever the state is anything else.
   final DateTime? connectedAt;
 
   /// Which LiveKit this call is actually on, as the mint named it.

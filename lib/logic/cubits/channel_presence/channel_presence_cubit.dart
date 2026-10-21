@@ -19,6 +19,7 @@ import '../../services/call_start_times.dart';
 import '../../services/presence_ration.dart';
 import '../../services/server_realtime.dart';
 import '../../services/share_presence.dart';
+import '../../services/steady_clock.dart';
 import '../../services/voice_broadcast.dart';
 import '../../services/voice_locations.dart';
 import '../livekit/livekit_cubit.dart';
@@ -309,10 +310,10 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
       _starts = _starts.withServer({
         for (final entry in started.entries)
           if (entry.key is String && entry.value is num)
-            entry.key as String: DateTime.fromMillisecondsSinceEpoch(
-              (entry.value as num).toInt(),
+            entry.key as String: SteadyClock.fromWall(
+              DateTime.fromMillisecondsSinceEpoch((entry.value as num).toInt()),
             ),
-      }, DateTime.now());
+      }, SteadyClock.now());
     }
     final roster = data['roster'];
     if (roster is! Map) return null;
@@ -434,7 +435,7 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
           if (entry.value.isNotEmpty) entry.key,
         ?_ownChannel,
       };
-      _starts = _starts.update(occupied, DateTime.now());
+      _starts = _starts.update(occupied, SteadyClock.now());
     }
     final byChannel = VoiceLocations.rosters(
       locations: _voice?.locations ?? const {},

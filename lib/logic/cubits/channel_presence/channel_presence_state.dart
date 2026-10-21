@@ -33,7 +33,8 @@ class ChannelPresenceState extends Equatable {
   final Set<String> onlineUserIds;
 
   /// channelId → when the call there began, for every occupied channel —
-  /// our own included, unlike [channelPresence].
+  /// our own included, unlike [channelPresence]. On [SteadyClock], which is
+  /// what the timers read.
   final Map<String, DateTime> callStartedAt;
 
   /// How busy each of this server's voice regions is, keyed by node id, as
