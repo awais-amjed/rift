@@ -21,7 +21,8 @@ class RailUnreadBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeState = context.theme;
     return Container(
-      constraints: const BoxConstraints(minWidth: 16),
+      // As wide as it is tall, so a single digit is a circle.
+      constraints: const BoxConstraints(minWidth: 20),
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
       decoration: BoxDecoration(
         color: themeState.primary,

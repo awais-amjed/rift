@@ -73,7 +73,7 @@ class _UnreadBadgeState extends State<UnreadBadge>
     final isMuted = widget.isMuted;
 
     return Container(
-      constraints: const BoxConstraints(minWidth: 17),
+      constraints: const BoxConstraints(minWidth: 16),
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
       decoration: BoxDecoration(
         color: isMuted ? Colors.transparent : themeState.primary,
@@ -96,7 +96,6 @@ class _UnreadBadgeState extends State<UnreadBadge>
           // near-white in light — so the badge reads as a hole in the pill
           // whatever a palette puts on its buttons.
           style: AppText.badge.copyWith(
-            height: 1.2,
             color: isMuted ? themeState.textTertiary : themeState.bgPrimary,
           ),
         ),

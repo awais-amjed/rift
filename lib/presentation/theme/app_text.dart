@@ -170,9 +170,17 @@ class AppText {
   );
 
   /// Unread counts and other numeric badges.
+  ///
+  /// The line height is what centres the number in its pill. A figure is a
+  /// whole number of pixels tall and lands on a whole pixel, so it sits in
+  /// the middle only when the line leaves an even number of pixels round it:
+  /// at 1.2 there was one spare and every count sat a pixel low, and the
+  /// rail's badge, inheriting the theme's 1.6, sat high.
   static const TextStyle badge = TextStyle(
     fontSize: 11,
     fontWeight: FontWeight.w700,
+    height: 1.3,
+    leadingDistribution: TextLeadingDistribution.even,
   );
 
   /// Role pills on member rows: Admin, Mod, Bot, Banned.
