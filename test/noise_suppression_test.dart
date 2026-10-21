@@ -7,8 +7,8 @@ void main() {
     const AppState().toJson()..['noiseSuppression'] = value,
   );
 
-  test('a new install starts on RNNoise', () {
-    expect(const AppState().noiseSuppression, NoiseSuppression.rnnoise);
+  test('a new install starts on DPDFNet', () {
+    expect(const AppState().noiseSuppression, NoiseSuppression.dpdfnet);
   });
 
   test('each choice survives a JSON round-trip', () {
@@ -20,12 +20,12 @@ void main() {
 
   test('the old switch, saved as a bool, keeps off off', () {
     expect(saved(false).noiseSuppression, NoiseSuppression.off);
-    expect(saved(true).noiseSuppression, NoiseSuppression.rnnoise);
+    expect(saved(true).noiseSuppression, NoiseSuppression.dpdfnet);
   });
 
   test('a missing or unknown value reads as the default', () {
     final json = const AppState().toJson()..remove('noiseSuppression');
-    expect(AppState.fromJson(json).noiseSuppression, NoiseSuppression.rnnoise);
-    expect(saved('krisp').noiseSuppression, NoiseSuppression.rnnoise);
+    expect(AppState.fromJson(json).noiseSuppression, NoiseSuppression.dpdfnet);
+    expect(saved('krisp').noiseSuppression, NoiseSuppression.dpdfnet);
   });
 }

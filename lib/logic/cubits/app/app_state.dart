@@ -260,7 +260,7 @@ class AppState extends Equatable {
     this.inputDeviceId,
     this.outputVolume = 1.0,
     this.inputVolume = 1.0,
-    this.noiseSuppression = NoiseSuppression.rnnoise,
+    this.noiseSuppression = NoiseSuppression.dpdfnet,
     this.dpdfnetSmall = false,
     this.echoCancellation = true,
     this.autoGainControl = true,

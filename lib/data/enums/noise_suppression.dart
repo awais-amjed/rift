@@ -25,8 +25,8 @@ enum NoiseSuppression {
   /// default now, and off stays off.
   static NoiseSuppression fromJson(Object? value) => switch (value) {
     false => off,
-    String name => values.asNameMap()[name] ?? rnnoise,
-    _ => rnnoise,
+    String name => values.asNameMap()[name] ?? dpdfnet,
+    _ => dpdfnet,
   };
 
   String toJson() => name;
