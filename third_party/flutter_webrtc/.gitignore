@@ -1,0 +1,3 @@
+# The prebuilt libwebrtc third_party/CMakeLists.txt downloads at configure time.
+/third_party/downloads/
+/third_party/libwebrtc/

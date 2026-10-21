@@ -1157,6 +1157,17 @@ word after `Bearer`, and the value of `access_token`, `apikey`, `token`,
 and system, server and room ids, error text, device names, and the title of a
 window being shared.
 
+**What goes to stderr is not this log, and libwebrtc puts nothing there.** On
+Linux an app started from the desktop has its stderr in the journal, readable
+long after the call. The libwebrtc flutter_webrtc 1.6.2 downloads
+(`m150.7871.03`) printed its INFO lines there in every build, among them the
+frame cryptor's `raw_key` and `derived_key`, so each call left its channel's
+key behind; `setMinDebugLogLevel` no longer reaches that setting since m150.
+The desktop builds therefore take `.04`, which is silent, through the copy in
+`third_party/flutter_webrtc` (its `RIFT_PATCHES.md`). Verified Oct 21 2026 on
+Linux by counting those lines in a call's stderr. Android and the web use
+other WebRTC builds, not checked.
+
 **Report a bug** (Settings → General → Help) sends it. The person writes what
 happened; `BugReportRepository` files it on central (`submit_bug_report`, ten
 a day per account, a Rift account required), then uploads the newest four log

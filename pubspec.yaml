@@ -146,6 +146,12 @@ dependency_overrides:
   # can go.
   livekit_client:
     path: third_party/livekit_client
+  # The WebRTC plugin, kept here so the desktop builds take a libwebrtc that
+  # does not print call keys to stderr.
+  # third_party/flutter_webrtc/RIFT_PATCHES.md says what differs and when this
+  # can go.
+  flutter_webrtc:
+    path: third_party/flutter_webrtc
 
 flutter:
 
