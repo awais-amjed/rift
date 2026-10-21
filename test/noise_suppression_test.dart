@@ -27,6 +27,30 @@ void main() {
     expect(saved('deepFilter').noiseSuppression, NoiseSuppression.dpdfnet);
   });
 
+  test('RNNoise saved before DPDFNet was the default moves to it once', () {
+    final before = const AppState().toJson()
+      ..['noiseSuppression'] = 'rnnoise'
+      ..remove('movedToDpdfnet');
+    final moved = AppState.fromJson(before);
+    expect(moved.noiseSuppression, NoiseSuppression.dpdfnet);
+
+    // Picked again afterwards, it stays.
+    final picked = moved.copyWith(noiseSuppression: NoiseSuppression.rnnoise);
+    expect(
+      AppState.fromJson(picked.toJson()).noiseSuppression,
+      NoiseSuppression.rnnoise,
+    );
+  });
+
+  test('the move leaves every other saved choice alone', () {
+    for (final mode in NoiseSuppression.values) {
+      if (mode == NoiseSuppression.rnnoise) continue;
+      final before = AppState(noiseSuppression: mode).toJson()
+        ..remove('movedToDpdfnet');
+      expect(AppState.fromJson(before).noiseSuppression, mode);
+    }
+  });
+
   test('a missing or unknown value reads as the default', () {
     final json = const AppState().toJson()..remove('noiseSuppression');
     expect(AppState.fromJson(json).noiseSuppression, NoiseSuppression.dpdfnet);

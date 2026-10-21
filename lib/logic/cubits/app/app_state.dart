@@ -444,10 +444,26 @@ class AppState extends Equatable {
     );
   }
 
-  factory AppState.fromJson(Map<String, dynamic> json) =>
-      _$AppStateFromJson(json);
+  /// Written with every save. Settings saved without it are from when
+  /// RNNoise was the default, which nearly everyone kept, so their RNNoise is
+  /// moved to DPDFNet once: RNNoise made voices sound robotic. Nothing tells
+  /// a kept default from a choice, so a few who picked RNNoise are moved too;
+  /// picking it again sticks.
+  static const _movedToDpdfnet = 'movedToDpdfnet';
 
-  Map<String, dynamic> toJson() => _$AppStateToJson(this);
+  factory AppState.fromJson(Map<String, dynamic> json) {
+    final state = _$AppStateFromJson(json);
+    if (json[_movedToDpdfnet] == true ||
+        state.noiseSuppression != NoiseSuppression.rnnoise) {
+      return state;
+    }
+    return state.copyWith(noiseSuppression: NoiseSuppression.dpdfnet);
+  }
+
+  Map<String, dynamic> toJson() => {
+    ..._$AppStateToJson(this),
+    _movedToDpdfnet: true,
+  };
 
   @override
   List<Object?> get props => [
