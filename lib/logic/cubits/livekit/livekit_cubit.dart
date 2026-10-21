@@ -23,6 +23,7 @@ import '../../../data/participant_identity.dart';
 import '../../../data/repositories/session_repository.dart';
 import '../../helper_methods.dart';
 import '../../services/audio_devices.dart';
+import '../../services/audio_reception.dart';
 import '../../services/before_quit.dart';
 import '../../services/call_foreground_service.dart';
 import '../../services/call_volume.dart';
@@ -60,6 +61,7 @@ import '../soundboard/soundboard_cubit.dart';
 import '../token/token_cubit.dart';
 import '../vault/vault_cubit.dart';
 
+part 'livekit_audio_reception.dart';
 part 'livekit_capture_revive.dart';
 part 'livekit_connection.dart';
 part 'livekit_dm_call.dart';
@@ -88,6 +90,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
         _MediaControlsMixin,
         _ParticipantMixin,
         _ScreenshareMixin,
+        _AudioReceptionMixin,
         _RoomEventsMixin,
         _VoiceActivityMixin,
         _CaptureReviveMixin,
@@ -265,7 +268,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
     ];
     // A stream is part of somebody being in the call, never on its own.
     final ownerless = sharesWithoutOwner(inRoom.map((p) => p.identity));
-    _holdSharesWithoutOwner(room, ownerless);
+    _syncAudioReception();
     final allParticipants = [
       for (final p in inRoom)
         if (!ownerless.contains(p.identity)) p,
@@ -744,6 +747,12 @@ class LiveKitCubit extends Cubit<LiveKitState>
       for (final pub in participant.audioTrackPublications) {
         final track = pub.track;
         if (track == null) continue;
+        // A stream nobody watches, or one whose owner has left, stays off
+        // whatever is stored for it ([_syncAudioReception]).
+        if (!_hearsAudio(room, participant, pub)) {
+          track.mediaStreamTrack.enabled = false;
+          continue;
+        }
         // Keyed by user, never the raw identity (which carries a per-device
         // segment), and each share under a key of its own, so that turning
         // the music down does not also turn its owner down. Applied even

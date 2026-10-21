@@ -961,6 +961,33 @@ other (earlier notes calling it mono had measured a mono sender). Web,
 Android and macOS use other WebRTC builds and are not affected (not
 measured).
 
+### Receiving a call's audio — [Implemented October 2026]
+
+**Audio this client should not hear is held, never unsubscribed.** Deafened,
+nothing is heard; a stream's sound only while it is watched; a share whose
+owner has left, not at all (`hearsRemoteAudio`). The rest is turned off on the
+device and the server is told to stop sending it (`disable()`), but the
+subscription stays (`_AudioReceptionMixin`). Only your own share is dropped,
+for good. A stream's picture is still unsubscribed while unwatched, so that
+adaptive streaming keeps pausing the ones on screen nobody can see.
+
+Unsubscribing is what turned calls to static. It hands the track's slot on the
+subscriber connection back to LiveKit's server, which gives the slot to the
+next track to arrive, and a slot keeps the id of the track it was first made
+for. Subscribing to that first track again opens a second slot under the same
+id, and flutter_webrtc fits each new track's frame cryptor to the *first* slot
+with the id it is handed. The other slot is left without one and plays its
+frames still encrypted: loud static on the stream, then on every voice that
+passes through that slot — a push-to-talk member republishes on every press —
+until the call is joined again. Watching, stopping and watching again, the
+join-time drop of streams nobody watched, and deafening all did that. Reported
+Oct 19 2026 after watching a stream on Windows and on Linux; reproduced Oct 21
+on the local stack with LiveKit's Flutter SDK and bot members in 4 of 12 runs,
+and in none of 12 holding instead (`TESTING.md`). The plugin's lookup is
+unchanged upstream as of Oct 21 2026; something other than this client can
+still subscribe a track again (a member's voice hidden from you and shown
+again), which this does not cover.
+
 ### Windows turning other apps down — [Implemented October 2026]
 
 Windows lowers every other sound while an app has playback open through the

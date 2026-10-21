@@ -24,6 +24,7 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
   Future<void> rejoinDmCall();
 
   void _applyStoredSettings();
+  void _syncAudioReception();
   void _applyScreenshareQualitySettings(Participant participant);
   void _onRemoteAudioArrived(RemoteTrackPublication publication);
   void _onRemoteAudioMayHaveGone();
@@ -103,8 +104,12 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
             SoundService.instance.play(AppSound.stream);
           }
           if (!_watching(e.participant.identity)) {
-            // Prevent auto-subscription to unsubscribed screenshares.
-            if (e.publication.subscribed) e.publication.unsubscribe();
+            // A picture nobody watches is not received at all. Its sound is
+            // held instead, once it arrives ([_AudioReceptionMixin]).
+            if (e.publication.subscribed &&
+                e.publication.kind == TrackType.VIDEO) {
+              e.publication.unsubscribe();
+            }
           } else {
             if (!e.publication.subscribed) e.publication.subscribe();
             if (e.publication.source == TrackSource.screenShareVideo) {
@@ -148,9 +153,10 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
               e.publication.unsubscribe();
             }
           } else if (e.publication.source == TrackSource.screenShareAudio) {
-            if (!_watching(e.participant.identity)) {
-              e.publication.unsubscribe();
-            }
+            // Held, not dropped, while unwatched; asking may also resume a
+            // stream that dropped out a moment ago, so the sync runs after.
+            _watching(e.participant.identity);
+            _syncAudioReception();
           }
         }
       })
@@ -342,13 +348,13 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
   /// them to be watched. A desktop streams on a `_screenshare` connection of
   /// its own; a phone publishes its screen beside its microphone, and was
   /// sent to everyone in the call whether they had asked to watch or not.
-  /// Drops [publication] if it is audio arriving while deafened, and says so.
-  /// Undeafening subscribes to it again with everything else.
+  /// Holds [publication] if it is audio arriving while deafened, and says
+  /// so. Undeafening turns it back on with everything else. Held, not
+  /// unsubscribed ([_AudioReceptionMixin]).
   bool _staysDeafened(RemoteTrackPublication publication) {
     if (!state.isDeafenedEffective) return false;
     if (publication.kind != TrackType.AUDIO) return false;
-    publication.track?.mediaStreamTrack.enabled = false;
-    unawaited(publication.unsubscribe());
+    _syncAudioReception();
     return true;
   }
 

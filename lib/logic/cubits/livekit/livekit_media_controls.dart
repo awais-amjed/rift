@@ -9,6 +9,7 @@ mixin _MediaControlsMixin on Cubit<LiveKitState> {
   Future<void> _updateVoiceActivityMonitor();
   void _playPushToTalkTone(bool on);
   void _applyStoredSettings();
+  void _syncAudioReception();
 
   /// Toggles microphone. If deafened, un-deafens instead (restoring mic).
   /// During the mic test, ends it — see [toggleDeafen].
@@ -94,20 +95,13 @@ mixin _MediaControlsMixin on Cubit<LiveKitState> {
     if (state.room != null) _syncParticipants();
   }
 
-  /// Unsubscribes from every remote audio track, so nothing is even received.
-  Future<void> _silenceRemoteAudio() async {
-    final room = state.room;
-    if (room == null) return;
-    for (final participant in room.remoteParticipants.values) {
-      for (final pub in participant.audioTrackPublications) {
-        final track = pub.track;
-        if (track != null) track.mediaStreamTrack.enabled = false;
-        await pub.unsubscribe();
-      }
-    }
-  }
+  /// Stops every remote audio track, so nothing is even received: off here
+  /// at once, and the server told to stop sending. Held, not unsubscribed
+  /// ([_AudioReceptionMixin]) — undeafening used to subscribe to every track
+  /// again, the move that could turn a call to static.
+  Future<void> _silenceRemoteAudio() async => _syncAudioReception();
 
-  /// Re-subscribes to remote audio and reapplies each track's stored local
+  /// Turns remote audio back on and reapplies each track's stored local
   /// mute and volume. Shared by un-deafening yourself and by a moderator
   /// lifting a server deafen — both have to hand the audio back the same way.
   ///
@@ -115,13 +109,7 @@ mixin _MediaControlsMixin on Cubit<LiveKitState> {
   /// under its own key. Reading the owner's voice setting here put a person's
   /// volume on their stream, and turned your own stream's sound back on.
   Future<void> _restoreRemoteAudio() async {
-    final room = state.room;
-    if (room == null) return;
-    for (final participant in room.remoteParticipants.values) {
-      for (final pub in participant.audioTrackPublications) {
-        await pub.subscribe();
-      }
-    }
+    _syncAudioReception();
     _applyStoredSettings();
   }
 

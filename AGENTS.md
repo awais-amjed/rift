@@ -326,6 +326,13 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   it. A list beside the call keeps its rows the same way as the chat: each rail chip
   selects its own unread count, and `MembersSidebarList` keeps unchanged rows.
   `test/call_rebuild_test.dart` and `test/members_list_rebuild_test.dart` count them.
+- **Remote audio in a call is held, never unsubscribed** — deafened, an unwatched stream,
+  a share whose owner left. `_AudioReceptionMixin` decides it in one place
+  (`hearsRemoteAudio`) and uses `disable()`/`enable()`. A track subscribed again after an
+  unsubscribe gets a second receiver with the first one's id, and its frame cryptor lands
+  on the wrong one: static until rejoin (`ARCHITECTURE.md` §5, *Receiving a call's
+  audio*). Only a picture or your own share may be unsubscribed;
+  `test/audio_reception_test.dart` fails on any other `unsubscribe()` in the call.
 - Platform gating: `kIsWeb` for web, `Platform.isX` for desktop specifics. The Rust bridge is
   desktop/mobile only (`if (!kIsWeb) await RustLib.init()`); web must degrade gracefully.
 - Navigation is go_router via `AppRoutes`; use `HelperMethods.pushOrGoToRoute` when a route must

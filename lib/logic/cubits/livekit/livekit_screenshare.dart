@@ -58,12 +58,16 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
       }
     }
 
+    // The sound is turned back on by the sync below, now that the stream is
+    // in the watched set. It stays subscribed while unwatched, only held
+    // ([_AudioReceptionMixin] says why); subscribing is for a track the
+    // server never sent.
     for (final pub in participant.audioTrackPublications) {
       if (pub.source == TrackSource.screenShareAudio) {
         try {
-          await pub.subscribe();
+          if (!pub.subscribed) await pub.subscribe();
           HelperMethods.printDebug(
-            '[LiveKit] Subscribed to screenshare audio from $identity',
+            '[LiveKit] Hearing screenshare audio from $identity',
           );
           subscribedAny = true;
         } catch (e) {
@@ -124,20 +128,15 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
       }
     }
 
-    for (final pub in participant.audioTrackPublications) {
-      if (pub.source == TrackSource.screenShareAudio) {
-        try {
-          await pub.unsubscribe();
-          HelperMethods.printDebug(
-            '[LiveKit] Unsubscribed from screenshare audio from $identity',
-          );
-          unsubscribedAny = true;
-        } catch (e) {
-          HelperMethods.printDebug(
-            '[LiveKit] Failed to unsubscribe from screenshare audio: $e',
-          );
-        }
-      }
+    // Held rather than unsubscribed: the sync below turns it off once the
+    // stream has left the watched set ([_AudioReceptionMixin]).
+    if (participant.audioTrackPublications.any(
+      (pub) => pub.source == TrackSource.screenShareAudio,
+    )) {
+      HelperMethods.printDebug(
+        '[LiveKit] Holding screenshare audio from $identity',
+      );
+      unsubscribedAny = true;
     }
 
     if (unsubscribedAny) {
@@ -200,22 +199,6 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
       // pretending it is a connection failure would replace a live call with an
       // error page.
       HelperMethods.printDebug('[LiveKit] Screen share failed: $e');
-    }
-  }
-
-  /// Silences the shares whose owner is not in the call, and lets them be
-  /// heard again once the owner is back — see [sharesWithoutOwner]. Their
-  /// tiles are left out of the call already; a picture nobody draws is
-  /// paused by adaptive streaming, but sound plays whether it is watched or
-  /// not, so the server is told to stop sending it.
-  void _holdSharesWithoutOwner(Room room, Set<String> ownerless) {
-    for (final participant in room.remoteParticipants.values) {
-      if (!ParticipantIdentity.isShare(participant.identity)) continue;
-      final play = !ownerless.contains(participant.identity);
-      for (final pub in participant.audioTrackPublications) {
-        if (!pub.subscribed || pub.enabled == play) continue;
-        unawaited(play ? pub.enable() : pub.disable());
-      }
     }
   }
 }
