@@ -43,7 +43,11 @@ void main() {
         home: MediaQuery(
           data: MediaQueryData(textScaler: TextScaler.linear(scale)),
           child: Material(
-            child: Center(child: RepaintBoundary(child: badge)),
+            // On a whole pixel, so the image holds the badge as it paints.
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: RepaintBoundary(child: badge),
+            ),
           ),
         ),
       ),
@@ -135,5 +139,77 @@ void main() {
         });
       }
     }
+  }
+
+  // A row whose height comes out at a half pixel centres the badge on one.
+  // Drawn there, the pill's edges blur across two rows while the count
+  // snaps to one, so the badge paints itself onto whole pixels instead.
+  for (final (name, badge) in [
+    ('UnreadBadge', const UnreadBadge(count: 2)),
+    ('RailUnreadBadge', const RailUnreadBadge(count: 2)),
+  ]) {
+    testWidgets('$name paints on whole pixels when laid out between them', (
+      tester,
+    ) async {
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.fromPalette(AppPalette.all.first, Brightness.dark),
+          home: Material(
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: RepaintBoundary(
+                child: SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: Stack(
+                    children: [Positioned(left: 10.5, top: 10.5, child: badge)],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      final boundary = tester.renderObject<RenderRepaintBoundary>(
+        find.byType(RepaintBoundary).last,
+      );
+      late Uint8List px;
+      await tester.runAsync(() async {
+        final image = await boundary.toImage();
+        final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+        px = data!.buffer.asUint8List();
+        image.dispose();
+      });
+      // Down the badge's middle column, the pill's outer edges: the pixel
+      // past each one is the ground, not the fill half covering it.
+      final fill = AppTheme.fromPalette(
+        AppPalette.all.first,
+        Brightness.dark,
+      ).colorScheme.primary;
+      final x = (tester.getRect(find.byWidget(badge)).center.dx).floor();
+      int distance(int y) {
+        final i = (y * 40 + x) * 4;
+        return (px[i] - (fill.r * 255).round()).abs() +
+            (px[i + 1] - (fill.g * 255).round()).abs() +
+            (px[i + 2] - (fill.b * 255).round()).abs();
+      }
+
+      var top = 0;
+      while (distance(top) > 40) {
+        top++;
+      }
+      var bottom = 39;
+      while (distance(bottom) > 40) {
+        bottom--;
+      }
+      expect(distance(top - 1), greaterThan(300), reason: 'top edge blurred');
+      expect(
+        distance(bottom + 1),
+        greaterThan(300),
+        reason: 'bottom edge blurred',
+      );
+    });
   }
 }

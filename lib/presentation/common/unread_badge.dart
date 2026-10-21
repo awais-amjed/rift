@@ -4,6 +4,7 @@ import '../../data/constants.dart';
 import '../theme/app_motion.dart';
 import '../theme/app_text.dart';
 import '../theme/theme_context.dart';
+import 'pixel_snap.dart';
 
 /// Accent pill showing an unread count (capped at "99+"). Used on channel
 /// tiles, DM rows and server rows.
@@ -60,11 +61,13 @@ class _UnreadBadgeState extends State<UnreadBadge>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _pop,
-      builder: (context, child) =>
-          Transform.scale(scale: 1 + _pop.value, child: child),
-      child: _pill(),
+    return PixelSnap(
+      child: AnimatedBuilder(
+        animation: _pop,
+        builder: (context, child) =>
+            Transform.scale(scale: 1 + _pop.value, child: child),
+        child: _pill(),
+      ),
     );
   }
 

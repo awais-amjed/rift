@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../../data/constants.dart';
+import '../../../../../common/pixel_snap.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
 
@@ -20,19 +21,21 @@ class RailUnreadBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
-    return Container(
-      // As wide as it is tall, so a single digit is a circle.
-      constraints: const BoxConstraints(minWidth: 20),
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-      decoration: BoxDecoration(
-        color: themeState.primary,
-        borderRadius: BorderRadius.circular(K.radiusPill),
-        border: Border.all(color: themeState.bgSecondary, width: 2),
-      ),
-      child: Text(
-        count > max ? '$max+' : '$count',
-        textAlign: TextAlign.center,
-        style: AppText.badge.copyWith(color: themeState.onPrimary),
+    return PixelSnap(
+      child: Container(
+        // As wide as it is tall, so a single digit is a circle.
+        constraints: const BoxConstraints(minWidth: 20),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+        decoration: BoxDecoration(
+          color: themeState.primary,
+          borderRadius: BorderRadius.circular(K.radiusPill),
+          border: Border.all(color: themeState.bgSecondary, width: 2),
+        ),
+        child: Text(
+          count > max ? '$max+' : '$count',
+          textAlign: TextAlign.center,
+          style: AppText.badge.copyWith(color: themeState.onPrimary),
+        ),
       ),
     );
   }
