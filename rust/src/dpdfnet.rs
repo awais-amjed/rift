@@ -2,8 +2,8 @@
 //! models (Apache-2.0, `models/`), on ONNX Runtime, which is opened from
 //! beside the app the first time the model loads ([`RUNTIME`]).
 //!
-//! It keeps more of the voice than DeepFilterNet, which it grew out of, for
-//! more work. DPDFNet-8, the one that sounded best, took 3.4 ms a frame on a
+//! It keeps more of the voice than DeepFilterNet, which it grew out of and
+//! which Rift offered until Oct 21, for more work. DPDFNet-8, the one that sounded best, took 3.4 ms a frame on a
 //! performance core of an i7-12700H and 7.7 on one of its efficiency cores,
 //! where libwebrtc's capture thread sometimes runs: there a call had 6% of its
 //! frames late, which is heard as crackle. DPDFNet-2 took 1.2 and 2.8 ms
@@ -16,10 +16,10 @@
 //! unmute.
 //! Before either runs, the thread is moved onto the performance cores
 //! (`fast_core`), which on that i7 kept DPDFNet-8 for the whole call.
-//! tract, which runs DeepFilterNet, runs these too, but its GRU layers took
+//! tract, which ran DeepFilterNet, runs these too, but its GRU layers took
 //! DPDFNet-8 to 12 ms a frame.
 //!
-//! Wired up as DeepFilterNet is (`deep_filter.rs`): the runner's filter calls
+//! The runner's filter calls
 //! the two C functions here on libwebrtc's capture thread, 10 ms at a time,
 //! once Dart has loaded the model ([`load`]) and handed their addresses on.
 //! The settings mic test runs a [`Model`] of its own (`mic_test::clean`).
@@ -33,7 +33,8 @@ use df::{Complex32, DFState};
 use ort::session::{builder::GraphOptimizationLevel, Session};
 use ort::value::TensorRef;
 
-use crate::deep_filter::FRAME;
+/// What libwebrtc hands over: 10 ms at 48 kHz, which is also the models' hop.
+pub(crate) const FRAME: usize = 480;
 
 /// DPDFNet-8 and DPDFNet-2 at 48 kHz, from huggingface.co/Ceva-IP/DPDFNet
 /// (`onnx/dpdfnet8_48khz_hr.onnx`, `onnx/dpdfnet2_48khz_hr.onnx`).

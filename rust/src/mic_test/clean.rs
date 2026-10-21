@@ -12,7 +12,7 @@
 //!   canceller handed your own voice as the far end takes it out of the near
 //!   end too. In a call it only acts while someone else is talking.
 //! - **The model**: RNNoise from the runner, whose addresses Dart passes on
-//!   ([`set_rnnoise`]), DeepFilterNet or DPDFNet. Each a state of its own, apart from
+//!   ([`set_rnnoise`]), or DPDFNet. Each a state of its own, apart from
 //!   the call's, so a call muted under the test never shares what a model has
 //!   heard with it.
 //! - **The mic volume** ([`Boost`]).
@@ -21,8 +21,7 @@
 //! between models and hear the difference.
 
 use super::Boost;
-use crate::deep_filter::{self, FRAME};
-use crate::dpdfnet;
+use crate::dpdfnet::{self, FRAME};
 use livekit::webrtc::native::apm::AudioProcessingModule;
 use std::ffi::c_void;
 use std::sync::Mutex;
@@ -37,7 +36,6 @@ pub(crate) enum Noise {
     Off,
     Standard,
     Rnnoise,
-    DeepFilter,
     Dpdfnet,
 }
 
@@ -55,9 +53,8 @@ static SETTINGS: Mutex<Settings> = Mutex::new(Settings {
 /// The runner's `rift_noise_filter_rnnoise_create`, `_process` and `_destroy`.
 static RNNOISE: Mutex<Option<RnnoiseEntry>> = Mutex::new(None);
 
-/// The library's models, each kept from one test to the next: loading one
-/// takes a tenth of a second or more, and flipping to it should not.
-static SPARE_DEEP_FILTER: Mutex<Option<deep_filter::Model>> = Mutex::new(None);
+/// The library's model, kept from one test to the next: loading it takes a
+/// tenth of a second, and flipping to it should not.
 static SPARE_DPDFNET: Mutex<Option<dpdfnet::Model>> = Mutex::new(None);
 
 pub(crate) fn set(settings: Settings) {
@@ -130,21 +127,6 @@ trait LibraryModel: Sized + 'static {
     fn process(&mut self, frame: &mut [f32; FRAME]);
 }
 
-impl LibraryModel for deep_filter::Model {
-    fn spare() -> &'static Mutex<Option<Self>> {
-        &SPARE_DEEP_FILTER
-    }
-    fn load() -> Result<Self, String> {
-        Self::new()
-    }
-    fn reset(&mut self) {
-        deep_filter::Model::reset(self);
-    }
-    fn process(&mut self, frame: &mut [f32; FRAME]) {
-        deep_filter::Model::process(self, frame);
-    }
-}
-
 impl LibraryModel for dpdfnet::Model {
     fn spare() -> &'static Mutex<Option<Self>> {
         &SPARE_DPDFNET
@@ -190,7 +172,6 @@ impl<M: LibraryModel> Drop for Kept<M> {
 enum Model {
     None,
     Rnnoise(Rnnoise),
-    DeepFilter(Box<Kept<deep_filter::Model>>),
     Dpdfnet(Box<Kept<dpdfnet::Model>>),
 }
 
@@ -201,7 +182,6 @@ impl Model {
         let loaded = match noise {
             Noise::Off | Noise::Standard => return Model::None,
             Noise::Rnnoise => return Self::rnnoise(),
-            Noise::DeepFilter => Kept::take().map(Model::DeepFilter),
             Noise::Dpdfnet => Kept::take().map(Model::Dpdfnet),
         };
         loaded.unwrap_or_else(|message| {
@@ -224,7 +204,6 @@ impl Model {
         match self {
             Model::None => {}
             Model::Rnnoise(rnnoise) => rnnoise.process(frame),
-            Model::DeepFilter(model) => model.process(frame),
             Model::Dpdfnet(model) => model.process(frame),
         }
     }
@@ -348,9 +327,7 @@ mod tests {
         10.0 * (energy_in / energy_out.max(1e-9)).log10()
     }
 
-    // One test, so the shared settings are not raced by another. In release
-    // only: tract will not build DeepFilterNet's model in a debug build.
-    #[cfg(not(debug_assertions))]
+    // One test, so the shared settings are not raced by another.
     #[test]
     fn each_choice_cleans_as_the_call_would() {
         // Off leaves noise alone below about 12 kHz, where libwebrtc's
@@ -360,9 +337,6 @@ mod tests {
         assert!(off < 4.0, "off took {off:.1} dB");
         // libwebrtc's own suppressor takes it well down.
         assert!(reduction(Noise::Standard) > off + 6.0);
-        // DeepFilterNet, a model of the test's own. DPDFNet is too, but needs
-        // ONNX Runtime, which is not part of the crate (dpdfnet's tests).
-        assert!(reduction(Noise::DeepFilter) > off + 20.0);
         // No runner here, so no RNNoise: the test runs without a model rather
         // than failing.
         assert!((reduction(Noise::Rnnoise) - off).abs() < 0.5);

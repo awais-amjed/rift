@@ -28,10 +28,11 @@ struct RatePath {
   RateConverter down;
 };
 
-// The model values Dart passes to rift_noise_filter_set_model.
-enum Model : int32_t { kNone = 0, kRnnoise = 1, kDeepFilter = 2, kDpdfnet = 3 };
+// The model values Dart passes to rift_noise_filter_set_model. 2 was
+// DeepFilterNet.
+enum Model : int32_t { kNone = 0, kRnnoise = 1, kDpdfnet = 3 };
 
-// A model in the Rust library (DeepFilterNet, DPDFNet): its frame function,
+// A model in the Rust library (DPDFNet): its frame function,
 // which leaves the frame as it was if the model cannot take it, and its reset.
 using LibraryProcess = int32_t (*)(float* samples, int32_t count);
 using LibraryReset = void (*)();
@@ -97,12 +98,8 @@ class NoiseProcessing final
   bool ok() const { return rnnoise_ != nullptr; }
 
   void SetModel(int32_t model) {
-    model_.store(model >= kRnnoise && model <= kDpdfnet ? model : kNone,
+    model_.store(model == kRnnoise || model == kDpdfnet ? model : kNone,
                  std::memory_order_release);
-  }
-
-  void SetDeepFilter(LibraryProcess process, LibraryReset reset) {
-    deep_filter_.Set(process, reset);
   }
 
   void SetDpdfnet(LibraryProcess process, LibraryReset reset) {
@@ -206,7 +203,6 @@ class NoiseProcessing final
   // The Rust library's model `model` stands for, or null for RNNoise and
   // none.
   LibraryModel* Library(int32_t model) {
-    if (model == kDeepFilter) return &deep_filter_;
     if (model == kDpdfnet) return &dpdfnet_;
     return nullptr;
   }
@@ -253,7 +249,6 @@ class NoiseProcessing final
   std::atomic<bool> silenced_{false};
   std::atomic<float> gain_{1.0f};
   std::atomic<int32_t> model_{kNone};
-  LibraryModel deep_filter_;
   LibraryModel dpdfnet_;
   Timings timings_;
 };
@@ -308,13 +303,6 @@ void rift_noise_filter_set_silenced(int32_t silenced) {
   if (rift::g_processing != nullptr) {
     rift::g_processing->SetSilenced(silenced != 0);
   }
-}
-
-void rift_noise_filter_set_deep_filter(void* process, void* reset) {
-  if (rift::g_processing == nullptr) return;
-  rift::g_processing->SetDeepFilter(
-      reinterpret_cast<rift::LibraryProcess>(process),
-      reinterpret_cast<rift::LibraryReset>(reset));
 }
 
 void rift_noise_filter_set_dpdfnet(void* process, void* reset) {

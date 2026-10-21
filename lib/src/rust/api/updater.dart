@@ -20,8 +20,8 @@ Future<AvailableUpdate?> updaterCheck({required bool includePrereleases}) =>
       includePrereleases: includePrereleases,
     );
 
-/// Downloads what [updater_check] last found. The stream carries how far it
-/// is several times a second, and ends once the update is ready, or with an
+/// Downloads what [updater_check] last found. The stream says how far it is
+/// several times a second, and ends once the update is ready, or with an
 /// error — also when [updater_cancel] ended it.
 Stream<UpdateDownloadProgress> updaterDownload() =>
     RustLib.instance.api.crateApiUpdaterUpdaterDownload();

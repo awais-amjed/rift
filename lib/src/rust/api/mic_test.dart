@@ -67,7 +67,6 @@ enum MicTestNoise {
   /// libwebrtc's own suppressor.
   standard,
   rnnoise,
-  deepFilter,
   dpdfnet,
 }
 

@@ -79,7 +79,6 @@ pub enum MicTestNoise {
     /// libwebrtc's own suppressor.
     Standard,
     Rnnoise,
-    DeepFilter,
     Dpdfnet,
 }
 
@@ -93,7 +92,6 @@ pub fn set_mic_test_processing(noise: MicTestNoise, auto_gain: bool) {
             MicTestNoise::Off => mic_test::Noise::Off,
             MicTestNoise::Standard => mic_test::Noise::Standard,
             MicTestNoise::Rnnoise => mic_test::Noise::Rnnoise,
-            MicTestNoise::DeepFilter => mic_test::Noise::DeepFilter,
             MicTestNoise::Dpdfnet => mic_test::Noise::Dpdfnet,
         },
         auto_gain,

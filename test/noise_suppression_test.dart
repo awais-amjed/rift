@@ -23,6 +23,10 @@ void main() {
     expect(saved(true).noiseSuppression, NoiseSuppression.dpdfnet);
   });
 
+  test('DeepFilterNet, no longer offered, reads as DPDFNet', () {
+    expect(saved('deepFilter').noiseSuppression, NoiseSuppression.dpdfnet);
+  });
+
   test('a missing or unknown value reads as the default', () {
     final json = const AppState().toJson()..remove('noiseSuppression');
     expect(AppState.fromJson(json).noiseSuppression, NoiseSuppression.dpdfnet);

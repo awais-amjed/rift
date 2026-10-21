@@ -24,7 +24,6 @@ class NoiseSuppressionChoice extends StatelessWidget {
     NoiseSuppression.off => 'Best for music, or a mic that is already clean.',
     NoiseSuppression.standard => 'Best for a quiet room.',
     NoiseSuppression.rnnoise => 'Best for fans, keyboards and street noise.',
-    NoiseSuppression.deepFilter => 'Best for loud, busy rooms.',
     NoiseSuppression.dpdfnet => 'Best for a natural voice in a noisy room.',
   };
 
@@ -44,7 +43,7 @@ class NoiseSuppressionChoice extends StatelessWidget {
         const SizedBox(height: 8),
         // A ceiling, not a width: see the sensitive-content choice. Measured
         // per segment, since how many there are depends on the platform and
-        // four in the three-segment width cut DeepFilterNet's name short.
+        // four in the three-segment width cut the longest name short.
         ConstrainedBox(
           constraints: BoxConstraints(
             maxWidth: K.settingsChoiceWidth / 3 * choices.length,

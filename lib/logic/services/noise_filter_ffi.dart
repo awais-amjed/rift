@@ -11,8 +11,8 @@ import '../helper_methods.dart';
 
 /// The noise models run inside libwebrtc's processing of the microphone, on
 /// Linux and Windows (`native/noise_filter` in the runner): RNNoise built into
-/// the runner, and DeepFilterNet and DPDFNet from the Rust library, each
-/// loaded the first time it is picked. One switch for the whole process: every capture track, the
+/// the runner, and DPDFNet from the Rust library, loaded the first time it is
+/// picked. One switch for the whole process: every capture track, the
 /// call's capture track goes through the same processing. The settings mic
 /// test reads the device itself, outside libwebrtc, and is handed the same
 /// choice to run there ([forMicTest]).
@@ -28,8 +28,8 @@ abstract final class NoiseFilter {
   /// has moved on is not put on.
   static NoiseSuppression? _wanted;
 
-  /// The Rust library's models the runner has been handed.
-  static final _loaded = <NoiseSuppression>{};
+  /// Whether the runner has been handed DPDFNet.
+  static bool _dpdfnetHanded = false;
 
   /// Whether the mic test has been told where the runner's RNNoise is.
   static bool _rnnoiseHanded = false;
@@ -40,7 +40,6 @@ abstract final class NoiseFilter {
     NoiseSuppression.standard,
     if (_native != null) ...[
       NoiseSuppression.rnnoise,
-      NoiseSuppression.deepFilter,
       if (_native?.canDpdfnet ?? false) NoiseSuppression.dpdfnet,
     ],
   ];
@@ -51,7 +50,6 @@ abstract final class NoiseFilter {
     NoiseSuppression.off => false,
     NoiseSuppression.standard => true,
     NoiseSuppression.rnnoise ||
-    NoiseSuppression.deepFilter ||
     NoiseSuppression.dpdfnet => _native == null,
   };
 
@@ -80,9 +78,9 @@ abstract final class NoiseFilter {
   static void setSilenced(bool silenced) =>
       _native?.setSilenced?.call(silenced ? 1 : 0);
 
-  /// Puts [mode]'s model on the microphone, or takes it off. DeepFilterNet
-  /// and DPDFNet load first, a tenth to a quarter of a second, with no model
-  /// on meanwhile; if one cannot load, RNNoise stands in.
+  /// Puts [mode]'s model on the microphone, or takes it off. DPDFNet loads
+  /// first, about a tenth of a second, with no model on meanwhile; if it
+  /// cannot load, RNNoise stands in.
   static Future<void> use(NoiseSuppression mode) async {
     final native = _native;
     if (native == null) return;
@@ -92,36 +90,24 @@ abstract final class NoiseFilter {
         native.setModel(_Model.none);
       case NoiseSuppression.rnnoise:
         native.setModel(_Model.rnnoise);
-      case NoiseSuppression.deepFilter:
-        await _useLibraryModel(native, mode, _Model.deepFilter);
       case NoiseSuppression.dpdfnet:
-        await _useLibraryModel(native, mode, _Model.dpdfnet);
+        await _useDpdfnet(native);
     }
   }
 
-  static Future<void> _useLibraryModel(
-    _NativeFilter native,
-    NoiseSuppression mode,
-    int model,
-  ) async {
-    if (!_loaded.contains(mode)) {
+  static Future<void> _useDpdfnet(_NativeFilter native) async {
+    if (!_dpdfnetHanded) {
       native.setModel(_Model.none);
       try {
-        final entry = mode == NoiseSuppression.dpdfnet
-            ? await loadDpdfnet()
-            : await loadDeepFilter();
-        native.setLibraryModel(
-          model,
-          entry.process.toInt(),
-          entry.reset.toInt(),
-        );
-        _loaded.add(mode);
+        final entry = await loadDpdfnet();
+        native.setDpdfnet(entry.process.toInt(), entry.reset.toInt());
+        _dpdfnetHanded = true;
       } catch (e) {
-        HelperMethods.printDebug('${mode.label} unavailable: $e');
+        HelperMethods.printDebug('DPDFNet unavailable: $e');
       }
-      if (_wanted != mode) return;
+      if (_wanted != NoiseSuppression.dpdfnet) return;
     }
-    native.setModel(_loaded.contains(mode) ? model : _Model.rnnoise);
+    native.setModel(_dpdfnetHanded ? _Model.dpdfnet : _Model.rnnoise);
   }
 
   /// Has DPDFNet run DPDFNet-2 alone when [small], in calls and the mic test
@@ -143,7 +129,7 @@ abstract final class NoiseFilter {
   /// itself on a computer too slow for the large one, and has the next call
   /// start on the large one again: the computer may only have been busy.
   static void callEnded() {
-    if (_loaded.contains(NoiseSuppression.dpdfnet)) {
+    if (_dpdfnetHanded) {
       if (takeDpdfnetFellBack()) {
         HelperMethods.printDebug(
           'DPDFNet: too slow here for DPDFNet-8, ran DPDFNet-2',
@@ -189,8 +175,6 @@ abstract final class NoiseFilter {
         // suppressor, and so does the test.
         NoiseSuppression.rnnoise =>
           hasModels ? MicTestNoise.rnnoise : MicTestNoise.standard,
-        NoiseSuppression.deepFilter =>
-          hasModels ? MicTestNoise.deepFilter : MicTestNoise.standard,
         NoiseSuppression.dpdfnet =>
           hasModels ? MicTestNoise.dpdfnet : MicTestNoise.standard,
       },
@@ -203,14 +187,13 @@ abstract final class NoiseFilter {
 abstract final class _Model {
   static const none = 0;
   static const rnnoise = 1;
-  static const deepFilter = 2;
+  // 2 was DeepFilterNet.
   static const dpdfnet = 3;
 }
 
 class _NativeFilter {
   final void Function(int) setModel;
   final void Function(double) setGain;
-  final void Function(Pointer<Void>, Pointer<Void>) _setDeepFilter;
 
   /// `rift_noise_filter_set_dpdfnet`; null from a runner built before it.
   final void Function(Pointer<Void>, Pointer<Void>)? _setDpdfnet;
@@ -228,7 +211,6 @@ class _NativeFilter {
   const _NativeFilter(
     this.setModel,
     this.setGain,
-    this._setDeepFilter,
     this._setDpdfnet,
     this._takeTimings,
     this.setSilenced,
@@ -237,9 +219,9 @@ class _NativeFilter {
 
   bool get canDpdfnet => _setDpdfnet != null;
 
-  /// Hands the runner the Rust library's [model] (a [_Model] value).
-  void setLibraryModel(int model, int process, int reset) {
-    final set = model == _Model.dpdfnet ? _setDpdfnet : _setDeepFilter;
+  /// Hands the runner DPDFNet's frame and reset functions.
+  void setDpdfnet(int process, int reset) {
+    final set = _setDpdfnet;
     if (set == null) throw StateError('this runner cannot take DPDFNet');
     set(Pointer.fromAddress(process), Pointer.fromAddress(reset));
   }
@@ -277,10 +259,6 @@ class _NativeFilter {
         exe.lookupFunction<Void Function(Float), void Function(double)>(
           'rift_noise_filter_set_gain',
         ),
-        exe.lookupFunction<
-          Void Function(Pointer<Void>, Pointer<Void>),
-          void Function(Pointer<Void>, Pointer<Void>)
-        >('rift_noise_filter_set_deep_filter'),
         exe.providesSymbol(_setDpdfnetName)
             ? exe.lookupFunction<
                 Void Function(Pointer<Void>, Pointer<Void>),

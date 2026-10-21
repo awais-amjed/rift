@@ -9,22 +9,22 @@ enum NoiseSuppression {
   off,
   standard,
   rnnoise,
-  deepFilter,
   dpdfnet;
 
   String get label => switch (this) {
     off => 'Off',
     standard => 'Standard',
     rnnoise => 'RNNoise',
-    deepFilter => 'DeepFilterNet',
     dpdfnet => 'DPDFNet',
   };
 
   /// Reads a saved value. Before there was a choice this was a switch, saved
   /// as a bool: on was the default nearly everyone kept, so it reads as the
-  /// default now, and off stays off.
+  /// default now, and off stays off. DeepFilterNet was a choice until DPDFNet,
+  /// which grew out of it and keeps more of the voice, made it redundant.
   static NoiseSuppression fromJson(Object? value) => switch (value) {
     false => off,
+    'deepFilter' => dpdfnet,
     String name => values.asNameMap()[name] ?? dpdfnet,
     _ => dpdfnet,
   };

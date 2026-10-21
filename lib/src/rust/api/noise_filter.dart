@@ -7,13 +7,9 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 import '../frb_generated.dart';
 
-/// Loads DeepFilterNet's model, if it is not loaded already, and says where
-/// to call it. On a blocking thread, since loading takes a quarter of a
+/// Loads DPDFNet's models, if they are not loaded already, and says where to
+/// call them. On a blocking thread, since loading takes about a tenth of a
 /// second. Off Windows and Linux there is no model, and this says so.
-Future<NoiseModelEntry> loadDeepFilter() =>
-    RustLib.instance.api.crateApiNoiseFilterLoadDeepFilter();
-
-/// The same for DPDFNet, which loads in about a tenth of a second.
 Future<NoiseModelEntry> loadDpdfnet() =>
     RustLib.instance.api.crateApiNoiseFilterLoadDpdfnet();
 

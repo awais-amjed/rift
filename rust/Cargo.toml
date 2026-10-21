@@ -41,11 +41,9 @@ livekit = { version = "0.9.5", features = ["rustls-tls-native-roots"] }
 # the output device chosen in settings. Pure Rust, no unsafe code; it matched
 # ffmpeg's decode of every cue to within one step of 32768.
 #
-# deep_filter is DeepFilterNet, the second noise model on the microphone
-# (src/deep_filter.rs), run on tract with its DFN3 model built in. Pinned to
-# a commit since crates.io has only a release from before tract. tract is
-# held at 0.21.4: later 0.21 releases moved to an ndarray libDF does not build
-# against, and tract's crates pin each other, so naming two holds them all.
+# deep_filter is DeepFilterNet's libDF, for the spectrum DPDFNet works on
+# (DFState in src/dpdfnet.rs): no model and no tract, which Rift dropped with
+# DeepFilterNet itself. Pinned to the commit it was used at.
 [target.'cfg(any(target_os = "linux", target_os = "windows"))'.dependencies]
 # Opens Rift's FFmpeg library (native/ffenc) for a share's H264 on the GPU
 # (src/screenshare/encoder/ffmpeg.rs), so a computer it cannot load on still
@@ -53,12 +51,9 @@ livekit = { version = "0.9.5", features = ["rustls-tls-native-roots"] }
 libloading = "0.9"
 env_logger = { version = "0.11", default-features = false }
 nanomp3 = "0.2.0"
-deep_filter = { git = "https://github.com/Rikorose/DeepFilterNet", rev = "d375b2d8309e0935d165700c91da9de862a99c31", default-features = false, features = ["tract", "default-model"] }
-ndarray = "0.15"
-tract-onnx = "=0.21.4"
-tract-pulse = "=0.21.4"
-# ONNX Runtime, for DPDFNet, the third noise model (src/dpdfnet.rs): tract
-# runs that model's GRU layers too slowly to keep up. Opened at run time from
+deep_filter = { git = "https://github.com/Rikorose/DeepFilterNet", rev = "d375b2d8309e0935d165700c91da9de862a99c31", default-features = false }
+# ONNX Runtime, for DPDFNet, the noise model in this library
+# (src/dpdfnet.rs): tract runs its GRU layers too slowly to keep up. Opened at run time from
 # Microsoft's own build, which the runner's CMake downloads and bundles beside
 # the app's other libraries. Linked in, it would bring a second protobuf and
 # abseil, and clash with libwebrtc's.

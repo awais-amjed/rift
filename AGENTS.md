@@ -46,10 +46,9 @@ rust/src/screenshare/  # What those functions call: session, capture, audio/ per
 third_party/      # Code kept here: packages to patch, and RNNoise — each says why in its RIFT_PATCHES.md
                   # (LiveKit's Rust SDKs are patched in a fork instead, pinned in rust/Cargo.toml)
 native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model inside
-                      # libwebrtc's processing of the mic — RNNoise, or DeepFilterNet
-                      # (rust/src/deep_filter.rs) or DPDFNet (rust/src/dpdfnet.rs, on
-                      # the ONNX Runtime native/onnxruntime bundles beside the app) from
-                      # the Rust library — then the mic volume, with a limiter,
+                      # libwebrtc's processing of the mic — RNNoise, or DPDFNet
+                      # (rust/src/dpdfnet.rs, on the ONNX Runtime native/onnxruntime
+                      # bundles beside the app) from the Rust library — then the mic volume, with a limiter,
                       # all switched from Dart over FFI (NoiseFilter, MicVolume). The
                       # settings mic test reads the mic outside libwebrtc and runs the
                       # same steps in rust/src/mic_test/clean.rs, borrowing the runner's
@@ -363,9 +362,7 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   platform and stdout goes nowhere in a Windows release build. On Linux and Windows the same
   lines go to the app's log file (`logging.rs`), which people send, so no secrets in them.
 - Pure logic (frame sizing, pixel sampling, sample conversion) is a plain function with unit
-  tests; `cargo test --release` runs them anywhere. A debug build fails the DeepFilterNet
-  tests: tract checks the model's graph only with debug assertions on, and refuses it there
-  ("duplicate name"), while the release build loads and runs it. `cargo test live_ -- --ignored --test-threads=1` runs a real share
+  tests; `cargo test --release` runs them anywhere. `cargo test live_ -- --ignored --test-threads=1` runs a real share
   against a LiveKit server (see `rust/src/screenshare/live_test.rs`). DPDFNet's tests need
   ONNX Runtime, which is not part of the crate: `RIFT_ONNXRUNTIME=<libonnxruntime.so>
   cargo test --release dpdfnet -- --ignored` (the bundle's `lib/` has one after a build).
