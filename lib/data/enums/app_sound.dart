@@ -24,6 +24,23 @@ enum AppSound {
     startAsset: 'audio/join.mp3',
     endAsset: 'audio/leave.mp3',
   ),
+  /// E5 down to A4 and back up: two notes, so neither is mistaken for the
+  /// single blip of push to talk, which says the same about the mic.
+  mute(
+    label: 'Mute',
+    description: 'You muting or unmuting your mic.',
+    startAsset: 'audio/mute.mp3',
+    endAsset: 'audio/unmute.mp3',
+  ),
+
+  /// Mute's shape a fifth lower, A4 to D4, with the octave below under it,
+  /// so it is told apart from mute without looking.
+  deafen(
+    label: 'Deafen',
+    description: 'You deafening or undeafening yourself.',
+    startAsset: 'audio/deafen.mp3',
+    endAsset: 'audio/undeafen.mp3',
+  ),
   pushToTalk(
     label: 'Push to talk',
     description: 'Your mic opening and closing as you press and release.',

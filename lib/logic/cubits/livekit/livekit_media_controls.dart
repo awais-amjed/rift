@@ -25,6 +25,7 @@ mixin _MediaControlsMixin on Cubit<LiveKitState> {
       return;
     }
     final next = !state.isMicEnabled;
+    unawaited(SoundService.instance.play(AppSound.mute, ending: next));
     _appCubit.setAudioEnabled(next);
     emit(state.copyWith(isMicEnabled: next));
     await _syncMicrophoneTransmission(syncParticipants: true);
@@ -40,7 +41,8 @@ mixin _MediaControlsMixin on Cubit<LiveKitState> {
     await _setDeafened(!state.isDeafened);
   }
 
-  /// Sets the user's *own* deafen.
+  /// Sets the user's *own* deafen, with its sound: only the user's own
+  /// presses come through here, never a moderator's or the mic test's.
   ///
   /// This deliberately no longer writes [LiveKitState.isMicEnabled]. It used to
   /// force it false on the way in and true on the way out, which quietly threw
@@ -48,6 +50,7 @@ mixin _MediaControlsMixin on Cubit<LiveKitState> {
   /// on by itself. `_shouldTransmitMic` already refuses to transmit while
   /// deafened, so the intent can just be left alone and honoured on release.
   Future<void> _setDeafened(bool deafened) async {
+    unawaited(SoundService.instance.play(AppSound.deafen, ending: !deafened));
     final wasDeafened = state.isDeafenedEffective;
     emit(state.copyWith(isDeafened: deafened));
     await _applyDeafen(wasDeafened: wasDeafened);
