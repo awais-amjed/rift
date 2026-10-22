@@ -4,6 +4,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import '../theme/theme_context.dart';
+
 /// A picture filling a rounded square, painted as the fill of the shape
 /// rather than cut out of a square by a clip.
 ///
@@ -13,6 +15,10 @@ import 'package:flutter/material.dart';
 /// avatars flickered between square and rounded while the gradient avatars
 /// beside them, which are fills, never did. So a picture avatar is drawn the
 /// same way as a gradient one.
+///
+/// A hairline runs just inside the edge, so the rounding shows where the
+/// picture is near the colour behind it: a pale picture on a light panel
+/// otherwise lost its corners on one side and kept them on the other.
 class RoundedPicture extends StatefulWidget {
   final ImageProvider image;
   final double size;
@@ -91,7 +97,11 @@ class _RoundedPictureState extends State<RoundedPicture> {
     }
     return CustomPaint(
       size: Size.square(widget.size),
-      painter: _RoundedPicturePainter(info.image, widget.radius),
+      painter: _RoundedPicturePainter(
+        info.image,
+        widget.radius,
+        context.theme.borderPrimary,
+      ),
     );
   }
 }
@@ -99,8 +109,9 @@ class _RoundedPictureState extends State<RoundedPicture> {
 class _RoundedPicturePainter extends CustomPainter {
   final ui.Image image;
   final double radius;
+  final Color edge;
 
-  const _RoundedPicturePainter(this.image, this.radius);
+  const _RoundedPicturePainter(this.image, this.radius, this.edge);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -125,13 +136,21 @@ class _RoundedPicturePainter extends CustomPainter {
         matrix,
         filterQuality: FilterQuality.medium,
       );
+    final shape = RRect.fromRectAndRadius(
+      Offset.zero & size,
+      Radius.circular(radius),
+    );
+    canvas.drawRRect(shape, paint);
     canvas.drawRRect(
-      RRect.fromRectAndRadius(Offset.zero & size, Radius.circular(radius)),
-      paint,
+      shape.deflate(0.5),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1
+        ..color = edge,
     );
   }
 
   @override
   bool shouldRepaint(_RoundedPicturePainter old) =>
-      !identical(old.image, image) || old.radius != radius;
+      !identical(old.image, image) || old.radius != radius || old.edge != edge;
 }
