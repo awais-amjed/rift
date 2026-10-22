@@ -16,6 +16,9 @@ class WindowButton extends StatefulWidget {
   final String tooltip;
   final VoidCallback onTap;
 
+  /// The icon's colour at rest: the title bar's ink.
+  final Color ink;
+
   /// Hover in the destructive colour instead of the neutral fill.
   final bool isClose;
 
@@ -24,6 +27,7 @@ class WindowButton extends StatefulWidget {
     required this.icon,
     required this.tooltip,
     required this.onTap,
+    required this.ink,
     this.isClose = false,
   });
 
@@ -63,7 +67,7 @@ class _WindowButtonState extends State<WindowButton> {
               size: K.iconRow,
               color: _hovered && widget.isClose
                   ? CustomColors.onError
-                  : context.theme.textTertiary,
+                  : widget.ink,
             ),
           ),
         ),

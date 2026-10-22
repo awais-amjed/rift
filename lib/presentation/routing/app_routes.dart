@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../data/enums/auth_status.dart';
 import '../../logic/cubits/vault/vault_cubit.dart';
+import '../../logic/services/window_dim.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/onboarding/onboarding_screen.dart';
 import '../screens/recovery_key/recovery_key_screen.dart';
@@ -24,6 +25,7 @@ class AppRoutes {
   static GoRouter router(VaultCubit vaultCubit) => GoRouter(
     initialLocation: home,
     navigatorKey: navigatorKey,
+    observers: [WindowDimObserver()],
     refreshListenable: _VaultRefreshListenable(vaultCubit),
     redirect: (context, state) {
       final vaultState = vaultCubit.state;

@@ -6,9 +6,11 @@ import '../../../data/constants.dart';
 import '../../../logic/cubits/app/app_cubit.dart';
 import '../../../logic/cubits/network/network_cubit.dart';
 import '../../../logic/cubits/server_reach/server_reach_cubit.dart';
-import '../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../logic/services/window_dim.dart';
+import '../../theme/app_motion.dart';
 import '../../theme/app_text.dart';
 import '../../theme/custom_colors.dart';
+import '../../theme/media_colors.dart';
 import '../../theme/theme_context.dart';
 import '../app_mark.dart';
 import '../status_chip.dart';
@@ -22,6 +24,10 @@ import 'window_button.dart';
 /// so the bar reads as part of the workspace rather than a bar bolted to the
 /// top of it. In overlay mode it takes a translucent fill, because there it is
 /// floating over content and needs an edge.
+///
+/// So pinned, its ink sits on whatever is under it, and when a dialog or a
+/// drawer dims the window that is the dim ([WindowDim]): the ink turns to
+/// [MediaColors] for as long as it lasts, as anything on the scrim does.
 class AppTitleBar extends StatefulWidget {
   final double height;
 
@@ -97,17 +103,32 @@ class _AppTitleBarState extends State<AppTitleBar> with WindowListener {
               const Positioned.fill(
                 child: DragToMoveArea(child: SizedBox.expand()),
               ),
-              Positioned(
-                left: 16,
-                top: 0,
-                bottom: 0,
-                child: _buildBrand(themeState),
-              ),
-              Positioned(
-                right: 8,
-                top: 0,
-                bottom: 0,
-                child: _buildControls(themeState),
+              ListenableBuilder(
+                listenable: WindowDim.changes,
+                builder: (context, _) => TweenAnimationBuilder<Color?>(
+                  duration: AppMotion.state,
+                  tween: ColorTween(
+                    end: widget.pinned && WindowDim.isOn
+                        ? MediaColors.onMediaSecondary
+                        : themeState.textTertiary,
+                  ),
+                  builder: (context, ink, _) => Stack(
+                    children: [
+                      Positioned(
+                        left: 16,
+                        top: 0,
+                        bottom: 0,
+                        child: _buildBrand(ink!),
+                      ),
+                      Positioned(
+                        right: 8,
+                        top: 0,
+                        bottom: 0,
+                        child: _buildControls(ink),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
@@ -116,7 +137,7 @@ class _AppTitleBarState extends State<AppTitleBar> with WindowListener {
     );
   }
 
-  Widget _buildBrand(ThemeState themeState) {
+  Widget _buildBrand(Color ink) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -124,16 +145,13 @@ class _AppTitleBarState extends State<AppTitleBar> with WindowListener {
         const SizedBox(width: 8),
         Text(
           'rift',
-          style: AppText.row.copyWith(
-            letterSpacing: 0.2,
-            color: themeState.textTertiary,
-          ),
+          style: AppText.row.copyWith(letterSpacing: 0.2, color: ink),
         ),
       ],
     );
   }
 
-  Widget _buildControls(ThemeState themeState) {
+  Widget _buildControls(Color ink) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       spacing: 2,
@@ -145,12 +163,14 @@ class _AppTitleBarState extends State<AppTitleBar> with WindowListener {
               ? Icons.expand_less_rounded
               : Icons.push_pin_outlined,
           tooltip: widget.pinned ? 'Hide title bar' : 'Pin title bar',
+          ink: ink,
           onTap: () =>
               widget.pinned ? widget.onHide?.call() : widget.onShow?.call(),
         ),
         WindowButton(
           icon: Icons.remove_rounded,
           tooltip: 'Minimize',
+          ink: ink,
           onTap: () => windowManager.minimize(),
         ),
         WindowButton(
@@ -158,6 +178,7 @@ class _AppTitleBarState extends State<AppTitleBar> with WindowListener {
               ? Icons.filter_none_rounded
               : Icons.crop_square_rounded,
           tooltip: _isMaximized ? 'Restore' : 'Maximize',
+          ink: ink,
           onTap: () => _isMaximized
               ? windowManager.unmaximize()
               : windowManager.maximize(),
@@ -165,6 +186,7 @@ class _AppTitleBarState extends State<AppTitleBar> with WindowListener {
         WindowButton(
           icon: Icons.close_rounded,
           tooltip: 'Minimize to tray',
+          ink: ink,
           onTap: () => windowManager.hide(),
 
           isClose: true,

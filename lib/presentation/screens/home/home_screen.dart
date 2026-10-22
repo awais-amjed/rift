@@ -16,6 +16,7 @@ import '../../../logic/cubits/server/server_cubit.dart';
 import '../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../logic/services/host_platform.dart';
 import '../../../logic/services/invite_link_listener.dart';
+import '../../../logic/services/window_dim.dart';
 import '../../common/app_menu/offer_app_menu_entry.dart';
 import '../../common/app_modal.dart';
 import '../../common/canvas_backdrop.dart';
@@ -98,6 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     InviteLinkListener.instance.detach();
+    WindowDim.overlay.value = false;
     _shellFocus.dispose();
     super.dispose();
   }
@@ -122,7 +124,7 @@ class _HomeScreenState extends State<HomeScreen> {
       context.read<AppCubit>().toggleMembersSidebar();
       return;
     }
-    setState(() => _membersOverlayOpen = !_membersOverlayOpen);
+    _setMembersOverlay(!_membersOverlayOpen);
     // Nothing on the screen may hold focus — a click on a button does not
     // take it — and then Escape would stop above this screen and never
     // reach [_shellFocus]. Whatever already has focus inside keeps it.
@@ -144,7 +146,14 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Gets the overlaid member list out of the way, leaving a docked one alone.
   void _dismissOverlays() {
     if (!_membersOverlayOpen) return;
-    setState(() => _membersOverlayOpen = false);
+    _setMembersOverlay(false);
+  }
+
+  /// The scrim behind the drawer dims the window, which the title bar,
+  /// painted above all of it, has to hear about ([WindowDim]).
+  void _setMembersOverlay(bool open) {
+    setState(() => _membersOverlayOpen = open);
+    WindowDim.overlay.value = open;
   }
 
   /// Whether an [AddServerDialog] is currently up, and which one.
