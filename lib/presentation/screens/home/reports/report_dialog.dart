@@ -59,16 +59,15 @@ class _ReportDialogState extends State<ReportDialog> {
   }
 
   /// The server's refusals, in words. Anything else is shown as it came.
-  static String _describe(APIResponse response) =>
-      switch (response.errorCode) {
-        'already_reported' => 'You have already reported this.',
-        'too_many_reports' =>
-          'You have 20 reports waiting for a moderator. Try again once some '
-              'have been looked at.',
-        'cannot_report_self' => 'You cannot report yourself.',
-        'message_not_found' => 'That message is gone.',
-        _ => response.error ?? 'Could not send the report.',
-      };
+  static String _describe(APIResponse response) => switch (response.errorCode) {
+    'already_reported' => 'You have already reported this.',
+    'too_many_reports' =>
+      'You have 20 reports waiting for a moderator. Try again once some '
+          'have been looked at.',
+    'cannot_report_self' => 'You cannot report yourself.',
+    'message_not_found' => 'That message is gone.',
+    _ => response.error ?? 'Could not send the report.',
+  };
 
   Future<void> _send() async {
     final reason = _reason;

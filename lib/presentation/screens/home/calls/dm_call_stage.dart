@@ -51,15 +51,11 @@ class _DmCallStageState extends State<DmCallStage> {
     final share = context.select<AppCubit, double>(
       (c) => c.state.dmCallStageShare,
     );
-    final height =
-        _dragging ?? DmCallSplit.heightFor(widget.available, share);
+    final height = _dragging ?? DmCallSplit.heightFor(widget.available, share);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        SizedBox(
-          height: height,
-          child: const ParticipantsGrid(embedded: true),
-        ),
+        SizedBox(height: height, child: const ParticipantsGrid(embedded: true)),
         _SplitHandle(
           onDrag: (details) => _onDrag(details, height),
           onDragEnd: _onDragEnd,
@@ -117,4 +113,3 @@ class _SplitHandleState extends State<_SplitHandle> {
     );
   }
 }
-
