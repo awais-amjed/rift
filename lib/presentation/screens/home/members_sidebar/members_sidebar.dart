@@ -156,7 +156,9 @@ class _MembersSidebarState extends State<MembersSidebar> {
               ? const SizedBox.shrink()
               : ClipRect(
                   clipper: RightEdgeClipper(
-                    spill: AppShadows.overlayPane.first.blurRadius,
+                    spill:
+                        AppShadows.overlayPane.first.blurRadius +
+                        AppShadows.overlayPane.first.offset.dy,
                   ),
                   child: OverflowBox(
                     alignment: Alignment.centerLeft,

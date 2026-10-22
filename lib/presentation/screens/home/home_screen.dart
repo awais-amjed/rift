@@ -358,32 +358,37 @@ class _HomeScreenState extends State<HomeScreen> {
                       duration: AppMotion.enter,
                       curve: AppMotion.panel,
                       padding: insets,
-                      child: Stack(
+                      child: Row(
                         children: [
-                          Row(
-                            children: [
-                              Sidebar(
-                                open: appState.sidebarOpen,
-                                topPadding: topPadding,
-                              ),
-                              const Expanded(child: MainContent()),
-                            ],
+                          Sidebar(
+                            open: appState.sidebarOpen,
+                            topPadding: topPadding,
                           ),
-                          OverlayScrim(
-                            visible: _membersOverlayOpen,
-                            onDismiss: _dismissOverlays,
-                          ),
-                          if (mode.membersIsOverlay)
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: MembersSidebar(
-                                open: _membersOverlayOpen,
-                                floating: true,
-                              ),
-                            ),
+                          const Expanded(child: MainContent()),
                         ],
                       ),
                     ),
+                    // The whole window, as a dialog's barrier is: the gutters
+                    // and the band under the title bar, which is see-through.
+                    // Inside the gutter it left an undimmed frame round the
+                    // dimming, with the pane's shadow cut off at it.
+                    OverlayScrim(
+                      visible: _membersOverlayOpen,
+                      onDismiss: _dismissOverlays,
+                    ),
+                    if (mode.membersIsOverlay)
+                      AnimatedPadding(
+                        duration: AppMotion.enter,
+                        curve: AppMotion.panel,
+                        padding: insets,
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: MembersSidebar(
+                            open: _membersOverlayOpen,
+                            floating: true,
+                          ),
+                        ),
+                      ),
                     // Outside the gutter, so its hot zone is the window's own
                     // edge rather than the workspace's.
                     Positioned.fill(
