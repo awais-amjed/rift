@@ -22,6 +22,7 @@ import '../../../theme/theme_context.dart';
 import '../chat/widgets/chat_header.dart';
 import '../sidebar/widgets/sidebar_resize_handle.dart';
 import 'widgets/members_sidebar_list.dart';
+import 'widgets/right_edge_clipper.dart';
 
 /// Over the widget budget and one job: the member list, split into online and
 /// offline, each half live.
@@ -154,6 +155,9 @@ class _MembersSidebarState extends State<MembersSidebar> {
           child: !_showContent
               ? const SizedBox.shrink()
               : ClipRect(
+                  clipper: RightEdgeClipper(
+                    spill: AppShadows.overlayPane.first.blurRadius,
+                  ),
                   child: OverflowBox(
                     alignment: Alignment.centerLeft,
                     minWidth: fullWidth,
