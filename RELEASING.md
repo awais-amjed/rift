@@ -77,7 +77,8 @@ bundle from the release's workflow run, signs them with the keystore that
 `android/key.properties` names (a symlink to where the keystore lives),
 attaches the APKs to the release, and leaves the bundle in `build/release/`
 to upload to Google Play by hand: a beta to a testing track, a release to
-production. It finds `apksigner` in the newest Android build tools and the
+production. If the run kept them but they will not download, it stops before
+signing anything; run it again. It finds `apksigner` in the newest Android build tools and the
 JDK Flutter uses. On Play this key is only the upload key: Play signs what
 it installs with an app signing key Google generated at the first upload.
 So a Play install and a GitHub APK cannot update one another (moving

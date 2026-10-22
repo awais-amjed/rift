@@ -60,10 +60,19 @@ sign_feed() {
 
 # The release workflow's run for [tag]: where the Android build waits.
 fetch_android() {
-  local tag=$1 run
+  local tag=$1 run kept
   run=$(gh run list -R "$repo" -w release.yml -b "$tag" -e push -s success -L 1 \
     --json databaseId --jq '.[0].databaseId // empty')
-  [[ -n $run ]] && gh run download "$run" -R "$repo" -n android -D "$work/android" 2>/dev/null
+  [[ -n $run ]] || return 1
+  # A run that kept no build, or whose build has expired, has nothing to sign.
+  # One that kept it but would not download stops everything: skipped, the
+  # feeds were signed and announced without the APKs (1.5.1-beta.4).
+  kept=$(gh api "repos/$repo/actions/runs/$run/artifacts" \
+    --jq '.artifacts[] | select(.name == "android" and (.expired | not)) | .id')
+  [[ -n $kept ]] || return 1
+  gh run download "$run" -R "$repo" -n android -D "$work/android" && return 0
+  echo "android: run $run kept a build but it did not download; nothing signed, try again" >&2
+  exit 1
 }
 
 # The keystore android/key.properties names, its passwords handed to the tools
