@@ -271,8 +271,8 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   (the lit ground), `NavRow` (any navigable sidebar row), `SquircleAvatar` (the
   initial alone: it takes no picture) / `UserAvatar` (a person's picture, by its storage path)
   / `ServerIcon` (a server's picture),
-  `RoundedPicture` (an avatar or icon picture: never a `ClipRRect` round the image, since on
-  some Linux drivers the clip drops on some frames and the picture flickers square),
+  `RoundedPicture` (an avatar or icon picture, an `Image` in a `ClipRRect`; on Linux its
+  corners stay stepped until a stable Flutter has the MSAA fix, flutter/flutter#191379),
   `SpeakingRing`, `StatusChip`, `ContextMenuPanel` + `ContextMenuItem`, `TapToFocus`,
   `AppDropdown` (a choice from a list — never Material's `DropdownButton`). Avatar gradients come
   from `IdentityGradients` and are deliberately *not* palette-derived, so a person looks the

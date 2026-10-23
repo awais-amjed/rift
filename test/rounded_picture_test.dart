@@ -10,11 +10,8 @@ import 'package:rift/presentation/common/rounded_picture.dart';
 
 import 'helpers/memory_storage.dart';
 
-/// A picture avatar is the fill of a rounded square, never a square cut by
-/// a clip: on some Linux drivers the clip came and went between frames, and
-/// the avatars flickered square (see [RoundedPicture]). A hairline just
-/// inside the edge keeps the corners visible on a picture as pale as the
-/// panel behind it.
+/// Every avatar and icon picture is an [Image] cut by a rounded clip, so
+/// Flutter does the scaling (see [RoundedPicture]).
 void main() {
   setUpAll(() => HydratedBloc.storage = MemoryStorage());
 
@@ -26,9 +23,7 @@ void main() {
     ),
   );
 
-  testWidgets('paints the picture as a rounded fill, with no clip', (
-    tester,
-  ) async {
+  testWidgets('draws the picture inside a rounded clip', (tester) async {
     final png = await tester.runAsync(() async {
       final recorder = ui.PictureRecorder();
       Canvas(recorder).drawRect(
@@ -49,19 +44,19 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.byType(ClipRRect), findsNothing);
-    final shape = RRect.fromRectAndRadius(
-      const Rect.fromLTWH(0, 0, 28, 28),
-      const Radius.circular(7.84),
-    );
-    expect(
+    final clip = tester.widget<ClipRRect>(
       find.descendant(
         of: find.byType(RoundedPicture),
-        matching: find.byType(CustomPaint),
+        matching: find.byType(ClipRRect),
       ),
-      paints
-        ..rrect(rrect: shape)
-        ..rrect(rrect: shape.deflate(0.5), style: PaintingStyle.stroke),
+    );
+    expect(clip.borderRadius, BorderRadius.circular(7.84));
+    expect(
+      find.descendant(
+        of: find.byType(ClipRRect),
+        matching: find.byType(RawImage),
+      ),
+      findsOneWidget,
     );
   });
 
