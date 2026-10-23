@@ -126,9 +126,9 @@ class _ChangeHandleDialogState extends State<ChangeHandleDialog> {
 /// handle; the dialog only has to ask for one and report what came back.
 void showChangeHandle(BuildContext context, String handle) {
   final cubit = context.read<CentralDmCubit>();
-  showDialog<void>(
+  showCustomDialog<void>(
     context: context,
-    builder: (_) => ChangeHandleDialog(
+    build: (_) => ChangeHandleDialog(
       currentHandle: handle,
       onSubmit: (next) async {
         final ok = await cubit.claimHandle(next);

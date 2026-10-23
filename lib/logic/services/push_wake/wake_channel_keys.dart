@@ -34,12 +34,12 @@ mixin _WakeChannelKeysMixin {
     // This member's own row for the version if it has one; otherwise the
     // nearest newer row, and the links down from it — a client drops a row
     // once the chain covers it, and a newcomer was never sealed one.
-    final rows = entries
-        .where((e) => (e['key_version'] as int) >= keyVersion)
-        .toList()
-      ..sort(
-        (a, b) => (a['key_version'] as int).compareTo(b['key_version'] as int),
-      );
+    final rows =
+        entries.where((e) => (e['key_version'] as int) >= keyVersion).toList()
+          ..sort(
+            (a, b) =>
+                (a['key_version'] as int).compareTo(b['key_version'] as int),
+          );
     if (rows.isEmpty) return null;
     final Uint8List nearest;
     try {

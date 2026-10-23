@@ -5,6 +5,7 @@ import '../../../../data/constants.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/services/message_markup.dart';
 import '../../../theme/app_text.dart';
+import '../../../theme/theme_context.dart';
 
 /// A member's `/` command as it reads in the channel: the verb in the accent,
 /// then what was handed to the bot set like inline code.
@@ -40,7 +41,7 @@ TextSpan commandMessageSpan(
         const TextSpan(text: ' '),
         WidgetSpan(
           alignment: PlaceholderAlignment.middle,
-          child: CommandArgument(text: argument, theme: theme, onLink: onLink),
+          child: CommandArgument(text: argument, onLink: onLink),
         ),
       ],
     ],
@@ -54,18 +55,13 @@ TextSpan commandMessageSpan(
 /// room around it. Wraps inside the box when it is long.
 class CommandArgument extends StatelessWidget {
   final String text;
-  final ThemeState theme;
   final GestureRecognizer Function(String url)? onLink;
 
-  const CommandArgument({
-    super.key,
-    required this.text,
-    required this.theme,
-    this.onLink,
-  });
+  const CommandArgument({super.key, required this.text, this.onLink});
 
   @override
   Widget build(BuildContext context) {
+    final theme = context.theme;
     final style = AppText.code.copyWith(color: theme.textPrimary);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),

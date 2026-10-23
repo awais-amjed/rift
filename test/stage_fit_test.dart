@@ -49,7 +49,8 @@ void main() {
 
         final sr = rows(s, fit.streamWidth);
         final pr = rows(p, fit.tileWidth);
-        final used = sr * fit.streamWidth * 9 / 16 +
+        final used =
+            sr * fit.streamWidth * 9 / 16 +
             (sr - 1) * 8 +
             8 +
             pr * fit.tileWidth * 9 / 16 +

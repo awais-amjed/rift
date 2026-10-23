@@ -101,9 +101,7 @@ void main() {
     return n;
   }
 
-  testWidgets('a change to one message rebuilds that row only', (
-    tester,
-  ) async {
+  testWidgets('a change to one message rebuilds that row only', (tester) async {
     final messages = [for (var i = 1; i <= 12; i++) msg(i)];
     await pump(tester, messages);
     final changed = [...messages];

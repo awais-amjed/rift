@@ -38,9 +38,7 @@ class CentralHandle {
   /// fold instead means the box and the account agree — `Noor` becomes `noor`
   /// under the cursor rather than at submit, and a space or a `!` never
   /// arrives to be silently dropped later.
-  static final List<TextInputFormatter> inputFormatters = [
-    _FoldToHandle(),
-  ];
+  static final List<TextInputFormatter> inputFormatters = [_FoldToHandle()];
 }
 
 class _FoldToHandle extends TextInputFormatter {

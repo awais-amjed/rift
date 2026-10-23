@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rift/logic/cubits/app/app_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
+import 'package:rift/logic/services/dropped_files.dart';
 import 'package:rift/presentation/common/chat/composer/chat_composer.dart';
 import 'package:rift/presentation/common/chat/composer/composer_staged_chip.dart';
 import 'package:rift/presentation/common/chat/drop/chat_drop_relay.dart';

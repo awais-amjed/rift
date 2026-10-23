@@ -49,8 +49,7 @@ abstract final class NoiseFilter {
   static bool usesBuiltIn(NoiseSuppression mode) => switch (mode) {
     NoiseSuppression.off => false,
     NoiseSuppression.standard => true,
-    NoiseSuppression.rnnoise ||
-    NoiseSuppression.dpdfnet => _native == null,
+    NoiseSuppression.rnnoise || NoiseSuppression.dpdfnet => _native == null,
   };
 
   /// Whether the runner can turn the microphone up or down: [setGain].

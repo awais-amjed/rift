@@ -98,10 +98,13 @@ void main() {
     });
 
     test('a comma-separated list fills chips up to the limit and stops', () {
-      expect(
-        DirectoryTags.withPending(const [], 'a1, b2, c3, d4, e5, f6'),
-        ['a1', 'b2', 'c3', 'd4', 'e5'],
-      );
+      expect(DirectoryTags.withPending(const [], 'a1, b2, c3, d4, e5, f6'), [
+        'a1',
+        'b2',
+        'c3',
+        'd4',
+        'e5',
+      ]);
     });
 
     test('duplicates inside one box collapse', () {

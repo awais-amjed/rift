@@ -111,10 +111,9 @@ class _CreateServerModalState extends State<CreateServerModal> {
     if (!mounted) return;
 
     // Register as admin using the single-use invite code generated for us.
-    final serverId = await showDialog<String>(
+    final serverId = await showCustomDialog<String>(
       context: context,
-      barrierDismissible: false,
-      builder: (_) =>
+      build: (_) =>
           CreateUserDialog(supabaseUrl: supabaseUrl, inviteCode: inviteCode),
     );
 

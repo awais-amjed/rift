@@ -123,7 +123,11 @@ void main() {
         channelId: channel,
         keys: keys,
         links: [
-          await link(crypto.generateChannelKey(), crypto.generateChannelKey(), 2),
+          await link(
+            crypto.generateChannelKey(),
+            crypto.generateChannelKey(),
+            2,
+          ),
         ],
       );
       expect(keys.keys, [2]);

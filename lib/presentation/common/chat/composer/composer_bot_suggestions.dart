@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../data/classes/bot_suggestion.dart';
 import '../../../../data/classes/server_member.dart';
+import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 import '../../popover_surface.dart';
@@ -47,40 +48,45 @@ class ComposerBotSuggestions extends StatelessWidget {
           // As the `/` menu: a handful, then a scroll, so the conversation
           // stays on screen.
           constraints: const BoxConstraints(maxHeight: 260),
-          child: ListView(
+          child: ListView.builder(
             shrinkWrap: true,
             padding: const EdgeInsets.symmetric(vertical: 4),
-            children: [
+            itemCount: suggestions.length + 1,
+            itemBuilder: (context, index) {
               // Brought back with the first row, so coming round to the top
               // shows whose rows these are again.
-              ComposerMenuRowVisible(
-                active: highlighted == 0,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 4, 10, 4),
-                  child: Text(
-                    searching && suggestions.isEmpty
-                        ? '${bot.displayName} is searching…'
-                        : suggestions.isEmpty
-                        ? '${bot.displayName} found nothing'
-                        : 'From ${bot.displayName}',
-                    style: AppText.meta.copyWith(
-                      color: themeState.textTertiary,
-                    ),
-                  ),
+              if (index == 0) {
+                return ComposerMenuRowVisible(
+                  active: highlighted == 0,
+                  child: _header(themeState),
+                );
+              }
+              final i = index - 1;
+              return ComposerMenuRowVisible(
+                active: i == highlighted,
+                child: _row(
+                  context,
+                  suggestions[i],
+                  highlighted: i == highlighted,
                 ),
-              ),
-              for (var i = 0; i < suggestions.length; i++)
-                ComposerMenuRowVisible(
-                  active: i == highlighted,
-                  child: _row(
-                    context,
-                    suggestions[i],
-                    highlighted: i == highlighted,
-                  ),
-                ),
-            ],
+              );
+            },
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _header(ThemeState themeState) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(10, 4, 10, 4),
+      child: Text(
+        searching && suggestions.isEmpty
+            ? '${bot.displayName} is searching…'
+            : suggestions.isEmpty
+            ? '${bot.displayName} found nothing'
+            : 'From ${bot.displayName}',
+        style: AppText.meta.copyWith(color: themeState.textTertiary),
       ),
     );
   }

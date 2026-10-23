@@ -39,9 +39,7 @@ void main() {
           providers: [
             BlocProvider<ThemeCubit>(create: (_) => ThemeCubit()),
             BlocProvider<AppCubit>(create: (_) => AppCubit()),
-            BlocProvider<ServerMembersCubit>(
-              create: (_) => StubMembersCubit(),
-            ),
+            BlocProvider<ServerMembersCubit>(create: (_) => StubMembersCubit()),
           ],
           child: Scaffold(
             body: Align(
@@ -117,43 +115,39 @@ void main() {
     variant: TargetPlatformVariant.only(TargetPlatform.linux),
   );
 
-  testWidgets(
-    'a drag from beside the last word back to the margin does too',
-    (tester) async {
-      await pumpRow(tester);
-      watchClipboard(tester);
-      final text = tester.getRect(find.textContaining('hello there'));
-      final row = tester.getRect(find.byType(ChatMessageRow));
+  testWidgets('a drag from beside the last word back to the margin does too', (
+    tester,
+  ) async {
+    await pumpRow(tester);
+    watchClipboard(tester);
+    final text = tester.getRect(find.textContaining('hello there'));
+    final row = tester.getRect(find.byType(ChatMessageRow));
 
-      await mouseDrag(
-        tester,
-        Offset(text.right + 200, text.center.dy),
-        Offset(row.left + 2, text.center.dy),
-      );
-      await copy(tester);
+    await mouseDrag(
+      tester,
+      Offset(text.right + 200, text.center.dy),
+      Offset(row.left + 2, text.center.dy),
+    );
+    await copy(tester);
 
-      expect(copied, 'hello there');
-    },
-    variant: TargetPlatformVariant.only(TargetPlatform.linux),
-  );
+    expect(copied, 'hello there');
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
-  testWidgets(
-    'a right-click on the text opens the message menu, once',
-    (tester) async {
-      await pumpRow(tester);
-      final text = tester.getCenter(find.textContaining('hello there'));
-      final gesture = await tester.startGesture(
-        text,
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryButton,
-      );
-      // Held as a real click is, past the tap's deadline.
-      await tester.pump(const Duration(milliseconds: 150));
-      await gesture.up();
-      await tester.pumpAndSettle();
+  testWidgets('a right-click on the text opens the message menu, once', (
+    tester,
+  ) async {
+    await pumpRow(tester);
+    final text = tester.getCenter(find.textContaining('hello there'));
+    final gesture = await tester.startGesture(
+      text,
+      kind: PointerDeviceKind.mouse,
+      buttons: kSecondaryButton,
+    );
+    // Held as a real click is, past the tap's deadline.
+    await tester.pump(const Duration(milliseconds: 150));
+    await gesture.up();
+    await tester.pumpAndSettle();
 
-      expect(find.text('Copy text'), findsOneWidget);
-    },
-    variant: TargetPlatformVariant.only(TargetPlatform.linux),
-  );
+    expect(find.text('Copy text'), findsOneWidget);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 }

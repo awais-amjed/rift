@@ -38,12 +38,12 @@ class DirectoryIconPublish {
     final uri = Uri.tryParse(sourceUrl);
     if (uri == null) return null;
     final scheme = uri.scheme.toLowerCase();
-    if ((scheme != 'https' && scheme != 'http') || uri.host.isEmpty) return null;
+    if ((scheme != 'https' && scheme != 'http') || uri.host.isEmpty) {
+      return null;
+    }
 
     try {
-      final response = await http
-          .get(uri)
-          .timeout(const Duration(seconds: 10));
+      final response = await http.get(uri).timeout(const Duration(seconds: 10));
       if (response.statusCode != 200) return null;
       final source = Uint8List.fromList(response.bodyBytes);
       if (source.length > _maxSourceBytes) return null;

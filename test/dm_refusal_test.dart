@@ -62,12 +62,15 @@ void main() {
   });
 
   group('refused pins', () {
-    test('a time-out and a block each have words, and a block is not named', () {
-      expect(PinOps.errorFor('timed_out'), contains('timed out'));
-      final blocked = PinOps.errorFor('dm_not_accepted');
-      expect(blocked, isNotNull);
-      expect(blocked!.toLowerCase(), isNot(contains('block')));
-    });
+    test(
+      'a time-out and a block each have words, and a block is not named',
+      () {
+        expect(PinOps.errorFor('timed_out'), contains('timed out'));
+        final blocked = PinOps.errorFor('dm_not_accepted');
+        expect(blocked, isNotNull);
+        expect(blocked!.toLowerCase(), isNot(contains('block')));
+      },
+    );
   });
 
   group('reading the server\'s words', () {

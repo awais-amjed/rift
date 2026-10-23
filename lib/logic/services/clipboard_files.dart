@@ -6,9 +6,9 @@ import 'package:flutter/services.dart';
 import 'package:pasteboard/pasteboard.dart';
 import 'package:path/path.dart' as p;
 
-import '../../../../logic/helper_methods.dart';
-import '../../../../logic/services/host_platform.dart';
-import 'chat_drop_relay.dart';
+import '../helper_methods.dart';
+import 'dropped_files.dart';
+import 'host_platform.dart';
 
 /// What Ctrl+V in the composer should attach rather than type: files copied
 /// in a file manager, or a picture — a screenshot, an image copied from a

@@ -10,24 +10,31 @@ void main() {
     expect(const DmState().conversationsFailed, isFalse);
   });
 
-  test('a failed read survives unrelated changes, and clears on a good one', () {
-    final failed = const DmState().copyWith(
-      conversationsLoading: false,
-      conversationsFailed: true,
-    );
-    // A conversation opening, typing, a request arriving — none of them say
-    // anything about whether the list loaded.
-    final later = failed
-        .copyWith(openPeerId: 'p1', openPeerName: 'Tester B')
-        .copyWith(typingPeerName: 'Tester B')
-        .copyWith(requests: const [DmConversation(peerId: 'p2', peerName: 'x')])
-        .copyWith(closeConversation: true);
-    expect(later.conversationsFailed, isTrue);
+  test(
+    'a failed read survives unrelated changes, and clears on a good one',
+    () {
+      final failed = const DmState().copyWith(
+        conversationsLoading: false,
+        conversationsFailed: true,
+      );
+      // A conversation opening, typing, a request arriving — none of them say
+      // anything about whether the list loaded.
+      final later = failed
+          .copyWith(openPeerId: 'p1', openPeerName: 'Tester B')
+          .copyWith(typingPeerName: 'Tester B')
+          .copyWith(
+            requests: const [DmConversation(peerId: 'p2', peerName: 'x')],
+          )
+          .copyWith(closeConversation: true);
+      expect(later.conversationsFailed, isTrue);
 
-    final loaded = later.copyWith(
-      conversations: const [DmConversation(peerId: 'p1', peerName: 'Tester B')],
-      conversationsFailed: false,
-    );
-    expect(loaded.conversationsFailed, isFalse);
-  });
+      final loaded = later.copyWith(
+        conversations: const [
+          DmConversation(peerId: 'p1', peerName: 'Tester B'),
+        ],
+        conversationsFailed: false,
+      );
+      expect(loaded.conversationsFailed, isFalse);
+    },
+  );
 }

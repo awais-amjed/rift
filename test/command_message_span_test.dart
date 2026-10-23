@@ -68,7 +68,13 @@ void main() {
       theme: theme,
       onLink: (url) => TapGestureRecognizer()..onTap = () => opened.add(url),
     );
-    await tester.pumpWidget(MaterialApp(home: Scaffold(body: Text.rich(span))));
+    await tester.pumpWidget(
+      MaterialApp(
+        // The argument reads its colours from the theme, as in the app.
+        theme: ThemeData(extensions: [theme]),
+        home: Scaffold(body: Text.rich(span)),
+      ),
+    );
     await tester.tap(find.byType(CommandArgument));
     expect(opened, ['https://youtu.be/abc']);
   });

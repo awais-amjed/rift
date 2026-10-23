@@ -23,9 +23,8 @@ mixin _DmCallsApiMixin {
     String name, [
     Map<String, dynamic>? params,
   ]) => ServerDb.run(
-    () => _db
-        .client(supabaseUrl, anonKey, bearerToken)
-        .rpc(name, params: params),
+    () =>
+        _db.client(supabaseUrl, anonKey, bearerToken).rpc(name, params: params),
   );
 
   /// Ring [peerId]. Answers the call — which is theirs ringing us, answered,

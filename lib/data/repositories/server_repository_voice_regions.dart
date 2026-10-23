@@ -87,11 +87,7 @@ mixin _VoiceRegionsMixin {
           .client(supabaseUrl, anonKey, bearerToken)
           .rpc(
             'set_voice_region_credentials',
-            params: {
-              'p_node': nodeId,
-              'p_api_key': apiKey,
-              'p_secret': secret,
-            },
+            params: {'p_node': nodeId, 'p_api_key': apiKey, 'p_secret': secret},
           );
       return null;
     });

@@ -27,9 +27,9 @@ List<int> _frame(String key, {int valueBytes = 5}) {
 /// The same with an integer key, which the walk steps over.
 List<int> _intFrame() {
   const length = 4 + 1 + 4 + 3 + 4;
-  return (ByteData(length)..setUint32(0, length, Endian.little)).buffer
-      .asUint8List()
-    ..[4] = 0;
+  return (ByteData(
+    length,
+  )..setUint32(0, length, Endian.little)).buffer.asUint8List()..[4] = 0;
 }
 
 void main() {
@@ -61,9 +61,7 @@ void main() {
         HydratedKeys.theme,
       );
       expect(
-        HydratedKeyRecovery.kindOf(
-          TokenCubit().toJson(const TokenState()),
-        ),
+        HydratedKeyRecovery.kindOf(TokenCubit().toJson(const TokenState())),
         HydratedKeys.token,
       );
     });
@@ -77,11 +75,18 @@ void main() {
 
   group('choosing what to carry over', () {
     final oldServers = {'servers': [], 'orderClock': 1};
-    final newServers = {'servers': [{}], 'orderClock': 2};
+    final newServers = {
+      'servers': [{}],
+      'orderClock': 2,
+    };
 
     test('takes the most recently written of several', () {
       final plan = HydratedKeyRecovery.plan(
-        {'Sjb': newServers, 'Ujb': oldServers, 'Abc': const {'tokens': {}}},
+        {
+          'Sjb': newServers,
+          'Ujb': oldServers,
+          'Abc': const {'tokens': {}},
+        },
         ['Ujb', 'Abc', 'Sjb'],
       );
       expect(plan, {HydratedKeys.server: 'Sjb', HydratedKeys.token: 'Abc'});

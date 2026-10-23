@@ -8,8 +8,8 @@ import '../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../logic/cubits/server_reach/server_reach_cubit.dart';
+import '../../../common/app_sheet.dart';
 import '../../../common/loading_dots.dart';
-import '../../../common/popover_surface.dart';
 import '../../../common/server_scope.dart';
 import '../../../common/sheet_handle.dart';
 import '../../../theme/app_text.dart';
@@ -23,22 +23,10 @@ import '../members_sidebar/widgets/members_sidebar_list.dart';
 /// same strip of screen. A sheet leaves the conversation visible above it and
 /// goes away with a swipe down — it is something you glance at, not somewhere
 /// you go, so it adds no level to back.
-Future<void> showMembersSheet(BuildContext context) {
-  final theme = context.theme;
-  return showModalBottomSheet<void>(
-    context: context,
-    useRootNavigator: true,
-    isScrollControlled: true,
-    backgroundColor: theme.bgSecondary,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(PopoverSurface.radius),
-      ),
-    ),
-    builder: (_) =>
-        const FractionallySizedBox(heightFactor: 0.8, child: _MembersSheet()),
-  );
-}
+Future<void> showMembersSheet(BuildContext context) => showAppSheet<void>(
+  context,
+  const FractionallySizedBox(heightFactor: 0.8, child: _MembersSheet()),
+);
 
 class _MembersSheet extends StatelessWidget {
   const _MembersSheet();

@@ -2,5 +2,4 @@
 /// `dart:ffi`, which the web build cannot compile.
 library;
 
-export 'invite_scheme_stub.dart'
-    if (dart.library.ffi) 'invite_scheme_ffi.dart';
+export 'invite_scheme_stub.dart' if (dart.library.ffi) 'invite_scheme_ffi.dart';

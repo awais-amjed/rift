@@ -78,7 +78,11 @@ void main() {
       channel.trigger('phx_error', 'socket closed');
       final beforeOutage = _joins(log);
       async.elapse(const Duration(seconds: 60));
-      expect(_joins(log), beforeOutage, reason: 'nothing retries a dead socket');
+      expect(
+        _joins(log),
+        beforeOutage,
+        reason: 'nothing retries a dead socket',
+      );
 
       // The socket opens, and rejoins the errored channel, as _onConnOpen does.
       client.connState = SocketStates.open;

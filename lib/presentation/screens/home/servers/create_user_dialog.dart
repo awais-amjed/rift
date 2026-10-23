@@ -98,6 +98,13 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
+    // Escape closes a dialog, and closed mid-request the account would be
+    // made on the server but never added here: held while it is in flight,
+    // as Later is.
+    return PopScope(canPop: !_isLoading, child: _modal(themeState));
+  }
+
+  Widget _modal(ThemeState themeState) {
     return AppModal(
       title: 'Create your account',
       subtitle: 'Set up your profile for this server',

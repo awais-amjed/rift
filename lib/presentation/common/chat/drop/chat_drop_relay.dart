@@ -1,22 +1,6 @@
-import 'package:cross_file/cross_file.dart';
 import 'package:flutter/widgets.dart';
 
-/// A file handed to the composer — by the picker, or dropped on a chat pane —
-/// not read yet: the composer decides whether it is small enough to hold.
-///
-/// The name travels beside the file rather than in it: off the web,
-/// `XFile.fromData` ignores the name it is given, so a file wrapped from
-/// bytes would arrive called "".
-///
-/// `temporary` marks a copy made to be sent rather than the person's own file
-/// (`PendingAttachment.temporary`), which is deleted once it has gone.
-typedef DroppedFile = ({
-  String name,
-  XFile file,
-  int size,
-  String? mimeType,
-  bool temporary,
-});
+import '../../../../logic/services/dropped_files.dart';
 
 /// Carries files dropped anywhere on a chat pane to the composer at its foot.
 ///

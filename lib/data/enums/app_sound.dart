@@ -24,6 +24,7 @@ enum AppSound {
     startAsset: 'audio/join.mp3',
     endAsset: 'audio/leave.mp3',
   ),
+
   /// E5 down to A4 and back up: two notes, so neither is mistaken for the
   /// single blip of push to talk, which says the same about the mic.
   mute(

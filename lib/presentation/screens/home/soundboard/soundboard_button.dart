@@ -7,13 +7,12 @@ import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/soundboard/soundboard_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../common/app_sheet.dart';
 import '../../../common/call_server_scope.dart';
-import '../../../common/popover_surface.dart';
 import '../../../common/server_scope.dart';
 import '../../../common/show_custom_dialog.dart';
 import '../../../responsive/shell_scope.dart';
 import '../../../theme/app_motion.dart';
-import '../../../theme/theme_context.dart';
 import '../controls/widgets/control_button.dart';
 import 'soundboard_popover.dart';
 
@@ -96,17 +95,9 @@ class _CallSoundboardButtonState extends State<_CallSoundboardButton> {
   ];
 
   Future<void> _showSheet() {
-    return showModalBottomSheet<void>(
-      context: context,
-      useRootNavigator: true,
-      isScrollControlled: true,
-      backgroundColor: context.theme.bgElevated,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(PopoverSurface.radius),
-        ),
-      ),
-      builder: (_) => MultiBlocProvider(
+    return showAppSheet<void>(
+      context,
+      MultiBlocProvider(
         providers: _providers(),
         // The sheet does not close on a press, for the same reason the card
         // does not: two in a row is the normal case.
