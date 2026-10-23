@@ -8,7 +8,7 @@ import 'package:rift/data/classes/key_shortcut.dart';
 import 'package:rift/logic/cubits/app/app_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/logic/shortcuts/call_shortcut_listener.dart';
-import 'package:rift/presentation/screens/settings/widgets/voice_audio/call_shortcuts_section.dart';
+import 'package:rift/presentation/screens/settings/widgets/keybinds/call_shortcuts_section.dart';
 
 import 'support/memory_storage.dart';
 

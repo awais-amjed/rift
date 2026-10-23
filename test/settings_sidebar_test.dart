@@ -105,6 +105,17 @@ void main() {
     expect(taps.back, 0);
   });
 
+  testWidgets('lists every tab a desktop has', (tester) async {
+    await _pumpSidebar(tester);
+
+    // The tests run on a desktop, which has keybinds; a phone's list is
+    // the same less that one.
+    for (final tab in SettingsTab.values) {
+      expect(find.text(tab.label), findsOneWidget, reason: tab.name);
+    }
+    expect(SettingsTab.available, SettingsTab.values);
+  });
+
   testWidgets('nothing destructive lives in the nav', (tester) async {
     await _pumpSidebar(tester);
 

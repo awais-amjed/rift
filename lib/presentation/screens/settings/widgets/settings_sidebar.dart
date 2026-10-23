@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../data/constants.dart';
+import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/nav_row.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
@@ -60,29 +61,32 @@ class SettingsSidebar extends StatelessWidget {
             ],
           ),
         ),
-        // Inset rather than edge-to-edge: it separates the two halves of the
-        // nav, it isn't the panel's own edge.
-        Container(
-          height: 1,
-          margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-          color: themeState.borderPrimary,
-        ),
+        _rule(themeState),
         // The design's settings nav rows are the sidebar's rows — same
         // gradient, ring, padding and radius — so they use the same widget
         // rather than a fork that would drift.
-        _tab(SettingsTab.appearance, Icons.palette_outlined),
-        _tab(SettingsTab.general, Icons.tune_rounded),
-        _tab(SettingsTab.voiceAndAudio, Icons.headset_outlined),
-        _tab(SettingsTab.backup, Icons.cloud_outlined),
+        for (final tab in SettingsTab.available) ...[
+          // Help and About are about Rift, not how you use it.
+          if (tab == SettingsTab.help) _rule(themeState, top: 9),
+          _tab(tab),
+        ],
       ],
     );
   }
 
-  Widget _tab(SettingsTab tab, IconData icon) {
+  /// An inset line between groups: it separates parts of the nav, it isn't
+  /// the panel's own edge.
+  Widget _rule(ThemeState themeState, {double top = 0}) => Container(
+    height: 1,
+    margin: EdgeInsets.fromLTRB(12, top, 12, 10),
+    color: themeState.borderPrimary,
+  );
+
+  Widget _tab(SettingsTab tab) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 1),
       child: NavRow(
-        icon: icon,
+        icon: tab.icon,
         label: tab.label,
         isSelected: activeTab == tab,
         onTap: () => onTabSelected(tab),

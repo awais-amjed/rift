@@ -7,7 +7,7 @@ import 'package:rift/data/repositories/update_repository.dart';
 import 'package:rift/logic/cubits/app/app_cubit.dart';
 import 'package:rift/logic/cubits/update/update_cubit.dart';
 import 'package:rift/logic/services/linux_desktop_entry.dart';
-import 'package:rift/presentation/screens/settings/widgets/updates_section.dart';
+import 'package:rift/presentation/screens/settings/widgets/about/updates_section.dart';
 import 'package:rift/src/rust/api/updater.dart';
 
 class _MemoryStorage implements Storage {

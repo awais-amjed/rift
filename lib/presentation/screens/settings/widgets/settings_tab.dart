@@ -1,7 +1,26 @@
-/// The settings screen's tabs, in the order the sidebar lists them.
-enum SettingsTab { appearance, general, voiceAndAudio, backup }
+import 'package:flutter/material.dart';
 
-/// What each tab is called.
+import '../../../../logic/services/host_platform.dart';
+
+/// The settings screen's tabs, in the order the sidebar lists them.
+enum SettingsTab {
+  appearance,
+  general,
+  voiceAndAudio,
+  keybinds,
+  backup,
+  help,
+  about;
+
+  /// The tabs this device has. Keybinds are push-to-talk and the call keys,
+  /// which a phone and the web have none of.
+  static List<SettingsTab> get available => [
+    for (final tab in values)
+      if (tab != keybinds || HostPlatform.isDesktop) tab,
+  ];
+}
+
+/// What each tab is called, and its mark.
 ///
 /// On the enum because three places name these — the desktop sidebar, the
 /// phone's list, and the header above the contents — and they had drifted:
@@ -14,7 +33,20 @@ extension SettingsTabLabel on SettingsTab {
     SettingsTab.appearance => 'Appearance',
     SettingsTab.general => 'General',
     SettingsTab.voiceAndAudio => 'Voice & audio',
+    SettingsTab.keybinds => 'Keybinds',
     SettingsTab.backup => 'Account & backup',
+    SettingsTab.help => 'Help',
+    SettingsTab.about => 'About',
+  };
+
+  IconData get icon => switch (this) {
+    SettingsTab.appearance => Icons.palette_outlined,
+    SettingsTab.general => Icons.tune_rounded,
+    SettingsTab.voiceAndAudio => Icons.headset_outlined,
+    SettingsTab.keybinds => Icons.keyboard_outlined,
+    SettingsTab.backup => Icons.cloud_outlined,
+    SettingsTab.help => Icons.help_outline_rounded,
+    SettingsTab.about => Icons.info_outline_rounded,
   };
 }
 

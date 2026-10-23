@@ -10,16 +10,15 @@ import 'section_divider.dart';
 import 'settings_tab.dart';
 import 'voice_audio/audio_ducking_section.dart';
 import 'voice_audio/audio_processing_section.dart';
-import 'voice_audio/call_shortcuts_section.dart';
 import 'voice_audio/mic_volume_control.dart';
 import 'voice_audio/output_volume_section.dart';
-import 'voice_audio/push_to_talk_section.dart';
 import 'voice_audio/soundboard_section.dart';
 import 'voice_audio/sounds/sounds_section.dart';
 
 /// The Voice & Audio settings tab: devices, call volume, mic processing, the
 /// mic volume beside the mic test, the soundboard and Rift's own sounds as this
-/// device hears them, and the desktop-only sections.
+/// device hears them, and on Windows other apps' volume during calls. The keys
+/// for push-to-talk, mute and deafen are Keybinds'.
 class VoiceAudioContent extends StatelessWidget {
   /// A section to scroll to and light up, for someone sent here to it.
   final SettingsSection? focus;
@@ -71,14 +70,6 @@ class VoiceAudioContent extends StatelessWidget {
             if (HostPlatform.ducksOtherApps) ...[
               const SectionDivider(),
               AudioDuckingSection(highlight: focus == SettingsSection.ducking),
-            ],
-            if (HostPlatform.hasPushToTalk) ...[
-              const SectionDivider(),
-              PushToTalkSection(appState: appState),
-            ],
-            if (HostPlatform.isDesktop) ...[
-              const SectionDivider(),
-              CallShortcutsSection(shortcuts: appState.callShortcuts),
             ],
           ],
         );

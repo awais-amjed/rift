@@ -16,9 +16,12 @@ import '../../common/icon_tile.dart';
 import '../../responsive/shell_scope.dart';
 import '../../theme/app_text.dart';
 import '../../theme/theme_context.dart';
+import 'widgets/about/about_content.dart';
 import 'widgets/appearance_content.dart';
 import 'widgets/backup_content/backup_content.dart';
 import 'widgets/general_content.dart';
+import 'widgets/help/help_content.dart';
+import 'widgets/keybinds/keybinds_content.dart';
 import 'widgets/mobile_settings_list.dart';
 import 'widgets/settings_sidebar.dart';
 import 'widgets/settings_tab.dart';
@@ -54,13 +57,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   /// says which of the two is showing. Ignored entirely at wider sizes, where
   /// both are on screen and there is nothing to be in front of anything else.
   late bool _detailOpen = widget.target != null;
-
-  IconData get _tabIcon => switch (_activeTab) {
-    SettingsTab.appearance => Icons.palette_outlined,
-    SettingsTab.general => Icons.tune_rounded,
-    SettingsTab.voiceAndAudio => Icons.headset_outlined,
-    SettingsTab.backup => Icons.cloud_outlined,
-  };
 
   /// Wipes the vault and server list from this device and returns to
   /// onboarding. Irreversible without a cloud or file backup.
@@ -109,7 +105,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // The tab's own mark, so the content panel says which section you
           // are in as loudly as the nav row you clicked to get here.
           IconTile(
-            icon: _tabIcon,
+            icon: _activeTab.icon,
             color: themeState.accentBright,
             size: 28,
             radius: K.radiusRow,
@@ -247,9 +243,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                             VoiceAudioContent(
                                               focus: widget.target?.section,
                                             ),
+                                          SettingsTab.keybinds =>
+                                            const KeybindsContent(),
                                           SettingsTab.backup => BackupContent(
                                             onResetVault: _resetVault,
                                           ),
+                                          SettingsTab.help =>
+                                            const HelpContent(),
+                                          SettingsTab.about =>
+                                            const AboutContent(),
                                         },
                                       ),
                                     ),

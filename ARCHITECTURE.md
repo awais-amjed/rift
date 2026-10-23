@@ -849,7 +849,7 @@ app, the system and a computer with USB debugging, and is not kept across a
 restart, so this is far narrower than the journal, but it waits on a fixed
 Android build. iOS and macOS are not checked.
 
-**Report a bug** (Settings → General → Help) sends it. The person writes what
+**Report a bug** (Settings → Help) sends it. The person writes what
 happened; `BugReportRepository` files it on central (`submit_bug_report`, ten
 a day per account, a Rift account required), then uploads the newest four log
 files, gzipped, into `bug-reports/<uid>/<report id>/`. The bucket takes a file

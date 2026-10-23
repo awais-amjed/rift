@@ -11,18 +11,16 @@ import '../../../common/app_menu/app_menu_row.dart';
 import '../../../common/segmented_control.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
-import 'general/help_section.dart';
 import 'general/startup_section.dart';
 import 'section_divider.dart';
 import 'section_title.dart';
 import 'setting_toggle_row.dart';
-import 'updates_section.dart';
 
 /// Settings' General tab: how the app behaves, as opposed to what it looks
 /// like (Appearance) or how it sounds (Voice & audio).
 ///
-/// Everything here is this device's own and reaches no server, except a bug
-/// report under Help, which says what it sends.
+/// Everything here is this device's own and reaches no server. Which version
+/// this is and its updates are About's, and a bug report is Help's.
 class GeneralContent extends StatelessWidget {
   const GeneralContent({super.key});
 
@@ -126,11 +124,6 @@ class GeneralContent extends StatelessWidget {
           const StartupSection(),
         ],
 
-        if (HostPlatform.selfUpdates) ...[
-          const SectionDivider(),
-          const UpdatesSection(),
-        ],
-
         // A Linux folder copy; the AppImage keeps its entry by itself.
         if (LinuxDesktopEntry.offersToAdd) ...[
           const SectionDivider(),
@@ -138,9 +131,6 @@ class GeneralContent extends StatelessWidget {
           const SizedBox(height: 12),
           const AppMenuRow(),
         ],
-
-        const SectionDivider(),
-        const HelpSection(),
       ],
     );
   }

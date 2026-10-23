@@ -110,55 +110,94 @@ class MobileSettingsList extends StatelessWidget {
                   ),
                 ],
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(8, 22, 8, 8),
-                child: Text(
-                  'PREFERENCES',
-                  style: AppText.sectionLabel.copyWith(
-                    color: theme.textTertiary,
+              _Group(
+                label: 'PREFERENCES',
+                rows: [
+                  SettingsLinkRow(
+                    icon: Icons.palette_outlined,
+                    label: SettingsTab.appearance.label,
+                    value: palette,
+                    onTap: () => onTabSelected(SettingsTab.appearance),
                   ),
-                ),
+                  SettingsLinkRow(
+                    icon: Icons.tune_rounded,
+                    label: SettingsTab.general.label,
+                    subtitle:
+                        'Voice channels, link previews, sensitive content',
+                    onTap: () => onTabSelected(SettingsTab.general),
+                  ),
+                  SettingsLinkRow(
+                    icon: Icons.graphic_eq_rounded,
+                    label: SettingsTab.voiceAndAudio.label,
+                    subtitle: 'Noise suppression, mic test, sounds',
+                    onTap: () => onTabSelected(SettingsTab.voiceAndAudio),
+                  ),
+                  SettingsLinkRow(
+                    icon: Icons.cloud_outlined,
+                    label: SettingsTab.backup.label,
+                    subtitle: backup ?? 'Sign in, cloud backup, recovery key',
+                    onTap: () => onTabSelected(SettingsTab.backup),
+                  ),
+                ],
               ),
-              Container(
-                decoration: BoxDecoration(
-                  color: theme.bgHover,
-                  borderRadius: BorderRadius.circular(K.radiusCard),
-                  border: Border.all(color: theme.borderElevated),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: Column(
-                  children: [
-                    SettingsLinkRow(
-                      icon: Icons.palette_outlined,
-                      label: SettingsTab.appearance.label,
-                      value: palette,
-                      onTap: () => onTabSelected(SettingsTab.appearance),
-                    ),
-                    Divider(height: 1, color: theme.borderPrimary),
-                    SettingsLinkRow(
-                      icon: Icons.tune_rounded,
-                      label: SettingsTab.general.label,
-                      subtitle:
-                          'Voice channels, link previews, sensitive content',
-                      onTap: () => onTabSelected(SettingsTab.general),
-                    ),
-                    Divider(height: 1, color: theme.borderPrimary),
-                    SettingsLinkRow(
-                      icon: Icons.graphic_eq_rounded,
-                      label: SettingsTab.voiceAndAudio.label,
-                      subtitle: 'Noise suppression, mic test, sounds',
-                      onTap: () => onTabSelected(SettingsTab.voiceAndAudio),
-                    ),
-                    Divider(height: 1, color: theme.borderPrimary),
-                    SettingsLinkRow(
-                      icon: Icons.cloud_outlined,
-                      label: SettingsTab.backup.label,
-                      subtitle: backup ?? 'Sign in, cloud backup, recovery key',
-                      onTap: () => onTabSelected(SettingsTab.backup),
-                    ),
-                  ],
-                ),
+              _Group(
+                label: 'SUPPORT',
+                rows: [
+                  SettingsLinkRow(
+                    icon: SettingsTab.help.icon,
+                    label: SettingsTab.help.label,
+                    subtitle: 'Report a bug',
+                    onTap: () => onTabSelected(SettingsTab.help),
+                  ),
+                  SettingsLinkRow(
+                    icon: SettingsTab.about.icon,
+                    label: SettingsTab.about.label,
+                    subtitle: 'Which version this is',
+                    onTap: () => onTabSelected(SettingsTab.about),
+                  ),
+                ],
               ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// A labelled card of rows, a line between each.
+class _Group extends StatelessWidget {
+  final String label;
+  final List<Widget> rows;
+
+  const _Group({required this.label, required this.rows});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 22, 8, 8),
+          child: Text(
+            label,
+            style: AppText.sectionLabel.copyWith(color: theme.textTertiary),
+          ),
+        ),
+        Container(
+          decoration: BoxDecoration(
+            color: theme.bgHover,
+            borderRadius: BorderRadius.circular(K.radiusCard),
+            border: Border.all(color: theme.borderElevated),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              for (final (i, row) in rows.indexed) ...[
+                if (i > 0) Divider(height: 1, color: theme.borderPrimary),
+                row,
+              ],
             ],
           ),
         ),

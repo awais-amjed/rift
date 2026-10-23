@@ -30,7 +30,7 @@ import 'desktop_key_notice.dart';
 /// a key picked while it was off would be quietly replaced — and holding
 /// every platform to the same rule keeps the screen predictable.
 ///
-/// Windows and Linux only ([HostPlatform.hasPushToTalk]); the Voice & Audio
+/// Windows and Linux only ([HostPlatform.hasPushToTalk]); the Keybinds
 /// tab omits the whole section elsewhere rather than showing controls that do
 /// nothing. On Linux the key chosen here is only a suggestion to the desktop,
 /// which asks the user to confirm it and owns it from then on — so the

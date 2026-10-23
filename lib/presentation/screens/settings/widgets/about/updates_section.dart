@@ -3,15 +3,15 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../logic/cubits/app/app_cubit.dart';
-import '../../../../logic/cubits/update/update_cubit.dart';
-import '../../../../logic/services/byte_format.dart';
-import '../../../common/app_button.dart';
-import '../../../common/progress_track.dart';
-import '../../../common/setting_row.dart';
-import '../../../common/update/restart_to_update.dart';
-import 'section_title.dart';
-import 'setting_toggle_row.dart';
+import '../../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../../logic/cubits/update/update_cubit.dart';
+import '../../../../../logic/services/byte_format.dart';
+import '../../../../common/app_button.dart';
+import '../../../../common/progress_track.dart';
+import '../../../../common/setting_row.dart';
+import '../../../../common/update/restart_to_update.dart';
+import '../section_title.dart';
+import '../setting_toggle_row.dart';
 
 /// Settings' Updates: which version this is, what the updater is doing, and
 /// whether betas come too. Windows and Linux only, where Rift can replace

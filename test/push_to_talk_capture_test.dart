@@ -7,7 +7,7 @@ import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rift/logic/cubits/app/app_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/logic/ptt/mouse_button_bind.dart';
-import 'package:rift/presentation/screens/settings/widgets/voice_audio/push_to_talk_section.dart';
+import 'package:rift/presentation/screens/settings/widgets/keybinds/push_to_talk_section.dart';
 
 import 'support/memory_storage.dart';
 

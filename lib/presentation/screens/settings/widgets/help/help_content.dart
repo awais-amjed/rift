@@ -13,10 +13,10 @@ import '../../../../common/show_custom_dialog.dart';
 import '../section_title.dart';
 import 'bug_report_dialog.dart';
 
-/// Settings' Help: sending a bug report, and on a desktop, the logs folder
-/// for someone sending them by hand.
-class HelpSection extends StatelessWidget {
-  const HelpSection({super.key});
+/// Settings' Help tab: sending a bug report, and on a desktop, the logs
+/// folder for someone sending them by hand.
+class HelpContent extends StatelessWidget {
+  const HelpContent({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +24,7 @@ class HelpSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionTitle(label: 'Help'),
+        const SectionTitle(label: 'Bug reports'),
         const SizedBox(height: 12),
         SettingRow(
           title: 'Report a bug',
