@@ -3,11 +3,9 @@ part of 'server_notifications_cubit.dart';
 /// Reading and writing how much each conversation may interrupt.
 ///
 /// The levels arrive with the unread counts — one `unread_counts()` per server
-/// answers both — and go back one row at a time, straight to
-/// `notification_prefs` under its own-row policy. There is no RPC because
-/// there is no rule an RPC would enforce that the policy doesn't: a member may
-/// set their own, and nobody else's.
+/// answers both — and go back one row at a time ([UnreadApi.setLevel]).
 mixin _LevelsMixin on Cubit<NotificationsState> {
+  SessionRepository get _session;
   Map<String, _ServerSub> get _subs;
 
   Future<void> _seed(String serverId);
@@ -28,22 +26,12 @@ mixin _LevelsMixin on Cubit<NotificationsState> {
     final clearing = level == NotificationLevel.serverDefault;
     emit(state.withServerLevel(serverId, clearing ? null : level));
 
-    final sub = _subs[serverId];
-    if (sub == null) return;
-    try {
-      if (clearing) {
-        await _deleteLevel(sub, scope: 'server', scopeId: serverId);
-      } else {
-        await _upsertLevel(
-          sub,
-          scope: 'server',
-          scopeId: serverId,
-          level: level,
-        );
-      }
-    } catch (_) {
-      unawaited(_seed(serverId));
-    }
+    if (!_subs.containsKey(serverId)) return;
+    final api = UnreadApi(_session.on(serverId));
+    final response = clearing
+        ? await api.clearLevel(scope: 'server', scopeId: serverId)
+        : await api.setLevel(scope: 'server', scopeId: serverId, level: level);
+    if (!response.success) unawaited(_seed(serverId));
   }
 
   /// How much [channelId] on [serverId] may interrupt.
@@ -51,24 +39,14 @@ mixin _LevelsMixin on Cubit<NotificationsState> {
     String serverId,
     String channelId,
     NotificationLevel level,
-  ) => _setLevel(
-    serverId,
-    scopeId: channelId,
-    level: level,
-    isChannel: true,
-  );
+  ) => _setLevel(serverId, scopeId: channelId, level: level, isChannel: true);
 
   /// How much the conversation with [peerId] on [serverId] may interrupt.
   Future<void> setDmLevel(
     String serverId,
     String peerId,
     NotificationLevel level,
-  ) => _setLevel(
-    serverId,
-    scopeId: peerId,
-    level: level,
-    isChannel: false,
-  );
+  ) => _setLevel(serverId, scopeId: peerId, level: level, isChannel: false);
 
   /// Applied here first, then written.
   ///
@@ -95,40 +73,16 @@ mixin _LevelsMixin on Cubit<NotificationsState> {
     if (isClosed) return;
     emit(state.withLevel(serverId, scopeId, level, isChannel: isChannel));
 
-    final sub = _subs[serverId];
-    if (sub == null) return;
-    final scope = isChannel ? 'channel' : 'dm';
-    try {
-      await _upsertLevel(sub, scope: scope, scopeId: scopeId, level: level);
-    } catch (_) {
-      // Put back whatever the server actually thinks, rather than leaving a
-      // setting on screen that isn't in force anywhere.
-      unawaited(_seed(serverId));
-    }
+    if (!_subs.containsKey(serverId)) return;
+    final response = await UnreadApi(_session.on(serverId)).setLevel(
+      scope: isChannel ? 'channel' : 'dm',
+      scopeId: scopeId,
+      level: level,
+    );
+    // Put back whatever the server actually thinks, rather than leaving a
+    // setting on screen that isn't in force anywhere.
+    if (!response.success) unawaited(_seed(serverId));
   }
-
-  Future<void> _upsertLevel(
-    _ServerSub sub, {
-    required String scope,
-    required String scopeId,
-    required NotificationLevel level,
-  }) => sub.client.from('notification_prefs').upsert({
-    'user_id': sub.userId,
-    'scope': scope,
-    'scope_id': scopeId,
-    'level': level.toJson(),
-  }, onConflict: 'user_id,scope,scope_id');
-
-  Future<void> _deleteLevel(
-    _ServerSub sub, {
-    required String scope,
-    required String scopeId,
-  }) => sub.client
-      .from('notification_prefs')
-      .delete()
-      .eq('user_id', sub.userId)
-      .eq('scope', scope)
-      .eq('scope_id', scopeId);
 
   /// Whether an incoming channel row names us, according to the row.
   ///

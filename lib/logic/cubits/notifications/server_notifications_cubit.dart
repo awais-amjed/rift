@@ -3,8 +3,9 @@ import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:supabase/supabase.dart';
 
+import '../../../data/apis/members_api.dart';
+import '../../../data/apis/unread_api.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/enums/app_sound.dart';
 import '../../../data/enums/home_surface.dart';
@@ -28,23 +29,20 @@ part 'server_notifications_read.dart';
 part 'server_notifications_state.dart';
 part 'server_notifications_subscriptions.dart';
 
-/// One authenticated Realtime + REST connection **per joined server** to its
-/// `notifications` table (RLS-scoped to `auth.uid()`), so unread badges and OS
-/// notifications work everywhere at once — not just on the server you're looking
-/// at. Rows are fanned out by `send_message` and `send_dm`, so this covers
-/// channels the user never opened, on servers they aren't currently viewing.
+/// Unread badges and OS notifications for **every joined server** at once —
+/// not just the one you're looking at — so a channel you never opened, on a
+/// server you aren't viewing, still badges.
 ///
 /// Responsibilities:
 /// - **Per-(server, channel) unread** and **per-(server, peer) DM unread** —
-///   each subscription is seeded by an authenticated REST fetch and kept live by
-///   Postgres-Changes INSERTs.
+///   each server is seeded by `unread_counts()` ([UnreadApi]) and kept live by
+///   the ids the database broadcasts to that server's topics.
 /// - **OS notifications** for channel messages while the window is unfocused
 ///   (any server). DM notifications come from [DmCubit] instead, which can
 ///   decrypt the body for a preview.
 /// - **Read tracking** — opening a channel or a conversation, a message landing
-///   in the open+focused one, or refocusing the window marks it read
-///   (`read_at`), clearing the badge and letting the retention job prune
-///   the rows.
+///   in the open+focused one, or refocusing the window moves its read cursor
+///   (`mark_read`), clearing the badge.
 /// - **Token freshness** — background servers' JWTs are refreshed before they
 ///   expire (via [SessionRepository.reAuthenticate]) so their subscriptions
 ///   don't lapse while another server is in focus.
@@ -129,45 +127,42 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
   /// appearing for the channel already on screen.
   @override
   Future<void> _seed(String serverId) async {
-    final sub = _subs[serverId];
-    if (sub == null) return;
-    try {
-      final data = await sub.client.rpc('unread_counts');
-      if (isClosed || !_subs.containsKey(serverId)) return;
-      if (data is! Map) return;
+    if (!_subs.containsKey(serverId)) return;
+    // Best-effort — a failed seed just means no badges until the next event.
+    final response = await UnreadApi(_session.on(serverId)).unreadCounts();
+    if (isClosed || !_subs.containsKey(serverId)) return;
+    final data = response.data;
+    if (!response.success || data is! Map) return;
 
-      final prefs = data['prefs'];
-      final servers = NotificationLevel.mapFrom(
-        prefs is Map ? prefs['servers'] : null,
-        // No fallback to drop against: an absent server row is "no opinion",
-        // and the level that would mean that is never stored, so anything
-        // here is a real answer somebody gave.
-        fallback: null,
-      );
-      emit(
-        state.withServerCounts(
-          serverId,
-          serverPref: servers[serverId],
-          channels: _countsOf(data['channels']),
-          dms: _countsOf(data['dms']),
-          // Kept whole, defaults included: inside a server a stored level
-          // that matches the default still outranks the server's own
-          // (`NotificationLevel.resolve`), and dropping it here let a channel
-          // set to "Only @mentions" follow the server up to "All".
-          channelPrefs: NotificationLevel.mapFrom(
-            prefs is Map ? prefs['channels'] : null,
-            fallback: null,
-          ),
-          dmPrefs: NotificationLevel.mapFrom(
-            prefs is Map ? prefs['dms'] : null,
-            fallback: null,
-          ),
+    final prefs = data['prefs'];
+    final servers = NotificationLevel.mapFrom(
+      prefs is Map ? prefs['servers'] : null,
+      // No fallback to drop against: an absent server row is "no opinion",
+      // and the level that would mean that is never stored, so anything
+      // here is a real answer somebody gave.
+      fallback: null,
+    );
+    emit(
+      state.withServerCounts(
+        serverId,
+        serverPref: servers[serverId],
+        channels: _countsOf(data['channels']),
+        dms: _countsOf(data['dms']),
+        // Kept whole, defaults included: inside a server a stored level
+        // that matches the default still outranks the server's own
+        // (`NotificationLevel.resolve`), and dropping it here let a channel
+        // set to "Only @mentions" follow the server up to "All".
+        channelPrefs: NotificationLevel.mapFrom(
+          prefs is Map ? prefs['channels'] : null,
+          fallback: null,
         ),
-      );
-      _markOnScreenRead(onlyServerId: serverId);
-    } catch (_) {
-      // Best-effort — a failed seed just means no badges until the next event.
-    }
+        dmPrefs: NotificationLevel.mapFrom(
+          prefs is Map ? prefs['dms'] : null,
+          fallback: null,
+        ),
+      ),
+    );
+    _markOnScreenRead(onlyServerId: serverId);
   }
 
   /// `{id: n}` out of the RPC's json, ignoring anything malformed rather than

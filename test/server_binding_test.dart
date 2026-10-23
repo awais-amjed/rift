@@ -46,6 +46,17 @@ void main() {
     ], isEmpty);
   });
 
+  test('no cubit queries a database itself', () {
+    // A query on a raw client skips `ServerSession.call`, so a token the
+    // server refuses is never signed in again: the notifications cubit's
+    // badges and read marks did this on its Realtime client until Oct 23.
+    final query = RegExp(r"\.rpc\(|\.from\('");
+    expect([
+      for (final file in dartFiles('lib/logic/cubits'))
+        if (query.hasMatch(code(file))) file.path,
+    ], isEmpty);
+  });
+
   test('every class is built on a bound server, or says why not', () {
     // Before there is a server to be signed in to: creating one, and reading
     // an invite to it.

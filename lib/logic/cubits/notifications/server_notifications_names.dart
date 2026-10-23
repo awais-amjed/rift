@@ -14,6 +14,7 @@ part of 'server_notifications_cubit.dart';
 /// so a peer whose row can't be read (banned, deleted, RLS) doesn't cost a query
 /// on every message they send.
 mixin _PeerNamesMixin on Cubit<NotificationsState> {
+  SessionRepository get _session;
   Map<String, _ServerSub> get _subs;
 
   /// `serverId:userId` → display name, or null for a lookup that came back
@@ -31,26 +32,17 @@ mixin _PeerNamesMixin on Cubit<NotificationsState> {
     final key = '$serverId:$userId';
     if (_peerNames.containsKey(key)) return _peerNames[key];
 
-    final sub = _subs[serverId];
-    if (sub == null) return null;
+    if (!_subs.containsKey(serverId)) return null;
 
-    String? name;
-    try {
-      final row = await sub.client
-          .from('users')
-          .select('display_name, username')
-          .eq('id', userId)
-          .maybeSingle();
-      if (row != null) {
-        final display = row['display_name'] as String?;
-        final username = row['username'] as String?;
-        name = (display != null && display.isNotEmpty) ? display : username;
-      }
-    } catch (_) {
-      // A failed lookup is cached as a miss like any other: the notification
-      // still goes out unnamed, and retrying per message would turn one
-      // unreachable server into a query storm.
-    }
+    // A failed lookup is cached as a miss like any other: the notification
+    // still goes out unnamed, and retrying per message would turn one
+    // unreachable server into a query storm.
+    final member = await MembersApi(_session.on(serverId)).findMember(userId);
+    final name = member == null
+        ? null
+        : member.displayName.isNotEmpty
+        ? member.displayName
+        : member.username;
 
     if (isClosed) return name;
     _peerNames[key] = name;

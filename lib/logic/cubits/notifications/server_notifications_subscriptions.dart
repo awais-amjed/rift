@@ -3,6 +3,7 @@ part of 'server_notifications_cubit.dart';
 /// One unread subscription per joined server, on that server's shared
 /// connection, and the bookkeeping that keeps the set matching the server list.
 mixin _SubscriptionsMixin on Cubit<NotificationsState>, _PeerNamesMixin {
+  @override
   SessionRepository get _session;
 
   /// Per-server live subscription + authenticated client, keyed by server id.
@@ -72,10 +73,9 @@ mixin _SubscriptionsMixin on Cubit<NotificationsState>, _PeerNamesMixin {
   void _subscribe(Server server) {
     final realtime = _session.realtime;
     final userId = server.user!.id;
-    final client = realtime.clientFor(server);
     final shared = realtime.join(server, ServerTopics.server(server.id));
     final own = realtime.join(server, ServerTopics.user(userId));
-    if (client == null || shared == null || own == null) {
+    if (shared == null || own == null) {
       unawaited(shared?.release());
       unawaited(own?.release());
       return;
@@ -106,7 +106,6 @@ mixin _SubscriptionsMixin on Cubit<NotificationsState>, _PeerNamesMixin {
       // trip that already returns all of it.
       ..onBroadcast(ServerEvent.prefs, (_) => unawaited(_seed(server.id)));
     _subs[server.id] = _ServerSub(
-      client: client,
       topics: [shared, own],
       token: server.token,
       userId: userId,
@@ -173,11 +172,9 @@ mixin _SubscriptionsMixin on Cubit<NotificationsState>, _PeerNamesMixin {
   }
 }
 
-/// A single server's unread subscription, and the shared client its REST
-/// calls go out on.
+/// A single server's unread subscription. Its calls go out through
+/// [UnreadApi], which signs in again when the server refuses the token.
 class _ServerSub {
-  final SupabaseClient client;
-
   /// The two that are always held: the server's topic and the caller's own.
   final List<RealtimeLease> topics;
 
@@ -188,10 +185,5 @@ class _ServerSub {
   final String userId;
   String token;
 
-  _ServerSub({
-    required this.client,
-    required this.topics,
-    required this.userId,
-    required this.token,
-  });
+  _ServerSub({required this.topics, required this.userId, required this.token});
 }

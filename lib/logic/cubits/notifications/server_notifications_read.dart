@@ -14,6 +14,7 @@ part of 'server_notifications_cubit.dart';
 /// RPC only ever moves a cursor forward, so a stale client can't un-read what
 /// another device already read.
 mixin _ReadMarkingMixin on Cubit<NotificationsState> {
+  SessionRepository get _session;
   Map<String, _ServerSub> get _subs;
 
   /// Mark a channel read and clear its badge.
@@ -31,13 +32,8 @@ mixin _ReadMarkingMixin on Cubit<NotificationsState> {
   /// Mark a whole server read, channels and conversations alike.
   void markServerRead(String serverId) {
     emit(state.clearedServer(serverId));
-    final sub = _subs[serverId];
-    if (sub == null) return;
-    unawaited(() async {
-      try {
-        await sub.client.rpc('mark_all_read');
-      } catch (_) {}
-    }());
+    if (!_subs.containsKey(serverId)) return;
+    unawaited(UnreadApi(_session.on(serverId)).markAllRead());
   }
 
   /// Moves one cursor to whatever is newest right now (`p_last_read_id: 0`).
@@ -46,19 +42,9 @@ mixin _ReadMarkingMixin on Cubit<NotificationsState> {
     required String scope,
     required String scopeId,
   }) {
-    final sub = _subs[serverId];
-    if (sub == null) return;
-    unawaited(() async {
-      try {
-        await sub.client.rpc(
-          'mark_read',
-          params: {
-            'p_scope': scope,
-            'p_scope_id': scopeId,
-            'p_last_read_id': 0,
-          },
-        );
-      } catch (_) {}
-    }());
+    if (!_subs.containsKey(serverId)) return;
+    unawaited(
+      UnreadApi(_session.on(serverId)).markRead(scope: scope, scopeId: scopeId),
+    );
   }
 }
