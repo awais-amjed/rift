@@ -12,7 +12,7 @@ import 'stored_picture.dart';
 /// come from: central's private `directory-icons` bucket rather than a
 /// server's.
 ///
-/// It is deliberately *not* a [CachedNetworkImage] on a remote address, which
+/// It is deliberately *not* a network image on a remote address, which
 /// is what this replaced: that handed every listed party the address of
 /// everyone who opened the browser. See [DirectoryIconRepository].
 class DirectoryIcon extends StatefulWidget {
