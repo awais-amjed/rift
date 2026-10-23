@@ -7,9 +7,7 @@ mixin _VaultCreationMixin on Cubit<VaultState> {
   /// Implemented by [_VaultRecoveryMixin].
   Future<String> _issueRecoveryKey(String masterSeedB64);
 
-  // ──────────────────────────────────────────────────────────
-  // Phase 1: Account creation
-  // ──────────────────────────────────────────────────────────
+  // ── Account creation ──────────────────────────────────────
 
   /// Creates a new vault from a password.
   /// Stores an [EncryptedSeed] (Argon2id-protected master seed) and an

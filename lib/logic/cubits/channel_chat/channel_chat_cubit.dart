@@ -283,9 +283,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     BeforeQuit.instance.add(saveAsLeft);
   }
 
-  // ──────────────────────────────────────────────────────────
-  // Open / close
-  // ──────────────────────────────────────────────────────────
+  // ── Open / close ──────────────────────────────────────────
 
   /// [again] opens the channel that is already on screen — a retry over its
   /// saved copy — without clearing it first, so the list and the composer
@@ -541,9 +539,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     } catch (_) {}
   }
 
-  // ──────────────────────────────────────────────────────────
-  // Doorbell senders
-  // ──────────────────────────────────────────────────────────
+  // ── Doorbell senders ──────────────────────────────────────
   // Implemented here rather than in the realtime mixin because the mixins that
   // ring them declare them abstractly; the topic they write to is the mixin's.
 
@@ -566,9 +562,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     _notify(incoming.where((m) => !m.isLocked).toList());
   }
 
-  // ──────────────────────────────────────────────────────────
-  // Lifecycle
-  // ──────────────────────────────────────────────────────────
+  // ── Lifecycle ─────────────────────────────────────────────
 
   /// Save what is open as *left*, without closing it: the app quitting
   /// ([BeforeQuit]), or another surface taking the screen while it stays

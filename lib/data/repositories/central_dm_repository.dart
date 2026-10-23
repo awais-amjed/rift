@@ -67,9 +67,7 @@ class CentralDmRepository
 
   Stream<AuthState> get authChanges => _client.auth.onAuthStateChange;
 
-  // ──────────────────────────────────────────────────────────
-  // Messages
-  // ──────────────────────────────────────────────────────────
+  // ── Messages ──────────────────────────────────────────────
 
   /// Send one envelope through the quota-enforcing RPC. Returns
   /// `{id, created_at, state, remaining, quota}`; quota exhaustion surfaces as
@@ -254,9 +252,7 @@ class CentralDmRepository
     }
   }
 
-  // ──────────────────────────────────────────────────────────
-  // Realtime
-  // ──────────────────────────────────────────────────────────
+  // ── Realtime ──────────────────────────────────────────────
 
   /// Hear what the central database says to us alone, on our own private
   /// topic: [onInsert] for a DM that arrived,

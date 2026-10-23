@@ -36,9 +36,7 @@ class TokenCubit extends HydratedCubit<TokenState> {
   /// 2 — `canUpdateOwnMetadata`, so a client can publish its own deafen.
   static const grantVersion = 2;
 
-  // ──────────────────────────────────────────────────────────
-  // Public API
-  // ──────────────────────────────────────────────────────────
+  // ── Public API ────────────────────────────────────────────
 
   /// Returns a cached token for [channelId] if one exists, belongs to
   /// [supabaseUrl] *and to [userId]*, and was created within the last 55
@@ -119,9 +117,7 @@ class TokenCubit extends HydratedCubit<TokenState> {
     emit(state.copyWith(tokens: updated));
   }
 
-  // ──────────────────────────────────────────────────────────
-  // HydratedCubit persistence
-  // ──────────────────────────────────────────────────────────
+  // ── HydratedCubit persistence ─────────────────────────────
 
   @override
   TokenState? fromJson(Map<String, dynamic> json) {
@@ -142,9 +138,7 @@ class TokenCubit extends HydratedCubit<TokenState> {
     'tokens': state.tokens.map((key, value) => MapEntry(key, value.toJson())),
   };
 
-  // ──────────────────────────────────────────────────────────
-  // Private helpers
-  // ──────────────────────────────────────────────────────────
+  // ── Private helpers ───────────────────────────────────────
 
   void _evict(String channelId) {
     if (!state.tokens.containsKey(channelId)) return;

@@ -39,9 +39,7 @@ mixin _ChannelChatRealtimeMixin
   static const _typingThrottle = Duration(seconds: 2);
   static const _typingTimeout = Duration(seconds: 5);
 
-  // ──────────────────────────────────────────────────────────
-  // Realtime doorbell
-  // ──────────────────────────────────────────────────────────
+  // ── Realtime doorbell ─────────────────────────────────────
 
   void _setupRealtime(Server server, String channelId) {
     final realtime = _session.realtime;
@@ -123,9 +121,7 @@ mixin _ChannelChatRealtimeMixin
     }
   }
 
-  // ──────────────────────────────────────────────────────────
-  // Typing indicators
-  // ──────────────────────────────────────────────────────────
+  // ── Typing indicators ─────────────────────────────────────
 
   /// Broadcast that we're typing in the open channel (throttled). Called by
   /// the composer on each keystroke.

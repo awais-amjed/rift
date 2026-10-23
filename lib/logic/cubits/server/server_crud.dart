@@ -9,9 +9,7 @@ mixin _ServerCrudMixin on Cubit<ServerState> {
   PushApi _pushOn(String serverId);
   OwnershipApi _ownershipOn(String serverId);
 
-  // ──────────────────────────────────────────────────────────
-  // CRUD
-  // ──────────────────────────────────────────────────────────
+  // ── CRUD ──────────────────────────────────────────────────
 
   Server addServer(
     String supabaseUrl,

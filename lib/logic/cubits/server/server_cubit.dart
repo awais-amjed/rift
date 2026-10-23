@@ -177,9 +177,7 @@ class ServerCubit extends HydratedCubit<ServerState>
     return super.close();
   }
 
-  // ──────────────────────────────────────────────────────────
-  // Token auto-refresh helpers
-  // ──────────────────────────────────────────────────────────
+  // ── Token auto-refresh helpers ────────────────────────────
 
   /// Silent SIWS re-login for the selected server.
   Future<String?> reAuthenticate() {
@@ -193,9 +191,7 @@ class ServerCubit extends HydratedCubit<ServerState>
   Future<String?> reAuthenticateServer(String serverId) =>
       _session.reAuthenticate(serverId);
 
-  // ──────────────────────────────────────────────────────────
-  // Update (shared by selection, API, and token-refresh)
-  // ──────────────────────────────────────────────────────────
+  // ── Update (shared by selection, API, and token-refresh) ───
 
   @override
   void updateServer(
@@ -272,9 +268,7 @@ class ServerCubit extends HydratedCubit<ServerState>
     );
   }
 
-  // ──────────────────────────────────────────────────────────
-  // Hydration
-  // ──────────────────────────────────────────────────────────
+  // ── Hydration ─────────────────────────────────────────────
 
   /// Reads the persisted list back, with any server it holds twice dropped.
   ///
@@ -318,9 +312,7 @@ class ServerCubit extends HydratedCubit<ServerState>
     );
   }
 
-  // ──────────────────────────────────────────────────────────
-  // Dev helpers
-  // ──────────────────────────────────────────────────────────
+  // ── Dev helpers ───────────────────────────────────────────
 
   /// Wipes all persisted server state. Dev/test only.
   Future<void> reset() async {

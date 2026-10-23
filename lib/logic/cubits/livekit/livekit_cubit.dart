@@ -248,9 +248,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
     unawaited(PipService.instance.setArmed(focus != null));
   }
 
-  // ──────────────────────────────────────────────────────────
-  // Internal helpers
-  // ──────────────────────────────────────────────────────────
+  // ── Internal helpers ──────────────────────────────────────
 
   /// [speakingOnly] says the caller learned nothing but who is talking. The
   /// room then emits no new [LiveKitState] when it holds the same connections

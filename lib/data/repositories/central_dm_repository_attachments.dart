@@ -10,9 +10,7 @@ mixin _CentralDmAttachmentsMixin {
 
   static const String _attachmentsBucket = 'central-dm-attachments';
 
-  // ──────────────────────────────────────────────────────────
-  // Attachments (E2E-encrypted blobs in central storage)
-  // ──────────────────────────────────────────────────────────
+  // ── Attachments (E2E-encrypted blobs in central storage) ───
 
   /// Encrypt + upload one attachment blob into the caller's own folder. On
   /// success `data` is an [UploadedBlob]. Always encrypted: central's files

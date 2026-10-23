@@ -44,9 +44,7 @@ mixin _CentralDmPushMixin {
     }
   }
 
-  // ──────────────────────────────────────────────────────────
-  // Relaying for a self-hosted server
-  // ──────────────────────────────────────────────────────────
+  // ── Relaying for a self-hosted server ─────────────────────
 
   /// Mint a credential a self-hosted server can forward pushes over.
   ///

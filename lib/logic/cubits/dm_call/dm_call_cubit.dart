@@ -106,9 +106,7 @@ class DmCallCubit extends Cubit<DmCallState>
   Server? _server(String serverId) =>
       _session.servers.where((s) => s.id == serverId).firstOrNull;
 
-  // ──────────────────────────────────────────────────────────
-  // Listening on every server
-  // ──────────────────────────────────────────────────────────
+  // ── Listening on every server ─────────────────────────────
 
   void _sync() {
     if (isClosed) return;

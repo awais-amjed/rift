@@ -105,7 +105,4 @@ mixin _SupabaseBackupTransferMixin on Cubit<SupabaseBackupState> {
 
   void clearMessage() =>
       emit(state.copyWith(clearMessage: true, needsEmailConfirmation: false));
-
-  // ──────────────────────────────────────────────────────────
-  // Helpers
 }

@@ -16,9 +16,7 @@ part of 'central_dm_repository.dart';
 mixin _CentralDmDirectoryMixin {
   SupabaseClient get _client;
 
-  // ──────────────────────────────────────────────────────────
-  // Directory (users)
-  // ──────────────────────────────────────────────────────────
+  // ── Directory (users) ─────────────────────────────────────
 
   /// The caller's own directory row, or success(null) when not created yet.
   Future<APIResponse> getMyProfile() async {

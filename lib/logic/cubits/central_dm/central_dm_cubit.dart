@@ -305,9 +305,7 @@ class CentralDmCubit extends Cubit<CentralDmState>
     );
   }
 
-  // ──────────────────────────────────────────────────────────
-  // Crypto helpers
-  // ──────────────────────────────────────────────────────────
+  // ── Crypto helpers ────────────────────────────────────────
 
   @override
   Future<Uint8List?> _dmKeyFor(String peerId, String? peerChatKey) async {
@@ -333,9 +331,7 @@ class CentralDmCubit extends Cubit<CentralDmState>
   Future<ServerIdentity> _signingIdentity() =>
       _vaultCubit.getIdentityForHost(_centralHost);
 
-  // ──────────────────────────────────────────────────────────
-  // Lifecycle
-  // ──────────────────────────────────────────────────────────
+  // ── Lifecycle ─────────────────────────────────────────────
 
   /// Save what is open as *left*, without closing it: the app quitting
   /// ([BeforeQuit]), or another surface taking the screen while it stays

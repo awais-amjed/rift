@@ -40,9 +40,7 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
   void _forgetGoneServer(Server server);
   bool isServerGone({required String supabaseUrl, required String id});
 
-  // ──────────────────────────────────────────────────────────
-  // Server selection
-  // ──────────────────────────────────────────────────────────
+  // ── Server selection ──────────────────────────────────────
 
   void setSelectedServer(Server? server) {
     emit(

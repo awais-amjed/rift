@@ -41,9 +41,7 @@ class SoundService {
   /// The shortest gap between two message chimes — see [play].
   static const _messageGap = Duration(seconds: 1);
 
-  // ──────────────────────────────────────────────────────────
-  // Public API
-  // ──────────────────────────────────────────────────────────
+  // ── Public API ────────────────────────────────────────────
 
   /// Where [play] reads each sound's mute and volume — `AppState.appSounds`,
   /// connected once at startup by [readSettingsFrom].
@@ -201,9 +199,7 @@ class SoundService {
   AppSound? _looping;
   DateTime _lastPreviewStart = DateTime.fromMillisecondsSinceEpoch(0);
 
-  // ──────────────────────────────────────────────────────────
-  // Private helpers
-  // ──────────────────────────────────────────────────────────
+  // ── Private helpers ───────────────────────────────────────
 
   /// Plays [asset] on the output chosen in settings — decoded in the Rust
   /// library — and answers the started cue, or null when there is no device to open (none chosen, or not on Windows

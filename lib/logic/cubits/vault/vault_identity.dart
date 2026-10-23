@@ -24,9 +24,7 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
     return CryptoRepository.fromBase64(seed);
   }
 
-  // ──────────────────────────────────────────────────────────
-  // Phase 2: Joining a server
-  // ──────────────────────────────────────────────────────────
+  // ── Joining a server ──────────────────────────────────────
 
   /// Derive or retrieve the cached auth identity for a host.
   ///

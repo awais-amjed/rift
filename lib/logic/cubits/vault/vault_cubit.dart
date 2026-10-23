@@ -86,9 +86,7 @@ class VaultCubit extends Cubit<VaultState>
        _session = session ?? SessionRepository(storage: storage),
        super(const VaultState());
 
-  // ──────────────────────────────────────────────────────────
-  // Vault persistence helpers
-  // ──────────────────────────────────────────────────────────
+  // ── Vault persistence helpers ─────────────────────────────
 
   /// Adds a joined server entry and re-encrypts the vault blob.
   @override

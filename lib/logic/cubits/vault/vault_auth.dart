@@ -7,9 +7,7 @@ mixin _VaultAuthMixin on Cubit<VaultState> {
   Future<String?> loadPendingRecoveryKey();
   SessionRepository get _session;
 
-  // ──────────────────────────────────────────────────────────
-  // Startup check
-  // ──────────────────────────────────────────────────────────
+  // ── Startup check ─────────────────────────────────────────
 
   /// Checks for an existing vault in secure storage and sets initial auth status.
   Future<void> checkVaultStatus() async {
@@ -48,9 +46,7 @@ mixin _VaultAuthMixin on Cubit<VaultState> {
         .timeout(const Duration(seconds: 10), onTimeout: () => state);
   }
 
-  // ──────────────────────────────────────────────────────────
-  // Sign-in-with-Web3 (SIWS) login
-  // ──────────────────────────────────────────────────────────
+  // ── Sign-in-with-Web3 (SIWS) login ────────────────────────
 
   /// Sign a SIWS message with this server's Ed25519 key and exchange it for a
   /// GoTrue session via the `login` proxy. Returns the access token (JWT).

@@ -46,9 +46,7 @@ mixin _ServerDetailsMixin on Cubit<ServerState> {
     );
   }
 
-  // ──────────────────────────────────────────────────────────
-  // Server details
-  // ──────────────────────────────────────────────────────────
+  // ── Server details ────────────────────────────────────────
 
   /// The selected server's re-reads, coalesced: see [refreshServerDetails].
   late final CoalescedRefresh<({bool success, String? error})> _details =
