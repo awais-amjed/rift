@@ -151,6 +151,18 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
     super.dispose();
   }
 
+  /// Whether the stream carries sound to turn up or down. A desktop's
+  /// stream is a connection of its own, so all its sound is the stream's; a
+  /// phone streams on its owner's connection, beside their voice. Your own
+  /// phone's stream sends you nothing back.
+  bool get _hasSound =>
+      widget.participant is! LocalParticipant &&
+      widget.participant.audioTrackPublications.any(
+        (pub) =>
+            pub.source == TrackSource.screenShareAudio ||
+            ParticipantIdentity.isScreenshare(widget.participant.identity),
+      );
+
   void _onParticipantChanged() {
     if (mounted) setState(_updateVideoTrack);
   }
@@ -284,6 +296,13 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
             ? _subscribeToScreenshare
             : widget.onTap;
         final onView = isWatching ? _show : null;
+        final soundKey = isWatching && _hasSound
+            ? ParticipantIdentity.settingsKeyOf(
+                widget.participant.identity,
+                screenAudio: true,
+                localIdentity: livekitState.room?.localParticipant?.identity,
+              )
+            : null;
         return ContextMenuRegion(
           contextMenu: _isScreenshare && !isPhoneOwnStream
               ? StreamContextMenu(
@@ -325,6 +344,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                       isWatching: isWatching,
                       view: widget.view,
                       onView: onView,
+                      soundKey: soundKey,
                       showOverlays: _showOverlays,
                       statsPinned: _statsPinned,
                       onActivity: _onActivity,
@@ -344,6 +364,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                       isSubscribed: isSubscribed,
                       isWatching: isWatching,
                       onView: onView,
+                      soundKey: soundKey,
                     ),
             ),
           ),
@@ -368,6 +389,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
     required bool isSubscribed,
     required bool isWatching,
     required ValueChanged<StreamView>? onView,
+    required String? soundKey,
   }) {
     return BlocSelector<AppCubit, AppState, bool>(
       selector: (appState) => ParticipantRoster.isSpeaking(
@@ -394,6 +416,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
           showWatchButton: _isScreenshare && !isSubscribed,
           isWatching: isWatching,
           onView: onView,
+          soundKey: soundKey,
           onWatch: _subscribeToScreenshare,
           onAspectRatio: widget.onAspectRatio,
         );

@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 
 import 'stream_corner_button.dart';
 import 'stream_view.dart';
+import 'stream_volume_button.dart';
 
 /// Edge to edge and full screen, side by side in the corner of a watched
-/// stream.
+/// stream, with its sound before them when it has any.
 ///
 /// Each one leaves when it is the view already on, and switches when the
 /// other is: from full screen, edge to edge gives the window back without
@@ -13,10 +14,15 @@ class StreamViewButtons extends StatelessWidget {
   final StreamView view;
   final ValueChanged<StreamView> onView;
 
+  /// Where the stream's sound is set ([StreamVolumeButton]). Null for a
+  /// stream with none.
+  final String? soundKey;
+
   const StreamViewButtons({
     super.key,
     required this.view,
     required this.onView,
+    this.soundKey,
   });
 
   @override
@@ -27,6 +33,7 @@ class StreamViewButtons extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       spacing: 6,
       children: [
+        if (soundKey case final key?) StreamVolumeButton(settingsKey: key),
         StreamCornerButton(
           icon: edgeToEdge
               ? Icons.close_fullscreen_rounded

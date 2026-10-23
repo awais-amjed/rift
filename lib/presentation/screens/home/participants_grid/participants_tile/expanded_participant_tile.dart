@@ -69,6 +69,9 @@ class ExpandedParticipantTile extends StatelessWidget {
   /// for anything that has no buttons for it: only a stream being watched
   /// does.
   final ValueChanged<StreamView>? onView;
+
+  /// See [StreamViewButtons.soundKey].
+  final String? soundKey;
   final bool showOverlays;
   final bool statsPinned;
   final VoidCallback onActivity;
@@ -105,6 +108,7 @@ class ExpandedParticipantTile extends StatelessWidget {
     required this.isWatching,
     this.view = StreamView.inCall,
     this.onView,
+    this.soundKey,
     required this.showOverlays,
     required this.statsPinned,
     required this.onActivity,
@@ -237,7 +241,11 @@ class ExpandedParticipantTile extends StatelessWidget {
             right: 12,
             child: _fading(
               visible: showOverlays,
-              child: StreamViewButtons(view: view, onView: onView!),
+              child: StreamViewButtons(
+                view: view,
+                onView: onView!,
+                soundKey: soundKey,
+              ),
             ),
           ),
       ],

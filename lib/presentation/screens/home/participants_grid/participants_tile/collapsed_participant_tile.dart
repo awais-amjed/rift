@@ -56,6 +56,9 @@ class CollapsedParticipantTile extends StatelessWidget {
   /// Opens the stream edge to edge or full screen; null for a tile with no
   /// buttons for it.
   final ValueChanged<StreamView>? onView;
+
+  /// See [StreamViewButtons.soundKey].
+  final String? soundKey;
   final VoidCallback onWatch;
 
   /// Told the video's shape when one arrives. Null for tiles whose box does
@@ -79,6 +82,7 @@ class CollapsedParticipantTile extends StatelessWidget {
     required this.showWatchButton,
     required this.isWatching,
     this.onView,
+    this.soundKey,
     required this.onWatch,
     this.onAspectRatio,
   });
@@ -143,6 +147,7 @@ class CollapsedParticipantTile extends StatelessWidget {
                   child: StreamViewButtons(
                     view: StreamView.inCall,
                     onView: onView!,
+                    soundKey: soundKey,
                   ),
                 ),
               Positioned(
