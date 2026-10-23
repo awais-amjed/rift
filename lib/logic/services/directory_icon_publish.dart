@@ -21,7 +21,7 @@ class DirectoryIconPublish {
   const DirectoryIconPublish._();
 
   /// Refused before the download finishes rather than after. A server icon is
-  /// capped at 5 MB by its own bucket, and this only has to survive a source
+  /// capped at 2 MB by its own bucket, and this only has to survive a source
   /// that is not one.
   static const int _maxSourceBytes = 8 * 1024 * 1024;
 
