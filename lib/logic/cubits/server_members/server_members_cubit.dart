@@ -14,6 +14,8 @@ import '../../services/member_roster_pager.dart';
 import '../../services/server_topic_watcher.dart';
 import '../../services/server_topics.dart';
 
+part 'server_members_page.dart';
+part 'server_members_roles.dart';
 part 'server_members_state.dart';
 
 /// One server's members, kept live and kept bounded. Each server's context
@@ -38,11 +40,15 @@ part 'server_members_state.dart';
 ///    resolved by id, which is bounded by who is actually about;
 ///  * a `members` event re-resolves only what is on screen, rather than
 ///    re-reading the server.
-class ServerMembersCubit extends Cubit<ServerMembersState> {
+class ServerMembersCubit extends Cubit<ServerMembersState>
+    with _MembersRolesMixin, _MembersPageMixin {
   final SessionRepository _session;
+  @override
   late final ServerTopicWatcher _watcher;
 
+  @override
   MembersApi _membersOn(String serverId) => MembersApi(_session.on(serverId));
+  @override
   RolesApi _rolesOn(String serverId) => RolesApi(_session.on(serverId));
   late final MemberRosterPager _people = MemberRosterPager(
     fetchPage: _fetchPeoplePage,
@@ -50,16 +56,6 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
 
   /// Guards against a slow fetch landing after a newer one, or after a switch.
   int _loadId = 0;
-
-  /// Whether something is showing [ServerMembersState.roleCounts], so a
-  /// refresh reads every assignment again rather than only the rows on screen.
-  bool _countingRoles = false;
-
-  /// Whether the Members page is showing [ServerMembersState.banned].
-  bool _showingBanned = false;
-
-  /// Guards a slow search landing after a newer one, or after a clear.
-  int _searchId = 0;
 
   final List<StreamSubscription<void>> _idSubs = [];
 
@@ -190,43 +186,6 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
     await _loadRoles([for (final member in found) member.id]);
   }
 
-  /// Role chips for [userIds], merged into what is already known.
-  ///
-  /// Asked for the rows on screen rather than for the whole server:
-  /// `member_role_list` is one row per (member, role), so reading it whole hit
-  /// the response ceiling sooner than the roster itself did.
-  ///
-  /// [force] re-reads people already answered for. Paging leaves them alone —
-  /// a page that has its chips does not need them again — but a refresh is
-  /// here *because* something changed, and a role given or taken away is one
-  /// of the things that changes. Without it the cache had no way of ever
-  /// being wrong out loud: the chip stayed as it was first read until the
-  /// server was switched.
-  Future<void> _loadRoles(
-    Iterable<String> userIds, {
-    bool force = false,
-  }) async {
-    final serverId = _watcher.serverId;
-    final wanted = [
-      for (final id in userIds)
-        if (force || !state.memberRoles.containsKey(id)) id,
-    ];
-    if (serverId == null || wanted.isEmpty) return;
-
-    final roles = await _rolesOn(serverId).memberRolesFor(wanted);
-    if (isClosed || serverId != _watcher.serverId) return;
-    emit(
-      state.copyWith(
-        memberRoles: {
-          ...state.memberRoles,
-          // Everybody asked about is recorded, holders and non-holders alike,
-          // or the next page would ask about them all over again.
-          for (final id in wanted) id: roles[id] ?? const [],
-        },
-      ),
-    );
-  }
-
   /// A `users` row changed. Re-read what is on screen, and nothing else.
   ///
   /// A rename, an avatar, a mute, a ban or a join all arrive here. The old
@@ -310,126 +269,6 @@ class ServerMembersCubit extends Cubit<ServerMembersState> {
     await _loadRoles([for (final member in refreshed) member.id], force: true);
     if (_countingRoles) await _countRoles();
     await _refreshExtras();
-  }
-
-  // ── The Members page ────────────────────────────────────────
-
-  /// Keep [ServerMembersState.banned] until [stopShowingBanned].
-  Future<void> showBanned() async {
-    _showingBanned = true;
-    await _readBanned();
-  }
-
-  void stopShowingBanned() {
-    _showingBanned = false;
-    if (!isClosed && state.banned != null) {
-      emit(state.copyWith(clearBanned: true));
-    }
-  }
-
-  /// Answer [query] over the whole roster, banned members included — the
-  /// Members page's search, where lifting a ban starts with finding the
-  /// person. An empty query clears it.
-  Future<void> search(String query) async {
-    final id = ++_searchId;
-    if (query.trim().isEmpty) {
-      if (!isClosed) emit(state.copyWith(clearSearch: true));
-      return;
-    }
-    await _runSearch(query, id);
-  }
-
-  /// What a refresh re-reads beyond the roster, when something shows it.
-  Future<void> _refreshExtras() async {
-    if (_showingBanned) await _readBanned();
-    final asked = state.search?.query;
-    if (asked != null) await _runSearch(asked, _searchId);
-  }
-
-  Future<void> _readBanned() async {
-    final serverId = _watcher.serverId;
-    if (serverId == null) return;
-    final banned = await _membersOn(serverId).listBanned();
-    if (banned == null || isClosed || serverId != _watcher.serverId) return;
-    if (!_showingBanned) return;
-    emit(state.copyWith(banned: banned));
-    await _loadRoles([for (final member in banned) member.id]);
-  }
-
-  Future<void> _runSearch(String query, int id) async {
-    final serverId = _watcher.serverId;
-    if (serverId == null) return;
-    final matches = await _membersOn(
-      serverId,
-    ).searchMembers(query: query, banned: null);
-    if (isClosed || id != _searchId || serverId != _watcher.serverId) return;
-    emit(state.copyWith(search: (query: query, matches: matches)));
-    await _loadRoles([for (final member in matches) member.id]);
-  }
-
-  // ── Roles ───────────────────────────────────────────────────
-
-  /// Keep [ServerMembersState.roleCounts] — what the Roles page shows beside
-  /// each role — until [stopCountingRoles]. Every holder's roles land in
-  /// [ServerMembersState.memberRoles] with it, the viewer's own among them,
-  /// which is what decides how far down the ladder they reach.
-  Future<void> countRoles() async {
-    _countingRoles = true;
-    await _countRoles();
-  }
-
-  /// Nothing is showing the counts any more; stop reading every assignment.
-  void stopCountingRoles() {
-    _countingRoles = false;
-    if (!isClosed && state.roleCounts != null) {
-      emit(state.copyWith(clearRoleCounts: true));
-    }
-  }
-
-  /// Re-read the roles after this device changed one.
-  ///
-  /// A change to a role somebody holds rewrites their `users` row, and the
-  /// doorbell that rings brings [refresh]. A role nobody holds moves no row —
-  /// a new one always — so nothing rings for it, and without this the page
-  /// that just made it would not show it.
-  Future<void> refreshRoles() async {
-    final serverId = _watcher.serverId;
-    if (serverId == null) return;
-    final roles = await _rolesOn(serverId).listRoles();
-    if (isClosed || serverId != _watcher.serverId) return;
-    if (roles.isNotEmpty) emit(state.copyWith(roles: roles));
-    if (_countingRoles) await _countRoles();
-  }
-
-  /// Re-read which roles [userId] holds, after this device gave or took one.
-  /// The doorbell would bring it too, a moment later; a checkbox the person
-  /// just clicked should not wait for it.
-  Future<void> reloadRolesOf(String userId) =>
-      _loadRoles([userId], force: true);
-
-  Future<void> _countRoles() async {
-    final serverId = _watcher.serverId;
-    if (serverId == null) return;
-    final held = await _rolesOn(serverId).listMemberRoles();
-    if (held == null || isClosed || serverId != _watcher.serverId) return;
-    if (!_countingRoles) return;
-
-    final counts = <String, int>{};
-    for (final roles in held.values) {
-      for (final role in roles) {
-        counts[role.id] = (counts[role.id] ?? 0) + 1;
-      }
-    }
-    emit(
-      state.copyWith(
-        // Every assignment on the server, so somebody absent holds nothing.
-        memberRoles: {
-          for (final id in state.memberRoles.keys) id: held[id] ?? const [],
-          ...held,
-        },
-        roleCounts: counts,
-      ),
-    );
   }
 
   /// Whether a load that started as [loadId] is still the one we want.
