@@ -2,18 +2,24 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
-import '../../../../data/constants.dart';
-import '../../../theme/media_colors.dart';
-import 'attachment_download.dart';
+import '../../data/constants.dart';
+import '../theme/media_colors.dart';
+import 'chat/attachments/attachment_download.dart';
 
-/// Opens a decrypted image full-screen, pannable and zoomable, with a save
-/// button. The bytes are already in memory — nothing is written to disk unless
-/// the user asks for it.
-Future<void> showAttachmentImageViewer(
+/// Opens a picture full-screen, pannable and zoomable, with a save button:
+/// a decrypted image from a chat, or a person's or server's picture opened
+/// from their profile. The bytes are already in memory — nothing is written
+/// to disk unless the user asks for it.
+///
+/// [width] draws a small picture larger than its pixels: an avatar is only
+/// [AvatarImage.maxDimension] across, which shown as it is looks no bigger
+/// than the profile it was opened from.
+Future<void> showImageViewer(
   BuildContext context,
   String name,
-  Uint8List bytes,
-) {
+  Uint8List bytes, {
+  double? width,
+}) {
   return showDialog<void>(
     context: context,
     barrierColor: MediaColors.viewerBarrier,
@@ -34,7 +40,14 @@ Future<void> showAttachmentImageViewer(
               child: Center(
                 child: GestureDetector(
                   onTap: () {},
-                  child: Image.memory(bytes),
+                  child: Image.memory(
+                    bytes,
+                    width: width,
+                    // An image left to fit itself is never drawn past its
+                    // pixels, whatever box it is given.
+                    fit: BoxFit.contain,
+                    filterQuality: FilterQuality.medium,
+                  ),
                 ),
               ),
             ),

@@ -275,6 +275,7 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   corners stay stepped until a stable Flutter has the MSAA fix, flutter/flutter#191379),
   `choosePicture` (pick a picture and crop it square for an avatar or icon — never
   `pickPicture` alone, which only shrinks and checks it),
+  `ViewablePicture` (a profile's picture that opens full size in `showImageViewer`),
   `SpeakingRing`, `StatusChip`, `ContextMenuPanel` + `ContextMenuItem`, `TapToFocus`,
   `AppDropdown` (a choice from a list — never Material's `DropdownButton`). Avatar gradients come
   from `IdentityGradients` and are deliberately *not* palette-derived, so a person looks the

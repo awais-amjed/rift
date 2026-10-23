@@ -6,6 +6,7 @@ import '../../../../../data/classes/public_server.dart';
 import '../../../../../data/classes/role.dart';
 import '../../../../../data/classes/server.dart';
 import '../../../../../data/constants.dart';
+import '../../../../../data/repositories/server_icon_repository.dart';
 import '../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
@@ -13,6 +14,7 @@ import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/modal_columns.dart';
 import '../../../../common/server_icon.dart';
+import '../../../../common/viewable_picture.dart';
 import '../../profile/person/widgets/profile_fact.dart';
 import '../../profile/person/widgets/profile_facts.dart';
 import '../../profile/person/widgets/profile_roles.dart';
@@ -76,7 +78,15 @@ class _ServerProfileDialogState extends State<ServerProfileDialog> {
     return AppModal(
       title: server.name,
       subtitle: Uri.tryParse(server.supabaseUrl)?.host,
-      titleIcon: ServerIcon.of(server, size: _iconSize),
+      titleIcon: ViewablePicture(
+        origin: server.supabaseUrl,
+        // Only an icon `ServerIcon` would fetch and draw.
+        path: ServerIconRepository.isIconOf(server.id, server.iconPath)
+            ? server.iconPath
+            : null,
+        name: server.name,
+        child: ServerIcon.of(server, size: _iconSize),
+      ),
       maxWidth: K.profileWidth,
       sheetOnPhone: true,
       content: ModalColumns(

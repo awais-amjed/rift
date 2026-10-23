@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../common/server_scope.dart';
 import '../../../../../common/user_avatar.dart';
+import '../../../../../common/viewable_picture.dart';
 import '../../../../../theme/custom_colors.dart';
 import '../../../../../theme/theme_context.dart';
 
 /// The person's picture at the head of their profile, with a presence dot
-/// when the surface knows about presence.
+/// when the surface knows about presence. Clicking it opens the picture
+/// full size.
 ///
 /// [isOnline] is nullable rather than defaulting to false: a central account
 /// has no presence at all, and a grey dot there would be a claim that they
@@ -33,11 +36,17 @@ class ProfileAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final online = isOnline;
-    final avatar = UserAvatar(
-      avatarPath: avatarPath,
+    final avatar = ViewablePicture(
+      // The host `UserAvatar` draws it from.
+      origin: ServerScope.maybeOf(context)?.server?.supabaseUrl,
+      path: avatarPath,
       name: name,
-      seed: seed,
-      size: _size,
+      child: UserAvatar(
+        avatarPath: avatarPath,
+        name: name,
+        seed: seed,
+        size: _size,
+      ),
     );
     if (online == null) return avatar;
 

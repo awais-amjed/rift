@@ -13,8 +13,8 @@ import '../../../../logic/services/image_safety.dart';
 import '../../../../logic/services/image_safety_classifier.dart';
 import '../../../theme/app_motion.dart';
 import '../../../theme/theme_context.dart';
+import '../../image_viewer.dart';
 import '../../loading_dots.dart';
-import 'attachment_image_viewer.dart';
 import 'attachment_loader.dart';
 import 'sensitive_image_cover.dart';
 
@@ -266,7 +266,7 @@ class _Openable extends StatelessWidget {
   Widget build(BuildContext context) => MouseRegion(
     cursor: SystemMouseCursors.click,
     child: GestureDetector(
-      onTap: () => showAttachmentImageViewer(context, name, bytes),
+      onTap: () => showImageViewer(context, name, bytes),
       child: child,
     ),
   );
