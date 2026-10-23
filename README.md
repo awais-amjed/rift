@@ -309,6 +309,7 @@ checked and how to drive each client.
 | Document | For |
 |:--|:--|
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | the shape of the system, and the decisions behind it |
+| [`CALLS.md`](CALLS.md) | how calls and screen shares work underneath, and the measurements behind them |
 | [`WIRE.md`](WIRE.md) | the exact formats a second implementation must match |
 | [`BOTS.md`](BOTS.md) | what a bot may see, hear and say |
 | [`TESTING.md`](TESTING.md) | what has been verified live, what has not, and how to drive the app |

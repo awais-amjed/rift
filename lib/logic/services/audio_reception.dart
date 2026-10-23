@@ -9,7 +9,7 @@
 /// never unsubscribed: an unsubscribed track's slot on the connection is
 /// handed to the next track to arrive, and subscribing to the first again
 /// opens a second slot under the same id, which is how a call turned to
-/// static (`ARCHITECTURE.md` §5, *Receiving a call's audio*).
+/// static (`CALLS.md`, *Receiving a call's audio*).
 bool hearsRemoteAudio({
   required bool deafened,
   required bool stream,

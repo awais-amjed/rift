@@ -8,8 +8,8 @@ piece of chrome can collapse/hide), fast native screensharing.
 These conventions are extracted from the existing code. Match them; don't introduce parallel
 patterns. For the shape of the system and the reasoning behind it, see `ARCHITECTURE.md` — an
 overview, so read it before touching vault, auth, backup or messaging code, and follow it to
-`WIRE.md` for a format, to a migration for what the server stores, or to `API.md` in
-`rift-self-host` for an endpoint.
+`WIRE.md` for a format, to `CALLS.md` for how a call or share works underneath, to a
+migration for what the server stores, or to `API.md` in `rift-self-host` for an endpoint.
 **`CODE_STYLE.md` covers file size budgets, one-widget-per-file, extracting shared logic, and
 central constants — read it before adding to an existing file or copying a block of code.**
 **`BEST_PRACTICES.md` covers where state lives and how it moves — one source of truth, app vs
@@ -336,7 +336,7 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   a share whose owner left. `_AudioReceptionMixin` decides it in one place
   (`hearsRemoteAudio`) and uses `disable()`/`enable()`. A track subscribed again after an
   unsubscribe gets a second receiver with the first one's id, and its frame cryptor lands
-  on the wrong one: static until rejoin (`ARCHITECTURE.md` §5, *Receiving a call's
+  on the wrong one: static until rejoin (`CALLS.md`, *Receiving a call's
   audio*). Only a picture or your own share may be unsubscribed;
   `test/audio_reception_test.dart` fails on any other `unsubscribe()` in the call.
 - Platform gating: `kIsWeb` for web, `Platform.isX` for desktop specifics. The Rust bridge is
@@ -440,6 +440,7 @@ Rift repository — the siblings have no AGENTS.md of their own, so this is the 
 | an endpoint, an RPC's inputs or a refusal code | `API.md` in `rift-self-host` |
 | a byte format another implementation must match | `WIRE.md`, then regenerate with `tool/gen_wire_vectors.dart`, which writes each bot SDK's copy too |
 | what a bot may see, hear or say | `BOTS.md` |
+| how calls or shares behave underneath, or a measurement behind it | `CALLS.md` (and a line in `ARCHITECTURE.md` §5 if it changes what a call is) |
 | a convention this code follows | this file, or `CODE_STYLE.md` |
 | something you verified by driving the real app | its row in `TESTING.md` (and the local `MANUAL_TESTING.md` log) — what was checked, and what was not |
 | what a server operator runs or can rely on | `rift-self-host/README.md`, and the docs in `rift-website` |
