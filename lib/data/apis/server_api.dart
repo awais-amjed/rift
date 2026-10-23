@@ -137,7 +137,7 @@ class ServerApi {
     final path = uploaded.data as String;
     // In the store before the row moves, so the re-read that lands the new
     // path draws it without fetching back what was just sent.
-    MediaStore.images.put(path, png);
+    MediaStore.images.put(path, png, origin: server.supabaseUrl);
     return (path: path, error: null);
   }
 

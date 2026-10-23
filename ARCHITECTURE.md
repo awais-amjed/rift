@@ -526,6 +526,18 @@ lives in Local AppData, which never roams or syncs, and on Linux in
 these live in; they are sealed there too, but not excluded yet. See
 `MessageCache` and `SavedConversation`.
 
+**Pictures too, in the clear** [October 2026]. Avatars and server and directory
+icons are kept on disk between runs, so a restart draws them without downloading
+each one again (`MediaDiskCache`, behind `MediaStore.images`). They are not
+sealed: each is a picture every member of its server can already see. Together
+they do say whom this device has seen, so a vault reset deletes them. Leaving a server does not; its pictures
+go when nothing has drawn them for a month, or sooner when the folder passes its
+size. A file is named by the SHA-256 of the host and the path, never the path
+alone, since a server chooses its own paths and could repeat another's to leave
+its bytes in that one's place. Attachments never go to disk: they are decrypted
+message content. In the app's cache folder, which the OS may empty and Android
+and iOS leave out of backups; not on the web.
+
 ### Decisions locked in for day one
 1. **Every message is Ed25519-signed by the sender** — a shared channel key must not allow
    member/server forgery. Unsigned history can't be retro-signed, so this ships with message v1.
@@ -1035,7 +1047,7 @@ fixes it mid-call. With "Do nothing" set, Windows sends no duck at all.
 | Self-hosted server's hosting provider | safe | n/a | safe (E2E) | safe | safe (E2E) |
 | Self-hosted server admin | safe | n/a | readable (they're a member anyway); in a channel with encryption off, readable without joining, which every member is shown | **safe** | channel calls: accessible · DM calls: **safe** |
 | A member, later banned | safe | n/a | what they read while a member; nothing the server sends after the ban, and nothing under the next key, which a ban brings within the hour (§4, *The key chain*). A bad key link they mint costs newcomers the history below it (§4, *The key chain*) | safe | ends at the ban |
-| Device thief (no password) | Argon2id + secure storage | — | newest page of each channel opened, sealed under the seed (§4, *Saved on the device*) | same | — |
+| Device thief (no password) | Argon2id + secure storage | — | newest page of each channel opened, sealed under the seed (§4, *Saved on the device*); the avatars and icons drawn in the last month, in the clear | same | — |
 
 An update is code that runs with everything above, so it has its own guard
 (§8): the GitHub releases it comes from are not trusted, only the release

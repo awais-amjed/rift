@@ -57,7 +57,7 @@ class ProfileApi {
     final path = uploaded.data as String;
     // In the store before the row moves, so the re-read that lands the new
     // path finds the picture already there instead of fetching it back.
-    MediaStore.images.put(path, imageBytes);
+    MediaStore.images.put(path, imageBytes, origin: server.supabaseUrl);
     final saved = await updateProfile(avatarPath: path, clearAvatar: false);
     if (!saved.success) return saved;
     return APIResponse.success(path);
@@ -65,8 +65,11 @@ class ProfileApi {
 
   /// Fetch one member's avatar bytes, through [MediaStore.images] so every
   /// widget showing it sees the result. Null when the fetch fails.
-  Future<Uint8List?> loadAvatar(String path) =>
-      MediaStore.images.load(path, () => _downloadAvatar(path));
+  Future<Uint8List?> loadAvatar(String path) => MediaStore.images.load(
+    path,
+    () => _downloadAvatar(path),
+    origin: _target.server?.supabaseUrl,
+  );
 
   Future<Uint8List?> _downloadAvatar(String path) async {
     final server = _target.server;

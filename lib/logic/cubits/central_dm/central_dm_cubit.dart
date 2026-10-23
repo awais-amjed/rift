@@ -263,7 +263,7 @@ class CentralDmCubit extends Cubit<CentralDmState>
     // for anyone with no central account at all, and throwing away a
     // privacy-mode user's cached images on each one would be a steady trickle
     // of re-downloads for nothing.
-    if (channel != null) MediaStore.attachments.clear();
+    if (channel != null) await MediaStore.attachments.clear();
     if (channel != null) await _repo.unsubscribe(channel);
   }
 

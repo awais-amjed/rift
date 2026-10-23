@@ -147,7 +147,9 @@ class VaultCubit extends Cubit<VaultState>
     _chatIdentityCache.clear();
     // Decrypted attachment bytes outlive the cubits that fetched them, so the
     // keys going away has to take the plaintext with it.
-    MediaStore.attachments.clear();
+    await MediaStore.attachments.clear();
+    // The pictures this device has seen say whom it has seen, on disk too.
+    await MediaStore.images.clear();
     // So do the conversations saved on this device, which the seed being
     // wiped here is the only key to.
     await MessageCache.instance.clear();

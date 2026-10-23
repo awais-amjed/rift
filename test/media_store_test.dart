@@ -60,7 +60,7 @@ void main() {
 
       final again = Completer<Uint8List?>();
       final second = store.load('q', () => again.future);
-      store.clear();
+      unawaited(store.clear());
       again.complete(pic);
       expect(await second, isNull);
       expect(store['q'], isNull);

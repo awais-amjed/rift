@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../data/classes/media_entry.dart';
 import '../../../data/repositories/directory_icon_repository.dart';
 import '../../../data/repositories/server_icon_repository.dart';
+import '../../../supabase_config.dart';
 import '../../services/media_store.dart';
 
 part 'media_state.dart';
@@ -75,8 +76,8 @@ class MediaCubit extends Cubit<MediaState> {
 
   /// Fetch [path] with [fetch] unless it is here or on its way.
   ///
-  /// [fetch] has to go through the [MediaStore] for [kind] — the server
-  /// cubit's `loadAvatar`, a chat's attachment loader — which is what puts the
+  /// [fetch] has to go through the [MediaStore] for [kind] — `ProfileApi`'s
+  /// `loadAvatar`, a chat's attachment loader — which is what puts the
   /// bytes where every widget sees them. It is kept while the fetch keeps
   /// failing, to try again on the [backoff] schedule.
   void want(MediaKind kind, String path, Future<Uint8List?> Function() fetch) {
@@ -90,7 +91,11 @@ class MediaCubit extends Cubit<MediaState> {
   void wantDirectoryIcon(String path) => want(
     MediaKind.image,
     path,
-    () => _images.load(path, () => _icons.download(path)),
+    () => _images.load(
+      path,
+      () => _icons.download(path),
+      origin: SupabaseConfig.supabaseUrl,
+    ),
   );
 
   /// [want] for a server's own icon, from that server's public bucket at
@@ -101,6 +106,7 @@ class MediaCubit extends Cubit<MediaState> {
     () => _images.load(
       path,
       () => _serverIcons.download(baseUrl: supabaseUrl, path: path),
+      origin: supabaseUrl,
     ),
   );
 
