@@ -39,27 +39,30 @@ static SINK: Mutex<Sink> = Mutex::new(Sink {
     early: VecDeque::new(),
 });
 
-/// The open file's descriptor, for `diagnostics::crash_signal`, which writes a
-/// crash into the file from a signal handler: there it may take no lock and
-/// allocate nothing, so it cannot go through [SINK]. -1 until the file opens.
-#[cfg(any(target_os = "linux", target_os = "android"))]
-static FILE_FD: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(-1);
+/// The open file's descriptor (a `HANDLE` on Windows), for the crash
+/// handlers in `diagnostics`, which write a crash into the file from inside
+/// the crash: there they may take no lock and allocate nothing, so they cannot
+/// go through [SINK]. -1 until the file opens.
+static FILE_RAW: std::sync::atomic::AtomicIsize = std::sync::atomic::AtomicIsize::new(-1);
 
-#[cfg(any(target_os = "linux", target_os = "android"))]
-pub(crate) fn file_fd() -> i32 {
-    FILE_FD.load(std::sync::atomic::Ordering::Relaxed)
+pub(crate) fn file_raw() -> isize {
+    FILE_RAW.load(std::sync::atomic::Ordering::Relaxed)
 }
 
-/// Keeps [FILE_FD] on the file the sink writes to now.
+/// Keeps [FILE_RAW] on the file the sink writes to now.
 fn note_fd(file: Option<&File>) {
-    #[cfg(any(target_os = "linux", target_os = "android"))]
-    {
-        use std::os::fd::AsRawFd;
-        let fd = file.map_or(-1, |file| file.as_raw_fd());
-        FILE_FD.store(fd, std::sync::atomic::Ordering::Relaxed);
-    }
-    #[cfg(not(any(target_os = "linux", target_os = "android")))]
-    let _ = file;
+    #[cfg(unix)]
+    let raw = file.map_or(-1, |file| std::os::fd::AsRawFd::as_raw_fd(file) as isize);
+    #[cfg(windows)]
+    let raw = file.map_or(-1, |file| {
+        std::os::windows::io::AsRawHandle::as_raw_handle(file) as isize
+    });
+    #[cfg(not(any(unix, windows)))]
+    let raw = {
+        let _ = file;
+        -1
+    };
+    FILE_RAW.store(raw, std::sync::atomic::Ordering::Relaxed);
 }
 
 pub fn init() {

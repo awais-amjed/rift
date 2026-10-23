@@ -12,13 +12,15 @@
 //!
 //! Inside a signal handler nearly nothing is safe. So the lines are made in a
 //! buffer on the stack, written with one `write` each to the log file's
-//! descriptor ([crate::logging::file_fd]) without its lock, and nothing is
+//! descriptor ([crate::logging::file_raw]) without its lock, and nothing is
 //! allocated. `dladdr` and the unwinder can take a lock the crashing thread
 //! held, so an alarm ends the process if the handler hangs.
 use std::cell::UnsafeCell;
 use std::ffi::{c_int, c_void, CStr};
 use std::fmt::Write;
 use std::sync::atomic::{AtomicBool, Ordering};
+
+use super::crash_line::Line;
 
 const SIGNALS: [c_int; 6] = [
     libc::SIGSEGV,
@@ -60,7 +62,12 @@ pub(crate) fn install() {
         for (i, &signal) in SIGNALS.iter().enumerate() {
             let mut action: libc::sigaction = std::mem::zeroed();
             action.sa_sigaction = on_crash as *const () as usize;
-            action.sa_flags = libc::SA_SIGINFO | libc::SA_ONSTACK;
+            // Not SA_ONSTACK: a thread's alternate stack, where one has it,
+            // is a few kilobytes, and formatting a line there overflowed it
+            // (the Rust test harness's threads). On the thread's own stack,
+            // only a stack overflow goes unwritten, which then ends the
+            // process as it did before.
+            action.sa_flags = libc::SA_SIGINFO;
             libc::sigemptyset(&mut action.sa_mask);
             if libc::sigaction(signal, &action, &mut previous[i]) != 0 {
                 log::info!("crash: no handler for signal {signal}");
@@ -268,63 +275,6 @@ fn signal_name(signal: c_int) -> &'static str {
 
 fn until_nul(bytes: &[u8]) -> &[u8] {
     &bytes[..bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len())]
-}
-
-/// One log line, made on the stack and written whole, in the log's own
-/// format: `<UTC time> CRASH native: …`. Past its length it is cut.
-struct Line {
-    bytes: [u8; 1024],
-    len: usize,
-}
-
-impl Line {
-    fn start() -> Line {
-        let mut line = Line {
-            bytes: [0; 1024],
-            len: 0,
-        };
-        let mut now: libc::timespec = unsafe { std::mem::zeroed() };
-        // SAFETY: clock_gettime is async-signal-safe.
-        unsafe { libc::clock_gettime(libc::CLOCK_REALTIME, &mut now) };
-        let (y, mo, d, h, mi, s) = crate::logging::civil(now.tv_sec.max(0) as u64);
-        let _ = write!(
-            line,
-            "{y:04}-{mo:02}-{d:02} {h:02}:{mi:02}:{s:02}.{:03}Z CRASH native: ",
-            now.tv_nsec / 1_000_000
-        );
-        line
-    }
-
-    fn bytes(&mut self, bytes: &[u8]) {
-        // One byte kept for the newline.
-        let room = self.bytes.len() - 1 - self.len;
-        let n = bytes.len().min(room);
-        self.bytes[self.len..self.len + n].copy_from_slice(&bytes[..n]);
-        self.len += n;
-    }
-
-    fn text(&mut self, text: &str) {
-        self.bytes(text.as_bytes());
-    }
-
-    /// Writes the line to the log, or to stderr before the log has opened.
-    fn end(mut self) {
-        self.bytes[self.len] = b'\n';
-        self.len += 1;
-        let fd = match crate::logging::file_fd() {
-            -1 => libc::STDERR_FILENO,
-            fd => fd,
-        };
-        // SAFETY: write is async-signal-safe, and the bytes are ours.
-        unsafe { libc::write(fd, self.bytes.as_ptr().cast(), self.len) };
-    }
-}
-
-impl Write for Line {
-    fn write_str(&mut self, text: &str) -> std::fmt::Result {
-        self.text(text);
-        Ok(())
-    }
 }
 
 #[cfg(test)]

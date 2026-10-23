@@ -167,6 +167,16 @@ jobs:
           name: windows
           path: build/release/*
           if-no-files-found: error
+      # Not shipped: what turns the offsets in a crash's log into names
+      # (rust/src/diagnostics). The FFmpeg library's linker map, and the
+      # Rust library's PDB, both from exactly this build.
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows-symbols
+          path: |
+            build/windows/x64/ffenc/rift_ffenc.map
+            rust/target/x86_64-pc-windows-msvc/release/rust_lib_rift.pdb
+          if-no-files-found: warn
 
   # Kept with the run, not published: both files are signed with the debug key
   # here, and scripts/sign_release.sh downloads them from the run, signs them

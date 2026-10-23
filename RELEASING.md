@@ -53,6 +53,13 @@ each platform (`scripts/vpk_pack.sh`):
   (the file, base64), since the file is gitignored and the Google services
   plugin will not build without it.
 
+Not published, and kept with the run for as long as GitHub keeps a run's
+artifacts: `windows-symbols`, the FFmpeg library's linker map
+(`rift_ffenc.map`) and the Rust library's PDB from that exact build. A crash in
+someone's log gives offsets into those libraries (`ARCHITECTURE.md` §9), and
+only the same build's map or PDB turns them into function names, so download
+it from the release's run when a report needs it.
+
 Run by hand from the Actions tab, the workflow builds the same files and keeps
 them with the run instead of publishing anything. It was first run that way on
 Oct 3 2026, before Velopack: both files built (Linux in 16 minutes, Windows in

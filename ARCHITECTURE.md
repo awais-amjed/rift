@@ -791,7 +791,14 @@ person to dig it out.
   (`Application Error`, event 1000) over the last 14 days, and writes the
   newest five into its log: the faulting module and its version, the
   exception, the offset, and the process id, which names the crashed
-  session's file.
+  session's file. That names only the innermost module, which for a
+  friend's H264 share (Oct 23 2026) was `memset` in `ucrtbase.dll`: bad
+  bytes, but not whose. So a last-chance exception filter also writes the
+  crash as it happens, into the crashing session's log: the exception, the
+  address it read or wrote, and the stack, unwound from the exception's own
+  context with the unwind tables every x64 module carries, MinGW's FFmpeg
+  included. Then it hands the crash to the filter before it, and Windows
+  records it as before.
 - **Linux and Android** keep nothing every system has, so a signal handler
   writes the crash into the crashing session's own log: the signal, the
   faulting address, and the stack as far as it unwinds, each frame a library
@@ -800,8 +807,15 @@ person to dig it out.
   descriptor, with an alarm in case the unwinder hangs. Then the signal goes
   on to what had it before: the default action, which ends the process as
   before, or Android's debuggerd, which still writes its tombstone. ART's own
-  faults (its null checks) never reach it. An offset in Rift's own library is
-  read back with `addr2line` against the same build.
+  faults (its null checks) never reach it. It runs on the thread's own
+  stack, not an alternate one: those are a few kilobytes, and formatting a
+  line overflowed one. So a stack overflow still ends the process unwritten.
+
+An offset in Rift's own Rust library is read back with `addr2line` (Linux) or
+its PDB (Windows) from the same build. FFmpeg is built without debug
+information, so `native/ffenc/build.sh` writes a linker map beside its library,
+naming the function at each offset, and the release workflow keeps the Windows
+map and PDB with the run (`RELEASING.md`).
 - **Android** also records why each run ended (`ApplicationExitInfo`, Android
   11 and up): killed for memory, an ANR, force-stopped, a native crash. Each
   session writes the recent ones into its log (`AppExitReasons`), since a

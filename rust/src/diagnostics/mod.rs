@@ -11,12 +11,18 @@
 //!   Error`, event 1000) with the module, the exception and the offset. Any
 //!   user may read it, so each session writes the last few into its own log as
 //!   it starts, and a bug report, sent from the session after the crash,
-//!   carries them ([windows]).
+//!   carries them ([windows]). That names only the innermost module, so a
+//!   last-chance filter also writes the whole stack as it crashes
+//!   ([crash_filter]).
 //! - **Linux and Android** catch the signal and write the crash into the
 //!   crashing session's own log, then pass it on ([crash_signal]). Android
 //!   also keeps why each run ended, which Dart reads (`AppExitReasons`).
 //!
 //! Parsing is here, as plain functions; reading is per OS.
+#[cfg(target_os = "windows")]
+mod crash_filter;
+#[cfg(any(target_os = "linux", target_os = "android", target_os = "windows"))]
+mod crash_line;
 #[cfg(any(target_os = "linux", target_os = "android"))]
 mod crash_signal;
 #[cfg(target_os = "linux")]
@@ -38,6 +44,8 @@ pub(crate) fn log_once() {
     ONCE.call_once(|| {
         #[cfg(any(target_os = "linux", target_os = "android"))]
         crash_signal::install();
+        #[cfg(target_os = "windows")]
+        crash_filter::install();
         #[cfg(target_os = "windows")]
         let report: Option<fn()> = Some(windows::log);
         #[cfg(target_os = "linux")]
@@ -193,28 +201,63 @@ fn nvidia_version(packed: i64) -> String {
 mod tests {
     use super::*;
 
-    /// As Windows 10 renders it: the fields unnamed.
-    const WINDOWS_10: &str = "<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System><Provider Name='Application Error'/><EventID Qualifiers='0'>1000</EventID><TimeCreated SystemTime='2026-10-23T19:03:59.1234567Z'/></System><EventData><Data>RiftChat.exe</Data><Data>1.5.2.0</Data><Data>00000000</Data><Data>nvEncodeAPI64.dll</Data><Data>31.0.15.5222</Data><Data>66a1b2c3</Data><Data>c0000005</Data><Data>0x00000000000a1b2c</Data><Data>0x3888</Data><Data>0x01dc1234abcd</Data><Data>C:\\Users\\Someone\\AppData\\Local\\CodingFries.Rift\\current\\RiftChat.exe</Data><Data>C:\\Windows\\System32\\nvEncodeAPI64.dll</Data><Data>5f1e-4c</Data><Data></Data><Data/></EventData></Event>";
+    /// A real one, from a friend's Windows 10 (Oct 23 2026; the user's name
+    /// changed): the fields unnamed, the offset and process id without `0x`.
+    const WINDOWS_10: &str = r#"<Event xmlns="http://schemas.microsoft.com/win/2004/08/events/event">
+  <System>
+    <Provider Name="Application Error" />
+    <EventID Qualifiers="0">1000</EventID>
+    <Version>0</Version>
+    <Level>2</Level>
+    <Task>100</Task>
+    <Opcode>0</Opcode>
+    <Keywords>0x80000000000000</Keywords>
+    <TimeCreated SystemTime="2026-10-23T19:06:47.6826659Z" />
+    <EventRecordID>17153</EventRecordID>
+    <Correlation />
+    <Execution ProcessID="0" ThreadID="0" />
+    <Channel>Application</Channel>
+    <Computer>DESKTOP-RVKBEL6</Computer>
+    <Security />
+  </System>
+  <EventData>
+    <Data>RiftChat.exe</Data>
+    <Data>1.5.2.40</Data>
+    <Data>6adb91f6</Data>
+    <Data>ucrtbase.dll</Data>
+    <Data>10.0.19041.7802</Data>
+    <Data>2bd748bf</Data>
+    <Data>c0000005</Data>
+    <Data>00000000000488e0</Data>
+    <Data>3d1c</Data>
+    <Data>01dd63218f3d5d24</Data>
+    <Data>C:\Users\Someone\AppData\Local\CodingFries.Rift\current\RiftChat.exe</Data>
+    <Data>C:\Windows\System32\ucrtbase.dll</Data>
+    <Data>8d8e6c31-3d15-4844-b05c-7270a88f1b4c</Data>
+    <Data>
+    </Data>
+    <Data>
+    </Data>
+  </EventData>
+</Event>"#;
 
     #[test]
     fn reads_an_unnamed_crash() {
         let crash = Crash::from_event_xml(WINDOWS_10).unwrap();
-        assert_eq!(crash.when, "2026-10-23T19:03:59.1234567Z");
-        assert_eq!(crash.app_version, "1.5.2.0");
-        assert_eq!(crash.module, "nvEncodeAPI64.dll");
-        assert_eq!(crash.module_version, "31.0.15.5222");
+        assert_eq!(crash.when, "2026-10-23T19:06:47.6826659Z");
+        assert_eq!(crash.app_version, "1.5.2.40");
+        assert_eq!(crash.module, "ucrtbase.dll");
+        assert_eq!(crash.module_version, "10.0.19041.7802");
         assert_eq!(crash.exception, "0xc0000005");
-        assert_eq!(crash.offset, "0x00000000000a1b2c");
-        assert_eq!(crash.pid, Some(14472));
-        assert_eq!(
-            crash.module_path,
-            "C:\\Windows\\System32\\nvEncodeAPI64.dll"
-        );
+        assert_eq!(crash.offset, "0x00000000000488e0");
+        // The session whose log is rift-…-15644.log.
+        assert_eq!(crash.pid, Some(15644));
+        assert_eq!(crash.module_path, "C:\\Windows\\System32\\ucrtbase.dll");
         assert_eq!(
             crash.describe(),
-            "Rift 1.5.2.0, pid 14472 crashed at 2026-10-23T19:03:59.1234567Z in \
-             nvEncodeAPI64.dll 31.0.15.5222 (C:\\Windows\\System32\\nvEncodeAPI64.dll): \
-             exception 0xc0000005 at offset 0x00000000000a1b2c"
+            "Rift 1.5.2.40, pid 15644 crashed at 2026-10-23T19:06:47.6826659Z in \
+             ucrtbase.dll 10.0.19041.7802 (C:\\Windows\\System32\\ucrtbase.dll): \
+             exception 0xc0000005 at offset 0x00000000000488e0"
         );
     }
 

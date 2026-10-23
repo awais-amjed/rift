@@ -155,12 +155,18 @@ done
 
 # Every FFmpeg symbol hidden and bound inside the library, so neither
 # libwebrtc's FFmpeg nor any other copy in the process can take their place.
+# The linker's map, beside the library, names the function at each offset,
+# hidden ones included: a crash in the app's log gives offsets into a library
+# with no symbols (FFmpeg is built without debug information), and the map of
+# that same build turns them into names. CI keeps the Windows one with the
+# release's run.
 if [[ $os == linux ]]; then
   "$cc" -shared -fPIC -O2 -fvisibility=hidden -I"$prefix/include" \
     "$here/ffenc.c" -o "$library.part" \
     "$prefix/lib/libavcodec.a" "$prefix/lib/libavutil.a" \
     -lva -lva-drm -lm -ldl -pthread \
-    -Wl,--exclude-libs,ALL -Wl,-Bsymbolic -Wl,-z,defs
+    -Wl,--exclude-libs,ALL -Wl,-Bsymbolic -Wl,-z,defs \
+    -Wl,-Map,"$out/librift_ffenc.map"
 else
   # A DLL exports only what is marked to (RIFT_FFENC_EXPORT), and carries
   # MinGW's own runtime inside it, so it needs nothing the app does not ship:
@@ -171,7 +177,7 @@ else
     -static-libgcc -static-libstdc++ \
     -Wl,-Bstatic -lstdc++ -lwinpthread -Wl,-Bdynamic \
     -lole32 -luuid -ld3d11 -ldxgi -lbcrypt -lshlwapi -luser32 -ladvapi32 \
-    -Wl,--exclude-libs,ALL
+    -Wl,--exclude-libs,ALL -Wl,-Map,"$out/rift_ffenc.map"
 fi
 mv "$library.part" "$library"
 rm -rf "$src" "$deps"
