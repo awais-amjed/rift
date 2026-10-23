@@ -3,11 +3,12 @@ import 'package:flutter/material.dart';
 import '../../../../../data/constants.dart';
 import '../../../../common/app_button.dart';
 
-/// Starts watching a screen share: the app's primary button, over the tile.
+/// Starts watching a screen share: the app's secondary button, over the tile.
 ///
 /// It used to be its own black-70% pill with its own radius and elevation —
-/// the only button in the app not drawn like the others, on the one surface
-/// where it is the only thing to press.
+/// the only button in the app not drawn like the others. Then the primary
+/// accent, which outshouted the name, quality and watchers around it on a
+/// tile that is pressed anywhere to watch anyway.
 class WatchStreamButton extends StatelessWidget {
   final VoidCallback onTap;
 
@@ -26,6 +27,7 @@ class WatchStreamButton extends StatelessWidget {
         final compact = constraints.maxHeight < _compactHeight;
         final button = AppButton(
           label: compact ? 'Watch' : 'Watch stream',
+          variant: AppButtonVariant.secondary,
           height: compact ? K.compactControlHeight : null,
           icon: const Icon(Icons.play_arrow_rounded, size: K.iconButton),
           onPressed: onTap,

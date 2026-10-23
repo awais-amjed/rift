@@ -122,6 +122,9 @@ class MemberCard extends StatelessWidget {
                           _Where.inCall => 'Watch stream',
                           _Where.watching => 'Open stream',
                         },
+                        // Quiet, like the tile's: the stream line and its
+                        // watchers above are what the card is showing.
+                        variant: AppButtonVariant.secondary,
                         icon: const Icon(Icons.play_arrow_rounded, size: 18),
                         expanded: true,
                         onPressed: () => watch(channelId),
