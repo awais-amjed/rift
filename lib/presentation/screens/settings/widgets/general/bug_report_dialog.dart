@@ -100,9 +100,9 @@ class _BugReportDialogState extends State<BugReportDialog> {
           Text(
             widget.signedIn
                 ? "This app's logs from its last few sessions go with it: the "
-                      'version, your system, errors, and the names of windows '
-                      'you shared. Never your messages or keys. The Rift team '
-                      'sees your handle.'
+                      'version, your system and graphics card, errors and '
+                      'crashes, and the names of windows you shared. Never '
+                      'your messages or keys. The Rift team sees your handle.'
                 : 'Sign in to your Rift account under Settings → Account & '
                       'backup to send a report.',
             style: note,

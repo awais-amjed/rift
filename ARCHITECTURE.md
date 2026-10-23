@@ -780,14 +780,27 @@ latest lines. The web has no file: its last lines stay in memory for the tab.
 Rust's own lines on Android go to logcat only, because flutter_rust_bridge's
 logger there is not ours to tee.
 
+**A native crash writes nothing, so the session after it says what it was.**
+A crash in a GPU driver, FFmpeg or libwebrtc ends the process mid-line, and
+its log just stops. On Windows each session, as it starts, reads the
+Application log, which needs no elevation, for Windows' own record of Rift
+crashing (`Application Error`, event 1000) over the last 14 days. It writes
+the newest five into its log: the faulting module and its version, the
+exception and the offset, and the process id, which names the session's file.
+That is what tells a driver's crash from Rift's, and before this it meant
+asking the person to find it in Event Viewer. The same start logs each GPU
+with its driver version (`rust/src/diagnostics/`). Linux has no such record to
+read, and its GPU shows in the encoder's lines.
+
 **What is in it is what a log line says**, and the log is something people
 send. So a line never carries a secret or anything from a sealed message — a
 link preview's failure names only the host. As a safety net, every line
 passes through `redact` before it is written: anything shaped like a JWT, the
 word after `Bearer`, and the value of `access_token`, `apikey`, `token`,
 `password` and the like become `[redacted]`. What it does carry: the version
-and system, server and room ids, error text, device names, and the title of a
-window being shared.
+and system, the GPUs and their drivers, Windows' record of recent crashes
+(with the faulting module's path), server and room ids, error text, device
+names, and the title of a window being shared.
 
 **What goes to stderr is not this log, and on the desktop libwebrtc puts no
 keys there.** On Linux an app started from the desktop has its stderr in the

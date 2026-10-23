@@ -4,8 +4,12 @@
 /// Starts writing this session's log in `dir`, with what was logged before,
 /// and keeps only the newest few sessions there. Returns the file's path.
 /// Calling it again returns the same path.
+///
+/// Then the GPUs and Windows' record of recent crashes go in, once per run.
 pub fn start_log_file(dir: String) -> Result<String, String> {
-    crate::logging::start(std::path::Path::new(&dir)).map(|p| p.display().to_string())
+    let path = crate::logging::start(std::path::Path::new(&dir))?;
+    crate::diagnostics::log_once();
+    Ok(path.display().to_string())
 }
 
 /// Writes one of Dart's lines to the log, from `source` (`dart`, `flutter`).

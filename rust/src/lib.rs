@@ -4,6 +4,7 @@ mod audio_endpoints;
 mod blob_cipher;
 #[cfg(any(target_os = "windows", target_os = "linux"))]
 mod cue;
+mod diagnostics;
 #[cfg(any(target_os = "windows", target_os = "linux"))]
 mod dpdfnet;
 #[cfg(any(target_os = "windows", target_os = "linux"))]
