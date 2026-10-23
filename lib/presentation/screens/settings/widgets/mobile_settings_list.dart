@@ -114,17 +114,17 @@ class MobileSettingsList extends StatelessWidget {
                 label: 'PREFERENCES',
                 rows: [
                   SettingsLinkRow(
-                    icon: Icons.palette_outlined,
-                    label: SettingsTab.appearance.label,
-                    value: palette,
-                    onTap: () => onTabSelected(SettingsTab.appearance),
-                  ),
-                  SettingsLinkRow(
                     icon: Icons.tune_rounded,
                     label: SettingsTab.general.label,
                     subtitle:
                         'Sensitive content, link previews, voice channels',
                     onTap: () => onTabSelected(SettingsTab.general),
+                  ),
+                  SettingsLinkRow(
+                    icon: Icons.palette_outlined,
+                    label: SettingsTab.appearance.label,
+                    value: palette,
+                    onTap: () => onTabSelected(SettingsTab.appearance),
                   ),
                   SettingsLinkRow(
                     icon: Icons.graphic_eq_rounded,

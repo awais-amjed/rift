@@ -45,7 +45,7 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  late SettingsTab _activeTab = widget.target?.tab ?? SettingsTab.appearance;
+  late SettingsTab _activeTab = widget.target?.tab ?? SettingsTab.general;
 
   /// Whether a tab's contents are showing, on the widths where the nav and the
   /// contents cannot both be.
