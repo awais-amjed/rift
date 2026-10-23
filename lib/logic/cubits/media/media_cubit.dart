@@ -66,9 +66,7 @@ class MediaCubit extends Cubit<MediaState> {
            attachments: (attachments ?? MediaStore.attachments).snapshot,
          ),
        ) {
-    _imageSub = _images.changes.listen(
-      (key) => _mirror(MediaKind.image, key),
-    );
+    _imageSub = _images.changes.listen((key) => _mirror(MediaKind.image, key));
     _attachmentSub = _attachments.changes.listen(
       (key) => _mirror(MediaKind.attachment, key),
     );

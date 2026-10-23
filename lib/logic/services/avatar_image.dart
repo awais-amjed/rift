@@ -15,6 +15,11 @@ class AvatarImage {
   /// most; 256 leaves headroom for high-DPI displays without storing a photo.
   static const int maxDimension = 256;
 
+  /// Longest edge of the picture handed to the crop dialog. Its cropper
+  /// decodes and cuts in Dart, which is seconds on a phone photo and a blink
+  /// on this, and even the tightest crop it allows keeps [maxDimension].
+  static const int cropSourceDimension = 1024;
+
   /// Hard ceiling on what we'll even attempt to decode, matching the bucket's
   /// limit. Rejected before reading rather than after, so a huge file can't
   /// cost a decode.
@@ -53,18 +58,21 @@ class AvatarImage {
     return (width: (width * max / height).round().clamp(1, max), height: max);
   }
 
-  /// Decode, downscale and re-encode [source] as PNG.
+  /// Decode, downscale to [max] and re-encode [source] as PNG.
   ///
   /// Returns null when the bytes aren't a decodable image — callers surface
   /// that as "couldn't read that image" rather than uploading something the
   /// other members can't render.
-  static Future<Uint8List?> prepare(Uint8List source) async {
+  static Future<Uint8List?> prepare(
+    Uint8List source, {
+    int max = maxDimension,
+  }) async {
     if (!isAcceptableSize(source.length)) return null;
     try {
       final descriptor = await ui.ImageDescriptor.encoded(
         await ui.ImmutableBuffer.fromUint8List(source),
       );
-      final target = fitWithin(descriptor.width, descriptor.height);
+      final target = fitWithin(descriptor.width, descriptor.height, max: max);
       final codec = await descriptor.instantiateCodec(
         targetWidth: target.width,
         targetHeight: target.height,

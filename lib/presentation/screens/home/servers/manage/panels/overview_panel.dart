@@ -12,8 +12,8 @@ import '../../../../../../logic/cubits/public_servers/public_servers_cubit.dart'
 import '../../../../../../logic/cubits/server_events/server_events_cubit.dart';
 import '../../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../../../logic/helper_methods.dart';
-import '../../../../../../logic/services/pick_picture.dart';
 import '../../../../../common/app_button.dart';
+import '../../../../../common/picture_crop/choose_picture.dart';
 import '../../../../../common/server_scope.dart';
 import '../../server_settings/listing_actions.dart';
 import '../../server_settings/listing_draft.dart';
@@ -150,7 +150,7 @@ class _OverviewPanelState extends State<OverviewPanel> {
   }
 
   Future<void> _pickIcon() async {
-    final picked = await pickPicture(context: 'Server icon');
+    final picked = await choosePicture(context, purpose: 'Server icon');
     if (!mounted || (picked.bytes == null && picked.error == null)) return;
     setState(() {
       _error = picked.error;

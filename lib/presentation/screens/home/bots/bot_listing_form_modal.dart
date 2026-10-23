@@ -9,12 +9,12 @@ import '../../../../data/classes/public_bot.dart';
 import '../../../../data/constants.dart';
 import '../../../../logic/cubits/public_bots/public_bots_cubit.dart';
 import '../../../../logic/helper_methods.dart';
-import '../../../../logic/services/pick_picture.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/app_text_field.dart';
 import '../../../common/hint_card.dart';
 import '../../../common/message_banner.dart';
+import '../../../common/picture_crop/choose_picture.dart';
 import '../../../common/tag_editor.dart';
 import '../../settings/widgets/setting_toggle_row.dart';
 import 'widgets/bot_icon_picker.dart';
@@ -75,7 +75,7 @@ class _BotListingFormModalState extends State<BotListingFormModal> {
   String? _error;
 
   Future<void> _pickIcon() async {
-    final picked = await pickPicture(context: 'Bot listing');
+    final picked = await choosePicture(context, purpose: 'Bot listing');
     if (!mounted) return;
     if (picked.bytes == null && picked.error == null) return;
     setState(() {

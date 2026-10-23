@@ -122,6 +122,7 @@ dependencies:
   flutter_file_dialog: ^3.3.3
   # The app's own version, for its log and a bug report.
   package_info_plus: ^10.2.2
+  crop_your_image: ^2.0.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

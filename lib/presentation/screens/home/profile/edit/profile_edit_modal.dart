@@ -8,10 +8,10 @@ import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
-import '../../../../../logic/services/pick_picture.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/app_text_field.dart';
+import '../../../../common/picture_crop/choose_picture.dart';
 import '../../../../common/rounded_picture.dart';
 import '../../../../common/server_scope.dart';
 import '../../../../common/user_avatar.dart';
@@ -59,7 +59,7 @@ class _ProfileEditModalState extends State<ProfileEditModal> {
 
   Future<void> _pickAvatar() async {
     setState(() => _error = null);
-    final picked = await pickPicture(context: 'Profile');
+    final picked = await choosePicture(context, purpose: 'Profile');
     if (!mounted) return;
     // Cancelled: neither bytes nor a reason, and nothing to change.
     if (picked.bytes == null && picked.error == null) return;
