@@ -15,7 +15,9 @@ import 'blob/fixed_chunks.dart';
 import 'blob/tus_client.dart';
 import 'storage_rest.dart';
 
+part 'attachment_repository_download.dart';
 part 'attachment_repository_stream.dart';
+part 'attachment_repository_upload.dart';
 
 /// An encrypted attachment blob ready to upload, plus the per-file key/nonce
 /// that must be stored (encrypted) inside the message body to decrypt it later.
@@ -47,8 +49,10 @@ typedef UploadedBlob = ({
 ///
 /// A big file never goes through [upload] or [download], which hold it whole:
 /// it is sealed and sent a chunk at a time, and fetched and opened the same
-/// way, by the streamed half in `attachment_repository_stream.dart`.
-class AttachmentRepository with _AttachmentStreamMixin {
+/// way, by the streamed half in `attachment_repository_stream.dart` and its
+/// upload and download parts.
+class AttachmentRepository
+    with _AttachmentStreamMixin, _StreamUploadMixin, _StreamDownloadMixin {
   @override
   final CryptoRepository _crypto;
   @override
