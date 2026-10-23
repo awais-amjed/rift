@@ -1,12 +1,14 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../data/constants.dart';
 import '../theme/identity_gradients.dart';
-import 'rounded_picture.dart';
 
-/// The app's one avatar: a squircle showing an image, or the identity's
-/// initial on its own gradient.
+/// The app's one avatar shape: the identity's initial on its own gradient.
+///
+/// It takes no picture. A picture from storage is drawn by [StoredPicture]
+/// (through [UserAvatar] or [ServerIcon]), which falls back to this. When it
+/// took an address, a storage path handed to it never loaded, and nothing
+/// said so: the initial looks like a member with no picture.
 ///
 /// Squircles rather than circles, at radius ≈ size/3, so avatars sit in the
 /// same shape family as the server chips and panels around them.
@@ -38,7 +40,6 @@ class SquircleAvatar extends StatelessWidget {
   /// change someone's colour.
   final String? seed;
 
-  final String? imageUrl;
   final double size;
 
   /// Corner radius. Defaults to size/3; the voice stage's large placeholder
@@ -49,7 +50,6 @@ class SquircleAvatar extends StatelessWidget {
     super.key,
     required this.name,
     this.seed,
-    this.imageUrl,
     this.size = 40,
     this.radius,
   });
@@ -60,19 +60,6 @@ class SquircleAvatar extends StatelessWidget {
       this.radius ?? size * K.avatarRadiusRatio,
     );
 
-    if (imageUrl != null && imageUrl!.isNotEmpty) {
-      // Painted as the shape's fill, not clipped: see [RoundedPicture].
-      return RoundedPicture(
-        image: CachedNetworkImageProvider(imageUrl!),
-        size: size,
-        radius: this.radius ?? size * K.avatarRadiusRatio,
-        fallback: _buildInitial(radius),
-      );
-    }
-    return _buildInitial(radius);
-  }
-
-  Widget _buildInitial(BorderRadius radius) {
     final identity = IdentityGradients.forSeed(seed ?? name);
 
     return Container(

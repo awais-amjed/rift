@@ -3,14 +3,9 @@ import 'package:flutter/material.dart';
 import '../../data/constants.dart';
 import '../theme/app_text.dart';
 import '../theme/theme_context.dart';
-import 'squircle_avatar.dart';
+import 'user_avatar.dart';
 
 /// One person in a [SearchDropdownField] result list.
-///
-/// Both DM drop-downs land on the same row — a server's members and central's
-/// handle directory are the same question asked of two directories — so the row
-/// is shared and takes what differs as parameters. Forking it once meant the
-/// two lists drifting apart under the same field.
 ///
 /// A null [onTap] is a result you can see but not pick: the row dims and stops
 /// responding, and [trailingNote] says why. Hiding it instead reads as the
@@ -23,8 +18,10 @@ class SearchResultRow extends StatelessWidget {
   /// the name, so a rename doesn't recolour them.
   final String seed;
 
-  /// Their avatar, when they have one. Falls back to initials.
-  final String? imageUrl;
+  /// Their picture's storage path, when they have one, drawn through
+  /// [UserAvatar]. It is a path on the server, not an address: handed to a
+  /// network image it never loaded, and every result showed its initial.
+  final String? avatarPath;
 
   /// Why this row can't be picked. Only meaningful when [onTap] is null.
   final String? trailingNote;
@@ -37,7 +34,7 @@ class SearchResultRow extends StatelessWidget {
     required this.name,
     required this.seed,
     required this.onTap,
-    this.imageUrl,
+    this.avatarPath,
     this.trailingNote,
   });
 
@@ -62,10 +59,10 @@ class SearchResultRow extends StatelessWidget {
             child: Row(
               spacing: 9,
               children: [
-                SquircleAvatar(
+                UserAvatar(
+                  avatarPath: avatarPath,
                   name: name,
                   seed: seed,
-                  imageUrl: imageUrl,
                   size: 26,
                 ),
                 Expanded(

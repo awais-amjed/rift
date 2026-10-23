@@ -263,8 +263,9 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   Paste can attach more than text, as in the composer. `test/text_field_menu_test.dart` fails on
   one that forgets.
 - **Shared UI to reuse before hand-rolling:** `AppPanel` (a floating panel), `CanvasBackdrop`
-  (the lit ground), `NavRow` (any navigable sidebar row), `SquircleAvatar` / `UserAvatar`
-  / `ServerIcon` (a server's picture, never `SquircleAvatar` on its row's URL),
+  (the lit ground), `NavRow` (any navigable sidebar row), `SquircleAvatar` (the
+  initial alone: it takes no picture) / `UserAvatar` (a person's picture, by its storage path)
+  / `ServerIcon` (a server's picture),
   `RoundedPicture` (an avatar or icon picture: never a `ClipRRect` round the image, since on
   some Linux drivers the clip drops on some frames and the picture flickers square),
   `SpeakingRing`, `StatusChip`, `ContextMenuPanel` + `ContextMenuItem`, `TapToFocus`,

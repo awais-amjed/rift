@@ -69,7 +69,7 @@ class _MemberSearchFieldState extends State<MemberSearchField> {
       itemBuilder: (context, member, dismiss) => SearchResultRow(
         name: member.displayName,
         seed: member.id,
-        imageUrl: member.avatarPath,
+        avatarPath: member.avatarPath,
         trailingNote: 'no keys yet',
         // Someone who has never opened the app has published no chat key, so
         // there is nothing to encrypt to yet.
