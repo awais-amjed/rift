@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/theme_context.dart';
-import '../context_menu_region.dart';
 import '../popover_surface.dart';
 import '../sheet_handle.dart';
+import 'context_menu_scope.dart';
 
 /// Tells the rows of a context menu that they are in a bottom sheet rather
 /// than a floating panel, and gives a submenu row somewhere to open.

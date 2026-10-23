@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../responsive/shell_scope.dart';
-import '../context_menu_region.dart';
 import '../server_scope.dart';
 import 'context_menu_layout.dart';
+import 'context_menu_scope.dart';
 import 'context_menu_sheet.dart';
 import 'context_menu_watcher.dart';
 

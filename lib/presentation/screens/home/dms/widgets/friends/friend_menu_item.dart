@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../common/context_menu/context_menu_item.dart';
-import '../../../../../common/context_menu_region.dart';
+import '../../../../../common/context_menu/context_menu_scope.dart';
 import 'friend_row_action.dart';
 
 /// One [FriendRowAction] as a row in a right-click menu.

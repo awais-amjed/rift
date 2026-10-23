@@ -6,7 +6,7 @@ import '../../../../../data/participant_identity.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../common/context_menu/context_menu_item.dart';
 import '../../../../common/context_menu/context_menu_panel.dart';
-import '../../../../common/context_menu_region.dart';
+import '../../../../common/context_menu/context_menu_scope.dart';
 import '../../../../theme/theme_context.dart';
 import '../widgets/share_audio_controls.dart';
 

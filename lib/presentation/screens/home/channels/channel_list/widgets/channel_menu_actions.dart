@@ -14,7 +14,7 @@ import '../../../../../../logic/cubits/voice_listeners/voice_listeners_cubit.dar
 import '../../../../../../logic/helper_methods.dart';
 import '../../../../../common/app_modal.dart';
 import '../../../../../common/confirm_dialog.dart';
-import '../../../../../common/context_menu_region.dart';
+import '../../../../../common/context_menu/context_menu_scope.dart';
 import '../../../../../common/server_scope.dart';
 import '../../settings/channel_settings_dialog.dart';
 import '../../settings/channel_settings_tab.dart';

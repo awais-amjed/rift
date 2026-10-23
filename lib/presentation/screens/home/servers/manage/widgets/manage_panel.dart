@@ -11,6 +11,8 @@ import '../../../../../common/more_below_fade.dart';
 import '../../../../../common/scrolled_under_rule.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
+import 'manage_heading_above.dart';
+import 'manage_read_only.dart';
 
 /// One page of the manage-server dialog: a heading, the page, and its own
 /// footer.
@@ -209,39 +211,4 @@ class ManagePanel extends StatelessWidget {
       child: ButtonFooter(alignment: MainAxisAlignment.start, buttons: footer),
     ),
   ];
-}
-
-/// Marks the manage pages below it as view-only — a phone's server
-/// management, where only Members stays editable.
-///
-/// The roles editor's permission grid, retention limits and listing details
-/// are each one mistap from a change nobody meant, on a screen where the
-/// reader can see a fraction of the page at once. Showing the current state
-/// keeps them useful for checking; changing them waits for a bigger screen.
-/// Set where the page's name is already drawn above the panel.
-///
-/// On a phone the modal is a page and its header carries the name of the page
-/// you are on, so a [ManagePanel] that drew its own heading as well gave the
-/// screen two headlines and four lines of titling before any content. On a
-/// desktop the two sit in different regions — a header bar above a rule, then
-/// the nav beside the page — and read as chrome and content, so there the
-/// panel keeps its own.
-class ManageHeadingAbove extends InheritedWidget {
-  const ManageHeadingAbove({super.key, required super.child});
-
-  static bool of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<ManageHeadingAbove>() != null;
-
-  @override
-  bool updateShouldNotify(ManageHeadingAbove old) => false;
-}
-
-class ManageReadOnly extends InheritedWidget {
-  const ManageReadOnly({super.key, required super.child});
-
-  static bool of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<ManageReadOnly>() != null;
-
-  @override
-  bool updateShouldNotify(ManageReadOnly old) => false;
 }

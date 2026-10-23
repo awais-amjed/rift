@@ -6,7 +6,7 @@ import '../theme/theme_context.dart';
 import 'context_menu/context_menu_item.dart';
 import 'context_menu/context_menu_overlay.dart';
 import 'context_menu/context_menu_panel.dart';
-import 'context_menu_region.dart';
+import 'context_menu/context_menu_scope.dart';
 
 /// One choice in an [AppDropdown].
 class AppDropdownOption<T> {

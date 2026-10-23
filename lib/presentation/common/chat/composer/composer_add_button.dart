@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../context_menu/context_menu_item.dart';
 import '../../context_menu/context_menu_overlay.dart';
 import '../../context_menu/context_menu_panel.dart';
-import '../../context_menu_region.dart';
+import '../../context_menu/context_menu_scope.dart';
 import 'composer_icon_button.dart';
 
 /// The composer's "+": attach files, or — where polls exist — a menu offering

@@ -8,7 +8,7 @@ import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/services/voice_move.dart';
 import '../../../../common/context_menu/context_menu_item.dart';
 import '../../../../common/context_menu/context_menu_panel.dart';
-import '../../../../common/context_menu_region.dart';
+import '../../../../common/context_menu/context_menu_scope.dart';
 import '../../../../common/loading_dots.dart';
 import '../../../../common/server_scope.dart';
 import '../../../../theme/app_text.dart';

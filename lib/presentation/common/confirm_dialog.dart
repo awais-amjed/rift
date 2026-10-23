@@ -6,7 +6,7 @@ import '../theme/theme_context.dart';
 import 'app_button.dart';
 import 'app_modal.dart';
 import 'checkbox_row.dart';
-import 'context_menu_region.dart';
+import 'context_menu/context_menu_scope.dart';
 import 'icon_tile.dart';
 
 /// Ask the user to confirm one action, and answer `true` only if they did.

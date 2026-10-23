@@ -13,7 +13,7 @@ import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../common/context_menu/context_menu_item.dart';
 import '../../../../common/context_menu/context_menu_panel.dart';
-import '../../../../common/context_menu_region.dart';
+import '../../../../common/context_menu/context_menu_scope.dart';
 import '../../../../common/member_avatar.dart';
 import '../../../../common/server_scope.dart';
 import '../../../../theme/theme_context.dart';

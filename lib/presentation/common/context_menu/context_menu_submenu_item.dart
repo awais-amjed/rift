@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 
 import '../../../data/constants.dart';
 import '../../theme/theme_context.dart';
-import '../context_menu_region.dart';
 import '../server_scope.dart';
 import 'context_menu_item.dart';
 import 'context_menu_layout.dart';
+import 'context_menu_scope.dart';
 import 'context_menu_sheet.dart';
 
 /// A context-menu row that opens a second panel beside it, Windows-style.

@@ -5,7 +5,7 @@ import '../../../../../data/apis/voice_api.dart';
 import '../../../../../logic/helper_methods.dart';
 import '../../../../common/confirm_dialog.dart';
 import '../../../../common/context_menu/context_menu_item.dart';
-import '../../../../common/context_menu_region.dart';
+import '../../../../common/context_menu/context_menu_scope.dart';
 import '../../../../common/server_scope.dart';
 import '../../members/widgets/kick_confirm.dart';
 

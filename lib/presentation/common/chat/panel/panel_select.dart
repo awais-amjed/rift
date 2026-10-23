@@ -7,7 +7,7 @@ import '../../../theme/theme_context.dart';
 import '../../context_menu/context_menu_item.dart';
 import '../../context_menu/context_menu_overlay.dart';
 import '../../context_menu/context_menu_panel.dart';
-import '../../context_menu_region.dart';
+import '../../context_menu/context_menu_scope.dart';
 
 /// A bot's `select` block: a chip that opens a menu of its options.
 ///

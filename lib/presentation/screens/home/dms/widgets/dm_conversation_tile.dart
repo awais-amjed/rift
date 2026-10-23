@@ -6,6 +6,7 @@ import '../../../../../data/enums/notification_level.dart';
 import '../../../../../logic/services/conversation_time.dart';
 import '../../../../../logic/services/message_excerpt.dart';
 import '../../../../common/context_menu/context_menu_panel.dart';
+import '../../../../common/context_menu/context_menu_scope.dart';
 import '../../../../common/context_menu_region.dart';
 import '../../../../common/member_avatar.dart';
 import '../../../../common/notifications/notification_level_submenu.dart';

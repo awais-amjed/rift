@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../theme/app_motion.dart';
-import 'context_menu_region.dart';
+import 'context_menu/context_menu_scope.dart';
 import 'server_scope.dart';
 
 /// Shows a dialog that:

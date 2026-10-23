@@ -4,7 +4,7 @@ import '../../../../../../data/constants.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/custom_colors.dart';
 import '../../../../../theme/theme_context.dart';
-import 'manage_panel.dart';
+import 'manage_read_only.dart';
 
 /// One irreversible action on the danger page: what it is, what it does, and
 /// the one button that does it.

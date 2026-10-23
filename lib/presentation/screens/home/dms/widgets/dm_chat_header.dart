@@ -11,7 +11,7 @@ import '../../../../theme/theme_context.dart';
 import '../../chat/widgets/chat_header_button.dart';
 import '../../chat/widgets/header_back_button.dart';
 import '../../pane_toggles/show_sidebar_button.dart';
-import 'dm_surface.dart';
+import 'dm_list_beside.dart';
 
 /// Header of an open DM conversation.
 ///

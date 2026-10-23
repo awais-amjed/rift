@@ -11,7 +11,7 @@ import '../../../../../common/app_modal.dart';
 import '../../../../../common/confirm_dialog.dart';
 import '../../../../../common/context_menu/context_menu_item.dart';
 import '../../../../../common/context_menu/context_menu_panel.dart';
-import '../../../../../common/context_menu_region.dart';
+import '../../../../../common/context_menu/context_menu_scope.dart';
 import '../../../../../common/notifications/notification_level_submenu.dart';
 import '../../../../../common/server_scope.dart';
 import '../../../../../common/squircle_avatar.dart';

@@ -21,8 +21,9 @@ import 'panels/soundboard_panel.dart';
 import 'panels/voice_panel.dart';
 import 'panels/webhooks_panel.dart';
 import 'server_manage_tab.dart';
+import 'widgets/manage_heading_above.dart';
 import 'widgets/manage_nav.dart';
-import 'widgets/manage_panel.dart';
+import 'widgets/manage_read_only.dart';
 
 /// Everything about running [server], in one dialog with a page per concern.
 ///

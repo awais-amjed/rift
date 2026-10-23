@@ -4,6 +4,7 @@ import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
+import 'dm_list_beside.dart';
 
 /// The two-column layout a DM surface uses: conversation list on the chrome
 /// surface, the open conversation on the content surface.
@@ -105,20 +106,4 @@ class DmSurface extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Set over a conversation that has its list beside it.
-///
-/// The list's header carries the button that brings a hidden sidebar back.
-/// A conversation alone — on Home, where the list is the sidebar itself, or
-/// in a window too narrow for both — has to carry it in its own header, or a
-/// hidden sidebar has no way back from there.
-class DmListBeside extends InheritedWidget {
-  const DmListBeside({super.key, required super.child});
-
-  static bool of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<DmListBeside>() != null;
-
-  @override
-  bool updateShouldNotify(DmListBeside old) => false;
 }
