@@ -123,13 +123,13 @@ class MobileSettingsList extends StatelessWidget {
                     icon: Icons.tune_rounded,
                     label: SettingsTab.general.label,
                     subtitle:
-                        'Voice channels, link previews, sensitive content',
+                        'Sensitive content, link previews, voice channels',
                     onTap: () => onTabSelected(SettingsTab.general),
                   ),
                   SettingsLinkRow(
                     icon: Icons.graphic_eq_rounded,
                     label: SettingsTab.voiceAndAudio.label,
-                    subtitle: 'Noise suppression, mic test, sounds',
+                    subtitle: 'Mic test, noise suppression, sounds',
                     onTap: () => onTabSelected(SettingsTab.voiceAndAudio),
                   ),
                   SettingsLinkRow(

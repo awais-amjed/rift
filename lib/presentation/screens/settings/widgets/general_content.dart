@@ -26,27 +26,12 @@ class GeneralContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeState = context.theme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SectionTitle(label: 'Voice channels'),
-        const SizedBox(height: 12),
-        SettingToggleRow(
-          title: 'Ask before switching voice channels',
-          description:
-              'Clicking another voice channel while you are in a call asks '
-              'first, so a stray press does not leave the call.',
-          value: context.select<AppCubit, bool>(
-            (c) => c.state.askBeforeVoiceSwitch,
-          ),
-          onChanged: context.read<AppCubit>().setAskBeforeVoiceSwitch,
-        ),
-
-        const SectionDivider(),
-
-        const SectionTitle(label: 'Link previews'),
-        const SizedBox(height: 12),
+    // Most-reached first; the switches that fix one machine's trouble last.
+    final sections = <Widget>[
+      if (LoginLaunch.supported) const StartupSection(),
+      const _SensitiveContent(),
+      _titled(
+        'Link previews',
         SettingToggleRow(
           title: 'Preview links you send',
           description:
@@ -58,13 +43,36 @@ class GeneralContent extends StatelessWidget {
           ),
           onChanged: (v) => context.read<AppCubit>().setLinkPreviewsEnabled(v),
         ),
-
-        const SectionDivider(),
-
-        // Only where there is a title bar to show it in.
-        if (HostPlatform.drawsOwnWindowChrome) ...[
-          const SectionTitle(label: 'Connection'),
-          const SizedBox(height: 12),
+      ),
+      _titled(
+        'Voice channels',
+        SettingToggleRow(
+          title: 'Ask before switching voice channels',
+          description:
+              'Clicking another voice channel while you are in a call asks '
+              'first, so a stray press does not leave the call.',
+          value: context.select<AppCubit, bool>(
+            (c) => c.state.askBeforeVoiceSwitch,
+          ),
+          onChanged: context.read<AppCubit>().setAskBeforeVoiceSwitch,
+        ),
+      ),
+      _titled(
+        'Streams',
+        SettingToggleRow(
+          title: 'Detailed stream stats',
+          description:
+              'Shows bitrate, ping, jitter, packet loss and codec over a '
+              'stream you are watching. The resolution and frame rate are '
+              'always shown beside the sharer\'s name.',
+          value: context.select<AppCubit, bool>((c) => c.state.showStreamStats),
+          onChanged: (v) => context.read<AppCubit>().setShowStreamStats(v),
+        ),
+      ),
+      // Only where there is a title bar to show it in.
+      if (HostPlatform.drawsOwnWindowChrome)
+        _titled(
+          'Connection',
           SettingToggleRow(
             title: 'Show "No internet" in the title bar',
             description:
@@ -75,30 +83,48 @@ class GeneralContent extends StatelessWidget {
             ),
             onChanged: context.read<AppCubit>().setShowOfflineChip,
           ),
-          const SectionDivider(),
-        ],
-
-        const SectionTitle(label: 'Streams'),
-        const SizedBox(height: 12),
-        SettingToggleRow(
-          title: 'Detailed stream stats',
-          description:
-              'Shows bitrate, ping, jitter, packet loss and codec over a '
-              'stream you are watching. The resolution and frame rate are '
-              'always shown beside the sharer\'s name.',
-          value: context.select<AppCubit, bool>((c) => c.state.showStreamStats),
-          onChanged: (v) => context.read<AppCubit>().setShowStreamStats(v),
         ),
+      // A Linux folder copy; the AppImage keeps its entry by itself.
+      if (LinuxDesktopEntry.offersToAdd) _titled('Desktop', const AppMenuRow()),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final (i, section) in sections.indexed) ...[
+          if (i > 0) const SectionDivider(),
+          section,
+        ],
+      ],
+    );
+  }
 
-        const SectionDivider(),
+  /// A titled section holding one row.
+  static Widget _titled(String title, Widget row) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      SectionTitle(label: title),
+      const SizedBox(height: 12),
+      row,
+    ],
+  );
+}
 
+/// What a flagged picture or message does: shown, blurred, or hidden.
+class _SensitiveContent extends StatelessWidget {
+  const _SensitiveContent();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
         const SectionTitle(label: 'Sensitive content'),
         const SizedBox(height: 4),
         Text(
           'Pictures and messages are checked on this device after they are '
           'decrypted — nothing leaves it. Blur covers what is flagged until '
           'you press it; Hide keeps it covered.',
-          style: AppText.secondary.copyWith(color: themeState.textTertiary),
+          style: AppText.secondary.copyWith(color: context.theme.textTertiary),
         ),
         const SizedBox(height: 12),
         // A ceiling, not a width. Three segments spread across a desktop
@@ -118,19 +144,6 @@ class GeneralContent extends StatelessWidget {
             ],
           ),
         ),
-
-        if (LoginLaunch.supported) ...[
-          const SectionDivider(),
-          const StartupSection(),
-        ],
-
-        // A Linux folder copy; the AppImage keeps its entry by itself.
-        if (LinuxDesktopEntry.offersToAdd) ...[
-          const SectionDivider(),
-          const SectionTitle(label: 'Desktop'),
-          const SizedBox(height: 12),
-          const AppMenuRow(),
-        ],
       ],
     );
   }

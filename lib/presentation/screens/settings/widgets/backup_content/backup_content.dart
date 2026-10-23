@@ -82,10 +82,11 @@ class _BackupBody extends StatelessWidget {
             if (!state.cloudBackupConflict &&
                 !state.needsVaultPassword &&
                 !state.needsEmailConfirmation) ...[
-              const SectionDivider(),
-              ChangePasswordPanel(state: state),
+              // The recovery key first: it is what gets you back in.
               const SectionDivider(),
               const RecoveryKeyPanel(),
+              const SectionDivider(),
+              ChangePasswordPanel(state: state),
             ],
             const SectionDivider(),
             const FileBackupPanel(),

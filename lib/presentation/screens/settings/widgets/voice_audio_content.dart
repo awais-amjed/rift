@@ -7,6 +7,7 @@ import '../../../../logic/services/mic_volume.dart';
 import 'audio_device_section.dart';
 import 'mic_test/mic_test_section.dart';
 import 'section_divider.dart';
+import 'section_title.dart';
 import 'settings_tab.dart';
 import 'voice_audio/audio_ducking_section.dart';
 import 'voice_audio/audio_processing_section.dart';
@@ -15,10 +16,10 @@ import 'voice_audio/output_volume_section.dart';
 import 'voice_audio/soundboard_section.dart';
 import 'voice_audio/sounds/sounds_section.dart';
 
-/// The Voice & Audio settings tab: devices, call volume, mic processing, the
-/// mic volume beside the mic test, the soundboard and Rift's own sounds as this
-/// device hears them, and on Windows other apps' volume during calls. The keys
-/// for push-to-talk, mute and deafen are Keybinds'.
+/// The Voice & Audio settings tab: devices, the mic with its volume and test
+/// and how it is cleaned up, call volume and on Windows other apps' volume
+/// during calls, then the soundboard and Rift's own sounds as this device
+/// hears them. The keys for push-to-talk, mute and deafen are Keybinds'.
 class VoiceAudioContent extends StatelessWidget {
   /// A section to scroll to and light up, for someone sent here to it.
   final SettingsSection? focus;
@@ -47,30 +48,33 @@ class VoiceAudioContent extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Most-reached first: which mic and speakers, whether the mic
+            // works, how it is cleaned up — right under the test, so a change
+            // is heard while it runs — then how others sound, and the long
+            // list of Rift's own sounds last.
             if (_canPickDevices) ...[
               const AudioDeviceSection(),
               const SectionDivider(),
             ],
-            const OutputVolumeSection(),
-            const SectionDivider(),
-            AudioProcessingSection(appState: appState),
-            const SizedBox(height: 20),
+            const SectionTitle(label: 'Microphone'),
+            const SizedBox(height: 12),
             if (MicVolume.adjustable) ...[
               const MicVolumeControl(),
               const SizedBox(height: 20),
             ],
             const MicTestSection(),
             const SectionDivider(),
-            SoundboardSection(appState: appState),
+            AudioProcessingSection(appState: appState),
             const SectionDivider(),
-            SoundsSection(appState: appState),
-            // The divider belongs to what follows, not to what precedes
-            // it: on anything but Windows there is nothing after this and
-            // the rule was hanging under the last control.
+            const OutputVolumeSection(),
             if (HostPlatform.ducksOtherApps) ...[
               const SectionDivider(),
               AudioDuckingSection(highlight: focus == SettingsSection.ducking),
             ],
+            const SectionDivider(),
+            SoundboardSection(appState: appState),
+            const SectionDivider(),
+            SoundsSection(appState: appState),
           ],
         );
       },

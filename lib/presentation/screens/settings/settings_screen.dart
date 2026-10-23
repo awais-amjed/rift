@@ -221,6 +221,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 child: SizedBox(
                                   width: double.infinity,
                                   child: SingleChildScrollView(
+                                    // One per tab, so a tab opens at its
+                                    // top and not where the last was left.
+                                    key: ValueKey(_activeTab),
                                     padding: EdgeInsets.all(compact ? 16 : 24),
                                     // Loosened again inside, or the
                                     // full width arrives tight and a
