@@ -2696,6 +2696,7 @@ dependencies = [
  "flutter_rust_bridge",
  "futures-util",
  "image",
+ "libc",
  "libloading 0.9.0",
  "libpulse-binding",
  "livekit",

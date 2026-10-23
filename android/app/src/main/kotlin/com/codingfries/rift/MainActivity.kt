@@ -38,6 +38,7 @@ class MainActivity : FlutterActivity() {
     }
 
     private var channel: MethodChannel? = null
+    private var exitReasons: MethodChannel? = null
 
     /** Whether there is currently something worth floating. */
     private var autoEnter = false
@@ -57,11 +58,14 @@ class MainActivity : FlutterActivity() {
                 }
             }
         }
+        exitReasons = ExitReasons.register(applicationContext, flutterEngine.dartExecutor.binaryMessenger)
     }
 
     override fun onDestroy() {
         channel?.setMethodCallHandler(null)
         channel = null
+        exitReasons?.setMethodCallHandler(null)
+        exitReasons = null
         super.onDestroy()
     }
 

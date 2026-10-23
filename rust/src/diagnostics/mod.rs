@@ -1,17 +1,26 @@
 //! What a bug report needs that nothing else in the app logs: the GPUs and
-//! their drivers, and the crashes Windows saw of Rift.
+//! their drivers, and how a session that crashed in native code ended.
 //!
 //! A crash in native code (a GPU driver, FFmpeg, libwebrtc) ends the process
-//! before Rift can write a word, so the session's log just stops. Windows
-//! records each one in its Application log (`Application Error`, event
-//! 1000) with the module it happened in, the exception and the offset, which
-//! is what tells a driver's crash from Rift's. Any user may read that log, so
-//! each session writes the last few into its own log as it starts, and a bug
-//! report, sent from the session after the crash, carries them. Until this,
-//! every one meant asking the person to find it in Event Viewer (a friend's
-//! H264 share, Oct 23 2026).
+//! before Rift can write a word, so the session's log just stops, and finding
+//! the module it died in meant asking the person to dig it out themselves (a
+//! friend's H264 share, Oct 23 2026). What tells a driver's crash from Rift's
+//! is now in the log on each platform that has native code:
+//!
+//! - **Windows** records each crash in its Application log (`Application
+//!   Error`, event 1000) with the module, the exception and the offset. Any
+//!   user may read it, so each session writes the last few into its own log as
+//!   it starts, and a bug report, sent from the session after the crash,
+//!   carries them ([windows]).
+//! - **Linux and Android** catch the signal and write the crash into the
+//!   crashing session's own log, then pass it on ([crash_signal]). Android
+//!   also keeps why each run ended, which Dart reads (`AppExitReasons`).
 //!
 //! Parsing is here, as plain functions; reading is per OS.
+#[cfg(any(target_os = "linux", target_os = "android"))]
+mod crash_signal;
+#[cfg(target_os = "linux")]
+mod linux;
 #[cfg(target_os = "windows")]
 mod windows;
 
@@ -21,18 +30,26 @@ const CRASH_DAYS: u32 = 14;
 #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
 const CRASHES: usize = 5;
 
-/// Writes the GPUs and the recent crashes to the log, once per run, on a
-/// thread of its own so the start does not wait on the event log.
+/// Once per run, as the log opens: the crash handler where there is one, and
+/// the GPUs and Windows' recent crashes written on a thread of their own, so
+/// the start does not wait on them.
 pub(crate) fn log_once() {
-    #[cfg(target_os = "windows")]
-    {
-        static ONCE: std::sync::Once = std::sync::Once::new();
-        ONCE.call_once(|| {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        #[cfg(any(target_os = "linux", target_os = "android"))]
+        crash_signal::install();
+        #[cfg(target_os = "windows")]
+        let report: Option<fn()> = Some(windows::log);
+        #[cfg(target_os = "linux")]
+        let report: Option<fn()> = Some(linux::log);
+        #[cfg(not(any(target_os = "windows", target_os = "linux")))]
+        let report: Option<fn()> = None;
+        if let Some(report) = report {
             let _ = std::thread::Builder::new()
                 .name("diagnostics".into())
-                .spawn(windows::log);
-        });
-    }
+                .spawn(report);
+        }
+    });
 }
 
 /// One `Application Error` event: Windows' record of a process that died.

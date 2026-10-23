@@ -17,6 +17,7 @@ import 'data/repositories/native_blob_cipher.dart';
 import 'data/repositories/update_repository.dart';
 import 'logic/cubits/app/app_cubit.dart';
 import 'logic/helper_methods.dart';
+import 'logic/services/app_exit_reasons.dart';
 import 'logic/services/app_log.dart';
 import 'logic/services/browser_apis.dart';
 import 'logic/services/file_save/save_target.dart';
@@ -68,6 +69,8 @@ class AppBootstrap {
       );
       await RustLib.init();
       await AppLog.start(storageSuffix);
+      // Android's record of how the runs before this one ended.
+      unawaited(AppExitReasons.log());
       CryptoRepository.blobCipher = const NativeBlobCipher();
       // First after the bridge: it may put a downloaded update in place and
       // restart into it, and nothing should have started by then.

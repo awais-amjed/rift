@@ -39,6 +39,29 @@ static SINK: Mutex<Sink> = Mutex::new(Sink {
     early: VecDeque::new(),
 });
 
+/// The open file's descriptor, for `diagnostics::crash_signal`, which writes a
+/// crash into the file from a signal handler: there it may take no lock and
+/// allocate nothing, so it cannot go through [SINK]. -1 until the file opens.
+#[cfg(any(target_os = "linux", target_os = "android"))]
+static FILE_FD: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(-1);
+
+#[cfg(any(target_os = "linux", target_os = "android"))]
+pub(crate) fn file_fd() -> i32 {
+    FILE_FD.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+/// Keeps [FILE_FD] on the file the sink writes to now.
+fn note_fd(file: Option<&File>) {
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    {
+        use std::os::fd::AsRawFd;
+        let fd = file.map_or(-1, |file| file.as_raw_fd());
+        FILE_FD.store(fd, std::sync::atomic::Ordering::Relaxed);
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    let _ = file;
+}
+
 pub fn init() {
     flutter_rust_bridge::setup_default_user_utils();
     #[cfg(any(target_os = "linux", target_os = "windows"))]
@@ -111,6 +134,7 @@ pub(crate) fn start(dir: &Path) -> Result<PathBuf, String> {
         written += line.len() as u64;
         let _ = file.write_all(line.as_bytes());
     }
+    note_fd(Some(&file));
     sink.file = Some(file);
     sink.path = Some(path.clone());
     sink.written = written;
@@ -158,9 +182,11 @@ fn rotate(sink: &mut Sink) {
     let Some(path) = sink.path.clone() else {
         return;
     };
+    note_fd(None);
     sink.file = None;
     let _ = fs::rename(&path, path.with_extension("old.log"));
     sink.file = open(&path).ok();
+    note_fd(sink.file.as_ref());
     sink.written = 0;
 }
 
@@ -205,7 +231,7 @@ fn file_stamp(secs: u64) -> String {
 }
 
 /// Seconds since 1970 as a UTC date and time (Howard Hinnant's days-to-civil).
-fn civil(secs: u64) -> (i64, u32, u32, u32, u32, u32) {
+pub(crate) fn civil(secs: u64) -> (i64, u32, u32, u32, u32, u32) {
     let days = (secs / 86_400) as i64;
     let rest = secs % 86_400;
     let z = days + 719_468;

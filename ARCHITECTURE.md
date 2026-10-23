@@ -780,17 +780,36 @@ latest lines. The web has no file: its last lines stay in memory for the tab.
 Rust's own lines on Android go to logcat only, because flutter_rust_bridge's
 logger there is not ours to tee.
 
-**A native crash writes nothing, so the session after it says what it was.**
-A crash in a GPU driver, FFmpeg or libwebrtc ends the process mid-line, and
-its log just stops. On Windows each session, as it starts, reads the
-Application log, which needs no elevation, for Windows' own record of Rift
-crashing (`Application Error`, event 1000) over the last 14 days. It writes
-the newest five into its log: the faulting module and its version, the
-exception and the offset, and the process id, which names the session's file.
-That is what tells a driver's crash from Rift's, and before this it meant
-asking the person to find it in Event Viewer. The same start logs each GPU
-with its driver version (`rust/src/diagnostics/`). Linux has no such record to
-read, and its GPU shows in the encoder's lines.
+**A native crash writes nothing of its own, so Rift writes it down**
+(`rust/src/diagnostics/`). A crash in a GPU driver, FFmpeg or libwebrtc ends
+the process mid-line, and its log just stops; what tells a driver's crash from
+Rift's is the module it died in, and finding that used to mean asking the
+person to dig it out.
+
+- **Windows** keeps its own record. Each session, as it starts, reads the
+  Application log, which needs no elevation, for Rift crashing
+  (`Application Error`, event 1000) over the last 14 days, and writes the
+  newest five into its log: the faulting module and its version, the
+  exception, the offset, and the process id, which names the crashed
+  session's file.
+- **Linux and Android** keep nothing every system has, so a signal handler
+  writes the crash into the crashing session's own log: the signal, the
+  faulting address, and the stack as far as it unwinds, each frame a library
+  and an offset. Inside a handler it may take no lock and allocate nothing, so
+  each line is made on the stack and written straight to the file's
+  descriptor, with an alarm in case the unwinder hangs. Then the signal goes
+  on to what had it before: the default action, which ends the process as
+  before, or Android's debuggerd, which still writes its tombstone. ART's own
+  faults (its null checks) never reach it. An offset in Rift's own library is
+  read back with `addr2line` against the same build.
+- **Android** also records why each run ended (`ApplicationExitInfo`, Android
+  11 and up): killed for memory, an ANR, force-stopped, a native crash. Each
+  session writes the recent ones into its log (`AppExitReasons`), since a
+  call's service killed in the background looks like a crash to whoever it
+  happened to.
+
+The same start logs each GPU with its driver: from DXGI on Windows (with
+NVIDIA's own version number), from sysfs on Linux.
 
 **What is in it is what a log line says**, and the log is something people
 send. So a line never carries a secret or anything from a sealed message — a
@@ -798,8 +817,8 @@ link preview's failure names only the host. As a safety net, every line
 passes through `redact` before it is written: anything shaped like a JWT, the
 word after `Bearer`, and the value of `access_token`, `apikey`, `token`,
 `password` and the like become `[redacted]`. What it does carry: the version
-and system, the GPUs and their drivers, Windows' record of recent crashes
-(with the faulting module's path), server and room ids, error text, device
+and system, the GPUs and their drivers, recent crashes and how
+Android ended the runs before (library paths and offsets, no memory contents), server and room ids, error text, device
 names, and the title of a window being shared.
 
 **What goes to stderr is not this log, and on the desktop libwebrtc puts no
