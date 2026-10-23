@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/apis/profile_api.dart';
 import '../../logic/cubits/media/media_cubit.dart';
+import '../../logic/services/media_store.dart';
 import 'server_scope.dart';
 import 'stored_picture.dart';
 
@@ -52,16 +53,20 @@ class _UserAvatarState extends State<UserAvatar> {
     // Nothing to fetch it from outside every server (no server joined yet).
     final server = ServerScope.maybeRead(context);
     if (server == null) return;
+    final origin = server.server?.supabaseUrl;
+    if (origin == null) return;
     final profile = ProfileApi(server);
     context.read<MediaCubit>().want(
       MediaKind.image,
-      path,
+      MediaStore.keyOf(origin, path),
       () => profile.loadAvatar(path),
     );
   }
 
   @override
   Widget build(BuildContext context) => StoredPicture(
+    // The host `ProfileApi.loadAvatar` fetches from, and holds it under.
+    origin: ServerScope.maybeOf(context)?.server?.supabaseUrl,
     path: widget.avatarPath,
     name: widget.name,
     seed: widget.seed,

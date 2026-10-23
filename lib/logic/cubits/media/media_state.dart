@@ -1,6 +1,6 @@
 part of 'media_cubit.dart';
 
-/// Every picture held, by storage path, per [MediaKind].
+/// Every picture held, by its `MediaStore.keyOf` key, per [MediaKind].
 ///
 /// Widgets select one entry each, so a picture landing rebuilds only the
 /// widgets showing it.
@@ -10,11 +10,11 @@ class MediaState {
 
   const MediaState({this.images = const {}, this.attachments = const {}});
 
-  MediaEntry? entry(MediaKind kind, String path) =>
-      (kind == MediaKind.image ? images : attachments)[path];
+  MediaEntry? entry(MediaKind kind, String key) =>
+      (kind == MediaKind.image ? images : attachments)[key];
 
-  /// [path]'s bytes, once fetched.
-  Uint8List? bytes(MediaKind kind, String path) => entry(kind, path)?.bytes;
+  /// The bytes under [key], once fetched.
+  Uint8List? bytes(MediaKind kind, String key) => entry(kind, key)?.bytes;
 
   MediaState copyWith({
     Map<String, MediaEntry>? images,

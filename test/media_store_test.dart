@@ -78,6 +78,29 @@ void main() {
       expect(store['c'], isNotNull);
       expect(changed, containsAllInOrder(['a', 'b', 'c', 'a']));
     });
+
+    test('the same path on two hosts is two pictures', () async {
+      // A server chooses its own paths, so one can repeat another's: its
+      // bytes must not be what the other server's member is drawn with.
+      final store = MediaStore(maxEntries: 10);
+      final theirs = Uint8List.fromList([9]);
+      expect(
+        await store.load('p', () async => theirs, origin: 'https://evil'),
+        theirs,
+      );
+      var fetched = false;
+      final real = await store.load('p', () async {
+        fetched = true;
+        return pic;
+      }, origin: 'https://real');
+      expect(fetched, isTrue);
+      expect(real, pic);
+      expect(store[MediaStore.keyOf('https://real', 'p')]!.bytes, pic);
+      expect(store[MediaStore.keyOf('https://evil', 'p')]!.bytes, theirs);
+
+      store.put('q', theirs, origin: 'https://evil');
+      expect(store[MediaStore.keyOf('https://real', 'q')], isNull);
+    });
   });
 
   group('MediaCubit', () {

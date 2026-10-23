@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/repositories/directory_icon_repository.dart';
 import '../../logic/cubits/media/media_cubit.dart';
+import '../../supabase_config.dart';
 import 'stored_picture.dart';
 
 /// A directory listing's picture, falling back to its initial.
@@ -58,6 +59,7 @@ class _DirectoryIconState extends State<DirectoryIcon> {
 
   @override
   Widget build(BuildContext context) => StoredPicture(
+    origin: SupabaseConfig.supabaseUrl,
     path: widget.iconPath,
     name: widget.name,
     seed: widget.seed,

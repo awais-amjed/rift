@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -8,6 +9,7 @@ import 'package:http/testing.dart';
 import 'package:rift/data/repositories/server_icon_repository.dart';
 import 'package:rift/logic/cubits/media/media_cubit.dart';
 import 'package:rift/logic/services/media_store.dart';
+import 'package:rift/presentation/common/rounded_picture.dart';
 import 'package:rift/presentation/common/server_icon.dart';
 
 /// A server's icon is a path in its own folder of its own public bucket, and
@@ -97,6 +99,72 @@ void main() {
       ]);
       // Nothing to draw yet, so the initial.
       expect(find.text('A'), findsOneWidget);
+    });
+
+    testWidgets('a server repeating another\'s id and path draws only its '
+        'own bytes', (tester) async {
+      // Two 1×1 PNGs, red from the impostor and blue from the real host.
+      final evil = base64Decode(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC',
+      );
+      final real = base64Decode(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGNgYPgPAAEDAQAIicLsAAAAAElFTkSuQmCC',
+      );
+      // Its own cubit, made inside the test so its updates run on the test's
+      // clock.
+      final pictures = MediaCubit(
+        images: MediaStore(maxEntries: 8),
+        attachments: MediaStore(maxEntries: 8),
+        serverIcons: ServerIconRepository(
+          httpClient: MockClient((request) async {
+            fetched.add(request.url);
+            final host = request.url.host;
+            return http.Response.bytes(
+              host == 'evil.example' ? evil : real,
+              200,
+            );
+          }),
+        ),
+        retryAfter: const [],
+      );
+      addTearDown(pictures.close);
+      Widget icon(String host) => ServerIcon(
+        supabaseUrl: host,
+        serverId: id,
+        name: 'Alpha',
+        iconPath: own,
+        size: 40,
+      );
+      await tester.pumpWidget(
+        BlocProvider.value(
+          value: pictures,
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: Column(
+              children: [
+                icon('https://evil.example'),
+                icon('https://srv.example'),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(fetched.map((u) => u.host), ['evil.example', 'srv.example']);
+      expect(
+        pictures.state.bytes(
+          MediaKind.image,
+          MediaStore.keyOf('https://srv.example', own),
+        ),
+        real,
+      );
+      // Drawn with what came from each widget's own host.
+      await tester.pump();
+      final drawn = tester
+          .widgetList<RoundedPicture>(find.byType(RoundedPicture))
+          .map((p) => (p.image as MemoryImage).bytes)
+          .toList();
+      expect(drawn, [evil, real]);
     });
 
     testWidgets('never fetches an address the row names', (tester) async {

@@ -534,7 +534,7 @@ they do say whom this device has seen, so a vault reset deletes them. Leaving a 
 go when nothing has drawn them for a month, or sooner when the folder passes its
 size. A file is named by the SHA-256 of the host and the path, never the path
 alone, since a server chooses its own paths and could repeat another's to leave
-its bytes in that one's place. Attachments never go to disk: they are decrypted
+its bytes in that one's place; the copy in memory is held the same way. Attachments never go to disk: they are decrypted
 message content. In the app's cache folder, which the OS may empty and Android
 and iOS leave out of backups; not on the web.
 

@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/constants.dart';
 import '../../logic/cubits/media/media_cubit.dart';
+import '../../logic/services/media_store.dart';
 import 'rounded_picture.dart';
 import 'squircle_avatar.dart';
 
@@ -15,6 +16,10 @@ import 'squircle_avatar.dart';
 /// showing it, and every one of them at once. Asking for the picture is the
 /// caller's job: this only draws what is held.
 class StoredPicture extends StatelessWidget {
+  /// The host [path] is on, the one its fetch named. A picture is held under
+  /// both (`MediaStore.keyOf`), so a server repeating another's path draws
+  /// only its own bytes. Without one, nothing is drawn but the initial.
+  final String? origin;
   final String? path;
 
   /// Supplies the initial for the fallback.
@@ -29,6 +34,7 @@ class StoredPicture extends StatelessWidget {
 
   const StoredPicture({
     super.key,
+    required this.origin,
     required this.path,
     required this.name,
     required this.size,
@@ -38,10 +44,12 @@ class StoredPicture extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final origin = this.origin;
     final path = this.path;
-    if (path == null) return _fallback();
+    if (origin == null || path == null) return _fallback();
+    final key = MediaStore.keyOf(origin, path);
     return BlocSelector<MediaCubit, MediaState, Uint8List?>(
-      selector: (state) => state.bytes(MediaKind.image, path),
+      selector: (state) => state.bytes(MediaKind.image, key),
       builder: (context, bytes) {
         // No picture yet → the same squircle-and-gradient everything else
         // uses, so a member with an avatar and one without still look like

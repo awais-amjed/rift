@@ -131,9 +131,11 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   `MediaCubit`.** A widget asks with `want` and selects its own entry (`StoredPicture`,
   `UserAvatar`, `ServerIcon`, `AttachmentImageThumb`); the code that fetches or uploads
   writes the store. Never hold fetched bytes in a widget: a failure there sticks, and nothing else hears when
-  the picture lands (`BEST_PRACTICES.md` §2). `MediaStore.images` also keeps avatars and icons
-  on disk between runs (`MediaDiskCache`), under the host each came from as well as its path,
-  so whatever loads or puts one passes its `origin` (without it, nothing is saved).
+  the picture lands (`BEST_PRACTICES.md` §2). `MediaStore.images` holds each avatar and icon
+  under the host it came from as well as its path (`MediaStore.keyOf`), in memory and on disk
+  between runs (`MediaDiskCache`), since a server chooses its own paths and could repeat
+  another's. So whatever loads or puts one passes its `origin`, and whatever draws one hands
+  `StoredPicture` the same host (without one, nothing is drawn or saved).
   Attachments never go to disk: they are decrypted message content.
 - **A conversation's saved copy is fed by the code that fetches its rows.** Each
   chat cubit holds a `SavedConversation`. A new path that brings rows in at the

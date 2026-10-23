@@ -36,7 +36,7 @@ class MediaCubit extends Cubit<MediaState> {
   late final StreamSubscription<String> _imageSub;
   late final StreamSubscription<String> _attachmentSub;
 
-  /// A failed fetch waiting to be tried again, by kind and path.
+  /// A failed fetch waiting to be tried again, by kind and key.
   final Map<String, Timer> _retries = {};
 
   /// How long to wait before each retry of a failed fetch. Past the last,
@@ -67,30 +67,32 @@ class MediaCubit extends Cubit<MediaState> {
          ),
        ) {
     _imageSub = _images.changes.listen(
-      (path) => _mirror(MediaKind.image, path),
+      (key) => _mirror(MediaKind.image, key),
     );
     _attachmentSub = _attachments.changes.listen(
-      (path) => _mirror(MediaKind.attachment, path),
+      (key) => _mirror(MediaKind.attachment, key),
     );
   }
 
-  /// Fetch [path] with [fetch] unless it is here or on its way.
+  /// Fetch the entry under [key] with [fetch] unless it is here or on its
+  /// way. A picture's key is `MediaStore.keyOf` its host and path, the one
+  /// [fetch] loads it under; an attachment's is its path.
   ///
   /// [fetch] has to go through the [MediaStore] for [kind] — `ProfileApi`'s
   /// `loadAvatar`, a chat's attachment loader — which is what puts the
   /// bytes where every widget sees them. It is kept while the fetch keeps
   /// failing, to try again on the [backoff] schedule.
-  void want(MediaKind kind, String path, Future<Uint8List?> Function() fetch) {
-    final status = _store(kind)[path]?.status;
+  void want(MediaKind kind, String key, Future<Uint8List?> Function() fetch) {
+    final status = _store(kind)[key]?.status;
     if (status == MediaStatus.success || status == MediaStatus.loading) return;
-    if (_retries.containsKey(_retryKey(kind, path))) return;
-    unawaited(_attempt(kind, path, fetch, 0));
+    if (_retries.containsKey(_retryKey(kind, key))) return;
+    unawaited(_attempt(kind, key, fetch, 0));
   }
 
   /// [want] for a directory listing's icon, from central's bucket.
   void wantDirectoryIcon(String path) => want(
     MediaKind.image,
-    path,
+    MediaStore.keyOf(SupabaseConfig.supabaseUrl, path),
     () => _images.load(
       path,
       () => _icons.download(path),
@@ -102,7 +104,7 @@ class MediaCubit extends Cubit<MediaState> {
   /// [supabaseUrl]. No session: the bucket is public, for the invite screen.
   void wantServerIcon(String supabaseUrl, String path) => want(
     MediaKind.image,
-    path,
+    MediaStore.keyOf(supabaseUrl, path),
     () => _images.load(
       path,
       () => _serverIcons.download(baseUrl: supabaseUrl, path: path),
@@ -112,7 +114,7 @@ class MediaCubit extends Cubit<MediaState> {
 
   Future<void> _attempt(
     MediaKind kind,
-    String path,
+    String key,
     Future<Uint8List?> Function() fetch,
     int tries,
   ) async {
@@ -120,24 +122,24 @@ class MediaCubit extends Cubit<MediaState> {
     if (isClosed || bytes != null || tries >= _backoff.length) return;
     // Gone from the store while it was failing: cleared or deleted, so
     // nothing wants it back.
-    if (_store(kind)[path] == null) return;
-    final key = _retryKey(kind, path);
-    _retries[key] = Timer(_backoff[tries], () {
-      _retries.remove(key);
-      if (!isClosed) unawaited(_attempt(kind, path, fetch, tries + 1));
+    if (_store(kind)[key] == null) return;
+    final retry = _retryKey(kind, key);
+    _retries[retry] = Timer(_backoff[tries], () {
+      _retries.remove(retry);
+      if (!isClosed) unawaited(_attempt(kind, key, fetch, tries + 1));
     });
   }
 
-  void _mirror(MediaKind kind, String path) {
+  void _mirror(MediaKind kind, String key) {
     if (isClosed) return;
-    final entry = _store(kind)[path];
+    final entry = _store(kind)[key];
     final current = kind == MediaKind.image ? state.images : state.attachments;
-    if (current[path] == entry) return;
+    if (current[key] == entry) return;
     final next = Map<String, MediaEntry>.of(current);
     if (entry == null) {
-      next.remove(path);
+      next.remove(key);
     } else {
-      next[path] = entry;
+      next[key] = entry;
     }
     emit(
       kind == MediaKind.image
@@ -149,7 +151,7 @@ class MediaCubit extends Cubit<MediaState> {
   MediaStore _store(MediaKind kind) =>
       kind == MediaKind.image ? _images : _attachments;
 
-  static String _retryKey(MediaKind kind, String path) => '${kind.name}:$path';
+  static String _retryKey(MediaKind kind, String key) => '${kind.name}:$key';
 
   @override
   Future<void> close() async {

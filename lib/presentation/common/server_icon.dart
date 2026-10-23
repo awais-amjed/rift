@@ -87,6 +87,7 @@ class _ServerIconState extends State<ServerIcon> {
 
   @override
   Widget build(BuildContext context) => StoredPicture(
+    origin: widget.supabaseUrl,
     path: _path,
     name: widget.name,
     seed: widget.serverId,

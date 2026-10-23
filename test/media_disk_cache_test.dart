@@ -113,7 +113,7 @@ void main() {
       }, origin: host);
       expect(bytes, pic);
       expect(fetched, 0);
-      expect(next[path]!.status, MediaStatus.success);
+      expect(next[MediaStore.keyOf(host, path)]!.status, MediaStatus.success);
     });
 
     test('an upload is saved too', () async {
