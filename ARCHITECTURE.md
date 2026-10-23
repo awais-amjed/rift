@@ -391,9 +391,8 @@ more can be sent as it is, and the composer says the server can see it before
 it goes. The file's name and the message stay sealed, and the sealed body
 carries a SHA-256 of the bytes, so the server can read the file but not swap
 it. It is badged NOT ENCRYPTED wherever it is drawn, with no setting, and a
-forward re-encrypts it. The body still writes `key` and `nonce`, empty, beside
-`plain` and `sha256`, so a client from before this fails to open the file and
-still shows the message. Never in a DM or a private channel: on a server from
+forward re-encrypts it. A client from before this fails to open the file and
+still shows the message (`WIRE.md` §8). Never in a DM or a private channel: on a server from
 before `chat_attachments_select` asked about the conversation, every member
 could fetch every stored file, so a plain file there would have been open to
 the whole server (found in the Oct 7 security review).
@@ -405,14 +404,11 @@ limit and records it, and no server's own cap goes past it (`max_file_bytes`).
 16 MB (`AttachmentStaging.inMemoryMaxBytes`) a file is only pointed at when it
 is staged, and is read, sealed and sent a chunk at a time:
 
-- *Sealed under STREAM* (aead's `stream` module): 1 MiB chunks, each its own
-  AES-GCM message under a nonce of a 7-byte prefix, the chunk's position and a
-  last-chunk flag, so the server cannot reorder, drop or cut off chunks without
-  a tag failing. The attachment carries `chunk` (the chunk size) and the prefix
-  in `nonce`; the layout follows from those and the size (`ChunkedLayout`), so
-  nothing is written into the blob. A client from before this fails the file's
-  tag and shows the rest of the message. Rust, the Dart reference the web uses,
-  and Python's AES-GCM agree on the same test chunks.
+- *Sealed under STREAM*: 1 MiB chunks, each its own AES-GCM message under a
+  nonce holding the chunk's position and whether it is the last, so the server
+  cannot reorder, drop or cut off chunks without a tag failing. Nothing about
+  the layout is written into the blob, so a client from before this fails the
+  file's tag and shows the rest of the message (`WIRE.md` §8, and its vectors).
 - *Uploaded over tus* (Storage's resumable upload), about 16 MB to a request,
   because a browser will not stream a request body; a failed request resumes
   from the offset the server reports.

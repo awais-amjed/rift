@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rift/data/classes/chunked_layout.dart';
 import 'package:rift_crypto/rift_crypto.dart';
 
 /// The formats a second implementation has to match, checked against numbers
@@ -248,5 +249,82 @@ void main() {
       ),
     );
     expect(ok, isTrue);
+  });
+
+  group('attachment files', () {
+    Uint8List b64(String key, Map<String, dynamic> v) =>
+        CryptoRepository.fromBase64(v[key] as String);
+
+    test('one piece, under its key and nonce', () async {
+      final v = section('attachment');
+      final plain = Uint8List.fromList(utf8.encode(v['plain_utf8'] as String));
+      final sealed = await CryptoRepository.blobCipher.seal(
+        data: plain,
+        key: b64('key_base64', v),
+        nonce: b64('nonce_base64', v),
+      );
+      expect(CryptoRepository.toBase64(sealed), v['sealed_base64']);
+      expect(
+        CryptoRepository.toBase64(await crypto.digestBytes(plain)),
+        v['sha256_base64'],
+      );
+    });
+
+    test('a chunk at a time, each knowing its place and the end', () async {
+      final v = section('chunked_attachment');
+      final key = b64('key_base64', v);
+      final prefix = b64('prefix_base64', v);
+      final layout = ChunkedLayout(
+        plainSize: v['size'] as int,
+        chunkSize: v['chunk'] as int,
+      );
+      expect(layout.sealedSize, v['sealed_size']);
+      final plain = Uint8List.fromList(
+        List.generate(layout.plainSize, (i) => i % 251),
+      );
+      final blob = BytesBuilder(copy: false);
+      for (var i = 0; i < layout.chunkCount; i++) {
+        expect(
+          CryptoRepository.toBase64(chunkNonce(prefix, i, layout.isLast(i))),
+          (v['chunk_nonces_base64'] as List)[i],
+        );
+        final start = layout.plainOffset(i);
+        final sealed = await crypto.sealChunk(
+          data: Uint8List.sublistView(
+            plain,
+            start,
+            start + layout.plainLength(i),
+          ),
+          key: key,
+          noncePrefix: prefix,
+          index: i,
+          last: layout.isLast(i),
+        );
+        expect(blob.length, layout.sealedOffset(i));
+        blob.add(sealed);
+      }
+      final whole = blob.takeBytes();
+      expect(
+        CryptoRepository.toBase64(
+          whole.sublist(layout.sealedOffset(layout.chunkCount - 1)),
+        ),
+        v['last_chunk_sealed_base64'],
+      );
+      expect(
+        CryptoRepository.toBase64(await crypto.digestBytes(whole)),
+        v['sealed_sha256_base64'],
+      );
+      // Cut off after a whole chunk: the new end was not sealed as the last.
+      await expectLater(
+        crypto.openChunk(
+          sealed: whole.sublist(layout.sealedOffset(1), layout.sealedOffset(2)),
+          key: key,
+          noncePrefix: prefix,
+          index: 1,
+          last: true,
+        ),
+        throwsA(anything),
+      );
+    });
   });
 }
