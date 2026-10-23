@@ -78,6 +78,22 @@ void main() {
       expect(d.storageUsed, isNull);
       expect(d.name, isNull);
       expect(d.livekitUrl, isNull);
+      expect(d.iconStated, isFalse);
+    });
+
+    // Found removing an icon on two clients, Oct 23: the row was cleared,
+    // the reply said `icon_url: null`, and every device kept the old icon,
+    // because null here otherwise means "not mentioned".
+    test('a server with no icon says so, unlike a reply that omits it', () {
+      final none = ServerDetails.fromJson(reply()..['icon_url'] = null);
+      expect(none.iconPath, isNull);
+      expect(none.iconStated, isTrue);
+
+      expect(ServerDetails.fromJson(reply()).iconStated, isTrue);
+      expect(
+        ServerDetails.fromJson(reply()..remove('icon_url')).iconStated,
+        isFalse,
+      );
     });
 
     // An older server has the original columns but not the call and size limits. That reply

@@ -73,22 +73,21 @@ void main() {
 
     tearDown(() => media.close());
 
-    Future<void> pump(WidgetTester tester, String? path) =>
-        tester.pumpWidget(
-          BlocProvider.value(
-            value: media,
-            child: Directionality(
-              textDirection: TextDirection.ltr,
-              child: ServerIcon(
-                supabaseUrl: 'https://srv.example',
-                serverId: id,
-                name: 'Alpha',
-                iconPath: path,
-                size: 40,
-              ),
-            ),
+    Future<void> pump(WidgetTester tester, String? path) => tester.pumpWidget(
+      BlocProvider.value(
+        value: media,
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: ServerIcon(
+            supabaseUrl: 'https://srv.example',
+            serverId: id,
+            name: 'Alpha',
+            iconPath: path,
+            size: 40,
           ),
-        );
+        ),
+      ),
+    );
 
     testWidgets('fetches its own icon from its own host', (tester) async {
       await pump(tester, own);

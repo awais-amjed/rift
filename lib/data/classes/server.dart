@@ -229,11 +229,12 @@ class Server extends Equatable {
     int? maxFileBytes,
     List<LiveKitNode>? livekitNodes,
     bool clearUser = false,
+    bool clearIcon = false,
   }) {
     return Server(
       id: id ?? this.id,
       name: name ?? this.name,
-      iconPath: iconPath ?? this.iconPath,
+      iconPath: clearIcon ? null : (iconPath ?? this.iconPath),
       supabaseUrl: supabaseUrl ?? this.supabaseUrl,
       supabaseKey: supabaseKey ?? this.supabaseKey,
       livekitUrl: livekitUrl ?? this.livekitUrl,

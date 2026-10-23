@@ -19,6 +19,7 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
     ServerLimits? limits,
     int? storageUsed,
     bool clearUser = false,
+    bool clearIcon = false,
   });
 
   /// Implemented by [ServerCubit]: land a whole `get_server_details()` reply.

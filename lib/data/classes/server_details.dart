@@ -22,9 +22,16 @@ import 'server_user.dart';
 /// row and an empty channel list, and turning that into
 /// [ServerLimits.defaults] would quietly wipe an operator's caps. Callers hand
 /// these straight to `copyWith`, which leaves a null alone.
+///
+/// The icon is the one field where a null is also an answer: a server with no
+/// icon says `icon_url: null`, and the banned shape says nothing.
+/// [iconStated] tells them apart, or a removed icon stayed on every device.
 class ServerDetails extends Equatable {
   final String? name;
   final String? iconPath;
+
+  /// Whether the reply said what the icon is, [iconPath] null meaning none.
+  final bool iconStated;
   final String? livekitUrl;
   final String? supabaseKey;
   final ServerUser? user;
@@ -41,6 +48,7 @@ class ServerDetails extends Equatable {
   const ServerDetails({
     this.name,
     this.iconPath,
+    this.iconStated = false,
     this.livekitUrl,
     this.supabaseKey,
     this.user,
@@ -61,6 +69,7 @@ class ServerDetails extends Equatable {
     return ServerDetails(
       name: json['name'] as String?,
       iconPath: json['icon_url'] as String?,
+      iconStated: json.containsKey('icon_url'),
       livekitUrl: json['livekit_url'] as String?,
       supabaseKey: json['supabase_key'] as String?,
       user: json['user'] != null
@@ -84,6 +93,7 @@ class ServerDetails extends Equatable {
   List<Object?> get props => [
     name,
     iconPath,
+    iconStated,
     livekitUrl,
     supabaseKey,
     user,

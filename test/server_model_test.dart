@@ -63,6 +63,13 @@ void main() {
       expect(after.iconPath, 'srv-1/0a1b2c3d.img');
       expect(after.limits, isNotNull);
     });
+
+    test('a removed icon is cleared, and only when asked', () {
+      final after = full().copyWith(clearIcon: true);
+
+      expect(after.iconPath, isNull);
+      expect(after.name, 'Cartography Club');
+    });
   });
 
   group('Server token freshness', () {

@@ -209,6 +209,7 @@ class ServerCubit extends HydratedCubit<ServerState>
     int? maxFileBytes,
     List<LiveKitNode>? livekitNodes,
     bool clearUser = false,
+    bool clearIcon = false,
   }) {
     final updated = state.servers.map((s) {
       if (s.id != serverId) return s;
@@ -226,6 +227,7 @@ class ServerCubit extends HydratedCubit<ServerState>
         maxFileBytes: maxFileBytes,
         livekitNodes: livekitNodes,
         clearUser: clearUser,
+        clearIcon: clearIcon,
       );
     }).toList();
     emit(state.copyWith(servers: updated));
@@ -257,6 +259,7 @@ class ServerCubit extends HydratedCubit<ServerState>
       token: token,
       name: details.name,
       iconPath: details.iconPath,
+      clearIcon: details.iconStated && details.iconPath == null,
       livekitUrl: details.livekitUrl,
       supabaseKey: details.supabaseKey,
       user: details.user,
