@@ -14,6 +14,7 @@ import 'stream_quality_badge.dart';
 import 'stream_stats_poller.dart';
 import 'stream_view.dart';
 import 'stream_view_buttons.dart';
+import 'stream_watchers.dart';
 import 'watch_stream_button.dart';
 
 /// A participant as they appear in the grid: video or avatar in a rounded
@@ -35,6 +36,10 @@ class CollapsedParticipantTile extends StatelessWidget {
   final bool isPushToTalkIdle;
   final bool isDeafened;
   final bool isScreenshare;
+
+  /// The stream's identity, for showing who is watching it ([StreamWatchers]),
+  /// whether or not you are. Null on a camera tile.
+  final String? shareIdentity;
 
   /// The stream's shared window is minimised or gone, so the picture is the
   /// last frame, or there is none yet — see [SharePausedNotice].
@@ -68,6 +73,7 @@ class CollapsedParticipantTile extends StatelessWidget {
     this.isPushToTalkIdle = false,
     this.isDeafened = false,
     required this.isScreenshare,
+    this.shareIdentity,
     this.isPaused = false,
     this.sentQuality,
     required this.showWatchButton,
@@ -124,6 +130,12 @@ class CollapsedParticipantTile extends StatelessWidget {
               // on a minimised window has no picture until the window is opened.
               if (isPaused && !showWatchButton) const SharePausedNotice(),
               if (showWatchButton) WatchStreamButton(onTap: onWatch),
+              if (shareIdentity case final share?)
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: StreamWatchers(shareIdentity: share),
+                ),
               if (onView != null)
                 Positioned(
                   bottom: 12,

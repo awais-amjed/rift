@@ -388,6 +388,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
           ),
           isDeafened: isDeafened,
           isScreenshare: _isScreenshare,
+          shareIdentity: _isScreenshare ? widget.participant.identity : null,
           isPaused: isPaused,
           sentQuality: sentQuality,
           showWatchButton: _isScreenshare && !isSubscribed,
