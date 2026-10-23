@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../data/classes/media_entry.dart';
 import '../../../data/repositories/directory_icon_repository.dart';
+import '../../../data/repositories/server_icon_repository.dart';
 import '../../services/media_store.dart';
 
 part 'media_state.dart';
@@ -29,6 +30,7 @@ class MediaCubit extends Cubit<MediaState> {
   final MediaStore _images;
   final MediaStore _attachments;
   final DirectoryIconRepository _icons;
+  final ServerIconRepository _serverIcons;
 
   late final StreamSubscription<String> _imageSub;
   late final StreamSubscription<String> _attachmentSub;
@@ -50,11 +52,13 @@ class MediaCubit extends Cubit<MediaState> {
     MediaStore? images,
     MediaStore? attachments,
     DirectoryIconRepository? icons,
+    ServerIconRepository? serverIcons,
     List<Duration> retryAfter = backoff,
   }) : _images = images ?? MediaStore.images,
        _backoff = retryAfter,
        _attachments = attachments ?? MediaStore.attachments,
        _icons = icons ?? DirectoryIconRepository(),
+       _serverIcons = serverIcons ?? ServerIconRepository(),
        super(
          MediaState(
            images: (images ?? MediaStore.images).snapshot,
@@ -87,6 +91,17 @@ class MediaCubit extends Cubit<MediaState> {
     MediaKind.image,
     path,
     () => _images.load(path, () => _icons.download(path)),
+  );
+
+  /// [want] for a server's own icon, from that server's public bucket at
+  /// [supabaseUrl]. No session: the bucket is public, for the invite screen.
+  void wantServerIcon(String supabaseUrl, String path) => want(
+    MediaKind.image,
+    path,
+    () => _images.load(
+      path,
+      () => _serverIcons.download(baseUrl: supabaseUrl, path: path),
+    ),
   );
 
   Future<void> _attempt(

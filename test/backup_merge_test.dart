@@ -6,11 +6,11 @@ void main() {
     String id, {
     String url = 'https://one.example',
     String? name,
-    String? iconUrl,
+    String? iconPath,
   }) => {
     'id': id,
     'name': name ?? id,
-    'iconUrl': iconUrl,
+    'iconUrl': iconPath,
     'supabaseUrl': url,
     'supabaseKey': 'key',
     'livekitUrl': 'wss://lk.example',
@@ -129,10 +129,10 @@ void main() {
           ],
         ),
         theirs: ServerManifest(
-          servers: [server('a', iconUrl: 'https://cdn/icon.png')],
+          servers: [server('a', iconPath: 'a/0a1b2c3d.img')],
         ),
       );
-      expect(merged.servers.single['iconUrl'], 'https://cdn/icon.png');
+      expect(merged.servers.single['iconUrl'], 'a/0a1b2c3d.img');
       expect(merged.servers.single['livekitUrl'], 'wss://lk.example');
     });
 

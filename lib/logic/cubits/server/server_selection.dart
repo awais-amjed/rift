@@ -9,7 +9,7 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
   void updateServer(
     String serverId, {
     String? name,
-    String? iconUrl,
+    String? iconPath,
     String? supabaseKey,
     String? livekitUrl,
     String? token,
@@ -193,7 +193,7 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
         Server(
           id: id,
           name: (meta['name'] as String?) ?? 'Server',
-          iconUrl: meta['iconUrl'] as String?,
+          iconPath: meta['iconUrl'] as String?,
           supabaseUrl: url,
           supabaseKey: meta['supabaseKey'] as String?,
           livekitUrl: meta['livekitUrl'] as String?,

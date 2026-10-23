@@ -5,7 +5,7 @@ import '../../../../../../data/classes/server.dart';
 import '../../../../../../data/constants.dart';
 import '../../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../../../../../common/context_menu_region.dart';
-import '../../../../../common/squircle_avatar.dart';
+import '../../../../../common/server_icon.dart';
 import '../../../../../theme/app_motion.dart';
 import '../../../../../theme/theme_context.dart';
 import 'rail_unread_badge.dart';
@@ -79,10 +79,8 @@ class _RailServerChipState extends State<RailServerChip> {
                 AnimatedOpacity(
                   duration: AppMotion.state,
                   opacity: widget.isSelected || _hovered ? 1 : 0.85,
-                  child: SquircleAvatar(
-                    name: widget.server.name,
-                    seed: widget.server.id,
-                    imageUrl: widget.server.iconUrl,
+                  child: ServerIcon.of(
+                    widget.server,
                     size: K.serverRailChipSize,
                     // Stated rather than left to the avatar's size/3, so
                     // the halo's corners can be derived from the same

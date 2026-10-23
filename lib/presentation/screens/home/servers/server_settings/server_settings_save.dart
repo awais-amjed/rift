@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../../../../../data/apis/invites_api.dart';
 import '../../../../../data/apis/server_api.dart';
 import '../../../../../data/classes/server.dart';
@@ -17,6 +19,11 @@ import 'listing_draft.dart';
 class ServerSettingsSave {
   /// Returns null when everything landed, or the sentence to show when it didn't.
   ///
+  /// [newIcon] is a picked picture, already prepared; [removeIcon] takes the
+  /// icon away. The picture is uploaded before the row is written, and the
+  /// row's update carries its path with the name, so a failed upload changes
+  /// nothing at all.
+  ///
   /// Neither the operator limits nor the LiveKit connection are here: they are
   /// the Limits and Regions pages', and each saves its own — `update_server`
   /// leaves out what it isn't sent, so the three pages cannot tread on each
@@ -30,15 +37,33 @@ class ServerSettingsSave {
     required InvitesApi invites,
     required PublicServersCubit publicServers,
     required int memberCount,
+    Uint8List? newIcon,
+    bool removeIcon = false,
   }) async {
-    final result = await serverApi.updateServerDetails(name: name);
+    var iconPath = removeIcon ? null : server.iconPath;
+    String? uploaded;
+    if (newIcon != null) {
+      final upload = await serverApi.uploadIcon(newIcon);
+      if (upload.path == null) {
+        return upload.error ?? 'The icon could not be uploaded';
+      }
+      iconPath = uploaded = upload.path;
+    }
+
+    final result = await serverApi.updateServerDetails(
+      name: name,
+      iconPath: uploaded,
+      clearIcon: removeIcon && uploaded == null,
+    );
     if (!result.success) return result.error ?? 'Failed to update server';
-    // A rename shows in every member's rail, so they re-read now.
+    // A rename or a new icon shows in every member's rail, so they re-read
+    // now.
     events.notifyServerChanged(server.id);
 
     return ListingActions.save(
       server: server,
       name: name,
+      iconPath: iconPath,
       draft: draft,
       serverApi: serverApi,
       invites: invites,

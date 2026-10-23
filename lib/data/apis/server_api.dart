@@ -1,4 +1,8 @@
+import 'dart:typed_data';
+
+import '../../logic/services/media_store.dart';
 import '../classes/server_limits.dart';
+import '../repositories/server_icon_repository.dart';
 import '../repositories/server_repository.dart';
 import '../repositories/server_session.dart';
 import '../repositories/session_repository.dart';
@@ -20,6 +24,7 @@ class ServerApi {
   SessionRepository get _session => _target.session;
 
   ServerRepository get _repository => _session.repository;
+  ServerIconRepository get _icons => _session.icons;
 
   /// A one-time token proving an admin of the server wants it listed.
   ///
@@ -58,9 +63,13 @@ class ServerApi {
   ///
   /// Ends with a re-read rather than applying the reply by hand: the server
   /// may clamp or refuse a limit, and the re-read shows what it stored.
+  ///
+  /// [iconPath] is an icon [uploadIcon] has stored; [clearIcon] takes the icon
+  /// away, which a null [iconPath] does not.
   Future<({bool success, String? error})> updateServerDetails({
     String? name,
-    String? iconUrl,
+    String? iconPath,
+    bool clearIcon = false,
     String? livekitUrl,
     String? livekitApiKey,
     String? livekitSecretKey,
@@ -77,7 +86,8 @@ class ServerApi {
         server.supabaseUrl,
         bearerToken: token,
         name: name,
-        iconUrl: iconUrl,
+        iconPath: iconPath,
+        clearIcon: clearIcon,
         livekitUrl: livekitUrl,
         livekitApiKey: livekitApiKey,
         livekitSecretKey: livekitSecretKey,
@@ -94,6 +104,41 @@ class ServerApi {
 
     await _session.refreshDetails(server);
     return (success: true, error: null);
+  }
+
+  /// Store [png] (already prepared by `AvatarImage.prepare`) as a new icon,
+  /// and answer its path for [updateServerDetails] to point the server at.
+  ///
+  /// Two steps rather than one, so the caller can save the icon in the same
+  /// `update_server` as the rest of the form. The old icon is left where it
+  /// is: a member may still be drawing it, and the server's sweep collects an
+  /// icon no server names.
+  Future<({String? path, String? error})> uploadIcon(Uint8List png) async {
+    final server = _target.server;
+    final anonKey = server?.supabaseKey;
+    if (server == null || anonKey == null) {
+      return (path: null, error: ServerSession.gone);
+    }
+
+    final uploaded = await _session.callFor(
+      server,
+      (token) => _icons.upload(
+        baseUrl: server.supabaseUrl,
+        anonKey: anonKey,
+        bearerToken: token,
+        serverId: server.id,
+        data: png,
+      ),
+    );
+    if (!uploaded.success) {
+      return (path: null, error: uploaded.error ?? 'Icon upload failed');
+    }
+
+    final path = uploaded.data as String;
+    // In the store before the row moves, so the re-read that lands the new
+    // path draws it without fetching back what was just sent.
+    MediaStore.images.put(path, png);
+    return (path: path, error: null);
   }
 
   /// The default voice region's address and key, which are the *server's*

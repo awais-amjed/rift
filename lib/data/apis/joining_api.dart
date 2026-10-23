@@ -25,7 +25,6 @@ class JoiningApi {
     required String supabaseUrl,
     required String serviceKey,
     required String name,
-    String? iconUrl,
     required String livekitUrl,
     required String livekitApiKey,
     required String livekitSecretKey,
@@ -34,7 +33,6 @@ class JoiningApi {
       supabaseUrl,
       serviceKey: serviceKey,
       name: name,
-      iconUrl: iconUrl,
       livekitUrl: livekitUrl,
       livekitApiKey: livekitApiKey,
       livekitSecretKey: livekitSecretKey,
@@ -84,6 +82,7 @@ class JoiningApi {
         inviteCode: link.inviteCode,
         serverId: resolved.serverId!,
         serverName: resolved.serverName ?? link.serverUrl,
+        iconPath: resolved.iconPath,
       ),
       error: null,
     );

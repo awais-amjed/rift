@@ -4,7 +4,7 @@ import '../../../../../data/classes/server.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
-import '../../../../common/squircle_avatar.dart';
+import '../../../../common/server_icon.dart';
 import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
@@ -55,12 +55,7 @@ class ServerHeader extends StatelessWidget {
         child: Row(
           spacing: 11,
           children: [
-            SquircleAvatar(
-              name: server.name,
-              seed: server.id,
-              imageUrl: server.iconUrl,
-              size: 38,
-            ),
+            ServerIcon.of(server, size: 38),
             Expanded(child: _buildIdentity(themeState)),
             if (onInvite != null) _buildInviteButton(themeState),
             if (showHideButton) _buildHideButton(context, themeState),

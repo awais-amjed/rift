@@ -24,7 +24,6 @@ mixin _ServerApiMixin {
     String supabaseUrl, {
     required String serviceKey,
     required String name,
-    String? iconUrl,
     required String livekitUrl,
     required String livekitApiKey,
     required String livekitSecretKey,
@@ -32,7 +31,6 @@ mixin _ServerApiMixin {
     return _post(supabaseUrl, 'create_server', {
       'service_key': serviceKey,
       'name': name,
-      'icon_url': iconUrl,
       'livekit_url': livekitUrl,
       'livekit_api_key': livekitApiKey,
       'livekit_secret_key': livekitSecretKey,
@@ -90,7 +88,8 @@ mixin _ServerApiMixin {
     String supabaseUrl, {
     String? bearerToken,
     String? name,
-    String? iconUrl,
+    String? iconPath,
+    bool clearIcon = false,
     String? livekitUrl,
     String? livekitApiKey,
     String? livekitSecretKey,
@@ -98,7 +97,7 @@ mixin _ServerApiMixin {
   }) {
     return _post(supabaseUrl, 'update_server', {
       'name': ?name,
-      'icon_url': ?iconUrl,
+      if (clearIcon) 'icon_url': null else 'icon_url': ?iconPath,
       'livekit_url': ?livekitUrl,
       'livekit_api_key': ?livekitApiKey,
       'livekit_secret_key': ?livekitSecretKey,

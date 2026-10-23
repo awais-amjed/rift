@@ -5,11 +5,12 @@ import '../../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dar
 import '../../../../../common/modal_columns.dart';
 import '../listing_draft.dart';
 import 'server_discovery_section.dart';
+import 'server_icon_picker.dart';
 import 'server_identity_section.dart';
 import 'server_push_section.dart';
 
 /// The two groups of server settings that say what a server *is*: what it is
-/// called, and who can find it. What it is allowed to grow into is the Limits
+/// called and looks like, and who can find it. What it is allowed to grow into is the Limits
 /// page's, and where its calls are held is the Regions page's.
 ///
 /// Columns rather than one long page because a settings form is a handful of
@@ -18,6 +19,10 @@ import 'server_push_section.dart';
 /// still stacks them if the window is genuinely narrow.
 class ServerSettingsForm extends StatelessWidget {
   final TextEditingController nameCtrl;
+
+  /// Built by the page, which holds the picked icon until Save.
+  final ServerIconPicker iconPicker;
+
   final ListingDraft listing;
 
   /// This server's member count for the discovery disclosure, or null while the
@@ -45,6 +50,7 @@ class ServerSettingsForm extends StatelessWidget {
   const ServerSettingsForm({
     super.key,
     required this.nameCtrl,
+    required this.iconPicker,
     required this.listing,
     required this.memberCount,
     required this.enabled,
@@ -62,10 +68,14 @@ class ServerSettingsForm extends StatelessWidget {
     // The failure is the page's to show, above this: see ManagePanel.fill.
     return ModalColumns(
       children: [
-        // One field in its own column, because the column beside it is
-        // the pair of settings that reach central and the rule between
-        // them is the honest division: this one is the server's own.
-        ServerIdentitySection(nameCtrl: nameCtrl, enabled: enabled),
+        // Name and icon in their own column, because the column beside it
+        // is the pair of settings that reach central and the rule between
+        // them is the honest division: these are the server's own.
+        ServerIdentitySection(
+          nameCtrl: nameCtrl,
+          iconPicker: iconPicker,
+          enabled: enabled,
+        ),
         // Discovery and notifications share a column because they are the
         // same kind of setting — the two things this server asks central
         // for, and the two an operator can withdraw.

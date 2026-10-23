@@ -6,7 +6,7 @@ import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/context_menu_region.dart';
-import '../../../../common/squircle_avatar.dart';
+import '../../../../common/server_icon.dart';
 import '../../../../common/unread_badge.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../../../theme/theme_context.dart';
@@ -68,12 +68,7 @@ class SwitcherServerRow extends StatelessWidget {
       contextMenu: ServerChipMenu(server: server),
       child: SwitcherRow(
         selected: selected,
-        leading: SquircleAvatar(
-          name: server.name,
-          seed: server.id,
-          imageUrl: server.iconUrl,
-          size: SwitcherRow.leadingSize,
-        ),
+        leading: ServerIcon.of(server, size: SwitcherRow.leadingSize),
         title: server.name,
         subtitle: Row(
           spacing: 5,

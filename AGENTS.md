@@ -129,8 +129,8 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
 - Enums carry their own `fromString` / `toJson` conversions (see `channel_type.dart`).
 - **A picture from storage has one copy, in `MediaStore`, and widgets draw it from
   `MediaCubit`.** A widget asks with `want` and selects its own entry (`StoredPicture`,
-  `UserAvatar`, `AttachmentImageThumb`); the code that fetches or uploads writes the store.
-  Never hold fetched bytes in a widget: a failure there sticks, and nothing else hears when
+  `UserAvatar`, `ServerIcon`, `AttachmentImageThumb`); the code that fetches or uploads
+  writes the store. Never hold fetched bytes in a widget: a failure there sticks, and nothing else hears when
   the picture lands (`BEST_PRACTICES.md` §2).
 - **A conversation's saved copy is fed by the code that fetches its rows.** Each
   chat cubit holds a `SavedConversation`. A new path that brings rows in at the
@@ -263,7 +263,8 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   Paste can attach more than text, as in the composer. `test/text_field_menu_test.dart` fails on
   one that forgets.
 - **Shared UI to reuse before hand-rolling:** `AppPanel` (a floating panel), `CanvasBackdrop`
-  (the lit ground), `NavRow` (any navigable sidebar row), `SquircleAvatar` / `UserAvatar`,
+  (the lit ground), `NavRow` (any navigable sidebar row), `SquircleAvatar` / `UserAvatar`
+  / `ServerIcon` (a server's picture, never `SquircleAvatar` on its row's URL),
   `RoundedPicture` (an avatar or icon picture: never a `ClipRRect` round the image, since on
   some Linux drivers the clip drops on some frames and the picture flickers square),
   `SpeakingRing`, `StatusChip`, `ContextMenuPanel` + `ContextMenuItem`, `TapToFocus`,

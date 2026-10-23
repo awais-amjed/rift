@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -10,17 +12,19 @@ import '../../../../../../logic/cubits/public_servers/public_servers_cubit.dart'
 import '../../../../../../logic/cubits/server_events/server_events_cubit.dart';
 import '../../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../../../logic/helper_methods.dart';
+import '../../../../../../logic/services/pick_picture.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/server_scope.dart';
 import '../../server_settings/listing_actions.dart';
 import '../../server_settings/listing_draft.dart';
 import '../../server_settings/push_toggle.dart';
 import '../../server_settings/server_settings_save.dart';
+import '../../server_settings/widgets/server_icon_picker.dart';
 import '../../server_settings/widgets/server_settings_form.dart';
 import '../widgets/manage_panel.dart';
 
-/// Over the widget budget and one job: a form: name, directory listing and
-/// push.
+/// Over the widget budget and one job: a form: name, icon, directory listing
+/// and push.
 ///
 /// The overview page of the manage-server dialog: display name, whether the
 /// server is in the central directory, and whether it may wake its members'
@@ -61,6 +65,10 @@ class _OverviewPanelState extends State<OverviewPanel> {
   /// Whether this server may wake its members' phones. Null until the server
   /// has been asked — the toggle is inert rather than lying about being off.
   bool? _pushEnabled;
+
+  /// A picked icon, or a removal, waiting for Save.
+  Uint8List? _pickedIcon;
+  bool _removeIcon = false;
 
   bool _isLoading = false;
   String? _error;
@@ -141,6 +149,23 @@ class _OverviewPanelState extends State<OverviewPanel> {
     }
   }
 
+  Future<void> _pickIcon() async {
+    final picked = await pickPicture(context: 'Server icon');
+    if (!mounted || (picked.bytes == null && picked.error == null)) return;
+    setState(() {
+      _error = picked.error;
+      if (picked.bytes != null) {
+        _pickedIcon = picked.bytes;
+        _removeIcon = false;
+      }
+    });
+  }
+
+  void _clearIcon() => setState(() {
+    _pickedIcon = null;
+    _removeIcon = widget.server.iconPath != null;
+  });
+
   Future<void> _submit() async {
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) {
@@ -164,6 +189,8 @@ class _OverviewPanelState extends State<OverviewPanel> {
       // Whatever the listing already says, if this server's roster never
       // arrived — better a stale count than publishing zero over a real one.
       memberCount: _memberCount ?? _listing.listing?.memberCount ?? 0,
+      newIcon: _pickedIcon,
+      removeIcon: _removeIcon,
     );
 
     if (!mounted) return;
@@ -176,7 +203,11 @@ class _OverviewPanelState extends State<OverviewPanel> {
       return;
     }
 
-    setState(() => _isLoading = false);
+    setState(() {
+      _isLoading = false;
+      _pickedIcon = null;
+      _removeIcon = false;
+    });
     HelperMethods.showSuccess(message: 'Server settings updated');
   }
 
@@ -212,6 +243,15 @@ class _OverviewPanelState extends State<OverviewPanel> {
       ],
       child: ServerSettingsForm(
         nameCtrl: _nameCtrl,
+        iconPicker: ServerIconPicker(
+          server: widget.server,
+          name: _nameCtrl.text,
+          picked: _pickedIcon,
+          removing: _removeIcon,
+          enabled: !_isLoading,
+          onPick: _pickIcon,
+          onRemove: _clearIcon,
+        ),
         listing: _listing,
         memberCount: _memberCount,
         enabled: !_isLoading,

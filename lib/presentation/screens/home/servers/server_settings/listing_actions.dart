@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../../data/apis/invites_api.dart';
 import '../../../../../data/apis/server_api.dart';
 import '../../../../../data/classes/server.dart';
+import '../../../../../data/repositories/server_icon_repository.dart';
 import '../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
 import '../../../../common/confirm_dialog.dart';
 import 'listing_draft.dart';
@@ -20,9 +21,13 @@ class ListingActions {
   /// Returns null on success, or the sentence to show when the settings saved
   /// and the listing did not — the outcome a single "Saved" would have lied
   /// about.
+  ///
+  /// [iconPath] is the server's icon as this Save left it, which [server],
+  /// read when the dialog opened, may not show yet.
   static Future<String?> save({
     required Server server,
     required String name,
+    required String? iconPath,
     required ListingDraft draft,
     required ServerApi serverApi,
     required InvitesApi invites,
@@ -57,7 +62,11 @@ class ListingActions {
       // in the same Save that applied it.
       name: name,
       description: draft.description,
-      iconSourceUrl: server.iconUrl,
+      iconSourceUrl: ServerIconRepository.publicUrlOf(
+        server.supabaseUrl,
+        server.id,
+        iconPath,
+      ),
       tags: draft.tags,
       memberCount: memberCount,
       isListed: draft.isListed,

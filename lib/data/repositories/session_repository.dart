@@ -13,6 +13,7 @@ import '../member_cache.dart';
 import 'attachment_repository.dart';
 import 'avatar_repository.dart';
 import 'secure_storage_repository.dart';
+import 'server_icon_repository.dart';
 import 'server_repository.dart';
 import 'server_session.dart';
 import 'voice_region_probe.dart';
@@ -44,6 +45,7 @@ class SessionRepository {
   final ServerRepository _servers;
   final AttachmentRepository _attachments;
   final AvatarRepository _avatars;
+  final ServerIconRepository _icons;
   final CryptoRepository _crypto;
   final SecureStorageRepository _storage;
 
@@ -51,11 +53,13 @@ class SessionRepository {
     ServerRepository? servers,
     AttachmentRepository? attachments,
     AvatarRepository? avatars,
+    ServerIconRepository? icons,
     CryptoRepository? crypto,
     SecureStorageRepository? storage,
   }) : _servers = servers ?? ServerRepository(),
        _attachments = attachments ?? AttachmentRepository(),
        _avatars = avatars ?? AvatarRepository(),
+       _icons = icons ?? ServerIconRepository(),
        _crypto = crypto ?? CryptoRepository(),
        _storage = storage ?? SecureStorageRepository();
 
@@ -73,6 +77,9 @@ class SessionRepository {
 
   /// And for the members' pictures.
   AvatarRepository get avatars => _avatars;
+
+  /// And for the servers' own icons.
+  ServerIconRepository get icons => _icons;
 
   List<Server> get servers => _list;
   String? get selectedServerId => _selectedId;

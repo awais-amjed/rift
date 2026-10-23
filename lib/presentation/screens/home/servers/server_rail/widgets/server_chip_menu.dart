@@ -13,8 +13,8 @@ import '../../../../../common/context_menu/context_menu_item.dart';
 import '../../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../../common/context_menu/context_menu_scope.dart';
 import '../../../../../common/notifications/notification_level_submenu.dart';
+import '../../../../../common/server_icon.dart';
 import '../../../../../common/server_scope.dart';
-import '../../../../../common/squircle_avatar.dart';
 import '../../../../../common/unread_badge.dart';
 import '../../../invites/show_invite_modal.dart';
 import '../../manage/server_manage_tab.dart';
@@ -54,12 +54,7 @@ class ServerChipMenu extends StatelessWidget {
       heading: 'Server',
       subheading: server.name,
       caption: Uri.tryParse(server.supabaseUrl)?.host,
-      leading: SquircleAvatar(
-        name: server.name,
-        seed: server.id,
-        imageUrl: server.iconUrl,
-        size: 24,
-      ),
+      leading: ServerIcon.of(server, size: 24),
       children: [
         NotificationLevelSubmenu(
           current: context.select<ServerNotificationsCubit, NotificationLevel>(

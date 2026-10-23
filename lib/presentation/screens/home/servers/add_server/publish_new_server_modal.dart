@@ -6,6 +6,7 @@ import '../../../../../data/apis/server_api.dart';
 import '../../../../../data/classes/directory_tags.dart';
 import '../../../../../data/classes/public_server.dart';
 import '../../../../../data/constants.dart';
+import '../../../../../data/repositories/server_icon_repository.dart';
 import '../../../../../data/repositories/session_repository.dart';
 import '../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
@@ -146,7 +147,11 @@ class _PublishNewServerModalState extends State<PublishNewServerModal> {
       name: server.name,
       listingToken: proof.token!,
       description: description.isEmpty ? null : description,
-      iconSourceUrl: server.iconUrl,
+      iconSourceUrl: ServerIconRepository.publicUrlOf(
+        server.supabaseUrl,
+        server.id,
+        server.iconPath,
+      ),
       tags: DirectoryTags.withPending(_tags, _tagCtrl.text),
       // Brand new, so its only member is the admin who just registered — the
       // roster fetch for it may not even have landed yet.

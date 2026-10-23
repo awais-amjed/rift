@@ -7,8 +7,8 @@ import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../common/server_icon.dart';
 import '../../../../common/server_scope.dart';
-import '../../../../common/squircle_avatar.dart';
 import '../../../../common/unread_dot.dart';
 import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_text.dart';
@@ -51,7 +51,9 @@ class SwitcherHeader extends StatelessWidget {
     final serverId = ServerScope.idOf(context);
     final server = context.select<ServerCubit, _ServerIdentity?>((c) {
       final s = c.state.serverOn(serverId);
-      return s == null ? null : _ServerIdentity(s.id, s.name, s.iconUrl);
+      return s == null
+          ? null
+          : _ServerIdentity(s.id, s.name, s.iconPath, s.supabaseUrl);
     });
     final onHome = surface == HomeSurface.centralDms;
     final elsewhere = _unreadElsewhere(context, onHome ? null : server?.id);
@@ -87,10 +89,11 @@ class SwitcherHeader extends StatelessWidget {
                         children: [
                           onHome || server == null
                               ? SwitcherHomeMark(isHome: onHome)
-                              : SquircleAvatar(
+                              : ServerIcon(
+                                  supabaseUrl: server.supabaseUrl,
+                                  serverId: server.id,
                                   name: server.name,
-                                  seed: server.id,
-                                  imageUrl: server.iconUrl,
+                                  iconPath: server.iconPath,
                                   size: avatarSize,
                                 ),
                           if (elsewhere)
@@ -189,17 +192,19 @@ class SwitcherHeader extends StatelessWidget {
 class _ServerIdentity {
   final String id;
   final String name;
-  final String? iconUrl;
+  final String? iconPath;
+  final String supabaseUrl;
 
-  const _ServerIdentity(this.id, this.name, this.iconUrl);
+  const _ServerIdentity(this.id, this.name, this.iconPath, this.supabaseUrl);
 
   @override
   bool operator ==(Object other) =>
       other is _ServerIdentity &&
       other.id == id &&
       other.name == name &&
-      other.iconUrl == iconUrl;
+      other.iconPath == iconPath &&
+      other.supabaseUrl == supabaseUrl;
 
   @override
-  int get hashCode => Object.hash(id, name, iconUrl);
+  int get hashCode => Object.hash(id, name, iconPath, supabaseUrl);
 }

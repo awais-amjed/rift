@@ -67,7 +67,7 @@ class ServerImportMerge {
             Server(
               id: id,
               name: (meta['name'] as String?) ?? 'Server',
-              iconUrl: meta['iconUrl'] as String?,
+              iconPath: meta['iconUrl'] as String?,
               supabaseUrl: url,
               supabaseKey: meta['supabaseKey'] as String?,
               livekitUrl: meta['livekitUrl'] as String?,

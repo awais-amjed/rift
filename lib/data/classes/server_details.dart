@@ -24,7 +24,7 @@ import 'server_user.dart';
 /// these straight to `copyWith`, which leaves a null alone.
 class ServerDetails extends Equatable {
   final String? name;
-  final String? iconUrl;
+  final String? iconPath;
   final String? livekitUrl;
   final String? supabaseKey;
   final ServerUser? user;
@@ -40,7 +40,7 @@ class ServerDetails extends Equatable {
 
   const ServerDetails({
     this.name,
-    this.iconUrl,
+    this.iconPath,
     this.livekitUrl,
     this.supabaseKey,
     this.user,
@@ -60,7 +60,7 @@ class ServerDetails extends Equatable {
   factory ServerDetails.fromJson(Map<String, dynamic> json) {
     return ServerDetails(
       name: json['name'] as String?,
-      iconUrl: json['icon_url'] as String?,
+      iconPath: json['icon_url'] as String?,
       livekitUrl: json['livekit_url'] as String?,
       supabaseKey: json['supabase_key'] as String?,
       user: json['user'] != null
@@ -83,7 +83,7 @@ class ServerDetails extends Equatable {
   @override
   List<Object?> get props => [
     name,
-    iconUrl,
+    iconPath,
     livekitUrl,
     supabaseKey,
     user,

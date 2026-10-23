@@ -25,7 +25,7 @@ void main() {
     Server full() => Server(
       id: 'srv1',
       name: 'Cartography Club',
-      iconUrl: 'https://example.test/icon.png',
+      iconPath: 'srv-1/0a1b2c3d.img',
       supabaseUrl: 'http://localhost:8000',
       supabaseKey: 'anon-key',
       livekitUrl: 'ws://192.168.1.6:7880',
@@ -39,7 +39,7 @@ void main() {
       final after = before.copyWith();
 
       expect(after.name, before.name);
-      expect(after.iconUrl, before.iconUrl);
+      expect(after.iconPath, before.iconPath);
       expect(after.supabaseKey, before.supabaseKey);
       expect(after.livekitUrl, before.livekitUrl);
       expect(after.token, before.token);
@@ -51,16 +51,16 @@ void main() {
       expect(after.name, 'Weekend Crew');
       expect(after.livekitUrl, 'ws://192.168.1.6:7880');
       expect(after.supabaseKey, 'anon-key');
-      expect(after.iconUrl, 'https://example.test/icon.png');
+      expect(after.iconPath, 'srv-1/0a1b2c3d.img');
     });
 
     test('a reply that omits the name does not blank it', () {
       // The banned-member path returns a user row and no server identity at
       // all. Passing those nulls through must not erase what we already knew.
-      final after = full().copyWith(name: null, iconUrl: null, limits: null);
+      final after = full().copyWith(name: null, iconPath: null, limits: null);
 
       expect(after.name, 'Cartography Club');
-      expect(after.iconUrl, 'https://example.test/icon.png');
+      expect(after.iconPath, 'srv-1/0a1b2c3d.img');
       expect(after.limits, isNotNull);
     });
   });

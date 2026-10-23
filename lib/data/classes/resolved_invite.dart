@@ -15,11 +15,16 @@ class ResolvedInvite extends Equatable {
   final String serverId;
   final String serverName;
 
+  /// The server's icon in its public `servers` bucket, for the join screen.
+  /// Null from a listing, whose picture is central's copy, not the server's.
+  final String? iconPath;
+
   const ResolvedInvite({
     required this.serverUrl,
     required this.inviteCode,
     required this.serverId,
     required this.serverName,
+    this.iconPath,
   });
 
   /// A listing already names its server and carries a working invite, so
@@ -35,5 +40,11 @@ class ResolvedInvite extends Equatable {
   String get host => Uri.tryParse(serverUrl)?.host ?? serverUrl;
 
   @override
-  List<Object?> get props => [serverUrl, inviteCode, serverId, serverName];
+  List<Object?> get props => [
+    serverUrl,
+    inviteCode,
+    serverId,
+    serverName,
+    iconPath,
+  ];
 }

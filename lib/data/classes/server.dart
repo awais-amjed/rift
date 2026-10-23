@@ -9,7 +9,13 @@ import 'server_user.dart';
 class Server extends Equatable {
   final String id;
   final String name;
-  final String? iconUrl;
+
+  /// The server's icon: a path in this server's own `servers` bucket
+  /// (`<server id>/<random>.img`), drawn by `ServerIcon`. Never an address
+  /// to fetch from: the column it comes from (`icon_url`) is written by an
+  /// admin, and a URL there would send every member's app to a host of their
+  /// choosing. The JSON keys keep the old name, for saved state and backups.
+  final String? iconPath;
   final String supabaseUrl;
   final String? supabaseKey;
   final String? livekitUrl;
@@ -70,7 +76,7 @@ class Server extends Equatable {
   Server({
     required this.id,
     required this.name,
-    this.iconUrl,
+    this.iconPath,
     required this.supabaseUrl,
     this.supabaseKey,
     this.livekitUrl,
@@ -95,7 +101,7 @@ class Server extends Equatable {
     return Server(
       id: serverDetails['server_id'] as String,
       name: serverDetails['name'] as String? ?? 'Server',
-      iconUrl: serverDetails['icon_url'] as String?,
+      iconPath: serverDetails['icon_url'] as String?,
       supabaseUrl: supabaseUrl,
       supabaseKey: serverDetails['supabase_key'] as String?,
       livekitUrl: serverDetails['livekit_url'] as String?,
@@ -127,7 +133,7 @@ class Server extends Equatable {
     return Server(
       id: serverData['id'] as String,
       name: serverData['name'] as String,
-      iconUrl: serverData['icon_url'] as String?,
+      iconPath: serverData['icon_url'] as String?,
       supabaseUrl: supabaseUrl,
       supabaseKey: serverData['supabase_key'] as String?,
       livekitUrl: serverData['livekit_url'] as String?,
@@ -154,7 +160,7 @@ class Server extends Equatable {
     return Server(
       id: json['id'] as String,
       name: json['name'] as String,
-      iconUrl: json['iconUrl'] as String?,
+      iconPath: json['iconUrl'] as String?,
       supabaseUrl: json['supabaseUrl'] as String,
       supabaseKey: json['supabaseKey'] as String?,
       livekitUrl: json['livekitUrl'] as String?,
@@ -191,7 +197,7 @@ class Server extends Equatable {
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
-    'iconUrl': iconUrl,
+    'iconUrl': iconPath,
     'supabaseUrl': supabaseUrl,
     'supabaseKey': supabaseKey,
     'livekitUrl': livekitUrl,
@@ -209,7 +215,7 @@ class Server extends Equatable {
   Server copyWith({
     String? id,
     String? name,
-    String? iconUrl,
+    String? iconPath,
     String? supabaseUrl,
     String? supabaseKey,
     String? livekitUrl,
@@ -227,7 +233,7 @@ class Server extends Equatable {
     return Server(
       id: id ?? this.id,
       name: name ?? this.name,
-      iconUrl: iconUrl ?? this.iconUrl,
+      iconPath: iconPath ?? this.iconPath,
       supabaseUrl: supabaseUrl ?? this.supabaseUrl,
       supabaseKey: supabaseKey ?? this.supabaseKey,
       livekitUrl: livekitUrl ?? this.livekitUrl,
@@ -250,7 +256,7 @@ class Server extends Equatable {
   List<Object?> get props => [
     id,
     name,
-    iconUrl,
+    iconPath,
     supabaseUrl,
     supabaseKey,
     livekitUrl,

@@ -197,7 +197,7 @@ class ServerCubit extends HydratedCubit<ServerState>
   void updateServer(
     String serverId, {
     String? name,
-    String? iconUrl,
+    String? iconPath,
     String? supabaseKey,
     String? livekitUrl,
     String? token,
@@ -214,7 +214,7 @@ class ServerCubit extends HydratedCubit<ServerState>
       if (s.id != serverId) return s;
       return s.copyWith(
         name: name,
-        iconUrl: iconUrl,
+        iconPath: iconPath,
         supabaseKey: supabaseKey,
         livekitUrl: livekitUrl,
         token: token,
@@ -256,7 +256,7 @@ class ServerCubit extends HydratedCubit<ServerState>
       serverId,
       token: token,
       name: details.name,
-      iconUrl: details.iconUrl,
+      iconPath: details.iconPath,
       livekitUrl: details.livekitUrl,
       supabaseKey: details.supabaseKey,
       user: details.user,
@@ -300,7 +300,7 @@ class ServerCubit extends HydratedCubit<ServerState>
             (s) => {
               'id': s.id,
               'name': s.name,
-              'iconUrl': s.iconUrl,
+              'iconUrl': s.iconPath,
               'supabaseUrl': s.supabaseUrl,
               'supabaseKey': s.supabaseKey,
               'livekitUrl': s.livekitUrl,

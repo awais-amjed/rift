@@ -9,7 +9,7 @@ import 'rounded_picture.dart';
 import 'squircle_avatar.dart';
 
 /// A square picture from [MediaCubit], or the initial on a gradient until it
-/// is there — what [UserAvatar] and [DirectoryIcon] both draw.
+/// is there — what [UserAvatar], [DirectoryIcon] and [ServerIcon] draw.
 ///
 /// Selects its own entry, so a picture landing rebuilds only the widgets
 /// showing it, and every one of them at once. Asking for the picture is the
@@ -24,12 +24,16 @@ class StoredPicture extends StatelessWidget {
   /// Stable id picking the fallback gradient.
   final String? seed;
 
+  /// Corner radius; defaults to the avatar's, size/3.
+  final double? radius;
+
   const StoredPicture({
     super.key,
     required this.path,
     required this.name,
     required this.size,
     this.seed,
+    this.radius,
   });
 
   @override
@@ -46,11 +50,12 @@ class StoredPicture extends StatelessWidget {
         return RoundedPicture(
           image: MemoryImage(bytes),
           size: size,
-          radius: size * K.avatarRadiusRatio,
+          radius: radius ?? size * K.avatarRadiusRatio,
         );
       },
     );
   }
 
-  Widget _fallback() => SquircleAvatar(name: name, seed: seed, size: size);
+  Widget _fallback() =>
+      SquircleAvatar(name: name, seed: seed, size: size, radius: radius);
 }

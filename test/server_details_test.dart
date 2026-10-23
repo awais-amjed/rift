@@ -8,7 +8,7 @@ void main() {
   Map<String, dynamic> reply() => {
     'server_id': 'srv1',
     'name': 'Cartography Club',
-    'icon_url': 'https://example.test/icon.png',
+    'icon_url': 'srv-1/0a1b2c3d.img',
     'livekit_url': 'ws://192.168.1.6:7880',
     'supabase_key': 'anon-key',
     'channels': <dynamic>[],
@@ -57,7 +57,7 @@ void main() {
       final d = ServerDetails.fromJson(reply());
 
       expect(d.name, 'Cartography Club');
-      expect(d.iconUrl, 'https://example.test/icon.png');
+      expect(d.iconPath, 'srv-1/0a1b2c3d.img');
       expect(d.livekitUrl, 'ws://192.168.1.6:7880');
       expect(d.supabaseKey, 'anon-key');
       expect(d.channels, isEmpty);

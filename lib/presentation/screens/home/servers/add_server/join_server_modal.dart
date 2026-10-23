@@ -14,6 +14,7 @@ import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/app_text_field.dart';
 import '../../../../common/message_banner.dart';
+import '../../../../common/server_icon.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 
@@ -56,6 +57,9 @@ class JoinServerModal extends StatefulWidget {
 }
 
 class _JoinServerModalState extends State<JoinServerModal> {
+  /// A dialog's header badge is this size (`IconTile.title`).
+  static const double _iconSize = 36;
+
   final _usernameCtrl = TextEditingController();
   final _displayNameCtrl = TextEditingController();
 
@@ -142,6 +146,13 @@ class _JoinServerModalState extends State<JoinServerModal> {
       pageOnPhone: true,
       onBack: _isLoading ? null : widget.onCancel,
       title: 'Join ${invite.serverName}',
+      titleIcon: ServerIcon(
+        supabaseUrl: invite.serverUrl,
+        serverId: invite.serverId,
+        name: invite.serverName,
+        iconPath: invite.iconPath,
+        size: _iconSize,
+      ),
       subtitle: 'Pick how you will appear on ${invite.host}',
       maxWidth: K.dialogWidth,
       content: Column(

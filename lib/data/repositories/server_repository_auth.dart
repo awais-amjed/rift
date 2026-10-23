@@ -30,10 +30,19 @@ mixin _AuthApiMixin {
     });
   }
 
-  /// Resolve an invite code to its server (id + name) without consuming it.
+  /// Resolve an invite code to its server (id, name and icon) without
+  /// consuming it.
   /// Needed before login/register so the per-(host, serverId) SIWS identity can
   /// be derived when several servers share one Supabase project.
-  Future<({bool success, String? serverId, String? serverName, String? error})>
+  Future<
+    ({
+      bool success,
+      String? serverId,
+      String? serverName,
+      String? iconPath,
+      String? error,
+    })
+  >
   resolveInvite(String supabaseUrl, String inviteCode) async {
     final response = await _post(supabaseUrl, 'resolve_invite', {
       'invite_code': inviteCode,
@@ -43,6 +52,7 @@ mixin _AuthApiMixin {
         success: false,
         serverId: null,
         serverName: null,
+        iconPath: null,
         error: response.error,
       );
     }
@@ -51,6 +61,7 @@ mixin _AuthApiMixin {
       success: true,
       serverId: data['server_id'] as String?,
       serverName: data['server_name'] as String?,
+      iconPath: data['server_icon'] as String?,
       error: null,
     );
   }
