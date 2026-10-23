@@ -14,6 +14,9 @@ import '../../channels/channel_list/widgets/section_header.dart';
 import 'dm_conversation_tile.dart';
 import 'dm_list_header.dart';
 
+/// Over the widget budget and one job: the server-DM conversation list and its
+/// paging.
+///
 /// The conversation list down the left of the server-DM surface.
 ///
 /// Central DMs no longer come through here: Home is a tier of its own and its

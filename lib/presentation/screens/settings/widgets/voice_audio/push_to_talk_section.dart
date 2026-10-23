@@ -14,6 +14,9 @@ import '../section_title.dart';
 import '../setting_toggle_row.dart';
 import 'desktop_key_notice.dart';
 
+/// Over the widget budget and one job: push-to-talk's switch and keybind, and
+/// the capture that listens for one.
+///
 /// Push-to-talk: the enable switch, the current keybind, and the capture
 /// button that listens for the next key or mouse button pressed.
 ///

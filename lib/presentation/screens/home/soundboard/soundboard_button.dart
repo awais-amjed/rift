@@ -16,6 +16,9 @@ import '../../../theme/app_motion.dart';
 import '../controls/widgets/control_button.dart';
 import 'soundboard_popover.dart';
 
+/// Over the widget budget and one job: the soundboard's button in the control
+/// bar and the popover it opens.
+///
 /// The soundboard's place in the call's control bar.
 ///
 /// Shown to everyone in a call, including somebody who may not press one:

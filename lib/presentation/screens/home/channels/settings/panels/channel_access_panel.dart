@@ -16,6 +16,9 @@ import '../../../servers/manage/widgets/manage_panel.dart';
 import '../../channel_list/widgets/channel_menu_actions.dart';
 import '../../widgets/channel_member_picker.dart';
 
+/// Over the widget budget and one job: who can see a channel, and a private
+/// one's member list.
+///
 /// Who can see a channel: everyone, or the people seated in it.
 ///
 /// A public channel is one sentence and the button that closes it. A private

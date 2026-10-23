@@ -1,5 +1,10 @@
 part of 'vault_cubit.dart';
 
+/// Over the cubit-part budget and one job: the vault's backup file, written
+/// out and read back in.
+///
+/// Exporting a backup, importing one, and the two questions asked of a file
+/// before that: which servers it holds, and whether it is this vault's.
 mixin _VaultBackupMixin on Cubit<VaultState> {
   CryptoRepository get _crypto;
 
@@ -13,10 +18,6 @@ mixin _VaultBackupMixin on Cubit<VaultState> {
   Map<String, ServerIdentity> get _identityCache;
   void Function(ServerManifest)? get _onServersImported;
   ServerManifest Function()? get _getServersForExport;
-
-  // ──────────────────────────────────────────────────────────
-  // Phase 5: Backup export / import
-  // ──────────────────────────────────────────────────────────
 
   /// Builds a [BackupFile] JSON string from the locally stored blobs.
   /// The servers list is encrypted with the vault key so the backup is fully

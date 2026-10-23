@@ -9,6 +9,9 @@ import 'host_platform.dart';
 /// reach into the generated bridge themselves.
 export '../../src/rust/api/audio_endpoints.dart' show AudioEndpoint;
 
+/// Over the helper budget and one job: the saved audio devices, read and
+/// applied on each platform.
+///
 /// Reading and applying the saved audio device choices.
 ///
 /// This used to live entirely inside the settings section, which meant a saved

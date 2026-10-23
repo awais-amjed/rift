@@ -19,6 +19,8 @@ import 'kick_confirm.dart';
 import 'member_moderation_row.dart';
 import 'ownership_actions.dart';
 
+/// Over the widget budget and one job: the controls under one member row.
+///
 /// Expanded management controls under a member row: permission toggles
 /// (server admins only), mute/deafen moderation buttons (admins and channel
 /// managers), and the kick and ban controls.

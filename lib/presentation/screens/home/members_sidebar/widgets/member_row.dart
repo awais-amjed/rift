@@ -20,6 +20,8 @@ import '../../channels/open_voice_channel.dart';
 import '../../sidebar/widgets/participant_context_menu.dart';
 import 'role_chip.dart';
 
+/// Over the widget budget and one job: one row of the member sidebar.
+///
 /// One member in the right-hand sidebar: avatar, name, role/state badges.
 ///
 /// Offline members are dimmed rather than hidden, so the list is a stable

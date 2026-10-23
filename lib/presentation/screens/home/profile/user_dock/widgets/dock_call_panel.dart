@@ -19,6 +19,9 @@ import '../../../calls/open_call_conversation.dart';
 import '../../../mobile/mobile_shell_scope.dart';
 import 'dock_call_controls.dart';
 
+/// Over the widget budget and one job: the call in the dock; its section and
+/// Leave button exist only for it.
+///
 /// The call you are in, at the top of the user dock: where it is, how long,
 /// Leave, and the call bar's controls — so a call can be run from the
 /// sidebar while the centre shows a chat.

@@ -14,6 +14,9 @@ import '../../../../../theme/theme_context.dart';
 import 'manage_heading_above.dart';
 import 'manage_read_only.dart';
 
+/// Over the widget budget and one job: one manage-server page with its own
+/// heading and footer.
+///
 /// One page of the manage-server dialog: a heading, the page, and its own
 /// footer.
 ///

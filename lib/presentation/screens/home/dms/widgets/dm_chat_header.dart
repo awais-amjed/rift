@@ -13,6 +13,8 @@ import '../../chat/widgets/header_back_button.dart';
 import '../../pane_toggles/show_sidebar_button.dart';
 import 'dm_list_beside.dart';
 
+/// Over the widget budget and one job: an open DM's top bar and its two chips.
+///
 /// Header of an open DM conversation.
 ///
 /// Carries two chips rather than one: which tier the conversation is on, and

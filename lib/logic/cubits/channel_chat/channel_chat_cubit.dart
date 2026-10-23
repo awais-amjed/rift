@@ -77,6 +77,9 @@ part 'channel_chat_send.dart';
 part 'channel_chat_state.dart';
 part 'channel_chat_sweep.dart';
 
+/// Over the cubit-hub budget and one job: the open channel. What stays here is
+/// opening it and what its parts share.
+///
 /// E2E chat in a server's text channels (ARCHITECTURE.md §4, Design 2). One
 /// channel is open at a time, on the server [openChannel] names, and every
 /// call about it goes there whatever is selected meanwhile:

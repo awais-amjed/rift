@@ -15,6 +15,9 @@ import '../setting_toggle_row.dart';
 import 'ducking/ducking_status.dart';
 import 'ducking/windows_ducking_choices.dart';
 
+/// Over the widget budget and one job: what Windows ducking is set to, and the
+/// steps to change it.
+///
 /// What Windows does to other apps' volume during a call, and how to change
 /// it.
 ///

@@ -24,6 +24,9 @@ class ToastAction {
   });
 }
 
+/// Over the widget budget and one job: the toast card, with its buttons and
+/// close.
+///
 /// The card every toast is drawn in.
 ///
 /// Toastification's own styles are a separate design — a white card with its

@@ -27,6 +27,9 @@ import '../../services/noise_filter.dart';
 part 'app_cubit.g.dart';
 part 'app_state.dart';
 
+/// Over the cubit-hub budget and one job: this device's preferences, each
+/// setter a few lines, and there are many.
+///
 /// This device's layout and preferences: which pane is open, which channel is
 /// selected, audio and share settings, per-person volumes. Persisted, and never
 /// sent anywhere.

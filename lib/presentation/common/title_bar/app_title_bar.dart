@@ -17,6 +17,9 @@ import '../status_chip.dart';
 import 'update_chip.dart';
 import 'window_button.dart';
 
+/// Over the widget budget and one job: the window's own chrome and its
+/// connection chip.
+///
 /// The window's own chrome: brand mark on the left, window controls on the
 /// right, everything between draggable.
 ///

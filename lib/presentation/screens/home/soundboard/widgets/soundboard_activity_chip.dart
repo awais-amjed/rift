@@ -13,6 +13,9 @@ import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 import 'soundboard_mute_button.dart';
 
+/// Over the widget budget and one job: who played what, with the mute that goes
+/// with it.
+///
 /// One line saying **who** played **what**, and offering the one thing
 /// somebody wants at that second.
 ///

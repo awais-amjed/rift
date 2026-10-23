@@ -13,6 +13,9 @@ import '../../../../../../../../common/server_scope.dart';
 import '../../../../../../controls/widgets/control_button.dart';
 import '../../../../../../sidebar/widgets/participant_volume_control.dart';
 
+/// Over the widget budget and one job: a member card's quick controls, yours or
+/// theirs.
+///
 /// The quick controls on a member card: the few things the person's
 /// right-click menu offers that are worth one press — how loud they are, and
 /// whether you hear them, they hear you, or anybody does.

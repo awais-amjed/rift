@@ -1,5 +1,8 @@
 part of 'dm_call_cubit.dart';
 
+/// Over the cubit-part budget and one job: the four moves a DM call makes,
+/// which share its begin and drop steps.
+///
 /// Placing, answering, refusing and ending a call — each an RPC first, and
 /// the room second, because the row is what decides whether there is a call
 /// to be in.

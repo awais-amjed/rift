@@ -13,6 +13,9 @@ import '../../../../../common/server_scope.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
 
+/// Over the widget budget and one job: adding or editing one region, its name
+/// and address checked and sent together.
+///
 /// Add a region, or change the name and address of one.
 ///
 /// A dialog rather than fields edited in place, which is what this was. A

@@ -19,6 +19,9 @@ import '../../../../../common/server_scope.dart';
 import '../../settings/channel_settings_dialog.dart';
 import '../../settings/channel_settings_tab.dart';
 
+/// Over the widget budget and one job: the channel actions more than one
+/// surface offers, each a short flow of its own.
+///
 /// Everything a channel's menu and its settings open or ask, out of the
 /// surfaces that offer them.
 ///

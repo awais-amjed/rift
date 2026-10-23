@@ -125,6 +125,9 @@ class ServerManifest {
       : const [];
 }
 
+/// Over the helper budget and one job: merging a backup's servers into this
+/// device's.
+///
 /// Sync, not restore: see the library comment at the top of this file.
 class BackupMerge {
   const BackupMerge._();

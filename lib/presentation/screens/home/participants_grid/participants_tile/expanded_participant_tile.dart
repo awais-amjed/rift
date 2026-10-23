@@ -17,6 +17,9 @@ import 'stream_view_buttons.dart';
 import 'stream_watchers.dart';
 import 'watch_stream_button.dart';
 
+/// Over the widget budget and one job: one participant on the stage, with its
+/// overlays.
+///
 /// A participant filling the stage. Same content as the grid tile without the
 /// card chrome, plus a stats overlay and controls that fade out while the
 /// pointer is still — [showOverlays] drives that, and pointer activity is

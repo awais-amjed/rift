@@ -6,6 +6,9 @@ import '../../data/classes/server.dart';
 import 'server_realtime.dart';
 import 'voice_locations.dart';
 
+/// Over the helper budget and one job: one server's voice-channel map over
+/// broadcast.
+///
 /// The live "who is in which voice channel" map for one server, over Realtime
 /// broadcast.
 ///

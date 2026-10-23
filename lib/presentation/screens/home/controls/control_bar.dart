@@ -18,6 +18,9 @@ import 'widgets/control_button.dart';
 import 'widgets/leave_button.dart';
 import 'widgets/sound_share_button.dart';
 
+/// Over the widget budget and one job: the call's control bar and the row of
+/// controls it fades.
+///
 /// Floating control bar shown at the bottom of the video area.
 ///
 /// Visibility is driven by the parent ([RoomView]) so it fades in lockstep

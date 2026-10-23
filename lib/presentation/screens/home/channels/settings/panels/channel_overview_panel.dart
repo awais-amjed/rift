@@ -16,6 +16,9 @@ import '../../../../../common/server_scope.dart';
 import '../../../servers/manage/widgets/manage_panel.dart';
 import '../../widgets/voice_region_field.dart';
 
+/// Over the widget budget and one job: a channel's first settings page and its
+/// one Save.
+///
 /// The first page of a channel's settings: the name, how much history this
 /// channel keeps, and — for a voice channel — which region its calls are
 /// held in.

@@ -15,6 +15,9 @@ export 'show_custom_dialog.dart';
 
 part 'app_modal_phone.dart';
 
+/// Over the widget budget and one job: the one dialog shell, for a form or a
+/// list.
+///
 /// Base modal used for every dialog in the app.
 ///
 /// A dialog is either a form, which goes in [content] and scrolls as a whole

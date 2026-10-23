@@ -14,6 +14,9 @@ import '../../../../../src/rust/api/mic_test.dart';
 import 'widgets/input_level_panel.dart';
 import 'widgets/mic_test_controls.dart';
 
+/// Over the widget budget and one job: the mic test, its meter and the playback
+/// it runs.
+///
 /// "Mic Test" settings block: shows a live input-level meter so the user can
 /// confirm their mic works and see the effect of the processing toggles.
 ///

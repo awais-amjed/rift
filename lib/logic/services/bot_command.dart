@@ -28,6 +28,9 @@ class BotCommand {
   });
 }
 
+/// Over the helper budget and one job: deciding whether a line is a command,
+/// and whose.
+///
 /// Deciding whether a line the user typed is a command, and whose.
 ///
 /// Pure, and separate from the composer, because the answer decides whether a

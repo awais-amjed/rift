@@ -10,6 +10,9 @@ import '../../../../common/list_loading_footer.dart';
 import '../../channels/channel_list/widgets/section_header.dart';
 import 'member_row.dart';
 
+/// Over the widget budget and one job: the sidebar's three groups and the
+/// paging behind Offline.
+///
 /// The three groups inside the member sidebar: bots, online, offline.
 ///
 /// Its own widget because the offline group **pages** (`member_directory`). The

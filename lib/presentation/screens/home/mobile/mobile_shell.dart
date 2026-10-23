@@ -17,6 +17,9 @@ import 'mobile_page_view.dart';
 import 'mobile_shell_scope.dart';
 import 'switcher/server_switcher_sheet.dart';
 
+/// Over the widget budget and one job: the phone's home screen, pushing pages
+/// as the cubits move.
+///
 /// The home screen on a phone.
 ///
 /// The list is the screen: a server's channels, or Home's conversations, with

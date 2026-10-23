@@ -21,6 +21,9 @@ import 'chat_header_button.dart';
 import 'chat_phone_title.dart';
 import 'header_back_button.dart';
 
+/// Over the widget budget and one job: a channel chat's top bar and the menu on
+/// its name.
+///
 /// The chat panel's top bar: which channel you're in, that it's encrypted, and
 /// the controls that change what the panel shows.
 ///

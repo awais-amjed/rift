@@ -8,6 +8,9 @@ import '../../../theme/theme_context.dart';
 /// and what the verb says it wants (`BotCommands.shapeOf`).
 typedef CommandShape = ({TextRange verb, TextRange argument, String? usage});
 
+/// Over the widget budget and one job: drawing a bot command behind the field's
+/// own text.
+///
 /// Draws a bot command apart from an ordinary message, behind the field's own
 /// text: what follows the verb boxed like inline code, as it will read once
 /// sent (`commandMessageSpan`), and — while that is still empty — the

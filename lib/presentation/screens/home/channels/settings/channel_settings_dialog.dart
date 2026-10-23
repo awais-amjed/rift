@@ -21,6 +21,9 @@ import 'panels/channel_delete_panel.dart';
 import 'panels/channel_overview_panel.dart';
 import 'panels/channel_webhooks_panel.dart';
 
+/// Over the widget budget and one job: one channel's settings, a page per
+/// concern.
+///
 /// Everything about one channel, a page per concern — Manage server's shape,
 /// for a channel.
 ///

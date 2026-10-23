@@ -12,6 +12,9 @@ import '../../../../theme/theme_context.dart';
 import 'connection_quality_style.dart';
 import 'ping_graph.dart';
 
+/// Over the widget budget and one job: the call's connection stats and their
+/// history graph.
+///
 /// Popup panel shown above the connection quality indicator.
 ///
 /// Ping, average ping, packet loss, a 5-minute ping history graph — and which

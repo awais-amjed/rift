@@ -20,6 +20,8 @@ import '../../settings/widgets/setting_toggle_row.dart';
 import 'widgets/channel_member_picker.dart';
 import 'widgets/channel_type_toggle.dart';
 
+/// Over the widget budget and one job: creating one channel.
+///
 /// Dialog to create a new channel (text or voice) in the current server.
 class CreateChannelDialog extends StatefulWidget {
   /// Which kind the dialog opens on — the section whose "+" was pressed. The

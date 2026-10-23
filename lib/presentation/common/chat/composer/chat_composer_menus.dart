@@ -1,5 +1,8 @@
 part of 'chat_composer.dart';
 
+/// Over the widget budget and one job: the composer's `@` and `/` menus, which
+/// read the caret and write a choice back.
+///
 /// The menus the composer offers as you type: `@` for a person, `/` for a
 /// bot's command.
 ///

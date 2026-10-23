@@ -22,6 +22,9 @@ import 'widgets/profile_facts.dart';
 import 'widgets/profile_handle_row.dart';
 import 'widgets/profile_section.dart';
 
+/// Over the widget budget and one job: a central profile and where you stand
+/// with them.
+///
 /// Who somebody is on the **central tier**: a handle, where you stand with
 /// them, and the one or two things that can change it.
 ///

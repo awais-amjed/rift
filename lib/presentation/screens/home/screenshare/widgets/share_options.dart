@@ -19,6 +19,9 @@ import 'advanced_settings.dart';
 import 'audio_toggle.dart';
 import 'settings_summary.dart';
 
+/// Over the widget budget and one job: the share form's options and their
+/// summary.
+///
 /// How a share goes out: its quality in one row, its sound, the advanced
 /// settings behind a row that opens them, and a summary of all of it.
 ///

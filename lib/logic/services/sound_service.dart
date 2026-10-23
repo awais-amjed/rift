@@ -9,6 +9,9 @@ import '../../src/rust/api/cue.dart';
 import '../helper_methods.dart';
 import 'host_platform.dart';
 
+/// Over the helper budget and one job: playing Rift's own sounds on the chosen
+/// output.
+///
 /// Plays Rift's own sounds — a new message, and the call's cues — at the
 /// volume each is set to in settings, on the output device chosen there.
 ///

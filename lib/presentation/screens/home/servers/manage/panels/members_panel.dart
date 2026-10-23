@@ -21,6 +21,9 @@ import '../../../members/widgets/members_list.dart';
 import '../../../members/widgets/members_search_field.dart';
 import '../widgets/manage_panel.dart';
 
+/// Over the widget budget and one job: the manage dialog's member list, drawn
+/// from the roster.
+///
 /// The members page of the manage-server dialog — everyone on [server] with
 /// their roles and moderation state. Server admins manage roles here
 /// (Discord-style: invites grant nothing, promotion happens after joining);

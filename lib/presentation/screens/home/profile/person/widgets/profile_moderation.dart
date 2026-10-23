@@ -19,6 +19,8 @@ import '../../../reports/time_out_picker.dart';
 import '../../../roles/member_roles_dialog.dart';
 import 'profile_section.dart';
 
+/// Over the widget budget and one job: the moderation shortcuts on a profile.
+///
 /// What staff can do to this person, from the profile.
 ///
 /// Shortcuts, not a second implementation: every control here calls the same

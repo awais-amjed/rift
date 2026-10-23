@@ -9,6 +9,9 @@ import '../../src/rust/api/mic_test.dart';
 import '../../src/rust/api/noise_filter.dart';
 import '../helper_methods.dart';
 
+/// Over the helper budget and one job: switching the runner's noise models and
+/// mic volume over FFI.
+///
 /// The noise models run inside libwebrtc's processing of the microphone, on
 /// Linux and Windows (`native/noise_filter` in the runner): RNNoise built into
 /// the runner, and DPDFNet from the Rust library, loaded the first time it is

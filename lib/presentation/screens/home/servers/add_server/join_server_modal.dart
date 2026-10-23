@@ -17,6 +17,9 @@ import '../../../../common/message_banner.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 
+/// Over the widget budget and one job: the second join step, how you will
+/// appear on the server.
+///
 /// The second join step: how you will appear on a server that has already
 /// answered to its invite.
 ///

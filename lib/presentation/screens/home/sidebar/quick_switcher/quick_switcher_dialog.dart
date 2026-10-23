@@ -22,6 +22,8 @@ import '../../../../theme/theme_context.dart';
 import '../../channels/confirm_voice_switch.dart';
 import 'widgets/quick_switcher_row.dart';
 
+/// Over the widget budget and one job: type-to-jump over the server's channels.
+///
 /// Type-to-jump over the current server's channels.
 ///
 /// Deliberately not an [AppModal]: it has no title, no buttons, and its body

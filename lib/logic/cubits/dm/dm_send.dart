@@ -1,5 +1,8 @@
 part of 'dm_cubit.dart';
 
+/// Over the cubit-part budget and one job: sending a DM, from seal to post,
+/// failure and retry; reading its attachments back is the last few lines.
+///
 /// Sending a DM (seal → upload attachments → post) and fetching attachment
 /// bytes back for rendering.
 mixin _DmSendMixin on Cubit<DmState> {

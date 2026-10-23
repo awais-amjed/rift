@@ -18,6 +18,8 @@ import 'switcher_home_line.dart';
 import 'switcher_home_mark.dart';
 import 'switcher_server_line.dart';
 
+/// Over the widget budget and one job: the top bar of a phone's list.
+///
 /// The top of a phone's list: where you are, and the way to anywhere else.
 ///
 /// An app bar, not a field. It used to be a bordered box with a stepper glyph,

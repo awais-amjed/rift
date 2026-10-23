@@ -24,6 +24,8 @@ class AppDropdownOption<T> {
   });
 }
 
+/// Over the widget budget and one job: the app's dropdown field and its menu.
+///
 /// A choice from a short list, drawn as one of the app's fields and opening
 /// the app's own menu.
 ///

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+/// Over the widget budget and one job: the type scale, each token with the
+/// reason for its size.
+///
 /// The app's type scale: seven sizes, 11 / 12 / 13 / 14 / 15 / 18 / 21.
 ///
 /// Every style here is one of those seven. A call site never sets a size of

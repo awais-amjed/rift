@@ -1,5 +1,7 @@
 part of 'wake_server_reader.dart';
 
+/// Over the helper budget and one job: the channel half of a wake.
+///
 /// The channel half of a wake: what arrived in rooms this member is in.
 ///
 /// A channel key is fetched per channel rather than kept, because the isolate

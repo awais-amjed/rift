@@ -2,6 +2,9 @@ import 'package:equatable/equatable.dart';
 
 import 'bot_manifest.dart';
 
+/// Over the model budget and one job: one bot directory row and the orders it
+/// is listed in.
+///
 /// One row of the central bot directory — central's `public_bots` table.
 ///
 /// The counterpart to `PublicServer`, and deliberately not the same shape. A

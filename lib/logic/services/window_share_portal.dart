@@ -34,6 +34,9 @@ class WindowPicked extends WindowPick {
   const WindowPicked(this.token, this.window);
 }
 
+/// Over the helper budget and one job: asking the desktop's portal for a
+/// window, and remembering the pick.
+///
 /// Linux under Wayland: the desktop's own window picker, run by Rift before
 /// a share starts, so Rift knows which app's window it is and can pick the
 /// sound to go with it.

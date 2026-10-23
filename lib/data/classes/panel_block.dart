@@ -2,6 +2,9 @@ import 'package:equatable/equatable.dart';
 
 import 'attachment.dart';
 
+/// Over the model budget and one job: the bot panel vocabulary; each type is
+/// small, and they parse as one.
+///
 /// The fixed vocabulary a bot draws a panel with (BOTS.md §5, `messages_blocks_shape`).
 ///
 /// A bot never controls a pixel, only a structure. The alternative — letting it

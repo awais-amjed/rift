@@ -3,6 +3,9 @@ import 'package:equatable/equatable.dart';
 import '../enums/member_report_reason.dart';
 import '../enums/report_outcome.dart';
 
+/// Over the model budget and one job: one report as a reviewer reads it, with
+/// the message and people in it.
+///
 /// One row of a server's `reports`, as a reviewer reads it.
 ///
 /// A message report carries the message's **sealed envelope** as it was when

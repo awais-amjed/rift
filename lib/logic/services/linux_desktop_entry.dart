@@ -6,6 +6,8 @@ import 'package:path/path.dart' as p;
 import '../helper_methods.dart';
 import 'storage_namespace.dart';
 
+/// Over the helper budget and one job: Rift's entry in the Linux app menu.
+///
 /// Rift's entry in the desktop's app menu, `com.codingfries.rift.desktop`.
 ///
 /// Nothing installs Rift on Linux — the AppImage is one file, the `.tar.gz` a
