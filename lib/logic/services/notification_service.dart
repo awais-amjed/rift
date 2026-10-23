@@ -17,6 +17,11 @@ import 'toast_activator.dart';
 import 'toast_identity.dart';
 import 'window_focus_service.dart';
 
+part 'notification_service_calls.dart';
+
+/// Over the helper budget and one job: the app's own notifications, set up
+/// for each platform it posts them on.
+///
 /// Local notifications for incoming chat messages, on Linux, Windows, macOS,
 /// Android and the web.
 ///
@@ -36,17 +41,22 @@ import 'window_focus_service.dart';
 /// user silences rather than the app as a whole; posting them needs a runtime
 /// **permission** from API 33; and "unfocused" means the app is not on screen
 /// at all rather than merely behind another window.
-class NotificationService {
+///
+/// A DM call's notifications are in `notification_service_calls.dart`.
+class NotificationService with _CallNotificationsMixin {
   NotificationService._();
   static final NotificationService instance = NotificationService._();
 
+  @override
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
+  @override
   bool _ready = false;
   int _nextId = 0;
 
   /// The AUMID Windows toasts are posted under, which taking one down has to
   /// name ([cancelCall]). Null elsewhere.
+  @override
   String? _windowsAppId;
 
   /// Initialize once, before `runApp`. Safe on every platform.
@@ -175,10 +185,7 @@ class NotificationService {
     }
   }
 
-  // ── Calls ─────────────────────────────────────────────────
-
-  static const answerAction = 'answer';
-  static const declineAction = 'decline';
+  // ── Presses ───────────────────────────────────────────────
 
   /// Presses on a call's notification while the app is running: Answer,
   /// Decline, or the notification itself. The app routes them to the call
@@ -221,160 +228,7 @@ class NotificationService {
 
   ({ConversationNotificationPayload? target})? _unclaimedPress;
 
-  /// The press that launched the app from nothing, if it was on a call's
-  /// notification — answered once, because a launch happens once.
-  Future<CallNotificationPress?> takeLaunchPress() async {
-    if (_launchTaken || kIsWeb || !Platform.isAndroid) return null;
-    _launchTaken = true;
-    try {
-      final details = await _plugin.getNotificationAppLaunchDetails();
-      final response = details?.notificationResponse;
-      if (!(details?.didNotificationLaunchApp ?? false) || response == null) {
-        return null;
-      }
-      return CallNotificationPress.of(response);
-    } catch (e) {
-      HelperMethods.printDebug('NotificationService: launch details – $e');
-      return null;
-    }
-  }
-
-  bool _launchTaken = false;
-
-  /// Calls get a channel of their own, at the top of the scale: a person
-  /// waiting on the line is not a message that can sit in the shade, and a
-  /// phone owner may well want calls to ring and messages to stay quiet.
-  static const _callDetails = AndroidNotificationDetails(
-    'rift_calls',
-    'Calls',
-    channelDescription: 'Somebody calling you in a direct message.',
-    importance: Importance.max,
-    priority: Priority.max,
-    category: AndroidNotificationCategory.call,
-    audioAttributesUsage: AudioAttributesUsage.notificationRingtone,
-    ongoing: true,
-    autoCancel: false,
-    // The server stops a ring at 45 seconds; a notification that outlived
-    // it would offer to answer a call that can no longer be answered.
-    timeoutAfter: 45000,
-    actions: [
-      AndroidNotificationAction(declineAction, 'Decline'),
-      AndroidNotificationAction(
-        answerAction,
-        'Answer',
-        showsUserInterface: true,
-      ),
-    ],
-  );
-
-  /// A DM call ringing this phone. Android only: this is what a push wake
-  /// posts, and a desktop rings in its own window.
-  Future<void> showIncomingCall({
-    required String serverId,
-    required String callId,
-    required String peerName,
-    required String serverName,
-  }) async {
-    if (!_ready || kIsWeb || !Platform.isAndroid) return;
-    try {
-      await _plugin.show(
-        id: callNotificationId(callId),
-        title: '$peerName is calling',
-        body: 'Direct call · $serverName',
-        payload: CallNotificationPayload(serverId, callId).encode(),
-        notificationDetails: const NotificationDetails(android: _callDetails),
-      );
-    } catch (e) {
-      HelperMethods.printDebug('NotificationService: call failed – $e');
-    }
-  }
-
-  /// A ring nobody answered, in place of the ringing notification.
-  Future<void> showMissedCall({
-    required String callId,
-    required String peerName,
-    required String serverName,
-  }) => showMessage(
-    title: 'Missed call',
-    body: 'From $peerName · $serverName',
-    id: callNotificationId(callId),
-  );
-
-  /// The group a call's notice goes in on Windows ([showCallNotice]).
-  static const _windowsCallGroup = 'call';
-
-  /// A desktop's notice about a DM call — "… is calling", or "Missed call"
-  /// in its place — posted as the call's one notification, so [cancelCall]
-  /// can take it down and a missed call replaces the ring.
-  ///
-  /// Windows posts it through the Rust library rather than the plugin. An
-  /// unpackaged app's toast can only be removed by tag, group and app id
-  /// together, and the plugin's toasts have no group (`api/toast.rs`).
-  Future<void> showCallNotice({
-    required String callId,
-    required String title,
-    required String body,
-    bool chime = true,
-  }) async {
-    final windowsAppId = _windowsAppId;
-    if (!_ready || windowsAppId == null) {
-      return showMessage(
-        title: title,
-        body: body,
-        chime: chime,
-        id: callNotificationId(callId),
-      );
-    }
-    if (chime) unawaited(SoundService.instance.play(AppSound.message));
-    try {
-      await showWindowsToast(
-        appId: windowsAppId,
-        tag: '${callNotificationId(callId)}',
-        group: _windowsCallGroup,
-        xml: windowsToastXml(title: title, body: body),
-      );
-    } catch (e) {
-      HelperMethods.printDebug('NotificationService: call notice failed – $e');
-    }
-  }
-
-  /// The toast the plugin would build for [showMessage] — a title, a body,
-  /// no sound of its own — with no `launch`, so a press carries no payload
-  /// and only brings the window forward, as before.
-  @visibleForTesting
-  static String windowsToastXml({required String title, required String body}) {
-    String text(String s) => s
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;')
-        .replaceAll('"', '&quot;')
-        .replaceAll("'", '&apos;');
-    return '<toast useButtonStyle="true"><visual><binding template="ToastGeneric">'
-        '<text>${text(title)}</text><text>${text(body)}</text>'
-        '</binding></visual><audio silent="true"/></toast>';
-  }
-
-  /// Take a call's notification down: answered, declined, or over — on a
-  /// phone the push's, on a desktop [showCallNotice]'s. The desktop's used to
-  /// stay up saying somebody was calling after the call had ended.
-  Future<void> cancelCall(String callId) async {
-    if (!_ready || kIsWeb) return;
-    final id = callNotificationId(callId);
-    try {
-      final windowsAppId = _windowsAppId;
-      if (windowsAppId != null) {
-        await removeWindowsToast(
-          appId: windowsAppId,
-          tag: '$id',
-          group: _windowsCallGroup,
-        );
-      } else {
-        await _plugin.cancel(id: id);
-      }
-    } catch (e) {
-      HelperMethods.printDebug('NotificationService: cancel failed – $e');
-    }
-  }
+  // ── Messages ──────────────────────────────────────────────
 
   /// The channel every message notification is posted to.
   ///
@@ -402,6 +256,7 @@ class NotificationService {
   /// [chime] is false for something that makes its own sound — a call,
   /// whose ringtone is already playing. [payload] is what a press on it
   /// opens: a [ConversationNotificationPayload], encoded.
+  @override
   Future<void> showMessage({
     required String title,
     required String body,
@@ -450,22 +305,20 @@ class NotificationService {
       HelperMethods.printDebug('NotificationService: show failed – $e');
     }
   }
-}
 
-/// One press on a call's notification.
-class CallNotificationPress {
-  final CallNotificationPayload call;
-
-  /// `answer`, `decline`, or null for the notification itself.
-  final String? action;
-
-  const CallNotificationPress(this.call, this.action);
-
-  static CallNotificationPress? of(NotificationResponse response) {
-    final call = CallNotificationPayload.decode(response.payload);
-    return call == null ? null : CallNotificationPress(call, response.actionId);
+  /// The toast the plugin would build for [showMessage] — a title, a body,
+  /// no sound of its own — with no `launch`, so a press carries no payload
+  /// and only brings the window forward, as before.
+  @visibleForTesting
+  static String windowsToastXml({required String title, required String body}) {
+    String text(String s) => s
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&apos;');
+    return '<toast useButtonStyle="true"><visual><binding template="ToastGeneric">'
+        '<text>${text(title)}</text><text>${text(body)}</text>'
+        '</binding></visual><audio silent="true"/></toast>';
   }
-
-  bool get answers => action == NotificationService.answerAction;
-  bool get declines => action == NotificationService.declineAction;
 }
