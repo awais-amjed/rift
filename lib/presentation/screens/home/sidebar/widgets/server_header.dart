@@ -19,7 +19,8 @@ import 'sidebar_peek_scope.dart';
 ///
 /// The name and that claim are a label, not a button. Only the icons act,
 /// and each says which one it is — a whole row that silently opens settings
-/// gives no clue what it will do before you commit to it.
+/// gives no clue what it will do before you commit to it. The server's own
+/// icon opens its profile, as a person's picture opens theirs.
 ///
 /// No settings gear: with invite and hide beside the name a third icon was
 /// one too many, and settings is a rare trip — the rail chip's menu has it,
@@ -36,10 +37,15 @@ class ServerHeader extends StatelessWidget {
   /// For whoever may make invites. Null hides the button.
   final VoidCallback? onInvite;
 
+  /// Opens the server's profile from its icon. Null leaves the icon a
+  /// picture.
+  final VoidCallback? onShowProfile;
+
   const ServerHeader({
     super.key,
     required this.server,
     this.onInvite,
+    this.onShowProfile,
     this.showHideButton = true,
   });
 
@@ -55,7 +61,7 @@ class ServerHeader extends StatelessWidget {
         child: Row(
           spacing: 11,
           children: [
-            ServerIcon.of(server, size: 38),
+            _buildIcon(),
             Expanded(child: _buildIdentity(themeState)),
             if (onInvite != null) _buildInviteButton(themeState),
             if (showHideButton) _buildHideButton(context, themeState),
@@ -64,6 +70,21 @@ class ServerHeader extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildIcon() {
+    final icon = ServerIcon.of(server, size: _iconSize);
+    final onTap = onShowProfile;
+    if (onTap == null) return icon;
+    return Tooltip(
+      message: 'Server info',
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(onTap: onTap, child: icon),
+      ),
+    );
+  }
+
+  static const double _iconSize = 38;
 
   Widget _buildIdentity(ThemeState themeState) {
     return Column(

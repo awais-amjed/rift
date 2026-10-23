@@ -3,12 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../data/classes/server.dart';
 import '../../../../../../data/enums/notification_level.dart';
-import '../../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../../../../../../logic/cubits/reports/reports_cubit.dart';
-import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../common/app_modal.dart';
-import '../../../../../common/confirm_dialog.dart';
 import '../../../../../common/context_menu/context_menu_item.dart';
 import '../../../../../common/context_menu/context_menu_panel.dart';
 import '../../../../../common/context_menu/context_menu_scope.dart';
@@ -17,8 +14,10 @@ import '../../../../../common/server_icon.dart';
 import '../../../../../common/server_scope.dart';
 import '../../../../../common/unread_badge.dart';
 import '../../../invites/show_invite_modal.dart';
+import '../../leave_server.dart';
 import '../../manage/server_manage_tab.dart';
 import '../../manage/show_server_manage_dialog.dart';
+import '../../profile/show_server_profile.dart';
 
 /// Right-click menu on a rail chip.
 ///
@@ -28,7 +27,8 @@ import '../../manage/show_server_manage_dialog.dart';
 /// servers or in a toolbar above the channel list that costs every member
 /// vertical space.
 ///
-/// Notifications sits first and is the only item everybody gets. Muting here
+/// Server info and Notifications sit first and are the only items everybody
+/// gets. The info is the server's profile, as a person has one. Muting here
 /// quiets every channel and conversation on the server that has no level of
 /// its own, which is visible immediately: those channel tiles pick up the
 /// muted mark, because they resolve through the same chain.
@@ -56,6 +56,14 @@ class ServerChipMenu extends StatelessWidget {
       caption: Uri.tryParse(server.supabaseUrl)?.host,
       leading: ServerIcon.of(server, size: 24),
       children: [
+        ContextMenuItem(
+          icon: Icons.info_outline_rounded,
+          label: 'Server info',
+          onTap: () => showDialogFromMenu(
+            context: context,
+            build: (ctx) => serverProfileDialog(ctx, server: server),
+          ),
+        ),
         NotificationLevelSubmenu(
           current: context.select<ServerNotificationsCubit, NotificationLevel>(
             (c) => c.state.serverLevel(server.id),
@@ -122,7 +130,7 @@ class ServerChipMenu extends StatelessWidget {
           icon: Icons.logout_rounded,
           label: 'Leave server',
           isDangerous: true,
-          onTap: () => _leave(context),
+          onTap: () => leaveServer(context, server: server),
         ),
       ],
     );
@@ -133,51 +141,4 @@ class ServerChipMenu extends StatelessWidget {
         context: context,
         build: (ctx) => serverManageDialog(ctx, server: server, initial: tab),
       );
-
-  /// Leaving takes us off the server's member list (`leave_server`): a kick
-  /// by our own hand, so the roles and private channels go, what we wrote
-  /// stays, and any new invite brings us back as ourselves.
-  ///
-  /// Except for an **owner**, whom the server will not let go, because the
-  /// one person who can end the server or hand it on would be walking out of
-  /// the only place they could do either from. For them leaving still only
-  /// forgets the server here, and the dialog says so: nobody else can do it
-  /// for them, and an invite back has to come from an admin who is still
-  /// there. The danger zone already points at Transfer ownership; this is the
-  /// other door into the same mistake.
-  Future<void> _leave(BuildContext context) async {
-    final dismiss = ContextMenuScope.of(context);
-    final serverCubit = context.read<ServerCubit>();
-    final call = context.read<LiveKitCubit>();
-    final host = context;
-    final isOwner = server.user?.permissions.isOwner ?? false;
-    dismiss?.call();
-
-    final confirmed = await showConfirmDialog(
-      context: host,
-      title: 'Leave ${server.name}?',
-      message: isOwner
-          ? 'This removes the server and its keys from this device, but you '
-                'stay its owner — and the owner is the only person who can '
-                'end it or hand it on. Nobody left behind can do either, and '
-                'getting back in needs an invite from an admin who is still '
-                'there. To step down properly, open Members and choose '
-                'Transfer ownership first.'
-          : 'You leave its member list, and lose your roles and private '
-                'channels. Your messages stay. A new invite brings you back '
-                'as yourself.',
-      confirmLabel: 'Leave',
-      icon: Icons.logout_rounded,
-      isDestructive: true,
-    );
-    if (!confirmed) return;
-    // Hung up first: the server takes away what the call stood on, and a
-    // call left running would talk on into a server we are no longer in.
-    final state = call.state;
-    final inCallHere =
-        state.dmCall?.serverId == server.id ||
-        server.channels.any((c) => c.id == state.currentChannelId);
-    if (inCallHere) await call.disconnect();
-    await serverCubit.leaveServer(server);
-  }
 }

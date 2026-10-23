@@ -167,6 +167,28 @@ class PublicServersCubit extends Cubit<PublicServersState> {
     return response.success && response.data == true;
   }
 
+  /// [serverId]'s listing as anybody browsing the directory sees it: null
+  /// when it is not listed, is hidden by a moderator, or central cannot be
+  /// asked. For the server's profile, which shows its description and tags.
+  ///
+  /// Filtered here as [browse] is, because the policy also shows a publisher
+  /// their own delisted or hidden row, and the profile would then show an
+  /// admin a description nobody else sees.
+  Future<PublicServer?> publicListing({
+    required String supabaseUrl,
+    required String serverId,
+  }) async {
+    final response = await _repo.listingFor(
+      supabaseUrl: supabaseUrl,
+      serverId: serverId,
+    );
+    final listing = response.success ? response.data as PublicServer? : null;
+    if (listing == null || !listing.isListed || listing.hiddenAt != null) {
+      return null;
+    }
+    return listing;
+  }
+
   Future<void> loadMine() async {
     emit(state.copyWith(savingListing: true, clearError: true));
 

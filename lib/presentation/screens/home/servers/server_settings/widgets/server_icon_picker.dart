@@ -32,7 +32,7 @@ class ServerIconPicker extends StatelessWidget {
   final VoidCallback onPick;
   final VoidCallback onRemove;
 
-  static const double _size = 56;
+  static const double _size = 80;
 
   const ServerIconPicker({
     super.key,
