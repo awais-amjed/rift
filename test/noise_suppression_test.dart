@@ -51,6 +51,23 @@ void main() {
     }
   });
 
+  test('a new install starts on DPDFNet-2', () {
+    expect(const AppState().dpdfnetSmall, isTrue);
+    final json = const AppState().toJson()..remove('dpdfnetSmall');
+    expect(AppState.fromJson(json).dpdfnetSmall, isTrue);
+  });
+
+  test('DPDFNet-8 saved before DPDFNet-2 was the default moves to it once', () {
+    final before = const AppState(dpdfnetSmall: false).toJson()
+      ..remove('movedToDpdfnet2');
+    final moved = AppState.fromJson(before);
+    expect(moved.dpdfnetSmall, isTrue);
+
+    // Picked again afterwards, it stays.
+    final picked = moved.copyWith(dpdfnetSmall: false);
+    expect(AppState.fromJson(picked.toJson()).dpdfnetSmall, isFalse);
+  });
+
   test('a missing or unknown value reads as the default', () {
     final json = const AppState().toJson()..remove('noiseSuppression');
     expect(AppState.fromJson(json).noiseSuppression, NoiseSuppression.dpdfnet);

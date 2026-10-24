@@ -126,9 +126,9 @@ class AppState extends Equatable {
   @JsonKey(fromJson: NoiseSuppression.fromJson)
   final NoiseSuppression noiseSuppression;
 
-  /// DPDFNet-2 alone, when [noiseSuppression] is DPDFNet. Otherwise it runs
-  /// DPDFNet-8, and goes over to DPDFNet-2 by itself for the rest of a call
-  /// on a computer too slow.
+  /// DPDFNet-2 alone, when [noiseSuppression] is DPDFNet, as it starts.
+  /// Otherwise it runs DPDFNet-8, and goes over to DPDFNet-2 by itself for
+  /// the rest of a call on a computer too slow.
   final bool dpdfnetSmall;
   final bool echoCancellation;
   final bool autoGainControl;
@@ -274,7 +274,7 @@ class AppState extends Equatable {
     this.outputVolume = 1.0,
     this.inputVolume = 1.0,
     this.noiseSuppression = NoiseSuppression.dpdfnet,
-    this.dpdfnetSmall = false,
+    this.dpdfnetSmall = true,
     this.echoCancellation = true,
     this.autoGainControl = true,
     this.recentEmojis = const [],
@@ -470,18 +470,28 @@ class AppState extends Equatable {
   /// picking it again sticks.
   static const _movedToDpdfnet = 'movedToDpdfnet';
 
+  /// Written with every save too. Settings saved without it are from when
+  /// DPDFNet-8 was the default, so they move to DPDFNet-2 once, as the
+  /// RNNoise move did: it takes about a third of the time, and two testers'
+  /// games stuttered beside a call (Oct 24). Picking DPDFNet-8 again sticks.
+  static const _movedToDpdfnet2 = 'movedToDpdfnet2';
+
   factory AppState.fromJson(Map<String, dynamic> json) {
-    final state = _$AppStateFromJson(json);
-    if (json[_movedToDpdfnet] == true ||
-        state.noiseSuppression != NoiseSuppression.rnnoise) {
-      return state;
+    var state = _$AppStateFromJson(json);
+    if (json[_movedToDpdfnet] != true &&
+        state.noiseSuppression == NoiseSuppression.rnnoise) {
+      state = state.copyWith(noiseSuppression: NoiseSuppression.dpdfnet);
     }
-    return state.copyWith(noiseSuppression: NoiseSuppression.dpdfnet);
+    if (json[_movedToDpdfnet2] != true) {
+      state = state.copyWith(dpdfnetSmall: true);
+    }
+    return state;
   }
 
   Map<String, dynamic> toJson() => {
     ..._$AppStateToJson(this),
     _movedToDpdfnet: true,
+    _movedToDpdfnet2: true,
   };
 
   @override

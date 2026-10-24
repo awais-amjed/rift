@@ -6,8 +6,8 @@ import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 
 /// Which of DPDFNet's two models runs, shown while DPDFNet is the noise
-/// filter. DPDFNet-8 still goes over to DPDFNet-2 by itself on a computer
-/// too slow for it; this is for choosing DPDFNet-2 outright.
+/// filter. DPDFNet-2 is where it starts; DPDFNet-8 is for choosing, and
+/// still goes over to DPDFNet-2 by itself on a computer too slow for it.
 class DpdfnetSizeChoice extends StatelessWidget {
   final bool small;
   final ValueChanged<bool> onChanged;
@@ -38,15 +38,15 @@ class DpdfnetSizeChoice extends StatelessWidget {
             value: small,
             onChanged: onChanged,
             options: const [
-              SegmentOption(value: false, label: 'DPDFNet-8'),
               SegmentOption(value: true, label: 'DPDFNet-2'),
+              SegmentOption(value: false, label: 'DPDFNet-8'),
             ],
           ),
         ),
         const SizedBox(height: 8),
         Text(
           small
-              ? 'Best for an older or busy computer.'
+              ? 'Best beside a game, or on an older computer.'
               : 'Best for the most natural voice.',
           style: AppText.secondary.copyWith(color: theme.textTertiary),
         ),
