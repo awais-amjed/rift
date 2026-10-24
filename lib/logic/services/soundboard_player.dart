@@ -9,7 +9,10 @@ import 'soundboard_play.dart';
 ///
 /// A pool of one-shot players, the same shape as [SoundService] and for the
 /// same reason: two clips landing together must not cut each other off, so
-/// each gets a player and hands it back when it is done.
+/// each gets a player and hands it back when it is done. The one exception is
+/// the same clip again, which starts over instead: pressed twice, an airhorn
+/// over its own echo is noise, where two different clips are two people
+/// answering each other.
 ///
 /// Two things here are not in [SoundService], and both belong to the listener
 /// rather than to whoever pressed the button:
@@ -30,17 +33,29 @@ class SoundboardPlayer {
 
   final List<AudioPlayer> _playing = [];
 
-  /// Start [source] at [volume] (0–1). Returns once playback has been asked
-  /// for, not once it has finished.
-  Future<void> play(Source source, {required double volume}) async {
+  /// Which clip each player in [_playing] is playing, by sound id.
+  final Map<AudioPlayer, String> _clipOf = {};
+
+  /// Start [source], the sound [clipId], at [volume] (0–1). Whatever is
+  /// still playing that same sound is stopped first. Returns once playback
+  /// has been asked for, not once it has finished.
+  Future<void> play(
+    Source source, {
+    required String clipId,
+    required double volume,
+  }) async {
     if (volume <= 0) return;
 
+    for (final player in List<AudioPlayer>.from(_playing)) {
+      if (_clipOf[player] == clipId) await _retire(player);
+    }
     while (_playing.length >= _maxConcurrent) {
       await _retire(_playing.first);
     }
 
     final player = AudioPlayer();
     _playing.add(player);
+    _clipOf[player] = clipId;
     try {
       await player.setVolume(volume.clamp(0.0, 1.0));
       await player.play(source);
@@ -81,6 +96,7 @@ class SoundboardPlayer {
 
   Future<void> _retire(AudioPlayer player) async {
     if (!_playing.remove(player)) return;
+    _clipOf.remove(player);
     try {
       await player.stop();
     } catch (_) {

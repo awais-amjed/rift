@@ -255,7 +255,11 @@ class SoundboardCubit extends Cubit<SoundboardState>
       () => library.loadSound(sound.objectPath),
     );
     if (source == null || isClosed) return;
-    await SoundboardPlayer.instance.play(source, volume: volume);
+    await SoundboardPlayer.instance.play(
+      source,
+      clipId: sound.id,
+      volume: volume,
+    );
   }
 
   /// How loud a clip from [userId] should be here, 0 for silent. Null is a
