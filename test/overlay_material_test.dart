@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rift/data/enums/network_reading.dart';
 import 'package:rift/logic/cubits/app/app_cubit.dart';
+import 'package:rift/logic/cubits/ducking/ducking_cubit.dart';
 import 'package:rift/logic/cubits/network/network_cubit.dart';
 import 'package:rift/logic/cubits/server_reach/server_reach_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
@@ -67,6 +68,7 @@ Future<void> _pumpBesideNavigator(
         providers: [
           BlocProvider(create: (_) => ThemeCubit()),
           BlocProvider(create: (_) => AppCubit()),
+          BlocProvider(create: (_) => DuckingCubit()),
           // Nothing installed by the updater here, so it stays quiet.
           BlocProvider(
             create: (context) =>

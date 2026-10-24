@@ -34,6 +34,8 @@ class DuckingChip extends StatelessWidget {
     final preference = context.select<DuckingCubit, DuckingPreference?>(
       (c) => c.state.hinting ? c.state.preference : null,
     );
+    // Nothing more is asked until there is a duck to tell of.
+    if (preference == null) return const SizedBox.shrink();
     final byRift = context.select<DuckingCubit, bool>(
       (c) => c.state.lastByRift,
     );
@@ -41,9 +43,7 @@ class DuckingChip extends StatelessWidget {
     final wanted = context.select<AppCubit, bool>(
       (c) => c.state.showDuckingHint,
     );
-    if (preference == null || !wanted || !(byRift || inCall)) {
-      return const SizedBox.shrink();
-    }
+    if (!wanted || !(byRift || inCall)) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(right: 6),
       child: ConstrainedBox(
