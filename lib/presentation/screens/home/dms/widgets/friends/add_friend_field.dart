@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../../data/constants.dart';
 import '../../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../common/app_button.dart';
+import '../../../../../common/app_button_height.dart';
 import '../../../../../common/app_text_field.dart';
+import '../../../../../responsive/shell_scope.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
 
@@ -76,6 +79,29 @@ class _AddFriendFieldState extends State<AddFriendField> {
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
+    final field = AppTextField(
+      controller: _controller,
+      focusNode: _focusNode,
+      hint: 'Enter a handle, e.g. river_stone',
+      enabled: !_sending,
+      // The shape the column already enforces, applied while typing: a
+      // handle is lowercase and has no spaces in it, so a capital or a space
+      // is a keystroke to absorb rather than an error to report afterwards.
+      inputFormatters: [
+        FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9_@]')),
+        TextInputFormatter.withFunction(
+          (_, next) => next.copyWith(text: next.text.toLowerCase()),
+        ),
+        LengthLimitingTextInputFormatter(21),
+      ],
+      onChanged: (_) => setState(() {}),
+      onSubmitted: (_) => _submit(),
+    );
+    final button = AppButton(
+      label: 'Send request',
+      isLoading: _sending,
+      onPressed: _controller.text.trim().isEmpty ? null : _submit,
+    );
 
     return BlocListener<CentralDmCubit, CentralDmState>(
       listenWhen: (a, b) => a.handleQuery != b.handleQuery,
@@ -84,40 +110,24 @@ class _AddFriendFieldState extends State<AddFriendField> {
         if (query != null) _consumeSeededQuery(query);
       },
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            spacing: 8,
-            children: [
-              Expanded(
-                child: AppTextField(
-                  controller: _controller,
-                  focusNode: _focusNode,
-                  hint: 'Enter a handle, e.g. river_stone',
-                  enabled: !_sending,
-                  // The shape the column already enforces, applied while
-                  // typing: a handle is lowercase and has no spaces in it, so
-                  // a capital or a space is a keystroke to absorb rather than
-                  // an error to report afterwards.
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9_@]')),
-                    TextInputFormatter.withFunction(
-                      (_, next) => next.copyWith(text: next.text.toLowerCase()),
-                    ),
-                    LengthLimitingTextInputFormatter(21),
-                  ],
-                  onChanged: (_) => setState(() {}),
-                  onSubmitted: (_) => _submit(),
-                ),
-              ),
-              AppButton(
-                label: 'Send request',
-                isLoading: _sending,
-                onPressed: _controller.text.trim().isEmpty ? null : _submit,
-              ),
-            ],
-          ),
+          // A phone gives the field the whole width and puts the button
+          // under it, at a thumb's height: beside it, the button took a third
+          // of the row and the hint was cut off after "e.g. riv".
+          if (context.layoutMode.isCompact) ...[
+            field,
+            const SizedBox(height: 10),
+            AppButtonHeight(height: K.thumbCtaHeight, child: button),
+          ] else
+            Row(
+              spacing: 8,
+              children: [
+                Expanded(child: field),
+                button,
+              ],
+            ),
           const SizedBox(height: 7),
           Text(
             'Handles are exact. Nobody can be found by searching, and nobody '
