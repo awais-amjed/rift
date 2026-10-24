@@ -74,18 +74,6 @@ class ScreenShareSources {
     }
   }
 
-  /// Whether one app's sound can be shared by itself. Older Windows 10
-  /// builds can only record everything playing, so the sound share has
-  /// nothing to offer there.
-  static Future<bool> appSoundSupported() async {
-    try {
-      return await canShareAppSound();
-    } catch (e) {
-      HelperMethods.printDebug('Failed to ask about app sound: $e');
-      return true;
-    }
-  }
-
   /// [sources] minus every copy of Rift, this one and any other running on
   /// the same machine. What Rift plays is a call, so sharing it puts the call
   /// back into a call: this one's is an echo, and another instance's (a second

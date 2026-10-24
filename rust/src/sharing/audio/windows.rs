@@ -7,35 +7,30 @@ use crate::api::screenshare::types::AudioSource;
 use livekit::prelude::*;
 use std::collections::HashMap;
 use std::sync::mpsc::{Receiver, TryRecvError};
-use std::sync::OnceLock;
 use std::thread::{self, JoinHandle};
-use std::time::Duration;
 use tokio::sync::mpsc::Sender as FrameSender;
 use wasapi::{
-    AudioClient, DeviceEnumerator, DeviceState, Direction, SampleType, SessionState, StreamMode,
-    WaveFormat,
+    AudioClient, DeviceEnumerator, DeviceState, Direction, Handle, SampleType, SessionState,
+    StreamMode, WaveFormat,
 };
-use windows::core::{w, BOOL};
+use windows::core::BOOL;
 use windows::Win32::Foundation::{CloseHandle, HANDLE, HWND, LPARAM, WAIT_OBJECT_0};
 use windows::Win32::System::Diagnostics::ToolHelp::{
     CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS,
 };
-use windows::Win32::System::Registry::{RegGetValueW, HKEY_LOCAL_MACHINE, RRF_RT_REG_SZ};
 use windows::Win32::System::Threading::{OpenProcess, WaitForSingleObject, PROCESS_SYNCHRONIZE};
 use windows::Win32::UI::WindowsAndMessaging::{
     EnumWindows, GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId, IsWindowVisible,
 };
 
-/// Between reads. Packets are 10 ms, so this is never behind by more than
-/// one of them while keeping the thread off the CPU.
-const POLL: Duration = Duration::from_millis(5);
-/// One second, in the 100 ns units WASAPI counts in.
-const BUFFER_DURATION_HNS: i64 = 10_000_000;
+/// Longest wait for Windows to say a packet is ready. Nothing arrives while
+/// nothing plays, so this is how often the thread looks up to see whether the
+/// share ended.
+const WAIT_MS: u32 = 100;
+/// 20 ms, in the 100 ns units WASAPI counts in: what Microsoft's
+/// ApplicationLoopback sample asks for, and what was proven on Windows 10.
+const BUFFER_DURATION_HNS: i64 = 200_000;
 const READ_BUFFER_BYTES: usize = 16 * 1024;
-/// The first build Microsoft documents process loopback on. Older Windows 10
-/// builds have the API, but its first read crashed Rift inside AUDIOSES on
-/// 19045 (a friend's report, Oct 24 2026).
-const PROCESS_LOOPBACK_BUILD: u32 = 20348;
 
 pub(crate) async fn start(room: &Room, request: AudioCapture) -> Option<AudioCaptureHandle> {
     let pid = request.selection.pid;
@@ -62,13 +57,13 @@ fn spawn_capture_thread(
             log::warn!("audio: could not initialise COM on the capture thread");
             return;
         }
-        let Some((_client, capture)) = open_capture(pid) else {
+        let Some((_client, capture, ready)) = open_capture(pid) else {
             return;
         };
         let process = pid.and_then(ProcessWatch::open);
 
         let mut buffer = vec![0u8; READ_BUFFER_BYTES];
-        loop {
+        'capture: loop {
             match commands.try_recv() {
                 Ok(Command::Terminate) | Err(TryRecvError::Disconnected) => break,
                 Err(TryRecvError::Empty) => {}
@@ -80,18 +75,29 @@ fn spawn_capture_thread(
                 log::info!("audio: the captured process exited");
                 break;
             }
-            if let Ok((frame_count, _)) = capture.read_from_device(&mut buffer) {
-                if frame_count > 0 {
-                    let bytes = frame_count as usize * NUM_CHANNELS as usize * 2;
-                    if frames
-                        .blocking_send(Pcm::read_now(samples_from_le_bytes(&buffer[..bytes])))
-                        .is_err()
-                    {
-                        break;
-                    }
+            // Read only when Windows says a packet is ready, and only the
+            // packets waiting. Asking every 5 ms whether or not one was
+            // crashed Windows 10 (build 19045) inside AUDIOSES on the first
+            // read of a process loopback stream (Oct 24 2026); Windows 11
+            // let it pass.
+            if ready.wait_for_event(WAIT_MS).is_err() {
+                continue;
+            }
+            while let Ok(Some(waiting)) = capture.get_next_packet_size() {
+                if waiting == 0 {
+                    break;
+                }
+                let Ok((frame_count, _)) = capture.read_from_device(&mut buffer) else {
+                    break;
+                };
+                let bytes = frame_count as usize * NUM_CHANNELS as usize * 2;
+                if frames
+                    .blocking_send(Pcm::read_now(samples_from_le_bytes(&buffer[..bytes])))
+                    .is_err()
+                {
+                    break 'capture;
                 }
             }
-            thread::sleep(POLL);
         }
         log::info!("audio: capture thread exiting");
     })
@@ -124,26 +130,10 @@ impl Drop for ProcessWatch {
     }
 }
 
-/// The client stays with the capture: dropping it ends the stream.
-fn open_capture(pid: Option<u32>) -> Option<(AudioClient, wasapi::AudioCaptureClient)> {
-    let started = |mut client: AudioClient| start_capture(&mut client).map(|c| (client, c));
-    if !process_loopback() {
-        // One application's sound cannot be told apart without process
-        // loopback, and recording everything instead would share more than
-        // was chosen. Everything but Rift becomes everything.
-        return match pid {
-            Some(pid) => {
-                log::warn!(
-                    "audio: this Windows cannot record one app, so process {pid} shares no sound"
-                );
-                None
-            }
-            None => {
-                log::warn!("audio: recording the whole default output, Rift included");
-                default_output_client().and_then(started)
-            }
-        };
-    }
+/// The client stays with the capture: dropping it ends the stream. The
+/// handle is set when a packet is ready.
+fn open_capture(pid: Option<u32>) -> Option<(AudioClient, wasapi::AudioCaptureClient, Handle)> {
+    let started = |mut client: AudioClient| start_capture(&mut client).map(|(c, h)| (client, c, h));
     match pid {
         Some(pid) => AudioClient::new_application_loopback_client(pid, true)
             .map_err(|e| log::warn!("audio: no loopback client for process {pid}: {e:?}"))
@@ -151,7 +141,8 @@ fn open_capture(pid: Option<u32>) -> Option<(AudioClient, wasapi::AudioCaptureCl
             .and_then(started),
         // Everything playing but Rift: the call, the soundboard and Rift's
         // own sounds, recorded into a share, play everyone's voices back to
-        // them, so Rift's process tree is left out.
+        // them. Windows 10 2004 and newer can leave a process tree out; an
+        // older one records the whole default output, as before.
         None => AudioClient::new_application_loopback_client(std::process::id(), false)
             .map_err(|e| log::warn!("audio: no loopback client leaving Rift out: {e:?}"))
             .ok()
@@ -161,51 +152,6 @@ fn open_capture(pid: Option<u32>) -> Option<(AudioClient, wasapi::AudioCaptureCl
                 default_output_client().and_then(started)
             }),
     }
-}
-
-/// Whether this Windows can record by process, from its build number: the
-/// API is there on older builds too, so asking for it is no answer.
-pub(crate) fn process_loopback() -> bool {
-    static SUPPORTED: OnceLock<bool> = OnceLock::new();
-    *SUPPORTED.get_or_init(|| {
-        let build = windows_build();
-        let supported = build.is_some_and(|build| build >= PROCESS_LOOPBACK_BUILD);
-        log::info!(
-            "audio: Windows build {}, {}",
-            build.map_or("unknown".to_string(), |b| b.to_string()),
-            if supported {
-                "recording by process"
-            } else {
-                "recording the whole output"
-            }
-        );
-        supported
-    })
-}
-
-fn windows_build() -> Option<u32> {
-    let mut value = [0u16; 16];
-    let mut size = std::mem::size_of_val(&value) as u32;
-    // SAFETY: `size` is the buffer's length in bytes, and Windows writes no
-    // more than that.
-    unsafe {
-        RegGetValueW(
-            HKEY_LOCAL_MACHINE,
-            w!("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion"),
-            w!("CurrentBuildNumber"),
-            RRF_RT_REG_SZ,
-            None,
-            Some(value.as_mut_ptr().cast()),
-            Some(&mut size),
-        )
-    }
-    .ok()
-    .ok()?;
-    let length = value
-        .iter()
-        .position(|&unit| unit == 0)
-        .unwrap_or(value.len());
-    String::from_utf16_lossy(&value[..length]).parse().ok()
 }
 
 fn default_output_client() -> Option<AudioClient> {
@@ -219,7 +165,7 @@ fn default_output_client() -> Option<AudioClient> {
         .ok()
 }
 
-fn start_capture(client: &mut AudioClient) -> Option<wasapi::AudioCaptureClient> {
+fn start_capture(client: &mut AudioClient) -> Option<(wasapi::AudioCaptureClient, Handle)> {
     // 48 kHz, 16-bit integer, stereo: what LiveKit's source is created with.
     let format = WaveFormat::new(
         16,
@@ -229,7 +175,7 @@ fn start_capture(client: &mut AudioClient) -> Option<wasapi::AudioCaptureClient>
         NUM_CHANNELS as usize,
         None,
     );
-    let mode = StreamMode::PollingShared {
+    let mode = StreamMode::EventsShared {
         autoconvert: true,
         buffer_duration_hns: BUFFER_DURATION_HNS,
     };
@@ -237,6 +183,10 @@ fn start_capture(client: &mut AudioClient) -> Option<wasapi::AudioCaptureClient>
         log::warn!("audio: WASAPI client refused the format: {e:?}");
         return None;
     }
+    let ready = client
+        .set_get_eventhandle()
+        .map_err(|e| log::warn!("audio: no event to wait on: {e:?}"))
+        .ok()?;
     let capture = client
         .get_audiocaptureclient()
         .map_err(|e| log::warn!("audio: no capture client: {e:?}"))
@@ -245,7 +195,7 @@ fn start_capture(client: &mut AudioClient) -> Option<wasapi::AudioCaptureClient>
         log::warn!("audio: WASAPI stream would not start: {e:?}");
         return None;
     }
-    Some(capture)
+    Some((capture, ready))
 }
 
 /// Applications playing sound right now: one entry per process with an
@@ -261,10 +211,6 @@ fn start_capture(client: &mut AudioClient) -> Option<wasapi::AudioCaptureClient>
 /// not playing into it is not something anyone means by "what's playing",
 /// and the picker's empty state already says to start something first.
 pub(crate) fn list_sources() -> Vec<AudioSource> {
-    // Where one application cannot be recorded, there is none to offer.
-    if !process_loopback() {
-        return Vec::new();
-    }
     // As for the endpoint list: whichever apartment this thread already has
     // serves, so the answer is deliberately not checked.
     let _ = wasapi::initialize_mta().ok();
