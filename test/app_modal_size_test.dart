@@ -151,4 +151,41 @@ void main() {
     expect(cancel.right, lessThan(save.left));
     expect(dialog.right - save.right, moreOrLessEquals(20, epsilon: 0.5));
   });
+
+  // ── On a phone ──────────────────────────────────────────
+
+  const phone = Size(390, 844);
+
+  testWidgets('on a phone a short form is only as tall as what is in it', (
+    tester,
+  ) async {
+    // As a phone's own dialogs are. It filled the screen, a header and a few
+    // fields over a tall empty card.
+    await pump(
+      tester,
+      contentHeight: 120,
+      window: phone,
+      actions: const [AppButton(label: 'Save')],
+    );
+
+    final size = tester.getSize(_surface);
+    expect(size.height, lessThan(phone.height / 2));
+    expect(size.width, greaterThan(phone.width - 40));
+  });
+
+  testWidgets('on a phone a long form stops at the margins and scrolls', (
+    tester,
+  ) async {
+    await pump(tester, contentHeight: 2000, window: phone);
+
+    expect(tester.getSize(_surface).height, lessThan(phone.height));
+    expect(
+      tester.state<ScrollableState>(find.byType(Scrollable)).position,
+      isA<ScrollPosition>().having(
+        (p) => p.maxScrollExtent,
+        'maxScrollExtent',
+        greaterThan(0),
+      ),
+    );
+  });
 }

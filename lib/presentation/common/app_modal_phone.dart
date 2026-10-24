@@ -3,20 +3,19 @@ part of 'app_modal.dart';
 /// Over the widget budget and one job: a modal's phone layout, in its three
 /// shapes.
 ///
-/// The three shapes an [AppModal] takes on a phone: a near-full-screen
-/// dialog, a bottom sheet, and a page.
+/// The three shapes an [AppModal] takes on a phone: a dialog sized to what
+/// is in it, a bottom sheet, and a page.
 ///
 /// Split out because a phone is a different layout rather than a narrower
-/// one — each shape pins the footer where a thumb is, and none of that has
+/// one — each shape has buttons sized for a thumb, and none of that has
 /// anything to say about the desktop dialog.
 extension _AppModalPhone on AppModal {
-  /// A phone: the whole screen, less a margin, with the footer pinned where a
-  /// thumb is.
-  ///
-  /// A 448px dialog in a 390px window has no margins left to float in, and a
-  /// form sized to its content leaves its buttons wherever the last field
-  /// happened to end. Filling the screen puts the commit at the bottom every
-  /// time, at the taller thumb height, and gives a long form one scroll.
+  /// A phone: the width of the screen less a margin, and only as tall as what
+  /// is in it, the way a phone's own dialogs are. It filled the screen once,
+  /// to keep the buttons at the bottom, but that left a short form as a
+  /// header, a few fields and a tall empty card. A form taller than the
+  /// screen stops at the margins and scrolls; a [body] that scrolls itself
+  /// takes the room it is given, as on the desktop.
   Widget _buildForPhone(BuildContext context) {
     final themeState = context.theme;
     final borderColor = themeState.borderPrimary;
@@ -35,40 +34,39 @@ extension _AppModalPhone on AppModal {
         borderRadius: BorderRadius.circular(K.radiusCard),
         side: BorderSide(color: themeState.borderElevated),
       ),
-      child: SizedBox.expand(
-        child: Column(
-          children: [
-            AppModalHeader(
-              title: title,
-              subtitle: subtitle,
-              titleIcon: titleIcon,
-              count: count,
-              actions: headerActions,
-            ),
-            Divider(height: 1, color: borderColor),
-            Expanded(
-              child:
-                  body ??
-                  SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 18,
-                    ),
-                    child: _form,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppModalHeader(
+            title: title,
+            subtitle: subtitle,
+            titleIcon: titleIcon,
+            count: count,
+            actions: headerActions,
+          ),
+          Divider(height: 1, color: borderColor),
+          Flexible(
+            child:
+                body ??
+                SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 18,
                   ),
-            ),
-            if (actions != null) ...[
-              Divider(height: 1, color: borderColor),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-                child: AppButtonHeight(
-                  height: K.thumbCtaHeight,
-                  child: ButtonFooter(buttons: actions!),
+                  child: _form,
                 ),
+          ),
+          if (actions != null) ...[
+            Divider(height: 1, color: borderColor),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+              child: AppButtonHeight(
+                height: K.thumbCtaHeight,
+                child: ButtonFooter(buttons: actions!),
               ),
-            ],
+            ),
           ],
-        ),
+        ],
       ),
     );
   }

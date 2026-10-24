@@ -70,9 +70,10 @@ class AppModal extends StatelessWidget {
   /// the screen it came from and is worth keeping a strip of.
   static const _sheetMaxFraction = 0.88;
 
-  /// Keeps the centred dialog on a phone, where every other modal fills the
-  /// screen. For a confirmation: a question with two answers is exactly what a
-  /// dialog is for, and a sheet would be too easy to dismiss by accident.
+  /// Keeps the desktop dialog on a phone, with its narrower margins and
+  /// desktop-height buttons. For a confirmation: a question with two answers
+  /// is exactly what a dialog is for, and a sheet would be too easy to
+  /// dismiss by accident.
   final bool staysDialogOnPhone;
 
   /// Shows a phone a page rather than a card: the screen edge to edge, an
@@ -89,9 +90,9 @@ class AppModal extends StatelessWidget {
   /// [_sheetMaxFraction] of the window.
   ///
   /// For a modal that is a *glance* rather than a task — a profile, which is
-  /// five facts and two buttons. The full-screen phone branch would leave
-  /// that as a header at the top of 400px of nothing, and it would cover the
-  /// message you opened it from, which is the thing that made you curious.
+  /// five facts and two buttons. A sheet leaves the top of the screen
+  /// showing, and with it the message you opened it from, which is the thing
+  /// that made you curious; a dialog in the middle would cover it.
   /// Opening it as a sheet is the caller's job ([showModalBottomSheet]
   /// supplies the surface and the radius); this only draws what goes inside.
   final bool sheetOnPhone;
