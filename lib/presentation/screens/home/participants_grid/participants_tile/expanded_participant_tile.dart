@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:livekit_client/livekit_client.dart';
 
+import '../../../../../data/enums/stream_pip_corner.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/services/video_stream_stats.dart';
 import '../../../../theme/app_motion.dart';
@@ -9,6 +10,7 @@ import 'avatar_placeholder.dart';
 import 'decrypted_video.dart';
 import 'participant_name_badge.dart';
 import 'share_paused_notice.dart';
+import 'stream_camera_pip.dart';
 import 'stream_quality_badge.dart';
 import 'stream_stats_overlay.dart';
 import 'stream_stats_poller.dart';
@@ -72,6 +74,10 @@ class ExpandedParticipantTile extends StatelessWidget {
 
   /// See [StreamViewButtons.soundKey].
   final String? soundKey;
+
+  /// The sharer's camera, floated over the stream they are sharing
+  /// ([StreamCameraPip]). Null on anything else, or with their camera off.
+  final VideoTrack? ownerCamera;
   final bool showOverlays;
   final bool statsPinned;
   final VoidCallback onActivity;
@@ -91,6 +97,14 @@ class ExpandedParticipantTile extends StatelessWidget {
   /// Narrower than this and the controls, centred, reach the corners.
   static const _crowdedWidth = 900.0;
 
+  /// What the row of badges or buttons along the foot takes, with a gap:
+  /// the sharer's camera rises above it while it shows.
+  static const _footRoom = 40.0;
+
+  /// What who is watching ([StreamWatchers]) takes at the head, with a gap:
+  /// the camera sits below it there while it shows.
+  static const _headRoom = 38.0;
+
   const ExpandedParticipantTile({
     super.key,
     required this.videoTrack,
@@ -109,6 +123,7 @@ class ExpandedParticipantTile extends StatelessWidget {
     this.view = StreamView.inCall,
     this.onView,
     this.soundKey,
+    this.ownerCamera,
     required this.showOverlays,
     required this.statsPinned,
     required this.onActivity,
@@ -132,6 +147,16 @@ class ExpandedParticipantTile extends StatelessWidget {
     final showStats = context.select<AppCubit, bool>(
       (c) => c.state.showStreamStats,
     );
+    final pipCorner = context.select<AppCubit, StreamPipCorner>(
+      (c) => c.state.streamPipCorner,
+    );
+    final pipHidden = context.select<AppCubit, bool>(
+      (c) => c.state.streamPipHidden,
+    );
+    final pipScale = context.select<AppCubit, double>(
+      (c) => c.state.streamPipScale,
+    );
+    final camera = isWatching ? ownerCamera : null;
     final listener = Listener(
       behavior: HitTestBehavior.translucent,
       onPointerMove: (_) => onActivity(),
@@ -145,8 +170,17 @@ class ExpandedParticipantTile extends StatelessWidget {
           final lift = constraints.maxWidth < _crowdedWidth ? bottomInset : 0.0;
           return StreamStatsPoller(
             track: isWatching ? videoTrack : null,
-            builder: (context, stats) =>
-                _stage(stats, showStats: showStats, bottom: 12 + lift),
+            builder: (context, stats) => _stage(
+              context,
+              stats,
+              showStats: showStats,
+              bottom: 12 + lift,
+              stage: constraints.biggest,
+              camera: camera,
+              pipCorner: pipCorner,
+              pipHidden: pipHidden,
+              pipScale: pipScale,
+            ),
           );
         },
       ),
@@ -159,10 +193,21 @@ class ExpandedParticipantTile extends StatelessWidget {
   }
 
   Widget _stage(
+    BuildContext context,
     VideoStreamStats? stats, {
     required bool showStats,
     required double bottom,
+    required Size stage,
+    required VideoTrack? camera,
+    required StreamPipCorner pipCorner,
+    required bool pipHidden,
+    required double pipScale,
   }) {
+    final pip = pipHidden ? null : camera;
+    // In the top right the camera goes between who is watching and the
+    // stats: the stats make way for it below the watchers.
+    final pipTopRight = pip != null && pipCorner == StreamPipCorner.topRight;
+    final app = context.read<AppCubit>();
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -190,6 +235,10 @@ class ExpandedParticipantTile extends StatelessWidget {
                   visible: showOverlays,
                   child: StreamWatchers(shareIdentity: share),
                 ),
+              if (pipTopRight)
+                SizedBox(
+                  height: StreamCameraPip.sizeFor(stage, pipScale).height,
+                ),
               if (showStats && stats != null)
                 // Pinned stats stay put even after the other overlays fade.
                 _fading(
@@ -203,6 +252,25 @@ class ExpandedParticipantTile extends StatelessWidget {
           ),
         ),
         if (showWatchButton) WatchStreamButton(onTap: onWatch),
+        if (pip != null)
+          StreamCameraPip(
+            track: pip,
+            corner: pipCorner,
+            scale: pipScale,
+            stage: stage,
+            margin: EdgeInsets.fromLTRB(
+              12,
+              // Below who is watching while they show, in the top right.
+              12 + topInset + (pipTopRight && showOverlays ? _headRoom : 0),
+              12,
+              // Above the badges and buttons while they show; into the
+              // corner itself once they fade.
+              bottom + (showOverlays ? _footRoom : 0),
+            ),
+            onCorner: app.setStreamPipCorner,
+            onScale: app.setStreamPipScale,
+            showGrip: showOverlays,
+          ),
         AnimatedPositioned(
           duration: _fade,
           curve: Curves.easeInOut,
@@ -245,6 +313,10 @@ class ExpandedParticipantTile extends StatelessWidget {
                 view: view,
                 onView: onView!,
                 soundKey: soundKey,
+                cameraShown: pip != null,
+                onCamera: camera == null
+                    ? null
+                    : () => app.setStreamPipHidden(!pipHidden),
               ),
             ),
           ),

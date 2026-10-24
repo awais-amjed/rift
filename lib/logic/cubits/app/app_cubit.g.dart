@@ -51,6 +51,11 @@ AppState _$AppStateFromJson(Map<String, dynamic> json) => AppState(
       const {},
   statsOverlayPinned: json['statsOverlayPinned'] as bool? ?? false,
   showStreamStats: json['showStreamStats'] as bool? ?? false,
+  streamPipCorner:
+      $enumDecodeNullable(_$StreamPipCornerEnumMap, json['streamPipCorner']) ??
+      StreamPipCorner.bottomRight,
+  streamPipHidden: json['streamPipHidden'] as bool? ?? false,
+  streamPipScale: (json['streamPipScale'] as num?)?.toDouble() ?? 0.2,
   sensitiveContentMode:
       $enumDecodeNullable(
         _$SensitiveContentModeEnumMap,
@@ -119,6 +124,9 @@ Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
   'showDuckingHint': instance.showDuckingHint,
   'statsOverlayPinned': instance.statsOverlayPinned,
   'showStreamStats': instance.showStreamStats,
+  'streamPipCorner': _$StreamPipCornerEnumMap[instance.streamPipCorner]!,
+  'streamPipHidden': instance.streamPipHidden,
+  'streamPipScale': instance.streamPipScale,
   'sensitiveContentMode':
       _$SensitiveContentModeEnumMap[instance.sensitiveContentMode]!,
   'linkPreviewsEnabled': instance.linkPreviewsEnabled,
@@ -147,6 +155,13 @@ Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
   'seenKeys': instance.seenKeys.map((k, e) => MapEntry(k, e.toJson())),
   'recentEmojis': instance.recentEmojis,
   'callToResume': instance.callToResume?.toJson(),
+};
+
+const _$StreamPipCornerEnumMap = {
+  StreamPipCorner.topLeft: 'topLeft',
+  StreamPipCorner.topRight: 'topRight',
+  StreamPipCorner.bottomLeft: 'bottomLeft',
+  StreamPipCorner.bottomRight: 'bottomRight',
 };
 
 const _$SensitiveContentModeEnumMap = {

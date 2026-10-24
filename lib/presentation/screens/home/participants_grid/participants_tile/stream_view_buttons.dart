@@ -5,7 +5,8 @@ import 'stream_view.dart';
 import 'stream_volume_button.dart';
 
 /// Edge to edge and full screen, side by side in the corner of a watched
-/// stream, with its sound before them when it has any.
+/// stream, with its sound and the sharer's camera before them when it has
+/// them.
 ///
 /// Each one leaves when it is the view already on, and switches when the
 /// other is: from full screen, edge to edge gives the window back without
@@ -18,11 +19,19 @@ class StreamViewButtons extends StatelessWidget {
   /// stream with none.
   final String? soundKey;
 
+  /// Whether the sharer's camera floats over the stream (`StreamCameraPip`).
+  final bool cameraShown;
+
+  /// Puts their camera away or brings it back. Null while it is off.
+  final VoidCallback? onCamera;
+
   const StreamViewButtons({
     super.key,
     required this.view,
     required this.onView,
     this.soundKey,
+    this.cameraShown = false,
+    this.onCamera,
   });
 
   @override
@@ -34,6 +43,14 @@ class StreamViewButtons extends StatelessWidget {
       spacing: 6,
       children: [
         if (soundKey case final key?) StreamVolumeButton(settingsKey: key),
+        if (onCamera case final toggle?)
+          StreamCornerButton(
+            icon: cameraShown
+                ? Icons.videocam_off_outlined
+                : Icons.videocam_outlined,
+            tooltip: cameraShown ? 'Hide their camera' : 'Show their camera',
+            onTap: toggle,
+          ),
         StreamCornerButton(
           icon: edgeToEdge
               ? Icons.close_fullscreen_rounded

@@ -1,5 +1,7 @@
 import 'package:livekit_client/livekit_client.dart';
 
+import '../../data/participant_identity.dart';
+
 /// Which of a participant's video publications a tile should render.
 class ParticipantVideo {
   const ParticipantVideo._();
@@ -22,5 +24,27 @@ class ParticipantVideo {
       }
     }
     return null;
+  }
+
+  /// The camera of whoever is sharing [shareIdentity], to float over the
+  /// stream while it is watched, or null when their camera is off.
+  ///
+  /// A desktop's stream is a connection of its own beside the one with the
+  /// camera ([ParticipantIdentity.baseOf] finds it); a phone streams on the
+  /// connection it is already in the call on, so the two are one. Never your
+  /// own: you know what you look like.
+  static VideoTrack? ownerCamera(Room room, String shareIdentity) {
+    final owner = ParticipantIdentity.baseOf(shareIdentity);
+    final mine = room.localParticipant?.identity;
+    if (mine != null && owner == mine) return null;
+    final person = room.remoteParticipants.values
+        .where((p) => p.identity == owner)
+        .firstOrNull;
+    if (person == null) return null;
+    final track = activePublication(
+      person.videoTrackPublications,
+      isScreenshare: false,
+    )?.track;
+    return track is VideoTrack ? track : null;
   }
 }

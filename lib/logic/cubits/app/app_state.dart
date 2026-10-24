@@ -41,6 +41,16 @@ class AppState extends Equatable {
   /// quality badge beside the sharer's name covers what most people check.
   final bool showStreamStats;
 
+  /// Where a watched stream's sharer's camera floats (`StreamCameraPip`),
+  /// and whether it is put away. Kept between streams: someone who moved it
+  /// off a game's minimap wants it there on the next one too.
+  final StreamPipCorner streamPipCorner;
+  final bool streamPipHidden;
+
+  /// The camera's width as a share of the stream's, so it keeps its
+  /// proportion between the stage and edge to edge.
+  final double streamPipScale;
+
   /// What to do with an image the on-device classifier flags. Per device,
   /// because the verdict is: the model runs on bytes only this device holds.
   final SensitiveContentMode sensitiveContentMode;
@@ -249,6 +259,9 @@ class AppState extends Equatable {
     this.seenKeys = const {},
     this.statsOverlayPinned = false,
     this.showStreamStats = false,
+    this.streamPipCorner = StreamPipCorner.bottomRight,
+    this.streamPipHidden = false,
+    this.streamPipScale = 0.2,
     this.sensitiveContentMode = SensitiveContentMode.blur,
     this.linkPreviewsEnabled = true,
     this.showOfflineChip = true,
@@ -329,6 +342,9 @@ class AppState extends Equatable {
     Map<String, SeenKey>? seenKeys,
     bool? statsOverlayPinned,
     bool? showStreamStats,
+    StreamPipCorner? streamPipCorner,
+    bool? streamPipHidden,
+    double? streamPipScale,
     SensitiveContentMode? sensitiveContentMode,
     bool? linkPreviewsEnabled,
     bool? showOfflineChip,
@@ -395,6 +411,9 @@ class AppState extends Equatable {
       seenKeys: seenKeys ?? this.seenKeys,
       statsOverlayPinned: statsOverlayPinned ?? this.statsOverlayPinned,
       showStreamStats: showStreamStats ?? this.showStreamStats,
+      streamPipCorner: streamPipCorner ?? this.streamPipCorner,
+      streamPipHidden: streamPipHidden ?? this.streamPipHidden,
+      streamPipScale: streamPipScale ?? this.streamPipScale,
       sensitiveContentMode: sensitiveContentMode ?? this.sensitiveContentMode,
       linkPreviewsEnabled: linkPreviewsEnabled ?? this.linkPreviewsEnabled,
       showOfflineChip: showOfflineChip ?? this.showOfflineChip,
@@ -486,6 +505,9 @@ class AppState extends Equatable {
     showDuckingHint,
     statsOverlayPinned,
     showStreamStats,
+    streamPipCorner,
+    streamPipHidden,
+    streamPipScale,
     sensitiveContentMode,
     linkPreviewsEnabled,
     showOfflineChip,

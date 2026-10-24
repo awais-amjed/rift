@@ -17,6 +17,7 @@ import '../../../data/enums/app_sound.dart';
 import '../../../data/enums/home_surface.dart';
 import '../../../data/enums/noise_suppression.dart';
 import '../../../data/enums/sensitive_content_mode.dart';
+import '../../../data/enums/stream_pip_corner.dart';
 import '../../../data/participant_identity.dart';
 import '../../services/call_volume.dart';
 import '../../services/hydrated_keys.dart';
@@ -210,6 +211,15 @@ class AppCubit extends HydratedCubit<AppState> {
   void setStatsOverlayPinned(bool pinned) {
     emit(state.copyWith(statsOverlayPinned: pinned));
   }
+
+  void setStreamPipCorner(StreamPipCorner corner) =>
+      emit(state.copyWith(streamPipCorner: corner));
+
+  void setStreamPipHidden(bool hidden) =>
+      emit(state.copyWith(streamPipHidden: hidden));
+
+  void setStreamPipScale(double scale) =>
+      emit(state.copyWith(streamPipScale: scale));
 
   /// Stores the dragged sidebar width. Deliberately unclamped here: the bounds
   /// depend on the window, and [SidebarSizing.clamp] applies them on the way

@@ -296,6 +296,10 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
             ? _subscribeToScreenshare
             : widget.onTap;
         final onView = isWatching ? _show : null;
+        final room = livekitState.room;
+        final ownerCamera = isWatching && room != null && widget.isExpanded
+            ? ParticipantVideo.ownerCamera(room, widget.participant.identity)
+            : null;
         final soundKey = isWatching && _hasSound
             ? ParticipantIdentity.settingsKeyOf(
                 widget.participant.identity,
@@ -345,6 +349,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                       view: widget.view,
                       onView: onView,
                       soundKey: soundKey,
+                      ownerCamera: ownerCamera,
                       showOverlays: _showOverlays,
                       statsPinned: _statsPinned,
                       onActivity: _onActivity,
