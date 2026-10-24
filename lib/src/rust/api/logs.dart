@@ -10,6 +10,8 @@ import '../frb_generated.dart';
 /// Starts writing this session's log in `dir`, with what was logged before,
 /// and keeps only the newest few sessions there. Returns the file's path.
 /// Calling it again returns the same path.
+///
+/// Then the GPUs and Windows' record of recent crashes go in, once per run.
 Future<String> startLogFile({required String dir}) =>
     RustLib.instance.api.crateApiLogsStartLogFile(dir: dir);
 

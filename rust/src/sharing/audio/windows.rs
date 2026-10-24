@@ -7,6 +7,7 @@ use crate::api::screenshare::types::AudioSource;
 use livekit::prelude::*;
 use std::collections::HashMap;
 use std::sync::mpsc::{Receiver, TryRecvError};
+use std::sync::OnceLock;
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 use tokio::sync::mpsc::Sender as FrameSender;
@@ -14,11 +15,12 @@ use wasapi::{
     AudioClient, DeviceEnumerator, DeviceState, Direction, SampleType, SessionState, StreamMode,
     WaveFormat,
 };
-use windows::core::BOOL;
+use windows::core::{w, BOOL};
 use windows::Win32::Foundation::{CloseHandle, HANDLE, HWND, LPARAM, WAIT_OBJECT_0};
 use windows::Win32::System::Diagnostics::ToolHelp::{
     CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS,
 };
+use windows::Win32::System::Registry::{RegGetValueW, HKEY_LOCAL_MACHINE, RRF_RT_REG_SZ};
 use windows::Win32::System::Threading::{OpenProcess, WaitForSingleObject, PROCESS_SYNCHRONIZE};
 use windows::Win32::UI::WindowsAndMessaging::{
     EnumWindows, GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId, IsWindowVisible,
@@ -30,6 +32,10 @@ const POLL: Duration = Duration::from_millis(5);
 /// One second, in the 100 ns units WASAPI counts in.
 const BUFFER_DURATION_HNS: i64 = 10_000_000;
 const READ_BUFFER_BYTES: usize = 16 * 1024;
+/// The first build Microsoft documents process loopback on. Older Windows 10
+/// builds have the API, but its first read crashed Rift inside AUDIOSES on
+/// 19045 (a friend's report, Oct 24 2026).
+const PROCESS_LOOPBACK_BUILD: u32 = 20348;
 
 pub(crate) async fn start(room: &Room, request: AudioCapture) -> Option<AudioCaptureHandle> {
     let pid = request.selection.pid;
@@ -121,6 +127,23 @@ impl Drop for ProcessWatch {
 /// The client stays with the capture: dropping it ends the stream.
 fn open_capture(pid: Option<u32>) -> Option<(AudioClient, wasapi::AudioCaptureClient)> {
     let started = |mut client: AudioClient| start_capture(&mut client).map(|c| (client, c));
+    if !process_loopback() {
+        // One application's sound cannot be told apart without process
+        // loopback, and recording everything instead would share more than
+        // was chosen. Everything but Rift becomes everything.
+        return match pid {
+            Some(pid) => {
+                log::warn!(
+                    "audio: this Windows cannot record one app, so process {pid} shares no sound"
+                );
+                None
+            }
+            None => {
+                log::warn!("audio: recording the whole default output, Rift included");
+                default_output_client().and_then(started)
+            }
+        };
+    }
     match pid {
         Some(pid) => AudioClient::new_application_loopback_client(pid, true)
             .map_err(|e| log::warn!("audio: no loopback client for process {pid}: {e:?}"))
@@ -128,8 +151,7 @@ fn open_capture(pid: Option<u32>) -> Option<(AudioClient, wasapi::AudioCaptureCl
             .and_then(started),
         // Everything playing but Rift: the call, the soundboard and Rift's
         // own sounds, recorded into a share, play everyone's voices back to
-        // them. Windows 10 2004 and newer can leave a process tree out; an
-        // older one records the whole default output, as before.
+        // them, so Rift's process tree is left out.
         None => AudioClient::new_application_loopback_client(std::process::id(), false)
             .map_err(|e| log::warn!("audio: no loopback client leaving Rift out: {e:?}"))
             .ok()
@@ -139,6 +161,51 @@ fn open_capture(pid: Option<u32>) -> Option<(AudioClient, wasapi::AudioCaptureCl
                 default_output_client().and_then(started)
             }),
     }
+}
+
+/// Whether this Windows can record by process, from its build number: the
+/// API is there on older builds too, so asking for it is no answer.
+pub(crate) fn process_loopback() -> bool {
+    static SUPPORTED: OnceLock<bool> = OnceLock::new();
+    *SUPPORTED.get_or_init(|| {
+        let build = windows_build();
+        let supported = build.is_some_and(|build| build >= PROCESS_LOOPBACK_BUILD);
+        log::info!(
+            "audio: Windows build {}, {}",
+            build.map_or("unknown".to_string(), |b| b.to_string()),
+            if supported {
+                "recording by process"
+            } else {
+                "recording the whole output"
+            }
+        );
+        supported
+    })
+}
+
+fn windows_build() -> Option<u32> {
+    let mut value = [0u16; 16];
+    let mut size = std::mem::size_of_val(&value) as u32;
+    // SAFETY: `size` is the buffer's length in bytes, and Windows writes no
+    // more than that.
+    unsafe {
+        RegGetValueW(
+            HKEY_LOCAL_MACHINE,
+            w!("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion"),
+            w!("CurrentBuildNumber"),
+            RRF_RT_REG_SZ,
+            None,
+            Some(value.as_mut_ptr().cast()),
+            Some(&mut size),
+        )
+    }
+    .ok()
+    .ok()?;
+    let length = value
+        .iter()
+        .position(|&unit| unit == 0)
+        .unwrap_or(value.len());
+    String::from_utf16_lossy(&value[..length]).parse().ok()
 }
 
 fn default_output_client() -> Option<AudioClient> {
@@ -194,6 +261,10 @@ fn start_capture(client: &mut AudioClient) -> Option<wasapi::AudioCaptureClient>
 /// not playing into it is not something anyone means by "what's playing",
 /// and the picker's empty state already says to start something first.
 pub(crate) fn list_sources() -> Vec<AudioSource> {
+    // Where one application cannot be recorded, there is none to offer.
+    if !process_loopback() {
+        return Vec::new();
+    }
     // As for the endpoint list: whichever apartment this thread already has
     // serves, so the answer is deliberately not checked.
     let _ = wasapi::initialize_mta().ok();

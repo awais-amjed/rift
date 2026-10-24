@@ -151,6 +151,20 @@ pub async fn gpu_video_codecs() -> Vec<VideoCodec> {
     }
 }
 
+/// Whether one application's sound can be shared by itself: a sound share,
+/// or a window's sound on Windows. False on Windows 10 before build 20348,
+/// where only everything playing can be recorded.
+pub fn can_share_app_sound() -> bool {
+    #[cfg(desktop)]
+    {
+        audio::can_share_app_sound()
+    }
+    #[cfg(not(desktop))]
+    {
+        false
+    }
+}
+
 /// Applications currently playing audio, for Linux window-capture audio.
 /// Empty elsewhere: Windows chooses by the window's process id instead.
 pub fn list_audio_sources() -> Vec<AudioSource> {

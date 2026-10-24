@@ -70,6 +70,12 @@ Future<Uint8List?> getCaptureSourceThumbnail({
 Future<List<VideoCodec>> gpuVideoCodecs() =>
     RustLib.instance.api.crateApiScreenshareGpuVideoCodecs();
 
+/// Whether one application's sound can be shared by itself: a sound share,
+/// or a window's sound on Windows. False on Windows 10 before build 20348,
+/// where only everything playing can be recorded.
+Future<bool> canShareAppSound() =>
+    RustLib.instance.api.crateApiScreenshareCanShareAppSound();
+
 /// Applications currently playing audio, for Linux window-capture audio.
 /// Empty elsewhere: Windows chooses by the window's process id instead.
 Future<List<AudioSource>> listAudioSources() =>

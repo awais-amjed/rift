@@ -180,6 +180,23 @@ pub(crate) async fn start(room: &Room, request: AudioCapture) -> Option<AudioCap
     }
 }
 
+/// Whether one application's sound can be shared on its own. Windows before
+/// build 20348 cannot record by process ([`windows::process_loopback`]).
+pub(crate) fn can_share_app_sound() -> bool {
+    #[cfg(target_os = "windows")]
+    {
+        windows::process_loopback()
+    }
+    #[cfg(target_os = "linux")]
+    {
+        true
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "windows")))]
+    {
+        false
+    }
+}
+
 /// Applications currently playing. On Linux each is a PulseAudio sink input;
 /// on Windows each is a process, with its id in `index` (see
 /// [`windows::list_sources`]).

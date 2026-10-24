@@ -31,6 +31,7 @@ class _SoundSharePickerDialogState extends State<SoundSharePickerDialog> {
   List<AudioSource>? _sources;
   AudioSource? _selected;
   bool _loading = false;
+  bool _supported = true;
 
   @override
   void initState() {
@@ -40,9 +41,11 @@ class _SoundSharePickerDialogState extends State<SoundSharePickerDialog> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
+    final supported = await ScreenShareSources.appSoundSupported();
     final sources = await ScreenShareSources.listAudio();
     if (!mounted) return;
     setState(() {
+      _supported = supported;
       _sources = sources;
       _loading = false;
       // Re-resolved rather than kept: a source compares on every field, and
@@ -137,7 +140,6 @@ class _SoundSharePickerDialogState extends State<SoundSharePickerDialog> {
   }
 
   Widget _body() {
-    final theme = context.theme;
     if (_loading && _sources == null) {
       // heightFactor 1: a bare Center inside the Flexible below takes every
       // pixel the dialog may grow to, and the dialog stands at full height
@@ -151,32 +153,18 @@ class _SoundSharePickerDialogState extends State<SoundSharePickerDialog> {
       );
     }
 
+    if (!_supported) {
+      return const _EmptyNote(
+        title: "Windows 10 can't share one app's sound",
+        detail: 'Windows 11 can. A screen share still carries your sound.',
+      );
+    }
+
     final sources = _sources ?? const <AudioSource>[];
     if (sources.isEmpty) {
-      // Sized to its three lines and centred across the dialog: a Column
-      // defaults to its full height, which left the dialog at its maximum
-      // with the message pinned to the top-left.
-      return SizedBox(
-        width: double.infinity,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            spacing: 8,
-            children: [
-              Icon(Icons.volume_off_rounded, color: theme.textTertiary),
-              Text(
-                'Nothing is playing',
-                style: AppText.row.copyWith(color: theme.textSecondary),
-              ),
-              Text(
-                'Start playing something in an app, then refresh.',
-                textAlign: TextAlign.center,
-                style: AppText.secondary.copyWith(color: theme.textTertiary),
-              ),
-            ],
-          ),
-        ),
+      return const _EmptyNote(
+        title: 'Nothing is playing',
+        detail: 'Start playing something in an app, then refresh.',
       );
     }
 
@@ -192,6 +180,45 @@ class _SoundSharePickerDialogState extends State<SoundSharePickerDialog> {
           onTap: () => setState(() => _selected = source),
         );
       },
+    );
+  }
+}
+
+/// The picker's message when there is nothing to choose.
+class _EmptyNote extends StatelessWidget {
+  final String title;
+  final String detail;
+
+  const _EmptyNote({required this.title, required this.detail});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    // Sized to its three lines and centred across the dialog: a Column
+    // defaults to its full height, which left the dialog at its maximum
+    // with the message pinned to the top-left.
+    return SizedBox(
+      width: double.infinity,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          spacing: 8,
+          children: [
+            Icon(Icons.volume_off_rounded, color: theme.textTertiary),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: AppText.row.copyWith(color: theme.textSecondary),
+            ),
+            Text(
+              detail,
+              textAlign: TextAlign.center,
+              style: AppText.secondary.copyWith(color: theme.textTertiary),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
