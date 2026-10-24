@@ -123,6 +123,7 @@ class MobileSettingsList extends StatelessWidget {
                   SettingsLinkRow(
                     icon: Icons.palette_outlined,
                     label: SettingsTab.appearance.label,
+                    subtitle: 'Theme, color palette',
                     value: palette,
                     onTap: () => onTabSelected(SettingsTab.appearance),
                   ),
