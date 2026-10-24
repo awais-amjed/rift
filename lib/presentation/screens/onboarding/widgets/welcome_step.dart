@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../../data/constants.dart';
+import '../../../../data/rift_links.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_mark.dart';
+import '../../../common/external_link.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/custom_colors.dart';
 import '../../../theme/theme_context.dart';
@@ -88,7 +90,7 @@ class WelcomeStep extends StatelessWidget {
             constraints: const BoxConstraints(maxWidth: 420),
             child: Text(
               'Rift lets you voice chat, share screens, and hang out '
-              'in communities — all self-hosted and on your terms.\n\n'
+              'in communities. Join one with an invite, or host your own.\n\n'
               'Sign in with an account to keep your identity backed up and '
               'synced across your devices.',
               textAlign: TextAlign.center,
@@ -99,7 +101,16 @@ class WelcomeStep extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 6),
+
+          // Somebody who installed Rift from a store listing has only this
+          // card to go on, so the website is one tap from it.
+          const ExternalLink(
+            label: 'Learn more at joinrift.app',
+            url: RiftLinks.website,
+          ),
+
+          const SizedBox(height: 12),
 
           // Feature pills
           const _FeaturePillRow(),

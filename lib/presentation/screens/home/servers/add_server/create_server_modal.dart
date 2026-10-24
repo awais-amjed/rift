@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../data/apis/joining_api.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../data/repositories/session_repository.dart';
+import '../../../../../data/rift_links.dart';
 import '../../../../../logic/services/open_link.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
@@ -40,9 +41,6 @@ class CreateServerModal extends StatefulWidget {
   @override
   State<CreateServerModal> createState() => _CreateServerModalState();
 }
-
-/// Where somebody without a server is sent to make one.
-const _selfHostingGuide = 'https://docs.joinrift.app/install/';
 
 class _CreateServerModalState extends State<CreateServerModal> {
   final _nameCtrl = TextEditingController();
@@ -163,7 +161,7 @@ class _CreateServerModalState extends State<CreateServerModal> {
               label: 'Open the self-hosting guide',
               variant: AppButtonVariant.secondary,
               icon: const Icon(Icons.open_in_new_rounded, size: K.iconButton),
-              onPressed: () => openExternalLink(_selfHostingGuide),
+              onPressed: () => openExternalLink(RiftLinks.selfHostingGuide),
             ),
           ),
           const SizedBox(height: 18),

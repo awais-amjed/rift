@@ -153,7 +153,7 @@ class MobileSettingsList extends StatelessWidget {
                   SettingsLinkRow(
                     icon: SettingsTab.about.icon,
                     label: SettingsTab.about.label,
-                    subtitle: 'Which version this is',
+                    subtitle: 'Version, website, privacy policy',
                     onTap: () => onTabSelected(SettingsTab.about),
                   ),
                 ],

@@ -5,12 +5,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../logic/cubits/update/update_cubit.dart';
 import '../../../../../logic/services/host_platform.dart';
 import '../section_divider.dart';
+import 'links_section.dart';
 import 'updates_section.dart';
 import 'version_section.dart';
 
-/// Settings' About tab: which Rift this is, and on Windows and Linux, the
-/// updater. Where Rift replaces itself the updater's row already names the
-/// version, so the plain one is only for the copies that cannot.
+/// Settings' About tab: which Rift this is, on Windows and Linux the
+/// updater, and links to Rift's pages on the web. Where Rift replaces itself
+/// the updater's row already names the version, so the plain one is only for
+/// the copies that cannot.
 class AboutContent extends StatelessWidget {
   const AboutContent({super.key});
 
@@ -27,6 +29,8 @@ class AboutContent extends StatelessWidget {
           if (HostPlatform.selfUpdates) const SectionDivider(),
         ],
         if (HostPlatform.selfUpdates) const UpdatesSection(),
+        const SectionDivider(),
+        const LinksSection(),
       ],
     );
   }
