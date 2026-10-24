@@ -38,6 +38,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     };
 
     return Scaffold(
+      // Room for the keyboard is made below instead, so that the steps can
+      // still tell it is up: a scaffold that makes the room itself takes the
+      // keyboard out of what its body is told. See `OnboardingPage`.
+      resizeToAvoidBottomInset: false,
       // Onboarding lights the canvas from above centre rather than off the
       // left, and harder: there is no sidebar to fall across, only a card.
       body: CanvasBackdrop(
@@ -46,22 +50,27 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         glowOpacity: 0.13,
         // Full width: each page caps its own content, so that its scrollbar
         // is at the window's edge rather than beside the card.
-        child: SafeArea(
-          child: AnimatedSwitcher(
-            duration: AppMotion.enter,
-            switchInCurve: Curves.easeOut,
-            switchOutCurve: Curves.easeIn,
-            transitionBuilder: (child, animation) => FadeTransition(
-              opacity: animation,
-              child: SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0, 0.02),
-                  end: Offset.zero,
-                ).animate(animation),
-                child: child,
+        child: Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.viewInsetsOf(context).bottom,
+          ),
+          child: SafeArea(
+            child: AnimatedSwitcher(
+              duration: AppMotion.enter,
+              switchInCurve: Curves.easeOut,
+              switchOutCurve: Curves.easeIn,
+              transitionBuilder: (child, animation) => FadeTransition(
+                opacity: animation,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, 0.02),
+                    end: Offset.zero,
+                  ).animate(animation),
+                  child: child,
+                ),
               ),
+              child: KeyedSubtree(key: ValueKey(_page), child: page),
             ),
-            child: KeyedSubtree(key: ValueKey(_page), child: page),
           ),
         ),
       ),

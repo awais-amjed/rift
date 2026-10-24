@@ -20,6 +20,9 @@ import 'step_dots.dart';
 /// around the same content, so there the step is the screen: the way back and
 /// the progress across the top, the content in the middle, and [footer] pinned
 /// at the bottom where a thumb is, at the thumb height. The canvas glow stays.
+/// While the keyboard is up the footer goes back under the content instead,
+/// as it is in the card: pinned, it rode up on the keyboard and covered the
+/// form being typed into, and on a small phone left a strip to type in.
 class OnboardingPage extends StatelessWidget {
   final Widget child;
 
@@ -104,6 +107,10 @@ class OnboardingPage extends StatelessWidget {
 
   Widget _buildForPhone(BuildContext context) {
     final showTopBar = onBack != null || (step != null && stepLabel != null);
+    final typing = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final thumbFooter = footer == null
+        ? null
+        : AppButtonHeight(height: K.thumbCtaHeight, child: footer!);
     return SafeArea(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -116,10 +123,22 @@ class OnboardingPage extends StatelessWidget {
             child: CenteredScrollView(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
               maxWidth: _contentWidth,
-              child: child,
+              // Always the column, footer or not: a field whose parent changed
+              // would be built afresh, and lose the focus that raised the
+              // keyboard.
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  child,
+                  if (typing && thumbFooter != null) ...[
+                    const SizedBox(height: 24),
+                    SizedBox(width: double.infinity, child: thumbFooter),
+                  ],
+                ],
+              ),
             ),
           ),
-          if (footer != null)
+          if (thumbFooter != null && !typing)
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
               child: Center(
@@ -129,10 +148,7 @@ class OnboardingPage extends StatelessWidget {
                   constraints: const BoxConstraints.tightFor(
                     width: _contentWidth,
                   ),
-                  child: AppButtonHeight(
-                    height: K.thumbCtaHeight,
-                    child: footer!,
-                  ),
+                  child: thumbFooter,
                 ),
               ),
             ),
