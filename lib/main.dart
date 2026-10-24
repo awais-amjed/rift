@@ -23,7 +23,6 @@ import 'logic/services/window_fullscreen.dart';
 import 'logic/shortcuts/call_shortcut_listener.dart';
 import 'presentation/app_providers.dart';
 import 'presentation/common/app_toast.dart';
-import 'presentation/common/ducking/ducking_hint_listener.dart';
 import 'presentation/common/notices/notice_listeners.dart';
 import 'presentation/common/selected_server_scope.dart';
 import 'presentation/common/title_bar_overlay.dart';
@@ -174,11 +173,9 @@ class _MyAppState extends State<MyApp>
                           // Around the navigator, so a ringing call is above
                           // every page, dialog and sheet — see IncomingCallOverlay.
                           child: NoticeListeners(
-                            child: DuckingHintListener(
-                              child: PipOverlay(
-                                child: TitleBarOverlay(
-                                  child: IncomingCallOverlay(child: child!),
-                                ),
+                            child: PipOverlay(
+                              child: TitleBarOverlay(
+                                child: IncomingCallOverlay(child: child!),
                               ),
                             ),
                           ),

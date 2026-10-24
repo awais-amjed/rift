@@ -6,11 +6,12 @@ class DuckingState extends Equatable {
   /// before it has been read.
   final DuckingPreference? preference;
 
-  /// Counts the times Windows turned other apps down while it was set to.
-  /// A listener tells the person each time it moves, if Rift is in a call.
-  final int ducks;
+  /// Whether a duck happened in the last [DuckingCubit.hintFor], while
+  /// Windows was set to turn other apps down. The title bar says so then, if
+  /// Rift is in a call.
+  final bool hinting;
 
-  /// Whether the last of [ducks] was this process's own call.
+  /// Whether the duck behind [hinting] was this process's own call.
   final bool lastByRift;
 
   /// Whether other apps are turned down right now. Windows keeps a duck until
@@ -19,7 +20,7 @@ class DuckingState extends Equatable {
 
   const DuckingState({
     this.preference,
-    this.ducks = 0,
+    this.hinting = false,
     this.lastByRift = false,
     this.ducked = false,
   });
@@ -30,16 +31,16 @@ class DuckingState extends Equatable {
 
   DuckingState copyWith({
     DuckingPreference? preference,
-    int? ducks,
+    bool? hinting,
     bool? lastByRift,
     bool? ducked,
   }) => DuckingState(
     preference: preference ?? this.preference,
-    ducks: ducks ?? this.ducks,
+    hinting: hinting ?? this.hinting,
     lastByRift: lastByRift ?? this.lastByRift,
     ducked: ducked ?? this.ducked,
   );
 
   @override
-  List<Object?> get props => [preference, ducks, lastByRift, ducked];
+  List<Object?> get props => [preference, hinting, lastByRift, ducked];
 }

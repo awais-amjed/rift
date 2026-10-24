@@ -421,11 +421,15 @@ Rift does not try to stop it. The setting is Windows', for every calling app,
 and only takes effect when changed in that window (`WindowsSoundSettings`).
 It says what happened instead. `rust/src/ducking.rs` registers for Windows'
 duck notifications (`RegisterDuckNotification`, every session) and reads the
-choice from the registry (`UserDuckingPreference`). `DuckingCubit` counts the
-ducks while the choice lowers others, and `DuckingHintListener` shows a toast
-during a Rift call: it explains what happened, offers "Fix it" (Settings →
-Voice & audio, scrolled to the section and lit up) and "Don't show again"
-(`AppState.showDuckingHint`). The section shows the choice live, re-read when
+choice from the registry (`UserDuckingPreference`). A duck while the choice
+lowers others puts "Did your other apps go quiet?" in the title bar during a Rift
+call (`DuckingChip`) for a minute and a half (`DuckingCubit.hintFor`), then it
+goes by itself; pressing it opens Settings → Voice & audio, scrolled to the
+section and lit up. "Tell me when it happens" there turns it off
+(`AppState.showDuckingHint`). It was a toast until Oct 24 2026, which was too
+loud for a hint, and Windows reports a duck even when the person hears none (an
+app may ignore it, or play on another device), so the toast also interrupted
+people for nothing. The section shows the choice live, re-read when
 the window regains focus, and draws Windows' four options with the one to pick
 marked. **A change applies from the next call.** Windows keeps a duck until the
 stream that caused it closes, so the section says to rejoin when the person

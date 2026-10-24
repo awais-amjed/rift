@@ -33,7 +33,7 @@ class AppState extends Equatable {
   final bool askBeforeVoiceSwitch;
 
   /// Whether Rift says so when Windows turns other apps down for a call
-  /// (`DuckingHintListener`). On until the person picks "Don't show again".
+  /// (`DuckingChip`). On until the person turns it off in Settings.
   final bool showDuckingHint;
   final bool statsOverlayPinned;
 
