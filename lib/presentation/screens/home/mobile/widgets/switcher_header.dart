@@ -1,24 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/classes/server.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../data/enums/home_surface.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../common/context_menu_region.dart';
 import '../../../../common/server_icon.dart';
 import '../../../../common/server_scope.dart';
 import '../../../../common/unread_dot.dart';
 import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
+import '../../servers/server_rail/widgets/server_chip_menu.dart';
 import '../../sidebar/widgets/sidebar_header.dart';
 import 'switcher_home_line.dart';
 import 'switcher_home_mark.dart';
 import 'switcher_server_line.dart';
 
-/// Over the widget budget and one job: the top bar of a phone's list.
+/// Over the widget budget and one job: the top bar of a phone's list, with
+/// the small lookup its menu needs.
 ///
 /// The top of a phone's list: where you are, and the way to anywhere else.
 ///
@@ -70,84 +74,87 @@ class SwitcherHeader extends StatelessWidget {
         spacing: 4,
         children: [
           Expanded(
-            child: Material(
-              type: MaterialType.transparency,
-              child: InkWell(
-                mouseCursor: WidgetStateMouseCursor.clickable,
-                borderRadius: BorderRadius.circular(K.radiusRow),
-                onTap: ShellScope.of(context).toggleSidebar,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  child: Row(
-                    spacing: 10,
-                    children: [
-                      Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          onHome || server == null
-                              ? SwitcherHomeMark(isHome: onHome)
-                              : ServerIcon(
-                                  supabaseUrl: server.supabaseUrl,
-                                  serverId: server.id,
-                                  name: server.name,
-                                  iconPath: server.iconPath,
-                                  size: avatarSize,
-                                ),
-                          if (elsewhere)
-                            const Positioned(
-                              top: -2,
-                              right: -2,
-                              child: UnreadDot(size: 9),
-                            ),
-                        ],
-                      ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          spacing: 1,
+            child: _withServerMenu(
+              onHome || server == null ? null : server.id,
+              Material(
+                type: MaterialType.transparency,
+                child: InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
+                  borderRadius: BorderRadius.circular(K.radiusRow),
+                  onTap: ShellScope.of(context).toggleSidebar,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    child: Row(
+                      spacing: 10,
+                      children: [
+                        Stack(
+                          clipBehavior: Clip.none,
                           children: [
-                            // The chevron rides in the same row as the name,
-                            // so it tracks the ellipsis instead of sitting at
-                            // the far edge like a stepper.
-                            Row(
-                              spacing: 4,
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    title,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: AppText.panelTitle.copyWith(
-                                      color: theme.textPrimary,
-                                    ),
+                            onHome || server == null
+                                ? SwitcherHomeMark(isHome: onHome)
+                                : ServerIcon(
+                                    supabaseUrl: server.supabaseUrl,
+                                    serverId: server.id,
+                                    name: server.name,
+                                    iconPath: server.iconPath,
+                                    size: avatarSize,
                                   ),
-                                ),
-                                Icon(
-                                  Icons.expand_more_rounded,
-                                  size: K.iconLarge,
-                                  color: theme.textTertiary,
-                                ),
-                              ],
-                            ),
-                            if (onHome)
-                              const SwitcherHomeLine()
-                            else if (server != null)
-                              SwitcherServerLine(serverId: server.id)
-                            else
-                              Text(
-                                'Join or create one',
-                                style: AppText.label.copyWith(
-                                  color: theme.textTertiary,
-                                ),
+                            if (elsewhere)
+                              const Positioned(
+                                top: -2,
+                                right: -2,
+                                child: UnreadDot(size: 9),
                               ),
                           ],
                         ),
-                      ),
-                    ],
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            spacing: 1,
+                            children: [
+                              // The chevron rides in the same row as the name,
+                              // so it tracks the ellipsis instead of sitting at
+                              // the far edge like a stepper.
+                              Row(
+                                spacing: 4,
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: AppText.panelTitle.copyWith(
+                                        color: theme.textPrimary,
+                                      ),
+                                    ),
+                                  ),
+                                  Icon(
+                                    Icons.expand_more_rounded,
+                                    size: K.iconLarge,
+                                    color: theme.textTertiary,
+                                  ),
+                                ],
+                              ),
+                              if (onHome)
+                                const SwitcherHomeLine()
+                              else if (server != null)
+                                SwitcherServerLine(serverId: server.id)
+                              else
+                                Text(
+                                  'Join or create one',
+                                  style: AppText.label.copyWith(
+                                    color: theme.textTertiary,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -172,6 +179,16 @@ class SwitcherHeader extends StatelessWidget {
       ),
     );
   }
+
+  /// The server's own menu on a long press — the one its row in the
+  /// switcher holds, so its info, invite and the rest are a hold away
+  /// without opening the switcher first. Home has no such menu.
+  Widget _withServerMenu(String? serverId, Widget child) => serverId == null
+      ? child
+      : ContextMenuRegion(
+          contextMenu: _HeaderServerMenu(serverId: serverId),
+          child: child,
+        );
 
   /// Whether a tier other than the one on screen has something unread —
   /// another server, or Home while you are on a server.
@@ -207,4 +224,23 @@ class _ServerIdentity {
 
   @override
   int get hashCode => Object.hash(id, name, iconPath, supabaseUrl);
+}
+
+/// [ServerChipMenu] for the server the header names, looked up when the menu
+/// opens: the header itself only holds what it draws, and the menu needs the
+/// whole server — its permissions decide the items.
+class _HeaderServerMenu extends StatelessWidget {
+  final String serverId;
+
+  const _HeaderServerMenu({required this.serverId});
+
+  @override
+  Widget build(BuildContext context) {
+    final server = context.select<ServerCubit, Server?>(
+      (c) => c.state.serverOn(serverId),
+    );
+    return server == null
+        ? const SizedBox.shrink()
+        : ServerChipMenu(server: server);
+  }
 }
