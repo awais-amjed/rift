@@ -16,7 +16,6 @@ import 'restart_to_update.dart';
 Future<void> showUpdateReadyDialog(BuildContext context) {
   return showCustomDialog<void>(
     context: context,
-    barrierDismissible: true,
     build: (_) => MultiBlocProvider(
       providers: [
         BlocProvider.value(value: context.read<UpdateCubit>()),

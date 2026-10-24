@@ -44,9 +44,5 @@ Widget serverProfileDialog(BuildContext context, {required Server server}) {
 Future<void> showServerProfile(BuildContext context, {required Server server}) {
   final dialog = serverProfileDialog(context, server: server);
   if (context.layoutMode.isCompact) return showAppSheet<void>(context, dialog);
-  return showCustomDialog(
-    context: context,
-    barrierDismissible: true,
-    build: (_) => dialog,
-  );
+  return showCustomDialog(context: context, build: (_) => dialog);
 }

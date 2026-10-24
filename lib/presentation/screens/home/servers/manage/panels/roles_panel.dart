@@ -90,7 +90,6 @@ class _RolesPanelState extends State<RolesPanel> {
   Future<void> _edit(Role? role) async {
     final changed = await showCustomDialog<bool>(
       context: context,
-      barrierDismissible: true,
       build: (_) => BlocProvider.value(
         value: context.read<ServerCubit>(),
         child: RoleEditorDialog(role: role, newPosition: _newPosition),

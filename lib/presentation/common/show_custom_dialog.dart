@@ -5,12 +5,12 @@ import '../theme/app_motion.dart';
 import 'context_menu/context_menu_scope.dart';
 import 'server_scope.dart';
 
-/// Shows a dialog that:
-/// - Cannot be dismissed by tapping the barrier, unless [barrierDismissible]
-///   — right for a form, where a stray click outside would lose what was
-///   typed, and wrong for a picker like the quick switcher, which holds
-///   nothing and should go away when the eye moves on
-/// - CAN be dismissed by pressing Escape
+/// Shows a dialog that closes on Escape and on a click outside it — every
+/// dialog, so nobody has to learn which ones do. Some once kept a click
+/// outside out, to save a half-filled form from a stray one; but Escape closed
+/// those all along, and the dialogs that did and did not answer a click
+/// outside read as random. A dialog that must not close mid-way — a save
+/// under way — says so with a [PopScope], which both answer to.
 ///
 /// The dialog is about the server [context] is about ([ServerScope.carry]).
 ///
@@ -27,14 +27,13 @@ import 'server_scope.dart';
 Future<T?> showCustomDialog<T>({
   required BuildContext context,
   required WidgetBuilder build,
-  bool barrierDismissible = false,
 }) {
   // Built about the server [context] is about: the route is outside the tree
   // it opens from, and would otherwise know of no server.
   final dialog = ServerScope.carry(context, build(context));
   return showDialog<T>(
     context: context,
-    barrierDismissible: barrierDismissible,
+    barrierDismissible: true,
     // A scope of its own that answers Escape, rather than a shortcut on a
     // node inside the route. When the focused control goes away — a Save
     // button disabling itself once the save lands — focus falls back to the

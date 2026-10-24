@@ -46,7 +46,6 @@ Future<void> showServerManageDialog(
 }) {
   return showCustomDialog(
     context: context,
-    barrierDismissible: true,
     build: (_) => serverManageDialog(context, server: server, initial: initial),
   );
 }

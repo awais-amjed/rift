@@ -80,7 +80,6 @@ class MemberManagePanel extends StatelessWidget {
   void _openBotAccess(BuildContext context) {
     showCustomDialog<void>(
       context: context,
-      barrierDismissible: true,
       build: (_) => BlocProvider.value(
         value: context.read<ServerCubit>(),
         child: BotAccessDialog(bot: member),
@@ -93,7 +92,6 @@ class MemberManagePanel extends StatelessWidget {
     // and its own re-read land it — so there is nothing to tell anybody here.
     await showCustomDialog<void>(
       context: context,
-      barrierDismissible: true,
       build: (_) => MultiBlocProvider(
         providers: [
           BlocProvider.value(value: context.read<ServerCubit>()),

@@ -14,7 +14,6 @@ import '../../../theme/theme_context.dart';
 Future<TimeOutLength?> showTimeOutPicker(BuildContext context, String name) {
   return showCustomDialog<TimeOutLength>(
     context: context,
-    barrierDismissible: true,
     build: (dialogContext) {
       final theme = dialogContext.theme;
       return AppModal(

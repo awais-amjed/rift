@@ -107,7 +107,6 @@ class ProfileModeration extends StatelessWidget {
   void _openRoles(BuildContext context) {
     showCustomDialog<void>(
       context: context,
-      barrierDismissible: true,
       build: (_) => MultiBlocProvider(
         providers: [
           BlocProvider.value(value: context.read<ServerCubit>()),

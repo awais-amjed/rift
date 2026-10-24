@@ -45,12 +45,9 @@ class ServerProfileActions extends StatelessWidget {
             label: 'Invite people',
             expanded: true,
             icon: const Icon(Icons.person_add_outlined, size: K.iconRow),
-            // Not dismissed by a stray click, as from anywhere else: the
-            // invite form holds what was chosen in it.
             onPressed: () => _replaceWith(
               context,
               (ctx) => inviteModal(ctx, server: server),
-              dismissible: false,
             ),
           ),
         // Asked of the dialog rather than of a permission, as the chip's
@@ -97,18 +94,10 @@ class ServerProfileActions extends StatelessWidget {
   /// Close the profile and open [build] in its place, rather than stacking
   /// a second dialog over it. Built first, while this context still holds
   /// the cubits it reads, and carried in this server's scope.
-  void _replaceWith(
-    BuildContext context,
-    Widget Function(BuildContext) build, {
-    bool dismissible = true,
-  }) {
+  void _replaceWith(BuildContext context, Widget Function(BuildContext) build) {
     final dialog = ServerScope.carry(context, build(context));
     final navigator = Navigator.of(context);
     navigator.pop();
-    showCustomDialog<void>(
-      context: navigator.context,
-      barrierDismissible: dismissible,
-      build: (_) => dialog,
-    );
+    showCustomDialog<void>(context: navigator.context, build: (_) => dialog);
   }
 }

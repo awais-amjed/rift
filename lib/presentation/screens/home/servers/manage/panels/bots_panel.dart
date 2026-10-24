@@ -48,7 +48,6 @@ class BotsPanel extends StatelessWidget {
   void _openAccess(BuildContext context, ServerMember bot) {
     showCustomDialog<void>(
       context: context,
-      barrierDismissible: true,
       build: (_) => BlocProvider.value(
         value: context.read<ServerCubit>(),
         child: BotAccessDialog(bot: bot),

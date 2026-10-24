@@ -59,11 +59,7 @@ Future<void> showMemberProfile(
     ),
   );
   if (context.layoutMode.isCompact) return showAppSheet<void>(context, dialog);
-  return showCustomDialog(
-    context: context,
-    barrierDismissible: true,
-    build: (_) => dialog,
-  );
+  return showCustomDialog(context: context, build: (_) => dialog);
 }
 
 /// A central account, from the friends page or a central conversation.
@@ -80,9 +76,5 @@ Future<void> showCentralProfile(
     child: CentralProfileDialog(friend: friend),
   );
   if (context.layoutMode.isCompact) return showAppSheet<void>(context, dialog);
-  return showCustomDialog(
-    context: context,
-    barrierDismissible: true,
-    build: (_) => dialog,
-  );
+  return showCustomDialog(context: context, build: (_) => dialog);
 }

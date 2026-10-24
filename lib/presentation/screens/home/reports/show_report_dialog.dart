@@ -20,7 +20,6 @@ Future<void> showReportMessageDialog(
   if (id == null) return Future.value();
   return showCustomDialog(
     context: context,
-    barrierDismissible: true,
     build: (_) => ReportDialog(
       title: 'Report message',
       subtitle: 'From ${message.authorName}',
@@ -49,7 +48,6 @@ Future<void> showReportMemberDialog(
   final moderation = ModerationApi(ServerScope.read(context));
   return showCustomDialog(
     context: context,
-    barrierDismissible: true,
     build: (_) => ReportDialog(
       title: 'Report $displayName',
       subtitle: 'To this server\'s moderators',

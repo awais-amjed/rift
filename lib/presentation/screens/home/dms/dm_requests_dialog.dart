@@ -109,7 +109,6 @@ class DmRequestsDialog extends StatelessWidget {
 Future<void> showDmRequestsDialog(BuildContext context) {
   return showCustomDialog(
     context: context,
-    barrierDismissible: true,
     build: (_) => MultiBlocProvider(
       providers: [
         BlocProvider.value(value: context.read<ServerCubit>()),

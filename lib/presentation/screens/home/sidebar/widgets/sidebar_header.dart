@@ -61,9 +61,6 @@ class SidebarHeader extends StatelessWidget {
 void openQuickSwitcher(BuildContext context) {
   showCustomDialog(
     context: context,
-    // A picker, not a form: nothing typed into it is worth keeping, so a
-    // click anywhere else should close it the way Escape does.
-    barrierDismissible: true,
     build: (_) => MultiBlocProvider(
       providers: [
         BlocProvider.value(value: context.read<ServerCubit>()),
