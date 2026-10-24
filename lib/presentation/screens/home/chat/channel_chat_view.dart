@@ -154,6 +154,7 @@ class _ChannelChatViewState extends State<ChannelChatView>
                       (c) => c.state.meOn(serverId)?.timedOutUntil,
                     ),
                     child: ChatComposer(
+                      conversation: chatState.channelId,
                       canSend: status == ChannelChatStatus.ready,
                       onSend: (text, attachments, preview, toBotId) =>
                           _send(context, text, attachments, preview, toBotId),

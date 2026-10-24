@@ -182,6 +182,7 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
                   name: '@$handle',
                   onCheck: () => unawaited(_verify(context)),
                   child: ChatComposer(
+                    conversation: peerId,
                     hintText: quotaEmpty
                         ? 'Daily limit reached — continue on a shared server'
                         : 'Message @$handle',

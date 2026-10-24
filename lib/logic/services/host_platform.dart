@@ -35,6 +35,16 @@ class HostPlatform {
   static bool get isDesktop =>
       !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
 
+  /// Whether typing means an on-screen keyboard: a phone or tablet, the app
+  /// or a browser on one. There a field that takes focus by itself throws the
+  /// keyboard up over half the screen before anyone asked to type.
+  ///
+  /// [defaultTargetPlatform] rather than [Platform], since in a browser it is
+  /// the device's OS.
+  static bool get typesOnScreen =>
+      defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS;
+
   /// Whether a screen share can carry the computer's audio.
   ///
   /// Windows has WASAPI loopback and Linux has PulseAudio monitors; both are

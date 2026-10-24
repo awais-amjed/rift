@@ -367,6 +367,7 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
             name: state.openPeerName ?? '',
             onCheck: () => unawaited(_verify(context, state)),
             child: ChatComposer(
+              conversation: state.openPeerId,
               canSend: ready,
               hintText: 'Message ${state.openPeerName ?? ''}',
               canAttach: _canAttach(),

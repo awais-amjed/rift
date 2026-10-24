@@ -183,9 +183,16 @@ class ChatComposer extends StatefulWidget {
   /// poll of two is a question.
   final VoidCallback? onCreatePoll;
 
+  /// Which conversation it writes to: a channel's id, or the person a DM is
+  /// with. Opening one is a request to write in it, so on a keyboard the
+  /// caret is waiting there, whether the composer is new or carried over
+  /// from the conversation before — see [didUpdateWidget].
+  final Object? conversation;
+
   const ChatComposer({
     super.key,
     required this.onSend,
+    this.conversation,
     this.onTyping,
     this.hintText = 'Send a message',
     this.enabled = true,
@@ -240,6 +247,7 @@ class _ChatComposerState extends State<ChatComposer>
     // inside a mention.
     _controller.addListener(_syncMentionMenu);
     _controller.addListener(_syncBotSuggest);
+    _focusOnOpen();
   }
 
   @override
@@ -252,6 +260,17 @@ class _ChatComposerState extends State<ChatComposer>
     // a different message while already replying is still one transition.
     final now = widget.replyingTo?.id;
     if (now != null && now != old.replyingTo?.id) _focusNode.requestFocus();
+    if (widget.conversation != old.conversation) _focusOnOpen();
+  }
+
+  /// Puts the caret in the field when a conversation opens, after the frame
+  /// that attaches it. Not where typing means an on-screen keyboard: opening
+  /// a chat to read it would cover half of it.
+  void _focusOnOpen() {
+    if (HostPlatform.typesOnScreen || !widget.enabled) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && widget.enabled) _focusNode.requestFocus();
+    });
   }
 
   @override
