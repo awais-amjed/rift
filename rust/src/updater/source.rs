@@ -66,12 +66,19 @@ pub(crate) struct SignedSource {
 
 impl SignedSource {
     pub(crate) fn new(include_prereleases: bool, transfer: Arc<Transfer>) -> Self {
-        SignedSource { include_prereleases, packages: Mutex::new(HashMap::new()), transfer }
+        SignedSource {
+            include_prereleases,
+            packages: Mutex::new(HashMap::new()),
+            transfer,
+        }
     }
 
     fn options(timeout_ms: u64) -> HttpOptions {
         HttpOptions {
-            Headers: vec![HttpHeader { Name: "User-Agent".into(), Value: "Rift".into() }],
+            Headers: vec![HttpHeader {
+                Name: "User-Agent".into(),
+                Value: "Rift".into(),
+            }],
             TimeoutMilliseconds: timeout_ms,
         }
     }
@@ -92,21 +99,33 @@ impl SignedSource {
             .into_iter()
             .filter(|r| !r.draft && (self.include_prereleases || !r.prerelease))
             .map(|r| {
-                Files::Listed(r.assets.into_iter().map(|a| (a.name, a.browser_download_url)).collect())
+                Files::Listed(
+                    r.assets
+                        .into_iter()
+                        .map(|a| (a.name, a.browser_download_url))
+                        .collect(),
+                )
             })
             .collect())
     }
 }
 
 impl UpdateSource for SignedSource {
-    fn get_release_feed(&self, channel: &str, _app: &Manifest, _staged_user_id: &str) -> Result<VelopackAssetFeed, Error> {
+    fn get_release_feed(
+        &self,
+        channel: &str,
+        _app: &Manifest,
+        _staged_user_id: &str,
+    ) -> Result<VelopackAssetFeed, Error> {
         let feed_name = format!("releases.{channel}.json");
         let options = Self::options(30_000);
         let mut assets = Vec::new();
         let mut packages = HashMap::new();
         for files in self.releases()? {
-            let (Some(feed_url), Some(signature_url)) = (files.url(&feed_name), files.url(&format!("{feed_name}.sig")))
-            else {
+            let (Some(feed_url), Some(signature_url)) = (
+                files.url(&feed_name),
+                files.url(&format!("{feed_name}.sig")),
+            ) else {
                 continue;
             };
             // A release without a feed for this channel, or not signed yet,
@@ -118,7 +137,12 @@ impl UpdateSource for SignedSource {
             ) else {
                 continue;
             };
-            if !signature::verify(channel, feed.as_bytes(), &signature_text, signature::RELEASE_KEYS) {
+            if !signature::verify(
+                channel,
+                feed.as_bytes(),
+                &signature_text,
+                signature::RELEASE_KEYS,
+            ) {
                 log::warn!("updater: {feed_url} is not signed by the release key; skipped");
                 continue;
             }
@@ -143,10 +167,24 @@ impl UpdateSource for SignedSource {
 
     /// Velopack's progress goes unused: the transfer counts bytes, and a
     /// delta's download is given no progress at all.
-    fn download_release_entry(&self, asset: &VelopackAsset, local_file: &Path, _progress: Option<Sender<i16>>) -> Result<(), Error> {
-        let url = self.packages.lock().unwrap().get(&asset.FileName).cloned().ok_or_else(|| {
-            Error::Other(format!("{} is in no signed feed read so far", asset.FileName))
-        })?;
+    fn download_release_entry(
+        &self,
+        asset: &VelopackAsset,
+        local_file: &Path,
+        _progress: Option<Sender<i16>>,
+    ) -> Result<(), Error> {
+        let url = self
+            .packages
+            .lock()
+            .unwrap()
+            .get(&asset.FileName)
+            .cloned()
+            .ok_or_else(|| {
+                Error::Other(format!(
+                    "{} is in no signed feed read so far",
+                    asset.FileName
+                ))
+            })?;
         // Velopack checks the file against the feed's size and SHA-256 once
         // it is down, and throws it away if either is off.
         self.transfer.fetch(&url, asset, local_file)

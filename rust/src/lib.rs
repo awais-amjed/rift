@@ -4,15 +4,15 @@ mod audio_endpoints;
 mod blob_cipher;
 #[cfg(any(target_os = "windows", target_os = "linux"))]
 mod cue;
+#[cfg(target_os = "linux")]
+mod device_watch;
 mod diagnostics;
 #[cfg(any(target_os = "windows", target_os = "linux"))]
 mod dpdfnet;
-#[cfg(any(target_os = "windows", target_os = "linux"))]
-mod fast_core;
-#[cfg(target_os = "linux")]
-mod device_watch;
 #[cfg(target_os = "windows")]
 mod ducking;
+#[cfg(any(target_os = "windows", target_os = "linux"))]
+mod fast_core;
 mod frb_generated;
 mod logging;
 #[cfg(any(target_os = "windows", target_os = "linux"))]

@@ -72,12 +72,18 @@ async fn live_share_sound_reaches_a_listener_in_stereo() {
         std::thread::spawn(move || {
             let start = Instant::now();
             for index in 0.. {
-                if commands.try_recv().is_ok_and(|c| matches!(c, Command::Terminate)) {
+                if commands
+                    .try_recv()
+                    .is_ok_and(|c| matches!(c, Command::Terminate))
+                {
                     return;
                 }
                 let due = start + Duration::from_millis((index * FRAME_MS) as u64);
                 std::thread::sleep(due.saturating_duration_since(Instant::now()));
-                if frames.blocking_send(Pcm::read_now(tone_frame(index))).is_err() {
+                if frames
+                    .blocking_send(Pcm::read_now(tone_frame(index)))
+                    .is_err()
+                {
                     return;
                 }
             }
@@ -101,11 +107,8 @@ async fn live_share_sound_reaches_a_listener_in_stereo() {
     .await
     .expect("the listener gets the sound");
 
-    let mut stream = NativeAudioStream::new(
-        track.rtc_track(),
-        SAMPLE_RATE as i32,
-        NUM_CHANNELS as i32,
-    );
+    let mut stream =
+        NativeAudioStream::new(track.rtc_track(), SAMPLE_RATE as i32, NUM_CHANNELS as i32);
     let (mut left_only, mut right_only, mut loud) = (0, 0, 0);
     let _ = timeout(LISTEN, async {
         while let Some(frame) = stream.next().await {
@@ -135,13 +138,13 @@ async fn live_share_sound_reaches_a_listener_in_stereo() {
         .unwrap_or_default()
         .into_iter()
         .filter_map(|s| match s {
-            RtcStats::Codec(c) if c.codec.mime_type.contains("opus") => {
-                Some(c.codec.sdp_fmtp_line)
-            }
+            RtcStats::Codec(c) if c.codec.mime_type.contains("opus") => Some(c.codec.sdp_fmtp_line),
             _ => None,
         })
         .collect();
-    log::info!("sent with {fmtp:?}; {loud} loud frames, {left_only} left only, {right_only} right only");
+    log::info!(
+        "sent with {fmtp:?}; {loud} loud frames, {left_only} left only, {right_only} right only"
+    );
 
     handle.terminate();
     sharer.close().await.ok();

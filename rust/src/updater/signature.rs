@@ -50,8 +50,11 @@ pub(crate) fn verify(channel: &str, feed: &[u8], signature: &str, keys: &[&str])
     };
     let message = message(channel, feed);
     keys.iter().any(|key| {
-        b64.decode(key)
-            .is_ok_and(|key| UnparsedPublicKey::new(&ED25519, key).verify(&message, &signature).is_ok())
+        b64.decode(key).is_ok_and(|key| {
+            UnparsedPublicKey::new(&ED25519, key)
+                .verify(&message, &signature)
+                .is_ok()
+        })
     })
 }
 
@@ -87,7 +90,10 @@ mod tests {
     #[test]
     fn any_listed_key_will_do() {
         let (old, new) = (key_pair(), key_pair());
-        let keys = [b64(old.public_key().as_ref()), b64(new.public_key().as_ref())];
+        let keys = [
+            b64(old.public_key().as_ref()),
+            b64(new.public_key().as_ref()),
+        ];
         let keys: Vec<&str> = keys.iter().map(String::as_str).collect();
         assert!(verify("win", FEED, &sign(&new, "win", FEED), &keys));
     }

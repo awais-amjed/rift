@@ -54,7 +54,10 @@ enum Stop {
 
 impl Transfer {
     pub(crate) fn new() -> Self {
-        Transfer { state: Mutex::new(State::default()), changed: Condvar::new() }
+        Transfer {
+            state: Mutex::new(State::default()),
+            changed: Condvar::new(),
+        }
     }
 
     /// Starts a download of `packages` over: nothing down, not paused, not
@@ -146,12 +149,17 @@ impl Transfer {
     }
 
     fn fetch_into(&self, url: &str, size: u64, path: &Path) -> Result<(), Error> {
-        let config =
-            ureq::Agent::config_builder().timeout_connect(Some(ANSWER_WAIT)).timeout_recv_response(Some(ANSWER_WAIT));
+        let config = ureq::Agent::config_builder()
+            .timeout_connect(Some(ANSWER_WAIT))
+            .timeout_recv_response(Some(ANSWER_WAIT));
         // The tests' server is on this machine, where a proxy named in the
         // environment cannot reach it.
         #[cfg(test)]
-        let config = if url.starts_with("http://127.0.0.1") { config.proxy(None) } else { config };
+        let config = if url.starts_with("http://127.0.0.1") {
+            config.proxy(None)
+        } else {
+            config
+        };
         let agent: ureq::Agent = config.build().into();
         let mut file = File::create(path)?;
         let mut have: u64 = 0;
@@ -232,7 +240,11 @@ mod tests {
     use super::*;
 
     fn asset(name: &str, size: u64) -> VelopackAsset {
-        VelopackAsset { FileName: name.into(), Size: size, ..Default::default() }
+        VelopackAsset {
+            FileName: name.into(),
+            Size: size,
+            ..Default::default()
+        }
     }
 
     /// A server of `data` that honours `Range` when `ranges`, sending it in
@@ -258,10 +270,20 @@ mod tests {
                     }
                 }
                 log.lock().unwrap().push(range.clone());
-                let from = if ranges { range.and_then(|r| r.parse::<usize>().ok()).unwrap_or(0) } else { 0 };
-                let status = if from > 0 { "206 Partial Content" } else { "200 OK" };
-                let head =
-                    format!("HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", data.len() - from);
+                let from = if ranges {
+                    range.and_then(|r| r.parse::<usize>().ok()).unwrap_or(0)
+                } else {
+                    0
+                };
+                let status = if from > 0 {
+                    "206 Partial Content"
+                } else {
+                    "200 OK"
+                };
+                let head = format!(
+                    "HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                    data.len() - from
+                );
                 let _ = stream.write_all(head.as_bytes());
                 for piece in data[from..].chunks(4096) {
                     if stream.write_all(piece).is_err() {
@@ -276,7 +298,8 @@ mod tests {
 
     /// A part-file path of this test's own, gone first.
     fn scratch(name: &str) -> std::path::PathBuf {
-        let path = std::env::temp_dir().join(format!("rift-transfer-{}-{name}", std::process::id()));
+        let path =
+            std::env::temp_dir().join(format!("rift-transfer-{}-{name}", std::process::id()));
         let _ = std::fs::remove_file(&path);
         path
     }
@@ -351,7 +374,10 @@ mod tests {
             std::thread::sleep(Duration::from_millis(5));
         }
         worker.join().unwrap().unwrap();
-        assert_eq!(lowest, held, "the resume carried on rather than starting again");
+        assert_eq!(
+            lowest, held,
+            "the resume carried on rather than starting again"
+        );
         assert_eq!(std::fs::metadata(&path).unwrap().len(), size);
     }
 
@@ -396,7 +422,9 @@ mod tests {
         assert!(error.to_string().contains(CANCELLED));
         assert!(!path.exists());
         // The full package Velopack falls back to is refused too.
-        assert!(transfer.fetch("http://127.0.0.1:9/never", &pkg, &path).is_err());
+        assert!(transfer
+            .fetch("http://127.0.0.1:9/never", &pkg, &path)
+            .is_err());
     }
 
     #[test]
@@ -432,7 +460,11 @@ mod tests {
         let start = Instant::now();
         let at = |ms: u64| start + Duration::from_millis(ms);
         assert_eq!(rate.sample(at(0), 0, false), 0);
-        assert_eq!(rate.sample(at(500), 500, false), 0, "under a second is no measure");
+        assert_eq!(
+            rate.sample(at(500), 500, false),
+            0,
+            "under a second is no measure"
+        );
         assert_eq!(rate.sample(at(1000), 1000, false), 1000);
         for s in 2..=10 {
             rate.sample(at(s * 1000), s * 1000, false);
@@ -443,8 +475,16 @@ mod tests {
         }
         assert_eq!(rate.sample(at(15_000), 35_000, false), 5000);
         assert_eq!(rate.sample(at(15_500), 35_000, true), 0);
-        assert_eq!(rate.sample(at(16_000), 35_000, false), 0, "a resume measures afresh");
+        assert_eq!(
+            rate.sample(at(16_000), 35_000, false),
+            0,
+            "a resume measures afresh"
+        );
         assert_eq!(rate.sample(at(17_000), 37_000, false), 2000);
-        assert_eq!(rate.sample(at(17_500), 100, false), 0, "a fall back starts again");
+        assert_eq!(
+            rate.sample(at(17_500), 100, false),
+            0,
+            "a fall back starts again"
+        );
     }
 }

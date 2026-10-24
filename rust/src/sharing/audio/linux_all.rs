@@ -185,9 +185,7 @@ fn follow(
     playing: impl Iterator<Item = AudioSource>,
     monitors: &HashMap<u32, String>,
 ) {
-    let playing: HashMap<u32, u32> = playing
-        .map(|input| (input.index, input.sink))
-        .collect();
+    let playing: HashMap<u32, u32> = playing.map(|input| (input.index, input.sink)).collect();
     followed.retain(|index, f| {
         let keep = playing.get(index) == Some(&f.sink);
         if !keep {

@@ -55,7 +55,9 @@ pub struct BlobHasher {
 impl BlobHasher {
     #[flutter_rust_bridge::frb(sync)]
     pub fn new() -> Self {
-        Self { inner: Mutex::new(StreamDigest::new()) }
+        Self {
+            inner: Mutex::new(StreamDigest::new()),
+        }
     }
 
     pub fn update(&self, data: Vec<u8>) -> Result<(), String> {

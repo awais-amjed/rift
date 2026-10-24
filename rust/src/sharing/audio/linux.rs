@@ -139,7 +139,9 @@ fn watch_for_removal(connection: &mut Connection, sink_input: u32) -> Arc<Atomic
                 flag.store(true, Ordering::SeqCst);
             }
         })));
-    let _ = connection.context.subscribe(InterestMaskSet::SINK_INPUT, |_| {});
+    let _ = connection
+        .context
+        .subscribe(InterestMaskSet::SINK_INPUT, |_| {});
     removed
 }
 

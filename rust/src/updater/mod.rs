@@ -59,10 +59,15 @@ pub(crate) fn startup() -> Option<String> {
         app = app.set_app_user_model_id("CodingFries.Rift");
     }
     app.run();
-    installed_manager(false, Arc::new(Transfer::new())).ok().map(|m| m.get_current_version_as_string())
+    installed_manager(false, Arc::new(Transfer::new()))
+        .ok()
+        .map(|m| m.get_current_version_as_string())
 }
 
-fn installed_manager(include_prereleases: bool, transfer: Arc<Transfer>) -> Result<UpdateManager, String> {
+fn installed_manager(
+    include_prereleases: bool,
+    transfer: Arc<Transfer>,
+) -> Result<UpdateManager, String> {
     let source = SignedSource::new(include_prereleases, transfer);
     UpdateManager::new(source, None, None).map_err(|e| e.to_string())
 }
@@ -89,7 +94,11 @@ pub(crate) fn check(include_prereleases: bool) -> Result<Option<AvailableUpdate>
             .unwrap_or(u32::MAX),
         }
     });
-    *SESSION.lock().unwrap() = Some(Session { manager, update: found, transfer });
+    *SESSION.lock().unwrap() = Some(Session {
+        manager,
+        update: found,
+        transfer,
+    });
     Ok(available)
 }
 
@@ -97,12 +106,11 @@ pub(crate) fn check(include_prereleases: bool) -> Result<Option<AvailableUpdate>
 /// every [PROGRESS_EVERY]; the stream ends when the update is ready, or with
 /// an error ([transfer::CANCELLED] once cancelled).
 pub(crate) fn download(sink: StreamSink<UpdateDownloadProgress>) {
-    let Some((manager, update, transfer)) = SESSION
-        .lock()
-        .unwrap()
-        .as_ref()
-        .and_then(|s| s.update.clone().map(|u| (s.manager.clone(), u, s.transfer.clone())))
-    else {
+    let Some((manager, update, transfer)) = SESSION.lock().unwrap().as_ref().and_then(|s| {
+        s.update
+            .clone()
+            .map(|u| (s.manager.clone(), u, s.transfer.clone()))
+    }) else {
         let _ = sink.add_error("There is no update to download".to_string());
         return;
     };
@@ -128,12 +136,15 @@ pub(crate) fn download(sink: StreamSink<UpdateDownloadProgress>) {
             let _ = sink.add(UpdateDownloadProgress {
                 downloaded_bytes: u32::try_from(done).unwrap_or(u32::MAX),
                 total_bytes: u32::try_from(total).unwrap_or(u32::MAX),
-                bytes_per_second: u32::try_from(rate.sample(Instant::now(), done, paused)).unwrap_or(u32::MAX),
+                bytes_per_second: u32::try_from(rate.sample(Instant::now(), done, paused))
+                    .unwrap_or(u32::MAX),
             });
             match done_rx.recv_timeout(PROGRESS_EVERY) {
                 Ok(result) => break result.map_err(|e| e.to_string()),
                 Err(mpsc::RecvTimeoutError::Timeout) => {}
-                Err(mpsc::RecvTimeoutError::Disconnected) => break Err("The download stopped".to_string()),
+                Err(mpsc::RecvTimeoutError::Disconnected) => {
+                    break Err("The download stopped".to_string())
+                }
             }
         };
         if let Err(e) = result {
@@ -169,7 +180,9 @@ fn with_transfer(act: impl FnOnce(&Transfer)) {
 /// minute.
 pub(crate) fn apply_on_exit() -> Result<(), String> {
     let manager = installed_manager(false, Arc::new(Transfer::new()))?;
-    let pending = manager.get_update_pending_restart().ok_or("No update has been downloaded")?;
+    let pending = manager
+        .get_update_pending_restart()
+        .ok_or("No update has been downloaded")?;
     let restart_args: Vec<String> = Vec::new();
     manager
         .wait_exit_then_apply_updates(&pending, false, true, restart_args)
@@ -179,5 +192,7 @@ pub(crate) fn apply_on_exit() -> Result<(), String> {
 /// The version downloaded and waiting for a restart, if any.
 pub(crate) fn pending_version() -> Option<String> {
     let manager = installed_manager(false, Arc::new(Transfer::new())).ok()?;
-    manager.get_update_pending_restart().map(|asset| asset.Version)
+    manager
+        .get_update_pending_restart()
+        .map(|asset| asset.Version)
 }

@@ -216,8 +216,14 @@ mod tests {
             seal_chunk(&key, &prefix, 0, false, b"chunk zero".to_vec()).unwrap(),
             hex(CHUNK0)
         );
-        assert_eq!(seal_chunk(&key, &prefix, 1, true, b"last".to_vec()).unwrap(), hex(CHUNK1_LAST));
-        assert_eq!(open_chunk(&key, &prefix, 1, true, hex(CHUNK1_LAST)).unwrap(), b"last");
+        assert_eq!(
+            seal_chunk(&key, &prefix, 1, true, b"last".to_vec()).unwrap(),
+            hex(CHUNK1_LAST)
+        );
+        assert_eq!(
+            open_chunk(&key, &prefix, 1, true, hex(CHUNK1_LAST)).unwrap(),
+            b"last"
+        );
     }
 
     #[test]
