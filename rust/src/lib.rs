@@ -11,8 +11,6 @@ mod diagnostics;
 mod dpdfnet;
 #[cfg(target_os = "windows")]
 mod ducking;
-#[cfg(any(target_os = "windows", target_os = "linux"))]
-mod fast_core;
 mod frb_generated;
 mod logging;
 #[cfg(any(target_os = "windows", target_os = "linux"))]

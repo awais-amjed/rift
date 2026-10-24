@@ -14,8 +14,12 @@
 //! computer is often slow only for a while (a game loading, a build), and a
 //! slow one costs a second of crackle at the start of a call, not of every
 //! unmute.
-//! Before either runs, the thread is moved onto the performance cores
-//! (`fast_core`), which on that i7 kept DPDFNet-8 for the whole call.
+//! The thread is left on whichever cores the system gives it. Until Oct 25
+//! it was moved onto the performance cores, which on that i7 kept DPDFNet-8
+//! for the whole call, but on Windows libwebrtc's capture thread runs at
+//! time-critical priority, so there it took a fast core from a game every
+//! 10 ms: a tester's CS2 stuttered while they were in a call. On an
+//! efficiency core DPDFNet-2 takes over instead, which still beats RNNoise.
 //! tract, which ran DeepFilterNet, runs these too, but its GRU layers took
 //! DPDFNet-8 to 12 ms a frame.
 //!
@@ -209,7 +213,6 @@ impl Model {
     }
 
     fn process_as_chosen(&mut self, frame: &mut [f32; FRAME], small_chosen: bool) -> bool {
-        crate::fast_core::keep_on_fast_cores();
         let retries = RETRIES.load(Ordering::Relaxed);
         if retries != self.retries_seen {
             self.retries_seen = retries;
