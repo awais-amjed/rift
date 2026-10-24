@@ -193,8 +193,9 @@ void main() {
   /// A sheet-shaped modal opened from [open] at phone size.
   Future<void> openSheetModal(
     WidgetTester tester,
-    Future<void> Function(BuildContext, Widget) open,
-  ) async {
+    Future<void> Function(BuildContext, Widget) open, {
+    double contentHeight = 120,
+  }) async {
     tester.view.physicalSize = phone;
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -208,10 +209,13 @@ void main() {
               body: TextButton(
                 onPressed: () => open(
                   context,
-                  const AppModal(
+                  AppModal(
                     title: 'Server info',
                     sheetOnPhone: true,
-                    content: SizedBox(height: 120, width: double.infinity),
+                    content: SizedBox(
+                      height: contentHeight,
+                      width: double.infinity,
+                    ),
                   ),
                 ),
                 child: const Text('open'),
@@ -247,5 +251,23 @@ void main() {
           showCustomDialog(context: context, build: (_) => modal),
     );
     expect(find.byType(Dialog), findsOneWidget);
+  });
+
+  testWidgets('on a phone a sheet stops above the navigation bar', (
+    tester,
+  ) async {
+    // Drawn edge to edge, the bar lies over the app; the server profile's
+    // Leave button was under it.
+    const bar = 48.0;
+    tester.view.padding = const FakeViewPadding(bottom: bar);
+    await openSheetModal(
+      tester,
+      (context, modal) => showAppSheet(context, modal),
+      contentHeight: 2000,
+    );
+    expect(
+      tester.getBottomLeft(find.byType(SingleChildScrollView)).dy,
+      lessThanOrEqualTo(phone.height - bar),
+    );
   });
 }

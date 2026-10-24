@@ -10,7 +10,11 @@ import 'server_scope.dart';
 /// One place, because the settings a sheet needs are not obvious and getting
 /// one of them wrong is silent: without `isScrollControlled` a tall sheet is
 /// cut off at half the screen, and without a background the modal it contains
-/// draws straight over whatever is behind it.
+/// draws straight over whatever is behind it. And `useSafeArea` keeps a sheet
+/// clear of the top of the screen only: its foot runs on under the system's
+/// navigation bar, which a phone drawn edge to edge lays over the app, so the
+/// [SafeArea] here stops what is inside above it — the server profile's Leave
+/// button was under it — while the sheet's own colour carries on beneath.
 ///
 /// A sheet is the phone's shape for a dialog and has no wide form, so it is
 /// wrapped in a [CompactOnly]: widening the window past the breakpoint
@@ -34,6 +38,6 @@ Future<T?> showAppSheet<T>(BuildContext context, Widget child) {
         top: Radius.circular(PopoverSurface.radius),
       ),
     ),
-    builder: (_) => CompactOnly(child: sheet),
+    builder: (_) => CompactOnly(child: SafeArea(top: false, child: sheet)),
   );
 }
