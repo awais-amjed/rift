@@ -35,7 +35,7 @@ class LinksSection extends StatelessWidget {
         _LinkRow(
           icon: Icons.policy_outlined,
           title: 'Privacy policy',
-          description: 'What Rift collects, and why.',
+          description: 'How your data is handled.',
           url: RiftLinks.privacyPolicy,
         ),
       ],
