@@ -23,13 +23,16 @@ class CentralIdentityLine extends StatelessWidget {
   final bool signedIn;
 
   /// Asked for when the line is tapped. There is nothing to tap without a
-  /// handle, so this is only ever called with one already claimed.
-  final VoidCallback onChangeHandle;
+  /// handle, so this is only ever called with one already claimed. Null
+  /// draws the line alone, with no pencil: a phone's, which sits in a bar
+  /// whose own tap opens the switcher, changes it in settings instead
+  /// (`HandleSection`).
+  final VoidCallback? onChangeHandle;
 
   const CentralIdentityLine({
     super.key,
     required this.handle,
-    required this.onChangeHandle,
+    this.onChangeHandle,
     this.signedIn = true,
   });
 
@@ -79,7 +82,7 @@ class CentralIdentityLine extends StatelessWidget {
             color: themeState.textTertiary,
           ),
         ),
-        if (handle != null)
+        if (handle != null && onChangeHandle != null)
           Icon(
             Icons.edit_outlined,
             size: K.iconTiny,
@@ -88,7 +91,7 @@ class CentralIdentityLine extends StatelessWidget {
       ],
     );
 
-    if (handle == null) return line;
+    if (handle == null || onChangeHandle == null) return line;
 
     return Tooltip(
       message: 'Change handle',

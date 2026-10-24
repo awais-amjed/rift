@@ -11,6 +11,7 @@ import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../../../theme/theme_context.dart';
 import '../section_title.dart';
+import 'handle_section.dart';
 
 /// The cloud backup section once signed in: which account, and what it holds.
 class SignedInPanel extends StatelessWidget {
@@ -61,6 +62,8 @@ class SignedInPanel extends StatelessWidget {
         ),
 
         const SizedBox(height: 20),
+
+        const HandleSection(),
 
         // ── Save backup ────────────────────────────────────────
         const SectionTitle(label: 'Cloud'),

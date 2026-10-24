@@ -3,10 +3,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../dms/widgets/central_identity_line.dart';
-import '../../dms/widgets/change_handle_dialog.dart';
 
-/// Home's second line: the central account's handle, with the way to change
-/// it — the line the conversation list used to open with.
+/// Home's second line: the central account's handle — the line the
+/// conversation list used to open with. Only to read: the header's tap opens
+/// the switcher, and the handle is changed in settings (`HandleSection`).
 class SwitcherHomeLine extends StatelessWidget {
   const SwitcherHomeLine({super.key});
 
@@ -18,10 +18,6 @@ class SwitcherHomeLine extends StatelessWidget {
     final signedIn = context.select<CentralDmCubit, bool>(
       (c) => c.state.status != CentralDmStatus.signedOut,
     );
-    return CentralIdentityLine(
-      handle: handle,
-      signedIn: signedIn,
-      onChangeHandle: () => showChangeHandle(context, handle!),
-    );
+    return CentralIdentityLine(handle: handle, signedIn: signedIn);
   }
 }
