@@ -6,9 +6,9 @@ import '../../../../../data/classes/dm_conversation.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../data/enums/notification_level.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../common/app_button.dart';
 import '../../../../common/list_loading_footer.dart';
 import '../../../../responsive/shell_scope.dart';
-import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 import '../../channels/channel_list/widgets/section_header.dart';
 import 'dm_conversation_tile.dart';
@@ -124,25 +124,14 @@ class DmListPanel extends StatelessWidget {
         Positioned(
           right: 16,
           bottom: 16,
-          child: FloatingActionButton.extended(
-            heroTag: null,
+          // The app's own button rather than Material's extended FAB, which
+          // is 56 tall and stood a size above every other button on a phone.
+          child: AppButton(
+            label: 'New',
             onPressed: onNew,
-            backgroundColor: themeState.primary,
-            foregroundColor: themeState.onPrimary,
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(K.radiusCard),
-            ),
             // Outlined, like every other glyph in the app: Material ships
             // edit_square filled only, which read as a solid block here.
-            icon: const Icon(Icons.edit_outlined, size: K.iconLarge),
-            label: Text(
-              'New',
-              style: AppText.row.copyWith(
-                fontWeight: FontWeight.w700,
-                color: themeState.onPrimary,
-              ),
-            ),
+            icon: const Icon(Icons.edit_outlined, size: K.iconButton),
           ),
         ),
       ],
