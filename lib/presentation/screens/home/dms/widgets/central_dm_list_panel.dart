@@ -46,9 +46,16 @@ class CentralDmListPanel extends StatelessWidget {
             child: CentralHandlePanel(),
           ),
         if (ready)
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 8),
-            child: FriendsNavRow(),
+          Padding(
+            // On a phone the row comes straight after the header's rule, and
+            // without a gap it sat against it.
+            padding: EdgeInsets.fromLTRB(
+              8,
+              context.layoutMode.isCompact ? 10 : 0,
+              8,
+              0,
+            ),
+            child: const FriendsNavRow(),
           ),
         Expanded(child: _buildList(state, ready)),
       ],
