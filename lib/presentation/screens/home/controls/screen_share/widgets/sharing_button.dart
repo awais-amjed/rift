@@ -14,8 +14,9 @@ class SharingButton extends StatelessWidget {
   /// width the chevron leaves.
   final bool dense;
 
-  /// The bar's controls are 46 square; the chevron is half of one.
-  static const double _height = 46;
+  /// The bar's controls are [K.controlHeight] square; the chevron is about
+  /// half of one.
+  static const double _height = K.controlHeight;
   static const double _chevronWidth = 24;
 
   const SharingButton({

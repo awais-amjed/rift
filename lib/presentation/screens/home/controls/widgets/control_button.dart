@@ -73,8 +73,10 @@ class ControlButton extends StatelessWidget {
           hoverColor: dense ? themeState.bgActive : themeState.bgHover,
           onTap: onTap,
           child: SizedBox(
-            width: dense ? double.infinity : 46,
-            height: dense ? K.dockCallButtonHeight : 46,
+            // The shared control height, square: they were 46, beside a
+            // Leave that came out 44 and every other button in the app.
+            width: dense ? double.infinity : K.controlHeight,
+            height: dense ? K.dockCallButtonHeight : K.controlHeight,
             child: switch (label) {
               final label? => Row(
                 mainAxisAlignment: MainAxisAlignment.center,
