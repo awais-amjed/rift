@@ -125,6 +125,26 @@ holds it to its camera bitrates: a share set to 6 Mbps sent 2. Real VP9
 simulcast needs a setting LiveKit's Rust SDK does not expose. And the path
 the GPU's H264 goes through carries one picture.
 
+## How Windows captures a screen — [Implemented October 2026]
+
+libwebrtc captures a Windows screen or window with Windows Graphics Capture,
+and Windows draws a yellow border round whatever is captured that way. From
+build 20348, in practice Windows 11, an app may turn the border off, and
+libwebrtc does. Windows 10 has no such option and no setting for it.
+
+So on Windows 10 a **screen** is captured with DXGI desktop duplication
+instead, falling back to GDI, neither of which draws a border
+(`sources::options`, asked for Oct 24 2026 by a friend on Windows 10). Rift
+asks Windows whether `GraphicsCaptureSession.IsBorderRequired` exists rather
+than reading a build number. DXGI leaves the cursor out of its frames, so the
+LiveKit fork draws it in (`set_wgc_screen_capturer`, `RIFT.md` there). A
+screen's id differs between the two, so the list, its thumbnails and the
+share all take their options from the same place.
+
+A **window** keeps Windows Graphics Capture, and on Windows 10 its border.
+The only borderless way to capture one there is GDI, which is slow and shows
+most games black.
+
 ## Which sound goes with a shared window — [Implemented October 2026]
 
 Windows records a window's sound by its process. Linux has no such tie: a

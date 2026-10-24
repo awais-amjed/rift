@@ -32,6 +32,52 @@ fn shown(source_type: DesktopCaptureSourceType) -> &'static Mutex<Vec<Listed>> {
     }
 }
 
+/// A capturer's options for `source_type`. Every capturer of a kind is made
+/// here, since on Windows a screen's id depends on how it is captured, and a
+/// list and its share must agree.
+///
+/// Windows Graphics Capture draws a yellow border round a captured screen,
+/// which libwebrtc turns off where Windows allows it: from build 20348, in
+/// practice Windows 11. On Windows 10 a screen is captured with DXGI desktop
+/// duplication instead, which draws none (asked for Oct 24 2026). A window
+/// keeps Windows Graphics Capture and its border there: the only borderless
+/// way to capture one is GDI, which shows most games black.
+pub(crate) fn options(source_type: DesktopCaptureSourceType) -> DesktopCapturerOptions {
+    #[allow(unused_mut)]
+    let mut options = DesktopCapturerOptions::new(source_type);
+    #[cfg(target_os = "windows")]
+    if source_type == DesktopCaptureSourceType::Screen {
+        options.set_wgc_screen_capturer(capture_border_optional());
+    }
+    options
+}
+
+/// Whether Windows lets an app capture without the yellow border, asked of
+/// the API itself rather than read from a build number.
+#[cfg(target_os = "windows")]
+fn capture_border_optional() -> bool {
+    use std::sync::OnceLock;
+    use windows::core::h;
+    use windows::Foundation::Metadata::ApiInformation;
+    static OPTIONAL: OnceLock<bool> = OnceLock::new();
+    *OPTIONAL.get_or_init(|| {
+        let optional = ApiInformation::IsPropertyPresent(
+            h!("Windows.Graphics.Capture.GraphicsCaptureSession"),
+            h!("IsBorderRequired"),
+        )
+        .unwrap_or(false);
+        log::info!(
+            "capture: screens with {}",
+            if optional {
+                "Windows Graphics Capture"
+            } else {
+                "DXGI, which draws no border"
+            }
+        );
+        optional
+    })
+}
+
 pub(crate) fn source_type(capture_full_screen: bool) -> DesktopCaptureSourceType {
     if capture_full_screen {
         DesktopCaptureSourceType::Screen
@@ -54,7 +100,7 @@ pub(crate) fn listed(source_type: DesktopCaptureSourceType, index: u32) -> Optio
 /// (X11 its app too), and on Windows minimised windows are listed as well.
 pub(crate) fn list(capture_full_screen: bool) -> Vec<CaptureSource> {
     let source_type = source_type(capture_full_screen);
-    let found = match DesktopCapturer::new(DesktopCapturerOptions::new(source_type)) {
+    let found = match DesktopCapturer::new(options(source_type)) {
         Some(capturer) => capturer
             .get_source_list()
             .iter()

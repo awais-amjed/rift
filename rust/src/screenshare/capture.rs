@@ -10,8 +10,7 @@ use super::sources;
 use super::window_win;
 use crate::api::screenshare::types::ScreenshareEvent;
 use livekit::webrtc::desktop_capturer::{
-    CaptureError, CaptureSource as Source, DesktopCaptureSourceType, DesktopCapturer,
-    DesktopCapturerOptions, DesktopFrame,
+    CaptureError, CaptureSource as Source, DesktopCaptureSourceType, DesktopCapturer, DesktopFrame,
 };
 use livekit::webrtc::video_source::native::NativeVideoSource;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
@@ -273,7 +272,7 @@ fn run(
     #[cfg(target_os = "windows")]
     let _timer = TimerResolutionGuard::new();
 
-    let mut options = DesktopCapturerOptions::new(request.source_type);
+    let mut options = sources::options(request.source_type);
     options.set_include_cursor(request.capture_cursor);
     let Some(mut capturer) = DesktopCapturer::new(options) else {
         let _ = progress.send(Progress::Failed(

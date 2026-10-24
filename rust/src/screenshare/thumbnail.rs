@@ -3,7 +3,7 @@
 //! a one-shot grab possible without a thread.
 use super::pixels::thumbnail_rgb;
 use super::sources;
-use livekit::webrtc::desktop_capturer::{DesktopCapturer, DesktopCapturerOptions};
+use livekit::webrtc::desktop_capturer::DesktopCapturer;
 use std::sync::{Arc, Mutex};
 
 const THUMBNAIL_WIDTH: u32 = 320;
@@ -16,7 +16,7 @@ pub(crate) fn capture(capture_full_screen: bool, source_index: u32) -> Option<Ve
     if chosen.minimised {
         return None;
     }
-    let mut capturer = DesktopCapturer::new(DesktopCapturerOptions::new(source_type))?;
+    let mut capturer = DesktopCapturer::new(sources::options(source_type))?;
     let source = capturer
         .get_source_list()
         .into_iter()
