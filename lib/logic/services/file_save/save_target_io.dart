@@ -11,6 +11,7 @@ import 'save_name.dart';
 import 'save_sink.dart';
 
 export 'save_sink.dart';
+export 'show_in_folder_io.dart';
 
 /// Ask where to save [name], and answer what to write it to — null when the
 /// person cancelled. [confirmReplace] is asked when a desktop dialog picked a
@@ -101,6 +102,9 @@ class _FileSink implements SaveSink {
   bool get saved => _saved;
 
   @override
+  String? get location => _saved ? _target.path : null;
+
+  @override
   Future<void> add(Uint8List data) async {
     _out ??= await _part.open(mode: FileMode.write);
     await _out!.writeFrom(data);
@@ -133,6 +137,9 @@ class _DialogAfterSink implements SaveSink {
 
   @override
   bool get saved => _saved;
+
+  @override
+  String? get location => null;
 
   @override
   Future<void> add(Uint8List data) => _scratch.add(data);

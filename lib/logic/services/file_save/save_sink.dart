@@ -7,6 +7,11 @@ abstract interface class SaveSink implements BlobSink {
   /// Whether the file reached its place. False after an [abort], and on a
   /// phone whose save dialog was dismissed once the download was done.
   bool get saved;
+
+  /// Where the file now is, once [saved], for "Show in folder". Null on a
+  /// phone, whose save dialog keeps the place it chose to itself, and on the
+  /// web, where the browser does.
+  String? get location;
 }
 
 /// A [BlobSink] for a file on its way somewhere else — a forward, downloaded

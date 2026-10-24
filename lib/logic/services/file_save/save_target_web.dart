@@ -26,6 +26,13 @@ Future<void> discardCopy(XFile copy) async {}
 /// Nothing to sweep, for the same reason.
 Future<void> sweepCopies() async {}
 
+/// The browser keeps where it saved to itself, so a save here has no
+/// [SaveSink.location] to show.
+Future<bool> showInFolder(String path) async => false;
+
+/// Nor a saved file to open, for the same reason.
+Future<bool> openSavedFile(String path) async => false;
+
 /// Grows a Blob a piece at a time rather than holding a list of pieces:
 /// a Blob built from a Blob references it instead of copying it, so the
 /// bytes live in the browser rather than in the page. The browser still
@@ -49,6 +56,9 @@ class _DownloadSink implements SaveSink {
 
   @override
   bool get saved => _saved;
+
+  @override
+  String? get location => null;
 
   @override
   Future<void> add(Uint8List data) async {

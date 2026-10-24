@@ -6,6 +6,7 @@ import '../../../../data/classes/attachment.dart';
 import '../../../../logic/helper_methods.dart';
 import '../../../../logic/services/attachment_loader.dart';
 import '../../../../logic/services/file_save/save_target.dart';
+import '../../app_toast.dart';
 import '../../confirm_dialog.dart';
 
 export '../../../../logic/services/byte_format.dart' show humanSize;
@@ -39,9 +40,7 @@ Future<void> saveAttachment(
     HelperMethods.showError(error: "Couldn't download that file.");
     return;
   }
-  if (sink.saved) {
-    HelperMethods.showToast(title: 'Saved', description: attachment.name);
-  }
+  if (sink.saved) _saved(sink, attachment.name);
 }
 
 /// Save [bytes] already in hand — a picture open in the viewer — the same
@@ -55,9 +54,42 @@ Future<void> saveToDisk(
   if (sink == null) return;
   await sink.add(bytes);
   await sink.close();
-  if (sink.saved) {
-    HelperMethods.showToast(title: 'Saved', description: suggestedName);
-  }
+  if (sink.saved) _saved(sink, suggestedName);
+}
+
+/// Says the file is saved, with a way to it and its folder where the app
+/// knows where it went.
+/// Longer than a plain toast when there is a button on it to reach for.
+void _saved(SaveSink sink, String name) {
+  final location = sink.location;
+  HelperMethods.showToast(
+    title: 'Saved',
+    description: name,
+    autoCloseDuration: location == null
+        ? const Duration(seconds: 3)
+        : const Duration(seconds: 6),
+    actions: [
+      if (location != null) ...[
+        ToastAction(
+          label: 'Open',
+          primary: true,
+          onPressed: () async {
+            if (!await openSavedFile(location)) {
+              HelperMethods.showError(error: "Couldn't open that file.");
+            }
+          },
+        ),
+        ToastAction(
+          label: 'Show in folder',
+          onPressed: () async {
+            if (!await showInFolder(location)) {
+              HelperMethods.showError(error: "Couldn't open that folder.");
+            }
+          },
+        ),
+      ],
+    ],
+  );
 }
 
 /// Where to save [name], asking before replacing a file — some desktop save
