@@ -3,6 +3,7 @@
 # update to it.
 #
 #   scripts/sign_release.sh v1.5.0         # the GitHub release of that tag
+#   scripts/sign_release.sh v1.5.0 --play-notes FILE   # ...and its bundle to Google Play
 #   scripts/sign_release.sh --dir DIR      # the feeds in a folder (testing)
 #   scripts/sign_release.sh --android DIR  # the APKs and bundles in a folder
 #   scripts/sign_release.sh --announce v1.5.0   # only post the announcement
@@ -29,9 +30,10 @@
 # The workflow keeps the Android APK and app bundle with its run instead of
 # publishing them, signed only with the debug key. This downloads them, signs
 # them with the keystore android/key.properties names, attaches the APKs to
-# the release and leaves the bundle in build/release/ for Google Play. The keystore
-# is the one Play is given as the app signing key, so an install from either
-# place updates the other.
+# the release and leaves the bundle in build/release/ for Google Play, where
+# the keystore is only the upload key (RELEASING.md). Given --play-notes
+# (Play's "What's new", see scripts/play_upload.sh), it also puts the bundle
+# on Play: a beta on open testing, a release on production as a draft.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -150,6 +152,9 @@ sign_android() {
   mkdir -p build/release
   cp -f "$work/android/rift-$version-android.aab" build/release/
   echo "android: bundle for Google Play in build/release/rift-$version-android.aab"
+  [[ -n $play_notes ]] || return 0
+  scripts/play_upload.sh "build/release/rift-$version-android.aab" "$play_notes" ||
+    echo "play: not uploaded; the bundle waits in build/release for a manual upload"
 }
 
 show_feed() {
@@ -269,7 +274,15 @@ if [[ ${1:-} == --dir ]]; then
   exit 0
 fi
 
-tag=${1:?usage: scripts/sign_release.sh <tag>, e.g. v1.5.0}
+tag=${1:?usage: scripts/sign_release.sh <tag> [--play-notes FILE], e.g. v1.5.0}
+play_notes=
+if [[ ${2:-} == --play-notes ]]; then
+  play_notes=${3:?usage: scripts/sign_release.sh <tag> --play-notes FILE}
+  # Checked before anything is signed, so a typo does not leave Play behind.
+  [[ -f $play_notes ]] || { echo "No such notes file: $play_notes" >&2; exit 1; }
+  (( $(python3 -c 'import sys; print(len(open(sys.argv[1]).read().strip()))' "$play_notes") <= 500 )) ||
+    { echo "$play_notes is over Play's 500 characters" >&2; exit 1; }
+fi
 gh release view "$tag" -R "$repo" --json name,isPrerelease \
   --jq '"\(.name)\(if .isPrerelease then " (pre-release)" else "" end)"'
 for channel in "${channels[@]}"; do
@@ -285,6 +298,7 @@ if fetch_android "$tag"; then
 else
   echo "android: no build kept with the release's run, skipped"
 fi
+if [[ -n $play_notes ]]; then echo "play: the bundle goes to Google Play"; else echo "play: no --play-notes, the bundle is left for a manual upload"; fi
 read -rp "Sign these? [y/N] " answer
 [[ $answer == [yY] ]] || exit 1
 for channel in "${channels[@]}"; do

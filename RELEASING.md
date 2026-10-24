@@ -83,8 +83,7 @@ It signs the Android build in the same pass. It downloads the APKs and the
 bundle from the release's workflow run, signs them with the keystore that
 `android/key.properties` names (a symlink to where the keystore lives),
 attaches the APKs to the release, and leaves the bundle in `build/release/`
-to upload to Google Play by hand: a beta to a testing track, a release to
-production. If the run kept them but they will not download, it stops before
+for Google Play. If the run kept them but they will not download, it stops before
 signing anything; run it again. It finds `apksigner` in the newest Android build tools and the
 JDK Flutter uses. On Play this key is only the upload key: Play signs what
 it installs with an app signing key Google generated at the first upload.
@@ -92,6 +91,28 @@ So a Play install and a GitHub APK cannot update one another (moving
 between them means uninstalling), and `assetlinks.json` in `rift-website`
 names both fingerprints. Play allows an app signing key upgrade once a year,
 from Oct 17 2027 for this app, which could move Play to this key.
+
+Given what Play shows under "What's new", it puts the bundle on Play too
+(`scripts/play_upload.sh`): a beta on open testing, where it reaches the
+testers once Google has reviewed it, and a release on production as a draft,
+to be sent for review in Play Console by hand, since that one reaches
+everybody. The notes are plain English text of at most 500 characters,
+written for Android, and are checked before anything is signed:
+
+```bash
+scripts/sign_release.sh v1.0.3 --play-notes play-notes.txt
+```
+
+It signs in as a Google service account invited in Play Console's Users and
+permissions with leave to release Rift, whose JSON key is kept in the keyring:
+
+```bash
+secret-tool store --label='Rift Play upload' service rift-play-upload < key.json
+```
+
+`scripts/play_upload.sh check` signs in and lists what each track holds,
+changing nothing (first run Oct 24 2026; no bundle uploaded through it yet).
+Without `--play-notes` the bundle is left for a manual upload.
 
 Then it posts the release notes, betas too, to a Rift channel through a
 webhook, since signing is when people can have the release. The webhook's URL
