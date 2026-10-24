@@ -62,6 +62,7 @@ class ServerChipMenu extends StatelessWidget {
           onTap: () => showDialogFromMenu(
             context: context,
             build: (ctx) => serverProfileDialog(ctx, server: server),
+            sheetOnPhone: true,
           ),
         ),
         NotificationLevelSubmenu(

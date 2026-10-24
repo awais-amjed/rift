@@ -5,6 +5,7 @@ import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/presentation/common/app_button.dart';
 import 'package:rift/presentation/common/app_modal.dart';
+import 'package:rift/presentation/common/app_sheet.dart';
 
 /// In-memory stand-in so [ThemeCubit] (a HydratedCubit) can be built in tests.
 class _MemoryStorage implements Storage {
@@ -187,5 +188,64 @@ void main() {
         greaterThan(0),
       ),
     );
+  });
+
+  /// A sheet-shaped modal opened from [open] at phone size.
+  Future<void> openSheetModal(
+    WidgetTester tester,
+    Future<void> Function(BuildContext, Widget) open,
+  ) async {
+    tester.view.physicalSize = phone;
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      BlocProvider(
+        create: (_) => ThemeCubit(),
+        child: MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () => open(
+                  context,
+                  const AppModal(
+                    title: 'Server info',
+                    sheetOnPhone: true,
+                    content: SizedBox(height: 120, width: double.infinity),
+                  ),
+                ),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('on a phone a sheet modal is drawn as a sheet in a sheet', (
+    tester,
+  ) async {
+    await openSheetModal(
+      tester,
+      (context, modal) => showAppSheet(context, modal),
+    );
+    expect(find.byType(BottomSheet), findsOneWidget);
+    expect(find.byType(Dialog), findsNothing);
+  });
+
+  testWidgets('on a phone a sheet modal opened as a dialog keeps a surface', (
+    tester,
+  ) async {
+    // The server's menu opened its info this way, and with no surface of its
+    // own the profile drew bare over the app.
+    await openSheetModal(
+      tester,
+      (context, modal) =>
+          showCustomDialog(context: context, build: (_) => modal),
+    );
+    expect(find.byType(Dialog), findsOneWidget);
   });
 }

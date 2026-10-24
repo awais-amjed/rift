@@ -138,7 +138,13 @@ class AppModal extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (context.layoutMode.isCompact && !staysDialogOnPhone) {
-      if (sheetOnPhone) return _buildSheetForPhone(context);
+      // Only inside the sheet a caller opened: the sheet route paints the
+      // surface, and opened as a dialog instead — the server's menu once did
+      // — the modal drew bare over the app, its text underlined in yellow for
+      // want of one. Anywhere else it is the phone's dialog.
+      if (sheetOnPhone && ModalRoute.of(context) is ModalBottomSheetRoute) {
+        return _buildSheetForPhone(context);
+      }
       return pageOnPhone
           ? _buildPageForPhone(context)
           : _buildForPhone(context);

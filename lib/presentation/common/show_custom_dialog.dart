@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../responsive/shell_scope.dart';
 import '../theme/app_motion.dart';
+import 'app_sheet.dart';
 import 'context_menu/context_menu_scope.dart';
 import 'server_scope.dart';
 
@@ -106,13 +108,19 @@ Future<T?> showAppModal<T>({
 /// it does. So [build] runs here, **before** the dismissal, while the menu is
 /// still mounted. The navigator is captured for the same reason: it outlives
 /// the overlay entry, and the menu's context won't.
+///
+/// [sheetOnPhone] opens it as a bottom sheet on a phone, for a modal that is
+/// one there (`AppModal.sheetOnPhone`), as it is wherever else it opens.
 Future<T?> showDialogFromMenu<T>({
   required BuildContext context,
   required Widget Function(BuildContext) build,
+  bool sheetOnPhone = false,
 }) {
   final dismiss = ContextMenuScope.of(context);
   final dialog = ServerScope.carry(context, build(context));
   final navigator = Navigator.of(context);
+  final asSheet = sheetOnPhone && context.layoutMode.isCompact;
   dismiss?.call();
+  if (asSheet) return showAppSheet<T>(navigator.context, dialog);
   return showCustomDialog<T>(context: navigator.context, build: (_) => dialog);
 }
