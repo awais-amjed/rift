@@ -72,17 +72,18 @@ void main() {
       expect(tester.getSize(find.byType(AppButton)).height, K.controlHeight);
     });
 
-    testWidgets("a phone footer's thumb target is the full height", (
-      tester,
-    ) async {
+    testWidgets('an enclosing AppButtonHeight sets the height', (tester) async {
       await host(
         tester,
         const AppButtonHeight(
-          height: K.thumbCtaHeight,
+          height: K.compactControlHeight,
           child: AppButton(label: 'Add server'),
         ),
       );
-      expect(tester.getSize(find.byType(AppButton)).height, K.thumbCtaHeight);
+      expect(
+        tester.getSize(find.byType(AppButton)).height,
+        K.compactControlHeight,
+      );
     });
 
     testWidgets('an explicit height is honoured exactly', (tester) async {

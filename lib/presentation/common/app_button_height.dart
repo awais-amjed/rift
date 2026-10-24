@@ -2,10 +2,10 @@ import 'package:flutter/widgets.dart';
 
 /// The height every [AppButton] below takes unless it was given one.
 ///
-/// A phone's footer calls to action are taller than the app's shared control
-/// height, because they sit under a thumb. Rather than every footer passing a
-/// height to every button — and one forgetting — the footer says it once, here,
-/// and the buttons in it follow.
+/// For a group whose buttons are all a size other than the app's shared
+/// control height — a member's moderation actions, compact inside a row on a
+/// desktop. Rather than every button in it being passed a height — and one
+/// forgetting — the group says it once, here, and the buttons follow.
 class AppButtonHeight extends InheritedWidget {
   final double height;
 

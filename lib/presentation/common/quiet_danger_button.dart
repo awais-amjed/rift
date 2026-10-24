@@ -41,9 +41,8 @@ class QuietDangerButton extends StatelessWidget {
         : themeState.textSecondary;
 
     // Follows an enclosing [AppButtonHeight] for the same reason [AppButton]
-    // does: in a phone sheet the primary above this grows to a thumb's
-    // height, and a pair of these left at 44 under a 56 would read as two
-    // sizes of button rather than one column of options.
+    // does: a group sized smaller than the default would otherwise hold two
+    // sizes of button rather than one set of options.
     final height = AppButtonHeight.of(context) ?? K.controlHeight;
 
     return Material(

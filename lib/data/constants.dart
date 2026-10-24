@@ -35,7 +35,10 @@ class K {
 
   // ── Controls ──────────────────────────────────────────────
   /// A button. The same as [touchTargetMin], so the app has one control
-  /// height rather than a mouse one and a finger one.
+  /// height rather than a mouse one and a finger one — a phone's dialog
+  /// footer and onboarding Continue too. They were 56 once, for a thumb,
+  /// which made every phone dialog's buttons a size the page behind it never
+  /// used, and a button under a field taller than the field.
   static const double controlHeight = touchTargetMin;
 
   /// Text fields, dropdowns and segmented options.
@@ -157,13 +160,6 @@ class K {
   /// height, so a row that is naturally taller — one with a subtitle — is
   /// left alone rather than squashed to this.
   static const double touchTargetMin = 44;
-
-  /// A call to action at the foot of a phone screen — a dialog's footer, an
-  /// onboarding step's Continue. A thumb at the bottom of a phone is not a
-  /// cursor. Only there: every other control, on a phone too, is
-  /// [controlHeight]. Applied by `AppButtonHeight`, never by passing it to
-  /// each button.
-  static const double thumbCtaHeight = 56;
 
   /// The slot the floating pane-menu button occupies at the top-left of a
   /// content pane that has no header of its own — the voice area.

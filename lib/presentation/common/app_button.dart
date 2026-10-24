@@ -24,8 +24,8 @@ class AppButton extends StatelessWidget {
   final Widget? icon;
   final bool expanded;
 
-  /// Defaults to what an enclosing [AppButtonHeight] asks for — a phone's
-  /// footer — and otherwise to [K.controlHeight], which fields share, so a
+  /// Defaults to what an enclosing [AppButtonHeight] asks for — a compact
+  /// group of them — and otherwise to [K.controlHeight], which fields share, so a
   /// button lines up beside them without being told to.
   final double? height;
 

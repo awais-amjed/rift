@@ -54,7 +54,7 @@ class MemberModerationRow extends StatelessWidget {
 
     // Label-width and compact on a desktop: three small actions inside a
     // member's row, stretched to 44 px halves, were the loudest thing in the
-    // dialog. A phone keeps the shared height, which is a thumb's.
+    // dialog. A phone keeps the shared height.
     final height = context.layoutMode.isCompact
         ? K.controlHeight
         : K.compactControlHeight;

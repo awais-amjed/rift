@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../../data/constants.dart';
-import '../../../common/app_button_height.dart';
 import '../../../common/centered_scroll_view.dart';
 import '../../../responsive/shell_scope.dart';
 import '../../../theme/app_shadows.dart';
@@ -19,7 +18,7 @@ import 'step_dots.dart';
 /// A phone gets no card. A card inside a 390px screen is margins and a border
 /// around the same content, so there the step is the screen: the way back and
 /// the progress across the top, the content in the middle, and [footer] pinned
-/// at the bottom where a thumb is, at the thumb height. The canvas glow stays.
+/// at the bottom where a thumb is. The canvas glow stays.
 /// While the keyboard is up the footer goes back under the content instead,
 /// as it is in the card: pinned, it rode up on the keyboard and covered the
 /// form being typed into, and on a small phone left a strip to type in.
@@ -108,9 +107,6 @@ class OnboardingPage extends StatelessWidget {
   Widget _buildForPhone(BuildContext context) {
     final showTopBar = onBack != null || (step != null && stepLabel != null);
     final typing = MediaQuery.viewInsetsOf(context).bottom > 0;
-    final thumbFooter = footer == null
-        ? null
-        : AppButtonHeight(height: K.thumbCtaHeight, child: footer!);
     return SafeArea(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -130,15 +126,15 @@ class OnboardingPage extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   child,
-                  if (typing && thumbFooter != null) ...[
+                  if (typing && footer != null) ...[
                     const SizedBox(height: 24),
-                    SizedBox(width: double.infinity, child: thumbFooter),
+                    SizedBox(width: double.infinity, child: footer!),
                   ],
                 ],
               ),
             ),
           ),
-          if (thumbFooter != null && !typing)
+          if (footer != null && !typing)
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
               child: Center(
@@ -148,7 +144,7 @@ class OnboardingPage extends StatelessWidget {
                   constraints: const BoxConstraints.tightFor(
                     width: _contentWidth,
                   ),
-                  child: thumbFooter,
+                  child: footer!,
                 ),
               ),
             ),

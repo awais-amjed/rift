@@ -7,8 +7,7 @@ part of 'app_modal.dart';
 /// is in it, a bottom sheet, and a page.
 ///
 /// Split out because a phone is a different layout rather than a narrower
-/// one — each shape has buttons sized for a thumb, and none of that has
-/// anything to say about the desktop dialog.
+/// one, and none of that has anything to say about the desktop dialog.
 extension _AppModalPhone on AppModal {
   /// A phone: the width of the screen less a margin, and only as tall as what
   /// is in it, the way a phone's own dialogs are. It filled the screen once,
@@ -60,10 +59,7 @@ extension _AppModalPhone on AppModal {
             Divider(height: 1, color: borderColor),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-              child: AppButtonHeight(
-                height: K.thumbCtaHeight,
-                child: ButtonFooter(buttons: actions!),
-              ),
+              child: ButtonFooter(buttons: actions!),
             ),
           ],
         ],
@@ -115,22 +111,14 @@ extension _AppModalPhone on AppModal {
                 body ??
                 SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
-                  // Everything pressable in here is under a thumb, and the
-                  // buttons are the reason the sheet was opened.
-                  child: AppButtonHeight(
-                    height: K.thumbCtaHeight,
-                    child: _form!,
-                  ),
+                  child: _form,
                 ),
           ),
           if (actions != null) ...[
             Divider(height: 1, color: borderColor),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-              child: AppButtonHeight(
-                height: K.thumbCtaHeight,
-                child: ButtonFooter(buttons: actions!),
-              ),
+              child: ButtonFooter(buttons: actions!),
             ),
           ],
         ],
@@ -205,10 +193,7 @@ extension _AppModalPhone on AppModal {
               if (commit != null)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                  child: AppButtonHeight(
-                    height: K.thumbCtaHeight,
-                    child: SizedBox(width: double.infinity, child: commit),
-                  ),
+                  child: SizedBox(width: double.infinity, child: commit),
                 ),
             ],
           ),

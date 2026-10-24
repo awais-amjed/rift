@@ -8,7 +8,7 @@ import '../../../responsive/shell_scope.dart';
 ///
 /// Laid out for the room there is. In a desktop's card the two sit as a pair,
 /// Back then the commit, with any secondary link under them. On a phone the
-/// commit spans the screen at the thumb height — see `OnboardingPage`, which
+/// commit spans the screen — see `OnboardingPage`, which
 /// pins it — and Back is the arrow at the top of the page instead, so it is
 /// not drawn here at all.
 class OnboardingFooter extends StatelessWidget {

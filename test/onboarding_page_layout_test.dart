@@ -41,7 +41,7 @@ Future<void> _pump(WidgetTester tester, Size size) async {
 void main() {
   setUpAll(() => HydratedBloc.storage = MemoryStorage());
 
-  testWidgets('a phone pins the commit to the bottom at the thumb height', (
+  testWidgets('a phone pins the commit to the bottom at the control height', (
     tester,
   ) async {
     await _pump(tester, const Size(390, 844));
@@ -49,7 +49,7 @@ void main() {
     final button = tester.getRect(
       find.widgetWithText(AppButton, 'Create vault'),
     );
-    expect(button.height, K.thumbCtaHeight);
+    expect(button.height, K.controlHeight);
     expect(button.bottom, greaterThan(844 - 40));
     // Spanning the screen, less the page's margins.
     expect(button.width, greaterThan(300));

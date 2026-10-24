@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../../data/constants.dart';
 import '../../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../common/app_button.dart';
-import '../../../../../common/app_button_height.dart';
 import '../../../../../common/app_text_field.dart';
 import '../../../../../responsive/shell_scope.dart';
 import '../../../../../theme/app_text.dart';
@@ -114,12 +112,12 @@ class _AddFriendFieldState extends State<AddFriendField> {
         mainAxisSize: MainAxisSize.min,
         children: [
           // A phone gives the field the whole width and puts the button
-          // under it, at a thumb's height: beside it, the button took a third
-          // of the row and the hint was cut off after "e.g. riv".
+          // under it: beside it, the button took a third of the row and the
+          // hint was cut off after "e.g. riv".
           if (context.layoutMode.isCompact) ...[
             field,
             const SizedBox(height: 10),
-            AppButtonHeight(height: K.thumbCtaHeight, child: button),
+            button,
           ] else
             Row(
               spacing: 8,
