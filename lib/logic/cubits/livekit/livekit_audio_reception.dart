@@ -43,6 +43,9 @@ mixin _AudioReceptionMixin on Cubit<LiveKitState> {
               publication.source == TrackSource.screenShareAudio),
       watched: state.subscribedScreenshares.contains(identity),
       ownerless: sharesWithoutOwner(identities).contains(identity),
+      someoneElse:
+          state.listeningOnlyTo != null &&
+          ParticipantIdentity.userIdOf(identity) != state.listeningOnlyTo,
     );
   }
 

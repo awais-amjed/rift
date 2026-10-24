@@ -46,4 +46,37 @@ void main() {
     expect(result.allowAll, isFalse);
     expect(result.permissions.single.allTracksAllowed, isTrue);
   });
+
+  test('only one person hears you: everyone else is hidden, bots too', () {
+    const bot = 'cccc-3333';
+    final result = VoicePrivacy.permissions(
+      remoteIdentities: [
+        '$alice~d1',
+        '$alice~d1_screenshare',
+        '$bob~d2',
+        '$bot~b',
+      ],
+      hiddenFrom: const [],
+      nonMicTrackSids: const ['TR_cam'],
+      onlyTo: alice,
+    );
+    expect(result.allowAll, isFalse);
+    final byId = {for (final p in result.permissions) p.participantIdentity: p};
+    expect(byId['$alice~d1']!.allTracksAllowed, isTrue);
+    expect(byId['$alice~d1_screenshare']!.allTracksAllowed, isTrue);
+    for (final id in ['$bob~d2', '$bot~b']) {
+      expect(byId[id]!.allTracksAllowed, isFalse, reason: id);
+      expect(byId[id]!.allowedTrackSids, ['TR_cam'], reason: id);
+    }
+  });
+
+  test('somebody hidden in every call stays hidden when they are the one', () {
+    final result = VoicePrivacy.permissions(
+      remoteIdentities: ['$bob~d2'],
+      hiddenFrom: const [bob],
+      nonMicTrackSids: const [],
+      onlyTo: bob,
+    );
+    expect(result.permissions.single.allTracksAllowed, isFalse);
+  });
 }

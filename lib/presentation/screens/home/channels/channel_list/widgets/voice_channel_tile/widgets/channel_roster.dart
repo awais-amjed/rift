@@ -6,6 +6,7 @@ import '../../../../../../../../data/classes/participant_setting.dart';
 import '../../../../../../../../data/classes/voice_drag.dart';
 import '../../../../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
+import '../../../../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../../../../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
@@ -77,6 +78,22 @@ class ChannelRoster extends StatelessWidget {
     final voiceHiddenFrom = context.select<AppCubit, List<String>>(
       (cubit) => cubit.state.voiceHiddenFrom,
     );
+    // And, for this call only, everyone but one person on either side.
+    final hearOnly = context.select<LiveKitCubit, String?>(
+      (cubit) => cubit.state.listeningOnlyTo,
+    );
+    final voiceOnly = context.select<LiveKitCubit, String?>(
+      (cubit) => cubit.state.voiceOnlyFor,
+    );
+    ParticipantSetting? heard(ParticipantInfo p) =>
+        hearOnly != null && !p.isLocal && p.userId != hearOnly
+        ? (settings[p.userId] ?? const ParticipantSetting()).copyWith(
+            muted: true,
+          )
+        : settings[p.userId];
+    bool hiddenFrom(ParticipantInfo p) =>
+        voiceHiddenFrom.contains(p.userId) ||
+        (voiceOnly != null && !p.isLocal && p.userId != voiceOnly);
     final keys = _RowKeys();
 
     // Rows touch, as the sidebar's do: a row is [RosterRowMetrics.rowHeight]
@@ -97,9 +114,9 @@ class ChannelRoster extends StatelessWidget {
               sharing: participant.isSharingScreen,
               child: ParticipantListItem(
                 participant: participant,
-                setting: settings[participant.userId],
+                setting: heard(participant),
                 cannotHear: cannotHear(participant.userId),
-                voiceHidden: voiceHiddenFrom.contains(participant.userId),
+                voiceHidden: hiddenFrom(participant),
                 contextMenu: ParticipantContextMenu(
                   identity: participant.identity,
                   name: roster.nameFor(participant.userId, participant.name),

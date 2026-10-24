@@ -3,7 +3,9 @@
 /// Deafened, nothing. A stream's sound only while the stream is watched — a
 /// sound share is heard like a person, so it is not a [stream] here — and a
 /// share whose owner has left the call ([ownerless], see
-/// `sharesWithoutOwner`) not at all.
+/// `sharesWithoutOwner`) not at all. While you listen only to one person
+/// (`LiveKitState.listeningOnlyTo`), nothing of anybody else's
+/// ([someoneElse]), their shares included.
 ///
 /// What is not heard is *disabled* (`LiveKitCubit._syncAudioReception`),
 /// never unsubscribed: an unsubscribed track's slot on the connection is
@@ -15,8 +17,9 @@ bool hearsRemoteAudio({
   required bool stream,
   required bool watched,
   required bool ownerless,
+  bool someoneElse = false,
 }) {
-  if (deafened || ownerless) return false;
+  if (deafened || ownerless || someoneElse) return false;
   return !stream || watched;
 }
 

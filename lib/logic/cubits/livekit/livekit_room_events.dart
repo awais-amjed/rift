@@ -23,8 +23,6 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
   /// Implemented by [_DmCallConnectMixin], for the same reason.
   Future<void> rejoinDmCall();
 
-  void _applyStoredSettings();
-  void _syncAudioReception();
   Future<void> _checkReceivers();
   void _applyScreenshareQualitySettings(Participant participant);
   void _onRemoteAudioArrived(RemoteTrackPublication publication);

@@ -4,6 +4,10 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
   AppCubit get _appCubit;
   SessionRepository? get _session;
 
+  /// Implemented by [_AudioReceptionMixin] and the cubit.
+  void _syncAudioReception();
+  void _applyStoredSettings();
+
   /// Mutes/unmutes a participant for everyone in the room (requires is_channel_manager).
   /// Server-side moderation: persistently mute/deafen a user for everyone.
   /// [participantIdentity] may be a screenshare or multi-device identity — the
@@ -85,6 +89,9 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
     for (final track in _audioTracksFor(key)) {
       _applyAudioSetting(track, setting, app.outputVolume);
     }
+    // A setting turns its track on, and one held for "Mute everyone else
+    // for me" has to stay off.
+    if (state.listeningOnlyTo != null) _syncAudioReception();
   }
 
   /// Locally mutes/unmutes a remote participant's voice (this user only).
@@ -111,6 +118,45 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
     _applyVoicePrivacy();
   }
 
+  /// Hears only [target] in this call, or everyone again — see
+  /// [LiveKitState.listeningOnlyTo]. [target] may be an identity or a bare
+  /// user id, as for [setParticipantMute].
+  ///
+  /// Hearing only somebody you had muted would be hearing nobody, so their
+  /// own mute comes off.
+  void setListeningOnlyTo(String target, bool only) {
+    final userId = ParticipantIdentity.userIdOf(target);
+    if (only && _appCubit.state.settingFor(userId).muted) {
+      _appCubit.setParticipantSetting(userId, muted: false);
+    }
+    emit(
+      state.copyWith(
+        listeningOnlyTo: only ? userId : null,
+        clearListeningOnlyTo: !only,
+      ),
+    );
+    _syncAudioReception();
+    // What comes back on, comes back with its own mute and volume.
+    if (!only) _applyStoredSettings();
+  }
+
+  /// Lets only [target] hear you in this call, or everyone again — see
+  /// [LiveKitState.voiceOnlyFor]. Sent to the call server at once.
+  void setVoiceOnlyFor(String target, bool only) {
+    emit(
+      state.copyWith(
+        voiceOnlyFor: only ? ParticipantIdentity.userIdOf(target) : null,
+        clearVoiceOnlyFor: !only,
+      ),
+    );
+    _applyVoicePrivacy();
+  }
+
+  /// Whether anybody in the call is kept from your microphone: a person
+  /// hidden in every call, or everyone but one in this one.
+  bool get _voiceRestricted =>
+      _appCubit.state.voiceHiddenFrom.isNotEmpty || state.voiceOnlyFor != null;
+
   /// Whether a full reconnect is holding the mic silent — see
   /// [_holdMicThroughRestart].
   bool _micHeldForPrivacy = false;
@@ -122,7 +168,7 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
   /// again ([_releaseMicAfterRestart]): a hidden person may be subscribed for
   /// that moment, and hears nothing.
   void _holdMicThroughRestart() {
-    if (_appCubit.state.voiceHiddenFrom.isEmpty) return;
+    if (!_voiceRestricted) return;
     final track = state.room?.localParticipant
         ?.getTrackPublicationBySource(TrackSource.microphone)
         ?.track;
@@ -156,6 +202,7 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
     final result = VoicePrivacy.permissions(
       remoteIdentities: room.remoteParticipants.values.map((p) => p.identity),
       hiddenFrom: _appCubit.state.voiceHiddenFrom,
+      onlyTo: state.voiceOnlyFor,
       nonMicTrackSids: [
         for (final pub in local.trackPublications.values)
           if (pub.source != TrackSource.microphone) pub.sid,

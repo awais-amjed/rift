@@ -567,7 +567,10 @@ everything but your microphone, so a modified app hears no more than a stock
 one. The microphone waits for the first list, and across a full reconnect it
 sends silence until the new session has one. They still see you in the call,
 and your speaking ring, and it rests on the server's LiveKit doing as told.
-Verified Oct 14 2026 (`TESTING.md`; the detail is in `CALLS.md`).
+Verified Oct 14 2026 (`TESTING.md`; the detail is in `CALLS.md`). The same
+list hides you from everyone but one person for a single call ("Hide my voice
+from others", `LiveKitState.voiceOnlyFor`), and "Mute everyone else for me"
+is its local counterpart.
 
 ### Encoding a share on the GPU — [Implemented October 2026]
 

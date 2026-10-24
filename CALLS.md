@@ -106,6 +106,18 @@ which comes from the server's active-speaker reports (*Speaking indicator*).
 They also hold the room key, so it rests on whoever runs the server's LiveKit
 forwarding as told.
 
+**Everyone but one, for one call.** A participant's menu also offers "Hide my
+voice from others", which is the same allow-list with everybody hidden but
+that person (`LiveKitState.voiceOnlyFor`, `VoicePrivacy`'s `onlyTo`), bots
+included; somebody hidden in every call stays hidden even if they are the one.
+Its counterpart for listening is "Mute everyone else for me"
+(`LiveKitState.listeningOnlyTo`): everyone else's voice, shares and soundboard
+clips are held here the way a deafen holds them (`hearsRemoteAudio`), leaving
+each person's own mute and volume as they were, and the one person's own mute
+comes off. Both last for the call they were set in: a rejoin of it keeps them,
+and leaving or moving to another channel drops them. Verified Oct 24 2026 with
+two Linux debug clients on the local stack (`TESTING.md`).
+
 ## What a share sends, and to whom — [Implemented October 2026]
 
 A viewer receives a share only after pressing Watch, so most shares spend

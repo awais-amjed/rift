@@ -22,6 +22,7 @@ import '../../profile/person/show_person_profile.dart';
 import 'participant_admin_section.dart';
 import 'participant_bot_section.dart';
 import 'participant_hide_voice_item.dart';
+import 'participant_only_items.dart';
 import 'participant_volume_control.dart';
 
 /// Over the widget budget and one job: what you can do to one participant, and
@@ -248,6 +249,10 @@ class ParticipantContextMenu extends StatelessWidget {
                 }
               },
             ),
+            // Everyone but them, for this call. Only for somebody in it:
+            // anyone else is nobody to listen to here.
+            if (!isLocal && isLive)
+              ParticipantHearOnlyItem(targetUserId: targetUserId),
             // Their soundboard, separately. A clip is played by this
             // device, so this switches off nothing for anybody else —
             // and it leaves their voice alone, which is the reason it is
@@ -268,6 +273,8 @@ class ParticipantContextMenu extends StatelessWidget {
               ),
             // The other direction: what they hear of you.
             if (!isLocal) ParticipantHideVoiceItem(targetUserId: targetUserId),
+            if (!isLocal && isLive)
+              ParticipantVoiceOnlyItem(targetUserId: targetUserId),
             // Sending a summoned bot away — not moderation, and not
             // behind the same permission. Above the admin section because
             // for a bot it is the only item on here anybody usually wants.

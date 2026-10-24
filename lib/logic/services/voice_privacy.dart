@@ -2,7 +2,8 @@ import 'package:livekit_client/livekit_client.dart';
 
 import '../../data/participant_identity.dart';
 
-/// Who in a call may receive your microphone, for "Hide my voice from them".
+/// Who in a call may receive your microphone, for "Hide my voice from them"
+/// and "Hide my voice from others".
 ///
 /// The call server enforces it: your app tells LiveKit which participants may
 /// subscribe to which of your tracks, and the server sends nothing to the
@@ -24,20 +25,28 @@ abstract final class VoicePrivacy {
   /// each device, and their shares, whose connections could subscribe too.
   /// [nonMicTrackSids] are the tracks of yours a hidden person still gets —
   /// a camera, or a phone's screen share.
+  ///
+  /// [onlyTo], a user id, hides it from everyone else as well. Somebody in
+  /// [hiddenFrom] stays hidden even then.
   static ({bool allowAll, List<ParticipantTrackPermission> permissions})
   permissions({
     required Iterable<String> remoteIdentities,
     required Iterable<String> hiddenFrom,
     required Iterable<String> nonMicTrackSids,
+    String? onlyTo,
   }) {
     final hidden = hiddenFrom.toSet();
-    if (hidden.isEmpty) return (allowAll: true, permissions: const []);
+    if (hidden.isEmpty && onlyTo == null) {
+      return (allowAll: true, permissions: const []);
+    }
+    bool isHidden(String userId) =>
+        hidden.contains(userId) || (onlyTo != null && userId != onlyTo);
     final others = nonMicTrackSids.toList();
     return (
       allowAll: false,
       permissions: [
         for (final identity in remoteIdentities)
-          if (hidden.contains(ParticipantIdentity.userIdOf(identity)))
+          if (isHidden(ParticipantIdentity.userIdOf(identity)))
             ParticipantTrackPermission(identity, false, others)
           else
             ParticipantTrackPermission(identity, true, null),

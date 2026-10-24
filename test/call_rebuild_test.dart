@@ -7,6 +7,7 @@ import 'package:rift/data/classes/participant_info.dart';
 import 'package:rift/data/enums/channel_type.dart';
 import 'package:rift/logic/cubits/app/app_cubit.dart';
 import 'package:rift/logic/cubits/channel_presence/channel_presence_cubit.dart';
+import 'package:rift/logic/cubits/livekit/livekit_cubit.dart';
 import 'package:rift/logic/cubits/server/server_cubit.dart';
 import 'package:rift/logic/cubits/server_members/server_members_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
@@ -21,6 +22,14 @@ import 'package:rift/presentation/screens/home/sidebar/widgets/participant_list_
 import 'support/memory_storage.dart';
 import 'support/rebuild_counter.dart';
 import 'support/stub_members_cubit.dart';
+
+/// A call cubit with nothing in it: the sidebar reads only its state.
+class _StubLiveKitCubit extends Cubit<LiveKitState> implements LiveKitCubit {
+  _StubLiveKitCubit() : super(const LiveKitState());
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 class _StubPresenceCubit extends Cubit<ChannelPresenceState>
     implements ChannelPresenceCubit {
@@ -133,6 +142,7 @@ void main() {
             BlocProvider<ChannelPresenceCubit>(
               create: (_) => _StubPresenceCubit(),
             ),
+            BlocProvider<LiveKitCubit>(create: (_) => _StubLiveKitCubit()),
           ],
           child: MaterialApp(
             home: Scaffold(

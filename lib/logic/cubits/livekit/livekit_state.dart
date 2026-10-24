@@ -97,6 +97,21 @@ class LiveKitState extends Equatable {
   /// moves, even though the channel has not.
   final int arrivals;
 
+  /// "Mute everyone else for me": the one person, by user id, this device
+  /// still hears in the call. Everyone else's voice and shares are held
+  /// ([hearsRemoteAudio]), and so are their soundboard clips. Their own
+  /// mutes and volumes are untouched, so turning this off puts back exactly
+  /// what each had.
+  ///
+  /// For this call only, like [voiceOnlyFor]: dropped when the call ends or
+  /// moves to another channel, and kept through a rejoin of the same one.
+  final String? listeningOnlyTo;
+
+  /// "Hide my voice from others": the one person, by user id, who
+  /// still receives your microphone. The call server enforces it, as it does
+  /// [AppCubit]'s per-person list — see `VoicePrivacy`.
+  final String? voiceOnlyFor;
+
   const LiveKitState({
     this.connectionState = LiveKitConnectionState.disconnected,
     this.room,
@@ -119,6 +134,8 @@ class LiveKitState extends Equatable {
     this.connectedLivekitUrl,
     this.streamToOpen,
     this.arrivals = 0,
+    this.listeningOnlyTo,
+    this.voiceOnlyFor,
   });
 
   /// In a call of either kind, connected or on the way.
@@ -204,6 +221,10 @@ class LiveKitState extends Equatable {
     String? connectedLivekitUrl,
     String? streamToOpen,
     int? arrivals,
+    String? listeningOnlyTo,
+    bool clearListeningOnlyTo = false,
+    String? voiceOnlyFor,
+    bool clearVoiceOnlyFor = false,
     bool clearStreamToOpen = false,
     bool clearRoom = false,
     bool clearChannelId = false,
@@ -212,16 +233,25 @@ class LiveKitState extends Equatable {
     bool clearFailure = false,
   }) {
     final nextConnection = connectionState ?? this.connectionState;
+    final nextChannelId = clearChannelId
+        ? null
+        : (currentChannelId ?? this.currentChannelId);
+    final nextDmCall = clearDmCall ? null : (dmCall ?? this.dmCall);
+    // Tied to the call rather than cleared at each way out of one: a leave,
+    // a move to another channel or a DM call all change the call's key, and
+    // a rejoin of the same call keeps it.
+    final sameCall =
+        (nextChannelId ??
+            (nextDmCall == null ? null : 'dm:${nextDmCall.callId}')) ==
+        callKey;
     return LiveKitState(
       connectionState: nextConnection,
       room: clearRoom ? null : (room ?? this.room),
-      currentChannelId: clearChannelId
-          ? null
-          : (currentChannelId ?? this.currentChannelId),
+      currentChannelId: nextChannelId,
       currentServerId: clearChannelId || clearServerId
           ? null
           : (currentServerId ?? this.currentServerId),
-      dmCall: clearDmCall ? null : (dmCall ?? this.dmCall),
+      dmCall: nextDmCall,
       failure: clearFailure ? null : (failure ?? this.failure),
       participants: participants ?? this.participants,
       cells: participants == null
@@ -256,6 +286,12 @@ class LiveKitState extends Equatable {
           ? (streamToOpen ?? this.streamToOpen)
           : null,
       arrivals: arrivals ?? this.arrivals,
+      listeningOnlyTo: sameCall && !clearListeningOnlyTo
+          ? (listeningOnlyTo ?? this.listeningOnlyTo)
+          : null,
+      voiceOnlyFor: sameCall && !clearVoiceOnlyFor
+          ? (voiceOnlyFor ?? this.voiceOnlyFor)
+          : null,
     );
   }
 
@@ -282,5 +318,7 @@ class LiveKitState extends Equatable {
     connectedLivekitUrl,
     streamToOpen,
     arrivals,
+    listeningOnlyTo,
+    voiceOnlyFor,
   ];
 }

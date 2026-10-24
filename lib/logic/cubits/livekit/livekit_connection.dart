@@ -18,6 +18,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
   void setupRoomListeners(Room room);
   void _applyStoredSettings();
   void _applyVoicePrivacy([Room? room]);
+  bool get _voiceRestricted;
 
   Future<void> _syncMicrophoneTransmission();
 
@@ -293,8 +294,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       // reach everyone present before the list could be sent ([VoicePrivacy]).
       // The sync further down turns it on.
       final joinMicEnabled =
-          _appCubit.state.voiceHiddenFrom.isEmpty &&
-          _shouldTransmitMic(micEnabled: useMicEnabled);
+          !_voiceRestricted && _shouldTransmitMic(micEnabled: useMicEnabled);
 
       await room.connect(
         livekitUrl,
