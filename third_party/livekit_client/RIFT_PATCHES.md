@@ -54,10 +54,27 @@ uncorrelated.
    at −20 dBFS. Disposed then closed, volume 0 brought it to −49 dBFS and
    disabling it to silence.
 
+3. **`unsubscribe()` asks the server even when no track is here**
+   (`lib/src/publication/remote.dart`). The SDK returned early unless it
+   held the track. LiveKit's server subscribes a joining participant to every
+   track twice, at the join and again once its connection is up, and the
+   second pass undoes an unsubscribe sent between the two, often without the
+   track arriving at the client again. The SDK then believed it had dropped a
+   track the server was still sending, and had nothing to ask with. LiveKit's
+   JS SDK sends the request whatever it holds; asking about a track the
+   server is not sending changes nothing. Rift asks again once it is told
+   its connection is active (`_dropUnwatchedPictures`, `CALLS.md`).
+
+   Measured Oct 25 2026 on the local stack with the server's debug log: a
+   member rejoining a call with a stream running, unwatched, left it flowing
+   in about one rejoin in four, until the call ended; with the patch and the
+   second ask, in none of sixteen.
+
 ## When to remove it
 
 Patch 1 goes when a `livekit_client` release answers a stereo track with
 `stereo=1`, patch 2 when a release disposes before it closes or the
-`flutter_webrtc` it pins includes #2180. With both gone, bump, delete this folder and its `dependency_overrides`
-entry. Until then, a `livekit_client` upgrade needs this copy replaced with the
+`flutter_webrtc` it pins includes #2180, patch 3 when a release sends an
+unsubscribe without holding the track. With all three gone, bump, delete this
+folder and its `dependency_overrides` entry. Until then, a `livekit_client` upgrade needs this copy replaced with the
 new version and the changes put back.

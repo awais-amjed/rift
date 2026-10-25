@@ -50,6 +50,14 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
         _releaseMicAfterRestart();
         emit(state.copyWith(arrivals: state.arrivals + 1));
       })
+      // The server's second pass over the tracks there are, which undoes a
+      // picture dropped before it — see [_dropUnwatchedPictures].
+      ..on<ParticipantStateUpdatedEvent>((e) {
+        if (e.participant is LocalParticipant &&
+            e.state == ParticipantState.active) {
+          _dropUnwatchedPictures();
+        }
+      })
       ..on<ParticipantConnectedEvent>((e) {
         final identity = e.participant.identity;
         // Their key before their audio: a frame cryptor with no key for a
@@ -362,6 +370,26 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
     if (publication.kind != TrackType.AUDIO) return false;
     _syncAudioReception();
     return true;
+  }
+
+  /// Drops again every stream picture this client is not watching. The
+  /// server subscribes somebody joining to every track twice, at the join
+  /// and again once their connection is up, and the second undid a picture
+  /// dropped in between, usually with nothing arriving here to say so. The
+  /// stream was then downloaded and decoded unwatched until the call ended,
+  /// and Watch, asking for what the server was already sending, showed only
+  /// the sharer's avatar (Oct 25: a laptop's Windows, and Linux). Being told
+  /// we are active comes after that second pass, and the SDK asks even with
+  /// no track here (`third_party/livekit_client/RIFT_PATCHES.md`).
+  void _dropUnwatchedPictures() {
+    final room = state.room;
+    if (room == null) return;
+    for (final p in room.remoteParticipants.values) {
+      if (state.subscribedScreenshares.contains(p.identity)) continue;
+      for (final pub in p.videoTrackPublications) {
+        if (_isStreamTrack(p, pub)) unawaited(pub.unsubscribe());
+      }
+    }
   }
 
   static bool _isStreamTrack(

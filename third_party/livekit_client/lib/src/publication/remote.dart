@@ -353,7 +353,13 @@ class RemoteTrackPublication<T extends RemoteTrack> extends TrackPublication<T> 
   }
 
   Future<void> unsubscribe() async {
-    if (!super.subscribed || !_subscriptionAllowed) {
+    // RIFT PATCH: sent even with no track here. The server subscribes a
+    // joining participant to every track twice, at the join and again once
+    // its connection is up, and the second undoes an unsubscribe sent in
+    // between, often without the track arriving here again. Only asking
+    // again puts it right, and asking about a track the server is not
+    // sending does nothing. See third_party/livekit_client/RIFT_PATCHES.md.
+    if (!_subscriptionAllowed) {
       logger.fine('ignoring unsubscribe() request...');
       return;
     }

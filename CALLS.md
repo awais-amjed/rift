@@ -397,6 +397,23 @@ subscription stays (`_AudioReceptionMixin`). Only your own share is dropped,
 for good. A stream's picture is still unsubscribed while unwatched, so that
 adaptive streaming keeps pausing the ones on screen nobody can see.
 
+**A joining client drops unwatched pictures twice.** LiveKit's server
+subscribes somebody joining to every track there is twice: when they join, and
+again when their connection comes up ("participant active"), and the second
+pass undoes an unsubscribe sent between the two. Often no track arrives at the
+client to say so, so the SDK went on believing it had dropped the picture.
+The stream was then downloaded and decoded, unwatched, until the call ended:
+15 to 33 Mbit/s and a video decoder at up to 17% of a core on a laptop's
+Windows. Watch asked for a track the server was already sending, so nothing
+new arrived and the stage showed the sharer's avatar. A server restart, which
+rejoins everyone, did the same to the sharer's own connection. So when this
+client hears that it is active, it unsubscribes again from every picture it is
+not watching (`_dropUnwatchedPictures`). The SDK sends that request even with
+no track in hand (`third_party/livekit_client/RIFT_PATCHES.md`, patch 3).
+Measured Oct 25 2026 on the local stack, from LiveKit's debug log: before the
+change, about one rejoin in four while somebody shared left the stream
+flowing; after it, none in sixteen, and the restart left it unsubscribed.
+
 Unsubscribing is what turned calls to static. It hands the track's slot on the
 subscriber connection back to LiveKit's server, which gives the slot to the
 next track to arrive, and a slot keeps the id of the track it was first made
