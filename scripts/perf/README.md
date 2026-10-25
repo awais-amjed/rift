@@ -1,5 +1,9 @@
 # Rift performance kit
 
+**Round 2 (after Oct 25 2026): read `ROUND2.md` for what to run.** This
+branch has since taken in `dev`, so the branch description under *Why* below
+is round 1's; the tools, ground rules and setup still hold.
+
 For a Claude session on one of the user's own machines. It measures what Rift
 costs a game running beside it, and whether this branch's change made that
 cost go away. Read all of this before starting. **The user is at the computer
