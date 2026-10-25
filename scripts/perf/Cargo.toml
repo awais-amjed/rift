@@ -1,0 +1,31 @@
+[package]
+name = "rift-perf"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Tools for measuring what Rift costs a game: a stand-in game and a per-thread CPU meter"
+
+# Not part of the app's Rust crate: nothing here ships.
+[workspace]
+
+[[bin]]
+name = "gameloop"
+path = "src/bin/gameloop.rs"
+
+[[bin]]
+name = "threadtop"
+path = "src/bin/threadtop/main.rs"
+
+[target.'cfg(windows)'.dependencies.windows-sys]
+version = "0.59"
+features = [
+    "Win32_Foundation",
+    "Win32_System_Threading",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_System_ProcessStatus",
+    "Win32_System_Diagnostics_Debug",
+    "Win32_System_Kernel",
+]
+
+[profile.release]
+opt-level = 3
