@@ -90,7 +90,8 @@ class _PaintCounter extends CustomPainter {
 /// Speaking flips several times a second for each person talking, and only
 /// the ring round that person shows it. Everything else — every voice channel
 /// in the sidebar, the call bar, each tile — used to rebuild with it, and the
-/// ring's pulse repainted the whole window sixty times a second.
+/// ring's pulse (since replaced by a fade) repainted the whole window sixty
+/// times a second.
 void main() {
   setUpAll(() => HydratedBloc.storage = MemoryStorage());
 

@@ -330,7 +330,9 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   (`_syncParticipants(speakingOnly:)`); it reaches the UI in `AppState.participants`,
   which each ring selects for itself, and anything drawing the rest of a person
   compares with `sameApartFromSpeaking`. `SpeakingRing` sits between repaint
-  boundaries, because its pulse otherwise repainted the whole window every frame. A
+  boundaries, so its short fade repaints only itself, and holds still while someone
+  talks: a ring that breathed redrew the whole window sixty times a second for as long
+  as anyone spoke, minimised or behind a game too (`test/speaking_ring_test.dart`). A
   call's length ticks in its own `CallClock`, never by `setState` on the widget around
   it. A list beside the call keeps its rows the same way as the chat: each rail chip
   selects its own unread count, and `MembersSidebarList` keeps unchanged rows.
@@ -342,6 +344,11 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   on the wrong one: static until rejoin (`CALLS.md`, *Receiving a call's
   audio*). Only a picture or your own share may be unsubscribed;
   `test/audio_reception_test.dart` fails on any other `unsubscribe()` in the call.
+- **On Windows, Dart is not on the main thread.** The runner gives it its own UI thread
+  (`windows/runner/main.cpp`; on the main thread the engine's timer woke Rift a thousand
+  times a second, `CALLS.md` *Rift beside a game*). The main thread holds the COM
+  apartment and the windows, so Dart FFI into COM sets up its own, and anything that must
+  run on the window's thread goes through a platform channel, as the push-to-talk keys do.
 - Platform gating: `kIsWeb` for web, `Platform.isX` for desktop specifics. The Rust bridge is
   desktop/mobile only (`if (!kIsWeb) await RustLib.init()`); web must degrade gracefully.
 - Navigation is go_router via `AppRoutes`; use `HelperMethods.pushOrGoToRoute` when a route must

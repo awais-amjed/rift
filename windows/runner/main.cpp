@@ -63,6 +63,15 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
 
   project.set_dart_entrypoint_arguments(std::move(command_line_arguments));
 
+  // Dart on its own thread, as Flutter ran it before merging the two. On
+  // this one, every Dart timer is a delayed task for the engine's
+  // TimerThread, which keeps firing once one has fired (a later time does
+  // not replace a passed one): Rift idle on a server woke this thread 1,000
+  // times a second in a VM, against about 100 with Dart on its own thread
+  // (CALLS.md, "Rift beside a game"). Remove when the engine schedules a
+  // later time over a passed one, or drops this policy.
+  project.set_ui_thread_policy(flutter::UIThreadPolicy::RunOnSeparateThread);
+
   FlutterWindow window(project);
   Win32Window::Point origin(10, 10);
   Win32Window::Size size(1280, 720);

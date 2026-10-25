@@ -397,6 +397,23 @@ subscription stays (`_AudioReceptionMixin`). Only your own share is dropped,
 for good. A stream's picture is still unsubscribed while unwatched, so that
 adaptive streaming keeps pausing the ones on screen nobody can see.
 
+**A joining client drops unwatched pictures twice.** LiveKit's server
+subscribes somebody joining to every track there is twice: when they join, and
+again when their connection comes up ("participant active"), and the second
+pass undoes an unsubscribe sent between the two. Often no track arrives at the
+client to say so, so the SDK went on believing it had dropped the picture.
+The stream was then downloaded and decoded, unwatched, until the call ended:
+15 to 33 Mbit/s and a video decoder at up to 17% of a core on a laptop's
+Windows. Watch asked for a track the server was already sending, so nothing
+new arrived and the stage showed the sharer's avatar. A server restart, which
+rejoins everyone, did the same to the sharer's own connection. So when this
+client hears that it is active, it unsubscribes again from every picture it is
+not watching (`_dropUnwatchedPictures`). The SDK sends that request even with
+no track in hand (`third_party/livekit_client/RIFT_PATCHES.md`, patch 3).
+Measured Oct 25 2026 on the local stack, from LiveKit's debug log: before the
+change, about one rejoin in four while somebody shared left the stream
+flowing; after it, none in sixteen, and the restart left it unsubscribed.
+
 Unsubscribing is what turned calls to static. It hands the track's slot on the
 subscriber connection back to LiveKit's server, which gives the slot to the
 next track to arrive, and a slot keeps the id of the track it was first made
@@ -455,3 +472,48 @@ frame encryption does not cover, so LiveKit's active-speaker detection works on
 an encrypted call. Other people's indicators come from that. Your own is decided
 on the device from the microphone's raw level, because the server reports only
 the loudest few speakers on an interval and ordinary speech often never lit it.
+
+## Rift beside a game — [Implemented October 2026]
+
+People play while in a call, so on Windows what matters is not only how much
+CPU a call takes but at what priority: a thread above a game's normal priority
+takes a core from it whenever it wants one. libwebrtc gives each media queue its
+priority, and by default it starts the queues that decode and hand on a received
+video at `THREAD_PRIORITY_TIME_CRITICAL`, the highest a normal program can ask
+for. The plugin turns on WebRTC's `WebRTC-MediaTaskQueuePriorities`, which gives
+each queue one for its job instead: decoding and rendering a video above normal,
+encoding the mic's Opus highest. Opus goes up, from normal; it takes a few
+percent of a core, and a frame it is late with is a gap in your voice.
+
+On Linux the same switch changes nothing: libwebrtc asks for real-time
+scheduling, which an ordinary user is refused, so every queue stays at nice 0.
+
+Measured Oct 25 2026 on a laptop's Windows: receiving a 1080p60 stream, the
+decoder took 25% of a core at time-critical while a stand-in game ran on every
+CPU, and the game's frames taking over 1.5 times its fastest went from 0.13% to
+0.76%. In the Windows 11 VM, watching a stream, `VideoDecoderQueue` and
+`IncomingVideoStreamQueue` read 15 before the switch and 1 (above normal) after
+it, and `AudioEncoderQueue` 0 and then 2. Not yet measured: a game beside a
+watched stream with the switch on.
+
+Waking up costs a game too, even with nothing to do. Flutter now runs Dart on
+the Windows main thread by default, and every Dart timer is then a delayed task
+for the engine's `TimerThread`. That thread keeps firing once one task has
+fired: a later time does not replace a time that has passed, so it fires at
+once, wakes the main thread, is handed the later time again and drops it
+again. Rift idle on a server woke its main thread and that timer 1,000 times a
+second each in the Windows 11 VM (a laptop's own Windows showed 2,500–5,500,
+not yet measured with the change); an empty Flutter app, with no timers, did
+not. The runner puts Dart back on its own UI thread
+(`UIThreadPolicy::RunOnSeparateThread`, `windows/runner/main.cpp`), where
+Dart's timers never reach that thread. Found with a hook counting the main
+thread's messages (all `WM_NULL` to `FlutterTaskRunnerWindow`) and who posted
+them (the timer thread, 1,113 a second). The engine marks the policy for
+removal, so it goes when the engine schedules a later time over a passed one,
+or earlier if the policy goes first.
+
+Measured Oct 25 2026 in the Windows 11 VM, Rift on a server with a call
+running in its sidebar: the main thread woke 759–1,113 times a second idle and
+1,746 in the call watching a stream; with Dart on its own thread 114–142 idle
+and 172 in the call. A message notification showed and opened its channel
+when clicked, typing and sending worked, and the call and the stream played.
