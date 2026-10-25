@@ -330,7 +330,9 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   (`_syncParticipants(speakingOnly:)`); it reaches the UI in `AppState.participants`,
   which each ring selects for itself, and anything drawing the rest of a person
   compares with `sameApartFromSpeaking`. `SpeakingRing` sits between repaint
-  boundaries, because its pulse otherwise repainted the whole window every frame. A
+  boundaries, so its short fade repaints only itself, and holds still while someone
+  talks: a ring that breathed redrew the whole window sixty times a second for as long
+  as anyone spoke, minimised or behind a game too (`test/speaking_ring_test.dart`). A
   call's length ticks in its own `CallClock`, never by `setState` on the widget around
   it. A list beside the call keeps its rows the same way as the chat: each rail chip
   selects its own unread count, and `MembersSidebarList` keeps unchanged rows.

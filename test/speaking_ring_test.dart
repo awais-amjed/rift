@@ -104,4 +104,46 @@ void main() {
       ),
     );
   });
+
+  testWidgets('a ring holds still while its owner talks', (tester) async {
+    Widget ring(bool speaking) => MaterialApp(
+      home: BlocProvider(
+        create: (_) => ThemeCubit(),
+        child: Center(
+          child: SpeakingRing(
+            isSpeaking: speaking,
+            borderRadius: const BorderRadius.all(Radius.circular(6)),
+            child: const SizedBox.square(dimension: 24),
+          ),
+        ),
+      ),
+    );
+
+    // A ring that breathed asked for a frame every vsync for as long as
+    // anyone talked: the whole window redrawn sixty times a second, behind
+    // a game too. It fades in and then asks for nothing.
+    await tester.pumpWidget(ring(false));
+    await tester.pumpWidget(ring(true));
+    expect(tester.hasRunningAnimations, isTrue);
+    await tester.pumpAndSettle();
+    expect(tester.hasRunningAnimations, isFalse);
+    expect(
+      find.descendant(
+        of: find.byType(SpeakingRing),
+        matching: find.byType(CustomPaint),
+      ),
+      paints..rrect(),
+    );
+
+    // And fades out when they stop, leaving nothing drawn.
+    await tester.pumpWidget(ring(false));
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: find.byType(SpeakingRing),
+        matching: find.byType(CustomPaint),
+      ),
+      isNot(paints..rrect()),
+    );
+  });
 }
