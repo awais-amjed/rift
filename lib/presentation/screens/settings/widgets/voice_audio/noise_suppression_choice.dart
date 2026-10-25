@@ -1,22 +1,28 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/constants.dart';
+import '../../../../../data/enums/noise_filter_work.dart';
 import '../../../../../data/enums/noise_suppression.dart';
 import '../../../../../logic/services/noise_filter.dart';
 import '../../../../common/segmented_control.dart';
+import '../../../../theme/app_motion.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
+import 'noise_filter_work_line.dart';
 
 /// Which suppressor cleans up the mic, with a line saying what the chosen one
 /// suits. Only what this platform has is offered; a saved choice it lacks
-/// shows as Standard, which is what it gets.
+/// shows as Standard, which is what it gets. While a choice is still taking
+/// effect, the line under it says what it is waiting on.
 class NoiseSuppressionChoice extends StatelessWidget {
   final NoiseSuppression value;
+  final NoiseFilterWork work;
   final ValueChanged<NoiseSuppression> onChanged;
 
   const NoiseSuppressionChoice({
     super.key,
     required this.value,
+    required this.work,
     required this.onChanged,
   });
 
@@ -58,9 +64,21 @@ class NoiseSuppressionChoice extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        Text(
-          _explain(shown),
-          style: AppText.secondary.copyWith(color: theme.textTertiary),
+        AnimatedSwitcher(
+          duration: AppMotion.state,
+          switchInCurve: AppMotion.settle,
+          switchOutCurve: AppMotion.settle,
+          layoutBuilder: (current, previous) => Stack(
+            alignment: Alignment.centerLeft,
+            children: [...previous, ?current],
+          ),
+          child: work == NoiseFilterWork.none
+              ? Text(
+                  _explain(shown),
+                  key: ValueKey(shown),
+                  style: AppText.secondary.copyWith(color: theme.textTertiary),
+                )
+              : NoiseFilterWorkLine(key: ValueKey(work), work: work),
         ),
       ],
     );

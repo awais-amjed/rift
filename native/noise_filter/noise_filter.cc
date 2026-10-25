@@ -253,7 +253,9 @@ class NoiseProcessing final
   Timings timings_;
 };
 
-NoiseProcessing* g_processing = nullptr;
+// Atomic: put on from the window's thread, read from Dart's, which on
+// Windows is another thread and starts first.
+std::atomic<NoiseProcessing*> g_processing{nullptr};
 
 flutter_webrtc_plugin::FlutterWebRTC* SharedWebRTC() {
 #if defined(_WIN32)
@@ -266,7 +268,7 @@ flutter_webrtc_plugin::FlutterWebRTC* SharedWebRTC() {
 }  // namespace
 
 bool InstallNoiseFilter() {
-  if (g_processing != nullptr) return true;
+  if (g_processing.load() != nullptr) return true;
   flutter_webrtc_plugin::FlutterWebRTC* webrtc = SharedWebRTC();
   if (webrtc == nullptr) return false;
   libwebrtc::scoped_refptr<libwebrtc::RTCAudioProcessing> processing =
@@ -281,44 +283,46 @@ bool InstallNoiseFilter() {
     return false;
   }
   processing->SetCapturePostProcessing(filter);
-  g_processing = filter;
+  g_processing.store(filter);
   return true;
 }
 
 }  // namespace rift
 
 int32_t rift_noise_filter_available(void) {
-  return rift::g_processing != nullptr ? 1 : 0;
+  return rift::g_processing.load() != nullptr ? 1 : 0;
 }
 
 void rift_noise_filter_set_model(int32_t model) {
-  if (rift::g_processing != nullptr) rift::g_processing->SetModel(model);
+  if (auto* filter = rift::g_processing.load()) filter->SetModel(model);
 }
 
 void rift_noise_filter_set_gain(float gain) {
-  if (rift::g_processing != nullptr) rift::g_processing->SetGain(gain);
+  if (auto* filter = rift::g_processing.load()) filter->SetGain(gain);
 }
 
 void rift_noise_filter_set_silenced(int32_t silenced) {
-  if (rift::g_processing != nullptr) {
-    rift::g_processing->SetSilenced(silenced != 0);
+  if (auto* filter = rift::g_processing.load()) {
+    filter->SetSilenced(silenced != 0);
   }
 }
 
 void rift_noise_filter_set_dpdfnet(void* process, void* reset) {
-  if (rift::g_processing == nullptr) return;
-  rift::g_processing->SetDpdfnet(
+  auto* filter = rift::g_processing.load();
+  if (filter == nullptr) return;
+  filter->SetDpdfnet(
       reinterpret_cast<rift::LibraryProcess>(process),
       reinterpret_cast<rift::LibraryReset>(reset));
 }
 
 void rift_noise_filter_take_timings(int64_t* out) {
   if (out == nullptr) return;
-  if (rift::g_processing == nullptr) {
+  auto* filter = rift::g_processing.load();
+  if (filter == nullptr) {
     for (int i = 0; i < 4; ++i) out[i] = 0;
     return;
   }
-  rift::g_processing->TakeTimings(out);
+  filter->TakeTimings(out);
 }
 
 void* rift_noise_filter_rnnoise_create(void) { return rnnoise_create(nullptr); }

@@ -15,6 +15,7 @@ import '../../../data/classes/seen_key.dart';
 import '../../../data/constants.dart';
 import '../../../data/enums/app_sound.dart';
 import '../../../data/enums/home_surface.dart';
+import '../../../data/enums/noise_filter_work.dart';
 import '../../../data/enums/noise_suppression.dart';
 import '../../../data/enums/sensitive_content_mode.dart';
 import '../../../data/enums/stream_pip_corner.dart';
@@ -37,9 +38,9 @@ part 'app_state.dart';
 class AppCubit extends HydratedCubit<AppState> {
   AppCubit() : super(const AppState()) {
     // The filter lives in the native audio pipeline, which starts with none.
-    unawaited(NoiseFilter.use(state.noiseSuppression));
     NoiseFilter.useSmallDpdfnet(state.dpdfnetSmall);
     MicVolume.apply(state.inputVolume);
+    unawaited(_useNoiseFilter(state.noiseSuppression));
   }
 
   /// A fixed name, not the class's: see [HydratedKeys].
@@ -172,8 +173,23 @@ class AppCubit extends HydratedCubit<AppState> {
   // of these change, so a toggle takes effect mid-call.
 
   void setNoiseSuppression(NoiseSuppression value) {
-    unawaited(NoiseFilter.use(value));
     emit(state.copyWith(noiseSuppression: value));
+    unawaited(_useNoiseFilter(value));
+  }
+
+  /// Puts [mode] on, and says in [AppState.noiseFilterWork] what is being
+  /// waited for meanwhile. Each switch reads [NoiseFilter.work] when its own
+  /// finishes, so an earlier one finishing late does not clear a later one.
+  Future<void> _useNoiseFilter(NoiseSuppression mode) async {
+    final putOn = NoiseFilter.use(mode);
+    final work = NoiseFilter.work;
+    if (work != state.noiseFilterWork) {
+      emit(state.copyWith(noiseFilterWork: work));
+    }
+    if (work == NoiseFilterWork.none) return;
+    await putOn;
+    if (isClosed) return;
+    emit(state.copyWith(noiseFilterWork: NoiseFilter.work));
   }
 
   void setDpdfnetSmall(bool value) {

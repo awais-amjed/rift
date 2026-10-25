@@ -28,6 +28,7 @@ class AudioProcessingSection extends StatelessWidget {
         const SizedBox(height: 12),
         NoiseSuppressionChoice(
           value: appState.noiseSuppression,
+          work: appState.noiseFilterWork,
           onChanged: cubit.setNoiseSuppression,
         ),
         if (appState.noiseSuppression == NoiseSuppression.dpdfnet &&

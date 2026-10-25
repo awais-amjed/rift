@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:ffi/ffi.dart';
 
+import '../../data/enums/noise_filter_work.dart';
 import '../../data/enums/noise_suppression.dart';
 import '../../src/rust/api/mic_test.dart';
 import '../../src/rust/api/noise_filter.dart';
@@ -25,25 +26,82 @@ import '../helper_methods.dart';
 /// Where the runner has no filter — the other platforms, or a factory that
 /// was not there to attach to — a model reads as [NoiseSuppression.standard].
 abstract final class NoiseFilter {
-  static final _native = _NativeFilter.load();
+  /// The runner's functions, found at once. They exist before the filter
+  /// does: Windows runs Dart on its own thread, which starts before the
+  /// window's thread puts the filter on (`FlutterWindow::OnCreate`).
+  static final _exports = _NativeFilter.load();
+
+  /// The runner's filter, once it says it has one ([ready]).
+  static _NativeFilter? _native;
+
+  /// Whether the wait for the runner is over, either way.
+  static bool _settled = false;
+
+  /// Completes once the runner has put its filter on, or [_runnerWait] has
+  /// passed without it. Until then, what is chosen is kept and put on then.
+  static final Future<void> ready = _waitForRunner();
+
+  /// Far longer than the runner takes; a filter not there by then never
+  /// will be (no factory to attach to).
+  static const _runnerWait = Duration(seconds: 3);
 
   /// The latest choice, so a model that finishes loading after the choice
   /// has moved on is not put on.
   static NoiseSuppression? _wanted;
 
+  /// The latest mic volume, put on when the filter arrives.
+  static double? _gain;
+
   /// Whether the runner has been handed DPDFNet.
   static bool _dpdfnetHanded = false;
+
+  /// Whether DPDFNet is loading.
+  static bool _dpdfnetLoading = false;
 
   /// Whether the mic test has been told where the runner's RNNoise is.
   static bool _rnnoiseHanded = false;
 
-  /// What the settings offer here.
+  static Future<void> _waitForRunner() async {
+    final exports = _exports;
+    if (exports != null) {
+      // A plain read of a flag the runner sets, every few milliseconds
+      // while Dart's own start-up goes on; nothing here blocks.
+      final waited = Stopwatch()..start();
+      while (!exports.available()) {
+        if (waited.elapsed > _runnerWait) {
+          HelperMethods.printDebug('Noise filter: the runner has none');
+          _settled = true;
+          return;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+      _native = exports;
+      final gain = _gain;
+      if (gain != null) setGain(gain);
+    }
+    _settled = true;
+  }
+
+  /// The runner's filter, or the one still expected.
+  static _NativeFilter? get _offered => _settled ? _native : _exports;
+
+  /// What the noise filter is busy with, read straight after [use].
+  static NoiseFilterWork get work {
+    if (!_settled && _exports != null) return NoiseFilterWork.starting;
+    if (_dpdfnetLoading && _wanted == NoiseSuppression.dpdfnet) {
+      return NoiseFilterWork.loadingModel;
+    }
+    return NoiseFilterWork.none;
+  }
+
+  /// What the settings offer here. While the runner's filter is still on its
+  /// way, what it will have.
   static List<NoiseSuppression> get choices => [
     NoiseSuppression.off,
     NoiseSuppression.standard,
-    if (_native != null) ...[
+    if (_offered != null) ...[
       NoiseSuppression.rnnoise,
-      if (_native?.canDpdfnet ?? false) NoiseSuppression.dpdfnet,
+      if (_offered?.canDpdfnet ?? false) NoiseSuppression.dpdfnet,
     ],
   ];
 
@@ -56,11 +114,12 @@ abstract final class NoiseFilter {
   };
 
   /// Whether the runner can turn the microphone up or down: [setGain].
-  static bool get canSetGain => _native != null;
+  static bool get canSetGain => _offered != null;
 
   /// The mic volume as a gain, on every capture track and on the mic test,
   /// which reads the device itself and so does not pass the runner's filter.
   static void setGain(double gain) {
+    _gain = gain;
     final native = _native;
     if (native == null) return;
     native.setGain(gain);
@@ -82,11 +141,16 @@ abstract final class NoiseFilter {
 
   /// Puts [mode]'s model on the microphone, or takes it off. DPDFNet loads
   /// first, about a tenth of a second, with no model on meanwhile; if it
-  /// cannot load, RNNoise stands in.
+  /// cannot load, RNNoise stands in. Before the runner's filter is there, it
+  /// waits for it ([ready]).
   static Future<void> use(NoiseSuppression mode) async {
+    _wanted = mode;
+    if (!_settled) {
+      await ready;
+      if (_wanted != mode) return;
+    }
     final native = _native;
     if (native == null) return;
-    _wanted = mode;
     switch (mode) {
       case NoiseSuppression.off || NoiseSuppression.standard:
         native.setModel(_Model.none);
@@ -100,12 +164,15 @@ abstract final class NoiseFilter {
   static Future<void> _useDpdfnet(_NativeFilter native) async {
     if (!_dpdfnetHanded) {
       native.setModel(_Model.none);
+      _dpdfnetLoading = true;
       try {
         final entry = await loadDpdfnet();
         native.setDpdfnet(entry.process.toInt(), entry.reset.toInt());
         _dpdfnetHanded = true;
       } catch (e) {
         HelperMethods.printDebug('DPDFNet unavailable: $e');
+      } finally {
+        _dpdfnetLoading = false;
       }
       if (_wanted != NoiseSuppression.dpdfnet) return;
     }
@@ -116,7 +183,7 @@ abstract final class NoiseFilter {
   /// alike, or DPDFNet-8 until this computer proves too slow for it in a
   /// call.
   static void useSmallDpdfnet(bool small) {
-    if (_native == null) return;
+    if (_exports == null) return;
     setDpdfnetSmall(small: small);
   }
 
@@ -156,6 +223,7 @@ abstract final class NoiseFilter {
     NoiseSuppression mode, {
     required bool autoGain,
   }) async {
+    await ready;
     final native = _native;
     if (native != null && !_rnnoiseHanded) {
       final rnnoise = native.rnnoise;
@@ -194,6 +262,9 @@ abstract final class _Model {
 }
 
 class _NativeFilter {
+  /// Whether the runner has put its filter on the microphone.
+  final bool Function() available;
+
   final void Function(int) setModel;
   final void Function(double) setGain;
 
@@ -211,6 +282,7 @@ class _NativeFilter {
   final ({int create, int process, int destroy})? rnnoise;
 
   const _NativeFilter(
+    this.available,
     this.setModel,
     this.setGain,
     this._setDpdfnet,
@@ -253,8 +325,8 @@ class _NativeFilter {
       final available = exe.lookupFunction<Int32 Function(), int Function()>(
         'rift_noise_filter_available',
       );
-      if (available() != 1) return null;
       return _NativeFilter(
+        () => available() == 1,
         exe.lookupFunction<Void Function(Int32), void Function(int)>(
           'rift_noise_filter_set_model',
         ),
