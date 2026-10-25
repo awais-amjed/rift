@@ -22,6 +22,13 @@ const char kFieldTrialForcePlayoutDelayKey[] = "WebRTC-ForcePlayoutDelay";
 // flag: pin both ends of the playout delay to 0 ms.
 const char kFieldTrialZeroPlayoutDelayValue[] = "min_ms:0,max_ms:0";
 
+// RIFT PATCH: `WebRTC-MediaTaskQueuePriorities` gives each media queue a
+// priority for its job. Without it, decoding and rendering a received video
+// run at THREAD_PRIORITY_TIME_CRITICAL on Windows, above a game's threads,
+// and with it at ABOVE_NORMAL. See third_party/flutter_webrtc/RIFT_PATCHES.md.
+const char kFieldTrialMediaTaskQueuePrioritiesKey[] =
+    "WebRTC-MediaTaskQueuePriorities";
+
 // Builds a "Key/Value/" field trial entry.
 static std::string FieldTrial(const std::string& key,
                               const std::string& value) {
@@ -62,6 +69,8 @@ void FlutterWebRTCBase::EnsureWebRTCInitialized(bool enable_warp,
   // environment, which is why the factory is created here instead of in the
   // constructor: the options only arrive with the initialize() call.
   std::vector<libwebrtc::string> field_trials;
+  field_trials.push_back(
+      EnabledFieldTrial(kFieldTrialMediaTaskQueuePrioritiesKey));
   if (enable_warp) {
     field_trials.push_back(
         EnabledFieldTrial(kRTCFieldTrialIceHandshakeDtlsKey));

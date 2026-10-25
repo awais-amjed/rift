@@ -472,3 +472,26 @@ frame encryption does not cover, so LiveKit's active-speaker detection works on
 an encrypted call. Other people's indicators come from that. Your own is decided
 on the device from the microphone's raw level, because the server reports only
 the loudest few speakers on an interval and ordinary speech often never lit it.
+
+## A call's threads beside a game — [Implemented October 2026]
+
+People play while in a call, so on Windows what matters is not only how much
+CPU a call takes but at what priority: a thread above a game's normal priority
+takes a core from it whenever it wants one. libwebrtc gives each media queue its
+priority, and by default it starts the queues that decode and hand on a received
+video at `THREAD_PRIORITY_TIME_CRITICAL`, the highest a normal program can ask
+for. The plugin turns on WebRTC's `WebRTC-MediaTaskQueuePriorities`, which gives
+each queue one for its job instead: decoding and rendering a video above normal,
+encoding the mic's Opus highest. Opus goes up, from normal; it takes a few
+percent of a core, and a frame it is late with is a gap in your voice.
+
+On Linux the same switch changes nothing: libwebrtc asks for real-time
+scheduling, which an ordinary user is refused, so every queue stays at nice 0.
+
+Measured Oct 25 2026 on a laptop's Windows: receiving a 1080p60 stream, the
+decoder took 25% of a core at time-critical while a stand-in game ran on every
+CPU, and the game's frames taking over 1.5 times its fastest went from 0.13% to
+0.76%. In the Windows 11 VM, watching a stream, `VideoDecoderQueue` and
+`IncomingVideoStreamQueue` read 15 before the switch and 1 (above normal) after
+it, and `AudioEncoderQueue` 0 and then 2. Not yet measured: a game beside a
+watched stream with the switch on.
