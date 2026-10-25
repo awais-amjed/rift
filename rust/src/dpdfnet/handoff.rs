@@ -282,13 +282,26 @@ fn newest(ring: &Ring<Handed>) -> Option<Handed> {
 /// above it, the model would take its turn ahead of the game again. Linux
 /// gives the capture thread no such priority to begin with, and the thread
 /// is left as it starts.
+///
+/// On the `perf-testing` branch only, `RIFT_DPDFNET_PRIORITY=above_normal`
+/// raises it one step, for round 3 to compare the two (`scripts/perf/ROUND3.md`).
 #[cfg(target_os = "windows")]
 fn normal_priority() {
     use windows::Win32::System::Threading::{
-        GetCurrentThread, SetThreadPriority, THREAD_PRIORITY_NORMAL,
+        GetCurrentThread, SetThreadPriority, THREAD_PRIORITY_ABOVE_NORMAL, THREAD_PRIORITY_NORMAL,
     };
+    let above = std::env::var("RIFT_DPDFNET_PRIORITY").as_deref() == Ok("above_normal");
+    let priority = if above {
+        THREAD_PRIORITY_ABOVE_NORMAL
+    } else {
+        THREAD_PRIORITY_NORMAL
+    };
+    log::info!(
+        "DPDFNet's thread at {} priority (RIFT_DPDFNET_PRIORITY)",
+        if above { "above normal" } else { "normal" }
+    );
     // SAFETY: this thread's own pseudo-handle. A refusal leaves it as it is.
-    let _ = unsafe { SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_NORMAL) };
+    let _ = unsafe { SetThreadPriority(GetCurrentThread(), priority) };
 }
 
 #[cfg(not(target_os = "windows"))]
