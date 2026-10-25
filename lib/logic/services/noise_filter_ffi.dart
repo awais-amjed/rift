@@ -196,12 +196,20 @@ abstract final class NoiseFilter {
   ///
   /// Also says when DPDFNet went over to its small model, which it does by
   /// itself on a computer too slow for the large one, and has the next call
-  /// start on the large one again: the computer may only have been busy.
+  /// start on the large one again: the computer may only have been busy. And
+  /// how many frames it sent unfiltered, which it does with one it is late
+  /// with rather than hold up the computer's other work.
   static void callEnded() {
     if (_dpdfnetHanded) {
       if (takeDpdfnetFellBack()) {
         HelperMethods.printDebug(
           'DPDFNet: too slow here for DPDFNet-8, ran DPDFNet-2',
+        );
+      }
+      final unfiltered = takeDpdfnetUnfiltered();
+      if (unfiltered > 0) {
+        HelperMethods.printDebug(
+          'DPDFNet: $unfiltered frames late, sent unfiltered',
         );
       }
       retryLargeDpdfnet();

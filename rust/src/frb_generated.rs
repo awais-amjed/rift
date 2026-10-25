@@ -40,7 +40,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 2061845852;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 2143916857;
 
 // Section: executor
 
@@ -1570,6 +1570,35 @@ fn wire__crate__api__noise_filter__take_dpdfnet_fell_back_impl(
         },
     )
 }
+fn wire__crate__api__noise_filter__take_dpdfnet_unfiltered_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "take_dpdfnet_unfiltered",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Ok::<_, ()>(crate::api::noise_filter::take_dpdfnet_unfiltered())?;
+                std::result::Result::Ok(output_ok)
+            })())
+        },
+    )
+}
 fn wire__crate__api__screenshare__update_screenshare_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -2632,27 +2661,27 @@ fn pde_ffi_dispatcher_primary_impl(
         41 => {
             wire__crate__api__soundshare__stop_sound_share_impl(port, ptr, rust_vec_len, data_len)
         }
-        43 => wire__crate__api__screenshare__update_screenshare_impl(
+        44 => wire__crate__api__screenshare__update_screenshare_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        44 => {
+        45 => {
             wire__crate__api__updater__updater_apply_on_exit_impl(port, ptr, rust_vec_len, data_len)
         }
-        45 => wire__crate__api__updater__updater_cancel_impl(port, ptr, rust_vec_len, data_len),
-        46 => wire__crate__api__updater__updater_check_impl(port, ptr, rust_vec_len, data_len),
-        47 => wire__crate__api__updater__updater_download_impl(port, ptr, rust_vec_len, data_len),
-        48 => wire__crate__api__updater__updater_pause_impl(port, ptr, rust_vec_len, data_len),
-        49 => wire__crate__api__updater__updater_pending_version_impl(
+        46 => wire__crate__api__updater__updater_cancel_impl(port, ptr, rust_vec_len, data_len),
+        47 => wire__crate__api__updater__updater_check_impl(port, ptr, rust_vec_len, data_len),
+        48 => wire__crate__api__updater__updater_download_impl(port, ptr, rust_vec_len, data_len),
+        49 => wire__crate__api__updater__updater_pause_impl(port, ptr, rust_vec_len, data_len),
+        50 => wire__crate__api__updater__updater_pending_version_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        50 => wire__crate__api__updater__updater_resume_impl(port, ptr, rust_vec_len, data_len),
-        51 => wire__crate__api__updater__updater_startup_impl(port, ptr, rust_vec_len, data_len),
+        51 => wire__crate__api__updater__updater_resume_impl(port, ptr, rust_vec_len, data_len),
+        52 => wire__crate__api__updater__updater_startup_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -2672,7 +2701,12 @@ fn pde_ffi_dispatcher_sync_impl(
         42 => {
             wire__crate__api__noise_filter__take_dpdfnet_fell_back_impl(ptr, rust_vec_len, data_len)
         }
-        52 => wire__crate__api__logs__write_log_line_impl(ptr, rust_vec_len, data_len),
+        43 => wire__crate__api__noise_filter__take_dpdfnet_unfiltered_impl(
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        53 => wire__crate__api__logs__write_log_line_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }

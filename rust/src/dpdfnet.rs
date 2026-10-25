@@ -14,18 +14,22 @@
 //! computer is often slow only for a while (a game loading, a build), and a
 //! slow one costs a second of crackle at the start of a call, not of every
 //! unmute.
-//! The thread is left on whichever cores the system gives it. Until Oct 25
-//! it was moved onto the performance cores, which on that i7 kept DPDFNet-8
-//! for the whole call, but on Windows libwebrtc's capture thread runs at
-//! time-critical priority, so there it took a fast core from a game every
-//! 10 ms: a tester's CS2 stuttered while they were in a call. On an
-//! efficiency core DPDFNet-2 takes over instead, which still beats RNNoise.
+//! In a call the model runs on a thread of its own, below the capture
+//! thread's priority ([`handoff`]), and a frame it is late with goes out
+//! unfiltered. That thread is left on whichever cores the system gives it.
+//! Until Oct 25 the model ran on the capture thread, moved onto the
+//! performance cores, which on that i7 kept DPDFNet-8 for the whole call,
+//! but on Windows that thread is time-critical, so it took a fast core from
+//! a game every 10 ms: a tester's CS2 stuttered while they were in a call.
+//! On an efficiency core DPDFNet-2 takes over instead, which still beats
+//! RNNoise.
 //! tract, which ran DeepFilterNet, runs these too, but its GRU layers took
 //! DPDFNet-8 to 12 ms a frame.
 //!
 //! The runner's filter calls
 //! the two C functions here on libwebrtc's capture thread, 10 ms at a time,
-//! once Dart has loaded the model ([`load`]) and handed their addresses on.
+//! once Dart has loaded the model ([`load`]) and handed their addresses on;
+//! they hand each frame to the model's thread.
 //! The settings mic test runs a [`Model`] of its own (`mic_test::clean`).
 
 use std::path::PathBuf;
@@ -36,6 +40,8 @@ use std::time::{Duration, Instant};
 use df::{Complex32, DFState};
 use ort::session::{builder::GraphOptimizationLevel, Session};
 use ort::value::TensorRef;
+
+mod handoff;
 
 /// What libwebrtc hands over: 10 ms at 48 kHz, which is also the models' hop.
 pub(crate) const FRAME: usize = 480;
@@ -59,9 +65,13 @@ const SCALE: f32 = 32768.0;
 const SLOW_FRAME: Duration = Duration::from_millis(7);
 
 /// The small model takes over once this many of the last [`WATCHED`] frames
-/// were slow: a second of them, where a lone slow frame (the thread put aside
-/// for a moment) is no reason to.
-const SLOW_LIMIT: u32 = 10;
+/// were slow, where a lone slow frame (the thread put aside for a moment) is
+/// no reason to. A slow frame is one that went out unfiltered ([`handoff`]),
+/// so this is three bursts of the room in a second. Paced as a call is, on
+/// the i7's efficiency cores DPDFNet-8 missed 4 to 11 frames in 500 and
+/// DPDFNet-2 none (Oct 25); at ten in a hundred, as when a slow frame was
+/// only crackle, DPDFNet-8 stayed and let them through.
+const SLOW_LIMIT: u32 = 3;
 const WATCHED: usize = 100;
 
 /// Set when the person chose DPDFNet-2 in settings ([`choose_small`]), for
@@ -197,22 +207,41 @@ impl Model {
             input: vec![0.0; BINS * 2],
             samples: [0.0; FRAME],
         };
-        // A model's first run sets up what later ones reuse and takes several
-        // times as long, which is no measure of the computer.
-        let mut silence = [0.0; FRAME];
-        model.process_with(&mut silence, true);
-        model.process_with(&mut silence, false);
-        model.reset();
+        model.warm_up();
         Ok(model)
+    }
+
+    /// A model's first runs set up what later ones reuse and take several
+    /// times as long, which is no measure of the computer. Again on each
+    /// thread that runs it: on a new one the first few frames were late.
+    fn warm_up(&mut self) {
+        let mut silence = [0.0; FRAME];
+        for _ in 0..3 {
+            self.process_with(&mut silence, true);
+            self.process_with(&mut silence, false);
+        }
+        self.reset();
     }
 
     /// Filters 10 ms in place; false, with the frame untouched, if the model
     /// failed on it.
     pub(crate) fn process(&mut self, frame: &mut [f32; FRAME]) -> bool {
-        self.process_as_chosen(frame, SMALL_CHOSEN.load(Ordering::Relaxed))
+        self.process_handed(frame, Instant::now())
     }
 
-    fn process_as_chosen(&mut self, frame: &mut [f32; FRAME], small_chosen: bool) -> bool {
+    /// [`process`](Self::process) for a frame handed over at `handed`, which
+    /// times the large model from then: a frame kept waiting for the CPU is
+    /// as late as one the model took long over.
+    fn process_handed(&mut self, frame: &mut [f32; FRAME], handed: Instant) -> bool {
+        self.process_as_chosen(frame, SMALL_CHOSEN.load(Ordering::Relaxed), handed)
+    }
+
+    fn process_as_chosen(
+        &mut self,
+        frame: &mut [f32; FRAME],
+        small_chosen: bool,
+        handed: Instant,
+    ) -> bool {
         let retries = RETRIES.load(Ordering::Relaxed);
         if retries != self.retries_seen {
             self.retries_seen = retries;
@@ -231,9 +260,8 @@ impl Model {
             }
             self.ran_large = large;
         }
-        let started = Instant::now();
         let ok = self.process_with(frame, large);
-        if large && self.watch.add(started.elapsed()) {
+        if large && self.watch.add(handed.elapsed()) {
             self.slow = true;
             FELL_BACK.store(true, Ordering::Relaxed);
         }
@@ -296,6 +324,13 @@ pub(crate) fn take_fell_back() -> bool {
     FELL_BACK.swap(false, Ordering::Relaxed)
 }
 
+/// How many frames of the call went out unfiltered since the last call,
+/// because the model was late with them ([`handoff`]) or failed on them,
+/// which starts the count again.
+pub(crate) fn take_unfiltered() -> u32 {
+    handoff::take_unfiltered()
+}
+
 /// Opens ONNX Runtime once. A computer it will not open on still runs the
 /// app, without this model.
 fn open_runtime() -> Result<(), String> {
@@ -318,7 +353,7 @@ fn open_runtime() -> Result<(), String> {
         .clone()
 }
 
-/// One thread: the capture thread runs it, and a frame is too small to share
+/// One thread: the model's own runs it, and a frame is too small to share
 /// out.
 fn session(onnx: &[u8]) -> Result<Session, String> {
     Session::builder()
@@ -373,22 +408,22 @@ fn initial_state(session: &Session) -> Result<Vec<f32>, String> {
 
 /// Locked by the capture thread for each frame. Nothing else takes it once
 /// the model is in, so the lock is never waited on there.
-static MODEL: Mutex<Option<Model>> = Mutex::new(None);
+static MODEL: Mutex<Option<handoff::Handoff>> = Mutex::new(None);
 
 /// Loads the built-in model once; later calls return straight away.
 pub(crate) fn load() -> Result<(), String> {
     if MODEL.lock().map_err(|e| e.to_string())?.is_some() {
         return Ok(());
     }
-    let model = Model::new()?;
+    let model = handoff::Handoff::start(Model::new()?)?;
     log::info!("DPDFNet loaded");
     *MODEL.lock().map_err(|e| e.to_string())? = Some(model);
     Ok(())
 }
 
 /// Filters `count` samples at `samples` in place. Returns 0, or -1 when the
-/// frame went through untouched (no model, a frame that is not 10 ms at
-/// 48 kHz, or the model failing).
+/// frame went out unfiltered (no model, a frame that is not 10 ms at
+/// 48 kHz, the model failing, or the model late with it).
 ///
 /// # Safety
 /// `samples` must point to `count` floats, writable and not shared with
@@ -401,13 +436,13 @@ pub unsafe extern "C" fn rift_dpdfnet_process(samples: *mut f32, count: i32) -> 
     let Ok(mut guard) = MODEL.try_lock() else {
         return -1;
     };
-    let Some(model) = guard.as_mut() else {
+    let Some(handoff) = guard.as_mut() else {
         return -1;
     };
     // SAFETY: the caller promises `count` writable floats, and `count` is
     // FRAME.
     let frame = unsafe { &mut *samples.cast::<[f32; FRAME]>() };
-    if model.process(frame) {
+    if handoff.process(frame) {
         0
     } else {
         -1
@@ -419,8 +454,8 @@ pub unsafe extern "C" fn rift_dpdfnet_process(samples: *mut f32, count: i32) -> 
 #[no_mangle]
 pub extern "C" fn rift_dpdfnet_reset() {
     if let Ok(mut guard) = MODEL.try_lock() {
-        if let Some(model) = guard.as_mut() {
-            model.reset();
+        if let Some(handoff) = guard.as_mut() {
+            handoff.reset();
         }
     }
 }
@@ -465,12 +500,38 @@ mod tests {
     fn a_run_of_slow_frames_moves_to_the_small_model() {
         let (fast, slow) = (Duration::from_millis(4), Duration::from_millis(9));
         let mut watch = Watch::new();
-        // Nine in a hundred, and the oldest ages out before the tenth.
+        // Two in a hundred, and the oldest ages out before the third.
         for i in 0..300 {
-            assert!(!watch.add(if i % 12 == 0 { slow } else { fast }));
+            assert!(!watch.add(if i % 50 == 0 { slow } else { fast }));
         }
         let tripped = (0..WATCHED).position(|_| watch.add(slow));
         assert!(tripped.is_some_and(|i| i < SLOW_LIMIT as usize));
+    }
+
+    #[test]
+    fn the_window_holds_the_voice_back_one_frame() {
+        // What goes out in place of a late frame is the one before it as it
+        // came in, which only lines up if the model's window, analysed and
+        // put back together untouched, gives the voice back a frame late.
+        let mut stft = DFState::new(48000, WINDOW, FRAME, 32, 1);
+        let mut spec = vec![Complex32::default(); BINS];
+        let frames = noise(8, &mut 1);
+        let mut out = Vec::new();
+        for frame in &frames {
+            let input = frame.map(|s| s / SCALE);
+            let mut samples = [0.0f32; FRAME];
+            stft.analysis(&input, &mut spec);
+            stft.synthesis(&mut spec, &mut samples);
+            out.push(samples.map(|s| s * SCALE));
+        }
+        for i in 2..frames.len() {
+            let worst = out[i]
+                .iter()
+                .zip(&frames[i - 1])
+                .map(|(a, b)| (a - b).abs())
+                .fold(0.0f32, f32::max);
+            assert!(worst < 0.5, "frame {i} is {worst} off the one before it");
+        }
     }
 
     #[test]
@@ -490,16 +551,23 @@ mod tests {
         load().unwrap();
         let mut seed = 1u32;
         let (mut energy_in, mut energy_out) = (0.0f64, 0.0f64);
+        let mut back = 0;
+        let mut previous = [0.0f32; FRAME];
+        // Handed over back to back, not 10 ms apart, and beside the other
+        // tests' models: some frames are late, as on a busy computer.
         for (i, mut frame) in noise(100, &mut seed).into_iter().enumerate() {
-            if i >= 50 {
-                energy_in += frame.iter().map(|&s| (s as f64).powi(2)).sum::<f64>();
-            }
+            let raw = frame;
             let ok = unsafe { rift_dpdfnet_process(frame.as_mut_ptr(), FRAME as i32) };
-            assert_eq!(ok, 0);
-            if i >= 50 {
+            if ok != 0 {
+                assert!(frame == previous, "late frame {i} is not the one before it");
+            } else if i >= 50 {
+                back += 1;
+                energy_in += raw.iter().map(|&s| (s as f64).powi(2)).sum::<f64>();
                 energy_out += frame.iter().map(|&s| (s as f64).powi(2)).sum::<f64>();
             }
+            previous = raw;
         }
+        assert!(back >= 40, "only {back} of 50 frames back in time");
         let reduction_db = 10.0 * (energy_in / energy_out.max(1e-9)).log10();
         assert!(reduction_db > 20.0, "only {reduction_db:.1} dB quieter");
     }
@@ -514,14 +582,14 @@ mod tests {
         let mut fresh = Model::new().unwrap();
         for frame in &before {
             let (mut a, mut b) = (*frame, *frame);
-            assert!(switched.process_as_chosen(&mut a, false));
+            assert!(switched.process_as_chosen(&mut a, false, Instant::now()));
             // The same window history, and a DPDFNet-2 that has heard none
             // of it.
             assert!(fresh.process_with(&mut b, true));
         }
         for (i, frame) in after.iter().enumerate() {
             let (mut a, mut b) = (*frame, *frame);
-            assert!(switched.process_as_chosen(&mut a, true));
+            assert!(switched.process_as_chosen(&mut a, true, Instant::now()));
             assert!(fresh.process_with(&mut b, false));
             assert!(a == b, "frame {i} differs from a DPDFNet-2 started afresh");
         }
@@ -534,7 +602,7 @@ mod tests {
         let mut seed = 1u32;
         let mut run = |model: &mut Model| {
             for mut frame in noise(5, &mut seed) {
-                assert!(model.process_as_chosen(&mut frame, false));
+                assert!(model.process_as_chosen(&mut frame, false, Instant::now()));
             }
         };
         model.slow = true;
