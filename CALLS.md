@@ -473,7 +473,7 @@ an encrypted call. Other people's indicators come from that. Your own is decided
 on the device from the microphone's raw level, because the server reports only
 the loudest few speakers on an interval and ordinary speech often never lit it.
 
-## A call's threads beside a game — [Implemented October 2026]
+## Rift beside a game — [Implemented October 2026]
 
 People play while in a call, so on Windows what matters is not only how much
 CPU a call takes but at what priority: a thread above a game's normal priority
@@ -495,3 +495,25 @@ CPU, and the game's frames taking over 1.5 times its fastest went from 0.13% to
 `IncomingVideoStreamQueue` read 15 before the switch and 1 (above normal) after
 it, and `AudioEncoderQueue` 0 and then 2. Not yet measured: a game beside a
 watched stream with the switch on.
+
+Waking up costs a game too, even with nothing to do. Flutter now runs Dart on
+the Windows main thread by default, and every Dart timer is then a delayed task
+for the engine's `TimerThread`. That thread keeps firing once one task has
+fired: a later time does not replace a time that has passed, so it fires at
+once, wakes the main thread, is handed the later time again and drops it
+again. Rift idle on a server woke its main thread and that timer 1,000 times a
+second each in the Windows 11 VM (a laptop's own Windows showed 2,500–5,500,
+not yet measured with the change); an empty Flutter app, with no timers, did
+not. The runner puts Dart back on its own UI thread
+(`UIThreadPolicy::RunOnSeparateThread`, `windows/runner/main.cpp`), where
+Dart's timers never reach that thread. Found with a hook counting the main
+thread's messages (all `WM_NULL` to `FlutterTaskRunnerWindow`) and who posted
+them (the timer thread, 1,113 a second). The engine marks the policy for
+removal, so it goes when the engine schedules a later time over a passed one,
+or earlier if the policy goes first.
+
+Measured Oct 25 2026 in the Windows 11 VM, Rift on a server with a call
+running in its sidebar: the main thread woke 759–1,113 times a second idle and
+1,746 in the call watching a stream; with Dart on its own thread 114–142 idle
+and 172 in the call. A message notification showed and opened its channel
+when clicked, typing and sending worked, and the call and the stream played.

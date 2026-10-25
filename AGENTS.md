@@ -344,6 +344,11 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   on the wrong one: static until rejoin (`CALLS.md`, *Receiving a call's
   audio*). Only a picture or your own share may be unsubscribed;
   `test/audio_reception_test.dart` fails on any other `unsubscribe()` in the call.
+- **On Windows, Dart is not on the main thread.** The runner gives it its own UI thread
+  (`windows/runner/main.cpp`; on the main thread the engine's timer woke Rift a thousand
+  times a second, `CALLS.md` *Rift beside a game*). The main thread holds the COM
+  apartment and the windows, so Dart FFI into COM sets up its own, and anything that must
+  run on the window's thread goes through a platform channel, as the push-to-talk keys do.
 - Platform gating: `kIsWeb` for web, `Platform.isX` for desktop specifics. The Rust bridge is
   desktop/mobile only (`if (!kIsWeb) await RustLib.init()`); web must degrade gracefully.
 - Navigation is go_router via `AppRoutes`; use `HelperMethods.pushOrGoToRoute` when a route must
