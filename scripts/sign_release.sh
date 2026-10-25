@@ -299,7 +299,13 @@ else
   echo "android: no build kept with the release's run, skipped"
 fi
 if [[ -n $play_notes ]]; then echo "play: the bundle goes to Google Play"; else echo "play: no --play-notes, the bundle is left for a manual upload"; fi
-read -rp "Sign these? [y/N] " answer
+# Keys typed during the downloads, an Enter while waiting, are still in the
+# terminal's input and answered the question before it was seen (1.5.2-beta.5):
+# what is waiting is thrown away, and only a y or an n answers. Piped in, the
+# answer is the input itself and is kept.
+if [[ -t 0 ]]; then while read -rs -t 0.2 -n 1000 _; do :; done; fi
+answer=
+until [[ $answer == [yYnN] ]]; do read -rp "Sign these? [y/n] " answer || exit 1; done
 [[ $answer == [yY] ]] || exit 1
 for channel in "${channels[@]}"; do
   sign_feed "$channel" "$work/releases.$channel.json"
