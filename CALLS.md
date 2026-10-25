@@ -488,6 +488,17 @@ percent of a core, and a frame it is late with is a gap in your voice.
 On Linux the same switch changes nothing: libwebrtc asks for real-time
 scheduling, which an ordinary user is refused, so every queue stays at nice 0.
 
+The mic's own thread is time-critical on Windows ("Pro Audio"), and libwebrtc
+runs the noise model on it, so DPDFNet took its 2 to 8 ms of every 10 ahead of
+a game. The model runs on a thread of its own at normal priority instead
+(`rust/src/dpdfnet/handoff.rs`), sharing the cores with the game, and a frame
+it is late with goes out unfiltered rather than hold the mic up. Measured Oct 25
+2026 on a laptop's Windows, the model still on the mic's thread: with a
+stand-in game on every CPU, the game's frames taking over 1.5 times its fastest
+went from 0.16–0.31% with the filter off to 0.83–0.92% on DPDFNet-2, and its
+99.9th percentile from 8.2 to 12.2 ms. Not yet measured: the same with the
+model on its own thread, and a real game.
+
 Measured Oct 25 2026 on a laptop's Windows: receiving a 1080p60 stream, the
 decoder took 25% of a core at time-critical while a stand-in game ran on every
 CPU, and the game's frames taking over 1.5 times its fastest went from 0.13% to

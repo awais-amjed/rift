@@ -423,11 +423,13 @@ class LiveKitCubit extends Cubit<LiveKitState>
     _lastAppState = appState;
 
     // Audio-processing toggles: recreate the mic track so the new capture
-    // constraints apply mid-call.
+    // constraints apply mid-call. So does the runner's filter turning up
+    // ([NoiseFilterWork.starting]), which takes over from libwebrtc's own.
     final audioProcessingChanged =
         previous.noiseSuppression != appState.noiseSuppression ||
         previous.echoCancellation != appState.echoCancellation ||
-        previous.autoGainControl != appState.autoGainControl;
+        previous.autoGainControl != appState.autoGainControl ||
+        previous.noiseFilterWork.startedSince(appState.noiseFilterWork);
     if (audioProcessingChanged) {
       unawaited(_refreshMicrophoneCapture());
     }

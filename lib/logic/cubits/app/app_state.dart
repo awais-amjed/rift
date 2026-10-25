@@ -237,6 +237,11 @@ class AppState extends Equatable {
   @JsonKey(includeFromJson: false, includeToJson: false)
   final bool desktopPushToTalkPending;
 
+  /// What the noise filter is busy with while a choice takes effect, for
+  /// settings to say so ([NoiseFilter.work]).
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  final NoiseFilterWork noiseFilterWork;
+
   const AppState({
     this.sidebarOpen = true,
     this.audioEnabled = true,
@@ -296,6 +301,7 @@ class AppState extends Equatable {
     this.dmCallChatOpen = true,
     this.desktopPushToTalkKey,
     this.desktopPushToTalkPending = false,
+    this.noiseFilterWork = NoiseFilterWork.none,
   });
 
   /// Somebody you verified now has a key you have not checked. Sending is
@@ -384,6 +390,7 @@ class AppState extends Equatable {
     String? desktopPushToTalkKey,
     bool clearDesktopPushToTalkKey = false,
     bool? desktopPushToTalkPending,
+    NoiseFilterWork? noiseFilterWork,
   }) {
     return AppState(
       sidebarOpen: sidebarOpen ?? this.sidebarOpen,
@@ -460,6 +467,7 @@ class AppState extends Equatable {
           : (desktopPushToTalkKey ?? this.desktopPushToTalkKey),
       desktopPushToTalkPending:
           desktopPushToTalkPending ?? this.desktopPushToTalkPending,
+      noiseFilterWork: noiseFilterWork ?? this.noiseFilterWork,
     );
   }
 
@@ -554,5 +562,6 @@ class AppState extends Equatable {
     dmCallChatOpen,
     desktopPushToTalkKey,
     desktopPushToTalkPending,
+    noiseFilterWork,
   ];
 }

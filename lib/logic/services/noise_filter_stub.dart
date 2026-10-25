@@ -1,3 +1,4 @@
+import '../../data/enums/noise_filter_work.dart';
 import '../../data/enums/noise_suppression.dart';
 
 /// The web's [NoiseFilter]: the browser does its own processing, so only the
@@ -10,6 +11,8 @@ abstract final class NoiseFilter {
 
   static bool usesBuiltIn(NoiseSuppression mode) =>
       mode != NoiseSuppression.off;
+
+  static NoiseFilterWork get work => NoiseFilterWork.none;
 
   static Future<void> use(NoiseSuppression mode) async {}
 

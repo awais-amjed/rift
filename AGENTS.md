@@ -349,6 +349,10 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   times a second, `CALLS.md` *Rift beside a game*). The main thread holds the COM
   apartment and the windows, so Dart FFI into COM sets up its own, and anything that must
   run on the window's thread goes through a platform channel, as the push-to-talk keys do.
+  Dart also starts before the window: what the runner sets up in `FlutterWindow::OnCreate`
+  is not there yet when Dart first asks. The noise filter is, a moment later, so
+  `NoiseFilter` waits for it (`ready`) and settings say so (`NoiseFilterWork`) rather than
+  reading its absence as for good, which left Windows with no models and no mic volume.
 - Platform gating: `kIsWeb` for web, `Platform.isX` for desktop specifics. The Rust bridge is
   desktop/mobile only (`if (!kIsWeb) await RustLib.init()`); web must degrade gracefully.
 - Navigation is go_router via `AppRoutes`; use `HelperMethods.pushOrGoToRoute` when a route must
