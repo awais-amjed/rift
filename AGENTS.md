@@ -356,7 +356,8 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   reading its absence as for good, which left Windows with no models and no mic volume.
   Nor does Dart hear the window minimised or hidden: the app lifecycle reports only the
   focus there, so whether anybody can see Rift comes from the runner (`rift/window_seen`,
-  `AppSeenListener`), and a watched stream's picture is off while nobody can (`CALLS.md`,
+  `AppSeenListener`; the Linux runner answers it too, under Wayland, where GTK 3 never
+  hears minimised), and a watched stream's picture is off while nobody can (`CALLS.md`,
   *Watching while Rift cannot be seen*).
 - Platform gating: `kIsWeb` for web, `Platform.isX` for desktop specifics. The Rust bridge is
   desktop/mobile only (`if (!kIsWeb) await RustLib.init()`); web must degrade gracefully.

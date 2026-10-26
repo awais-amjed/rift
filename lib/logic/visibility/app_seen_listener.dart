@@ -17,7 +17,10 @@ import '../services/pip_service.dart';
 /// (`seen_watch.cpp`), along with what only it can see: another app's window
 /// in front, covering all of Rift that is on screen, as a game in fullscreen
 /// or a maximised browser does. Rift on another monitor, or only partly
-/// covered, can still be seen and keeps its pictures.
+/// covered, can still be seen and keeps its pictures. On Wayland the Linux
+/// lifecycle never hears minimised either, and that runner tells it from the
+/// compositor no longer asking Rift for frames, which it also stops for a
+/// window wholly covered (`seen_watch.cc`).
 class AppSeenListener extends StatefulWidget {
   final Widget child;
 
@@ -41,7 +44,7 @@ class _AppSeenListenerState extends State<AppSeenListener>
     WidgetsBinding.instance.addObserver(this);
     PipService.instance.isInPip.addListener(_tell);
     _hidden = _isHidden(WidgetsBinding.instance.lifecycleState);
-    if (!kIsWeb && Platform.isWindows) {
+    if (!kIsWeb && (Platform.isWindows || Platform.isLinux)) {
       _seenSub = _kSeenChannel.receiveBroadcastStream().listen((seen) {
         _windowSeen = seen != false;
         _tell();

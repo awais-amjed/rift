@@ -203,17 +203,32 @@ was minimised left it at 4 frames a second and about 20 kbit/s, against 38 and
 3.5–4 Mbit/s before patch 5, and the picture was back 255 ms after a restore.
 Not yet measured on a phone, where the background is paused.
 
-**Linux has only the lifecycle, and only X11 fills it in.** GTK reports a
-window minimised or hidden by Rift itself (the title bar's close, to the tray),
-and Flutter's Linux embedder turns that into `hidden`. Measured Oct 26 2026 on
-the same laptop under X11, watching a 1080p60 H264 share: 52% of a core in
-front, 9% minimised and 10% hidden to the tray, against 27% minimised before
-(the decoder alone, since GTK stops drawing a minimised X11 window). The picture
-was back on restore and on a second launch showing the hidden window. A window
-unmapped by another program is not reported. Under Wayland, a window minimised
-from its own title bar was never reported: Rift went on receiving, decoding and
-drawing the stream. GTK 3 has no minimised state there, since the compositor
-does not say. Covered is not detected on Linux at all.
+**On Linux, X11 has the lifecycle, and Wayland the runner.** Under X11 GTK
+reports a window minimised or hidden by Rift itself (the title bar's close, to
+the tray), and Flutter's Linux embedder turns that into `hidden`. Measured Oct
+26 2026 on the same laptop under X11, watching a 1080p60 H264 share: 52% of a
+core in front, 9% minimised and 10% hidden to the tray, against 27% minimised
+before (the decoder alone, since GTK stops drawing a minimised X11 window). The
+picture was back on restore and on a second launch showing the hidden window. A
+window unmapped by another program is not reported, and a covered X11 window
+is still asked for frames, so covered is not detected there.
+
+Under Wayland GTK 3 never hears minimised: xdg-shell has no such state, and the
+suspended state GNOME sends instead is one GTK 3 does not read, so the
+lifecycle stayed resumed and Rift went on receiving, decoding and drawing the
+stream. The runner tells Dart instead, on the channel Windows uses
+(`seen_watch.cc`), from what the compositor does: GNOME stops answering a
+window's frame requests while it is minimised or wholly covered. The runner
+asks for a frame on Rift's surface twice a second, repainting a pixel so that
+an idle Rift commits one to carry the request; one unanswered for 1.5 s means
+nobody can see Rift, and two answered close together that it can again (GNOME
+lets a single frame through a few seconds after hiding a window). GTK's own
+frame clock is no use for this: a window drawn with OpenGL, as Flutter's is,
+ticks on at full rate while minimised. Measured Oct 26 2026 under GNOME 50 on
+Wayland, the same share: 40–55% in front, about 10% minimised from Rift's own
+button, 15% wholly covered by a maximised window and 8% in the tray, with the
+decoder stopped in each; the picture was back on every restore. Other
+compositors, another workspace and GNOME's own minimise keys were not tried.
 
 ## How Windows captures a screen — [Implemented October 2026]
 

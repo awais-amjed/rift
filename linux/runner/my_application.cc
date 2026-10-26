@@ -7,6 +7,7 @@
 
 #include "flutter/generated_plugin_registrant.h"
 #include "noise_filter/noise_filter.h"
+#include "seen_watch.h"
 #include "single_instance.h"
 
 struct _MyApplication {
@@ -94,6 +95,7 @@ static void my_application_activate(GApplication* application) {
   gtk_widget_realize(GTK_WIDGET(view));
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
+  rift::WatchSeen(window, view);
   rift::InstallNoiseFilter();
 
   gtk_widget_grab_focus(GTK_WIDGET(view));
