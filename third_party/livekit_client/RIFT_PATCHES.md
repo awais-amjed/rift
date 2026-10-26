@@ -77,12 +77,28 @@ uncorrelated.
    the window and must then hand it back to adaptive stream, not hold it on
    (`_PicturePauseMixin`, `CALLS.md`). LiveKit's JS SDK has the same gap.
 
+5. **A `disable()` is said again when the server reports the track sending**
+   (`updateStreamState` in `lib/src/publication/remote.dart`). LiveKit's
+   server clears a subscriber's `disabled` when it binds a video track under
+   adaptive stream, to have the client say its visibility again
+   (`SubscribedTrack.Bound`, livekit-server 1.13). The SDK only sends when
+   its settings change, and `disable()` returns at once when already
+   disabled, so a track disabled as it arrived played on. Rift disables a
+   watched picture that arrives while nobody can see the window, as a stream
+   watched again after it dropped out does (`CALLS.md`).
+
+   Measured Oct 26 2026 on a laptop's Windows, Rift minimised while the
+   sharer left and rejoined within 30 s: before, the stream came back at
+   3.5–4 Mbit/s and was drawn 38 times a second until Rift was restored;
+   with the patch, about 20 kbit/s and 4 frames a second.
+
 ## When to remove it
 
 Patch 1 goes when a `livekit_client` release answers a stereo track with
 `stereo=1`, patch 2 when a release disposes before it closes or the
 `flutter_webrtc` it pins includes #2180, patch 3 when a release sends an
 unsubscribe without holding the track, patch 4 when a release can go back
-to letting visibility decide. With all four gone, bump, delete this
+to letting visibility decide, patch 5 when a release keeps a disable
+through the server's bind. With all five gone, bump, delete this
 folder and its `dependency_overrides` entry. Until then, a `livekit_client` upgrade needs this copy replaced with the
 new version and the changes put back.
