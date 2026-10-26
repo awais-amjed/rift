@@ -177,13 +177,40 @@ which is the stream's own rate at that moment.
   second while hidden. The three hides on the final runner counted 5.0–5.1,
   with 20–23 kbit/s received. Not explained.
 
+**With the other PC (the user stopped the share and left the call there):**
+- The share stopped and started again while Rift was minimised. On restore
+  Rift showed it as a new stream to watch, with a Watch button. That is how a
+  share stopped on purpose has always ended a watch (`_forgetStream`), and
+  this change doesn't touch it. One click and it played at 1080p60.
+- The sharer left and rejoined within 30 s, sharing again, while Rift was
+  minimised. `WatchResume` watches a stream that comes back like that by
+  itself, and **its picture played on unseen**: 37.8 frames a second, and
+  3.5–4 Mbit/s received. Restoring and minimising again turned it off
+  (21 kbit/s).
+  - The cause, found with temporary logs and LiveKit server 1.13's
+    `SubscribedTrack.Bound`: the server clears a subscriber's `disabled` when
+    it binds a video track under adaptive stream, so the client says its
+    visibility again. The client had disabled the track 10 ms after it
+    arrived, twice (adaptive stream with no view, then `disable()`). The server
+    reported it active 750 ms later and kept sending. The SDK never said
+    disabled again: `disable()` returns when already disabled, and adaptive
+    stream only sends a change.
+  - The fix, SDK patch 5: when the server reports a track active and the
+    client has explicitly disabled it, the SDK sends its settings again. Rift
+    now also logs a stream watched again by itself.
+  - Run twice on the fix: the picture stayed off, 4.0 frames a second and
+    19–25 kbit/s, and the log showed the stream watched again. It was back
+    255 ms after a restore.
+
 **Not checked:**
 - A second monitor: this laptop has one.
 - A real fullscreen game. CS2 wasn't started because the account was playing
   on the other PC. The stand-ins were a maximised window and the maximised
   terminal running `gameloop2`.
-- The share stopping or the sharer leaving while Rift was hidden. That needs
-  the other PC.
+- The stream's sound by ear while Rift was hidden. The audio publication is
+  never touched, and the log shows it heard.
+- The sharer dropping out while Rift was covered or hidden rather than
+  minimised. It's the same code path.
 - What the sharer's dynacast did. With this client the only viewer, the server
   had nobody to send the picture to; the sharer's log wasn't read. It came back
   within 0.2 s, including after 6 minutes.
@@ -281,4 +308,16 @@ WD2 final build, back after restore: picture back 118 ms after "can be seen" | f
 WD2 final build, behind the maximised terminal: frames drawn 5.0/s
 WD2 final build, hidden: frames drawn 5.0/s
 WD2 final build, back after shown from hidden: picture back 97 ms after "can be seen" | frames/s 2 s before 5.0, 3-6 s after 45.3
+```
+
+With the other PC. "T1" was counted with the terminal back in front of Rift,
+so it is the covered rate, not the restored one. The first "T2" line is
+`01449ef4`; the others are the fix.
+
+```
+T1 after share restarted while minimised, restored: frames drawn 4.6/s
+T2 sharer rejoined while minimised, still minimised: frames drawn 37.8/s
+T2 fixed: sharer rejoined while minimised: frames drawn 4.0/s
+T2 fixed, rewatch logged: sharer rejoined while minimised: frames drawn 4.0/s
+T2 back after rejoin while minimised: picture back 255 ms after "can be seen" | frames/s 2 s before 4.0, 3-6 s after 36.7
 ```
