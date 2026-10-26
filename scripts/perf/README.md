@@ -1,9 +1,9 @@
 # Rift performance kit
 
-**Round 3 (after Oct 25 2026): read `ROUND3.md` for what to run** (and
-`ROUND2.md`, which it builds on). This branch has since taken in `dev`, so the
-branch description under *Why* below is round 1's; the tools, ground rules and
-setup still hold.
+**Branch `watch-draw` (Oct 26 2026): read `WATCH_DRAW.md`.** It measures and
+fixes what watching a stream costs. `ROUND3.md` and `ROUND2.md` were the rounds
+before it. The branch description under *Why* below is round 1's; the tools,
+ground rules and setup still hold.
 
 For a Claude session on one of the user's own machines. It measures what Rift
 costs a game running beside it, and whether this branch's change made that
