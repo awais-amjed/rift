@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../data/constants.dart';
 import '../../../../logic/cubits/livekit/livekit_cubit.dart';
+import '../../../../logic/services/call_duration.dart';
 import '../../../common/calls/call_clock.dart';
 import '../../../theme/app_motion.dart';
 import '../../../theme/app_text.dart';
@@ -52,7 +53,7 @@ class CallIdlePill extends StatelessWidget {
                     color: CustomColors.success,
                   ),
                   if (at == null)
-                    Text('--:--', style: clockStyle)
+                    Text(formatCallDuration(Duration.zero), style: clockStyle)
                   else
                     CallClock(since: at, style: clockStyle),
                   Container(width: 1, height: 14, color: theme.borderElevated),

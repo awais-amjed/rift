@@ -206,7 +206,9 @@ void main() {
     });
   });
 
-  testWidgets('a call\'s clock ticks without its neighbours', (tester) async {
+  testWidgets('a call\'s clock ticks once a minute, without its neighbours', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Row(
@@ -220,15 +222,40 @@ void main() {
         ),
       ),
     );
+    // Minutes only: nothing to redraw while one runs.
+    final quiet = await countRebuilds(() async {
+      for (var i = 0; i < 50; i++) {
+        await tester.pump(const Duration(seconds: 1));
+      }
+    });
+    expect(quiet[CallClock], isNull);
     final counts = await countRebuilds(() async {
       for (var i = 0; i < 3; i++) {
-        await tester.pump(const Duration(seconds: 1));
+        await tester.pump(const Duration(minutes: 1));
       }
     });
     expect(counts[CallClock], 3);
     expect(counts[Row], isNull);
     // The clock's own text, and not its neighbour's.
     expect(counts[Text], 3);
+  });
+
+  testWidgets('a new call\'s clock counts seconds for its first minute', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CallClock(since: DateTime.now(), style: const TextStyle()),
+      ),
+    );
+    // A beat over each second: the clock wakes just past the turn, and
+    // reads real time, which barely moves while the test's runs on.
+    final counts = await countRebuilds(() async {
+      for (var i = 0; i < 3; i++) {
+        await tester.pump(const Duration(milliseconds: 1100));
+      }
+    });
+    expect(counts[CallClock], 3);
   });
 
   testWidgets('the speaking ring repaints only itself', (tester) async {

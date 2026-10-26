@@ -4,8 +4,8 @@ import '../../../../../../../common/calls/call_clock.dart';
 import '../../../../../../../theme/app_text.dart';
 import '../../../../../../../theme/theme_context.dart';
 
-/// How long a voice channel's call has been going, counting up — `04:07`,
-/// then `1:04:07` — where its card used to say LIVE.
+/// How long a voice channel's call has been going, counting up — `4m`,
+/// then `1h 4m` — where its card used to say LIVE.
 ///
 /// LIVE only ever marked the call you were in, which the card's accent already
 /// says. The length says something the card didn't: whether you'd be joining

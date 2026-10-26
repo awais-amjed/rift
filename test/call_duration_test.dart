@@ -4,23 +4,33 @@ import 'package:rift/logic/services/call_duration.dart';
 
 void main() {
   group('formatCallDuration', () {
-    test('minutes and seconds under an hour, both padded', () {
-      expect(formatCallDuration(const Duration(seconds: 7)), '00:07');
+    test('seconds in the first minute, then whole minutes', () {
+      expect(formatCallDuration(const Duration(seconds: 7)), '7s');
+      expect(formatCallDuration(const Duration(seconds: 61)), '1m');
       expect(
-        formatCallDuration(const Duration(minutes: 12, seconds: 4)),
-        '12:04',
+        formatCallDuration(const Duration(minutes: 12, seconds: 59)),
+        '12m',
       );
     });
 
-    test('hours are added past an hour, and are not padded', () {
+    test('hours past an hour, and an even hour stands alone', () {
       expect(
         formatCallDuration(const Duration(hours: 1, minutes: 4, seconds: 7)),
-        '1:04:07',
+        '1h 4m',
       );
+      expect(formatCallDuration(const Duration(hours: 2, seconds: 30)), '2h');
+    });
+
+    test('days past a day, with hours and never minutes', () {
+      expect(
+        formatCallDuration(const Duration(days: 1, hours: 2, minutes: 59)),
+        '1d 2h',
+      );
+      expect(formatCallDuration(const Duration(days: 3, minutes: 5)), '3d');
     });
 
     test('a clock that ran backwards reads as a call just started', () {
-      expect(formatCallDuration(const Duration(seconds: -3)), '00:00');
+      expect(formatCallDuration(const Duration(seconds: -3)), '0s');
     });
   });
 

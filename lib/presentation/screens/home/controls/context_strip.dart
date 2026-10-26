@@ -20,9 +20,13 @@ import '../pane_toggles/show_sidebar_button.dart';
 import '../profile/person/verification/show_channel_encryption.dart';
 import 'phone_context_strip.dart';
 
-/// Slim strip above the participant grid: channel name, live participant
-/// count, and session timer. Keeps chrome to one row so the video area stays
-/// as large as possible.
+/// Slim strip above the participant grid: channel name and live participant
+/// count. Keeps chrome to one row so the video area stays as large as
+/// possible.
+///
+/// The call's length is on a phone's strip only. A desktop already shows it
+/// twice, in the dock's call card and on the channel in the list, and a third
+/// copy here said nothing new.
 class ContextStrip extends StatelessWidget {
   /// Inside a DM conversation's pane, which has its own header and its own
   /// ways to show the side panels — so this does not repeat them.
@@ -112,11 +116,11 @@ class ContextStrip extends StatelessWidget {
                         const ShowSidebarButton(),
                         const SizedBox(width: 10),
                       ],
-                      // One flexible group, so the timer sits hard against
+                      // One flexible group, so the chip sits hard against
                       // the right edge. A `Flexible` name beside a
                       // `Spacer` splits the free space with it, leaving
                       // whatever the name doesn't use stranded past the
-                      // timer and parking it mid-strip.
+                      // chip and parking it mid-strip.
                       Expanded(
                         child: Row(
                           children: [
@@ -165,8 +169,6 @@ class ContextStrip extends StatelessWidget {
                               .participants,
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      elapsed,
                       if (dm != null) ...[
                         const SizedBox(width: 10),
                         DmCallLayoutButtons(split: embedded),
