@@ -16,9 +16,13 @@ import '../../../../../theme/theme_context.dart';
 /// painted over. It lifts itself instead, and says what the click does while
 /// it's at it: the picture dims under the pointer and a pencil comes up over
 /// it. A highlight would only have raised the question this answers.
+///
+/// With no server there is no profile to edit — one is a server's — so a null
+/// [onTap] leaves the avatar a plain picture, with no pencil and no tooltip.
+/// The editor it opened had nowhere to save, and its Save threw.
 class DockAvatarButton extends StatefulWidget {
   final ServerUser? user;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   const DockAvatarButton({super.key, required this.user, required this.onTap});
 
@@ -38,36 +42,40 @@ class _DockAvatarButtonState extends State<DockAvatarButton> {
     // literal that drifts the first time an avatar changes size.
     final radius = BorderRadius.circular(_size * K.avatarRadiusRatio);
 
+    final button = Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
+        borderRadius: radius,
+        onTap: widget.onTap,
+        onHover: widget.onTap == null
+            ? null
+            : (value) => setState(() => _hovering = value),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            _dimmed(
+              themeState,
+              UserAvatar(
+                avatarPath: widget.user?.avatarPath,
+                name: widget.user?.displayName ?? 'Guest',
+                // By id, as everywhere else: seeded by name, you were one
+                // colour here and another to everybody else.
+                seed: widget.user?.id,
+                size: _size,
+              ),
+            ),
+            Positioned.fill(child: _pencil(themeState)),
+            Positioned(right: -2, bottom: -2, child: _statusDot(themeState)),
+          ],
+        ),
+      ),
+    );
+    if (widget.onTap == null) return button;
     return Tooltip(
       message: 'Edit profile',
       waitDuration: K.tooltipDelay,
-      child: Material(
-        type: MaterialType.transparency,
-        child: InkWell(
-          mouseCursor: WidgetStateMouseCursor.clickable,
-          borderRadius: radius,
-          onTap: widget.onTap,
-          onHover: (value) => setState(() => _hovering = value),
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              _dimmed(
-                themeState,
-                UserAvatar(
-                  avatarPath: widget.user?.avatarPath,
-                  name: widget.user?.displayName ?? 'Guest',
-                  // By id, as everywhere else: seeded by name, you were one
-                  // colour here and another to everybody else.
-                  seed: widget.user?.id,
-                  size: _size,
-                ),
-              ),
-              Positioned.fill(child: _pencil(themeState)),
-              Positioned(right: -2, bottom: -2, child: _statusDot(themeState)),
-            ],
-          ),
-        ),
-      ),
+      child: button,
     );
   }
 

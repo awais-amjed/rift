@@ -67,10 +67,12 @@ class UserDock extends StatelessWidget {
             children: [
               DockAvatarButton(
                 user: user,
-                onTap: () => showAppModal<bool>(
-                  context: context,
-                  modal: const ProfileEditModal(),
-                ),
+                onTap: user == null
+                    ? null
+                    : () => showAppModal<bool>(
+                        context: context,
+                        modal: const ProfileEditModal(),
+                      ),
               ),
               Expanded(child: _buildIdentity(themeState, user)),
               _buildControls(context),
