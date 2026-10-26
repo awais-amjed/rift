@@ -72,7 +72,11 @@ fetch_android() {
   kept=$(gh api "repos/$repo/actions/runs/$run/artifacts" \
     --jq '.artifacts[] | select(.name == "android" and (.expired | not)) | .id')
   [[ -n $kept ]] || return 1
-  gh run download "$run" -R "$repo" -n android -D "$work/android" && return 0
+  local start=$SECONDS
+  if gh run download "$run" -R "$repo" -n android -D "$work/android"; then
+    echo "android: downloaded $(du -sh "$work/android" | cut -f1) in $((SECONDS - start)) s"
+    return 0
+  fi
   echo "android: run $run kept a build but it did not download; nothing signed, try again" >&2
   exit 1
 }
