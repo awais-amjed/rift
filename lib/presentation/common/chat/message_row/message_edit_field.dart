@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../data/constants.dart';
+import '../../../responsive/shell_scope.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 import '../../context_menu/text_field_context_menu.dart';
@@ -10,7 +11,9 @@ import '../../context_menu/text_field_context_menu.dart';
 /// Discord-style, rather than lifting the message into a dialog.
 ///
 /// Enter saves, Shift+Enter adds a newline, Escape cancels; the same keys the
-/// composer uses, so editing feels like writing.
+/// composer uses, so editing feels like writing. The words under the field
+/// do the same when clicked: with only the keys, a mouse or a phone had no
+/// way out of an edit.
 class MessageEditField extends StatefulWidget {
   final String initialText;
   final ValueChanged<String> onSave;
@@ -76,6 +79,10 @@ class _MessageEditFieldState extends State<MessageEditField> {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    final hint = AppText.label.copyWith(
+      fontWeight: FontWeight.w400,
+      color: theme.textTertiary,
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -110,15 +117,47 @@ class _MessageEditFieldState extends State<MessageEditField> {
             ),
           ),
         ),
-        const SizedBox(height: 4),
-        Text(
-          'escape to cancel • enter to save',
-          style: AppText.label.copyWith(
-            fontWeight: FontWeight.w400,
-            color: theme.textTertiary,
-          ),
+        const SizedBox(height: 2),
+        Row(
+          children: context.layoutMode.isCompact
+              ? [
+                  _HintAction(label: 'cancel', onTap: widget.onCancel),
+                  Text(' • ', style: hint),
+                  _HintAction(label: 'save', onTap: _save),
+                ]
+              : [
+                  Text('escape to ', style: hint),
+                  _HintAction(label: 'cancel', onTap: widget.onCancel),
+                  Text(' • enter to ', style: hint),
+                  _HintAction(label: 'save', onTap: _save),
+                ],
         ),
       ],
     );
   }
+}
+
+/// One of the hint's words that also does what it names.
+class _HintAction extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+
+  const _HintAction({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => Material(
+    type: MaterialType.transparency,
+    child: InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(K.radiusRow),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+        child: Text(
+          label,
+          style: AppText.label.copyWith(color: context.theme.primary),
+        ),
+      ),
+    ),
+  );
 }
