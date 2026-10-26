@@ -70,11 +70,19 @@ uncorrelated.
    in about one rejoin in four, until the call ended; with the patch and the
    second ask, in none of sixteen.
 
+4. **`clearEnabled()` takes back an `enable()` or `disable()`**
+   (`lib/src/publication/remote.dart`). The SDK keeps the last of the two for
+   good, over adaptive stream's view visibility, and has no way back to
+   neither. Rift turns a watched stream's picture off while nobody can see
+   the window and must then hand it back to adaptive stream, not hold it on
+   (`_PicturePauseMixin`, `CALLS.md`). LiveKit's JS SDK has the same gap.
+
 ## When to remove it
 
 Patch 1 goes when a `livekit_client` release answers a stereo track with
 `stereo=1`, patch 2 when a release disposes before it closes or the
 `flutter_webrtc` it pins includes #2180, patch 3 when a release sends an
-unsubscribe without holding the track. With all three gone, bump, delete this
+unsubscribe without holding the track, patch 4 when a release can go back
+to letting visibility decide. With all four gone, bump, delete this
 folder and its `dependency_overrides` entry. Until then, a `livekit_client` upgrade needs this copy replaced with the
 new version and the changes put back.

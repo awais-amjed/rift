@@ -54,6 +54,7 @@ bool FlutterWindow::OnCreate() {
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   SetupPttChannel();
+  SetupSeenChannel();
 
   // The first frame is where a start counts as finished (startup_guard.h).
   // A start at sign-in that should stay in the tray never shows the window:
@@ -76,6 +77,8 @@ bool FlutterWindow::OnCreate() {
 void FlutterWindow::OnDestroy() {
   GlobalKeyHook::Instance().Stop();
   ptt_event_sink_ = nullptr;
+  seen_watch_ = nullptr;
+  seen_event_sink_ = nullptr;
 
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
@@ -88,6 +91,13 @@ LRESULT
 FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
                               WPARAM const wparam,
                               LPARAM const lparam) noexcept {
+  // Shown, hidden to the tray, minimised, restored, moved in the order of
+  // windows: sent once the window is in its new state, and looked at after.
+  // Ahead of Flutter, which may end the message here.
+  if (message == WM_WINDOWPOSCHANGED && seen_watch_) {
+    ::PostMessageW(hwnd, kWmSeenCheck, 0, 0);
+  }
+
   // Give Flutter, including plugins, an opportunity to handle window messages.
   if (flutter_controller_) {
     std::optional<LRESULT> result =
@@ -116,6 +126,17 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
         ptt_event_sink_->Success(flutter::EncodableValue(args));
       }
       return 0;
+
+    case kWmSeenCheck:
+      if (seen_watch_) seen_watch_->Check();
+      return 0;
+
+    case WM_TIMER:
+      if (wparam == SeenWatch::kTimerId) {
+        if (seen_watch_) seen_watch_->Check();
+        return 0;
+      }
+      break;
 
     case kWmShowRunningCopy:
       ::ShowWindow(hwnd, ::IsIconic(hwnd) ? SW_RESTORE : SW_SHOW);
@@ -156,3 +177,40 @@ void FlutterWindow::SetupPttChannel() {
   ptt_channel_->SetStreamHandler(std::move(handler));
 }
 
+void FlutterWindow::SetupSeenChannel() {
+  seen_channel_ =
+      std::make_unique<flutter::EventChannel<flutter::EncodableValue>>(
+          flutter_controller_->engine()->messenger(), "rift/window_seen",
+          &flutter::StandardMethodCodec::GetInstance());
+
+  auto handler = std::make_unique<
+      flutter::StreamHandlerFunctions<flutter::EncodableValue>>(
+      // onListen: Dart wants to know — start watching, which answers at once.
+      [this](const flutter::EncodableValue* /*arguments*/,
+             std::unique_ptr<flutter::EventSink<flutter::EncodableValue>>&&
+                 events)
+          -> std::unique_ptr<
+              flutter::StreamHandlerError<flutter::EncodableValue>> {
+        seen_event_sink_ = std::move(events);
+        // Gone before the next starts: the two share the timer and the hook's
+        // window.
+        seen_watch_ = nullptr;
+        seen_watch_ = std::make_unique<SeenWatch>(
+            GetHandle(), [this](bool seen) {
+              if (seen_event_sink_) {
+                seen_event_sink_->Success(flutter::EncodableValue(seen));
+              }
+            });
+        return nullptr;
+      },
+      // onCancel: nobody is listening — stop watching.
+      [this](const flutter::EncodableValue* /*arguments*/)
+          -> std::unique_ptr<
+              flutter::StreamHandlerError<flutter::EncodableValue>> {
+        seen_watch_ = nullptr;
+        seen_event_sink_ = nullptr;
+        return nullptr;
+      });
+
+  seen_channel_->SetStreamHandler(std::move(handler));
+}

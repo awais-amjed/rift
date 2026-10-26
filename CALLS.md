@@ -137,6 +137,61 @@ holds it to its camera bitrates: a share set to 6 Mbps sent 2. Real VP9
 simulcast needs a setting LiveKit's Rust SDK does not expose. And the path
 the GPU's H264 goes through carries one picture.
 
+## Watching while Rift cannot be seen — [Implemented October 2026]
+
+A watched stream's picture is turned off while nobody can see Rift: minimised,
+hidden to the tray, or covered by another app's window (`_PicturePauseMixin`).
+The video publication is disabled, as a deafen disables a voice, so the server
+stops sending it and there is nothing to decode or draw. The stream stays
+watched: its sound plays on, and the watching attribute is left alone, so the
+sharer and the others still see you watching. Once Rift can be seen again the
+publication is handed back to adaptive stream (`clearEnabled`,
+`third_party/livekit_client/RIFT_PATCHES.md` patch 4); `enable()` would keep it
+on for good, drawn anywhere or not. With this client the only viewer, the
+server then has nobody to send the picture to, as when nobody watches
+(dynacast, above); the sharer's side of that was not read.
+
+On Windows every decoded frame redraws the whole window, on screen or not. The
+engine converts each frame to RGBA on the CPU and uploads it on the raster
+thread, so watching a 1080p60 stream cost a laptop 117% of a core in front, 122%
+minimised and 105–118% behind a maximised window.
+
+**What counts as not seen.** `AppSeenListener` asks the app lifecycle: hidden,
+paused or detached. On Windows the lifecycle never says it: with Dart on its own
+thread, minimising and hiding the window changed nothing in it, only losing and
+regaining the focus (inactive, resumed). The Windows runner says it instead
+(`SeenWatch`, `rift/window_seen`). It reports minimised or hidden, and covered:
+the foreground window belongs to another app, is above Rift in the order windows
+are drawn, and covers all of Rift that is on screen. The desktop, a click-through
+or see-through overlay and a cloaked window cover nothing. It looks again when
+the foreground changes, when any window finishes moving or sizing or is
+minimised or restored (WinEvent hooks), when Rift's own window moves, shows,
+hides or changes place in that order, and once a second while another app is in
+front or Rift cannot be seen. A game going fullscreen after it took the
+foreground is caught by that last check. Rift partly covered, or beside a
+fullscreen window on another monitor, keeps its pictures. So does a phone's
+floating window.
+
+Measured Oct 26 2026 on a laptop's Windows (Core i7-12700H, Iris Xe), watching
+a CS2 share at 1080p60 in H264, in % of one core, with frames drawn a second
+(`scripts/perf/results/laptop-windows-2026-10-26-watch-draw.md`):
+
+| | Before | After |
+|---|---|---|
+| Watching, in front | 117%, 52 | 121%, 52 |
+| Minimised | 122%, 59 | 13%, 5 |
+| Behind a maximised window | 105%, 47 | 13%, 5 |
+| Behind a stand-in game in a maximised terminal | 116–118% | 19–20% |
+
+In the call and not watching it was 8%, and 3 frames a second. Beside the
+stand-in game, its frames taking over 1.5 times its fastest went from
+1.57–1.70% to 0.22–0.28%. With Rift closed it was 0.07–0.09%. Received data
+fell to about 25 kbit/s, the call's voices. The picture was back 97–186 ms after
+Rift could be seen, in nine restores, uncovers and shows from hidden after
+13–35 s away, and about 0.2 s after 6 minutes minimised. Seven Alt+Tabs in a
+row each switched it. Not yet measured on Linux, whose lifecycle is all it has,
+nor on a phone, where the background is paused.
+
 ## How Windows captures a screen — [Implemented October 2026]
 
 libwebrtc captures a Windows screen or window with Windows Graphics Capture,
