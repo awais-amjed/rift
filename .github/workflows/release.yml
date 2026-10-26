@@ -1,7 +1,9 @@
 # Builds the Windows installer, the Linux AppImage and archive, and the
 # update packages, and publishes them as a GitHub Release. It builds the
 # Android APK and app bundle too, but keeps those with the run until
-# scripts/sign_release.sh signs them.
+# scripts/sign_release.sh signs them. Once the release is published it puts
+# the web app on Cloudflare Pages: web.joinrift.app for a release,
+# beta-web.joinrift.app for a pre-release.
 #
 # A version tag starts it: scripts/release.sh makes one (v1.0.3, or
 # v1.1.0-beta.1 for a pre-release; any tag with a `-` is one). The tag must
@@ -220,8 +222,34 @@ jobs:
           path: build/release/*
           if-no-files-found: error
 
+  # The web app, zipped for whoever hosts their own copy. build_web.sh also
+  # compiles the worker that encrypts calls, which a bare `flutter build web`
+  # leaves out.
+  web:
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: scripts/build_web.sh
+      - name: Zip
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          mkdir -p build/release
+          (cd build/web && zip -qr "../release/rift-$VERSION-web.zip" .)
+      - uses: actions/upload-artifact@v7
+        with:
+          name: web
+          path: build/release/*
+          if-no-files-found: error
+
   publish:
-    needs: [version, linux, windows, android]
+    needs: [version, linux, windows, android, web]
     if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     permissions:
@@ -239,6 +267,10 @@ jobs:
         with:
           name: windows
           path: release
+      - uses: actions/download-artifact@v8
+        with:
+          name: web
+          path: release
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
@@ -249,3 +281,50 @@ jobs:
           [[ $VERSION == *-* ]] && pre=(--prerelease)
           gh release create "$GITHUB_REF_NAME" release/* --verify-tag \
             --title "Rift $VERSION" --notes-file notes.md "${pre[@]}"
+
+  # After publish, so the site never runs a version with no release behind
+  # it. A pre-release goes to its own Pages project, so betas never reach the
+  # people on web.joinrift.app. The token may edit Pages and nothing else.
+  deploy-web:
+    needs: [version, publish]
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: web
+          path: release
+      - name: Deploy
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [[ -z $CLOUDFLARE_API_TOKEN || -z $CLOUDFLARE_ACCOUNT_ID ]]; then
+            echo "::error::The CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID secrets are not set"
+            exit 1
+          fi
+          project=rift-web
+          [[ $VERSION == *-* ]] && project=rift-web-beta
+          mkdir site
+          unzip -q "release/rift-$VERSION-web.zip" -d site
+          npx --yes wrangler@4.151.3 pages deploy site --project-name "$project" \
+            --branch production --commit-hash "$GITHUB_SHA" \
+            --commit-message "Rift $VERSION" --commit-dirty=false
+      # Flutter's file names carry no version, so every file must be asked
+      # for again or a deploy reaches browsers half at a time. The zone's
+      # Browser Cache TTL overrides web/_headers on .js and .wasm, and a
+      # Transform Rule sets no-cache again for both hosts; this fails if
+      # that rule ever stops covering the one just deployed.
+      - name: Check the cache header
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          host=web.joinrift.app
+          [[ $VERSION == *-* ]] && host=beta-web.joinrift.app
+          header=$(curl -fsSI "https://$host/main.dart.js" | grep -i '^cache-control:' || true)
+          echo "$header"
+          if [[ $header != *no-cache* ]]; then
+            echo "::error::https://$host/main.dart.js is not served with no-cache"
+            exit 1
+          fi

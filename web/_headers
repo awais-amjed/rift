@@ -1,13 +1,13 @@
-# Cloudflare Pages response headers for web.joinrift.app.
+# Cloudflare Pages response headers for web.joinrift.app and beta-web.joinrift.app.
 # https://developers.cloudflare.com/pages/configuration/headers/
 
 # Ask every time. Flutter's files carry no version in their names, so a
 # browser holding one after a deploy runs a new index.html beside an old
 # main.dart.js. An unchanged file still answers 304 from its ETag.
 #
-# On web.joinrift.app this header is not enough by itself: the joinrift.app
+# On those hosts this header is not enough by itself: the joinrift.app
 # zone's Browser Cache TTL replaces it with four hours on anything that looks
 # static (.js, .wasm). A response-header Transform Rule on the zone sets
-# no-cache again for that host; this file covers the pages.dev addresses.
+# no-cache again for both; this file covers the pages.dev addresses.
 /*
   Cache-Control: no-cache

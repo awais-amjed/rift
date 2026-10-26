@@ -167,22 +167,31 @@ refused prompt is remembered and not asked again. Settings and servers live in
 
 ## The web app
 
-`web.joinrift.app` is the Pages project `rift-web` on the joinrift.app
-Cloudflare account. Pages cannot build Flutter, so the build is made here and
-uploaded:
+The web app is on Cloudflare Pages, on the joinrift.app account: a release at
+`web.joinrift.app` (the Pages project `rift-web`), a pre-release at
+`beta-web.joinrift.app` (`rift-web-beta`), so a beta never reaches the people
+using the web app. Pages cannot build Flutter, so `release.yml` builds it
+(`scripts/build_web.sh`), attaches `rift-<version>-web.zip` to the release for
+whoever hosts their own copy, and once the release is published deploys it to
+the project its version belongs to. It needs two secrets on the GitHub mirror:
+`CLOUDFLARE_API_TOKEN`, a token that may edit Pages and nothing else, and
+`CLOUDFLARE_ACCOUNT_ID`. Unlike the desktop feeds it is not signed: it is live
+the moment the run ends.
+
+To deploy by hand, from a clean checkout of a commit that has been pushed, so
+the deployment names it:
 
 ```bash
 scripts/build_web.sh
 wrangler pages deploy build/web --project-name rift-web --branch production
 ```
 
-with `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` set. Deploy from a
-clean checkout of a commit that has been pushed, so the deployment names it.
+with `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` set.
 
 Flutter's file names carry no version, so browsers must ask for each file
 again or a deploy reaches them half at a time. `web/_headers` (copied into the
-build) says so, but on `web.joinrift.app` the zone's Browser Cache TTL replaces
-it with four hours for `.js` and `.wasm`. A response-header Transform Rule on
-the zone, "web app: revalidate every file", sets `Cache-Control: no-cache` for
-that host after it. Check it after a deploy:
-`curl -sI https://web.joinrift.app/main.dart.js` shows `no-cache`.
+build) says so, but on the joinrift.app zone the Browser Cache TTL replaces it
+with four hours for `.js` and `.wasm`. A response-header Transform Rule on the
+zone, "web app: revalidate every file", sets `Cache-Control: no-cache` for
+both hosts after it. The workflow checks it after each deploy, and fails if
+`https://<host>/main.dart.js` is served without `no-cache`.
