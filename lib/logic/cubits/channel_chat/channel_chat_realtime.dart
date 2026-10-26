@@ -66,6 +66,7 @@ mixin _ChannelChatRealtimeMixin
       final feed = realtime.join(server, topic);
       if (feed == null) continue;
       feed
+        ..onReopen(_onFeedReopen)
         ..onBroadcast(ServerEvent.message, (message) {
           // Our own sends are already on screen from their insert.
           if (!here(message)) return;
@@ -99,6 +100,33 @@ mixin _ChannelChatRealtimeMixin
     }
   }
 
+  /// Both feeds ride one socket, so they come back together: read once.
+  Timer? _reopenDebounce;
+
+  /// A feed is back after failing, and every doorbell rung while it was down
+  /// is gone: the messages sent then stayed missing until the channel was
+  /// opened again. A channel that could not load, showing its saved copy or
+  /// an error, opens now, as Try again would.
+  void _onFeedReopen() {
+    _reopenDebounce?.cancel();
+    _reopenDebounce = Timer(const Duration(milliseconds: 250), () {
+      if (isClosed || state.channelId == null) return;
+      final failed =
+          state.showingSaved || state.status == ChannelChatStatus.error;
+      unawaited(failed ? retry() : _fetchAfterLatest());
+    });
+  }
+
+  /// The channel could not open — its server could not be reached, so not
+  /// even its key could be read — and has none of its feeds. Holds the
+  /// server's topic only to hear it come back, and opens the channel then.
+  void _retryWhenBack(Server server) {
+    final feed = _session.realtime.join(server, ServerTopics.server(server.id));
+    if (feed == null) return;
+    feed.onReopen(_onFeedReopen);
+    _rtFeeds.add(feed);
+  }
+
   Future<void> _onBotsDoorbell(String channelId) async {
     final bots = await _members.listBots(channelId: channelId);
     if (isClosed || state.channelId != channelId) return;
@@ -110,6 +138,8 @@ mixin _ChannelChatRealtimeMixin
     final feeds = [..._rtFeeds];
     _rtTopic = null;
     _rtFeeds.clear();
+    _reopenDebounce?.cancel();
+    _reopenDebounce = null;
     _lastTypingSent = null;
     for (final timer in _typingTimers.values) {
       timer.cancel();

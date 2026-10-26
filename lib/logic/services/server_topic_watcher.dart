@@ -17,6 +17,12 @@ import 'server_realtime.dart';
 /// What arrives is a doorbell, not a delta: the authoritative read is whatever
 /// [onChanged] goes and fetches, which also keeps the shape identical to the
 /// first load and picks up the token refresh that path already handles.
+///
+/// A doorbell rung while the topic was down is lost, and nothing rings it
+/// again, so the topic opening after a failure rings it here
+/// ([RealtimeLease.onReopen]). Without that, a member list read while its
+/// server could not be reached stayed empty after the server came back, until
+/// Rift was restarted (a server that hung for two hours, Oct 26 2026).
 class ServerTopicWatcher {
   /// One logical change often writes several rows; refresh once for the burst.
   static const _coalesce = Duration(milliseconds: 250);
@@ -108,7 +114,8 @@ class ServerTopicWatcher {
 
   void _subscribe(Server server) {
     _lease = session.realtime.join(server, topicOf(server))
-      ?..onBroadcast(event, (_) => _schedule());
+      ?..onBroadcast(event, (_) => _schedule())
+      ..onReopen(_schedule);
   }
 
   void _schedule() {

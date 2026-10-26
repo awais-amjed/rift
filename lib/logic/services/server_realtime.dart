@@ -117,14 +117,7 @@ class ServerRealtime {
     );
     joined.holders++;
     final lease = RealtimeLease._(this, server.id, topic, joined);
-    if (onStatus != null) {
-      joined.statusListeners.add(onStatus);
-      lease._statusListener = onStatus;
-      final current = joined.status;
-      // Not called from in here: the holder is usually still assigning the
-      // lease this returns.
-      if (current != null) scheduleMicrotask(() => onStatus(current));
-    }
+    if (onStatus != null) lease._listenStatus(onStatus);
     return lease;
   }
 
@@ -457,8 +450,7 @@ class ServerRealtime {
     for (final entry in lease._listeners) {
       joined.listeners[entry.key]?.remove(entry.value);
     }
-    final status = lease._statusListener;
-    if (status != null) joined.statusListeners.remove(status);
+    lease._statusListeners.forEach(joined.statusListeners.remove);
     joined.holders--;
     if (connection == null || joined.holders > 0) return;
     if (!identical(connection.topics[lease._name], joined)) return;
@@ -512,13 +504,45 @@ class RealtimeLease {
   final String _name;
   final _Topic _topic;
   final List<MapEntry<String, RealtimeListener>> _listeners = [];
-  void Function(RealtimeSubscribeStatus status)? _statusListener;
+  final List<void Function(RealtimeSubscribeStatus status)> _statusListeners =
+      [];
   bool _released = false;
 
   RealtimeLease._(this._owner, this._serverId, this._name, this._topic);
 
   /// The shared join, for what only a channel can do — presence above all.
   RealtimeChannel get channel => _topic.channel;
+
+  /// Hear every status the join reports, and the current one straight away
+  /// when there is one.
+  void _listenStatus(void Function(RealtimeSubscribeStatus status) listener) {
+    _topic.statusListeners.add(listener);
+    _statusListeners.add(listener);
+    final current = _topic.status;
+    // Not called from in here: the holder is usually still assigning the
+    // lease this returns.
+    if (current != null) scheduleMicrotask(() => listener(current));
+  }
+
+  /// Call [listener] each time the topic opens again after failing — timed
+  /// out, refused, or lost with its socket — since this holder joined it.
+  ///
+  /// Broadcasts are not kept for a topic that is down: whatever was said
+  /// while it was is gone, and nothing says it again. A holder whose news is
+  /// a doorbell reads again here. Not on a join that simply opens, which the
+  /// holder's own first read covers.
+  void onReopen(void Function() listener) {
+    if (_released) return;
+    var missed = false;
+    _listenStatus((status) {
+      if (status != RealtimeSubscribeStatus.subscribed) {
+        missed = true;
+      } else if (missed) {
+        missed = false;
+        listener();
+      }
+    });
+  }
 
   /// Hear [event] broadcasts on this topic.
   void onBroadcast(String event, RealtimeListener listener) {

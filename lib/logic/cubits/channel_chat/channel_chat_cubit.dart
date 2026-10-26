@@ -359,6 +359,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
           failure: keyring.failure ?? const ChatFailure.unknown(),
         ),
       );
+      _retryWhenBack(server);
       return;
     }
 
