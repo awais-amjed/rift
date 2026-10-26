@@ -183,7 +183,7 @@ floating window.
 
 Measured Oct 26 2026 on a laptop's Windows (Core i7-12700H, Iris Xe), watching
 a CS2 share at 1080p60 in H264, in % of one core, with frames drawn a second
-(`scripts/perf/results/laptop-windows-2026-10-26-watch-draw.md`):
+(the performance kit's results, on the `watch-draw` branch):
 
 | | Before | After |
 |---|---|---|
@@ -201,8 +201,19 @@ Rift could be seen, in nine restores, uncovers and shows from hidden after
 row each switched it. The sharer leaving and rejoining within 30 s while Rift
 was minimised left it at 4 frames a second and about 20 kbit/s, against 38 and
 3.5–4 Mbit/s before patch 5, and the picture was back 255 ms after a restore.
-Not yet measured on Linux, whose lifecycle is all it has, nor on a phone, where
-the background is paused.
+Not yet measured on a phone, where the background is paused.
+
+**Linux has only the lifecycle, and only X11 fills it in.** GTK reports a
+window minimised or hidden by Rift itself (the title bar's close, to the tray),
+and Flutter's Linux embedder turns that into `hidden`. Measured Oct 26 2026 on
+the same laptop under X11, watching a 1080p60 H264 share: 52% of a core in
+front, 9% minimised and 10% hidden to the tray, against 27% minimised before
+(the decoder alone, since GTK stops drawing a minimised X11 window). The picture
+was back on restore and on a second launch showing the hidden window. A window
+unmapped by another program is not reported. Under Wayland, a window minimised
+from its own title bar was never reported: Rift went on receiving, decoding and
+drawing the stream. GTK 3 has no minimised state there, since the compositor
+does not say. Covered is not detected on Linux at all.
 
 ## How Windows captures a screen — [Implemented October 2026]
 
