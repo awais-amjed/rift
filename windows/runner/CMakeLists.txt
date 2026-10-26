@@ -10,6 +10,7 @@ add_executable(${BINARY_NAME} WIN32
   "flutter_window.cpp"
   "global_key_hook.cpp"
   "main.cpp"
+  "seen_watch.cpp"
   "single_instance.cpp"
   "startup_guard.cpp"
   "utils.cpp"

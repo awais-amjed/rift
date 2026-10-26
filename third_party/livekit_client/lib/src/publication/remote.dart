@@ -344,6 +344,16 @@ class RemoteTrackPublication<T extends RemoteTrack> extends TrackPublication<T> 
     _emitTrackUpdate();
   }
 
+  // RIFT PATCH: takes back an [enable] or [disable], so adaptive stream's
+  // view visibility decides again, as before either was called. [enable]
+  // alone keeps the track on even where no view of it is drawn. See
+  // third_party/livekit_client/RIFT_PATCHES.md.
+  Future<void> clearEnabled() async {
+    if (_enabledPreference == TrackEnabledPreference.unset) return;
+    _enabledPreference = TrackEnabledPreference.unset;
+    _emitTrackUpdate();
+  }
+
   Future<void> subscribe() async {
     if (super.subscribed || !_subscriptionAllowed) {
       logger.fine('ignoring subscribe() request...');

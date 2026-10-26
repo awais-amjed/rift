@@ -70,6 +70,7 @@ part 'livekit_e2ee.dart';
 part 'livekit_leave.dart';
 part 'livekit_media_controls.dart';
 part 'livekit_participants.dart';
+part 'livekit_picture_pause.dart';
 part 'livekit_room_events.dart';
 part 'livekit_screenshare.dart';
 part 'livekit_state.dart';
@@ -92,6 +93,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
         _ParticipantMixin,
         _ScreenshareMixin,
         _AudioReceptionMixin,
+        _PicturePauseMixin,
         _RoomEventsMixin,
         _VoiceActivityMixin,
         _CaptureReviveMixin,
@@ -268,6 +270,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
     // A stream is part of somebody being in the call, never on its own.
     final ownerless = sharesWithoutOwner(inRoom.map((p) => p.identity));
     _syncAudioReception();
+    _syncPictureReception();
     final allParticipants = [
       for (final p in inRoom)
         if (!ownerless.contains(p.identity)) p,

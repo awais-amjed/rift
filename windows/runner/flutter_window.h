@@ -9,6 +9,7 @@
 
 #include <memory>
 
+#include "seen_watch.h"
 #include "win32_window.h"
 
 // A window that does nothing but host a Flutter view.
@@ -38,6 +39,17 @@ class FlutterWindow : public Win32Window {
 
   // Configure |ptt_channel_| against the running Flutter engine.
   void SetupPttChannel();
+
+  // EventChannel that tells Dart whether anybody can see this window, while
+  // Dart listens (SeenWatch).
+  std::unique_ptr<flutter::EventChannel<flutter::EncodableValue>>
+      seen_channel_;
+  std::unique_ptr<flutter::EventSink<flutter::EncodableValue>>
+      seen_event_sink_;
+  std::unique_ptr<SeenWatch> seen_watch_;
+
+  // Configure |seen_channel_| against the running Flutter engine.
+  void SetupSeenChannel();
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_

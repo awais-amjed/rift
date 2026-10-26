@@ -32,6 +32,7 @@ lib/
     cubits/       # One folder per feature: foo/foo_cubit.dart + foo_state.dart
     services/     # Platform services (sound, Windows sound settings)
     ptt/          # Push-to-talk key and mouse button listener
+    visibility/   # Whether anybody can see Rift (AppSeenListener), which pauses watched pictures
     shortcuts/    # In-window keys for mute and deafen (CallShortcutListener)
     helper_methods.dart  # HelperMethods: toasts, navigation, printDebug
   presentation/
@@ -353,6 +354,10 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   is not there yet when Dart first asks. The noise filter is, a moment later, so
   `NoiseFilter` waits for it (`ready`) and settings say so (`NoiseFilterWork`) rather than
   reading its absence as for good, which left Windows with no models and no mic volume.
+  Nor does Dart hear the window minimised or hidden: the app lifecycle reports only the
+  focus there, so whether anybody can see Rift comes from the runner (`rift/window_seen`,
+  `AppSeenListener`), and a watched stream's picture is off while nobody can (`CALLS.md`,
+  *Watching while Rift cannot be seen*).
 - Platform gating: `kIsWeb` for web, `Platform.isX` for desktop specifics. The Rust bridge is
   desktop/mobile only (`if (!kIsWeb) await RustLib.init()`); web must degrade gracefully.
 - Navigation is go_router via `AppRoutes`; use `HelperMethods.pushOrGoToRoute` when a route must
