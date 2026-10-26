@@ -151,6 +151,15 @@ on for good, drawn anywhere or not. With this client the only viewer, the
 server then has nobody to send the picture to, as when nobody watches
 (dynacast, above); the sharer's side of that was not read.
 
+A picture that arrives while Rift cannot be seen starts off as well. One does:
+a stream that drops out and comes back within `WatchResume`'s 30 s is watched
+again by itself, minimised or not. LiveKit's server (1.13) turns a disabled
+track back on when it binds it under adaptive stream, so that the client says
+what it can see again (`SubscribedTrack.Bound`), and the SDK's `disable()` does
+not say anything twice. So such a picture played on unseen until Rift was
+restored. The SDK now says it again when the server reports the track sending
+(`third_party/livekit_client/RIFT_PATCHES.md` patch 5).
+
 On Windows every decoded frame redraws the whole window, on screen or not. The
 engine converts each frame to RGBA on the CPU and uploads it on the raster
 thread, so watching a 1080p60 stream cost a laptop 117% of a core in front, 122%
@@ -189,8 +198,11 @@ stand-in game, its frames taking over 1.5 times its fastest went from
 fell to about 25 kbit/s, the call's voices. The picture was back 97–186 ms after
 Rift could be seen, in nine restores, uncovers and shows from hidden after
 13–35 s away, and about 0.2 s after 6 minutes minimised. Seven Alt+Tabs in a
-row each switched it. Not yet measured on Linux, whose lifecycle is all it has,
-nor on a phone, where the background is paused.
+row each switched it. The sharer leaving and rejoining within 30 s while Rift
+was minimised left it at 4 frames a second and about 20 kbit/s, against 38 and
+3.5–4 Mbit/s before patch 5, and the picture was back 255 ms after a restore.
+Not yet measured on Linux, whose lifecycle is all it has, nor on a phone, where
+the background is paused.
 
 ## How Windows captures a screen — [Implemented October 2026]
 

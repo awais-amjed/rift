@@ -423,6 +423,9 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
   bool _watching(String identity) {
     if (state.subscribedScreenshares.contains(identity)) return true;
     if (!_watchResume.take(identity, DateTime.now())) return false;
+    HelperMethods.printDebug(
+      '[LiveKit] Watching $identity again: its stream is back',
+    );
     emit(
       state.copyWith(
         subscribedScreenshares: {...state.subscribedScreenshares, identity},

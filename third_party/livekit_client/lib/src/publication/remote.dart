@@ -103,6 +103,14 @@ class RemoteTrackPublication<T extends RemoteTrack> extends TrackPublication<T> 
     // return if no change
     if (_streamState == streamState) return;
     _streamState = streamState;
+    // RIFT PATCH: the server clears an explicit disable when it binds the
+    // track under adaptive stream, and starts sending. [disable] would not
+    // say it again, so it is said again here, as the server says it is
+    // sending. See third_party/livekit_client/RIFT_PATCHES.md.
+    if (streamState == StreamState.active &&
+        _enabledPreference == TrackEnabledPreference.disabled) {
+      _emitTrackUpdate();
+    }
     [
       participant.events,
     ].emit(
