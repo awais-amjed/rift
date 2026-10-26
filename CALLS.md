@@ -496,8 +496,16 @@ it is late with goes out unfiltered rather than hold the mic up. Measured Oct 25
 2026 on a laptop's Windows, the model still on the mic's thread: with a
 stand-in game on every CPU, the game's frames taking over 1.5 times its fastest
 went from 0.16–0.31% with the filter off to 0.83–0.92% on DPDFNet-2, and its
-99.9th percentile from 8.2 to 12.2 ms. Not yet measured: the same with the
-model on its own thread, and a real game.
+99.9th percentile from 8.2 to 12.2 ms. With the model on its own thread
+(measured the same day, the same laptop), CS2 limited mostly by the CPU ran
+the same on DPDFNet-2 as with the filter off: 278–282 fps against 280–296, a
+1% low of 100 against 99–107 and a 99.9th percentile of 10.5–10.7 ms against
+10.1–10.9, with none of 34,025 frames of the voice late. The stand-in game,
+which holds every CPU, still pays: 1.27–1.78% over 1.5 times and a 99.9th
+percentile of 12.8–16.3 ms, with 1.8–2.5% of the voice sent unfiltered. One
+step above normal sent none unfiltered, for the same cost to that game, and
+was not tried in CS2. The model needs 30–40% of a core here, and a game that
+holds every core loses it whichever thread runs it.
 
 Measured Oct 25 2026 on a laptop's Windows: receiving a 1080p60 stream, the
 decoder took 25% of a core at time-critical while a stand-in game ran on every
