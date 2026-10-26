@@ -202,11 +202,31 @@ which is the stream's own rate at that moment.
     19–25 kbit/s, and the log showed the stream watched again. It was back
     255 ms after a restore.
 
+**With CS2 fullscreen on this laptop** (the user said to start it; the fix
+build, watching the other PC's 1080p60 share; CS2 in its own fullscreen as set
+on this laptop, whether exclusive was not read):
+- Rift in front first: 37.2 frames a second, 3.7 Mbit/s received.
+- CS2's menu in front: Rift logged "cannot be seen" as the game came up, and
+  drew 4.5 frames a second, receiving 55 kbit/s. On de_dust2 offline, the same:
+  4.3 frames a second, 55 kbit/s, Rift's CPU 22% of a core against 77% in
+  front. CS2 ran at 307 fps on average, 1% low 175 fps, over 60 s.
+  (CS2 with the picture on behind it wasn't measured.)
+- Alt+Tab from the game to Rift, twice: the picture was back 140 and 158 ms
+  after "can be seen", 37 frames a second after. Alt+Tab from Rift into the
+  game turned it off again, 4.0–4.6 frames a second.
+- On the first Alt+Tab to Rift, the log said seen, then cannot be seen 52 ms
+  later, then seen 11 ms after that. One extra off and on, as the game let go
+  of the screen; the picture was back about 0.2 s after the first "seen". The
+  clean repeat logged one change each way.
+- One Alt+Tab went from the game to the terminal instead. Rift stayed
+  covered, and logged seen for 56 ms and then cannot be seen; the picture
+  never came back on screen.
+- Received and sent bytes are for every adapter: with CS2 running, about
+  4 Mbit/s went out, which isn't Rift's to explain here.
+
 **Not checked:**
 - A second monitor: this laptop has one.
-- A real fullscreen game. CS2 wasn't started because the account was playing
-  on the other PC. The stand-ins were a maximised window and the maximised
-  terminal running `gameloop2`.
+- CS2 in exclusive fullscreen for certain, and any game other than CS2.
 - The stream's sound by ear while Rift was hidden. The audio publication is
   never touched, and the log shows it heard.
 - The sharer dropping out while Rift was covered or hidden rather than
@@ -320,4 +340,24 @@ T2 sharer rejoined while minimised, still minimised: frames drawn 37.8/s
 T2 fixed: sharer rejoined while minimised: frames drawn 4.0/s
 T2 fixed, rewatch logged: sharer rejoined while minimised: frames drawn 4.0/s
 T2 back after rejoin while minimised: picture back 255 ms after "can be seen" | frames/s 2 s before 4.0, 3-6 s after 36.7
+```
+
+With CS2. The first "pre" line was counted with the terminal in front of Rift.
+"Alt+Tab back into the game" went to the terminal, and "(2)" from the game to
+the terminal, so neither is a switch between Rift and CS2.
+
+```
+CS2 pre: watching, Rift in front: frames drawn 4.1/s
+CS2 pre: watching, Rift in front: frames drawn 37.2/s
+CS2 pre: watching, Rift in front: CPU 77.0% of a core | GPU 3d 60.5% | rx 3,655 kbit/s tx 3,221 kbit/s | working set 891 -> 891 MB, private 867 -> 867 MB, threads 99
+CS2 menu fullscreen in front, Rift behind: CPU 20.0% of a core | GPU 3d 7.6% | rx 55 kbit/s tx 4,280 kbit/s | working set 898 -> 898 MB, private 876 -> 876 MB, threads 99 | frames drawn 4.5/s
+CS2 dust2 fullscreen in front, Rift behind: CPU 22.2% of a core | GPU 3d 7.2% | rx 55 kbit/s tx 4,169 kbit/s | working set 903 -> 903 MB, private 881 -> 881 MB, threads 100 | frames drawn 4.3/s
+CS2 Alt+Tab to Rift: picture back 140 ms after "can be seen" | frames/s 2 s before 4.0, 3-6 s after 36.7
+CS2 Alt+Tab back into the game, Rift behind: CPU 12.1% of a core | GPU 3d 7.1% | rx 40 kbit/s tx 272 kbit/s | working set 921 -> 921 MB, private 900 -> 900 MB, threads 100 | frames drawn 4.0/s
+CS2 switched back into, Rift behind: CPU 18.1% of a core | GPU 3d 7.3% | rx 89 kbit/s tx 4,197 kbit/s | working set 926 -> 926 MB, private 905 -> 905 MB, threads 100 | frames drawn 4.1/s
+CS2 Alt+Tab to Rift (2): picture back not back after "can be seen" | frames/s 2 s before 4.0, 3-6 s after 4.0
+CS2 Alt+Tab from Rift into the game: frames drawn 4.0/s
+CS2 Alt+Tab to Rift (3): picture back 158 ms after "can be seen" | frames/s 2 s before 5.0, 3-6 s after 37.0
+CS2 Alt+Tab from Rift into the game (3): frames drawn 4.6/s
+wd-paused: frames 18399 | avg 306.7 fps, 1% low 174.6 fps | median 3.08 p99 5.43 p99.9 6.16 max 6.7 ms | >1.5x median 9.54% >2x 0.109%
 ```
