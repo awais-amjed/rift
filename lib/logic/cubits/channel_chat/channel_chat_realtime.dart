@@ -23,6 +23,9 @@ mixin _ChannelChatRealtimeMixin
   /// who can heal them comes online.
   Future<void> retry();
 
+  /// See [_ChannelChatLiveMixin].
+  Future<void> refreshLive();
+
   /// The open channel's own topic, for typing.
   RealtimeLease? _rtTopic;
 
@@ -113,7 +116,13 @@ mixin _ChannelChatRealtimeMixin
       if (isClosed || state.channelId == null) return;
       final failed =
           state.showingSaved || state.status == ChannelChatStatus.error;
-      unawaited(failed ? retry() : _fetchAfterLatest());
+      if (failed) {
+        unawaited(retry());
+        return;
+      }
+      unawaited(_fetchAfterLatest());
+      // A poll posted far up, or ended, while the feed was down.
+      unawaited(refreshLive());
     });
   }
 

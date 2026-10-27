@@ -45,6 +45,7 @@ import '../../services/chat_notice.dart';
 import '../../services/edit_refusal.dart';
 import '../../services/key_sweep_doorbell.dart';
 import '../../services/link_preview_fetcher.dart';
+import '../../services/live_items.dart';
 import '../../services/mention_name_cache.dart';
 import '../../services/mentions.dart';
 import '../../services/message_cache.dart';
@@ -64,6 +65,7 @@ import '../vault/vault_cubit.dart';
 
 part 'channel_chat_edit.dart';
 part 'channel_chat_history.dart';
+part 'channel_chat_live.dart';
 part 'channel_chat_notify.dart';
 part 'channel_chat_panels.dart';
 part 'channel_chat_pins.dart';
@@ -105,6 +107,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
         _ChannelChatReactionsMixin,
         _ChannelChatPinsMixin,
         _ChannelChatPollsMixin,
+        _ChannelChatLiveMixin,
         _ChannelChatRealtimeMixin,
         _ChatSweepMixin,
         _ChatReadyMixin,
@@ -384,6 +387,9 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     // that looks empty and one that looks like what it is.
     await _fetchLatest(channelId);
     if (_isStale(generation)) return;
+    // What the bar holds, which the page may not. Not awaited: the bar can
+    // fill a moment after the history does.
+    unawaited(refreshLive());
 
     if (keyring.isWaiting && _plainChannel) {
       // Nothing new here is sealed, so there is nothing to wait for: open
@@ -440,8 +446,14 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   /// it — see [MentionNameCache] for what leaving half of it behind cost.
   void _resetTo(ChannelChatState next) {
     _mentionCache.reset();
+    _clearLive();
     emit(next);
   }
+
+  /// Every emit keeps the bar's rows in step with the page — see
+  /// [_ChannelChatLiveMixin].
+  @override
+  void emit(ChannelChatState state) => super.emit(_withLive(state));
 
   Future<void> closeChannel() async {
     unawaited(_saved.flush(leaving: true));

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rift/data/classes/chat_message.dart';
 import 'package:rift/data/classes/poll.dart';
+import 'package:rift/logic/cubits/channel_chat/channel_chat_cubit.dart';
 import 'package:rift/logic/services/live_items.dart';
 
 void main() {
@@ -81,6 +82,15 @@ void main() {
       expect(open.map((m) => m.id), ['4']);
     });
 
+    test('a poll leaves the bar when it closes', () {
+      final live = [message('1', closesIn: const Duration(seconds: 1))];
+      expect(LiveItems.openPolls(live, now), hasLength(1));
+      expect(
+        LiveItems.openPolls(live, now.add(const Duration(seconds: 2))),
+        isEmpty,
+      );
+    });
+
     test('nextClose is the soonest future close', () {
       final polls = [
         message('3', closesIn: const Duration(hours: 5)),
@@ -92,6 +102,25 @@ void main() {
         now.add(const Duration(minutes: 30)),
       );
       expect(LiveItems.nextClose(const [], now), isNull);
+    });
+  });
+
+  group('the chat state', () {
+    test('live rows are part of its equality', () {
+      final poll = message('1', closesIn: const Duration(hours: 1));
+      expect(
+        ChannelChatState(live: [poll]),
+        isNot(equals(const ChannelChatState())),
+      );
+    });
+
+    test('messageById looks in the loaded page, then in live', () {
+      final loaded = message('2', text: 'loaded');
+      final old = message('1', closesIn: const Duration(hours: 1));
+      final state = ChannelChatState(messages: [loaded], live: [old]);
+      expect(state.messageById('2'), loaded);
+      expect(state.messageById('1'), old);
+      expect(state.messageById('3'), isNull);
     });
   });
 }

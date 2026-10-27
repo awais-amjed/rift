@@ -123,6 +123,15 @@ class ChannelChatState extends Equatable {
   /// answer survives both.
   final Map<String, PollTally> pollTallies;
 
+  /// What the bar above the message box draws from: the channel's open polls
+  /// and live bot panels, newest first, wherever they sit in its history.
+  ///
+  /// Beside [messages] rather than derived from them, because the page holds
+  /// only the newest rows and a poll can be older than all of them. Rows the
+  /// page does hold appear here as the page's copy, so a redraw or a vote
+  /// reaches both at once. See `LiveItems`.
+  final List<ChatMessage> live;
+
   /// [messages] are the copy this device saved, not yet replaced by what the
   /// server says. Drawn while the channel opens, and kept on screen when it
   /// cannot — read-only, because nothing here is confirmed and sending needs
@@ -145,9 +154,16 @@ class ChannelChatState extends Equatable {
     this.mentionNames = const {},
     this.failure,
     this.pollTallies = const {},
+    this.live = const [],
     this.showingSaved = false,
     this.notice,
   });
+
+  /// The message with [id], from the loaded page or else from [live] — what a
+  /// vote or a press in the bar acts on may be older than the page.
+  ChatMessage? messageById(String id) =>
+      messages.where((m) => m.id == id).firstOrNull ??
+      live.where((m) => m.id == id).firstOrNull;
 
   ChannelChatState copyWith({
     ChannelChatStatus? status,
@@ -163,6 +179,7 @@ class ChannelChatState extends Equatable {
     ChatFailure? failure,
     bool clearFailure = false,
     Map<String, PollTally>? pollTallies,
+    List<ChatMessage>? live,
     bool? showingSaved,
     Notice? notice,
   }) {
@@ -182,6 +199,7 @@ class ChannelChatState extends Equatable {
       mentionNames: mentionNames ?? this.mentionNames,
       failure: clearFailure ? null : (failure ?? this.failure),
       pollTallies: pollTallies ?? this.pollTallies,
+      live: live ?? this.live,
       showingSaved: showingSaved ?? this.showingSaved,
       notice: notice ?? this.notice,
     );
@@ -201,6 +219,7 @@ class ChannelChatState extends Equatable {
     typingUsers,
     failure,
     pollTallies,
+    live,
     showingSaved,
     notice,
   ];

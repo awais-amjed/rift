@@ -36,11 +36,9 @@ mixin _ChannelChatPanelsMixin on Cubit<ChannelChatState> {
 
     // The panel's author is the bot to answer. Taken from the row rather than
     // from anything the block carried: a button that named its own recipient
-    // would let one bot's panel address another's.
-    String? botId;
-    for (final message in state.messages) {
-      if (message.id == messageId) botId = message.authorId;
-    }
+    // would let one bot's panel address another's. Looked for in the bar's
+    // rows as well, where a live panel older than the page is pressed.
+    final botId = state.messageById(messageId)?.authorId;
     final replyTo = int.tryParse(messageId);
     if (botId == null || botId.isEmpty || replyTo == null) return;
 

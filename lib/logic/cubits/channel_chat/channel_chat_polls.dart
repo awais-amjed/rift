@@ -139,10 +139,7 @@ mixin _ChannelChatPollsMixin on Cubit<ChannelChatState> {
   Future<void> vote(String messageId, int option) async {
     final channelId = state.channelId;
     final id = int.tryParse(messageId);
-    final poll = state.messages
-        .where((m) => m.id == messageId)
-        .firstOrNull
-        ?.poll;
+    final poll = state.messageById(messageId)?.poll;
     if (channelId == null || id == null || poll == null) return;
 
     final ballot = PollOps.ballotAfterTap(
@@ -211,7 +208,7 @@ mixin _ChannelChatPollsMixin on Cubit<ChannelChatState> {
   void _onPollDoorbell(Map<String, dynamic> payload) {
     if (isClosed) return;
     final messageId = BroadcastPayload.stringOf(payload, 'message_id');
-    final poll = state.messages.where((m) => m.id == messageId).firstOrNull;
+    final poll = messageId == null ? null : state.messageById(messageId);
     if (poll != null) unawaited(refreshTalliesFor([poll]));
   }
 }

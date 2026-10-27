@@ -19,6 +19,9 @@ mixin _ChannelChatHistoryMixin
   /// fetched page, and to forget one the server turns out to have stored.
   Outbox get _outbox;
 
+  /// A re-read row reaching the bar's copy — see [_ChannelChatLiveMixin].
+  void _updateLive(String messageId, ChatMessage? message);
+
   Future<void> _fetchLatest(String channelId) async {
     final response = await _channelMessages.listChatMessages(
       channelId: channelId,
@@ -288,7 +291,8 @@ mixin _ChannelChatHistoryMixin
     final channelId = state.channelId;
     final id = int.tryParse(messageId);
     if (channelId == null || id == null) return;
-    if (!state.messages.any((m) => m.id == messageId)) return;
+    // The bar's rows too: a poll it holds may be older than the page.
+    if (state.messageById(messageId) == null) return;
 
     final response = await _channelMessages.getChatMessage(
       channelId: channelId,
@@ -299,6 +303,7 @@ mixin _ChannelChatHistoryMixin
     final row = (response.data as Map<String, dynamic>)['message'];
     if (row == null) {
       _saved.remove(messageId);
+      _updateLive(messageId, null);
       emit(
         state.copyWith(
           messages: ChatMessageOps.removeMessage(state.messages, messageId),
@@ -311,6 +316,7 @@ mixin _ChannelChatHistoryMixin
     _saved.update(changed);
     final decrypted = await _decryptRows(channelId, [changed]);
     if (decrypted.isEmpty || state.channelId != channelId) return;
+    _updateLive(messageId, decrypted.single);
     emit(
       state.copyWith(
         messages: ChatMessageOps.replaceMessage(
