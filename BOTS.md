@@ -317,7 +317,7 @@ pushes it up the chat. So a bot can mark a panel **live** (`"live": true`,
 box, the same blocks, folded to one line until somebody opens it. The open
 polls sit there too.
 
-Two rules keep the bar honest:
+Three rules keep the bar honest:
 
 - **Live only while the bot is connected.** The mark is the bot's own claim
   and a bot that crashed cannot take it back, so a live panel whose bot is not
@@ -336,6 +336,10 @@ vocabulary: the first `image` as a cover, the first `fields` block's first two
 values as its two lines (else the first `heading`), the first `actions`
 block's buttons that are not `danger` (at most two), and the first `progress`
 as a thin line along its edge.
+
+Opened, the panel scrolls inside the bar, all but the buttons and menus it
+ends with: those stay pinned below, since a cover alone is taller than the
+bar on most screens. So a panel puts its controls last.
 
 ### The round trip
 

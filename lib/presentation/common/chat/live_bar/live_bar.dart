@@ -12,6 +12,7 @@ import '../../../../logic/services/live_items.dart';
 import '../../../../logic/services/panel_summary.dart';
 import '../../../../logic/services/poll_ops.dart';
 import '../../../theme/theme_context.dart';
+import '../panel/panel_actions.dart';
 import '../panel/panel_view.dart';
 import 'widgets/live_bar_opened.dart';
 import 'widgets/live_panel_line.dart';
@@ -200,6 +201,7 @@ class _LiveBarState extends State<LiveBar> {
         ? null
         : (String action, String? value) =>
               onPanelAction(message.id, action, value);
+    final (body, controls) = PanelSummary.pinControls(message.panel!);
     return [
       LivePanelLine(
         summary: PanelSummary.of(message.panel!),
@@ -212,8 +214,18 @@ class _LiveBarState extends State<LiveBar> {
       LiveBarOpened(
         open: open,
         maxHeight: widget.maxHeight,
+        footer: controls.isEmpty
+            ? null
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final block in controls)
+                    PanelActions(block: block, onAction: onAction),
+                ],
+              ),
         child: PanelView(
-          panel: message.panel!,
+          panel: body,
           onAction: onAction,
           loader: widget.loader,
         ),

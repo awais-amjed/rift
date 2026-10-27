@@ -26,7 +26,9 @@ import 'support/memory_storage.dart';
 void main() {
   setUpAll(() => HydratedBloc.storage = MemoryStorage());
 
-  final start = DateTime.utc(2026, 10, 27, 12);
+  // The real time: a poll card asks the clock itself whether its poll is
+  // over, so a fixed date made every poll here closed once it had passed.
+  final start = DateTime.now().toUtc();
 
   // One function across pumps, as the chat hands the cubit's own: a closure
   // made fresh each pump would be a new callback every time.
@@ -270,6 +272,31 @@ void main() {
     expect(find.byType(PanelView), findsOneWidget);
     // Stop is in the opened panel, not on the folded line.
     expect(find.text('Stop'), findsOneWidget);
+  });
+
+  testWidgets('an opened player keeps its buttons out of the scroll', (
+    tester,
+  ) async {
+    await pump(tester, live: const [], panels: [player()], maxHeight: 120);
+    await tester.tap(find.text('Windowlicker'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    final scroller = find.descendant(
+      of: find.byType(LiveBar),
+      matching: find.byType(SingleChildScrollView),
+    );
+    expect(
+      find.descendant(of: scroller, matching: find.text('Stop')),
+      findsNothing,
+    );
+    expect(find.text('Stop'), findsOneWidget);
+    // In sight: below the scroller, inside the bar.
+    final bar = tester.getRect(find.byType(LiveBar));
+    final stop = tester.getRect(find.text('Stop'));
+    expect(stop.top, greaterThanOrEqualTo(tester.getRect(scroller).bottom));
+    expect(bar.contains(stop.center), isTrue);
+    // The top line's own buttons go while the full row is open.
+    expect(find.text('Pause'), findsOneWidget);
   });
 
   testWidgets('Pause on the folded line presses the panel\'s action', (

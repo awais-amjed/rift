@@ -11,11 +11,16 @@ class LiveBarOpened extends StatelessWidget {
   final double maxHeight;
   final Widget child;
 
+  /// Drawn under [child] and never scrolled with it: a panel's own buttons,
+  /// which a tall cover otherwise pushed out of sight.
+  final Widget? footer;
+
   const LiveBarOpened({
     super.key,
     required this.open,
     required this.maxHeight,
     required this.child,
+    this.footer,
   });
 
   @override
@@ -32,9 +37,27 @@ class LiveBarOpened extends StatelessWidget {
                 decoration: BoxDecoration(
                   border: Border(top: BorderSide(color: theme.borderPrimary)),
                 ),
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-                  child: child,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Flexible(
+                      child: SingleChildScrollView(
+                        padding: EdgeInsets.fromLTRB(
+                          12,
+                          4,
+                          12,
+                          footer == null ? 12 : 4,
+                        ),
+                        child: child,
+                      ),
+                    ),
+                    if (footer case final footer?)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                        child: footer,
+                      ),
+                  ],
                 ),
               ),
             )

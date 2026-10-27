@@ -51,6 +51,26 @@ class PanelSummary extends Equatable {
     );
   }
 
+  /// [panel] opened in the bar, cut in two: its last buttons and menus, which
+  /// the bar keeps in sight below the part that scrolls, and the rest. Only a
+  /// run at the very end: a row in the middle belongs with the words around
+  /// it. A player's cover alone is taller than the bar on most screens, and
+  /// Stop sat under it.
+  static (Panel body, List<PanelBlock> controls) pinControls(Panel panel) {
+    final blocks = panel.blocks;
+    var cut = blocks.length;
+    while (cut > 0 &&
+        (blocks[cut - 1].type == PanelBlockType.actions ||
+            blocks[cut - 1].type == PanelBlockType.select)) {
+      cut--;
+    }
+    if (cut == blocks.length) return (panel, const []);
+    return (
+      Panel(blocks: blocks.sublist(0, cut), live: panel.live),
+      blocks.sublist(cut),
+    );
+  }
+
   @override
   List<Object?> get props => [cover, title, subtitle, buttons, progress];
 }

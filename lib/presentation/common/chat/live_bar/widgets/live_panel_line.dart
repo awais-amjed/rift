@@ -13,7 +13,8 @@ import '../../attachments/attachment_image_thumb.dart';
 /// thin line along the bottom edge. Read out of the blocks ([PanelSummary]).
 ///
 /// The row opens the whole panel; the buttons press their action and leave
-/// it as it is.
+/// it as it is. Opened, the line drops them for the panel's full row, which
+/// the bar keeps in sight.
 class LivePanelLine extends StatelessWidget {
   final PanelSummary summary;
 
@@ -104,13 +105,15 @@ class LivePanelLine extends StatelessWidget {
                       ],
                     ),
                   ),
-                  for (final button in summary.buttons)
-                    _LineButton(
-                      action: button,
-                      onTap: onAction == null
-                          ? null
-                          : () => onAction!(button.action, button.value),
-                    ),
+                  // Open, the panel's own row is right below.
+                  if (!open)
+                    for (final button in summary.buttons)
+                      _LineButton(
+                        action: button,
+                        onTap: onAction == null
+                            ? null
+                            : () => onAction!(button.action, button.value),
+                      ),
                   Icon(
                     open
                         ? Icons.expand_more_rounded

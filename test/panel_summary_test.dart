@@ -83,4 +83,63 @@ void main() {
     expect(summary.buttons, isEmpty);
     expect(summary.progress, isNull);
   });
+
+  // ── The opened panel's pinned buttons ───────────────────
+
+  List<PanelBlockType> types(Panel p) => [for (final b in p.blocks) b.type];
+
+  test('the trailing buttons and menus are split off to stay in sight', () {
+    final (body, controls) = PanelSummary.pinControls(
+      panel([
+        {'type': 'heading', 'text': 'Now playing'},
+        {
+          'type': 'actions',
+          'items': [
+            {'label': 'Like', 'action': 'like'},
+          ],
+        },
+        {'type': 'text', 'text': 'Up next: nothing'},
+        {
+          'type': 'select',
+          'action': 'loop',
+          'options': [
+            {'label': 'Loop off', 'value': 'off'},
+            {'label': 'Loop one', 'value': 'one'},
+          ],
+        },
+        {
+          'type': 'actions',
+          'items': [
+            {'label': 'Pause', 'action': 'pause'},
+          ],
+        },
+      ]),
+    );
+    // A row in the middle keeps its place among the words it belongs to.
+    expect(types(body), [
+      PanelBlockType.heading,
+      PanelBlockType.actions,
+      PanelBlockType.text,
+    ]);
+    expect(
+      [for (final b in controls) b.type],
+      [PanelBlockType.select, PanelBlockType.actions],
+    );
+    expect(body.live, isTrue);
+  });
+
+  test('a panel that ends in words pins nothing', () {
+    final whole = panel([
+      {
+        'type': 'actions',
+        'items': [
+          {'label': 'Pause', 'action': 'pause'},
+        ],
+      },
+      {'type': 'text', 'text': 'Up next: nothing'},
+    ]);
+    final (body, controls) = PanelSummary.pinControls(whole);
+    expect(body, whole);
+    expect(controls, isEmpty);
+  });
 }
