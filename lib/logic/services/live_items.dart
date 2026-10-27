@@ -57,6 +57,41 @@ class LiveItems {
     return soonest;
   }
 
+  /// The live panels the bar draws: marked live by their bot, and only while
+  /// that bot is connected — a bot that crashed cannot take the mark back, and
+  /// a player for one that is not running is a lie. Nothing until presence
+  /// has answered, so a panel is never in neither place: unshown here, it is
+  /// in the history.
+  static List<ChatMessage> shownPanels(
+    List<ChatMessage> live, {
+    required Set<String> onlineIds,
+    required bool onlineKnown,
+  }) {
+    if (!onlineKnown) return const [];
+    return [
+      for (final message in live)
+        if ((message.panel?.live ?? false) &&
+            onlineIds.contains(message.authorId))
+          message,
+    ];
+  }
+
+  /// [history] without the panels the bar is showing, which are drawn there
+  /// instead. The same list when none of them is on it, so the history's
+  /// rows are not rebuilt for a bar they have nothing to do with.
+  static List<ChatMessage> hideShown(
+    List<ChatMessage> history,
+    List<ChatMessage> shown,
+  ) {
+    if (shown.isEmpty) return history;
+    final ids = {for (final message in shown) message.id};
+    if (!history.any((m) => ids.contains(m.id))) return history;
+    return [
+      for (final message in history)
+        if (!ids.contains(message.id)) message,
+    ];
+  }
+
   static int _newestFirst(ChatMessage a, ChatMessage b) =>
       (int.tryParse(b.id) ?? 0).compareTo(int.tryParse(a.id) ?? 0);
 }

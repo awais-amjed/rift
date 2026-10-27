@@ -174,4 +174,70 @@ void main() {
       expect(state.messageById('3'), isNull);
     });
   });
+
+  group('live panels', () {
+    ChatMessage panel(String id, {String bot = 'dj', bool live = true}) =>
+        ChatMessage(
+          id: id,
+          authorId: bot,
+          authorName: 'DJ',
+          text: '',
+          sentAt: now,
+          isMine: false,
+          panel: Panel.tryParse({
+            'v': 1,
+            'live': live,
+            'blocks': [
+              {'type': 'heading', 'text': 'Now playing'},
+            ],
+          }),
+        );
+
+    test('an offline bot\'s live panel stays in the history', () {
+      final live = [panel('9', bot: 'gone'), panel('8')];
+      final shown = LiveItems.shownPanels(
+        live,
+        onlineIds: {'dj'},
+        onlineKnown: true,
+      );
+      expect(shown.map((m) => m.id), ['8']);
+      final history = [panel('9', bot: 'gone'), message('7'), panel('8')];
+      expect(LiveItems.hideShown(history, shown).map((m) => m.id), ['9', '7']);
+    });
+
+    test('unknown presence shows nothing in the bar', () {
+      expect(
+        LiveItems.shownPanels(
+          [panel('8')],
+          onlineIds: {'dj'},
+          onlineKnown: false,
+        ),
+        isEmpty,
+      );
+    });
+
+    test('a panel without live is never shown', () {
+      expect(
+        LiveItems.shownPanels(
+          [panel('8', live: false), message('5', closesIn: Duration.zero)],
+          onlineIds: {'dj', 'a'},
+          onlineKnown: true,
+        ),
+        isEmpty,
+      );
+    });
+
+    test('hideShown returns the same list when nothing is shown', () {
+      final history = [message('2'), panel('1', live: false)];
+      expect(
+        identical(LiveItems.hideShown(history, const []), history),
+        isTrue,
+      );
+      // Nor when what is shown is not on this page.
+      expect(
+        identical(LiveItems.hideShown(history, [panel('40')]), history),
+        isTrue,
+      );
+    });
+  });
 }
