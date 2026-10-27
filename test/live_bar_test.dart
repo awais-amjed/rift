@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' as widgets;
@@ -143,9 +145,11 @@ void main() {
     await pump(tester, live: three);
     await tester.tap(find.text('Which map tonight?'));
     await tester.pumpAndSettle();
-    showDialog<void>(
-      context: tester.element(find.byType(LiveBar)),
-      builder: (_) => const AlertDialog(content: Text('A dialog')),
+    unawaited(
+      showDialog<void>(
+        context: tester.element(find.byType(LiveBar)),
+        builder: (_) => const AlertDialog(content: Text('A dialog')),
+      ),
     );
     await tester.pumpAndSettle();
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
