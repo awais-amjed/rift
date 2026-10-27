@@ -386,7 +386,9 @@ class _ChatComposerState extends State<ChatComposer>
     //
     // The `/` menu still takes space, and should: it only ever opens on an
     // empty composer, where there is no message right above it to hide.
-    final side = context.layoutMode.isCompact ? K.composerSideInsetTouch : 14.0;
+    final side = context.layoutMode.isCompact
+        ? K.composerSideInsetTouch
+        : K.composerSideInset;
     return Padding(
       padding: EdgeInsets.fromLTRB(side, 4, side, 14),
       child: Builder(

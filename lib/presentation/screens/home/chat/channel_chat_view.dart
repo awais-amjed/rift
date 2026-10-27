@@ -38,6 +38,7 @@ import '../../../theme/theme_context.dart';
 import '../mobile/widgets/mini_call_bar.dart';
 import '../profile/person/show_person_profile.dart';
 import '../reports/show_report_dialog.dart';
+import 'widgets/channel_live_bar.dart';
 import 'widgets/chat_header.dart';
 import 'widgets/chat_read_only_banner.dart';
 import 'widgets/chat_status_view.dart';
@@ -112,87 +113,95 @@ class _ChannelChatViewState extends State<ChannelChatView>
         return DefaultTextStyle.merge(
           style: TextStyle(color: themeState.textSecondary),
           child: ChatDropZone(
-            child: Column(
-              children: [
-                ChatHeader(
-                  onShowPins: chatState.channelId == null
-                      ? null
-                      : (anchor) => _showPins(context, anchor),
-                ),
-                Expanded(child: _buildBody(context, chatState)),
-                // A phone's way back into the call, just above whatever
-                // holds the composer's slot. Nothing on a desktop.
-                if (!composing) const MiniCallBar(),
-                // Sending needs the key too, so read-only gets the banner
-                // in the composer's place rather than a composer that would
-                // refuse every message typed into it.
-                // Waiting keeps the slot too: a composer that is plainly
-                // coming says "this will work later", where an absent one
-                // says this channel has none.
-                if (status == ChannelChatStatus.readOnly)
-                  const ChatReadOnlyBanner()
-                else if (status == ChannelChatStatus.waitingForKey)
-                  const ChatReadOnlyBanner(waitingForKey: true)
-                else if (status == ChannelChatStatus.error &&
-                    chatState.showingSaved)
-                  SavedCopyNotice(
-                    onRetry: context.read<ChannelChatCubit>().retry,
+            child: LayoutBuilder(
+              builder: (context, box) => Column(
+                children: [
+                  ChatHeader(
+                    onShowPins: chatState.channelId == null
+                        ? null
+                        : (anchor) => _showPins(context, anchor),
                   ),
-                if (composing) ...[
-                  BlocSelector<
-                    ChannelChatCubit,
-                    ChannelChatState,
-                    Map<String, String>
-                  >(
-                    selector: (s) => s.typingUsers,
-                    builder: (context, typing) =>
-                        TypingIndicator(names: typing.values.toList()),
-                  ),
-                  const MiniCallBar(),
-                  TimeOutGate(
-                    until: context.select<ServerCubit, DateTime?>(
-                      (c) => c.state.meOn(serverId)?.timedOutUntil,
+                  Expanded(child: _buildBody(context, chatState)),
+                  // A phone's way back into the call, just above whatever
+                  // holds the composer's slot. Nothing on a desktop.
+                  if (!composing) ...[
+                    const MiniCallBar(),
+                    // Open polls stay one glance away, over the banner too:
+                    // they are read whether or not they can be voted in.
+                    ChannelLiveBar(chatHeight: box.maxHeight),
+                  ],
+                  // Sending needs the key too, so read-only gets the banner
+                  // in the composer's place rather than a composer that would
+                  // refuse every message typed into it.
+                  // Waiting keeps the slot too: a composer that is plainly
+                  // coming says "this will work later", where an absent one
+                  // says this channel has none.
+                  if (status == ChannelChatStatus.readOnly)
+                    const ChatReadOnlyBanner()
+                  else if (status == ChannelChatStatus.waitingForKey)
+                    const ChatReadOnlyBanner(waitingForKey: true)
+                  else if (status == ChannelChatStatus.error &&
+                      chatState.showingSaved)
+                    SavedCopyNotice(
+                      onRetry: context.read<ChannelChatCubit>().retry,
                     ),
-                    child: ChatComposer(
-                      conversation: chatState.channelId,
-                      canSend: status == ChannelChatStatus.ready,
-                      onSend: (text, attachments, preview, toBotId) =>
-                          _send(context, text, attachments, preview, toBotId),
-                      replyingTo: replyingTo,
-                      onCancelReply: cancelReply,
-                      // A channel is the one surface with somebody to ring
-                      // who is not already being written to.
-                      replyPings: replyPings,
-                      onToggleReplyPing: setReplyPing,
-                      onTyping: () =>
-                          context.read<ChannelChatCubit>().notifyTyping(),
-                      canAttach: _canAttach(context),
-                      maxAttachmentBytes: _maxAttachmentBytes(context),
-                      remainingStorageBytes: _remainingStorage(context),
-                      // Every file goes as it is where encryption is off, so
-                      // there is no choice to offer per file.
-                      offersPlainFiles:
-                          !_notEncrypted(context) && _isPublic(context),
-                      notEncrypted: _notEncrypted(context),
-                      bots: context.select(
-                        (ChannelChatCubit c) => c.state.bots,
+                  if (composing) ...[
+                    BlocSelector<
+                      ChannelChatCubit,
+                      ChannelChatState,
+                      Map<String, String>
+                    >(
+                      selector: (s) => s.typingUsers,
+                      builder: (context, typing) =>
+                          TypingIndicator(names: typing.values.toList()),
+                    ),
+                    const MiniCallBar(),
+                    ChannelLiveBar(chatHeight: box.maxHeight),
+                    TimeOutGate(
+                      until: context.select<ServerCubit, DateTime?>(
+                        (c) => c.state.meOn(serverId)?.timedOutUntil,
                       ),
-                      onCreatePoll: _canCreatePoll(context)
-                          ? () => _createPoll(context)
-                          : null,
-                      onMentionSearch: (query) =>
-                          _searchMentionable(context, query),
-                      onCommandSuggest: (bot, command, text) =>
-                          _askBot(context, bot, command, text),
-                      selfUserId: context
-                          .read<ServerCubit>()
-                          .state
-                          .meOn(serverId)
-                          ?.id,
+                      child: ChatComposer(
+                        conversation: chatState.channelId,
+                        canSend: status == ChannelChatStatus.ready,
+                        onSend: (text, attachments, preview, toBotId) =>
+                            _send(context, text, attachments, preview, toBotId),
+                        replyingTo: replyingTo,
+                        onCancelReply: cancelReply,
+                        // A channel is the one surface with somebody to ring
+                        // who is not already being written to.
+                        replyPings: replyPings,
+                        onToggleReplyPing: setReplyPing,
+                        onTyping: () =>
+                            context.read<ChannelChatCubit>().notifyTyping(),
+                        canAttach: _canAttach(context),
+                        maxAttachmentBytes: _maxAttachmentBytes(context),
+                        remainingStorageBytes: _remainingStorage(context),
+                        // Every file goes as it is where encryption is off, so
+                        // there is no choice to offer per file.
+                        offersPlainFiles:
+                            !_notEncrypted(context) && _isPublic(context),
+                        notEncrypted: _notEncrypted(context),
+                        bots: context.select(
+                          (ChannelChatCubit c) => c.state.bots,
+                        ),
+                        onCreatePoll: _canCreatePoll(context)
+                            ? () => _createPoll(context)
+                            : null,
+                        onMentionSearch: (query) =>
+                            _searchMentionable(context, query),
+                        onCommandSuggest: (bot, command, text) =>
+                            _askBot(context, bot, command, text),
+                        selfUserId: context
+                            .read<ServerCubit>()
+                            .state
+                            .meOn(serverId)
+                            ?.id,
+                      ),
                     ),
-                  ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         );

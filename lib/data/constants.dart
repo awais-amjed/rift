@@ -441,9 +441,19 @@ class K {
   /// that has to be hit first time.
   static const double composerIconWidthTouch = 40;
 
+  /// The gap either side of the composer on a desktop, and the live bar
+  /// above it, which lines up with it.
+  static const double composerSideInset = 14;
+
   /// The gap either side of the composer on a phone, down from a desktop's
-  /// 14 — the panel is the screen there, and the field needs the room.
+  /// [composerSideInset] — the panel is the screen there, and the field needs
+  /// the room.
   static const double composerSideInsetTouch = 8;
+
+  /// The most of the chat's height the live bar may take opened, before it
+  /// scrolls inside itself. More on a phone, which has so little to start.
+  static const double liveBarMaxShare = 0.5;
+  static const double liveBarMaxSharePhone = 0.6;
   static const double composerIconSize = 19;
   static const double composerLineHeight = 1.4;
 
