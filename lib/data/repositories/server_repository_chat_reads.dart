@@ -124,6 +124,31 @@ mixin _ChatReadApiMixin {
     });
   }
 
+  /// A channel's open polls and live bot panels, newest first, wherever they
+  /// sit in its history: what the bar above the message box holds. A server
+  /// from before the read fails this like any other call, and the chat falls
+  /// back on its loaded page.
+  Future<APIResponse> listLiveMessages(
+    String supabaseUrl, {
+    required String anonKey,
+    required String userId,
+    String? bearerToken,
+    required String channelId,
+  }) {
+    return ServerDb.run(() async {
+      final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      final rows = await db
+          .rpc('channel_live_messages', params: {'p_channel': channelId})
+          .select(_messageColumns);
+      return {
+        'messages': [
+          for (final r in (rows as List).cast<Map<String, dynamic>>())
+            _flatten(r, userId: userId, reactionsKey: 'message_reactions'),
+        ],
+      };
+    });
+  }
+
   /// Page through the DM conversation with [peerId].
   Future<APIResponse> listDms(
     String supabaseUrl, {

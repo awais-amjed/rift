@@ -122,6 +122,19 @@ class ChannelMessagesApi {
     ),
   );
 
+  /// The channel's open polls and live panels, for the bar above its
+  /// message box. Answers `{messages: […]}`, shaped as a page is.
+  Future<APIResponse> listLiveMessages({required String channelId}) =>
+      _target.call(
+        (server, token) => _repository.listLiveMessages(
+          server.supabaseUrl,
+          anonKey: server.supabaseKey ?? '',
+          userId: server.user?.id ?? '',
+          channelId: channelId,
+          bearerToken: token,
+        ),
+      );
+
   /// Re-read one channel message after a change doorbell named it. Answers
   /// `{message: …}`, or `{message: null}` when the row has been deleted.
   Future<APIResponse> getChatMessage({
