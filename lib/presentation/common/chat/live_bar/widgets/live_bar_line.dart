@@ -65,9 +65,7 @@ class LiveBarLine extends StatelessWidget {
                       Text(
                         meta!,
                         maxLines: 1,
-                        style: AppText.meta.copyWith(
-                          color: theme.textTertiary,
-                        ),
+                        style: AppText.meta.copyWith(color: theme.textTertiary),
                       ),
                   ],
                 ),

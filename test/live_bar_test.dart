@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart' as widgets;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rift/data/classes/chat_message.dart';
+import 'package:rift/data/classes/panel_block.dart';
 import 'package:rift/data/classes/poll.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/presentation/common/chat/live_bar/live_bar.dart';
+import 'package:rift/presentation/common/chat/live_bar/widgets/live_panel_line.dart';
+import 'package:rift/presentation/common/chat/live_bar/widgets/live_polls_line.dart';
+import 'package:rift/presentation/common/chat/panel/panel_view.dart';
 import 'package:rift/presentation/common/chat/polls/message_poll_card.dart';
 import 'package:rift/presentation/common/chat/polls/poll_option_row.dart';
 import 'package:rift/presentation/theme/app_theme.dart';
@@ -20,6 +25,10 @@ void main() {
   setUpAll(() => HydratedBloc.storage = MemoryStorage());
 
   final start = DateTime.utc(2026, 10, 27, 12);
+
+  // One function across pumps, as the chat hands the cubit's own: a closure
+  // made fresh each pump would be a new callback every time.
+  void noVote(String _, int _) {}
 
   ChatMessage poll(String id, String question, {Duration? closesIn}) =>
       ChatMessage(
@@ -40,6 +49,8 @@ void main() {
   Future<void> pump(
     WidgetTester tester, {
     required List<ChatMessage> live,
+    List<ChatMessage> panels = const [],
+    void Function(String, String, String?)? onPanelAction,
     Map<String, PollTally> tallies = const {},
     void Function(String, int)? onVote,
     DateTime Function()? now,
@@ -60,8 +71,10 @@ void main() {
               children: [
                 LiveBar(
                   live: live,
+                  panels: panels,
+                  onPanelAction: onPanelAction ?? (_, _, _) {},
                   tallies: tallies,
-                  onVote: onVote ?? (_, _) {},
+                  onVote: onVote ?? noVote,
                   onClosePoll: null,
                   now: now ?? () => start,
                   maxHeight: maxHeight,
@@ -171,5 +184,126 @@ void main() {
       matching: find.byType(SingleChildScrollView),
     );
     expect(tester.getSize(scroller).height, lessThanOrEqualTo(200));
+  });
+
+  // ── The player ──────────────────────────────────────────
+
+  ChatMessage player({
+    String id = 'p1',
+    String song = 'Windowlicker',
+    double progress = 0.25,
+  }) => ChatMessage(
+    id: id,
+    authorId: 'dj',
+    authorName: 'DJ Riff',
+    text: '',
+    sentAt: start,
+    isMine: false,
+    panel: Panel.tryParse({
+      'v': 1,
+      'live': true,
+      'blocks': [
+        {'type': 'heading', 'text': 'Now playing'},
+        {
+          'type': 'fields',
+          'items': [
+            {'label': 'Song', 'value': song},
+            {'label': 'Artist', 'value': 'Aphex Twin'},
+          ],
+        },
+        {'type': 'progress', 'value': progress, 'text': '0:50 / 3:20'},
+        {
+          'type': 'actions',
+          'items': [
+            {'label': 'Pause', 'action': 'pause'},
+            {'label': 'Skip', 'action': 'skip'},
+            {'label': 'Stop', 'action': 'stop', 'style': 'danger'},
+          ],
+        },
+      ],
+    }),
+  );
+
+  testWidgets('the player line sits above the polls line', (tester) async {
+    await pump(tester, live: three, panels: [player()]);
+    expect(
+      tester.getTopLeft(find.text('Windowlicker')).dy,
+      lessThan(tester.getTopLeft(find.text('Which map tonight?')).dy),
+    );
+    expect(find.text('Aphex Twin · DJ Riff'), findsOneWidget);
+  });
+
+  testWidgets('a player alone draws the bar', (tester) async {
+    await pump(tester, live: const [], panels: [player()]);
+    expect(find.text('Windowlicker'), findsOneWidget);
+  });
+
+  testWidgets('opening the player folds the polls', (tester) async {
+    await pump(tester, live: three, panels: [player()]);
+    await tester.tap(find.text('Which map tonight?'));
+    await tester.pumpAndSettle();
+    expect(find.byType(MessagePollCard), findsNWidgets(3));
+    await tester.tap(find.text('Windowlicker'));
+    await tester.pumpAndSettle();
+    expect(find.byType(MessagePollCard), findsNothing);
+    expect(find.byType(PanelView), findsOneWidget);
+    // Stop is in the opened panel, not on the folded line.
+    expect(find.text('Stop'), findsOneWidget);
+  });
+
+  testWidgets('Pause on the folded line presses the panel\'s action', (
+    tester,
+  ) async {
+    final presses = <(String, String, String?)>[];
+    await pump(
+      tester,
+      live: const [],
+      panels: [player()],
+      onPanelAction: (id, action, value) => presses.add((id, action, value)),
+    );
+    expect(find.text('Stop'), findsNothing);
+    await tester.tap(find.text('Pause'));
+    await tester.pumpAndSettle();
+    expect(presses, [('p1', 'pause', null)]);
+    expect(find.byType(PanelView), findsNothing);
+  });
+
+  testWidgets('the folded player line fits at phone width', (tester) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await pump(
+      tester,
+      live: three,
+      panels: [
+        player(
+          song:
+              'A song with a very long title that goes on and on, '
+              'remastered, live at somewhere (deluxe edition)',
+        ),
+      ],
+    );
+    expect(tester.takeException(), isNull);
+    expect(find.text('Pause'), findsOneWidget);
+    expect(find.text('Skip'), findsOneWidget);
+  });
+
+  testWidgets('a redraw rebuilds the player line only', (tester) async {
+    final polls = [...three];
+    await pump(tester, live: [player(), ...polls], panels: [player()]);
+    var pollLines = 0;
+    var playerLines = 0;
+    widgets.debugOnRebuildDirtyWidget = (element, builtOnce) {
+      if (element.widget is LivePollsLine) pollLines++;
+      if (element.widget is LivePanelLine) playerLines++;
+    };
+    try {
+      final redrawn = player(progress: 0.5);
+      await pump(tester, live: [redrawn, ...polls], panels: [redrawn]);
+    } finally {
+      widgets.debugOnRebuildDirtyWidget = null;
+    }
+    expect(playerLines, greaterThan(0));
+    expect(pollLines, 0);
   });
 }

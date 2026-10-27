@@ -59,19 +59,23 @@ class LiveItems {
 
   /// The live panels the bar draws: marked live by their bot, and only while
   /// that bot is connected — a bot that crashed cannot take the mark back, and
-  /// a player for one that is not running is a lie. Nothing until presence
-  /// has answered, so a panel is never in neither place: unshown here, it is
-  /// in the history.
+  /// a player for one that is not running is a lie. One per bot, its newest:
+  /// an older one is left from a session that ended without clearing it.
+  /// Nothing until presence has answered, so a panel is never in neither
+  /// place: unshown here, it is in the history.
   static List<ChatMessage> shownPanels(
     List<ChatMessage> live, {
     required Set<String> onlineIds,
     required bool onlineKnown,
   }) {
     if (!onlineKnown) return const [];
+    final bots = <String>{};
     return [
+      // [live] is newest first, so the first seen of each bot is its newest.
       for (final message in live)
         if ((message.panel?.live ?? false) &&
-            onlineIds.contains(message.authorId))
+            onlineIds.contains(message.authorId) &&
+            bots.add(message.authorId))
           message,
     ];
   }

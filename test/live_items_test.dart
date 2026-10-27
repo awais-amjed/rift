@@ -205,6 +205,18 @@ void main() {
       expect(LiveItems.hideShown(history, shown).map((m) => m.id), ['9', '7']);
     });
 
+    test('a bot\'s older live panel is left in the history', () {
+      // A bot that crashed and came back posts a new player; the one it never
+      // got to clear is from a session that is over.
+      final live = [panel('9'), panel('8', bot: 'other'), panel('3')];
+      final shown = LiveItems.shownPanels(
+        live,
+        onlineIds: {'dj', 'other'},
+        onlineKnown: true,
+      );
+      expect(shown.map((m) => m.id), ['9', '8']);
+    });
+
     test('unknown presence shows nothing in the bar', () {
       expect(
         LiveItems.shownPanels(

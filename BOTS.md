@@ -309,7 +309,7 @@ that server, so fetching from it tells nobody anything new. Three rules hold it:
 The client draws it with the code that draws a member's picture, so it is sized before it arrives,
 covered by the sensitive-image setting, and opened full-screen when tapped.
 
-### A panel that stays in sight
+### A panel that stays in sight — [Implemented October 2026]
 
 A player is one message the bot keeps redrawing, and everything said after it
 pushes it up the chat. So a bot can mark a panel **live** (`"live": true`,
@@ -326,6 +326,10 @@ Two rules keep the bar honest:
 - **In one place at a time.** While the bar shows a panel, the history does not;
   when it stops (the bot clears the mark, or disconnects) the message is back
   where it was posted, saying whatever its last redraw said.
+- **One per bot, its newest.** A bot killed mid-song never cleared its player,
+  and it is connected again the moment it restarts, so an older live panel of
+  the same bot stays in the history. A bot should also clear its own leftovers
+  on start (`WIRE.md` §5); the music bot does.
 
 The folded line is read out of the blocks, so a bot gets it without new
 vocabulary: the first `image` as a cover, the first `fields` block's first two

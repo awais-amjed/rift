@@ -19,6 +19,7 @@ import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
 import '../../../../logic/services/chat_failure.dart';
 import '../../../../logic/services/link_preview_fetcher.dart';
+import '../../../../logic/services/live_items.dart';
 import '../../../../logic/services/mentions.dart';
 import '../../../common/chat/chat_message_list.dart';
 import '../../../common/chat/chat_reply_draft.dart';
@@ -515,6 +516,9 @@ class _ChannelChatViewState extends State<ChannelChatView>
             !identical(a.messages, b.messages) ||
             !identical(a.mentionNames, b.mentionNames) ||
             !identical(a.pollTallies, b.pollTallies) ||
+            // A panel the bar starts or stops showing leaves the history or
+            // comes back to it.
+            !identical(a.live, b.live) ||
             a.hasNewerHistory != b.hasNewerHistory ||
             a.status != b.status ||
             a.channelId != b.channelId,
@@ -548,7 +552,11 @@ class _ChannelChatViewState extends State<ChannelChatView>
           // a new one, primed afresh, rather than animating everything sent
           // since the copy was saved as if it had just arrived.
           key: ValueKey((chatState.channelId, live)),
-          messages: chatState.messages,
+          // Less the live panels the bar is showing: one place at a time.
+          messages: LiveItems.hideShown(
+            chatState.messages,
+            ChannelLiveBar.shownPanels(context, chatState.live),
+          ),
           controller: scrollController,
           attachmentLoader: cubit.attachmentLoader,
           // Passed either way: it is also what says this surface shows
