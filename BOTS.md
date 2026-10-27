@@ -317,7 +317,7 @@ pushes it up the chat. So a bot can mark a panel **live** (`"live": true`,
 box, the same blocks, folded to one line until somebody opens it. The open
 polls sit there too.
 
-Three rules keep the bar honest:
+Four rules keep the bar honest:
 
 - **Live only while the bot is connected.** The mark is the bot's own claim
   and a bot that crashed cannot take it back, so a live panel whose bot is not
@@ -330,6 +330,10 @@ Three rules keep the bar honest:
   and it is connected again the moment it restarts, so an older live panel of
   the same bot stays in the history. A bot should also clear its own leftovers
   on start (`WIRE.md` §5); the music bot does.
+- **A bot in a call plays to that call.** Its live panel is in the bar only
+  for the people in the same call, and out of the history for everyone else:
+  a player for music you cannot hear is noise. A bot in no call shows its
+  panel to everyone who can read the channel.
 
 The folded line is read out of the blocks, so a bot gets it without new
 vocabulary: the first `image` as a cover, the first `fields` block's first two

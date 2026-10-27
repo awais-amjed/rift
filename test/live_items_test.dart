@@ -217,6 +217,31 @@ void main() {
       expect(shown.map((m) => m.id), ['9', '8']);
     });
 
+    test('a player is for the people in its bot\'s call', () {
+      final shown = [panel('9'), panel('8', bot: 'other')];
+      List<String> forCall(Set<String> call) => LiveItems.forCall(
+        shown,
+        callUserIds: call,
+        voiceUserIds: {'dj', 'other'},
+      ).map((m) => m.id).toList();
+      expect(forCall({'me', 'dj'}), ['9']);
+      expect(forCall(const {}), isEmpty);
+      // Out of the call it is in neither place: the history still leaves it out.
+      final history = [panel('9'), message('7')];
+      expect(LiveItems.hideShown(history, shown).map((m) => m.id), ['7']);
+    });
+
+    test('a bot in no call shows its live panel to everyone', () {
+      expect(
+        LiveItems.forCall(
+          [panel('9', bot: 'scores')],
+          callUserIds: const {},
+          voiceUserIds: {'dj'},
+        ).map((m) => m.id),
+        ['9'],
+      );
+    });
+
     test('unknown presence shows nothing in the bar', () {
       expect(
         LiveItems.shownPanels(

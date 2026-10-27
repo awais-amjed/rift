@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../data/classes/chat_message.dart';
 import '../../../../../data/classes/poll.dart';
 import '../../../../../data/constants.dart';
+import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../../logic/services/live_items.dart';
@@ -12,7 +13,7 @@ import '../../../../responsive/shell_scope.dart';
 
 /// The open channel's [LiveBar], watching only what it draws: a keystroke, an
 /// upload tick or somebody typing leaves it alone, and a vote rebuilds it and
-/// not the history.
+/// not the history. A bot in a call shows its panel only to the people in it.
 class ChannelLiveBar extends StatelessWidget {
   /// The chat's height, of which an opened line takes at most a share.
   final double chatHeight;
@@ -45,6 +46,30 @@ class ChannelLiveBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final cubit = context.read<ChannelChatCubit>();
     final phone = context.layoutMode.isCompact;
+    // Who is in this device's call, as ids: speaking and mic changes leave it.
+    final callUserIds = context
+        .select<AppCubit, String>(
+          (app) =>
+              (app.state.participants.map((p) => p.userId).toSet().toList()
+                    ..sort())
+                  .join(','),
+        )
+        .split(',')
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    final voiceUserIds = context
+        .select<ChannelPresenceCubit, String>(
+          (presence) =>
+              (presence.state.channelPresence.values
+                      .expand((users) => users.map((u) => u.userId))
+                      .toSet()
+                      .toList()
+                    ..sort())
+                  .join(','),
+        )
+        .split(',')
+        .where((id) => id.isNotEmpty)
+        .toSet();
     return BlocSelector<
       ChannelChatCubit,
       ChannelChatState,
@@ -57,7 +82,11 @@ class ChannelLiveBar extends StatelessWidget {
         final side = phone ? K.composerSideInsetTouch : K.composerSideInset;
         return LiveBar(
           live: live,
-          panels: shownPanels(context, live),
+          panels: LiveItems.forCall(
+            shownPanels(context, live),
+            callUserIds: callUserIds,
+            voiceUserIds: voiceUserIds,
+          ),
           tallies: tallies,
           // The history's rule: a seat that cannot send cannot vote.
           onVote: ready ? cubit.vote : null,

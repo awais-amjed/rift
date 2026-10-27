@@ -80,6 +80,22 @@ class LiveItems {
     ];
   }
 
+  /// Of [shown], the panels for this reader. A bot in a call
+  /// ([voiceUserIds]) plays to that call, so its panel is only for the people
+  /// in it ([callUserIds]); a bot in no call shows to everyone. What is left
+  /// out stays out of the history too, since [hideShown] is given all of
+  /// [shown].
+  static List<ChatMessage> forCall(
+    List<ChatMessage> shown, {
+    required Set<String> callUserIds,
+    required Set<String> voiceUserIds,
+  }) => [
+    for (final message in shown)
+      if (!voiceUserIds.contains(message.authorId) ||
+          callUserIds.contains(message.authorId))
+        message,
+  ];
+
   /// [history] without the panels the bar is showing, which are drawn there
   /// instead. The same list when none of them is on it, so the history's
   /// rows are not rebuilt for a bar they have nothing to do with.
