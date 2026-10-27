@@ -295,7 +295,13 @@ class PanelBlock extends Equatable {
 class Panel extends Equatable {
   final List<PanelBlock> blocks;
 
-  const Panel({required this.blocks});
+  /// The bot says this panel is current — a player while it plays — and it
+  /// belongs in the bar above the message box (WIRE.md §5). Only the JSON
+  /// boolean counts, as the server reads it. Shown there only while the bot is
+  /// connected: a bot that crashed cannot clear it.
+  final bool live;
+
+  const Panel({required this.blocks, this.live = false});
 
   bool get isEmpty => blocks.isEmpty;
 
@@ -318,9 +324,11 @@ class Panel extends Equatable {
                 (parsed.image == null || parsed.image!.channelId == channelId))
           parsed,
     ];
-    return blocks.isEmpty ? null : Panel(blocks: blocks);
+    return blocks.isEmpty
+        ? null
+        : Panel(blocks: blocks, live: raw['live'] == true);
   }
 
   @override
-  List<Object?> get props => [blocks];
+  List<Object?> get props => [blocks, live];
 }

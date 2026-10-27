@@ -18,6 +18,32 @@ void main() {
   Panel? parse(List<Object?> blocks) =>
       Panel.tryParse({'v': 1, 'blocks': blocks});
 
+  group('a panel saying it is live', () {
+    const blocks = [
+      {'type': 'heading', 'text': 'Now playing'},
+    ];
+
+    test('live is read when true', () {
+      final panel = Panel.tryParse({'v': 1, 'live': true, 'blocks': blocks});
+      expect(panel?.live, isTrue);
+    });
+
+    test('live is false when absent, false or not a boolean', () {
+      for (final live in [null, false, 'true', 1]) {
+        final panel = Panel.tryParse({'v': 1, 'live': ?live, 'blocks': blocks});
+        expect(panel?.live, isFalse, reason: '$live');
+      }
+    });
+
+    test('live is part of a panel\'s equality', () {
+      // A redraw that only clears the mark must still reach the bar.
+      expect(
+        Panel.tryParse({'v': 1, 'live': true, 'blocks': blocks}),
+        isNot(Panel.tryParse({'v': 1, 'blocks': blocks})),
+      );
+    });
+  });
+
   group('what a bot can and cannot draw', () {
     test('an unknown block type is dropped, not drawn', () {
       // The safety property, and the reason the vocabulary is fixed. A bot

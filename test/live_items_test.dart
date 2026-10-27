@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rift/data/classes/chat_message.dart';
+import 'package:rift/data/classes/panel_block.dart';
 import 'package:rift/data/classes/poll.dart';
 import 'package:rift/logic/cubits/channel_chat/channel_chat_cubit.dart';
 import 'package:rift/logic/services/live_items.dart';
@@ -44,6 +45,56 @@ void main() {
       );
       expect(merged.map((m) => m.id), ['5', '3']);
     });
+
+    test('merge takes a live panel from the loaded page, and no other', () {
+      ChatMessage panel(String id, {required bool live}) => ChatMessage(
+        id: id,
+        authorId: 'bot',
+        authorName: 'DJ',
+        text: '',
+        sentAt: now,
+        isMine: false,
+        panel: Panel.tryParse({
+          'v': 1,
+          'live': live,
+          'blocks': [
+            {'type': 'heading', 'text': 'Now playing'},
+          ],
+        }),
+      );
+      final merged = LiveItems.merge(
+        fromServer: null,
+        loaded: [panel('2', live: true), panel('1', live: false)],
+      );
+      expect(merged.map((m) => m.id), ['2']);
+    });
+
+    test(
+      'the page\'s copy replaces the server\'s even once it is not live',
+      () {
+        Panel? blocks({required bool live}) => Panel.tryParse({
+          'v': 1,
+          'live': live,
+          'blocks': [
+            {'type': 'heading', 'text': 'Now playing'},
+          ],
+        });
+        ChatMessage panel({required bool live}) => ChatMessage(
+          id: '5',
+          authorId: 'bot',
+          authorName: 'DJ',
+          text: '',
+          sentAt: now,
+          isMine: false,
+          panel: blocks(live: live),
+        );
+        final merged = LiveItems.merge(
+          fromServer: [panel(live: true)],
+          loaded: [panel(live: false)],
+        );
+        expect(merged.single.panel?.live, isFalse);
+      },
+    );
 
     test('merge keeps one copy per id, the loaded one', () {
       final merged = LiveItems.merge(

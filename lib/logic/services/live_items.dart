@@ -9,9 +9,10 @@ import '../../data/classes/chat_message.dart';
 class LiveItems {
   const LiveItems._();
 
-  /// Could this row belong in the bar? Its time is asked later
+  /// Could this row belong in the bar? A poll's time is asked later
   /// ([openPolls]): a poll that closed is still a poll.
-  static bool _isCandidate(ChatMessage message) => message.poll != null;
+  static bool _isCandidate(ChatMessage message) =>
+      message.poll != null || (message.panel?.live ?? false);
 
   /// The server's rows and the loaded page's candidates, one copy per id —
   /// the loaded one, which a redraw or an edit reaches first — newest first.
@@ -23,9 +24,15 @@ class LiveItems {
     final byId = <String, ChatMessage>{
       for (final message in fromServer ?? const <ChatMessage>[])
         message.id: message,
-      for (final message in loaded)
-        if (_isCandidate(message)) message.id: message,
     };
+    // A row the server named is replaced by the page's copy whatever that
+    // copy now says: a panel redrawn without its mark, or a poll ended, is
+    // newer than the answer and must not be outvoted by it.
+    for (final message in loaded) {
+      if (byId.containsKey(message.id) || _isCandidate(message)) {
+        byId[message.id] = message;
+      }
+    }
     return byId.values.toList()..sort(_newestFirst);
   }
 

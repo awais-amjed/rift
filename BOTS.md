@@ -309,6 +309,30 @@ that server, so fetching from it tells nobody anything new. Three rules hold it:
 The client draws it with the code that draws a member's picture, so it is sized before it arrives,
 covered by the sensitive-image setting, and opened full-screen when tapped.
 
+### A panel that stays in sight
+
+A player is one message the bot keeps redrawing, and everything said after it
+pushes it up the chat. So a bot can mark a panel **live** (`"live": true`,
+`WIRE.md` §5) and the app draws it in a bar on top of the channel's message
+box, the same blocks, folded to one line until somebody opens it. The open
+polls sit there too.
+
+Two rules keep the bar honest:
+
+- **Live only while the bot is connected.** The mark is the bot's own claim
+  and a bot that crashed cannot take it back, so a live panel whose bot is not
+  in presence is drawn in the history as an ordinary panel. A player for a bot
+  that is not running would be a lie.
+- **In one place at a time.** While the bar shows a panel, the history does not;
+  when it stops (the bot clears the mark, or disconnects) the message is back
+  where it was posted, saying whatever its last redraw said.
+
+The folded line is read out of the blocks, so a bot gets it without new
+vocabulary: the first `image` as a cover, the first `fields` block's first two
+values as its two lines (else the first `heading`), the first `actions`
+block's buttons that are not `danger` (at most two), and the first `progress`
+as a thin line along its edge.
+
 ### The round trip
 
 A panel is a message the bot keeps editing.
