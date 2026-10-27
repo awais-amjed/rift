@@ -3,7 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
+import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../logic/cubits/server_reach/server_reach_cubit.dart';
+import '../../../../../logic/services/member_roster.dart';
 import '../../../../common/loading_dots.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
@@ -21,8 +23,19 @@ class SwitcherServerLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    final online = context.select<ChannelPresenceCubit, int?>(
-      (c) => c.state.onlineKnown ? c.state.onlineUserIds.length : null,
+    final onlineIds = context.select<ChannelPresenceCubit, Set<String>?>(
+      (c) => c.state.onlineKnown ? c.state.onlineUserIds : null,
+    );
+    // The people the member list puts under Online, not the presence set,
+    // which holds the bots and anybody not named yet as well.
+    final online = context.select<ServerMembersCubit, int?>(
+      (c) => onlineIds == null || !c.state.loaded
+          ? null
+          : MemberRoster.onlineCount(
+              known: c.state.known.values,
+              people: c.state.people.members,
+              onlineIds: onlineIds,
+            ),
     );
     final reachable = context.select<ServerReachCubit, bool>(
       (c) => c.state.unreachableName == null,
@@ -35,7 +48,7 @@ class SwitcherServerLine extends StatelessWidget {
           size: K.iconTiny,
           color: context.theme.statusInk(CustomColors.success),
         ),
-        // Not "0 online" while presence has yet to answer.
+        // Not "0 online" while presence or the roster has yet to answer.
         if (online == null) ...[
           // Out of reach, there is no count to wait for.
           if (reachable) LoadingDots(color: theme.textQuaternary, dotSize: 3),

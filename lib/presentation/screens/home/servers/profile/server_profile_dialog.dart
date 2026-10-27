@@ -11,6 +11,7 @@ import '../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart
 import '../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
+import '../../../../../logic/services/member_roster.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/modal_columns.dart';
 import '../../../../common/server_icon.dart';
@@ -146,10 +147,17 @@ class _ServerProfileDialogState extends State<ServerProfileDialog> {
     final joined = members.byId[server.user?.id]?.joinedAt;
     return [
       ProfileFact(label: 'People', value: number.format(members.peopleCount)),
-      if (presence.onlineKnown)
+      // People, as in the member list: the bots have their own line.
+      if (presence.onlineKnown && members.loaded)
         ProfileFact(
           label: 'Online',
-          value: number.format(presence.onlineUserIds.length),
+          value: number.format(
+            MemberRoster.onlineCount(
+              known: members.known.values,
+              people: members.people.members,
+              onlineIds: presence.onlineUserIds,
+            ),
+          ),
         ),
       if (members.bots.isNotEmpty)
         ProfileFact(label: 'Bots', value: number.format(members.bots.length)),

@@ -48,13 +48,9 @@ class MemberRoster {
     required List<ServerMember> people,
     required Set<String> onlineIds,
   }) {
-    final onlineById = <String, ServerMember>{};
+    final onlineById = _online(known, people, onlineIds);
     final offline = <ServerMember>[];
 
-    for (final member in [...known, ...people]) {
-      if (member.isBanned || member.isBot) continue;
-      if (onlineIds.contains(member.id)) onlineById[member.id] = member;
-    }
     // Offline is drawn from the paged list alone. Somebody resolved by id but
     // never paged in is not a row anybody scrolled to — putting them in would
     // wedge a name into the middle of an alphabet at whatever moment they
@@ -76,6 +72,31 @@ class MemberRoster {
 
     return (bots: visibleBots, online: online, offline: offline);
   }
+
+  /// How many people [split] puts in Online, without building the groups —
+  /// what "N online" beside a server's name says, so that number and the list
+  /// under it are the same count.
+  ///
+  /// Not the length of the presence set: that holds the bots too, and anybody
+  /// we cannot name, so a phone's header said five online over a list of three
+  /// people and a bot (Oct 2026).
+  static int onlineCount({
+    required Iterable<ServerMember> known,
+    required List<ServerMember> people,
+    required Set<String> onlineIds,
+  }) => _online(known, people, onlineIds).length;
+
+  /// The people in [onlineIds] we can name, by id: once each, whichever list
+  /// they came from, with bots and banned members left out.
+  static Map<String, ServerMember> _online(
+    Iterable<ServerMember> known,
+    List<ServerMember> people,
+    Set<String> onlineIds,
+  ) => {
+    for (final member in [...known, ...people])
+      if (!member.isBanned && !member.isBot && onlineIds.contains(member.id))
+        member.id: member,
+  };
 
   static int _byDisplayName(ServerMember a, ServerMember b) =>
       a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase());

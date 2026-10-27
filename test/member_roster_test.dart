@@ -93,6 +93,37 @@ void main() {
     });
   });
 
+  group('MemberRoster.onlineCount', () {
+    test('counts the people Online lists, not every id in presence', () {
+      final members = [
+        member('1', 'Ana'),
+        member('2', 'Bo'),
+        member('3', 'Cy', isBanned: true),
+        member('4', 'Riff', isBot: true),
+      ];
+      // A bot, a banned member and an id nobody can name are all online.
+      const onlineIds = {'1', '2', '3', '4', 'ghost'};
+      final count = MemberRoster.onlineCount(
+        known: members,
+        people: [
+          for (final m in members)
+            if (!m.isBot) m,
+        ],
+        onlineIds: onlineIds,
+      );
+      expect(count, 2);
+      expect(count, split(members, onlineIds).online.length);
+    });
+
+    test('counts somebody in both lists once', () {
+      final ana = member('1', 'Ana');
+      expect(
+        MemberRoster.onlineCount(known: [ana], people: [ana], onlineIds: {'1'}),
+        1,
+      );
+    });
+  });
+
   group('bots', () {
     test('are their own group, not sorted among the people', () {
       // BOTS.md §9: the separation is structural because the difference is —
