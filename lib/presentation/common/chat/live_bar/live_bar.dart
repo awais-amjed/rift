@@ -75,6 +75,10 @@ class _LiveBarState extends State<LiveBar> {
   /// The open line, or null with all of them folded.
   String? _open;
 
+  /// The page the bar is on. Escape is the bar's only while that page is on
+  /// top: a dialog over it closes on Escape, as it always has.
+  ModalRoute<Object?>? _route;
+
   /// Wakes the bar when the next poll closes, so it leaves with nothing else
   /// having changed.
   Timer? _closeTimer;
@@ -93,6 +97,12 @@ class _LiveBarState extends State<LiveBar> {
     // to focus died after the first click anywhere.
     HardwareKeyboard.instance.addHandler(_onKey);
     _armCloseTimer();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _route = ModalRoute.of(context);
   }
 
   @override
@@ -125,6 +135,7 @@ class _LiveBarState extends State<LiveBar> {
 
   bool _onKey(KeyEvent event) {
     if (_open == null ||
+        !(_route?.isCurrent ?? true) ||
         event is! KeyDownEvent ||
         event.logicalKey != LogicalKeyboardKey.escape) {
       return false;

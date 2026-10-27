@@ -137,6 +137,23 @@ void main() {
     expect(find.byType(MessagePollCard), findsNothing);
   });
 
+  testWidgets('Escape in a dialog above closes the dialog, not the bar', (
+    tester,
+  ) async {
+    await pump(tester, live: three);
+    await tester.tap(find.text('Which map tonight?'));
+    await tester.pumpAndSettle();
+    showDialog<void>(
+      context: tester.element(find.byType(LiveBar)),
+      builder: (_) => const AlertDialog(content: Text('A dialog')),
+    );
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.text('A dialog'), findsNothing);
+    expect(find.byType(MessagePollCard), findsNWidgets(3));
+  });
+
   testWidgets('a vote does not fold it', (tester) async {
     final votes = <(String, int)>[];
     await pump(tester, live: three, onVote: (id, o) => votes.add((id, o)));
