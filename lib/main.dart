@@ -109,7 +109,19 @@ class _MyAppState extends State<MyApp>
     WindowFocusService.instance.setFocused(
       lifecycle == AppLifecycleState.resumed,
     );
+    // Back from being put away, where a phone cuts the network: catch up now
+    // rather than at the next retry (ServerRealtime.appReturned).
+    if (lifecycle == AppLifecycleState.paused ||
+        lifecycle == AppLifecycleState.hidden) {
+      _away = true;
+    } else if (lifecycle == AppLifecycleState.resumed && _away) {
+      _away = false;
+      widget.session.realtime.appReturned();
+    }
   }
+
+  /// Whether the app has been hidden or paused since it was last in front.
+  bool _away = false;
 
   @override
   void onWindowFocus() => WindowFocusService.instance.setFocused(true);

@@ -483,8 +483,63 @@ class ServerRealtime {
     } catch (_) {}
   }
 
+  /// How long a socket has to answer [appReturned] before it is taken for
+  /// dead. A live one answers a heartbeat in well under a second.
+  static const checkWait = Duration(seconds: 5);
+
+  /// Rings when the app comes back to the front after being put away
+  /// ([appReturned]), for a holder with a retry waiting out its backoff.
+  Stream<void> get returned => _returned.stream;
+  final _returned = StreamController<void>.broadcast();
+
+  /// The app is in front again after being put away: catch up now, not at
+  /// whatever retry the time away had backed off to.
+  ///
+  /// A phone cuts a background app's network within seconds (Android 16
+  /// blocks it about 7 s after Rift leaves the screen unless a call holds it
+  /// there; a Galaxy A56, Oct 27 2026). Everything that talks to a server
+  /// fails meanwhile and backs off: a socket to a retry every 10 s, presence
+  /// to one every 30 s ([returned]), still showing who it last saw. A phone
+  /// came back after half a day showing three online where a desktop showed
+  /// ten, until the next retry.
+  ///
+  /// A socket that is down reconnects within a second. One that looks open
+  /// may have died without a word while the network was cut, which its own
+  /// heartbeat notices only 25 to 50 seconds later, so it is asked for a
+  /// beat and reconnected if none comes within [checkWait]. Reconnecting
+  /// rejoins every topic, and the doorbells catch up from there
+  /// ([RealtimeLease.onReopen]).
+  void appReturned() {
+    for (final connection in _connections.values) {
+      final socket = connection.client.realtime;
+      if (socket.connState == SocketStates.closed) {
+        socket.reconnectTimer
+          ..reset()
+          ..scheduleTimeout();
+        continue;
+      }
+      // Connecting already, or closed by us.
+      if (!socket.isConnected) continue;
+      // A beat of its own, not the timeout an unanswered one would trigger.
+      socket.pendingHeartbeatRef = null;
+      // ignore: invalid_use_of_internal_member
+      unawaited(socket.sendHeartbeat());
+      final probe = socket.pendingHeartbeatRef;
+      if (probe == null) continue;
+      Timer(checkWait, () {
+        if (!socket.isConnected || socket.pendingHeartbeatRef != probe) return;
+        // Still unanswered: the client's own heartbeat timeout closes the
+        // socket and reconnects it.
+        // ignore: invalid_use_of_internal_member
+        unawaited(socket.sendHeartbeat());
+      });
+    }
+    _returned.add(null);
+  }
+
   Future<void> dispose() async {
     await _serversSub?.cancel();
+    await _returned.close();
     for (final id in _connections.keys.toList()) {
       await _close(id);
     }

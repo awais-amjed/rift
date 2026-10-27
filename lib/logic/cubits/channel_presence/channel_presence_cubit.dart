@@ -70,6 +70,7 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
 
   StreamSubscription<void>? _serverSub;
   StreamSubscription<LiveKitState>? _lkSub;
+  StreamSubscription<void>? _returnSub;
 
   /// The presence topic on the server's shared connection. [_channel] is its
   /// join, for tracking and reading who is there — read through the lease
@@ -130,6 +131,7 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
       _onOwnChannel();
       _onRoomPeople();
     });
+    _returnSub = session.realtime.returned.listen((_) => _rebuildNow());
     // Bootstrap with current state
     _onServerChanged();
   }
@@ -376,6 +378,7 @@ class ChannelPresenceCubit extends Cubit<ChannelPresenceState>
   Future<void> close() async {
     await _serverSub?.cancel();
     await _lkSub?.cancel();
+    await _returnSub?.cancel();
     _rebuildTimer?.cancel();
     // Held by a call that has just ended, the context can close before the
     // call's own "nowhere" reaches us, and everybody here would see us in

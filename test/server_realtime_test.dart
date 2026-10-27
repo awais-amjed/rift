@@ -69,6 +69,25 @@ class _Harness {
 
 void main() {
   // The measured problem: nine features, nine sockets to the same server.
+  // A phone cuts a background app's network, and presence backed off to a
+  // retry every 30 s meanwhile: coming back has to say so.
+  test('coming back to the front rings the holders once', () async {
+    final a = _server('a');
+    final h = _Harness([a]);
+    h.realtime.join(a, 'presence:a');
+    await h.settle();
+
+    var rung = 0;
+    final sub = h.realtime.returned.listen((_) => rung++);
+    // The socket here was refused, so this is the down one's path.
+    h.realtime.appReturned();
+    await h.settle();
+
+    expect(rung, 1);
+    await sub.cancel();
+    await h.close();
+  });
+
   test('everything on one server shares one connection', () async {
     final a = _server('a');
     final h = _Harness([a]);

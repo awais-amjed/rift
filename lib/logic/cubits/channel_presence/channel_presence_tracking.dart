@@ -125,6 +125,19 @@ mixin _PresenceTrackingMixin on Cubit<ChannelPresenceState> {
     _scheduleRebuild();
   }
 
+  /// Rebuilds now if a rebuild is waiting out its backoff: the app is back
+  /// in front, where a phone gives it its network again
+  /// ([ServerRealtime.returned]). Until then the members shown are the ones
+  /// seen before the phone cut it off, and the wait had backed off to 30 s.
+  void _rebuildNow() {
+    final timer = _rebuildTimer;
+    if (isClosed || timer == null) return;
+    timer.cancel();
+    _rebuildTimer = null;
+    _rebuildAttempt = 0;
+    unawaited(_rebuild());
+  }
+
   void _scheduleRebuild() {
     if (isClosed || _rebuildTimer != null) return;
     final delay = PresenceRation.rebuildDelay(_rebuildAttempt);
