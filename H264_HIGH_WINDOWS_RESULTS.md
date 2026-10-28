@@ -94,11 +94,63 @@ privacy-mode identity joined to the server as "Gracie Test", in the same call.
 Stopping Rift A's share logged the same `failed to negotiate the publisher …
 closed` as the live tests, and nothing else.
 
+## 4. What High costs, against Baseline
+
+The Oct 16 bench (`bench_test.rs`): `bench_share` and `bench_view` in two
+processes, so the viewer's decoding is not billed to the share. A whole
+1920x1080 screen at 60 fps, 20 Mbps, against a local `livekit-server --dev`.
+A local-only switch, not committed, opened the encoder and published the
+track in Baseline for the comparison. Each run was 60 s after warming up.
+"clip" is the bench clip and "noise" `testsrc2` with noise, which fills the
+rate. A sampler read each process's CPU time and the GPU engines' load from
+Windows' counters about every 2 s. CPU is a share of one core; this laptop
+has 20.
+
+Every run went out in the profile asked for, and every viewer decoded 59 to
+60 fps with nothing dropped and no freezes.
+
+**Encoding.** High costs the GPU next to nothing, and the sharer's CPU does
+not change; it is mostly the capture.
+
+| | Baseline | High |
+|---|---|---|
+| NVENC's engine | 41.9%, 42.1% | 43.6%, 43.6% |
+| NVENC, ms a picture | 11.2 | 11.5 |
+| Quick Sync's engine (Windows names it "VideoDecode") | 12.1% | 12.5% |
+| Intel's 3D engine, Quick Sync runs | 50.5%, 52.5% | 52.8%, 52.2% |
+| Quick Sync, ms a picture | 6.9 to 7.3 | 7.3 |
+| The sharer's CPU | 24 to 31% | 23 to 30% |
+
+The Intel figures include `ffplay` showing the source on the same GPU (about
+35% 3D and 3.6% "VideoDecode" in the NVENC runs).
+
+**Decoding.** The bench viewer decodes in software (`FFmpeg`, as libwebrtc
+reports it), and High costs it about a third more CPU, half as much again
+when the rate is full. CABAC, which High uses and Baseline does not, takes
+more work a bit to unpack.
+
+| Run | Baseline | High | Sent, Baseline / High |
+|---|---|---|---|
+| NVENC, clip | 23.1%, 23.0% | 30.7%, 32.4% | 14.0, 14.5 / 14.6, 14.8 Mbps |
+| Quick Sync, clip | 23.7%, 27.3% | 31.7%, 36.3% | 16.9, 16.9 / 15.2, 15.2 Mbps |
+| NVENC, noise | 31.6% | 47.9% | 18.3 / 18.3 Mbps |
+| Quick Sync, noise | 30.8% | 43.9% | 18.1 / 18.3 Mbps |
+
+**The rate.** Quick Sync in High sent 10% less on the clip. NVENC sent the
+same in both, likely because it reaches the QP floor (18) on this clip
+before the rate; the picture's quality was not measured.
+
+So High is free to send and costs a watcher's CPU. On this machine it
+played smoothly either way. Not measured: the app's viewer, which decodes
+through Flutter's libwebrtc, not the Rust SDK's, and a slower viewer. Scripts
+and logs: `%USERPROFILE%\rift-gpu-test\high\perf\`.
+
 ## Not checked
 
 - AMF running, which needs the AMD PC.
 - A phone watching a Windows share.
 - How many pictures a second the watching Rift drew, counted by its presents
   rather than read from its stats.
-- A share of the whole screen, a game, or below 1080p.
-- The rate High saves, measured only offline (Oct 19).
+- A share of the whole screen, a game, or below 1080p, in the app.
+- The rate High saves at the same quality, measured only offline (Oct 19).
+- High's decoding cost in the app's viewer, or on a slower machine.
