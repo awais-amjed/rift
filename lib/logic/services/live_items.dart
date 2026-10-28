@@ -96,16 +96,20 @@ class LiveItems {
         message,
   ];
 
-  /// Of a channel's [rows], the live panels of the bots in this device's call
-  /// ([callUserIds]): a player follows the people in its call into every
-  /// channel they read, not only the one it was posted in.
+  /// Of a channel's [rows], the live panels of the bots ([botIds]) in this
+  /// device's call ([callUserIds]): a player follows the people in its call
+  /// into every channel they read, not only the one it was posted in. Only a
+  /// bot's: a server before 024 let a member write blocks onto a plain message
+  /// of their own, and one naming the call reached everybody in it.
   static List<ChatMessage> callPanels(
     List<ChatMessage> rows, {
     required Set<String> callUserIds,
+    required Set<String> botIds,
   }) => [
     for (final message in rows)
       if ((message.panel?.live ?? false) &&
-          callUserIds.contains(message.authorId))
+          callUserIds.contains(message.authorId) &&
+          botIds.contains(message.authorId))
         message,
   ];
 

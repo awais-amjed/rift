@@ -246,19 +246,20 @@ void main() {
       final here = [panel('5', bot: 'scores')];
       // The call's player, read from the channel it was posted in.
       final fromCall = [panel('9')];
-      expect(
-        LiveItems.withCallPanels(here, fromCall).map((m) => m.id),
-        ['9', '5'],
-      );
+      expect(LiveItems.withCallPanels(here, fromCall).map((m) => m.id), [
+        '9',
+        '5',
+      ]);
     });
 
     test('a call\'s player in the open channel is in the bar once', () {
       // Here it is the page's copy, which a redraw reaches first.
       final here = [panel('9', live: true)];
       expect(
-        LiveItems.withCallPanels(here, [panel('9'), panel('7')]).map(
-          (m) => m.id,
-        ),
+        LiveItems.withCallPanels(here, [
+          panel('9'),
+          panel('7'),
+        ]).map((m) => m.id),
         ['9'],
       );
     });
@@ -271,8 +272,26 @@ void main() {
         message('6', closesIn: const Duration(hours: 1)),
       ];
       expect(
-        LiveItems.callPanels(rows, callUserIds: {'me', 'dj'}).map((m) => m.id),
+        LiveItems.callPanels(
+          rows,
+          callUserIds: {'me', 'dj'},
+          botIds: {'dj', 'other'},
+        ).map((m) => m.id),
         ['9'],
+      );
+    });
+
+    test('a call\'s player is a bot\'s: a member in the call draws none', () {
+      // A server before 024 let a member write blocks onto their own plain
+      // message, and a call named there reached everybody in the call.
+      final rows = [panel('9', bot: 'me'), panel('8')];
+      expect(
+        LiveItems.callPanels(
+          rows,
+          callUserIds: {'me', 'dj'},
+          botIds: {'dj'},
+        ).map((m) => m.id),
+        ['8'],
       );
     });
 

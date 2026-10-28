@@ -52,10 +52,14 @@ class CallPanelsCubit extends Cubit<CallPanelsState> {
        super(const CallPanelsState());
 
   StreamSubscription<CallSeen>? _callSub;
+  StreamSubscription<Set<String>>? _botsSub;
   StreamSubscription<void>? _serverSub;
 
   /// Who is in this device's call here; empty when there is none.
   Set<String> _callIds = const {};
+
+  /// The server's bots, the only senders whose players are held.
+  Set<String> _botIds = const {};
 
   /// The call's voice channel, null in a DM call or none.
   String? _callChannel;
@@ -80,6 +84,16 @@ class CallPanelsCubit extends Cubit<CallPanelsState> {
   void watchCall(Stream<CallSeen> calls, {CallSeen? initial}) {
     if (initial != null) _onCall(initial);
     _callSub = calls.listen(_onCall);
+  }
+
+  /// Follow [bots], the server's bots by id, starting from [initial].
+  void watchBots(Stream<Set<String>> bots, {Set<String> initial = const {}}) {
+    _botIds = initial;
+    _botsSub = bots.listen((ids) {
+      if (isClosed || setEquals(ids, _botIds)) return;
+      _botIds = ids;
+      if (_callIds.isNotEmpty) _publish();
+    });
   }
 
   void _onCall(CallSeen call) {
@@ -249,13 +263,18 @@ class CallPanelsCubit extends Cubit<CallPanelsState> {
     }
 
     for (final MapEntry(key: channelId, value: rows) in _byChannel.entries) {
-      for (final message in LiveItems.callPanels(rows, callUserIds: _callIds)) {
+      for (final message in LiveItems.callPanels(
+        rows,
+        callUserIds: _callIds,
+        botIds: _botIds,
+      )) {
         add(message, channelId);
       }
     }
     for (final message in LiveItems.callPanels(
       _fromCall,
       callUserIds: _callIds,
+      botIds: _botIds,
     )) {
       final channelId = _fromCallChannel[message.id];
       if (channelId != null) add(message, channelId);
@@ -330,6 +349,7 @@ class CallPanelsCubit extends Cubit<CallPanelsState> {
   @override
   Future<void> close() async {
     await _callSub?.cancel();
+    await _botsSub?.cancel();
     await _serverSub?.cancel();
     _releaseFeeds();
     return super.close();

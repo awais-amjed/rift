@@ -108,7 +108,11 @@ class ServerContext {
             },
           )
         : (channelId: null, userIds: const {});
+    Set<String> botsOf(ServerMembersState state) => {
+      for (final bot in state.bots) bot.id,
+    };
     final callPanels = CallPanelsCubit(session: session, serverId: serverId)
+      ..watchBots(members.stream.map(botsOf), initial: botsOf(members.state))
       ..watchCall(
         livekitCubit.stream.map(inCall),
         initial: inCall(livekitCubit.state),
