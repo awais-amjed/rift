@@ -337,6 +337,16 @@ Four rules keep the bar honest:
   goes with them, so the player does too, and a press from there is signed
   for the panel's own channel. A bot in no call shows its panel to everyone
   who can read the channel it is in.
+- **The player is the call's, not the channel's.** A bot that names its
+  call (`"call"`, `WIRE.md` §5; `PanelOptions.call` in both SDKs) lets
+  everyone in that call see and press its player, a `/play` typed in a private
+  text channel included: otherwise the others in the call would hear the
+  music with no way to skip or stop it, and only whoever started it could.
+  The server opens that one row and nothing else of the channel, to whoever
+  can see the voice channel; a private call's player stays with the people who
+  can join it. Who is actually in the call is LiveKit's to know, so the app
+  shows it only to them and the bot refuses a press from anybody else. A bot
+  that does not name its call keeps its player to the channel's readers.
 
 The folded line is read out of the blocks, so a bot gets it without new
 vocabulary: the first `image` as a cover, the first `fields` block's first two

@@ -135,6 +135,19 @@ class ChannelMessagesApi {
         ),
       );
 
+  /// The players of the bots in the voice call [callId], wherever each was
+  /// posted. Answers `{messages: […]}`, each row with its own `channel_id`.
+  Future<APIResponse> listCallLiveMessages({required String callId}) =>
+      _target.call(
+        (server, token) => _repository.listCallLiveMessages(
+          server.supabaseUrl,
+          anonKey: server.supabaseKey ?? '',
+          userId: server.user?.id ?? '',
+          callId: callId,
+          bearerToken: token,
+        ),
+      );
+
   /// Re-read one channel message after a change doorbell named it. Answers
   /// `{message: …}`, or `{message: null}` when the row has been deleted.
   Future<APIResponse> getChatMessage({

@@ -149,6 +149,31 @@ mixin _ChatReadApiMixin {
     });
   }
 
+  /// The live players of the bots in the voice call [callId], from whichever
+  /// text channel each was posted in — one the caller cannot read included,
+  /// since the player is the call's. A server from before the read fails this
+  /// like any other call.
+  Future<APIResponse> listCallLiveMessages(
+    String supabaseUrl, {
+    required String anonKey,
+    required String userId,
+    String? bearerToken,
+    required String callId,
+  }) {
+    return ServerDb.run(() async {
+      final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      final rows = await db
+          .rpc('call_live_messages', params: {'p_call': callId})
+          .select(_messageColumns);
+      return {
+        'messages': [
+          for (final r in (rows as List).cast<Map<String, dynamic>>())
+            _flatten(r, userId: userId, reactionsKey: 'message_reactions'),
+        ],
+      };
+    });
+  }
+
   /// Page through the DM conversation with [peerId].
   Future<APIResponse> listDms(
     String supabaseUrl, {

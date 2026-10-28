@@ -99,12 +99,15 @@ class ServerContext {
     );
     // The players of the bots in this device's call, for every channel's bar
     // — the call's own server only.
-    Set<String> inCall(LiveKitState state) => state.callServerId == serverId
-        ? {
-            for (final participant in state.participants)
-              ParticipantIdentity.userIdOf(participant.identity),
-          }
-        : const {};
+    CallSeen inCall(LiveKitState state) => state.callServerId == serverId
+        ? (
+            channelId: state.currentChannelId,
+            userIds: {
+              for (final participant in state.participants)
+                ParticipantIdentity.userIdOf(participant.identity),
+            },
+          )
+        : (channelId: null, userIds: const {});
     final callPanels = CallPanelsCubit(session: session, serverId: serverId)
       ..watchCall(
         livekitCubit.stream.map(inCall),

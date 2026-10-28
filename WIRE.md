@@ -167,6 +167,15 @@ where it was posted, as that redraw says. A server finds them with
 `channel_live_messages`, so a live panel is in the bar however far up the chat
 it was posted. The blocks are the same eight; nothing else changes.
 
+A live panel may also name the voice channel it plays to, as `"call"` with
+the channel's id (`{"v":1,"live":true,"call":"<voice channel id>","blocks":[…]}`).
+It is then the call's: anybody who can see that voice channel may read that
+row and press it, even from outside the channel it was posted in, and clients
+find it with `call_live_messages`. The server drops `call` from a panel that
+is not live, is for one member, or names anything but a voice channel on the
+same server that the bot could join. A bot names it on every redraw while it
+plays, as it does `live`; the last redraw drops both.
+
 Clients show **one live panel per bot**, its newest. A bot that was killed
 never cleared its last one, so on start it should redraw any panel it left
 live without the mark — it can read its own rows, `sender_id` itself and

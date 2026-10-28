@@ -264,6 +264,13 @@ encrypted whatever the server says (`Channel.isEncrypted`), since whoever runs t
 database can skip its own rule, and the system message with it.
 Bots see what they saw before: plaintext rows addressed to them, nothing else.
 
+One bot row reaches past its channel. A bot's player that names its voice call
+(`WIRE.md` §5) is readable, and pressable, by whoever can see that call, even
+from a private text channel they cannot read: the music is the call's, and
+everyone hearing it must be able to skip or stop it. It is the bot's own
+plaintext panel and nothing else — not the command that started it, not the
+channel's name or its other rows (`BOTS.md`, *A panel that stays in sight*).
+
 ### DM topology — two tiers
 
 Same Design-1 crypto in both; different hosts, different policies. Central is a
