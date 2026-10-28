@@ -39,12 +39,28 @@ struct ToSource(NativeVideoSource);
 /// of ([`h264::idr_readable_when_encrypted`]).
 static UNREADABLE_KEYFRAMES: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 
+/// The `profile_idc` of the last SPS the GPU encoder sent: 100 is High, 66
+/// baseline.
+static SENT_PROFILE: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
+
 impl EncodedSink for ToSource {
     fn deliver(&mut self, frame: Encoded<'_>) {
         let rewritten = h264::for_encryption(frame.payload);
         let payload = rewritten.as_deref().unwrap_or(frame.payload);
         if frame.keyframe && !h264::idr_readable_when_encrypted(payload) {
             UNREADABLE_KEYFRAMES.fetch_add(1, Ordering::Relaxed);
+        }
+        // The byte after the SPS's NAL header, past its start code.
+        if let Some(&profile) = h264::nal_units(payload)
+            .into_iter()
+            .find(|&(kind, _)| kind == 7)
+            .and_then(|(_, sps)| {
+                sps.iter()
+                    .position(|&b| b == 1)
+                    .and_then(|at| sps.get(at + 2))
+            })
+        {
+            SENT_PROFILE.store(profile, Ordering::Relaxed);
         }
         self.0.capture_encoded_frame(&EncodedVideoFrame {
             codec: EncodedVideoCodec::H264,
@@ -90,10 +106,10 @@ fn options(key: Option<Vec<u8>>) -> RoomOptions {
     options
 }
 
-/// Frames a viewer decodes from 12 s of a picture: the GPU encoder's `gpu`
-/// codec, or libwebrtc's own H264 encoder when that is `None`.
+/// Frames a viewer decodes from 12 s of a picture: the GPU encoder's H264,
+/// in High when `gpu` says so, or libwebrtc's own when that is `None`.
 async fn decoded_frames(
-    gpu: Option<GpuCodec>,
+    gpu: Option<bool>,
     sharer_key: Option<Vec<u8>>,
     viewer_key: Option<Vec<u8>>,
 ) -> Decoded {
@@ -129,15 +145,16 @@ async fn decoded_frames(
     } else {
         NativeVideoSource::new(resolution, false)
     };
-    let encoder = gpu.map(|codec| {
+    let encoder = gpu.map(|h264_high| {
         GpuEncoder::open(
             EncoderSettings {
-                codec,
+                codec: GpuCodec::H264,
                 width: WIDTH,
                 height: HEIGHT,
                 fps: FPS,
                 max_bitrate_bps: 4_000_000,
                 start_bitrate_bps: 4_000_000,
+                h264_high,
             },
             Box::new(ToSource(source.clone())),
         )
@@ -148,7 +165,7 @@ async fn decoded_frames(
     sharer
         .local_participant()
         .publish_track(
-            LocalTrack::Video(track),
+            LocalTrack::Video(track.clone()),
             TrackPublishOptions {
                 source: TrackSource::Screenshare,
                 video_codec: VideoCodec::H264,
@@ -157,6 +174,7 @@ async fn decoded_frames(
                 } else {
                     VideoEncoderBackend::Auto
                 },
+                h264_high: gpu == Some(true),
                 simulcast: false,
                 video_encoding: Some(VideoEncoding {
                     max_bitrate: 4_000_000,
@@ -222,6 +240,9 @@ async fn decoded_frames(
         }
     })
     .await;
+    // The H264 each side agreed to with the server, as its fmtp line says.
+    frames.sent_fmtp = fmtp_of(track.get_stats().await.unwrap_or_default());
+    frames.fmtp = fmtp_of(remote.get_stats().await.unwrap_or_default());
     let _ = feeding.await;
     sharer.close().await.unwrap();
     viewer.close().await.unwrap();
@@ -236,6 +257,28 @@ async fn decoded_frames(
 struct Decoded {
     any: usize,
     recognisable: usize,
+    /// The fmtp lines of the codec the viewer and the sharer negotiated.
+    fmtp: String,
+    sent_fmtp: String,
+}
+
+/// The fmtp line of the codec a track's video stream uses.
+fn fmtp_of(stats: Vec<livekit::webrtc::stats::RtcStats>) -> String {
+    use livekit::webrtc::stats::RtcStats;
+    let codec_id = stats.iter().find_map(|s| match s {
+        RtcStats::InboundRtp(i) if i.stream.kind == "video" => Some(i.stream.codec_id.clone()),
+        RtcStats::OutboundRtp(o) if o.stream.kind == "video" => Some(o.stream.codec_id.clone()),
+        _ => None,
+    });
+    stats
+        .into_iter()
+        .find_map(|s| match s {
+            RtcStats::Codec(c) if Some(&c.rtc.id) == codec_id.as_ref() => {
+                Some(c.codec.sdp_fmtp_line)
+            }
+            _ => None,
+        })
+        .unwrap_or_default()
 }
 
 /// Whether a picture shows the sent pattern: luma rising by one every four
@@ -269,7 +312,11 @@ async fn live_gpu_h264_is_seen_with_the_key_and_by_nobody_else() {
         .filter_level(log::LevelFilter::Info)
         .try_init();
     let only = std::env::var("GPU_LIVE_ONLY").ok();
-    for (path, gpu) in [("gpu", Some(GpuCodec::H264)), ("software", None)] {
+    for (path, gpu) in [
+        ("gpu", Some(true)),
+        ("gpu baseline", Some(false)),
+        ("software", None),
+    ] {
         if only.as_deref().is_some_and(|o| o != path) {
             continue;
         }
@@ -279,7 +326,7 @@ async fn live_gpu_h264_is_seen_with_the_key_and_by_nobody_else() {
 
 /// For one way of encoding: a viewer with the call's key sees the picture,
 /// and one without it or with the wrong key does not.
-async fn seen_with_the_key_and_by_nobody_else(path: &str, gpu: Option<GpuCodec>) {
+async fn seen_with_the_key_and_by_nobody_else(path: &str, gpu: Option<bool>) {
     {
         let key = Some(shared_key());
         let plain = decoded_frames(gpu, None, None).await;
@@ -302,6 +349,23 @@ async fn seen_with_the_key_and_by_nobody_else(path: &str, gpu: Option<GpuCodec>)
             0,
             "{path}: keyframes encrypted viewers cannot find the parameter sets of"
         );
+        if let Some(high) = gpu {
+            let (profile, fmtp) = if high {
+                (100, "profile-level-id=6400")
+            } else {
+                (66, "profile-level-id=42e01f")
+            };
+            assert_eq!(
+                SENT_PROFILE.load(Ordering::Relaxed),
+                profile,
+                "{path}: the SPS"
+            );
+            // Only the sharer's: the server forwards High to a viewer whose
+            // connection it did not offer under constrained baseline's name.
+            for decoded in [&plain, &with_key] {
+                assert!(decoded.sent_fmtp.contains(fmtp), "{path}: {decoded:?}");
+            }
+        }
     }
 }
 

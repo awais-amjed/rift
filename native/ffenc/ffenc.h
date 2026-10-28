@@ -26,7 +26,7 @@ extern "C" {
 
 // Bumped whenever a function or struct below changes, so the crate refuses a
 // library from another build instead of calling it wrongly.
-#define RIFT_FFENC_ABI 3
+#define RIFT_FFENC_ABI 4
 
 typedef struct RiftFfenc RiftFfenc;
 
@@ -52,6 +52,8 @@ typedef struct RiftFfencConfig {
   // NVENC's "delay": a picture comes out once this many are encoded or
   // waiting, so 0 and 1 hold none and 2 holds one. Other encoders ignore it.
   int32_t delay_frames;
+  // 1 for H264's High profile, 0 for constrained baseline.
+  int32_t high;
 } RiftFfencConfig;
 
 typedef struct RiftFfencPacket {

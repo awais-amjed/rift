@@ -676,7 +676,7 @@ impl Video {
             *self.gpu.lock().unwrap() = None;
         }
         self.slot.attach(Feed::Raw(source.clone()), target);
-        let sid = publish_video_track(&self.participant(), source, &settings, false).await?;
+        let sid = publish_video_track(&self.participant(), source, &settings, None).await?;
         *track = Some(sid);
         announce_picture(&self.participant(), target, settings.fps);
         Ok(())
@@ -703,7 +703,13 @@ impl Video {
         log::info!("screenshare: encoding on {}", feed.name());
         let feed = Arc::new(feed);
         self.slot.attach(Feed::Gpu(feed.clone()), target);
-        let sid = publish_video_track(&self.participant(), source.clone(), settings, true).await?;
+        let sid = publish_video_track(
+            &self.participant(),
+            source.clone(),
+            settings,
+            Some(&encoder),
+        )
+        .await?;
         *self.gpu.lock().unwrap() = Some(GpuPicture {
             source,
             feed,
@@ -779,6 +785,9 @@ fn encoder_settings(
         fps: settings.fps,
         max_bitrate_bps: settings.bitrate.saturating_mul(1_000_000),
         start_bitrate_bps,
+        // Every viewer but Firefox plays High (CALLS.md, "H264 in High
+        // profile"); moving down for one is still to come.
+        h264_high: true,
     }
 }
 

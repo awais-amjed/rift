@@ -124,6 +124,9 @@ pub(crate) struct EncoderSettings {
     pub max_bitrate_bps: u32,
     /// Where the rate starts until WebRTC first asks for one.
     pub start_bitrate_bps: u32,
+    /// H264's High profile rather than constrained baseline. The track is
+    /// published asking for the same (`track::publish_video_track`).
+    pub h264_high: bool,
 }
 
 /// A picture to encode: `width * height` bytes of Y, then the interleaved U

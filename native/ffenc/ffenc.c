@@ -224,12 +224,17 @@ static int open_codec(RiftFfenc* enc, const AVCodec* codec,
   c->max_b_frames = 0;
   set_rates(enc, config->bitrate_bps);
   if (codec->id == AV_CODEC_ID_H264) {
-    // The one profile LiveKit offers for pre-encoded H264. NVENC and QSV
-    // read their own option instead, which has no constrained baseline;
-    // their baseline uses none of the tools that would make it more.
-    c->profile = AV_PROFILE_H264_CONSTRAINED_BASELINE;
+    // High, or constrained baseline for a viewer that cannot play High:
+    // the two LiveKit's pass-through offers. With no B-frames (above), High
+    // adds CABAC and 8x8 transforms, 12 to 30% less rate for the same
+    // picture (CALLS.md). NVENC and QSV read their own option instead,
+    // which has no constrained baseline; their baseline uses none of the
+    // tools that would make it more.
+    c->profile = config->high ? AV_PROFILE_H264_HIGH
+                              : AV_PROFILE_H264_CONSTRAINED_BASELINE;
     if (enc->api == API_NVENC || enc->api == API_QSV) {
-      av_opt_set(c->priv_data, "profile", "baseline", 0);
+      av_opt_set(c->priv_data, "profile", config->high ? "high" : "baseline",
+                 0);
     }
     // No encoder identification or timing SEI: bytes nobody reads.
     av_opt_set(c->priv_data, "sei", "0", 0);

@@ -30,7 +30,7 @@ use std::time::{Duration, Instant};
 
 /// The library's interface version this crate was written against
 /// (`RIFT_FFENC_ABI` in `ffenc.h`).
-const ABI: i32 = 3;
+const ABI: i32 = 4;
 
 /// The library's name: in the bundle's `lib` folder on Linux, beside the app
 /// on Windows.
@@ -64,6 +64,7 @@ struct Config {
     gop: i32,
     max_bitrate_bps: i64,
     delay_frames: i32,
+    high: i32,
 }
 
 #[repr(C)]
@@ -271,6 +272,7 @@ fn h264_encoder() -> Option<&'static (Candidate, String)> {
                     fps: 30,
                     max_bitrate_bps: 1_000_000,
                     start_bitrate_bps: 1_000_000,
+                    h264_high: true,
                 };
                 match open_raw(api, &probe, &candidate) {
                     Ok(raw) => {
@@ -344,6 +346,7 @@ fn open_raw(
         gop: (settings.fps * GOP_SECONDS) as i32,
         max_bitrate_bps: i64::from(settings.max_bitrate_bps),
         delay_frames: delay_frames(settings.fps),
+        high: i32::from(settings.h264_high),
     };
     let mut error = [0 as c_char; 256];
     // SAFETY: `config` and the strings it points at outlive the call, and

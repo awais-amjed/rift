@@ -442,6 +442,32 @@ share asked for in H264 goes out as VP9.
   on, where a picture left out changes nothing on screen. So the buffer stays
   at one second.
 
+### H264 in High profile — [Implemented October 2026]
+
+A GPU share's H264 is High profile, not constrained baseline: with no
+B-frames it adds CABAC and 8x8 transforms, which measured 12 to 20% less
+rate at the same quality on motion and about 30% on text (Oct 19 2026, Intel
+VAAPI with `ffenc.c`'s settings, offline). Decoding it costs a viewer's CPU
+20 to 55% more. The encoder is asked for it (`EncoderSettings::h264_high`,
+the library's `high`), and the track is published offering High alone
+(`TrackPublishOptions::h264_high`, a patch in our LiveKit fork, its
+`RIFT.md`), because the server answers in its own order, which puts
+constrained baseline first. Getting LiveKit's SDK to send it at all took
+three changes there, each found by a share that sent nothing.
+
+What a viewer is told differs by connection. The server forwards the track
+as High where it made the offer, as it does to the app's viewers, and under
+constrained baseline's name where it did not, as to a Rust SDK viewer on one
+connection; a decoder that plays High either way decodes it. Every Rift
+viewer does, Firefox's OpenH264 aside, which plays baseline alone: moving a
+share down for such a viewer is the codec switch-down. Verified Oct 28 2026
+with `live_gpu_h264_is_seen_with_the_key_and_by_nobody_else` on NVENC and
+Intel VAAPI against livekit-server 1.13.7: the sharer negotiated `640032`
+and sent an SPS of profile 100, every picture reached the viewer with the key
+and none without it, and the baseline path still passed; the real-share test
+resized, rejoined and fell back to VP9 in High. Not yet driven: the app's
+own viewers (desktop, Android, web) watching a High share, and Windows.
+
 ## How a call is played out on the desktop — [Implemented October 2026]
 
 On the desktop, everything a call plays — voices, a share's sound, a bot —
