@@ -15,7 +15,9 @@ import '../../../../responsive/shell_scope.dart';
 /// The open channel's [LiveBar], watching only what it draws: a keystroke, an
 /// upload tick or somebody typing leaves it alone, and a vote rebuilds it and
 /// not the history. A bot in a call shows its panel only to the people in it,
-/// and to them in every channel's bar, wherever it was posted.
+/// and to them in every channel's bar, wherever it was posted. While the
+/// saved copy is on screen, its players are in neither the bar nor the
+/// history: they are from whenever it was saved.
 class ChannelLiveBar extends StatelessWidget {
   /// The chat's height, of which an opened line takes at most a share.
   final double chatHeight;
@@ -79,23 +81,31 @@ class ChannelLiveBar extends StatelessWidget {
     return BlocSelector<
       ChannelChatCubit,
       ChannelChatState,
-      (List<ChatMessage>, Map<String, PollTally>, bool)
+      (List<ChatMessage>, Map<String, PollTally>, bool, bool)
     >(
-      selector: (s) =>
-          (s.live, s.pollTallies, s.status == ChannelChatStatus.ready),
+      selector: (s) => (
+        s.live,
+        s.pollTallies,
+        s.status == ChannelChatStatus.ready,
+        s.showingSaved,
+      ),
       builder: (context, slice) {
-        final (live, tallies, ready) = slice;
+        final (live, tallies, ready, saved) = slice;
+        // The saved copy's player is from whenever it was saved, and pressing
+        // it reaches a bot that has moved on: the bar waits for the fresh
+        // page. The call's players were read just now, so they stay.
+        final shown = shownPanels(context, live);
+        final here = saved
+            ? const <ChatMessage>[]
+            : LiveItems.forCall(
+                shown,
+                callUserIds: callUserIds,
+                voiceUserIds: voiceUserIds,
+              );
         final side = phone ? K.composerSideInsetTouch : K.composerSideInset;
         return LiveBar(
           live: live,
-          panels: LiveItems.withCallPanels(
-            LiveItems.forCall(
-              shownPanels(context, live),
-              callUserIds: callUserIds,
-              voiceUserIds: voiceUserIds,
-            ),
-            callPanels,
-          ),
+          panels: LiveItems.withCallPanels(here, callPanels),
           tallies: tallies,
           // The history's rule: a seat that cannot send cannot vote.
           onVote: ready ? cubit.vote : null,
