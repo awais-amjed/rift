@@ -10,7 +10,8 @@
 //! headers alone, opening its libraries at run time.
 //! On Windows LiveKit has no GPU encoder at all, and Media Foundation's, which
 //! Rift used before, ran past WebRTC's target whenever the target was below
-//! what the picture cost (`ARCHITECTURE.md`, "Encoding a share on the GPU").
+//! what the picture cost, so it was dropped (`CALLS.md`, "Encoding a share on
+//! the GPU").
 //! FFmpeg cannot be linked into this crate beside libwebrtc, which carries
 //! Chromium's FFmpeg under the same symbol names, so it lives in a library of
 //! its own (`native/ffenc`), opened at run time. FFmpeg's VAAPI and AMF
@@ -486,7 +487,6 @@ impl FfmpegSession {
             let keyframe = packet.keyframe != 0 || h264::is_idr(payload);
             let payload = self.parameter_sets.complete(payload.to_vec());
             self.sink.lock().unwrap().deliver(Encoded {
-                codec: self.settings.codec,
                 payload: &payload,
                 timestamp_us: packet.timestamp_us,
                 keyframe,

@@ -12,8 +12,8 @@ fn main() {
         println!("cargo:rustc-cfg=desktop");
     }
     // Where Rift encodes a share's H264 on the GPU itself and hands LiveKit
-    // the frames (`src/screenshare/encoder/`): Media Foundation on Windows,
-    // NVENC on Linux. macOS has the OS's own encoder inside LiveKit.
+    // the frames (`src/screenshare/encoder/`), through FFmpeg. macOS has the
+    // OS's own encoder inside LiveKit.
     if matches!(os.as_str(), "windows" | "linux") {
         println!("cargo:rustc-cfg=gpu_encoder");
     }

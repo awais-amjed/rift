@@ -2,32 +2,21 @@
 //! encoders would spend the CPU a game needs (`ARCHITECTURE.md`, "Encoding a
 //! share on the GPU").
 //!
-//! On Windows, where LiveKit has no hardware encoder, through FFmpeg's NVENC,
-//! Quick Sync and AMF encoders on NVIDIA's, Intel's and AMD's GPUs
-//! (`ffmpeg.rs`), with Media Foundation behind AMF on AMD's
-//! (`windows_gpu.rs`). On Linux through FFmpeg's NVENC on NVIDIA's, since
-//! LiveKit's own NVENC carries code the GPL client cannot, and its VAAPI
-//! encoder on Intel's and AMD's (`ffmpeg.rs`), since LiveKit's own VAAPI
-//! encoder stalls. H264 and AV1 are only ever encoded by the GPU or the OS,
-//! never by Rift itself.
+//! All through FFmpeg (`ffmpeg.rs`). On Windows, where LiveKit has no
+//! hardware encoder, its NVENC, Quick Sync and AMF encoders on NVIDIA's,
+//! Intel's and AMD's GPUs. On Linux its NVENC on NVIDIA's, since LiveKit's own
+//! NVENC carries code the GPL client cannot, and its VAAPI encoder on Intel's
+//! and AMD's, since LiveKit's own VAAPI encoder stalls. H264 is only ever
+//! encoded by the GPU, never by Rift itself.
 #![cfg_attr(not(gpu_encoder), allow(dead_code))]
-// AV1 is made by the Windows encoder alone, and only in its tests.
-#[cfg_attr(not(target_os = "windows"), allow(dead_code))]
-pub(crate) mod av1;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 mod ffmpeg;
 pub(crate) mod h264;
-#[cfg(target_os = "windows")]
-mod media_foundation;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 mod timings;
-#[cfg(target_os = "windows")]
-mod windows_gpu;
-#[cfg(target_os = "windows")]
-pub(crate) use windows_gpu::GpuEncoder;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 mod worker;
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 pub(crate) use worker::GpuEncoder;
 
 use super::resolution::Size;
@@ -37,15 +26,11 @@ use crate::api::screenshare::types::VideoCodec;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum GpuCodec {
     H264,
-    #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
-    Av1,
 }
 
 impl GpuCodec {
     /// The GPU codec for a share's codec, if the GPU is what makes it. VP8
-    /// and VP9 stay with libwebrtc's encoders on the CPU. AV1 is not a share
-    /// codec yet: viewers cannot get it encrypted (`ARCHITECTURE.md`,
-    /// "Encoding a share on the GPU").
+    /// and VP9 stay with libwebrtc's encoders on the CPU.
     pub(crate) fn for_share(codec: VideoCodec) -> Option<GpuCodec> {
         match codec {
             VideoCodec::H264 => Some(GpuCodec::H264),
@@ -58,71 +43,42 @@ impl std::fmt::Display for GpuCodec {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
             GpuCodec::H264 => "H264",
-            GpuCodec::Av1 => "AV1",
         })
     }
 }
 
-/// The codecs this computer's GPU can make a share in. Opening an encoder to
-/// find out takes a moment, and the GPUs do not change under a running app,
-/// so the first answer is kept.
-///
-/// On Windows that is FFmpeg's encoder, or Media Foundation's on an AMD GPU
-/// where FFmpeg's does not open. On Linux it is FFmpeg's NVENC, or its VAAPI
-/// where NVIDIA's is missing; without either LiveKit would make H264 with
-/// OpenH264 on the CPU, which Rift never does.
+/// The codecs this computer's GPU can make a share in: H264 where FFmpeg
+/// opens one of its GPU encoders (`ffmpeg::opens`, asked once). Without one
+/// LiveKit would make H264 with OpenH264 on the CPU, which Rift never does.
 pub(crate) fn gpu_codecs() -> Vec<VideoCodec> {
-    #[cfg(target_os = "windows")]
-    {
-        static CODECS: std::sync::OnceLock<Vec<VideoCodec>> = std::sync::OnceLock::new();
-        CODECS
-            .get_or_init(|| {
-                if ffmpeg::opens(GpuCodec::H264) || media_foundation::opens(GpuCodec::H264) {
-                    vec![VideoCodec::H264]
-                } else {
-                    Vec::new()
-                }
-            })
-            .clone()
-    }
-    #[cfg(target_os = "linux")]
-    {
-        if encodes_itself(GpuCodec::H264) {
-            vec![VideoCodec::H264]
-        } else {
-            Vec::new()
-        }
-    }
-    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
-    {
+    if encodes_itself(GpuCodec::H264) {
+        vec![VideoCodec::H264]
+    } else {
         Vec::new()
     }
 }
 
-/// Whether a share in `codec` is encoded by Rift's own GPU encoder here. On
-/// Windows always: a failure to open moves the share to VP9. On Linux where
-/// FFmpeg opens one, asked once.
+/// Whether a share in `codec` is encoded by Rift's own GPU encoder here:
+/// where FFmpeg opens one, asked once.
 pub(crate) fn encodes_itself(codec: GpuCodec) -> bool {
-    #[cfg(target_os = "linux")]
+    #[cfg(any(target_os = "linux", target_os = "windows"))]
     {
         ffmpeg::opens(codec)
     }
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(not(any(target_os = "linux", target_os = "windows")))]
     {
         let _ = codec;
-        true
+        false
     }
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 impl GpuEncoder {
-    /// Open the GPU's encoder for these settings and start feeding `sink`.
-    /// `_only`, which picks one of several encoders on Windows, has nothing
-    /// to pick here: FFmpeg's is the first that opened (`ffmpeg::opens`).
+    /// Open FFmpeg's encoder for these settings, the first that opened
+    /// (`ffmpeg::opens`), and start feeding `sink`.
     pub(crate) fn open(
         settings: EncoderSettings,
         sink: Box<dyn EncodedSink>,
-        _only: Option<usize>,
     ) -> Result<GpuEncoder, String> {
         GpuEncoder::start(settings, sink, ffmpeg::open)
     }
@@ -138,8 +94,7 @@ pub(crate) mod test_hooks {
     /// 0 is never.
     pub(crate) static FAIL_AFTER: AtomicU32 = AtomicU32::new(0);
     /// The encoder stays at the share's cap whatever WebRTC asks for, as one
-    /// that overshoots does. The encoders on the shared encoder thread only
-    /// (`worker.rs`): Linux's, and FFmpeg's on Windows.
+    /// that overshoots does (`worker.rs`).
     pub(crate) static IGNORE_RATE: AtomicBool = AtomicBool::new(false);
 }
 
@@ -187,10 +142,8 @@ impl Nv12Frame {
     }
 }
 
-/// One frame out of the encoder: an access unit in Annex B for H264, a
-/// temporal unit of OBUs for AV1.
+/// One frame out of the encoder: an H264 access unit in Annex B.
 pub(crate) struct Encoded<'a> {
-    pub codec: GpuCodec,
     pub payload: &'a [u8],
     pub timestamp_us: i64,
     pub keyframe: bool,

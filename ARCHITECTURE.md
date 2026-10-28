@@ -589,10 +589,9 @@ finished frames (`rust/src/screenshare/encoder/`): through FFmpeg's GPU
 encoders — NVENC, AMF and Quick Sync on Windows, NVENC and VAAPI on Linux —
 built into a library of its own (`native/ffenc`), since libwebrtc carries
 Chromium's FFmpeg under the same symbol names. Media Foundation, which ran past
-WebRTC's target whenever the picture cost more, is kept only as AMD's fallback
-on Windows.
+WebRTC's target whenever the picture cost more, was dropped on Oct 28 2026.
 
-- **H264 and AV1 are only ever encoded by the GPU or the OS, never by Rift.**
+- **H264 is only ever encoded by the GPU, never by Rift.**
   The reason is patents: H264 is licensed through a pool the GPU makers belong
   to. VP8 and VP9 are royalty-free and stay on the CPU. Without a hardware
   encoder, or if one fails mid-share, the share goes out as VP9 and the user
@@ -600,7 +599,9 @@ on Windows.
   otherwise, or where sharpness was asked for.
 - **AV1 is parked**: no viewer gets it encrypted, because LiveKit's Rust SDK
   does not negotiate what the server needs to find an encrypted AV1 keyframe
-  and its JS SDK refuses to encrypt AV1. A live test says when that changes.
+  and its JS SDK refuses to encrypt AV1 (found Oct 5 2026 with Media
+  Foundation's AV1, since removed). When that changes, AV1 would come from
+  FFmpeg's GPU encoders like H264.
 - **What LiveKit's encryption leaves readable has to be enough.** Its frame
   cryptor leaves only an H264 frame's first bytes in the clear, and a receiver
   reads the keyframe's PPS id from them. Several encoders write it past that

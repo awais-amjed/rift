@@ -1,10 +1,8 @@
 //! The GPU path of a share: pictures in NV12 to the hardware encoder, its
-//! H264 or AV1 out to a pre-encoded LiveKit source, and WebRTC's keyframe and
+//! H264 out to a pre-encoded LiveKit source, and WebRTC's keyframe and
 //! bitrate requests back the other way. Pictures the encoder would make too
 //! much of are left out on the way in ([`RateGate`]).
-use super::encoder::{
-    h264, Encoded, EncodedSink, EncoderSettings, GpuCodec, GpuEncoder, Nv12Frame,
-};
+use super::encoder::{h264, Encoded, EncodedSink, EncoderSettings, GpuEncoder, Nv12Frame};
 use super::rate_gate::RateGate;
 use super::resolution::Size;
 use livekit::webrtc::native::yuv_helper;
@@ -47,7 +45,6 @@ impl GpuFeed {
                 gate: gate.clone(),
                 warned_unreadable: false,
             }),
-            None,
         )?;
         Ok(GpuFeed {
             encoder,
@@ -171,17 +168,11 @@ impl EncodedSink for SourceSink {
     fn deliver(&mut self, frame: Encoded<'_>) {
         #[cfg(test)]
         DELIVERED.fetch_add(1, Ordering::Relaxed);
-        let (codec, rewritten) = match frame.codec {
-            // So the receiver authenticates the same bytes the sender
-            // encrypted, and can find a keyframe's PPS.
-            GpuCodec::H264 => (EncodedVideoCodec::H264, h264::for_encryption(frame.payload)),
-            GpuCodec::Av1 => (EncodedVideoCodec::AV1, None),
-        };
+        // So the receiver authenticates the same bytes the sender encrypted,
+        // and can find a keyframe's PPS.
+        let rewritten = h264::for_encryption(frame.payload);
         let payload = rewritten.as_deref().unwrap_or(frame.payload);
-        if frame.keyframe
-            && frame.codec == GpuCodec::H264
-            && !self.warned_unreadable
-            && !h264::idr_readable_when_encrypted(payload)
+        if frame.keyframe && !self.warned_unreadable && !h264::idr_readable_when_encrypted(payload)
         {
             log::warn!(
                 "screenshare: this encoder's keyframes put the slice's PPS id past what \
@@ -195,7 +186,7 @@ impl EncodedSink for SourceSink {
             .unwrap()
             .spent(frame.payload.len(), frame.keyframe, Instant::now());
         self.source.capture_encoded_frame(&EncodedVideoFrame {
-            codec,
+            codec: EncodedVideoCodec::H264,
             payload,
             timestamp_us: frame.timestamp_us,
             frame_type: if frame.keyframe {

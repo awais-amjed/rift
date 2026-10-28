@@ -3,7 +3,6 @@
 //! behind a newer one is only delay. Shaped like `mpsc`: dropping the putter
 //! is what ends the taker's loop.
 use std::sync::{Arc, Condvar, Mutex};
-use std::time::{Duration, Instant};
 
 struct Slot<T> {
     item: Option<T>,
@@ -22,10 +21,6 @@ pub(crate) struct Putter<T> {
 pub(crate) struct Taker<T> {
     shared: Shared<T>,
 }
-
-/// The other side went away.
-#[derive(Debug, PartialEq, Eq)]
-pub(crate) struct Closed;
 
 /// One waiting item, replaced by each newer one: for pictures, where an older
 /// one waiting is only delay.
@@ -84,28 +79,6 @@ impl<T> Taker<T> {
             slot = ready.wait(slot).unwrap();
         }
     }
-
-    /// [`take`](Self::take), giving up after `timeout`: `Ok(None)` when
-    /// nothing arrived in time. For a thread with other things to look at.
-    #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
-    pub(crate) fn take_timeout(&self, timeout: Duration) -> Result<Option<T>, Closed> {
-        let deadline = Instant::now() + timeout;
-        let (slot, ready) = &*self.shared;
-        let mut slot = slot.lock().unwrap();
-        loop {
-            if slot.closed {
-                return Err(Closed);
-            }
-            if let Some(item) = slot.item.take() {
-                return Ok(Some(item));
-            }
-            let left = deadline.saturating_duration_since(Instant::now());
-            if left.is_zero() {
-                return Ok(None);
-            }
-            slot = ready.wait_timeout(slot, left).unwrap().0;
-        }
-    }
 }
 
 impl<T> Drop for Taker<T> {
@@ -123,6 +96,7 @@ mod tests {
     use super::*;
     use std::sync::mpsc;
     use std::thread;
+    use std::time::{Duration, Instant};
 
     #[test]
     fn the_newest_picture_replaces_the_one_waiting() {
@@ -173,15 +147,5 @@ mod tests {
         let (putter, taker) = channel();
         drop(taker);
         assert_eq!(putter.put(3), Some(3));
-    }
-
-    #[test]
-    fn take_timeout_tells_nothing_yet_from_closed() {
-        let (putter, taker) = channel();
-        assert_eq!(taker.take_timeout(Duration::from_millis(5)), Ok(None));
-        putter.put(4);
-        assert_eq!(taker.take_timeout(Duration::from_millis(5)), Ok(Some(4)));
-        drop(putter);
-        assert_eq!(taker.take_timeout(Duration::from_millis(5)), Err(Closed));
     }
 }

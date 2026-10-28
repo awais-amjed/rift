@@ -240,9 +240,8 @@ static int open_codec(RiftFfenc* enc, const AVCodec* codec,
     c->colorspace = AVCOL_SPC_SMPTE170M;
     c->color_primaries = AVCOL_PRI_SMPTE170M;
     c->color_trc = AVCOL_TRC_SMPTE170M;
-    // The finest quantiser the GPU may use, as on Windows
-    // (media_foundation.rs): with rate to spare a still picture never
-    // settles otherwise. Intel re-coded a still 1440p one at 4 Mbps of 20,
+    // The finest quantiser the GPU may use: with rate to spare a still
+    // picture never settles otherwise. Intel re-coded a still 1440p one at 4 Mbps of 20,
     // and at 0.01 with this. Any floor at all moved Intel's rate control:
     // a busy 1440p60 picture asked for 12 Mbps made 13.8 instead of 12.2
     // (Oct 9 2026). What it makes beyond the target is held back before it

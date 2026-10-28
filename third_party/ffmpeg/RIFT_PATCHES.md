@@ -129,4 +129,4 @@ above fixes, but here Intel's runtime in the driver writes the slice header,
 not FFmpeg, so there is nothing to patch: FFmpeg's `low_power`, profile, slice
 count and `repeat_pps` all left it at 7 (Oct 16 2026, the same Iris Xe). The
 share rewrites the header instead (`h264::with_readable_pps_id` in the Rust
-crate), which also covers Media Foundation's Intel encoder.
+crate), which also covered Media Foundation's Intel encoder, since dropped.

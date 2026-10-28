@@ -41,19 +41,13 @@ static UNREADABLE_KEYFRAMES: std::sync::atomic::AtomicU32 = std::sync::atomic::A
 
 impl EncodedSink for ToSource {
     fn deliver(&mut self, frame: Encoded<'_>) {
-        let (codec, rewritten) = match frame.codec {
-            GpuCodec::H264 => (EncodedVideoCodec::H264, h264::for_encryption(frame.payload)),
-            GpuCodec::Av1 => (EncodedVideoCodec::AV1, None),
-        };
+        let rewritten = h264::for_encryption(frame.payload);
         let payload = rewritten.as_deref().unwrap_or(frame.payload);
-        if frame.keyframe
-            && frame.codec == GpuCodec::H264
-            && !h264::idr_readable_when_encrypted(payload)
-        {
+        if frame.keyframe && !h264::idr_readable_when_encrypted(payload) {
             UNREADABLE_KEYFRAMES.fetch_add(1, Ordering::Relaxed);
         }
         self.0.capture_encoded_frame(&EncodedVideoFrame {
-            codec,
+            codec: EncodedVideoCodec::H264,
             payload,
             timestamp_us: frame.timestamp_us,
             frame_type: if frame.keyframe {
@@ -146,7 +140,6 @@ async fn decoded_frames(
                 start_bitrate_bps: 4_000_000,
             },
             Box::new(ToSource(source.clone())),
-            None,
         )
         .expect("a hardware encoder opens")
     });
@@ -158,10 +151,7 @@ async fn decoded_frames(
             LocalTrack::Video(track),
             TrackPublishOptions {
                 source: TrackSource::Screenshare,
-                video_codec: match gpu {
-                    Some(GpuCodec::Av1) => VideoCodec::AV1,
-                    _ => VideoCodec::H264,
-                },
+                video_codec: VideoCodec::H264,
                 video_encoder: if gpu.is_some() {
                     VideoEncoderBackend::PreEncoded
                 } else {
@@ -285,20 +275,6 @@ async fn live_gpu_h264_is_seen_with_the_key_and_by_nobody_else() {
         }
         seen_with_the_key_and_by_nobody_else(path, gpu).await;
     }
-}
-
-/// Fails today, and is the check to run when this changes: with encryption
-/// on, no viewer gets a frame of AV1 from this SDK, the GPU's or libaom's
-/// alike (Oct 5 2026). Unencrypted, every frame arrives. `ARCHITECTURE.md`,
-/// "Encoding a share on the GPU", says why.
-#[tokio::test(flavor = "multi_thread")]
-#[ignore = "fails until LiveKit's Rust SDK can send encrypted AV1; needs a LiveKit server and a hardware AV1 encoder"]
-async fn live_gpu_av1_is_seen_with_the_key_and_by_nobody_else() {
-    let _ = env_logger::builder()
-        .is_test(true)
-        .filter_level(log::LevelFilter::Info)
-        .try_init();
-    seen_with_the_key_and_by_nobody_else("gpu AV1", Some(GpuCodec::Av1)).await;
 }
 
 /// For one way of encoding: a viewer with the call's key sees the picture,

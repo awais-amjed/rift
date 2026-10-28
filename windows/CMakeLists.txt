@@ -97,7 +97,7 @@ endif()
 # (native/ffenc), which the Rust crate opens at run time for a share's H264.
 # native/ffenc/build.sh makes it with MSYS2's MinGW, from RIFT_MSYS2 or
 # C:/msys64, with the packages it names. Without MSYS2 the app is built
-# without it and shares encode through Media Foundation;
+# without it and shares go out as VP9 on the CPU;
 # scripts/build_windows.ps1 refuses to make a release that way.
 set(RIFT_MSYS2 "$ENV{RIFT_MSYS2}")
 if(NOT RIFT_MSYS2)
@@ -121,7 +121,7 @@ if(EXISTS "${RIFT_MSYS2}/usr/bin/bash.exe")
     COMPONENT Runtime)
 else()
   message(WARNING "No MSYS2 at ${RIFT_MSYS2}: building without rift_ffenc.dll, "
-    "so shares encode H264 through Media Foundation (native/ffenc/build.sh)")
+    "so shares go out as VP9 on the CPU (native/ffenc/build.sh)")
 endif()
 
 include("${CMAKE_SOURCE_DIR}/../native/onnxruntime/onnxruntime.cmake")

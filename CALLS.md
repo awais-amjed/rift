@@ -284,12 +284,11 @@ share was encoded in software on the same CPU a game is using. So on Windows
 Rift encodes H264 itself and hands LiveKit the finished frames on its
 pre-encoded path (`rust/src/screenshare/encoder/`): through **FFmpeg's GPU
 encoders**, NVENC on NVIDIA's GPUs, AMF on AMD's and Quick Sync on Intel's,
-from the same library as Linux's VAAPI below, tried in that order. **Media
-Foundation** is the fallback on AMD's GPUs only, where the library will not
-load or AMF will not open; where neither opens, the share goes out as VP9.
-Media Foundation is not the fallback for NVIDIA's and Intel's GPUs: NVIDIA's
-encoder there crashed a 120 fps share twice in two runs.
-Media Foundation reaches all three makers' encoders but runs past WebRTC's
+from the same library as Linux's VAAPI below, tried in that order. Where none
+opens, the share goes out as VP9. **Media Foundation**, Windows' own way to
+the same encoders, was Rift's first encoder there and then AMD's fallback,
+and was dropped on Oct 28 2026: NVIDIA's encoder through it crashed a 120 fps
+share twice in two runs, and it runs past WebRTC's
 target whenever the target is below what the picture costs: on a laptop's
 Iris Xe and RTX 3070 Ti the rate gate had to leave out 200 to 1000 pictures
 while WebRTC's estimate climbed at the start of a share (Oct 9 2026), and a
@@ -405,10 +404,9 @@ share asked for in H264 goes out as VP9.
   that did not exist; whoever was watching dropped it and the pictures after,
   for up to a second each time somebody joined. The build patches it to the
   short slice types NVENC writes (`third_party/ffmpeg/RIFT_PATCHES.md`). On
-  Windows Intel's runtime writes the header itself, as type 7, for Quick Sync
-  and Media Foundation alike, with no setting to change it, on Linux so
-  does Mesa's encoder for AMD whatever FFmpeg hands it, and on Windows so do
-  AMD's AMF and its Media Foundation encoder. So a share
+  Windows Intel's runtime writes the header itself, as type 7, for Quick Sync,
+  with no setting to change it, on Linux so does Mesa's encoder for AMD
+  whatever FFmpeg hands it, and on Windows so does AMD's AMF. So a share
   rewrites such a keyframe's header before LiveKit sees it
   (`h264::with_readable_pps_id`): the short type, and `idr_pic_id` made as
   many bits longer, so the slice data stays where it was. Measured Oct 16
