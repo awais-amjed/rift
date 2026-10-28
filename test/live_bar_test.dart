@@ -11,6 +11,7 @@ import 'package:rift/data/classes/panel_block.dart';
 import 'package:rift/data/classes/poll.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/presentation/common/chat/live_bar/live_bar.dart';
+import 'package:rift/presentation/common/chat/live_bar/live_bar_escape.dart';
 import 'package:rift/presentation/common/chat/live_bar/widgets/live_panel_line.dart';
 import 'package:rift/presentation/common/chat/live_bar/widgets/live_polls_line.dart';
 import 'package:rift/presentation/common/chat/panel/panel_view.dart';
@@ -59,6 +60,7 @@ void main() {
     void Function(String, int)? onVote,
     DateTime Function()? now,
     double maxHeight = 400,
+    Widget? below,
   }) {
     final themeCubit = ThemeCubit();
     return tester.pumpWidget(
@@ -70,20 +72,23 @@ void main() {
             Brightness.dark,
           ),
           home: Scaffold(
-            body: Column(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                LiveBar(
-                  live: live,
-                  panels: panels,
-                  onPanelAction: onPanelAction ?? (_, _, _) {},
-                  tallies: tallies,
-                  onVote: onVote ?? noVote,
-                  onClosePoll: null,
-                  now: now ?? () => start,
-                  maxHeight: maxHeight,
-                ),
-              ],
+            body: LiveBarEscape(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  LiveBar(
+                    live: live,
+                    panels: panels,
+                    onPanelAction: onPanelAction ?? (_, _, _) {},
+                    tallies: tallies,
+                    onVote: onVote ?? noVote,
+                    onClosePoll: null,
+                    now: now ?? () => start,
+                    maxHeight: maxHeight,
+                  ),
+                  ?below,
+                ],
+              ),
             ),
           ),
         ),
@@ -136,6 +141,64 @@ void main() {
     await tester.tap(find.text('Which map tonight?'));
     await tester.pumpAndSettle();
     expect(find.byType(MessagePollCard), findsNWidgets(3));
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.byType(MessagePollCard), findsNothing);
+  });
+
+  testWidgets('Escape goes first to a focused field that takes it', (
+    tester,
+  ) async {
+    // A message being edited: Escape cancels the edit, and only an Escape
+    // with nothing focused then folds the bar.
+    final field = FocusNode();
+    addTearDown(field.dispose);
+    var cancels = 0;
+    await pump(
+      tester,
+      live: three,
+      below: Focus(
+        onKeyEvent: (_, event) {
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.escape) {
+            cancels++;
+            return KeyEventResult.handled;
+          }
+          return KeyEventResult.ignored;
+        },
+        child: TextField(focusNode: field),
+      ),
+    );
+    await tester.tap(find.text('Which map tonight?'));
+    await tester.pumpAndSettle();
+    field.requestFocus();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(cancels, 1);
+    expect(find.byType(MessagePollCard), findsNWidgets(3));
+
+    field.unfocus();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(cancels, 1);
+    expect(find.byType(MessagePollCard), findsNothing);
+  });
+
+  testWidgets('Escape from the message box folds it', (tester) async {
+    // A field with no Escape of its own: the key comes through the chat.
+    final field = FocusNode();
+    addTearDown(field.dispose);
+    await pump(
+      tester,
+      live: three,
+      below: TextField(focusNode: field),
+    );
+    await tester.tap(find.text('Which map tonight?'));
+    await tester.pumpAndSettle();
+    field.requestFocus();
+    await tester.pump();
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
     expect(find.byType(MessagePollCard), findsNothing);

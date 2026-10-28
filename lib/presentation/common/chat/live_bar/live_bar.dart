@@ -11,9 +11,11 @@ import '../../../../logic/services/attachment_loader.dart';
 import '../../../../logic/services/live_items.dart';
 import '../../../../logic/services/panel_summary.dart';
 import '../../../../logic/services/poll_ops.dart';
+import '../../../../logic/services/window_dim.dart';
 import '../../../theme/theme_context.dart';
 import '../panel/panel_actions.dart';
 import '../panel/panel_view.dart';
+import 'live_bar_escape.dart';
 import 'widgets/live_bar_opened.dart';
 import 'widgets/live_panel_line.dart';
 import 'widgets/live_polls_line.dart';
@@ -24,8 +26,9 @@ import 'widgets/live_polls_list.dart';
 ///
 /// One line per live panel, then one for the polls, each folded by default.
 /// Only one is open at a time, and an open one folds when the reader taps its
-/// top row or presses Escape — never by itself, so picking in a
-/// multiple-choice poll does not shut it. Draws nothing while nothing is live.
+/// top row or presses Escape that nothing else wants ([LiveBarEscape]) —
+/// never by itself, so picking in a multiple-choice poll does not shut it.
+/// Draws nothing while nothing is live.
 class LiveBar extends StatefulWidget {
   /// `ChannelChatState.live`: candidates, of which this draws the open polls.
   final List<ChatMessage> live;
@@ -80,6 +83,9 @@ class _LiveBarState extends State<LiveBar> {
   /// top: a dialog over it closes on Escape, as it always has.
   ModalRoute<Object?>? _route;
 
+  /// The chat's Escape, for a key from something focused in it.
+  LiveBarEscapeState? _escape;
+
   /// Wakes the bar when the next poll closes, so it leaves with nothing else
   /// having changed.
   Timer? _closeTimer;
@@ -104,6 +110,11 @@ class _LiveBarState extends State<LiveBar> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _route = ModalRoute.of(context);
+    final escape = LiveBarEscape.maybeOf(context);
+    if (!identical(escape, _escape)) {
+      _escape?.detach(_fold);
+      _escape = escape?..attach(_fold);
+    }
   }
 
   @override
@@ -115,6 +126,7 @@ class _LiveBarState extends State<LiveBar> {
   @override
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_onKey);
+    _escape?.detach(_fold);
     _closeTimer?.cancel();
     super.dispose();
   }
@@ -134,13 +146,25 @@ class _LiveBarState extends State<LiveBar> {
     });
   }
 
+  /// Escape with nothing in particular focused: a click leaves the scope
+  /// focused. Anything focused in the chat is asked first, through
+  /// [LiveBarEscape], since a global handler hears a key whatever the focused
+  /// field then does with it — and a message being edited would cancel and
+  /// fold the bar with one press.
   bool _onKey(KeyEvent event) {
-    if (_open == null ||
-        !(_route?.isCurrent ?? true) ||
-        event is! KeyDownEvent ||
-        event.logicalKey != LogicalKeyboardKey.escape) {
+    if (event is! KeyDownEvent ||
+        event.logicalKey != LogicalKeyboardKey.escape ||
+        WindowDim.overlay.value) {
       return false;
     }
+    final focus = FocusManager.instance.primaryFocus;
+    if (focus != null && focus is! FocusScopeNode) return false;
+    return _fold();
+  }
+
+  /// Folds the open line, when there is one and this page is on top.
+  bool _fold() {
+    if (_open == null || !(_route?.isCurrent ?? true)) return false;
     setState(() => _open = null);
     return true;
   }
