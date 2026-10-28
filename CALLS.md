@@ -468,7 +468,9 @@ and none without it, and the baseline path still passed; the real-share test
 resized, rejoined and fell back to VP9 in High. The app's own viewers played
 a High share the same day: a Linux desktop, Chrome on the web, and an Android
 phone (Exynos) on its hardware decoder, though that phone's WebRTC lists only
-constrained baseline among its H264 decoders. Windows is not yet driven.
+constrained baseline among its H264 decoders. Windows did the same on NVENC
+and Quick Sync, sharing and watching, and a Windows Rift without the change
+played a High share. AMD's AMF is not yet driven.
 
 ## How a call is played out on the desktop — [Implemented October 2026]
 
