@@ -465,8 +465,10 @@ with `live_gpu_h264_is_seen_with_the_key_and_by_nobody_else` on NVENC and
 Intel VAAPI against livekit-server 1.13.7: the sharer negotiated `640032`
 and sent an SPS of profile 100, every picture reached the viewer with the key
 and none without it, and the baseline path still passed; the real-share test
-resized, rejoined and fell back to VP9 in High. Not yet driven: the app's
-own viewers (desktop, Android, web) watching a High share, and Windows.
+resized, rejoined and fell back to VP9 in High. The app's own viewers played
+a High share the same day: a Linux desktop, Chrome on the web, and an Android
+phone (Exynos) on its hardware decoder, though that phone's WebRTC lists only
+constrained baseline among its H264 decoders. Windows is not yet driven.
 
 ## How a call is played out on the desktop — [Implemented October 2026]
 
