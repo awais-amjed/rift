@@ -286,7 +286,7 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
 - Dialogs use `showCustomDialog` / `AppModal` from `presentation/common/`; pass existing cubits
   in with `MultiBlocProvider` + `BlocProvider.value` (never construct a new cubit for a dialog).
 - **What the app keeps live about a server is that server's `ServerContext`**
-  (`logic/services/`): its roster, presence, soundboard, voice listeners, reports and doorbell,
+  (`logic/services/`): its roster, presence, soundboard, voice listeners, reports, doorbell and the call's bot players,
   each cubit bound to that one server. `ServerHub` keeps one per server something holds — it
   holds the selected server's and the call's itself, and a page about another server holds one
   through `ServerContextScope` while it is open — and shuts a context down the moment the last

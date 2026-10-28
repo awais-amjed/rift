@@ -24,12 +24,16 @@ mixin _ChannelChatPanelsMixin on Cubit<ChannelChatState> {
   /// the press *does* is entirely the bot's business — it may change the panel,
   /// or take a second, or decide not to — so a client guessing at the outcome
   /// would be guessing.
+  ///
+  /// [elsewhere] is a call's player posted in another channel and shown in
+  /// this one's bar (`CallPanelsCubit`): the press is that channel's.
   Future<void> pressPanelAction(
     String messageId,
     String action,
-    String? value,
-  ) async {
-    final channelId = state.channelId;
+    String? value, {
+    ({String channelId, String botId})? elsewhere,
+  }) async {
+    final channelId = elsewhere?.channelId ?? state.channelId;
     final server = _server;
     final user = server?.user;
     if (channelId == null || server == null || user == null) return;
@@ -38,7 +42,7 @@ mixin _ChannelChatPanelsMixin on Cubit<ChannelChatState> {
     // from anything the block carried: a button that named its own recipient
     // would let one bot's panel address another's. Looked for in the bar's
     // rows as well, where a live panel older than the page is pressed.
-    final botId = state.messageById(messageId)?.authorId;
+    final botId = elsewhere?.botId ?? state.messageById(messageId)?.authorId;
     final replyTo = int.tryParse(messageId);
     if (botId == null || botId.isEmpty || replyTo == null) return;
 

@@ -7,6 +7,7 @@ import '../../data/participant_identity.dart';
 import '../../data/repositories/server_session.dart';
 import '../../data/repositories/session_repository.dart';
 import '../cubits/app/app_cubit.dart';
+import '../cubits/call_panels/call_panels_cubit.dart';
 import '../cubits/channel_chat/channel_chat_cubit.dart';
 import '../cubits/channel_presence/channel_presence_cubit.dart';
 import '../cubits/livekit/livekit_cubit.dart';
@@ -39,6 +40,7 @@ class ServerContext {
   final VoiceListenersCubit voiceListeners;
   final ReportsCubit reports;
   final ServerEventsCubit events;
+  final CallPanelsCubit callPanels;
 
   /// Calls to this server, for the scope that provides it.
   final ServerSession session;
@@ -52,6 +54,7 @@ class ServerContext {
     required this.voiceListeners,
     required this.reports,
     required this.events,
+    required this.callPanels,
   });
 
   /// Builds [serverId]'s cubits, wired to each other and to the app's.
@@ -94,6 +97,19 @@ class ServerContext {
             },
           ),
     );
+    // The players of the bots in this device's call, for every channel's bar
+    // — the call's own server only.
+    Set<String> inCall(LiveKitState state) => state.callServerId == serverId
+        ? {
+            for (final participant in state.participants)
+              ParticipantIdentity.userIdOf(participant.identity),
+          }
+        : const {};
+    final callPanels = CallPanelsCubit(session: session, serverId: serverId)
+      ..watchCall(
+        livekitCubit.stream.map(inCall),
+        initial: inCall(livekitCubit.state),
+      );
     return ServerContext(
       serverId: serverId,
       session: session.on(serverId),
@@ -118,6 +134,7 @@ class ServerContext {
         chatCubit: chatCubit,
         serverId: serverId,
       ),
+      callPanels: callPanels,
     );
   }
 
@@ -130,6 +147,7 @@ class ServerContext {
       BlocProvider.value(value: voiceListeners),
       BlocProvider.value(value: reports),
       BlocProvider.value(value: events),
+      BlocProvider.value(value: callPanels),
     ],
     child: child,
   );
@@ -141,5 +159,6 @@ class ServerContext {
     await voiceListeners.close();
     await reports.close();
     await events.close();
+    await callPanels.close();
   }
 }

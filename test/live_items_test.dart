@@ -242,6 +242,40 @@ void main() {
       );
     });
 
+    test('the call\'s players join the bar in any channel', () {
+      final here = [panel('5', bot: 'scores')];
+      // The call's player, read from the channel it was posted in.
+      final fromCall = [panel('9')];
+      expect(
+        LiveItems.withCallPanels(here, fromCall).map((m) => m.id),
+        ['9', '5'],
+      );
+    });
+
+    test('a call\'s player in the open channel is in the bar once', () {
+      // Here it is the page's copy, which a redraw reaches first.
+      final here = [panel('9', live: true)];
+      expect(
+        LiveItems.withCallPanels(here, [panel('9'), panel('7')]).map(
+          (m) => m.id,
+        ),
+        ['9'],
+      );
+    });
+
+    test('a channel\'s rows give the call\'s live players only', () {
+      final rows = [
+        panel('9'),
+        panel('8', live: false),
+        panel('7', bot: 'other'),
+        message('6', closesIn: const Duration(hours: 1)),
+      ];
+      expect(
+        LiveItems.callPanels(rows, callUserIds: {'me', 'dj'}).map((m) => m.id),
+        ['9'],
+      );
+    });
+
     test('unknown presence shows nothing in the bar', () {
       expect(
         LiveItems.shownPanels(

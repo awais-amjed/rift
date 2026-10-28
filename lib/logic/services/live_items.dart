@@ -96,6 +96,35 @@ class LiveItems {
         message,
   ];
 
+  /// Of a channel's [rows], the live panels of the bots in this device's call
+  /// ([callUserIds]): a player follows the people in its call into every
+  /// channel they read, not only the one it was posted in.
+  static List<ChatMessage> callPanels(
+    List<ChatMessage> rows, {
+    required Set<String> callUserIds,
+  }) => [
+    for (final message in rows)
+      if ((message.panel?.live ?? false) &&
+          callUserIds.contains(message.authorId))
+        message,
+  ];
+
+  /// The bar's panels: [here], the open channel's, and the call's players
+  /// from other channels ([fromCall], newest first), still one per bot. A bot
+  /// that has one here keeps that one, the copy a redraw reaches first.
+  static List<ChatMessage> withCallPanels(
+    List<ChatMessage> here,
+    List<ChatMessage> fromCall,
+  ) {
+    final bots = {for (final message in here) message.authorId};
+    final added = [
+      for (final message in fromCall)
+        if (bots.add(message.authorId)) message,
+    ];
+    if (added.isEmpty) return here;
+    return [...here, ...added]..sort(_newestFirst);
+  }
+
   /// [history] without the panels the bar is showing, which are drawn there
   /// instead. The same list when none of them is on it, so the history's
   /// rows are not rebuilt for a bar they have nothing to do with.

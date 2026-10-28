@@ -5,6 +5,7 @@ import '../../../../../data/classes/chat_message.dart';
 import '../../../../../data/classes/poll.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../../logic/cubits/call_panels/call_panels_cubit.dart';
 import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../logic/cubits/channel_presence/channel_presence_cubit.dart';
 import '../../../../../logic/services/live_items.dart';
@@ -13,7 +14,8 @@ import '../../../../responsive/shell_scope.dart';
 
 /// The open channel's [LiveBar], watching only what it draws: a keystroke, an
 /// upload tick or somebody typing leaves it alone, and a vote rebuilds it and
-/// not the history. A bot in a call shows its panel only to the people in it.
+/// not the history. A bot in a call shows its panel only to the people in it,
+/// and to them in every channel's bar, wherever it was posted.
 class ChannelLiveBar extends StatelessWidget {
   /// The chat's height, of which an opened line takes at most a share.
   final double chatHeight;
@@ -70,6 +72,10 @@ class ChannelLiveBar extends StatelessWidget {
         .split(',')
         .where((id) => id.isNotEmpty)
         .toSet();
+    final fromCall = context.select<CallPanelsCubit, CallPanelsState>(
+      (call) => call.state,
+    );
+    final callPanels = shownPanels(context, fromCall.panels);
     return BlocSelector<
       ChannelChatCubit,
       ChannelChatState,
@@ -82,16 +88,30 @@ class ChannelLiveBar extends StatelessWidget {
         final side = phone ? K.composerSideInsetTouch : K.composerSideInset;
         return LiveBar(
           live: live,
-          panels: LiveItems.forCall(
-            shownPanels(context, live),
-            callUserIds: callUserIds,
-            voiceUserIds: voiceUserIds,
+          panels: LiveItems.withCallPanels(
+            LiveItems.forCall(
+              shownPanels(context, live),
+              callUserIds: callUserIds,
+              voiceUserIds: voiceUserIds,
+            ),
+            callPanels,
           ),
           tallies: tallies,
           // The history's rule: a seat that cannot send cannot vote.
           onVote: ready ? cubit.vote : null,
           onClosePoll: ready ? cubit.closePoll : null,
-          onPanelAction: cubit.pressPanelAction,
+          onPanelAction: (messageId, action, value) {
+            final channelId = fromCall.channelOf[messageId];
+            final bot = callPanels.where((m) => m.id == messageId).firstOrNull;
+            cubit.pressPanelAction(
+              messageId,
+              action,
+              value,
+              elsewhere: channelId == null || bot == null
+                  ? null
+                  : (channelId: channelId, botId: bot.authorId),
+            );
+          },
           loader: cubit.attachmentLoader,
           maxHeight:
               chatHeight * (phone ? K.liveBarMaxSharePhone : K.liveBarMaxShare),

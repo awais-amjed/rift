@@ -332,8 +332,11 @@ Four rules keep the bar honest:
   on start (`WIRE.md` §5); the music bot does.
 - **A bot in a call plays to that call.** Its live panel is in the bar only
   for the people in the same call, and out of the history for everyone else:
-  a player for music you cannot hear is noise. A bot in no call shows its
-  panel to everyone who can read the channel.
+  a player for music you cannot hear is noise. They have it in the bar of
+  every channel they can read, not only the one it was posted in: the music
+  goes with them, so the player does too, and a press from there is signed
+  for the panel's own channel. A bot in no call shows its panel to everyone
+  who can read the channel it is in.
 
 The folded line is read out of the blocks, so a bot gets it without new
 vocabulary: the first `image` as a cover, the first `fields` block's first two
