@@ -64,6 +64,7 @@ Rust (`ashpd` 0.13, tokio), the existing `encoder`/`gpu_feed`/`frames` modules.
     uint64_t modifier;
     int32_t planes;
     int32_t fds[4]; uint32_t offsets[4]; uint32_t strides[4];
+    int32_t transform;                // SPA_META_TRANSFORMATION_*: how to turn it upright
   } RiftDmabuf;
   #define RIFT_FFENC_IMPORT_FAILED (-0x52494D50)  // 'RIMP': this format+modifier won't map
   typedef struct RiftRect { int32_t x, y, width, height; } RiftRect;
@@ -87,19 +88,24 @@ Rust (`ashpd` 0.13, tokio), the existing `encoder`/`gpu_feed`/`frames` modules.
   times, and drains `rift_ffenc_receive`. Asserts: 65 packets, the first a
   keyframe, each starting with an Annex B start code; one send with
   `modifier = 0xdeadbeef` returns `RIFT_FFENC_IMPORT_FAILED`; a send with a crop of
-  960x540 still returns 0; a send with `place = {160, 0, 960, 720}` also returns 0
-  (what the picture looks like is checked in Task 5's live steps).
+  960x540 still returns 0; a send with `place = {160, 0, 960, 720}` also returns 0;
+  a 1920x1080 buffer with `transform = SPA_META_TRANSFORMATION_90` into a
+  1080x1920 encoder returns 0 (what the pictures look like is checked in Task 5's
+  live steps).
 - [ ] **Step 2:** `native/ffenc/test.sh OUT_DIR` builds the test against
   `OUT_DIR/librift_ffenc.so` with `-lva -lva-drm` and runs it.
   Run: `native/ffenc/test.sh ~/tmp/rift-scratch/ffenc-build` — Expected: link fails
   on `rift_ffenc_send_dmabuf`.
 - [ ] **Step 3: Implement.** `build.sh`: replace `--disable-avfilter` with
-  `--enable-avfilter --enable-filter=buffer,buffersink,hwmap,scale_vaapi,pad_vaapi`
+  `--enable-avfilter --enable-filter=buffer,buffersink,hwmap,transpose_vaapi,scale_vaapi,pad_vaapi`
   (Linux only), add `libavfilter.a` to the link, add `ffenc.h`'s new test files to
   the stamp. `ffenc.c`: a lazily built filter graph `buffer → hwmap
-  (derive VAAPI from the encoder's device) → scale_vaapi=place.w:place.h:format=nv12 →
+  (derive VAAPI from the encoder's device) → transpose_vaapi (only for a transform,
+  directions mapped as OBS's `push_rotation` and `get_buffer_flip` turn them) → scale_vaapi=place.w:place.h:format=nv12 →
   pad_vaapi=W:H:place.x:place.y:black (left out when `place` fills) → buffersink`,
-  rebuilt when the input size, format, crop or place changes; the DMA-BUF wrapped as an
+  rebuilt when the input size, format, crop, transform or place changes; a driver
+  whose video processing refuses the turn is logged once and gets the picture
+  unturned; the DMA-BUF wrapped as an
   `AV_PIX_FMT_DRM_PRIME` frame (`AVDRMFrameDescriptor`, one object per fd) with
   `crop_*` set; an import error from `hwmap` (`av_buffersrc_add_frame`/sink
   pull failing with `EINVAL`/`ENOSYS`/`EIO`) becomes `RIFT_FFENC_IMPORT_FAILED`;
@@ -165,7 +171,6 @@ Rust (`ashpd` 0.13, tokio), the existing `encoder`/`gpu_feed`/`frames` modules.
     RiftDmabuf dmabuf;               // when buffers == RIFT_PW_DMABUF
     const uint8_t* data; int32_t stride;  // when RIFT_PW_MEMORY (BGRx/BGRA, cropped origin)
     int32_t buffers; int32_t width, height;  // after crop
-    int32_t transform;               // SPA_META_TRANSFORMATION_*
     int64_t pts_ns;
     void* held;                      // the pw_buffer, for rift_pw_release
   } RiftPwPicture;
@@ -184,9 +189,9 @@ Rust (`ashpd` 0.13, tokio), the existing `encoder`/`gpu_feed`/`frames` modules.
   Formats offered: BGRx, BGRA, RGBx, RGBA only (10-bit and HDR refused). An
   explicit-sync buffer (`SPA_META_SyncTimeline`, OBS's handling) has its acquire
   point waited on (`drmSyncobjTimelineWait`, on PipeWire's thread, before the
-  picture goes up) and its release point signalled in `rift_pw_release`. A
-  transform other than none is logged once and ignored (builder's call; the
-  spec's "rotation honoured" is narrowed to this).
+  picture goes up) and its release point signalled in `rift_pw_release`. The
+  transform meta is passed up as OBS reads it; `width`/`height` are the upright
+  size (swapped for a quarter turn).
   Keeps OBS's newest-buffer rule: older dequeued buffers go back at once; at most
   two held by Rust. With no modifier left for a format, it offers memory buffers.
   `RIFT_PW_REFUSE_DMABUF=1` in the environment makes it offer memory only (test hook).

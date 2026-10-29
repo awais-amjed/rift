@@ -86,8 +86,8 @@ Rust (portal, ashpd)        C, librift_ffenc.so                   Rust
   - The modifier query is OBS's `libobs-opengl/gl-egl-common.c`
     (`query_dmabuf_formats`, `query_dmabuf_modifiers`).
   - A crop meta is honoured the way OBS honours it (a window's stream can carry
-    one); `scale_vaapi` reads a frame's crop. A rotation meta is logged and
-    ignored for now (builder's call). A resized window is letterboxed on the GPU
+    one); `scale_vaapi` reads a frame's crop. A rotation meta is turned upright
+    on the GPU (`transpose_vaapi`), as OBS turns it (owner, Oct 29). A resized window is letterboxed on the GPU
     (`pad_vaapi`) by the same rule as today's (`resolution::letterbox`).
   - The import is FFmpeg's own: a DRM_PRIME frame `hwmap`ped to VAAPI, as
     `kmsgrab` users run it, not Sunshine's EGL-and-shader route into a VA surface.
