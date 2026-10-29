@@ -33,6 +33,16 @@ step can take from our own code and from open source projects: `REUSE.md`.
      NVENC also *waits* 10 ms in `send` for each picture (ffenc's own timing; 4 ms
      on a still screen), well inside 16.7 ms at 60 fps but more than the 8.3 ms a
      picture has at 120. Zero-copy has to bring that down too, not only the CPU.
+   - **After step 2 on Linux, measured Oct 29** (the same laptop, screen, picture,
+     rate and viewer, VAAPI, one release build switched between the two paths):
+     **4.5% of a core** on Rift's own PipeWire stream (`gpu-encoder` 4.1%,
+     `rift-pipewire` 0.3%, `share-frames` 0.1%) against **22.7%** on libwebrtc's
+     capturer (9.7%, `pipewire-main-l` 7.2%, `share-frames` 5.7%); the whole
+     process 19.1% against 40.1%. Short of the step's "under about 3%": ffenc
+     alone, timed in a bench on this driver, spends 0.55 ms of CPU a picture
+     (0.25 importing and scaling the DMA-BUF, 0.29 handing it to the encoder),
+     3.3% at 60. Keeping each imported buffer instead of importing it again per
+     picture is what is left to try.
    - **Order (owner, Oct 29): Linux first, step 2 before step 1.** This laptop has
      both of Linux's encoders and Wayland, so the step can be built and proved
      here; the Windows VM has no GPU.
