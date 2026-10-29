@@ -100,15 +100,11 @@ step can take from our own code and from open source projects: `REUSE.md`.
 From the second research pass (Oct 29); none of these is needed for full
 hardware encoding and decoding, so they wait.
 
-- **VP9 shares may not decrypt on the web build.** The native frame cryptor
-  leaves 0 bytes of a VP9 frame in the clear (`get_unencrypted_bytes`, webrtc-sdk
-  m150, read Oct 29), and so does LiveKit's JS SDK; LiveKit's Flutter web worker
-  (`third_party/livekit_client/web/e2ee.frame_cryptor.dart`, `getUnencryptedBytes`)
-  treats VP9 like VP8, 10 bytes for a keyframe and 3 for others, and decrypts with
-  the same count. So a web viewer of a desktop VP9 share (no GPU encoder, or Auto
-  for sharpness) probably sees nothing. Read in code, not tested; a web viewer of
-  VP9 has never been driven (`TESTING.md`). If real, the fix is 0 bytes for VP9 in
-  the vendored worker, reported upstream.
+- **VP9 shares did not decrypt on the web build: fixed Oct 29 on dev.** The web
+  worker left 10 or 3 bytes of a VP9 frame in the clear where LiveKit's native
+  and JS cryptors leave none, so a desktop's VP9 share stayed black in the
+  browser. Proved and fixed live in Chrome and Firefox
+  (`third_party/livekit_client/RIFT_PATCHES.md`, patch 6; `TESTING.md`).
 - **Phone and web shares in H264.** They go out as the SDK's default VP8 with
   simulcast, often encoded on the CPU; H264 has a hardware encoder on nearly every
   phone. But a phone's or browser's encoder may put the keyframe's PPS id past
