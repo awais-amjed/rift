@@ -392,8 +392,9 @@ share asked for in H264 goes out as VP9.
   to find an encrypted AV1 keyframe, and its JS SDK refuses to encrypt AV1. The
   encoder keeps AV1, with a live test that says when that changes. The full
   notes, including the AV1 findings, are kept on the `gpu-encoding` branch.
-- **GPU H264 stays constrained baseline**: LiveKit offers only that profile for
-  pre-encoded tracks, and Firefox viewers cannot take High.
+- **GPU H264 goes out in High** (Oct 28 2026), offered beside constrained
+  baseline by the LiveKit fork, since LiveKit itself offers only baseline for
+  pre-encoded tracks (below).
 - **What LiveKit's encryption leaves readable has to be enough.** Its frame
   cryptor leaves an H264 frame's bytes up to the first slice in the clear and
   authenticates them, plus that slice's NAL header and the byte after it, and
@@ -458,9 +459,12 @@ three changes there, each found by a share that sent nothing.
 What a viewer is told differs by connection. The server forwards the track
 as High where it made the offer, as it does to the app's viewers, and under
 constrained baseline's name where it did not, as to a Rust SDK viewer on one
-connection; a decoder that plays High either way decodes it. Every Rift
-viewer does, Firefox's OpenH264 aside, which plays baseline alone: moving a
-share down for such a viewer is the codec switch-down. Verified Oct 28 2026
+connection; a decoder that plays High either way decodes it. Every viewer
+tried does, Firefox included, though its WebRTC lists only baseline: on Oct 29
+2026 Firefox 155 on Linux watched a High NVENC share on the web build, live at
+about 60 fps, both through the system FFmpeg (its default there) and through
+OpenH264 2.6 (`media.navigator.mediadatadecoder_h264_enabled` off, the
+decoder it uses where there is no FFmpeg). Verified Oct 28 2026
 with `live_gpu_h264_is_seen_with_the_key_and_by_nobody_else` on NVENC and
 Intel VAAPI against livekit-server 1.13.7: the sharer negotiated `640032`
 and sent an SPS of profile 100, every picture reached the viewer with the key
