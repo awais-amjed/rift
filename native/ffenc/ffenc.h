@@ -26,7 +26,7 @@ extern "C" {
 
 // Bumped whenever a function or struct below changes, so the crate refuses a
 // library from another build instead of calling it wrongly.
-#define RIFT_FFENC_ABI 4
+#define RIFT_FFENC_ABI 5
 
 typedef struct RiftFfenc RiftFfenc;
 
@@ -88,6 +88,64 @@ RIFT_FFENC_EXPORT void rift_ffenc_set_bitrate(RiftFfenc* enc,
 RIFT_FFENC_EXPORT int32_t rift_ffenc_send(RiftFfenc* enc, const uint8_t* nv12,
                                           int64_t timestamp_us,
                                           int32_t keyframe);
+
+// ── Pictures already on the GPU (Linux, VAAPI) ──────────────────────────
+//
+// A Wayland share's picture arrives as the compositor's DMA-BUF. It is
+// mapped into VAAPI, cropped, turned upright, scaled and placed into NV12 on
+// the GPU, and encoded, without coming to the CPU.
+
+// One DMA-BUF in an 8-bit RGB format, described as PipeWire hands it over.
+typedef struct RiftDmabuf {
+  // The buffer's size, before any crop or turn.
+  int32_t width;
+  int32_t height;
+  // The part of it that is the picture; all four 0 for the whole buffer.
+  int32_t crop_x;
+  int32_t crop_y;
+  int32_t crop_width;
+  int32_t crop_height;
+  // DRM's fourcc: XRGB8888, ARGB8888, XBGR8888 or ABGR8888.
+  uint32_t drm_format;
+  uint64_t modifier;
+  int32_t planes;
+  int32_t fds[4];
+  uint32_t offsets[4];
+  uint32_t strides[4];
+  // How the compositor turned the buffer, as PipeWire's
+  // SPA_META_TRANSFORMATION_* says (0 none, 1-3 by 90 degrees
+  // counter-clockwise, 4-7 the same flipped first); undone here.
+  int32_t transform;
+} RiftDmabuf;
+
+// The buffer's format and modifier would not map into VAAPI on this GPU: the
+// caller drops the modifier and asks the compositor for another.
+#define RIFT_FFENC_IMPORT_FAILED (-0x52494D50)
+
+typedef struct RiftRect {
+  int32_t x;
+  int32_t y;
+  int32_t width;
+  int32_t height;
+} RiftRect;
+
+// Encode one DMA-BUF picture. `place` is where the upright picture goes
+// inside the encoded size, the rest black; NULL fills it. Returns once the
+// GPU has copied the picture, so the caller may give the buffer back; the
+// fds stay the caller's. 0, RIFT_FFENC_IMPORT_FAILED, or a negative FFmpeg
+// error; AVERROR(ENOSYS) for an encoder that is not VAAPI's.
+RIFT_FFENC_EXPORT int32_t rift_ffenc_send_dmabuf(RiftFfenc* enc,
+                                                 const RiftDmabuf* buf,
+                                                 const RiftRect* place,
+                                                 int64_t timestamp_us,
+                                                 int32_t keyframe);
+
+// Encode the last DMA-BUF picture again, for a screen that has not changed
+// when a keyframe is wanted or a second has passed. AVERROR(EAGAIN) before
+// the first.
+RIFT_FFENC_EXPORT int32_t rift_ffenc_repeat(RiftFfenc* enc,
+                                            int64_t timestamp_us,
+                                            int32_t keyframe);
 
 // The next encoded frame, valid until the next call: 1 with one, 0 when the
 // encoder has none ready, or a negative FFmpeg error.

@@ -125,6 +125,7 @@ add_custom_command(
   OUTPUT "${FFENC_LIBRARY}"
   COMMAND "${FFENC_SOURCE_DIR}/build.sh" "${PROJECT_BINARY_DIR}/ffenc"
   DEPENDS "${FFENC_SOURCE_DIR}/build.sh" "${FFENC_SOURCE_DIR}/ffenc.c"
+    "${FFENC_SOURCE_DIR}/dmabuf.c" "${FFENC_SOURCE_DIR}/dmabuf.h"
     "${FFENC_SOURCE_DIR}/ffenc.h" ${FFENC_PATCHES}
   COMMENT "Building FFmpeg's GPU encoders (native/ffenc)"
   VERBATIM)

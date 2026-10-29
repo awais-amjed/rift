@@ -6,7 +6,8 @@
 #   native/ffenc/build.sh OUT_DIR
 #
 # On Linux it makes librift_ffenc.so with the VAAPI and NVENC encoders, and
-# needs a C compiler, make and libva's headers (libva-dev). On Windows it
+# needs a C compiler, make, and libva's and libdrm's headers (libva-dev,
+# libdrm-dev). On Windows it
 # makes rift_ffenc.dll with NVIDIA's, Intel's and AMD's encoders, and runs in
 # MSYS2's UCRT64 shell with make, MinGW's gcc, CMake, Ninja and pkgconf
 # (windows/CMakeLists.txt starts it there). Every download is taken once
@@ -34,7 +35,7 @@ if [[ $os == linux ]]; then cc=${CC:-cc}; else cc=${CC:-gcc}; fi
 # found on the build machine pulled in behind our back.
 configure_flags=(
   --disable-everything --disable-autodetect --disable-programs --disable-doc
-  --disable-network --disable-avformat --disable-avfilter --disable-avdevice
+  --disable-network --disable-avformat --disable-avdevice
   --disable-swscale --disable-swresample --disable-x86asm --disable-debug
   --enable-static --disable-shared --enable-pic
 )
@@ -47,9 +48,15 @@ nv_headers_sha256=cbad7c68365ae50b03fe4cfbea05975c94406bdcc0a995bd094a3ea355656f
 configure_flags+=(--enable-ffnvcodec --enable-nvenc)
 if [[ $os == linux ]]; then
   library=$out/librift_ffenc.so
-  configure_flags+=(--enable-vaapi --enable-encoder=h264_vaapi,h264_nvenc)
+  # And the filters that take a Wayland share's DMA-BUF into VAAPI and make
+  # NV12 of it on the GPU (dmabuf.c), with libdrm for DRM's frames.
+  configure_flags+=(
+    --enable-vaapi --enable-libdrm --enable-encoder=h264_vaapi,h264_nvenc
+    --enable-filter=buffer,buffersink,hwmap,scale_vaapi,transpose_vaapi,pad_vaapi
+  )
 else
   library=$out/rift_ffenc.dll
+  configure_flags+=(--disable-avfilter)
   # AMF reaches AMD's driver through AMD's headers (AMF headers), and Quick
   # Sync Intel's through Intel's dispatcher (libvpl), which finds the runtime
   # Intel's driver installs. Direct3D 11 is how both reach the GPU. Both are
@@ -70,7 +77,7 @@ fi
 stamp=$(
   {
     echo "$version $sha256 $cc ${configure_flags[*]}"
-    cat "$patches"/*.patch "$here/ffenc.c" "$here/ffenc.h" "$0"
+    cat "$patches"/*.patch "$here"/*.c "$here"/*.h "$0"
   } | sha256sum | cut -d' ' -f1
 )
 if [[ -f $library && -f $out/.stamp && $(<"$out/.stamp") == "$stamp" ]]; then
@@ -162,9 +169,11 @@ done
 # release's run.
 if [[ $os == linux ]]; then
   "$cc" -shared -fPIC -O2 -fvisibility=hidden -I"$prefix/include" \
-    "$here/ffenc.c" -o "$library.part" \
-    "$prefix/lib/libavcodec.a" "$prefix/lib/libavutil.a" \
-    -lva -lva-drm -lm -ldl -pthread \
+    $(pkg-config --cflags libdrm) \
+    "$here/ffenc.c" "$here/dmabuf.c" -o "$library.part" \
+    "$prefix/lib/libavfilter.a" "$prefix/lib/libavcodec.a" \
+    "$prefix/lib/libavutil.a" \
+    -lva -lva-drm -ldrm -lm -ldl -pthread \
     -Wl,--exclude-libs,ALL -Wl,-Bsymbolic -Wl,-z,defs \
     -Wl,-Map,"$out/librift_ffenc.map"
 else

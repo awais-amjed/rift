@@ -30,7 +30,7 @@ use std::time::{Duration, Instant};
 
 /// The library's interface version this crate was written against
 /// (`RIFT_FFENC_ABI` in `ffenc.h`).
-const ABI: i32 = 4;
+const ABI: i32 = 5;
 
 /// The library's name: in the bundle's `lib` folder on Linux, beside the app
 /// on Windows.

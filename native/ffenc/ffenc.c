@@ -16,6 +16,8 @@
 
 #include <libavutil/hwcontext_vaapi.h>
 #include <va/va.h>
+
+#include "dmabuf.h"
 #endif
 
 // The GPU APIs this library drives, told apart by the encoder's name: FFmpeg
@@ -47,6 +49,11 @@ struct RiftFfenc {
   pthread_mutex_t lock;
   int shut;
   RiftFfenc* next_nvenc;
+  // VAAPI's render node, for pictures that arrive as DMA-BUFs: the path
+  // that maps them, made at the first, and the last one made, for a repeat.
+  char render_node[64];
+  DmabufPath* dmabuf;
+  AVFrame* last;
 #endif
 };
 
@@ -377,6 +384,11 @@ RiftFfenc* rift_ffenc_open(const RiftFfencConfig* config, char* error,
   if (api == API_VAAPI && open_device(enc, config, error, error_len) < 0) {
     goto fail;
   }
+#if defined(__linux__)
+  if (config->device) {
+    snprintf(enc->render_node, sizeof(enc->render_node), "%s", config->device);
+  }
+#endif
   name_driver(enc, codec);
 
   int err = open_codec(enc, codec, config);
@@ -491,6 +503,73 @@ done:
   return err < 0 ? err : 0;
 }
 
+// One picture already on the GPU, as an NV12 VAAPI frame, into the encoder.
+static int send_gpu(RiftFfenc* enc, AVFrame* frame, int64_t timestamp_us,
+                    int32_t keyframe) {
+  frame->pts = timestamp_us;
+  frame->pict_type = keyframe ? AV_PICTURE_TYPE_I : AV_PICTURE_TYPE_NONE;
+  return avcodec_send_frame(enc->codec, frame);
+}
+
+int32_t rift_ffenc_send_dmabuf(RiftFfenc* enc, const RiftDmabuf* buf,
+                               const RiftRect* place, int64_t timestamp_us,
+                               int32_t keyframe) {
+#if defined(__linux__)
+  if (enc->api != API_VAAPI) return AVERROR(ENOSYS);
+  if (EXITING()) return AVERROR_EXIT;
+  LOCK(enc);
+  int err = AVERROR_EXIT;
+  if (SHUT(enc)) goto done;
+  err = AVERROR(ENOMEM);
+  if (!enc->dmabuf) {
+    enc->dmabuf = dmabuf_path_alloc(
+        enc->device, enc->render_node[0] ? enc->render_node : NULL);
+    if (!enc->dmabuf) goto done;
+  }
+  AVFrame* frame = av_frame_alloc();
+  if (!frame) goto done;
+  err = dmabuf_path_run(enc->dmabuf, buf, place, enc->codec->width,
+                        enc->codec->height, timestamp_us, frame);
+  if (err == 0) {
+    av_frame_free(&enc->last);
+    enc->last = av_frame_clone(frame);
+    err = send_gpu(enc, frame, timestamp_us, keyframe);
+  }
+  av_frame_free(&frame);
+done:
+  UNLOCK(enc);
+  return err < 0 ? err : 0;
+#else
+  (void)enc, (void)buf, (void)place, (void)timestamp_us, (void)keyframe;
+  return AVERROR(ENOSYS);
+#endif
+}
+
+int32_t rift_ffenc_repeat(RiftFfenc* enc, int64_t timestamp_us,
+                          int32_t keyframe) {
+#if defined(__linux__)
+  if (enc->api != API_VAAPI) return AVERROR(ENOSYS);
+  if (EXITING()) return AVERROR_EXIT;
+  LOCK(enc);
+  int err = AVERROR_EXIT;
+  if (SHUT(enc)) goto done;
+  err = AVERROR(EAGAIN);
+  if (!enc->last) goto done;
+  // The same surface again, under a new time: the encoder only reads it.
+  AVFrame* frame = av_frame_clone(enc->last);
+  err = AVERROR(ENOMEM);
+  if (!frame) goto done;
+  err = send_gpu(enc, frame, timestamp_us, keyframe);
+  av_frame_free(&frame);
+done:
+  UNLOCK(enc);
+  return err < 0 ? err : 0;
+#else
+  (void)enc, (void)timestamp_us, (void)keyframe;
+  return AVERROR(ENOSYS);
+#endif
+}
+
 int32_t rift_ffenc_receive(RiftFfenc* enc, RiftFfencPacket* packet) {
   if (EXITING()) return AVERROR_EXIT;
   LOCK(enc);
@@ -515,11 +594,15 @@ void rift_ffenc_close(RiftFfenc* enc) {
 #if defined(__linux__)
   if (enc->api == API_NVENC) forget_nvenc(enc);
   pthread_mutex_destroy(&enc->lock);
+  av_frame_free(&enc->last);
 #endif
   av_packet_free(&enc->packet);
   av_frame_free(&enc->picture);
   for (int i = 0; i < OWN_PICTURES; i++) av_frame_free(&enc->own[i]);
   avcodec_free_context(&enc->codec);
+#if defined(__linux__)
+  dmabuf_path_free(&enc->dmabuf);
+#endif
   av_buffer_unref(&enc->frames);
   av_buffer_unref(&enc->device);
   av_free(enc);
