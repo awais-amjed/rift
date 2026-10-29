@@ -372,9 +372,12 @@ over its last one on every tick: KDE drew a fully covered window once and then
 nothing, and that one picture, which says the size the feed is made for, came
 before the feed and was dropped, so the viewer saw LiveKit's black keepalive
 (found Oct 30 in the KDE VM). So the last memory picture is kept, sent once the
-feed is there, and sent again every 100 ms while nothing new comes, so a
-joining viewer's keyframe has a picture to come from; a DMA-BUF's is repeated
-by the GPU encoder itself. Proved Oct 29 by
+feed is there, and sent again while nothing new comes, so a joining viewer's
+keyframe has a picture to come from: every 100 ms for the first 2 s, then once
+a second, the back-off libwebrtc's own still-screen mode makes (Oct 30), so a
+still window is not encoded ten times a second. A viewer who joins a picture
+still for longer waits up to a second for it. A DMA-BUF's is repeated by the
+GPU encoder itself. Proved Oct 29 by
 the live share tests on GNOME 50 (Iris Xe): 1080p, a resize, a late joiner,
 encoder failure to VP9 and no GPU; and in the app (the measurement and
 what was driven are in `TESTING.md`).

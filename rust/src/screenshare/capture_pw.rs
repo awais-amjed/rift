@@ -32,12 +32,24 @@ const POLL: Duration = Duration::from_millis(100);
 /// keyframe request with, and LiveKit's own keepalive runs at this rate too.
 const REPEAT_EVERY: Duration = Duration::from_millis(100);
 
+/// The repeat once a picture has been still for [`SETTLED_AFTER`]: by then
+/// the quick repeats have sharpened it, and each one is an encode. The same
+/// back-off libwebrtc's own still-screen mode makes (its zero-hertz idle
+/// repeat), owner's call Oct 30.
+const REPEAT_IDLE: Duration = Duration::from_secs(1);
+
+/// How long after a new picture the repeats stay at [`REPEAT_EVERY`].
+const SETTLED_AFTER: Duration = Duration::from_secs(2);
+
 /// When the last memory picture is due to be sent again.
 struct Still {
     /// The kept picture's size; `None` once a DMA-BUF came after it, which
     /// the GPU encoder repeats itself.
     kept: Option<Size>,
+    /// When it was last sent, or kept.
     since: Instant,
+    /// When it came from the compositor.
+    fresh: Instant,
 }
 
 impl Still {
@@ -45,6 +57,7 @@ impl Still {
         Self {
             kept: None,
             since: now,
+            fresh: now,
         }
     }
 
@@ -52,12 +65,23 @@ impl Still {
     fn noted(&mut self, kept: Option<Size>, now: Instant) {
         self.kept = kept;
         self.since = now;
+        self.fresh = now;
+    }
+
+    /// The kept picture was sent again.
+    fn repeated(&mut self, now: Instant) {
+        self.since = now;
     }
 
     /// The size of the picture to send again, once it is due.
     fn due(&self, now: Instant) -> Option<Size> {
+        let wait = if now.saturating_duration_since(self.fresh) < SETTLED_AFTER {
+            REPEAT_EVERY
+        } else {
+            REPEAT_IDLE
+        };
         self.kept
-            .filter(|_| now.saturating_duration_since(self.since) >= REPEAT_EVERY)
+            .filter(|_| now.saturating_duration_since(self.since) >= wait)
     }
 }
 
@@ -314,8 +338,8 @@ fn ended_by(stream_ended: Option<String>, session_closed: bool) -> Option<String
 /// The processing thread: each picture to its feed, in the buffers the feed
 /// can use, asking the stream for those whenever the feed changes. The last
 /// memory picture is kept and sent again while the compositor sends nothing
-/// ([`REPEAT_EVERY`]), the first one among them: it says the size the feed
-/// is made for, so it comes before there is a feed.
+/// ([`REPEAT_EVERY`], then [`REPEAT_IDLE`]), the first one among them: it
+/// says the size the feed is made for, so it comes before there is a feed.
 fn process(pictures: Taker<PwPicture>, slot: VideoSlot, stream: Weak<PwStream>) {
     let mut converter = Converter::new();
     let mut spare = Vec::new();
@@ -334,7 +358,7 @@ fn process(pictures: Taker<PwPicture>, slot: VideoSlot, stream: Weak<PwStream>) 
                 follow.feed(&feed);
                 converter.send_kept(feed, target);
             }
-            still.noted(converter.kept(), Instant::now());
+            still.repeated(Instant::now());
             continue;
         };
         let in_memory = picture.memory().is_some();
@@ -509,13 +533,29 @@ mod tests {
         let mut still = Still::new(start);
         still.noted(Some(SIZE), start);
         let repeated = start + REPEAT_EVERY;
-        still.noted(Some(SIZE), repeated);
+        still.repeated(repeated);
         assert_eq!(still.due(repeated + Duration::from_millis(50)), None);
         assert_eq!(still.due(repeated + REPEAT_EVERY), Some(SIZE));
         // Each new picture starts the wait again.
         let new = repeated + Duration::from_millis(150);
         still.noted(Some(SIZE), new);
         assert_eq!(still.due(new + Duration::from_millis(50)), None);
+    }
+
+    #[test]
+    fn a_picture_still_for_two_seconds_is_sent_again_once_a_second() {
+        let start = Instant::now();
+        let mut still = Still::new(start);
+        still.noted(Some(SIZE), start);
+        let late = start + SETTLED_AFTER + Duration::from_millis(500);
+        still.repeated(late);
+        assert_eq!(still.due(late + REPEAT_EVERY), None);
+        assert_eq!(still.due(late + Duration::from_millis(999)), None);
+        assert_eq!(still.due(late + REPEAT_IDLE), Some(SIZE));
+        // A new picture goes back to the quick repeats.
+        let new = late + REPEAT_IDLE;
+        still.noted(Some(SIZE), new);
+        assert_eq!(still.due(new + REPEAT_EVERY), Some(SIZE));
     }
 
     #[test]

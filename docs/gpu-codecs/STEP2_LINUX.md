@@ -139,7 +139,9 @@ Rust (portal, ashpd)        C, librift_ffenc.so                   Rust
   match it. Today's capture hands libwebrtc its last picture on every tick. A
   memory picture has no keyframe request to wait on (libwebrtc's own encoder
   takes those), so it is kept as the I420 it was converted to and sent again
-  every 100 ms of quiet, the rate of LiveKit's own keepalive. The first picture
+  every 100 ms of quiet, the rate of LiveKit's own keepalive, and once a second
+  after 2 s still, as libwebrtc's own still-screen mode backs off (owner, Oct
+  30). The first picture
   is kept the same way until the feed it sizes is attached: without that, KDE's
   covered window, drawn once, never reached the viewer (found Oct 30).
 - Each picture carries PipeWire's presentation time for the share's clock and A/V
