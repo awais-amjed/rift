@@ -346,6 +346,21 @@ guess in libwebrtc is BT.601 anyway. NVENC comes first where both are
 present. With neither, or without the library, H264 is not offered, and a
 share asked for in H264 goes out as VP9.
 
+A **Wayland share runs on Rift's own PipeWire stream** (`capture_pw.rs`, since
+Oct 29 2026, on branch `gpu-codecs`): the ScreenCast portal from Rust (ashpd),
+the stream in the same FFmpeg library (`native/ffenc/pipewire.c`, from OBS
+Studio's), and each picture handed to VAAPI as the compositor's DMA-BUF, never
+coming to the CPU. VP9 and NVENC get memory buffers instead, which the stream
+switches to whenever the feed changes. Under Wayland VAAPI is tried before
+NVENC for this reason. A window keeps Dart's pick (no second picker); a screen
+is picked in the portal, and the first-picture limit starts once it answers. A
+lent buffer keeps its own fds and mapping until Rust lets it go, since PipeWire
+frees a stream's buffers on every renegotiation (a crash before that, Oct 29).
+When the library, the portal or the stream refuses, libwebrtc's capturer runs
+as before. Proved Oct 29 by the live share tests on GNOME 50 (Iris Xe): 1080p,
+a resize, a late joiner, encoder failure to VP9 and no GPU. Not yet measured
+in the app (`threadtop`) or driven by hand with viewers.
+
 - **H264 and AV1 are only ever encoded by the GPU or the OS, never by Rift.**
   The reason is patents: H264 is licensed through a pool the GPU makers belong
   to, so Rift ships no H264 encoder of its own (the FFmpeg it builds has only

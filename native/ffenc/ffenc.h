@@ -218,6 +218,11 @@ RIFT_FFENC_EXPORT RiftPwStream* rift_pw_open(int32_t fd, uint32_t node_id,
 RIFT_FFENC_EXPORT void rift_pw_set_buffers(RiftPwStream* stream,
                                            int32_t buffers);
 
+// A new rate for the share: the compositor is asked for at most this many
+// pictures a second from the next negotiation on.
+RIFT_FFENC_EXPORT void rift_pw_set_max_fps(RiftPwStream* stream,
+                                           int32_t max_fps);
+
 // A modifier the encoder could not import: offered no more, and the stream
 // renegotiates. With none left, memory buffers come instead.
 RIFT_FFENC_EXPORT void rift_pw_drop_modifier(RiftPwStream* stream,

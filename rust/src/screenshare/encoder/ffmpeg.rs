@@ -213,16 +213,19 @@ struct Candidate {
 
 /// The encoders worth trying, in order: NVENC, then VAAPI on each render
 /// node, first to last. NVIDIA's driver finds its own GPU, which on a laptop
-/// with two is the NVIDIA one whichever drives the screen; the pictures come
-/// from memory, so that does not matter. [`ENCODER_ENV`] names the one to try
-/// instead.
+/// with two is the NVIDIA one whichever drives the screen; under X11 the
+/// pictures come from memory, so that does not matter. Under Wayland VAAPI
+/// comes first: it takes the compositor's DMA-BUF and the picture never
+/// comes to the CPU (`capture_pw.rs`), where NVENC, for now, takes it from
+/// memory. [`ENCODER_ENV`] names the one to try instead.
 #[cfg(target_os = "linux")]
 fn candidates() -> Vec<Candidate> {
-    let mut candidates = vec![Candidate {
+    let nvenc = Candidate {
         encoder: c"h264_nvenc",
         device: None,
         label: "NVENC".to_string(),
-    }];
+    };
+    let mut candidates = Vec::new();
     let mut nodes: Vec<PathBuf> = std::fs::read_dir("/dev/dri")
         .into_iter()
         .flatten()
@@ -241,7 +244,23 @@ fn candidates() -> Vec<Candidate> {
             label: format!("VAAPI on {}", node.display()),
         })
     }));
+    if super::super::capture_pw::on_wayland() {
+        candidates.push(nvenc);
+    } else {
+        candidates.insert(0, nvenc);
+    }
     named_only(candidates)
+}
+
+/// The render node a Wayland share's DMA-BUF is offered for: VAAPI's GPU,
+/// when VAAPI is what encodes H264 here.
+#[cfg(target_os = "linux")]
+pub(crate) fn dmabuf_render_node() -> Option<String> {
+    let (candidate, _) = h264_encoder()?;
+    if candidate.encoder != c"h264_vaapi" {
+        return None;
+    }
+    candidate.device.as_ref()?.to_str().ok().map(str::to_owned)
 }
 
 /// The encoders worth trying, in order: NVIDIA's, AMD's, then Intel's. Each

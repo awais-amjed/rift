@@ -5,6 +5,8 @@
 //! except the pure helpers, which are compiled and tested everywhere.
 #[cfg(desktop)]
 pub(crate) mod capture;
+#[cfg(target_os = "linux")]
+mod capture_pw;
 #[cfg(desktop)]
 pub(crate) mod encoder;
 #[cfg(desktop)]

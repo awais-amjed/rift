@@ -5,9 +5,6 @@
 //! restore token of the window picked there, and the session started here
 //! with it shows no second picker. A screen share gets the picker here, where
 //! libwebrtc's capturer ran it before. Tokens are never logged.
-// Used by the share from Task 5 of the step 2 plan (capture_pw.rs).
-#![allow(dead_code)]
-
 use std::os::fd::OwnedFd;
 
 use ashpd::desktop::screencast::{
@@ -40,8 +37,12 @@ pub(crate) struct PortalSession {
     /// The stream's size as the portal reports it, when it does.
     pub size: Option<Size>,
     /// The token to restore this choice with, when one was asked for.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub restore_token: Option<String>,
     session: Option<Session<Screencast>>,
+    /// The runtime that opened it, which drives ashpd's one D-Bus
+    /// connection: the close goes there.
+    runtime: Option<tokio::runtime::Handle>,
 }
 
 impl Drop for PortalSession {
@@ -56,11 +57,15 @@ impl Drop for PortalSession {
                 log::warn!("portal: the ScreenCast session did not close: {e}");
             }
         };
-        match tokio::runtime::Handle::try_current() {
-            Ok(runtime) => {
+        match self
+            .runtime
+            .take()
+            .or_else(|| tokio::runtime::Handle::try_current().ok())
+        {
+            Some(runtime) => {
                 runtime.spawn(close);
             }
-            Err(_) => {
+            None => {
                 std::thread::spawn(move || {
                     if let Ok(runtime) = tokio::runtime::Builder::new_current_thread()
                         .enable_all()
@@ -84,19 +89,10 @@ pub(crate) fn error_of(error: ashpd::Error) -> PortalError {
 
 /// Starts a ScreenCast session: the picker, unless `restore_token` restores
 /// an earlier choice. The cursor is drawn into the picture by the compositor
-/// when `cursor`, and left out otherwise.
+/// when `cursor`, and left out otherwise. With `keep` the portal is asked to
+/// keep the choice, and hands back a token for it; GNOME forgets a saved
+/// choice once its token is used, so a token is renewed only this way.
 pub(crate) async fn open(
-    kind: PortalKind,
-    restore_token: Option<&str>,
-    cursor: bool,
-) -> Result<PortalSession, PortalError> {
-    // A given token is renewed: GNOME forgets a saved choice once its token
-    // is used, and returns a new one only when asked to keep it.
-    open_keeping(kind, restore_token, cursor, restore_token.is_some()).await
-}
-
-/// `open`, asking the portal to keep the choice when `keep`.
-async fn open_keeping(
     kind: PortalKind,
     restore_token: Option<&str>,
     cursor: bool,
@@ -165,6 +161,7 @@ async fn open_keeping(
         size,
         restore_token: streams.restore_token().map(str::to_owned),
         session: Some(session),
+        runtime: tokio::runtime::Handle::try_current().ok(),
     })
 }
 
@@ -213,7 +210,7 @@ pub(crate) mod tests {
     #[ignore]
     fn live_portal_seed_token() {
         let session = live_runtime()
-            .block_on(open_keeping(PortalKind::Screen, None, true, true))
+            .block_on(open(PortalKind::Screen, None, true, true))
             .expect("the portal opens");
         check(&session);
         let token = session.restore_token.as_deref().expect("a token");
@@ -227,7 +224,7 @@ pub(crate) mod tests {
     fn live_portal_restores_a_screen() {
         let token = std::fs::read_to_string(std::env::var("RIFT_PORTAL_TOKEN").unwrap()).unwrap();
         let session = live_runtime()
-            .block_on(open(PortalKind::Screen, Some(token.trim()), true))
+            .block_on(open(PortalKind::Screen, Some(token.trim()), true, true))
             .expect("the portal restores the screen");
         check(&session);
         let renewed = session.restore_token.as_deref().expect("a new token");

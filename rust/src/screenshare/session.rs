@@ -25,8 +25,13 @@ use tokio::task::JoinHandle;
 
 /// How long the selected source gets to deliver its first frame, or to say
 /// it is waiting for a minimised window. A Wayland portal the user dismissed
-/// never does either.
+/// never does either, under libwebrtc's capturer. On Rift's own stream the
+/// time starts once the picker has its answer.
 const FIRST_FRAME_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// How long the desktop's picker is left up on Rift's own stream, as long
+/// as Dart leaves its window picker (`WindowSharePortal`).
+const PICKER_TIMEOUT: Duration = Duration::from_secs(600);
 
 /// How long a share still reconnecting on its own is given to finish before
 /// it is moved instead — see [`move_to`].
@@ -382,20 +387,30 @@ async fn bring_up(
         on_paused: Some(announce_paused(participant.clone())),
     });
 
-    let first = match tokio::time::timeout(FIRST_FRAME_TIMEOUT, started.recv()).await {
-        Ok(Some(Progress::FirstFrame(size))) => Some(size),
-        Ok(Some(Progress::Waiting)) => None,
-        Ok(Some(Progress::Failed(reason))) => return Err(stop_capture(capture, reason).await),
-        Ok(None) => {
-            let reason = "The capture thread stopped before producing a frame".to_string();
-            return Err(stop_capture(capture, reason).await);
-        }
-        Err(_) => {
-            let reason = format!(
-                "No frames arrived from the selected source in {} seconds",
-                FIRST_FRAME_TIMEOUT.as_secs()
-            );
-            return Err(stop_capture(capture, reason).await);
+    // While the desktop's picker is up, the first frame waits on a person.
+    let mut limit = FIRST_FRAME_TIMEOUT;
+    let first = loop {
+        match tokio::time::timeout(limit, started.recv()).await {
+            Ok(Some(Progress::Picking)) => limit = PICKER_TIMEOUT,
+            Ok(Some(Progress::Picked)) => limit = FIRST_FRAME_TIMEOUT,
+            Ok(Some(Progress::FirstFrame(size))) => break Some(size),
+            Ok(Some(Progress::Waiting)) => break None,
+            Ok(Some(Progress::Failed(reason))) => return Err(stop_capture(capture, reason).await),
+            Ok(None) => {
+                let reason = "The capture thread stopped before producing a frame".to_string();
+                return Err(stop_capture(capture, reason).await);
+            }
+            Err(_) if limit == PICKER_TIMEOUT => {
+                let reason = "The desktop's picker had no answer".to_string();
+                return Err(stop_capture(capture, reason).await);
+            }
+            Err(_) => {
+                let reason = format!(
+                    "No frames arrived from the selected source in {} seconds",
+                    FIRST_FRAME_TIMEOUT.as_secs()
+                );
+                return Err(stop_capture(capture, reason).await);
+            }
         }
     };
 
@@ -813,7 +828,7 @@ fn announce_picture(participant: &LocalParticipant, size: Size, fps: u32) {
 async fn publish_when_opened(video: Arc<Video>, mut started: Started) {
     while let Some(progress) = started.recv().await {
         match progress {
-            Progress::Waiting => {}
+            Progress::Waiting | Progress::Picking | Progress::Picked => {}
             Progress::Failed(reason) => {
                 log::info!("screenshare: gave up waiting: {reason}");
                 return;

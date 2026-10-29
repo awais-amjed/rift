@@ -32,58 +32,68 @@ pub(crate) fn spawn_processing(
 }
 
 fn run(frame_rx: Taker<SendableFrame>, source_slot: VideoSlot) {
-    // Reused across frames; reallocated only if the capture size changes.
-    // `VideoFrame::new` rather than a struct literal: libwebrtc keeps adding
-    // fields to this (0.3.48 added `frame_metadata`), and a literal has to be
-    // edited for every one of them.
-    let mut native = VideoFrame::new(VideoRotation::VideoRotation0, I420Buffer::new(2, 2));
-
+    let mut converter = Converter::new();
     while let Some(SendableFrame(frame)) = frame_rx.take() {
-        let width = frame.width();
-        let height = frame.height();
         let size = Size {
-            width: width as u32,
-            height: height as u32,
+            width: frame.width() as u32,
+            height: frame.height() as u32,
         };
         // Asked on every frame, because the session swaps in a new source
         // when the size is changed mid-share. One uncontended lock a frame.
         let Some((feed, target)) = source_slot.feed(size) else {
             continue;
         };
+        converter.send(frame.data(), frame.stride(), size, feed, target);
+    }
+}
 
+/// A picture in memory on its way to its feed: libwebrtc's capture, or a
+/// Wayland share's memory buffer (`capture_pw.rs`).
+pub(crate) struct Converter {
+    /// Reused across frames; reallocated only if the capture size changes.
+    native: VideoFrame<I420Buffer>,
+}
+
+impl Converter {
+    pub(crate) fn new() -> Self {
+        // `VideoFrame::new` rather than a struct literal: libwebrtc keeps
+        // adding fields to this (0.3.48 added `frame_metadata`), and a
+        // literal has to be edited for every one of them.
+        Self {
+            native: VideoFrame::new(VideoRotation::VideoRotation0, I420Buffer::new(2, 2)),
+        }
+    }
+
+    /// Hands `feed` a picture of `size` in BGRA rows `stride` bytes apart
+    /// (libyuv's ARGB), as a picture of `target`'s size.
+    pub(crate) fn send(&mut self, data: &[u8], stride: u32, size: Size, feed: Feed, target: Size) {
         // The GPU encoder takes NV12, straight from the capture when it is
         // already the target size.
         #[cfg(gpu_encoder)]
         if let Feed::Gpu(gpu) = &feed {
             if target == size {
-                gpu.send(
-                    Picture::Argb {
-                        data: frame.data(),
-                        stride: frame.stride(),
-                    },
-                    target,
-                    now_us(),
-                );
-                continue;
+                gpu.send(Picture::Argb { data, stride }, target, now_us());
+                return;
             }
         }
 
+        let native = &mut self.native;
         if native.buffer.width() != size.width || native.buffer.height() != size.height {
             native.buffer = I420Buffer::new(size.width, size.height);
         }
         let (stride_y, stride_u, stride_v) = native.buffer.strides();
         let (y, u, v) = native.buffer.data_mut();
         yuv_helper::argb_to_i420(
-            frame.data(),
-            frame.stride(),
+            data,
+            stride,
             y,
             stride_y,
             u,
             stride_u,
             v,
             stride_v,
-            width,
-            height,
+            size.width as i32,
+            size.height as i32,
         );
 
         // `scale` allocates a fresh buffer every call (about 3 MB at 1080p)
@@ -91,7 +101,7 @@ fn run(frame_rx: Taker<SendableFrame>, source_slot: VideoSlot) {
         // the capture is already the target size.
         match feed {
             Feed::Raw(source) if target == size => {
-                source.capture_frame(&native);
+                source.capture_frame(native);
             }
             Feed::Raw(source) => {
                 let scaled = VideoFrame::new(
@@ -145,7 +155,7 @@ fn fit(frame: &mut I420Buffer, size: Size, target: Size) -> I420Buffer {
 /// The capture time an encoded frame carries: the wall clock, as libwebrtc
 /// stamps a raw frame that comes without one.
 #[cfg(gpu_encoder)]
-fn now_us() -> i64 {
+pub(crate) fn now_us() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |since| since.as_micros() as i64)

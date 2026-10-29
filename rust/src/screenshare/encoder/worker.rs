@@ -73,10 +73,10 @@ pub(crate) struct GpuEncoder {
     failed: Arc<AtomicBool>,
     /// The rate the encoder is at, for an encoder opened to take over.
     bitrate: Arc<AtomicU32>,
-    // Read by the Wayland capture, from Task 5 of the step 2 plan.
-    #[allow(dead_code)]
+    // Read by the Wayland capture, which only Linux has.
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     import_failed: Arc<Mutex<Option<ImportFailed>>>,
-    #[allow(dead_code)]
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     takes_dmabuf: bool,
     handle: Option<JoinHandle<()>>,
     pub name: String,
@@ -162,14 +162,14 @@ impl GpuEncoder {
     }
 
     /// Whether the encoder takes a DMA-BUF: VAAPI's does, NVENC's does not.
-    #[allow(dead_code)]
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     pub(crate) fn takes_dmabuf(&self) -> bool {
         self.takes_dmabuf
     }
 
     /// What to call, from the encoder's thread, with the format and modifier
     /// of a DMA-BUF the GPU would not read.
-    #[allow(dead_code)]
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     pub(crate) fn on_import_failed(&self, told: ImportFailed) {
         *self.import_failed.lock().unwrap() = Some(told);
     }

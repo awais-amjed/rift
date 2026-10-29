@@ -62,6 +62,20 @@ impl GpuFeed {
         self.encoder.name()
     }
 
+    /// Whether the encoder takes a Wayland share's DMA-BUF whole: VAAPI's
+    /// does, NVENC's takes the picture from memory.
+    #[cfg(target_os = "linux")]
+    pub(crate) fn takes_dmabuf(&self) -> bool {
+        self.encoder.takes_dmabuf()
+    }
+
+    /// What to call, from the encoder's thread, with the format and modifier
+    /// of a DMA-BUF the GPU would not read.
+    #[cfg(target_os = "linux")]
+    pub(crate) fn on_import_failed(&self, told: Box<dyn Fn(u32, u64) + Send + Sync>) {
+        self.encoder.on_import_failed(told);
+    }
+
     /// The rate the encoder is at, which one taking over starts from.
     pub(crate) fn bitrate(&self) -> u32 {
         self.encoder.bitrate()
@@ -167,8 +181,6 @@ pub(crate) enum Picture<'a> {
         stride: u32,
     },
     I420(&'a I420Buffer),
-    // Sent by the Wayland capture, from Task 5 of the step 2 plan.
-    #[allow(dead_code)]
     #[cfg(target_os = "linux")]
     DmaBuf(PwPicture),
 }

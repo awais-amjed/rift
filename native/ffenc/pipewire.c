@@ -10,8 +10,10 @@
  * arrays replaced by plain C; the explicit-sync acquire point is waited on
  * here, on the CPU, where OBS has its GPU wait, and the release point is
  * signalled when Rust gives the buffer back; the picture handed up carries
- * the crop and turn OBS reads, for the encoder to apply; and the format asks
- * for a maxFramerate, which OBS leaves to the compositor.
+ * the crop and turn OBS reads, for the encoder to apply; the format asks
+ * for a maxFramerate, which OBS leaves to the compositor; and a buffer lent
+ * to Rust keeps its memory and fds after PipeWire frees it (struct Held),
+ * since OBS uses each buffer inside its process callback and Rift does not.
  *
  * Copyright 2020 Georges Basile Stavracas Neto <georges.stavracas@gmail.com>
  *
@@ -39,6 +41,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -132,6 +135,81 @@ struct RiftPwStream {
 };
 
 /* auxiliary methods */
+
+// A buffer as Rust holds it. PipeWire frees a stream's buffers whenever it
+// renegotiates — a switch of buffer kind, a resized window — unmapping their
+// memory and closing their fds, the ones a picture still in Rust's hands
+// reads among them (a crash, Oct 29 2026). So a buffer handed up has fds and
+// a mapping of Rift's own, let go once PipeWire has removed the buffer and
+// Rust has released every picture of it.
+typedef struct Held {
+  // NULL once PipeWire has removed it: nothing to queue back.
+  struct pw_buffer* b;
+  // PipeWire's hold, and one for each picture in Rust.
+  int refs;
+  int fds[4];
+  // A memory buffer's own mapping, or for memory PipeWire owns, a copy.
+  uint8_t* map;
+  size_t map_len;
+  bool copied;
+} Held;
+
+static void unref_held(Held* h) {
+  if (--h->refs > 0) return;
+  for (int i = 0; i < 4; i++)
+    if (h->fds[i] >= 0) close(h->fds[i]);
+  if (h->map && h->copied) free(h->map);
+  else if (h->map) munmap(h->map, h->map_len);
+  free(h);
+}
+
+static void on_add_buffer_cb(void* user_data, struct pw_buffer* b) {
+  (void)user_data;
+  Held* h = calloc(1, sizeof(*h));
+  if (!h) return;
+  h->b = b;
+  h->refs = 1;
+  for (int i = 0; i < 4; i++) h->fds[i] = -1;
+  b->user_data = h;
+}
+
+static void on_remove_buffer_cb(void* user_data, struct pw_buffer* b) {
+  (void)user_data;
+  Held* h = b->user_data;
+  if (!h) return;
+  b->user_data = NULL;
+  h->b = NULL;
+  unref_held(h);
+}
+
+// The plane's fd, Rift's own copy of it.
+static int held_fd(Held* h, uint32_t plane, int fd) {
+  if (h->fds[plane] < 0) h->fds[plane] = fcntl(fd, F_DUPFD_CLOEXEC, 0);
+  return h->fds[plane];
+}
+
+// A memory buffer's bytes, mapped by Rift from its fd, or copied when
+// PipeWire's own memory is all there is. NULL when neither works.
+static const uint8_t* held_data(Held* h, struct spa_data* d) {
+  if (d->type == SPA_DATA_MemFd && d->fd >= 0) {
+    if (!h->map) {
+      size_t len = (size_t)d->mapoffset + d->maxsize;
+      void* map = mmap(NULL, len, PROT_READ, MAP_SHARED, (int)d->fd, 0);
+      if (map == MAP_FAILED) return NULL;
+      h->map = map;
+      h->map_len = len;
+    }
+    return h->map + d->mapoffset;
+  }
+  if (!h->map) {
+    h->map = malloc(d->maxsize);
+    if (!h->map) return NULL;
+    h->map_len = d->maxsize;
+    h->copied = true;
+  }
+  memcpy(h->map, d->data, d->maxsize);
+  return h->map;
+}
 
 static bool parse_pw_version(struct pw_version* dst, const char* version) {
   int n_matches =
@@ -472,7 +550,8 @@ static void on_process_cb(void* user_data) {
   if (!b) return;
 
   buffer = b->buffer;
-  if (s->closing || s->held >= MAX_HELD) goto drop;
+  Held* h = b->user_data;
+  if (!h || s->closing || s->held >= MAX_HELD) goto drop;
 
   header = spa_buffer_find_meta_data(buffer, SPA_META_Header, sizeof(*header));
   if (header && (header->flags & SPA_META_HEADER_FLAG_CORRUPTED) > 0) {
@@ -540,7 +619,8 @@ static void on_process_cb(void* user_data) {
     dmabuf->planes = (int32_t)planes;
     dmabuf->transform = (int32_t)transform;
     for (uint32_t plane = 0; plane < planes; plane++) {
-      dmabuf->fds[plane] = (int32_t)buffer->datas[plane].fd;
+      dmabuf->fds[plane] = held_fd(h, plane, (int)buffer->datas[plane].fd);
+      if (dmabuf->fds[plane] < 0) goto drop;
       dmabuf->offsets[plane] = buffer->datas[plane].chunk->offset;
       dmabuf->strides[plane] = (uint32_t)buffer->datas[plane].chunk->stride;
       corrupt |=
@@ -594,7 +674,9 @@ static void on_process_cb(void* user_data) {
       av_log(NULL, AV_LOG_DEBUG, "pipewire: a memory buffer too small\n");
       goto drop;
     }
-    picture.data = (const uint8_t*)d->data + start;
+    const uint8_t* data = held_data(h, d);
+    if (!data) goto drop;
+    picture.data = data + start;
     picture.len = (size_t)len;
     picture.stride = (int32_t)stride;
     picture.buffers = RIFT_PW_MEMORY;
@@ -607,7 +689,8 @@ static void on_process_cb(void* user_data) {
   picture.height = (int32_t)(quarter_turned(transform) ? crop_w : crop_h);
   picture.pts_ns = header && header->pts >= 0 ? header->pts : monotonic_ns();
   picture.stream = s;
-  picture.held = b;
+  picture.held = h;
+  h->refs++;
   s->held++;
   s->callbacks.picture(s->callbacks.user, &picture);
   return;
@@ -750,6 +833,8 @@ static const struct pw_stream_events stream_events = {
     .state_changed = on_state_changed_cb,
     .param_changed = on_param_changed_cb,
     .process = on_process_cb,
+    .add_buffer = on_add_buffer_cb,
+    .remove_buffer = on_remove_buffer_cb,
 };
 
 static void on_core_info_cb(void* user_data, const struct pw_core_info* info) {
@@ -954,6 +1039,16 @@ void rift_pw_set_buffers(RiftPwStream* s, int32_t buffers) {
   pw_thread_loop_unlock(s->thread_loop);
 }
 
+void rift_pw_set_max_fps(RiftPwStream* s, int32_t max_fps) {
+  if (!s || max_fps <= 0) return;
+  pw_thread_loop_lock(s->thread_loop);
+  if (s->max_fps != max_fps) {
+    s->max_fps = max_fps;
+    pw_loop_signal_event(pw_thread_loop_get_loop(s->thread_loop), s->reneg);
+  }
+  pw_thread_loop_unlock(s->thread_loop);
+}
+
 void rift_pw_drop_modifier(RiftPwStream* s, uint32_t drm_format,
                            uint64_t modifier) {
   if (!s) return;
@@ -972,7 +1067,9 @@ void rift_pw_drop_modifier(RiftPwStream* s, uint32_t drm_format,
 void rift_pw_release(RiftPwStream* s, void* held) {
   if (!s || !held) return;
   pw_thread_loop_lock(s->thread_loop);
-  return_unused_pw_buffer(s, held);
+  Held* h = held;
+  if (h->b) return_unused_pw_buffer(s, h->b);
+  unref_held(h);
   s->held--;
   bool last = s->closing && s->held == 0;
   pw_thread_loop_unlock(s->thread_loop);

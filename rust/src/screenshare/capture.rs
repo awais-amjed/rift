@@ -1,5 +1,8 @@
 //! The capture thread: asks libwebrtc for a frame on every tick and hands
-//! each one to the processing thread in `frames.rs`.
+//! each one to the processing thread in `frames.rs`. A Wayland share runs
+//! on Rift's own PipeWire stream instead where it can (`capture_pw.rs`).
+#[cfg(target_os = "linux")]
+use super::capture_pw;
 use super::frames::{self, SendableFrame};
 #[cfg(gpu_encoder)]
 use super::gpu_feed::GpuFeed;
@@ -46,10 +49,10 @@ pub(crate) struct CaptureRequest {
     pub fps: u32,
     pub capture_cursor: bool,
     /// Told `true` when the shared window is minimised or has gone away, and
-    /// `false` when it is back. Windows only: either way the capturer has
-    /// nothing new, so watchers are left with a still picture unless somebody
-    /// says why.
-    #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
+    /// `false` when it is back. Windows, and Wayland on Rift's own stream
+    /// (`capture_pw.rs`): either way the capturer has nothing new, so
+    /// watchers are left with a still picture unless somebody says why.
+    #[cfg_attr(not(any(target_os = "windows", target_os = "linux")), allow(dead_code))]
     pub on_paused: Option<Box<dyn Fn(bool) + Send>>,
 }
 
@@ -60,6 +63,14 @@ pub(crate) enum Progress {
     /// elsewhere the desktop's own picker chooses the window.
     #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
     Waiting,
+    /// The desktop's picker is up, which waits on a person: the first frame
+    /// is not due until [`Picked`](Self::Picked). Wayland on Rift's own
+    /// stream only, where Rift runs the picker (`capture_pw.rs`).
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+    Picking,
+    /// The picker has its answer, and the first frame is due.
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+    Picked,
     /// The first frame arrived, at this native size.
     FirstFrame(Size),
     /// There will never be a frame, and why.
@@ -179,11 +190,30 @@ pub(crate) fn spawn(request: CaptureRequest) -> (Capture, Started) {
     let fps = Arc::new(AtomicU32::new(request.fps));
     let clock = fps.clone();
     let (done_tx, done) = mpsc::channel();
+    // The app's runtime, for the portal (`capture_pw::run`).
+    #[cfg(target_os = "linux")]
+    let runtime = tokio::runtime::Handle::try_current().ok();
     // Named, as each of a share's threads is, so a profile of the app can
     // tell what each stage costs.
     let handle = thread::Builder::new()
         .name("share-capture".to_string())
         .spawn(move || {
+            // A Wayland share runs on Rift's own stream where it can.
+            #[cfg(target_os = "linux")]
+            let request = match capture_pw::run(
+                request,
+                runtime,
+                &clock,
+                &progress_tx,
+                &feeds,
+                &command_rx,
+            ) {
+                capture_pw::Handoff::Done => {
+                    let _ = done_tx.send(());
+                    return;
+                }
+                capture_pw::Handoff::Fallback(request) => request,
+            };
             run(request, clock, progress_tx, feeds, command_rx);
             let _ = done_tx.send(());
         })

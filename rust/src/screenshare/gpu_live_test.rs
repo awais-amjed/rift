@@ -669,7 +669,7 @@ fn live_vaapi_encodes_the_stream() {
             60,
             Some(&render_node()),
             PwBuffers::DmaBuf,
-            put,
+            move |picture| drop(put.put(picture)),
             Box::new(|event| log::info!("pipewire event: {event:?}")),
         )
         .expect("the stream opens"),

@@ -8,15 +8,11 @@
 //!
 //! A picture is the compositor's buffer, lent: it goes back when the
 //! `PwPicture` is dropped, and the C side hands out at most two at a time.
-// Used by the share from Task 5 of the step 2 plan (capture_pw.rs).
-#![allow(dead_code)]
-
 use std::ffi::{c_char, c_void, CStr, CString};
 use std::os::fd::AsRawFd;
 use std::sync::OnceLock;
 
 use super::encoder::{library, symbol};
-use super::latest::Putter;
 use super::portal::PortalSession;
 use super::resolution::Size;
 
@@ -50,6 +46,9 @@ struct RawPicture {
     width: i32,
     height: i32,
     transform: i32,
+    /// PipeWire's presentation time, on a clock the compositor chooses; the
+    /// share stamps pictures with the wall clock instead, as every other.
+    #[allow(dead_code)]
     pts_ns: i64,
     stream: *mut c_void,
     held: *mut c_void,
@@ -82,6 +81,7 @@ type Open = unsafe extern "C" fn(
 struct Api {
     open: Open,
     set_buffers: unsafe extern "C" fn(*mut c_void, i32),
+    set_max_fps: unsafe extern "C" fn(*mut c_void, i32),
     drop_modifier: unsafe extern "C" fn(*mut c_void, u32, u64),
     release: unsafe extern "C" fn(*mut c_void, *mut c_void),
     close: unsafe extern "C" fn(*mut c_void),
@@ -97,6 +97,7 @@ fn api() -> Result<&'static Api, String> {
             Ok(Api {
                 open: symbol(library, "rift_pw_open")?,
                 set_buffers: symbol(library, "rift_pw_set_buffers")?,
+                set_max_fps: symbol(library, "rift_pw_set_max_fps")?,
                 drop_modifier: symbol(library, "rift_pw_drop_modifier")?,
                 release: symbol(library, "rift_pw_release")?,
                 close: symbol(library, "rift_pw_close")?,
@@ -105,6 +106,12 @@ fn api() -> Result<&'static Api, String> {
     })
     .as_ref()
     .map_err(Clone::clone)
+}
+
+/// Whether Rift's FFmpeg library is here with its stream, so a Wayland share
+/// can run on it rather than on libwebrtc's capturer.
+pub(crate) fn available() -> bool {
+    api().is_ok()
 }
 
 /// The kind of buffer the stream asks the compositor for.
@@ -175,11 +182,6 @@ impl PwPicture {
     pub fn transform(&self) -> i32 {
         self.raw.transform
     }
-
-    /// PipeWire's presentation time, on the monotonic clock.
-    pub fn pts_us(&self) -> i64 {
-        self.raw.pts_ns / 1000
-    }
 }
 
 impl Drop for PwPicture {
@@ -191,7 +193,7 @@ impl Drop for PwPicture {
 
 /// What the callbacks reach, alive until the stream is closed.
 struct Context {
-    pictures: Putter<PwPicture>,
+    pictures: Box<dyn Fn(PwPicture) + Send>,
     events: Box<dyn Fn(PwEvent) + Send>,
     api: &'static Api,
 }
@@ -204,9 +206,7 @@ extern "C" fn on_picture(user: *mut c_void, raw: *const RawPicture) {
         raw: unsafe { std::ptr::read(raw) },
         api: context.api,
     };
-    // The picture it replaced, or this one when nobody takes them any more,
-    // goes back to the compositor here.
-    drop(context.pictures.put(picture));
+    (context.pictures)(picture);
 }
 
 extern "C" fn on_state(user: *mut c_void, state: i32, error: *const c_char) {
@@ -239,7 +239,8 @@ unsafe impl Sync for PwStream {}
 
 impl PwStream {
     /// Opens the stream on the session's node, at most `max_fps` pictures a
-    /// second, each `put` into `pictures` on PipeWire's thread. DMA-BUFs are
+    /// second, each handed to `pictures` on PipeWire's thread, which must
+    /// not hold it up: a picture it drops goes back to the compositor. DMA-BUFs are
     /// offered with the modifiers that import on `render_node`; `None` asks
     /// for memory buffers only. `events` runs on PipeWire's thread too, and
     /// must not hold it up.
@@ -248,7 +249,7 @@ impl PwStream {
         max_fps: u32,
         render_node: Option<&str>,
         buffers: PwBuffers,
-        pictures: Putter<PwPicture>,
+        pictures: impl Fn(PwPicture) + Send + 'static,
         events: Box<dyn Fn(PwEvent) + Send>,
     ) -> Result<PwStream, String> {
         let api = api()?;
@@ -257,7 +258,7 @@ impl PwStream {
             .transpose()
             .map_err(|e| e.to_string())?;
         let context = Box::into_raw(Box::new(Context {
-            pictures,
+            pictures: Box::new(pictures),
             events,
             api,
         }));
@@ -304,6 +305,12 @@ impl PwStream {
         unsafe { (self.api.set_buffers)(self.stream, buffers.raw()) };
     }
 
+    /// A new rate for the share, which the compositor sends at most.
+    pub fn set_max_fps(&self, max_fps: u32) {
+        // SAFETY: an open stream.
+        unsafe { (self.api.set_max_fps)(self.stream, max_fps.clamp(1, 360) as i32) };
+    }
+
     /// A modifier the encoder could not import: the compositor is asked for
     /// another, or memory buffers once none is left.
     pub fn drop_modifier(&self, drm_format: u32, modifier: u64) {
@@ -341,7 +348,12 @@ pub(crate) mod tests {
         let file = std::env::var("RIFT_PORTAL_TOKEN").expect("RIFT_PORTAL_TOKEN");
         let token = std::fs::read_to_string(&file).unwrap();
         let session = portal::tests::live_runtime()
-            .block_on(portal::open(PortalKind::Screen, Some(token.trim()), true))
+            .block_on(portal::open(
+                PortalKind::Screen,
+                Some(token.trim()),
+                true,
+                true,
+            ))
             .expect("the portal restores the screen");
         if let Some(renewed) = &session.restore_token {
             std::fs::write(&file, renewed).unwrap();
@@ -360,7 +372,7 @@ pub(crate) mod tests {
             60,
             Some(&render_node()),
             buffers,
-            put,
+            move |picture| drop(put.put(picture)),
             Box::new(|event| log::info!("pipewire event: {event:?}")),
         )
         .expect("the stream opens");
@@ -424,6 +436,55 @@ pub(crate) mod tests {
             assert!(data.len() >= (stride * (size.height - 1) + size.width * 4) as usize);
         });
         assert_eq!(got, 30);
+    }
+
+    /// A switch has PipeWire free the stream's buffers, the one a picture
+    /// still holds among them: that picture's memory and fds stay its own
+    /// until it is dropped.
+    #[test]
+    #[ignore]
+    fn live_pw_stream_keeps_held_pictures_across_a_switch() {
+        let session = screen();
+        let (stream, pictures) = open(&session, PwBuffers::Memory);
+        let held = pictures
+            .take_timeout(Duration::from_secs(5))
+            .expect("a picture");
+        let (data, _) = held.memory().expect("a memory picture");
+        stream.set_buffers(PwBuffers::DmaBuf);
+        let switched = Instant::now() + Duration::from_secs(1);
+        let mut dmabuf = None;
+        while Instant::now() < switched || dmabuf.is_none() {
+            assert!(Instant::now() < switched + Duration::from_secs(4), "no DMA-BUF");
+            if let Some(picture) = pictures.take_timeout(Duration::from_millis(50)) {
+                if picture.dmabuf().is_some() {
+                    dmabuf = Some(picture);
+                }
+            }
+        }
+        // Every byte still mapped.
+        let sum = data.iter().fold(0u64, |sum, &byte| sum + u64::from(byte));
+        log::info!("the held memory picture still reads ({sum})");
+        drop(held);
+
+        // The same files behind the fds after the switch, not closed and
+        // their numbers taken by others.
+        let file = |fd: i32| {
+            // SAFETY: fstat into a zeroed stat.
+            let mut stat: libc::stat = unsafe { std::mem::zeroed() };
+            (unsafe { libc::fstat(fd, &mut stat) } == 0).then_some((stat.st_dev, stat.st_ino))
+        };
+        let dmabuf = dmabuf.unwrap();
+        let planes = *dmabuf.dmabuf().unwrap();
+        let fds = &planes.fds[..planes.planes as usize];
+        let before: Vec<_> = fds.iter().map(|&fd| file(fd)).collect();
+        assert!(before.iter().all(Option::is_some));
+        stream.set_buffers(PwBuffers::Memory);
+        let switched = Instant::now() + Duration::from_secs(1);
+        while Instant::now() < switched {
+            pictures.take_timeout(Duration::from_millis(50));
+        }
+        let after: Vec<_> = fds.iter().map(|&fd| file(fd)).collect();
+        assert_eq!(before, after, "the held DMA-BUF's fds changed");
     }
 
     #[test]
