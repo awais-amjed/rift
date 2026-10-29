@@ -357,9 +357,16 @@ is picked in the portal, and the first-picture limit starts once it answers. A
 lent buffer keeps its own fds and mapping until Rust lets it go, since PipeWire
 frees a stream's buffers on every renegotiation (a crash before that, Oct 29).
 When the library, the portal or the stream refuses, libwebrtc's capturer runs
-as before. Proved Oct 29 by the live share tests on GNOME 50 (Iris Xe): 1080p,
-a resize, a late joiner, encoder failure to VP9 and no GPU. Not yet measured
-in the app (`threadtop`) or driven by hand with viewers.
+as before. Rift's portal connection registers as `com.codingfries.rift`, the id
+GTK and Dart's picker use: unnamed, GNOME could not find the window Dart's
+picker saved, and showed its picker a second time. GNOME closes the portal
+session when a shared window closes and only pauses the stream, so the
+session's `Closed` ends the share, as libwebrtc's capturer does; a minimised
+window it keeps streaming live, so nothing shows paused there. A window's
+memory picture is cropped, and goes to libyuv in whole rows. Proved Oct 29 by
+the live share tests on GNOME 50 (Iris Xe): 1080p, a resize, a late joiner,
+encoder failure to VP9 and no GPU; and in the app (the measurement and
+what was driven are in `TESTING.md`).
 
 - **H264 and AV1 are only ever encoded by the GPU or the OS, never by Rift.**
   The reason is patents: H264 is licensed through a pool the GPU makers belong

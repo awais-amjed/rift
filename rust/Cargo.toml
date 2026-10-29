@@ -82,6 +82,9 @@ libpulse-binding = "2.30.1"
 # (src/screenshare/portal.rs): D-Bus through zbus, pure Rust, no system
 # library.
 ashpd = { version = "0.13", default-features = false, features = ["tokio", "screencast"] }
+# To wait on the portal session's Closed signal, a stream; ashpd builds on it
+# already, so nothing new ships.
+futures-util = "0.3"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 wasapi = "0.26.0"

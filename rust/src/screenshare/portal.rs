@@ -6,12 +6,17 @@
 //! with it shows no second picker. A screen share gets the picker here, where
 //! libwebrtc's capturer ran it before. Tokens are never logged.
 use std::os::fd::OwnedFd;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+
+use futures_util::StreamExt;
 
 use ashpd::desktop::screencast::{
     CursorMode, Screencast, SelectSourcesOptions, SourceType, StartCastOptions,
 };
 use ashpd::desktop::{CreateSessionOptions, PersistMode, ResponseError, Session};
 use ashpd::enumflags2::BitFlags;
+use ashpd::AppID;
 
 use super::resolution::Size;
 
@@ -39,15 +44,30 @@ pub(crate) struct PortalSession {
     /// The token to restore this choice with, when one was asked for.
     #[cfg_attr(not(test), allow(dead_code))]
     pub restore_token: Option<String>,
-    session: Option<Session<Screencast>>,
+    session: Option<Arc<Session<Screencast>>>,
     /// The runtime that opened it, which drives ashpd's one D-Bus
     /// connection: the close goes there.
     runtime: Option<tokio::runtime::Handle>,
+    /// Set when the desktop closes the session, which GNOME does when the
+    /// shared window closes: the stream itself only pauses.
+    closed: Arc<AtomicBool>,
+    listening: Option<tokio::task::JoinHandle<()>>,
+}
+
+impl PortalSession {
+    /// Whether the desktop has closed the session.
+    pub(crate) fn closed(&self) -> bool {
+        self.closed.load(Ordering::Relaxed)
+    }
 }
 
 impl Drop for PortalSession {
     fn drop(&mut self) {
-        let Some(session) = self.session.take() else {
+        if let Some(listening) = self.listening.take() {
+            listening.abort();
+        }
+        // A session the desktop closed is gone already.
+        let Some(session) = self.session.take().filter(|_| !self.closed()) else {
             return;
         };
         // Closing is a D-Bus call; it goes on the runtime that opened it, or
@@ -87,6 +107,31 @@ pub(crate) fn error_of(error: ashpd::Error) -> PortalError {
     }
 }
 
+/// Rift's application id: `APPLICATION_ID` in `linux/CMakeLists.txt`, which
+/// GTK registers for the app's main connection and Dart's picker for its own.
+const APP_ID: &str = "com.codingfries.rift";
+
+/// Names ashpd's connection to the portal as Rift, once per process. A pick
+/// Dart's picker saved is saved for Rift and found only from a connection of
+/// that name: unnamed, GNOME showed its picker a second time, as "An app".
+/// Never fatal, as in Dart's `PortalRequests.register`: a sandboxed app or a
+/// portal older than 1.20 goes on without it, and a second call is refused,
+/// so a refusal is not asked again.
+async fn register() {
+    static REGISTERED: tokio::sync::OnceCell<()> = tokio::sync::OnceCell::const_new();
+    REGISTERED
+        .get_or_init(|| async {
+            let registered = match AppID::try_from(APP_ID) {
+                Ok(app_id) => ashpd::register_host_app(app_id).await,
+                Err(e) => Err(e),
+            };
+            if let Err(e) = registered {
+                log::info!("portal: not registered as {APP_ID}, going on: {e}");
+            }
+        })
+        .await;
+}
+
 /// Starts a ScreenCast session: the picker, unless `restore_token` restores
 /// an earlier choice. The cursor is drawn into the picture by the compositor
 /// when `cursor`, and left out otherwise. With `keep` the portal is asked to
@@ -98,11 +143,39 @@ pub(crate) async fn open(
     cursor: bool,
     keep: bool,
 ) -> Result<PortalSession, PortalError> {
+    register().await;
     let screencast = Screencast::new().await.map_err(error_of)?;
-    let session = screencast
-        .create_session(CreateSessionOptions::default())
-        .await
-        .map_err(error_of)?;
+    let session = Arc::new(
+        screencast
+            .create_session(CreateSessionOptions::default())
+            .await
+            .map_err(error_of)?,
+    );
+    // Listening before the session starts, so a close is not missed. The
+    // signal's stream borrows the session, so the task holds it too.
+    let closed = Arc::new(AtomicBool::new(false));
+    let (listening_tx, listening_rx) = tokio::sync::oneshot::channel();
+    let listening = {
+        let session = session.clone();
+        let closed = closed.clone();
+        tokio::spawn(async move {
+            let closing = session.receive_closed().await;
+            let _ = listening_tx.send(());
+            let closing = match closing {
+                Ok(closing) => closing,
+                Err(e) => {
+                    log::warn!("portal: not told when the session closes: {e}");
+                    return;
+                }
+            };
+            let mut closing = std::pin::pin!(closing);
+            if closing.next().await.is_some() {
+                log::info!("portal: the desktop closed the ScreenCast session");
+                closed.store(true, Ordering::Relaxed);
+            }
+        })
+    };
+    let _ = listening_rx.await;
     let sources: BitFlags<SourceType> = match kind {
         PortalKind::Screen => SourceType::Monitor.into(),
         PortalKind::Window => SourceType::Window.into(),
@@ -137,15 +210,17 @@ pub(crate) async fn open(
         Ok::<_, ashpd::Error>((streams, fd))
     }
     .await;
+    // Closed here on a failure: no PortalSession owns it yet.
     let (streams, fd) = match started {
         Ok(started) => started,
         Err(e) => {
-            // Closed here: no PortalSession owns it yet.
+            listening.abort();
             let _ = session.close().await;
             return Err(error_of(e));
         }
     };
     let Some(stream) = streams.streams().first() else {
+        listening.abort();
         let _ = session.close().await;
         return Err(PortalError::Unavailable("the portal gave no stream".into()));
     };
@@ -162,6 +237,8 @@ pub(crate) async fn open(
         restore_token: streams.restore_token().map(str::to_owned),
         session: Some(session),
         runtime: tokio::runtime::Handle::try_current().ok(),
+        closed,
+        listening: Some(listening),
     })
 }
 

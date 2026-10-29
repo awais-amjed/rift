@@ -676,6 +676,10 @@ static void on_process_cb(void* user_data) {
     }
     const uint8_t* data = held_data(h, d);
     if (!data) goto drop;
+    // Whole rows where the buffer has them, as libyuv's callers check for: a
+    // window's crop stops short of the stride on its last row.
+    uint64_t rows = (uint64_t)stride * crop_h;
+    if (start + rows <= d->maxsize) len = rows;
     picture.data = data + start;
     picture.len = (size_t)len;
     picture.stride = (int32_t)stride;

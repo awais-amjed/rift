@@ -193,7 +193,9 @@ pub(super) fn run(
         .spawn(move || process(pictures, processing, controls))
         .expect("no processing thread");
 
-    watch(&stream, &ended, &arrived, fps, rate, progress, command_rx);
+    watch(
+        &stream, &session, &ended, &arrived, fps, rate, progress, command_rx,
+    );
     // The stream first, which closes the processing thread's mailbox; the
     // portal session after it.
     drop(stream);
@@ -226,8 +228,10 @@ async fn open_portal(
 
 /// The capture thread's part once pictures flow: waits for a stop, ends the
 /// share when the stream ends, and passes on a new rate.
+#[allow(clippy::too_many_arguments)]
 fn watch(
     stream: &PwStream,
+    session: &PortalSession,
     ended: &Mutex<Option<String>>,
     arrived: &AtomicBool,
     fps: &AtomicU32,
@@ -240,9 +244,10 @@ fn watch(
             Ok(Command::Terminate) | Err(RecvTimeoutError::Disconnected) => return,
             Err(RecvTimeoutError::Timeout) => {}
         }
-        if let Some(reason) = ended.lock().unwrap().take() {
+        let stream_ended = ended.lock().unwrap().take();
+        if let Some(reason) = ended_by(stream_ended, session.closed()) {
             if arrived.load(Ordering::Relaxed) {
-                log::info!("capture: the stream ended ({reason}), ending the share");
+                log::info!("capture: the share is over ({reason}), ending it");
                 crate::api::screenshare::emit_screenshare_event(ScreenshareEvent::SourceClosed);
             } else {
                 let _ = progress.send(Progress::Failed(reason));
@@ -258,10 +263,22 @@ fn watch(
     }
 }
 
+/// Why the desktop ended a share whose stream had not.
+const SESSION_CLOSED: &str = "The desktop ended the share";
+
+/// What ends a share on Rift's stream, if anything has: the stream ending,
+/// or the portal session closing, which is all GNOME does when the shared
+/// window closes (the stream only pauses). libwebrtc's capturer ends the
+/// share on the same signal.
+fn ended_by(stream_ended: Option<String>, session_closed: bool) -> Option<String> {
+    stream_ended.or_else(|| session_closed.then(|| SESSION_CLOSED.to_string()))
+}
+
 /// The processing thread: each picture to its feed, in the buffers the feed
 /// can use, asking the stream for those whenever the feed changes.
 fn process(pictures: Taker<PwPicture>, slot: VideoSlot, stream: Weak<PwStream>) {
     let mut converter = Converter::new();
+    let mut spare = Vec::new();
     let mut asked = PwBuffers::Memory;
     // The GPU feed told where its refused DMA-BUFs go. Held weakly, so a new
     // feed is never mistaken for one gone at the same address.
@@ -304,7 +321,8 @@ fn process(pictures: Taker<PwPicture>, slot: VideoSlot, stream: Weak<PwStream>) 
                 log::warn!("capture: the screen is turned, and a memory picture is sent as drawn");
                 warned_turned = true;
             }
-            converter.send(data, stride, size, feed, target);
+            let rows = whole_rows(data, stride, size.height, &mut spare);
+            converter.send(rows, stride, size, feed, target);
             continue;
         }
         match feed {
@@ -316,6 +334,21 @@ fn process(pictures: Taker<PwPicture>, slot: VideoSlot, stream: Weak<PwStream>) 
             _ => {}
         }
     }
+}
+
+/// `data` as `height` whole rows of `stride`, which libyuv's checks ask for.
+/// A cropped picture's last row stops at the crop's edge, and the library
+/// hands over whole rows only where the buffer has them; the rest is copied
+/// into `spare`, padded.
+fn whole_rows<'a>(data: &'a [u8], stride: u32, height: u32, spare: &'a mut Vec<u8>) -> &'a [u8] {
+    let len = stride as usize * height as usize;
+    if data.len() >= len {
+        return data;
+    }
+    spare.clear();
+    spare.extend_from_slice(data);
+    spare.resize(len, 0);
+    spare
 }
 
 /// A picture's size before the compositor's turn, which a quarter turn
@@ -354,5 +387,40 @@ mod tests {
         assert!(!on_wayland_from(Some(""), Some("wayland")));
         assert!(!on_wayland_from(Some("wayland-0"), Some("x11")));
         assert!(!on_wayland_from(Some("wayland-0"), None));
+    }
+
+    #[test]
+    fn a_share_ends_with_its_stream_or_its_portal_session() {
+        assert_eq!(ended_by(None, false), None);
+        assert_eq!(
+            ended_by(Some("unconnected".into()), false).as_deref(),
+            Some("unconnected")
+        );
+        // GNOME closes the session when the shared window closes, and only
+        // pauses the stream.
+        assert_eq!(ended_by(None, true).as_deref(), Some(SESSION_CLOSED));
+        assert_eq!(
+            ended_by(Some("unconnected".into()), true).as_deref(),
+            Some("unconnected")
+        );
+    }
+
+    #[test]
+    fn a_cropped_picture_reaches_the_converter_in_whole_rows() {
+        // Three rows of a 16-byte stride, cropped to 8 bytes wide: the last
+        // row stops at the crop's edge, short of the stride.
+        let tight: Vec<u8> = (0..40).collect();
+        let mut spare = Vec::new();
+        let rows = whole_rows(&tight, 16, 3, &mut spare);
+        assert_eq!(rows.len(), 48);
+        assert_eq!(&rows[..40], &tight[..]);
+        // Whole rows already: handed on as they are, not copied.
+        let whole = vec![7u8; 48];
+        let mut spare = Vec::new();
+        assert!(std::ptr::eq(
+            whole_rows(&whole, 16, 3, &mut spare),
+            &whole[..]
+        ));
+        assert!(spare.is_empty());
     }
 }

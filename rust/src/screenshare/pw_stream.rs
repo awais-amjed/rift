@@ -166,7 +166,8 @@ impl PwPicture {
     }
 
     /// BGRx or BGRA rows from the crop's corner, and the stride, not turned
-    /// (`transform`).
+    /// (`transform`). Whole rows where the buffer has them; a crop reaching
+    /// the buffer's end has a last row only as wide as the crop.
     pub fn memory(&self) -> Option<(&[u8], u32)> {
         if self.raw.buffers != RIFT_PW_MEMORY || self.raw.data.is_null() {
             return None;
@@ -454,7 +455,10 @@ pub(crate) mod tests {
         let switched = Instant::now() + Duration::from_secs(1);
         let mut dmabuf = None;
         while Instant::now() < switched || dmabuf.is_none() {
-            assert!(Instant::now() < switched + Duration::from_secs(4), "no DMA-BUF");
+            assert!(
+                Instant::now() < switched + Duration::from_secs(4),
+                "no DMA-BUF"
+            );
             if let Some(picture) = pictures.take_timeout(Duration::from_millis(50)) {
                 if picture.dmabuf().is_some() {
                     dmabuf = Some(picture);
