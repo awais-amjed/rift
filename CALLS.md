@@ -377,7 +377,11 @@ keyframe has a picture to come from: every 100 ms for the first 2 s, then once
 a second, the back-off libwebrtc's own still-screen mode makes (Oct 30), so a
 still window is not encoded ten times a second. A viewer who joins a picture
 still for longer waits up to a second for it. A DMA-BUF's is repeated by the
-GPU encoder itself. Proved Oct 29 by
+GPU encoder itself, and so is a memory picture that reaches it already the
+encoded size, which is never converted to keep: the encoder's thread keeps the
+NV12 it was given and encodes it again on a keyframe request and once a second
+(NVENC takes every picture this way; found Oct 30 by the branch's review).
+Proved Oct 29 by
 the live share tests on GNOME 50 (Iris Xe): 1080p, a resize, a late joiner,
 encoder failure to VP9 and no GPU; and in the app (the measurement and
 what was driven are in `TESTING.md`).

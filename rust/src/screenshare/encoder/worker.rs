@@ -261,6 +261,10 @@ fn run<S, F>(
     // The last picture encoded, its timestamp and when: what a still screen
     // repeats, and how long it has been still.
     let mut last: Option<(i64, Instant)> = None;
+    // That picture, when it came from memory: the session keeps a DMA-BUF's
+    // to repeat itself, but not one of these, and a still Wayland screen
+    // sends nothing more.
+    let mut kept: Option<Nv12Frame> = None;
     #[cfg(test)]
     let mut fed = 0u32;
     loop {
@@ -321,6 +325,29 @@ fn run<S, F>(
                     keyframe = false;
                     last = Some((timestamp_us, Instant::now()));
                 }
+                // The session keeps no picture from memory: this thread does.
+                Ok(false) if kept.is_some() => {
+                    let mut frame = kept.take().unwrap();
+                    frame.timestamp_us = timestamp_us;
+                    let input = EncoderInput::Nv12(frame);
+                    let result = session.encode(&input, keyframe);
+                    if let EncoderInput::Nv12(frame) = input {
+                        kept = Some(frame);
+                    }
+                    match result {
+                        Ok(()) => {
+                            keyframe = false;
+                            last = Some((timestamp_us, Instant::now()));
+                        }
+                        Err(EncodeError::Failed(e)) => {
+                            log::warn!("encoder: {name} stopped working: {e}");
+                            shared.failed.store(true, Ordering::Relaxed);
+                            break;
+                        }
+                        // Only a DMA-BUF is imported.
+                        Err(EncodeError::ImportFailed { .. }) => {}
+                    }
+                }
                 // Nothing kept to repeat: the next picture is the keyframe.
                 Ok(false) => last = None,
                 Err(e) => {
@@ -333,7 +360,22 @@ fn run<S, F>(
         };
         let timestamp_us = input.timestamp_us();
         let result = session.encode(&input, keyframe);
-        recycle(&shared.spare, input);
+        match input {
+            EncoderInput::Nv12(frame) if result.is_ok() => {
+                if let Some(older) = kept.replace(frame) {
+                    recycle(&shared.spare, EncoderInput::Nv12(older));
+                }
+            }
+            input => {
+                // A DMA-BUF encoded is the session's to repeat now.
+                if result.is_ok() {
+                    if let Some(older) = kept.take() {
+                        recycle(&shared.spare, EncoderInput::Nv12(older));
+                    }
+                }
+                recycle(&shared.spare, input);
+            }
+        }
         match result {
             Ok(()) => {
                 keyframe = false;
@@ -382,6 +424,9 @@ mod tests {
         asked: Arc<Mutex<Asked>>,
         /// Every picture fails to import, with this format and modifier.
         import_fails: Option<(u32, u64)>,
+        /// Whether it keeps a picture to repeat, as VAAPI keeps a DMA-BUF's;
+        /// a picture from memory it does not.
+        repeats_itself: bool,
     }
 
     impl Session for FakeSession {
@@ -401,6 +446,9 @@ mod tests {
         }
 
         fn repeat(&mut self, _timestamp_us: i64, keyframe: bool) -> Result<bool, String> {
+            if !self.repeats_itself {
+                return Ok(false);
+            }
             self.asked.lock().unwrap().repeats.push(keyframe);
             Ok(true)
         }
@@ -438,11 +486,19 @@ mod tests {
 
     /// A fake encoder, what it is asked, and the sink's keyframe request.
     fn fake(import_fails: Option<(u32, u64)>) -> (GpuEncoder, Arc<Mutex<Asked>>, Arc<AtomicBool>) {
+        fake_session(import_fails, true)
+    }
+
+    fn fake_session(
+        import_fails: Option<(u32, u64)>,
+        repeats_itself: bool,
+    ) -> (GpuEncoder, Arc<Mutex<Asked>>, Arc<AtomicBool>) {
         let asked = Arc::new(Mutex::new(Asked::default()));
         let keyframe = Arc::new(AtomicBool::new(false));
         let session = FakeSession {
             asked: asked.clone(),
             import_fails,
+            repeats_itself,
         };
         let encoder = GpuEncoder::start(
             SETTINGS,
@@ -502,6 +558,30 @@ mod tests {
         assert!(until(Duration::from_millis(150), || {
             asked.lock().unwrap().repeats == vec![true]
         }));
+    }
+
+    #[test]
+    fn a_still_picture_from_memory_is_encoded_again() {
+        // NVENC takes every picture from memory and keeps none to repeat, and
+        // a GNOME screen that is still sends nothing more.
+        let (encoder, asked, keyframe) = fake_session(None, false);
+        encoder.submit_input(picture());
+        assert!(until(Duration::from_millis(200), || asked
+            .lock()
+            .unwrap()
+            .pictures
+            == 1));
+        // A viewer joining asks for a keyframe: it gets the picture at once.
+        keyframe.store(true, Ordering::Relaxed);
+        assert!(until(Duration::from_millis(150), || asked
+            .lock()
+            .unwrap()
+            .pictures
+            == 2));
+        // And once a second while nothing new comes.
+        thread::sleep(Duration::from_millis(1200));
+        assert_eq!(asked.lock().unwrap().pictures, 3);
+        assert!(!encoder.failed());
     }
 
     #[test]
