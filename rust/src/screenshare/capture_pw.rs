@@ -41,6 +41,74 @@ const REPEAT_IDLE: Duration = Duration::from_secs(1);
 /// How long after a new picture the repeats stay at [`REPEAT_EVERY`].
 const SETTLED_AFTER: Duration = Duration::from_secs(2);
 
+/// How long the stream stays paused before viewers are told the share is.
+/// PipeWire pauses a stream for each renegotiation too (a switch of buffers,
+/// a new rate, a resized window), for about 20 ms on GNOME (Oct 29), and
+/// each one flashed "Paused" on viewers' tiles (found Oct 30 by the branch's
+/// review).
+const PAUSED_AFTER: Duration = Duration::from_secs(1);
+
+/// Whether viewers are to be told the share is paused.
+#[derive(Default)]
+struct Pause {
+    /// When the stream paused, while it is.
+    since: Option<Instant>,
+    /// Whether viewers were told.
+    told: bool,
+}
+
+impl Pause {
+    fn paused(&mut self, now: Instant) {
+        self.since.get_or_insert(now);
+    }
+
+    /// The stream is back; says whether viewers were told it had paused.
+    fn streaming(&mut self) -> bool {
+        self.since = None;
+        std::mem::take(&mut self.told)
+    }
+
+    /// Whether to tell viewers now: once, when a pause has lasted
+    /// [`PAUSED_AFTER`].
+    fn due(&mut self, now: Instant) -> bool {
+        match self.since {
+            Some(since) if !self.told && now >= since + PAUSED_AFTER => {
+                self.told = true;
+                true
+            }
+            _ => false,
+        }
+    }
+}
+
+/// A share's pauses and who hears of them, together so that what is heard
+/// comes in the order it happened.
+struct Pauses {
+    pause: Pause,
+    tell: Option<Box<dyn Fn(bool) + Send>>,
+}
+
+impl Pauses {
+    fn streaming(&mut self) {
+        if self.pause.streaming() {
+            self.say(false);
+        }
+    }
+
+    /// Asked by the capture thread on each [`POLL`].
+    fn check(&mut self, now: Instant) {
+        if self.pause.due(now) {
+            self.say(true);
+        }
+    }
+
+    fn say(&self, paused: bool) {
+        if let Some(tell) = &self.tell {
+            tell(paused);
+        }
+    }
+}
+
 /// When the last memory picture is due to be sent again.
 struct Still {
     /// The kept picture's size; `None` once a DMA-BUF came after it, which
@@ -179,7 +247,10 @@ pub(super) fn run(
 
     // Only Rift's stream reports a pause on Linux, so libwebrtc's capturer
     // loses nothing if the stream refuses.
-    let on_paused = request.on_paused.take();
+    let pauses = Arc::new(Mutex::new(Pauses {
+        pause: Pause::default(),
+        tell: request.on_paused.take(),
+    }));
     let arrived = Arc::new(AtomicBool::new(false));
     let ended = Arc::new(Mutex::new(None::<String>));
     let (put, pictures) = latest::channel::<PwPicture>();
@@ -198,19 +269,14 @@ pub(super) fn run(
     let events = {
         let arrived = arrived.clone();
         let ended = ended.clone();
-        let paused = AtomicBool::new(false);
-        let report = move |now: bool| {
-            if paused.swap(now, Ordering::Relaxed) != now {
-                if let Some(on_paused) = &on_paused {
-                    on_paused(now);
-                }
-            }
-        };
+        let pauses = pauses.clone();
         Box::new(move |event| match event {
-            PwEvent::Streaming => report(false),
+            PwEvent::Streaming => pauses.lock().unwrap().streaming(),
             // GNOME pauses a stream before its first picture too, which is
             // not a window anybody minimised.
-            PwEvent::Paused if arrived.load(Ordering::Relaxed) => report(true),
+            PwEvent::Paused if arrived.load(Ordering::Relaxed) => {
+                pauses.lock().unwrap().pause.paused(Instant::now())
+            }
             PwEvent::Paused => {}
             PwEvent::Ended(reason) => *ended.lock().unwrap() = Some(reason),
         })
@@ -255,7 +321,7 @@ pub(super) fn run(
         .expect("no processing thread");
 
     watch(
-        &stream, &session, &ended, &arrived, fps, rate, progress, command_rx,
+        &stream, &session, &ended, &arrived, &pauses, fps, rate, progress, command_rx,
     );
     // The stream first, which closes the processing thread's mailbox; the
     // portal session after it.
@@ -288,13 +354,15 @@ async fn open_portal(
 }
 
 /// The capture thread's part once pictures flow: waits for a stop, ends the
-/// share when the stream ends, and passes on a new rate.
+/// share when the stream ends, tells viewers of a pause that lasts, and
+/// passes on a new rate.
 #[allow(clippy::too_many_arguments)]
 fn watch(
     stream: &PwStream,
     session: &PortalSession,
     ended: &Mutex<Option<String>>,
     arrived: &AtomicBool,
+    pauses: &Mutex<Pauses>,
     fps: &AtomicU32,
     mut rate: u32,
     progress: &UnboundedSender<Progress>,
@@ -315,6 +383,7 @@ fn watch(
             }
             return;
         }
+        pauses.lock().unwrap().check(Instant::now());
         let now = fps.load(Ordering::Relaxed);
         if now != rate {
             log::info!("capture: now at most {now} fps");
@@ -658,6 +727,30 @@ mod tests {
         still.noted(Some(SIZE), start);
         still.noted(None, start + Duration::from_millis(10));
         assert_eq!(still.due(start + Duration::from_secs(5)), None);
+    }
+
+    #[test]
+    fn a_renegotiation_does_not_tell_viewers_the_share_is_paused() {
+        // PipeWire pauses the stream for each renegotiation, for about 20 ms
+        // on GNOME (switching to DMA-BUFs, Oct 29).
+        let start = Instant::now();
+        let mut pause = Pause::default();
+        pause.paused(start);
+        assert!(!pause.due(start + Duration::from_millis(100)));
+        assert!(!pause.streaming());
+        assert!(!pause.due(start + Duration::from_secs(5)));
+    }
+
+    #[test]
+    fn a_pause_that_lasts_is_told_once_and_its_end_after_it() {
+        let start = Instant::now();
+        let mut pause = Pause::default();
+        pause.paused(start);
+        assert!(!pause.due(start + PAUSED_AFTER - Duration::from_millis(1)));
+        assert!(pause.due(start + PAUSED_AFTER));
+        assert!(!pause.due(start + PAUSED_AFTER * 2));
+        assert!(pause.streaming());
+        assert!(!pause.streaming());
     }
 
     #[test]

@@ -365,7 +365,12 @@ does: KDE ignores a restore asked not to persist and shows its picker again
 (found Oct 30 in the KDE VM). GNOME closes the portal
 session when a shared window closes and only pauses the stream, so the
 session's `Closed` ends the share, as libwebrtc's capturer does; a minimised
-window it keeps streaming live, so nothing shows paused there. A window's
+window it keeps streaming live, so nothing shows paused there. A pause is
+told to viewers only once it has lasted a second, and through one task, so the
+last word sent is the last one said: PipeWire pauses the stream for each
+renegotiation too (about 20 ms on GNOME), and each one flashed "Paused" on
+viewers' tiles, or left it there when the two words crossed (found Oct 30 by
+the branch's review). A window's
 memory picture is cropped, and goes to libyuv in whole rows. A compositor
 sends a picture only when the window changes, where libwebrtc's capturer hands
 over its last one on every tick: KDE drew a fully covered window once and then

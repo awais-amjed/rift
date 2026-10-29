@@ -851,17 +851,23 @@ async fn publish_when_opened(video: Arc<Video>, mut started: Started) {
 /// Tells the room, as an attribute of the share's own connection, when the
 /// shared window is minimised or gone and when it is back. Called from the
 /// capture thread, so the request is handed to the runtime rather than awaited
-/// there.
+/// there: to one task, which sends the latest word whenever it changes. A task
+/// for each could finish out of order, and leave a live share showing paused.
 fn announce_paused(participant: SharedParticipant) -> Box<dyn Fn(bool) + Send> {
-    let runtime = tokio::runtime::Handle::current();
-    Box::new(move |paused| {
-        let participant = participant.lock().unwrap().clone();
-        runtime.spawn(async move {
+    let (said, mut heard) = tokio::sync::watch::channel(false);
+    tokio::runtime::Handle::current().spawn(async move {
+        // Over once the capture lets go of the sender.
+        while heard.changed().await.is_ok() {
+            let paused = *heard.borrow_and_update();
+            let participant = participant.lock().unwrap().clone();
             let attributes = HashMap::from([(PAUSED_ATTRIBUTE.to_string(), paused.to_string())]);
             if let Err(e) = participant.set_attributes(attributes).await {
                 log::warn!("screenshare: telling viewers paused={paused}: {e:?}");
             }
-        });
+        }
+    });
+    Box::new(move |paused| {
+        let _ = said.send(paused);
     })
 }
 
