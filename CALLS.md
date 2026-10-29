@@ -392,9 +392,9 @@ share asked for in H264 goes out as VP9.
   to find an encrypted AV1 keyframe, and its JS SDK refuses to encrypt AV1. The
   encoder keeps AV1, with a live test that says when that changes. The full
   notes, including the AV1 findings, are kept on the `gpu-encoding` branch.
-- **GPU H264 goes out in High** (Oct 28 2026), offered beside constrained
-  baseline by the LiveKit fork, since LiveKit itself offers only baseline for
-  pre-encoded tracks (below).
+- **GPU H264 goes out as constrained baseline.** High is built and tested
+  but off (below): at a share's own rate it buys little, and every desktop
+  viewer pays for it on the CPU.
 - **What LiveKit's encryption leaves readable has to be enough.** Its frame
   cryptor leaves an H264 frame's bytes up to the first slice in the clear and
   authenticates them, plus that slice's NAL header and the byte after it, and
@@ -443,13 +443,22 @@ share asked for in H264 goes out as VP9.
   on, where a picture left out changes nothing on screen. So the buffer stays
   at one second.
 
-### H264 in High profile — [Implemented October 2026]
+### H264 in High profile — [Implemented October 2026, off since Oct 29]
 
-A GPU share's H264 is High profile, not constrained baseline: with no
-B-frames it adds CABAC and 8x8 transforms, which measured 12 to 20% less
-rate at the same quality on motion and about 30% on text (Oct 19 2026, Intel
-VAAPI with `ffenc.c`'s settings, offline). Decoding it costs a viewer's CPU
-20 to 55% more. The encoder is asked for it (`EncoderSettings::h264_high`,
+A GPU share's H264 can go out in High profile instead of constrained
+baseline: with no B-frames it adds CABAC and 8x8 transforms, which measured
+12 to 20% less rate at the same quality on motion and about 30% on text
+(Oct 19 2026, Intel VAAPI with `ffenc.c`'s settings, offline). Decoding it
+costs a viewer's CPU 20 to 55% more.
+
+It is off (`encoder::SEND_H264_HIGH`, Oct 29 2026). A share runs at the
+rate its sharer picked, so High does not save upload; it can only sharpen
+the picture at that rate, and at the default 15 Mbps for 1080p60 there was
+little left to sharpen: NVENC sent the same in High as in baseline, at its
+quality floor, and Quick Sync 10% less (Windows, Oct 28). Every desktop
+viewer decodes on the CPU, and paid 33% more for the clip in High, 50% at
+its full rate. Worth turning on again once desktop viewers decode on the GPU,
+or for a share whose rate is tight. With it on, the encoder is asked for it (`EncoderSettings::h264_high`,
 the library's `high`), and the track is published offering High alone
 (`TrackPublishOptions::h264_high`, a patch in our LiveKit fork, its
 `RIFT.md`), because the server answers in its own order, which puts

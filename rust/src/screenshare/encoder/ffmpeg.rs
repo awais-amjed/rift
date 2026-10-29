@@ -272,7 +272,8 @@ fn h264_encoder() -> Option<&'static (Candidate, String)> {
                     fps: 30,
                     max_bitrate_bps: 1_000_000,
                     start_bitrate_bps: 1_000_000,
-                    h264_high: true,
+                    // Probed for what a share asks of it.
+                    h264_high: super::SEND_H264_HIGH,
                 };
                 match open_raw(api, &probe, &candidate) {
                     Ok(raw) => {

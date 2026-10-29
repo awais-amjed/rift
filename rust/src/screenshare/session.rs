@@ -785,9 +785,7 @@ fn encoder_settings(
         fps: settings.fps,
         max_bitrate_bps: settings.bitrate.saturating_mul(1_000_000),
         start_bitrate_bps,
-        // Every viewer but Firefox plays High (CALLS.md, "H264 in High
-        // profile"); moving down for one is still to come.
-        h264_high: true,
+        h264_high: encoder::SEND_H264_HIGH,
     }
 }
 
