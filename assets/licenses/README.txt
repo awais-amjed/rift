@@ -9,6 +9,7 @@ rnnoise.txt                    RNNoise, the microphone noise filter (third_party
 dpdfnet.txt                    DPDFNet, another noise model for the microphone (rust/models/)
 onnxruntime.txt                ONNX Runtime, which runs DPDFNet (native/onnxruntime)
 ffmpeg.txt                     FFmpeg, driving the GPU's H264 encoder (native/ffenc)
+obs_studio.txt                 OBS Studio's PipeWire stream, in FFmpeg's library (Linux)
 nv_codec_headers.txt           NVIDIA's NVENC headers FFmpeg is built with
 amf_headers.txt                AMD's AMF headers FFmpeg is built with (Windows)
 libvpl.txt                     Intel's Quick Sync dispatcher, in FFmpeg's library (Windows)

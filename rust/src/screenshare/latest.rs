@@ -3,6 +3,7 @@
 //! behind a newer one is only delay. Shaped like `mpsc`: dropping the putter
 //! is what ends the taker's loop.
 use std::sync::{Arc, Condvar, Mutex};
+use std::time::{Duration, Instant};
 
 struct Slot<T> {
     item: Option<T>,
@@ -79,6 +80,29 @@ impl<T> Taker<T> {
             slot = ready.wait(slot).unwrap();
         }
     }
+
+    // The encoder's wait, from Task 4 of the step 2 plan.
+    #[allow(dead_code)]
+    /// `take`, waiting no longer than `wait`: `None` when nothing came in
+    /// time, as well as once the putter is gone.
+    pub(crate) fn take_timeout(&self, wait: Duration) -> Option<T> {
+        let deadline = Instant::now() + wait;
+        let (slot, ready) = &*self.shared;
+        let mut slot = slot.lock().unwrap();
+        loop {
+            if slot.closed {
+                return None;
+            }
+            if let Some(item) = slot.item.take() {
+                return Some(item);
+            }
+            let left = deadline.saturating_duration_since(Instant::now());
+            if left.is_zero() {
+                return None;
+            }
+            slot = ready.wait_timeout(slot, left).unwrap().0;
+        }
+    }
 }
 
 impl<T> Drop for Taker<T> {
@@ -140,6 +164,16 @@ mod tests {
         putter.put(1);
         drop(putter);
         assert_eq!(taker.take(), None);
+    }
+
+    #[test]
+    fn take_timeout_returns_none_when_quiet() {
+        let (putter, taker) = channel();
+        let started = Instant::now();
+        assert_eq!(taker.take_timeout(Duration::from_millis(30)), None);
+        assert!(started.elapsed() >= Duration::from_millis(30));
+        putter.put(5);
+        assert_eq!(taker.take_timeout(Duration::from_millis(30)), Some(5));
     }
 
     #[test]

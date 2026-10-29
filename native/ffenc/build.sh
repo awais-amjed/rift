@@ -5,9 +5,10 @@
 #
 #   native/ffenc/build.sh OUT_DIR
 #
-# On Linux it makes librift_ffenc.so with the VAAPI and NVENC encoders, and
-# needs a C compiler, make, and libva's and libdrm's headers (libva-dev,
-# libdrm-dev). On Windows it
+# On Linux it makes librift_ffenc.so with the VAAPI and NVENC encoders and a
+# Wayland share's PipeWire stream, and needs a C compiler, make, and the
+# headers of libva, libdrm, PipeWire, EGL and GBM (libva-dev, libdrm-dev,
+# libpipewire-0.3-dev, libegl-dev, libgbm-dev). On Windows it
 # makes rift_ffenc.dll with NVIDIA's, Intel's and AMD's encoders, and runs in
 # MSYS2's UCRT64 shell with make, MinGW's gcc, CMake, Ninja and pkgconf
 # (windows/CMakeLists.txt starts it there). Every download is taken once
@@ -169,11 +170,12 @@ done
 # release's run.
 if [[ $os == linux ]]; then
   "$cc" -shared -fPIC -O2 -fvisibility=hidden -I"$prefix/include" \
-    $(pkg-config --cflags libdrm) \
-    "$here/ffenc.c" "$here/dmabuf.c" -o "$library.part" \
+    $(pkg-config --cflags libdrm libpipewire-0.3) \
+    "$here/ffenc.c" "$here/dmabuf.c" "$here/pipewire.c" "$here/dmabuf_caps.c" \
+    -o "$library.part" \
     "$prefix/lib/libavfilter.a" "$prefix/lib/libavcodec.a" \
     "$prefix/lib/libavutil.a" \
-    -lva -lva-drm -ldrm -lm -ldl -pthread \
+    -lva -lva-drm -ldrm -lpipewire-0.3 -lEGL -lgbm -lm -ldl -pthread \
     -Wl,--exclude-libs,ALL -Wl,-Bsymbolic -Wl,-z,defs \
     -Wl,-Map,"$out/librift_ffenc.map"
 else

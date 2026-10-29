@@ -16,6 +16,8 @@ pub(crate) mod h264;
 mod timings;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 mod worker;
+#[cfg(target_os = "linux")]
+pub(crate) use ffmpeg::{library, symbol};
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 pub(crate) use worker::GpuEncoder;
 

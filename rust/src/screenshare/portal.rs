@@ -169,7 +169,7 @@ async fn open_keeping(
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
 
     #[test]
@@ -192,6 +192,15 @@ mod tests {
         ));
     }
 
+    /// The one runtime every live portal test runs on. ashpd keeps a single
+    /// D-Bus connection for the process, driven by the runtime that opened
+    /// it, so a second test on a runtime of its own would wait on a
+    /// connection nothing drives. The app has one runtime for its life.
+    pub(crate) fn live_runtime() -> &'static tokio::runtime::Runtime {
+        static RUNTIME: std::sync::OnceLock<tokio::runtime::Runtime> = std::sync::OnceLock::new();
+        RUNTIME.get_or_init(|| tokio::runtime::Runtime::new().unwrap())
+    }
+
     fn check(session: &PortalSession) {
         use std::os::fd::AsRawFd;
         assert!(session.node_id > 0);
@@ -200,11 +209,11 @@ mod tests {
 
     /// Shows the picker once, to make a token for `live_portal_restores_a_screen`,
     /// written to `RIFT_PORTAL_TOKEN_OUT` (never printed).
-    #[tokio::test]
+    #[test]
     #[ignore]
-    async fn live_portal_seed_token() {
-        let session = open_keeping(PortalKind::Screen, None, true, true)
-            .await
+    fn live_portal_seed_token() {
+        let session = live_runtime()
+            .block_on(open_keeping(PortalKind::Screen, None, true, true))
             .expect("the portal opens");
         check(&session);
         let token = session.restore_token.as_deref().expect("a token");
@@ -213,12 +222,12 @@ mod tests {
 
     /// Restores the token in the file `RIFT_PORTAL_TOKEN` names, with no
     /// picker, and writes the renewed one to `RIFT_PORTAL_TOKEN_OUT`.
-    #[tokio::test]
+    #[test]
     #[ignore]
-    async fn live_portal_restores_a_screen() {
+    fn live_portal_restores_a_screen() {
         let token = std::fs::read_to_string(std::env::var("RIFT_PORTAL_TOKEN").unwrap()).unwrap();
-        let session = open(PortalKind::Screen, Some(token.trim()), true)
-            .await
+        let session = live_runtime()
+            .block_on(open(PortalKind::Screen, Some(token.trim()), true))
             .expect("the portal restores the screen");
         check(&session);
         let renewed = session.restore_token.as_deref().expect("a new token");

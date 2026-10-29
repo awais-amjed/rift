@@ -7,7 +7,9 @@
 // This library holds a minimal FFmpeg built for it (native/ffenc/build.sh),
 // keeps every symbol but these hidden, and is opened at run time by the Rust
 // crate (rust/src/screenshare/encoder/ffmpeg.rs). A computer it cannot load on
-// simply has no encoder here.
+// simply has no encoder here. On Linux it also reads a Wayland share's
+// PipeWire stream (pipewire.c), so that libpipewire is only ever this
+// library's to need.
 #ifndef RIFT_FFENC_H_
 #define RIFT_FFENC_H_
 
@@ -26,7 +28,7 @@ extern "C" {
 
 // Bumped whenever a function or struct below changes, so the crate refuses a
 // library from another build instead of calling it wrongly.
-#define RIFT_FFENC_ABI 5
+#define RIFT_FFENC_ABI 6
 
 typedef struct RiftFfenc RiftFfenc;
 
@@ -153,6 +155,81 @@ RIFT_FFENC_EXPORT int32_t rift_ffenc_receive(RiftFfenc* enc,
                                              RiftFfencPacket* packet);
 
 RIFT_FFENC_EXPORT void rift_ffenc_close(RiftFfenc* enc);
+
+// ── A Wayland share's PipeWire stream (Linux) ───────────────────────────
+//
+// The stream the ScreenCast portal opened, read here so its pictures can
+// reach the encoder as DMA-BUFs (pipewire.c, from OBS Studio's). Rust opens
+// the portal and hands over its PipeWire fd and node.
+
+typedef struct RiftPwStream RiftPwStream;
+
+// The kind of buffer asked for: DMA-BUFs (memory ones still taken when the
+// compositor offers only those), or memory only, for the raw path.
+typedef enum { RIFT_PW_DMABUF = 1, RIFT_PW_MEMORY = 2 } RiftPwBuffers;
+
+typedef struct RiftPwPicture {
+  // When `buffers` is RIFT_PW_DMABUF: the buffer, its crop and turn.
+  RiftDmabuf dmabuf;
+  // When RIFT_PW_MEMORY: BGRx or BGRA rows, from the crop's top-left
+  // corner, `len` bytes readable; not turned.
+  const uint8_t* data;
+  size_t len;
+  int32_t stride;
+  int32_t buffers;
+  // The picture's size once cropped and turned upright.
+  int32_t width;
+  int32_t height;
+  // How the compositor turned it (SPA_META_TRANSFORMATION_*, as in
+  // RiftDmabuf).
+  int32_t transform;
+  // PipeWire's presentation time, on the monotonic clock.
+  int64_t pts_ns;
+  // The stream it came from and its buffer, for rift_pw_release.
+  RiftPwStream* stream;
+  void* held;
+} RiftPwPicture;
+
+typedef struct RiftPwCallbacks {
+  void* user;
+  // On PipeWire's thread, which it must not hold up. The picture is the
+  // caller's until rift_pw_release; at most two are held at once, and a
+  // newer one while two are goes back unseen.
+  void (*picture)(void* user, const RiftPwPicture* picture);
+  // 0 streaming, 1 paused (also before the first picture), 2 ended, with
+  // why. Ended comes once.
+  void (*state)(void* user, int32_t state, const char* error);
+} RiftPwCallbacks;
+
+// Opens the stream on `node_id` of the PipeWire remote `fd` (duplicated;
+// the caller keeps its own), at most `max_fps` pictures a second. DMA-BUFs
+// are offered with the modifiers EGL imports on `render_node`; NULL offers
+// memory only. RIFT_PW_REFUSE_DMABUF=1 in the environment offers memory
+// only too, for a test. NULL on failure, with why in `error`.
+RIFT_FFENC_EXPORT RiftPwStream* rift_pw_open(int32_t fd, uint32_t node_id,
+                                             int32_t max_fps,
+                                             const char* render_node,
+                                             int32_t buffers,
+                                             const RiftPwCallbacks* callbacks,
+                                             char* error, size_t error_len);
+
+// Asks for the other kind of buffer; pictures already on their way still
+// come in the old kind.
+RIFT_FFENC_EXPORT void rift_pw_set_buffers(RiftPwStream* stream,
+                                           int32_t buffers);
+
+// A modifier the encoder could not import: offered no more, and the stream
+// renegotiates. With none left, memory buffers come instead.
+RIFT_FFENC_EXPORT void rift_pw_drop_modifier(RiftPwStream* stream,
+                                             uint32_t drm_format,
+                                             uint64_t modifier);
+
+// Gives a picture's buffer back to the compositor, from any thread.
+RIFT_FFENC_EXPORT void rift_pw_release(RiftPwStream* stream, void* held);
+
+// Stops the stream: no callback runs once it returns. Pictures still held
+// stay readable until released; the stream is freed with the last.
+RIFT_FFENC_EXPORT void rift_pw_close(RiftPwStream* stream);
 
 #ifdef __cplusplus
 }

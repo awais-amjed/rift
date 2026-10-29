@@ -30,7 +30,7 @@ use std::time::{Duration, Instant};
 
 /// The library's interface version this crate was written against
 /// (`RIFT_FFENC_ABI` in `ffenc.h`).
-const ABI: i32 = 5;
+const ABI: i32 = 6;
 
 /// The library's name: in the bundle's `lib` folder on Linux, beside the app
 /// on Windows.
@@ -75,7 +75,7 @@ struct Packet {
     keyframe: i32,
 }
 
-/// The library's functions, as `ffenc.h` declares them.
+/// The library's encoder functions, as `ffenc.h` declares them.
 struct Api {
     open: unsafe extern "C" fn(*const Config, *mut c_char, usize) -> *mut c_void,
     driver: unsafe extern "C" fn(*const c_void) -> *const c_char,
@@ -83,14 +83,35 @@ struct Api {
     send: unsafe extern "C" fn(*mut c_void, *const u8, i64, i32) -> i32,
     receive: unsafe extern "C" fn(*mut c_void, *mut Packet) -> i32,
     close: unsafe extern "C" fn(*mut c_void),
-    /// Kept open for as long as the functions above are called.
-    _library: Library,
 }
 
-/// The library, opened once.
+/// The library's encoder functions, looked up once.
 fn api() -> Result<&'static Api, String> {
     static API: OnceLock<Result<Api, String>> = OnceLock::new();
-    API.get_or_init(load).as_ref().map_err(Clone::clone)
+    API.get_or_init(|| {
+        let library = library()?;
+        // SAFETY: each symbol is looked up with the type ffenc.h gives it,
+        // in a library `library` checked is of this interface.
+        unsafe {
+            Ok(Api {
+                open: symbol(library, "rift_ffenc_open")?,
+                driver: symbol(library, "rift_ffenc_driver")?,
+                set_bitrate: symbol(library, "rift_ffenc_set_bitrate")?,
+                send: symbol(library, "rift_ffenc_send")?,
+                receive: symbol(library, "rift_ffenc_receive")?,
+                close: symbol(library, "rift_ffenc_close")?,
+            })
+        }
+    })
+    .as_ref()
+    .map_err(Clone::clone)
+}
+
+/// The library, opened once and kept open, its version checked: also what
+/// a Wayland share's PipeWire stream runs in (`pw_stream.rs`).
+pub(crate) fn library() -> Result<&'static Library, String> {
+    static LIBRARY: OnceLock<Result<Library, String>> = OnceLock::new();
+    LIBRARY.get_or_init(load).as_ref().map_err(Clone::clone)
 }
 
 /// Where the library is: beside the app's other libraries, or where a test
@@ -103,14 +124,14 @@ fn library_path() -> Option<PathBuf> {
     Some(exe.parent()?.join(LIBRARY))
 }
 
-fn load() -> Result<Api, String> {
+fn load() -> Result<Library, String> {
     let path = library_path().ok_or("no path to the FFmpeg library")?;
     // SAFETY: the library is Rift's own, built from native/ffenc, and runs no
     // code on load beyond FFmpeg's static initialisers.
     let library = unsafe { Library::new(&path) }
         .map_err(|e| format!("FFmpeg's library did not load from {}: {e}", path.display()))?;
     // SAFETY: each symbol is looked up with the type ffenc.h gives it, and the
-    // version check below refuses a library built for another interface.
+    // version check refuses a library built for another interface.
     unsafe {
         let abi: unsafe extern "C" fn() -> i32 = symbol(&library, "rift_ffenc_abi")?;
         if abi() != ABI {
@@ -119,23 +140,15 @@ fn load() -> Result<Api, String> {
         let set_log: unsafe extern "C" fn(Option<extern "C" fn(i32, *const c_char)>, i32) =
             symbol(&library, "rift_ffenc_set_log")?;
         set_log(Some(log_line), AV_LOG_INFO);
-        Ok(Api {
-            open: symbol(&library, "rift_ffenc_open")?,
-            driver: symbol(&library, "rift_ffenc_driver")?,
-            set_bitrate: symbol(&library, "rift_ffenc_set_bitrate")?,
-            send: symbol(&library, "rift_ffenc_send")?,
-            receive: symbol(&library, "rift_ffenc_receive")?,
-            close: symbol(&library, "rift_ffenc_close")?,
-            _library: library,
-        })
     }
+    Ok(library)
 }
 
 /// One of the library's functions.
 ///
 /// # Safety
 /// `T` must be the function's type as `ffenc.h` declares it.
-unsafe fn symbol<T: Copy>(library: &Library, name: &str) -> Result<T, String> {
+pub(crate) unsafe fn symbol<T: Copy>(library: &Library, name: &str) -> Result<T, String> {
     let name = CString::new(name).map_err(|e| e.to_string())?;
     library
         .get::<T>(name.as_bytes_with_nul())
