@@ -2,7 +2,8 @@
 
 Oct 29 2026. Proposed, not yet agreed step by step; each step is designed with
 the owner before it is built. The owner's ruling: all four get built, on the
-`gpu-codecs` branch. Why each step is shaped as it is: `RESEARCH.md`.
+`gpu-codecs` branch. Why each step is shaped as it is: `RESEARCH.md`. What each
+step can take from our own code and from open source projects: `REUSE.md`.
 
 ## Steps
 
@@ -25,6 +26,9 @@ the owner before it is built. The owner's ruling: all four get built, on the
      kept on the GPU.
    - To prove: a hybrid laptop with the capture device on the NVIDIA adapter while
      the screen is on Intel.
+   - Second route (`REUSE.md`): FFmpeg's own `gfxcapture` (WGC) and `ddagrab`
+     (DXGI) inside ffenc, with `scale_d3d11`. It reaches Windows 10 and older 11
+     too, but moves GPU-share capture out of libwebrtc.
 2. **Zero-copy sharing on Linux Wayland.**
    - libwebrtc always reads back, so Rift runs the PipeWire stream itself. It
      already runs the portal picker and holds the restore token on GNOME and KDE.
@@ -34,6 +38,8 @@ the owner before it is built. The owner's ruling: all four get built, on the
      way), or Vulkan with hwmap to CUDA.
    - Rift draws the cursor itself from PipeWire's metadata.
    - X11 stays on the CPU.
+   - Sunshine's PipeWire capture (`portalgrab.cpp`, `pipewire.cpp`, GPL-3.0) is
+     nearly this shape; OBS fills the gaps (`REUSE.md`).
 3. **GPU decode and draw for desktop watchers.** This is what makes High, H265 and
    AV1 worth having.
    - The drawing half comes first and is needed by every route below: a Flutter
@@ -44,8 +50,10 @@ the owner before it is built. The owner's ruling: all four get built, on the
      `RESEARCH.md`). The hardware decoder then hands it NV12 on the GPU instead.
    - (b) recommended: watch a share through the Rust side.
      - A receive-only Rust connection subscribes to the share's video.
-     - Our decoder factory in webrtc-sys: FFmpeg hwaccel (d3d11va / vaapi / nvdec),
-       with libwebrtc's software decoders as the fallback.
+     - LiveKit's pass-through decoder (rust-sdks #1515, open) hands Rust the
+       encoded frames; Rust decodes them with FFmpeg hwaccel (d3d11va / vaapi /
+       nvdec), falling back to software. Moonlight's renderers show the decode and
+       draw, media_kit the Flutter texture (`REUSE.md`).
      - Frames come out as native GPU buffers.
      - A Flutter GPU texture: a DXGI shared handle on Flutter's adapter on Windows,
        FlTextureGL from a DMA-BUF or CUDA-GL on Linux.
@@ -83,7 +91,9 @@ the owner before it is built. The owner's ruling: all four get built, on the
 - H265 decoding: FFmpeg's hevc decoder refusing to run without a hwaccel, or
   the vendors' decoders directly (cuvid, D3D11), so no software H265 ships.
 - Whether Windows 10 gets a GPU-side DXGI-duplication capturer, or keeps
-  today's path.
+  today's path. FFmpeg's `ddagrab` would be that capturer.
+- Step 1: libwebrtc's WGC texture mode (24H2+, capture stays in libwebrtc) or
+  FFmpeg's `gfxcapture`/`ddagrab` in ffenc (older Windows too, capture moves).
 
 ## Noted for later (not on the hardware path)
 

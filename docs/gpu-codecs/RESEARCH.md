@@ -3,7 +3,8 @@
 Oct 29 2026. Asked by the owner: "how we can add GPU encoding and decoding in our
 app ... that thing about GPU encoded frame going to CPU first ... for H264, H265
 and AV1". Research only; nothing built. The plan built on it is `PLAN.md`; the codec ladder
-step 4 needs is `CODEC_LADDER.md`.
+step 4 needs is `CODEC_LADDER.md`; what can be reused from open source projects is
+`REUSE.md`.
 
 ## Where a picture goes today
 
