@@ -71,10 +71,29 @@ Rust (portal, ashpd)        C, librift_ffenc.so                   Rust
     after it (`WindowSharePortal.forget`).
 - **The PipeWire stream: C, in `librift_ffenc.so`** (a new `pipewire.c` beside
   `ffenc.c`). The library is already opened at run time and optional, so linking
-  libpipewire and libEGL there keeps them off Rift's own load. Following Sunshine's
-  `pipewire.cpp` and OBS's `linux-pipewire/pipewire.c`. *Builder's call:* Rust's
-  `pipewire` crate links libpipewire into the Rust library, which every Linux Rift
-  would then need to start; C in ffenc avoids that.
+  libpipewire and libEGL there keeps them off Rift's own load. *Builder's call:*
+  Rust's `pipewire` crate links libpipewire into the Rust library, which every
+  Linux Rift would then need to start; C in ffenc avoids that.
+- **Reuse over our own (owner, Oct 29): code other people already run, wherever it
+  fits.** Read Oct 29 at OBS `1d4d119` and Sunshine `a679b05`:
+  - The stream is OBS's `plugins/linux-pipewire/pipewire.c` (GPL-2.0-or-later, C,
+    the most widely run Linux screencast consumer), its rendering, cursor and
+    OBS types cut away. Kept as OBS wrote them: `build_format`/`build_format_params`
+    (formats with modifiers), `init_format_info`, `remove_modifier_from_format` and
+    `renegotiate_format` (a modifier that fails to import), `find_latest_buffer`
+    and `return_unused_pw_buffer`, `on_param_changed_cb` (buffer kinds and metas,
+    the explicit-sync timeline included), and the state and core callbacks.
+  - The modifier query is OBS's `libobs-opengl/gl-egl-common.c`
+    (`query_dmabuf_formats`, `query_dmabuf_modifiers`).
+  - A crop meta is honoured the way OBS honours it (a window's stream can carry
+    one); `scale_vaapi` reads a frame's crop. A rotation meta is logged and
+    ignored for now (builder's call). A resized window is letterboxed on the GPU
+    (`pad_vaapi`) by the same rule as today's (`resolution::letterbox`).
+  - The import is FFmpeg's own: a DRM_PRIME frame `hwmap`ped to VAAPI, as
+    `kmsgrab` users run it, not Sunshine's EGL-and-shader route into a VA surface.
+    Sunshine's EGL import is what the NVIDIA half takes later.
+  - The portal is `ashpd`, a library many Rust apps run, not our own D-Bus code.
+  - Each file brought in keeps its copyright header and says what was changed.
 - **What to do with each picture stays in Rust**, on `share-frames`: the feed, the
   target size, the rate gate and the fall back are all there today and stay there.
   The C side passes an opaque picture up (its size, and either a DMA-BUF or a
