@@ -20,8 +20,10 @@
 //! (`third_party/ffmpeg/RIFT_PATCHES.md`).
 use super::h264::{self, ParameterSets};
 use super::timings::EncodeTimes;
-use super::worker::{self, Session, SharedSink, GOP_SECONDS};
-use super::{Encoded, EncoderSettings, GpuCodec, Nv12Frame};
+use super::worker::{self, EncodeError, Session, SharedSink, GOP_SECONDS};
+use super::{Encoded, EncoderInput, EncoderSettings, GpuCodec};
+#[cfg(target_os = "linux")]
+use crate::screenshare::{pw_stream::RiftDmabuf, resolution};
 use libloading::Library;
 use std::ffi::{c_char, c_void, CStr, CString};
 use std::path::PathBuf;
@@ -67,6 +69,25 @@ struct Config {
     high: i32,
 }
 
+/// Where the upright picture goes inside the encoded size (`RiftRect`).
+#[cfg(target_os = "linux")]
+#[repr(C)]
+struct Place {
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+}
+
+/// `rift_ffenc_send_dmabuf`'s answer for a format and modifier VAAPI would
+/// not map (`RIFT_FFENC_IMPORT_FAILED`).
+#[cfg(target_os = "linux")]
+const IMPORT_FAILED: i32 = -0x5249_4D50;
+
+/// FFmpeg's `AVERROR(EAGAIN)`: `rift_ffenc_repeat` before any DMA-BUF.
+#[cfg(target_os = "linux")]
+const AVERROR_EAGAIN: i32 = -11;
+
 #[repr(C)]
 struct Packet {
     data: *const u8,
@@ -81,6 +102,11 @@ struct Api {
     driver: unsafe extern "C" fn(*const c_void) -> *const c_char,
     set_bitrate: unsafe extern "C" fn(*mut c_void, i64),
     send: unsafe extern "C" fn(*mut c_void, *const u8, i64, i32) -> i32,
+    #[cfg(target_os = "linux")]
+    send_dmabuf:
+        unsafe extern "C" fn(*mut c_void, *const RiftDmabuf, *const Place, i64, i32) -> i32,
+    #[cfg(target_os = "linux")]
+    repeat: unsafe extern "C" fn(*mut c_void, i64, i32) -> i32,
     receive: unsafe extern "C" fn(*mut c_void, *mut Packet) -> i32,
     close: unsafe extern "C" fn(*mut c_void),
 }
@@ -98,6 +124,10 @@ fn api() -> Result<&'static Api, String> {
                 driver: symbol(library, "rift_ffenc_driver")?,
                 set_bitrate: symbol(library, "rift_ffenc_set_bitrate")?,
                 send: symbol(library, "rift_ffenc_send")?,
+                #[cfg(target_os = "linux")]
+                send_dmabuf: symbol(library, "rift_ffenc_send_dmabuf")?,
+                #[cfg(target_os = "linux")]
+                repeat: symbol(library, "rift_ffenc_repeat")?,
                 receive: symbol(library, "rift_ffenc_receive")?,
                 close: symbol(library, "rift_ffenc_close")?,
             })
@@ -404,6 +434,9 @@ pub(super) struct FfmpegSession {
     parameter_sets: ParameterSets,
     /// Where each picture's time goes, for the log.
     times: EncodeTimes,
+    /// Whether the last picture was a DMA-BUF, which the library keeps on
+    /// the GPU for a still screen's repeats; one from memory is not kept.
+    repeatable: bool,
 }
 
 // SAFETY: the encoder is used from the one thread that owns the session.
@@ -428,6 +461,7 @@ pub(super) fn open(
             reopened: false,
             parameter_sets: ParameterSets::default(),
             times: EncodeTimes::default(),
+            repeatable: false,
         },
         format!("{} ({driver})", candidate.label),
     ))
@@ -440,44 +474,145 @@ impl Session for FfmpegSession {
         Ok(())
     }
 
-    fn encode(&mut self, frame: &Nv12Frame, keyframe: bool) -> Result<(), String> {
-        match self.encode_once(frame, keyframe) {
+    fn encode(&mut self, input: &EncoderInput, keyframe: bool) -> Result<(), EncodeError> {
+        match self.encode_once(input, keyframe) {
             // Intel's driver (Alder Lake, Oct 9 2026) failed about one first
             // picture in four inside the app, asked exactly what it is asked
             // when it works; opened again, it works. A failure later on is the
             // encoder's, and the share moves to VP9.
-            Err(reason) if self.pictures == 0 && !self.reopened => {
+            Err(EncodeError::Failed(reason)) if self.pictures == 0 && !self.reopened => {
                 log::warn!(
                     "encoder: the first picture failed ({reason}); opening the encoder again"
                 );
                 self.reopened = true;
-                let raw = open_raw(self.api, &self.settings, self.candidate)?;
+                let raw = open_raw(self.api, &self.settings, self.candidate)
+                    .map_err(EncodeError::Failed)?;
                 // SAFETY: the old encoder is closed once, here, and replaced.
                 unsafe { (self.api.close)(self.raw) };
                 self.raw = raw;
-                self.encode_once(frame, true)
+                self.encode_once(input, true)
             }
             result => result,
         }
     }
+
+    #[cfg(target_os = "linux")]
+    fn repeat(&mut self, timestamp_us: i64, keyframe: bool) -> Result<bool, String> {
+        if !self.repeatable {
+            return Ok(false);
+        }
+        let started = Instant::now();
+        // SAFETY: `raw` is live; the picture repeated is the library's own.
+        let sent = unsafe { (self.api.repeat)(self.raw, timestamp_us, i32::from(keyframe)) };
+        if sent == AVERROR_EAGAIN {
+            return Ok(false);
+        }
+        if sent < 0 {
+            return Err(format!("FFmpeg refused to repeat a picture ({sent})"));
+        }
+        self.receive(started)?;
+        Ok(true)
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    fn repeat(&mut self, _timestamp_us: i64, _keyframe: bool) -> Result<bool, String> {
+        Ok(false)
+    }
+
+    fn takes_dmabuf(&self) -> bool {
+        cfg!(target_os = "linux") && self.candidate.encoder == c"h264_vaapi"
+    }
 }
 
 impl FfmpegSession {
-    fn encode_once(&mut self, frame: &Nv12Frame, keyframe: bool) -> Result<(), String> {
+    fn encode_once(&mut self, input: &EncoderInput, keyframe: bool) -> Result<(), EncodeError> {
         let started = Instant::now();
-        // SAFETY: `raw` is live, and the picture is copied before the call
-        // returns.
+        match input {
+            EncoderInput::Nv12(frame) => {
+                // SAFETY: `raw` is live, and the picture is copied before the
+                // call returns.
+                let sent = unsafe {
+                    (self.api.send)(
+                        self.raw,
+                        frame.data.as_ptr(),
+                        frame.timestamp_us,
+                        i32::from(keyframe),
+                    )
+                };
+                if sent < 0 {
+                    return Err(EncodeError::Failed(format!(
+                        "FFmpeg refused a picture ({sent})"
+                    )));
+                }
+                self.repeatable = false;
+            }
+            #[cfg(target_os = "linux")]
+            EncoderInput::DmaBuf(frame) => self.send_dmabuf(frame, keyframe)?,
+        }
+        self.receive(started).map_err(EncodeError::Failed)
+    }
+
+    /// Hand the library a DMA-BUF, letterboxed into the encoded size by the
+    /// same rule as a picture from memory (`frames::fit`).
+    #[cfg(target_os = "linux")]
+    fn send_dmabuf(
+        &mut self,
+        frame: &super::DmaBufFrame,
+        keyframe: bool,
+    ) -> Result<(), EncodeError> {
+        if !self.takes_dmabuf() {
+            return Err(EncodeError::Failed(format!(
+                "{} takes no DMA-BUF",
+                self.candidate.label
+            )));
+        }
+        let Some(dmabuf) = frame.picture.dmabuf() else {
+            return Err(EncodeError::Failed(
+                "a picture in memory was sent as a DMA-BUF".to_string(),
+            ));
+        };
+        let target = resolution::Size {
+            width: self.settings.width,
+            height: self.settings.height,
+        };
+        let place = resolution::letterbox(frame.picture.size(), target).map(|rect| Place {
+            x: rect.x as i32,
+            y: rect.y as i32,
+            width: rect.width as i32,
+            height: rect.height as i32,
+        });
+        // SAFETY: `raw` is live, and the buffer and its fds stay the
+        // picture's until after the call returns, by which the GPU has
+        // copied it.
         let sent = unsafe {
-            (self.api.send)(
+            (self.api.send_dmabuf)(
                 self.raw,
-                frame.data.as_ptr(),
+                dmabuf,
+                place
+                    .as_ref()
+                    .map_or(std::ptr::null(), |place| place as *const Place),
                 frame.timestamp_us,
                 i32::from(keyframe),
             )
         };
-        if sent < 0 {
-            return Err(format!("FFmpeg refused a picture ({sent})"));
+        if sent == IMPORT_FAILED {
+            return Err(EncodeError::ImportFailed {
+                drm_format: dmabuf.drm_format,
+                modifier: dmabuf.modifier,
+            });
         }
+        if sent < 0 {
+            return Err(EncodeError::Failed(format!(
+                "FFmpeg refused a DMA-BUF ({sent})"
+            )));
+        }
+        self.repeatable = true;
+        Ok(())
+    }
+
+    /// Hand the sink what the encoder has ready, for a picture sent at
+    /// `started`.
+    fn receive(&mut self, started: Instant) -> Result<(), String> {
         let send = started.elapsed();
         let mut deliver = Duration::ZERO;
         loop {

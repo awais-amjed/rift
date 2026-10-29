@@ -3,6 +3,10 @@
 //! bitrate requests back the other way. Pictures the encoder would make too
 //! much of are left out on the way in ([`RateGate`]).
 use super::encoder::{h264, Encoded, EncodedSink, EncoderSettings, GpuEncoder, Nv12Frame};
+#[cfg(target_os = "linux")]
+use super::encoder::{DmaBufFrame, EncoderInput};
+#[cfg(target_os = "linux")]
+use super::pw_stream::PwPicture;
 use super::rate_gate::RateGate;
 use super::resolution::Size;
 use livekit::webrtc::native::yuv_helper;
@@ -63,9 +67,10 @@ impl GpuFeed {
         self.encoder.bitrate()
     }
 
-    /// Hand the encoder one picture, already the target size in I420 or
-    /// still the native size in ARGB. Says false once the encoder has failed,
-    /// having told the session so the first time.
+    /// Hand the encoder one picture, already the target size in I420, still
+    /// the native size in ARGB, or a DMA-BUF the encoder fits itself. Says
+    /// false once the encoder has failed, having told the session so the
+    /// first time.
     pub(crate) fn send(&self, picture: Picture<'_>, target: Size, timestamp_us: i64) -> bool {
         if self.encoder.failed() {
             if !self.reported.swap(true, Ordering::Relaxed) {
@@ -76,6 +81,17 @@ impl GpuFeed {
         if !self.admits() {
             return true;
         }
+        let picture = match picture {
+            #[cfg(target_os = "linux")]
+            Picture::DmaBuf(picture) => {
+                self.encoder.submit_input(EncoderInput::DmaBuf(DmaBufFrame {
+                    picture,
+                    timestamp_us,
+                }));
+                return true;
+            }
+            picture => picture,
+        };
         let width = target.width as usize;
         let height = target.height as usize;
         let mut data = self
@@ -111,6 +127,8 @@ impl GpuFeed {
                     target.height as i32,
                 );
             }
+            #[cfg(target_os = "linux")]
+            Picture::DmaBuf(_) => unreachable!("sent whole above"),
         }
         self.encoder.submit(Nv12Frame { data, timestamp_us });
         true
@@ -142,10 +160,17 @@ impl GpuFeed {
 }
 
 /// One captured picture, in whichever form it is when it reaches the target
-/// size.
+/// size: or a Wayland share's DMA-BUF, sent to the encoder whole.
 pub(crate) enum Picture<'a> {
-    Argb { data: &'a [u8], stride: u32 },
+    Argb {
+        data: &'a [u8],
+        stride: u32,
+    },
     I420(&'a I420Buffer),
+    // Sent by the Wayland capture, from Task 5 of the step 2 plan.
+    #[allow(dead_code)]
+    #[cfg(target_os = "linux")]
+    DmaBuf(PwPicture),
 }
 
 /// The pre-encoded source, as the encoder sees it.

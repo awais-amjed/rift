@@ -324,7 +324,7 @@ impl Drop for PwStream {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::screenshare::latest;
     use crate::screenshare::portal::{self, PortalKind, PortalSession};
@@ -333,7 +333,7 @@ mod tests {
     /// The portal, restored from the token in the file `RIFT_PORTAL_TOKEN`
     /// names (seeded by `portal::tests::live_portal_seed_token`), which gets
     /// the renewed token back. The token is never printed.
-    fn screen() -> PortalSession {
+    pub(crate) fn screen() -> PortalSession {
         let _ = env_logger::builder()
             .is_test(true)
             .filter_level(log::LevelFilter::Info)
@@ -349,7 +349,7 @@ mod tests {
         session
     }
 
-    fn render_node() -> String {
+    pub(crate) fn render_node() -> String {
         std::env::var("RIFT_RENDER_NODE").unwrap_or_else(|_| "/dev/dri/renderD128".into())
     }
 

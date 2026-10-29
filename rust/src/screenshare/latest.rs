@@ -81,10 +81,9 @@ impl<T> Taker<T> {
         }
     }
 
-    // The encoder's wait, from Task 4 of the step 2 plan.
-    #[allow(dead_code)]
     /// `take`, waiting no longer than `wait`: `None` when nothing came in
-    /// time, as well as once the putter is gone.
+    /// time, as well as once the putter is gone ([`closed`](Self::closed)
+    /// tells the two apart).
     pub(crate) fn take_timeout(&self, wait: Duration) -> Option<T> {
         let deadline = Instant::now() + wait;
         let (slot, ready) = &*self.shared;
@@ -102,6 +101,11 @@ impl<T> Taker<T> {
             }
             slot = ready.wait_timeout(slot, left).unwrap().0;
         }
+    }
+
+    /// Whether the putter is gone, so nothing more will come.
+    pub(crate) fn closed(&self) -> bool {
+        self.shared.0.lock().unwrap().closed
     }
 }
 
@@ -172,8 +176,12 @@ mod tests {
         let started = Instant::now();
         assert_eq!(taker.take_timeout(Duration::from_millis(30)), None);
         assert!(started.elapsed() >= Duration::from_millis(30));
+        assert!(!taker.closed());
         putter.put(5);
         assert_eq!(taker.take_timeout(Duration::from_millis(30)), Some(5));
+        drop(putter);
+        assert_eq!(taker.take_timeout(Duration::from_millis(30)), None);
+        assert!(taker.closed());
     }
 
     #[test]

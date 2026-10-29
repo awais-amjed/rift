@@ -606,3 +606,107 @@ async fn live_gpu_share_resizes_rejoins_and_falls_back() {
     assert_eq!(session::stop().await.unwrap(), "Stopped successfully");
     viewer.close().await.unwrap();
 }
+
+/// Counts what the encoder makes.
+#[cfg(target_os = "linux")]
+struct Counting(std::sync::Arc<std::sync::atomic::AtomicU32>);
+
+#[cfg(target_os = "linux")]
+impl EncodedSink for Counting {
+    fn deliver(&mut self, _frame: Encoded<'_>) {
+        self.0.fetch_add(1, Ordering::Relaxed);
+    }
+
+    fn keyframe_wanted(&mut self) -> bool {
+        false
+    }
+
+    fn bitrate_wanted(&mut self) -> Option<u64> {
+        None
+    }
+}
+
+/// A Wayland share's PipeWire stream into VAAPI's encoder, every picture
+/// staying on the GPU: a moving screen at 60 fps is at least 150 frames in
+/// 3 s. Needs something moving on the screen (a test pattern playing), the
+/// portal token `pw_stream`'s tests use, and, beside NVIDIA's GPU,
+/// `GPU_NO_NVENC=1`.
+#[cfg(target_os = "linux")]
+#[test]
+#[ignore = "needs a Wayland screen with something moving and a VAAPI GPU"]
+fn live_vaapi_encodes_the_stream() {
+    use super::encoder::{DmaBufFrame, EncoderInput};
+    use super::latest;
+    use super::pw_stream::tests::{render_node, screen};
+    use super::pw_stream::{PwBuffers, PwStream};
+    use std::sync::atomic::AtomicU32;
+    use std::sync::Arc;
+
+    let session = screen();
+    let made = Arc::new(AtomicU32::new(0));
+    let encoder = GpuEncoder::open(
+        EncoderSettings {
+            codec: GpuCodec::H264,
+            width: WIDTH,
+            height: HEIGHT,
+            fps: 60,
+            max_bitrate_bps: 8_000_000,
+            start_bitrate_bps: 8_000_000,
+            h264_high: false,
+        },
+        Box::new(Counting(made.clone())),
+    )
+    .expect("a GPU encoder opens");
+    assert!(
+        encoder.takes_dmabuf(),
+        "{} takes no DMA-BUF (GPU_NO_NVENC=1 beside NVIDIA's GPU)",
+        encoder.name()
+    );
+    let (put, pictures) = latest::channel();
+    let stream = Arc::new(
+        PwStream::open(
+            &session,
+            60,
+            Some(&render_node()),
+            PwBuffers::DmaBuf,
+            put,
+            Box::new(|event| log::info!("pipewire event: {event:?}")),
+        )
+        .expect("the stream opens"),
+    );
+    let refused = Arc::new(AtomicU32::new(0));
+    {
+        let stream = stream.clone();
+        let refused = refused.clone();
+        encoder.on_import_failed(Box::new(move |drm_format, modifier| {
+            refused.fetch_add(1, Ordering::Relaxed);
+            stream.drop_modifier(drm_format, modifier);
+        }));
+    }
+
+    let mut started = None;
+    let mut sent = 0;
+    while started.is_none_or(|at: Instant| at.elapsed() < Duration::from_secs(3)) {
+        if let Some(picture) = pictures.take_timeout(Duration::from_secs(2)) {
+            started.get_or_insert_with(Instant::now);
+            encoder.submit_input(EncoderInput::DmaBuf(DmaBufFrame {
+                picture,
+                timestamp_us: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_micros() as i64,
+            }));
+            sent += 1;
+        } else {
+            panic!("no picture for 2 s; is something moving on the screen?");
+        }
+    }
+    drop(stream);
+    drop(encoder);
+    let made = made.load(Ordering::Relaxed);
+    log::info!(
+        "{sent} pictures in, {made} frames out, {} refused imports",
+        refused.load(Ordering::Relaxed)
+    );
+    assert!(made >= 150, "{made} frames in 3 s from {sent} pictures");
+}

@@ -21,6 +21,8 @@ pub(crate) use ffmpeg::{library, symbol};
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 pub(crate) use worker::GpuEncoder;
 
+#[cfg(target_os = "linux")]
+use super::pw_stream::PwPicture;
 use super::resolution::Size;
 use crate::api::screenshare::types::VideoCodec;
 
@@ -152,6 +154,33 @@ pub(crate) struct Nv12Frame {
 impl Nv12Frame {
     pub(crate) fn len_for(width: u32, height: u32) -> usize {
         width as usize * height as usize * 3 / 2
+    }
+}
+
+/// A Wayland share's picture still on the GPU, as the compositor's DMA-BUF.
+/// The encoder crops, turns, scales and places it there (`ffenc.h`), and
+/// the buffer goes back to PipeWire once the GPU has copied it.
+#[cfg(target_os = "linux")]
+pub(crate) struct DmaBufFrame {
+    pub picture: PwPicture,
+    /// On the same clock as an [`Nv12Frame`]'s.
+    pub timestamp_us: i64,
+}
+
+/// What the encoder is handed: a picture in memory, or one on the GPU.
+pub(crate) enum EncoderInput {
+    Nv12(Nv12Frame),
+    #[cfg(target_os = "linux")]
+    DmaBuf(DmaBufFrame),
+}
+
+impl EncoderInput {
+    pub(crate) fn timestamp_us(&self) -> i64 {
+        match self {
+            EncoderInput::Nv12(frame) => frame.timestamp_us,
+            #[cfg(target_os = "linux")]
+            EncoderInput::DmaBuf(frame) => frame.timestamp_us,
+        }
     }
 }
 
