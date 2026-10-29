@@ -92,6 +92,24 @@ uncorrelated.
    3.5–4 Mbit/s and was drawn 38 times a second until Rift was restored;
    with the patch, about 20 kbit/s and 4 frames a second.
 
+6. **The web worker encrypts and decrypts a VP9 frame whole**
+   (`getUnencryptedBytes` in `web/e2ee.frame_cryptor.dart`). It left a VP9
+   frame's first 10 bytes in the clear on a keyframe and 3 on others, as for
+   VP8. LiveKit's native frame cryptor (the libwebrtc of both the Rust SDK and
+   `flutter_webrtc`) and its JS SDK leave none, so every frame of a desktop's
+   VP9 share failed to decrypt in the browser and the stream stayed black.
+   VP9 is a desktop share's codec without a GPU encoder, and wherever
+   sharpness is asked for. Still the same on `main` on Oct 29 2026.
+
+   Measured Oct 29 2026 on the local stack: a Linux desktop sharing a moving
+   test pattern as VP9 at 720p60, watched on the web build. Before, headless
+   Chrome decoded no frames, asked for a keyframe 158 times and the worker
+   logged a decrypt error on every frame. After, Chrome decoded 2,080 frames
+   in libvpx, moving, and Firefox 155 played it too, where a check of each
+   frame found that only 0 clear bytes decrypted it, not 1, 3 or 10. Both
+   played the same share in H264 on the unpatched worker, so their call keys
+   were good; H264 and VP8 do not reach the changed line.
+
 ## When to remove it
 
 Patch 1 goes when a `livekit_client` release answers a stereo track with
@@ -99,6 +117,7 @@ Patch 1 goes when a `livekit_client` release answers a stereo track with
 `flutter_webrtc` it pins includes #2180, patch 3 when a release sends an
 unsubscribe without holding the track, patch 4 when a release can go back
 to letting visibility decide, patch 5 when a release keeps a disable
-through the server's bind. With all five gone, bump, delete this
+through the server's bind, patch 6 when a release's web worker leaves no
+VP9 bytes in the clear. With all six gone, bump, delete this
 folder and its `dependency_overrides` entry. Until then, a `livekit_client` upgrade needs this copy replaced with the
 new version and the changes put back.

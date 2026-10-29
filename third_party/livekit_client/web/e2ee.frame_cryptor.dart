@@ -211,6 +211,13 @@ class FrameCryptor {
       return result.unencryptedBytes;
     }
 
+    // RIFT PATCH: a VP9 frame is encrypted whole, as LiveKit's native and JS
+    // cryptors do. Treated like VP8 here, every frame of a desktop's VP9 share
+    // failed to decrypt and the web viewer saw nothing.
+    if (codec?.toLowerCase() == 'vp9') {
+      return 0;
+    }
+
     switch (frameType) {
       case 'key':
         return 10;
