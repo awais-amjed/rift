@@ -149,8 +149,10 @@ pub(crate) struct PwPicture {
 }
 
 // SAFETY: the buffer is this picture's until it is released, and the library
-// takes a release from any thread.
+// takes a release from any thread. Shared, it is only read: nothing writes
+// the buffer or its mapping while it is held, and the one release is in drop.
 unsafe impl Send for PwPicture {}
+unsafe impl Sync for PwPicture {}
 
 impl PwPicture {
     /// Cropped and turned upright.
@@ -503,6 +505,37 @@ pub(crate) mod tests {
         });
         unsafe { std::env::remove_var("RIFT_PW_REFUSE_DMABUF") };
         assert_eq!(got, 30);
+    }
+
+    /// What the library lets Rust hold at once (`MAX_HELD` in `pipewire.c`).
+    const HELD_AT_MOST: usize = 4;
+
+    /// A picture that comes while Rust holds all it may waits in the stream
+    /// and arrives the moment Rust lets one go: on a still screen nothing
+    /// newer comes to stand in for it. Needs nothing moving on the screen,
+    /// unlike the tests above; GNOME's first pictures come in a burst, which
+    /// fills Rust (with the library's old limit of two, the third never came).
+    #[test]
+    #[ignore]
+    fn live_pw_stream_keeps_a_picture_that_came_while_rust_held_its_fill() {
+        let session = screen();
+        let (_stream, pictures) = open(&session, PwBuffers::DmaBuf);
+        let mut held = Vec::new();
+        while held.len() < HELD_AT_MOST {
+            let picture = pictures.take_timeout(Duration::from_secs(5));
+            held.push(picture.expect("a picture"));
+        }
+        // Long past the burst: nothing comes now but what waited.
+        std::thread::sleep(Duration::from_millis(1300));
+        let let_go = Instant::now();
+        held.remove(0);
+        let waited = pictures.take_timeout(Duration::from_secs(2));
+        assert!(waited.is_some(), "no picture after letting go");
+        let after = let_go.elapsed();
+        assert!(
+            after < Duration::from_millis(150),
+            "the picture came {after:?} after letting go, not the one that waited"
+        );
     }
 
     #[test]

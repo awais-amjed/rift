@@ -340,63 +340,154 @@ fn ended_by(stream_ended: Option<String>, session_closed: bool) -> Option<String
 /// memory picture is kept and sent again while the compositor sends nothing
 /// ([`REPEAT_EVERY`], then [`REPEAT_IDLE`]), the first one among them: it
 /// says the size the feed is made for, so it comes before there is a feed.
+/// And the newest picture of either kind is kept until a GPU feed takes it:
+/// the rate gate can leave it out, and a new encoder or track has not had
+/// it, and on a still screen nothing newer comes to take its place.
 fn process(pictures: Taker<PwPicture>, slot: VideoSlot, stream: Weak<PwStream>) {
-    let mut converter = Converter::new();
-    let mut spare = Vec::new();
-    let mut follow = Follow::new(stream);
-    let mut still = Still::new(Instant::now());
-    let mut warned_turned = false;
+    let mut sender = Sender {
+        slot,
+        converter: Converter::new(),
+        spare: Vec::new(),
+        follow: Follow::new(stream),
+        still: Still::new(Instant::now()),
+        taken: Taken::new(),
+        warned_turned: false,
+    };
+    let mut newest: Option<Arc<PwPicture>> = None;
     loop {
         let Some(picture) = pictures.take_timeout(REPEAT_EVERY) else {
             if pictures.closed() {
                 break;
             }
-            let Some(size) = still.due(Instant::now()) else {
+            if let Some(picture) = &newest {
+                if sender.untaken(picture) {
+                    sender.send(picture);
+                    continue;
+                }
+            }
+            let Some(size) = sender.still.due(Instant::now()) else {
                 continue;
             };
-            if let Some((feed, target)) = slot.feed(size) {
-                follow.feed(&feed);
-                converter.send_kept(feed, target);
+            if let Some((feed, target)) = sender.slot.feed(size) {
+                sender.follow.feed(&feed);
+                sender.converter.send_kept(feed, target);
             }
-            still.repeated(Instant::now());
+            sender.still.repeated(Instant::now());
             continue;
         };
-        let in_memory = picture.memory().is_some();
-        // A memory picture comes as the compositor drew it, not turned.
-        let size = if in_memory {
-            unturned(&picture)
-        } else {
-            picture.size()
+        // The older one goes back first, so the compositor is short one
+        // buffer the less.
+        drop(newest.take());
+        let picture = Arc::new(picture);
+        sender.taken.reset();
+        sender.send(&picture);
+        newest = Some(picture);
+    }
+}
+
+/// What the processing thread hands pictures on with.
+struct Sender {
+    slot: VideoSlot,
+    converter: Converter,
+    spare: Vec<u8>,
+    follow: Follow,
+    still: Still,
+    taken: Taken<GpuFeed>,
+    warned_turned: bool,
+}
+
+impl Sender {
+    /// Whether the feed attached now is a GPU feed that has not taken
+    /// `picture`. Tells the stream of a new feed's buffers on the way, so a
+    /// still screen's stream follows a fall back to VP9 too.
+    fn untaken(&mut self, picture: &PwPicture) -> bool {
+        let Some((feed, _)) = self.slot.feed(size_of(picture)) else {
+            return false;
         };
+        self.follow.feed(&feed);
+        matches!(&feed, Feed::Gpu(gpu) if self.taken.wants(gpu))
+    }
+
+    /// `picture` to the feed for its size, or kept for one not there yet.
+    fn send(&mut self, picture: &Arc<PwPicture>) {
+        let size = size_of(picture);
         // Asked on every picture, because the session swaps in a new feed
         // when the size or the codec is changed mid-share.
-        let feed = slot.feed(size);
+        let feed = self.slot.feed(size);
         if let Some((feed, _)) = &feed {
-            follow.feed(feed);
+            self.follow.feed(feed);
         }
         if let Some((data, stride)) = picture.memory() {
-            if picture.transform() != 0 && !warned_turned {
+            if picture.transform() != 0 && !self.warned_turned {
                 log::warn!("capture: the screen is turned, and a memory picture is sent as drawn");
-                warned_turned = true;
+                self.warned_turned = true;
             }
-            let rows = whole_rows(data, stride, size.height, &mut spare);
+            let rows = whole_rows(data, stride, size.height, &mut self.spare);
             match feed {
-                Some((feed, target)) => converter.send(rows, stride, size, feed, target),
-                None => converter.keep(rows, stride, size),
+                Some((feed, target)) => {
+                    let gpu = match &feed {
+                        Feed::Gpu(gpu) => Some(gpu.clone()),
+                        Feed::Raw(_) => None,
+                    };
+                    let took = self.converter.send(rows, stride, size, feed, target);
+                    if let (true, Some(gpu)) = (took, gpu) {
+                        self.taken.by(&gpu);
+                    }
+                }
+                None => self.converter.keep(rows, stride, size),
             }
-            still.noted(converter.kept(), Instant::now());
-            continue;
+            self.still.noted(self.converter.kept(), Instant::now());
+            return;
         }
         match feed {
             Some((Feed::Gpu(gpu), target)) if gpu.takes_dmabuf() => {
-                gpu.send(Picture::DmaBuf(picture), target, now_us());
-                converter.forget();
-                still.noted(None, Instant::now());
+                if gpu.send(Picture::DmaBuf(picture.clone()), target, now_us()) {
+                    self.taken.by(&gpu);
+                }
+                self.converter.forget();
+                self.still.noted(None, Instant::now());
             }
             // The raw path cannot read one: dropped while the switch to
             // memory lands.
             _ => {}
         }
+    }
+}
+
+/// A picture's size as its feed is chosen by: a memory picture comes as the
+/// compositor drew it, not turned.
+fn size_of(picture: &PwPicture) -> Size {
+    if picture.memory().is_some() {
+        unturned(picture)
+    } else {
+        picture.size()
+    }
+}
+
+/// Which feed has taken the newest picture. Held weakly, as [`Follow`]
+/// holds its feed, so a new feed is never mistaken for one gone at the same
+/// address.
+struct Taken<T> {
+    by: Weak<T>,
+}
+
+impl<T> Taken<T> {
+    fn new() -> Self {
+        Self { by: Weak::new() }
+    }
+
+    /// A newer picture, which no feed has had.
+    fn reset(&mut self) {
+        self.by = Weak::new();
+    }
+
+    fn by(&mut self, feed: &Arc<T>) {
+        self.by = Arc::downgrade(feed);
+    }
+
+    /// Whether `feed` has yet to take the newest picture.
+    fn wants(&self, feed: &Arc<T>) -> bool {
+        !Weak::ptr_eq(&self.by, &Arc::downgrade(feed))
     }
 }
 
@@ -567,6 +658,22 @@ mod tests {
         still.noted(Some(SIZE), start);
         still.noted(None, start + Duration::from_millis(10));
         assert_eq!(still.due(start + Duration::from_secs(5)), None);
+    }
+
+    #[test]
+    fn the_newest_picture_is_offered_to_each_feed_until_one_takes_it() {
+        let feed = Arc::new(1);
+        let mut taken = Taken::new();
+        // Left out by the rate gate: offered again on the next tick.
+        assert!(taken.wants(&feed));
+        taken.by(&feed);
+        assert!(!taken.wants(&feed));
+        // A new encoder, or a new track's, has not had it.
+        let new = Arc::new(2);
+        assert!(taken.wants(&new));
+        // Nor has anyone a newer picture.
+        taken.reset();
+        assert!(taken.wants(&feed));
     }
 
     #[test]

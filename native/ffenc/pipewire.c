@@ -13,7 +13,9 @@
  * the crop and turn OBS reads, for the encoder to apply; the format asks
  * for a maxFramerate, which OBS leaves to the compositor; and a buffer lent
  * to Rust keeps its memory and fds after PipeWire frees it (struct Held),
- * since OBS uses each buffer inside its process callback and Rift does not.
+ * since OBS uses each buffer inside its process callback and Rift does not;
+ * and a picture that comes while Rust holds its fill waits in the stream
+ * until Rust lets one go (on_wake), where OBS would draw it at once.
  *
  * Copyright 2020 Georges Basile Stavracas Neto <georges.stavracas@gmail.com>
  *
@@ -57,8 +59,12 @@
 
 #include "dmabuf_caps.h"
 
-// Rust holds at most this many; a newer picture while it does goes back.
-#define MAX_HELD 2
+// Rust holds at most this many: the newest it keeps for a feed that has not
+// taken it, one waiting for the processing thread, and one waiting for and one
+// inside the encoder. A newer picture while it holds them waits in the stream
+// until Rust lets one go (`wake`): on a still screen nothing newer comes, so a
+// picture handed back unseen would never be replaced.
+#define MAX_HELD 4
 
 // How long a picture's acquire point may take to signal before it is
 // dropped: the compositor is still drawing it.
@@ -111,6 +117,9 @@ struct RiftPwStream {
   struct pw_stream* stream;
   struct spa_hook stream_listener;
   struct spa_source* reneg;
+  // Signalled by a release while a picture waits for Rust to hold fewer.
+  struct spa_source* wake;
+  bool starved;
 
   struct spa_video_info format;
   bool negotiated;
@@ -552,12 +561,18 @@ static void on_process_cb(void* user_data) {
   struct spa_buffer* buffer;
   struct pw_buffer* b;
 
+  if (s->held >= MAX_HELD) {
+    // Left queued in the stream, for `on_wake` once Rust lets one go.
+    s->starved = true;
+    return;
+  }
+
   b = find_latest_buffer(s);
   if (!b) return;
 
   buffer = b->buffer;
   Held* h = b->user_data;
-  if (!h || s->closing || s->held >= MAX_HELD) goto drop;
+  if (!h || s->closing) goto drop;
 
   header = spa_buffer_find_meta_data(buffer, SPA_META_Header, sizeof(*header));
   if (header && (header->flags & SPA_META_HEADER_FLAG_CORRUPTED) > 0) {
@@ -711,6 +726,15 @@ static void on_process_cb(void* user_data) {
 
 drop:
   return_unused_pw_buffer(s, b);
+}
+
+// A release let go of a picture while a newer one waited in the stream.
+static void on_wake(void* data, uint64_t expirations) {
+  (void)expirations;
+  RiftPwStream* s = data;
+  if (!s->starved || s->closing) return;
+  s->starved = false;
+  on_process_cb(s);
 }
 
 static void on_param_changed_cb(void* user_data, uint32_t id,
@@ -912,6 +936,10 @@ static void destroy(RiftPwStream* s) {
                              s->reneg);
       s->reneg = NULL;
     }
+    if (s->wake) {
+      pw_loop_destroy_source(pw_thread_loop_get_loop(s->thread_loop), s->wake);
+      s->wake = NULL;
+    }
     if (s->core) {
       spa_hook_remove(&s->core_listener);
       pw_core_disconnect(s->core);
@@ -1010,6 +1038,8 @@ RiftPwStream* rift_pw_open(int32_t fd, uint32_t node_id, int32_t max_fps,
   /* Signal to renegotiate */
   s->reneg = pw_loop_add_event(pw_thread_loop_get_loop(s->thread_loop),
                                renegotiate_format, s);
+  s->wake = pw_loop_add_event(pw_thread_loop_get_loop(s->thread_loop),
+                              on_wake, s);
 
   /* Stream */
   s->stream = pw_stream_new(
@@ -1093,6 +1123,8 @@ void rift_pw_release(RiftPwStream* s, void* held) {
   if (h->b) return_unused_pw_buffer(s, h->b);
   unref_held(h);
   s->held--;
+  if (s->starved && !s->closing && s->wake)
+    pw_loop_signal_event(pw_thread_loop_get_loop(s->thread_loop), s->wake);
   bool last = s->closing && s->held == 0;
   pw_thread_loop_unlock(s->thread_loop);
   if (last) destroy(s);

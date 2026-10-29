@@ -69,20 +69,27 @@ impl Converter {
     }
 
     /// Hands `feed` a picture of `size` in BGRA rows `stride` bytes apart
-    /// (libyuv's ARGB), as a picture of `target`'s size.
-    pub(crate) fn send(&mut self, data: &[u8], stride: u32, size: Size, feed: Feed, target: Size) {
+    /// (libyuv's ARGB), as a picture of `target`'s size. Says whether the
+    /// feed took it: a GPU feed's rate gate can leave it out.
+    pub(crate) fn send(
+        &mut self,
+        data: &[u8],
+        stride: u32,
+        size: Size,
+        feed: Feed,
+        target: Size,
+    ) -> bool {
         // The GPU encoder takes NV12, straight from the capture when it is
         // already the target size.
         #[cfg(gpu_encoder)]
         if let Feed::Gpu(gpu) = &feed {
             if target == size {
-                gpu.send(Picture::Argb { data, stride }, target, now_us());
                 self.kept = None;
-                return;
+                return gpu.send(Picture::Argb { data, stride }, target, now_us());
             }
         }
         self.keep(data, stride, size);
-        self.deliver(size, feed, target);
+        self.deliver(size, feed, target)
     }
 
     /// Converts a picture as [`send`](Self::send) would, for a feed not
@@ -128,8 +135,9 @@ impl Converter {
         true
     }
 
-    /// Hands `feed` the picture in `native`, captured at `size`.
-    fn deliver(&mut self, size: Size, feed: Feed, target: Size) {
+    /// Hands `feed` the picture in `native`, captured at `size`, and says
+    /// whether it took it.
+    fn deliver(&mut self, size: Size, feed: Feed, target: Size) -> bool {
         let native = &mut self.native;
         // `scale` allocates a fresh buffer every call (about 3 MB at 1080p)
         // and libwebrtc exposes no scale-into variant, so skip it whenever
@@ -137,6 +145,7 @@ impl Converter {
         match feed {
             Feed::Raw(source) if target == size => {
                 source.capture_frame(native);
+                true
             }
             Feed::Raw(source) => {
                 let scaled = VideoFrame::new(
@@ -144,11 +153,12 @@ impl Converter {
                     fit(&mut native.buffer, size, target),
                 );
                 source.capture_frame(&scaled);
+                true
             }
             #[cfg(gpu_encoder)]
             Feed::Gpu(gpu) => {
                 let scaled = fit(&mut native.buffer, size, target);
-                gpu.send(Picture::I420(&scaled), target, now_us());
+                gpu.send(Picture::I420(&scaled), target, now_us())
             }
         }
     }

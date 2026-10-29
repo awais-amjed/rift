@@ -83,8 +83,9 @@ impl GpuFeed {
 
     /// Hand the encoder one picture, already the target size in I420, still
     /// the native size in ARGB, or a DMA-BUF the encoder fits itself. Says
-    /// false once the encoder has failed, having told the session so the
-    /// first time.
+    /// whether the encoder took it: not when the rate gate left it out, nor
+    /// once the encoder has failed, having told the session so the first
+    /// time.
     pub(crate) fn send(&self, picture: Picture<'_>, target: Size, timestamp_us: i64) -> bool {
         if self.encoder.failed() {
             if !self.reported.swap(true, Ordering::Relaxed) {
@@ -93,7 +94,7 @@ impl GpuFeed {
             return false;
         }
         if !self.admits() {
-            return true;
+            return false;
         }
         let picture = match picture {
             #[cfg(target_os = "linux")]
@@ -181,8 +182,10 @@ pub(crate) enum Picture<'a> {
         stride: u32,
     },
     I420(&'a I420Buffer),
+    /// Shared with the processing thread, which keeps the newest picture
+    /// until a feed takes it.
     #[cfg(target_os = "linux")]
-    DmaBuf(PwPicture),
+    DmaBuf(Arc<PwPicture>),
 }
 
 /// The pre-encoded source, as the encoder sees it.

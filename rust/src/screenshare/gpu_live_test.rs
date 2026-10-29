@@ -690,7 +690,7 @@ fn live_vaapi_encodes_the_stream() {
         if let Some(picture) = pictures.take_timeout(Duration::from_secs(2)) {
             started.get_or_insert_with(Instant::now);
             encoder.submit_input(EncoderInput::DmaBuf(DmaBufFrame {
-                picture,
+                picture: std::sync::Arc::new(picture),
                 timestamp_us: SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .unwrap()

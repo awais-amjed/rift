@@ -381,6 +381,13 @@ GPU encoder itself, and so is a memory picture that reaches it already the
 encoded size, which is never converted to keep: the encoder's thread keeps the
 NV12 it was given and encodes it again on a keyframe request and once a second
 (NVENC takes every picture this way; found Oct 30 by the branch's review).
+The newest picture of either kind is kept until a GPU feed has taken it, and
+offered again every 100 ms until one does: the rate gate can leave it out,
+and a new encoder or track (a republish, a move to another room) has not had
+it, and on a still screen nothing newer comes to take its place. The stream
+lets Rust hold four pictures, and one that comes while Rust holds them waits
+in the stream until Rust lets one go: handed back unseen, as OBS's rule had
+it, a still screen's last change never reached the viewer (Oct 30).
 Proved Oct 29 by
 the live share tests on GNOME 50 (Iris Xe): 1080p, a resize, a late joiner,
 encoder failure to VP9 and no GPU; and in the app (the measurement and

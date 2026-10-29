@@ -25,6 +25,8 @@ pub(crate) use worker::GpuEncoder;
 use super::pw_stream::PwPicture;
 use super::resolution::Size;
 use crate::api::screenshare::types::VideoCodec;
+#[cfg(target_os = "linux")]
+use std::sync::Arc;
 
 /// What the GPU encoder can be asked to make.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -159,10 +161,11 @@ impl Nv12Frame {
 
 /// A Wayland share's picture still on the GPU, as the compositor's DMA-BUF.
 /// The encoder crops, turns, scales and places it there (`ffenc.h`), and
-/// the buffer goes back to PipeWire once the GPU has copied it.
+/// the buffer goes back to PipeWire once the GPU has copied it and the
+/// processing thread has a newer picture (`capture_pw::process`).
 #[cfg(target_os = "linux")]
 pub(crate) struct DmaBufFrame {
-    pub picture: PwPicture,
+    pub picture: Arc<PwPicture>,
     /// On the same clock as an [`Nv12Frame`]'s.
     pub timestamp_us: i64,
 }
