@@ -36,6 +36,10 @@ step can take from our own code and from open source projects: `REUSE.md`.
    - **Order (owner, Oct 29): Linux first, step 2 before step 1.** This laptop has
      both of Linux's encoders and Wayland, so the step can be built and proved
      here; the Windows VM has no GPU.
+   - **Hybrid laptops (owner, Oct 29): encode on the GPU that draws the screen.**
+     The compositor's buffers are in the integrated GPU's memory, so VAAPI there
+     keeps the picture on one GPU; NVENC would need each picture copied across to
+     the NVIDIA card. NVENC stays for a screen the NVIDIA card draws.
 1. **Zero-copy sharing on Windows 11 24H2+.**
    - Turn on WGC texture mode (fork: `desktop_capturer.cpp` passes the texture and
      its device out to Rust).
