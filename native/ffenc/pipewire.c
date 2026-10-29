@@ -441,6 +441,9 @@ static void renegotiate_format(void* data, uint64_t expirations) {
 
 /* ------------------------------------------------- */
 
+// Explicit sync came in PipeWire 1.2. Built against older headers (Ubuntu
+// 24.04, where the release is built, has 1.0) it is left out, as OBS does.
+#if PW_CHECK_VERSION(1, 2, 0)
 static void signal_timeline_point(RiftPwStream* s, int syncobj_fd,
                                   uint64_t timeline_point) {
   uint32_t syncobj_handle = 0;
@@ -469,8 +472,10 @@ static bool wait_timeline_point(RiftPwStream* s, int syncobj_fd,
   drmSyncobjDestroy(s->drm_fd, syncobj_handle);
   return result == 0;
 }
+#endif
 
 static void return_unused_pw_buffer(RiftPwStream* s, struct pw_buffer* b) {
+#if PW_CHECK_VERSION(1, 2, 0)
   struct spa_buffer* buffer = b->buffer;
   struct spa_data* last_data = &buffer->datas[buffer->n_datas - 1];
   struct spa_meta_sync_timeline* synctimeline = spa_buffer_find_meta_data(
@@ -479,6 +484,7 @@ static void return_unused_pw_buffer(RiftPwStream* s, struct pw_buffer* b) {
   if (synctimeline && (last_data->type == SPA_DATA_SyncObj) &&
       s->drm_fd >= 0)
     signal_timeline_point(s, (int)last_data->fd, synctimeline->release_point);
+#endif
   pw_stream_queue_buffer(s->stream, b);
 }
 
@@ -600,8 +606,10 @@ static void on_process_cb(void* user_data) {
   if (buffer->datas[0].type == SPA_DATA_DmaBuf) {
     uint32_t planes = get_spa_buffer_plane_count(buffer);
     bool corrupt = false;
+#if PW_CHECK_VERSION(1, 2, 0)
     struct spa_meta_sync_timeline* synctimeline = spa_buffer_find_meta_data(
         buffer, SPA_META_SyncTimeline, sizeof(struct spa_meta_sync_timeline));
+#endif
 
     if (planes == 0 || planes > 4) goto drop;
 
@@ -632,6 +640,7 @@ static void on_process_cb(void* user_data) {
       goto drop;
     }
 
+#if PW_CHECK_VERSION(1, 2, 0)
     if (synctimeline && (buffer->n_datas == (planes + 2))) {
       if (s->drm_fd < 0 ||
           buffer->datas[planes].type != SPA_DATA_SyncObj ||
@@ -646,6 +655,7 @@ static void on_process_cb(void* user_data) {
         s->logged_sync = true;
       }
     }
+#endif
     picture.buffers = RIFT_PW_DMABUF;
   } else if (buffer->datas[0].data) {
     struct spa_data* d = &buffer->datas[0];
@@ -713,7 +723,9 @@ static void on_param_changed_cb(void* user_data, uint32_t id,
   uint32_t buffer_types;
   uint8_t params_buffer[1024];
   int result;
+#if PW_CHECK_VERSION(1, 2, 0)
   bool supports_explicit_sync = false;
+#endif
 
   if (!param || id != SPA_PARAM_Format) return;
 
@@ -734,7 +746,9 @@ static void on_param_changed_cb(void* user_data, uint32_t id,
   if ((has_modifier || check_pw_version(&s->server_version, 0, 3, 24)) &&
       dmabuf_allowed(s)) {
     buffer_types |= 1 << SPA_DATA_DmaBuf;
+#if PW_CHECK_VERSION(1, 2, 0)
     supports_explicit_sync = s->explicit_sync;
+#endif
   }
 
   format_name = spa_debug_type_find_name(spa_type_video_format,
@@ -759,6 +773,7 @@ static void on_param_changed_cb(void* user_data, uint32_t id,
       SPA_POD_Int(sizeof(struct spa_meta_region)));
 
   /* Buffer options */
+#if PW_CHECK_VERSION(1, 2, 0)
   if (supports_explicit_sync) {
     struct spa_pod_frame dmabuf_explicit_sync_frame;
 
@@ -774,12 +789,14 @@ static void on_param_changed_cb(void* user_data, uint32_t id,
     params[n_params++] =
         spa_pod_builder_pop(&pod_builder, &dmabuf_explicit_sync_frame);
   }
+#endif
 
   params[n_params++] = spa_pod_builder_add_object(
       &pod_builder, SPA_TYPE_OBJECT_ParamBuffers, SPA_PARAM_Buffers,
       SPA_PARAM_BUFFERS_dataType, SPA_POD_Int(buffer_types));
 
   /* Sync timeline */
+#if PW_CHECK_VERSION(1, 2, 0)
   if (supports_explicit_sync) {
     params[n_params++] = spa_pod_builder_add_object(
         &pod_builder, SPA_TYPE_OBJECT_ParamMeta, SPA_PARAM_Meta,
@@ -787,6 +804,7 @@ static void on_param_changed_cb(void* user_data, uint32_t id,
         SPA_PARAM_META_size,
         SPA_POD_Int(sizeof(struct spa_meta_sync_timeline)));
   }
+#endif
 
   /* Meta header */
   params[n_params++] = spa_pod_builder_add_object(

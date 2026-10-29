@@ -359,7 +359,10 @@ frees a stream's buffers on every renegotiation (a crash before that, Oct 29).
 When the library, the portal or the stream refuses, libwebrtc's capturer runs
 as before. Rift's portal connection registers as `com.codingfries.rift`, the id
 GTK and Dart's picker use: unnamed, GNOME could not find the window Dart's
-picker saved, and showed its picker a second time. GNOME closes the portal
+picker saved, and showed its picker a second time. The restore asks for the
+pick to be kept while Rift runs (`persist_mode` 1), as libwebrtc's capturer
+does: KDE ignores a restore asked not to persist and shows its picker again
+(found Oct 30 in the KDE VM). GNOME closes the portal
 session when a shared window closes and only pauses the stream, so the
 session's `Closed` ends the share, as libwebrtc's capturer does; a minimised
 window it keeps streaming live, so nothing shows paused there. A window's

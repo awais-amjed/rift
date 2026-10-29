@@ -132,6 +132,20 @@ async fn register() {
         .await;
 }
 
+/// How long the portal is asked to keep a choice. A restored one is kept
+/// while Rift runs, as libwebrtc's capturer asks: KDE ignores a restore
+/// asked not to persist and shows its picker again (found Oct 30 in the KDE
+/// VM; GNOME restores either way).
+fn persist_mode(keep: bool, restoring: bool) -> PersistMode {
+    if keep {
+        PersistMode::ExplicitlyRevoked
+    } else if restoring {
+        PersistMode::Application
+    } else {
+        PersistMode::DoNot
+    }
+}
+
 /// Starts a ScreenCast session: the picker, unless `restore_token` restores
 /// an earlier choice. The cursor is drawn into the picture by the compositor
 /// when `cursor`, and left out otherwise. With `keep` the portal is asked to
@@ -180,11 +194,7 @@ pub(crate) async fn open(
         PortalKind::Screen => SourceType::Monitor.into(),
         PortalKind::Window => SourceType::Window.into(),
     };
-    let persist = if keep {
-        PersistMode::ExplicitlyRevoked
-    } else {
-        PersistMode::DoNot
-    };
+    let persist = persist_mode(keep, restore_token.is_some());
     let options = SelectSourcesOptions::default()
         .set_cursor_mode(if cursor {
             CursorMode::Embedded
@@ -252,6 +262,15 @@ pub(crate) mod tests {
             error_of(ashpd::Error::Response(ResponseError::Cancelled)),
             PortalError::Cancelled
         );
+    }
+
+    #[test]
+    fn a_restored_pick_persists_while_the_app_runs() {
+        // KDE shows its picker again for a restore asked not to persist.
+        assert_eq!(persist_mode(false, true), PersistMode::Application);
+        assert_eq!(persist_mode(false, false), PersistMode::DoNot);
+        assert_eq!(persist_mode(true, true), PersistMode::ExplicitlyRevoked);
+        assert_eq!(persist_mode(true, false), PersistMode::ExplicitlyRevoked);
     }
 
     #[test]

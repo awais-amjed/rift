@@ -83,6 +83,11 @@ Rust (portal, ashpd)        C, librift_ffenc.so                   Rust
     `renegotiate_format` (a modifier that fails to import), `find_latest_buffer`
     and `return_unused_pw_buffer`, `on_param_changed_cb` (buffer kinds and metas,
     the explicit-sync timeline included), and the state and core callbacks.
+    Explicit sync is built only against PipeWire 1.2's headers or newer, behind
+    OBS's own `PW_CHECK_VERSION(1, 2, 0)`. The release is built on Ubuntu 24.04,
+    which has 1.0, so a release build syncs implicitly (found Oct 30, when the
+    builder failed on it). The NVIDIA half needs this settled first, since
+    NVIDIA's driver relies on explicit sync.
   - The modifier query is OBS's `libobs-opengl/gl-egl-common.c`
     (`query_dmabuf_formats`, `query_dmabuf_modifiers`).
   - A crop meta is honoured the way OBS honours it (a window's stream can carry
