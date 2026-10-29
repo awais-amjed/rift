@@ -10,7 +10,8 @@
  * arrays replaced by plain C; the explicit-sync acquire point is waited on
  * here, on the CPU, where OBS has its GPU wait, and the release point is
  * signalled when Rust gives the buffer back; the picture handed up carries
- * the crop and turn OBS reads, for the encoder to apply.
+ * the crop and turn OBS reads, for the encoder to apply; and the format asks
+ * for a maxFramerate, which OBS leaves to the compositor.
  *
  * Copyright 2020 Georges Basile Stavracas Neto <georges.stavracas@gmail.com>
  *
@@ -177,11 +178,15 @@ static inline struct spa_pod* build_format(RiftPwStream* s,
   struct spa_rectangle min_resolution = SPA_RECTANGLE(1, 1);
   struct spa_rectangle resolution = SPA_RECTANGLE(1920, 1080);
   struct spa_pod_frame format_frame;
-  // At most the share's rate: PipeWire sends a picture when the screen
-  // changes, never faster than this.
+  // At most the share's rate: the compositor sends a picture when the
+  // screen changes, never faster than maxFramerate. Mutter fixes framerate
+  // at 0/1, variable, and without a maxFramerate of ours sent at the
+  // screen's refresh: 110 a second on a 165 Hz laptop screen asked for 60
+  // (GNOME 50, Oct 29 2026).
   struct spa_fraction max_framerate = SPA_FRACTION((uint32_t)s->max_fps, 1);
   struct spa_fraction min_framerate = SPA_FRACTION(0, 1);
   struct spa_fraction framerate = SPA_FRACTION((uint32_t)s->max_fps, 1);
+  struct spa_fraction min_max_framerate = SPA_FRACTION(1, 1);
 
   /* Make an object of type SPA_TYPE_OBJECT_Format and id SPA_PARAM_EnumFormat.
    * The object type is important because it defines the properties that are
@@ -227,6 +232,9 @@ static inline struct spa_pod* build_format(RiftPwStream* s,
                                      &max_resolution),
       SPA_FORMAT_VIDEO_framerate,
       SPA_POD_CHOICE_RANGE_Fraction(&framerate, &min_framerate,
+                                    &max_framerate),
+      SPA_FORMAT_VIDEO_maxFramerate,
+      SPA_POD_CHOICE_RANGE_Fraction(&max_framerate, &min_max_framerate,
                                     &max_framerate),
       0);
   return spa_pod_builder_pop(b, &format_frame);
@@ -648,10 +656,13 @@ static void on_param_changed_cb(void* user_data, uint32_t id,
   if (has_modifier)
     snprintf(modifier, sizeof(modifier), "modifier 0x%" PRIx64,
              s->format.info.raw.modifier);
-  av_log(NULL, AV_LOG_INFO, "pipewire: negotiated %s, %s, %ux%u, %u/%u\n",
+  av_log(NULL, AV_LOG_INFO,
+         "pipewire: negotiated %s, %s, %ux%u, %u/%u, at most %u/%u\n",
          format_name ? format_name : "an unknown format", modifier,
          s->format.info.raw.size.width, s->format.info.raw.size.height,
-         s->format.info.raw.framerate.num, s->format.info.raw.framerate.denom);
+         s->format.info.raw.framerate.num, s->format.info.raw.framerate.denom,
+         s->format.info.raw.max_framerate.num,
+         s->format.info.raw.max_framerate.denom);
 
   /* Video crop */
   pod_builder = SPA_POD_BUILDER_INIT(params_buffer, sizeof(params_buffer));
