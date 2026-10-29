@@ -331,9 +331,11 @@ fn run<S, F>(
                     frame.timestamp_us = timestamp_us;
                     let input = EncoderInput::Nv12(frame);
                     let result = session.encode(&input, keyframe);
-                    if let EncoderInput::Nv12(frame) = input {
-                        kept = Some(frame);
-                    }
+                    kept = match input {
+                        EncoderInput::Nv12(frame) => Some(frame),
+                        #[cfg(target_os = "linux")]
+                        EncoderInput::DmaBuf(_) => None,
+                    };
                     match result {
                         Ok(()) => {
                             keyframe = false;
