@@ -57,7 +57,9 @@ step can take from our own code and from open source projects: `REUSE.md`.
    - Second route (`REUSE.md`): FFmpeg's own `gfxcapture` (WGC) and `ddagrab`
      (DXGI) inside ffenc, with `scale_d3d11`. It reaches Windows 10 and older 11
      too, but moves GPU-share capture out of libwebrtc.
-2. **Zero-copy sharing on Linux Wayland.**
+2. **Zero-copy sharing on Linux Wayland.** Designed Oct 29: `STEP2_LINUX.md`.
+   - **Order (owner, Oct 29): VAAPI first, then NVIDIA** on this laptop switched
+     to NVIDIA-only display in the BIOS.
    - libwebrtc always reads back, so Rift runs the PipeWire stream itself. It
      already runs the portal picker and holds the restore token on GNOME and KDE.
    - Negotiate DMA-BUF with modifiers.
