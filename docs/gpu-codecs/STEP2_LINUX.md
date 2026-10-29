@@ -136,7 +136,12 @@ Rust (portal, ashpd)        C, librift_ffenc.so                   Rust
   watcher needs one: the last picture is kept (a VAAPI surface after scale_vaapi
   for the GPU feed) and encoded again on a keyframe request and about once a
   second. *Builder's call:* check what today's capture sends on a still screen and
-  match it.
+  match it. Today's capture hands libwebrtc its last picture on every tick. A
+  memory picture has no keyframe request to wait on (libwebrtc's own encoder
+  takes those), so it is kept as the I420 it was converted to and sent again
+  every 100 ms of quiet, the rate of LiveKit's own keepalive. The first picture
+  is kept the same way until the feed it sizes is attached: without that, KDE's
+  covered window, drawn once, never reached the viewer (found Oct 30).
 - Each picture carries PipeWire's presentation time for the share's clock and A/V
   sync, as today's frames carry theirs.
 

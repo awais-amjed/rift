@@ -52,6 +52,9 @@ fn run(frame_rx: Taker<SendableFrame>, source_slot: VideoSlot) {
 pub(crate) struct Converter {
     /// Reused across frames; reallocated only if the capture size changes.
     native: VideoFrame<I420Buffer>,
+    /// The size of the picture `native` holds, while it is the last one
+    /// converted, so it can be sent again ([`send_kept`](Self::send_kept)).
+    kept: Option<Size>,
 }
 
 impl Converter {
@@ -61,6 +64,7 @@ impl Converter {
         // literal has to be edited for every one of them.
         Self {
             native: VideoFrame::new(VideoRotation::VideoRotation0, I420Buffer::new(2, 2)),
+            kept: None,
         }
     }
 
@@ -73,10 +77,17 @@ impl Converter {
         if let Feed::Gpu(gpu) = &feed {
             if target == size {
                 gpu.send(Picture::Argb { data, stride }, target, now_us());
+                self.kept = None;
                 return;
             }
         }
+        self.keep(data, stride, size);
+        self.deliver(size, feed, target);
+    }
 
+    /// Converts a picture as [`send`](Self::send) would, for a feed not
+    /// there yet: [`send_kept`](Self::send_kept) sends it once there is one.
+    pub(crate) fn keep(&mut self, data: &[u8], stride: u32, size: Size) {
         let native = &mut self.native;
         if native.buffer.width() != size.width || native.buffer.height() != size.height {
             native.buffer = I420Buffer::new(size.width, size.height);
@@ -95,7 +106,31 @@ impl Converter {
             size.width as i32,
             size.height as i32,
         );
+        self.kept = Some(size);
+    }
 
+    /// The size of the picture kept to send again, if there is one.
+    pub(crate) fn kept(&self) -> Option<Size> {
+        self.kept
+    }
+
+    /// No picture is kept: a newer one went to the feed another way.
+    pub(crate) fn forget(&mut self) {
+        self.kept = None;
+    }
+
+    /// Sends the last picture converted again; false with none kept.
+    pub(crate) fn send_kept(&mut self, feed: Feed, target: Size) -> bool {
+        let Some(size) = self.kept else {
+            return false;
+        };
+        self.deliver(size, feed, target);
+        true
+    }
+
+    /// Hands `feed` the picture in `native`, captured at `size`.
+    fn deliver(&mut self, size: Size, feed: Feed, target: Size) {
+        let native = &mut self.native;
         // `scale` allocates a fresh buffer every call (about 3 MB at 1080p)
         // and libwebrtc exposes no scale-into variant, so skip it whenever
         // the capture is already the target size.

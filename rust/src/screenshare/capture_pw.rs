@@ -17,12 +17,49 @@ use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError, TryRecvError};
 use std::sync::{Arc, Mutex, Weak};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::sync::mpsc::UnboundedSender;
 
 /// How often the capture thread looks for a stop, an ended stream or a new
 /// rate. The pictures themselves never wait on it.
 const POLL: Duration = Duration::from_millis(100);
+
+/// How long the processing thread waits on a quiet compositor before it
+/// sends the last memory picture again. A compositor sends a picture only
+/// when the window changes, and KDE drew a covered window once and then
+/// nothing (Oct 30, the KDE VM), where libwebrtc's capturer hands over its
+/// last picture on every tick. WebRTC needs a picture to answer a viewer's
+/// keyframe request with, and LiveKit's own keepalive runs at this rate too.
+const REPEAT_EVERY: Duration = Duration::from_millis(100);
+
+/// When the last memory picture is due to be sent again.
+struct Still {
+    /// The kept picture's size; `None` once a DMA-BUF came after it, which
+    /// the GPU encoder repeats itself.
+    kept: Option<Size>,
+    since: Instant,
+}
+
+impl Still {
+    fn new(now: Instant) -> Self {
+        Self {
+            kept: None,
+            since: now,
+        }
+    }
+
+    /// A picture went to the feed, or was kept for one not there yet.
+    fn noted(&mut self, kept: Option<Size>, now: Instant) {
+        self.kept = kept;
+        self.since = now;
+    }
+
+    /// The size of the picture to send again, once it is due.
+    fn due(&self, now: Instant) -> Option<Size> {
+        self.kept
+            .filter(|_| now.saturating_duration_since(self.since) >= REPEAT_EVERY)
+    }
+}
 
 /// Whether this is a Wayland session, by the rule libwebrtc's own capturer
 /// goes by, so a share Rift's stream refuses meets the capturer it would have
@@ -275,16 +312,31 @@ fn ended_by(stream_ended: Option<String>, session_closed: bool) -> Option<String
 }
 
 /// The processing thread: each picture to its feed, in the buffers the feed
-/// can use, asking the stream for those whenever the feed changes.
+/// can use, asking the stream for those whenever the feed changes. The last
+/// memory picture is kept and sent again while the compositor sends nothing
+/// ([`REPEAT_EVERY`]), the first one among them: it says the size the feed
+/// is made for, so it comes before there is a feed.
 fn process(pictures: Taker<PwPicture>, slot: VideoSlot, stream: Weak<PwStream>) {
     let mut converter = Converter::new();
     let mut spare = Vec::new();
-    let mut asked = PwBuffers::Memory;
-    // The GPU feed told where its refused DMA-BUFs go. Held weakly, so a new
-    // feed is never mistaken for one gone at the same address.
-    let mut told = Weak::<GpuFeed>::new();
+    let mut follow = Follow::new(stream);
+    let mut still = Still::new(Instant::now());
     let mut warned_turned = false;
-    while let Some(picture) = pictures.take() {
+    loop {
+        let Some(picture) = pictures.take_timeout(REPEAT_EVERY) else {
+            if pictures.closed() {
+                break;
+            }
+            let Some(size) = still.due(Instant::now()) else {
+                continue;
+            };
+            if let Some((feed, target)) = slot.feed(size) {
+                follow.feed(&feed);
+                converter.send_kept(feed, target);
+            }
+            still.noted(converter.kept(), Instant::now());
+            continue;
+        };
         let in_memory = picture.memory().is_some();
         // A memory picture comes as the compositor drew it, not turned.
         let size = if in_memory {
@@ -294,27 +346,9 @@ fn process(pictures: Taker<PwPicture>, slot: VideoSlot, stream: Weak<PwStream>) 
         };
         // Asked on every picture, because the session swaps in a new feed
         // when the size or the codec is changed mid-share.
-        let Some((feed, target)) = slot.feed(size) else {
-            continue;
-        };
-        let wanted = buffers_for(&feed);
-        if wanted != asked {
-            log::info!("capture: asking the compositor for {wanted:?} buffers");
-            if let Some(stream) = stream.upgrade() {
-                stream.set_buffers(wanted);
-            }
-            asked = wanted;
-        }
-        if let Feed::Gpu(gpu) = &feed {
-            if !Weak::ptr_eq(&told, &Arc::downgrade(gpu)) {
-                let stream = stream.clone();
-                gpu.on_import_failed(Box::new(move |drm_format, modifier| {
-                    if let Some(stream) = stream.upgrade() {
-                        stream.drop_modifier(drm_format, modifier);
-                    }
-                }));
-                told = Arc::downgrade(gpu);
-            }
+        let feed = slot.feed(size);
+        if let Some((feed, _)) = &feed {
+            follow.feed(feed);
         }
         if let Some((data, stride)) = picture.memory() {
             if picture.transform() != 0 && !warned_turned {
@@ -322,16 +356,64 @@ fn process(pictures: Taker<PwPicture>, slot: VideoSlot, stream: Weak<PwStream>) 
                 warned_turned = true;
             }
             let rows = whole_rows(data, stride, size.height, &mut spare);
-            converter.send(rows, stride, size, feed, target);
+            match feed {
+                Some((feed, target)) => converter.send(rows, stride, size, feed, target),
+                None => converter.keep(rows, stride, size),
+            }
+            still.noted(converter.kept(), Instant::now());
             continue;
         }
         match feed {
-            Feed::Gpu(gpu) if gpu.takes_dmabuf() => {
+            Some((Feed::Gpu(gpu), target)) if gpu.takes_dmabuf() => {
                 gpu.send(Picture::DmaBuf(picture), target, now_us());
+                converter.forget();
+                still.noted(None, Instant::now());
             }
             // The raw path cannot read one: dropped while the switch to
             // memory lands.
             _ => {}
+        }
+    }
+}
+
+/// What the stream is told as the feed changes: the buffers it can use, and
+/// for a GPU feed, where its refused DMA-BUFs go.
+struct Follow {
+    stream: Weak<PwStream>,
+    asked: PwBuffers,
+    /// The GPU feed told. Held weakly, so a new feed is never mistaken for
+    /// one gone at the same address.
+    told: Weak<GpuFeed>,
+}
+
+impl Follow {
+    fn new(stream: Weak<PwStream>) -> Self {
+        Self {
+            stream,
+            asked: PwBuffers::Memory,
+            told: Weak::new(),
+        }
+    }
+
+    fn feed(&mut self, feed: &Feed) {
+        let wanted = buffers_for(feed);
+        if wanted != self.asked {
+            log::info!("capture: asking the compositor for {wanted:?} buffers");
+            if let Some(stream) = self.stream.upgrade() {
+                stream.set_buffers(wanted);
+            }
+            self.asked = wanted;
+        }
+        if let Feed::Gpu(gpu) = feed {
+            if !Weak::ptr_eq(&self.told, &Arc::downgrade(gpu)) {
+                let stream = self.stream.clone();
+                gpu.on_import_failed(Box::new(move |drm_format, modifier| {
+                    if let Some(stream) = stream.upgrade() {
+                        stream.drop_modifier(drm_format, modifier);
+                    }
+                }));
+                self.told = Arc::downgrade(gpu);
+            }
         }
     }
 }
@@ -403,6 +485,48 @@ mod tests {
             ended_by(Some("unconnected".into()), true).as_deref(),
             Some("unconnected")
         );
+    }
+
+    const SIZE: Size = Size {
+        width: 1280,
+        height: 754,
+    };
+
+    #[test]
+    fn a_picture_that_came_before_its_feed_is_sent_once_there_is_one() {
+        // KDE draws a covered window once and then nothing, and that one
+        // picture comes before the feed it says the size for.
+        let start = Instant::now();
+        let mut still = Still::new(start);
+        still.noted(Some(SIZE), start);
+        assert_eq!(still.due(start + Duration::from_millis(99)), None);
+        assert_eq!(still.due(start + REPEAT_EVERY), Some(SIZE));
+    }
+
+    #[test]
+    fn a_still_picture_is_sent_again_while_nothing_new_comes() {
+        let start = Instant::now();
+        let mut still = Still::new(start);
+        still.noted(Some(SIZE), start);
+        let repeated = start + REPEAT_EVERY;
+        still.noted(Some(SIZE), repeated);
+        assert_eq!(still.due(repeated + Duration::from_millis(50)), None);
+        assert_eq!(still.due(repeated + REPEAT_EVERY), Some(SIZE));
+        // Each new picture starts the wait again.
+        let new = repeated + Duration::from_millis(150);
+        still.noted(Some(SIZE), new);
+        assert_eq!(still.due(new + Duration::from_millis(50)), None);
+    }
+
+    #[test]
+    fn nothing_is_repeated_from_memory_after_a_dmabuf() {
+        // The GPU encoder repeats a DMA-BUF itself; a memory picture kept
+        // from before it is older than what the viewer has.
+        let start = Instant::now();
+        let mut still = Still::new(start);
+        still.noted(Some(SIZE), start);
+        still.noted(None, start + Duration::from_millis(10));
+        assert_eq!(still.due(start + Duration::from_secs(5)), None);
     }
 
     #[test]
