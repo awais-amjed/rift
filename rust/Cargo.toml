@@ -78,6 +78,10 @@ libc = "0.2"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libpulse-binding = "2.30.1"
+# The ScreenCast portal for a Wayland share run on Rift's own PipeWire stream
+# (src/screenshare/portal.rs): D-Bus through zbus, pure Rust, no system
+# library.
+ashpd = { version = "0.13", default-features = false, features = ["tokio", "screencast"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 wasapi = "0.26.0"

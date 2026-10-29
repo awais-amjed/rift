@@ -16,6 +16,8 @@ mod latest;
 mod pixels;
 #[cfg(gpu_encoder)]
 mod rate_gate;
+#[cfg(target_os = "linux")]
+pub(crate) mod portal;
 pub(crate) mod resolution;
 #[cfg(desktop)]
 pub(crate) mod session;
