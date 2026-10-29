@@ -29,8 +29,12 @@ step 4 needs is `CODEC_LADDER.md`.
 ### Watching (desktop)
 
 flutter_webrtc's prebuilt libwebrtc (webrtc-sdk m150):
-- Decodes in software on the CPU: FFmpeg H264, libvpx, dav1d. **No H265 in that
-  build**: the Linux capability list on Oct 29 had none.
+- Decodes in software on the CPU: FFmpeg H264, libvpx, dav1d.
+- H265: none on Linux (the capability list on Oct 29 had none). On Windows the
+  build carries a Media Foundation H265 decoder (`wmf_h265_decoder.cc`, its log
+  strings in `libwebrtc.dll` m150.7871.04). It is never given a D3D device, so
+  Microsoft's HEVC decoder most likely runs in software, and it copies each frame
+  into a CPU I420 buffer either way. Read from the source and the binary, not run.
 - `FlutterVideoRenderer::CopyPixelBuffer` converts each frame to ABGR on the CPU
   (`ConvertToARGB`).
 - Flutter uploads it as a `PixelBufferTexture`.
@@ -38,7 +42,12 @@ flutter_webrtc's prebuilt libwebrtc (webrtc-sdk m150):
   (`include/*.h`), so nothing can be plugged in without rebuilding it.
 
 Measured cost: 117% of a core watching 1080p60 H264 on a Windows laptop (CALLS.md);
-High added 33–50% on top.
+High added 33–50% on top. Of the 117%, about 87% is the stream page itself
+(converting, uploading and drawing, nearly all on Flutter's raster thread) and
+7–30% the decoder, depending on the stream's rate (`watch-draw` branch,
+`scripts/perf/WATCH_DRAW.md`). On Linux the convert and upload is about 15–17%.
+So the drawing half of step 3 removes most of today's cost by itself; the
+wrapper's `RTCVideoFrame` already exposes the I420 planes (`DataY/U/V`).
 
 - **Android:** flutter_webrtc already decodes with MediaCodec and draws through a
   SurfaceTexture, so it is GPU on both ends.
@@ -96,6 +105,36 @@ High added 33–50% on top.
   - Decoding through hwaccels: d3d11va/d3d12va (all vendors, H264/HEVC/AV1/VP9),
     vaapi, nvdec/cuvid, vulkan (decode on NVIDIA, AMD RADV and Intel ANV).
   - Filters: hwmap DRM_PRIME→VAAPI with scale_vaapi, vpp_qsv, vpp_amf, scale_cuda.
+
+## Found by a second, independent research pass (Oct 29)
+
+Another agent researched the same question on dev without seeing this file.
+What it added, checked where marked:
+
+- **Windows capture across GPUs.** WGC display capture works across GPUs (since
+  Windows 10 1903; OBS relies on it on laptops). DXGI duplication does not: from the
+  discrete GPU of a hybrid laptop it fails with `DXGI_ERROR_UNSUPPORTED` by design
+  (Microsoft). Rift's Windows 10 screen path is DXGI, so there the screen's GPU and
+  the encoder's must match, or the memory path stays.
+- **FFmpeg's own Windows capture, as a reference:** `gfxcapture` (WGC, D3D11 frames,
+  takes your device, cursor and border control, crop and letterbox), `ddagrab`
+  (DXGI, D3D11 frames only), `scale_d3d11` (GPU scale and convert to NV12/P010).
+  NVENC and AMF take D3D11 BGRA frames; `h264_qsv` takes only NV12/QSV frames, so a
+  conversion first (`hevc_qsv` takes BGRA). In our FFmpeg 9.0.2.
+- **H265 through encryption.** libwebrtc's H26x packet buffer only checks that an
+  H265 keyframe carries VPS, SPS and PPS; the PPS-id fix-up that forced the H264
+  rewrite is H264-only (`h26x_packet_buffer.cc`). So H265 should need no header
+  rewrite, if every keyframe carries its parameter sets. To prove with an H265
+  version of the Rust live test.
+- **AMD's first AV1 generation (VCN 4.0, RX 7000)** pads any size not aligned to
+  64×16 with black (2580×1080 came out 2642×1082; Mesa #9185). Shared windows come
+  in any size, so this would show.
+- **NVIDIA GeForce** allows 12 encoder sessions at once (NVIDIA's matrix).
+- **An upstream decoder hook** is a third route for step 3: flutter_webrtc 1.6.3
+  added a hook for native plugins on the sending side (video processors on local
+  tracks, #2233); the same for decoders would let Rift ship its own.
+- **Windows HEVC availability:** built into Windows 11 from 22H2; Windows 10 and
+  earlier 11 need the HEVC Video Extensions.
 
 ## Hardware coverage (from memory of vendor tables; check before relying)
 
