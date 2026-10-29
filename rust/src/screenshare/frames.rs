@@ -25,7 +25,10 @@ pub(crate) fn spawn_processing(
     frame_rx: Taker<SendableFrame>,
     source_slot: VideoSlot,
 ) -> JoinHandle<()> {
-    thread::spawn(move || run(frame_rx, source_slot))
+    thread::Builder::new()
+        .name("share-frames".to_string())
+        .spawn(move || run(frame_rx, source_slot))
+        .expect("no processing thread")
 }
 
 fn run(frame_rx: Taker<SendableFrame>, source_slot: VideoSlot) {

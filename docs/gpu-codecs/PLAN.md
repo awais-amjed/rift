@@ -12,6 +12,30 @@ step can take from our own code and from open source projects: `REUSE.md`.
      convert, upload. Watcher: decode, ABGR convert, upload/draw.
    - Use the perf kit, 1080p60 and 1440p120.
    - This decides which half pays more.
+   - **Linux sharer, measured Oct 29** (release build, GNOME 50 on Wayland,
+     i7-12700H, whole 1920x1080 screen through the portal, a moving test picture
+     full screen, H264 1080p60 at 15 Mbit/s, one web viewer). `threadtop` over
+     20 s, % of one core, by the share's threads (named for this:
+     `share-capture`, `share-frames`):
+
+     | Stage | Thread | NVENC (RTX 3070 Ti) | VAAPI (Iris Xe) |
+     |---|---|---|---|
+     | Readback (EGL import, glReadPixels) | `pipewire-main-l` | 6.6% | 7.5% |
+     | ARGB→NV12 | `share-frames` | 7.3% | 6.8% |
+     | Upload and encode | `gpu-encoder` | 6.7% | 9.0% |
+     | Copy into the frame | `share-capture` | 0.2% | under 0.1% |
+
+     About 21–23% of a core for the picture's trip through the CPU, which zero-copy
+     removes nearly all of. It grows with pixels a second, so 1440p120 (3.6× the
+     pixels a second) would be most of a core; this screen cannot show 1440p.
+     VAAPI's rate gate left out about a fifth of the pictures (the noisy picture
+     overshoots 15 Mbit/s), so its encode figure is for about 48 a second.
+     NVENC also *waits* 10 ms in `send` for each picture (ffenc's own timing; 4 ms
+     on a still screen), well inside 16.7 ms at 60 fps but more than the 8.3 ms a
+     picture has at 120. Zero-copy has to bring that down too, not only the CPU.
+   - **Order (owner, Oct 29): Linux first, step 2 before step 1.** This laptop has
+     both of Linux's encoders and Wayland, so the step can be built and proved
+     here; the Windows VM has no GPU.
 1. **Zero-copy sharing on Windows 11 24H2+.**
    - Turn on WGC texture mode (fork: `desktop_capturer.cpp` passes the texture and
      its device out to Rust).
@@ -84,8 +108,7 @@ step can take from our own code and from open source projects: `REUSE.md`.
 
 ## Open, for the owner
 
-- Which half comes first: the sharer (steps 1–2) or the watcher (step 3).
-  Step 0's numbers inform it.
+- ~~Which half comes first~~: the sharer, Linux first (owner, Oct 29).
 - Step 3: watch through a Rust receive connection (recommended), rebuild
   flutter_webrtc's libwebrtc, or an upstream decoder hook.
 - H265 decoding: FFmpeg's hevc decoder refusing to run without a hwaccel, or

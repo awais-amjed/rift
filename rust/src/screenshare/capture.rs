@@ -179,10 +179,15 @@ pub(crate) fn spawn(request: CaptureRequest) -> (Capture, Started) {
     let fps = Arc::new(AtomicU32::new(request.fps));
     let clock = fps.clone();
     let (done_tx, done) = mpsc::channel();
-    let handle = thread::spawn(move || {
-        run(request, clock, progress_tx, feeds, command_rx);
-        let _ = done_tx.send(());
-    });
+    // Named, as each of a share's threads is, so a profile of the app can
+    // tell what each stage costs.
+    let handle = thread::Builder::new()
+        .name("share-capture".to_string())
+        .spawn(move || {
+            run(request, clock, progress_tx, feeds, command_rx);
+            let _ = done_tx.send(());
+        })
+        .expect("no capture thread");
     (
         Capture {
             command_tx,
