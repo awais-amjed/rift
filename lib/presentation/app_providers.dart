@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../data/repositories/server_reach_probe.dart';
 import '../data/repositories/session_repository.dart';
 import '../logic/cubits/app/app_cubit.dart';
+import '../logic/cubits/audio_device_list/audio_device_list_cubit.dart';
 import '../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../logic/cubits/dm/dm_cubit.dart';
@@ -69,6 +70,7 @@ class AppProviders extends StatelessWidget {
         BlocProvider(create: (_) => MediaCubit()),
         BlocProvider(create: (_) => DuckingCubit()),
         BlocProvider(create: (_) => SettingsPlaceCubit()),
+        BlocProvider(create: (_) => AudioDeviceListCubit()),
         BlocProvider(create: (_) => _createServerCubit()),
         BlocProvider(create: _createNetworkCubit),
         BlocProvider(create: (_) => ServerReachCubit.of(session)),
