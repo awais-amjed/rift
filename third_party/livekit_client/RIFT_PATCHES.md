@@ -110,6 +110,19 @@ uncorrelated.
    played the same share in H264 on the unpatched worker, so their call keys
    were good; H264 and VP8 do not reach the changed line.
 
+7. **The web worker escapes and unescapes a sealed H264 or H265 frame**
+   (`encodeFunction` and `decodeFunction` in `web/e2ee.frame_cryptor.dart`).
+   LiveKit's native frame cryptor passes everything after the frame's header
+   (ciphertext, iv, trailer) through `WriteRbsp`, so that sealed bytes cannot
+   look like a start code, and undoes it before decrypting. JS does too. This
+   worker has the functions and never called them. So a frame from a desktop
+   whose sealed bytes held two zeros and a byte up to 3 failed to decrypt in
+   the browser, about one in every 4 MB, and the picture froze for 3 s until
+   Chrome's keyframe request was answered: on a busy share at 15 Mbit/s, a
+   freeze every 6 s. A frame from the browser went out unescaped, which a
+   native viewer can misread the same way. Still the same on `main` on Oct 30
+   2026.
+
 ## When to remove it
 
 Patch 1 goes when a `livekit_client` release answers a stereo track with
@@ -118,6 +131,6 @@ Patch 1 goes when a `livekit_client` release answers a stereo track with
 unsubscribe without holding the track, patch 4 when a release can go back
 to letting visibility decide, patch 5 when a release keeps a disable
 through the server's bind, patch 6 when a release's web worker leaves no
-VP9 bytes in the clear. With all six gone, bump, delete this
+VP9 bytes in the clear, patch 7 when it passes H264 through the RBSP functions. With all seven gone, bump, delete this
 folder and its `dependency_overrides` entry. Until then, a `livekit_client` upgrade needs this copy replaced with the
 new version and the changes put back.
