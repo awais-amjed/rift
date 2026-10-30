@@ -73,3 +73,40 @@ pub fn set_dpdfnet_small(small: bool) {
     #[cfg(not(any(target_os = "windows", target_os = "linux")))]
     let _ = small;
 }
+
+/// Where DPDFNet runs in a call, a beta option on Windows: on libwebrtc's
+/// capture thread, as before beta.5, or on its own thread at one of three
+/// priorities. Takes effect from the next frame, mid-call too.
+pub enum NoiseModelPlacement {
+    CaptureThread,
+    Highest,
+    AboveNormal,
+    Normal,
+}
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn set_dpdfnet_placement(placement: NoiseModelPlacement) {
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    {
+        use crate::dpdfnet::Placement;
+        crate::dpdfnet::place(match placement {
+            NoiseModelPlacement::CaptureThread => Placement::CaptureThread,
+            NoiseModelPlacement::Highest => Placement::Highest,
+            NoiseModelPlacement::AboveNormal => Placement::AboveNormal,
+            NoiseModelPlacement::Normal => Placement::Normal,
+        });
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
+    let _ = placement;
+}
+
+/// Holds Windows' 1 ms timer and unthrottled running while `hold`, a beta
+/// option for calls: Dart holds it from a call's start to its end. Nothing
+/// off Windows.
+#[flutter_rust_bridge::frb(sync)]
+pub fn hold_precise_timing_for_call(hold: bool) {
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    crate::precise_timing::hold_for_call(hold);
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
+    let _ = hold;
+}

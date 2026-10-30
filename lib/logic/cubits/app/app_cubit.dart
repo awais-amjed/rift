@@ -15,6 +15,7 @@ import '../../../data/classes/seen_key.dart';
 import '../../../data/constants.dart';
 import '../../../data/enums/app_sound.dart';
 import '../../../data/enums/home_surface.dart';
+import '../../../data/enums/noise_filter_priority.dart';
 import '../../../data/enums/noise_filter_work.dart';
 import '../../../data/enums/noise_suppression.dart';
 import '../../../data/enums/sensitive_content_mode.dart';
@@ -39,6 +40,8 @@ class AppCubit extends HydratedCubit<AppState> {
   AppCubit() : super(const AppState()) {
     // The filter lives in the native audio pipeline, which starts with none.
     NoiseFilter.useSmallDpdfnet(state.dpdfnetSmall);
+    NoiseFilter.usePriority(state.noiseFilterPriority);
+    NoiseFilter.usePreciseTiming(state.preciseCallTiming);
     MicVolume.apply(state.inputVolume);
     unawaited(_useNoiseFilter(state.noiseSuppression));
   }
@@ -195,6 +198,16 @@ class AppCubit extends HydratedCubit<AppState> {
   void setDpdfnetSmall(bool value) {
     NoiseFilter.useSmallDpdfnet(value);
     emit(state.copyWith(dpdfnetSmall: value));
+  }
+
+  void setNoiseFilterPriority(NoiseFilterPriority value) {
+    NoiseFilter.usePriority(value);
+    emit(state.copyWith(noiseFilterPriority: value));
+  }
+
+  void setPreciseCallTiming(bool value) {
+    NoiseFilter.usePreciseTiming(value);
+    emit(state.copyWith(preciseCallTiming: value));
   }
 
   void setEchoCancellation(bool value) {

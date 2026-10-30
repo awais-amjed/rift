@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rift/data/enums/noise_filter_priority.dart';
 import 'package:rift/data/enums/noise_suppression.dart';
 import 'package:rift/logic/cubits/app/app_cubit.dart';
 
@@ -72,5 +73,35 @@ void main() {
     final json = const AppState().toJson()..remove('noiseSuppression');
     expect(AppState.fromJson(json).noiseSuppression, NoiseSuppression.dpdfnet);
     expect(saved('krisp').noiseSuppression, NoiseSuppression.dpdfnet);
+  });
+
+  test('the beta options start as beta.9 runs, and an older save reads so', () {
+    const fresh = AppState();
+    expect(fresh.noiseFilterPriority, NoiseFilterPriority.normal);
+    expect(fresh.preciseCallTiming, isFalse);
+    final older = const AppState().toJson()
+      ..remove('noiseFilterPriority')
+      ..remove('preciseCallTiming');
+    final read = AppState.fromJson(older);
+    expect(read.noiseFilterPriority, NoiseFilterPriority.normal);
+    expect(read.preciseCallTiming, isFalse);
+  });
+
+  test('each beta option survives a JSON round-trip', () {
+    for (final priority in NoiseFilterPriority.values) {
+      final state = AppState(
+        noiseFilterPriority: priority,
+        preciseCallTiming: true,
+      );
+      final read = AppState.fromJson(state.toJson());
+      expect(read.noiseFilterPriority, priority);
+      expect(read.preciseCallTiming, isTrue);
+    }
+    final unknown = const AppState().toJson()
+      ..['noiseFilterPriority'] = 'realtime';
+    expect(
+      AppState.fromJson(unknown).noiseFilterPriority,
+      NoiseFilterPriority.normal,
+    );
   });
 }

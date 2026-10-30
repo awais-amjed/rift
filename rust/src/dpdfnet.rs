@@ -16,7 +16,8 @@
 //! unmute.
 //! In a call the model runs on a thread of its own, below the capture
 //! thread's priority ([`handoff`]), and a frame it is late with goes out
-//! unfiltered. That thread is left on whichever cores the system gives it.
+//! unfiltered; a beta option can put it back on the capture thread, or its
+//! own thread higher ([`place`]). That thread is left on whichever cores the system gives it.
 //! Until Oct 25 the model ran on the capture thread, moved onto the
 //! performance cores, which on that i7 kept DPDFNet-8 for the whole call,
 //! but on Windows that thread is time-critical, so it took a fast core from
@@ -42,6 +43,8 @@ use ort::session::{builder::GraphOptimizationLevel, Session};
 use ort::value::TensorRef;
 
 mod handoff;
+
+pub(crate) use handoff::Placement;
 
 /// What libwebrtc hands over: 10 ms at 48 kHz, which is also the models' hop.
 pub(crate) const FRAME: usize = 480;
@@ -308,6 +311,11 @@ impl Model {
 /// DPDFNet-8 until the computer proves too slow for it.
 pub(crate) fn choose_small(small: bool) {
     SMALL_CHOSEN.store(small, Ordering::Relaxed);
+}
+
+/// Moves the call's model, from its next frame on ([`handoff`]).
+pub(crate) fn place(placement: Placement) {
+    handoff::place(placement);
 }
 
 /// Gives DPDFNet-8 another go, on a computer it was too slow on: at the end

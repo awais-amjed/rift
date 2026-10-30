@@ -130,6 +130,12 @@ class AppState extends Equatable {
   /// Otherwise it runs DPDFNet-8, and goes over to DPDFNet-2 by itself for
   /// the rest of a call on a computer too slow.
   final bool dpdfnetSmall;
+
+  /// Beta options for Windows testers: where DPDFNet runs in a call, and
+  /// whether a call holds Windows' 1 ms timer (`NoiseFilter.callStarted`).
+  @JsonKey(fromJson: NoiseFilterPriority.fromJson)
+  final NoiseFilterPriority noiseFilterPriority;
+  final bool preciseCallTiming;
   final bool echoCancellation;
   final bool autoGainControl;
 
@@ -280,6 +286,8 @@ class AppState extends Equatable {
     this.inputVolume = 1.0,
     this.noiseSuppression = NoiseSuppression.dpdfnet,
     this.dpdfnetSmall = true,
+    this.noiseFilterPriority = NoiseFilterPriority.normal,
+    this.preciseCallTiming = false,
     this.echoCancellation = true,
     this.autoGainControl = true,
     this.recentEmojis = const [],
@@ -366,6 +374,8 @@ class AppState extends Equatable {
     bool clearInputDeviceId = false,
     NoiseSuppression? noiseSuppression,
     bool? dpdfnetSmall,
+    NoiseFilterPriority? noiseFilterPriority,
+    bool? preciseCallTiming,
     bool? echoCancellation,
     bool? autoGainControl,
     List<String>? recentEmojis,
@@ -438,6 +448,8 @@ class AppState extends Equatable {
       inputVolume: inputVolume ?? this.inputVolume,
       noiseSuppression: noiseSuppression ?? this.noiseSuppression,
       dpdfnetSmall: dpdfnetSmall ?? this.dpdfnetSmall,
+      noiseFilterPriority: noiseFilterPriority ?? this.noiseFilterPriority,
+      preciseCallTiming: preciseCallTiming ?? this.preciseCallTiming,
       echoCancellation: echoCancellation ?? this.echoCancellation,
       autoGainControl: autoGainControl ?? this.autoGainControl,
       recentEmojis: recentEmojis ?? this.recentEmojis,
@@ -543,6 +555,8 @@ class AppState extends Equatable {
     inputVolume,
     noiseSuppression,
     dpdfnetSmall,
+    noiseFilterPriority,
+    preciseCallTiming,
     echoCancellation,
     autoGainControl,
     soundboardMuted,

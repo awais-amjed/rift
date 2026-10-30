@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:ffi/ffi.dart';
 
+import '../../data/enums/noise_filter_priority.dart';
 import '../../data/enums/noise_filter_work.dart';
 import '../../data/enums/noise_suppression.dart';
 import '../../src/rust/api/mic_test.dart';
@@ -60,6 +61,12 @@ abstract final class NoiseFilter {
 
   /// Whether the mic test has been told where the runner's RNNoise is.
   static bool _rnnoiseHanded = false;
+
+  /// The beta options as last set ([usePriority], [usePreciseTiming]), and
+  /// whether a call is on, which the precise timer is held for.
+  static NoiseFilterPriority _priority = NoiseFilterPriority.normal;
+  static bool _precise = false;
+  static bool _inCall = false;
 
   static Future<void> _waitForRunner() async {
     final exports = _exports;
@@ -187,6 +194,52 @@ abstract final class NoiseFilter {
     setDpdfnetSmall(small: small);
   }
 
+  /// Where DPDFNet runs in a call, from its next frame, mid-call too: a beta
+  /// option for comparing by ear. Each change mid-call goes in the log, so
+  /// a bug report says which one the person was hearing when.
+  static void usePriority(NoiseFilterPriority priority) {
+    if (_exports == null) return;
+    if (_inCall && priority != _priority) {
+      HelperMethods.printDebug('DPDFNet: placed at ${priority.label}');
+    }
+    _priority = priority;
+    setDpdfnetPlacement(
+      placement: switch (priority) {
+        NoiseFilterPriority.timeCritical => NoiseModelPlacement.captureThread,
+        NoiseFilterPriority.highest => NoiseModelPlacement.highest,
+        NoiseFilterPriority.aboveNormal => NoiseModelPlacement.aboveNormal,
+        NoiseFilterPriority.normal => NoiseModelPlacement.normal,
+      },
+    );
+  }
+
+  /// Whether calls hold Windows' 1 ms timer, which a call already on takes
+  /// or lets go of at once. A beta option, like [usePriority].
+  static void usePreciseTiming(bool precise) {
+    if (_exports == null) return;
+    if (_inCall && precise != _precise) {
+      HelperMethods.printDebug(
+        'DPDFNet: precise timing ${precise ? 'on' : 'off'}',
+      );
+    }
+    _precise = precise;
+    holdPreciseTimingForCall(hold: precise && _inCall);
+  }
+
+  /// For the start of a call: holds the precise timer if asked for, and
+  /// logs the beta options the call starts with.
+  static void callStarted() {
+    if (_exports == null) return;
+    _inCall = true;
+    holdPreciseTimingForCall(hold: _precise);
+    if (_dpdfnetHanded) {
+      HelperMethods.printDebug(
+        'DPDFNet: placed at ${_priority.label}, '
+        'precise timing ${_precise ? 'on' : 'off'}',
+      );
+    }
+  }
+
   /// For the end of a call. Writes how long the model took over each 10 ms
   /// of the call just ended to the app's log, as one line of numbers, and
   /// starts counting again. The
@@ -200,6 +253,10 @@ abstract final class NoiseFilter {
   /// how many frames it sent unfiltered, which it does with one it is late
   /// with rather than hold up the computer's other work.
   static void callEnded() {
+    if (_inCall) {
+      _inCall = false;
+      holdPreciseTimingForCall(hold: false);
+    }
     if (_dpdfnetHanded) {
       if (takeDpdfnetFellBack()) {
         HelperMethods.printDebug(

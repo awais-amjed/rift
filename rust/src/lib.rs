@@ -15,6 +15,8 @@ mod frb_generated;
 mod logging;
 #[cfg(any(target_os = "windows", target_os = "linux"))]
 mod mic_test;
+#[cfg(any(target_os = "windows", target_os = "linux"))]
+mod precise_timing;
 #[cfg(target_os = "linux")]
 mod pulse;
 mod screenshare;

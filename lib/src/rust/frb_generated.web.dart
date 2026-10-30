@@ -170,6 +170,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   NoiseModelEntry dco_decode_noise_model_entry(dynamic raw);
 
   @protected
+  NoiseModelPlacement dco_decode_noise_model_placement(dynamic raw);
+
+  @protected
   String? dco_decode_opt_String(dynamic raw);
 
   @protected
@@ -372,6 +375,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   NoiseModelEntry sse_decode_noise_model_entry(SseDeserializer deserializer);
+
+  @protected
+  NoiseModelPlacement sse_decode_noise_model_placement(
+    SseDeserializer deserializer,
+  );
 
   @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
@@ -624,6 +632,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_noise_model_entry(
     NoiseModelEntry self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_noise_model_placement(
+    NoiseModelPlacement self,
     SseSerializer serializer,
   );
 

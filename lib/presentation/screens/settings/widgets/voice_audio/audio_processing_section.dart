@@ -1,3 +1,6 @@
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -7,6 +10,7 @@ import '../../../../../logic/services/noise_filter.dart';
 import '../section_title.dart';
 import '../setting_toggle_row.dart';
 import 'dpdfnet_size_choice.dart';
+import 'noise_filter_beta_options.dart';
 import 'noise_suppression_choice.dart';
 
 /// How the mic is cleaned up before a call hears it: the noise suppressor,
@@ -38,6 +42,15 @@ class AudioProcessingSection extends StatelessWidget {
             small: appState.dpdfnetSmall,
             onChanged: cubit.setDpdfnetSmall,
           ),
+          if (!kIsWeb && Platform.isWindows) ...[
+            const SizedBox(height: 14),
+            NoiseFilterBetaOptions(
+              priority: appState.noiseFilterPriority,
+              preciseTiming: appState.preciseCallTiming,
+              onPriorityChanged: cubit.setNoiseFilterPriority,
+              onPreciseTimingChanged: cubit.setPreciseCallTiming,
+            ),
+          ],
         ],
         const SizedBox(height: 14),
         SettingToggleRow(

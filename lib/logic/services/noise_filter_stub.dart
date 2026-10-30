@@ -1,3 +1,4 @@
+import '../../data/enums/noise_filter_priority.dart';
 import '../../data/enums/noise_filter_work.dart';
 import '../../data/enums/noise_suppression.dart';
 
@@ -21,6 +22,12 @@ abstract final class NoiseFilter {
   static void setGain(double gain) {}
 
   static void useSmallDpdfnet(bool small) {}
+
+  static void usePriority(NoiseFilterPriority priority) {}
+
+  static void usePreciseTiming(bool precise) {}
+
+  static void callStarted() {}
 
   static void callEnded() {}
 

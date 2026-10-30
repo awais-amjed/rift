@@ -360,6 +360,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       // notification is also the only part of the call still on screen once
       // the app is put away, so it is told what to say and what its buttons
       // do.
+      NoiseFilter.callStarted();
       unawaited(
         CallForegroundService.callStarted(
           channelName: callName,

@@ -76,6 +76,10 @@ AppState _$AppStateFromJson(Map<String, dynamic> json) => AppState(
       ? NoiseSuppression.dpdfnet
       : NoiseSuppression.fromJson(json['noiseSuppression']),
   dpdfnetSmall: json['dpdfnetSmall'] as bool? ?? true,
+  noiseFilterPriority: json['noiseFilterPriority'] == null
+      ? NoiseFilterPriority.normal
+      : NoiseFilterPriority.fromJson(json['noiseFilterPriority']),
+  preciseCallTiming: json['preciseCallTiming'] as bool? ?? false,
   echoCancellation: json['echoCancellation'] as bool? ?? true,
   autoGainControl: json['autoGainControl'] as bool? ?? true,
   recentEmojis:
@@ -145,6 +149,8 @@ Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
   'inputVolume': instance.inputVolume,
   'noiseSuppression': instance.noiseSuppression.toJson(),
   'dpdfnetSmall': instance.dpdfnetSmall,
+  'noiseFilterPriority': instance.noiseFilterPriority.toJson(),
+  'preciseCallTiming': instance.preciseCallTiming,
   'echoCancellation': instance.echoCancellation,
   'autoGainControl': instance.autoGainControl,
   'soundboardMuted': instance.soundboardMuted,

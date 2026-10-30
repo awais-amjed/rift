@@ -35,6 +35,17 @@ void retryLargeDpdfnet() =>
 void setDpdfnetSmall({required bool small}) =>
     RustLib.instance.api.crateApiNoiseFilterSetDpdfnetSmall(small: small);
 
+void setDpdfnetPlacement({required NoiseModelPlacement placement}) => RustLib
+    .instance
+    .api
+    .crateApiNoiseFilterSetDpdfnetPlacement(placement: placement);
+
+/// Holds Windows' 1 ms timer and unthrottled running while `hold`, a beta
+/// option for calls: Dart holds it from a call's start to its end. Nothing
+/// off Windows.
+void holdPreciseTimingForCall({required bool hold}) => RustLib.instance.api
+    .crateApiNoiseFilterHoldPreciseTimingForCall(hold: hold);
+
 /// Where the runner's filter calls a model: the addresses of the frame
 /// function and the reset function, for Dart to pass on.
 class NoiseModelEntry {
@@ -54,3 +65,8 @@ class NoiseModelEntry {
           process == other.process &&
           reset == other.reset;
 }
+
+/// Where DPDFNet runs in a call, a beta option on Windows: on libwebrtc's
+/// capture thread, as before beta.5, or on its own thread at one of three
+/// priorities. Takes effect from the next frame, mid-call too.
+enum NoiseModelPlacement { captureThread, highest, aboveNormal, normal }
