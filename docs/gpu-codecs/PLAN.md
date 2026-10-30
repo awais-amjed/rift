@@ -65,7 +65,17 @@ step can take from our own code and from open source projects: `REUSE.md`.
      well under the 8.3 ms a picture has at 120. Beside a game (glmark2 terrain,
      full screen, uncapped, GPU at 100%): the frame rate moves within the test's own
      5% drift on every path; the 99th percentile frame is 1.84–2.0 ms on the GL path, 3.81–3.87 ms
-     in memory, 1.87–2.33 ms with no share, 1.96–2.53 ms with gpu-screen-recorder.
+     in memory, 1.87–2.33 ms with no share, 1.96–2.53 ms with gpu-screen-recorder. Those Rift
+     runs had nobody watching. With a viewer (Oct 31) the GL path is 3.1–3.4 ms, against
+     1.85–1.88 ms in the same session with nobody watching and 2.2–2.3 ms with no share. That
+     viewer was a browser on the same laptop, so its decoding and drawing are in the figure, and
+     how much is the viewer's own was not separated.
+     Asking GNOME for more pictures and dropping the extras (Oct 31, tried and not kept): asking
+     165 or 90 and keeping 60 cost the game nothing measurable (99th percentile 3.1–3.4 ms either
+     way, gnome-shell within a point of a core) and took an uncapped game's share from 55 fps to
+     60, but less evenly: nine gaps in ten under 19 ms at 55, against 24 ms when asking 165 and
+     25 ms when asking 90. It gained nothing elsewhere: a 60 fps picture filling the screen stays
+     at 54 and a window at 46, so GNOME's cap is not what holds those down.
      glmark2 draws a frame in about 1 ms, so it is not a real game; none was on the
      laptop. No need for a low-priority GL context showed.
    - **Order (owner, Oct 29): Linux first, step 2 before step 1.** This laptop has

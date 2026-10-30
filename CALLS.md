@@ -367,7 +367,9 @@ screen GNOME sends a memory stream nothing, so a share there opens on DMA-BUFs (
 what stays on memory (VP9, or NVENC with no GL side) gets no pictures meanwhile. GNOME sends
 that stream only on whole refreshes under its cap, so at most 60 on a 165 Hz screen gives every
 third, 55 fps, and at most 120 every second, 80 fps (measured Oct 30); a window came at 43–49 fps,
-where libwebrtc's capturer reached the viewer at 60 (Oct 31). If the GL
+where libwebrtc's capturer reached the viewer at 60 (Oct 31). Asking for more and dropping the
+extras reaches 60 only behind an uncapped game, with less even gaps, and moves neither a 60 fps
+picture nor a window (measured Oct 31, `docs/gpu-codecs/PLAN.md`), so Rift asks for the rate it sends. If the GL
 side does not open, NVENC takes memory as before. A window keeps Dart's pick (no second picker); a screen
 is picked in the portal, and the first-picture limit starts once it answers. A
 lent buffer keeps its own fds and mapping until Rust lets it go, since PipeWire
