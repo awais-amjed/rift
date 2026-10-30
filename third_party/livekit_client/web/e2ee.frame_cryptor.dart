@@ -9,6 +9,7 @@ import 'e2ee.keyhandler.dart';
 import 'e2ee.logger.dart';
 import 'e2ee.sfi_guard.dart';
 import 'e2ee.nalu_utils.dart';
+import 'e2ee.utils.dart';
 
 const IV_LENGTH = 12;
 
@@ -175,6 +176,8 @@ class FrameCryptor {
     _transformIsActive = true;
     this.trackId = trackId;
   }
+
+  bool _isH26x(String? codec) => ['h264', 'h265'].contains(codec?.toLowerCase() ?? '');
 
   int getUnencryptedBytes(JSObject obj, String? codec) {
     Uint8List? data;
@@ -357,9 +360,13 @@ class FrameCryptor {
       final finalBuffer = BytesBuilder();
 
       finalBuffer.add(Uint8List.fromList(srcFrame.buffer.sublist(0, headerLength)));
-      finalBuffer.add(cipherText.toDart.asUint8List());
-      finalBuffer.add(iv);
-      finalBuffer.add(frameTrailer.buffer.asUint8List());
+      final sealed = BytesBuilder();
+      sealed.add(cipherText.toDart.asUint8List());
+      sealed.add(iv);
+      sealed.add(frameTrailer.buffer.asUint8List());
+      // RIFT PATCH: H264 and H265 escape everything after the header, so no
+      // sealed byte looks like a start code, as the native cryptor and JS SDK do.
+      finalBuffer.add(_isH26x(codec) ? writeRbsp(sealed.takeBytes()) : sealed.takeBytes());
 
       enqueueFrame(frameObj, controller, finalBuffer);
 
@@ -453,10 +460,18 @@ class FrameCryptor {
     try {
       final headerLength = kind == 'video' ? getUnencryptedBytes(frameObj, codec) : 1;
 
-      final frameTrailer = srcFrame.buffer.sublist(srcFrame.buffer.length - 2);
+      // RIFT PATCH: a native sender escapes H264 and H265 after the header, iv
+      // and trailer too. Left escaped, about one frame in every 4 MB failed to
+      // decrypt and the viewer froze for 3 s until the next keyframe.
+      var sealed = srcFrame.buffer.sublist(headerLength);
+      if (_isH26x(codec) && needsRbspUnescaping(sealed)) {
+        sealed = parseRbsp(sealed);
+      }
+
+      final frameTrailer = sealed.sublist(sealed.length - 2);
       final ivLength = frameTrailer[0];
       final keyIndex = frameTrailer[1];
-      final iv = srcFrame.buffer.sublist(srcFrame.buffer.length - ivLength - 2, srcFrame.buffer.length - 2);
+      final iv = sealed.sublist(sealed.length - ivLength - 2, sealed.length - 2);
 
       initialKeySet = keyHandler.getKeySet(keyIndex);
       initialKeyIndex = keyIndex;
@@ -500,7 +515,7 @@ class FrameCryptor {
                               }.jsify()
                               as web.AlgorithmIdentifier,
                           currentkeySet.encryptionKey,
-                          srcFrame.buffer.sublist(headerLength, srcFrame.buffer.length - ivLength - 2).toJS,
+                          sealed.sublist(0, sealed.length - ivLength - 2).toJS,
                         )
                         .toDart)
                     as JSArrayBuffer)
