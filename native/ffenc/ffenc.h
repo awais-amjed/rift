@@ -211,7 +211,8 @@ typedef struct RiftPwCallbacks {
 // the caller keeps its own), at most `max_fps` pictures a second. DMA-BUFs
 // are offered with the modifiers EGL imports on `render_node`; NULL offers
 // memory only. RIFT_PW_REFUSE_DMABUF=1 in the environment offers memory
-// only too, for a test. NULL on failure, with why in `error`.
+// only too, for a test, and RIFT_PW_NO_TIMELINE=1 leaves explicit sync out of
+// the negotiation. NULL on failure, with why in `error`.
 RIFT_FFENC_EXPORT RiftPwStream* rift_pw_open(int32_t fd, uint32_t node_id,
                                              int32_t max_fps,
                                              const char* render_node,

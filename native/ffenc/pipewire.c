@@ -138,6 +138,10 @@ struct RiftPwStream {
   // The render node, for the explicit-sync timeline's sync objects.
   int drm_fd;
   bool explicit_sync;
+  // How long this share has waited on the compositor, for the log at its end.
+  int64_t sync_waits;
+  int64_t sync_wait_total_us;
+  int64_t sync_wait_worst_us;
 
   RiftPwCallbacks callbacks;
   int held;
@@ -452,9 +456,11 @@ static void renegotiate_format(void* data, uint64_t expirations) {
 
 /* ------------------------------------------------- */
 
-// Explicit sync came in PipeWire 1.2. Built against older headers (Ubuntu
-// 24.04, where the release is built, has 1.0) it is left out, as OBS does.
-#if PW_CHECK_VERSION(1, 2, 0)
+// Explicit sync came in PipeWire 1.2. Its SPA headers are what this always
+// builds against (build.sh fetches them; Ubuntu 24.04, where the release is
+// built, has 1.0). All it takes from them is a meta's number and layout, no
+// symbol newer than 1.0, so the library still opens beside an older PipeWire,
+// and a compositor that does not offer the meta syncs as before.
 static void signal_timeline_point(RiftPwStream* s, int syncobj_fd,
                                   uint64_t timeline_point) {
   uint32_t syncobj_handle = 0;
@@ -483,10 +489,8 @@ static bool wait_timeline_point(RiftPwStream* s, int syncobj_fd,
   drmSyncobjDestroy(s->drm_fd, syncobj_handle);
   return result == 0;
 }
-#endif
 
 static void return_unused_pw_buffer(RiftPwStream* s, struct pw_buffer* b) {
-#if PW_CHECK_VERSION(1, 2, 0)
   struct spa_buffer* buffer = b->buffer;
   struct spa_data* last_data = &buffer->datas[buffer->n_datas - 1];
   struct spa_meta_sync_timeline* synctimeline = spa_buffer_find_meta_data(
@@ -495,7 +499,6 @@ static void return_unused_pw_buffer(RiftPwStream* s, struct pw_buffer* b) {
   if (synctimeline && (last_data->type == SPA_DATA_SyncObj) &&
       s->drm_fd >= 0)
     signal_timeline_point(s, (int)last_data->fd, synctimeline->release_point);
-#endif
   pw_stream_queue_buffer(s->stream, b);
 }
 
@@ -623,10 +626,8 @@ static void on_process_cb(void* user_data) {
   if (buffer->datas[0].type == SPA_DATA_DmaBuf) {
     uint32_t planes = get_spa_buffer_plane_count(buffer);
     bool corrupt = false;
-#if PW_CHECK_VERSION(1, 2, 0)
     struct spa_meta_sync_timeline* synctimeline = spa_buffer_find_meta_data(
         buffer, SPA_META_SyncTimeline, sizeof(struct spa_meta_sync_timeline));
-#endif
 
     if (planes == 0 || planes > 4) goto drop;
 
@@ -657,8 +658,9 @@ static void on_process_cb(void* user_data) {
       goto drop;
     }
 
-#if PW_CHECK_VERSION(1, 2, 0)
     if (synctimeline && (buffer->n_datas == (planes + 2))) {
+      struct timespec before, after;
+      clock_gettime(CLOCK_MONOTONIC, &before);
       if (s->drm_fd < 0 ||
           buffer->datas[planes].type != SPA_DATA_SyncObj ||
           !wait_timeline_point(s, (int)buffer->datas[planes].fd,
@@ -667,12 +669,18 @@ static void on_process_cb(void* user_data) {
                "pipewire: the compositor did not finish a picture\n");
         goto drop;
       }
+      // On PipeWire's thread, so it has to stay short.
+      clock_gettime(CLOCK_MONOTONIC, &after);
+      int64_t waited_us = (int64_t)(after.tv_sec - before.tv_sec) * 1000000 +
+                          (after.tv_nsec - before.tv_nsec) / 1000;
+      s->sync_waits++;
+      s->sync_wait_total_us += waited_us;
+      if (waited_us > s->sync_wait_worst_us) s->sync_wait_worst_us = waited_us;
       if (!s->logged_sync) {
         av_log(NULL, AV_LOG_INFO, "pipewire: the compositor syncs explicitly\n");
         s->logged_sync = true;
       }
     }
-#endif
     picture.buffers = RIFT_PW_DMABUF;
   } else if (buffer->datas[0].data) {
     struct spa_data* d = &buffer->datas[0];
@@ -740,9 +748,7 @@ static void on_param_changed_cb(void* user_data, uint32_t id,
   uint32_t buffer_types;
   uint8_t params_buffer[1024];
   int result;
-#if PW_CHECK_VERSION(1, 2, 0)
   bool supports_explicit_sync = false;
-#endif
 
   if (!param || id != SPA_PARAM_Format) return;
 
@@ -763,9 +769,7 @@ static void on_param_changed_cb(void* user_data, uint32_t id,
   if ((has_modifier || check_pw_version(&s->server_version, 0, 3, 24)) &&
       dmabuf_allowed(s)) {
     buffer_types |= 1 << SPA_DATA_DmaBuf;
-#if PW_CHECK_VERSION(1, 2, 0)
     supports_explicit_sync = s->explicit_sync;
-#endif
   }
 
   format_name = spa_debug_type_find_name(spa_type_video_format,
@@ -790,7 +794,6 @@ static void on_param_changed_cb(void* user_data, uint32_t id,
       SPA_POD_Int(sizeof(struct spa_meta_region)));
 
   /* Buffer options */
-#if PW_CHECK_VERSION(1, 2, 0)
   if (supports_explicit_sync) {
     struct spa_pod_frame dmabuf_explicit_sync_frame;
 
@@ -806,14 +809,12 @@ static void on_param_changed_cb(void* user_data, uint32_t id,
     params[n_params++] =
         spa_pod_builder_pop(&pod_builder, &dmabuf_explicit_sync_frame);
   }
-#endif
 
   params[n_params++] = spa_pod_builder_add_object(
       &pod_builder, SPA_TYPE_OBJECT_ParamBuffers, SPA_PARAM_Buffers,
       SPA_PARAM_BUFFERS_dataType, SPA_POD_Int(buffer_types));
 
   /* Sync timeline */
-#if PW_CHECK_VERSION(1, 2, 0)
   if (supports_explicit_sync) {
     params[n_params++] = spa_pod_builder_add_object(
         &pod_builder, SPA_TYPE_OBJECT_ParamMeta, SPA_PARAM_Meta,
@@ -821,7 +822,6 @@ static void on_param_changed_cb(void* user_data, uint32_t id,
         SPA_PARAM_META_size,
         SPA_POD_Int(sizeof(struct spa_meta_sync_timeline)));
   }
-#endif
 
   /* Meta header */
   params[n_params++] = spa_pod_builder_add_object(
@@ -984,7 +984,11 @@ RiftPwStream* rift_pw_open(int32_t fd, uint32_t node_id, int32_t max_fps,
       drmGetCap(s->drm_fd, DRM_CAP_SYNCOBJ, &syncobj);
       drmGetCap(s->drm_fd, DRM_CAP_SYNCOBJ_TIMELINE, &timeline);
     }
-    s->explicit_sync = syncobj && timeline;
+    // A test's way to see a share on a compositor that does not sync
+    // explicitly.
+    const char* no_timeline = getenv("RIFT_PW_NO_TIMELINE");
+    s->explicit_sync =
+        syncobj && timeline && !(no_timeline && strcmp(no_timeline, "1") == 0);
   }
 
   s->thread_loop = pw_thread_loop_new("rift-pipewire", NULL);
@@ -1129,6 +1133,13 @@ void rift_pw_close(RiftPwStream* s) {
   s->closing = true;
   // Nothing more is drawn for a stream nobody takes pictures from.
   pw_stream_set_active(s->stream, false);
+  if (s->sync_waits > 0)
+    av_log(NULL, AV_LOG_INFO,
+           "pipewire: waited on the compositor %" PRId64
+           " us on average, %" PRId64 " us at worst, over %" PRId64
+           " pictures\n",
+           s->sync_wait_total_us / s->sync_waits, s->sync_wait_worst_us,
+           s->sync_waits);
   bool now = s->held == 0;
   pw_thread_loop_unlock(s->thread_loop);
   if (now) destroy(s);

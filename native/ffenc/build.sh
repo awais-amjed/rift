@@ -49,6 +49,12 @@ nv_headers_sha256=cbad7c68365ae50b03fe4cfbea05975c94406bdcc0a995bd094a3ea355656f
 configure_flags+=(--enable-ffnvcodec --enable-nvenc)
 if [[ $os == linux ]]; then
   library=$out/librift_ffenc.so
+  # PipeWire's own SPA headers, 1.2's, for a machine with older ones: explicit
+  # sync's meta is only described from there on, and Ubuntu 24.04, where the
+  # release is built, has 1.0's. Only headers, so no newer library is needed
+  # (pipewire.c). Newer PipeWire headers need their own SPA, and have the meta.
+  spa_headers=1.2.7
+  spa_headers_sha256=e75568ed18bcbe75e9779af57cb9cc256fd7ebfaadc12bb347a0717055d1d3a9
   # And the filters that take a Wayland share's DMA-BUF into VAAPI and make
   # NV12 of it on the GPU (dmabuf.c), with libdrm for DRM's frames.
   configure_flags+=(
@@ -121,6 +127,16 @@ tar -C "$deps" -xzf "$out/nv-codec-headers-$nv_headers.tar.gz"
 quietly "$out/build.log" make -C "$deps/nv-codec-headers-$nv_headers" \
   PREFIX="$prefix" install
 export PKG_CONFIG_PATH=$prefix/lib/pkgconfig
+spa_include=
+if [[ $os == linux ]] && ! pkg-config --atleast-version=1.2.0 libpipewire-0.3; then
+  fetch "$out/pipewire-$spa_headers.tar.gz" \
+    "https://gitlab.freedesktop.org/pipewire/pipewire/-/archive/$spa_headers/pipewire-$spa_headers.tar.gz" \
+    "$spa_headers_sha256"
+  tar -C "$deps" -xzf "$out/pipewire-$spa_headers.tar.gz" \
+    "pipewire-$spa_headers/spa/include"
+  cp -r "$deps/pipewire-$spa_headers/spa/include" "$prefix/include/spa-1.2"
+  spa_include=-I$prefix/include/spa-1.2
+fi
 if [[ $os == windows ]]; then
   fetch "$out/AMF-headers-$amf_headers.tar.gz" \
     "https://github.com/GPUOpen-LibrariesAndSDKs/AMF/releases/download/$amf_headers/AMF-headers-$amf_headers.tar.gz" \
@@ -170,7 +186,7 @@ done
 # release's run.
 if [[ $os == linux ]]; then
   "$cc" -shared -fPIC -O2 -fvisibility=hidden -I"$prefix/include" \
-    $(pkg-config --cflags libdrm libpipewire-0.3) \
+    $spa_include $(pkg-config --cflags libdrm libpipewire-0.3) \
     "$here/ffenc.c" "$here/dmabuf.c" "$here/pipewire.c" "$here/dmabuf_caps.c" \
     -o "$library.part" \
     "$prefix/lib/libavfilter.a" "$prefix/lib/libavcodec.a" \
