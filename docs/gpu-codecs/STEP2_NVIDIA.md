@@ -120,8 +120,11 @@ the leanest recorder measured on Oct 30) and Sunshine `a679b05` (GPL-3.0, C++):
 
 - **The NVENC side** is gsr's `src/encoder/video/nvenc.c`: a CUDA device context
   for FFmpeg on gsr's own CUDA context, an NV12 CUDA frame pool, two GL textures
-  (`GL_R8`, `GL_RG8`) registered with CUDA and kept mapped, and per picture two
-  `cuMemcpy2DAsync` from the textures' arrays into the frame, then a sync.
+  (`GL_R8`, `GL_RG8`) registered with CUDA, and per picture two
+  `cuMemcpy2DAsync` from the textures' arrays into the frame, then a sync. The
+  textures are mapped for each picture, as Sunshine does, not kept mapped as gsr
+  keeps them: drawing into a mapped resource is undefined, the map is where GL's
+  work is finished for CUDA, and the spike measured no cost between the two.
 - **The CUDA device** is gsr's `src/cuda.c`: the CUDA device for the render node,
   found by its PCI bus id, so CUDA and EGL are on the same card.
 - **The EGL display and import** are gsr's `src/egl.c` (an EGL display on the
