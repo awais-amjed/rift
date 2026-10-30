@@ -15,7 +15,8 @@
 //! to DPDFNet-2 as one too slow for it always has.
 //!
 //! Where the model runs can be switched mid-call ([`Placement`], Settings →
-//! Voice, Beta options, Windows only): testers heard crackle and cut-outs
+//! Voice, Beta options; on Linux only the capture thread or Normal, since
+//! nothing there runs above normal for an ordinary user): testers heard crackle and cut-outs
 //! from a Windows friend on beta.9 (Oct 30), and comparing by ear is how to
 //! tell whether the thread's priority is why.
 
@@ -47,7 +48,8 @@ pub(super) fn take_unfiltered() -> u32 {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Placement {
     /// On libwebrtc's capture thread itself, as before beta.5: time-critical
-    /// on Windows, and never late, but ahead of a game.
+    /// on Windows, and never late, but ahead of a game. On Linux that thread
+    /// is at normal like the model's own, so what changes is only the wait.
     CaptureThread,
     /// On its own thread at Windows' highest priority below time-critical.
     Highest,

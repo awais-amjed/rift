@@ -104,4 +104,15 @@ void main() {
       NoiseFilterPriority.normal,
     );
   });
+
+  test('Linux offers only the capture thread beside Normal', () {
+    expect(
+      NoiseFilterPriority.offered(windows: true),
+      NoiseFilterPriority.values,
+    );
+    expect(NoiseFilterPriority.offered(windows: false), [
+      NoiseFilterPriority.timeCritical,
+      NoiseFilterPriority.normal,
+    ]);
+  });
 }

@@ -653,7 +653,10 @@ in the Windows 11 VM, Oct 30), so what it adds is Windows not slowing Rift
 down, nor dropping that timer, while a game covers it: a mic's 7 ms wait for
 a late frame that sleeps in 15.6 ms steps oversleeps its own turn. The log
 says which options each call started with and each change made during it.
-Which sounds best is not yet known.
+Linux has the priority too, with only Time critical and Normal: an ordinary
+user's threads there run no higher than normal, libwebrtc's capture thread
+included, so Time critical changes only that the mic no longer waits on the
+model's thread. Which sounds best is not yet known.
 
 Measured Oct 25 2026 on a laptop's Windows: receiving a 1080p60 stream, the
 decoder took 25% of a core at time-critical while a stand-in game ran on every

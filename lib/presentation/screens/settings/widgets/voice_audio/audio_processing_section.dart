@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../data/enums/noise_filter_priority.dart';
 import '../../../../../data/enums/noise_suppression.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/services/noise_filter.dart';
@@ -42,11 +43,14 @@ class AudioProcessingSection extends StatelessWidget {
             small: appState.dpdfnetSmall,
             onChanged: cubit.setDpdfnetSmall,
           ),
-          if (!kIsWeb && Platform.isWindows) ...[
+          if (!kIsWeb && (Platform.isWindows || Platform.isLinux)) ...[
             const SizedBox(height: 14),
             NoiseFilterBetaOptions(
+              choices: NoiseFilterPriority.offered(windows: Platform.isWindows),
               priority: appState.noiseFilterPriority,
-              preciseTiming: appState.preciseCallTiming,
+              preciseTiming: Platform.isWindows
+                  ? appState.preciseCallTiming
+                  : null,
               onPriorityChanged: cubit.setNoiseFilterPriority,
               onPreciseTimingChanged: cubit.setPreciseCallTiming,
             ),

@@ -7,17 +7,21 @@ import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 import '../setting_toggle_row.dart';
 
-/// Beta options for DPDFNet on Windows, for testers to switch mid-call and
-/// ask how they sound: where the model runs, and whether the call holds
-/// Windows' 1 ms timer.
+/// Beta options for DPDFNet, for testers to switch mid-call and ask how
+/// they sound: where the model runs, and on Windows whether the call holds
+/// its 1 ms timer.
 class NoiseFilterBetaOptions extends StatelessWidget {
+  final List<NoiseFilterPriority> choices;
   final NoiseFilterPriority priority;
-  final bool preciseTiming;
+
+  /// Null where there is no such option: off Windows.
+  final bool? preciseTiming;
   final ValueChanged<NoiseFilterPriority> onPriorityChanged;
   final ValueChanged<bool> onPreciseTimingChanged;
 
   const NoiseFilterBetaOptions({
     super.key,
+    required this.choices,
     required this.priority,
     required this.preciseTiming,
     required this.onPriorityChanged,
@@ -49,21 +53,25 @@ class NoiseFilterBetaOptions extends StatelessWidget {
         ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: K.settingsChoiceWidth),
           child: AppDropdown<NoiseFilterPriority>(
-            value: priority,
+            value: choices.contains(priority)
+                ? priority
+                : NoiseFilterPriority.normal,
             options: [
-              for (final choice in NoiseFilterPriority.values)
+              for (final choice in choices)
                 AppDropdownOption(value: choice, label: choice.label),
             ],
             onChanged: onPriorityChanged,
           ),
         ),
-        const SizedBox(height: 14),
-        SettingToggleRow(
-          title: 'Precise timing',
-          description: 'Best if your voice crackles or cuts out.',
-          value: preciseTiming,
-          onChanged: onPreciseTimingChanged,
-        ),
+        if (preciseTiming case final precise?) ...[
+          const SizedBox(height: 14),
+          SettingToggleRow(
+            title: 'Precise timing',
+            description: 'Best if your voice crackles or cuts out.',
+            value: precise,
+            onChanged: onPreciseTimingChanged,
+          ),
+        ],
       ],
     );
   }

@@ -234,8 +234,8 @@ abstract final class NoiseFilter {
     holdPreciseTimingForCall(hold: _precise);
     if (_dpdfnetHanded) {
       HelperMethods.printDebug(
-        'DPDFNet: placed at ${_priority.label}, '
-        'precise timing ${_precise ? 'on' : 'off'}',
+        'DPDFNet: placed at ${_priority.label}'
+        '${Platform.isWindows ? ', precise timing ${_precise ? 'on' : 'off'}' : ''}',
       );
     }
   }

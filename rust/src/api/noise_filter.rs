@@ -74,9 +74,10 @@ pub fn set_dpdfnet_small(small: bool) {
     let _ = small;
 }
 
-/// Where DPDFNet runs in a call, a beta option on Windows: on libwebrtc's
-/// capture thread, as before beta.5, or on its own thread at one of three
-/// priorities. Takes effect from the next frame, mid-call too.
+/// Where DPDFNet runs in a call, a beta option: on libwebrtc's capture
+/// thread, as before beta.5, or on its own thread at one of three priorities,
+/// which Linux leaves all at normal. Takes effect from the next frame,
+/// mid-call too.
 pub enum NoiseModelPlacement {
     CaptureThread,
     Highest,
