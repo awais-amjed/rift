@@ -4,7 +4,7 @@
 //! DMA-BUF where the encoder takes one, or from memory for VP9 and NVENC.
 //! When any of it refuses, the share runs on libwebrtc's capturer as before.
 use super::capture::{CaptureRequest, Command, Feed, Progress, VideoSlot};
-use super::encoder::dmabuf_target;
+use super::encoder::{dmabuf_target, DmabufTarget};
 use super::frames::{now_us, Converter};
 use super::gpu_feed::{GpuFeed, Picture};
 use super::latest::{self, Taker};
@@ -185,6 +185,18 @@ fn wanted_buffers(gpu_takes_dmabuf: Option<bool>) -> PwBuffers {
     }
 }
 
+/// The buffers a share opens on, before any feed has said what it wants: memory,
+/// as a GPU feed takes a memory picture where the raw path cannot take a
+/// DMA-BUF. Except on a screen NVIDIA's card draws, where GNOME sends no memory
+/// picture at all while a fullscreen window fills the screen (seen Oct 30 on
+/// GNOME 50), so a share begun over a game would never learn its size.
+fn first_buffers(target: Option<&DmabufTarget>) -> PwBuffers {
+    match target {
+        Some(target) if target.external_modifiers => PwBuffers::DmaBuf,
+        _ => PwBuffers::Memory,
+    }
+}
+
 /// How a share went on Rift's stream.
 pub(super) enum Handoff {
     /// It ran, or failed in a way libwebrtc's capturer would too (the
@@ -283,9 +295,9 @@ pub(super) fn run(
     };
     let target = dmabuf_target();
     let render_node = target.as_ref().map(|target| target.render_node.as_str());
-    // Memory first: the feed is not attached until the first picture has
-    // said the size, and a GPU feed takes a memory picture where the raw
-    // path cannot take a DMA-BUF. A GPU feed switches the stream over.
+    // The feed is not attached until the first picture has said the size, and
+    // then switches the stream to the buffers it wants.
+    let opens_on = first_buffers(target.as_ref());
     let rate = fps.load(Ordering::Relaxed);
     let stream = match PwStream::open(
         &session,
@@ -294,7 +306,7 @@ pub(super) fn run(
         target
             .as_ref()
             .is_some_and(|target| target.external_modifiers),
-        PwBuffers::Memory,
+        opens_on,
         sink,
         events,
     ) {
@@ -321,7 +333,7 @@ pub(super) fn run(
     let controls = Arc::downgrade(&stream);
     let _processing = thread::Builder::new()
         .name("share-frames".to_string())
-        .spawn(move || process(pictures, processing, controls))
+        .spawn(move || process(pictures, processing, controls, opens_on))
         .expect("no processing thread");
 
     watch(
@@ -416,12 +428,12 @@ fn ended_by(stream_ended: Option<String>, session_closed: bool) -> Option<String
 /// And the newest picture of either kind is kept until a GPU feed takes it:
 /// the rate gate can leave it out, and a new encoder or track has not had
 /// it, and on a still screen nothing newer comes to take its place.
-fn process(pictures: Taker<PwPicture>, slot: VideoSlot, stream: Weak<PwStream>) {
+fn process(pictures: Taker<PwPicture>, slot: VideoSlot, stream: Weak<PwStream>, asked: PwBuffers) {
     let mut sender = Sender {
         slot,
         converter: Converter::new(),
         spare: Vec::new(),
-        follow: Follow::new(stream),
+        follow: Follow::new(stream, asked),
         still: Still::new(Instant::now()),
         taken: Taken::new(),
         warned_turned: false,
@@ -575,10 +587,10 @@ struct Follow {
 }
 
 impl Follow {
-    fn new(stream: Weak<PwStream>) -> Self {
+    fn new(stream: Weak<PwStream>, asked: PwBuffers) -> Self {
         Self {
             stream,
-            asked: PwBuffers::Memory,
+            asked,
             told: Weak::new(),
         }
     }
@@ -646,8 +658,19 @@ mod tests {
         assert_eq!(wanted_buffers(None), PwBuffers::Memory);
         // VAAPI imports the DMA-BUF.
         assert_eq!(wanted_buffers(Some(true)), PwBuffers::DmaBuf);
-        // NVENC takes the picture from memory, for now.
+        // A GPU encoder that takes no DMA-BUF reads from memory.
         assert_eq!(wanted_buffers(Some(false)), PwBuffers::Memory);
+    }
+
+    #[test]
+    fn a_screen_nvidia_draws_opens_on_dmabufs() {
+        let target = |external_modifiers| DmabufTarget {
+            render_node: "/dev/dri/renderD128".to_string(),
+            external_modifiers,
+        };
+        assert_eq!(first_buffers(Some(&target(true))), PwBuffers::DmaBuf);
+        assert_eq!(first_buffers(Some(&target(false))), PwBuffers::Memory);
+        assert_eq!(first_buffers(None), PwBuffers::Memory);
     }
 
     #[test]

@@ -210,6 +210,22 @@ the owner named as failure.
   (`EGL_ANDROID_native_fence_sync`, a wait on the GPU, not the CPU). If that
   cannot be made clean, a stream without a timeline takes memory buffers on
   NVIDIA. Accepting tears, as gsr does, is not an option (owner's anti-goal).
+- **Settled Oct 30**, on an RTX 3070 Ti and GNOME 50, with `tear_check.py`'s picture
+  (the whole screen flipping between two grays, 60 s each, about 3250 pictures; the
+  check caught made-up tears and stale pictures first): 0 torn and 0 stale, with the
+  timeline and without it, with the GPU idle and at 100% from a costly shader. So no
+  fence wait was built, and a stream with no timeline stays on the GL path. Under the
+  load the compositor's sync took 1.5 ms on average and 3.9 ms at worst, on PipeWire's
+  thread, and the GPU wait 5 ms at worst. A shared screen and a shared window are both
+  upright and not mirrored.
+- **Memory buffers under a fullscreen window (found by this check, Oct 30).** While a
+  fullscreen window fills the screen, GNOME sends a memory stream no picture at all,
+  and one small window over it brings them back. So GNOME's direct scanout is the
+  likely cause. DMA-BUFs flow throughout. A share on such a screen now opens on
+  DMA-BUFs (`first_buffers`), or one begun over a fullscreen window would never learn
+  its size. Seen with a fullscreen test picture, not yet a game. **Still open:** what
+  stays on memory (VP9, or NVENC when the GL side does not open) gets no pictures while
+  a fullscreen window fills this screen.
 
 ### Keeping the game smooth
 

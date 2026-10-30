@@ -633,93 +633,200 @@ impl EncodedSink for Counting {
     }
 }
 
-/// A Wayland share's PipeWire stream into the encoder this computer picks,
-/// every picture staying on the GPU: a moving screen at 60 fps is at least 150
-/// frames in 3 s. Needs something moving on the screen (a test pattern
-/// playing), the portal token `pw_stream`'s tests use, and, on a hybrid laptop
-/// where NVIDIA's GPU is beside the one drawing, `GPU_NO_NVENC=1`.
-/// `RIFT_DUMP_H264` names a file to write the stream to.
+/// A Wayland share's PipeWire stream and the encoder this computer picks, with
+/// each import the encoder refuses dropped from the stream as a share does.
+/// Needs something moving on the screen (a test pattern playing), the portal
+/// token `pw_stream`'s tests use, and, on a hybrid laptop where NVIDIA's GPU is
+/// beside the one drawing, `GPU_NO_NVENC=1`. `RIFT_DUMP_H264` names a file to
+/// write the stream to.
+#[cfg(target_os = "linux")]
+struct LiveStream {
+    /// Held for the stream: closing the portal's session ends it.
+    _session: super::portal::PortalSession,
+    encoder: GpuEncoder,
+    stream: std::sync::Arc<super::pw_stream::PwStream>,
+    pictures: super::latest::Taker<super::pw_stream::PwPicture>,
+    made: std::sync::Arc<std::sync::atomic::AtomicU32>,
+    refused: std::sync::Arc<std::sync::atomic::AtomicU32>,
+}
+
+#[cfg(target_os = "linux")]
+impl LiveStream {
+    fn open() -> Self {
+        use super::encoder::dmabuf_target;
+        use super::latest;
+        use super::pw_stream::tests::screen;
+        use super::pw_stream::{PwBuffers, PwStream};
+        use std::sync::atomic::AtomicU32;
+        use std::sync::Arc;
+
+        let session = screen();
+        let made = Arc::new(AtomicU32::new(0));
+        let dump = std::env::var_os("RIFT_DUMP_H264")
+            .map(|path| std::fs::File::create(path).expect("the dump opens"));
+        let target = dmabuf_target().expect("a GPU takes DMA-BUFs");
+        let encoder = GpuEncoder::open(
+            EncoderSettings {
+                codec: GpuCodec::H264,
+                width: WIDTH,
+                height: HEIGHT,
+                fps: 60,
+                max_bitrate_bps: 8_000_000,
+                start_bitrate_bps: 8_000_000,
+                h264_high: false,
+            },
+            Box::new(Counting(made.clone(), dump)),
+        )
+        .expect("a GPU encoder opens");
+        assert!(
+            encoder.takes_dmabuf(),
+            "{} takes no DMA-BUF (GPU_NO_NVENC=1 beside NVIDIA's GPU)",
+            encoder.name()
+        );
+        let (put, pictures) = latest::channel();
+        let stream = Arc::new(
+            PwStream::open(
+                &session,
+                60,
+                Some(&target.render_node),
+                target.external_modifiers,
+                PwBuffers::DmaBuf,
+                move |picture| drop(put.put(picture)),
+                Box::new(|event| log::info!("pipewire event: {event:?}")),
+            )
+            .expect("the stream opens"),
+        );
+        let refused = Arc::new(AtomicU32::new(0));
+        {
+            let stream = stream.clone();
+            let refused = refused.clone();
+            encoder.on_import_failed(Box::new(move |drm_format, modifier| {
+                refused.fetch_add(1, Ordering::Relaxed);
+                stream.drop_modifier(drm_format, modifier);
+            }));
+        }
+        Self {
+            _session: session,
+            encoder,
+            stream,
+            pictures,
+            made,
+            refused,
+        }
+    }
+
+    /// Sends what comes for `seconds`, each picture as the kind it arrived.
+    /// Returns how many of each, DMA-BUFs first.
+    fn run(&self, seconds: u64) -> (u32, u32) {
+        use super::encoder::{DmaBufFrame, EncoderInput};
+
+        let until = Instant::now() + Duration::from_secs(seconds);
+        let (mut on_gpu, mut in_memory) = (0, 0);
+        while Instant::now() < until {
+            let picture = self
+                .pictures
+                .take_timeout(Duration::from_secs(2))
+                .expect("no picture for 2 s; is something moving on the screen?");
+            let timestamp_us = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_micros() as i64;
+            if picture.memory().is_some() {
+                self.encoder.submit_input(EncoderInput::Nv12(Nv12Frame {
+                    data: gray_nv12_of(&picture),
+                    timestamp_us,
+                }));
+                in_memory += 1;
+            } else {
+                self.encoder.submit_input(EncoderInput::DmaBuf(DmaBufFrame {
+                    picture: std::sync::Arc::new(picture),
+                    timestamp_us,
+                }));
+                on_gpu += 1;
+            }
+        }
+        (on_gpu, in_memory)
+    }
+
+    /// Closes the stream and the encoder, and returns the frames made and the
+    /// imports refused.
+    fn finish(self) -> (u32, u32) {
+        let Self {
+            encoder,
+            stream,
+            made,
+            refused,
+            ..
+        } = self;
+        drop(stream);
+        drop(encoder);
+        (
+            made.load(Ordering::Relaxed),
+            refused.load(Ordering::Relaxed),
+        )
+    }
+}
+
+/// A memory picture as NV12 at the encoder's size, brightness only, enough for
+/// `tear_check.py`'s test picture, which is all grays.
+#[cfg(target_os = "linux")]
+fn gray_nv12_of(picture: &super::pw_stream::PwPicture) -> Vec<u8> {
+    let (data, stride, _) = picture.memory().expect("a memory picture");
+    let size = picture.size();
+    let (width, height) = (WIDTH as usize, HEIGHT as usize);
+    let mut nv12 = vec![128; Nv12Frame::len_for(WIDTH, HEIGHT)];
+    for row in 0..height {
+        let from = &data[row * size.height as usize / height * stride as usize..];
+        for column in 0..width {
+            // In a gray, every channel holds the same, whichever comes first.
+            let gray = from[column * size.width as usize / width * 4] as u32;
+            nv12[row * width + column] = (16 + gray * 219 / 255) as u8;
+        }
+    }
+    nv12
+}
+
+/// The stream into the encoder, every picture staying on the GPU: a moving
+/// screen at 60 fps is at least 50 frames a second. `RIFT_SHARE_SECONDS` says
+/// how long to run in place of 3 s.
 #[cfg(target_os = "linux")]
 #[test]
 #[ignore = "needs a Wayland screen with something moving and a GPU that takes DMA-BUFs"]
 fn live_gpu_encodes_the_stream() {
-    use super::encoder::dmabuf_target;
-    use super::encoder::{DmaBufFrame, EncoderInput};
-    use super::latest;
-    use super::pw_stream::tests::screen;
-    use super::pw_stream::{PwBuffers, PwStream};
-    use std::sync::atomic::AtomicU32;
-    use std::sync::Arc;
-
-    let session = screen();
-    let made = Arc::new(AtomicU32::new(0));
-    let dump = std::env::var_os("RIFT_DUMP_H264")
-        .map(|path| std::fs::File::create(path).expect("the dump opens"));
-    let target = dmabuf_target().expect("a GPU takes DMA-BUFs");
-    let encoder = GpuEncoder::open(
-        EncoderSettings {
-            codec: GpuCodec::H264,
-            width: WIDTH,
-            height: HEIGHT,
-            fps: 60,
-            max_bitrate_bps: 8_000_000,
-            start_bitrate_bps: 8_000_000,
-            h264_high: false,
-        },
-        Box::new(Counting(made.clone(), dump)),
-    )
-    .expect("a GPU encoder opens");
+    let seconds = std::env::var("RIFT_SHARE_SECONDS")
+        .ok()
+        .map_or(3, |seconds| seconds.parse().expect("a number of seconds"));
+    let live = LiveStream::open();
+    let (sent, _) = live.run(seconds);
+    let (made, refused) = live.finish();
+    log::info!("{sent} pictures in, {made} frames out, {refused} refused imports");
     assert!(
-        encoder.takes_dmabuf(),
-        "{} takes no DMA-BUF (GPU_NO_NVENC=1 beside NVIDIA's GPU)",
-        encoder.name()
+        made as u64 >= 50 * seconds,
+        "{made} frames in {seconds} s from {sent} pictures"
     );
-    let (put, pictures) = latest::channel();
-    let stream = Arc::new(
-        PwStream::open(
-            &session,
-            60,
-            Some(&target.render_node),
-            target.external_modifiers,
-            PwBuffers::DmaBuf,
-            move |picture| drop(put.put(picture)),
-            Box::new(|event| log::info!("pipewire event: {event:?}")),
-        )
-        .expect("the stream opens"),
-    );
-    let refused = Arc::new(AtomicU32::new(0));
-    {
-        let stream = stream.clone();
-        let refused = refused.clone();
-        encoder.on_import_failed(Box::new(move |drm_format, modifier| {
-            refused.fetch_add(1, Ordering::Relaxed);
-            stream.drop_modifier(drm_format, modifier);
-        }));
-    }
+}
 
-    let mut started = None;
-    let mut sent = 0;
-    while started.is_none_or(|at: Instant| at.elapsed() < Duration::from_secs(3)) {
-        if let Some(picture) = pictures.take_timeout(Duration::from_secs(2)) {
-            started.get_or_insert_with(Instant::now);
-            encoder.submit_input(EncoderInput::DmaBuf(DmaBufFrame {
-                picture: std::sync::Arc::new(picture),
-                timestamp_us: SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_micros() as i64,
-            }));
-            sent += 1;
-        } else {
-            panic!("no picture for 2 s; is something moving on the screen?");
-        }
-    }
-    drop(stream);
-    drop(encoder);
-    let made = made.load(Ordering::Relaxed);
-    log::info!(
-        "{sent} pictures in, {made} frames out, {} refused imports",
-        refused.load(Ordering::Relaxed)
-    );
-    assert!(made >= 150, "{made} frames in 3 s from {sent} pictures");
+/// A share that moves to memory buffers and back, as one does when a feed that
+/// cannot take DMA-BUFs comes and goes: the same encoder goes on from one kind
+/// to the other with no gap. Play `tear_check.py play` and read the dump with it,
+/// since a memory picture here is gray only.
+#[cfg(target_os = "linux")]
+#[test]
+#[ignore = "needs a Wayland screen playing the tear picture and a GPU that takes DMA-BUFs"]
+fn live_gpu_stream_moves_to_memory_and_back() {
+    use super::pw_stream::PwBuffers;
+
+    let live = LiveStream::open();
+    let first = live.run(5);
+    live.stream.set_buffers(PwBuffers::Memory);
+    let middle = live.run(5);
+    live.stream.set_buffers(PwBuffers::DmaBuf);
+    let last = live.run(5);
+    let (made, refused) = live.finish();
+    log::info!("(GPU, memory) pictures {first:?} {middle:?} {last:?}, {made} frames out");
+    assert_eq!(refused, 0, "imports refused");
+    assert!(first.0 >= 200, "too few DMA-BUFs first: {first:?}");
+    assert!(middle.1 >= 200, "too few memory pictures: {middle:?}");
+    assert!(last.0 >= 200, "too few DMA-BUFs after: {last:?}");
+    assert!(made >= 700, "only {made} frames in 15 s");
 }

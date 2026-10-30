@@ -360,8 +360,12 @@ with a display connected and no Intel or AMD card with one (`gpu_choice.rs`). Th
 first and takes the DMA-BUF too (`native/ffenc/nvenc_gl.c`): imported into EGL, drawn
 as NV12 by one GL shader pass, and copied by CUDA into NVENC's frame, on the worker's own
 thread, with the compositor's explicit sync waited for on PipeWire's. Proved Oct 30 on an
-RTX 3070 Ti, GNOME 50, with `test_nvenc_dmabuf.c` and a live share. If the GL side does not
-open, NVENC takes memory as before. A window keeps Dart's pick (no second picker); a screen
+RTX 3070 Ti, GNOME 50, with `test_nvenc_dmabuf.c` and a live share: 60 s of the whole screen
+flipping between two grays gave no torn or stale picture (`STEP2_NVIDIA.md`, *Sync*), with
+the sync timeline and without it, the GPU idle and full. While a fullscreen window fills that
+screen GNOME sends a memory stream nothing, so a share there opens on DMA-BUFs (`first_buffers`);
+what stays on memory (VP9, or NVENC with no GL side) gets no pictures meanwhile. If the GL
+side does not open, NVENC takes memory as before. A window keeps Dart's pick (no second picker); a screen
 is picked in the portal, and the first-picture limit starts once it answers. A
 lent buffer keeps its own fds and mapping until Rust lets it go, since PipeWire
 frees a stream's buffers on every renegotiation (a crash before that, Oct 29).

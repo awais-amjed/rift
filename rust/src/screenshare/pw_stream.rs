@@ -356,12 +356,18 @@ pub(crate) mod tests {
 
     /// The portal, restored from the token in the file `RIFT_PORTAL_TOKEN`
     /// names (seeded by `portal::tests::live_portal_seed_token`), which gets
-    /// the renewed token back. The token is never printed.
+    /// the renewed token back. The token is never printed. With
+    /// `RIFT_PORTAL_WINDOW` set, a window picked by hand instead.
     pub(crate) fn screen() -> PortalSession {
         let _ = env_logger::builder()
             .is_test(true)
             .filter_level(log::LevelFilter::Info)
             .try_init();
+        if std::env::var_os("RIFT_PORTAL_WINDOW").is_some() {
+            return portal::tests::live_runtime()
+                .block_on(portal::open(PortalKind::Window, None, true, false))
+                .expect("the portal gives the window");
+        }
         let file = std::env::var("RIFT_PORTAL_TOKEN").expect("RIFT_PORTAL_TOKEN");
         let token = std::fs::read_to_string(&file).unwrap();
         let session = portal::tests::live_runtime()

@@ -20,6 +20,8 @@ mod timings;
 mod worker;
 #[cfg(target_os = "linux")]
 pub(crate) use ffmpeg::{dmabuf_target, library, symbol};
+#[cfg(target_os = "linux")]
+pub(crate) use gpu_choice::DmabufTarget;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 pub(crate) use worker::GpuEncoder;
 
