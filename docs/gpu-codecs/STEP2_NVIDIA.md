@@ -1,6 +1,7 @@
 # Step 2, NVIDIA half: zero-copy sharing from an NVIDIA-drawn screen — design
 
-Oct 30 2026. Designed with the owner and approved Oct 30; not yet built. The second half of step 2
+Oct 30 2026. Designed with the owner and approved Oct 30; built on branch `gpu-codecs`, measured
+and driven in the app Oct 30–31 (`PLAN.md` step 0, `TESTING.md`). The second half of step 2
 (`STEP2_LINUX.md`, which built the Intel/AMD half). What is the owner's is marked
 so; the rest is the builder's call, and says so where it is a judgement.
 

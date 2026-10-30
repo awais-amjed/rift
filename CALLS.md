@@ -364,7 +364,10 @@ RTX 3070 Ti, GNOME 50, with `test_nvenc_dmabuf.c` and a live share: 60 s of the 
 flipping between two grays gave no torn or stale picture (`STEP2_NVIDIA.md`, *Sync*), with
 the sync timeline and without it, the GPU idle and full. While a fullscreen window fills that
 screen GNOME sends a memory stream nothing, so a share there opens on DMA-BUFs (`first_buffers`);
-what stays on memory (VP9, or NVENC with no GL side) gets no pictures meanwhile. If the GL
+what stays on memory (VP9, or NVENC with no GL side) gets no pictures meanwhile. GNOME sends
+that stream only on whole refreshes under its cap, so at most 60 on a 165 Hz screen gives every
+third, 55 fps, and at most 120 every second, 80 fps (measured Oct 30); a window came at 43–49 fps,
+where libwebrtc's capturer reached the viewer at 60 (Oct 31). If the GL
 side does not open, NVENC takes memory as before. A window keeps Dart's pick (no second picker); a screen
 is picked in the portal, and the first-picture limit starts once it answers. A
 lent buffer keeps its own fds and mapping until Rust lets it go, since PipeWire

@@ -54,6 +54,20 @@ step can take from our own code and from open source projects: `REUSE.md`.
      PipeWire's `add_buffer`, drop it in `remove_buffer` or on renegotiation),
      after reading how gpu-screen-recorder gets to 3.4%. Neither OBS nor
      Sunshine keeps them; both import every new picture.
+   - **NVIDIA half, measured Oct 30–31** (BIOS set to discrete, RTX 3070 Ti Laptop,
+     GNOME 50, 165 Hz, a noisy picture full screen with one small window over it,
+     H264 1080p60 at 15 Mbit/s, one viewer; `threadtop` 20 s): **7.5% of a core** for
+     the picture's threads on the GL path (`gpu-encoder` 6.8%, CUDA 0.5%, PipeWire
+     0.1%, `share-frames` 0.1%) against **10.1%** with the same stream in memory
+     (`RIFT_FFENC_NO_GL`: `share-frames` 5.0%, `gpu-encoder` 4.4%, CUDA 0.5%);
+     gpu-screen-recorder 15–16% for its whole process, in four of five runs (one
+     6.2%, unexplained). `send` 4.4 ms at 60 and about 1 ms at 120, longest 5.1 ms,
+     well under the 8.3 ms a picture has at 120. Beside a game (glmark2 terrain,
+     full screen, uncapped, GPU at 100%): the frame rate moves within the test's own
+     5% drift on every path; the 99th percentile frame is 1.84–2.0 ms on the GL path, 3.81–3.87 ms
+     in memory, 1.87–2.33 ms with no share, 1.96–2.53 ms with gpu-screen-recorder.
+     glmark2 draws a frame in about 1 ms, so it is not a real game; none was on the
+     laptop. No need for a low-priority GL context showed.
    - **Order (owner, Oct 29): Linux first, step 2 before step 1.** This laptop has
      both of Linux's encoders and Wayland, so the step can be built and proved
      here; the Windows VM has no GPU.
