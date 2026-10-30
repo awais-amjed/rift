@@ -647,10 +647,13 @@ switch mid-call and compare by ear. *Noise filter priority* puts the model
 back on the mic's thread (Time critical, as before beta.5) or keeps its own
 thread at Highest, Above normal or Normal, the default. *Precise timing*, off
 by default, holds Windows' 1 ms timer and unthrottled running for the length
-of a call (`rust/src/precise_timing.rs`, which a share's capture holds too):
-left at Windows' 15.6 ms steps, the mic's 7 ms wait for a late frame can
-oversleep its own turn. The log says which options each call started with
-and each change made during it. Which sounds best is not yet known.
+of a call (`rust/src/precise_timing.rs`, which a share's capture holds too).
+Rift already asks for the 1 ms timer in a call without it (`powercfg /energy`
+in the Windows 11 VM, Oct 30), so what it adds is Windows not slowing Rift
+down, nor dropping that timer, while a game covers it: a mic's 7 ms wait for
+a late frame that sleeps in 15.6 ms steps oversleeps its own turn. The log
+says which options each call started with and each change made during it.
+Which sounds best is not yet known.
 
 Measured Oct 25 2026 on a laptop's Windows: receiving a 1080p60 stream, the
 decoder took 25% of a core at time-critical while a stand-in game ran on every
