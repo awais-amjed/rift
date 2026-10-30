@@ -5,6 +5,7 @@
 use super::encoder::{h264, Encoded, EncodedSink, EncoderSettings, GpuEncoder, Nv12Frame};
 #[cfg(target_os = "linux")]
 use super::encoder::{DmaBufFrame, EncoderInput};
+use super::pixels::ByteOrder;
 #[cfg(target_os = "linux")]
 use super::pw_stream::PwPicture;
 use super::rate_gate::RateGate;
@@ -114,16 +115,26 @@ impl GpuFeed {
             .buffer(Nv12Frame::len_for(target.width, target.height));
         let (y, uv) = data.split_at_mut(width * height);
         match picture {
-            Picture::Argb { data: argb, stride } => yuv_helper::argb_to_nv12(
-                argb,
+            Picture::Packed {
+                data: packed,
                 stride,
-                y,
-                target.width,
-                uv,
-                target.width,
-                target.width as i32,
-                target.height as i32,
-            ),
+                order,
+            } => {
+                let to_nv12 = match order {
+                    ByteOrder::Bgrx => yuv_helper::argb_to_nv12,
+                    ByteOrder::Rgbx => yuv_helper::abgr_to_nv12,
+                };
+                to_nv12(
+                    packed,
+                    stride,
+                    y,
+                    target.width,
+                    uv,
+                    target.width,
+                    target.width as i32,
+                    target.height as i32,
+                )
+            }
             Picture::I420(buffer) => {
                 let (stride_y, stride_u, stride_v) = buffer.strides();
                 let (src_y, src_u, src_v) = buffer.data();
@@ -177,9 +188,11 @@ impl GpuFeed {
 /// One captured picture, in whichever form it is when it reaches the target
 /// size: or a Wayland share's DMA-BUF, sent to the encoder whole.
 pub(crate) enum Picture<'a> {
-    Argb {
+    /// Four bytes a pixel, in `order`.
+    Packed {
         data: &'a [u8],
         stride: u32,
+        order: ByteOrder,
     },
     I420(&'a I420Buffer),
     /// Shared with the processing thread, which keeps the newest picture

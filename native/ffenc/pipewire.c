@@ -79,25 +79,30 @@ struct pw_version {
 struct format_info {
   uint32_t spa_format;
   uint32_t drm_format;
-  // Memory buffers come only in BGRx and BGRA, the bytes Rust's raw path
-  // reads; DMA-BUFs in all four.
-  bool memory;
   uint64_t* modifiers;
   size_t n_modifiers;
 };
 
 // 8-bit RGB only: 10-bit and HDR formats are refused for now. No alpha
-// first, since the encoder never reads it.
+// first, since the encoder never reads it. In both kinds of buffer: some
+// wlroots compositors share memory only in red-first order, and offered only
+// blue-first, they could not share at all.
 static const struct {
   uint32_t spa_format;
   uint32_t drm_format;
-  bool memory;
 } supported_formats[] = {
-    {SPA_VIDEO_FORMAT_BGRx, DRM_FORMAT_XRGB8888, true},
-    {SPA_VIDEO_FORMAT_BGRA, DRM_FORMAT_ARGB8888, true},
-    {SPA_VIDEO_FORMAT_RGBx, DRM_FORMAT_XBGR8888, false},
-    {SPA_VIDEO_FORMAT_RGBA, DRM_FORMAT_ABGR8888, false},
+    {SPA_VIDEO_FORMAT_BGRx, DRM_FORMAT_XRGB8888},
+    {SPA_VIDEO_FORMAT_BGRA, DRM_FORMAT_ARGB8888},
+    {SPA_VIDEO_FORMAT_RGBx, DRM_FORMAT_XBGR8888},
+    {SPA_VIDEO_FORMAT_RGBA, DRM_FORMAT_ABGR8888},
 };
+
+// The order of a memory picture's bytes: red first in RGBx and RGBA.
+static int32_t order_of(uint32_t drm_format) {
+  return drm_format == DRM_FORMAT_XBGR8888 || drm_format == DRM_FORMAT_ABGR8888
+             ? RIFT_PW_RGBX
+             : RIFT_PW_BGRX;
+}
 
 #define N_SUPPORTED_FORMATS \
   (sizeof(supported_formats) / sizeof(supported_formats[0]))
@@ -139,7 +144,6 @@ struct RiftPwStream {
   // Closed by Rust: no more callbacks, and freed once nothing is held.
   bool closing;
   bool ended;
-  bool warned_format;
   bool logged_sync;
 };
 
@@ -354,7 +358,6 @@ static bool build_format_params(RiftPwStream* s,
 
 build_shm:
   for (size_t i = 0; i < s->n_format_info; i++) {
-    if (!s->format_info[i].memory) continue;
     params[params_count++] =
         build_format(s, pod_builder, s->format_info[i].spa_format, NULL, 0);
   }
@@ -390,7 +393,6 @@ static void init_format_info(RiftPwStream* s, const char* render_node,
     struct format_info* info = &s->format_info[s->n_format_info++];
     info->spa_format = supported_formats[i].spa_format;
     info->drm_format = supported_formats[i].drm_format;
-    info->memory = supported_formats[i].memory;
     info->modifiers = modifiers[i];
     info->n_modifiers = counts[i];
   }
@@ -675,16 +677,6 @@ static void on_process_cb(void* user_data) {
   } else if (buffer->datas[0].data) {
     struct spa_data* d = &buffer->datas[0];
 
-    if (!format->memory) {
-      if (!s->warned_format) {
-        av_log(NULL, AV_LOG_WARNING,
-               "pipewire: a memory buffer in format %u, not BGRx or BGRA\n",
-               s->format.info.raw.format);
-        s->warned_format = true;
-      }
-      goto drop;
-    }
-
     if ((d->chunk->flags & SPA_CHUNK_FLAG_CORRUPTED) > 0) {
       av_log(NULL, AV_LOG_DEBUG, "pipewire: buffer contains corrupted data\n");
       goto drop;
@@ -708,6 +700,7 @@ static void on_process_cb(void* user_data) {
     picture.data = data + start;
     picture.len = (size_t)len;
     picture.stride = (int32_t)stride;
+    picture.order = order_of(format->drm_format);
     picture.buffers = RIFT_PW_MEMORY;
   } else {
     goto drop;

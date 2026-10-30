@@ -59,6 +59,22 @@ impl PortalSession {
     pub(crate) fn closed(&self) -> bool {
         self.closed.load(Ordering::Relaxed)
     }
+
+    /// A node on PipeWire's own socket rather than one the portal opened,
+    /// for a test to stand in for a compositor.
+    #[cfg(test)]
+    pub(crate) fn of_node(fd: OwnedFd, node_id: u32) -> PortalSession {
+        PortalSession {
+            fd,
+            node_id,
+            size: None,
+            restore_token: None,
+            session: None,
+            runtime: None,
+            closed: Arc::new(AtomicBool::new(false)),
+            listening: None,
+        }
+    }
 }
 
 impl Drop for PortalSession {

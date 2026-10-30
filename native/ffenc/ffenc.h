@@ -28,7 +28,7 @@ extern "C" {
 
 // Bumped whenever a function or struct below changes, so the crate refuses a
 // library from another build instead of calling it wrongly.
-#define RIFT_FFENC_ABI 6
+#define RIFT_FFENC_ABI 7
 
 typedef struct RiftFfenc RiftFfenc;
 
@@ -168,14 +168,20 @@ typedef struct RiftPwStream RiftPwStream;
 // compositor offers only those), or memory only, for the raw path.
 typedef enum { RIFT_PW_DMABUF = 1, RIFT_PW_MEMORY = 2 } RiftPwBuffers;
 
+// A memory picture's byte order: B, G, R, then x or alpha (BGRx, BGRA), or
+// R, G, B first (RGBx, RGBA).
+typedef enum { RIFT_PW_BGRX = 0, RIFT_PW_RGBX = 1 } RiftPwOrder;
+
 typedef struct RiftPwPicture {
   // When `buffers` is RIFT_PW_DMABUF: the buffer, its crop and turn.
   RiftDmabuf dmabuf;
-  // When RIFT_PW_MEMORY: BGRx or BGRA rows, from the crop's top-left
-  // corner, `len` bytes readable; not turned.
+  // When RIFT_PW_MEMORY: rows of four bytes a pixel, in `order`
+  // (RiftPwOrder), from the crop's top-left corner, `len` bytes readable;
+  // not turned.
   const uint8_t* data;
   size_t len;
   int32_t stride;
+  int32_t order;
   int32_t buffers;
   // The picture's size once cropped and turned upright.
   int32_t width;

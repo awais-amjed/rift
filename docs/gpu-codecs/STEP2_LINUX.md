@@ -123,8 +123,11 @@ Rust (portal, ashpd)        C, librift_ffenc.so                   Rust
     each render node with an Intel/AMD driver and keep the one whose import works;
     a screen none imports goes to memory buffers.
 - **Raw feed (VP9 picked, or the encoder failed):** the stream renegotiates to
-  memory buffers (`SPA_DATA_MemFd`/`MemPtr`), the compositor reads back, and the
-  picture takes today's I420 path in `frames.rs`. Pictures in the old kind of
+  memory buffers (`SPA_DATA_MemFd`/`MemPtr`) in the same four formats, the
+  compositor reads back, and the picture takes today's I420 path in `frames.rs`,
+  libyuv converting either byte order. (Built with memory in BGRx/BGRA only at
+  first; some wlroots compositors share memory only red first, so the other two
+  were added before release.) Pictures in the old kind of
   buffer while the switch lands are dropped. This is about today's cost, moved to
   the compositor.
 

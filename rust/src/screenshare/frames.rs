@@ -5,7 +5,7 @@ use super::capture::{Feed, VideoSlot};
 #[cfg(gpu_encoder)]
 use super::gpu_feed::Picture;
 use super::latest::Taker;
-use super::pixels::copy_plane;
+use super::pixels::{copy_plane, ByteOrder};
 use super::resolution::{letterbox, Size};
 use livekit::webrtc::desktop_capturer::DesktopFrame;
 use livekit::webrtc::native::yuv_helper;
@@ -43,7 +43,14 @@ fn run(frame_rx: Taker<SendableFrame>, source_slot: VideoSlot) {
         let Some((feed, target)) = source_slot.feed(size) else {
             continue;
         };
-        converter.send(frame.data(), frame.stride(), size, feed, target);
+        converter.send(
+            frame.data(),
+            frame.stride(),
+            ByteOrder::Bgrx,
+            size,
+            feed,
+            target,
+        );
     }
 }
 
@@ -68,13 +75,14 @@ impl Converter {
         }
     }
 
-    /// Hands `feed` a picture of `size` in BGRA rows `stride` bytes apart
-    /// (libyuv's ARGB), as a picture of `target`'s size. Says whether the
-    /// feed took it: a GPU feed's rate gate can leave it out.
+    /// Hands `feed` a picture of `size` in rows of four bytes a pixel in
+    /// `order`, `stride` bytes apart, as a picture of `target`'s size. Says
+    /// whether the feed took it: a GPU feed's rate gate can leave it out.
     pub(crate) fn send(
         &mut self,
         data: &[u8],
         stride: u32,
+        order: ByteOrder,
         size: Size,
         feed: Feed,
         target: Size,
@@ -85,23 +93,35 @@ impl Converter {
         if let Feed::Gpu(gpu) = &feed {
             if target == size {
                 self.kept = None;
-                return gpu.send(Picture::Argb { data, stride }, target, now_us());
+                return gpu.send(
+                    Picture::Packed {
+                        data,
+                        stride,
+                        order,
+                    },
+                    target,
+                    now_us(),
+                );
             }
         }
-        self.keep(data, stride, size);
+        self.keep(data, stride, order, size);
         self.deliver(size, feed, target)
     }
 
     /// Converts a picture as [`send`](Self::send) would, for a feed not
     /// there yet: [`send_kept`](Self::send_kept) sends it once there is one.
-    pub(crate) fn keep(&mut self, data: &[u8], stride: u32, size: Size) {
+    pub(crate) fn keep(&mut self, data: &[u8], stride: u32, order: ByteOrder, size: Size) {
         let native = &mut self.native;
         if native.buffer.width() != size.width || native.buffer.height() != size.height {
             native.buffer = I420Buffer::new(size.width, size.height);
         }
         let (stride_y, stride_u, stride_v) = native.buffer.strides();
         let (y, u, v) = native.buffer.data_mut();
-        yuv_helper::argb_to_i420(
+        let to_i420 = match order {
+            ByteOrder::Bgrx => yuv_helper::argb_to_i420,
+            ByteOrder::Rgbx => yuv_helper::abgr_to_i420,
+        };
+        to_i420(
             data,
             stride,
             y,
@@ -117,16 +137,22 @@ impl Converter {
     }
 
     /// The size of the picture kept to send again, if there is one.
+    // Only a Wayland share repeats a picture (`capture_pw.rs`).
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     pub(crate) fn kept(&self) -> Option<Size> {
         self.kept
     }
 
     /// No picture is kept: a newer one went to the feed another way.
+    // Only a Wayland share repeats a picture (`capture_pw.rs`).
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     pub(crate) fn forget(&mut self) {
         self.kept = None;
     }
 
     /// Sends the last picture converted again; false with none kept.
+    // Only a Wayland share repeats a picture (`capture_pw.rs`).
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     pub(crate) fn send_kept(&mut self, feed: Feed, target: Size) -> bool {
         let Some(size) = self.kept else {
             return false;
@@ -274,5 +300,28 @@ mod tests {
         }
         assert_eq!(luma(&fitted, 320, 0), 200);
         assert_eq!(luma(&fitted, 320, 359), 200);
+    }
+
+    /// Red in either byte order is the same red once converted: a
+    /// compositor sharing memory red first is not sent with red and blue
+    /// swapped.
+    #[test]
+    fn both_byte_orders_convert_to_the_same_colour() {
+        let size = Size {
+            width: 4,
+            height: 2,
+        };
+        let planes = |pixel: [u8; 4], order| {
+            let mut converter = Converter::new();
+            converter.keep(&pixel.repeat(8), 16, order, size);
+            let (y, u, v) = converter.native.buffer.data();
+            (y[0], u[0], v[0])
+        };
+        let blue_first = planes([0, 0, 255, 255], ByteOrder::Bgrx);
+        let red_first = planes([255, 0, 0, 255], ByteOrder::Rgbx);
+        assert_eq!(blue_first, red_first);
+        // Red: dark luma, chroma well over the middle in V, under it in U.
+        let (y, u, v) = red_first;
+        assert!(y < 100 && u < 128 && v > 200, "{red_first:?}");
     }
 }

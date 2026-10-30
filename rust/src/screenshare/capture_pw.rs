@@ -486,7 +486,7 @@ impl Sender {
         if let Some((feed, _)) = &feed {
             self.follow.feed(feed);
         }
-        if let Some((data, stride)) = picture.memory() {
+        if let Some((data, stride, order)) = picture.memory() {
             if picture.transform() != 0 && !self.warned_turned {
                 log::warn!("capture: the screen is turned, and a memory picture is sent as drawn");
                 self.warned_turned = true;
@@ -498,12 +498,12 @@ impl Sender {
                         Feed::Gpu(gpu) => Some(gpu.clone()),
                         Feed::Raw(_) => None,
                     };
-                    let took = self.converter.send(rows, stride, size, feed, target);
+                    let took = self.converter.send(rows, stride, order, size, feed, target);
                     if let (true, Some(gpu)) = (took, gpu) {
                         self.taken.by(&gpu);
                     }
                 }
-                None => self.converter.keep(rows, stride, size),
+                None => self.converter.keep(rows, stride, order, size),
             }
             self.still.noted(self.converter.kept(), Instant::now());
             return;

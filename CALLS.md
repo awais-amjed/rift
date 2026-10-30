@@ -351,7 +351,10 @@ Oct 29 2026, on branch `gpu-codecs`): the ScreenCast portal from Rust (ashpd),
 the stream in the same FFmpeg library (`native/ffenc/pipewire.c`, from OBS
 Studio's), and each picture handed to VAAPI as the compositor's DMA-BUF, never
 coming to the CPU. VP9 and NVENC get memory buffers instead, which the stream
-switches to whenever the feed changes. Under Wayland VAAPI is tried before
+switches to whenever the feed changes. Both kinds are offered blue first
+(BGRx, BGRA) and red first (RGBx, RGBA): some wlroots compositors share memory
+only red first, and offered only the other order they could not share at all
+(`ByteOrder`, which picks libyuv's conversion; Oct 30). Under Wayland VAAPI is tried before
 NVENC for this reason. A window keeps Dart's pick (no second picker); a screen
 is picked in the portal, and the first-picture limit starts once it answers. A
 lent buffer keeps its own fds and mapping until Rust lets it go, since PipeWire
