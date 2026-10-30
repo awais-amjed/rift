@@ -82,13 +82,20 @@ impl Drop for PortalSession {
         if let Some(listening) = self.listening.take() {
             listening.abort();
         }
-        // A session the desktop closed is gone already.
-        let Some(session) = self.session.take().filter(|_| !self.closed()) else {
+        let Some(session) = self.session.take() else {
             return;
         };
-        // Closing is a D-Bus call; it goes on the runtime that opened it, or
-        // on a thread of its own when there is none.
+        // A session the desktop closed is gone already, so it is only let go
+        // of.
+        let closed = self.closed();
+        // Closing is a D-Bus call, and letting go of the session is one too:
+        // zbus spawns the removal of its match rule, which panics off a
+        // runtime. Both go on the runtime that opened it, or on a thread of
+        // its own when there is none.
         let close = async move {
+            if closed {
+                return;
+            }
             if let Err(e) = session.close().await {
                 log::warn!("portal: the ScreenCast session did not close: {e}");
             }
