@@ -198,7 +198,8 @@ pub(crate) async fn open(
                     return;
                 }
             };
-            let mut closing = std::pin::pin!(closing);
+            // Boxed: `pin!` expands to `super let`, which the bridge generator cannot parse.
+            let mut closing = Box::pin(closing);
             if closing.next().await.is_some() {
                 log::info!("portal: the desktop closed the ScreenCast session");
                 closed.store(true, Ordering::Relaxed);

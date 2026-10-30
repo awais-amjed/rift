@@ -154,6 +154,10 @@ class HostPlatform {
   static bool get picksShareSourceInApp =>
       !kIsWeb && !(Platform.isLinux && _underWayland);
 
+  /// Whether a share can be captured on the GPU, so the choice is offered.
+  static bool get capturesShareOnGpu =>
+      !kIsWeb && Platform.isLinux && _underWayland;
+
   /// Whether Rift runs the desktop's window picker itself, before the share,
   /// to learn which app the window belongs to (`WindowSharePortal`). Only
   /// GNOME and KDE save that where Rift can read it; elsewhere under Wayland

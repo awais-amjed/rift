@@ -195,6 +195,7 @@ async fn bench_share() {
     );
     let (full_screen, index) = source();
     let config = ScreenShareConfig {
+        gpu_capture: true,
         livekit_url: server.url.clone(),
         livekit_token: server.token(&room, "sharer", false),
         resolution: env_num("BENCH_HEIGHT", 1080),

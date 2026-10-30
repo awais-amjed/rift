@@ -133,6 +133,9 @@ class AppCubit extends HydratedCubit<AppState> {
   void setShowOfflineChip(bool value) =>
       emit(state.copyWith(showOfflineChip: value));
 
+  void setGpuScreenCapture(bool value) =>
+      emit(state.copyWith(gpuScreenCapture: value));
+
   void setBetaUpdates(bool value) => emit(state.copyWith(betaUpdates: value));
 
   void setAddToAppMenu(bool value) => emit(state.copyWith(addToAppMenu: value));

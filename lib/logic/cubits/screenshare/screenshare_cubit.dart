@@ -94,9 +94,11 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
 
   /// Starts screen sharing with the given settings. [portalChoice] is a
   /// window already picked in the desktop's own picker
-  /// (`ScreenShareConfig.portalChoice`).
+  /// (`ScreenShareConfig.portalChoice`). [gpuCapture] is the person's
+  /// setting (`ScreenShareConfig.gpuCapture`).
   Future<void> startScreenShare({
     required ScreenShareSettings settings,
+    required bool gpuCapture,
     String? portalChoice,
   }) async {
     emit(state.copyWith(status: ScreenshareStatus.connecting));
@@ -107,7 +109,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
       // the only way in — the Rust pipeline below captures a *desktop*, and
       // libwebrtc does not build its capturer for Android at all.
       if (_sdkCapturesScreen) return await _startSdkShare(settings);
-      await _startRustShare(settings, portalChoice);
+      await _startRustShare(settings, portalChoice, gpuCapture);
     } catch (e) {
       HelperMethods.printDebug('✗ Screen share error: $e');
       _fail('Failed to start screen share: $e');
@@ -157,6 +159,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
   Future<void> _startRustShare(
     ScreenShareSettings settings,
     String? portalChoice,
+    bool gpuCapture,
   ) async {
     // The call's server, not the selected one: the person may be reading
     // another while the call runs.
@@ -252,6 +255,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
       captureFullScreen: settings.captureFullScreen,
       selectedVideoSourceIndex: settings.selectedVideoSourceIndex,
       portalChoice: portalChoice,
+      gpuCapture: gpuCapture,
       codec: codec,
       priority: settings.priority,
       selectedAudioSourceIndex: settings.selectedAudioSource?.index,

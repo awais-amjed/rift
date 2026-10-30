@@ -197,6 +197,12 @@ fn first_buffers(target: Option<&DmabufTarget>) -> PwBuffers {
     }
 }
 
+/// Whether a share goes on Rift's stream: under Wayland, unless the person has
+/// turned it off in settings because a share looked wrong on their machine.
+fn takes_rifts_stream(gpu_capture: bool, wayland: bool) -> bool {
+    gpu_capture && wayland
+}
+
 /// How a share went on Rift's stream.
 pub(super) enum Handoff {
     /// It ran, or failed in a way libwebrtc's capturer would too (the
@@ -217,7 +223,15 @@ pub(super) fn run(
     slot: &VideoSlot,
     command_rx: &mpsc::Receiver<Command>,
 ) -> Handoff {
-    if !on_wayland() {
+    if !takes_rifts_stream(request.gpu_capture, on_wayland()) {
+        log::info!(
+            "capture: GPU capture {}; libwebrtc's capturer",
+            if request.gpu_capture {
+                "needs Wayland"
+            } else {
+                "is off"
+            }
+        );
         return Handoff::Fallback(request);
     }
     let Some(runtime) = runtime else {
@@ -660,6 +674,14 @@ mod tests {
         assert_eq!(wanted_buffers(Some(true)), PwBuffers::DmaBuf);
         // A GPU encoder that takes no DMA-BUF reads from memory.
         assert_eq!(wanted_buffers(Some(false)), PwBuffers::Memory);
+    }
+
+    #[test]
+    fn takes_rifts_stream_only_under_wayland_with_the_switch_on() {
+        assert!(takes_rifts_stream(true, true));
+        assert!(!takes_rifts_stream(false, true));
+        assert!(!takes_rifts_stream(true, false));
+        assert!(!takes_rifts_stream(false, false));
     }
 
     #[test]

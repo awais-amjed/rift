@@ -80,6 +80,7 @@ fn config(server: &Server, room: &str) -> ScreenShareConfig {
     // dialog's pick is; show one, so index 0 is the first screen.
     super::sources::list(true);
     ScreenShareConfig {
+        gpu_capture: true,
         livekit_url: server.url.clone(),
         livekit_token: server.token(room, "sharer", false),
         resolution: 720,

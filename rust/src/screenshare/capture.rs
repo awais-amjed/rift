@@ -46,6 +46,9 @@ pub(crate) struct CaptureRequest {
     /// A window already picked in the desktop's own picker: see
     /// [`ScreenShareConfig::portal_choice`](crate::api::screenshare::types::ScreenShareConfig).
     pub portal_choice: Option<String>,
+    /// [`ScreenShareConfig::gpu_capture`](crate::api::screenshare::types::ScreenShareConfig).
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+    pub gpu_capture: bool,
     pub fps: u32,
     pub capture_cursor: bool,
     /// Told `true` when the shared window is minimised or has gone away, and
@@ -770,6 +773,7 @@ mod tests {
             source_type: DesktopCaptureSourceType::Window,
             selected_index: Some(index),
             portal_choice: None,
+            gpu_capture: true,
             fps: 30,
             capture_cursor: false,
             on_paused: Some(Box::new(move |now| {

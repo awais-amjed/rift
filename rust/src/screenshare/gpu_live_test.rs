@@ -482,6 +482,7 @@ async fn share_encoder() -> String {
 fn h264_share(server: &Server, room: &str) -> ScreenShareConfig {
     super::sources::list(true);
     ScreenShareConfig {
+        gpu_capture: true,
         livekit_url: server.url.clone(),
         livekit_token: server.token(room, "sharer", false),
         resolution: 1080,

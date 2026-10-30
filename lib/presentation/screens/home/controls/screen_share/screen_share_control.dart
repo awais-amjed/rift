@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/screen_share_settings.dart';
 import '../../../../../data/classes/server_limits.dart';
+import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/screenshare/screenshare_cubit.dart';
 import '../../../../../logic/services/host_platform.dart';
@@ -44,6 +45,7 @@ class _ScreenShareControlState extends State<ScreenShareControl> {
   Future<void> _start() async {
     final screenshareCubit = context.read<ScreenshareCubit>();
     final livekitCubit = context.read<LiveKitCubit>();
+    final appCubit = context.read<AppCubit>();
 
     // The settings dialog is a *desktop* capture dialog — capture type,
     // window list, bitrate, codec, system-audio toggle. None of it exists
@@ -84,6 +86,7 @@ class _ScreenShareControlState extends State<ScreenShareControl> {
     if (livekitCubit.state.inCall) {
       await screenshareCubit.startScreenShare(
         settings: settings,
+        gpuCapture: appCubit.state.gpuScreenCapture,
         portalChoice: portalChoice,
       );
     }

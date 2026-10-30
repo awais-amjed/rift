@@ -2364,6 +2364,7 @@ impl SseDecode for crate::api::screenshare::types::ScreenShareConfig {
         let mut var_captureFullScreen = <bool>::sse_decode(deserializer);
         let mut var_selectedVideoSourceIndex = <Option<u32>>::sse_decode(deserializer);
         let mut var_portalChoice = <Option<String>>::sse_decode(deserializer);
+        let mut var_gpuCapture = <bool>::sse_decode(deserializer);
         let mut var_codec = <crate::api::screenshare::types::VideoCodec>::sse_decode(deserializer);
         let mut var_priority =
             <crate::api::screenshare::types::SharePriority>::sse_decode(deserializer);
@@ -2382,6 +2383,7 @@ impl SseDecode for crate::api::screenshare::types::ScreenShareConfig {
             capture_full_screen: var_captureFullScreen,
             selected_video_source_index: var_selectedVideoSourceIndex,
             portal_choice: var_portalChoice,
+            gpu_capture: var_gpuCapture,
             codec: var_codec,
             priority: var_priority,
             selected_audio_source_index: var_selectedAudioSourceIndex,
@@ -2944,6 +2946,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::screenshare::types::ScreenSha
                 .into_into_dart()
                 .into_dart(),
             self.portal_choice.into_into_dart().into_dart(),
+            self.gpu_capture.into_into_dart().into_dart(),
             self.codec.into_into_dart().into_dart(),
             self.priority.into_into_dart().into_dart(),
             self.selected_audio_source_index
@@ -3487,6 +3490,7 @@ impl SseEncode for crate::api::screenshare::types::ScreenShareConfig {
         <bool>::sse_encode(self.capture_full_screen, serializer);
         <Option<u32>>::sse_encode(self.selected_video_source_index, serializer);
         <Option<String>>::sse_encode(self.portal_choice, serializer);
+        <bool>::sse_encode(self.gpu_capture, serializer);
         <crate::api::screenshare::types::VideoCodec>::sse_encode(self.codec, serializer);
         <crate::api::screenshare::types::SharePriority>::sse_encode(self.priority, serializer);
         <Option<u32>>::sse_encode(self.selected_audio_source_index, serializer);

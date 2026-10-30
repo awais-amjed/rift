@@ -370,7 +370,8 @@ is picked in the portal, and the first-picture limit starts once it answers. A
 lent buffer keeps its own fds and mapping until Rust lets it go, since PipeWire
 frees a stream's buffers on every renegotiation (a crash before that, Oct 29).
 When the library, the portal or the stream refuses, libwebrtc's capturer runs
-as before. Rift's portal connection registers as `com.codingfries.rift`, the id
+as before. So it does when the person turns off *Capture the screen on the GPU* in settings,
+from the next share (`ScreenShareConfig.gpu_capture`), for someone whose machine misbehaves. Rift's portal connection registers as `com.codingfries.rift`, the id
 GTK and Dart's picker use: unnamed, GNOME could not find the window Dart's
 picker saved, and showed its picker a second time. The restore asks for the
 pick to be kept while Rift runs (`persist_mode` 1), as libwebrtc's capturer
