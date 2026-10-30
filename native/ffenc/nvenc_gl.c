@@ -472,6 +472,12 @@ no_frames:
 
 NvencGl* nvenc_gl_open(const char* render_node, int width, int height,
                        char* error, size_t error_len) {
+  // A test's way to see the memory path on a card with this one.
+  const char* refuse = getenv("RIFT_FFENC_NO_GL");
+  if (refuse && strcmp(refuse, "1") == 0) {
+    fail(error, error_len, "RIFT_FFENC_NO_GL");
+    return NULL;
+  }
   NvencGl* self = calloc(1, sizeof(*self));
   if (!self) {
     fail(error, error_len, "out of memory");

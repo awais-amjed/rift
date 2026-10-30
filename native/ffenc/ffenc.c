@@ -18,6 +18,7 @@
 #include <va/va.h>
 
 #include "dmabuf.h"
+#include "nvenc_gl.h"
 #endif
 
 // The GPU APIs this library drives, told apart by the encoder's name: FFmpeg
@@ -31,7 +32,8 @@ typedef enum Api { API_NONE, API_VAAPI, API_NVENC, API_QSV, API_AMF } Api;
 struct RiftFfenc {
   Api api;
   // VAAPI's GPU and its picture pool. NULL for NVENC, QSV and AMF, which
-  // take the picture from memory and upload it themselves.
+  // take the picture from memory and upload it themselves, but for the pool
+  // of NVENC's GL path, when it has one.
   AVBufferRef* device;
   AVBufferRef* frames;
   AVCodecContext* codec;
@@ -54,6 +56,8 @@ struct RiftFfenc {
   char render_node[64];
   DmabufPath* dmabuf;
   AVFrame* last;
+  // NVENC's way to take a DMA-BUF, when `device` asked for it and it opened.
+  NvencGl* gl;
 #endif
 };
 
@@ -65,8 +69,11 @@ struct RiftFfenc {
 // that closed it first ended at once. A share is stopped before the app quits,
 // but quitting is not held up for it (lib/logic/services/before_quit.dart), so
 // the encoders still open are closed here, before NVIDIA's own handler runs:
-// registered after the first NVENC encoder opened, which loaded NVIDIA's
-// library, so it runs first. A closed encoder fails every later call, and
+// registered after each NVENC encoder opens, so it runs first. Once is not
+// enough: closing the last encoder unloads NVIDIA's library and the next open
+// loads it again, whose handler then ran first, and the probe that picks the
+// encoder opens and closes one before every share's (Oct 30 2026). A closed
+// encoder fails every later call, and
 // every call fails once the process is exiting: the encoder's thread, taking
 // the lock again straight after each picture, kept the handler waiting for
 // seconds.
@@ -89,11 +96,8 @@ static void close_nvenc_at_exit(void) {
   pthread_mutex_unlock(&nvenc_lock);
 }
 
-static void register_exit_handler(void) { atexit(close_nvenc_at_exit); }
-
 static void note_nvenc(RiftFfenc* enc) {
-  static pthread_once_t once = PTHREAD_ONCE_INIT;
-  pthread_once(&once, register_exit_handler);
+  atexit(close_nvenc_at_exit);
   pthread_mutex_lock(&nvenc_lock);
   enc->next_nvenc = nvenc_open;
   nvenc_open = enc;
@@ -391,7 +395,30 @@ RiftFfenc* rift_ffenc_open(const RiftFfencConfig* config, char* error,
 #endif
   name_driver(enc, codec);
 
+#if defined(__linux__)
+  if (api == API_NVENC && config->device) {
+    char reason[200] = "";
+    enc->gl = nvenc_gl_open(config->device, config->width, config->height,
+                            reason, sizeof(reason));
+    if (enc->gl) {
+      enc->frames = av_buffer_ref(nvenc_gl_frames(enc->gl));
+    } else {
+      av_log(NULL, AV_LOG_WARNING, "nvenc gl: memory pictures instead: %s\n",
+             reason);
+    }
+  }
+#endif
   int err = open_codec(enc, codec, config);
+#if defined(__linux__)
+  if (err < 0 && enc->gl) {
+    av_log(NULL, AV_LOG_WARNING,
+           "nvenc gl: memory pictures instead: the encoder refused CUDA's\n");
+    avcodec_free_context(&enc->codec);
+    av_buffer_unref(&enc->frames);
+    nvenc_gl_free(&enc->gl);
+    err = open_codec(enc, codec, config);
+  }
+#endif
   if (err < 0) {
     fail(error, error_len, "the encoder did not open", err);
     goto fail;
@@ -503,7 +530,17 @@ done:
   return err < 0 ? err : 0;
 }
 
-// One picture already on the GPU, as an NV12 VAAPI frame, into the encoder.
+int32_t rift_ffenc_takes_dmabuf(const RiftFfenc* enc) {
+#if defined(__linux__)
+  return enc->api == API_VAAPI || enc->gl != NULL;
+#else
+  (void)enc;
+  return 0;
+#endif
+}
+
+// One picture already on the GPU, as an NV12 VAAPI or CUDA frame, into the
+// encoder.
 static int send_gpu(RiftFfenc* enc, AVFrame* frame, int64_t timestamp_us,
                     int32_t keyframe) {
   frame->pts = timestamp_us;
@@ -515,21 +552,22 @@ int32_t rift_ffenc_send_dmabuf(RiftFfenc* enc, const RiftDmabuf* buf,
                                const RiftRect* place, int64_t timestamp_us,
                                int32_t keyframe) {
 #if defined(__linux__)
-  if (enc->api != API_VAAPI) return AVERROR(ENOSYS);
+  if (!rift_ffenc_takes_dmabuf(enc)) return AVERROR(ENOSYS);
   if (EXITING()) return AVERROR_EXIT;
   LOCK(enc);
   int err = AVERROR_EXIT;
   if (SHUT(enc)) goto done;
   err = AVERROR(ENOMEM);
-  if (!enc->dmabuf) {
+  if (!enc->gl && !enc->dmabuf) {
     enc->dmabuf = dmabuf_path_alloc(
         enc->device, enc->render_node[0] ? enc->render_node : NULL);
     if (!enc->dmabuf) goto done;
   }
   AVFrame* frame = av_frame_alloc();
   if (!frame) goto done;
-  err = dmabuf_path_run(enc->dmabuf, buf, place, enc->codec->width,
-                        enc->codec->height, timestamp_us, frame);
+  err = enc->gl ? nvenc_gl_run(enc->gl, buf, place, frame)
+                : dmabuf_path_run(enc->dmabuf, buf, place, enc->codec->width,
+                                  enc->codec->height, timestamp_us, frame);
   if (err == 0) {
     av_frame_free(&enc->last);
     enc->last = av_frame_clone(frame);
@@ -548,7 +586,7 @@ done:
 int32_t rift_ffenc_repeat(RiftFfenc* enc, int64_t timestamp_us,
                           int32_t keyframe) {
 #if defined(__linux__)
-  if (enc->api != API_VAAPI) return AVERROR(ENOSYS);
+  if (!rift_ffenc_takes_dmabuf(enc)) return AVERROR(ENOSYS);
   if (EXITING()) return AVERROR_EXIT;
   LOCK(enc);
   int err = AVERROR_EXIT;
@@ -605,5 +643,9 @@ void rift_ffenc_close(RiftFfenc* enc) {
 #endif
   av_buffer_unref(&enc->frames);
   av_buffer_unref(&enc->device);
+#if defined(__linux__)
+  // Last: the encoder and every frame stood on its CUDA context.
+  nvenc_gl_free(&enc->gl);
+#endif
   av_free(enc);
 }

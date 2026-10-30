@@ -290,6 +290,7 @@ pub(super) fn run(
         &session,
         rate,
         render_node.as_deref(),
+        false,
         PwBuffers::Memory,
         sink,
         events,

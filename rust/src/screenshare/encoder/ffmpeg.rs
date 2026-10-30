@@ -32,7 +32,7 @@ use std::time::{Duration, Instant};
 
 /// The library's interface version this crate was written against
 /// (`RIFT_FFENC_ABI` in `ffenc.h`).
-const ABI: i32 = 7;
+const ABI: i32 = 8;
 
 /// The library's name: in the bundle's `lib` folder on Linux, beside the app
 /// on Windows.
@@ -103,6 +103,8 @@ struct Api {
     set_bitrate: unsafe extern "C" fn(*mut c_void, i64),
     send: unsafe extern "C" fn(*mut c_void, *const u8, i64, i32) -> i32,
     #[cfg(target_os = "linux")]
+    takes_dmabuf: unsafe extern "C" fn(*const c_void) -> i32,
+    #[cfg(target_os = "linux")]
     send_dmabuf:
         unsafe extern "C" fn(*mut c_void, *const RiftDmabuf, *const Place, i64, i32) -> i32,
     #[cfg(target_os = "linux")]
@@ -124,6 +126,8 @@ fn api() -> Result<&'static Api, String> {
                 driver: symbol(library, "rift_ffenc_driver")?,
                 set_bitrate: symbol(library, "rift_ffenc_set_bitrate")?,
                 send: symbol(library, "rift_ffenc_send")?,
+                #[cfg(target_os = "linux")]
+                takes_dmabuf: symbol(library, "rift_ffenc_takes_dmabuf")?,
                 #[cfg(target_os = "linux")]
                 send_dmabuf: symbol(library, "rift_ffenc_send_dmabuf")?,
                 #[cfg(target_os = "linux")]
@@ -538,8 +542,15 @@ impl Session for FfmpegSession {
         Ok(false)
     }
 
+    #[cfg(target_os = "linux")]
     fn takes_dmabuf(&self) -> bool {
-        cfg!(target_os = "linux") && self.candidate.encoder == c"h264_vaapi"
+        // SAFETY: `raw` is live.
+        unsafe { (self.api.takes_dmabuf)(self.raw) != 0 }
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    fn takes_dmabuf(&self) -> bool {
+        false
     }
 }
 

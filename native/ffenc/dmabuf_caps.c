@@ -80,7 +80,8 @@ static bool query_dmabuf_formats(const Egl* egl, EGLint** formats,
 }
 
 static bool query_dmabuf_modifiers(const Egl* egl, EGLint drm_format,
-                                   uint64_t** modifiers, size_t* n_modifiers) {
+                                   uint64_t** modifiers, size_t* n_modifiers,
+                                   bool include_external) {
   EGLint max_modifiers;
 
   if (!egl->query_modifiers(egl->display, drm_format, 0, NULL, NULL,
@@ -113,9 +114,9 @@ static bool query_dmabuf_modifiers(const Egl* egl, EGLint drm_format,
     }
 
     // Filter out external_only modifiers, since they require special
-    // handling.
+    // handling, unless the caller samples them as external (nvenc_gl.c).
     for (int i = 0, j = 0; j < max_modifiers; i++) {
-      if (external_only[i]) {
+      if (external_only[i] && !include_external) {
         max_modifiers--;
         memmove(&modifier_list[j], &modifier_list[j + 1],
                 sizeof(EGLuint64KHR) * (size_t)(max_modifiers - j));
@@ -134,7 +135,7 @@ static bool query_dmabuf_modifiers(const Egl* egl, EGLint drm_format,
 
 int dmabuf_caps_query(const char* render_node, size_t n,
                       const uint32_t* drm_formats, uint64_t** modifiers,
-                      size_t* counts) {
+                      size_t* counts, int include_external) {
   for (size_t i = 0; i < n; i++) {
     modifiers[i] = NULL;
     counts[i] = 0;
@@ -185,7 +186,7 @@ int dmabuf_caps_query(const char* render_node, size_t n,
     }
     if (!available) continue;
     if (!query_dmabuf_modifiers(&egl, (EGLint)drm_formats[i], &modifiers[i],
-                                &counts[i])) {
+                                &counts[i], include_external != 0)) {
       continue;
     }
     if (implicit) {

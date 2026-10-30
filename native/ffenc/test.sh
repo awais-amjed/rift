@@ -28,3 +28,18 @@ run_on_gpu() {
   -o "$out/test_dmabuf" -L"$out" -lrift_ffenc -lva -lva-drm \
   -Wl,-rpath,"$out"
 run_on_gpu "$out/test_dmabuf"
+
+"$cc" -O1 -g -Wall -I"$here" -I/usr/include/libdrm "$here/test_nvenc_dmabuf.c" \
+  -o "$out/test_nvenc_dmabuf" -L"$out" -lrift_ffenc -lEGL -lGLESv2 -lgbm \
+  -Wl,-rpath,"$out"
+result=0
+"$out/test_nvenc_dmabuf" "$out" || result=$?
+if [[ $result == 2 ]]; then
+  echo "test_nvenc_dmabuf: skipped, its encoder does not open here" >&2
+elif [[ $result != 0 ]]; then
+  exit "$result"
+else
+  python3 "$here/check_nvenc.py" "$out"
+  # NVIDIA's library waits for ever at exit with an encoder open (ffenc.c).
+  timeout 5 "$out/test_nvenc_dmabuf" --exit-open
+fi

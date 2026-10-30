@@ -138,6 +138,8 @@ struct RiftPwStream {
   // The render node, for the explicit-sync timeline's sync objects.
   int drm_fd;
   bool explicit_sync;
+  // Offer the modifiers EGL imports only as external too.
+  int32_t external_modifiers;
   // How long this share has waited on the compositor, for the log at its end.
   int64_t sync_waits;
   int64_t sync_wait_total_us;
@@ -382,7 +384,7 @@ static void init_format_info(RiftPwStream* s, const char* render_node,
   }
   if (render_node && !refuse_dmabuf &&
       dmabuf_caps_query(render_node, N_SUPPORTED_FORMATS, drm_formats,
-                        modifiers, counts) < 0) {
+                        modifiers, counts, s->external_modifiers) < 0) {
     av_log(NULL, AV_LOG_WARNING,
            "pipewire: EGL could not list the modifiers of %s; memory "
            "buffers only\n",
@@ -954,8 +956,9 @@ static void fail(char* error, size_t error_len, const char* what) {
 }
 
 RiftPwStream* rift_pw_open(int32_t fd, uint32_t node_id, int32_t max_fps,
-                           const char* render_node, int32_t buffers,
-                           const RiftPwCallbacks* callbacks, char* error,
+                           const char* render_node, int32_t external_modifiers,
+                           int32_t buffers, const RiftPwCallbacks* callbacks,
+                           char* error,
                            size_t error_len) {
   if (!callbacks || !callbacks->picture || max_fps <= 0) {
     fail(error, error_len, "the stream was asked for nothing");
@@ -972,6 +975,7 @@ RiftPwStream* rift_pw_open(int32_t fd, uint32_t node_id, int32_t max_fps,
   s->callbacks = *callbacks;
   s->buffers = buffers;
   s->max_fps = max_fps;
+  s->external_modifiers = external_modifiers;
 
   // A test's way to see the memory fall back on a GPU that imports.
   const char* refuse = getenv("RIFT_PW_REFUSE_DMABUF");

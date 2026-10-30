@@ -28,7 +28,7 @@ extern "C" {
 
 // Bumped whenever a function or struct below changes, so the crate refuses a
 // library from another build instead of calling it wrongly.
-#define RIFT_FFENC_ABI 7
+#define RIFT_FFENC_ABI 8
 
 typedef struct RiftFfenc RiftFfenc;
 
@@ -37,7 +37,9 @@ typedef struct RiftFfencConfig {
   const char* encoder;
   // The GPU to open, as FFmpeg's hardware device names it: a DRM render
   // node for VAAPI. NULL is FFmpeg's default, and the only choice for
-  // NVENC, QSV and AMF, whose drivers pick their own GPU.
+  // QSV and AMF, whose drivers pick their own GPU. For NVENC, the render node
+  // of the card whose screen it encodes, which opens its EGL and CUDA side;
+  // NULL takes memory only.
   const char* device;
   int32_t width;
   int32_t height;
@@ -91,11 +93,12 @@ RIFT_FFENC_EXPORT int32_t rift_ffenc_send(RiftFfenc* enc, const uint8_t* nv12,
                                           int64_t timestamp_us,
                                           int32_t keyframe);
 
-// ── Pictures already on the GPU (Linux, VAAPI) ──────────────────────────
+// ── Pictures already on the GPU (Linux, VAAPI and NVENC) ────────────────
 //
 // A Wayland share's picture arrives as the compositor's DMA-BUF. It is
-// mapped into VAAPI, cropped, turned upright, scaled and placed into NV12 on
-// the GPU, and encoded, without coming to the CPU.
+// mapped into VAAPI, or drawn through GL into NVENC's frame, cropped, turned
+// upright, scaled and placed into NV12 on the GPU, and encoded, without coming
+// to the CPU.
 
 // One DMA-BUF in an 8-bit RGB format, described as PipeWire hands it over.
 typedef struct RiftDmabuf {
@@ -131,11 +134,16 @@ typedef struct RiftRect {
   int32_t height;
 } RiftRect;
 
+// 1 when rift_ffenc_send_dmabuf works on this encoder: VAAPI's, or NVENC's with
+// a `device` whose GL path opened (RIFT_FFENC_NO_GL=1 in the environment refuses
+// that, for a test).
+RIFT_FFENC_EXPORT int32_t rift_ffenc_takes_dmabuf(const RiftFfenc* enc);
+
 // Encode one DMA-BUF picture. `place` is where the upright picture goes
 // inside the encoded size, the rest black; NULL fills it. Returns once the
 // GPU has copied the picture, so the caller may give the buffer back; the
 // fds stay the caller's. 0, RIFT_FFENC_IMPORT_FAILED, or a negative FFmpeg
-// error; AVERROR(ENOSYS) for an encoder that is not VAAPI's.
+// error; AVERROR(ENOSYS) for an encoder that takes none.
 RIFT_FFENC_EXPORT int32_t rift_ffenc_send_dmabuf(RiftFfenc* enc,
                                                  const RiftDmabuf* buf,
                                                  const RiftRect* place,
@@ -209,13 +217,15 @@ typedef struct RiftPwCallbacks {
 
 // Opens the stream on `node_id` of the PipeWire remote `fd` (duplicated;
 // the caller keeps its own), at most `max_fps` pictures a second. DMA-BUFs
-// are offered with the modifiers EGL imports on `render_node`; NULL offers
-// memory only. RIFT_PW_REFUSE_DMABUF=1 in the environment offers memory
-// only too, for a test, and RIFT_PW_NO_TIMELINE=1 leaves explicit sync out of
-// the negotiation. NULL on failure, with why in `error`.
+// are offered with the modifiers EGL imports on `render_node`, and those it
+// imports only as external when `external_modifiers` is 1, as NVENC's GL path
+// can; NULL offers memory only. RIFT_PW_REFUSE_DMABUF=1 in the environment
+// offers memory only too, for a test, and RIFT_PW_NO_TIMELINE=1 leaves explicit
+// sync out of the negotiation. NULL on failure, with why in `error`.
 RIFT_FFENC_EXPORT RiftPwStream* rift_pw_open(int32_t fd, uint32_t node_id,
                                              int32_t max_fps,
                                              const char* render_node,
+                                             int32_t external_modifiers,
                                              int32_t buffers,
                                              const RiftPwCallbacks* callbacks,
                                              char* error, size_t error_len);

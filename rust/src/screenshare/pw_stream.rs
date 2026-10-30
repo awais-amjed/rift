@@ -77,6 +77,7 @@ type Open = unsafe extern "C" fn(
     i32,
     *const c_char,
     i32,
+    i32,
     *const Callbacks,
     *mut c_char,
     usize,
@@ -254,13 +255,15 @@ impl PwStream {
     /// Opens the stream on the session's node, at most `max_fps` pictures a
     /// second, each handed to `pictures` on PipeWire's thread, which must
     /// not hold it up: a picture it drops goes back to the compositor. DMA-BUFs are
-    /// offered with the modifiers that import on `render_node`; `None` asks
-    /// for memory buffers only. `events` runs on PipeWire's thread too, and
+    /// offered with the modifiers that import on `render_node`, and those that
+    /// import only as external when `external_modifiers`, as NVENC's GL path
+    /// can; `None` asks for memory buffers only. `events` runs on PipeWire's thread too, and
     /// must not hold it up.
     pub fn open(
         session: &PortalSession,
         max_fps: u32,
         render_node: Option<&str>,
+        external_modifiers: bool,
         buffers: PwBuffers,
         pictures: impl Fn(PwPicture) + Send + 'static,
         events: Box<dyn Fn(PwEvent) + Send>,
@@ -291,6 +294,7 @@ impl PwStream {
                 render_node
                     .as_ref()
                     .map_or(std::ptr::null(), |n| n.as_ptr()),
+                i32::from(external_modifiers),
                 buffers.raw(),
                 &callbacks,
                 error.as_mut_ptr(),
@@ -384,6 +388,7 @@ pub(crate) mod tests {
             session,
             60,
             Some(&render_node()),
+            false,
             buffers,
             move |picture| drop(put.put(picture)),
             Box::new(|event| log::info!("pipewire event: {event:?}")),
