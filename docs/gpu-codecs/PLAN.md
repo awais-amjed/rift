@@ -41,8 +41,19 @@ step can take from our own code and from open source projects: `REUSE.md`.
      process 19.1% against 40.1%. Short of the step's "under about 3%": ffenc
      alone, timed in a bench on this driver, spends 0.55 ms of CPU a picture
      (0.25 importing and scaling the DMA-BUF, 0.29 handing it to the encoder),
-     3.3% at 60. Keeping each imported buffer instead of importing it again per
-     picture is what is left to try.
+     3.3% at 60.
+   - **Against other recorders, measured Oct 30** (the same laptop, screen,
+     picture, H264 on the Iris Xe at 1080p60 and 15 Mbit/s CBR, `threadtop` 20 s,
+     twice each, both keeping all 60 pictures): gpu-screen-recorder 6.1.3 costs
+     **3.4%** of a core for its whole process, OBS 32.2 **7.8–8.2%** (about 6%
+     for the picture: `obs gpu encode` 3.0%, `libobs: graphics` 2.7%, its
+     PipeWire thread 0.5%). The "under about 3%" was a design guess, never
+     measured against anything; the leanest recorder there is sits at 3.4%.
+     **Rift's 4.5% accepted for now (owner, Oct 30).** For later: keep each
+     imported buffer instead of importing it again per picture (import once in
+     PipeWire's `add_buffer`, drop it in `remove_buffer` or on renegotiation),
+     after reading how gpu-screen-recorder gets to 3.4%. Neither OBS nor
+     Sunshine keeps them; both import every new picture.
    - **Order (owner, Oct 29): Linux first, step 2 before step 1.** This laptop has
      both of Linux's encoders and Wayland, so the step can be built and proved
      here; the Windows VM has no GPU.

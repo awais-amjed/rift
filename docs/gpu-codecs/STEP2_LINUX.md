@@ -16,6 +16,8 @@ moves a picture that was already where the encoder needed it.
 **Success:** a 1080p60 share of a moving picture, measured the way step 0 was
 (`threadtop`, 20 s, release build), costs Rift under about 3% of a core on VAAPI,
 against 21–23% now, with the picture as smooth and as sharp as today's.
+Reached 4.5%, accepted Oct 30 against gpu-screen-recorder's 3.4% and OBS's 8%
+for the same picture (`PLAN.md`, step 0).
 
 ## Goals
 
