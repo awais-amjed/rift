@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../data/constants.dart';
 import '../../../logic/cubits/app/app_cubit.dart';
 import '../../../logic/cubits/server/server_cubit.dart';
+import '../../../logic/cubits/settings_place/settings_place_cubit.dart';
 import '../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../logic/services/host_platform.dart';
@@ -23,6 +24,7 @@ import 'widgets/general_content.dart';
 import 'widgets/help/help_content.dart';
 import 'widgets/keybinds/keybinds_content.dart';
 import 'widgets/mobile_settings_list.dart';
+import 'widgets/settings_content_scroll.dart';
 import 'widgets/settings_sidebar.dart';
 import 'widgets/settings_tab.dart';
 import 'widgets/voice_audio_content.dart';
@@ -45,7 +47,10 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  late SettingsTab _activeTab = widget.target?.tab ?? SettingsTab.general;
+  /// Where Settings was left last time, and is left this time on closing.
+  late final SettingsPlaceCubit _place;
+
+  late SettingsTab _activeTab;
 
   /// Whether a tab's contents are showing, on the widths where the nav and the
   /// contents cannot both be.
@@ -56,7 +61,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
   /// page, which is what every settings screen on a phone already is, and this
   /// says which of the two is showing. Ignored entirely at wider sizes, where
   /// both are on screen and there is nothing to be in front of anything else.
-  late bool _detailOpen = widget.target != null;
+  late bool _detailOpen;
+
+  /// How far down the open tab is scrolled.
+  late double _offset;
+
+  @override
+  void initState() {
+    super.initState();
+    _place = context.read<SettingsPlaceCubit>();
+    // A target is somewhere you were sent; without one, where you were.
+    final left = _place.state;
+    final target = widget.target;
+    _activeTab = target?.tab ?? left.tab;
+    _detailOpen = target != null || left.detailOpen;
+    _offset = target == null ? left.offset : 0;
+  }
+
+  @override
+  void dispose() {
+    _place.leave(_activeTab, offset: _offset, detailOpen: _detailOpen);
+    super.dispose();
+  }
 
   /// Wipes the vault and server list from this device and returns to
   /// onboarding. Irreversible without a cloud or file backup.
@@ -80,6 +106,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _selectTab(SettingsTab tab, {required bool compact}) {
     setState(() {
+      // The same tab again keeps its scroll view, and where it is in it.
+      if (tab != _activeTab) _offset = 0;
       _activeTab = tab;
       if (compact) _detailOpen = true;
     });
@@ -220,10 +248,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 // halfway across the panel.
                                 child: SizedBox(
                                   width: double.infinity,
-                                  child: SingleChildScrollView(
+                                  child: SettingsContentScroll(
                                     // One per tab, so a tab opens at its
                                     // top and not where the last was left.
                                     key: ValueKey(_activeTab),
+                                    initialOffset: _offset,
+                                    onScrolled: (offset) => _offset = offset,
                                     padding: EdgeInsets.all(compact ? 16 : 24),
                                     // Loosened again inside, or the
                                     // full width arrives tight and a
