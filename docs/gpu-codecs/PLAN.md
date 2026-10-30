@@ -78,6 +78,13 @@ step can take from our own code and from open source projects: `REUSE.md`.
      at 54 and a window at 46, so GNOME's cap is not what holds those down.
      glmark2 draws a frame in about 1 ms, so it is not a real game; none was on the
      laptop. No need for a low-priority GL context showed.
+   - **Intel rechecked after the NVIDIA half, Oct 31** (BIOS on hybrid, the same noisy picture
+     and viewer, `threadtop` 20 s): VAAPI chosen, **3.7–4.1% of a core** for the picture's threads
+     at 45–54 fps (the rate gate leaves pictures out, as before), against the accepted 4.5%, and
+     21% with the settings switch off. The fullscreen limit is not NVIDIA's alone: with a
+     fullscreen window up, GNOME sends a memory stream about one picture a second here. That is
+     enough for an H264 share begun over one to learn its size and move to DMA-BUFs, but a VP9
+     share on Rift's stream stands still, where libwebrtc's capturer (switch off) keeps going.
    - **Order (owner, Oct 29): Linux first, step 2 before step 1.** This laptop has
      both of Linux's encoders and Wayland, so the step can be built and proved
      here; the Windows VM has no GPU.

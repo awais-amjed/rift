@@ -190,6 +190,7 @@ fn wanted_buffers(gpu_takes_dmabuf: Option<bool>) -> PwBuffers {
 /// DMA-BUF. Except on a screen NVIDIA's card draws, where GNOME sends no memory
 /// picture at all while a fullscreen window fills the screen (seen Oct 30 on
 /// GNOME 50), so a share begun over a game would never learn its size.
+/// Intel's screen still gets about one a second (Oct 31), which is enough.
 fn first_buffers(target: Option<&DmabufTarget>) -> PwBuffers {
     match target {
         Some(target) if target.external_modifiers => PwBuffers::DmaBuf,

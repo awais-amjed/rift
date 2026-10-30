@@ -364,7 +364,10 @@ RTX 3070 Ti, GNOME 50, with `test_nvenc_dmabuf.c` and a live share: 60 s of the 
 flipping between two grays gave no torn or stale picture (`STEP2_NVIDIA.md`, *Sync*), with
 the sync timeline and without it, the GPU idle and full. While a fullscreen window fills that
 screen GNOME sends a memory stream nothing, so a share there opens on DMA-BUFs (`first_buffers`);
-what stays on memory (VP9, or NVENC with no GL side) gets no pictures meanwhile. GNOME sends
+what stays on memory (VP9, or NVENC with no GL side) gets no pictures meanwhile. Intel's screen
+is nearly the same (Oct 31): about one memory picture a second, enough for a VAAPI share begun
+over such a window to learn its size and move to DMA-BUFs, not enough for VP9, which stands still
+on Rift's stream and keeps going on libwebrtc's capturer. GNOME sends
 that stream only on whole refreshes under its cap, so at most 60 on a 165 Hz screen gives every
 third, 55 fps, and at most 120 every second, 80 fps (measured Oct 30); a window came at 43–49 fps,
 where libwebrtc's capturer reached the viewer at 60 (Oct 31). Asking for more and dropping the
