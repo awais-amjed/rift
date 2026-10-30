@@ -609,12 +609,19 @@ async fn live_gpu_share_resizes_rejoins_and_falls_back() {
 
 /// Counts what the encoder makes.
 #[cfg(target_os = "linux")]
-struct Counting(std::sync::Arc<std::sync::atomic::AtomicU32>);
+struct Counting(
+    std::sync::Arc<std::sync::atomic::AtomicU32>,
+    Option<std::fs::File>,
+);
 
 #[cfg(target_os = "linux")]
 impl EncodedSink for Counting {
-    fn deliver(&mut self, _frame: Encoded<'_>) {
+    fn deliver(&mut self, frame: Encoded<'_>) {
         self.0.fetch_add(1, Ordering::Relaxed);
+        if let Some(file) = &mut self.1 {
+            use std::io::Write;
+            file.write_all(frame.payload).expect("the dump is written");
+        }
     }
 
     fn keyframe_wanted(&mut self) -> bool {
@@ -626,24 +633,29 @@ impl EncodedSink for Counting {
     }
 }
 
-/// A Wayland share's PipeWire stream into VAAPI's encoder, every picture
-/// staying on the GPU: a moving screen at 60 fps is at least 150 frames in
-/// 3 s. Needs something moving on the screen (a test pattern playing), the
-/// portal token `pw_stream`'s tests use, and, beside NVIDIA's GPU,
-/// `GPU_NO_NVENC=1`.
+/// A Wayland share's PipeWire stream into the encoder this computer picks,
+/// every picture staying on the GPU: a moving screen at 60 fps is at least 150
+/// frames in 3 s. Needs something moving on the screen (a test pattern
+/// playing), the portal token `pw_stream`'s tests use, and, on a hybrid laptop
+/// where NVIDIA's GPU is beside the one drawing, `GPU_NO_NVENC=1`.
+/// `RIFT_DUMP_H264` names a file to write the stream to.
 #[cfg(target_os = "linux")]
 #[test]
-#[ignore = "needs a Wayland screen with something moving and a VAAPI GPU"]
-fn live_vaapi_encodes_the_stream() {
+#[ignore = "needs a Wayland screen with something moving and a GPU that takes DMA-BUFs"]
+fn live_gpu_encodes_the_stream() {
+    use super::encoder::dmabuf_target;
     use super::encoder::{DmaBufFrame, EncoderInput};
     use super::latest;
-    use super::pw_stream::tests::{render_node, screen};
+    use super::pw_stream::tests::screen;
     use super::pw_stream::{PwBuffers, PwStream};
     use std::sync::atomic::AtomicU32;
     use std::sync::Arc;
 
     let session = screen();
     let made = Arc::new(AtomicU32::new(0));
+    let dump = std::env::var_os("RIFT_DUMP_H264")
+        .map(|path| std::fs::File::create(path).expect("the dump opens"));
+    let target = dmabuf_target().expect("a GPU takes DMA-BUFs");
     let encoder = GpuEncoder::open(
         EncoderSettings {
             codec: GpuCodec::H264,
@@ -654,7 +666,7 @@ fn live_vaapi_encodes_the_stream() {
             start_bitrate_bps: 8_000_000,
             h264_high: false,
         },
-        Box::new(Counting(made.clone())),
+        Box::new(Counting(made.clone(), dump)),
     )
     .expect("a GPU encoder opens");
     assert!(
@@ -667,8 +679,8 @@ fn live_vaapi_encodes_the_stream() {
         PwStream::open(
             &session,
             60,
-            Some(&render_node()),
-            false,
+            Some(&target.render_node),
+            target.external_modifiers,
             PwBuffers::DmaBuf,
             move |picture| drop(put.put(picture)),
             Box::new(|event| log::info!("pipewire event: {event:?}")),

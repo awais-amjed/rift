@@ -4,7 +4,7 @@
 //! DMA-BUF where the encoder takes one, or from memory for VP9 and NVENC.
 //! When any of it refuses, the share runs on libwebrtc's capturer as before.
 use super::capture::{CaptureRequest, Command, Feed, Progress, VideoSlot};
-use super::encoder::dmabuf_render_node;
+use super::encoder::dmabuf_target;
 use super::frames::{now_us, Converter};
 use super::gpu_feed::{GpuFeed, Picture};
 use super::latest::{self, Taker};
@@ -281,7 +281,8 @@ pub(super) fn run(
             PwEvent::Ended(reason) => *ended.lock().unwrap() = Some(reason),
         })
     };
-    let render_node = dmabuf_render_node();
+    let target = dmabuf_target();
+    let render_node = target.as_ref().map(|target| target.render_node.as_str());
     // Memory first: the feed is not attached until the first picture has
     // said the size, and a GPU feed takes a memory picture where the raw
     // path cannot take a DMA-BUF. A GPU feed switches the stream over.
@@ -289,8 +290,10 @@ pub(super) fn run(
     let stream = match PwStream::open(
         &session,
         rate,
-        render_node.as_deref(),
-        false,
+        render_node,
+        target
+            .as_ref()
+            .is_some_and(|target| target.external_modifiers),
         PwBuffers::Memory,
         sink,
         events,
@@ -311,7 +314,7 @@ pub(super) fn run(
                 "{}x{}",
                 s.width, s.height
             )),
-        render_node.as_deref().unwrap_or("no GPU (memory only)")
+        render_node.unwrap_or("no GPU (memory only)")
     );
 
     let processing = slot.clone();

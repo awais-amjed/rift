@@ -350,12 +350,18 @@ A **Wayland share runs on Rift's own PipeWire stream** (`capture_pw.rs`, since
 Oct 29 2026, on branch `gpu-codecs`): the ScreenCast portal from Rust (ashpd),
 the stream in the same FFmpeg library (`native/ffenc/pipewire.c`, from OBS
 Studio's), and each picture handed to VAAPI as the compositor's DMA-BUF, never
-coming to the CPU. VP9 and NVENC get memory buffers instead, which the stream
-switches to whenever the feed changes. Both kinds are offered blue first
+coming to the CPU. VP9 and an NVENC on a screen another GPU draws get memory
+buffers instead, which the stream switches to whenever the feed changes. Both kinds are offered blue first
 (BGRx, BGRA) and red first (RGBx, RGBA): some wlroots compositors share memory
 only red first, and offered only the other order they could not share at all
 (`ByteOrder`, which picks libyuv's conversion; Oct 30). Under Wayland VAAPI is tried before
-NVENC for this reason. A window keeps Dart's pick (no second picker); a screen
+NVENC for this reason, except on a **screen NVIDIA's card draws alone**: a card from NVIDIA
+with a display connected and no Intel or AMD card with one (`gpu_choice.rs`). There NVENC comes
+first and takes the DMA-BUF too (`native/ffenc/nvenc_gl.c`): imported into EGL, drawn
+as NV12 by one GL shader pass, and copied by CUDA into NVENC's frame, on the worker's own
+thread, with the compositor's explicit sync waited for on PipeWire's. Proved Oct 30 on an
+RTX 3070 Ti, GNOME 50, with `test_nvenc_dmabuf.c` and a live share. If the GL side does not
+open, NVENC takes memory as before. A window keeps Dart's pick (no second picker); a screen
 is picked in the portal, and the first-picture limit starts once it answers. A
 lent buffer keeps its own fds and mapping until Rust lets it go, since PipeWire
 frees a stream's buffers on every renegotiation (a crash before that, Oct 29).

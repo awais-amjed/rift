@@ -18,6 +18,8 @@
 //! encoders send the bitrate to the GPU only when they open, and its NVENC
 //! encoder made a keyframe of every move, so the build patches them
 //! (`third_party/ffmpeg/RIFT_PATCHES.md`).
+#[cfg(target_os = "linux")]
+use super::gpu_choice::{self, DmabufTarget};
 use super::h264::{self, ParameterSets};
 use super::timings::EncodeTimes;
 use super::worker::{self, EncodeError, Session, SharedSink, GOP_SECONDS};
@@ -220,13 +222,21 @@ struct Candidate {
 /// with two is the NVIDIA one whichever drives the screen; under X11 the
 /// pictures come from memory, so that does not matter. Under Wayland VAAPI
 /// comes first: it takes the compositor's DMA-BUF and the picture never
-/// comes to the CPU (`capture_pw.rs`), where NVENC, for now, takes it from
-/// memory. [`ENCODER_ENV`] names the one to try instead.
+/// comes to the CPU (`capture_pw.rs`), where NVENC takes it from memory on a
+/// screen another GPU draws. On a screen NVIDIA's card draws alone NVENC comes
+/// first again, with that card's render node as its device, which opens its
+/// GL path to take the DMA-BUF too. [`ENCODER_ENV`] names the one to try
+/// instead.
 #[cfg(target_os = "linux")]
 fn candidates() -> Vec<Candidate> {
+    let on_wayland = super::super::capture_pw::on_wayland();
+    let cards = gpu_choice::read_cards();
+    let nvidia_node = on_wayland
+        .then(|| gpu_choice::nvidia_draws_the_screen(&cards))
+        .flatten();
     let nvenc = Candidate {
         encoder: c"h264_nvenc",
-        device: None,
+        device: nvidia_node.and_then(|node| CString::new(node).ok()),
         label: "NVENC".to_string(),
     };
     let mut candidates = Vec::new();
@@ -248,7 +258,7 @@ fn candidates() -> Vec<Candidate> {
             label: format!("VAAPI on {}", node.display()),
         })
     }));
-    if super::super::capture_pw::on_wayland() {
+    if on_wayland && nvidia_node.is_none() {
         candidates.push(nvenc);
     } else {
         candidates.insert(0, nvenc);
@@ -256,15 +266,17 @@ fn candidates() -> Vec<Candidate> {
     named_only(candidates)
 }
 
-/// The render node a Wayland share's DMA-BUF is offered for: VAAPI's GPU,
-/// when VAAPI is what encodes H264 here.
+/// Where a Wayland share's DMA-BUF is offered for: the GPU of what encodes H264
+/// here, when that is VAAPI or NVENC with a device. An NVENC whose GL side
+/// failed still names its node here, but its session takes no DMA-BUF, so the
+/// stream stays on memory.
 #[cfg(target_os = "linux")]
-pub(crate) fn dmabuf_render_node() -> Option<String> {
+pub(crate) fn dmabuf_target() -> Option<DmabufTarget> {
     let (candidate, _) = h264_encoder()?;
-    if candidate.encoder != c"h264_vaapi" {
-        return None;
-    }
-    candidate.device.as_ref()?.to_str().ok().map(str::to_owned)
+    Some(DmabufTarget {
+        render_node: candidate.device.as_ref()?.to_str().ok()?.to_owned(),
+        external_modifiers: candidate.encoder == c"h264_nvenc",
+    })
 }
 
 /// The encoders worth trying, in order: NVIDIA's, AMD's, then Intel's. Each

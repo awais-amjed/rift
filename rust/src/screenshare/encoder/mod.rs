@@ -11,13 +11,15 @@
 #![cfg_attr(not(gpu_encoder), allow(dead_code))]
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 mod ffmpeg;
+#[cfg(target_os = "linux")]
+mod gpu_choice;
 pub(crate) mod h264;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 mod timings;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 mod worker;
 #[cfg(target_os = "linux")]
-pub(crate) use ffmpeg::{dmabuf_render_node, library, symbol};
+pub(crate) use ffmpeg::{dmabuf_target, library, symbol};
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 pub(crate) use worker::GpuEncoder;
 
