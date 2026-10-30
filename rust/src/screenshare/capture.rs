@@ -11,7 +11,7 @@ use super::resolution::Size;
 use super::sources;
 #[cfg(target_os = "windows")]
 use super::window_win;
-use crate::api::screenshare::types::ScreenshareEvent;
+use crate::api::screenshare::types::{ScreenshareEvent, VideoCodec};
 use livekit::webrtc::desktop_capturer::{
     CaptureError, CaptureSource as Source, DesktopCaptureSourceType, DesktopCapturer, DesktopFrame,
 };
@@ -49,6 +49,10 @@ pub(crate) struct CaptureRequest {
     /// [`ScreenShareConfig::gpu_capture`](crate::api::screenshare::types::ScreenShareConfig).
     #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     pub gpu_capture: bool,
+    /// The share's codec, which decides whether Rift's stream takes it
+    /// (`capture_pw.rs`).
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+    pub codec: VideoCodec,
     pub fps: u32,
     pub capture_cursor: bool,
     /// Told `true` when the shared window is minimised or has gone away, and
@@ -774,6 +778,7 @@ mod tests {
             selected_index: Some(index),
             portal_choice: None,
             gpu_capture: true,
+            codec: VideoCodec::VP9,
             fps: 30,
             capture_cursor: false,
             on_paused: Some(Box::new(move |now| {

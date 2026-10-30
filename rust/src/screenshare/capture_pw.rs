@@ -4,14 +4,14 @@
 //! DMA-BUF where the encoder takes one, or from memory for VP9 and NVENC.
 //! When any of it refuses, the share runs on libwebrtc's capturer as before.
 use super::capture::{CaptureRequest, Command, Feed, Progress, VideoSlot};
-use super::encoder::{dmabuf_target, DmabufTarget};
+use super::encoder::{dmabuf_target, DmabufTarget, GpuCodec};
 use super::frames::{now_us, Converter};
 use super::gpu_feed::{GpuFeed, Picture};
 use super::latest::{self, Taker};
 use super::portal::{self, PortalError, PortalKind, PortalSession};
 use super::pw_stream::{self, PwBuffers, PwEvent, PwPicture, PwStream};
 use super::resolution::Size;
-use crate::api::screenshare::types::ScreenshareEvent;
+use crate::api::screenshare::types::{ScreenshareEvent, VideoCodec};
 use livekit::webrtc::desktop_capturer::DesktopCaptureSourceType;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError, TryRecvError};
@@ -199,9 +199,19 @@ fn first_buffers(target: Option<&DmabufTarget>) -> PwBuffers {
 }
 
 /// Whether a share goes on Rift's stream: under Wayland, unless the person has
-/// turned it off in settings because a share looked wrong on their machine.
-fn takes_rifts_stream(gpu_capture: bool, wayland: bool) -> bool {
-    gpu_capture && wayland
+/// turned it off in settings because a share looked wrong on their machine, and
+/// only where a GPU encoder takes the DMA-BUF. On memory this stream stands
+/// still while a fullscreen window fills the screen (one picture a second on
+/// Intel, none on NVIDIA; Oct 31, GNOME 50), where libwebrtc's capturer keeps
+/// going, so a share that would read memory gains little here and can lose its
+/// picture.
+fn takes_rifts_stream(
+    gpu_capture: bool,
+    wayland: bool,
+    codec: VideoCodec,
+    target: Option<&DmabufTarget>,
+) -> bool {
+    gpu_capture && wayland && GpuCodec::for_share(codec).is_some() && target.is_some()
 }
 
 /// How a share went on Rift's stream.
@@ -224,13 +234,17 @@ pub(super) fn run(
     slot: &VideoSlot,
     command_rx: &mpsc::Receiver<Command>,
 ) -> Handoff {
-    if !takes_rifts_stream(request.gpu_capture, on_wayland()) {
+    let wayland = on_wayland();
+    let target = dmabuf_target();
+    if !takes_rifts_stream(request.gpu_capture, wayland, request.codec, target.as_ref()) {
         log::info!(
             "capture: GPU capture {}; libwebrtc's capturer",
-            if request.gpu_capture {
+            if !request.gpu_capture {
+                "is off"
+            } else if !wayland {
                 "needs Wayland"
             } else {
-                "is off"
+                "needs a GPU encoder taking DMA-BUFs"
             }
         );
         return Handoff::Fallback(request);
@@ -308,7 +322,6 @@ pub(super) fn run(
             PwEvent::Ended(reason) => *ended.lock().unwrap() = Some(reason),
         })
     };
-    let target = dmabuf_target();
     let render_node = target.as_ref().map(|target| target.render_node.as_str());
     // The feed is not attached until the first picture has said the size, and
     // then switches the stream to the buffers it wants.
@@ -679,10 +692,39 @@ mod tests {
 
     #[test]
     fn takes_rifts_stream_only_under_wayland_with_the_switch_on() {
-        assert!(takes_rifts_stream(true, true));
-        assert!(!takes_rifts_stream(false, true));
-        assert!(!takes_rifts_stream(true, false));
-        assert!(!takes_rifts_stream(false, false));
+        let target = DmabufTarget {
+            render_node: "/dev/dri/renderD128".to_string(),
+            external_modifiers: false,
+        };
+        let takes =
+            |switch, wayland| takes_rifts_stream(switch, wayland, VideoCodec::H264, Some(&target));
+        assert!(takes(true, true));
+        assert!(!takes(false, true));
+        assert!(!takes(true, false));
+        assert!(!takes(false, false));
+    }
+
+    #[test]
+    fn only_a_gpu_encoder_taking_dmabufs_goes_on_rifts_stream() {
+        let target = DmabufTarget {
+            render_node: "/dev/dri/renderD128".to_string(),
+            external_modifiers: false,
+        };
+        // libwebrtc encodes these, from memory.
+        assert!(!takes_rifts_stream(
+            true,
+            true,
+            VideoCodec::VP9,
+            Some(&target)
+        ));
+        assert!(!takes_rifts_stream(
+            true,
+            true,
+            VideoCodec::VP8,
+            Some(&target)
+        ));
+        // No encoder here takes a DMA-BUF.
+        assert!(!takes_rifts_stream(true, true, VideoCodec::H264, None));
     }
 
     #[test]

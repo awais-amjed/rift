@@ -85,6 +85,11 @@ step can take from our own code and from open source projects: `REUSE.md`.
      fullscreen window up, GNOME sends a memory stream about one picture a second here. That is
      enough for an H264 share begun over one to learn its size and move to DMA-BUFs, but a VP9
      share on Rift's stream stands still, where libwebrtc's capturer (switch off) keeps going.
+   - **VP9 back on libwebrtc's capturer (owner, Oct 31).** Rift's stream takes a share only where
+     a GPU encoder takes its DMA-BUF. Rechecked on Intel: VP9 keeps going under a fullscreen window
+     at Dave's decoder, a window picked in Rift's dialog works, and H264 stays on the stream at
+     3.8–4.4% of a core. Left: a VP9 fallback from a GPU encoder failing mid-share stays on the
+     stream and would stand still under a fullscreen window.
    - **Order (owner, Oct 29): Linux first, step 2 before step 1.** This laptop has
      both of Linux's encoders and Wayland, so the step can be built and proved
      here; the Windows VM has no GPU.

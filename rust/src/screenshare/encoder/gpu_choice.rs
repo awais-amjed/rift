@@ -22,6 +22,22 @@ pub(crate) struct DmabufTarget {
     pub external_modifiers: bool,
 }
 
+/// Where an encoder's DMA-BUFs go, if it takes them at all: an NVENC whose GL
+/// side failed still has its node, and takes none.
+pub(crate) fn target_for(
+    render_node: Option<&str>,
+    nvenc: bool,
+    takes_dmabuf: bool,
+) -> Option<DmabufTarget> {
+    if !takes_dmabuf {
+        return None;
+    }
+    Some(DmabufTarget {
+        render_node: render_node?.to_owned(),
+        external_modifiers: nvenc,
+    })
+}
+
 /// The NVIDIA card's render node when it has a connected display and no Intel
 /// or AMD card does. `None` keeps today's order.
 pub(crate) fn nvidia_draws_the_screen(cards: &[DrmCard]) -> Option<&str> {
@@ -84,6 +100,24 @@ pub(crate) fn read_cards() -> Vec<DrmCard> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_encoder_taking_dmabufs_names_its_gpu() {
+        let vaapi = target_for(Some("/dev/dri/renderD129"), false, true).unwrap();
+        assert_eq!(vaapi.render_node, "/dev/dri/renderD129");
+        assert!(!vaapi.external_modifiers);
+        let nvenc = target_for(Some("/dev/dri/renderD128"), true, true).unwrap();
+        assert_eq!(nvenc.render_node, "/dev/dri/renderD128");
+        assert!(nvenc.external_modifiers);
+    }
+
+    #[test]
+    fn an_encoder_taking_no_dmabufs_has_no_target() {
+        // An NVENC whose GL side failed still has its node.
+        assert!(target_for(Some("/dev/dri/renderD128"), true, false).is_none());
+        // An NVENC on a screen another GPU draws has none.
+        assert!(target_for(None, true, false).is_none());
+    }
 
     fn card(vendor: u16, connected: bool, node: Option<&str>) -> DrmCard {
         DrmCard {

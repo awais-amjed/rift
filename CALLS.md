@@ -350,8 +350,12 @@ A **Wayland share runs on Rift's own PipeWire stream** (`capture_pw.rs`, since
 Oct 29 2026, on branch `gpu-codecs`): the ScreenCast portal from Rust (ashpd),
 the stream in the same FFmpeg library (`native/ffenc/pipewire.c`, from OBS
 Studio's), and each picture handed to VAAPI as the compositor's DMA-BUF, never
-coming to the CPU. VP9 and an NVENC on a screen another GPU draws get memory
-buffers instead, which the stream switches to whenever the feed changes. Both kinds are offered blue first
+coming to the CPU. Only a share whose encoder takes that DMA-BUF runs on this stream
+(`takes_rifts_stream`): VP8, VP9 and an NVENC with no GL side go to libwebrtc's capturer, as with
+the settings switch off, because on memory this stream stands still under a fullscreen window (below).
+The cost is capture at about 12% of a core against 5%, beside VP9's own encoding at about 50%, and
+no paused notice for a minimised window. A share whose GPU encoder fails partway goes out as VP9
+and stays on the stream, on memory buffers, which it switches to whenever the feed changes. Both kinds are offered blue first
 (BGRx, BGRA) and red first (RGBx, RGBA): some wlroots compositors share memory
 only red first, and offered only the other order they could not share at all
 (`ByteOrder`, which picks libyuv's conversion; Oct 30). Under Wayland VAAPI is tried before
@@ -363,11 +367,11 @@ thread, with the compositor's explicit sync waited for on PipeWire's. Proved Oct
 RTX 3070 Ti, GNOME 50, with `test_nvenc_dmabuf.c` and a live share: 60 s of the whole screen
 flipping between two grays gave no torn or stale picture (`STEP2_NVIDIA.md`, *Sync*), with
 the sync timeline and without it, the GPU idle and full. While a fullscreen window fills that
-screen GNOME sends a memory stream nothing, so a share there opens on DMA-BUFs (`first_buffers`);
-what stays on memory (VP9, or NVENC with no GL side) gets no pictures meanwhile. Intel's screen
-is nearly the same (Oct 31): about one memory picture a second, enough for a VAAPI share begun
-over such a window to learn its size and move to DMA-BUFs, not enough for VP9, which stands still
-on Rift's stream and keeps going on libwebrtc's capturer. GNOME sends
+screen GNOME sends a memory stream nothing, so a share there opens on DMA-BUFs (`first_buffers`).
+Intel's screen is nearly the same (Oct 31): about one memory picture a second, enough for a VAAPI
+share begun over such a window to learn its size and move to DMA-BUFs, not enough to watch, which is
+why VP9 left the stream the same day: it stood still there and keeps going on libwebrtc's capturer.
+A VP9 share falling back from a failed GPU encoder would still stand still under such a window. GNOME sends
 that stream only on whole refreshes under its cap, so at most 60 on a 165 Hz screen gives every
 third, 55 fps, and at most 120 every second, 80 fps (measured Oct 30); a window came at 43–49 fps,
 where libwebrtc's capturer reached the viewer at 60 (Oct 31). Asking for more and dropping the

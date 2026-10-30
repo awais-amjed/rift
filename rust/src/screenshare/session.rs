@@ -383,6 +383,7 @@ async fn bring_up(
         selected_index: config.selected_video_source_index,
         portal_choice: config.portal_choice.clone(),
         gpu_capture: config.gpu_capture,
+        codec: config.codec,
         fps: config.fps,
         capture_cursor: true,
         on_paused: Some(announce_paused(participant.clone())),

@@ -267,16 +267,19 @@ fn candidates() -> Vec<Candidate> {
 }
 
 /// Where a Wayland share's DMA-BUF is offered for: the GPU of what encodes H264
-/// here, when that is VAAPI or NVENC with a device. An NVENC whose GL side
-/// failed still names its node here, but its session takes no DMA-BUF, so the
-/// stream stays on memory.
+/// here, when that takes one. `None` sends a share to libwebrtc's capturer
+/// (`capture_pw::takes_rifts_stream`).
 #[cfg(target_os = "linux")]
 pub(crate) fn dmabuf_target() -> Option<DmabufTarget> {
-    let (candidate, _) = h264_encoder()?;
-    Some(DmabufTarget {
-        render_node: candidate.device.as_ref()?.to_str().ok()?.to_owned(),
-        external_modifiers: candidate.encoder == c"h264_nvenc",
-    })
+    let (candidate, _, takes_dmabuf) = h264_encoder()?;
+    gpu_choice::target_for(
+        candidate
+            .device
+            .as_ref()
+            .and_then(|node| node.to_str().ok()),
+        candidate.encoder == c"h264_nvenc",
+        *takes_dmabuf,
+    )
 }
 
 /// The encoders worth trying, in order: NVIDIA's, AMD's, then Intel's. Each
@@ -328,11 +331,11 @@ fn named_only(candidates: Vec<Candidate>) -> Vec<Candidate> {
         .collect()
 }
 
-/// The encoder that makes H264 here, and its driver's name: the first
-/// [`candidates`] entry that opens. Found once, since opening one takes a
+/// The encoder that makes H264 here, its driver's name, and whether it takes a
+/// DMA-BUF: the first [`candidates`] entry that opens. Found once, since opening one takes a
 /// moment and the GPUs do not change under a running app.
-fn h264_encoder() -> Option<&'static (Candidate, String)> {
-    static ENCODER: OnceLock<Option<(Candidate, String)>> = OnceLock::new();
+fn h264_encoder() -> Option<&'static (Candidate, String, bool)> {
+    static ENCODER: OnceLock<Option<(Candidate, String, bool)>> = OnceLock::new();
     ENCODER
         .get_or_init(|| {
             let api = match api() {
@@ -358,9 +361,13 @@ fn h264_encoder() -> Option<&'static (Candidate, String)> {
                         // SAFETY: `raw` is a live encoder from this library,
                         // closed right after.
                         let driver = unsafe { driver_name(api, raw) };
+                        #[cfg(target_os = "linux")]
+                        let takes_dmabuf = unsafe { (api.takes_dmabuf)(raw) != 0 };
+                        #[cfg(not(target_os = "linux"))]
+                        let takes_dmabuf = false;
                         unsafe { (api.close)(raw) };
                         log::info!("encoder: {} ({driver}) encodes H264", candidate.label);
-                        return Some((candidate, driver));
+                        return Some((candidate, driver, takes_dmabuf));
                     }
                     Err(reason) => {
                         log::info!("encoder: no H264 from {}: {reason}", candidate.label)
@@ -483,7 +490,7 @@ pub(super) fn open(
     sink: SharedSink,
 ) -> Result<(FfmpegSession, String), String> {
     let api = api()?;
-    let (candidate, driver) = h264_encoder().ok_or("no GPU here encodes H264 through FFmpeg")?;
+    let (candidate, driver, _) = h264_encoder().ok_or("no GPU here encodes H264 through FFmpeg")?;
     let raw = open_raw(api, settings, candidate)?;
     Ok((
         FfmpegSession {
