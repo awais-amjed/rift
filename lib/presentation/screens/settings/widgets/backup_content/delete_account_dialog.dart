@@ -8,8 +8,9 @@ import '../../../../theme/theme_context.dart';
 
 /// Deletes the account with the password it was proved by; answers what
 /// central said.
-typedef AccountDeleter =
-    Future<({bool success, String? error})> Function(String password);
+typedef AccountDeleter = Future<({bool success, String? error})> Function(
+  String password,
+);
 
 /// Delete the Rift account, after typing its password.
 ///

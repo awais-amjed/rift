@@ -19,6 +19,7 @@ import '../logic/cubits/public_servers/public_servers_cubit.dart';
 import '../logic/cubits/screenshare/screenshare_cubit.dart';
 import '../logic/cubits/server/server_cubit.dart';
 import '../logic/cubits/server_reach/server_reach_cubit.dart';
+import '../logic/cubits/settings_place/settings_place_cubit.dart';
 import '../logic/cubits/sound_share/sound_share_cubit.dart';
 import '../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../logic/cubits/theme/theme_cubit.dart';
@@ -67,6 +68,7 @@ class AppProviders extends StatelessWidget {
         BlocProvider(create: (_) => ThemeCubit()),
         BlocProvider(create: (_) => MediaCubit()),
         BlocProvider(create: (_) => DuckingCubit()),
+        BlocProvider(create: (_) => SettingsPlaceCubit()),
         BlocProvider(create: (_) => _createServerCubit()),
         BlocProvider(create: _createNetworkCubit),
         BlocProvider(create: (_) => ServerReachCubit.of(session)),
