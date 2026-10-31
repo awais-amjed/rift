@@ -18,7 +18,9 @@
 //! Voice, Beta options; on Linux only the capture thread or Normal, since
 //! nothing there runs above normal for an ordinary user): testers heard crackle and cut-outs
 //! from a Windows friend on beta.9 (Oct 30), and comparing by ear is how to
-//! tell whether the thread's priority is why.
+//! tell whether the thread's priority is why. The capture thread sounded best
+//! (Oct 30), so a call starts there and this thread sits idle unless a tester
+//! chooses otherwise.
 
 use std::cell::UnsafeCell;
 use std::sync::atomic::{AtomicU32, AtomicU8, AtomicUsize, Ordering};
@@ -50,12 +52,13 @@ pub(crate) enum Placement {
     /// On libwebrtc's capture thread itself, as before beta.5: time-critical
     /// on Windows, and never late, but ahead of a game. On Linux that thread
     /// is at normal like the model's own, so what changes is only the wait.
+    /// Where it starts: it sounded best by ear on beta.10.
     CaptureThread,
     /// On its own thread at Windows' highest priority below time-critical.
     Highest,
     /// On its own thread, one step above a game's.
     AboveNormal,
-    /// On its own thread at a game's own priority, where it starts.
+    /// On its own thread at a game's own priority.
     Normal,
 }
 
@@ -79,7 +82,7 @@ impl Placement {
     }
 }
 
-static PLACEMENT: AtomicU8 = AtomicU8::new(3);
+static PLACEMENT: AtomicU8 = AtomicU8::new(0);
 
 /// Moves the model, from the next frame on.
 pub(super) fn place(placement: Placement) {
@@ -412,12 +415,13 @@ fn set_priority(_: Placement) {}
 mod tests {
     use super::*;
 
-    /// Back to Normal however the test ends, for the other model tests.
+    /// Back to where it starts however the test ends, for the other model
+    /// tests.
     struct PlacedBack;
 
     impl Drop for PlacedBack {
         fn drop(&mut self) {
-            place(Placement::Normal);
+            place(Placement::CaptureThread);
         }
     }
 

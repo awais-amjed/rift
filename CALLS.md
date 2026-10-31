@@ -624,8 +624,8 @@ scheduling, which an ordinary user is refused, so every queue stays at nice 0.
 
 The mic's own thread is time-critical on Windows ("Pro Audio"), and libwebrtc
 runs the noise model on it, so DPDFNet took its 2 to 8 ms of every 10 ahead of
-a game. The model runs on a thread of its own at normal priority instead
-(`rust/src/dpdfnet/handoff.rs`), sharing the cores with the game, and a frame
+a game. Moved to a thread of its own at normal priority
+(`rust/src/dpdfnet/handoff.rs`), it shares the cores with the game, and a frame
 it is late with goes out unfiltered rather than hold the mic up. Measured Oct 25
 2026 on a laptop's Windows, the model still on the mic's thread: with a
 stand-in game on every CPU, the game's frames taking over 1.5 times its fastest
@@ -645,7 +645,7 @@ On beta.9 (Oct 29 2026) a tester heard a Windows friend's voice crackle and
 cut out, so Settings → Voice has two beta options on Windows, for testers to
 switch mid-call and compare by ear. *Noise filter priority* puts the model
 back on the mic's thread (Time critical, as before beta.5) or keeps its own
-thread at Highest, Above normal or Normal, the default. *Precise timing*, off
+thread at Highest, Above normal or Normal. *Precise timing*, off
 by default, holds Windows' 1 ms timer and unthrottled running for the length
 of a call (`rust/src/precise_timing.rs`, which a share's capture holds too).
 Rift already asks for the 1 ms timer in a call without it (`powercfg /energy`
@@ -656,7 +656,11 @@ says which options each call started with and each change made during it.
 Linux has the priority too, with only Time critical and Normal: an ordinary
 user's threads there run no higher than normal, libwebrtc's capture thread
 included, so Time critical changes only that the mic no longer waits on the
-model's thread. Which sounds best is not yet known.
+model's thread. Compared by ear on beta.10 (the owner, Oct 30), Time critical
+sounds best, so it is now the default, and what beta.10 saved is not read,
+since it saved Normal for everyone. That gives back the game's protection above
+for the default model: expect the Oct 25 mic's-thread numbers, not the own-thread
+ones, and no game has been measured beside it on this default.
 
 Measured Oct 25 2026 on a laptop's Windows: receiving a 1080p60 stream, the
 decoder took 25% of a core at time-critical while a stand-in game ran on every

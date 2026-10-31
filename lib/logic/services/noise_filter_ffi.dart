@@ -64,7 +64,7 @@ abstract final class NoiseFilter {
 
   /// The beta options as last set ([usePriority], [usePreciseTiming]), and
   /// whether a call is on, which the precise timer is held for.
-  static NoiseFilterPriority _priority = NoiseFilterPriority.normal;
+  static NoiseFilterPriority _priority = NoiseFilterPriority.timeCritical;
   static bool _precise = false;
   static bool _inCall = false;
 

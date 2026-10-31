@@ -133,7 +133,10 @@ class AppState extends Equatable {
 
   /// Beta options for Windows testers: where DPDFNet runs in a call, and
   /// whether a call holds Windows' 1 ms timer (`NoiseFilter.callStarted`).
-  @JsonKey(fromJson: NoiseFilterPriority.fromJson)
+  /// Not saved as `noiseFilterPriority`: beta.10 wrote its default of Normal
+  /// there for everyone, so a value under that name says nothing about what
+  /// they chose, and would hold them off today's default.
+  @JsonKey(name: 'noiseFilterPlacement', fromJson: NoiseFilterPriority.fromJson)
   final NoiseFilterPriority noiseFilterPriority;
   final bool preciseCallTiming;
   final bool echoCancellation;
@@ -286,7 +289,7 @@ class AppState extends Equatable {
     this.inputVolume = 1.0,
     this.noiseSuppression = NoiseSuppression.dpdfnet,
     this.dpdfnetSmall = true,
-    this.noiseFilterPriority = NoiseFilterPriority.normal,
+    this.noiseFilterPriority = NoiseFilterPriority.timeCritical,
     this.preciseCallTiming = false,
     this.echoCancellation = true,
     this.autoGainControl = true,

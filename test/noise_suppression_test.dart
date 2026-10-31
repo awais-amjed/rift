@@ -75,16 +75,28 @@ void main() {
     expect(saved('krisp').noiseSuppression, NoiseSuppression.dpdfnet);
   });
 
-  test('the beta options start as beta.9 runs, and an older save reads so', () {
+  test('the model starts on Time critical, and an older save reads so', () {
     const fresh = AppState();
-    expect(fresh.noiseFilterPriority, NoiseFilterPriority.normal);
+    expect(fresh.noiseFilterPriority, NoiseFilterPriority.timeCritical);
     expect(fresh.preciseCallTiming, isFalse);
     final older = const AppState().toJson()
-      ..remove('noiseFilterPriority')
+      ..remove('noiseFilterPlacement')
       ..remove('preciseCallTiming');
     final read = AppState.fromJson(older);
-    expect(read.noiseFilterPriority, NoiseFilterPriority.normal);
+    expect(read.noiseFilterPriority, NoiseFilterPriority.timeCritical);
     expect(read.preciseCallTiming, isFalse);
+  });
+
+  test('what beta.10 saved does not hold anyone on Normal', () {
+    // Beta.10 wrote its default into everyone's save, so a saved Normal says
+    // nothing about what they chose.
+    final beta10 = const AppState().toJson()
+      ..remove('noiseFilterPlacement')
+      ..['noiseFilterPriority'] = 'normal';
+    expect(
+      AppState.fromJson(beta10).noiseFilterPriority,
+      NoiseFilterPriority.timeCritical,
+    );
   });
 
   test('each beta option survives a JSON round-trip', () {
@@ -98,10 +110,10 @@ void main() {
       expect(read.preciseCallTiming, isTrue);
     }
     final unknown = const AppState().toJson()
-      ..['noiseFilterPriority'] = 'realtime';
+      ..['noiseFilterPlacement'] = 'realtime';
     expect(
       AppState.fromJson(unknown).noiseFilterPriority,
-      NoiseFilterPriority.normal,
+      NoiseFilterPriority.timeCritical,
     );
   });
 

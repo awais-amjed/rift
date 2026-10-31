@@ -1,10 +1,11 @@
-/// Where DPDFNet runs in a call, a beta option for testers to compare by
-/// ear: friends heard crackle and cut-outs on beta.9, where it runs on its
-/// own thread at [normal] (`CALLS.md`, *Rift beside a game*).
+/// Where DPDFNet runs in a call, a beta option: friends heard crackle and
+/// cut-outs on beta.9, where it ran on its own thread at [normal], and
+/// [timeCritical] sounded best when compared by ear on beta.10 (`CALLS.md`,
+/// *Rift beside a game*).
 ///
-/// [timeCritical] puts it back on libwebrtc's capture thread, as before
-/// beta.5, which a game feels; the other three keep its own thread at that
-/// priority. Linux offers only [timeCritical] and [normal] ([offered]).
+/// [timeCritical], the default, puts it on libwebrtc's capture thread, as
+/// before beta.5, which a game feels; the other three keep its own thread at
+/// that priority. Linux offers only [timeCritical] and [normal] ([offered]).
 enum NoiseFilterPriority {
   timeCritical,
   highest,
@@ -25,8 +26,8 @@ enum NoiseFilterPriority {
       windows ? values : const [timeCritical, normal];
 
   static NoiseFilterPriority fromJson(Object? value) => switch (value) {
-    String name => values.asNameMap()[name] ?? normal,
-    _ => normal,
+    String name => values.asNameMap()[name] ?? timeCritical,
+    _ => timeCritical,
   };
 
   String toJson() => name;
