@@ -41,3 +41,23 @@ void nvenc_gl_source_uv(const RiftDmabuf* buf, float uv[4][2]) {
     uv[corner][1] = top + corners[transform][corner][1] * down;
   }
 }
+
+int nvenc_gl_scales_far(const RiftDmabuf* buf, int place_w, int place_h) {
+  int cropped = buf->crop_width > 0 && buf->crop_height > 0;
+  int source_w = cropped ? buf->crop_width : buf->width;
+  int source_h = cropped ? buf->crop_height : buf->height;
+  if (buf->transform & 1) {
+    int swapped = source_w;
+    source_w = source_h;
+    source_h = swapped;
+  }
+  return source_w > 2 * place_w || source_h > 2 * place_h;
+}
+
+void nvenc_gl_spread(const float uv[4][2], int width, int height, int spread,
+                     float offsets[2][2]) {
+  for (int axis = 0; axis < 2; axis++) {
+    offsets[0][axis] = spread ? (uv[1][axis] - uv[0][axis]) / (float)width / 4 : 0;
+    offsets[1][axis] = spread ? (uv[2][axis] - uv[0][axis]) / (float)height / 4 : 0;
+  }
+}

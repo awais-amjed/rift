@@ -123,8 +123,9 @@ typedef struct RiftDmabuf {
   int32_t transform;
 } RiftDmabuf;
 
-// The buffer's format and modifier would not map into VAAPI on this GPU: the
-// caller drops the modifier and asks the compositor for another.
+// The buffer's format and modifier will not import into this encoder (VAAPI's
+// map or NVENC's GL path): the caller drops the modifier and asks the compositor
+// for another.
 #define RIFT_FFENC_IMPORT_FAILED (-0x52494D50)
 
 typedef struct RiftRect {
@@ -207,8 +208,9 @@ typedef struct RiftPwPicture {
 typedef struct RiftPwCallbacks {
   void* user;
   // On PipeWire's thread, which it must not hold up. The picture is the
-  // caller's until rift_pw_release; at most two are held at once, and a
-  // newer one while two are goes back unseen.
+  // caller's until rift_pw_release; at most four are held at once (MAX_HELD in
+  // pipewire.c), and a newer one waits in the stream until one is released,
+  // never going back unseen: on a still screen nothing newer would replace it.
   void (*picture)(void* user, const RiftPwPicture* picture);
   // 0 streaming, 1 paused (also before the first picture), 2 ended, with
   // why. Ended comes once.

@@ -25,7 +25,10 @@ AVBufferRef* nvenc_gl_frames(NvencGl* gl);
 
 // Makes the context current if it is not, imports `buf`, draws, maps, copies,
 // syncs, unmaps. Returns with `out` holding a frame from the pool and the buffer
-// no longer needed. 0, RIFT_FFENC_IMPORT_FAILED, or a negative FFmpeg error.
+// no longer needed. 0, RIFT_FFENC_IMPORT_FAILED for a format and modifier that
+// have not imported on this path, AVERROR(EAGAIN) for one that has and failed
+// this time, when the caller sends the last picture again, or a negative FFmpeg
+// error.
 int nvenc_gl_run(NvencGl* gl, const RiftDmabuf* buf, const RiftRect* place,
                  AVFrame* out);
 

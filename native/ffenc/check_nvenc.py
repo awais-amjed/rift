@@ -97,6 +97,15 @@ for y in range(0, 360, 8):
 # Turned clockwise: the buffer's bottom-left is now the top-left.
 quarters(last_of("turned", 1080, 1920), 1080, 1920, "turned", at=(BLUE, RED, GRAY, GREEN))
 
+# Scaled 3:1, every source pixel counts. Reports how far apart the row's values
+# are in its middle: one sample a pixel keeps most of the stripes' 219.
+stripes = last_of("stripes", 1280, 720)
+row = stripes[360 * 1280 + 300:360 * 1280 + 980]
+spread = max(row) - min(row)
+print(f"stripes: values {spread} apart")
+if spread > 110:
+    fail(f"stripes scaled 3:1 alias: values {spread} apart")
+
 # A repeat is the picture it repeats.
 repeats = list(pictures("repeat", 1920, 1080))
 if len(repeats) != 31:

@@ -109,6 +109,7 @@ struct NvencGl {
   Gl gl;
   GLuint programs[2];
   GLint corners[2];
+  GLint spread[2];
   GLuint source;
   GLuint vertex_array;
   GLuint textures[2];
@@ -121,11 +122,23 @@ struct NvencGl {
   AVBufferRef* device;
   AVBufferRef* frames;
 
+  // What has imported this share, and how many pictures in a row have failed
+  // on it since (nvenc_gl_run).
+  struct {
+    uint32_t format;
+    uint64_t modifier;
+  } imported[8];
+  int imported_count;
+  int passing_failures;
+
   // The wait on the GPU, for the logs.
   int64_t worst_ns;
   int64_t worst_since_ns;
   int64_t share_worst_ns;
 };
+
+// At up to 120 pictures a second, about a second's worth.
+#define MAX_PASSING_FAILURES 120
 
 static const char* const VERTEX_SHADER =
     "#version 300 es\n"
@@ -146,12 +159,21 @@ static const char* const VERTEX_SHADER =
   "precision highp float;\n"                                  \
   "in vec2 uv;\n"                                             \
   "out vec4 colour;\n"                                        \
-  "uniform samplerExternalOES picture;\n"
+  "uniform samplerExternalOES picture;\n"                     \
+  "uniform vec2 spread[2];\n"                                 \
+  "vec3 sampled() {\n"                                        \
+  "  vec3 s = texture(picture, uv).rgb;\n"                    \
+  "  if (spread[0] == vec2(0.0) && spread[1] == vec2(0.0)) return s;\n" \
+  "  return (texture(picture, uv - spread[0] - spread[1]).rgb +\n"      \
+  "          texture(picture, uv + spread[0] - spread[1]).rgb +\n"      \
+  "          texture(picture, uv - spread[0] + spread[1]).rgb +\n"      \
+  "          texture(picture, uv + spread[0] + spread[1]).rgb) / 4.0;\n" \
+  "}\n"
 
 static const char* const Y_SHADER =
     FRAGMENT_HEAD
     "void main() {\n"
-    "  vec3 s = texture(picture, uv).rgb;\n"
+    "  vec3 s = sampled();\n"
     "  colour = vec4((16.0 + 65.481 * s.r + 128.553 * s.g + 24.966 * s.b)"
     " / 255.0, 0.0, 0.0, 1.0);\n"
     "}\n";
@@ -159,7 +181,7 @@ static const char* const Y_SHADER =
 static const char* const UV_SHADER =
     FRAGMENT_HEAD
     "void main() {\n"
-    "  vec3 s = texture(picture, uv).rgb;\n"
+    "  vec3 s = sampled();\n"
     "  colour = vec4((128.0 - 37.797 * s.r - 74.203 * s.g + 112.0 * s.b)"
     " / 255.0,\n"
     "                (128.0 + 112.0 * s.r - 93.786 * s.g - 18.214 * s.b)"
@@ -351,6 +373,8 @@ static bool open_gl(NvencGl* self, char* error, size_t error_len) {
     if (!self->programs[plane]) return false;
     self->corners[plane] =
         gl->GetUniformLocation(self->programs[plane], "corners");
+    self->spread[plane] =
+        gl->GetUniformLocation(self->programs[plane], "spread");
     gl->UseProgram(self->programs[plane]);
     gl->Uniform1i(gl->GetUniformLocation(self->programs[plane], "picture"), 0);
   }
@@ -557,7 +581,7 @@ static EGLImage import_image(NvencGl* self, const RiftDmabuf* buf) {
 }
 
 static void draw_plane(NvencGl* self, int plane, const RiftRect* place,
-                       const float uv[4][2]) {
+                       const float uv[4][2], bool spread) {
   const Gl* gl = &self->gl;
   RiftRect whole = nvenc_gl_plane_rect(NULL, self->width, self->height, plane);
   RiftRect rect = nvenc_gl_plane_rect(place, self->width, self->height, plane);
@@ -574,6 +598,9 @@ static void draw_plane(NvencGl* self, int plane, const RiftRect* place,
   gl->Viewport(rect.x, rect.y, rect.width, rect.height);
   gl->UseProgram(self->programs[plane]);
   gl->Uniform2fv(self->corners[plane], 4, &uv[0][0]);
+  float offsets[2][2];
+  nvenc_gl_spread(uv, rect.width, rect.height, spread, offsets);
+  gl->Uniform2fv(self->spread[plane], 2, &offsets[0][0]);
   gl->DrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
@@ -630,32 +657,70 @@ static int copy_to_frame(NvencGl* self, AVFrame* out) {
   return 0;
 }
 
+static bool has_imported(const NvencGl* self, const RiftDmabuf* buf) {
+  for (int i = 0; i < self->imported_count; i++) {
+    if (self->imported[i].format == buf->drm_format &&
+        self->imported[i].modifier == buf->modifier) {
+      return true;
+    }
+  }
+  return false;
+}
+
+static void note_imported(NvencGl* self, const RiftDmabuf* buf) {
+  self->passing_failures = 0;
+  if (has_imported(self, buf)) return;
+  // A share sees a format or two; the oldest makes way if it ever sees more.
+  int at = self->imported_count < 8 ? self->imported_count++ : 7;
+  self->imported[at].format = buf->drm_format;
+  self->imported[at].modifier = buf->modifier;
+}
+
+// Why a picture did not import. RIFT_FFENC_IMPORT_FAILED has the modifier
+// dropped for the rest of the share and, with a few gone, the stream on memory,
+// which GNOME stops sending under a fullscreen window on NVIDIA's screen. So
+// that is only for a modifier that has never worked: one that has, failing now,
+// is a passing failure, a game filling the GPU's memory say, and asks for the
+// last picture again. Passing failures for a second and more are the GPU's.
+static int import_failure(NvencGl* self, const RiftDmabuf* buf) {
+  if (!has_imported(self, buf)) return RIFT_FFENC_IMPORT_FAILED;
+  self->passing_failures++;
+  if (self->passing_failures > MAX_PASSING_FAILURES) return AVERROR_EXTERNAL;
+  return AVERROR(EAGAIN);
+}
+
 int nvenc_gl_run(NvencGl* self, const RiftDmabuf* buf, const RiftRect* place,
                  AVFrame* out) {
   if (!make_current(self)) return AVERROR_EXTERNAL;
   const Gl* gl = &self->gl;
-  while (gl->GetError() != GL_NO_ERROR) {
+  for (int i = 0; i < 32 && gl->GetError() != GL_NO_ERROR; i++) {
   }
 
   EGLImage image = import_image(self, buf);
-  if (image == EGL_NO_IMAGE) return RIFT_FFENC_IMPORT_FAILED;
+  if (image == EGL_NO_IMAGE) return import_failure(self, buf);
   gl->BindTexture(GL_TEXTURE_EXTERNAL_OES, self->source);
   gl->EGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, image);
   if (gl->GetError() != GL_NO_ERROR) {
     eglDestroyImage(self->display, image);
-    return RIFT_FFENC_IMPORT_FAILED;
+    return import_failure(self, buf);
   }
 
   float uv[4][2];
   nvenc_gl_source_uv(buf, uv);
-  draw_plane(self, 0, place, uv);
-  draw_plane(self, 1, place, uv);
+  // Past 2:1 one sample a pixel skips source pixels, and text shimmers. Scaled
+  // less, as nearly every share is, the picture costs no more than one sample.
+  int place_w = place ? place->width : self->width;
+  int place_h = place ? place->height : self->height;
+  bool spread = nvenc_gl_scales_far(buf, place_w, place_h);
+  draw_plane(self, 0, place, uv, spread);
+  draw_plane(self, 1, place, uv, spread);
   gl->Flush();
   eglDestroyImage(self->display, image);
 
   int err = av_hwframe_get_buffer(self->frames, out, 0);
   if (err < 0) return err;
   err = copy_to_frame(self, out);
+  if (err == 0) note_imported(self, buf);
   if (err < 0) av_frame_unref(out);
   return err;
 }

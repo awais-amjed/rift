@@ -285,6 +285,33 @@ static void still(const char* name, int width, int height, int out_w, int out_h,
   rift_ffenc_close(enc);
 }
 
+// Two-pixel stripes scaled 3:1, which one sample per output pixel keeps at
+// nearly their full contrast, moving in and out of step: text shimmers. Every
+// source pixel counted, they come out a soft gray.
+static void stripes(void) {
+  Buffer b;
+  if (!make_buffer(&b, 3840, 2160, DRM_FORMAT_XRGB8888, 0x606)) {
+    failures++;
+    return;
+  }
+  RiftFfenc* enc = open_encoder(1280, 720);
+  if (!enc) {
+    failures++;
+    return;
+  }
+  make_drawing_current();
+  glBindFramebuffer(GL_FRAMEBUFFER, b.framebuffer);
+  glEnable(GL_SCISSOR_TEST);
+  rect(0, 0, 3840, 2160, 0, 0, 0);
+  for (int x = 0; x < 3840; x += 4) rect(x, 0, 2, 2160, 1, 1, 1);
+  glDisable(GL_SCISSOR_TEST);
+  glFinish();
+  Stream stream = open_stream("stripes");
+  for (int i = 0; i < 60; i++) send(enc, &b, NULL, i, &stream);
+  fclose(stream.file);
+  rift_ffenc_close(enc);
+}
+
 // The last picture again, and as a keyframe when asked.
 static void repeat(void) {
   Buffer b;
@@ -350,6 +377,51 @@ static void memory_between(void) {
   fclose(stream.file);
   CHECK(stream.packets == 90, "memory: %d packets", stream.packets);
   free(nv12);
+  rift_ffenc_close(enc);
+}
+
+// A format and modifier that have imported this share and fail once are a
+// passing failure, a game filling the GPU's memory say: the last picture goes
+// out again and the modifier stays. One that never has is refused, and a long
+// run of the first kind ends in the encoder failing.
+static void passing_failure(void) {
+  RiftFfenc* enc = open_encoder(1280, 720);
+  Buffer b;
+  if (!enc || !make_buffer(&b, 1280, 720, DRM_FORMAT_XRGB8888, 0x606)) {
+    failures++;
+    return;
+  }
+  draw(&b, -1);
+  Stream stream = open_stream("passing");
+  int64_t at = 0;
+  CHECK(rift_ffenc_send_dmabuf(enc, &b.dmabuf, NULL, at, 1) == 0, "passing: first");
+  drain(enc, &stream);
+
+  RiftDmabuf gone = b.dmabuf;
+  gone.fds[0] = -1;
+  int err = rift_ffenc_send_dmabuf(enc, &gone, NULL, at += 16667, 0);
+  CHECK(err == 0, "passing: a failure on a good modifier returned %d", err);
+  drain(enc, &stream);
+  CHECK(stream.packets == 2, "passing: %d packets, wanted the repeat", stream.packets);
+
+  err = rift_ffenc_send_dmabuf(enc, &b.dmabuf, NULL, at += 16667, 0);
+  CHECK(err == 0, "passing: the next good picture returned %d", err);
+  drain(enc, &stream);
+
+  gone.modifier = 0x1234;
+  err = rift_ffenc_send_dmabuf(enc, &gone, NULL, at += 16667, 0);
+  CHECK(err == RIFT_FFENC_IMPORT_FAILED, "passing: a new modifier returned %d", err);
+  gone.modifier = b.dmabuf.modifier;
+
+  err = 0;
+  for (int i = 0; i < 300 && err >= 0; i++) {
+    err = rift_ffenc_send_dmabuf(enc, &gone, NULL, at += 16667, 0);
+    drain(enc, &stream);
+  }
+  err = rift_ffenc_send_dmabuf(enc, &gone, NULL, at += 16667, 0);
+  CHECK(err < 0 && err != RIFT_FFENC_IMPORT_FAILED,
+        "passing: a long run of failures returned %d", err);
+  fclose(stream.file);
   rift_ffenc_close(enc);
 }
 
@@ -493,10 +565,12 @@ int main(int argc, char** argv) {
   RiftRect odd = {1, 1, 101, 51};
   still("place", 640, 360, 640, 360, &crop, &odd, 0);
   still("turned", 1920, 1080, 1080, 1920, NULL, NULL, 1);
+  stripes();
 
   repeat();
   memory_between();
   refused();
+  passing_failure();
 
   if (failures) {
     fprintf(stderr, "%d failed\n", failures);

@@ -16,4 +16,13 @@ RiftRect nvenc_gl_plane_rect(const RiftRect* place, int out_w, int out_h,
 // turn_of undoes it on VAAPI.
 void nvenc_gl_source_uv(const RiftDmabuf* buf, float uv[4][2]);
 
+// Whether the buffer, cropped and turned, is more than twice the place it lands
+// in, either way.
+int nvenc_gl_scales_far(const RiftDmabuf* buf, int place_w, int place_h);
+
+// A quarter of an output pixel across and down in texture coordinates, for the
+// four samples of a far scale; zeros for the one sample otherwise.
+void nvenc_gl_spread(const float uv[4][2], int width, int height, int spread,
+                     float offsets[2][2]);
+
 #endif  // RIFT_NVENC_GL_GEOMETRY_H_

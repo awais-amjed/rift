@@ -569,6 +569,11 @@ int32_t rift_ffenc_send_dmabuf(RiftFfenc* enc, const RiftDmabuf* buf,
     av_frame_free(&enc->last);
     enc->last = av_frame_clone(frame);
     err = send_gpu(enc, frame, timestamp_us, keyframe);
+  } else if (err == AVERROR(EAGAIN) && enc->last) {
+    // A passing failure (nvenc_gl.c): the picture before it again, so a keyframe
+    // asked for still goes out and the stream's time moves on.
+    err = av_frame_ref(frame, enc->last);
+    if (err == 0) err = send_gpu(enc, frame, timestamp_us, keyframe);
   }
   av_frame_free(&frame);
 done:

@@ -149,8 +149,8 @@ Rust (portal, ashpd)        C, librift_ffenc.so                   Rust
   30). The first picture
   is kept the same way until the feed it sizes is attached: without that, KDE's
   covered window, drawn once, never reached the viewer (found Oct 30).
-- Each picture carries PipeWire's presentation time for the share's clock and A/V
-  sync, as today's frames carry theirs.
+- Each picture is stamped with the wall clock when it is sent (`frames::now_us`),
+  as libwebrtc's capturer's frames are, for the share's clock and A/V sync.
 
 ### Events kept
 
