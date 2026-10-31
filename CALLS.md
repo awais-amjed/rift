@@ -623,15 +623,27 @@ On Linux the same switch changes nothing: libwebrtc asks for real-time
 scheduling, which an ordinary user is refused, so every queue stays at nice 0.
 
 The mic's own thread is time-critical on Windows ("Pro Audio"), and libwebrtc
-runs the noise model on it, so DPDFNet took its 2 to 8 ms of every 10 ahead of
-a game. The model runs on a thread of its own at normal priority instead
-(`rust/src/dpdfnet/handoff.rs`), sharing the cores with the game, and a frame
-it is late with goes out unfiltered rather than hold the mic up. Measured Oct 25
-2026 on a laptop's Windows, the model still on the mic's thread: with a
-stand-in game on every CPU, the game's frames taking over 1.5 times its fastest
-went from 0.16–0.31% with the filter off to 0.83–0.92% on DPDFNet-2, and its
-99.9th percentile from 8.2 to 12.2 ms. With the model on its own thread
-(measured the same day, the same laptop), CS2 limited mostly by the CPU ran
+runs the noise model on it, so DPDFNet takes its 2 to 8 ms of every 10 ahead of
+a game. That is a price chosen on purpose. From Oct 25 to Oct 31 2026 the model
+had a thread of its own at normal priority, sharing the cores with the game,
+where a frame it was late with went out unfiltered. On that build (beta.9)
+testers heard a Windows friend's voice crackle and cut out, so beta.10 let them
+switch between the mic's thread and the model's own at each priority in a call.
+The owner compared them by ear on Oct 30: the mic's thread sounded best, so
+that is where the model runs, on Linux too, where the thread is at normal and
+what goes is the wait for another thread. The same comparison had a setting to
+hold Windows' 1 ms timer and stay unthrottled for the length of a call. It was
+left out: its main reason was the mic's wait for the model's thread, which is
+gone, and Rift already asks for that timer in a call without it (`powercfg
+/energy` in the Windows 11 VM, Oct 30). A share holds both itself
+(`rust/src/screenshare/capture.rs`). Not measured: Rift unthrottled or not
+while a game covers it in a call.
+
+What the placement costs a game, measured Oct 25 2026 on a laptop's Windows,
+the model on the mic's thread: with a stand-in game on every CPU, the game's
+frames taking over 1.5 times its fastest went from 0.16–0.31% with the filter off to 0.83–0.92% on DPDFNet-2, and its
+99.9th percentile from 8.2 to 12.2 ms. With the model on its own thread at
+normal (measured the same day, the same laptop), CS2 limited mostly by the CPU ran
 the same on DPDFNet-2 as with the filter off: 278–282 fps against 280–296, a
 1% low of 100 against 99–107 and a 99.9th percentile of 10.5–10.7 ms against
 10.1–10.9, with none of 34,025 frames of the voice late. The stand-in game,

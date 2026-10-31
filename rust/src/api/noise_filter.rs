@@ -41,9 +41,9 @@ pub fn take_dpdfnet_fell_back() -> bool {
     }
 }
 
-/// How many frames DPDFNet sent unfiltered since the last call, because this
-/// computer kept it from them in time; Dart writes it to the log after a
-/// call. Starts the count again.
+/// How many frames DPDFNet sent unfiltered since the last call, because it
+/// failed on them; Dart writes it to the log after a call. Starts the count
+/// again.
 #[flutter_rust_bridge::frb(sync)]
 pub fn take_dpdfnet_unfiltered() -> u32 {
     #[cfg(any(target_os = "windows", target_os = "linux"))]

@@ -14,22 +14,20 @@
 //! computer is often slow only for a while (a game loading, a build), and a
 //! slow one costs a second of crackle at the start of a call, not of every
 //! unmute.
-//! In a call the model runs on a thread of its own, below the capture
-//! thread's priority ([`handoff`]), and a frame it is late with goes out
-//! unfiltered. That thread is left on whichever cores the system gives it.
-//! Until Oct 25 the model ran on the capture thread, moved onto the
-//! performance cores, which on that i7 kept DPDFNet-8 for the whole call,
-//! but on Windows that thread is time-critical, so it took a fast core from
-//! a game every 10 ms: a tester's CS2 stuttered while they were in a call.
-//! On an efficiency core DPDFNet-2 takes over instead, which still beats
-//! RNNoise.
+//! The model runs on libwebrtc's capture thread, left on whichever cores the
+//! system gives it, and on Windows that thread is time-critical, so it goes
+//! ahead of a game. From Oct 25 to Oct 31 it had a thread of its own at normal
+//! priority, because a tester's CS2 stuttered in a call, but on that thread
+//! testers heard a Windows friend's voice crackle and cut out, and Time
+//! critical sounded best when the owner compared the placements by ear
+//! (`CALLS.md`, *Rift beside a game*). On an efficiency core DPDFNet-2 takes
+//! over, which still beats RNNoise.
 //! tract, which ran DeepFilterNet, runs these too, but its GRU layers took
 //! DPDFNet-8 to 12 ms a frame.
 //!
 //! The runner's filter calls
 //! the two C functions here on libwebrtc's capture thread, 10 ms at a time,
-//! once Dart has loaded the model ([`load`]) and handed their addresses on;
-//! they hand each frame to the model's thread.
+//! once Dart has loaded the model ([`load`]) and handed their addresses on.
 //! The settings mic test runs a [`Model`] of its own (`mic_test::clean`).
 
 use std::path::PathBuf;
@@ -40,8 +38,6 @@ use std::time::{Duration, Instant};
 use df::{Complex32, DFState};
 use ort::session::{builder::GraphOptimizationLevel, Session};
 use ort::value::TensorRef;
-
-mod handoff;
 
 /// What libwebrtc hands over: 10 ms at 48 kHz, which is also the models' hop.
 pub(crate) const FRAME: usize = 480;
@@ -66,11 +62,10 @@ const SLOW_FRAME: Duration = Duration::from_millis(7);
 
 /// The small model takes over once this many of the last [`WATCHED`] frames
 /// were slow, where a lone slow frame (the thread put aside for a moment) is
-/// no reason to. A slow frame is one that went out unfiltered ([`handoff`]),
-/// so this is three bursts of the room in a second. Paced as a call is, on
-/// the i7's efficiency cores DPDFNet-8 missed 4 to 11 frames in 500 and
-/// DPDFNet-2 none (Oct 25); at ten in a hundred, as when a slow frame was
-/// only crackle, DPDFNet-8 stayed and let them through.
+/// no reason to. A slow frame holds up the microphone, heard as crackle. Paced
+/// as a call is, on the i7's efficiency cores DPDFNet-8 went over 7 ms on 4 to
+/// 11 frames in 500 and DPDFNet-2 on none (Oct 25); at ten in a hundred,
+/// DPDFNet-8 stayed and let them through.
 const SLOW_LIMIT: u32 = 3;
 const WATCHED: usize = 100;
 
@@ -83,6 +78,10 @@ static SMALL_CHOSEN: AtomicBool = AtomicBool::new(false);
 /// count for the call's model and the mic test's, which each read it
 /// themselves.
 static RETRIES: AtomicU32 = AtomicU32::new(0);
+
+/// Frames of the call that went out unfiltered, for Dart to log after it, as
+/// [`FELL_BACK`] is.
+static UNFILTERED: AtomicU32 = AtomicU32::new(0);
 
 /// Set when a model went over to DPDFNet-2, for Dart to write to the log
 /// after the call ([`take_fell_back`]): the capture thread never writes to
@@ -212,8 +211,7 @@ impl Model {
     }
 
     /// A model's first runs set up what later ones reuse and take several
-    /// times as long, which is no measure of the computer. Again on each
-    /// thread that runs it: on a new one the first few frames were late.
+    /// times as long, which is no measure of the computer.
     fn warm_up(&mut self) {
         let mut silence = [0.0; FRAME];
         for _ in 0..3 {
@@ -226,22 +224,11 @@ impl Model {
     /// Filters 10 ms in place; false, with the frame untouched, if the model
     /// failed on it.
     pub(crate) fn process(&mut self, frame: &mut [f32; FRAME]) -> bool {
-        self.process_handed(frame, Instant::now())
+        self.process_as_chosen(frame, SMALL_CHOSEN.load(Ordering::Relaxed))
     }
 
-    /// [`process`](Self::process) for a frame handed over at `handed`, which
-    /// times the large model from then: a frame kept waiting for the CPU is
-    /// as late as one the model took long over.
-    fn process_handed(&mut self, frame: &mut [f32; FRAME], handed: Instant) -> bool {
-        self.process_as_chosen(frame, SMALL_CHOSEN.load(Ordering::Relaxed), handed)
-    }
-
-    fn process_as_chosen(
-        &mut self,
-        frame: &mut [f32; FRAME],
-        small_chosen: bool,
-        handed: Instant,
-    ) -> bool {
+    fn process_as_chosen(&mut self, frame: &mut [f32; FRAME], small_chosen: bool) -> bool {
+        let began = Instant::now();
         let retries = RETRIES.load(Ordering::Relaxed);
         if retries != self.retries_seen {
             self.retries_seen = retries;
@@ -261,7 +248,7 @@ impl Model {
             self.ran_large = large;
         }
         let ok = self.process_with(frame, large);
-        if large && self.watch.add(handed.elapsed()) {
+        if large && self.watch.add(began.elapsed()) {
             self.slow = true;
             FELL_BACK.store(true, Ordering::Relaxed);
         }
@@ -325,10 +312,9 @@ pub(crate) fn take_fell_back() -> bool {
 }
 
 /// How many frames of the call went out unfiltered since the last call,
-/// because the model was late with them ([`handoff`]) or failed on them,
-/// which starts the count again.
+/// because the model failed on them, which starts the count again.
 pub(crate) fn take_unfiltered() -> u32 {
-    handoff::take_unfiltered()
+    UNFILTERED.swap(0, Ordering::Relaxed)
 }
 
 /// Opens ONNX Runtime once. A computer it will not open on still runs the
@@ -408,14 +394,49 @@ fn initial_state(session: &Session) -> Result<Vec<f32>, String> {
 
 /// Locked by the capture thread for each frame. Nothing else takes it once
 /// the model is in, so the lock is never waited on there.
-static MODEL: Mutex<Option<handoff::Handoff>> = Mutex::new(None);
+static MODEL: Mutex<Option<CallModel>> = Mutex::new(None);
+
+/// The call's model, run on the capture thread.
+struct CallModel {
+    model: Model,
+    /// The last frame as it came in, which goes out in place of one the model
+    /// failed on: the model's window holds the voice back a frame, so this is
+    /// the one its output would have matched.
+    previous: [f32; FRAME],
+}
+
+impl CallModel {
+    fn new(model: Model) -> CallModel {
+        CallModel {
+            model,
+            previous: [0.0; FRAME],
+        }
+    }
+
+    /// True when the model's frame went out.
+    fn process(&mut self, frame: &mut [f32; FRAME]) -> bool {
+        let raw = *frame;
+        let ok = self.model.process(frame);
+        if !ok {
+            *frame = self.previous;
+            UNFILTERED.fetch_add(1, Ordering::Relaxed);
+        }
+        self.previous = raw;
+        ok
+    }
+
+    fn reset(&mut self) {
+        self.model.reset();
+        self.previous = [0.0; FRAME];
+    }
+}
 
 /// Loads the built-in model once; later calls return straight away.
 pub(crate) fn load() -> Result<(), String> {
     if MODEL.lock().map_err(|e| e.to_string())?.is_some() {
         return Ok(());
     }
-    let model = handoff::Handoff::start(Model::new()?)?;
+    let model = CallModel::new(Model::new()?);
     log::info!("DPDFNet loaded");
     *MODEL.lock().map_err(|e| e.to_string())? = Some(model);
     Ok(())
@@ -423,7 +444,7 @@ pub(crate) fn load() -> Result<(), String> {
 
 /// Filters `count` samples at `samples` in place. Returns 0, or -1 when the
 /// frame went out unfiltered (no model, a frame that is not 10 ms at
-/// 48 kHz, the model failing, or the model late with it).
+/// 48 kHz, or the model failing).
 ///
 /// # Safety
 /// `samples` must point to `count` floats, writable and not shared with
@@ -436,13 +457,13 @@ pub unsafe extern "C" fn rift_dpdfnet_process(samples: *mut f32, count: i32) -> 
     let Ok(mut guard) = MODEL.try_lock() else {
         return -1;
     };
-    let Some(handoff) = guard.as_mut() else {
+    let Some(model) = guard.as_mut() else {
         return -1;
     };
     // SAFETY: the caller promises `count` writable floats, and `count` is
     // FRAME.
     let frame = unsafe { &mut *samples.cast::<[f32; FRAME]>() };
-    if handoff.process(frame) {
+    if model.process(frame) {
         0
     } else {
         -1
@@ -454,8 +475,8 @@ pub unsafe extern "C" fn rift_dpdfnet_process(samples: *mut f32, count: i32) -> 
 #[no_mangle]
 pub extern "C" fn rift_dpdfnet_reset() {
     if let Ok(mut guard) = MODEL.try_lock() {
-        if let Some(handoff) = guard.as_mut() {
-            handoff.reset();
+        if let Some(model) = guard.as_mut() {
+            model.reset();
         }
     }
 }
@@ -582,14 +603,14 @@ mod tests {
         let mut fresh = Model::new().unwrap();
         for frame in &before {
             let (mut a, mut b) = (*frame, *frame);
-            assert!(switched.process_as_chosen(&mut a, false, Instant::now()));
+            assert!(switched.process_as_chosen(&mut a, false));
             // The same window history, and a DPDFNet-2 that has heard none
             // of it.
             assert!(fresh.process_with(&mut b, true));
         }
         for (i, frame) in after.iter().enumerate() {
             let (mut a, mut b) = (*frame, *frame);
-            assert!(switched.process_as_chosen(&mut a, true, Instant::now()));
+            assert!(switched.process_as_chosen(&mut a, true));
             assert!(fresh.process_with(&mut b, false));
             assert!(a == b, "frame {i} differs from a DPDFNet-2 started afresh");
         }
@@ -602,7 +623,7 @@ mod tests {
         let mut seed = 1u32;
         let mut run = |model: &mut Model| {
             for mut frame in noise(5, &mut seed) {
-                assert!(model.process_as_chosen(&mut frame, false, Instant::now()));
+                assert!(model.process_as_chosen(&mut frame, false));
             }
         };
         model.slow = true;
@@ -615,6 +636,21 @@ mod tests {
         retry_large();
         run(&mut model);
         assert!(model.ran_large);
+    }
+
+    #[test]
+    #[ignore = "needs ONNX Runtime at RIFT_ONNXRUNTIME"]
+    fn the_calls_model_filters_every_frame_where_it_is_called() {
+        let mut call = CallModel::new(Model::new().unwrap());
+        let mut alone = Model::new().unwrap();
+        let mut seed = 7u32;
+        for (i, frame) in noise(100, &mut seed).into_iter().enumerate() {
+            let (mut here, mut there) = (frame, frame);
+            assert!(call.process(&mut here), "frame {i} went out unfiltered");
+            assert!(alone.process(&mut there));
+            assert!(here == there, "frame {i} is not what the model gives");
+        }
+        assert_eq!(take_unfiltered(), 0);
     }
 
     #[test]
