@@ -803,6 +803,7 @@ fn encoder_settings(
         max_bitrate_bps: settings.bitrate.saturating_mul(1_000_000),
         start_bitrate_bps,
         h264_high: encoder::SEND_H264_HIGH,
+        gpu_capture: settings.gpu_capture,
     }
 }
 

@@ -145,6 +145,9 @@ pub(crate) struct EncoderSettings {
     /// H264's High profile rather than constrained baseline. The track is
     /// published asking for the same (`track::publish_video_track`).
     pub h264_high: bool,
+    /// Whether GPU capture is on for this share, which NVENC's GL side needs
+    /// (`gpu_choice::encoder_device`).
+    pub gpu_capture: bool,
 }
 
 /// A picture to encode: `width * height` bytes of Y, then the interleaved U

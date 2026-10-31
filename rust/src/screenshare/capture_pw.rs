@@ -1,7 +1,7 @@
 //! A Wayland share on Rift's own PipeWire stream (`docs/gpu-codecs/STEP2_LINUX.md`):
 //! the portal from Rust (`portal.rs`), the stream in Rift's FFmpeg library
 //! (`pw_stream.rs`), and each picture to the GPU encoder as the compositor's
-//! DMA-BUF where the encoder takes one, or from memory for VP9 and NVENC.
+//! DMA-BUF where the encoder takes one, or from memory after a fall back to VP9.
 //! When any of it refuses, the share runs on libwebrtc's capturer as before.
 use super::capture::{CaptureRequest, Command, Feed, Progress, VideoSlot};
 use super::encoder::{dmabuf_target, DmabufTarget, GpuCodec};
@@ -235,7 +235,8 @@ pub(super) fn run(
     command_rx: &mpsc::Receiver<Command>,
 ) -> Handoff {
     let wayland = on_wayland();
-    let target = dmabuf_target();
+    // Asked only with the switch on: it opens NVENC's GL side.
+    let target = request.gpu_capture.then(dmabuf_target).flatten();
     if !takes_rifts_stream(request.gpu_capture, wayland, request.codec, target.as_ref()) {
         log::info!(
             "capture: GPU capture {}; libwebrtc's capturer",

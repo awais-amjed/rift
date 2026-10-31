@@ -155,6 +155,7 @@ async fn decoded_frames(
                 max_bitrate_bps: 4_000_000,
                 start_bitrate_bps: 4_000_000,
                 h264_high,
+                gpu_capture: true,
             },
             Box::new(ToSource(source.clone())),
         )
@@ -675,6 +676,7 @@ impl LiveStream {
                 max_bitrate_bps: 8_000_000,
                 start_bitrate_bps: 8_000_000,
                 h264_high: false,
+                gpu_capture: true,
             },
             Box::new(Counting(made.clone(), dump)),
         )
@@ -785,6 +787,38 @@ fn gray_nv12_of(picture: &super::pw_stream::PwPicture) -> Vec<u8> {
         }
     }
     nv12
+}
+
+/// The settings switch keeps a share out of NVENC's GL side: with GPU capture
+/// off the encoder takes no DMA-BUF, which is only true if it never opened EGL
+/// and CUDA's interop, and the first look at the GPU leaves it out too.
+#[cfg(target_os = "linux")]
+#[test]
+#[ignore = "needs NVIDIA drawing a Wayland screen"]
+fn live_gpu_switch_keeps_nvenc_off_its_gl_side() {
+    use super::encoder::dmabuf_target;
+    use std::sync::atomic::AtomicU32;
+    use std::sync::Arc;
+
+    let open = |gpu_capture| {
+        GpuEncoder::open(
+            EncoderSettings {
+                codec: GpuCodec::H264,
+                width: 1280,
+                height: 720,
+                fps: 60,
+                max_bitrate_bps: 8_000_000,
+                start_bitrate_bps: 8_000_000,
+                h264_high: false,
+                gpu_capture,
+            },
+            Box::new(Counting(Arc::new(AtomicU32::new(0)), None)),
+        )
+        .expect("a GPU encoder opens")
+    };
+    assert!(!open(false).takes_dmabuf(), "the switch is off");
+    assert!(open(true).takes_dmabuf(), "the switch is on");
+    assert!(dmabuf_target().is_some_and(|target| target.external_modifiers));
 }
 
 /// The stream into the encoder, every picture staying on the GPU: a moving

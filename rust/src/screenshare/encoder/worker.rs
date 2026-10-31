@@ -161,7 +161,8 @@ impl GpuEncoder {
         }
     }
 
-    /// Whether the encoder takes a DMA-BUF: VAAPI's does, NVENC's does not.
+    /// Whether the encoder takes a DMA-BUF: VAAPI's does, and NVENC's where its
+    /// GL side opened.
     #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     pub(crate) fn takes_dmabuf(&self) -> bool {
         self.takes_dmabuf
@@ -484,6 +485,7 @@ mod tests {
         max_bitrate_bps: 1_000_000,
         start_bitrate_bps: 1_000_000,
         h264_high: false,
+        gpu_capture: false,
     };
 
     /// A fake encoder, what it is asked, and the sink's keyframe request.

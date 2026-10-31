@@ -63,8 +63,8 @@ impl GpuFeed {
         self.encoder.name()
     }
 
-    /// Whether the encoder takes a Wayland share's DMA-BUF whole: VAAPI's
-    /// does, NVENC's takes the picture from memory.
+    /// Whether the encoder takes a Wayland share's DMA-BUF whole: VAAPI's does,
+    /// and NVENC's where its GL side opened; otherwise it reads memory.
     #[cfg(target_os = "linux")]
     pub(crate) fn takes_dmabuf(&self) -> bool {
         self.encoder.takes_dmabuf()

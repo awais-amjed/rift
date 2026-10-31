@@ -3,6 +3,8 @@
 //! On a hybrid laptop Intel or AMD drives the screen, and VAAPI there keeps
 //! coming first (`ffmpeg.rs`, `candidates`).
 
+use std::path::Path;
+
 const NVIDIA: u16 = 0x10de;
 const INTEL: u16 = 0x8086;
 const AMD: u16 = 0x1002;
@@ -38,6 +40,15 @@ pub(crate) fn target_for(
     })
 }
 
+/// The device an encoder opens on. A render node is what opens NVENC's GL side,
+/// which only a share on Rift's stream reads: with GPU capture off in settings
+/// NVENC gets none, so that switch keeps a share out of EGL and CUDA's GL interop
+/// altogether, and the first look at what the GPU encodes stays out too. VAAPI
+/// always needs its node.
+pub(crate) fn encoder_device<T>(device: Option<T>, nvenc: bool, gl_side: bool) -> Option<T> {
+    device.filter(|_| !nvenc || gl_side)
+}
+
 /// The NVIDIA card's render node when it has a connected display and no Intel
 /// or AMD card does. `None` keeps today's order.
 pub(crate) fn nvidia_draws_the_screen(cards: &[DrmCard]) -> Option<&str> {
@@ -56,7 +67,11 @@ pub(crate) fn nvidia_draws_the_screen(cards: &[DrmCard]) -> Option<&str> {
 
 /// The cards in `/sys/class/drm`.
 pub(crate) fn read_cards() -> Vec<DrmCard> {
-    let Ok(entries) = std::fs::read_dir("/sys/class/drm") else {
+    read_cards_under(Path::new("/sys/class/drm"))
+}
+
+fn read_cards_under(root: &Path) -> Vec<DrmCard> {
+    let Ok(entries) = std::fs::read_dir(root) else {
         return Vec::new();
     };
     let names: Vec<String> = entries
@@ -71,18 +86,18 @@ pub(crate) fn read_cards() -> Vec<DrmCard> {
         .iter()
         .filter(is_card)
         .filter_map(|card| {
-            let device = format!("/sys/class/drm/{card}/device");
-            let vendor = std::fs::read_to_string(format!("{device}/vendor")).ok()?;
+            let device = root.join(card).join("device");
+            let vendor = std::fs::read_to_string(device.join("vendor")).ok()?;
             let vendor = u16::from_str_radix(vendor.trim().trim_start_matches("0x"), 16).ok()?;
             let connector = format!("{card}-");
             let connected = names
                 .iter()
                 .filter(|name| name.starts_with(&connector))
                 .any(|name| {
-                    std::fs::read_to_string(format!("/sys/class/drm/{name}/status"))
+                    std::fs::read_to_string(root.join(name).join("status"))
                         .is_ok_and(|status| status.trim() == "connected")
                 });
-            let render_node = std::fs::read_dir(format!("{device}/drm"))
+            let render_node = std::fs::read_dir(device.join("drm"))
                 .ok()?
                 .flatten()
                 .filter_map(|entry| entry.file_name().into_string().ok())
@@ -117,6 +132,76 @@ mod tests {
         assert!(target_for(Some("/dev/dri/renderD128"), true, false).is_none());
         // An NVENC on a screen another GPU draws has none.
         assert!(target_for(None, true, false).is_none());
+    }
+
+    #[test]
+    fn nvenc_gets_its_node_only_for_its_gl_side() {
+        assert_eq!(encoder_device(Some("node"), true, true), Some("node"));
+        assert_eq!(encoder_device(Some("node"), true, false), None);
+        assert_eq!(encoder_device(None::<&str>, true, true), None);
+    }
+
+    #[test]
+    fn vaapi_always_gets_its_node() {
+        assert_eq!(encoder_device(Some("node"), false, false), Some("node"));
+        assert_eq!(encoder_device(Some("node"), false, true), Some("node"));
+    }
+
+    /// A `/sys/class/drm` as the kernel lays it out: each card a folder with
+    /// its vendor and render node, each connector a folder beside the cards.
+    struct SysTree(std::path::PathBuf);
+
+    impl SysTree {
+        fn new(name: &str) -> Self {
+            let root = std::env::temp_dir().join(format!("rift-drm-{name}-{}", std::process::id()));
+            let _ = std::fs::remove_dir_all(&root);
+            std::fs::create_dir_all(&root).unwrap();
+            Self(root)
+        }
+
+        fn card(&self, card: &str, vendor: &str, node: &str) {
+            let drm = self.0.join(card).join("device/drm").join(node);
+            std::fs::create_dir_all(&drm).unwrap();
+            std::fs::write(self.0.join(card).join("device/vendor"), vendor).unwrap();
+        }
+
+        fn connector(&self, name: &str, status: &str) {
+            std::fs::create_dir_all(self.0.join(name)).unwrap();
+            std::fs::write(self.0.join(name).join("status"), status).unwrap();
+        }
+    }
+
+    impl Drop for SysTree {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    #[test]
+    fn read_cards_finds_the_nvidia_card_drawing_alone() {
+        let tree = SysTree::new("alone");
+        tree.card("card0", "0x8086\n", "renderD128");
+        tree.connector("card0-eDP-1", "disconnected\n");
+        tree.card("card1", "0x10de\n", "renderD129");
+        tree.connector("card1-DP-1", "connected\n");
+        // Neither version nor a connector is a card.
+        std::fs::create_dir_all(tree.0.join("version")).unwrap();
+        let cards = read_cards_under(&tree.0);
+        assert_eq!(cards.len(), 2);
+        assert_eq!(nvidia_draws_the_screen(&cards), Some("/dev/dri/renderD129"));
+    }
+
+    #[test]
+    fn read_cards_does_not_give_card10s_connector_to_card1() {
+        let tree = SysTree::new("ten");
+        tree.card("card1", "0x10de\n", "renderD128");
+        tree.connector("card1-DP-1", "disconnected\n");
+        tree.card("card10", "0x1002\n", "renderD129");
+        tree.connector("card10-HDMI-A-1", "connected\n");
+        let cards = read_cards_under(&tree.0);
+        let nvidia = cards.iter().find(|card| card.vendor == NVIDIA).unwrap();
+        assert!(!nvidia.connected);
+        assert_eq!(nvidia_draws_the_screen(&cards), None);
     }
 
     fn card(vendor: u16, connected: bool, node: Option<&str>) -> DrmCard {

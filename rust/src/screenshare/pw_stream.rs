@@ -7,7 +7,8 @@
 //! does not load on shares through libwebrtc's capturer as before.
 //!
 //! A picture is the compositor's buffer, lent: it goes back when the
-//! `PwPicture` is dropped, and the C side hands out at most two at a time.
+//! `PwPicture` is dropped, and the C side hands out at most four at a time,
+//! holding back a newer one until one of them is released.
 use std::ffi::{c_char, c_void, CStr, CString};
 use std::os::fd::AsRawFd;
 use std::sync::OnceLock;

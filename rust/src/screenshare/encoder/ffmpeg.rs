@@ -224,9 +224,9 @@ struct Candidate {
 /// comes first: it takes the compositor's DMA-BUF and the picture never
 /// comes to the CPU (`capture_pw.rs`), where NVENC takes it from memory on a
 /// screen another GPU draws. On a screen NVIDIA's card draws alone NVENC comes
-/// first again, with that card's render node as its device, which opens its
-/// GL path to take the DMA-BUF too. [`ENCODER_ENV`] names the one to try
-/// instead.
+/// first again, with that card's render node, which opens its GL path to take
+/// the DMA-BUF too when GPU capture is on (`gpu_choice::encoder_device`).
+/// [`ENCODER_ENV`] names the one to try instead.
 #[cfg(target_os = "linux")]
 fn candidates() -> Vec<Candidate> {
     let on_wayland = super::super::capture_pw::on_wayland();
@@ -272,14 +272,75 @@ fn candidates() -> Vec<Candidate> {
 #[cfg(target_os = "linux")]
 pub(crate) fn dmabuf_target() -> Option<DmabufTarget> {
     let (candidate, _, takes_dmabuf) = h264_encoder()?;
+    let nvenc = candidate.encoder == c"h264_nvenc";
+    let takes_dmabuf = if nvenc {
+        nvenc_gl_opens(candidate)
+    } else {
+        *takes_dmabuf
+    };
     gpu_choice::target_for(
         candidate
             .device
             .as_ref()
             .and_then(|node| node.to_str().ok()),
-        candidate.encoder == c"h264_nvenc",
-        *takes_dmabuf,
+        nvenc,
+        takes_dmabuf,
     )
+}
+
+/// Whether NVENC's GL side opens here. Asked once, by the first share with GPU
+/// capture on and never otherwise, since [`h264_encoder`]'s look at the GPU
+/// leaves that side out.
+#[cfg(target_os = "linux")]
+fn nvenc_gl_opens(candidate: &Candidate) -> bool {
+    static OPENS: OnceLock<bool> = OnceLock::new();
+    *OPENS.get_or_init(|| {
+        if candidate.device.is_none() {
+            return false;
+        }
+        let Ok(api) = api() else { return false };
+        let probe = EncoderSettings {
+            gpu_capture: true,
+            ..probe_settings()
+        };
+        match open_raw(api, &probe, candidate) {
+            Ok(raw) => {
+                // SAFETY: `raw` is a live encoder from this library, closed
+                // right after.
+                let opens = unsafe {
+                    let opens = (api.takes_dmabuf)(raw) != 0;
+                    (api.close)(raw);
+                    opens
+                };
+                log::info!(
+                    "encoder: {} {} DMA-BUFs",
+                    candidate.label,
+                    if opens { "takes" } else { "takes no" }
+                );
+                opens
+            }
+            Err(reason) => {
+                log::info!("encoder: {} with its GL side: {reason}", candidate.label);
+                false
+            }
+        }
+    })
+}
+
+/// What the look at an encoder opens it for: H264 as a share asks for it, on
+/// nothing NVENC would need its GL side for.
+fn probe_settings() -> EncoderSettings {
+    EncoderSettings {
+        codec: GpuCodec::H264,
+        width: 640,
+        height: 360,
+        fps: 30,
+        max_bitrate_bps: 1_000_000,
+        start_bitrate_bps: 1_000_000,
+        // Probed for what a share asks of it.
+        h264_high: super::SEND_H264_HIGH,
+        gpu_capture: false,
+    }
 }
 
 /// The encoders worth trying, in order: NVIDIA's, AMD's, then Intel's. Each
@@ -346,16 +407,7 @@ fn h264_encoder() -> Option<&'static (Candidate, String, bool)> {
                 }
             };
             for candidate in candidates() {
-                let probe = EncoderSettings {
-                    codec: GpuCodec::H264,
-                    width: 640,
-                    height: 360,
-                    fps: 30,
-                    max_bitrate_bps: 1_000_000,
-                    start_bitrate_bps: 1_000_000,
-                    // Probed for what a share asks of it.
-                    h264_high: super::SEND_H264_HIGH,
-                };
+                let probe = probe_settings();
                 match open_raw(api, &probe, &candidate) {
                     Ok(raw) => {
                         // SAFETY: `raw` is a live encoder from this library,
@@ -418,12 +470,17 @@ fn open_raw(
     if settings.codec != GpuCodec::H264 {
         return Err(format!("FFmpeg is not used for {} here", settings.codec));
     }
+    #[cfg(target_os = "linux")]
+    let device = gpu_choice::encoder_device(
+        candidate.device.as_ref(),
+        candidate.encoder == c"h264_nvenc",
+        settings.gpu_capture,
+    );
+    #[cfg(not(target_os = "linux"))]
+    let device = candidate.device.as_ref();
     let config = Config {
         encoder: candidate.encoder.as_ptr(),
-        device: candidate
-            .device
-            .as_ref()
-            .map_or(std::ptr::null(), |device| device.as_ptr()),
+        device: device.map_or(std::ptr::null(), |device| device.as_ptr()),
         width: settings.width as i32,
         height: settings.height as i32,
         fps: settings.fps as i32,
