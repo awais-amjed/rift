@@ -5,6 +5,7 @@ import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../before_quit.dart';
+import 'windows_tray.dart';
 
 /// The system tray icon — the way back to a window the user has closed.
 ///
@@ -19,17 +20,16 @@ import '../before_quit.dart';
 /// area hands back no icon, and the app has to keep working without one — the
 /// tray is a convenience, never the only route to anything.
 ///
-/// It also owns quitting on Windows, because the icon has to go first there:
-/// the native tray keeps a function-local static it touches when an icon is
-/// destroyed, and at exit that static is torn down before the handle table
-/// that still owns the icon — so an icon left for exit to destroy crashed
-/// every quit. Freed while the app is still running, it goes quietly.
+/// On Windows the icon is the runner's ([WindowsTray]), because Dart's thread
+/// there runs no message loop to hear its clicks. This also owns quitting
+/// there, where the icon goes first, so that none is left behind by the exit.
 class TrayService with WindowListener {
   TrayService._();
 
   static final TrayService instance = TrayService._();
 
   TrayIcon? _icon;
+  WindowsTray? _windowsTray;
 
   /// Everything the icon refers to by native handle.
   ///
@@ -44,17 +44,38 @@ class TrayService with WindowListener {
   bool _quitting = false;
 
   /// Whether a tray icon actually exists. False on a desktop without one.
-  bool get isShowing => _icon != null;
+  bool get isShowing => _icon != null || _windowsTray != null;
 
   Future<void> init() async {
-    if (_icon != null) return;
+    if (isShowing) return;
 
+    if (Platform.isWindows) {
+      final tray = WindowsTray(onShow: _show, onQuit: quit);
+      if (!await tray.add()) return;
+      _windowsTray = tray;
+    } else {
+      final icon = _createIcon();
+      if (icon == null) return;
+      _icon = icon;
+    }
+
+    // Closing the window any other way — Alt+F4, GNOME's Super+Q, the
+    // taskbar's Close — does what the title bar's close button does: hide to
+    // the tray, where Quit is. Left to the desktop it would end the process
+    // with the icon still alive (Windows) and without [BeforeQuit] (both).
+    // Only here, after an icon exists: without one a hidden window could
+    // never come back, so the desktop's close stays a close.
+    if (Platform.isWindows || Platform.isLinux) {
+      windowManager.addListener(this);
+      await windowManager.setPreventClose(true);
+    }
+  }
+
+  TrayIcon? _createIcon() {
     final icon = TrayIcon.create();
-    if (icon == null) return;
+    if (icon == null) return null;
 
-    final image = ImageAsset.fromAsset(
-      'assets/images/${Platform.isWindows ? 'tray_icon.ico' : 'tray_icon.png'}',
-    );
+    final image = ImageAsset.fromAsset('assets/images/tray_icon.png');
     if (image != null) {
       _retained.add(image);
       icon.icon = image;
@@ -69,14 +90,12 @@ class TrayService with WindowListener {
       _addItem(menu, 'Quit', quit);
       icon.setContextMenu(menu);
       // The trigger defaults to none, which leaves the menu — and Quit —
-      // unreachable. Windows opens it on a right click. Linux has to say
-      // "clicked": only then does the StatusNotifierItem advertise its menu
-      // (`ItemIsMenu`, and `Menu` pointing at it rather than at `/`), and the
-      // panel opens it on any click. Under none, GNOME's AppIndicator panel
-      // found no menu and the icon did nothing at all.
-      if (Platform.isWindows) {
-        icon.setContextMenuTrigger(ContextMenuTrigger.rightClicked);
-      } else if (Platform.isLinux) {
+      // unreachable. Linux has to say "clicked": only then does the
+      // StatusNotifierItem advertise its menu (`ItemIsMenu`, and `Menu`
+      // pointing at it rather than at `/`), and the panel opens it on any
+      // click. Under none, GNOME's AppIndicator panel found no menu and the
+      // icon did nothing at all.
+      if (Platform.isLinux) {
         icon.setContextMenuTrigger(ContextMenuTrigger.clicked);
       }
     }
@@ -89,18 +108,7 @@ class TrayService with WindowListener {
     });
 
     icon.setVisible(true);
-    _icon = icon;
-
-    // Closing the window any other way — Alt+F4, GNOME's Super+Q, the
-    // taskbar's Close — does what the title bar's close button does: hide to
-    // the tray, where Quit is. Left to the desktop it would end the process
-    // with the icon still alive (Windows) and without [BeforeQuit] (both).
-    // Only here, after an icon exists: without one a hidden window could
-    // never come back, so the desktop's close stays a close.
-    if (Platform.isWindows || Platform.isLinux) {
-      windowManager.addListener(this);
-      await windowManager.setPreventClose(true);
-    }
+    return icon;
   }
 
   /// Leaves the app: out of sight at once, then [BeforeQuit]'s work, then the
@@ -117,9 +125,9 @@ class TrayService with WindowListener {
     await windowManager.hide();
     await BeforeQuit.instance.run();
     if (!Platform.isWindows) return windowManager.destroy();
-    final icon = _icon;
-    _icon = null;
-    icon?.dispose();
+    final tray = _windowsTray;
+    _windowsTray = null;
+    await tray?.remove();
     windowManager.removeListener(this);
     await windowManager.setPreventClose(false);
     await windowManager.close();
@@ -129,7 +137,7 @@ class TrayService with WindowListener {
   /// close button, while there is an icon to come back from.
   @override
   void onWindowClose() {
-    if (_icon == null) {
+    if (!isShowing) {
       unawaited(quit());
       return;
     }

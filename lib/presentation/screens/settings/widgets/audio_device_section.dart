@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:livekit_client/livekit_client.dart';
 
 import '../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../logic/cubits/audio_device_list/audio_device_list_cubit.dart';
 import '../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../logic/services/audio_devices.dart';
 import '../../../common/message_banner.dart';
@@ -22,35 +23,25 @@ class AudioDeviceSection extends StatefulWidget {
 }
 
 class _AudioDeviceSectionState extends State<AudioDeviceSection> {
-  List<MediaDevice> _inputDevices = [];
-  List<MediaDevice> _outputDevices = [];
-  bool _devicesLoading = true;
+  late final AudioDeviceListCubit _lists = context.read<AudioDeviceListCubit>();
 
-  /// Whether the lists are WebRTC's, so a pick can be applied now. When WebRTC
-  /// lists nothing they are the system's and a pick is only saved — see
-  /// [AudioDevices.choices].
-  bool _live = false;
+  /// The read started last. A pick waits for it: the lists drawn meanwhile
+  /// are the last ones read, perhaps before a call was joined or left, and
+  /// whether a pick can be applied now ([AudioDeviceLists.live]) must be
+  /// the current answer.
+  late Future<void> _fresh;
 
-  /// Kept apart from [_selectionError] so a device-change event, which reloads
-  /// the list, cannot wipe the explanation of a choice that was just refused
-  /// before it has been read.
-  String? _loadError;
   String? _selectionError;
-
-  /// What Windows reports each endpoint's shared format as, keyed by device id.
-  /// Empty means nothing is known, and nothing is then refused on its account.
-  Map<String, AudioEndpoint> _inputFormats = const {};
-  Map<String, AudioEndpoint> _outputFormats = const {};
 
   StreamSubscription<void>? _deviceChangeSub;
 
   @override
   void initState() {
     super.initState();
-    _loadDevices();
+    _fresh = _lists.load();
     // Devices used to be read once and never again, so plugging a headset in
     // while this was open left a list that no longer described the machine.
-    _deviceChangeSub = AudioDevices.changes.listen((_) => _loadDevices());
+    _deviceChangeSub = AudioDevices.changes.listen((_) => _reload());
   }
 
   @override
@@ -59,38 +50,7 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
     super.dispose();
   }
 
-  /// Reads the device lists. Deliberately applies nothing.
-  ///
-  /// Selecting the saved devices here meant simply opening this screen swapped
-  /// the device under a playout stream that was already running, which stops
-  /// the audio — and the device-change listener runs this again, so each apply
-  /// could provoke the next. Joining a channel applies the saved choice, at
-  /// the one point where there is a device module to apply it to and no stream
-  /// yet to break; after that only an explicit pick applies.
-  Future<void> _loadDevices() async {
-    try {
-      final devices = await AudioDevices.choices();
-      final inputFormats = await AudioDevices.inputEndpointFormats();
-      final outputFormats = await AudioDevices.outputEndpointFormats();
-      if (!mounted) return;
-
-      setState(() {
-        _inputDevices = devices.inputs;
-        _outputDevices = devices.outputs;
-        _live = devices.live;
-        _inputFormats = inputFormats;
-        _outputFormats = outputFormats;
-        _devicesLoading = false;
-        _loadError = null;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _devicesLoading = false;
-        _loadError = 'Could not read audio devices: $e';
-      });
-    }
-  }
+  void _reload() => _fresh = _lists.load();
 
   /// Applies a picked device, then records it.
   ///
@@ -102,10 +62,13 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
   /// for the life of the process, so merely forgetting the choice left the
   /// call where it was.
   Future<void> _select(String? deviceId, {required bool isInput}) async {
-    if (!_live) return _save(deviceId, isInput: isInput);
+    await _fresh;
+    if (!mounted) return;
+    final lists = _lists.state;
+    if (!lists.live) return _save(deviceId, isInput: isInput);
     final device = deviceId == null
         ? await AudioDevices.systemDefault(isInput: isInput)
-        : AudioDevices.byId(isInput ? _inputDevices : _outputDevices, deviceId);
+        : AudioDevices.byId(isInput ? lists.inputs : lists.outputs, deviceId);
     if (!mounted) return;
     if (device == null) {
       // No default to point WebRTC at; the next join applies the saved
@@ -119,7 +82,8 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
       }
       return;
     }
-    if (_refuseUnusable(device, isInput ? _inputFormats : _outputFormats)) {
+    final formats = isInput ? lists.inputFormats : lists.outputFormats;
+    if (_refuseUnusable(device, formats)) {
       // The default is still recorded as the choice, with the reason it
       // cannot play shown beside it. Refusing it outright kept the old device
       // saved, with no way back to the default at all.
@@ -161,14 +125,14 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
   /// still refused here, since that join would only skip it.
   void _save(String? deviceId, {required bool isInput}) {
     if (deviceId == null) return _clearSelection(isInput: isInput);
+    final lists = _lists.state;
     final device = AudioDevices.byId(
-      isInput ? _inputDevices : _outputDevices,
+      isInput ? lists.inputs : lists.outputs,
       deviceId,
     );
     if (device == null) return;
-    if (_refuseUnusable(device, isInput ? _inputFormats : _outputFormats)) {
-      return;
-    }
+    final formats = isInput ? lists.inputFormats : lists.outputFormats;
+    if (_refuseUnusable(device, formats)) return;
     setState(() => _selectionError = null);
     final app = context.read<AppCubit>();
     if (isInput) {
@@ -215,19 +179,20 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
 
   @override
   Widget build(BuildContext context) {
-    // Joining or leaving swaps which list applies (see [_live]); reading it
+    // Joining or leaving swaps which list applies (see [AudioDeviceLists.live]); reading it
     // again keeps a pick from going to a device module that is not there.
     return BlocListener<LiveKitCubit, LiveKitState>(
       listenWhen: (a, b) => (a.room == null) != (b.room == null),
-      listener: (_, _) => _loadDevices(),
+      listener: (_, _) => _reload(),
       child: _buildPickers(context),
     );
   }
 
   Widget _buildPickers(BuildContext context) {
+    final lists = context.watch<AudioDeviceListCubit>().state;
     return BlocBuilder<AppCubit, AppState>(
       builder: (context, appState) {
-        final error = _selectionError ?? _loadError;
+        final error = _selectionError ?? lists.loadError;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -235,22 +200,20 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
             AudioDevicePicker(
               label: 'Input device',
               icon: Icons.mic_rounded,
-              devices: _inputDevices,
-              formats: _inputFormats,
+              devices: lists.inputs,
+              formats: lists.inputFormats,
               selectedDeviceId: appState.inputDeviceId,
-              loading: _devicesLoading,
-
+              loading: !lists.loaded,
               onChanged: (id) => _select(id, isInput: true),
             ),
             const SizedBox(height: 22),
             AudioDevicePicker(
               label: 'Output device',
               icon: Icons.headset_rounded,
-              devices: _outputDevices,
-              formats: _outputFormats,
+              devices: lists.outputs,
+              formats: lists.outputFormats,
               selectedDeviceId: appState.outputDeviceId,
-              loading: _devicesLoading,
-
+              loading: !lists.loaded,
               onChanged: (id) => _select(id, isInput: false),
             ),
             // A device switch that fails used to do so silently, which is

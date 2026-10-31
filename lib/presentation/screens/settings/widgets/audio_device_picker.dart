@@ -21,6 +21,8 @@ class AudioDevicePicker extends StatelessWidget {
   final Map<String, AudioEndpoint> formats;
 
   final String? selectedDeviceId;
+
+  /// Whether the lists have yet to be read for the first time.
   final bool loading;
   final ValueChanged<String?> onChanged;
 
@@ -61,9 +63,20 @@ class AudioDevicePicker extends StatelessWidget {
       children: [
         SectionTitle(label: label),
         const SizedBox(height: 10),
-        if (loading || devices.isEmpty)
+        // A greyed-out field while the first read runs, the size of the one
+        // that replaces it: a line of text there moved everything under it
+        // down when the lists landed.
+        if (loading)
+          AppDropdown<String?>(
+            icon: icon,
+            value: null,
+            options: const [],
+            onChanged: null,
+            hint: 'Loading devices…',
+          )
+        else if (devices.isEmpty)
           Text(
-            loading ? 'Loading devices…' : 'No devices found',
+            'No devices found',
             style: AppText.secondary.copyWith(color: themeState.textTertiary),
           )
         else

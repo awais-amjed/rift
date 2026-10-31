@@ -350,6 +350,9 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   times a second, `CALLS.md` *Rift beside a game*). The main thread holds the COM
   apartment and the windows, so Dart FFI into COM sets up its own, and anything that must
   run on the window's thread goes through a platform channel, as the push-to-talk keys do.
+  Nor does Dart's thread run a message loop, so a window made on it by FFI never hears
+  anything: that is why the tray icon is the runner's on Windows (`tray_icon.cpp`,
+  `WindowsTray`), after tray_manager's stopped answering clicks from beta.5 to beta.10.
   Dart also starts before the window: what the runner sets up in `FlutterWindow::OnCreate`
   is not there yet when Dart first asks. The noise filter is, a moment later, so
   `NoiseFilter` waits for it (`ready`) and settings say so (`NoiseFilterWork`) rather than

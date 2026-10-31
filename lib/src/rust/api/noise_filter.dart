@@ -19,9 +19,9 @@ Future<NoiseModelEntry> loadDpdfnet() =>
 bool takeDpdfnetFellBack() =>
     RustLib.instance.api.crateApiNoiseFilterTakeDpdfnetFellBack();
 
-/// How many frames DPDFNet sent unfiltered since the last call, because this
-/// computer kept it from them in time; Dart writes it to the log after a
-/// call. Starts the count again.
+/// How many frames DPDFNet sent unfiltered since the last call, because it
+/// failed on them; Dart writes it to the log after a call. Starts the count
+/// again.
 int takeDpdfnetUnfiltered() =>
     RustLib.instance.api.crateApiNoiseFilterTakeDpdfnetUnfiltered();
 

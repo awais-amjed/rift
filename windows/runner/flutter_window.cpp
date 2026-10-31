@@ -55,6 +55,7 @@ bool FlutterWindow::OnCreate() {
 
   SetupPttChannel();
   SetupSeenChannel();
+  SetupTrayChannel();
 
   // The first frame is where a start counts as finished (startup_guard.h).
   // A start at sign-in that should stay in the tray never shows the window:
@@ -75,6 +76,7 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
+  tray_icon_ = nullptr;
   GlobalKeyHook::Instance().Stop();
   ptt_event_sink_ = nullptr;
   seen_watch_ = nullptr;
@@ -213,4 +215,33 @@ void FlutterWindow::SetupSeenChannel() {
       });
 
   seen_channel_->SetStreamHandler(std::move(handler));
+}
+
+void FlutterWindow::SetupTrayChannel() {
+  tray_channel_ =
+      std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
+          flutter_controller_->engine()->messenger(), "rift/tray",
+          &flutter::StandardMethodCodec::GetInstance());
+
+  tray_channel_->SetMethodCallHandler(
+      [this](const flutter::MethodCall<flutter::EncodableValue>& call,
+             std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>>
+                 result) {
+        if (call.method_name() == "add") {
+          if (!tray_icon_) {
+            tray_icon_ = std::make_unique<TrayIcon>(
+                [this](TrayIcon::Choice choice) {
+                  tray_channel_->InvokeMethod(
+                      choice == TrayIcon::Choice::kShow ? "show" : "quit",
+                      nullptr);
+                });
+          }
+          result->Success(flutter::EncodableValue(tray_icon_->ok()));
+        } else if (call.method_name() == "remove") {
+          tray_icon_ = nullptr;
+          result->Success();
+        } else {
+          result->NotImplemented();
+        }
+      });
 }

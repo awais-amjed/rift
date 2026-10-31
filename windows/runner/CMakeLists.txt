@@ -13,6 +13,7 @@ add_executable(${BINARY_NAME} WIN32
   "seen_watch.cpp"
   "single_instance.cpp"
   "startup_guard.cpp"
+  "tray_icon.cpp"
   "utils.cpp"
   "velopack_hooks.cpp"
   "win32_window.cpp"
