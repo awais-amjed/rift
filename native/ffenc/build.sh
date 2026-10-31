@@ -200,7 +200,8 @@ else
   # MinGW's own runtime inside it, so it needs nothing the app does not ship:
   # only Windows' DLLs, which `objdump -p` lists.
   "$cc" -shared -O2 -I"$prefix/include" \
-    "$here/ffenc.c" -o "$library.part" \
+    "$here/ffenc.c" "$here/d3d11_nv12.c" "$here/nvenc_gl_geometry.c" \
+    -o "$library.part" \
     "$prefix/lib/libavcodec.a" "$prefix/lib/libavutil.a" "$prefix/lib/libvpl.a" \
     -static-libgcc -static-libstdc++ \
     -Wl,-Bstatic -lstdc++ -lwinpthread -Wl,-Bdynamic \

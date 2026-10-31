@@ -18,6 +18,8 @@ pub(crate) mod h264;
 mod timings;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 mod worker;
+#[cfg(target_os = "windows")]
+pub(crate) use ffmpeg::takes_textures;
 #[cfg(target_os = "linux")]
 pub(crate) use ffmpeg::{dmabuf_target, library, symbol};
 #[cfg(target_os = "linux")]
@@ -25,11 +27,13 @@ pub(crate) use gpu_choice::DmabufTarget;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 pub(crate) use worker::GpuEncoder;
 
+#[cfg(target_os = "windows")]
+use super::capture_wgc::WgcPicture;
 #[cfg(target_os = "linux")]
 use super::pw_stream::PwPicture;
 use super::resolution::Size;
 use crate::api::screenshare::types::VideoCodec;
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 use std::sync::Arc;
 
 /// What the GPU encoder can be asked to make.
@@ -177,11 +181,23 @@ pub(crate) struct DmaBufFrame {
     pub timestamp_us: i64,
 }
 
+/// A Windows share's picture still on the GPU, in the frame pool's texture. The
+/// encoder scales and places it there (`ffenc.h`), and the buffer goes back once
+/// a newer picture has come (`capture_wgc::process`).
+#[cfg(target_os = "windows")]
+pub(crate) struct WgcFrame {
+    pub picture: Arc<WgcPicture>,
+    /// On the same clock as an [`Nv12Frame`]'s.
+    pub timestamp_us: i64,
+}
+
 /// What the encoder is handed: a picture in memory, or one on the GPU.
 pub(crate) enum EncoderInput {
     Nv12(Nv12Frame),
     #[cfg(target_os = "linux")]
     DmaBuf(DmaBufFrame),
+    #[cfg(target_os = "windows")]
+    Wgc(WgcFrame),
 }
 
 impl EncoderInput {
@@ -190,6 +206,8 @@ impl EncoderInput {
             EncoderInput::Nv12(frame) => frame.timestamp_us,
             #[cfg(target_os = "linux")]
             EncoderInput::DmaBuf(frame) => frame.timestamp_us,
+            #[cfg(target_os = "windows")]
+            EncoderInput::Wgc(frame) => frame.timestamp_us,
         }
     }
 }

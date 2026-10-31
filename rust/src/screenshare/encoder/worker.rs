@@ -55,9 +55,9 @@ pub(super) trait Session {
     /// false with none it can repeat (one from memory is not kept). An error
     /// ends the share's use of the encoder.
     fn repeat(&mut self, timestamp_us: i64, keyframe: bool) -> Result<bool, String>;
-    /// Whether it takes [`EncoderInput::DmaBuf`]; one that does not fails on
-    /// it.
-    fn takes_dmabuf(&self) -> bool;
+    /// Whether it takes a picture on the GPU, [`EncoderInput::DmaBuf`] or
+    /// [`EncoderInput::Wgc`]; one that does not fails on it.
+    fn takes_gpu_picture(&self) -> bool;
 }
 
 /// What a [`GpuEncoder`] is told of a DMA-BUF the GPU would not read: its
@@ -76,8 +76,7 @@ pub(crate) struct GpuEncoder {
     // Read by the Wayland capture, which only Linux has.
     #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     import_failed: Arc<Mutex<Option<ImportFailed>>>,
-    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
-    takes_dmabuf: bool,
+    takes_gpu_picture: bool,
     handle: Option<JoinHandle<()>>,
     pub name: String,
 }
@@ -116,13 +115,13 @@ impl GpuEncoder {
             .spawn(move || run(settings, sink, open, frames_rx, opened_tx, shared))
             .map_err(|e| format!("no encoder thread: {e}"))?;
         match opened_rx.recv() {
-            Ok(Ok((name, takes_dmabuf))) => Ok(GpuEncoder {
+            Ok(Ok((name, takes_gpu_picture))) => Ok(GpuEncoder {
                 frames: Some(frames_tx),
                 spare,
                 failed,
                 bitrate,
                 import_failed,
-                takes_dmabuf,
+                takes_gpu_picture,
                 handle: Some(handle),
                 name,
             }),
@@ -161,11 +160,10 @@ impl GpuEncoder {
         }
     }
 
-    /// Whether the encoder takes a DMA-BUF: VAAPI's does, and NVENC's where its
-    /// GL side opened.
-    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
-    pub(crate) fn takes_dmabuf(&self) -> bool {
-        self.takes_dmabuf
+    /// Whether the encoder takes a picture on the GPU: VAAPI's does, and NVENC's
+    /// where its GL side opened on Linux or its D3D11 side on Windows.
+    pub(crate) fn takes_gpu_picture(&self) -> bool {
+        self.takes_gpu_picture
     }
 
     /// What to call, from the encoder's thread, with the format and modifier
@@ -218,6 +216,8 @@ fn recycle(spare: &Mutex<Vec<Vec<u8>>>, input: EncoderInput) {
         EncoderInput::Nv12(frame) => spare.lock().unwrap().push(frame.data),
         #[cfg(target_os = "linux")]
         EncoderInput::DmaBuf(frame) => drop(frame),
+        #[cfg(target_os = "windows")]
+        EncoderInput::Wgc(frame) => drop(frame),
     }
 }
 
@@ -252,7 +252,7 @@ fn run<S, F>(
             return;
         }
     };
-    let _ = opened.send(Ok((name.clone(), session.takes_dmabuf())));
+    let _ = opened.send(Ok((name.clone(), session.takes_gpu_picture())));
 
     let mut current = settings.start_bitrate_bps.min(settings.max_bitrate_bps);
     // The first picture, and any a viewer asks for, must be one it can start
@@ -336,6 +336,8 @@ fn run<S, F>(
                         EncoderInput::Nv12(frame) => Some(frame),
                         #[cfg(target_os = "linux")]
                         EncoderInput::DmaBuf(_) => None,
+                        #[cfg(target_os = "windows")]
+                        EncoderInput::Wgc(_) => None,
                     };
                     match result {
                         Ok(()) => {
@@ -456,7 +458,7 @@ mod tests {
             Ok(true)
         }
 
-        fn takes_dmabuf(&self) -> bool {
+        fn takes_gpu_picture(&self) -> bool {
             true
         }
     }

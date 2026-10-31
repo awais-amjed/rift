@@ -24,8 +24,12 @@ use super::h264::{self, ParameterSets};
 use super::timings::EncodeTimes;
 use super::worker::{self, EncodeError, Session, SharedSink, GOP_SECONDS};
 use super::{Encoded, EncoderInput, EncoderSettings, GpuCodec};
+#[cfg(target_os = "windows")]
+use crate::screenshare::capture_wgc;
 #[cfg(target_os = "linux")]
-use crate::screenshare::{pw_stream::RiftDmabuf, resolution};
+use crate::screenshare::pw_stream::RiftDmabuf;
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+use crate::screenshare::resolution;
 use libloading::Library;
 use std::ffi::{c_char, c_void, CStr, CString};
 use std::path::PathBuf;
@@ -34,7 +38,7 @@ use std::time::{Duration, Instant};
 
 /// The library's interface version this crate was written against
 /// (`RIFT_FFENC_ABI` in `ffenc.h`).
-const ABI: i32 = 8;
+const ABI: i32 = 9;
 
 /// The library's name: in the bundle's `lib` folder on Linux, beside the app
 /// on Windows.
@@ -69,10 +73,11 @@ struct Config {
     max_bitrate_bps: i64,
     delay_frames: i32,
     high: i32,
+    /// Windows: the `ID3D11Device` a share's pictures are on, or null.
+    d3d11_device: *mut c_void,
 }
 
 /// Where the upright picture goes inside the encoded size (`RiftRect`).
-#[cfg(target_os = "linux")]
 #[repr(C)]
 struct Place {
     x: i32,
@@ -86,8 +91,7 @@ struct Place {
 #[cfg(target_os = "linux")]
 const IMPORT_FAILED: i32 = -0x5249_4D50;
 
-/// FFmpeg's `AVERROR(EAGAIN)`: `rift_ffenc_repeat` before any DMA-BUF.
-#[cfg(target_os = "linux")]
+/// FFmpeg's `AVERROR(EAGAIN)`: `rift_ffenc_repeat` before any picture on the GPU.
 const AVERROR_EAGAIN: i32 = -11;
 
 #[repr(C)]
@@ -109,7 +113,11 @@ struct Api {
     #[cfg(target_os = "linux")]
     send_dmabuf:
         unsafe extern "C" fn(*mut c_void, *const RiftDmabuf, *const Place, i64, i32) -> i32,
-    #[cfg(target_os = "linux")]
+    #[cfg(target_os = "windows")]
+    takes_d3d11: unsafe extern "C" fn(*const c_void) -> i32,
+    #[cfg(target_os = "windows")]
+    send_d3d11:
+        unsafe extern "C" fn(*mut c_void, *mut c_void, i32, i32, *const Place, i64, i32) -> i32,
     repeat: unsafe extern "C" fn(*mut c_void, i64, i32) -> i32,
     receive: unsafe extern "C" fn(*mut c_void, *mut Packet) -> i32,
     close: unsafe extern "C" fn(*mut c_void),
@@ -132,7 +140,10 @@ fn api() -> Result<&'static Api, String> {
                 takes_dmabuf: symbol(library, "rift_ffenc_takes_dmabuf")?,
                 #[cfg(target_os = "linux")]
                 send_dmabuf: symbol(library, "rift_ffenc_send_dmabuf")?,
-                #[cfg(target_os = "linux")]
+                #[cfg(target_os = "windows")]
+                takes_d3d11: symbol(library, "rift_ffenc_takes_d3d11")?,
+                #[cfg(target_os = "windows")]
+                send_d3d11: symbol(library, "rift_ffenc_send_d3d11")?,
                 repeat: symbol(library, "rift_ffenc_repeat")?,
                 receive: symbol(library, "rift_ffenc_receive")?,
                 close: symbol(library, "rift_ffenc_close")?,
@@ -431,6 +442,13 @@ fn h264_encoder() -> Option<&'static (Candidate, String, bool)> {
         .as_ref()
 }
 
+/// Whether what encodes H264 here can take a Windows Graphics Capture picture on
+/// the GPU: NVENC so far, and through FFmpeg's other encoders once each is proven.
+#[cfg(target_os = "windows")]
+pub(crate) fn takes_textures() -> bool {
+    h264_encoder().is_some_and(|(candidate, ..)| candidate.encoder == c"h264_nvenc")
+}
+
 /// Whether FFmpeg will encode `codec` on a GPU here. Asked once per run.
 pub(crate) fn opens(codec: GpuCodec) -> bool {
     #[cfg(test)]
@@ -478,6 +496,21 @@ fn open_raw(
     );
     #[cfg(not(target_os = "linux"))]
     let device = candidate.device.as_ref();
+    // Held until the call returns, which takes a reference of its own.
+    #[cfg(target_os = "windows")]
+    let d3d11_device = settings
+        .gpu_capture
+        .then(capture_wgc::share_device)
+        .flatten();
+    #[cfg(target_os = "windows")]
+    let d3d11_raw = {
+        use windows::core::Interface;
+        d3d11_device
+            .as_ref()
+            .map_or(std::ptr::null_mut(), |device| device.as_raw())
+    };
+    #[cfg(not(target_os = "windows"))]
+    let d3d11_raw = std::ptr::null_mut();
     let config = Config {
         encoder: candidate.encoder.as_ptr(),
         device: device.map_or(std::ptr::null(), |device| device.as_ptr()),
@@ -490,6 +523,7 @@ fn open_raw(
         max_bitrate_bps: i64::from(settings.max_bitrate_bps),
         delay_frames: delay_frames(settings.fps),
         high: i32::from(settings.h264_high),
+        d3d11_device: d3d11_raw,
     };
     let mut error = [0 as c_char; 256];
     // SAFETY: `config` and the strings it points at outlive the call, and
@@ -533,8 +567,8 @@ pub(super) struct FfmpegSession {
     parameter_sets: ParameterSets,
     /// Where each picture's time goes, for the log.
     times: EncodeTimes,
-    /// Whether the last picture was a DMA-BUF, which the library keeps on
-    /// the GPU for a still screen's repeats; one from memory is not kept.
+    /// Whether the last picture was on the GPU, which the library keeps there
+    /// for a still screen's repeats; one from memory is not kept.
     repeatable: bool,
 }
 
@@ -595,7 +629,6 @@ impl Session for FfmpegSession {
         }
     }
 
-    #[cfg(target_os = "linux")]
     fn repeat(&mut self, timestamp_us: i64, keyframe: bool) -> Result<bool, String> {
         if !self.repeatable {
             return Ok(false);
@@ -613,20 +646,16 @@ impl Session for FfmpegSession {
         Ok(true)
     }
 
-    #[cfg(not(target_os = "linux"))]
-    fn repeat(&mut self, _timestamp_us: i64, _keyframe: bool) -> Result<bool, String> {
-        Ok(false)
-    }
-
     #[cfg(target_os = "linux")]
-    fn takes_dmabuf(&self) -> bool {
+    fn takes_gpu_picture(&self) -> bool {
         // SAFETY: `raw` is live.
         unsafe { (self.api.takes_dmabuf)(self.raw) != 0 }
     }
 
-    #[cfg(not(target_os = "linux"))]
-    fn takes_dmabuf(&self) -> bool {
-        false
+    #[cfg(target_os = "windows")]
+    fn takes_gpu_picture(&self) -> bool {
+        // SAFETY: `raw` is live.
+        unsafe { (self.api.takes_d3d11)(self.raw) != 0 }
     }
 }
 
@@ -654,6 +683,8 @@ impl FfmpegSession {
             }
             #[cfg(target_os = "linux")]
             EncoderInput::DmaBuf(frame) => self.send_dmabuf(frame, keyframe)?,
+            #[cfg(target_os = "windows")]
+            EncoderInput::Wgc(frame) => self.send_wgc(frame, keyframe)?,
         }
         self.receive(started).map_err(EncodeError::Failed)
     }
@@ -666,7 +697,7 @@ impl FfmpegSession {
         frame: &super::DmaBufFrame,
         keyframe: bool,
     ) -> Result<(), EncodeError> {
-        if !self.takes_dmabuf() {
+        if !self.takes_gpu_picture() {
             return Err(EncodeError::Failed(format!(
                 "{} takes no DMA-BUF",
                 self.candidate.label
@@ -710,6 +741,50 @@ impl FfmpegSession {
         if sent < 0 {
             return Err(EncodeError::Failed(format!(
                 "FFmpeg refused a DMA-BUF ({sent})"
+            )));
+        }
+        self.repeatable = true;
+        Ok(())
+    }
+
+    /// Hand the library a Windows Graphics Capture picture, letterboxed into the
+    /// encoded size by the same rule as a picture from memory.
+    #[cfg(target_os = "windows")]
+    fn send_wgc(&mut self, frame: &super::WgcFrame, keyframe: bool) -> Result<(), EncodeError> {
+        if !self.takes_gpu_picture() {
+            return Err(EncodeError::Failed(format!(
+                "{} takes no GPU picture",
+                self.candidate.label
+            )));
+        }
+        let target = resolution::Size {
+            width: self.settings.width,
+            height: self.settings.height,
+        };
+        let size = frame.picture.size();
+        let place = resolution::letterbox(size, target).map(|rect| Place {
+            x: rect.x as i32,
+            y: rect.y as i32,
+            width: rect.width as i32,
+            height: rect.height as i32,
+        });
+        // SAFETY: `raw` is live, and the picture holds its texture past the call.
+        let sent = unsafe {
+            (self.api.send_d3d11)(
+                self.raw,
+                frame.picture.texture(),
+                size.width as i32,
+                size.height as i32,
+                place
+                    .as_ref()
+                    .map_or(std::ptr::null(), |place| place as *const Place),
+                frame.timestamp_us,
+                i32::from(keyframe),
+            )
+        };
+        if sent < 0 {
+            return Err(EncodeError::Failed(format!(
+                "FFmpeg refused a GPU picture ({sent})"
             )));
         }
         self.repeatable = true;

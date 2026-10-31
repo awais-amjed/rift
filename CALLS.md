@@ -232,6 +232,14 @@ compositors, another workspace and GNOME's own minimise keys were not tried.
 
 ## How Windows captures a screen — [Implemented October 2026]
 
+An H264 share with the GPU capture switch on, to NVENC, now captures with Rift's own
+Windows Graphics Capture session instead, so the picture stays on the GPU
+(`capture_wgc.rs`, `docs/gpu-codecs/STEP1_WINDOWS.md`; on branch `gpu-codecs` as of Nov 1
+2026, its first milestone). Everything else stays as below, and Rift's session falls back
+to it. Verified Nov 1 with a test program, not yet the app: real shares with a viewer, the
+shared window closed 20 times (10 closed, 10 killed) with no crash or hang, and known
+colours within 0.5 of a level of BT.601 limited.
+
 libwebrtc captures a Windows screen or window with Windows Graphics Capture,
 and Windows draws a yellow border round whatever is captured that way. From
 build 20348, in practice Windows 11, an app may turn the border off, and

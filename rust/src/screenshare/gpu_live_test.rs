@@ -682,7 +682,7 @@ impl LiveStream {
         )
         .expect("a GPU encoder opens");
         assert!(
-            encoder.takes_dmabuf(),
+            encoder.takes_gpu_picture(),
             "{} takes no DMA-BUF (GPU_NO_NVENC=1 beside NVIDIA's GPU)",
             encoder.name()
         );
@@ -816,8 +816,8 @@ fn live_gpu_switch_keeps_nvenc_off_its_gl_side() {
         )
         .expect("a GPU encoder opens")
     };
-    assert!(!open(false).takes_dmabuf(), "the switch is off");
-    assert!(open(true).takes_dmabuf(), "the switch is on");
+    assert!(!open(false).takes_gpu_picture(), "the switch is off");
+    assert!(open(true).takes_gpu_picture(), "the switch is on");
     assert!(dmabuf_target().is_some_and(|target| target.external_modifiers));
 }
 

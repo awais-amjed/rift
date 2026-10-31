@@ -7,6 +7,8 @@
 pub(crate) mod capture;
 #[cfg(target_os = "linux")]
 mod capture_pw;
+#[cfg(target_os = "windows")]
+mod capture_wgc;
 #[cfg(desktop)]
 pub(crate) mod encoder;
 #[cfg(desktop)]

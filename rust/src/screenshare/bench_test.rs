@@ -195,7 +195,8 @@ async fn bench_share() {
     );
     let (full_screen, index) = source();
     let config = ScreenShareConfig {
-        gpu_capture: true,
+        // BENCH_GPU_CAPTURE=0 is the settings switch off: libwebrtc's capturer.
+        gpu_capture: env_or("BENCH_GPU_CAPTURE", "1") == "1",
         livekit_url: server.url.clone(),
         livekit_token: server.token(&room, "sharer", false),
         resolution: env_num("BENCH_HEIGHT", 1080),

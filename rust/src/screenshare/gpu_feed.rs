@@ -2,9 +2,13 @@
 //! H264 out to a pre-encoded LiveKit source, and WebRTC's keyframe and
 //! bitrate requests back the other way. Pictures the encoder would make too
 //! much of are left out on the way in ([`RateGate`]).
+#[cfg(target_os = "windows")]
+use super::capture_wgc::WgcPicture;
 use super::encoder::{h264, Encoded, EncodedSink, EncoderSettings, GpuEncoder, Nv12Frame};
 #[cfg(target_os = "linux")]
 use super::encoder::{DmaBufFrame, EncoderInput};
+#[cfg(target_os = "windows")]
+use super::encoder::{EncoderInput, WgcFrame};
 use super::pixels::ByteOrder;
 #[cfg(target_os = "linux")]
 use super::pw_stream::PwPicture;
@@ -67,7 +71,13 @@ impl GpuFeed {
     /// and NVENC's where its GL side opened; otherwise it reads memory.
     #[cfg(target_os = "linux")]
     pub(crate) fn takes_dmabuf(&self) -> bool {
-        self.encoder.takes_dmabuf()
+        self.encoder.takes_gpu_picture()
+    }
+
+    /// Whether the encoder takes a Windows Graphics Capture picture on the GPU.
+    #[cfg(target_os = "windows")]
+    pub(crate) fn takes_gpu_picture(&self) -> bool {
+        self.encoder.takes_gpu_picture()
     }
 
     /// What to call, from the encoder's thread, with the format and modifier
@@ -101,6 +111,14 @@ impl GpuFeed {
             #[cfg(target_os = "linux")]
             Picture::DmaBuf(picture) => {
                 self.encoder.submit_input(EncoderInput::DmaBuf(DmaBufFrame {
+                    picture,
+                    timestamp_us,
+                }));
+                return true;
+            }
+            #[cfg(target_os = "windows")]
+            Picture::Wgc(picture) => {
+                self.encoder.submit_input(EncoderInput::Wgc(WgcFrame {
                     picture,
                     timestamp_us,
                 }));
@@ -155,6 +173,8 @@ impl GpuFeed {
             }
             #[cfg(target_os = "linux")]
             Picture::DmaBuf(_) => unreachable!("sent whole above"),
+            #[cfg(target_os = "windows")]
+            Picture::Wgc(_) => unreachable!("sent whole above"),
         }
         self.encoder.submit(Nv12Frame { data, timestamp_us });
         true
@@ -199,6 +219,9 @@ pub(crate) enum Picture<'a> {
     /// until a feed takes it.
     #[cfg(target_os = "linux")]
     DmaBuf(Arc<PwPicture>),
+    /// Shared the same way, the picture still in the frame pool's texture.
+    #[cfg(target_os = "windows")]
+    Wgc(Arc<WgcPicture>),
 }
 
 /// The pre-encoded source, as the encoder sees it.
@@ -217,10 +240,27 @@ struct SourceSink {
 #[cfg(test)]
 pub(crate) static DELIVERED: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
+#[cfg(test)]
+fn dump_for_test(payload: &[u8]) {
+    use std::io::Write;
+    static DUMP: Mutex<Option<Option<std::fs::File>>> = Mutex::new(None);
+    let mut dump = DUMP.lock().unwrap();
+    let file = dump.get_or_insert_with(|| {
+        std::env::var_os("RIFT_DUMP_H264")
+            .map(|path| std::fs::File::create(path).expect("the dump opens"))
+    });
+    if let Some(file) = file {
+        file.write_all(payload).expect("the dump is written");
+    }
+}
+
 impl EncodedSink for SourceSink {
     fn deliver(&mut self, frame: Encoded<'_>) {
         #[cfg(test)]
         DELIVERED.fetch_add(1, Ordering::Relaxed);
+        // RIFT_DUMP_H264 in a test: the stream, for a colour or tear check.
+        #[cfg(test)]
+        dump_for_test(frame.payload);
         // So the receiver authenticates the same bytes the sender encrypted,
         // and can find a keyframe's PPS.
         let rewritten = h264::for_encryption(frame.payload);

@@ -139,23 +139,10 @@ step can take from our own code and from open source projects: `REUSE.md`.
      The compositor's buffers are in the integrated GPU's memory, so VAAPI there
      keeps the picture on one GPU; NVENC would need each picture copied across to
      the NVIDIA card. NVENC stays for a screen the NVIDIA card draws.
-1. **Zero-copy sharing on Windows 11 24H2+.**
-   - Turn on WGC texture mode (fork: `desktop_capturer.cpp` passes the texture and
-     its device out to Rust).
-   - Copy on the GPU into the encoder's own pooled texture, so WGC's buffer goes
-     back at once.
-   - BGRA→NV12 and scaling on the GPU, with ID3D11VideoProcessor (any vendor) or a
-     shader. NVENC and AMF can also take BGRA D3D11 frames directly; QSV goes through
-     hwmap to QSV.
-   - ffenc gains a D3D11 input path: FFmpeg D3D11VA frames on a device on the
-     encoder's adapter.
-   - Windows 10 and older 11 keep today's path; later, a DXGI-duplication capturer
-     kept on the GPU.
-   - To prove: a hybrid laptop with the capture device on the NVIDIA adapter while
-     the screen is on Intel.
-   - Second route (`REUSE.md`): FFmpeg's own `gfxcapture` (WGC) and `ddagrab`
-     (DXGI) inside ffenc, with `scale_d3d11`. It reaches Windows 10 and older 11
-     too, but moves GPU-share capture out of libwebrtc.
+1. **Zero-copy sharing on Windows.** Owner's route, Nov 1: Rift's own Windows Graphics
+   Capture in Rust, no fork change (`STEP1_WINDOWS.md`). A whole screen on Windows 10
+   keeps today's path for now. First milestone built, NVENC only; the rest waits on its
+   numbers.
 2. **Zero-copy sharing on Linux Wayland.** Designed Oct 29: `STEP2_LINUX.md`.
    - **Order (owner, Oct 29): VAAPI first, then NVIDIA** on this laptop switched
      to NVIDIA-only display in the BIOS.
@@ -220,8 +207,6 @@ step can take from our own code and from open source projects: `REUSE.md`.
   the vendors' decoders directly (cuvid, D3D11), so no software H265 ships.
 - Whether Windows 10 gets a GPU-side DXGI-duplication capturer, or keeps
   today's path. FFmpeg's `ddagrab` would be that capturer.
-- Step 1: libwebrtc's WGC texture mode (24H2+, capture stays in libwebrtc) or
-  FFmpeg's `gfxcapture`/`ddagrab` in ffenc (older Windows too, capture moves).
 
 ## Noted for later (not on the hardware path)
 

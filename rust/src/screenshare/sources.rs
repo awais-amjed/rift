@@ -52,6 +52,13 @@ pub(crate) fn options(source_type: DesktopCaptureSourceType) -> DesktopCapturerO
     options
 }
 
+/// Whether a screen here is captured with Windows Graphics Capture: the rest stay
+/// on DXGI (see [`options`]).
+#[cfg(target_os = "windows")]
+pub(crate) fn screens_on_wgc() -> bool {
+    capture_border_optional()
+}
+
 /// Whether Windows lets an app capture without the yellow border, asked of
 /// the API itself rather than read from a build number.
 #[cfg(target_os = "windows")]

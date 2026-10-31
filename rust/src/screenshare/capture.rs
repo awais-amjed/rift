@@ -3,6 +3,8 @@
 //! on Rift's own PipeWire stream instead where it can (`capture_pw.rs`).
 #[cfg(target_os = "linux")]
 use super::capture_pw;
+#[cfg(target_os = "windows")]
+use super::capture_wgc;
 use super::frames::{self, SendableFrame};
 #[cfg(gpu_encoder)]
 use super::gpu_feed::GpuFeed;
@@ -47,11 +49,11 @@ pub(crate) struct CaptureRequest {
     /// [`ScreenShareConfig::portal_choice`](crate::api::screenshare::types::ScreenShareConfig).
     pub portal_choice: Option<String>,
     /// [`ScreenShareConfig::gpu_capture`](crate::api::screenshare::types::ScreenShareConfig).
-    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+    #[cfg_attr(not(any(target_os = "linux", target_os = "windows")), allow(dead_code))]
     pub gpu_capture: bool,
     /// The share's codec, which decides whether Rift's stream takes it
-    /// (`capture_pw.rs`).
-    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+    /// (`capture_pw.rs`, `capture_wgc.rs`).
+    #[cfg_attr(not(any(target_os = "linux", target_os = "windows")), allow(dead_code))]
     pub codec: VideoCodec,
     pub fps: u32,
     pub capture_cursor: bool,
@@ -221,6 +223,16 @@ pub(crate) fn spawn(request: CaptureRequest) -> (Capture, Started) {
                 }
                 capture_pw::Handoff::Fallback(request) => request,
             };
+            // A Windows H264 share runs on Rift's own capture where it can.
+            #[cfg(target_os = "windows")]
+            let request = match capture_wgc::run(request, &clock, &progress_tx, &feeds, &command_rx)
+            {
+                capture_wgc::Handoff::Done => {
+                    let _ = done_tx.send(());
+                    return;
+                }
+                capture_wgc::Handoff::Fallback(request) => request,
+            };
             run(request, clock, progress_tx, feeds, command_rx);
             let _ = done_tx.send(());
         })
@@ -249,11 +261,11 @@ pub(crate) fn spawn(request: CaptureRequest) -> (Capture, Started) {
 /// 88.7 fps; with throttling off, 119.8 and 118.3 (Oct 16 2026, an i7-12700H
 /// laptop). On drop, Windows decides again.
 #[cfg(target_os = "windows")]
-struct TimerResolutionGuard;
+pub(super) struct TimerResolutionGuard;
 
 #[cfg(target_os = "windows")]
 impl TimerResolutionGuard {
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         use windows::Win32::System::Threading::{
             PROCESS_POWER_THROTTLING_EXECUTION_SPEED,
             PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION,
@@ -375,7 +387,17 @@ fn run(
                 #[cfg(target_os = "windows")]
                 let ended = match window.as_mut() {
                     Some(window) => {
-                        window.ended(&mut capturer, &signals, request.on_paused.as_deref())
+                        let lost = signals.lost.clone();
+                        let arrived = signals.arrived.clone();
+                        window.ended(
+                            &lost,
+                            &arrived,
+                            &mut Libwebrtc {
+                                capturer: &mut capturer,
+                                signals: &signals,
+                            },
+                            request.on_paused.as_deref(),
+                        )
                     }
                     None => signals.lost.load(Ordering::Relaxed),
                 };
@@ -468,7 +490,7 @@ impl Signals {
 /// the share is paused. It ends once the program has quit, or after
 /// [`RECOVER_FOR`].
 #[cfg(target_os = "windows")]
-struct SharedWindow {
+pub(super) struct SharedWindow {
     id: u64,
     /// The program it belongs to, and its title: how a new window it was
     /// swapped for is known.
@@ -489,9 +511,37 @@ struct Gone {
     retaken: bool,
 }
 
+/// What captures a shared window, as [`SharedWindow`] looks for it again.
+#[cfg(target_os = "windows")]
+pub(super) trait Recapture {
+    fn listed(&self) -> Vec<Source>;
+    /// Start capturing `source`, which [`SharedWindow`] hears of through the
+    /// `arrived` and `lost` it is asked with.
+    fn capture(&mut self, source: Source);
+}
+
+/// libwebrtc's capturer as a [`Recapture`].
+#[cfg(target_os = "windows")]
+struct Libwebrtc<'a> {
+    capturer: &'a mut DesktopCapturer,
+    signals: &'a Signals,
+}
+
+#[cfg(target_os = "windows")]
+impl Recapture for Libwebrtc<'_> {
+    fn listed(&self) -> Vec<Source> {
+        self.capturer.get_source_list()
+    }
+
+    fn capture(&mut self, source: Source) {
+        self.capturer
+            .start_capture(Some(source), self.signals.callback(None));
+    }
+}
+
 #[cfg(target_os = "windows")]
 impl SharedWindow {
-    fn new(id: u64, title: String) -> Self {
+    pub(super) fn new(id: u64, title: String) -> Self {
         Self {
             id,
             owner: window_win::pid(id),
@@ -502,10 +552,11 @@ impl SharedWindow {
     }
 
     /// Whether the share is over, asked after each capture.
-    fn ended(
+    pub(super) fn ended(
         &mut self,
-        capturer: &mut DesktopCapturer,
-        signals: &Signals,
+        lost: &AtomicBool,
+        arrived: &AtomicBool,
+        capturer: &mut dyn Recapture,
         report: Option<&(dyn Fn(bool) + Send)>,
     ) -> bool {
         let report = |paused: bool| {
@@ -514,7 +565,7 @@ impl SharedWindow {
             }
         };
         let closed = window_win::closed(self.id);
-        let failed = signals.lost.swap(false, Ordering::Relaxed);
+        let failed = lost.swap(false, Ordering::Relaxed);
         let now = Instant::now();
         if self.gone.is_none() {
             if !closed && !failed {
@@ -540,7 +591,7 @@ impl SharedWindow {
         });
 
         if gone.retaken {
-            if !closed && !failed && signals.arrived.load(Ordering::Relaxed) {
+            if !closed && !failed && arrived.load(Ordering::Relaxed) {
                 log::info!("capture: the shared window is back");
                 self.gone = None;
                 self.minimised = false;
@@ -574,7 +625,7 @@ impl SharedWindow {
         }
         gone.looked = Some(now);
 
-        let listed = capturer.get_source_list();
+        let listed = capturer.listed();
         let known: Vec<(u64, Option<u32>, String)> = listed
             .iter()
             .map(|source| (source.id(), window_win::pid(source.id()), source.title()))
@@ -594,8 +645,8 @@ impl SharedWindow {
         );
         self.id = source.id();
         gone.retaken = true;
-        signals.arrived.store(false, Ordering::Relaxed);
-        capturer.start_capture(Some(source), signals.callback(None));
+        arrived.store(false, Ordering::Relaxed);
+        capturer.capture(source);
         false
     }
 
@@ -639,7 +690,7 @@ fn find_again(
 ///
 /// Found by id through the list the user picked from, so a window opening or
 /// closing in the meantime cannot move the choice onto another one.
-fn find_source(
+pub(super) fn find_source(
     capturer: &DesktopCapturer,
     request: &CaptureRequest,
     progress: &UnboundedSender<Progress>,

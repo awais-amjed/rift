@@ -28,7 +28,7 @@ extern "C" {
 
 // Bumped whenever a function or struct below changes, so the crate refuses a
 // library from another build instead of calling it wrongly.
-#define RIFT_FFENC_ABI 8
+#define RIFT_FFENC_ABI 9
 
 typedef struct RiftFfenc RiftFfenc;
 
@@ -58,6 +58,10 @@ typedef struct RiftFfencConfig {
   int32_t delay_frames;
   // 1 for H264's High profile, 0 for constrained baseline.
   int32_t high;
+  // Windows: the ID3D11Device a share's Windows Graphics Capture runs on, the
+  // caller's to keep, which rift_ffenc_send_d3d11 takes pictures from. NULL takes
+  // memory only. NVENC only so far; others ignore it.
+  void* d3d11_device;
 } RiftFfencConfig;
 
 typedef struct RiftFfencPacket {
@@ -151,12 +155,33 @@ RIFT_FFENC_EXPORT int32_t rift_ffenc_send_dmabuf(RiftFfenc* enc,
                                                  int64_t timestamp_us,
                                                  int32_t keyframe);
 
-// Encode the last DMA-BUF picture again, for a screen that has not changed
+// Encode the last picture from the GPU again, for a screen that has not changed
 // when a keyframe is wanted or a second has passed. AVERROR(EAGAIN) before
 // the first.
 RIFT_FFENC_EXPORT int32_t rift_ffenc_repeat(RiftFfenc* enc,
                                             int64_t timestamp_us,
                                             int32_t keyframe);
+
+// ── Pictures already on the GPU (Windows, NVENC) ────────────────────────
+//
+// A Windows Graphics Capture frame, drawn into NV12 on the same device and
+// encoded, without coming to the CPU (d3d11_nv12.c). rift_ffenc_repeat repeats
+// the last one.
+
+// 1 when rift_ffenc_send_d3d11 works on this encoder.
+RIFT_FFENC_EXPORT int32_t rift_ffenc_takes_d3d11(const RiftFfenc* enc);
+
+// Encode the part `source_width` by `source_height` of `texture`, a BGRA
+// ID3D11Texture2D on the config's device. `place` is where it goes inside the
+// encoded size, the rest black; NULL fills it. The texture may be let go of when
+// this returns. 0, or a negative FFmpeg error; AVERROR(ENOSYS) for an encoder
+// that takes none.
+RIFT_FFENC_EXPORT int32_t rift_ffenc_send_d3d11(RiftFfenc* enc, void* texture,
+                                                int32_t source_width,
+                                                int32_t source_height,
+                                                const RiftRect* place,
+                                                int64_t timestamp_us,
+                                                int32_t keyframe);
 
 // The next encoded frame, valid until the next call: 1 with one, 0 when the
 // encoder has none ready, or a negative FFmpeg error.
