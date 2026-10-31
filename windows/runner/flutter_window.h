@@ -6,10 +6,12 @@
 #include <flutter/event_channel.h>
 #include <flutter/event_sink.h>
 #include <flutter/flutter_view_controller.h>
+#include <flutter/method_channel.h>
 
 #include <memory>
 
 #include "seen_watch.h"
+#include "tray_icon.h"
 #include "win32_window.h"
 
 // A window that does nothing but host a Flutter view.
@@ -50,6 +52,14 @@ class FlutterWindow : public Win32Window {
 
   // Configure |seen_channel_| against the running Flutter engine.
   void SetupSeenChannel();
+
+  // MethodChannel between Dart and the tray icon: Dart adds and removes it,
+  // and hears what was chosen on it.
+  std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> tray_channel_;
+  std::unique_ptr<TrayIcon> tray_icon_;
+
+  // Configure |tray_channel_| against the running Flutter engine.
+  void SetupTrayChannel();
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_
