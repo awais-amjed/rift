@@ -133,7 +133,30 @@ rest is built.**
   Today's path, the same way: within 1.0.
 - **CPU, a moving test picture, no game:** whole process 7.1–8.2% of a core against 22.3% today. That picture changes
   about 62 times a second. Today's 59.7 fps at 60 includes repeats where the new path sends what changed.
-- **The game: not measured yet.** That is what the milestone still needs.
+
+**CS2, Nov 1, one session, same build with the switch on and off.** Lowest settings, 1920x1080, standing still at
+one spot, game in front, H264 through NVENC at 15 Mbit/s (60 fps) and 30 Mbit/s (120 fps), rounds of 90 s, each
+share condition twice, no share three times. The viewer is on the same laptop, on both paths, so its decoding is in
+every figure.
+
+| | Game fps | Lost | p99 frame | Share process, % of a core | Viewer fps |
+|---|---|---|---|---|---|
+| No share | 366.5–369.3 | | 4.66–4.77 ms | | |
+| Today, 60 fps | 353.9–355.4 | 3.6% | 5.04–5.06 ms | 34.6–38.5 | 59.7 |
+| **New, 60 fps** | **357.4–360.0** | **2.5%** | **4.83 ms** | **9.4–11.6** | **59.4–59.7** |
+| Today, 120 fps | 342.3–344.1 | 6.7% | 5.35–5.41 ms | 70.1–87.1 | 109.7–114.7 |
+| **New, 120 fps** | **355.1–357.5** | **3.1%** | **4.87–5.04 ms** | **5.2–7.0** | **119.8** |
+
+- **Unexplained, and in the new path only:** one of the four new rounds (the first at 60 fps) had nine game frames of
+  about 80 ms each, over the minute after that share started: six of them in the 90 s measured, and nothing like it in the
+  other three new rounds. Today's rounds had single slow frames of 13.4 and 22.3 ms, no such run. Not understood, and four
+  rounds cannot say how often it comes.
+- **The GPU, not the CPU, is what is left.** The game's GPU time per frame goes from 1.77–1.89 ms with no share to 2.28–2.40 ms
+  on the new path and 2.38–2.50 ms today. So the capture itself, which both paths share, is probably the larger part of what
+  remains; not measured apart.
+- **Standing still is the easy case for the encoder:** about 0.2 Mbit/s sent. A moving game has not been measured on this path.
+- **Keyframes:** the viewer counts 2 freezes a round on every path, the new one too, so the once-a-minute dip follows. Not fixed here.
+- **Against step 0:** today's path costs 3.6–6.7% here, as in the route tests, and not step 0's 15–20%. Still unexplained.
 
 **Not built yet, the rest:**
 
@@ -160,7 +183,8 @@ AMF's reference if available.
 
 - Why step 0 (15–20% of the frame rate) and the route tests (4–7%) disagree about today's path. The session and
   the team and weapon at the spot differed. Unexplained.
-- Whether the keyframe dip follows to the new path.
+- What the 80 ms game frames in one new-path round were (*First milestone*).
+- The cost in a moving game, with a viewer on another machine.
 - Whether a picture can tear on one device with the game at full GPU.
 - Whether Quick Sync costs the game less.
 - Windows 10, older 11, AMD and older NVIDIA cards: none run. A GTX 1060 and a Windows 10 machine both crashed in
