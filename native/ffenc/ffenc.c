@@ -76,7 +76,11 @@ struct RiftFfenc {
 // encoder fails every later call, and
 // every call fails once the process is exiting: the encoder's thread, taking
 // the lock again straight after each picture, kept the handler waiting for
-// seconds.
+// seconds. A close then leaves everything as it is, and the process's end takes
+// it: the failed call makes that thread close its encoder while NVIDIA's own
+// handlers run, and tearing down EGL and CUDA there is what this keeps it out
+// of. A close already under way holds the lock until done, so the handler waits
+// for it and no close overlaps the exit (review of 643e0079..ee96162b, Oct 31).
 
 #if defined(__linux__)
 static pthread_mutex_t nvenc_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -101,17 +105,6 @@ static void note_nvenc(RiftFfenc* enc) {
   pthread_mutex_lock(&nvenc_lock);
   enc->next_nvenc = nvenc_open;
   nvenc_open = enc;
-  pthread_mutex_unlock(&nvenc_lock);
-}
-
-static void forget_nvenc(RiftFfenc* enc) {
-  pthread_mutex_lock(&nvenc_lock);
-  for (RiftFfenc** at = &nvenc_open; *at; at = &(*at)->next_nvenc) {
-    if (*at == enc) {
-      *at = enc->next_nvenc;
-      break;
-    }
-  }
   pthread_mutex_unlock(&nvenc_lock);
 }
 
@@ -366,6 +359,10 @@ static int open_device(RiftFfenc* enc, const RiftFfencConfig* config,
 RiftFfenc* rift_ffenc_open(const RiftFfencConfig* config, char* error,
                            size_t error_len) {
   if (error && error_len) error[0] = '\0';
+  if (EXITING()) {
+    fail(error, error_len, "the process is exiting", AVERROR_EXIT);
+    return NULL;
+  }
   const AVCodec* codec = avcodec_find_encoder_by_name(config->encoder);
   if (!codec) {
     fail(error, error_len, "this build has no such encoder", 0);
@@ -630,7 +627,17 @@ int32_t rift_ffenc_receive(RiftFfenc* enc, RiftFfencPacket* packet) {
 void rift_ffenc_close(RiftFfenc* enc) {
   if (!enc) return;
 #if defined(__linux__)
-  if (enc->api == API_NVENC) forget_nvenc(enc);
+  pthread_mutex_lock(&nvenc_lock);
+  for (RiftFfenc** at = &nvenc_open; *at; at = &(*at)->next_nvenc) {
+    if (*at == enc) {
+      *at = enc->next_nvenc;
+      break;
+    }
+  }
+  if (EXITING()) {
+    pthread_mutex_unlock(&nvenc_lock);
+    return;
+  }
   pthread_mutex_destroy(&enc->lock);
   av_frame_free(&enc->last);
 #endif
@@ -648,4 +655,7 @@ void rift_ffenc_close(RiftFfenc* enc) {
   nvenc_gl_free(&enc->gl);
 #endif
   av_free(enc);
+#if defined(__linux__)
+  pthread_mutex_unlock(&nvenc_lock);
+#endif
 }

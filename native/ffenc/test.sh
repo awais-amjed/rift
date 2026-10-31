@@ -42,4 +42,8 @@ else
   python3 "$here/check_nvenc.py" "$out"
   # NVIDIA's library waits for ever at exit with an encoder open (ffenc.c).
   timeout 5 "$out/test_nvenc_dmabuf" --exit-open
+  # And a share still stopping as the process exits leaves its GL side alone.
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    timeout 5 "$out/test_nvenc_dmabuf" --exit-closing
+  done
 fi

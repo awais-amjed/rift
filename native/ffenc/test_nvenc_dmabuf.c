@@ -8,6 +8,8 @@
 #include "ffenc.h"
 
 #include <fcntl.h>
+#include <pthread.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -396,10 +398,62 @@ static const char* find_node(void) {
   return NULL;
 }
 
+// ── Quitting during a share ───────────────────────────────────────────────
+//
+// `--exit-closing` is what a quit does when the stop has not finished: the
+// encoder's thread keeps sending, each call fails once the process is exiting,
+// and it closes the encoder as a share's thread does. That close must leave
+// EGL and CUDA alone, since NVIDIA's own exit handlers are running by then.
+// Nothing may tear them down, which shows from the thread: its GL context is
+// still current after the close.
+
+static atomic_int encoder_running;
+static atomic_int close_touched_gl;
+static pthread_t encoder_thread;
+
+static void* send_until_refused(void* arg) {
+  Buffer* b = arg;
+  RiftFfenc* enc = open_encoder(1280, 720);
+  if (!enc) _exit(1);
+  int64_t at = 0;
+  while (rift_ffenc_send_dmabuf(enc, &b->dmabuf, NULL, at, at == 0) == 0) {
+    RiftFfencPacket packet;
+    while (rift_ffenc_receive(enc, &packet) > 0) {
+    }
+    at += 16666;
+    atomic_store(&encoder_running, 1);
+  }
+  rift_ffenc_close(enc);
+  atomic_store(&close_touched_gl, eglGetCurrentContext() == EGL_NO_CONTEXT);
+  return NULL;
+}
+
+// Registered before the encoder opens, so it runs after the library's handler.
+static void check_the_close(void) {
+  pthread_join(encoder_thread, NULL);
+  if (atomic_load(&close_touched_gl)) {
+    fprintf(stderr, "the close tore down GL while the process was exiting\n");
+    _exit(3);
+  }
+}
+
+static int exit_closing(void) {
+  open_drawing(node);
+  static Buffer b;
+  if (!make_buffer(&b, 1280, 720, DRM_FORMAT_XRGB8888, 0x606)) return 1;
+  draw(&b, -1);
+  atexit(check_the_close);
+  pthread_create(&encoder_thread, NULL, send_until_refused, &b);
+  while (!atomic_load(&encoder_running)) usleep(1000);
+  fprintf(stderr, "returning from main with the encoder's thread running\n");
+  return 0;
+}
+
 int main(int argc, char** argv) {
   rift_ffenc_set_log(log_line, 24 /* AV_LOG_WARNING */);
   if (argc < 2) {
-    fprintf(stderr, "usage: test_nvenc_dmabuf OUT_DIR | --exit-open\n");
+    fprintf(stderr,
+            "usage: test_nvenc_dmabuf OUT_DIR | --exit-open | --exit-closing\n");
     return 1;
   }
   node = NULL;
@@ -420,6 +474,8 @@ int main(int argc, char** argv) {
     fprintf(stderr, "returning from main with an encoder open (%d)\n", err);
     return err == 0 ? 0 : 1;
   }
+
+  if (strcmp(argv[1], "--exit-closing") == 0) return exit_closing();
 
   out_dir = argv[1];
   open_drawing(node);
