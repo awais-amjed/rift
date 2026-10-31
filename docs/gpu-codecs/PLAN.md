@@ -90,6 +90,48 @@ step can take from our own code and from open source projects: `REUSE.md`.
      at Dave's decoder, a window picked in Rift's dialog works, and H264 stays on the stream at
      3.8–4.4% of a core. Left: a VP9 fallback from a GPU encoder failing mid-share stays on the
      stream and would stand still under a fullscreen window.
+   - **Windows sharer, today's path, measured Oct 31** (release test program, not the app, so no
+     Flutter; Windows 11 25H2, i7-12700H, BIOS on hybrid so the Iris Xe draws the 1920x1080 screen,
+     on AC; a noisy picture full screen; H264 at fixed rate; `threadtop` 20 s, twice each; a
+     viewer as its own process on the same laptop). % of one core. Intel's driver renames threads
+     that touch its device, so capture and, on Quick Sync, the encoder were identified by start
+     address and cost, which is inferred:
+
+     | | Capture | `share-frames` | Encoder | Picture's trip | Whole process | `send` (longest) | Viewer got |
+     |---|---|---|---|---|---|---|---|
+     | NVENC 1080p60, 15 Mbit/s | 5.8–6.7 | 3.3–4.5 | 5.0–5.2 | 15.2–15.3 | 22.7–23.6 | 11.1 ms (13.6) | 59.8–59.9 fps |
+     | Quick Sync 1080p60, 15 | 5.3–7.1 | 3.9–4.1 | 9.6–10.7 | 18.8–21.9 | 25.4–29.5 | 7.4 ms (11.2) | 58.8–58.9 fps |
+     | NVENC 1080p120, 30 | 8.5–9.9 | 7.8 | 8.8–9.4 | 25.7–26.5 | 37.2–40.9 | 0.8 ms (5.9) | 119.9–120.0 fps |
+     | Quick Sync 1080p120, 30 | 9.2–9.5 | 7.6–8.5 | 22.0–22.2 | 38.8–40.2 | 51.9–54.5 | 6.3 ms (10.6) | 117.9–118.1 fps |
+
+     No dropped pictures or freezes in these 45 s runs. The rate gate left out 0–10 pictures on
+     NVENC and 51–109 on Quick Sync. Quick Sync's longest `send` at 120 is over the 8.3 ms a picture
+     has. 1440p was not run: this screen cannot show it.
+   - **Beside a game on Windows, today's path, measured Oct 31** (same laptop and setup, CS2 on
+     de_dust2 offline, no bots, standing at a fixed spot, lowest settings, 1920x1080 fullscreen
+     windowed, uncapped, in front; PresentMon 90 s; a mirrored order, one run each way; the viewer
+     on the same laptop, so its decoding is in the figures):
+
+     | | Game fps | 1% low fps | Frame p99 | CPU busy | GPU busy | Share's process | Viewer got |
+     |---|---|---|---|---|---|---|---|
+     | No share | 439–469 | 230–239 | 4.05–4.24 ms | 1.56–1.93 ms | none | none |
+     | NVENC 1080p60 | 373–393 | 192–198 | 4.82–4.87 ms | 1.67–1.98 ms | 32–59% | 59.6 fps |
+     | Quick Sync 1080p60 | 366–374 | 191–192 | 4.99–5.03 ms | 1.89–2.17 ms | 40–53% | 59.5 fps |
+     | NVENC 1080p120 | 362–366 | 187–188 | 5.15–5.17 ms | 2.02 ms | 68–73% | 108–109 fps |
+
+     The share costs this game about 15–20% of its frame rate and about 0.7–1 ms at the 99th
+     percentile. The two no-share runs alone differ by 6%. Frame times moved with GPU busy
+     (1.68–2.08 ms to 2.21–2.52 ms) more than with CPU busy, so the CPU work zero-copy removes may
+     not be what the game feels most: that is for the new path to show. These runs stood still, so
+     the picture cost about 0.3–1.2 Mbit/s between keyframes, and a moving game would load the encoder more.
+     Three things that only showed with the game up, none explained yet:
+     - A thread starting in NVIDIA's D3D driver (`nvwgf2umx.dll`) used 23–34% of a core in the
+       share's process, on Quick Sync too. The noisy-picture runs had no such thread.
+     - At 120 fps the share sent 105–111 pictures a second, with the game running well above that.
+     - About once a minute, a keyframe of the near-still picture sat 70–170 ms in the send queue,
+       and the viewer's fps fell for that 2 s reading to 38–50 at 60 and 99–112 at 120, with one
+       counted freeze each time (the viewer's total freeze time still read 0.00 s). It is not in the 45 s runs above, too short to reach it, so it was
+       not seen or ruled out on a moving picture. Only seen in this bench so far, not in the app.
    - **Order (owner, Oct 29): Linux first, step 2 before step 1.** This laptop has
      both of Linux's encoders and Wayland, so the step can be built and proved
      here; the Windows VM has no GPU.
