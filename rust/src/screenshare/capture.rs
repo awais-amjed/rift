@@ -788,7 +788,7 @@ mod tests {
         let first = loop {
             match started.try_recv() {
                 Ok(Progress::FirstFrame(size)) => break size,
-                Ok(Progress::Waiting) => {}
+                Ok(Progress::Waiting | Progress::Picking | Progress::Picked) => {}
                 Ok(Progress::Failed(reason)) => panic!("{reason}"),
                 Err(_) => thread::sleep(Duration::from_millis(20)),
             }
