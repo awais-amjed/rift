@@ -173,6 +173,10 @@ AMF's reference if available.
 - **Unit tests:** the routing (`takes_rifts_capture`) and `Pacer`, in `capture_wgc.rs`.
 - **Colours:** known colours through the path, decoded and compared against BT.601.
 - **Tearing:** a whole-screen flip between two grays, as `tear_check.py` did on Linux, with the GPU idle and full.
+- **The D3D11 debug layer:** in a test build, `RIFT_D3D11_DEBUG=1` makes the share's device with it, and the
+  capture thread logs what it stored as it exits (`capture: debug layer: … | errors …`). Needs Windows's
+  Graphics Tools: without them the device cannot be made, which the share meets as any device failure, on today's
+  path (by the code; not tried).
 - **CS2, same session, same build, switch on and off:** with a viewer, 1080p60 and 1080p120. Fps, p99, freezes,
   CPU per thread, `send` time, pictures reaching the viewer. Viewer on the same laptop is stated.
 - **In the app:** screen and window; quality to VP9 and back; window resized, minimised, closed; game closed

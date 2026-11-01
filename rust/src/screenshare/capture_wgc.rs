@@ -392,6 +392,106 @@ fn nvidia_adapter() -> Option<IDXGIAdapter1> {
     }
 }
 
+/// Test builds only: `RIFT_D3D11_DEBUG=1` opens the device under the D3D
+/// debug layer (Windows' Graphics Tools), and the share's end logs what it
+/// said about the capture and the converter. The app never asks for it.
+#[cfg(test)]
+mod debug_layer {
+    use windows::core::Interface;
+    use windows::Win32::Graphics::Direct3D11::{
+        ID3D11Device, ID3D11InfoQueue, D3D11_CREATE_DEVICE_DEBUG, D3D11_CREATE_DEVICE_FLAG,
+        D3D11_MESSAGE, D3D11_MESSAGE_SEVERITY_CORRUPTION, D3D11_MESSAGE_SEVERITY_ERROR,
+        D3D11_MESSAGE_SEVERITY_WARNING,
+    };
+
+    fn wanted() -> bool {
+        std::env::var("RIFT_D3D11_DEBUG").is_ok_and(|v| v == "1")
+    }
+
+    pub(super) fn flag() -> D3D11_CREATE_DEVICE_FLAG {
+        if wanted() {
+            D3D11_CREATE_DEVICE_DEBUG
+        } else {
+            D3D11_CREATE_DEVICE_FLAG(0)
+        }
+    }
+
+    /// Reads the share's device while it is still held, before the encoder's
+    /// last reference goes.
+    pub(super) fn report() {
+        if !wanted() {
+            return;
+        }
+        let device: Option<ID3D11Device> = super::share_device();
+        let Some(Ok(queue)) = device.map(|d| d.cast::<ID3D11InfoQueue>()) else {
+            log::info!("capture: debug layer: no info queue");
+            return;
+        };
+        let (mut corruption, mut errors, mut warnings, mut other) = (0, 0, 0, 0);
+        // SAFETY: each message is read into a buffer of the length the queue
+        // asked for, aligned for `D3D11_MESSAGE`, and read only while it lives.
+        unsafe {
+            let stored = queue.GetNumStoredMessages();
+            for i in 0..stored {
+                let mut len = 0;
+                if queue.GetMessage(i, None, &mut len).is_err() || len == 0 {
+                    continue;
+                }
+                let mut buf = vec![0u64; len.div_ceil(8)];
+                let message = buf.as_mut_ptr().cast::<D3D11_MESSAGE>();
+                if queue.GetMessage(i, Some(message), &mut len).is_err() {
+                    continue;
+                }
+                let m = &*message;
+                let shown = match m.Severity {
+                    D3D11_MESSAGE_SEVERITY_CORRUPTION => {
+                        corruption += 1;
+                        corruption <= 10
+                    }
+                    D3D11_MESSAGE_SEVERITY_ERROR => {
+                        errors += 1;
+                        errors <= 10
+                    }
+                    D3D11_MESSAGE_SEVERITY_WARNING => {
+                        warnings += 1;
+                        warnings <= 10
+                    }
+                    _ => {
+                        other += 1;
+                        false
+                    }
+                };
+                if shown {
+                    let text = std::slice::from_raw_parts(
+                        m.pDescription.cast::<u8>(),
+                        m.DescriptionByteLength.saturating_sub(1),
+                    );
+                    log::info!(
+                        "capture: debug layer {:?}: {}",
+                        m.Severity,
+                        String::from_utf8_lossy(text)
+                    );
+                }
+            }
+            log::info!(
+                "capture: debug layer: {stored} messages | corruption {corruption} | errors \
+                 {errors} | warnings {warnings} | other {other}"
+            );
+        }
+    }
+}
+
+#[cfg(not(test))]
+mod debug_layer {
+    use windows::Win32::Graphics::Direct3D11::D3D11_CREATE_DEVICE_FLAG;
+
+    pub(super) fn flag() -> D3D11_CREATE_DEVICE_FLAG {
+        D3D11_CREATE_DEVICE_FLAG(0)
+    }
+
+    pub(super) fn report() {}
+}
+
 fn open_device() -> windows::core::Result<(ID3D11Device, IDirect3DDevice)> {
     let adapter = nvidia_adapter().ok_or(windows::core::Error::from_hresult(
         windows::Win32::Foundation::E_FAIL,
@@ -403,7 +503,7 @@ fn open_device() -> windows::core::Result<(ID3D11Device, IDirect3DDevice)> {
             &adapter,
             D3D_DRIVER_TYPE_UNKNOWN,
             HMODULE::default(),
-            D3D11_CREATE_DEVICE_BGRA_SUPPORT,
+            D3D11_CREATE_DEVICE_BGRA_SUPPORT | debug_layer::flag(),
             None::<&[D3D_FEATURE_LEVEL]>,
             D3D11_SDK_VERSION,
             Some(&mut device),
@@ -660,6 +760,7 @@ pub(super) fn run(
     drop(running);
     flow.pictures.lock().unwrap().take();
     drop(capturer);
+    debug_layer::report();
     log::info!("capture: thread exiting");
     if hand_over {
         Handoff::Fallback(request)
