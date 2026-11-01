@@ -123,7 +123,7 @@ game less. *Proposed; the review may have a view.*
 | No adapter of the encoder's maker, device or session will not open | Today's path |
 | Converter or encoder will not take D3D11 | The encoder on memory, so `capture_wgc` hands over to libwebrtc's capturer |
 | A picture fails once | The last picture again; a passing failure must not end a share |
-| Still failing after about a second, or the GPU is gone | The encoder fails, the share moves to VP9, and the capturer hands over: no second picker |
+| Still failing after a second (and five pictures), or the GPU is gone | The encoder fails, the share moves to VP9, and the capturer hands over: no second picker |
 
 ## First milestone (owner, Nov 1)
 
@@ -260,7 +260,7 @@ meets the game's presenting.
   viewer: 58.3 fps decoded, the share process 16.4% of a core, two gaps of 107 ms). It is measured against
   NVENC on the game in Hybrid, and goes first only if it costs the game less. AMF is built the same way as NVENC
   but is let onto this path only with `RIFT_FFENC_AMF_TEXTURES=1` until it runs on an AMD card.
-- Live tests in `gpu_live_test.rs` for this path (they are Linux's so far), and `CALLS.md` and `TESTING.md`.
+- The app driven through everything a share does, and `TESTING.md` for it.
 
 ## How it is proven
 
@@ -274,6 +274,11 @@ AMF's reference if available.
   `rift_ffenc_send_d3d11` and decodes what came out (`check_d3d11.py`): four colours and repeats of them, a bar
   moving a step each picture (none late), a letterboxed picture, memory pictures between GPU ones, and a return
   from `main` with an encoder open. NVENC and Quick Sync passed on this laptop, Nov 1; AMF skipped.
+- **Live tests** (`gpu_live_test.rs`, a local LiveKit, a window of the test's own in a second process, since
+  libwebrtc lists no window of its own process): the switch keeps a share out of Rift's capture; a shared window
+  closed five times ends the share each time and the stop returns; a still window reaches a late viewer; a GPU
+  that stops drawing (`RIFT_D3D11_FAIL_AFTER=90`) moves the share to VP9 within about a second; and Linux's
+  resize, late-viewer and fall-back test on a whole screen. All passed on NVENC and Quick Sync, Nov 1.
 - **Colours:** known colours through the path, decoded and compared against BT.601.
 - **Tearing:** a whole-screen flip between two grays, as `tear_check.py` did on Linux, with the GPU idle and full.
 - **The D3D11 debug layer:** in a test build, `RIFT_D3D11_DEBUG=1` makes the share's device with it, and the

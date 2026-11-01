@@ -44,8 +44,13 @@
 // or two at NVENC's delay of 2 and one kept for a repeat.
 #define MAX_TARGETS 8
 
-// At up to 120 pictures a second, about a second's worth, as nvenc_gl.c.
-#define MAX_PASSING_FAILURES 120
+// Pictures failing in a row for this long end the encoder, so the share moves
+// to VP9: a second, at any rate. Counted in pictures it was four seconds of
+// one picture repeated at 30 a second (Nov 1 2026, live_wgc_failing_gpu_moves_to_vp9).
+// A few in a row at least, so two lone failures far apart on a still screen
+// are not a second of them.
+#define PASSING_FAILURE_MS 1000
+#define MIN_PASSING_FAILURES 5
 
 typedef struct Constants {
   float corners[4][4];
@@ -75,6 +80,11 @@ struct D3d11Nv12 {
   Target targets[MAX_TARGETS];
   int next_target;
   int passing_failures;
+  ULONGLONG failing_since;  // GetTickCount64 at the first of them
+  // For a test: every picture after this many fails as a GPU that stopped
+  // drawing would (RIFT_D3D11_FAIL_AFTER); 0 never.
+  long fail_after;
+  long drawn;
 };
 
 static const char SHADERS[] =
@@ -232,6 +242,8 @@ D3d11Nv12* d3d11_nv12_open(void* device, int width, int height, char* error,
     fail(error, error_len, "out of memory");
     return NULL;
   }
+  const char* fail_after = getenv("RIFT_D3D11_FAIL_AFTER");
+  if (fail_after) path->fail_after = strtol(fail_after, NULL, 10);
   path->width = width;
   path->height = height;
   path->device = device;
@@ -423,7 +435,10 @@ int d3d11_nv12_run(D3d11Nv12* path, void* texture, int source_width,
                    int source_height, const RiftRect* place, AVFrame* frame) {
   int err = av_hwframe_get_buffer(path->frames, frame, 0);
   if (err < 0) return err;
-  HRESULT hr = draw(path, texture, source_width, source_height, place, frame);
+  HRESULT hr = path->fail_after && ++path->drawn > path->fail_after
+                   ? E_FAIL
+                   : draw(path, texture, source_width, source_height, place,
+                          frame);
   if (SUCCEEDED(hr)) {
     path->passing_failures = 0;
     return 0;
@@ -434,7 +449,10 @@ int d3d11_nv12_run(D3d11Nv12* path, void* texture, int source_width,
     av_log(NULL, AV_LOG_WARNING, "d3d11: the GPU is gone: 0x%08lx\n", removed);
     return AVERROR_EXTERNAL;
   }
-  if (++path->passing_failures > MAX_PASSING_FAILURES) {
+  ULONGLONG now = GetTickCount64();
+  if (path->passing_failures++ == 0) path->failing_since = now;
+  if (path->passing_failures >= MIN_PASSING_FAILURES &&
+      now - path->failing_since >= PASSING_FAILURE_MS) {
     av_log(NULL, AV_LOG_WARNING, "d3d11: pictures keep failing: 0x%08lx\n", hr);
     return AVERROR_EXTERNAL;
   }

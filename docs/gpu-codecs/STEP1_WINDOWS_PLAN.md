@@ -165,26 +165,26 @@ is the verdict's: the switch first.
 ### Task 4: Live tests for this path
 
 **Files:**
-- Modify: `rust/src/screenshare/gpu_live_test.rs`, `rust/src/screenshare/encoder/worker.rs` or
-  `d3d11_nv12.c` (the test-only failure), `TESTING.md`
+- Modify: `rust/src/screenshare/gpu_live_test.rs`, `rust/src/screenshare/capture_wgc.rs` (test-only counts),
+  `native/ffenc/d3d11_nv12.c` (the failure switch, and a second of failures rather than 120 pictures),
+  `TESTING.md`, `CALLS.md`
 
 **Interfaces:**
-- Test-only `RIFT_D3D11_FAIL_AFTER=<n>`: `send_d3d11` returns the device-removed error from picture n on.
+- `RIFT_D3D11_FAIL_AFTER=<n>`, read by the converter as it opens (as Linux's `RIFT_FFENC_NO_GL`): every picture
+  after the nth fails as a passing failure would.
+- A test window in a second process (the test binary again, `wgc_test_window`): libwebrtc lists no window of
+  its own process.
 
 All need LiveKit (`livekit-server --dev`) and a display, one test per process:
 
-- [ ] **Step 1: Run the two existing shared tests on Windows** (`live_gpu_h264_is_seen_with_the_key_and_by_nobody_else`,
-  `live_gpu_share_resizes_rejoins_and_falls_back`) and fix what is Linux-only in them, keeping Linux's behaviour.
-- [ ] **Step 2: `live_wgc_switch_keeps_the_share_off_the_gpu`.** `gpu_capture` false: the log says libwebrtc's
-  capturer, no D3D11 device opened (a test-only counter in `capture_wgc`), and the viewer gets pictures.
-- [ ] **Step 3: `live_wgc_window_share_ends_when_the_window_closes`.** A test window shared, then closed: the share
-  ends by itself within 2 s, `stop` returns, nothing hangs.
-- [ ] **Step 4: `live_wgc_device_loss_moves_to_vp9`.** With `RIFT_D3D11_FAIL_AFTER=120`: the viewer keeps a
-  picture throughout, the share moves to VP9 within about a second of the failure, and `stop` returns.
-- [ ] **Step 5: `live_wgc_still_screen_reaches_a_late_viewer`.** A still test window shared; a viewer joining 5 s
-  later gets a picture within 1 s.
-- [ ] **Step 6: Each test RED first where it can be** (comment out the behaviour, see it fail), then commit with
-  `TESTING.md`.
+- [x] **Step 1: Run the two existing shared tests on Windows.** Both passed unchanged, on NVENC and Quick Sync.
+- [x] **Step 2: `live_wgc_switch_keeps_the_share_off_the_gpu`.** Written against what was built in Task 1.
+- [x] **Step 3: `live_wgc_window_share_ends_when_the_window_closes`**, five closes a run.
+- [x] **Step 4: `live_wgc_failing_gpu_moves_to_vp9`.** RED against the library before the switch (no VP9 within
+  15 s). With 120 pictures as the limit it measured 4.3 s at 30 fps, which the 4 s bound added after would fail;
+  GREEN at a second of failures (1.4 s).
+- [x] **Step 5: `live_wgc_still_window_reaches_a_late_viewer`.**
+- [x] **Step 6: Commit with `TESTING.md`.** A real driver reset stays the owner's by-hand step (Task 5).
 
 ---
 

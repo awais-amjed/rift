@@ -865,3 +865,421 @@ fn live_gpu_stream_moves_to_memory_and_back() {
     assert!(last.0 >= 200, "too few DMA-BUFs after: {last:?}");
     assert!(made >= 700, "only {made} frames in 15 s");
 }
+
+// ── Windows: Rift's own capture ──────────────────────────
+
+/// A window of the test's own, as any app's: gray with a white bar that moves
+/// a step every timer tick when `moving`, so a share of it has something new,
+/// or drawn once and left still. In a process of its own (this test binary
+/// again, running [`wgc_test_window`]), since libwebrtc leaves a process's own
+/// windows out of its list. Closed as a person closes it when told to or
+/// dropped.
+#[cfg(target_os = "windows")]
+mod test_window {
+    use std::process::{Child, Command};
+    use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
+    use std::time::{Duration, Instant};
+    use windows::core::{w, HSTRING};
+    use windows::Win32::Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, RECT, WPARAM};
+    use windows::Win32::Graphics::Gdi::{
+        BeginPaint, EndPaint, FillRect, GetStockObject, InvalidateRect, GRAY_BRUSH, HBRUSH,
+        PAINTSTRUCT, WHITE_BRUSH,
+    };
+    use windows::Win32::System::LibraryLoader::GetModuleHandleW;
+    use windows::Win32::UI::WindowsAndMessaging::{
+        CreateWindowExW, DefWindowProcW, DispatchMessageW, FindWindowW, GetClientRect, GetMessageW,
+        PostMessageW, PostQuitMessage, RegisterClassW, SetTimer, TranslateMessage, MSG,
+        WINDOW_EX_STYLE, WM_CLOSE, WM_DESTROY, WM_PAINT, WM_TIMER, WNDCLASSW, WS_OVERLAPPEDWINDOW,
+        WS_VISIBLE,
+    };
+
+    const CLASS: windows::core::PCWSTR = w!("RiftLiveTestWindow");
+    static MOVING: AtomicBool = AtomicBool::new(true);
+    static STEP: AtomicI32 = AtomicI32::new(0);
+
+    pub(super) struct TestWindow {
+        hwnd: isize,
+        child: Option<Child>,
+    }
+
+    impl TestWindow {
+        pub(super) fn open(title: &str, moving: bool) -> Self {
+            let mut command = Command::new(std::env::current_exe().unwrap());
+            command
+                .args([
+                    "screenshare::gpu_live_test::wgc_test_window",
+                    "--exact",
+                    "--ignored",
+                ])
+                .env("RIFT_TEST_WINDOW", title);
+            if !moving {
+                command.env("RIFT_TEST_WINDOW_STILL", "1");
+            }
+            let child = command.spawn().expect("the test window's process starts");
+            let title = HSTRING::from(title);
+            let started = Instant::now();
+            let hwnd = loop {
+                // SAFETY: a lookup by class and title, nothing kept.
+                if let Ok(hwnd) = unsafe { FindWindowW(CLASS, &title) } {
+                    break hwnd;
+                }
+                assert!(
+                    started.elapsed() < Duration::from_secs(10),
+                    "the test window did not open"
+                );
+                std::thread::sleep(Duration::from_millis(50));
+            };
+            // Time for Windows to show it and list it.
+            std::thread::sleep(Duration::from_millis(500));
+            Self {
+                hwnd: hwnd.0 as isize,
+                child: Some(child),
+            }
+        }
+
+        /// Closed as a person closes it; gone once this returns.
+        pub(super) fn close(mut self) {
+            self.shut();
+        }
+
+        fn shut(&mut self) {
+            let Some(mut child) = self.child.take() else {
+                return;
+            };
+            // SAFETY: a message to the test's own window, which ends its loop.
+            let _ = unsafe {
+                PostMessageW(
+                    Some(HWND(self.hwnd as *mut _)),
+                    WM_CLOSE,
+                    WPARAM(0),
+                    LPARAM(0),
+                )
+            };
+            let started = Instant::now();
+            while child.try_wait().ok().flatten().is_none() {
+                if started.elapsed() > Duration::from_secs(5) {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    break;
+                }
+                std::thread::sleep(Duration::from_millis(20));
+            }
+        }
+    }
+
+    impl Drop for TestWindow {
+        fn drop(&mut self) {
+            self.shut();
+        }
+    }
+
+    /// The window itself, on this thread, until it is closed.
+    pub(super) fn run(title: &str, moving: bool) {
+        MOVING.store(moving, Ordering::Relaxed);
+        // SAFETY: a window made, run and destroyed on this thread.
+        unsafe {
+            let instance = HINSTANCE(GetModuleHandleW(None).unwrap().0);
+            RegisterClassW(&WNDCLASSW {
+                lpfnWndProc: Some(window_proc),
+                hInstance: instance,
+                lpszClassName: CLASS,
+                ..Default::default()
+            });
+            let hwnd = CreateWindowExW(
+                WINDOW_EX_STYLE::default(),
+                CLASS,
+                &HSTRING::from(title),
+                WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+                100,
+                100,
+                1280,
+                720,
+                None,
+                None,
+                Some(instance),
+                None,
+            )
+            .expect("the test window opens");
+            SetTimer(Some(hwnd), 1, 16, None);
+            let mut msg = MSG::default();
+            while GetMessageW(&mut msg, None, 0, 0).as_bool() {
+                let _ = TranslateMessage(&msg);
+                DispatchMessageW(&msg);
+            }
+        }
+    }
+
+    unsafe extern "system" fn window_proc(
+        hwnd: HWND,
+        message: u32,
+        wparam: WPARAM,
+        lparam: LPARAM,
+    ) -> LRESULT {
+        // SAFETY: called by Windows on the window's own thread, with its own handle.
+        unsafe {
+            match message {
+                WM_TIMER => {
+                    if MOVING.load(Ordering::Relaxed) {
+                        STEP.fetch_add(1, Ordering::Relaxed);
+                        let _ = InvalidateRect(Some(hwnd), None, false);
+                    }
+                    LRESULT(0)
+                }
+                WM_PAINT => {
+                    let mut paint = PAINTSTRUCT::default();
+                    let dc = BeginPaint(hwnd, &mut paint);
+                    let mut area = RECT::default();
+                    let _ = GetClientRect(hwnd, &mut area);
+                    FillRect(dc, &area, HBRUSH(GetStockObject(GRAY_BRUSH).0));
+                    let width = (area.right - 40).max(1);
+                    let x = (STEP.load(Ordering::Relaxed) * 8) % width;
+                    let bar = RECT {
+                        left: x,
+                        top: 0,
+                        right: x + 40,
+                        bottom: area.bottom,
+                    };
+                    FillRect(dc, &bar, HBRUSH(GetStockObject(WHITE_BRUSH).0));
+                    let _ = EndPaint(hwnd, &paint);
+                    LRESULT(0)
+                }
+                WM_DESTROY => {
+                    PostQuitMessage(0);
+                    LRESULT(0)
+                }
+                _ => DefWindowProcW(hwnd, message, wparam, lparam),
+            }
+        }
+    }
+}
+
+/// Not a test of its own: the window [`test_window::TestWindow`] opens, run
+/// in a process of its own by the tests that share it.
+#[cfg(target_os = "windows")]
+#[test]
+#[ignore = "the Windows live tests' window, started by them"]
+fn wgc_test_window() {
+    let Ok(title) = std::env::var("RIFT_TEST_WINDOW") else {
+        return;
+    };
+    test_window::run(&title, std::env::var_os("RIFT_TEST_WINDOW_STILL").is_none());
+}
+
+/// An H264 share of the test's own window, found by its title as the app's
+/// list would show it.
+#[cfg(target_os = "windows")]
+fn window_share(server: &Server, room: &str, title: &str) -> ScreenShareConfig {
+    let mut config = h264_share(server, room);
+    let index = super::sources::list(false)
+        .into_iter()
+        .find(|source| source.title.contains(title))
+        .unwrap_or_else(|| panic!("no window titled {title:?}"))
+        .index;
+    config.capture_full_screen = false;
+    config.selected_video_source_index = Some(index);
+    config
+}
+
+#[cfg(target_os = "windows")]
+fn live_room(name: &str) -> String {
+    format!(
+        "rift-{name}-{}",
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis()
+    )
+}
+
+/// The settings switch keeps a share entirely out of Rift's own capture: on,
+/// the share opens one device and runs on Rift's session; off, it opens
+/// neither and still shows the window.
+#[cfg(target_os = "windows")]
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a LiveKit server, a display and a hardware H264 encoder that takes textures"]
+async fn live_wgc_switch_keeps_the_share_off_the_gpu() {
+    use super::capture_wgc::counts;
+    let _ = env_logger::builder()
+        .is_test(true)
+        .filter_level(log::LevelFilter::Info)
+        .try_init();
+    let server = Server::from_env();
+    let room = live_room("wgc-switch");
+    let title = "rift live test: the switch";
+    let _window = test_window::TestWindow::open(title, true);
+    let (viewer, mut events) = viewer_as(&server, &room, "viewer").await;
+    for gpu_capture in [true, false] {
+        let devices = counts::DEVICES.load(Ordering::Relaxed);
+        let sessions = counts::SESSIONS.load(Ordering::Relaxed);
+        let mut config = window_share(&server, &room, title);
+        config.gpu_capture = gpu_capture;
+        session::start(config).await.expect("share starts");
+        let seen = watch(&next_video_track(&mut events).await, Duration::from_secs(3)).await;
+        let opened = (
+            counts::DEVICES.load(Ordering::Relaxed) - devices,
+            counts::SESSIONS.load(Ordering::Relaxed) - sessions,
+        );
+        log::info!(
+            "wgc share, switch {}: {} frames in 3 s, {} devices and {} of Rift's sessions opened",
+            if gpu_capture { "on" } else { "off" },
+            seen.frames,
+            opened.0,
+            opened.1
+        );
+        assert!(seen.frames > 60, "{} frames", seen.frames);
+        assert_eq!(opened, if gpu_capture { (1, 1) } else { (0, 0) });
+        assert_eq!(session::stop().await.unwrap(), "Stopped successfully");
+    }
+    viewer.close().await.unwrap();
+}
+
+/// A shared window closed mid-share, five times: each time the capture hears
+/// it within 3 s and ends the share, and the stop the app then sends returns
+/// at once.
+#[cfg(target_os = "windows")]
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a LiveKit server, a display and a hardware H264 encoder that takes textures"]
+async fn live_wgc_window_share_ends_when_the_window_closes() {
+    use super::capture_wgc::counts;
+    let _ = env_logger::builder()
+        .is_test(true)
+        .filter_level(log::LevelFilter::Info)
+        .try_init();
+    let server = Server::from_env();
+    let room = live_room("wgc-close");
+    let (viewer, mut events) = viewer_as(&server, &room, "viewer").await;
+    for round in 1..=5 {
+        let title = format!("rift live test: closing {round}");
+        let window = test_window::TestWindow::open(&title, true);
+        let sessions = counts::SESSIONS.load(Ordering::Relaxed);
+        let closed = counts::CLOSED.load(Ordering::Relaxed);
+        session::start(window_share(&server, &room, &title))
+            .await
+            .expect("share starts");
+        let seen = watch(&next_video_track(&mut events).await, Duration::from_secs(2)).await;
+        assert!(seen.frames > 30, "round {round}: {} frames", seen.frames);
+        assert_eq!(
+            counts::SESSIONS.load(Ordering::Relaxed),
+            sessions + 1,
+            "round {round}: not on Rift's capture"
+        );
+        let closing = Instant::now();
+        window.close();
+        let heard = timeout(Duration::from_secs(3), async {
+            while counts::CLOSED.load(Ordering::Relaxed) == closed {
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+        })
+        .await;
+        assert!(heard.is_ok(), "round {round}: the close was not heard");
+        let heard_after = closing.elapsed();
+        // What the app does when it hears the share ended.
+        let stopping = Instant::now();
+        let stopped = timeout(Duration::from_secs(5), session::stop())
+            .await
+            .unwrap_or_else(|_| panic!("round {round}: stop hung"));
+        log::info!(
+            "wgc share, round {round}: {} frames, the close heard in {} ms, stopped in {} ms",
+            seen.frames,
+            heard_after.as_millis(),
+            stopping.elapsed().as_millis()
+        );
+        assert_eq!(stopped.unwrap(), "Stopped successfully");
+    }
+    viewer.close().await.unwrap();
+}
+
+/// A window that never changes, shared with nobody watching for long enough
+/// that the stream pauses: a viewer joining then still gets its picture.
+/// Windows sends nothing for a still window, so this is the repeat's work.
+#[cfg(target_os = "windows")]
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a LiveKit server, a display and a hardware H264 encoder that takes textures"]
+async fn live_wgc_still_window_reaches_a_late_viewer() {
+    use super::capture_wgc::counts;
+    let _ = env_logger::builder()
+        .is_test(true)
+        .filter_level(log::LevelFilter::Info)
+        .try_init();
+    let server = Server::from_env();
+    let room = live_room("wgc-still");
+    let title = "rift live test: still";
+    let _window = test_window::TestWindow::open(title, false);
+    let sessions = counts::SESSIONS.load(Ordering::Relaxed);
+    session::start(window_share(&server, &room, title))
+        .await
+        .expect("share starts");
+    tokio::time::sleep(Duration::from_secs(8)).await;
+    assert_eq!(
+        counts::SESSIONS.load(Ordering::Relaxed),
+        sessions + 1,
+        "not on Rift's capture"
+    );
+    let (late, mut events) = viewer_as(&server, &room, "late-viewer").await;
+    let seen = watch(&next_video_track(&mut events).await, Duration::from_secs(2)).await;
+    log::info!(
+        "wgc share, still window: a late viewer's first picture {} ms after subscribing, {} in 2 s, {}x{}",
+        seen.first.as_millis(),
+        seen.frames,
+        seen.size.0,
+        seen.size.1
+    );
+    assert!(seen.frames >= 1, "no picture");
+    assert!(seen.first < Duration::from_secs(1), "{:?}", seen.first);
+    assert_eq!(session::stop().await.unwrap(), "Stopped successfully");
+    late.close().await.unwrap();
+}
+
+/// A GPU that stops drawing mid-share, as one being reset would: run with
+/// `RIFT_D3D11_FAIL_AFTER=90`, which fails every picture after the 90th in the
+/// converter. The last picture goes out again while the failure might be
+/// passing, then the share moves to VP9 and the viewer is given that picture,
+/// and the stop afterwards returns.
+#[cfg(target_os = "windows")]
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a LiveKit server, a display, a hardware H264 encoder that takes textures and RIFT_D3D11_FAIL_AFTER"]
+async fn live_wgc_failing_gpu_moves_to_vp9() {
+    let _ = env_logger::builder()
+        .is_test(true)
+        .filter_level(log::LevelFilter::Info)
+        .try_init();
+    std::env::var("RIFT_D3D11_FAIL_AFTER").expect("run with RIFT_D3D11_FAIL_AFTER=90");
+    let server = Server::from_env();
+    let room = live_room("wgc-fail");
+    let title = "rift live test: failing";
+    let _window = test_window::TestWindow::open(title, true);
+    let (viewer, mut events) = viewer_as(&server, &room, "viewer").await;
+    session::start(window_share(&server, &room, title))
+        .await
+        .expect("share starts");
+    let before = watch(&next_video_track(&mut events).await, Duration::from_secs(2)).await;
+    assert_eq!(share_encoder().await, "LiveKit pre-encoded passthrough");
+    assert!(before.frames > 30, "{} frames before", before.frames);
+    let failing = Instant::now();
+    let moved = timeout(Duration::from_secs(15), next_video_track(&mut events))
+        .await
+        .expect("the share moved to VP9");
+    let moved_after = failing.elapsed();
+    let after = watch(&moved, Duration::from_secs(3)).await;
+    let encoder = share_encoder().await;
+    log::info!(
+        "wgc share, failing GPU: {} frames before, VP9's picture {} ms after the 2 s of watching, \
+         {} frames in 3 s after, encoder {encoder}",
+        before.frames,
+        moved_after.as_millis(),
+        after.frames
+    );
+    assert_eq!(encoder, "libvpx");
+    assert!(after.frames > 30, "{} frames after", after.frames);
+    // The failure starts about a second after the watching (the 90th picture,
+    // at 30 a second), lasts a second (d3d11_nv12.c), then VP9 is published.
+    assert!(
+        moved_after < Duration::from_secs(4),
+        "VP9 after {moved_after:?}"
+    );
+    let stopped = timeout(Duration::from_secs(5), session::stop())
+        .await
+        .expect("stop hung");
+    assert_eq!(stopped.unwrap(), "Stopped successfully");
+    viewer.close().await.unwrap();
+}

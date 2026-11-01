@@ -240,7 +240,9 @@ as below, and Rift's session falls back to it. Verified Nov 1 with a test progra
 NVENC, not yet the app: real shares with a viewer, the shared window closed 20 times (10
 closed, 10 killed) with no crash or hang, and known colours within 0.5 of a level of
 BT.601 limited. Quick Sync so far in ffenc's own test (`test_windows.sh`) and one bench
-share with a viewer (58.3 fps decoded). The switch is *Capture the screen on the
+share with a viewer (58.3 fps decoded). A picture that fails to draw sends the last one again;
+a second of them in a row, or the GPU gone, ends the encoder and the share goes on as VP9
+(`live_wgc_failing_gpu_moves_to_vp9`). The switch is *Capture the screen on the
 GPU* in settings, shown on every Windows build: off, the next share never reaches Rift's
 session, nor opens its device, and goes as below.
 

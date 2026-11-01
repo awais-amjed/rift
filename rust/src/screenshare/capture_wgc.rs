@@ -535,6 +535,8 @@ fn open_device(vendor: u32) -> windows::core::Result<(ID3D11Device, IDirect3DDev
         let dxgi: IDXGIDevice = device.cast()?;
         CreateDirect3D11DeviceFromDXGIDevice(&dxgi)?
     };
+    #[cfg(test)]
+    counts::DEVICES.fetch_add(1, Ordering::Relaxed);
     Ok((device, winrt.cast()?))
 }
 
@@ -721,6 +723,8 @@ pub(super) fn run(
         }
     };
     log::info!("capture: on Rift's Windows Graphics Capture session");
+    #[cfg(test)]
+    counts::SESSIONS.fetch_add(1, Ordering::Relaxed);
     let wants_memory = Arc::new(AtomicBool::new(false));
     let processing = slot.clone();
     let told = wants_memory.clone();
@@ -758,6 +762,8 @@ pub(super) fn run(
         };
         if ended {
             log::info!("capture: source closed, ending the share");
+            #[cfg(test)]
+            counts::CLOSED.fetch_add(1, Ordering::Relaxed);
             crate::api::screenshare::emit_screenshare_event(ScreenshareEvent::SourceClosed);
             break false;
         }
@@ -819,6 +825,19 @@ fn process(pictures: Taker<WgcPicture>, slot: capture::VideoSlot, wants_memory: 
             }
         }
     }
+}
+
+/// Test builds only: what this module opened and heard, for the live tests.
+#[cfg(test)]
+pub(super) mod counts {
+    use std::sync::atomic::AtomicU32;
+
+    /// D3D11 devices opened for a share.
+    pub(in super::super) static DEVICES: AtomicU32 = AtomicU32::new(0);
+    /// Shares that ran on Rift's own session.
+    pub(in super::super) static SESSIONS: AtomicU32 = AtomicU32::new(0);
+    /// Shared windows heard closing.
+    pub(in super::super) static CLOSED: AtomicU32 = AtomicU32::new(0);
 }
 
 /// Test builds only: how often Windows hands a picture over, how many go on,
