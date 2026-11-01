@@ -206,8 +206,7 @@ Against the limits, on this laptop:
 - **Missed: viewer at least 58 fps GPU-limited, Discrete.** With the game GPU-limited and G-Sync on, Windows
   hands the capture a new picture only about every 20.8 ms (48 a second), measured by counting arrivals in a test
   build. It is the same with `SetMinUpdateInterval` left unset. Today's path takes every other one, so 24. At
-  lowest settings the arrivals are irregular and 60 a second go out. Probably the bottom of the panel's G-Sync
-  range while the game flips by itself; not confirmed with G-Sync off.
+  lowest settings the arrivals are irregular and 60 a second go out. Not G-Sync: the same with it off (below).
 - **Missed: share CPU at most 15% and 25%, Discrete.** 23–30% at 60 and 32–45% at 120 during the blocks. A 60 s
   run afterwards at the same settings measured 4.7%, with the same number of thread switches a second
   (about 1,700) but each thread costing a third to a sixth as much. Today's path rose in the same blocks (57–89%
@@ -227,6 +226,23 @@ is built. Three limits changed, as changes, not as passes:
 - **GPU-limited p99 worse than today is accepted.** It is not the same work: the new path sends the viewer 60 pictures
   a second where today's sends 39, and 48 where today's sends 24, and today's 24–39 is stutter at the viewer.
 - **The viewer at 48 fps with G-Sync on in Discrete is accepted** as Windows' doing, not Rift's.
+
+**The two checks the verdict asked for (Nov 1, done; the milestone passes).** CS2 on dust2 at the same spot,
+rounds of 45 s at lowest settings and 60 s at highest, PresentMon on the game. No viewer this time, so LiveKit
+paused the stream after about 6 s and the encoder sat idle; the capture ran throughout, and it is the part that
+meets the game's presenting.
+
+- **Present mode: the game is not composed.** In both BIOS modes PresentMon shows CS2 in *Hardware: Independent
+  Flip* for every frame of every round: no share, the new path and today's. The guess that a share sends the game
+  through the desktop compositor is wrong. What a share adds is GPU time: the game's GPU busy time per frame goes
+  from 1.80 to 2.25 ms on the new path (2.20 today) in Discrete, and from 1.83 to 2.28 ms (2.28 today) in Hybrid.
+  With the stream paused the two modes cost the game alike, 0.22 ms a frame in Discrete and 0.24 in Hybrid (short
+  rounds in another sitting; not comparable with the gate's figures). So whatever makes Discrete cost more in the
+  gate came with the stream running; not found.
+- **G-Sync is not why the Discrete viewer gets 48.** With G-Sync off (CS2's own notice confirmed it) and the game
+  GPU-limited, Windows still hands the capture new pictures in a 21 ms rhythm: 96–102 gaps of 18–23 ms every two
+  seconds, most followed by a second arrival under 3 ms later, as with G-Sync on (96–97). A guess, untested: in
+  Discrete the desktop compositor waits behind the game on the same GPU; in Hybrid it composes on Intel and gets 60.
 
 **Not built yet, the rest:**
 
@@ -260,10 +276,11 @@ AMF's reference if available.
   the team and weapon at the spot differed. Unexplained.
 - What the 80 ms game frames in one new-path round were (*First milestone*). Not seen again in the 30 new-path
   rounds of the gate; frame times are logged during the app tests.
-- Whether the GPU-limited share reaches 60 fps in Discrete with G-Sync off, or with V-Sync on in the game.
-- Whether a share moves the game from flipping straight to the screen to being composed by the desktop, which in
-  Discrete the game's own GPU does: a guess at why Discrete costs more than Hybrid. If it is, it is not to be avoided
-  by hooking the game, which risks anti-cheat bans.
+- Why Windows hands the capture a new picture only every 21 ms in Discrete with the game GPU-limited, G-Sync on or
+  off. Untested: the compositor behind the game on one GPU, Windows' GPU scheduling setting, V-Sync on in the game.
+- What makes Discrete cost the game more than Hybrid in the gate. Not composition: the game flips straight to the
+  screen in both modes, share or not. Whatever it is, it is not to be avoided by hooking the game, which risks
+  anti-cheat bans.
 - Why the share process cost three to six times as much during the Discrete blocks as in a short run after them.
   Rechecked during the app tests; if it comes back, which threads and cores the time goes to.
 - **Known, and older than this work:** a 0.2–0.6 s freeze at the viewer once a minute on every path, from the keyframe
