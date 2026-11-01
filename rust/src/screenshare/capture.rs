@@ -551,6 +551,11 @@ impl SharedWindow {
         }
     }
 
+    /// Minimised, or gone and being looked for: no pictures are to be expected.
+    pub(super) fn away(&self) -> bool {
+        self.minimised || self.gone.is_some()
+    }
+
     /// Whether the share is over, asked after each capture.
     pub(super) fn ended(
         &mut self,

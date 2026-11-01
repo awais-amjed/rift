@@ -194,22 +194,25 @@ All need LiveKit (`livekit-server --dev`) and a display, one test per process:
 - Modify: `TESTING.md`, `CALLS.md`, `docs/gpu-codecs/STEP1_WINDOWS.md`, `docs/gpu-codecs/PLAN.md`; the local
   `MANUAL_TESTING.md`
 
-- [ ] **Step 1: A server.** Ask the owner which: Docker Desktop with `rift-self-host`'s stack here, the Linux
+- [x] **Step 1: A server.** Ask the owner which: Docker Desktop with `rift-self-host`'s stack here, the Linux
   stack, or a call the owner sets up. Never the owner's real server from a test profile.
-- [ ] **Step 2: Release build and test clients** (`RIFT_PROFILE`), a viewer on the Linux PC where possible, and
+- [x] **Step 2: Release build and test clients** (`RIFT_PROFILE`), a viewer on the Linux PC where possible, and
   say so wherever the viewer is on the laptop.
-- [ ] **Step 3: Everything a share does, on the new path**: screen and window; quality to VP9 and back; a window
+- [x] **Step 3: Everything a share does, on the new path**: screen and window; quality to VP9 and back; a window
   resized, minimised, closed; CS2 closed mid-share; a game that swaps its window; a late viewer on a still
   screen; the switch off (log says libwebrtc's capturer); Quit from the tray mid-share. Per-thread CPU of the
   share every few seconds, and PresentMon frame times on CS2 (the owner starts it), for the 80 ms frames and the
   Discrete share CPU the verdict asked to watch.
-- [ ] **Step 4: By-hand steps for the owner**, numbered: a driver reset mid-share (`dxcap -forcetdr` in an
+- [x] **Step 4: By-hand steps for the owner**, numbered: a driver reset mid-share (`dxcap -forcetdr` in an
   administrator shell, needs Graphics Tools), and anything Rift's GUI needs a person for. Wait for the result.
+  The reset froze the share for good; the owner chose a new session when quiet (Nov 2), which became one every
+  2 s and a hand-over to libwebrtc's capturer after five, once a single one handed over mid-reset and ended the
+  share (`STEP1_WINDOWS.md`, *Why five, and not one*).
 - [x] **Step 5: Quick Sync against NVENC, Hybrid, CS2.** The gate's way, lowest settings standing still, 60 and
   120 fps, three rounds each, `RIFT_FFENC_ENCODER=h264_qsv` against NVENC in the same sitting. The viewer ran on
   this laptop (the Linux PC was busy). Added ms per game frame, p99, viewer fps, share CPU. Quick Sync cost the
   game three to seven times as much, so the order stays (Nov 1, `STEP1_WINDOWS.md`).
-- [ ] **Step 6: Commit the numbers and the `TESTING.md` rows**, with what was checked and what was not.
+- [x] **Step 6: Commit the numbers and the `TESTING.md` rows**, with what was checked and what was not.
 
 ---
 
@@ -221,7 +224,7 @@ All need LiveKit (`livekit-server --dev`) and a display, one test per process:
 - [ ] **Step 2: Each finding checked against the code**: fixed with a test where real, why not where not.
 - [ ] **Step 3: A closing section in `STEP1_WINDOWS.md`** on what the Linux side must recheck: `cargo fmt`,
   `flutter analyze`, the Linux build, and the shared files this work touched (`gpu_feed.rs`, `worker.rs`,
-  `ffenc.c`, `ffenc.h`, `ffmpeg.rs`, `gpu_live_test.rs`, `bench_test.rs`).
+  `ffenc.c`, `ffenc.h`, `ffmpeg.rs`, `gpu_live_test.rs`, `bench_test.rs`, `capture.rs`).
 
 ## Not in this plan
 

@@ -1192,6 +1192,7 @@ async fn live_wgc_window_share_ends_when_the_window_closes() {
 /// A window that never changes, shared with nobody watching for long enough
 /// that the stream pauses: a viewer joining then still gets its picture.
 /// Windows sends nothing for a still window, so this is the repeat's work.
+/// However quiet it is, it is never handed to libwebrtc's capturer.
 #[cfg(target_os = "windows")]
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "needs a LiveKit server, a display and a hardware H264 encoder that takes textures"]
@@ -1206,6 +1207,8 @@ async fn live_wgc_still_window_reaches_a_late_viewer() {
     let title = "rift live test: still";
     let _window = test_window::TestWindow::open(title, false);
     let sessions = counts::SESSIONS.load(Ordering::Relaxed);
+    let reopens = counts::REOPENS.load(Ordering::Relaxed);
+    let handovers = counts::HANDOVERS.load(Ordering::Relaxed);
     session::start(window_share(&server, &room, title))
         .await
         .expect("share starts");
@@ -1214,6 +1217,17 @@ async fn live_wgc_still_window_reaches_a_late_viewer() {
         counts::SESSIONS.load(Ordering::Relaxed),
         sessions + 1,
         "not on Rift's capture"
+    );
+    // How many depends on the desktop: Windows also sends a still window's
+    // picture as the screen around it is drawn, 20 a second here (Nov 2 2026).
+    log::info!(
+        "wgc share, still window: {} new sessions in 8 s",
+        counts::REOPENS.load(Ordering::Relaxed) - reopens
+    );
+    assert_eq!(
+        counts::HANDOVERS.load(Ordering::Relaxed),
+        handovers,
+        "a still window was handed over"
     );
     let (late, mut events) = viewer_as(&server, &room, "late-viewer").await;
     let seen = watch(&next_video_track(&mut events).await, Duration::from_secs(2)).await;
@@ -1228,6 +1242,127 @@ async fn live_wgc_still_window_reaches_a_late_viewer() {
     assert!(seen.first < Duration::from_secs(1), "{:?}", seen.first);
     assert_eq!(session::stop().await.unwrap(), "Stopped successfully");
     late.close().await.unwrap();
+}
+
+/// A session Windows stops giving pictures from, as a driver reset left one
+/// (Nov 2 2026): run with `RIFT_WGC_SILENT_AFTER=60`, which drops every picture
+/// after the 60th of the process, a new session's too. The capture opens new
+/// sessions once the source has been quiet, then hands the share to libwebrtc's
+/// capturer when they all give nothing, and the viewer sees the window move
+/// again on the same track.
+#[cfg(target_os = "windows")]
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a LiveKit server, a display, a hardware H264 encoder that takes textures and RIFT_WGC_SILENT_AFTER"]
+async fn live_wgc_silent_session_moves_to_libwebrtc() {
+    use super::capture_wgc::counts;
+    let _ = env_logger::builder()
+        .is_test(true)
+        .filter_level(log::LevelFilter::Info)
+        .try_init();
+    std::env::var("RIFT_WGC_SILENT_AFTER").expect("run with RIFT_WGC_SILENT_AFTER=60");
+    assert!(
+        std::env::var("RIFT_WGC_SILENT_FOR").is_err(),
+        "run without RIFT_WGC_SILENT_FOR"
+    );
+    let server = Server::from_env();
+    let room = live_room("wgc-silent");
+    let title = "rift live test: silent";
+    let _window = test_window::TestWindow::open(title, true);
+    let (viewer, mut events) = viewer_as(&server, &room, "viewer").await;
+    let reopens = counts::REOPENS.load(Ordering::Relaxed);
+    let handovers = counts::HANDOVERS.load(Ordering::Relaxed);
+    session::start(window_share(&server, &room, title))
+        .await
+        .expect("share starts");
+    let track = next_video_track(&mut events).await;
+    let before = watch(&track, Duration::from_secs(1)).await;
+    let silent = Instant::now();
+    let handed = timeout(Duration::from_secs(20), async {
+        while counts::HANDOVERS.load(Ordering::Relaxed) == handovers {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await;
+    let handed_after = silent.elapsed();
+    assert!(handed.is_ok(), "never handed to libwebrtc's capturer");
+    let after = watch(&track, Duration::from_secs(3)).await;
+    log::info!(
+        "wgc share, silent session: {} frames before, {} new sessions, handed over {} ms \
+         after the watching, {} frames in 3 s after",
+        before.frames,
+        counts::REOPENS.load(Ordering::Relaxed) - reopens,
+        handed_after.as_millis(),
+        after.frames
+    );
+    assert!(
+        counts::REOPENS.load(Ordering::Relaxed) > reopens,
+        "no new session"
+    );
+    assert!(after.frames > 30, "{} frames after", after.frames);
+    let stopped = timeout(Duration::from_secs(5), session::stop())
+        .await
+        .expect("stop hung");
+    assert_eq!(stopped.unwrap(), "Stopped successfully");
+    viewer.close().await.unwrap();
+}
+
+/// A session that gives nothing for a while and then pictures again, as once a
+/// driver reset has settled: run with `RIFT_WGC_SILENT_AFTER=60` and
+/// `RIFT_WGC_SILENT_FOR=5000`. A later new session gives the pictures, the
+/// share stays on Rift's session, and the viewer sees the window move again.
+#[cfg(target_os = "windows")]
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a LiveKit server, a display, a hardware H264 encoder that takes textures, RIFT_WGC_SILENT_AFTER and RIFT_WGC_SILENT_FOR"]
+async fn live_wgc_session_back_after_a_silence() {
+    use super::capture_wgc::counts;
+    let _ = env_logger::builder()
+        .is_test(true)
+        .filter_level(log::LevelFilter::Info)
+        .try_init();
+    std::env::var("RIFT_WGC_SILENT_AFTER").expect("run with RIFT_WGC_SILENT_AFTER=60");
+    std::env::var("RIFT_WGC_SILENT_FOR").expect("run with RIFT_WGC_SILENT_FOR=5000");
+    let server = Server::from_env();
+    let room = live_room("wgc-back");
+    let title = "rift live test: back";
+    let _window = test_window::TestWindow::open(title, true);
+    let (viewer, mut events) = viewer_as(&server, &room, "viewer").await;
+    let reopens = counts::REOPENS.load(Ordering::Relaxed);
+    let back = counts::BACK.load(Ordering::Relaxed);
+    let handovers = counts::HANDOVERS.load(Ordering::Relaxed);
+    session::start(window_share(&server, &room, title))
+        .await
+        .expect("share starts");
+    let track = next_video_track(&mut events).await;
+    let before = watch(&track, Duration::from_secs(1)).await;
+    let silent = Instant::now();
+    let came = timeout(Duration::from_secs(15), async {
+        while counts::BACK.load(Ordering::Relaxed) == back {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await;
+    let came_after = silent.elapsed();
+    assert!(came.is_ok(), "no new session gave pictures again");
+    let after = watch(&track, Duration::from_secs(3)).await;
+    log::info!(
+        "wgc share, session back: {} frames before, {} new sessions, back {} ms after the \
+         watching, {} frames in 3 s after",
+        before.frames,
+        counts::REOPENS.load(Ordering::Relaxed) - reopens,
+        came_after.as_millis(),
+        after.frames
+    );
+    assert_eq!(
+        counts::HANDOVERS.load(Ordering::Relaxed),
+        handovers,
+        "handed to libwebrtc's capturer"
+    );
+    assert!(after.frames > 30, "{} frames after", after.frames);
+    let stopped = timeout(Duration::from_secs(5), session::stop())
+        .await
+        .expect("stop hung");
+    assert_eq!(stopped.unwrap(), "Stopped successfully");
+    viewer.close().await.unwrap();
 }
 
 /// A GPU that stops drawing mid-share, as one being reset would: run with

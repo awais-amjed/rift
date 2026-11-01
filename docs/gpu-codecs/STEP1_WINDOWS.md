@@ -144,6 +144,17 @@ it converts, copies and encodes every picture too. On today's path the two cost 
 | Converter or encoder will not take D3D11 | The encoder on memory, so `capture_wgc` hands over to libwebrtc's capturer |
 | A picture fails once | The last picture again; a passing failure must not end a share |
 | Still failing after a second (and five pictures), or the GPU is gone | The encoder fails, the share moves to VP9, and the capturer hands over: no second picker |
+| No picture for 2 s (a still source, or a session a driver reset left giving nothing) | A new session on the same source, and another every 2 s while the new ones give nothing. After five (about 12 s), the capture hands over to libwebrtc's capturer and the share goes on in H264 on the same track; the encoder uploads memory pictures. A shared window that is minimised or being looked for is left to the window's own following |
+
+**Why five, and not one (Nov 2, `dxcap -forcetdr` in the app, Hybrid, NVENC, a screen share).** A reset leaves
+Windows' session giving nothing and saying nothing: before this, the viewer kept the last picture until the share
+was stopped, while NVENC on the same device went on encoding (the device was not removed). libwebrtc's capturer,
+already running, came through the same reset with one 5 s dip. With one new session after 2 s and then the hand-over,
+the new session gave nothing and libwebrtc's capturer, started about 5 s into the reset, failed at once and ended the
+share. With five: the first new session gave nothing, the second did not open ("Desktop composition is disabled",
+its open taking 1.5 s), and the third gave pictures, 6.6 s after they stopped, on the same device; a viewer who
+started watching afterwards saw the screen live. `live_wgc_silent_session_moves_to_libwebrtc` and
+`live_wgc_session_back_after_a_silence` stand in for the reset in tests.
 
 ## First milestone (owner, Nov 1)
 
@@ -275,19 +286,19 @@ meets the game's presenting.
 
 **Not built yet, the rest** (`STEP1_WINDOWS_PLAN.md`):
 
-- The settings switch is now shown on Windows (`HostPlatform.capturesShareOnGpu`, Nov 1); not yet driven in the app.
+- The settings switch is now shown on Windows (`HostPlatform.capturesShareOnGpu`, Nov 1); driven in the app Nov 1.
 - Quick Sync takes the picture on the GPU (Nov 1, `test_windows.sh`, and one bench share of a moving test picture with a
   viewer: 58.3 fps decoded, the share process 16.4% of a core, two gaps of 107 ms). Against NVENC on the game
   in Hybrid it costs the game more, so NVENC stays first (*Which GPU encodes on a hybrid*). AMF is built the same way as NVENC
   but is let onto this path only with `RIFT_FFENC_AMF_TEXTURES=1` until it runs on an AMD card.
-- The app driven through everything a share does, and `TESTING.md` for it.
+- The app driven through everything a share does (Nov 1–2, *How it is proven*), and `TESTING.md` for it.
 
 ## How it is proven
 
 Say what ran on what. **This laptop has no Windows 10, no older 11 and no AMD**; the desktop's RX 9070 XT is
 AMF's reference if available.
 
-- **Unit tests:** the routing (`takes_rifts_capture`) and `Pacer`, in `capture_wgc.rs`; which encoder takes
+- **Unit tests:** the routing (`takes_rifts_capture`), `Pacer` and `QuietWatch`, in `capture_wgc.rs`; which encoder takes
   textures on whose adapter (`texture_vendor`, `ffmpeg.rs`).
 - **ffenc on its own:** `native/ffenc/test_windows.sh OUT_DIR`, in MSYS2's UCRT64 shell with `ffmpeg` and Python
   on the path, builds the library and, for each encoder that opens, sends BGRA textures on its own GPU through
@@ -298,7 +309,12 @@ AMF's reference if available.
   libwebrtc lists no window of its own process): the switch keeps a share out of Rift's capture; a shared window
   closed five times ends the share each time and the stop returns; a still window reaches a late viewer; a GPU
   that stops drawing (`RIFT_D3D11_FAIL_AFTER=90`) moves the share to VP9 within about a second; and Linux's
-  resize, late-viewer and fall-back test on a whole screen. All passed on NVENC and Quick Sync, Nov 1.
+  resize, late-viewer and fall-back test on a whole screen. All passed on NVENC and Quick Sync, Nov 1. A session
+  gone silent (`RIFT_WGC_SILENT_AFTER=60`) is handed to libwebrtc's capturer after five new sessions, 11.6 s, and
+  the viewer gets 91 pictures in the next 3 s; with the silence ending after 5 s (`RIFT_WGC_SILENT_FOR=5000`) a
+  new session gives the pictures and the share stays on Rift's session; a still window opened no new session in
+  8 s. NVENC, Nov 2. Once, Rift's session did not open on the test's window just after it appeared (`0x80070057`)
+  and the share started on libwebrtc's capturer, as it should; the rerun was fine.
 - **Colours:** known colours through the path, decoded and compared against BT.601.
 - **Tearing:** a whole-screen flip between two grays, as `tear_check.py` did on Linux, with the GPU idle and full.
 - **The D3D11 debug layer:** in a test build, `RIFT_D3D11_DEBUG=1` makes the share's device with it, and the
@@ -307,23 +323,43 @@ AMF's reference if available.
   path (by the code; not tried).
 - **CS2, same session, same build, switch on and off:** with a viewer, 1080p60 and 1080p120. Fps, p99, freezes,
   CPU per thread, `send` time, pictures reaching the viewer. Viewer on the same laptop is stated.
-- **In the app:** screen and window; quality to VP9 and back; window resized, minimised, closed; game closed
-  mid-share; a game that swaps its window; driver reset; Quit mid-share; a late viewer on a still screen; the
-  switch off.
+- **In the app (Nov 1–2, Hybrid, NVENC):** a release build, two test clients on a local stack, the viewer on the
+  same laptop (pinned on top over the game, since a covered viewer turns its picture off).
+  - A whole screen reached the viewer at 1080p 59 fps; the share's threads about 5% of a core.
+  - VP9 went to libwebrtc's capturer, and H264 afterwards back to Rift's session.
+  - A window: resized, the viewer followed; minimised, the viewer was told it was paused, and the picture came
+    back on restore; a program swapping its window was followed in 0.3 s; the window closed, the share ended
+    10 s later.
+  - The switch off: the log said `GPU capture is off; libwebrtc's capturer`.
+  - A late viewer on a still screen: about 3.1 s to the first picture on both paths, the new one slower in 2 of
+    10 tries (5.3 and 5.4 s). Not explained.
+  - CS2 on dust2, 1080p, PresentMon, 50 s rounds: no share 386 and 380 fps (p99 4.9–5.0 ms); a share of CS2's
+    window 339 fps (p99 5.5); of the screen 329 (5.7). No frame over 16.7 ms in any round (longest 10.4 ms), so
+    the 80 ms frames were not seen. Every round, no share too, was composed (*Composed: Flip*) because of the
+    viewer on top, so these are not the gate's figures. The share's threads about 7% of a core, NVENC `send`
+    4.3–5.0 ms, 300 pictures in 5 s.
+  - CS2 closed mid-share: the share ended in 0.15 s. Quit from the tray mid-share: the share stopped within 55 ms
+    and the process exited 135 ms after the click.
+  - A driver reset: *Why five, and not one* above. After each reset the sharer's window drew white, then black,
+    on today's path as well: Flutter's, not this branch's.
+  - Every stop was clean; each logs LiveKit's `failed to negotiate the publisher ... closed`, as VP9 does.
 
 ## What is not known yet
 
 - Why step 0 (15–20% of the frame rate) and the route tests (4–7%) disagree about today's path. The session and
   the team and weapon at the spot differed. Unexplained.
 - What the 80 ms game frames in one new-path round were (*First milestone*). Not seen again in the 30 new-path
-  rounds of the gate; frame times are logged during the app tests.
+  rounds of the gate, nor in the app's CS2 rounds (Nov 1).
+- A driver reset in Discrete, or one that removes the device: only Hybrid's, which left NVENC's device whole, was
+  run. A removed device fails the converter and goes to VP9 (`live_wgc_failing_gpu_moves_to_vp9`).
+- Windows 10, where the yellow border cannot be turned off: a new session on a quiet window may blink it. Untested.
 - Why Windows hands the capture a new picture only every 21 ms in Discrete with the game GPU-limited, G-Sync on or
   off. Untested: the compositor behind the game on one GPU, Windows' GPU scheduling setting, V-Sync on in the game.
 - What makes Discrete cost the game more than Hybrid in the gate. Not composition: the game flips straight to the
   screen in both modes, share or not. Whatever it is, it is not to be avoided by hooking the game, which risks
   anti-cheat bans.
 - Why the share process cost three to six times as much during the Discrete blocks as in a short run after them.
-  Rechecked during the app tests; if it comes back, which threads and cores the time goes to.
+  The app tests ran in Hybrid only, so not rechecked.
 - **Known, and older than this work:** a 0.2–0.6 s freeze at the viewer once a minute on every path, from the keyframe
   (`GOP_SECONDS`) and the rate gate holding pictures back behind it. It lives in the shared encoder and is a task of
   its own, not this branch's.
