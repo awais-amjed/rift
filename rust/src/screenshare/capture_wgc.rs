@@ -67,9 +67,6 @@ const QUIET: Duration = Duration::from_millis(100);
 /// the encoder and be drawn by it at once, and the pool needs one to write into.
 const POOL_BUFFERS: i32 = 4;
 
-/// NVIDIA's PCI vendor id.
-const NVIDIA: u32 = 0x10DE;
-
 /// One picture from the frame pool. The buffer goes back when the last holder
 /// drops it.
 pub(crate) struct WgcPicture {
@@ -384,11 +381,17 @@ fn picture_arrived(
     Ok(())
 }
 
-/// An NVIDIA adapter, which NVENC needs its pictures on: it is first in the
-/// encoders' order (`ffmpeg::candidates`) whichever GPU draws the screen, and
-/// Windows Graphics Capture crosses between GPUs itself. Found by its vendor and
-/// never by its place in the list, which moved while CS2 ran (Nov 1 2026).
-fn nvidia_adapter() -> Option<IDXGIAdapter1> {
+/// The adapter of `vendor`, the encoder's (`encoder::takes_textures`), which
+/// needs its pictures there whichever GPU draws the screen: Windows Graphics
+/// Capture crosses between GPUs itself. Found by its vendor and never by its
+/// place in the list, which moved while CS2 ran (Nov 1 2026). A test build
+/// takes another vendor from `RIFT_WGC_VENDOR` (hex), to see a mismatch fall back.
+fn adapter_of(vendor: u32) -> Option<IDXGIAdapter1> {
+    #[cfg(test)]
+    let vendor = std::env::var("RIFT_WGC_VENDOR")
+        .ok()
+        .and_then(|v| u32::from_str_radix(v.trim_start_matches("0x"), 16).ok())
+        .unwrap_or(vendor);
     // SAFETY: plain DXGI calls with no pointers kept.
     unsafe {
         let factory: IDXGIFactory1 = CreateDXGIFactory1().ok()?;
@@ -396,7 +399,7 @@ fn nvidia_adapter() -> Option<IDXGIAdapter1> {
             .map_while(|at| factory.EnumAdapters1(at).ok())
             .find(|adapter| {
                 adapter.GetDesc1().is_ok_and(|desc| {
-                    desc.VendorId == NVIDIA && desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE.0 as u32 == 0
+                    desc.VendorId == vendor && desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE.0 as u32 == 0
                 })
             })
     }
@@ -502,8 +505,8 @@ mod debug_layer {
     pub(super) fn report() {}
 }
 
-fn open_device() -> windows::core::Result<(ID3D11Device, IDirect3DDevice)> {
-    let adapter = nvidia_adapter().ok_or(windows::core::Error::from_hresult(
+fn open_device(vendor: u32) -> windows::core::Result<(ID3D11Device, IDirect3DDevice)> {
+    let adapter = adapter_of(vendor).ok_or(windows::core::Error::from_hresult(
         windows::Win32::Foundation::E_FAIL,
     ))?;
     let mut device = None;
@@ -645,15 +648,16 @@ pub(super) fn run(
     slot: &capture::VideoSlot,
     command_rx: &mpsc::Receiver<Command>,
 ) -> Handoff {
-    let takes = request.gpu_capture
-        && takes_rifts_capture(
-            request.gpu_capture,
-            request.codec,
-            encoder::takes_textures(),
-            request.source_type,
-            sources::screens_on_wgc(),
-        );
-    if !takes {
+    // Asked only with the switch on: the answer opens an encoder to find out.
+    let vendor = request.gpu_capture.then(encoder::takes_textures).flatten();
+    let takes = takes_rifts_capture(
+        request.gpu_capture,
+        request.codec,
+        vendor.is_some(),
+        request.source_type,
+        sources::screens_on_wgc(),
+    );
+    let Some(vendor) = vendor.filter(|_| takes) else {
         log::info!(
             "capture: GPU capture {}; libwebrtc's capturer",
             if request.gpu_capture {
@@ -663,8 +667,8 @@ pub(super) fn run(
             }
         );
         return Handoff::Fallback(request);
-    }
-    let (device, winrt_device) = match open_device() {
+    };
+    let (device, winrt_device) = match open_device(vendor) {
         Ok(devices) => devices,
         Err(e) => {
             log::info!("capture: no D3D11 device for GPU capture ({e}); libwebrtc's capturer");

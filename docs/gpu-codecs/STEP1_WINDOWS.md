@@ -77,8 +77,11 @@ New:
       shader to NV12 in FFmpeg's D3D11 frame ─▶ NVENC
 ```
 
-- **One device.** `capture_wgc::run` opens a D3D11 device on the NVIDIA adapter, found by vendor and
-  never by its place in the list, for the share's life. An encoder that opens meanwhile takes it
+- **One device.** `capture_wgc::run` opens a D3D11 device on the adapter of the encoder that takes the
+  picture (`encoder::takes_textures`: NVIDIA's for NVENC), found by vendor and never by its place in the
+  list, for the share's life. On the wrong adapter the encoder refuses the frames and the share goes on
+  libwebrtc's capturer: forced in a test build Nov 1 (`RIFT_WGC_VENDOR=0x8086` with NVENC), 59.4 fps
+  reached the viewer with no gap over 50 ms. An encoder that opens meanwhile takes it
   (`share_device`), since a picture can only be read on its own device. Windows crosses between GPUs
   for us: the screen can be on Intel.
 - **The list stays libwebrtc's**, so a share and its picker agree on ids; `monitor_of` turns a screen's

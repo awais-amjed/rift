@@ -442,11 +442,25 @@ fn h264_encoder() -> Option<&'static (Candidate, String, bool)> {
         .as_ref()
 }
 
-/// Whether what encodes H264 here can take a Windows Graphics Capture picture on
-/// the GPU: NVENC so far, and through FFmpeg's other encoders once each is proven.
+/// The PCI vendor of the adapter what encodes H264 here needs a Windows Graphics
+/// Capture picture on, when it takes one on the GPU: the capture opens its
+/// device there. `None` keeps the share on libwebrtc's capturer.
 #[cfg(target_os = "windows")]
-pub(crate) fn takes_textures() -> bool {
-    h264_encoder().is_some_and(|(candidate, ..)| candidate.encoder == c"h264_nvenc")
+pub(crate) fn takes_textures() -> Option<u32> {
+    let amf = std::env::var("RIFT_FFENC_AMF_TEXTURES").is_ok_and(|v| v == "1");
+    h264_encoder().and_then(|(candidate, ..)| texture_vendor(candidate.encoder, amf))
+}
+
+/// Which encoders take the picture on the GPU, and on whose adapter. AMF only
+/// when `amf` is let (`RIFT_FFENC_AMF_TEXTURES=1`), until it has run on an AMD
+/// card (`STEP1_WINDOWS_PLAN.md`).
+#[cfg(target_os = "windows")]
+fn texture_vendor(encoder: &CStr, amf: bool) -> Option<u32> {
+    match encoder.to_bytes() {
+        b"h264_nvenc" => Some(0x10de),
+        b"h264_amf" if amf => Some(0x1002),
+        _ => None,
+    }
 }
 
 /// Whether FFmpeg will encode `codec` on a GPU here. Asked once per run.
@@ -850,5 +864,32 @@ impl Drop for FfmpegSession {
     fn drop(&mut self) {
         // SAFETY: the encoder is closed once, here.
         unsafe { (self.api.close)(self.raw) };
+    }
+}
+
+#[cfg(all(test, target_os = "windows"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn nvenc_takes_textures_on_nvidia() {
+        assert_eq!(texture_vendor(c"h264_nvenc", false), Some(0x10de));
+    }
+
+    #[test]
+    fn amf_takes_textures_only_when_let() {
+        assert_eq!(texture_vendor(c"h264_amf", false), None);
+        assert_eq!(texture_vendor(c"h264_amf", true), Some(0x1002));
+    }
+
+    #[test]
+    fn quick_sync_does_not_take_textures_yet() {
+        assert_eq!(texture_vendor(c"h264_qsv", false), None);
+    }
+
+    #[test]
+    fn nothing_else_takes_textures() {
+        assert_eq!(texture_vendor(c"h264_mf", true), None);
+        assert_eq!(texture_vendor(c"libx264", true), None);
     }
 }
