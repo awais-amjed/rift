@@ -1,0 +1,225 @@
+# Zero-copy sharing on Windows, the rest — implementation plan
+
+> **For agentic workers:** steps use checkbox (`- [ ]`) syntax for tracking. Test first: see each new
+> test fail, then make it pass, one commit per logical change.
+
+**Goal:** what the first milestone left out (`STEP1_WINDOWS.md`, *Not built yet*): the settings switch shown
+on Windows, Quick Sync and AMF taking the WGC picture on the GPU, live tests for this path, the app driven
+through everything a share does, and the docs that say so.
+
+**Architecture:** unchanged from the milestone. `capture_wgc.rs` captures on one D3D11 device the encoder
+shares; `d3d11_nv12.c` draws the picture into FFmpeg's D3D11 frames as NV12. What changes: the device opens on
+the adapter of *whichever* encoder won the probe, not always NVIDIA's, and `ffenc.c` hands the frames to AMF as
+they are and to Quick Sync through a derived QSV frames context.
+
+**Tech stack:** Rust (`windows` crate, `capture_wgc`, `encoder`), C (D3D11, FFmpeg 9.0.2's `hwcontext_d3d11va`
+and `hwcontext_qsv`), Dart (`HostPlatform`, settings).
+
+**Spec:** `docs/gpu-codecs/STEP1_WINDOWS.md`, with the owner's verdict of Nov 1 (read it first). The order below
+is the verdict's: the switch first.
+
+## Global Constraints
+
+- Branch `gpu-codecs`; commit locally per task. Pushes are the owner's. Stage named paths; never `git stash`.
+  No attribution lines.
+- **The share must not make the sharer's game stutter, and viewers must not see stutter, lag or a wrong
+  picture (owner).** A share never crashes, hangs on stop or takes the call down; every failure lands on
+  today's path.
+- Rift still starts and shares on a machine with none of this: no NVIDIA, no Intel graphics, Windows 10, an old
+  driver. New C is inside `#if defined(_WIN32)`; nothing new in `ffenc.c` may change what Linux builds.
+- Colours stay BT.601 limited, as `ffenc.c` tells viewers.
+- `RIFT_FFENC_ABI` and `ABI` in `ffmpeg.rs` move from 9 to 10 once, only if `ffenc.h` changes.
+- No hook into a game, ever: it risks anti-cheat bans (owner).
+- `cargo test --release`, `cargo fmt --check` and `flutter analyze` clean before each commit; `CALLS.md` and
+  `TESTING.md` change in the commit that changes behaviour or proves it. No machine paths in docs.
+- The owner's Rift is never killed or launched; test clients use `RIFT_PROFILE`. PresentMon and anything else
+  that needs an administrator goes to the owner as a command. BIOS changes are the owner's.
+- After any Rust change, `cargo build --release --target x86_64-pc-windows-msvc` before `flutter build`, and
+  check the DLL's time.
+
+## Decisions this plan makes
+
+- **The switch is shown on every Windows build**, Windows 10 included, where it still governs window shares.
+  Not hidden when no encoder takes textures: the person cannot know that, and off is always safe.
+- **The D3D11 device follows the encoder.** The probe already picks NVENC, AMF or Quick Sync in that order;
+  the capture opens its device on that encoder's vendor (`0x10de`, `0x1002`, `0x8086`), never by list position.
+  Windows crosses GPUs for the capture, as it does today for NVIDIA in Hybrid.
+- **AMF takes the converter's frames as they are.** FFmpeg 9.0.2's `amfenc.c` lists
+  `HW_CONFIG_ENCODER_FRAMES(D3D11, D3D11VA)`.
+- **Quick Sync takes QSV frames derived from ours.** `qsvenc.c` lists only QSV frames. `hwcontext_qsv.c`
+  derives from a D3D11 frames context with a *fixed* pool (it walks `initial_pool_size` textures), and takes
+  `D3D11_BIND_RENDER_TARGET` textures, so for Quick Sync the converter's pool becomes fixed and each frame is
+  mapped with `av_hwframe_map`. NVENC and AMF keep the dynamic pool.
+- **AMF stays off this path until it runs on an AMD card.** This laptop has none. `takes_textures` answers
+  true for AMF only when `RIFT_FFENC_AMF_TEXTURES=1` is set, until the owner's RX 9070 XT runs Windows for a
+  test; then the gate comes out in its own commit. Cost if wrong: AMD sharers keep today's path a while longer.
+- **Quick Sync goes first only if it costs the game less than NVENC** in Hybrid on CS2 (owner). Until that
+  measurement, NVENC stays first.
+- **Device loss in a test build is simulated** with a test-only `RIFT_D3D11_FAIL_AFTER=<n>` (the converter
+  fails as if the device were removed after n pictures), and a real driver reset is the owner's by-hand step.
+
+## Review Focus
+
+- **The switch off keeps the share entirely out of the new code**, the startup probe included: no D3D11 device,
+  no WGC session (Task 1, Task 4's live test).
+- **A device on the wrong adapter:** the encoder refuses the frames and the share goes to memory, not black
+  (Task 2, forced vendor mismatch).
+- **QSV mapping lifetimes:** a mapped QSV frame holds its D3D11 frame; closing the encoder mid-share, or a
+  resize, frees in the right order with nothing still mapped (Task 3).
+- **Device loss mid-share:** the last picture repeats, then after about a second the share moves to VP9 without
+  a second picker; no hang on stop (Task 4, Task 5).
+- **Quit mid-share from the tray** exits at once on every encoder (Task 5).
+
+---
+
+### Task 1: The settings switch on Windows
+
+**Files:**
+- Modify: `lib/logic/services/host_platform.dart`, `docs/gpu-codecs/STEP1_WINDOWS.md` (*Not built yet*),
+  `CALLS.md` (*How Windows captures a screen*)
+- Create: `test/host_platform_test.dart`
+
+**Interfaces:**
+- `HostPlatform.capturesShareOnGpu` is true on Windows, and under Wayland on Linux as before. Everything below it
+  already exists: `AppState.gpuScreenCapture` (default true), the toggle in `general_content.dart`,
+  `ScreenShareConfig.gpu_capture`, and `capture_wgc::run` returning `Handoff::Fallback` before any probe when it
+  is false.
+
+- [ ] **Step 1: The failing test.** `test/host_platform_test.dart`: on a Windows host,
+  `HostPlatform.capturesShareOnGpu` is true (`skip: !Platform.isWindows`, so Linux's run is unaffected).
+- [ ] **Step 2: Run it to see it fail.** `flutter test test/host_platform_test.dart`.
+- [ ] **Step 3: Change the getter** to `!kIsWeb && (Platform.isWindows || (Platform.isLinux && _underWayland))`,
+  with its doc comment saying why Windows always.
+- [ ] **Step 4: Run the test, `flutter analyze`, `flutter test`.**
+- [ ] **Step 5: Check the Rust side keeps out.** Read `capture_wgc::run` and `ffmpeg.rs`'s open: with
+  `gpu_capture` false, no `encoder::takes_textures()` call and no `d3d11_device`. Proven live in Task 4.
+- [ ] **Step 6: Commit** with `CALLS.md` (the switch, and that it takes effect from the next share).
+
+---
+
+### Task 2: The capture's device on the encoder's adapter
+
+**Files:**
+- Modify: `rust/src/screenshare/capture_wgc.rs` (`nvidia_adapter` becomes `adapter_of`),
+  `rust/src/screenshare/encoder/ffmpeg.rs`, `rust/src/screenshare/encoder/mod.rs`
+
+**Interfaces:**
+- ```rust
+  /// The PCI vendor whose adapter must hold the capture's device for this encoder
+  /// to take its textures; None for an encoder that does not take them.
+  pub(crate) fn texture_vendor(encoder: &CStr) -> Option<u32>;
+  /// The vendor of the encoder that won the probe, when it takes textures here.
+  pub(crate) fn takes_textures() -> Option<u32>;   // was bool
+  ```
+- Values: `h264_nvenc` → `0x10de`; `h264_qsv` → `0x8086`; `h264_amf` → `0x1002` only with
+  `RIFT_FFENC_AMF_TEXTURES=1`; anything else → `None`.
+
+- [ ] **Step 1: The failing tests** for `texture_vendor` in `ffmpeg.rs`: each of the four cases above, AMF with and
+  without the variable (the variable read once, through a parameter, so the test is pure).
+- [ ] **Step 2: Run to see them fail.** `cargo test --release texture_vendor`.
+- [ ] **Step 3: Implement**, and `adapter_of(vendor)` in `capture_wgc.rs` (hardware only, first of that vendor).
+  `takes_rifts_capture` keeps its `encoder_takes_textures: bool` (`.is_some()`), so its tests stand.
+- [ ] **Step 4: Forced mismatch.** In a test build, `RIFT_WGC_VENDOR=0x8086` with NVENC encoding: the converter or
+  encoder refuses, the log says memory pictures, and `bench_share` still delivers 60 fps. Record it.
+- [ ] **Step 5: `cargo test --release`, commit.**
+
+---
+
+### Task 3: Quick Sync and AMF take the converter's frames
+
+**Files:**
+- Modify: `native/ffenc/ffenc.c`, `native/ffenc/d3d11_nv12.c`, `native/ffenc/d3d11_nv12.h`,
+  `rust/src/screenshare/encoder/ffmpeg.rs` (`takes_textures`), `CALLS.md`
+
+**Interfaces:**
+- `d3d11_nv12_open` gains `int fixed_pool` (a pool size; 0 keeps today's dynamic pool).
+- In `rift_ffenc_open` on `_WIN32`: `config->d3d11_device` set and API NVENC or AMF → the converter as today;
+  API QSV → the converter with a fixed pool of 8, a QSV device derived from its D3D11 device
+  (`av_hwdevice_ctx_create_derived`), a QSV frames context derived from its frames
+  (`av_hwframe_ctx_create_derived`), and `enc->frames` the QSV one. Each picture is drawn into a D3D11 frame
+  and mapped (`av_hwframe_map`) into a QSV frame for the encoder; the D3D11 frame is released when the mapped
+  one is.
+- Any step failing: a warning, and the encoder opens on memory as today.
+
+- [ ] **Step 1: The failing test.** A test-only bench in Rust (`gpu_live_test.rs`, Windows, ignored, no server):
+  `live_wgc_encoder_takes_textures` opens the probe's encoder with a D3D11 device on its adapter, draws four
+  known colours into a BGRA texture, sends 120 pictures through `send_d3d11`, decodes the stream with FFmpeg's
+  software decoder and checks the colours within ±4 of BT.601 limited and the frame count. Run with
+  `RIFT_FFENC_ENCODER=h264_qsv`: it fails, `takes_d3d11` is 0.
+- [ ] **Step 2: Implement the fixed pool and the QSV derivation.** Free order in `rift_ffenc_close`: codec, then
+  `enc->last`, then the QSV frames and device, then the converter.
+- [ ] **Step 3: Run the test on Quick Sync, then NVENC**, both pass. Same with an odd crop and a window
+  letterboxed (the milestone's sizes).
+- [ ] **Step 4: AMF, by code only.** `h264_amf` gets the converter's frames as NVENC does. Not run here; the
+  `RIFT_FFENC_AMF_TEXTURES` gate stays. If the owner's desktop runs Windows, the same test with
+  `RIFT_FFENC_ENCODER=h264_amf RIFT_FFENC_AMF_TEXTURES=1`, then remove the gate.
+- [ ] **Step 5: `cargo test --release`, the ffenc build in MSYS2, commit** with `CALLS.md`.
+
+---
+
+### Task 4: Live tests for this path
+
+**Files:**
+- Modify: `rust/src/screenshare/gpu_live_test.rs`, `rust/src/screenshare/encoder/worker.rs` or
+  `d3d11_nv12.c` (the test-only failure), `TESTING.md`
+
+**Interfaces:**
+- Test-only `RIFT_D3D11_FAIL_AFTER=<n>`: `send_d3d11` returns the device-removed error from picture n on.
+
+All need LiveKit (`livekit-server --dev`) and a display, one test per process:
+
+- [ ] **Step 1: Run the two existing shared tests on Windows** (`live_gpu_h264_is_seen_with_the_key_and_by_nobody_else`,
+  `live_gpu_share_resizes_rejoins_and_falls_back`) and fix what is Linux-only in them, keeping Linux's behaviour.
+- [ ] **Step 2: `live_wgc_switch_keeps_the_share_off_the_gpu`.** `gpu_capture` false: the log says libwebrtc's
+  capturer, no D3D11 device opened (a test-only counter in `capture_wgc`), and the viewer gets pictures.
+- [ ] **Step 3: `live_wgc_window_share_ends_when_the_window_closes`.** A test window shared, then closed: the share
+  ends by itself within 2 s, `stop` returns, nothing hangs.
+- [ ] **Step 4: `live_wgc_device_loss_moves_to_vp9`.** With `RIFT_D3D11_FAIL_AFTER=120`: the viewer keeps a
+  picture throughout, the share moves to VP9 within about a second of the failure, and `stop` returns.
+- [ ] **Step 5: `live_wgc_still_screen_reaches_a_late_viewer`.** A still test window shared; a viewer joining 5 s
+  later gets a picture within 1 s.
+- [ ] **Step 6: Each test RED first where it can be** (comment out the behaviour, see it fail), then commit with
+  `TESTING.md`.
+
+---
+
+### Task 5: The app, and Quick Sync against NVENC on the game
+
+**Files:**
+- Modify: `TESTING.md`, `CALLS.md`, `docs/gpu-codecs/STEP1_WINDOWS.md`, `docs/gpu-codecs/PLAN.md`; the local
+  `MANUAL_TESTING.md`
+
+- [ ] **Step 1: A server.** Ask the owner which: Docker Desktop with `rift-self-host`'s stack here, the Linux
+  stack, or a call the owner sets up. Never the owner's real server from a test profile.
+- [ ] **Step 2: Release build and test clients** (`RIFT_PROFILE`), a viewer on the Linux PC where possible, and
+  say so wherever the viewer is on the laptop.
+- [ ] **Step 3: Everything a share does, on the new path**: screen and window; quality to VP9 and back; a window
+  resized, minimised, closed; CS2 closed mid-share; a game that swaps its window; a late viewer on a still
+  screen; the switch off (log says libwebrtc's capturer); Quit from the tray mid-share. Per-thread CPU of the
+  share every few seconds, and PresentMon frame times on CS2 (the owner starts it), for the 80 ms frames and the
+  Discrete share CPU the verdict asked to watch.
+- [ ] **Step 4: By-hand steps for the owner**, numbered: a driver reset mid-share (`dxcap -forcetdr` in an
+  administrator shell, needs Graphics Tools), and anything Rift's GUI needs a person for. Wait for the result.
+- [ ] **Step 5: Quick Sync against NVENC, Hybrid, CS2.** The gate's way, lowest settings standing still, 60 and
+  120 fps, three rounds each, `RIFT_FFENC_ENCODER=h264_qsv` against NVENC in the same sitting, viewer on the Linux
+  PC. Added ms per game frame, p99, viewer fps, share CPU. Quick Sync goes first on hybrids only if it costs the
+  game less; otherwise the order stays and the numbers say why.
+- [ ] **Step 6: Commit the numbers and the `TESTING.md` rows**, with what was checked and what was not.
+
+---
+
+### Task 6: The review, and handing back to Linux
+
+- [ ] **Step 1: The review prompt for the owner** (Opus 5.5 at max, in the owner's cloud session): the commit
+  range, the docs to read, the main files, what the product needs, where to look hardest (lifetimes and threads,
+  shutdown, fallbacks, device loss), "report findings only".
+- [ ] **Step 2: Each finding checked against the code**: fixed with a test where real, why not where not.
+- [ ] **Step 3: A closing section in `STEP1_WINDOWS.md`** on what the Linux side must recheck: `cargo fmt`,
+  `flutter analyze`, the Linux build, and the shared files this work touched (`gpu_feed.rs`, `worker.rs`,
+  `ffenc.c`, `ffenc.h`, `ffmpeg.rs`, `gpu_live_test.rs`, `bench_test.rs`).
+
+## Not in this plan
+
+Merging to `dev` (owner: when GPU encode and decode are both done), pushing, releases. The once-a-minute keyframe
+freeze (its own task). Why Windows hands the capture a picture only every 21 ms in Discrete. Windows 10 whole
+screens on this path. AMD until a Windows AMD machine is available.
