@@ -154,9 +154,66 @@ every figure.
 - **The GPU, not the CPU, is what is left.** The game's GPU time per frame goes from 1.77–1.89 ms with no share to 2.28–2.40 ms
   on the new path and 2.38–2.50 ms today. So the capture itself, which both paths share, is probably the larger part of what
   remains; not measured apart.
-- **Standing still is the easy case for the encoder:** about 0.2 Mbit/s sent. A moving game has not been measured on this path.
+- **Standing still is the easy case for the encoder:** about 0.2 Mbit/s sent. A moving game is in *The gate* below.
 - **Keyframes:** the viewer counts 2 freezes a round on every path, the new one too, so the once-a-minute dip follows. Not fixed here.
 - **Against step 0:** today's path costs 3.6–6.7% here, as in the route tests, and not step 0's 15–20%. Still unexplained.
+
+### The gate (Nov 1, both BIOS modes)
+
+The review's limits, run its way: no share, today's path and the new path in turn, three rounds of each, 90 s each,
+one sitting per block; the viewer is `bench_view` on a Linux PC on the same Wi-Fi, through a LiveKit server on
+the laptop. CS2 on dust2, game in front, H264 through NVENC. Three blocks: lowest settings standing still, lowest
+settings turning on the spot (*moving*), and highest settings (*GPU-limited*, 60 fps share only). Medians, with
+the range of the three rounds where it matters. **Hybrid:** the panel on Intel, the game and NVENC on the RTX
+3070 Ti. **Discrete:** the RTX alone, with G-Sync on (left as found).
+
+| Lowest settings | Hybrid still | Hybrid moving | Discrete still | Discrete moving |
+|---|---|---|---|---|
+| No share, fps / p99 | 448.0 / 4.24 ms | 436.3 / 4.51 ms | 450.2 / 4.25 ms | 443.6 / 4.48 ms |
+| Today 60: lost, p99 | 12.4%, +0.60 | 12.1%, +0.46 | 14.1%, +0.56 | 13.9%, +0.57 |
+| **New 60: lost, p99** | **7.1%, +0.19** | **7.1%, +0.11** | **11.7%, +0.19** | **10.0%, +0.18** |
+| Today 120: lost, p99 | 15.8%, +0.73 | 16.4%, +0.73 | 16.1%, +0.64 | 17.3%, +0.83 |
+| **New 120: lost, p99** | **8.7%, +0.26** | **8.9%, +0.18** | **12.7%, +0.23** | **10.9%, +0.19** |
+| Share process, today 60 / new 60 | 42–45 / 5–7% | 43–52 / 7% | 57–74 / 23–24% | 57–68 / 25–30% |
+| Share process, today 120 / new 120 | 48–51 / 15–16% | 51–54 / 19–24% | 84–89 / 32–36% | 63–86 / 33–45% |
+| Viewer fps, today 60 / new 60 | 59.7 / 59.6–59.7 | 60.0 / 60.0 | 46–52 / 59.6–59.7 | 56–59 / 60.0 |
+| Viewer fps, today 120 / new 120 | 106.6–107.6 / 119.7–119.8 | 107–108.5 / 119.9–120.0 | 82–86 / 119.4–119.5 | 100–105 / 119.9–120.0 |
+
+| GPU-limited, 60 fps share | Hybrid | Discrete |
+|---|---|---|
+| No share, fps / p99 | 247.3 / 4.61 ms | 244.1 / 4.82 ms |
+| Today: fps, p99, viewer | 224.2, 5.97 ms, 39.3–39.5 | 220.8, 6.06 ms, 23.7–23.8 |
+| **New: fps, p99, viewer** | **223.9, 6.21 ms, 59.5–59.6** | **217.2, 6.52 ms, 47.7–47.9** |
+| Share process, today / new | 70–71 / 7–8% | 70–72 / 6–10% |
+
+Against the limits, on this laptop:
+
+- **Passed in both modes:** p99 at most 0.2 ms over no share at 60 fps; 120 fps better than today; viewer at
+  least 58 and 110 fps with spare GPU; game frames over 16.7 ms no more than with no share (one frame in the 30
+  new-path rounds, four in today's 30, one in the 18 no-share rounds); 20 window closes with the encoder running, 20 of 20 clean in each
+  mode; the D3D11 debug layer stored no message in a share in each mode, and no device was lost; no torn picture
+  with the game loading the GPU (the first pictures of a share are the encoder starting, not tears); colours
+  within 0.5 of a level; the cursor shows (checked in Hybrid only).
+- **Missed: game fps.** The new path loses 7.1% in Hybrid and 10–12% in Discrete, against 2.5%. Today's loses
+  12–17%. What is left is GPU time: the game's GPU time per frame goes from 1.8–2.0 ms to 2.2–2.4 ms on either
+  path, so capture and composition, which both paths have, are most of it.
+- **Missed: GPU-limited, no worse than today.** The game's fps is level in Hybrid (223.9 against 224.2) and 1.6%
+  lower in Discrete; p99 is 0.24 ms worse in Hybrid and 0.46 ms worse in Discrete. In return the viewer gets
+  59.6 against 39.4 fps in Hybrid and 47.9 against 23.8 in Discrete, so the new path is sending two to three
+  times as many pictures.
+- **Missed: viewer at least 58 fps GPU-limited, Discrete.** With the game GPU-limited and G-Sync on, Windows
+  hands the capture a new picture only about every 20.8 ms (48 a second), measured by counting arrivals in a test
+  build. It is the same with `SetMinUpdateInterval` left unset. Today's path takes every other one, so 24. At
+  lowest settings the arrivals are irregular and 60 a second go out. Probably the bottom of the panel's G-Sync
+  range while the game flips by itself; not confirmed with G-Sync off.
+- **Missed: share CPU at most 15% and 25%, Discrete.** 23–30% at 60 and 32–45% at 120 during the blocks. A 60 s
+  run afterwards at the same settings measured 4.7%, with the same number of thread switches a second
+  (about 1,700) but each thread costing a third to a sixth as much. Today's path rose in the same blocks (57–89%
+  against 42–54% in Hybrid). So it looks like the laptop's state after most of an hour at 450 fps, slower cores
+  or the threads moved to efficiency cores, rather than more work. Not proven.
+- **Missed, on both paths: a gap over 100 ms after the first 5 s.** Two a round on every path: the
+  once-a-minute keyframe (`GOP_SECONDS`), then the rate gate holding pictures back while it goes out on Wi-Fi.
+  0.2–0.6 s on the new path. In the shared encoder, older than this work; not changed here.
 
 **Not built yet, the rest:**
 
@@ -187,9 +244,10 @@ AMF's reference if available.
 
 - Why step 0 (15–20% of the frame rate) and the route tests (4–7%) disagree about today's path. The session and
   the team and weapon at the spot differed. Unexplained.
-- What the 80 ms game frames in one new-path round were (*First milestone*).
-- The cost in a moving game, with a viewer on another machine.
-- Whether a picture can tear on one device with the game at full GPU.
+- What the 80 ms game frames in one new-path round were (*First milestone*). Not seen again in the 30 new-path
+  rounds of the gate.
+- Whether the GPU-limited share reaches 60 fps in Discrete with G-Sync off, or with V-Sync on in the game.
+- Why the share process cost three to six times as much during the Discrete blocks as in a short run after them.
 - Whether Quick Sync costs the game less.
 - Windows 10, older 11, AMD and older NVIDIA cards: none run. A GTX 1060 and a Windows 10 machine both crashed in
   NVENC or ffenc before, so the fallback matters there.
