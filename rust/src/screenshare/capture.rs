@@ -63,6 +63,11 @@ pub(crate) struct CaptureRequest {
     /// watchers are left with a still picture unless somebody says why.
     #[cfg_attr(not(any(target_os = "windows", target_os = "linux")), allow(dead_code))]
     pub on_paused: Option<Box<dyn Fn(bool) + Send>>,
+    /// What a share already under way showed when Rift's own capture handed it
+    /// to libwebrtc's (`capture_wgc.rs`): the window it followed, which may not
+    /// be the one picked, or the screen. Taken in place of `selected_index`,
+    /// which points into the picker's last list.
+    pub following: Option<sources::Listed>,
 }
 
 /// How the start of a capture went, as the capture thread learns it.
@@ -316,6 +321,19 @@ fn set_power_throttling(held: u32) {
     }
 }
 
+/// Tells the share there will be no picture. Once it has started, which is when
+/// Rift's own capture hands one over, nobody is waiting on `progress` any more:
+/// the share then ends as a closed source does, rather than show its last
+/// picture, or nothing, for as long as nobody stops it.
+fn fail(progress: &UnboundedSender<Progress>, reason: String) {
+    if let Err(unheard) = progress.send(Progress::Failed(reason)) {
+        if let Progress::Failed(reason) = unheard.0 {
+            log::info!("capture: {reason}, ending the share");
+        }
+        crate::api::screenshare::emit_screenshare_event(ScreenshareEvent::SourceClosed);
+    }
+}
+
 fn run(
     request: CaptureRequest,
     fps: Arc<AtomicU32>,
@@ -329,9 +347,7 @@ fn run(
     let mut options = sources::options(request.source_type);
     options.set_include_cursor(request.capture_cursor);
     let Some(mut capturer) = DesktopCapturer::new(options) else {
-        let _ = progress.send(Progress::Failed(
-            "Could not create a desktop capturer".to_string(),
-        ));
+        fail(&progress, "Could not create a desktop capturer".to_string());
         return;
     };
 
@@ -350,7 +366,7 @@ fn run(
             // Stopped while waiting for the window.
             Ok(None) => return,
             Err(reason) => {
-                let _ = progress.send(Progress::Failed(reason));
+                fail(&progress, reason);
                 return;
             }
         }
@@ -702,17 +718,21 @@ pub(super) fn find_source(
     command_rx: &mpsc::Receiver<Command>,
 ) -> Result<Option<Source>, String> {
     let sources = capturer.get_source_list();
-    // Nothing chosen: the Wayland portal, whose one source is what the user
-    // picked in the desktop's own dialog.
-    let Some(index) = request.selected_index else {
-        return sources
-            .into_iter()
-            .next()
-            .map(Some)
-            .ok_or_else(|| "No capture sources available".to_string());
-    };
-    let Some(chosen) = sources::listed(request.source_type, index) else {
-        return Err("Pick what to share again: the list has changed".to_string());
+    let chosen = match (&request.following, request.selected_index) {
+        (Some(following), _) => following.clone(),
+        (None, Some(index)) => match sources::listed(request.source_type, index) {
+            Some(chosen) => chosen,
+            None => return Err("Pick what to share again: the list has changed".to_string()),
+        },
+        // Nothing chosen: the Wayland portal, whose one source is what the user
+        // picked in the desktop's own dialog.
+        (None, None) => {
+            return sources
+                .into_iter()
+                .next()
+                .map(Some)
+                .ok_or_else(|| "No capture sources available".to_string())
+        }
     };
     if let Some(source) = sources.into_iter().find(|source| source.id() == chosen.id) {
         return Ok(Some(source));
@@ -840,6 +860,7 @@ mod tests {
             on_paused: Some(Box::new(move |now| {
                 heard.lock().unwrap().push((now, Instant::now()))
             })),
+            following: None,
         });
         let first = loop {
             match started.try_recv() {

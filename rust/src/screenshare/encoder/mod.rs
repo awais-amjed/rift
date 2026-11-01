@@ -107,6 +107,8 @@ pub(crate) mod test_hooks {
     pub(crate) static NO_GPU: AtomicBool = AtomicBool::new(false);
     /// 0 is never.
     pub(crate) static FAIL_AFTER: AtomicU32 = AtomicU32::new(0);
+    /// The next repeat of a still picture fails, as on a GPU that is gone.
+    pub(crate) static FAIL_REPEAT: AtomicBool = AtomicBool::new(false);
     /// The encoder stays at the share's cap whatever WebRTC asks for, as one
     /// that overshoots does (`worker.rs`).
     pub(crate) static IGNORE_RATE: AtomicBool = AtomicBool::new(false);

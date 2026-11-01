@@ -143,8 +143,12 @@ it converts, copies and encodes every picture too. On today's path the two cost 
 | No adapter of the encoder's maker, device or session will not open | Today's path |
 | Converter or encoder will not take D3D11 | The encoder on memory, so `capture_wgc` hands over to libwebrtc's capturer |
 | A picture fails once | The last picture again; a passing failure must not end a share |
-| Still failing after a second (and five pictures), or the GPU is gone | The encoder fails, the share moves to VP9, and the capturer hands over: no second picker |
+| Still failing after a second (and five pictures), or the GPU is gone | The encoder fails, the share moves to VP9, and the capturer hands over: no second picker. A failure while no new picture comes, as on repeating the last, is found on the processing thread's next tick, not left for a picture to find |
+| The share's device is removed | The capture hands over to libwebrtc's capturer at once, since no session on that device can give a picture again |
 | No picture for 2 s (a still source, or a session a driver reset left giving nothing) | A new session on the same source, and another every 2 s while the new ones give nothing. After five (about 12 s), the capture hands over to libwebrtc's capturer and the share goes on in H264 on the same track; the encoder uploads memory pictures. A shared window that is minimised or being looked for is left to the window's own following |
+| No picture at all since the share began | One new session, then handed over (4 s), so libwebrtc's capturer has its first picture before the share stops waiting for one (10 s) |
+| A swapped window's new session will not open | Treated as libwebrtc's capturer failing to start on it: the window is looked for again, every 250 ms, until it opens or the share's 10 s of looking are up |
+| Any hand-over after a game swapped its window | Libwebrtc's capturer takes the window followed to, not the one picked. If that is gone too, the share ends as a closed window does |
 
 **Why five, and not one (Nov 2, `dxcap -forcetdr` in the app, Hybrid, NVENC, a screen share).** A reset leaves
 Windows' session giving nothing and saying nothing: before this, the viewer kept the last picture until the share
@@ -154,7 +158,9 @@ the new session gave nothing and libwebrtc's capturer, started about 5 s into th
 share. With five: the first new session gave nothing, the second did not open ("Desktop composition is disabled",
 its open taking 1.5 s), and the third gave pictures, 6.6 s after they stopped, on the same device; a viewer who
 started watching afterwards saw the screen live. `live_wgc_silent_session_moves_to_libwebrtc` and
-`live_wgc_session_back_after_a_silence` stand in for the reset in tests.
+`live_wgc_session_back_after_a_silence` stand in for the reset in tests. A share whose sessions have given no
+picture at all hands over after one instead, 4 s in: five would take 12 s, past the 10 s a share waits for its first
+picture, and with two (6 s) the share started 6.9 and 8.9 s after it was asked for, too close.
 
 ## First milestone (owner, Nov 1)
 
@@ -315,6 +321,16 @@ AMF's reference if available.
   new session gives the pictures and the share stays on Rift's session; a still window opened no new session in
   8 s. NVENC, Nov 2. Once, Rift's session did not open on the test's window just after it appeared (`0x80070057`)
   and the share started on libwebrtc's capturer, as it should; the rerun was fine.
+  After the review, NVENC, Nov 2, each new test failing with its fix taken out: a window swapped by its program
+  whose new window is refused its first session is looked for again and followed, 120 pictures in the next 4 s
+  (`live_wgc_swapped_window_refused_once_is_followed`); a swapped window and then the converter failing
+  (`RIFT_D3D11_FAIL_AFTER=240`) reaches the viewer on VP9 from the new window, 91 pictures in 3 s
+  (`live_wgc_swapped_window_moves_to_vp9`); the encoder failing on a repeat while the source is silent moves the
+  share to VP9 1.1 s later, where it had waited 10.4 s for the new sessions
+  (`live_wgc_encoder_failing_on_a_still_picture_moves_to_vp9`); a session silent from the start
+  (`RIFT_WGC_SILENT_AFTER=0`) is handed over and the share starts in 4.8–4.9 s
+  (`live_wgc_silent_from_the_start_moves_to_libwebrtc`). The other live tests passed again;
+  `live_gpu_share_resizes_rejoins_and_falls_back` needs something moving on the screen.
 - **Colours:** known colours through the path, decoded and compared against BT.601.
 - **Tearing:** a whole-screen flip between two grays, as `tear_check.py` did on Linux, with the GPU idle and full.
 - **The D3D11 debug layer:** in a test build, `RIFT_D3D11_DEBUG=1` makes the share's device with it, and the
@@ -351,7 +367,11 @@ AMF's reference if available.
 - What the 80 ms game frames in one new-path round were (*First milestone*). Not seen again in the 30 new-path
   rounds of the gate, nor in the app's CS2 rounds (Nov 1).
 - A driver reset in Discrete, or one that removes the device: only Hybrid's, which left NVENC's device whole, was
-  run. A removed device fails the converter and goes to VP9 (`live_wgc_failing_gpu_moves_to_vp9`).
+  run. A removed device is handed to libwebrtc's capturer at once (`GetDeviceRemovedReason`), and its encoder,
+  failing on its next picture or repeat, moves the share to VP9: by the code, with the failures stood in for in
+  tests (`live_wgc_failing_gpu_moves_to_vp9`, `live_wgc_encoder_failing_on_a_still_picture_moves_to_vp9`); no
+  device was removed. Whether libwebrtc's capturer, started that early in such a reset, fails as it did 5 s into
+  Hybrid's is not known.
 - Windows 10, where the yellow border cannot be turned off: a new session on a quiet window may blink it. Untested.
 - Why Windows hands the capture a new picture only every 21 ms in Discrete with the game GPU-limited, G-Sync on or
   off. Untested: the compositor behind the game on one GPU, Windows' GPU scheduling setting, V-Sync on in the game.
@@ -367,3 +387,39 @@ AMF's reference if available.
   path they cost about the same. Untested.
 - Windows 10, older 11, AMD and older NVIDIA cards: none run. A GTX 1060 and a Windows 10 machine both crashed in
   NVENC or ffenc before, so the fallback matters there.
+
+## What Linux must recheck
+
+This work was built and tested on Windows only (Nov 2: `cargo fmt --check` and `flutter analyze` clean, the unit
+tests passing). Some of what it changed is shared with Linux's step 1, and nothing of it has been built there.
+Before this branch goes on, on Linux:
+
+1. `cargo fmt --check`, `flutter analyze`, and the Linux build: `cargo test --release` builds every test, which
+   catches a `cfg` that is right on Windows only.
+2. **Rebuild ffenc** (`native/ffenc/build.sh`). Its ABI is 9 now: `RiftFfencConfig` has a `d3d11_device`, null
+   on Linux, and the crate refuses a library built at 8, so a Linux share cannot open the GPU encoder until then.
+3. The unit tests, and Linux's live tests on a Wayland desktop (`gpu_live_test.rs`) with VAAPI and NVENC: they
+   prove a DMA-BUF still goes to the encoder after the rename below.
+4. One `bench_view` against a Linux share, since the viewer was rewritten.
+
+What changed in the shared files:
+
+- `ffenc.h`, `ffenc.c`: the config's `d3d11_device`; `rift_ffenc_takes_d3d11` and `rift_ffenc_send_d3d11`, which
+  return 0 and `AVERROR(ENOSYS)` off Windows; `rift_ffenc_repeat` is now `#if _WIN32 … #elif __linux__`, with the
+  Linux branch as it was. `d3d11_nv12.c` is Windows only, and `build.sh` changed only in its Windows branch.
+- `encoder/ffmpeg.rs`: `Place` and `AVERROR_EAGAIN` are no longer Linux only; the config passes a null device.
+- `encoder/worker.rs`: `takes_dmabuf` is `takes_gpu_picture`, in `Session` and on `GpuEncoder`; Linux's
+  `GpuFeed::takes_dmabuf` calls it. `EncoderInput::Wgc` and its arms are Windows only. In a test build,
+  `test_hooks::FAIL_REPEAT` fails the next repeat (`encoder/mod.rs`).
+- `gpu_feed.rs`: `GpuFeed::failed` is what `send` asked before, now its own method (Windows' processing thread
+  asks it with no picture to send); Linux's sends behave as before. In a test build, `RIFT_DUMP_H264=<file>`
+  writes the encoded stream, on Linux too.
+- `capture.rs`: `CaptureRequest` has `following`, `None` on Linux, which `find_source` takes in place of
+  `selected_index`; a capture failing with nobody waiting on its progress, which on Linux can only be after its
+  start, now ends the share (`fail`) instead of leaving it up with no picture. The rest is Windows only;
+  `find_source` and parts of `SharedWindow` are now `pub(super)`.
+- `session.rs`: `following: None`, and `FIRST_FRAME_TIMEOUT` is `pub(super)` for a test.
+- `bench_test.rs`: the viewer times every picture and reports the longest gap (`Gaps`, with a unit test), and
+  with `BENCH_SHARES=0` stays for a run of shares; `BENCH_GPU_CAPTURE=0` shares with the switch off.
+- `gpu_live_test.rs`: the new tests are Windows only.
+- `host_platform.dart`: the switch is offered on every Windows build; Linux's condition (Wayland) is unchanged.

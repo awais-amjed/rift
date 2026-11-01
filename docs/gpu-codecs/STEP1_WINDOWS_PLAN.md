@@ -218,11 +218,11 @@ All need LiveKit (`livekit-server --dev`) and a display, one test per process:
 
 ### Task 6: The review, and handing back to Linux
 
-- [ ] **Step 1: The review prompt for the owner** (Opus 5.5 at max, in the owner's cloud session): the commit
+- [x] **Step 1: The review prompt for the owner** (Opus 5.5 at max, in the owner's cloud session): the commit
   range, the docs to read, the main files, what the product needs, where to look hardest (lifetimes and threads,
   shutdown, fallbacks, device loss), "report findings only".
-- [ ] **Step 2: Each finding checked against the code**: fixed with a test where real, why not where not.
-- [ ] **Step 3: A closing section in `STEP1_WINDOWS.md`** on what the Linux side must recheck: `cargo fmt`,
+- [x] **Step 2: Each finding checked against the code**: fixed with a test where real, why not where not.
+- [x] **Step 3: A closing section in `STEP1_WINDOWS.md`** on what the Linux side must recheck: `cargo fmt`,
   `flutter analyze`, the Linux build, and the shared files this work touched (`gpu_feed.rs`, `worker.rs`,
   `ffenc.c`, `ffenc.h`, `ffmpeg.rs`, `gpu_live_test.rs`, `bench_test.rs`, `capture.rs`).
 

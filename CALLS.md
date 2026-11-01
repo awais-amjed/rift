@@ -242,10 +242,13 @@ closed, 10 killed) with no crash or hang, and known colours within 0.5 of a leve
 BT.601 limited. Driven in the app Nov 1–2 on NVENC (`TESTING.md`), CS2 among it. Quick Sync so far in ffenc's own test (`test_windows.sh`) and one bench
 share with a viewer (58.3 fps decoded). A picture that fails to draw sends the last one again;
 a second of them in a row, or the GPU gone, ends the encoder and the share goes on as VP9
-(`live_wgc_failing_gpu_moves_to_vp9`). A session that gives no picture for 2 s is
+(`live_wgc_failing_gpu_moves_to_vp9`), found within a tick even while no new picture
+comes; a removed device hands the share to libwebrtc's capturer at once. A session that gives no picture for 2 s is
 replaced by a new one on the same source, and again every 2 s while the new ones give
 nothing; after five, the share goes to libwebrtc's capturer and stays H264 on the same
-track. A driver reset leaves Windows' session giving nothing, with no error, and the
+track (after one, 4 s, for a share that has had no picture yet, which would otherwise
+give up waiting for one at 10 s). A hand-over after a game swapped its window goes on
+with the window followed to, and a new window that will not open at once is tried again. A driver reset leaves Windows' session giving nothing, with no error, and the
 viewer froze on the last picture for good; a capturer started a few seconds into the
 reset fails at once, which is why the share waits out five. On a real reset (`dxcap
 -forcetdr`, Nov 2) the pictures came back from the third new session, 6.6 s after they

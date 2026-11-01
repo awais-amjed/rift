@@ -27,7 +27,7 @@ use tokio::task::JoinHandle;
 /// it is waiting for a minimised window. A Wayland portal the user dismissed
 /// never does either, under libwebrtc's capturer. On Rift's own stream the
 /// time starts once the picker has its answer.
-const FIRST_FRAME_TIMEOUT: Duration = Duration::from_secs(10);
+pub(super) const FIRST_FRAME_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// How long the desktop's picker is left up on Rift's own stream, as long
 /// as Dart leaves its window picker (`WindowSharePortal`).
@@ -387,6 +387,7 @@ async fn bring_up(
         fps: config.fps,
         capture_cursor: true,
         on_paused: Some(announce_paused(participant.clone())),
+        following: None,
     });
 
     // While the desktop's picker is up, the first frame waits on a person.

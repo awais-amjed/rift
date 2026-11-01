@@ -87,6 +87,18 @@ impl GpuFeed {
         self.encoder.on_import_failed(told);
     }
 
+    /// Whether the encoder has failed, telling the session so the first time:
+    /// [`send`](Self::send) asks, and a capture with no new picture to send.
+    pub(crate) fn failed(&self) -> bool {
+        if !self.encoder.failed() {
+            return false;
+        }
+        if !self.reported.swap(true, Ordering::Relaxed) {
+            (self.on_failed)();
+        }
+        true
+    }
+
     /// The rate the encoder is at, which one taking over starts from.
     pub(crate) fn bitrate(&self) -> u32 {
         self.encoder.bitrate()
@@ -98,10 +110,7 @@ impl GpuFeed {
     /// once the encoder has failed, having told the session so the first
     /// time.
     pub(crate) fn send(&self, picture: Picture<'_>, target: Size, timestamp_us: i64) -> bool {
-        if self.encoder.failed() {
-            if !self.reported.swap(true, Ordering::Relaxed) {
-                (self.on_failed)();
-            }
+        if self.failed() {
             return false;
         }
         if !self.admits() {

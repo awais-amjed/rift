@@ -321,6 +321,12 @@ fn run<S, F>(
                 continue;
             }
             let timestamp_us = timestamp_us + still.as_micros() as i64;
+            #[cfg(test)]
+            if super::test_hooks::FAIL_REPEAT.load(Ordering::Relaxed) {
+                log::warn!("encoder: {name} stopped working: a test failed its repeat");
+                shared.failed.store(true, Ordering::Relaxed);
+                break;
+            }
             match session.repeat(timestamp_us, keyframe) {
                 Ok(true) => {
                     keyframe = false;

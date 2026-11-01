@@ -84,6 +84,13 @@ const FIRST_WITHIN: Duration = Duration::from_secs(2);
 /// (Nov 2 2026, `dxcap -forcetdr` in the app).
 const SESSIONS: u32 = 5;
 
+/// [`SESSIONS`] for a share no session has given a picture yet, handed over 4 s
+/// in. The share stops waiting for its first picture at 10 s
+/// (`session::FIRST_FRAME_TIMEOUT`), and in that time also opens an encoder twice
+/// and waits for libwebrtc's capturer: handed over after two new sessions, 6 s
+/// in, the share started 6.9 and 8.9 s after it was asked for (Nov 2 2026).
+const SESSIONS_FIRST: u32 = 1;
+
 /// The frame pool's buffers. A picture can wait in this module's mailbox, wait for
 /// the encoder and be drawn by it at once, and the pool needs one to write into.
 const POOL_BUFFERS: i32 = 4;
@@ -213,13 +220,17 @@ enum Quiet {
     /// A new session gave a picture after others gave none, this long after
     /// the pictures stopped.
     Back(Duration),
-    /// [`SESSIONS`] new ones gave nothing: on to libwebrtc's capturer.
+    /// [`SESSIONS`] new ones gave nothing ([`SESSIONS_FIRST`] before any
+    /// picture): on to libwebrtc's capturer.
     HandOver,
 }
 
 /// Watches a share's session for [`QUIET_FOR`], and then each new one for
 /// [`FIRST_WITHIN`].
 struct QuietWatch {
+    /// When the share's first session opened: no picture since is a source
+    /// silent from the start.
+    began: Instant,
     /// When a new session was opened that has not yet given a picture.
     reopened: Option<Instant>,
     /// The last picture before the new sessions.
@@ -229,20 +240,21 @@ struct QuietWatch {
 }
 
 impl QuietWatch {
-    fn new() -> Self {
+    fn new(began: Instant) -> Self {
         Self {
+            began,
             reopened: None,
             stopped: None,
             empty: 0,
         }
     }
 
-    /// `last` is when the last picture came. `away` is a shared window
-    /// minimised or being looked for, which gives nothing for its own reasons
-    /// and is [`SharedWindow`]'s to follow.
+    /// `last` is when the last picture came, `began` until the first. `away`
+    /// is a shared window minimised or being looked for, which gives nothing
+    /// for its own reasons and is [`SharedWindow`]'s to follow.
     fn step(&mut self, now: Instant, last: Instant, away: bool) -> Quiet {
         if away {
-            *self = Self::new();
+            *self = Self::new(self.began);
             return Quiet::Wait;
         }
         if let Some(at) = self.reopened {
@@ -251,7 +263,12 @@ impl QuietWatch {
                     return Quiet::Wait;
                 }
                 self.empty += 1;
-                if self.empty >= SESSIONS {
+                let most = if last > self.began {
+                    SESSIONS
+                } else {
+                    SESSIONS_FIRST
+                };
+                if self.empty >= most {
                     return Quiet::HandOver;
                 }
                 self.reopened = Some(now);
@@ -259,7 +276,7 @@ impl QuietWatch {
             }
             let empty = self.empty;
             let stopped = self.stopped;
-            *self = Self::new();
+            *self = Self::new(self.began);
             if let (true, Some(stopped)) = (empty > 0, stopped) {
                 return Quiet::Back(last.duration_since(stopped));
             }
@@ -742,9 +759,25 @@ impl Recapture for Running<'_> {
     fn capture(&mut self, source: Source) {
         self.target = Target::Window(source.id());
         self.session = None;
-        match open_session(self.device, self.target, self.cursor, self.flow) {
+        #[cfg(test)]
+        let opened = if hooks::refuse_window() {
+            Err(windows::core::Error::new(
+                windows::Win32::Foundation::E_INVALIDARG,
+                "a test refused it",
+            ))
+        } else {
+            open_session(self.device, self.target, self.cursor, self.flow)
+        };
+        #[cfg(not(test))]
+        let opened = open_session(self.device, self.target, self.cursor, self.flow);
+        match opened {
             Ok(session) => self.session = Some(session),
-            Err(e) => log::warn!("capture: the window's new session did not open: {e}"),
+            Err(e) => {
+                // Told as libwebrtc's capturer tells a failed start, so the window
+                // is looked for and tried again: one just opened may not open yet.
+                log::warn!("capture: the window's new session did not open: {e}");
+                self.flow.lost.store(true, Ordering::Relaxed);
+            }
         }
     }
 }
@@ -752,7 +785,7 @@ impl Recapture for Running<'_> {
 /// Runs the share on Rift's own capture until a stop, the source's end, or a feed
 /// that needs pictures in memory, which hands over to libwebrtc's capturer.
 pub(super) fn run(
-    request: CaptureRequest,
+    mut request: CaptureRequest,
     fps: &Arc<AtomicU32>,
     progress: &UnboundedSender<Progress>,
     slot: &capture::VideoSlot,
@@ -812,6 +845,7 @@ pub(super) fn run(
         return Handoff::Fallback(request);
     };
 
+    let watched = device.clone();
     *SHARE_DEVICE.lock().unwrap() = Some(SharedDevice(device));
     let _device_held = DeviceHeld;
     let (put, pictures) = latest::channel::<WgcPicture>();
@@ -852,7 +886,7 @@ pub(super) fn run(
     };
     let mut window = is_window.then(|| SharedWindow::new(source.id(), source.title()));
     let mut rate = fps.load(Ordering::Relaxed);
-    let mut quiet = QuietWatch::new();
+    let mut quiet = QuietWatch::new(*flow.last.lock().unwrap());
     let mut reopens = 0u32;
     let hand_over = loop {
         match command_rx.recv_timeout(POLL) {
@@ -861,6 +895,13 @@ pub(super) fn run(
         }
         if wants_memory.load(Ordering::Relaxed) {
             log::info!("capture: this feed reads memory; on to libwebrtc's capturer");
+            break true;
+        }
+        // A reset that removes the device leaves no session here a picture to
+        // give, new ones too; libwebrtc's capturer makes devices of its own.
+        // SAFETY: a question of a device this thread holds.
+        if let Err(e) = unsafe { watched.GetDeviceRemovedReason() } {
+            log::warn!("capture: the GPU device was removed ({e}); libwebrtc's capturer");
             break true;
         }
         let ended = match window.as_mut() {
@@ -917,9 +958,7 @@ pub(super) fn run(
                 counts::BACK.fetch_add(1, Ordering::Relaxed);
             }
             Quiet::HandOver => {
-                log::info!(
-                    "capture: {SESSIONS} new sessions gave no picture; libwebrtc's capturer"
-                );
+                log::info!("capture: the new sessions gave no picture; libwebrtc's capturer");
                 #[cfg(test)]
                 counts::HANDOVERS.fetch_add(1, Ordering::Relaxed);
                 break true;
@@ -929,6 +968,12 @@ pub(super) fn run(
     if reopens > 0 {
         log::info!("capture: {reopens} new sessions on a quiet source");
     }
+    // Libwebrtc's capturer goes on with what is shown now: the dialog's choice
+    // may be a window the game has since swapped for another.
+    let now_on = match running.target {
+        Target::Window(id) => id,
+        Target::Screen(_) => source.id(),
+    };
     // The session first, then the mailbox, which ends the processing thread.
     drop(running);
     flow.pictures.lock().unwrap().take();
@@ -936,6 +981,11 @@ pub(super) fn run(
     debug_layer::report();
     log::info!("capture: thread exiting");
     if hand_over {
+        request.following = Some(sources::Listed {
+            id: now_on,
+            title: source.title(),
+            minimised: false,
+        });
         Handoff::Fallback(request)
     } else {
         Handoff::Done
@@ -965,9 +1015,12 @@ fn process(pictures: Taker<WgcPicture>, slot: capture::VideoSlot, wants_memory: 
         };
         match feed {
             Feed::Gpu(gpu) if gpu.takes_gpu_picture() => {
-                if !Weak::ptr_eq(&taken, &Arc::downgrade(&gpu))
-                    && gpu.send(Picture::Wgc(picture.clone()), target, now_us())
-                {
+                if Weak::ptr_eq(&taken, &Arc::downgrade(&gpu)) {
+                    // Nothing new for it, and none may come: a GPU that is gone
+                    // gives no picture to find its encoder failed on repeating
+                    // the last.
+                    gpu.failed();
+                } else if gpu.send(Picture::Wgc(picture.clone()), target, now_us()) {
                     taken = Arc::downgrade(&gpu);
                 }
             }
@@ -997,6 +1050,24 @@ pub(super) mod counts {
     pub(in super::super) static BACK: AtomicU32 = AtomicU32::new(0);
     /// Shares handed to libwebrtc's capturer after new sessions gave nothing.
     pub(in super::super) static HANDOVERS: AtomicU32 = AtomicU32::new(0);
+}
+
+/// Test builds only: ways for a live test to make Windows refuse.
+#[cfg(test)]
+pub(super) mod hooks {
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    /// How many windows a share follows to are refused their first session, as
+    /// one may be that has only just opened.
+    pub(in super::super) static REFUSE_WINDOWS: AtomicU32 = AtomicU32::new(0);
+
+    pub(super) fn refuse_window() -> bool {
+        let left = REFUSE_WINDOWS.load(Ordering::Relaxed);
+        left > 0
+            && REFUSE_WINDOWS
+                .compare_exchange(left, left - 1, Ordering::Relaxed, Ordering::Relaxed)
+                .is_ok()
+    }
 }
 
 /// Test builds only: `RIFT_WGC_SILENT_AFTER=<n>` drops every picture after the
@@ -1175,11 +1246,33 @@ mod tests {
         assert_eq!(admitted(60.0, 120), 600);
     }
 
+    /// A share that began just before a picture at `start`.
+    fn after_a_picture(start: Instant) -> QuietWatch {
+        QuietWatch::new(start - Duration::from_millis(1))
+    }
+
+    #[test]
+    fn a_source_silent_from_the_start_is_handed_over_before_the_share_gives_up() {
+        let start = Instant::now();
+        let mut watch = QuietWatch::new(start);
+        let mut now = start;
+        let handed = loop {
+            now += Duration::from_millis(50);
+            if watch.step(now, start, false) == Quiet::HandOver {
+                break now - start;
+            }
+            assert!(now - start < Duration::from_secs(20), "never handed over");
+        };
+        assert_eq!(handed, Duration::from_secs(4));
+        // Opening the encoder again and libwebrtc's first picture need time too.
+        assert!(handed + Duration::from_secs(5) <= super::super::session::FIRST_FRAME_TIMEOUT);
+    }
+
     #[test]
     fn a_quiet_source_gets_a_new_session_and_waits_for_it() {
         let start = Instant::now();
         let at = |ms| start + Duration::from_millis(ms);
-        let mut watch = QuietWatch::new();
+        let mut watch = after_a_picture(start);
         assert_eq!(watch.step(at(1_900), start, false), Quiet::Wait);
         assert_eq!(watch.step(at(2_000), start, false), Quiet::Reopen);
         // The new session's first picture: quiet again only from it.
@@ -1193,7 +1286,7 @@ mod tests {
     fn new_sessions_that_give_nothing_hand_the_share_over() {
         let start = Instant::now();
         let at = |ms| start + Duration::from_millis(ms);
-        let mut watch = QuietWatch::new();
+        let mut watch = after_a_picture(start);
         assert_eq!(watch.step(at(2_000), start, false), Quiet::Reopen);
         assert_eq!(watch.step(at(3_900), start, false), Quiet::Wait);
         for n in 1..SESSIONS {
@@ -1209,7 +1302,7 @@ mod tests {
     fn pictures_again_from_a_later_session_keep_the_share() {
         let start = Instant::now();
         let at = |ms| start + Duration::from_millis(ms);
-        let mut watch = QuietWatch::new();
+        let mut watch = after_a_picture(start);
         assert_eq!(watch.step(at(2_000), start, false), Quiet::Reopen);
         assert_eq!(watch.step(at(4_000), start, false), Quiet::Again);
         assert_eq!(watch.step(at(6_000), start, false), Quiet::Again);
@@ -1227,7 +1320,7 @@ mod tests {
     fn a_window_away_is_left_to_be_followed() {
         let start = Instant::now();
         let at = |ms| start + Duration::from_millis(ms);
-        let mut watch = QuietWatch::new();
+        let mut watch = after_a_picture(start);
         assert_eq!(watch.step(at(2_000), start, false), Quiet::Reopen);
         // Minimised while the new session waited: no hand over, however long.
         assert_eq!(watch.step(at(9_000), start, true), Quiet::Wait);
