@@ -46,10 +46,12 @@ is the verdict's: the switch first.
   Windows crosses GPUs for the capture, as it does today for NVIDIA in Hybrid.
 - **AMF takes the converter's frames as they are.** FFmpeg 9.0.2's `amfenc.c` lists
   `HW_CONFIG_ENCODER_FRAMES(D3D11, D3D11VA)`.
-- **Quick Sync takes QSV frames derived from ours.** `qsvenc.c` lists only QSV frames. `hwcontext_qsv.c`
-  derives from a D3D11 frames context with a *fixed* pool (it walks `initial_pool_size` textures), and takes
-  `D3D11_BIND_RENDER_TARGET` textures, so for Quick Sync the converter's pool becomes fixed and each frame is
-  mapped with `av_hwframe_map`. NVENC and AMF keep the dynamic pool.
+- **Quick Sync gets a copy in its own surfaces.** `qsvenc.c` lists only QSV frames, and a QSV pool, its own
+  or derived from ours, is one D3D11 texture array. NV12 arrays bound as render targets are refused above 2 on
+  both GPUs here (`E_INVALIDARG`, Nov 1, a throwaway test), too few for the last picture kept for repeats and the
+  frames the encoder holds; arrays bound for decoding were made up to 8. So the converter draws as today, and
+  each picture is copied on the GPU into a QSV surface from a pool of 8 such (`MFX_MEMTYPE_VIDEO_MEMORY_DECODER_TARGET`),
+  as OBS's Quick Sync encoder copies its input. NVENC and AMF take the converter's frames with no copy.
 - **AMF stays off this path until it runs on an AMD card.** This laptop has none. `takes_textures` answers
   true for AMF only when `RIFT_FFENC_AMF_TEXTURES=1` is set, until the owner's RX 9070 XT runs Windows for a
   test; then the gate comes out in its own commit. Cost if wrong: AMD sharers keep today's path a while longer.
@@ -64,8 +66,9 @@ is the verdict's: the switch first.
   no WGC session (Task 1, Task 4's live test).
 - **A device on the wrong adapter:** the encoder refuses the frames and the share goes to memory, not black
   (Task 2, forced vendor mismatch).
-- **QSV mapping lifetimes:** a mapped QSV frame holds its D3D11 frame; closing the encoder mid-share, or a
-  resize, frees in the right order with nothing still mapped (Task 3).
+- **QSV lifetimes:** the copy into a QSV surface is queued before the surface goes to the encoder, the
+  converter's frame is freed after; closing the encoder mid-share, or a resize, frees in the right order with
+  nothing still mapped (Task 3).
 - **Device loss mid-share:** the last picture repeats, then after about a second the share moves to VP9 without
   a second picker; no hang on stop (Task 4, Task 5).
 - **Quit mid-share from the tray** exits at once on every encoder (Task 5).
@@ -85,15 +88,15 @@ is the verdict's: the switch first.
   `ScreenShareConfig.gpu_capture`, and `capture_wgc::run` returning `Handoff::Fallback` before any probe when it
   is false.
 
-- [ ] **Step 1: The failing test.** `test/host_platform_test.dart`: on a Windows host,
+- [x] **Step 1: The failing test.** `test/host_platform_test.dart`: on a Windows host,
   `HostPlatform.capturesShareOnGpu` is true (`skip: !Platform.isWindows`, so Linux's run is unaffected).
-- [ ] **Step 2: Run it to see it fail.** `flutter test test/host_platform_test.dart`.
-- [ ] **Step 3: Change the getter** to `!kIsWeb && (Platform.isWindows || (Platform.isLinux && _underWayland))`,
+- [x] **Step 2: Run it to see it fail.** `flutter test test/host_platform_test.dart`.
+- [x] **Step 3: Change the getter** to `!kIsWeb && (Platform.isWindows || (Platform.isLinux && _underWayland))`,
   with its doc comment saying why Windows always.
-- [ ] **Step 4: Run the test, `flutter analyze`, `flutter test`.**
-- [ ] **Step 5: Check the Rust side keeps out.** Read `capture_wgc::run` and `ffmpeg.rs`'s open: with
+- [x] **Step 4: Run the test, `flutter analyze`, `flutter test`.**
+- [x] **Step 5: Check the Rust side keeps out.** Read `capture_wgc::run` and `ffmpeg.rs`'s open: with
   `gpu_capture` false, no `encoder::takes_textures()` call and no `d3d11_device`. Proven live in Task 4.
-- [ ] **Step 6: Commit** with `CALLS.md` (the switch, and that it takes effect from the next share).
+- [x] **Step 6: Commit** with `CALLS.md` (the switch, and that it takes effect from the next share).
 
 ---
 
@@ -114,46 +117,48 @@ is the verdict's: the switch first.
 - Values: `h264_nvenc` → `0x10de`; `h264_qsv` → `0x8086`; `h264_amf` → `0x1002` only with
   `RIFT_FFENC_AMF_TEXTURES=1`; anything else → `None`.
 
-- [ ] **Step 1: The failing tests** for `texture_vendor` in `ffmpeg.rs`: each of the four cases above, AMF with and
+- [x] **Step 1: The failing tests** for `texture_vendor` in `ffmpeg.rs`: each of the four cases above, AMF with and
   without the variable (the variable read once, through a parameter, so the test is pure).
-- [ ] **Step 2: Run to see them fail.** `cargo test --release texture_vendor`.
-- [ ] **Step 3: Implement**, and `adapter_of(vendor)` in `capture_wgc.rs` (hardware only, first of that vendor).
+- [x] **Step 2: Run to see them fail.** `cargo test --release texture_vendor`.
+- [x] **Step 3: Implement**, and `adapter_of(vendor)` in `capture_wgc.rs` (hardware only, first of that vendor).
   `takes_rifts_capture` keeps its `encoder_takes_textures: bool` (`.is_some()`), so its tests stand.
-- [ ] **Step 4: Forced mismatch.** In a test build, `RIFT_WGC_VENDOR=0x8086` with NVENC encoding: the converter or
+- [x] **Step 4: Forced mismatch.** In a test build, `RIFT_WGC_VENDOR=0x8086` with NVENC encoding: the converter or
   encoder refuses, the log says memory pictures, and `bench_share` still delivers 60 fps. Record it.
-- [ ] **Step 5: `cargo test --release`, commit.**
+- [x] **Step 5: `cargo test --release`, commit.**
 
 ---
 
 ### Task 3: Quick Sync and AMF take the converter's frames
 
 **Files:**
-- Modify: `native/ffenc/ffenc.c`, `native/ffenc/d3d11_nv12.c`, `native/ffenc/d3d11_nv12.h`,
-  `rust/src/screenshare/encoder/ffmpeg.rs` (`takes_textures`), `CALLS.md`
+- Modify: `native/ffenc/ffenc.c`, `native/ffenc/ffenc.h` (a comment), `native/ffenc/d3d11_nv12.c`,
+  `native/ffenc/d3d11_nv12.h`, `native/ffenc/build.sh` (oneVPL's headers; the DLL's own name),
+  `rust/src/screenshare/encoder/ffmpeg.rs` (`texture_vendor`), `CALLS.md`
+- Create: `native/ffenc/test_d3d11.c`, `native/ffenc/check_d3d11.py`, `native/ffenc/test_windows.sh`
 
 **Interfaces:**
-- `d3d11_nv12_open` gains `int fixed_pool` (a pool size; 0 keeps today's dynamic pool).
+- `d3d11_nv12.h` gains `AVBufferRef* d3d11_nv12_device(D3d11Nv12*)`, FFmpeg's D3D11 device, to derive from,
+  and `d3d11_nv12_copy`, a drawn frame into a slice of another NV12 texture.
 - In `rift_ffenc_open` on `_WIN32`: `config->d3d11_device` set and API NVENC or AMF → the converter as today;
-  API QSV → the converter with a fixed pool of 8, a QSV device derived from its D3D11 device
-  (`av_hwdevice_ctx_create_derived`), a QSV frames context derived from its frames
-  (`av_hwframe_ctx_create_derived`), and `enc->frames` the QSV one. Each picture is drawn into a D3D11 frame
-  and mapped (`av_hwframe_map`) into a QSV frame for the encoder; the D3D11 frame is released when the mapped
-  one is.
+  API QSV → the converter as today, plus a QSV device derived from its D3D11 device
+  (`av_hwdevice_ctx_create_derived`) and a QSV frames pool of 8 decoder-target surfaces on it, which is
+  `enc->frames`. Each picture is drawn into a converter frame, then a QSV surface is taken, mapped to D3D11
+  (`av_hwframe_map`) for its texture and slice, and the picture copied in (`CopySubresourceRegion`); the
+  converter frame is released and the QSV frame sent. `enc->last` holds the QSV frame.
 - Any step failing: a warning, and the encoder opens on memory as today.
 
-- [ ] **Step 1: The failing test.** A test-only bench in Rust (`gpu_live_test.rs`, Windows, ignored, no server):
-  `live_wgc_encoder_takes_textures` opens the probe's encoder with a D3D11 device on its adapter, draws four
-  known colours into a BGRA texture, sends 120 pictures through `send_d3d11`, decodes the stream with FFmpeg's
-  software decoder and checks the colours within ±4 of BT.601 limited and the frame count. Run with
-  `RIFT_FFENC_ENCODER=h264_qsv`: it fails, `takes_d3d11` is 0.
-- [ ] **Step 2: Implement the fixed pool and the QSV derivation.** Free order in `rift_ffenc_close`: codec, then
+- [x] **Step 1: The failing test.** ffenc's own, as Linux's `test_nvenc_dmabuf.c` (a Rust one would need a real
+  WGC picture): `test_d3d11.c` opens each encoder with a device on its maker's GPU and sends BGRA textures through
+  `rift_ffenc_send_d3d11`; `check_d3d11.py` decodes and checks within ±4 of BT.601 limited: quarters and repeats,
+  a moving bar (none late), a letterboxed picture, memory pictures between; `--exit-open` must end.
+  `test_windows.sh` runs it. Quick Sync failed: it opened but took no D3D11 picture.
+- [x] **Step 2: Implement the QSV pool and the copy.** Free order in `rift_ffenc_close`: codec, then
   `enc->last`, then the QSV frames and device, then the converter.
-- [ ] **Step 3: Run the test on Quick Sync, then NVENC**, both pass. Same with an odd crop and a window
-  letterboxed (the milestone's sizes).
-- [ ] **Step 4: AMF, by code only.** `h264_amf` gets the converter's frames as NVENC does. Not run here; the
-  `RIFT_FFENC_AMF_TEXTURES` gate stays. If the owner's desktop runs Windows, the same test with
-  `RIFT_FFENC_ENCODER=h264_amf RIFT_FFENC_AMF_TEXTURES=1`, then remove the gate.
-- [ ] **Step 5: `cargo test --release`, the ffenc build in MSYS2, commit** with `CALLS.md`.
+- [x] **Step 3: Run the test on Quick Sync, then NVENC**, both pass. Then a bench share on Quick Sync.
+- [x] **Step 4: AMF, by code only.** `h264_amf` gets the converter's frames as NVENC does. Not run here; the
+  `RIFT_FFENC_AMF_TEXTURES` gate stays. If the owner's desktop runs Windows, `test_windows.sh` there, a share
+  with `RIFT_FFENC_AMF_TEXTURES=1`, then the gate comes out.
+- [x] **Step 5: `cargo test --release`, the ffenc build in MSYS2, commit** with `CALLS.md`.
 
 ---
 

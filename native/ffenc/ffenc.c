@@ -22,6 +22,8 @@
 #endif
 
 #if defined(_WIN32)
+#include <libavutil/hwcontext_qsv.h>
+
 #include "d3d11_nv12.h"
 #endif
 
@@ -64,8 +66,9 @@ struct RiftFfenc {
   NvencGl* gl;
 #endif
 #if defined(_WIN32)
-  // NVENC's way to take a Windows Graphics Capture picture, when the config
-  // gave a device and it opened, and the last frame made, for a repeat.
+  // The way to take a Windows Graphics Capture picture, when the config gave
+  // a device and it opened, and the last frame sent, for a repeat. Quick
+  // Sync's are copies in its own surfaces (`device` and `frames`).
   D3d11Nv12* d3d11;
   AVFrame* last;
 #endif
@@ -366,6 +369,78 @@ static int open_device(RiftFfenc* enc, const RiftFfencConfig* config,
   return err;
 }
 
+#if defined(_WIN32)
+// Quick Sync takes only its own frames, and its pool is one texture array.
+// NV12 arrays bound as render targets were refused above two textures on
+// Intel's and NVIDIA's GPUs here (E_INVALIDARG, Nov 1 2026), too few for the
+// last picture kept for a repeat and the ones the encoder holds; arrays bound
+// for decoding were made up to 8. So its surfaces are those, on a Quick Sync
+// device over the share's own, and each picture the converter draws is copied
+// into one (to_qsv_surface), as OBS's Quick Sync encoder copies its input.
+#define QSV_SURFACES 8
+
+static int open_qsv_surfaces(RiftFfenc* enc, const RiftFfencConfig* config,
+                             char* reason, size_t reason_len) {
+  int err = av_hwdevice_ctx_create_derived(
+      &enc->device, AV_HWDEVICE_TYPE_QSV, d3d11_nv12_device(enc->d3d11), 0);
+  if (err < 0) {
+    snprintf(reason, reason_len, "no Quick Sync on the share's device (%d)", err);
+    return err;
+  }
+  enc->frames = av_hwframe_ctx_alloc(enc->device);
+  if (!enc->frames) {
+    av_buffer_unref(&enc->device);
+    snprintf(reason, reason_len, "out of memory");
+    return AVERROR(ENOMEM);
+  }
+  AVHWFramesContext* frames = (AVHWFramesContext*)enc->frames->data;
+  frames->format = AV_PIX_FMT_QSV;
+  frames->sw_format = AV_PIX_FMT_NV12;
+  frames->width = config->width;
+  frames->height = config->height;
+  frames->initial_pool_size = QSV_SURFACES;
+  AVQSVFramesContext* qsv = frames->hwctx;
+  qsv->frame_type = MFX_MEMTYPE_VIDEO_MEMORY_DECODER_TARGET;
+  err = av_hwframe_ctx_init(enc->frames);
+  if (err < 0) {
+    av_buffer_unref(&enc->frames);
+    av_buffer_unref(&enc->device);
+    snprintf(reason, reason_len, "no Quick Sync surfaces that size (%d)", err);
+  }
+  return err;
+}
+
+// The converter's frame in `frame` copied into a free Quick Sync surface,
+// which takes its place; the converter's goes back to its pool. On a failure
+// `frame` is left empty.
+static int to_qsv_surface(RiftFfenc* enc, AVFrame* frame) {
+  AVFrame* surface = av_frame_alloc();
+  AVFrame* mapped = av_frame_alloc();
+  int err = surface && mapped ? 0 : AVERROR(ENOMEM);
+  if (err == 0) {
+    err = av_hwframe_get_buffer(enc->frames, surface, 0);
+    // Every surface still in the encoder: a passing failure, so the last
+    // picture goes out again.
+    if (err == AVERROR(ENOMEM)) err = AVERROR(EAGAIN);
+  }
+  if (err == 0) {
+    // Its texture and slice, to write: what it held before is not wanted.
+    mapped->format = AV_PIX_FMT_D3D11;
+    err = av_hwframe_map(mapped, surface,
+                         AV_HWFRAME_MAP_WRITE | AV_HWFRAME_MAP_OVERWRITE);
+  }
+  if (err == 0) {
+    err = d3d11_nv12_copy(enc->d3d11, frame, mapped->data[0],
+                          (int)(intptr_t)mapped->data[1]);
+  }
+  av_frame_free(&mapped);
+  av_frame_unref(frame);
+  if (err == 0) av_frame_move_ref(frame, surface);
+  av_frame_free(&surface);
+  return err;
+}
+#endif
+
 RiftFfenc* rift_ffenc_open(const RiftFfencConfig* config, char* error,
                            size_t error_len) {
   if (error && error_len) error[0] = '\0';
@@ -416,12 +491,19 @@ RiftFfenc* rift_ffenc_open(const RiftFfencConfig* config, char* error,
   }
 #endif
 #if defined(_WIN32)
-  if (api == API_NVENC && config->d3d11_device) {
+  if (config->d3d11_device &&
+      (api == API_NVENC || api == API_AMF || api == API_QSV)) {
     char reason[200] = "";
     enc->d3d11 = d3d11_nv12_open(config->d3d11_device, config->width,
                                  config->height, reason, sizeof(reason));
+    if (enc->d3d11 && api == API_QSV &&
+        open_qsv_surfaces(enc, config, reason, sizeof(reason)) < 0) {
+      d3d11_nv12_free(&enc->d3d11);
+    }
     if (enc->d3d11) {
-      enc->frames = av_buffer_ref(d3d11_nv12_frames(enc->d3d11));
+      if (api != API_QSV) {
+        enc->frames = av_buffer_ref(d3d11_nv12_frames(enc->d3d11));
+      }
     } else {
       av_log(NULL, AV_LOG_WARNING, "d3d11: memory pictures instead: %s\n",
              reason);
@@ -435,6 +517,7 @@ RiftFfenc* rift_ffenc_open(const RiftFfencConfig* config, char* error,
            "d3d11: memory pictures instead: the encoder refused D3D11's\n");
     avcodec_free_context(&enc->codec);
     av_buffer_unref(&enc->frames);
+    av_buffer_unref(&enc->device);
     d3d11_nv12_free(&enc->d3d11);
     err = open_codec(enc, codec, config);
   }
@@ -637,6 +720,7 @@ int32_t rift_ffenc_send_d3d11(RiftFfenc* enc, void* texture,
   if (!frame) return AVERROR(ENOMEM);
   int err = d3d11_nv12_run(enc->d3d11, texture, source_width, source_height,
                            place, frame);
+  if (err == 0 && enc->api == API_QSV) err = to_qsv_surface(enc, frame);
   if (err == 0) {
     av_frame_free(&enc->last);
     enc->last = av_frame_clone(frame);

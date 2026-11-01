@@ -458,6 +458,7 @@ pub(crate) fn takes_textures() -> Option<u32> {
 fn texture_vendor(encoder: &CStr, amf: bool) -> Option<u32> {
     match encoder.to_bytes() {
         b"h264_nvenc" => Some(0x10de),
+        b"h264_qsv" => Some(0x8086),
         b"h264_amf" if amf => Some(0x1002),
         _ => None,
     }
@@ -883,8 +884,8 @@ mod tests {
     }
 
     #[test]
-    fn quick_sync_does_not_take_textures_yet() {
-        assert_eq!(texture_vendor(c"h264_qsv", false), None);
+    fn quick_sync_takes_textures_on_intel() {
+        assert_eq!(texture_vendor(c"h264_qsv", false), Some(0x8086));
     }
 
     #[test]

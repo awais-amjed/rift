@@ -232,13 +232,15 @@ compositors, another workspace and GNOME's own minimise keys were not tried.
 
 ## How Windows captures a screen — [Implemented October 2026]
 
-An H264 share with the GPU capture switch on, to NVENC, now captures with Rift's own
-Windows Graphics Capture session instead, so the picture stays on the GPU
-(`capture_wgc.rs`, `docs/gpu-codecs/STEP1_WINDOWS.md`; on branch `gpu-codecs` as of Nov 1
-2026, its first milestone). Everything else stays as below, and Rift's session falls back
-to it. Verified Nov 1 with a test program, not yet the app: real shares with a viewer, the
-shared window closed 20 times (10 closed, 10 killed) with no crash or hang, and known
-colours within 0.5 of a level of BT.601 limited. The switch is *Capture the screen on the
+An H264 share with the GPU capture switch on, to NVENC or Quick Sync, now captures with
+Rift's own Windows Graphics Capture session instead, on the encoder's GPU, so the picture
+stays on the GPU (`capture_wgc.rs`, `docs/gpu-codecs/STEP1_WINDOWS.md`; on branch
+`gpu-codecs` as of Nov 1 2026). AMF waits for a run on an AMD card. Everything else stays
+as below, and Rift's session falls back to it. Verified Nov 1 with a test program on
+NVENC, not yet the app: real shares with a viewer, the shared window closed 20 times (10
+closed, 10 killed) with no crash or hang, and known colours within 0.5 of a level of
+BT.601 limited. Quick Sync so far in ffenc's own test (`test_windows.sh`) and one bench
+share with a viewer (58.3 fps decoded). The switch is *Capture the screen on the
 GPU* in settings, shown on every Windows build: off, the next share never reaches Rift's
 session, nor opens its device, and goes as below.
 

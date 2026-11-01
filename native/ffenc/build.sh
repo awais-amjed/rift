@@ -198,15 +198,21 @@ if [[ $os == linux ]]; then
 else
   # A DLL exports only what is marked to (RIFT_FFENC_EXPORT), and carries
   # MinGW's own runtime inside it, so it needs nothing the app does not ship:
-  # only Windows' DLLs, which `objdump -p` lists.
-  "$cc" -shared -O2 -I"$prefix/include" \
+  # only Windows' DLLs, which `objdump -p` lists. FFmpeg's Quick Sync header
+  # takes oneVPL's from include/vpl as its own. Linked in a folder of its own
+  # under its real name, which a DLL keeps inside it: a program linked to one
+  # named rift_ffenc.dll.part looks for that (test_windows.sh).
+  mkdir -p "$out/part"
+  "$cc" -shared -O2 -I"$prefix/include" -I"$prefix/include/vpl" \
     "$here/ffenc.c" "$here/d3d11_nv12.c" "$here/nvenc_gl_geometry.c" \
-    -o "$library.part" \
+    -o "$out/part/rift_ffenc.dll" \
     "$prefix/lib/libavcodec.a" "$prefix/lib/libavutil.a" "$prefix/lib/libvpl.a" \
     -static-libgcc -static-libstdc++ \
     -Wl,-Bstatic -lstdc++ -lwinpthread -Wl,-Bdynamic \
     -lole32 -luuid -ld3d11 -ldxgi -lbcrypt -lshlwapi -luser32 -ladvapi32 \
     -Wl,--exclude-libs,ALL -Wl,-Map,"$out/rift_ffenc.map"
+  mv "$out/part/rift_ffenc.dll" "$library.part"
+  rmdir "$out/part"
 fi
 mv "$library.part" "$library"
 rm -rf "$src" "$deps"

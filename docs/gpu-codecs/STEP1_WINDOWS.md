@@ -102,6 +102,11 @@ New:
   windows behave as today: it asks Windows directly (`window_win::closed`) and hears `Closed`.
 - **Library.** `RIFT_FFENC_ABI` 9: `rift_ffenc_send_d3d11`, `rift_ffenc_takes_d3d11`, the config's
   `d3d11_device`. `d3d11_nv12.c` is built on Windows only; `avfilter` stays out.
+- **Quick Sync** takes only its own frames, and a pool of them is one texture array. NV12 arrays bound as render
+  targets are refused above two textures on both GPUs here (`E_INVALIDARG`, Nov 1), too few for the picture kept
+  for a repeat and those the encoder holds, while arrays bound for decoding were made up to 8. So Quick Sync gets
+  a pool of 8 of those, and each picture the converter draws is copied into one on the GPU, as OBS's Quick Sync
+  encoder copies its input. NVENC and AMF take the converter's frames with no copy.
 
 ### Which GPU encodes on a hybrid
 
@@ -113,10 +118,10 @@ game less. *Proposed; the review may have a view.*
 
 | What happens | Result |
 |---|---|
-| Switch off, VP9, or an encoder other than NVENC so far | Entirely out of the new code. Today's path |
+| Switch off, VP9, or AMF so far | Entirely out of the new code. Today's path |
 | Whole screen on Windows 10 | Today's path |
-| No NVIDIA adapter, device or session will not open | Today's path |
-| Converter or encoder will not take D3D11 | NVENC on memory, so `capture_wgc` hands over to libwebrtc's capturer |
+| No adapter of the encoder's maker, device or session will not open | Today's path |
+| Converter or encoder will not take D3D11 | The encoder on memory, so `capture_wgc` hands over to libwebrtc's capturer |
 | A picture fails once | The last picture again; a passing failure must not end a share |
 | Still failing after about a second, or the GPU is gone | The encoder fails, the share moves to VP9, and the capturer hands over: no second picker |
 
@@ -251,8 +256,10 @@ meets the game's presenting.
 **Not built yet, the rest** (`STEP1_WINDOWS_PLAN.md`):
 
 - The settings switch is now shown on Windows (`HostPlatform.capturesShareOnGpu`, Nov 1); not yet driven in the app.
-- AMF and Quick Sync input. Quick Sync is measured against NVENC on the game in Hybrid, and goes first only if it
-  costs the game less.
+- Quick Sync takes the picture on the GPU (Nov 1, `test_windows.sh`, and one bench share of a moving test picture with a
+  viewer: 58.3 fps decoded, the share process 16.4% of a core, two gaps of 107 ms). It is measured against
+  NVENC on the game in Hybrid, and goes first only if it costs the game less. AMF is built the same way as NVENC
+  but is let onto this path only with `RIFT_FFENC_AMF_TEXTURES=1` until it runs on an AMD card.
 - Live tests in `gpu_live_test.rs` for this path (they are Linux's so far), and `CALLS.md` and `TESTING.md`.
 
 ## How it is proven
@@ -260,7 +267,13 @@ meets the game's presenting.
 Say what ran on what. **This laptop has no Windows 10, no older 11 and no AMD**; the desktop's RX 9070 XT is
 AMF's reference if available.
 
-- **Unit tests:** the routing (`takes_rifts_capture`) and `Pacer`, in `capture_wgc.rs`.
+- **Unit tests:** the routing (`takes_rifts_capture`) and `Pacer`, in `capture_wgc.rs`; which encoder takes
+  textures on whose adapter (`texture_vendor`, `ffmpeg.rs`).
+- **ffenc on its own:** `native/ffenc/test_windows.sh OUT_DIR`, in MSYS2's UCRT64 shell with `ffmpeg` and Python
+  on the path, builds the library and, for each encoder that opens, sends BGRA textures on its own GPU through
+  `rift_ffenc_send_d3d11` and decodes what came out (`check_d3d11.py`): four colours and repeats of them, a bar
+  moving a step each picture (none late), a letterboxed picture, memory pictures between GPU ones, and a return
+  from `main` with an encoder open. NVENC and Quick Sync passed on this laptop, Nov 1; AMF skipped.
 - **Colours:** known colours through the path, decoded and compared against BT.601.
 - **Tearing:** a whole-screen flip between two grays, as `tear_check.py` did on Linux, with the GPU idle and full.
 - **The D3D11 debug layer:** in a test build, `RIFT_D3D11_DEBUG=1` makes the share's device with it, and the

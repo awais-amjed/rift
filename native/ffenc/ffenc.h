@@ -59,8 +59,8 @@ typedef struct RiftFfencConfig {
   // 1 for H264's High profile, 0 for constrained baseline.
   int32_t high;
   // Windows: the ID3D11Device a share's Windows Graphics Capture runs on, the
-  // caller's to keep, which rift_ffenc_send_d3d11 takes pictures from. NULL takes
-  // memory only. NVENC only so far; others ignore it.
+  // caller's to keep, on the encoder's own GPU, which rift_ffenc_send_d3d11
+  // takes pictures from. NULL takes memory only. NVENC, Quick Sync and AMF.
   void* d3d11_device;
 } RiftFfencConfig;
 

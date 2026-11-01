@@ -267,6 +267,23 @@ D3d11Nv12* d3d11_nv12_open(void* device, int width, int height, char* error,
 
 AVBufferRef* d3d11_nv12_frames(D3d11Nv12* path) { return path->frames; }
 
+AVBufferRef* d3d11_nv12_device(D3d11Nv12* path) { return path->hw_device; }
+
+int d3d11_nv12_copy(D3d11Nv12* path, const AVFrame* from, void* to, int slice) {
+  // Both planes: a box on an NV12 texture is in the Y plane's units.
+  D3D11_BOX box = {0, 0, 0, (UINT)path->width, (UINT)path->height, 1};
+  ID3D11DeviceContext_CopySubresourceRegion(
+      path->context, (ID3D11Resource*)to, (UINT)slice, 0, 0, 0,
+      (ID3D11Resource*)from->data[0], (UINT)(intptr_t)from->data[1], &box);
+  ID3D11DeviceContext_Flush(path->context);
+  HRESULT removed = ID3D11Device_GetDeviceRemovedReason(path->device);
+  if (FAILED(removed)) {
+    av_log(NULL, AV_LOG_WARNING, "d3d11: the GPU is gone: 0x%08lx\n", removed);
+    return AVERROR_EXTERNAL;
+  }
+  return 0;
+}
+
 // The two views of one of FFmpeg's textures, kept: it hands the same few back
 // for the whole share.
 static Target* target_of(D3d11Nv12* path, ID3D11Texture2D* texture) {
