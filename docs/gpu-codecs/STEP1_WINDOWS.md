@@ -245,10 +245,9 @@ meets the game's presenting.
   seconds, most followed by a second arrival under 3 ms later, as with G-Sync on (96–97). A guess, untested: in
   Discrete the desktop compositor waits behind the game on the same GPU; in Hybrid it composes on Intel and gets 60.
 
-**Not built yet, the rest:**
+**Not built yet, the rest** (`STEP1_WINDOWS_PLAN.md`):
 
-- First, the settings switch shown on Windows (`HostPlatform.capturesShareOnGpu`). On this branch the share already
-  obeys the existing setting, so a Windows build takes the new path by default and cannot be turned off.
+- The settings switch is now shown on Windows (`HostPlatform.capturesShareOnGpu`, Nov 1); not yet driven in the app.
 - AMF and Quick Sync input. Quick Sync is measured against NVENC on the game in Hybrid, and goes first only if it
   costs the game less.
 - Live tests in `gpu_live_test.rs` for this path (they are Linux's so far), and `CALLS.md` and `TESTING.md`.

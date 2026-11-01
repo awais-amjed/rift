@@ -238,7 +238,9 @@ Windows Graphics Capture session instead, so the picture stays on the GPU
 2026, its first milestone). Everything else stays as below, and Rift's session falls back
 to it. Verified Nov 1 with a test program, not yet the app: real shares with a viewer, the
 shared window closed 20 times (10 closed, 10 killed) with no crash or hang, and known
-colours within 0.5 of a level of BT.601 limited.
+colours within 0.5 of a level of BT.601 limited. The switch is *Capture the screen on the
+GPU* in settings, shown on every Windows build: off, the next share never reaches Rift's
+session, nor opens its device, and goes as below.
 
 libwebrtc captures a Windows screen or window with Windows Graphics Capture,
 and Windows draws a yellow border round whatever is captured that way. From

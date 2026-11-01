@@ -155,8 +155,12 @@ class HostPlatform {
       !kIsWeb && !(Platform.isLinux && _underWayland);
 
   /// Whether a share can be captured on the GPU, so the choice is offered.
+  ///
+  /// Every Windows build, whatever its GPU: the share takes Rift's own
+  /// capture there by default, and turning it off is always safe. Linux
+  /// only under Wayland, where Rift has its own capture.
   static bool get capturesShareOnGpu =>
-      !kIsWeb && Platform.isLinux && _underWayland;
+      !kIsWeb && (Platform.isWindows || (Platform.isLinux && _underWayland));
 
   /// Whether Rift runs the desktop's window picker itself, before the share,
   /// to learn which app the window belongs to (`WindowSharePortal`). Only
