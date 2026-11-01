@@ -159,6 +159,8 @@ fn log_sending(last: &[RtcStats], now: &[RtcStats], elapsed: Duration) {
         rtt_ms,
         n.outbound.key_frames_encoded - p.outbound.key_frames_encoded,
     );
+    #[cfg(target_os = "windows")]
+    log::info!("bench capture: {}", super::capture_wgc::arrivals::take());
 }
 
 fn inbound(stats: &[RtcStats]) -> Option<&livekit::webrtc::stats::InboundRtpStats> {

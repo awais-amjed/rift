@@ -204,8 +204,9 @@ Against the limits, on this laptop:
   59.6 against 39.4 fps in Hybrid and 47.9 against 23.8 in Discrete, so the new path is sending two to three
   times as many pictures.
 - **Missed: viewer at least 58 fps GPU-limited, Discrete.** With the game GPU-limited and G-Sync on, Windows
-  hands the capture a new picture only about every 20.8 ms (48 a second), measured by counting arrivals in a test
-  build. It is the same with `SetMinUpdateInterval` left unset. Today's path takes every other one, so 24. At
+  hands the capture a new picture only about every 20.8 ms (48 a second), counted by the bench's `bench capture:`
+  log line, which test builds print every 2 s. It is the same with `SetMinUpdateInterval` left unset
+  (`RIFT_WGC_NO_MIN_INTERVAL=1`, test builds only). Today's path takes every other one, so 24. At
   lowest settings the arrivals are irregular and 60 a second go out. Not G-Sync: the same with it off (below).
 - **Missed: share CPU at most 15% and 25%, Discrete.** 23–30% at 60 and 32–45% at 120 during the blocks. A 60 s
   run afterwards at the same settings measured 4.7%, with the same number of thread switches a second

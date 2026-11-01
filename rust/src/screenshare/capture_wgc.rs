@@ -273,7 +273,13 @@ fn open_session(
     // rate from Windows 11.
     let _ = session.SetIsCursorCaptureEnabled(cursor);
     let _ = session.SetIsBorderRequired(false);
-    let _ = session.SetMinUpdateInterval(update_interval(flow.fps.load(Ordering::Relaxed)));
+    #[cfg(test)]
+    let interval_off = std::env::var_os("RIFT_WGC_NO_MIN_INTERVAL").is_some();
+    #[cfg(not(test))]
+    let interval_off = false;
+    if !interval_off {
+        let _ = session.SetMinUpdateInterval(update_interval(flow.fps.load(Ordering::Relaxed)));
+    }
 
     let closed = {
         let flow = flow.clone();
@@ -319,6 +325,8 @@ fn picture_arrived(
     flow: &Flow,
 ) -> windows::core::Result<()> {
     let frame = pool.TryGetNextFrame()?;
+    #[cfg(test)]
+    arrivals::arrived(Instant::now());
     let content = frame.ContentSize()?;
     let surface = frame.Surface()?;
     let access: IDirect3DDxgiInterfaceAccess = surface.cast()?;
@@ -358,6 +366,8 @@ fn picture_arrived(
     if !flow.pacer.lock().unwrap().admits(Instant::now(), fps) {
         return Ok(());
     }
+    #[cfg(test)]
+    arrivals::kept();
     if let Some(tx) = flow.first.lock().unwrap().take() {
         let _ = tx.send(Progress::FirstFrame(size));
     }
@@ -804,6 +814,58 @@ fn process(pictures: Taker<WgcPicture>, slot: capture::VideoSlot, wants_memory: 
                 return;
             }
         }
+    }
+}
+
+/// Test builds only: how often Windows hands a picture over, how many go on,
+/// and the gaps between arrivals, for the bench's log.
+#[cfg(test)]
+pub(super) mod arrivals {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::sync::Mutex;
+    use std::time::Instant;
+
+    /// Gap upper bounds in ms; the last bucket is everything longer.
+    const EDGES: [f64; 8] = [3.0, 5.0, 7.0, 9.5, 13.0, 18.0, 23.0, 35.0];
+    static ARRIVED: AtomicU64 = AtomicU64::new(0);
+    static KEPT: AtomicU64 = AtomicU64::new(0);
+    static GAPS: [AtomicU64; 9] = [const { AtomicU64::new(0) }; 9];
+    static LAST: Mutex<Option<Instant>> = Mutex::new(None);
+
+    pub(in super::super) fn arrived(now: Instant) {
+        ARRIVED.fetch_add(1, Ordering::Relaxed);
+        let mut last = LAST.lock().unwrap();
+        if let Some(prev) = last.replace(now) {
+            let ms = now.duration_since(prev).as_secs_f64() * 1000.0;
+            let i = EDGES.iter().position(|&e| ms < e).unwrap_or(EDGES.len());
+            GAPS[i].fetch_add(1, Ordering::Relaxed);
+        }
+    }
+
+    pub(in super::super) fn kept() {
+        KEPT.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Since the last call: arrived, kept, and the gap counts by bucket.
+    pub(in super::super) fn take() -> String {
+        let gaps: Vec<String> = GAPS
+            .iter()
+            .enumerate()
+            .map(|(i, g)| {
+                let label = if i < EDGES.len() {
+                    format!("<{}", EDGES[i])
+                } else {
+                    format!(">={}", EDGES[EDGES.len() - 1])
+                };
+                format!("{label}:{}", g.swap(0, Ordering::Relaxed))
+            })
+            .collect();
+        format!(
+            "arrived {} kept {} | gaps ms {}",
+            ARRIVED.swap(0, Ordering::Relaxed),
+            KEPT.swap(0, Ordering::Relaxed),
+            gaps.join(" ")
+        )
     }
 }
 
