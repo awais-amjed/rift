@@ -141,8 +141,11 @@ step can take from our own code and from open source projects: `REUSE.md`.
      the NVIDIA card. NVENC stays for a screen the NVIDIA card draws.
 1. **Zero-copy sharing on Windows.** Owner's route, Nov 1: Rift's own Windows Graphics
    Capture in Rust, no fork change (`STEP1_WINDOWS.md`). A whole screen on Windows 10
-   keeps today's path for now. First milestone built, NVENC only; the rest waits on its
-   numbers.
+   keeps today's path for now. First milestone passed (owner, Nov 1); the rest is in
+   `STEP1_WINDOWS_PLAN.md`.
+   - **Hybrid laptops on Windows: NVENC stays first.** Quick Sync on the new path cost
+     CS2 0.73 ms a frame at 60 fps and 1.76 ms at 120 against NVENC's 0.22 and 0.26,
+     measured Nov 1 (`STEP1_WINDOWS.md`, *Which GPU encodes on a hybrid*).
 2. **Zero-copy sharing on Linux Wayland.** Designed Oct 29: `STEP2_LINUX.md`.
    - **Order (owner, Oct 29): VAAPI first, then NVIDIA** on this laptop switched
      to NVIDIA-only display in the BIOS.

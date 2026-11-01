@@ -111,8 +111,28 @@ New:
 ### Which GPU encodes on a hybrid
 
 NVENC first, as Windows does today. The Linux ruling (the GPU that draws the screen) does not bind here,
-as WGC crosses GPUs. Measure Quick Sync once its input exists, and change the order only if it costs the
-game less. *Proposed; the review may have a view.*
+as WGC crosses GPUs. Quick Sync was to go first only if it cost the game less; it costs it about three to seven
+times as much, so the order stays.
+
+Measured Nov 1 on this laptop in Hybrid (the Iris Xe draws the screen, CS2 on the RTX), the gate's way: CS2 on
+de_dust2 offline at a fixed spot, lowest settings, uncapped, in front, standing still; a bench share of the
+whole screen on the new path at 15 Mbit/s for 60 fps and 30 for 120; PresentMon 90 s a round, three rounds of
+each in a mixed order in one sitting. The viewer ran on this laptop, so its decoding is in every share round's
+figures and in none of the no-share rounds: compare NVENC with Quick Sync, not either with no share. Medians of
+three:
+
+| | Game fps | Added per frame | p99 (added) | Share's process | Viewer got |
+|---|---|---|---|---|---|
+| No share | 448 | | 4.21 ms | | |
+| NVENC 60 | 407 | 0.22 ms | 4.45 ms (0.23) | 7.4–7.7% of a core | 59.9–60.0 fps |
+| Quick Sync 60 | 337 | 0.73 ms | 5.28 ms (1.07) | 10.6–21.7% | 59.9–60.0 fps |
+| NVENC 120 | 400 | 0.26 ms | 4.53 ms (0.32) | 14.2–16.7% | 119.5–119.9 fps |
+| Quick Sync 120 | 250 | 1.76 ms | 6.38 ms (2.16) | 33.9–39.5% | 117.3–118.4 fps |
+
+No round had a gap over 100 ms at the viewer. On Quick Sync, most of the share's extra CPU is in Intel's
+runtime (`libmfx64-gen.dll`, 11% of a core at 120) and Intel's driver (4.5%). Why the game loses so much more
+is a guess, untested: in Hybrid the Iris Xe also composes the screen the game's frames go to, and on Quick Sync
+it converts, copies and encodes every picture too. On today's path the two cost the game about the same (Oct 31).
 
 ### Fallback
 
@@ -257,8 +277,8 @@ meets the game's presenting.
 
 - The settings switch is now shown on Windows (`HostPlatform.capturesShareOnGpu`, Nov 1); not yet driven in the app.
 - Quick Sync takes the picture on the GPU (Nov 1, `test_windows.sh`, and one bench share of a moving test picture with a
-  viewer: 58.3 fps decoded, the share process 16.4% of a core, two gaps of 107 ms). It is measured against
-  NVENC on the game in Hybrid, and goes first only if it costs the game less. AMF is built the same way as NVENC
+  viewer: 58.3 fps decoded, the share process 16.4% of a core, two gaps of 107 ms). Against NVENC on the game
+  in Hybrid it costs the game more, so NVENC stays first (*Which GPU encodes on a hybrid*). AMF is built the same way as NVENC
   but is let onto this path only with `RIFT_FFENC_AMF_TEXTURES=1` until it runs on an AMD card.
 - The app driven through everything a share does, and `TESTING.md` for it.
 
@@ -307,6 +327,7 @@ AMF's reference if available.
 - **Known, and older than this work:** a 0.2–0.6 s freeze at the viewer once a minute on every path, from the keyframe
   (`GOP_SECONDS`) and the rate gate holding pictures back behind it. It lives in the shared encoder and is a task of
   its own, not this branch's.
-- Whether Quick Sync costs the game less.
+- Why Quick Sync on the new path costs the game three to seven times what NVENC does in Hybrid, when on today's
+  path they cost about the same. Untested.
 - Windows 10, older 11, AMD and older NVIDIA cards: none run. A GTX 1060 and a Windows 10 machine both crashed in
   NVENC or ffenc before, so the fallback matters there.

@@ -205,10 +205,10 @@ All need LiveKit (`livekit-server --dev`) and a display, one test per process:
   Discrete share CPU the verdict asked to watch.
 - [ ] **Step 4: By-hand steps for the owner**, numbered: a driver reset mid-share (`dxcap -forcetdr` in an
   administrator shell, needs Graphics Tools), and anything Rift's GUI needs a person for. Wait for the result.
-- [ ] **Step 5: Quick Sync against NVENC, Hybrid, CS2.** The gate's way, lowest settings standing still, 60 and
-  120 fps, three rounds each, `RIFT_FFENC_ENCODER=h264_qsv` against NVENC in the same sitting, viewer on the Linux
-  PC. Added ms per game frame, p99, viewer fps, share CPU. Quick Sync goes first on hybrids only if it costs the
-  game less; otherwise the order stays and the numbers say why.
+- [x] **Step 5: Quick Sync against NVENC, Hybrid, CS2.** The gate's way, lowest settings standing still, 60 and
+  120 fps, three rounds each, `RIFT_FFENC_ENCODER=h264_qsv` against NVENC in the same sitting. The viewer ran on
+  this laptop (the Linux PC was busy). Added ms per game frame, p99, viewer fps, share CPU. Quick Sync cost the
+  game three to seven times as much, so the order stays (Nov 1, `STEP1_WINDOWS.md`).
 - [ ] **Step 6: Commit the numbers and the `TESTING.md` rows**, with what was checked and what was not.
 
 ---
