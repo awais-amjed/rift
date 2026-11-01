@@ -174,6 +174,8 @@ the range of the three rounds where it matters. **Hybrid:** the panel on Intel, 
 | **New 60: lost, p99** | **7.1%, +0.19** | **7.1%, +0.11** | **11.7%, +0.19** | **10.0%, +0.18** |
 | Today 120: lost, p99 | 15.8%, +0.73 | 16.4%, +0.73 | 16.1%, +0.64 | 17.3%, +0.83 |
 | **New 120: lost, p99** | **8.7%, +0.26** | **8.9%, +0.18** | **12.7%, +0.23** | **10.9%, +0.19** |
+| Added per game frame, today 60 / **new 60** | 0.32 / **0.17 ms** | 0.32 / **0.18 ms** | 0.36 / **0.29 ms** | 0.36 / **0.25 ms** |
+| Added per game frame, today 120 / **new 120** | 0.42 / **0.21 ms** | 0.45 / **0.22 ms** | 0.43 / **0.32 ms** | 0.47 / **0.28 ms** |
 | Share process, today 60 / new 60 | 42–45 / 5–7% | 43–52 / 7% | 57–74 / 23–24% | 57–68 / 25–30% |
 | Share process, today 120 / new 120 | 48–51 / 15–16% | 51–54 / 19–24% | 84–89 / 32–36% | 63–86 / 33–45% |
 | Viewer fps, today 60 / new 60 | 59.7 / 59.6–59.7 | 60.0 / 60.0 | 46–52 / 59.6–59.7 | 56–59 / 60.0 |
@@ -215,11 +217,23 @@ Against the limits, on this laptop:
   once-a-minute keyframe (`GOP_SECONDS`), then the rate gate holding pictures back while it goes out on Wi-Fi.
   0.2–0.6 s on the new path. In the shared encoder, older than this work; not changed here.
 
+**The owner's verdict (Nov 1):** the milestone passes once the present-mode check below is done; then the rest
+is built. Three limits changed, as changes, not as passes:
+
+- **Game cost is measured per frame, not as a share of fps.** The 2.5% came from a scene at 366 fps; at 450 fps a
+  percentage makes a small fixed cost look large. The limit is now **at most 0.2 ms added to each game frame**, worked
+  out as (1 / no-share fps) × lost / (1 − lost), the *Added per game frame* rows. Hybrid passes (0.17–0.18 ms
+  against today's 0.32). Discrete is 0.25–0.29 ms, about 0.1 ms over, accepted for now pending the present-mode check.
+- **GPU-limited p99 worse than today is accepted.** It is not the same work: the new path sends the viewer 60 pictures
+  a second where today's sends 39, and 48 where today's sends 24, and today's 24–39 is stutter at the viewer.
+- **The viewer at 48 fps with G-Sync on in Discrete is accepted** as Windows' doing, not Rift's.
+
 **Not built yet, the rest:**
 
-- AMF and Quick Sync input.
-- The settings switch shown on Windows (`HostPlatform.capturesShareOnGpu`). On this branch the share already
-  obeys the existing setting, so a Windows build takes the new path by default.
+- First, the settings switch shown on Windows (`HostPlatform.capturesShareOnGpu`). On this branch the share already
+  obeys the existing setting, so a Windows build takes the new path by default and cannot be turned off.
+- AMF and Quick Sync input. Quick Sync is measured against NVENC on the game in Hybrid, and goes first only if it
+  costs the game less.
 - Live tests in `gpu_live_test.rs` for this path (they are Linux's so far), and `CALLS.md` and `TESTING.md`.
 
 ## How it is proven
@@ -245,9 +259,16 @@ AMF's reference if available.
 - Why step 0 (15–20% of the frame rate) and the route tests (4–7%) disagree about today's path. The session and
   the team and weapon at the spot differed. Unexplained.
 - What the 80 ms game frames in one new-path round were (*First milestone*). Not seen again in the 30 new-path
-  rounds of the gate.
+  rounds of the gate; frame times are logged during the app tests.
 - Whether the GPU-limited share reaches 60 fps in Discrete with G-Sync off, or with V-Sync on in the game.
+- Whether a share moves the game from flipping straight to the screen to being composed by the desktop, which in
+  Discrete the game's own GPU does: a guess at why Discrete costs more than Hybrid. If it is, it is not to be avoided
+  by hooking the game, which risks anti-cheat bans.
 - Why the share process cost three to six times as much during the Discrete blocks as in a short run after them.
+  Rechecked during the app tests; if it comes back, which threads and cores the time goes to.
+- **Known, and older than this work:** a 0.2–0.6 s freeze at the viewer once a minute on every path, from the keyframe
+  (`GOP_SECONDS`) and the rate gate holding pictures back behind it. It lives in the shared encoder and is a task of
+  its own, not this branch's.
 - Whether Quick Sync costs the game less.
 - Windows 10, older 11, AMD and older NVIDIA cards: none run. A GTX 1060 and a Windows 10 machine both crashed in
   NVENC or ffenc before, so the fallback matters there.
