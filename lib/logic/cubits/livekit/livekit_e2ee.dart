@@ -24,6 +24,9 @@ part of 'livekit_cubit.dart';
 /// decrypted, and participants arrive at any time, so this runs on connect for
 /// whoever is already in the room and again whenever somebody joins.
 mixin _E2EEMixin on Cubit<LiveKitState> {
+  /// Tells the Rust watch connection, which keeps a key ring of its own.
+  void _rustWatchKeyMoved();
+
   CryptoRepository get _crypto;
   VaultCubit get _vaultCubit;
   SessionRepository? get _session;
@@ -339,6 +342,7 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
     // when their tracks were published and keep using it until they are told
     // another.
     await room.e2eeManager?.setKeyIndex(_callKeyIndex);
+    _rustWatchKeyMoved();
     HelperMethods.printDebug(
       '[LiveKit] moved the call from key v$before to v$after',
     );

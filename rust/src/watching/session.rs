@@ -13,6 +13,7 @@ use livekit::prelude::*;
 use livekit::webrtc::prelude::VideoBuffer;
 use livekit::webrtc::video_stream::native::NativeVideoStream;
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex as StdMutex};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
@@ -39,6 +40,12 @@ struct Session {
 // Held for the whole of a start or a stop, as a share's session is, so a stop
 // during a start cannot leave a connection open that nobody can reach.
 static SESSION: Mutex<Option<Session>> = Mutex::const_new(None);
+
+/// Whether pictures are wanted at all: off while nobody can see Rift, so the
+/// server stops sending them and nothing is decoded (`CALLS.md`, *Watching
+/// while Rift cannot be seen*). Kept apart from the session, since a share
+/// subscribed while Rift is hidden has to start off.
+static PICTURES_ON: AtomicBool = AtomicBool::new(true);
 
 fn lock(shares: &Shares) -> std::sync::MutexGuard<'_, HashMap<String, Watched>> {
     shares.lock().unwrap_or_else(|e| e.into_inner())
@@ -179,6 +186,30 @@ pub(crate) async fn add_key(key: Vec<u8>, index: i32) -> Result<(), String> {
     Ok(())
 }
 
+/// Turns every watched picture on or off, without unwatching: the share
+/// stays subscribed, as a deafen leaves a voice subscribed. A picture only
+/// subscribed later takes the same setting as it arrives ([`follow_room`]).
+pub(crate) async fn set_pictures_on(on: bool) {
+    PICTURES_ON.store(on, Ordering::SeqCst);
+    let slot = SESSION.lock().await;
+    let Some(session) = slot.as_ref() else { return };
+    let watched: Vec<String> = lock(&session.shares).keys().cloned().collect();
+    for identity in watched {
+        if let Some(participant) = session
+            .room
+            .remote_participants()
+            .get(&ParticipantIdentity(identity))
+        {
+            for publication in participant.track_publications().into_values() {
+                if publication.kind() == TrackKind::Video {
+                    publication.set_enabled(on);
+                }
+            }
+        }
+    }
+    log::info!("watching: pictures {}", if on { "on" } else { "off" });
+}
+
 /// Feed [track]'s pictures to the texture watching [identity], replacing a
 /// feed already running. Nothing when it is no longer watched.
 fn show(shares: &Shares, identity: &str, track: RemoteVideoTrack) {
@@ -235,9 +266,16 @@ async fn follow_room(mut events: tokio::sync::mpsc::UnboundedReceiver<RoomEvent>
             }
             RoomEvent::TrackSubscribed {
                 track: RemoteTrack::Video(track),
+                publication,
                 participant,
-                ..
-            } => show(&shares, participant.identity().as_str(), track),
+            } => {
+                // `set_enabled` only reaches a subscribed track, so a picture
+                // subscribed while Rift is hidden is turned off here.
+                if !PICTURES_ON.load(Ordering::SeqCst) {
+                    publication.set_enabled(false);
+                }
+                show(&shares, participant.identity().as_str(), track)
+            }
             RoomEvent::TrackUnsubscribed {
                 track: RemoteTrack::Video(_),
                 participant,

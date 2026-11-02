@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart';
 
+import '../../../../../data/classes/watched_picture.dart';
 import '../../../../../data/constants.dart';
 import '../../../../common/speaking_ring.dart';
 import '../../../../theme/app_motion.dart';
@@ -12,6 +13,7 @@ import 'shape_reporting_video.dart';
 import 'share_paused_notice.dart';
 import 'stream_quality_badge.dart';
 import 'stream_stats_poller.dart';
+import 'stream_texture_view.dart';
 import 'stream_view.dart';
 import 'stream_view_buttons.dart';
 import 'stream_watchers.dart';
@@ -21,6 +23,10 @@ import 'watch_stream_button.dart';
 /// card, name badge always visible, and a speaking ring that lights up.
 class CollapsedParticipantTile extends StatelessWidget {
   final VideoTrack? videoTrack;
+
+  /// A share watched through the Rust watch connection, drawn instead of a
+  /// track ([StreamTextureView]).
+  final WatchedPicture? picture;
   final bool isSpeaking;
   final String name;
 
@@ -68,6 +74,7 @@ class CollapsedParticipantTile extends StatelessWidget {
   const CollapsedParticipantTile({
     super.key,
     required this.videoTrack,
+    this.picture,
     required this.isSpeaking,
     required this.name,
     required this.userId,
@@ -111,7 +118,12 @@ class CollapsedParticipantTile extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              if (videoTrack != null && onAspectRatio != null)
+              if (picture case final picture?)
+                StreamTextureView(
+                  picture: picture,
+                  onAspectRatio: onAspectRatio,
+                )
+              else if (videoTrack != null && onAspectRatio != null)
                 DecryptedVideo(
                   track: videoTrack!,
                   child: ShapeReportingVideo(

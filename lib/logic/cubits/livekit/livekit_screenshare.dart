@@ -6,6 +6,10 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
   /// Watching is published, so the sharer and the others watching hear it.
   Future<void> _publishSelfState();
 
+  Future<bool> _watchThroughRust(String identity);
+  Future<bool> _unwatchThroughRust(String identity);
+  void _letGoOfUnwatchedPictures();
+
   /// Subscribes to a participant's screenshare tracks.
   Future<void> subscribeToScreenshare(String identity) async {
     final room = state.room;
@@ -43,6 +47,12 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
 
     for (final pub in participant.videoTrackPublications) {
       if (pub.source == TrackSource.screenShareVideo) {
+        // Through the Rust watch connection where it can be, drawn on the
+        // GPU; through this room where it cannot ([_RustWatchMixin]).
+        if (await _watchThroughRust(identity)) {
+          subscribedAny = true;
+          continue;
+        }
         try {
           await pub.subscribe();
           await pub.setVideoQuality(VideoQuality.HIGH);
@@ -107,10 +117,15 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
       return;
     }
 
-    final participant = room.remoteParticipants[identity];
-    if (participant == null) return;
+    // Before the participant is looked up: a share that has just gone still
+    // has its texture to let go of.
+    var unsubscribedAny = await _unwatchThroughRust(identity);
 
-    var unsubscribedAny = false;
+    final participant = room.remoteParticipants[identity];
+    if (participant == null) {
+      if (unsubscribedAny) _recordUnwatched(identity);
+      return;
+    }
 
     for (final pub in participant.videoTrackPublications) {
       if (pub.source == TrackSource.screenShareVideo) {
@@ -139,13 +154,15 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
       unsubscribedAny = true;
     }
 
-    if (unsubscribedAny) {
-      final updated = Set<String>.from(state.subscribedScreenshares)
-        ..remove(identity);
-      emit(state.copyWith(subscribedScreenshares: updated));
-      _syncParticipants();
-      unawaited(_publishSelfState());
-    }
+    if (unsubscribedAny) _recordUnwatched(identity);
+  }
+
+  void _recordUnwatched(String identity) {
+    final updated = Set<String>.from(state.subscribedScreenshares)
+      ..remove(identity);
+    emit(state.copyWith(subscribedScreenshares: updated));
+    _syncParticipants();
+    unawaited(_publishSelfState());
   }
 
   /// Stops watching every stream — the call bar's Stop watching, which takes
@@ -160,6 +177,7 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
     // from, and would keep the button on Stop watching for nothing.
     if (state.subscribedScreenshares.isNotEmpty) {
       emit(state.copyWith(subscribedScreenshares: const {}));
+      _letGoOfUnwatchedPictures();
       _syncParticipants();
       unawaited(_publishSelfState());
     }

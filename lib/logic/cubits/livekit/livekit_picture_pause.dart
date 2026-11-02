@@ -25,6 +25,8 @@ mixin _PicturePauseMixin on Cubit<LiveKitState> {
           : '[LiveKit] Rift cannot be seen; stream pictures off',
     );
     _syncPictureReception();
+    // The watch connection's pictures, the same way.
+    if (RustWatch.available) unawaited(RustWatch.setPicturesOn(seen));
   }
 
   /// Brings every stream's picture in line with [_appSeen]. It runs with

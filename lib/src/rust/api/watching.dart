@@ -55,6 +55,13 @@ Future<void> setWatchKey({
   e2EeKeyIndex: e2EeKeyIndex,
 );
 
+/// Turn every watched picture off while nobody can see Rift, and on again,
+/// without unwatching: the share stays watched and its sound plays on.
+Future<void> setWatchPicturesOn({required bool picturesOn}) => RustLib
+    .instance
+    .api
+    .crateApiWatchingSetWatchPicturesOn(picturesOn: picturesOn);
+
 /// What the watch connection tells the app. One struct and a kind rather
 /// than an enum with fields, which the bindings would need `freezed` for.
 class WatchEvent {

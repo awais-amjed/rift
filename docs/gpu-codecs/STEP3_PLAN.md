@@ -222,6 +222,10 @@ A watch connection needs its own token, and so a change in `rift-self-host`:
    again brings it back; a share sealed under a key the call rotated to is read once
    that key is added, and one under the old key still is. The local stack's webhook
    removed a test watcher that had no voice connection, as it should.
+   The runner's texture and Dart's switch are built and driven in the app (Nov 2,
+   two Linux clients): `stream_texture.cc` and `_RustWatchMixin`, described in
+   `CALLS.md`, *Watching a share through Rust*. The sound still comes through the
+   call, and the cost is not yet measured against the call's path.
 3. **Phase B on Linux:** VAAPI on the Iris Xe, then NVDEC with the laptop on discrete.
    AMD by the AMD desktop's Claude.
 4. **Windows** (phases A and B) by the Windows Claude, on the same Rust and Dart code

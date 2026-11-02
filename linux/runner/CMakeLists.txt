@@ -11,6 +11,7 @@ add_executable(${BINARY_NAME}
   "my_application.cc"
   "seen_watch.cc"
   "single_instance.cc"
+  "stream_texture.cc"
   "${FLUTTER_MANAGED_DIR}/generated_plugin_registrant.cc"
 )
 
@@ -28,6 +29,11 @@ target_link_libraries(${BINARY_NAME} PRIVATE PkgConfig::GTK)
 # The window's own frame requests on Wayland (seen_watch.cc).
 pkg_check_modules(WAYLAND_CLIENT REQUIRED IMPORTED_TARGET wayland-client)
 target_link_libraries(${BINARY_NAME} PRIVATE PkgConfig::WAYLAND_CLIENT)
+
+# A watched share's shader, in Flutter's own GL context (stream_texture.cc).
+# GTK already brings libepoxy in.
+pkg_check_modules(EPOXY REQUIRED IMPORTED_TARGET epoxy)
+target_link_libraries(${BINARY_NAME} PRIVATE PkgConfig::EPOXY)
 
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 

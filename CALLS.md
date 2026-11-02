@@ -591,6 +591,50 @@ constrained baseline among its H264 decoders. Windows did the same on NVENC
 and Quick Sync, sharing and watching, and a Windows Rift without the change
 played a High share. AMD's AMF is not yet driven.
 
+## Watching a share through Rust — [Built November 2026, Linux, `gpu-codecs` branch]
+
+On a desktop, flutter_webrtc turned every decoded picture of a watched share
+into RGBA on the CPU and uploaded that, which is most of what watching cost a
+player (*Watching while Rift cannot be seen*, above). So on Linux a watched
+share is received instead on a second, receive-only connection in Rust (the
+*watch connection*, `rust/src/watching`), and the runner draws its pictures on
+the GPU (`linux/runner/stream_texture.cc`): the three I420 planes of the
+decoder's own buffer, lent to the runner when Flutter asks for a frame, are
+uploaded as one-byte textures and turned into colour by a shader. The design
+and its next step, decoding on the GPU too, are in
+`docs/gpu-codecs/STEP3_PLAN.md`.
+
+- **One connection per call,** `<user>~<device>_watch`, opened with the first
+  share watched this way and closed with the last. The server mints it only
+  while the device's voice connection is in the room (`get_channel_token`,
+  `watch`). It subscribes to the watched shares' pictures and nothing else.
+- **Which way a share goes** is `LiveKitCubit`'s (`_RustWatchMixin`). A share
+  goes through Rust when it can; otherwise it is received in the call's room,
+  as before: on a build without stream textures (every platform but Linux,
+  for now), with `RIFT_WATCH_PATH=call`, on a server whose answer to `watch`
+  names the voice identity (one from before it, where joining with that would
+  push this device's own voice connection out of the call), and for the rest
+  of the call after anything on the Rust path fails, the shares it held going
+  back to the room. The room's own track for a share Rust holds stays
+  unsubscribed.
+- **The key:** the watch connection keeps the call's key in a ring of its
+  own, and is told each version the call moves to.
+- **Unseen:** its pictures are turned off and on with the call's
+  (`setWatchPicturesOn`).
+- **Still through the call:** the share's sound, and the receive stats under
+  the picture, which a share watched through Rust does not show yet.
+
+Verified Nov 2 against the local stack, in Rust alone (`cargo test
+live_watch_`): a watched synthetic share arrives at its size and shade,
+unwatching stops it, and a share sealed under a rotated key is read once the
+key is added. Then in the app (Linux debug build, two clients on the local
+stack, Nov 2): the watcher's log shows the share watched through Rust and the
+picture arriving at each size the sharer's window took, up to 1920×1048; the
+owner saw it move with the right colours in the tile and full size. Minimised
+and restored twice, the pictures went off and on; Stop watching closed the watch
+connection, watching again opened a new one, and leaving closed it. No fallback
+to the call. Not yet measured against the call's path.
+
 ## How a call is played out on the desktop — [Implemented October 2026]
 
 On the desktop, everything a call plays — voices, a share's sound, a bot —

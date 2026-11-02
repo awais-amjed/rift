@@ -146,3 +146,17 @@ pub async fn set_watch_key(e2ee_key: Vec<u8>, e2ee_key_index: i32) -> Result<(),
         Ok(())
     }
 }
+
+/// Turn every watched picture off while nobody can see Rift, and on again,
+/// without unwatching: the share stays watched and its sound plays on.
+pub async fn set_watch_pictures_on(pictures_on: bool) -> Result<(), String> {
+    #[cfg(desktop)]
+    {
+        session::set_pictures_on(pictures_on).await;
+    }
+    #[cfg(not(desktop))]
+    {
+        let _ = pictures_on;
+    }
+    Ok(())
+}

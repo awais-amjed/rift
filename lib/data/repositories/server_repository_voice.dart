@@ -20,7 +20,10 @@ mixin _VoiceApiMixin {
   /// [screenShare] and [soundShare] each ask for the identity of that kind of
   /// share instead of the caller's own — a share is a second connection, and
   /// the two kinds have suffixes of their own so one member can run both at
-  /// once without their connections kicking each other.
+  /// once without their connections kicking each other. [watch] asks for the
+  /// watch connection's (`_watch`), which only receives, and only while this
+  /// device's voice connection is in the call; a server from before it
+  /// ignores the flag and answers the voice identity, which the caller checks.
   /// [preferredNodeId] is which LiveKit this device measured as nearest, and
   /// it is a suggestion rather than an instruction — the server checks it is
   /// one of its own nodes and ignores it entirely once the channel is pinned
@@ -30,6 +33,7 @@ mixin _VoiceApiMixin {
     String channelId, {
     bool screenShare = false,
     bool soundShare = false,
+    bool watch = false,
     String? preferredNodeId,
     String? bearerToken,
   }) {
@@ -37,6 +41,7 @@ mixin _VoiceApiMixin {
       'channel_id': channelId,
       'screen_share': screenShare,
       'sound_share': soundShare,
+      'watch': watch,
       'device_id': DeviceId.current,
       'preferred_node_id': preferredNodeId,
     }, bearerToken: bearerToken);

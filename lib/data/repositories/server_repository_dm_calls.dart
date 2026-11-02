@@ -94,12 +94,14 @@ mixin _DmCallsApiMixin {
     String callId, {
     bool screenShare = false,
     bool soundShare = false,
+    bool watch = false,
     String? preferredNodeId,
     String? bearerToken,
   }) => _post(supabaseUrl, 'get_dm_call_token', {
     'call_id': callId,
     'screen_share': screenShare,
     'sound_share': soundShare,
+    'watch': watch,
     'device_id': DeviceId.current,
     'preferred_node_id': preferredNodeId,
   }, bearerToken: bearerToken);

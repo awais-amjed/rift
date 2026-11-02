@@ -34,6 +34,7 @@ class VoiceApi {
     String channelId, {
     bool screenShare = false,
     bool soundShare = false,
+    bool watch = false,
   }) async {
     final server = _target.server;
     if (server == null) return APIResponse.error(ServerSession.gone);
@@ -46,6 +47,7 @@ class VoiceApi {
         channelId,
         screenShare: screenShare,
         soundShare: soundShare,
+        watch: watch,
         preferredNodeId: preferred,
         bearerToken: token,
       ),
@@ -75,6 +77,7 @@ class VoiceApi {
     String callId, {
     bool screenShare = false,
     bool soundShare = false,
+    bool watch = false,
   }) async {
     final server = _target.server;
     if (server == null) return APIResponse.error(ServerSession.gone);
@@ -87,6 +90,7 @@ class VoiceApi {
         callId,
         screenShare: screenShare,
         soundShare: soundShare,
+        watch: watch,
         preferredNodeId: preferred,
         bearerToken: token,
       ),
