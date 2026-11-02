@@ -9,6 +9,7 @@ pub mod screenshare;
 pub mod soundshare;
 pub mod toast;
 pub mod updater;
+pub mod watching;
 
 /// Runs once when Dart initialises the library, before any other call.
 #[flutter_rust_bridge::frb(init)]

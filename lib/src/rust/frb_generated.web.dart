@@ -23,6 +23,7 @@ import 'api/screenshare/types.dart';
 import 'api/soundshare.dart';
 import 'api/toast.dart';
 import 'api/updater.dart';
+import 'api/watching.dart';
 import 'frb_generated.dart';
 
 abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
@@ -86,6 +87,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   dco_decode_StreamSink_update_download_progress_Sse(dynamic raw);
 
   @protected
+  RustStreamSink<WatchEvent> dco_decode_StreamSink_watch_event_Sse(dynamic raw);
+
+  @protected
   String dco_decode_String(dynamic raw);
 
   @protected
@@ -120,6 +124,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int dco_decode_box_autoadd_u_32(dynamic raw);
+
+  @protected
+  WatchRoom dco_decode_box_autoadd_watch_room(dynamic raw);
 
   @protected
   CaptureSource dco_decode_capture_source(dynamic raw);
@@ -209,6 +216,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int dco_decode_u_32(dynamic raw);
 
   @protected
+  BigInt dco_decode_u_64(dynamic raw);
+
+  @protected
   int dco_decode_u_8(dynamic raw);
 
   @protected
@@ -222,6 +232,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   VideoCodec dco_decode_video_codec(dynamic raw);
+
+  @protected
+  WatchEvent dco_decode_watch_event(dynamic raw);
+
+  @protected
+  WatchEventKind dco_decode_watch_event_kind(dynamic raw);
+
+  @protected
+  WatchFrameEntry dco_decode_watch_frame_entry(dynamic raw);
+
+  @protected
+  WatchRoom dco_decode_watch_room(dynamic raw);
 
   @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
@@ -276,6 +298,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RustStreamSink<WatchEvent> sse_decode_StreamSink_watch_event_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   String sse_decode_String(SseDeserializer deserializer);
 
   @protected
@@ -320,6 +347,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
+
+  @protected
+  WatchRoom sse_decode_box_autoadd_watch_room(SseDeserializer deserializer);
 
   @protected
   CaptureSource sse_decode_capture_source(SseDeserializer deserializer);
@@ -419,6 +449,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int sse_decode_u_32(SseDeserializer deserializer);
 
   @protected
+  BigInt sse_decode_u_64(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_u_8(SseDeserializer deserializer);
 
   @protected
@@ -434,6 +467,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   VideoCodec sse_decode_video_codec(SseDeserializer deserializer);
+
+  @protected
+  WatchEvent sse_decode_watch_event(SseDeserializer deserializer);
+
+  @protected
+  WatchEventKind sse_decode_watch_event_kind(SseDeserializer deserializer);
+
+  @protected
+  WatchFrameEntry sse_decode_watch_frame_entry(SseDeserializer deserializer);
+
+  @protected
+  WatchRoom sse_decode_watch_room(SseDeserializer deserializer);
 
   @protected
   void sse_encode_AnyhowException(
@@ -499,6 +544,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_StreamSink_watch_event_Sse(
+    RustStreamSink<WatchEvent> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_String(String self, SseSerializer serializer);
 
   @protected
@@ -554,6 +605,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_watch_room(
+    WatchRoom self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_capture_source(CaptureSource self, SseSerializer serializer);
@@ -688,6 +745,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_u_32(int self, SseSerializer serializer);
 
   @protected
+  void sse_encode_u_64(BigInt self, SseSerializer serializer);
+
+  @protected
   void sse_encode_u_8(int self, SseSerializer serializer);
 
   @protected
@@ -704,6 +764,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_video_codec(VideoCodec self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_watch_event(WatchEvent self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_watch_event_kind(
+    WatchEventKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_watch_frame_entry(
+    WatchFrameEntry self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_watch_room(WatchRoom self, SseSerializer serializer);
 }
 
 // Section: wire_class

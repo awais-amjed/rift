@@ -15,6 +15,24 @@ pub(crate) async fn connect(
     e2ee_key: &[u8],
     e2ee_key_index: i32,
 ) -> Result<Room, String> {
+    let mut room_options = encrypted_options(e2ee_key, e2ee_key_index);
+    // While nobody watches the share, the server tells it to stop sending
+    // the picture, and libwebrtc stops encoding it.
+    room_options.dynacast = true;
+
+    let (room, events) = Room::connect(livekit_url, livekit_token, room_options)
+        .await
+        .map_err(|e| format!("Failed to connect to LiveKit: {e:?}"))?;
+    keep_key_index_pinned(room.e2ee_manager().clone(), events, e2ee_key_index);
+    Ok(room)
+}
+
+/// Room options that encrypt and decrypt with the call's key, in its slot.
+///
+/// A watch connection (`crate::watching`) receives with these too: in shared
+/// mode a frame names the slot it was sealed under, and every member's share
+/// is sealed with the channel key, so one ring reads them all.
+pub(crate) fn encrypted_options(e2ee_key: &[u8], e2ee_key_index: i32) -> RoomOptions {
     let key_provider =
         KeyProvider::with_shared_key(KeyProviderOptions::default(), e2ee_key.to_vec());
     key_provider.set_shared_key(e2ee_key.to_vec(), e2ee_key_index);
@@ -22,19 +40,11 @@ pub(crate) async fn connect(
     // `RoomOptions` is non-exhaustive upstream, so it is built and then set
     // rather than written as a literal.
     let mut room_options = RoomOptions::default();
-    // While nobody watches the share, the server tells it to stop sending
-    // the picture, and libwebrtc stops encoding it.
-    room_options.dynacast = true;
     room_options.encryption = Some(E2eeOptions {
         encryption_type: EncryptionType::Gcm,
         key_provider,
     });
-
-    let (room, events) = Room::connect(livekit_url, livekit_token, room_options)
-        .await
-        .map_err(|e| format!("Failed to connect to LiveKit: {e:?}"))?;
-    keep_key_index_pinned(room.e2ee_manager().clone(), events, e2ee_key_index);
-    Ok(room)
+    room_options
 }
 
 /// Point every cryptor at the slot the room is actually reading, every time

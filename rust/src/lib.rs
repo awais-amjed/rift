@@ -24,3 +24,5 @@ mod sharing;
 mod toast;
 #[cfg(any(target_os = "windows", target_os = "linux"))]
 mod updater;
+#[cfg(desktop)]
+mod watching;

@@ -208,12 +208,20 @@ A watch connection needs its own token, and so a change in `rift-self-host`:
 2. **Phase A on Linux:** the server token, the watch connection, the `FlTextureGL` and
    shader, the sound, and Dart's switch between the two paths. Measured against today.
    The server token is done (`rift-self-host`, Nov 2): verified on the local stack with
-   two members — refused unless the device's voice connection is in the room, hidden
-   from members, receives a stream, cannot publish a track or data, keeps its shape
-   under mute and deafen, and is removed once its voice connection leaves, by a roster
-   read or another watch mint. The same change stopped moderation letting a muted
-   sharer's share connection subscribe. The DM call's watch token is type-checked, not
-   yet run.
+   two members — refused unless the device's voice connection is in the room, seen by
+   the others, receives a stream, cannot publish a track or data, keeps its shape
+   under mute and deafen, and is removed once its voice connection leaves, by LiveKit's
+   webhook, a roster read or another watch mint. The same change stopped moderation
+   letting a muted sharer's share connection subscribe. The DM call's watch token is
+   type-checked, not yet run.
+   The watch connection is done (`rust/src/watching`, Nov 2): it subscribes only to
+   the shares it is told to watch, and hands each picture to the runner by lending the
+   decoder's own I420 buffer (`rift_watch_frame_lock` / `_unlock`), newest only, never
+   queued. Verified by `cargo test live_watch_` against the local stack: a watched
+   synthetic share arrives at its size and shade; unwatching stops it and watching
+   again brings it back; a share sealed under a key the call rotated to is read once
+   that key is added, and one under the old key still is. The local stack's webhook
+   removed a test watcher that had no voice connection, as it should.
 3. **Phase B on Linux:** VAAPI on the Iris Xe, then NVDEC with the laptop on discrete.
    AMD by the AMD desktop's Claude.
 4. **Windows** (phases A and B) by the Windows Claude, on the same Rust and Dart code

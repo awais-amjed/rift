@@ -33,6 +33,10 @@ sha2 = "0.11"
 # the mobile build never sees it.
 [target.'cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))'.dependencies]
 livekit = { version = "0.9.5", features = ["rustls-tls-native-roots"] }
+# Reading a stream: the portal session's Closed signal (src/screenshare/
+# portal.rs) and a watched share's pictures (src/watching). livekit and ashpd
+# build on it already, so nothing new ships.
+futures-util = "0.3"
 
 # flutter_rust_bridge installs a logger on Android, iOS and macOS; these two
 # get env_logger from src/logging.rs.
@@ -82,9 +86,6 @@ libpulse-binding = "2.30.1"
 # (src/screenshare/portal.rs): D-Bus through zbus, pure Rust, no system
 # library.
 ashpd = { version = "0.13", default-features = false, features = ["tokio", "screencast"] }
-# To wait on the portal session's Closed signal, a stream; ashpd builds on it
-# already, so nothing new ships.
-futures-util = "0.3"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 wasapi = "0.26.0"
