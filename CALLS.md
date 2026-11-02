@@ -668,9 +668,14 @@ GPU can, it decodes the picture too, and nothing of it comes to the CPU
   call's connection. Elsewhere (X11, Windows, `RIFT_WATCH_DECODE=cpu`)
   libwebrtc decodes, as above. Rift's FFmpeg library carries the three
   decoders for it, through VAAPI and NVDEC, from 1.2 to 4.2 MB on Linux.
-- **Still through the call:** the receive stats under the picture, which a
-  share watched through Rust does not show yet (the stats read the call's
-  connection; turned on, they show nothing for such a share).
+- **Receive stats from the watch connection.** A share Rust holds has no
+  track in the call, so the badge and the stats card ask Rust
+  (`watch_share_stats`) for libwebrtc's own counters for its picture, and
+  the call's sampler turns them into rates as it does the call's. Decoded on
+  the GPU they still count: the pass-through decoder hands libwebrtc a
+  picture of the right size for each frame. Verified Nov 3 in Rust
+  (`live_watch_`, `live_gpu_watch`): the size and codec sent and 30 pictures a
+  second for 30 sent, through CUDA for VP8, VP9 and H264.
 
 Verified Nov 2 against the local stack, in Rust alone (`cargo test
 live_watch_`): a watched synthetic share arrives at its size and shade,

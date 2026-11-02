@@ -12,7 +12,7 @@
 use super::decode;
 use super::frames::{self, MarkFn};
 use super::sound::{self, Gain, Playing};
-use crate::api::watching::{emit_watch_event, WatchEvent, WatchEventKind, WatchRoom};
+use crate::api::watching::{emit_watch_event, WatchEvent, WatchEventKind, WatchRoom, WatchStats};
 use crate::sharing::room;
 use futures_util::StreamExt;
 use livekit::prelude::*;
@@ -211,6 +211,33 @@ pub(crate) async fn unwatch(identity: &str) {
         }
     }
     log::info!("watching: no longer a share");
+}
+
+/// [identity]'s picture's receive numbers (`super::stats`), or None while it
+/// is not arriving. The track is read out under the lock and asked after it,
+/// so a poll never holds up a watch or an unwatch.
+pub(crate) async fn stats(identity: &str) -> Option<WatchStats> {
+    let track = {
+        let slot = SESSION.lock().await;
+        let session = slot.as_ref()?;
+        if !lock(&session.shares).contains_key(identity) {
+            return None;
+        }
+        let participant = session
+            .room
+            .remote_participants()
+            .get(&ParticipantIdentity(identity.to_string()))
+            .cloned()?;
+        participant
+            .track_publications()
+            .into_values()
+            .find_map(|publication| match publication.track() {
+                Some(RemoteTrack::Video(track)) => Some(track),
+                _ => None,
+            })?
+    };
+    let reports = track.get_stats().await.ok()?;
+    super::stats::received(&reports)
 }
 
 /// Sets how loud [identity]'s sound plays: the share's own volume times the

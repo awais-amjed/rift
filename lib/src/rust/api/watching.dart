@@ -53,6 +53,13 @@ Future<void> unwatchShare({required String shareIdentity}) => RustLib
     .api
     .crateApiWatchingUnwatchShare(shareIdentity: shareIdentity);
 
+/// [share_identity]'s receive numbers, or None while its picture is not
+/// arriving (not watched, not yet subscribed).
+Future<WatchStats?> watchShareStats({required String shareIdentity}) => RustLib
+    .instance
+    .api
+    .crateApiWatchingWatchShareStats(shareIdentity: shareIdentity);
+
 /// Add a key version the call moved to: a share started before the rotation
 /// stays sealed under the old one, a share started after it under the new.
 Future<void> setWatchKey({
@@ -195,4 +202,71 @@ class WatchRoom {
           livekitToken == other.livekitToken &&
           e2EeKey == other.e2EeKey &&
           e2EeKeyIndex == other.e2EeKeyIndex;
+}
+
+/// A watched share's receive numbers, as libwebrtc counts them for its
+/// picture: cumulative, so the app turns two polls into rates, as it does with
+/// the call's own stats.
+class WatchStats {
+  /// When libwebrtc took them, in microseconds, as flutter_webrtc's are.
+  final PlatformInt64 timestampUs;
+  final int width;
+  final int height;
+  final int framesDecoded;
+  final int framesDropped;
+  final double framesPerSecond;
+  final BigInt bytesReceived;
+  final PlatformInt64 packetsLost;
+  final double jitterMs;
+
+  /// "VP9", "H264"; empty when libwebrtc did not say.
+  final String codec;
+
+  /// The connection's round trip; None before a candidate pair connects.
+  final double? rttMs;
+
+  const WatchStats({
+    required this.timestampUs,
+    required this.width,
+    required this.height,
+    required this.framesDecoded,
+    required this.framesDropped,
+    required this.framesPerSecond,
+    required this.bytesReceived,
+    required this.packetsLost,
+    required this.jitterMs,
+    required this.codec,
+    this.rttMs,
+  });
+
+  @override
+  int get hashCode =>
+      timestampUs.hashCode ^
+      width.hashCode ^
+      height.hashCode ^
+      framesDecoded.hashCode ^
+      framesDropped.hashCode ^
+      framesPerSecond.hashCode ^
+      bytesReceived.hashCode ^
+      packetsLost.hashCode ^
+      jitterMs.hashCode ^
+      codec.hashCode ^
+      rttMs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is WatchStats &&
+          runtimeType == other.runtimeType &&
+          timestampUs == other.timestampUs &&
+          width == other.width &&
+          height == other.height &&
+          framesDecoded == other.framesDecoded &&
+          framesDropped == other.framesDropped &&
+          framesPerSecond == other.framesPerSecond &&
+          bytesReceived == other.bytesReceived &&
+          packetsLost == other.packetsLost &&
+          jitterMs == other.jitterMs &&
+          codec == other.codec &&
+          rttMs == other.rttMs;
 }

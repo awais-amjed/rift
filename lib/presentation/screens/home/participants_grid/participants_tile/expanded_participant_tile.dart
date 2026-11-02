@@ -177,6 +177,7 @@ class ExpandedParticipantTile extends StatelessWidget {
           final lift = constraints.maxWidth < _crowdedWidth ? bottomInset : 0.0;
           return StreamStatsPoller(
             track: isWatching ? videoTrack : null,
+            rustShare: isWatching && picture != null ? shareIdentity : null,
             builder: (context, stats) => _stage(
               context,
               stats,

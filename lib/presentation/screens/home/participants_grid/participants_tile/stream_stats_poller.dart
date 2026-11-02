@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart';
 
+import '../../../../../logic/services/rust_watch.dart';
 import '../../../../../logic/services/video_stats_sampler.dart';
 import '../../../../../logic/services/video_stream_stats.dart';
 
@@ -10,15 +11,19 @@ import '../../../../../logic/services/video_stream_stats.dart';
 /// [builder]. One poller feeds both the quality badge and the stats card, so
 /// showing both does not ask WebRTC twice.
 ///
-/// With no [track] — a camera, your own share, a share not yet watched —
-/// nothing is polled and [builder] gets null.
+/// The numbers come from [track]'s receiver, or for a share the Rust watch
+/// connection holds, which has no track in the call, from Rust by its
+/// [rustShare] identity. With neither — a camera, your own share, a share not
+/// yet watched — nothing is polled and [builder] gets null.
 class StreamStatsPoller extends StatefulWidget {
   final VideoTrack? track;
+  final String? rustShare;
   final Widget Function(BuildContext context, VideoStreamStats? stats) builder;
 
   const StreamStatsPoller({
     super.key,
     required this.track,
+    this.rustShare,
     required this.builder,
   });
 
@@ -44,7 +49,10 @@ class _StreamStatsPollerState extends State<StreamStatsPoller> {
     super.didUpdateWidget(oldWidget);
     // A sampler's rates are differences against its last poll, so a new
     // track starts from a new one.
-    if (oldWidget.track != widget.track) _restart();
+    if (oldWidget.track != widget.track ||
+        oldWidget.rustShare != widget.rustShare) {
+      _restart();
+    }
   }
 
   @override
@@ -58,24 +66,34 @@ class _StreamStatsPollerState extends State<StreamStatsPoller> {
     _timer = null;
     _sampler = VideoStatsSampler();
     _stats = null;
-    if (widget.track == null) return;
+    if (widget.track == null && widget.rustShare == null) return;
     _timer = Timer.periodic(_pollInterval, (_) => _poll());
     _poll();
   }
 
   Future<void> _poll() async {
     final track = widget.track;
+    final rustShare = widget.rustShare;
+    if (rustShare != null) {
+      final inbound = await RustWatch.stats(rustShare);
+      if (!mounted || widget.rustShare != rustShare) return;
+      _show(inbound == null ? null : _sampler.sampleInbound(inbound));
+      return;
+    }
     final receiver = track?.receiver;
     if (receiver == null) return;
     try {
       final reports = await receiver.getStats();
       if (!mounted || widget.track != track) return;
-      final stats = _sampler.sample(reports);
-      if (stats != null) setState(() => _stats = stats);
+      _show(_sampler.sample(reports));
     } catch (_) {
       // The track may not be subscribed yet, or stats may be unavailable.
       // The next poll will pick them up.
     }
+  }
+
+  void _show(VideoStreamStats? stats) {
+    if (stats != null) setState(() => _stats = stats);
   }
 
   @override

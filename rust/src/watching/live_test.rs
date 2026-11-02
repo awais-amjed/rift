@@ -305,6 +305,38 @@ fn drawn(texture: u64) -> Option<(u32, u32, u8)> {
     Some((planes.width, planes.height, shade))
 }
 
+/// The share's receive numbers, polled a second apart as the app's stats
+/// card polls them: its size and codec, and as many pictures a second as it
+/// sends once the two are worked into a rate by their timestamps, which
+/// proves those are microseconds.
+async fn assert_stats(identity: &str, codec: &str) {
+    let a = session::stats(identity)
+        .await
+        .expect("stats for a watched share");
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    let b = session::stats(identity)
+        .await
+        .expect("stats a second later");
+    let seconds = (b.timestamp_us - a.timestamp_us) as f64 / 1e6;
+    let fps = f64::from(b.frames_decoded - a.frames_decoded) / seconds;
+    let kbps = (b.bytes_received - a.bytes_received) as f64 * 8.0 / seconds / 1000.0;
+    log::info!(
+        "watch test stats: {}x{} {} {fps:.1} fps {kbps:.0} kbps rtt {:?}",
+        b.width,
+        b.height,
+        b.codec,
+        b.rtt_ms
+    );
+    assert_eq!((b.width, b.height), (WIDTH, HEIGHT), "the size sent");
+    assert!(b.codec.eq_ignore_ascii_case(codec), "{codec}: {}", b.codec);
+    let sent = f64::from(FPS);
+    assert!(
+        (sent * 0.7..=sent * 1.3).contains(&fps),
+        "{fps:.1} pictures a second, {FPS} sent"
+    );
+    assert!(kbps > 0.0, "bytes arriving");
+}
+
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "needs a LiveKit server; see the module doc"]
 async fn live_watch_draws_a_watched_share_and_stops_when_unwatched() {
@@ -339,6 +371,7 @@ async fn live_watch_draws_a_watched_share_and_stops_when_unwatched() {
         shade.abs_diff(SHADE) <= 4,
         "the shade sent, not noise: {shade}"
     );
+    assert_stats(share_identity, "VP8").await;
 
     // Unwatched: no more marks.
     session::unwatch(share_identity).await;
@@ -601,6 +634,7 @@ async fn live_gpu_watch_decodes_each_codec_on_the_gpu() {
             "{codec:?} at the size sent"
         );
         assert!(open, "{codec:?}: a GPU picture, there to draw while lent");
+        assert_stats(share_identity, codec.as_str()).await;
 
         session::unwatch(share_identity).await;
         let after = marks(texture);

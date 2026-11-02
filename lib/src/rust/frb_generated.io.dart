@@ -106,6 +106,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AvailableUpdate dco_decode_box_autoadd_available_update(dynamic raw);
 
   @protected
+  double dco_decode_box_autoadd_f_64(dynamic raw);
+
+  @protected
   MicTestPlayback dco_decode_box_autoadd_mic_test_playback(dynamic raw);
 
   @protected
@@ -127,6 +130,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   WatchRoom dco_decode_box_autoadd_watch_room(dynamic raw);
 
   @protected
+  WatchStats dco_decode_box_autoadd_watch_stats(dynamic raw);
+
+  @protected
   CaptureSource dco_decode_capture_source(dynamic raw);
 
   @protected
@@ -139,10 +145,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double dco_decode_f_32(dynamic raw);
 
   @protected
+  double dco_decode_f_64(dynamic raw);
+
+  @protected
   int dco_decode_i_16(dynamic raw);
 
   @protected
   int dco_decode_i_32(dynamic raw);
+
+  @protected
+  PlatformInt64 dco_decode_i_64(dynamic raw);
 
   @protected
   List<AudioEndpoint> dco_decode_list_audio_endpoint(dynamic raw);
@@ -181,10 +193,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AvailableUpdate? dco_decode_opt_box_autoadd_available_update(dynamic raw);
 
   @protected
+  double? dco_decode_opt_box_autoadd_f_64(dynamic raw);
+
+  @protected
   MicTestPlayback? dco_decode_opt_box_autoadd_mic_test_playback(dynamic raw);
 
   @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
+
+  @protected
+  WatchStats? dco_decode_opt_box_autoadd_watch_stats(dynamic raw);
 
   @protected
   Uint8List? dco_decode_opt_list_prim_u_8_strict(dynamic raw);
@@ -242,6 +260,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   WatchRoom dco_decode_watch_room(dynamic raw);
+
+  @protected
+  WatchStats dco_decode_watch_stats(dynamic raw);
 
   @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
@@ -321,6 +342,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  double sse_decode_box_autoadd_f_64(SseDeserializer deserializer);
+
+  @protected
   MicTestPlayback sse_decode_box_autoadd_mic_test_playback(
     SseDeserializer deserializer,
   );
@@ -350,6 +374,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   WatchRoom sse_decode_box_autoadd_watch_room(SseDeserializer deserializer);
 
   @protected
+  WatchStats sse_decode_box_autoadd_watch_stats(SseDeserializer deserializer);
+
+  @protected
   CaptureSource sse_decode_capture_source(SseDeserializer deserializer);
 
   @protected
@@ -362,10 +389,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double sse_decode_f_32(SseDeserializer deserializer);
 
   @protected
+  double sse_decode_f_64(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_i_16(SseDeserializer deserializer);
 
   @protected
   int sse_decode_i_32(SseDeserializer deserializer);
+
+  @protected
+  PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
 
   @protected
   List<AudioEndpoint> sse_decode_list_audio_endpoint(
@@ -410,12 +443,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  double? sse_decode_opt_box_autoadd_f_64(SseDeserializer deserializer);
+
+  @protected
   MicTestPlayback? sse_decode_opt_box_autoadd_mic_test_playback(
     SseDeserializer deserializer,
   );
 
   @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
+
+  @protected
+  WatchStats? sse_decode_opt_box_autoadd_watch_stats(
+    SseDeserializer deserializer,
+  );
 
   @protected
   Uint8List? sse_decode_opt_list_prim_u_8_strict(SseDeserializer deserializer);
@@ -477,6 +518,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   WatchRoom sse_decode_watch_room(SseDeserializer deserializer);
+
+  @protected
+  WatchStats sse_decode_watch_stats(SseDeserializer deserializer);
 
   @protected
   void sse_encode_AnyhowException(
@@ -572,6 +616,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_f_64(double self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_mic_test_playback(
     MicTestPlayback self,
     SseSerializer serializer,
@@ -611,6 +658,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_watch_stats(
+    WatchStats self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_capture_source(CaptureSource self, SseSerializer serializer);
 
   @protected
@@ -623,10 +676,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_f_32(double self, SseSerializer serializer);
 
   @protected
+  void sse_encode_f_64(double self, SseSerializer serializer);
+
+  @protected
   void sse_encode_i_16(int self, SseSerializer serializer);
 
   @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_audio_endpoint(
@@ -692,6 +751,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_f_64(double? self, SseSerializer serializer);
+
+  @protected
   void sse_encode_opt_box_autoadd_mic_test_playback(
     MicTestPlayback? self,
     SseSerializer serializer,
@@ -699,6 +761,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_watch_stats(
+    WatchStats? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_list_prim_u_8_strict(
@@ -780,6 +848,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_watch_room(WatchRoom self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_watch_stats(WatchStats self, SseSerializer serializer);
 }
 
 // Section: wire_class

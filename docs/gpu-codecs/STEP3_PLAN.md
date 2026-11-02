@@ -247,8 +247,9 @@ A watch connection needs its own token, and so a change in `rift-self-host`:
    fails to draw is handed back undrawn, and the call goes back to its own
    connection. Verified in Rust (VP8, VP9, H264 through CUDA) and in the app (H264
    and VP9, resize, minimise, rejoin, the first watch after joining). Not yet: AMD,
-   the cost measured, and receive stats for a share Rust holds (the owner turned the
-   stats on and saw none).
+   the cost measured. Receive stats for a share Rust holds (the owner turned the
+   stats on and saw none) come from the watch connection since Nov 3
+   (`watch_share_stats`), verified in Rust.
 
    The app's first fix on the way (Nov 2): watched straight after joining from the
    sidebar, a share showed the sharer's avatar. The join's unsubscribe of the

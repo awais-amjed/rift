@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../src/rust/api/watching.dart';
 import '../helper_methods.dart';
+import 'inbound_video.dart';
 
 /// The Rust watch connection and the runner's textures, for `LiveKitCubit`.
 ///
@@ -159,6 +160,38 @@ class RustWatch {
     } catch (e) {
       HelperMethods.printDebug('[RustWatch] output: $e');
     }
+  }
+
+  /// [identity]'s receive numbers for the stats card, or null while its
+  /// picture is not arriving.
+  static Future<InboundVideo?> stats(String identity) async {
+    try {
+      final stats = await watchShareStats(shareIdentity: identity);
+      return stats == null ? null : inboundOf(stats);
+    } catch (e) {
+      HelperMethods.printDebug('[RustWatch] stats: $e');
+      return null;
+    }
+  }
+
+  /// Rust's numbers as the sampler reads them. libwebrtc says 0 for a size,
+  /// and nothing for a codec, it does not know yet, which the card would
+  /// print as they are.
+  static InboundVideo inboundOf(WatchStats stats) {
+    final sized = stats.width > 0 && stats.height > 0;
+    return InboundVideo(
+      timestampMs: stats.timestampUs / 1000,
+      width: sized ? stats.width : null,
+      height: sized ? stats.height : null,
+      framesDecoded: stats.framesDecoded.toDouble(),
+      framesDropped: stats.framesDropped,
+      framesPerSecond: stats.framesPerSecond,
+      bytesReceived: stats.bytesReceived.toDouble(),
+      packetsLost: stats.packetsLost,
+      jitterMs: stats.jitterMs,
+      codec: stats.codec.isEmpty ? null : stats.codec,
+      rttMs: stats.rttMs,
+    );
   }
 
   /// Pictures off while nobody can see Rift, as the call's are.

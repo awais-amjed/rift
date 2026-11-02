@@ -47,6 +47,26 @@ pub enum WatchEventKind {
     Lost,
 }
 
+/// A watched share's receive numbers, as libwebrtc counts them for its
+/// picture: cumulative, so the app turns two polls into rates, as it does with
+/// the call's own stats.
+pub struct WatchStats {
+    /// When libwebrtc took them, in microseconds, as flutter_webrtc's are.
+    pub timestamp_us: i64,
+    pub width: u32,
+    pub height: u32,
+    pub frames_decoded: u32,
+    pub frames_dropped: u32,
+    pub frames_per_second: f64,
+    pub bytes_received: u64,
+    pub packets_lost: i64,
+    pub jitter_ms: f64,
+    /// "VP9", "H264"; empty when libwebrtc did not say.
+    pub codec: String,
+    /// The connection's round trip; None before a candidate pair connects.
+    pub rtt_ms: Option<f64>,
+}
+
 static EVENT_SINK: Mutex<Option<StreamSink<WatchEvent>>> = Mutex::new(None);
 
 /// Subscribe to the watch connection's events, for the app's lifetime.
@@ -139,6 +159,20 @@ pub async fn unwatch_share(share_identity: String) -> Result<(), String> {
         let _ = share_identity;
     }
     Ok(())
+}
+
+/// [share_identity]'s receive numbers, or None while its picture is not
+/// arriving (not watched, not yet subscribed).
+pub async fn watch_share_stats(share_identity: String) -> Option<WatchStats> {
+    #[cfg(desktop)]
+    {
+        session::stats(&share_identity).await
+    }
+    #[cfg(not(desktop))]
+    {
+        let _ = share_identity;
+        None
+    }
 }
 
 /// Add a key version the call moved to: a share started before the rotation

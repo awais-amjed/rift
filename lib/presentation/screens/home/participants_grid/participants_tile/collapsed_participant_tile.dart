@@ -172,6 +172,9 @@ class CollapsedParticipantTile extends StatelessWidget {
                   alignment: Alignment.bottomLeft,
                   child: StreamStatsPoller(
                     track: isWatching ? videoTrack : null,
+                    rustShare: isWatching && picture != null
+                        ? shareIdentity
+                        : null,
                     builder: (context, stats) => Row(
                       mainAxisSize: MainAxisSize.min,
                       spacing: 6,
