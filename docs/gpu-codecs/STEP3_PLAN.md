@@ -102,8 +102,9 @@ also the fallback when there is no hardware decoder.
     Nov 2** (a throwaway app, Flutter 3.47.7, the RTX 3070 Ti on discrete, GL ES 3.2): a
     1280x720 I420 picture of four colour blocks, uploaded as three planes and drawn through
     the shader, came out right under native Wayland (Flutter's own snapshot) and on screen
-    under X11 (a screenshot), at 60 updates a second with no GL error. The Iris Xe is
-    still to check.
+    under X11 (a screenshot), at 60 updates a second with no GL error. The same probe on
+    the Iris Xe (laptop on hybrid, Mesa, GL ES 3.2) came out right under Wayland and X11
+    too, about 1.1 ms an update including the CPU fill, no GL error.
   - **Windows:** a `GpuSurfaceTexture` from a DXGI shared handle on Flutter's own adapter,
     filled the same way by a D3D11 pixel shader.
 - **The sound** comes out of the Rust connection as PCM (`NativeAudioStream`), see
