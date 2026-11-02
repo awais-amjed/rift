@@ -1,6 +1,8 @@
 #include "stream_texture.h"
 
+#include <epoxy/egl.h>
 #include <epoxy/gl.h>
+#include <gdk/gdkwayland.h>
 
 #include <cstdint>
 #include <cstring>
@@ -19,7 +21,15 @@ struct WatchPlanes {
   const uint8_t* u;
   const uint8_t* v;
   uint32_t stride_y, stride_u, stride_v;
+  // 0: the three planes above, in memory. kOnGpu: NV12 decoded on the GPU,
+  // as two DMA-BUF layers, Y as DRM's R8 and UV as GR88 at half size.
+  uint32_t kind;
+  uint32_t formats[2];
+  int32_t fds[2];
+  uint32_t offsets[2], pitches[2];
+  uint64_t modifiers[2];
 };
+constexpr uint32_t kOnGpu = 1;
 using LockFn = int32_t (*)(uint64_t, WatchPlanes*);
 using UnlockFn = void (*)(uint64_t);
 
@@ -31,6 +41,9 @@ struct _RiftStreamTexture {
   UnlockFn unlock;
   int64_t id;
   GLuint planes[3];
+  // The two layers of a picture decoded on the GPU, each its EGL image's.
+  GLuint layers[2];
+  bool import_failed;
   GLuint out, fbo;
   uint32_t width, height;
 };
@@ -53,8 +66,9 @@ std::map<int64_t, FlTexture*> live;
 std::mutex dead_mutex;
 std::vector<GLuint> dead_textures, dead_framebuffers;
 
-// One program and one quad for every stream: built on the first draw.
-GLuint program = 0, vao = 0, vbo = 0;
+// One program for pictures in memory, one for pictures on the GPU, and one
+// quad for every stream: built on the first draw.
+GLuint program = 0, gpu_program = 0, vao = 0, vbo = 0;
 
 void Bury() {
   std::lock_guard<std::mutex> hold(dead_mutex);
@@ -114,23 +128,45 @@ constexpr char kFragmentBody[] =
     "                          y + 2.01723 * u), 0.0, 1.0), 1.0);\n"
     "}\n";
 
-void BuildProgram() {
+// The same, from NV12's two planes: U and V side by side in one texture.
+constexpr char kGpuFragmentBody[] =
+    "in vec2 uv;\n"
+    "out vec4 color;\n"
+    "uniform sampler2D ty, tuv;\n"
+    "void main() {\n"
+    "  float y = 1.16438 * (texture(ty, uv).r - 0.0627451);\n"
+    "  vec2 c = texture(tuv, uv).rg - 0.501961;\n"
+    "  color = vec4(clamp(vec3(y + 1.59603 * c.y,\n"
+    "                          y - 0.391762 * c.x - 0.812968 * c.y,\n"
+    "                          y + 2.01723 * c.x), 0.0, 1.0), 1.0);\n"
+    "}\n";
+
+GLuint Link(const char* fragment_body, const char* const* samplers,
+            int count) {
   const bool es = !epoxy_is_desktop_gl();
   std::string fragment = es ? "#version 300 es\nprecision mediump float;\n"
                             : "#version 330 core\n";
-  fragment += kFragmentBody;
+  fragment += fragment_body;
   GLuint vs = Compile(GL_VERTEX_SHADER, es ? kVertexEs : kVertexGl);
   GLuint fs = Compile(GL_FRAGMENT_SHADER, fragment.c_str());
-  program = glCreateProgram();
-  glAttachShader(program, vs);
-  glAttachShader(program, fs);
-  glLinkProgram(program);
+  GLuint linked = glCreateProgram();
+  glAttachShader(linked, vs);
+  glAttachShader(linked, fs);
+  glLinkProgram(linked);
   glDeleteShader(vs);
   glDeleteShader(fs);
-  glUseProgram(program);
-  glUniform1i(glGetUniformLocation(program, "ty"), 0);
-  glUniform1i(glGetUniformLocation(program, "tu"), 1);
-  glUniform1i(glGetUniformLocation(program, "tv"), 2);
+  glUseProgram(linked);
+  for (int i = 0; i < count; i++) {
+    glUniform1i(glGetUniformLocation(linked, samplers[i]), i);
+  }
+  return linked;
+}
+
+void BuildProgram() {
+  static const char* const kPlanes[] = {"ty", "tu", "tv"};
+  static const char* const kLayers[] = {"ty", "tuv"};
+  program = Link(kFragmentBody, kPlanes, 3);
+  gpu_program = Link(kGpuFragmentBody, kLayers, 2);
 
   const float quad[] = {-1, -1, 1, -1, -1, 1, 1, 1};
   glGenVertexArrays(1, &vao);
@@ -218,28 +254,112 @@ struct SavedState {
   }
 };
 
-// Uploads |p| and draws it into the texture's picture, resizing both to it.
-void Draw(RiftStreamTexture* self, const WatchPlanes& p) {
-  SavedState saved;
-  if (program == 0) BuildProgram();
-
-  const uint32_t cw = (p.width + 1) / 2, ch = (p.height + 1) / 2;
-  if (self->out == 0) {
+// The texture's picture and its framebuffer, sized to |p|. The memory planes
+// are sized with it, so a stream moving between the two paths finds them
+// ready. The picture may already be there, black, from before the first
+// one (DrawBlack), with nothing else made yet.
+void Size(RiftStreamTexture* self, const WatchPlanes& p) {
+  if (self->fbo == 0) {
     glGenTextures(3, self->planes);
-    glGenTextures(1, &self->out);
+    glGenTextures(2, self->layers);
     glGenFramebuffers(1, &self->fbo);
   }
-  if (p.width != self->width || p.height != self->height) {
-    Allocate(self->planes[0], GL_R8, GL_RED, p.width, p.height);
-    Allocate(self->planes[1], GL_R8, GL_RED, cw, ch);
-    Allocate(self->planes[2], GL_R8, GL_RED, cw, ch);
-    Allocate(self->out, GL_RGBA8, GL_RGBA, p.width, p.height);
-    glBindFramebuffer(GL_FRAMEBUFFER, self->fbo);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
-                           self->out, 0);
-    self->width = p.width;
-    self->height = p.height;
+  if (self->out == 0) glGenTextures(1, &self->out);
+  if (p.width == self->width && p.height == self->height) return;
+  const uint32_t cw = (p.width + 1) / 2, ch = (p.height + 1) / 2;
+  Allocate(self->planes[0], GL_R8, GL_RED, p.width, p.height);
+  Allocate(self->planes[1], GL_R8, GL_RED, cw, ch);
+  Allocate(self->planes[2], GL_R8, GL_RED, cw, ch);
+  Allocate(self->out, GL_RGBA8, GL_RGBA, p.width, p.height);
+  glBindFramebuffer(GL_FRAMEBUFFER, self->fbo);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
+                         self->out, 0);
+  self->width = p.width;
+  self->height = p.height;
+}
+
+// Draws the quad into the texture's picture with whichever program is bound.
+void Fill(RiftStreamTexture* self, const WatchPlanes& p) {
+  glBindFramebuffer(GL_FRAMEBUFFER, self->fbo);
+  glViewport(0, 0, static_cast<GLsizei>(p.width),
+             static_cast<GLsizei>(p.height));
+  glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+  glDisable(GL_BLEND);
+  glDisable(GL_SCISSOR_TEST);
+  glDisable(GL_DEPTH_TEST);
+  glDisable(GL_STENCIL_TEST);
+  glDisable(GL_CULL_FACE);
+  glBindVertexArray(vao);
+  glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+}
+
+// One layer of a picture decoded on the GPU, as an EGL image, or
+// EGL_NO_IMAGE_KHR when it will not import.
+EGLImageKHR Import(EGLDisplay display, const WatchPlanes& p, int i) {
+  const EGLint w = static_cast<EGLint>(i ? (p.width + 1) / 2 : p.width);
+  const EGLint h = static_cast<EGLint>(i ? (p.height + 1) / 2 : p.height);
+  const EGLint attributes[] = {
+      EGL_WIDTH, w,
+      EGL_HEIGHT, h,
+      EGL_LINUX_DRM_FOURCC_EXT, static_cast<EGLint>(p.formats[i]),
+      EGL_DMA_BUF_PLANE0_FD_EXT, p.fds[i],
+      EGL_DMA_BUF_PLANE0_OFFSET_EXT, static_cast<EGLint>(p.offsets[i]),
+      EGL_DMA_BUF_PLANE0_PITCH_EXT, static_cast<EGLint>(p.pitches[i]),
+      EGL_DMA_BUF_PLANE0_MODIFIER_LO_EXT,
+      static_cast<EGLint>(p.modifiers[i] & 0xffffffff),
+      EGL_DMA_BUF_PLANE0_MODIFIER_HI_EXT, static_cast<EGLint>(p.modifiers[i] >> 32),
+      EGL_NONE};
+  return eglCreateImageKHR(display, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT,
+                           nullptr, attributes);
+}
+
+// Draws a picture decoded on the GPU: its two layers imported where they lie
+// and turned into colour by the shader, nothing copied through the CPU.
+void DrawFromGpu(RiftStreamTexture* self, const WatchPlanes& p) {
+  EGLDisplay display = eglGetCurrentDisplay();
+  if (display == EGL_NO_DISPLAY) return;
+  SavedState saved;
+  if (program == 0) BuildProgram();
+  Size(self, p);
+  EGLImageKHR images[2] = {EGL_NO_IMAGE_KHR, EGL_NO_IMAGE_KHR};
+  for (int i = 0; i < 2; i++) {
+    images[i] = Import(display, p, i);
+    if (images[i] == EGL_NO_IMAGE_KHR) {
+      if (!self->import_failed) {
+        g_warning("stream texture: a GPU picture did not import (0x%x)",
+                  eglGetError());
+        self->import_failed = true;
+      }
+      if (i == 1) eglDestroyImageKHR(display, images[0]);
+      return;
+    }
+    glActiveTexture(GL_TEXTURE0 + i);
+    glBindTexture(GL_TEXTURE_2D, self->layers[i]);
+    glBindSampler(i, 0);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, images[i]);
   }
+  glUseProgram(gpu_program);
+  Fill(self, p);
+  // Sent to the GPU before Rust gets the picture back and the decoder may
+  // write its surface again: the kernel then keeps the two in order.
+  glFlush();
+  for (EGLImageKHR image : images) eglDestroyImageKHR(display, image);
+}
+
+// Uploads |p| and draws it into the texture's picture, resizing both to it.
+void Draw(RiftStreamTexture* self, const WatchPlanes& p) {
+  if (p.kind == kOnGpu) {
+    DrawFromGpu(self, p);
+    return;
+  }
+  SavedState saved;
+  if (program == 0) BuildProgram();
+  const uint32_t cw = (p.width + 1) / 2, ch = (p.height + 1) / 2;
+  Size(self, p);
 
   glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
   glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
@@ -257,19 +377,8 @@ void Draw(RiftStreamTexture* self, const WatchPlanes& p) {
                     static_cast<GLsizei>(i ? ch : p.height), GL_RED,
                     GL_UNSIGNED_BYTE, data[i]);
   }
-
-  glBindFramebuffer(GL_FRAMEBUFFER, self->fbo);
-  glViewport(0, 0, static_cast<GLsizei>(p.width),
-             static_cast<GLsizei>(p.height));
-  glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-  glDisable(GL_BLEND);
-  glDisable(GL_SCISSOR_TEST);
-  glDisable(GL_DEPTH_TEST);
-  glDisable(GL_STENCIL_TEST);
-  glDisable(GL_CULL_FACE);
   glUseProgram(program);
-  glBindVertexArray(vao);
-  glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+  Fill(self, p);
 }
 
 // Before the first picture: one black pixel, so Flutter has something to show.
@@ -317,6 +426,25 @@ extern "C" void rift_stream_texture_mark(uint64_t id) {
   }
 }
 
+// Whether a picture decoded on the GPU can be drawn here: GTK draws with EGL
+// under Wayland, which imports DMA-BUFs where it has the extension. Under X11
+// GTK 3 draws with GLX, which cannot.
+bool TakesGpuPictures() {
+  static const bool takes = [] {
+    GdkDisplay* gdk = gdk_display_get_default();
+    if (gdk == nullptr || !GDK_IS_WAYLAND_DISPLAY(gdk)) return false;
+    // GTK's own EGL display: EGL hands back the one already made for this
+    // Wayland connection.
+    EGLDisplay display = eglGetDisplay(reinterpret_cast<EGLNativeDisplayType>(
+        gdk_wayland_display_get_wl_display(gdk)));
+    if (display == EGL_NO_DISPLAY) return false;
+    return epoxy_has_egl_extension(display, "EGL_EXT_image_dma_buf_import") &&
+           epoxy_has_egl_extension(display,
+                                   "EGL_EXT_image_dma_buf_import_modifiers");
+  }();
+  return takes;
+}
+
 FlMethodResponse* Create(FlValue* args) {
   FlValue* lock = fl_value_lookup_string(args, "lock");
   FlValue* unlock = fl_value_lookup_string(args, "unlock");
@@ -347,6 +475,8 @@ FlMethodResponse* Create(FlValue* args) {
   fl_value_set_string_take(
       result, "mark",
       fl_value_new_int(reinterpret_cast<int64_t>(&rift_stream_texture_mark)));
+  fl_value_set_string_take(result, "takesGpuPictures",
+                           fl_value_new_bool(TakesGpuPictures()));
   return FL_METHOD_RESPONSE(fl_method_success_response_new(result));
 }
 
@@ -399,10 +529,14 @@ static void rift_stream_texture_dispose(GObject* object) {
     for (GLuint plane : self->planes) {
       if (plane != 0) dead_textures.push_back(plane);
     }
+    for (GLuint layer : self->layers) {
+      if (layer != 0) dead_textures.push_back(layer);
+    }
     dead_textures.push_back(self->out);
     if (self->fbo != 0) dead_framebuffers.push_back(self->fbo);
     self->out = self->fbo = 0;
     self->planes[0] = self->planes[1] = self->planes[2] = 0;
+    self->layers[0] = self->layers[1] = 0;
   }
   G_OBJECT_CLASS(rift_stream_texture_parent_class)->dispose(object);
 }

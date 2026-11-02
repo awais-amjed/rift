@@ -2282,6 +2282,7 @@ fn wire__crate__api__watching__watch_share_impl(
             let api_share_identity = <String>::sse_decode(&mut deserializer);
             let api_texture = <u64>::sse_decode(&mut deserializer);
             let api_mark_frame = <usize>::sse_decode(&mut deserializer);
+            let api_takes_gpu_pictures = <bool>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, String>(
@@ -2290,6 +2291,7 @@ fn wire__crate__api__watching__watch_share_impl(
                             api_share_identity,
                             api_texture,
                             api_mark_frame,
+                            api_takes_gpu_pictures,
                         )
                         .await?;
                         std::result::Result::Ok(output_ok)

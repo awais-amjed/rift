@@ -41,6 +41,6 @@ mod window_x11;
 #[cfg(all(test, desktop))]
 mod bench_test;
 #[cfg(all(test, gpu_encoder))]
-mod gpu_live_test;
+pub(crate) mod gpu_live_test;
 #[cfg(all(test, desktop))]
 pub(crate) mod live_test;

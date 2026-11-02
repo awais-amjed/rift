@@ -33,7 +33,9 @@ const WIDTH: u32 = 1280;
 const HEIGHT: u32 = 720;
 const FPS: u32 = 30;
 
-struct ToSource(NativeVideoSource);
+/// The GPU encoder's H264 into a pre-encoded source, as a share sends it
+/// (also what the watch test shares H264 with, `watching/live_test.rs`).
+pub(crate) struct ToSource(pub(crate) NativeVideoSource);
 
 /// H264 keyframes an encrypted viewer could not have found the parameter sets
 /// of ([`h264::idr_readable_when_encrypted`]).
@@ -71,10 +73,7 @@ impl EncodedSink for ToSource {
             } else {
                 EncodedFrameType::Delta
             },
-            resolution: VideoResolution {
-                width: WIDTH,
-                height: HEIGHT,
-            },
+            resolution: self.0.video_resolution(),
             frame_metadata: None,
         });
     }

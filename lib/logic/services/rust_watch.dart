@@ -79,6 +79,10 @@ class RustWatch {
     final entry = watchFrameEntryPoints();
     final int textureId;
     final int mark;
+    // Whether the runner can draw a picture decoded on the GPU; where Rust
+    // decodes there and it cannot, watching is refused and the call's way
+    // taken.
+    final bool takesGpuPictures;
     try {
       final made = await _textures.invokeMapMethod<String, Object?>('create', {
         'lock': entry.lock.toInt(),
@@ -89,6 +93,7 @@ class RustWatch {
       if (id is! int || markAt is! int) return null;
       textureId = id;
       mark = markAt;
+      takesGpuPictures = made?['takesGpuPictures'] == true;
     } on MissingPluginException {
       return null;
     } catch (e) {
@@ -100,6 +105,7 @@ class RustWatch {
         shareIdentity: identity,
         texture: BigInt.from(textureId),
         markFrame: BigInt.from(mark),
+        takesGpuPictures: takesGpuPictures,
       );
       return textureId;
     } catch (e) {

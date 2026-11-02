@@ -232,6 +232,16 @@ A watch connection needs its own token, and so a change in `rift-self-host`:
    measured against the call's path.
 3. **Phase B on Linux:** VAAPI on the Iris Xe, then NVDEC with the laptop on discrete.
    AMD by the AMD desktop's Claude.
+   VAAPI is done (Nov 2, `CALLS.md`, *Watching a share through Rust*): LiveKit's
+   pass-through decoder in the fork, with the shared runtime made pass-through at
+   start rather than one factory for the watch connection (a factory is a set of
+   threads of its own), and a fix to the PR, whose connections LiveKit's Room
+   could not configure again. A share the GPU cannot decode goes back to the
+   call's connection for the rest of the call rather than reopening the watch
+   connection on libwebrtc's decoder: the runtime cannot change while the share
+   connections hold it. Verified in Rust (VP8, VP9, H264 on the Iris Xe) and in
+   the app (H264 and VP9). Not yet: AMD, NVDEC, the cost measured, and receive
+   stats for a share Rust holds (the owner turned the stats on and saw none).
 4. **Windows** (phases A and B) by the Windows Claude, on the same Rust and Dart code
    with its own texture and decoder.
 

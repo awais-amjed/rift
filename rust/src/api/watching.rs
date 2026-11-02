@@ -41,8 +41,9 @@ pub enum WatchEventKind {
     /// (`width` × `height`). The texture carries no shape of its own, so the
     /// app lays the picture out from this.
     PictureSize,
-    /// The watch connection is gone for good: the app watches through the
-    /// call's connection again.
+    /// The watch connection is gone for good, or cannot show a share (the
+    /// GPU could not decode it): the app watches through the call's
+    /// connection again.
     Lost,
 }
 
@@ -105,18 +106,23 @@ pub async fn stop_watching() -> Result<(), String> {
 /// each picture arrives, and its sound played where [watch_plays_sound], at
 /// what [set_watch_volume] last said (nothing until it does). Watching it
 /// already, the texture is replaced and the volume kept.
+///
+/// [takes_gpu_pictures]: the runner can draw a picture decoded on the GPU
+/// into the texture (it imports DMA-BUFs). Where pictures are decoded on the
+/// GPU and it cannot, this refuses, and the app watches the call's way.
 pub async fn watch_share(
     share_identity: String,
     texture: u64,
     mark_frame: usize,
+    takes_gpu_pictures: bool,
 ) -> Result<(), String> {
     #[cfg(desktop)]
     {
-        session::watch(share_identity, texture, mark_frame).await
+        session::watch(share_identity, texture, mark_frame, takes_gpu_pictures).await
     }
     #[cfg(not(desktop))]
     {
-        let _ = (share_identity, texture, mark_frame);
+        let _ = (share_identity, texture, mark_frame, takes_gpu_pictures);
         Err("Watching through Rust is desktop-only".to_string())
     }
 }

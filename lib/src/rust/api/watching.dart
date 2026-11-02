@@ -30,14 +30,20 @@ Future<void> stopWatching() =>
 /// each picture arrives, and its sound played where [watch_plays_sound], at
 /// what [set_watch_volume] last said (nothing until it does). Watching it
 /// already, the texture is replaced and the volume kept.
+///
+/// [takes_gpu_pictures]: the runner can draw a picture decoded on the GPU
+/// into the texture (it imports DMA-BUFs). Where pictures are decoded on the
+/// GPU and it cannot, this refuses, and the app watches the call's way.
 Future<void> watchShare({
   required String shareIdentity,
   required BigInt texture,
   required BigInt markFrame,
+  required bool takesGpuPictures,
 }) => RustLib.instance.api.crateApiWatchingWatchShare(
   shareIdentity: shareIdentity,
   texture: texture,
   markFrame: markFrame,
+  takesGpuPictures: takesGpuPictures,
 );
 
 /// Stop receiving [share_identity]. Once this returns, its texture is not
@@ -132,8 +138,9 @@ enum WatchEventKind {
   /// app lays the picture out from this.
   pictureSize,
 
-  /// The watch connection is gone for good: the app watches through the
-  /// call's connection again.
+  /// The watch connection is gone for good, or cannot show a share (the
+  /// GPU could not decode it): the app watches through the call's
+  /// connection again.
   lost,
 }
 

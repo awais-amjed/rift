@@ -8,9 +8,11 @@
 //! decoded the picture, converted it to RGBA on the CPU and uploaded that,
 //! which is most of what watching cost a player (`docs/gpu-codecs/STEP3_PLAN.md`).
 //!
-//! [`session`] is the connection; [`frames`] is where a picture waits for the
-//! runner; [`sound`] plays the share's sound. Desktop only (`cfg(desktop)`, build.rs), as everything that talks to
+//! [`session`] is the connection; [`decode`] decodes its pictures on the GPU
+//! where it can; [`frames`] is where a picture waits for the runner; [`sound`]
+//! plays the share's sound. Desktop only (`cfg(desktop)`, build.rs), as everything that talks to
 //! LiveKit from Rust is.
+pub(crate) mod decode;
 pub(crate) mod frames;
 #[cfg(test)]
 mod live_test;

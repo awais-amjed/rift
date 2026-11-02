@@ -15,4 +15,7 @@ pub mod watching;
 #[flutter_rust_bridge::frb(init)]
 pub fn init_app() {
     crate::logging::init();
+    // Before any room: it chooses how the process's LiveKit runtime decodes.
+    #[cfg(desktop)]
+    crate::watching::decode::choose();
 }

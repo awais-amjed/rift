@@ -10,9 +10,9 @@
 //! encoded by the GPU, never by Rift itself.
 #![cfg_attr(not(gpu_encoder), allow(dead_code))]
 #[cfg(any(target_os = "linux", target_os = "windows"))]
-mod ffmpeg;
+pub(crate) mod ffmpeg;
 #[cfg(target_os = "linux")]
-mod gpu_choice;
+pub(crate) mod gpu_choice;
 pub(crate) mod h264;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 mod timings;

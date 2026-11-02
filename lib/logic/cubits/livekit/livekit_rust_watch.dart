@@ -209,7 +209,7 @@ mixin _RustWatchMixin
         );
       case WatchEventKind.lost:
         if (_rustWatchRoom == null) return;
-        unawaited(_fallBackFromRust('connection lost: ${event.reason}'));
+        unawaited(_fallBackFromRust(event.reason));
     }
   }
 

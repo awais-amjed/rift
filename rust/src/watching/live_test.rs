@@ -24,6 +24,15 @@
 //!     cargo test --release live_watched_sound -- --ignored --nocapture
 //! ```
 //!
+//! The GPU decoding test turns the process's LiveKit runtime to pass-through
+//! for good, so it is run on its own too, under Wayland on an Intel or AMD
+//! GPU (Linux), with Rift's FFmpeg library built by `native/ffenc/build.sh`:
+//!
+//! ```text
+//! WAYLAND_DISPLAY=wayland-0 RIFT_FFENC_LIB=<out>/librift_ffenc.so \
+//!     cargo test --release live_gpu_watch -- --ignored --nocapture
+//! ```
+//!
 //! `PULSE_SINK` keeps anything that falls back to the default in the sink
 //! too. It is heard by recording the sink's monitor beside it: a 1 kHz tone
 //! in the left ear, then the right, a second each, for four seconds at full
@@ -47,7 +56,7 @@ const HEIGHT: u32 = 360;
 const FPS: u32 = 30;
 const SHADE: u8 = 200;
 
-static MARKS: [AtomicU64; 4] = [const { AtomicU64::new(0) }; 4];
+static MARKS: [AtomicU64; 8] = [const { AtomicU64::new(0) }; 8];
 
 unsafe extern "C" fn count_mark(texture: u64) {
     MARKS[texture as usize].fetch_add(1, Ordering::SeqCst);
@@ -85,6 +94,24 @@ impl Share {
         key: &[u8],
         index: i32,
     ) -> Share {
+        Share::start_in(server, room_name, identity, key, index, VideoCodec::VP8).await
+    }
+
+    /// H264 goes out the way a share sends it, from the GPU encoder, where
+    /// this build has one: libwebrtc's own sent a flat picture no viewer
+    /// received (Nov 2 2026), and no share is sent that way.
+    async fn start_in(
+        server: &Server,
+        room_name: &str,
+        identity: &str,
+        key: &[u8],
+        index: i32,
+        codec: VideoCodec,
+    ) -> Share {
+        #[cfg(gpu_encoder)]
+        if codec == VideoCodec::H264 {
+            return Share::start_gpu_h264(server, room_name, identity, key, index).await;
+        }
         let room = room::connect(
             &server.url,
             &server.token(room_name, identity, false),
@@ -109,7 +136,7 @@ impl Share {
                 LocalTrack::Video(track),
                 TrackPublishOptions {
                     source: TrackSource::Screenshare,
-                    video_codec: VideoCodec::VP8,
+                    video_codec: codec,
                     simulcast: false,
                     video_encoding: Some(VideoEncoding {
                         max_bitrate: 2_000_000,
@@ -130,6 +157,82 @@ impl Share {
                 u.fill(128);
                 v.fill(128);
                 source.capture_frame(&VideoFrame::new(VideoRotation::VideoRotation0, buffer));
+                std::thread::sleep(Duration::from_millis(1000 / u64::from(FPS)));
+            }
+        });
+        Share { room, stop }
+    }
+
+    #[cfg(gpu_encoder)]
+    async fn start_gpu_h264(
+        server: &Server,
+        room_name: &str,
+        identity: &str,
+        key: &[u8],
+        index: i32,
+    ) -> Share {
+        use crate::screenshare::encoder::{EncoderSettings, GpuCodec, GpuEncoder, Nv12Frame};
+        use crate::screenshare::gpu_live_test::ToSource;
+        use livekit::options::VideoEncoderBackend;
+        let room = room::connect(
+            &server.url,
+            &server.token(room_name, identity, false),
+            key,
+            index,
+        )
+        .await
+        .expect("sharer connects");
+        let source = NativeVideoSource::new_encoded(VideoResolution {
+            width: WIDTH,
+            height: HEIGHT,
+        });
+        let encoder = GpuEncoder::open(
+            EncoderSettings {
+                codec: GpuCodec::H264,
+                width: WIDTH,
+                height: HEIGHT,
+                fps: FPS,
+                max_bitrate_bps: 2_000_000,
+                start_bitrate_bps: 2_000_000,
+                h264_high: false,
+                gpu_capture: true,
+            },
+            Box::new(ToSource(source.clone())),
+        )
+        .expect("a hardware H264 encoder opens");
+        let track =
+            LocalVideoTrack::create_video_track("screen_share", RtcVideoSource::Native(source));
+        room.local_participant()
+            .publish_track(
+                LocalTrack::Video(track),
+                TrackPublishOptions {
+                    source: TrackSource::Screenshare,
+                    video_codec: VideoCodec::H264,
+                    video_encoder: VideoEncoderBackend::PreEncoded,
+                    simulcast: false,
+                    video_encoding: Some(VideoEncoding {
+                        max_bitrate: 2_000_000,
+                        max_framerate: f64::from(FPS),
+                    }),
+                    ..Default::default()
+                },
+            )
+            .await
+            .expect("publishes");
+        let stop = Arc::new(AtomicBool::new(false));
+        let stopping = stop.clone();
+        tokio::task::spawn_blocking(move || {
+            let len = Nv12Frame::len_for(WIDTH, HEIGHT);
+            let luma = (WIDTH * HEIGHT) as usize;
+            while !stopping.load(Ordering::SeqCst) {
+                let mut data = encoder.buffer(len);
+                data[..luma].fill(SHADE);
+                data[luma..].fill(128);
+                let timestamp_us = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_micros() as i64;
+                encoder.submit(Nv12Frame { data, timestamp_us });
                 std::thread::sleep(Duration::from_millis(1000 / u64::from(FPS)));
             }
         });
@@ -214,7 +317,7 @@ async fn live_watch_draws_a_watched_share_and_stops_when_unwatched() {
 
     // Watched before it is published: the room's event subscribes it.
     let _voice = start_watching(&server, &name, key.clone(), KEY_INDEX).await;
-    session::watch(share_identity.to_string(), TEXTURE, mark_address())
+    session::watch(share_identity.to_string(), TEXTURE, mark_address(), false)
         .await
         .expect("watches");
     let share = Share::start(&server, &name, share_identity, &key, KEY_INDEX).await;
@@ -244,7 +347,7 @@ async fn live_watch_draws_a_watched_share_and_stops_when_unwatched() {
     assert_eq!(marks(TEXTURE), after, "nothing marks a texture let go");
 
     // Watched again, already published: subscribed straight away.
-    session::watch(share_identity.to_string(), TEXTURE, mark_address())
+    session::watch(share_identity.to_string(), TEXTURE, mark_address(), false)
         .await
         .expect("watches again");
     assert!(
@@ -274,10 +377,10 @@ async fn live_watch_reads_a_share_sealed_after_a_rotation() {
     let _voice = start_watching(&server, &name, old_key.clone(), KEY_INDEX).await;
     let before = Share::start(&server, &name, "early~desk_share", &old_key, KEY_INDEX).await;
     let after = Share::start(&server, &name, "late~desk_share", &new_key, new_index).await;
-    session::watch("early~desk_share".into(), OLD, mark_address())
+    session::watch("early~desk_share".into(), OLD, mark_address(), false)
         .await
         .unwrap();
-    session::watch("late~desk_share".into(), NEW, mark_address())
+    session::watch("late~desk_share".into(), NEW, mark_address(), false)
         .await
         .unwrap();
 
@@ -355,7 +458,7 @@ async fn live_watched_sound_plays_in_stereo_at_its_volume() {
     const TEXTURE: u64 = 0;
 
     let _voice = start_watching(&server, &name, key.clone(), KEY_INDEX).await;
-    session::watch(share_identity.to_string(), TEXTURE, mark_address())
+    session::watch(share_identity.to_string(), TEXTURE, mark_address(), false)
         .await
         .expect("watches");
     session::set_volume(share_identity, 1.0).await;
@@ -411,4 +514,94 @@ async fn live_watched_sound_plays_in_stereo_at_its_volume() {
     feed.terminate();
     session::stop().await;
     share.end().await;
+}
+
+#[cfg(gpu_encoder)]
+/// The picture waiting for [texture] when it was decoded on the GPU: its
+/// size, and whether both its layers' fds are open while it is lent.
+fn lent_from_the_gpu(texture: u64) -> Option<(u32, u32, bool)> {
+    let mut planes = std::mem::MaybeUninit::<frames::WatchPlanes>::uninit();
+    // SAFETY: a WatchPlanes this test owns.
+    if unsafe { frames::rift_watch_frame_lock(texture, planes.as_mut_ptr()) } == 0 {
+        return None;
+    }
+    // SAFETY: written, since lock answered 1.
+    let planes = unsafe { planes.assume_init() };
+    let open = planes.kind == frames::ON_GPU
+        && planes
+            .fds
+            .iter()
+            .all(|fd| *fd >= 0 && std::fs::metadata(format!("/proc/self/fd/{fd}")).is_ok());
+    frames::rift_watch_frame_unlock(texture);
+    Some((planes.width, planes.height, open))
+}
+
+#[cfg(gpu_encoder)]
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a LiveKit server and a GPU decoder; see the module doc"]
+async fn live_gpu_watch_decodes_each_codec_on_the_gpu() {
+    let _ = env_logger::builder().is_test(true).try_init();
+    super::decode::choose();
+    let device = super::decode::gpu()
+        .expect("decoding on the GPU here: under Wayland, on an Intel or AMD GPU");
+    log::info!("gpu watch test: decoding on {device}");
+    let server = Server::from_env();
+    let key = shared_key();
+    let share_identity = "member~desk_share";
+
+    for (texture, codec) in [
+        (5, VideoCodec::VP8),
+        (6, VideoCodec::VP9),
+        (7, VideoCodec::H264),
+    ] {
+        let name = room_name(&format!("gpu-{}", codec.as_str()));
+        let voice = start_watching(&server, &name, key.clone(), KEY_INDEX).await;
+        session::watch(share_identity.to_string(), texture, mark_address(), true)
+            .await
+            .expect("watches");
+        let share = Share::start_in(
+            &server,
+            &name,
+            share_identity,
+            &key,
+            KEY_INDEX,
+            codec.clone(),
+        )
+        .await;
+
+        assert!(
+            marked(texture, 0, 10, Duration::from_secs(15)).await,
+            "{codec:?} pictures reach the runner's slot"
+        );
+        // As many pictures as the share sends, near enough: none lost to the
+        // decoder.
+        let from = marks(texture);
+        tokio::time::sleep(Duration::from_secs(3)).await;
+        let got = marks(texture) - from;
+        log::info!("gpu watch test: {codec:?}, {got} pictures in 3 s");
+        assert!(
+            got >= u64::from(FPS * 3) * 8 / 10,
+            "{codec:?}: {got} pictures in 3 s at {FPS} a second"
+        );
+        let (width, height, open) = lent_from_the_gpu(texture)
+            .or_else(|| {
+                std::thread::sleep(Duration::from_millis(100));
+                lent_from_the_gpu(texture)
+            })
+            .expect("a picture waiting");
+        assert_eq!(
+            (width, height),
+            (WIDTH, HEIGHT),
+            "{codec:?} at the size sent"
+        );
+        assert!(open, "{codec:?}: a GPU picture, its layers open while lent");
+
+        session::unwatch(share_identity).await;
+        let after = marks(texture);
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        assert_eq!(marks(texture), after, "nothing marks a texture let go");
+        session::stop().await;
+        share.end().await;
+        let _ = voice.close().await;
+    }
 }

@@ -600,9 +600,9 @@ share is received instead on a second, receive-only connection in Rust (the
 *watch connection*, `rust/src/watching`), and the runner draws its pictures on
 the GPU (`linux/runner/stream_texture.cc`): the three I420 planes of the
 decoder's own buffer, lent to the runner when Flutter asks for a frame, are
-uploaded as one-byte textures and turned into colour by a shader. The design
-and its next step, decoding on the GPU too, are in
-`docs/gpu-codecs/STEP3_PLAN.md`.
+uploaded as one-byte textures and turned into colour by a shader. Where the
+GPU can, it decodes the picture too, and nothing of it comes to the CPU
+(below). The design is in `docs/gpu-codecs/STEP3_PLAN.md`.
 
 - **One connection per call,** `<user>~<device>_watch`, opened with the first
   share watched this way and closed with the last. The server mints it only
@@ -636,8 +636,28 @@ and its next step, decoding on the GPU too, are in
   a call's audio*): this SDK gives a sound's decryptor the receiver itself,
   not an id two receivers can share. Where Rust has no player yet
   (`watchPlaysSound`, Linux only for now), the sound stays with the call.
+- **Decoded on the GPU** where it can be (`rust/src/watching/decode`, Linux,
+  Intel and AMD). At start (`init_app`), before any room, Rust chooses how
+  the process's LiveKit runtime decodes: where Rift's FFmpeg library loads,
+  an Intel or AMD card draws the screen and GTK draws through EGL (Wayland),
+  the runtime decodes nothing (pass-through, from the LiveKit fork, `RIFT.md`
+  there). Each watched share's picture is then read still encoded and
+  decrypted, on a thread of its own, and decoded by FFmpeg through VAAPI on
+  that card (`native/ffenc/ffdec.h`). The surface leaves as two DMA-BUF
+  layers, Y and interleaved UV, which the runner imports into EGL as two
+  textures and draws with the same BT.601 shader, reading UV from one. The
+  runtime is the process's, so the choice holds for the share connections
+  too, which only send. A decoder starts at the stream's first keyframe and
+  asks for one after a picture fails. A share the GPU cannot decode, three
+  keyframes in a row that fail, or a runner that cannot import (it says so
+  when it makes the texture, `takesGpuPictures`) sends the call back to
+  watching through the call's connection. Elsewhere (X11, NVIDIA drawing the
+  screen, Windows, `RIFT_WATCH_DECODE=cpu`) libwebrtc decodes, as above.
+  Rift's FFmpeg library carries the three decoders for it, from 1.2 to 4.2
+  MB on Linux.
 - **Still through the call:** the receive stats under the picture, which a
-  share watched through Rust does not show yet.
+  share watched through Rust does not show yet (the stats read the call's
+  connection; turned on, they show nothing for such a share).
 
 Verified Nov 2 against the local stack, in Rust alone (`cargo test
 live_watch_`): a watched synthetic share arrives at its size and shade,
@@ -658,7 +678,15 @@ stream's volume, mute, deafen, Stop watching, a share restarted mid-watch and a
 change of output device mid-share. The
 first try played nothing until the slider moved: nothing told Rust the volume
 until the next roster change, so the cubit now syncs the sound the moment Rust
-takes a share. Not yet measured against the call's path.
+takes a share. Decoding on the GPU was verified Nov 2 the same ways: in Rust
+alone (`cargo test live_gpu_watch`, Iris Xe), an encrypted VP8, VP9 and H264
+share each decoded on the GPU at the size sent, 89 to 91 pictures in 3 s of
+a 30-a-second share, so none lost; the decoder alone (`native/ffenc/test.sh`,
+`test_ffdec`) gives back the four colours sent at 1920×1080, imported and
+drawn the runner's way. Then in the app: Cara's log shows H264 and then VP9
+decoded on the Iris Xe each time she watched, through two size changes and
+the pictures turned off and on, and the owner saw both move with the right
+colours and heard the sound. Not yet measured against the call's path.
 
 ## How a call is played out on the desktop — [Implemented October 2026]
 

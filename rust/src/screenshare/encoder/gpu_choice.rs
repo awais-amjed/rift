@@ -65,6 +65,23 @@ pub(crate) fn nvidia_draws_the_screen(cards: &[DrmCard]) -> Option<&str> {
         .as_deref()
 }
 
+/// The render node of the Intel or AMD card that draws the screen, the one
+/// with a display first: where a watched share decodes, so the picture stays
+/// on the GPU that draws it. `None` when NVIDIA draws alone, or there is none.
+pub(crate) fn intel_or_amd_drawing(cards: &[DrmCard]) -> Option<&str> {
+    if nvidia_draws_the_screen(cards).is_some() {
+        return None;
+    }
+    let ours = |card: &&DrmCard| matches!(card.vendor, INTEL | AMD) && card.render_node.is_some();
+    cards
+        .iter()
+        .filter(ours)
+        .find(|card| card.connected)
+        .or_else(|| cards.iter().find(ours))?
+        .render_node
+        .as_deref()
+}
+
 /// The cards in `/sys/class/drm`.
 pub(crate) fn read_cards() -> Vec<DrmCard> {
     read_cards_under(Path::new("/sys/class/drm"))
@@ -257,6 +274,34 @@ mod tests {
     #[test]
     fn gpu_choice_no_cards() {
         assert_eq!(nvidia_draws_the_screen(&[]), None);
+    }
+
+    #[test]
+    fn gpu_choice_watching_decodes_where_the_screen_is_drawn() {
+        const INTEL_NODE: &str = "/dev/dri/renderD128";
+        const AMD_NODE: &str = "/dev/dri/renderD129";
+        let hybrid = [
+            card(INTEL, true, Some(INTEL_NODE)),
+            card(NVIDIA, false, Some(NODE)),
+        ];
+        assert_eq!(intel_or_amd_drawing(&hybrid), Some(INTEL_NODE));
+        let nvidia_alone = [
+            card(INTEL, false, Some(INTEL_NODE)),
+            card(NVIDIA, true, Some(NODE)),
+        ];
+        assert_eq!(intel_or_amd_drawing(&nvidia_alone), None);
+        let amd_has_the_display = [
+            card(INTEL, false, Some(INTEL_NODE)),
+            card(AMD, true, Some(AMD_NODE)),
+        ];
+        assert_eq!(intel_or_amd_drawing(&amd_has_the_display), Some(AMD_NODE));
+        // A display port the kernel does not report connected still decodes.
+        assert_eq!(
+            intel_or_amd_drawing(&[card(AMD, false, Some(AMD_NODE))]),
+            Some(AMD_NODE)
+        );
+        assert_eq!(intel_or_amd_drawing(&[card(INTEL, true, None)]), None);
+        assert_eq!(intel_or_amd_drawing(&[]), None);
     }
 
     #[test]

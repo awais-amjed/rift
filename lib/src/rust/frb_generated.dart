@@ -291,6 +291,7 @@ abstract class RustLibApi extends BaseApi {
     required String shareIdentity,
     required BigInt texture,
     required BigInt markFrame,
+    required bool takesGpuPictures,
   });
 
   void crateApiLogsWriteLogLine({required String source, required String line});
@@ -2190,6 +2191,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required String shareIdentity,
     required BigInt texture,
     required BigInt markFrame,
+    required bool takesGpuPictures,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -2198,6 +2200,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sse_encode_String(shareIdentity, serializer);
           sse_encode_u_64(texture, serializer);
           sse_encode_usize(markFrame, serializer);
+          sse_encode_bool(takesGpuPictures, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -2210,7 +2213,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiWatchingWatchShareConstMeta,
-        argValues: [shareIdentity, texture, markFrame],
+        argValues: [shareIdentity, texture, markFrame, takesGpuPictures],
         apiImpl: this,
       ),
     );
@@ -2218,7 +2221,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiWatchingWatchShareConstMeta => const TaskConstMeta(
     debugName: 'watch_share',
-    argNames: ['shareIdentity', 'texture', 'markFrame'],
+    argNames: ['shareIdentity', 'texture', 'markFrame', 'takesGpuPictures'],
   );
 
   @override

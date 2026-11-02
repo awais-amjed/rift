@@ -2,12 +2,14 @@
 //!
 //! It subscribes to nothing by itself (`auto_subscribe` off). Watching a share
 //! subscribes to that share's picture and its sound. Every picture goes to the
-//! texture the runner made for it ([`super::frames`]); the sound is played
-//! here ([`super::sound`]). Not watching it any more unsubscribes again. The
+//! texture the runner made for it ([`super::frames`]), decoded on the GPU
+//! where it can be ([`super::decode`]) and by libwebrtc where not; the sound
+//! is played here ([`super::sound`]). Not watching it any more unsubscribes again. The
 //! call's connection must never do that to a sound, because flutter_webrtc
 //! finds a sound's decryptor by an id two receivers can share (`CALLS.md`,
 //! *Receiving a call's audio*). This SDK hands the decryptor the receiver
 //! itself, so here it is safe.
+use super::decode;
 use super::frames::{self, MarkFn};
 use super::sound::{self, Gain, Playing};
 use crate::api::watching::{emit_watch_event, WatchEvent, WatchEventKind, WatchRoom};
@@ -24,14 +26,31 @@ use tokio::task::JoinHandle;
 
 const KEY_BYTES: usize = 32;
 
-/// One watched share: the runner's texture and the task feeding it while its
+/// One watched share: the runner's texture and what feeds it while its
 /// picture is subscribed, and its sound playing while that is.
 struct Watched {
     texture: u64,
-    picture: Option<JoinHandle<()>>,
+    picture: Option<PictureFeed>,
     /// How loud the app wants the sound; kept from before it arrives.
     gain: Arc<Gain>,
     sound: Option<Playing>,
+}
+
+/// A share's pictures on their way to its texture. Dropped, they stop.
+enum PictureFeed {
+    /// Decoded by libwebrtc, read on the runtime.
+    Decoded(JoinHandle<()>),
+    /// Read still encoded and decoded on the GPU, on a thread of its own;
+    /// held only to stop it.
+    Encoded { _feed: decode::Feed },
+}
+
+impl Drop for PictureFeed {
+    fn drop(&mut self) {
+        if let PictureFeed::Decoded(task) = self {
+            task.abort();
+        }
+    }
 }
 
 /// What both the bridge's calls and the room's events change, keyed by the
@@ -103,16 +122,22 @@ async fn close(session: Session) {
 
 /// Stop feeding a texture, and stop marking it before this returns. The
 /// sound stops as `watched` goes.
-fn let_go(watched: Watched) {
-    if let Some(task) = watched.picture {
-        task.abort();
-    }
+fn let_go(mut watched: Watched) {
+    watched.picture = None;
     frames::close(watched.texture);
 }
 
-pub(crate) async fn watch(identity: String, texture: u64, mark: usize) -> Result<(), String> {
+pub(crate) async fn watch(
+    identity: String,
+    texture: u64,
+    mark: usize,
+    takes_gpu_pictures: bool,
+) -> Result<(), String> {
     if mark == 0 {
         return Err("No texture to draw the share into".to_string());
+    }
+    if decode::gpu().is_some() && !takes_gpu_pictures {
+        return Err("This window cannot draw a picture decoded on the GPU".to_string());
     }
     // SAFETY: the address of the runner's mark function, as it gave it to Dart.
     let mark: MarkFn = unsafe { std::mem::transmute::<usize, MarkFn>(mark) };
@@ -141,8 +166,6 @@ pub(crate) async fn watch(identity: String, texture: u64, mark: usize) -> Result
     if let Some(old) = old {
         if old.texture != texture {
             let_go(old);
-        } else if let Some(task) = old.picture {
-            task.abort();
         }
     }
 
@@ -268,12 +291,15 @@ fn show(shares: &Shares, identity: &str, track: RemoteVideoTrack) {
     let Some(watched) = shares.get_mut(identity) else {
         return;
     };
-    if let Some(task) = watched.picture.take() {
-        task.abort();
-    }
+    watched.picture = None;
     let texture = watched.texture;
     let identity = identity.to_string();
-    watched.picture = Some(tokio::spawn(async move {
+    if let Some(device) = decode::gpu() {
+        watched.picture = decode::feed(track, texture, identity, device)
+            .map(|feed| PictureFeed::Encoded { _feed: feed });
+        return;
+    }
+    watched.picture = Some(PictureFeed::Decoded(tokio::spawn(async move {
         // libwebrtc's sink keeps the newest picture and drops the rest, as the
         // slot does: neither side ever queues behind a slow one.
         let mut stream = NativeVideoStream::new(track.rtc_track());
@@ -282,23 +308,41 @@ fn show(shares: &Shares, identity: &str, track: RemoteVideoTrack) {
             // The decoder's own I420 buffer, not a copy: libwebrtc's ToI420 on
             // an I420 buffer answers the buffer itself.
             let picture = frame.buffer.to_i420();
-            let now = (picture.width(), picture.height());
-            if now != size {
-                size = now;
-                log::info!("watching: picture {}x{}", now.0, now.1);
-                emit_watch_event(WatchEvent {
-                    kind: WatchEventKind::PictureSize,
-                    share_identity: identity.clone(),
-                    width: now.0,
-                    height: now.1,
-                    reason: String::new(),
-                });
-            }
+            picture_size(&identity, &mut size, (picture.width(), picture.height()));
             if !frames::deliver(texture, picture) {
                 break;
             }
         }
-    }));
+    })));
+}
+
+/// Tells the app [identity]'s picture is `now` in size, when that is not
+/// what `seen` was.
+pub(super) fn picture_size(identity: &str, seen: &mut (u32, u32), now: (u32, u32)) {
+    if now == *seen {
+        return;
+    }
+    *seen = now;
+    log::info!("watching: picture {}x{}", now.0, now.1);
+    emit_watch_event(WatchEvent {
+        kind: WatchEventKind::PictureSize,
+        share_identity: identity.to_string(),
+        width: now.0,
+        height: now.1,
+        reason: String::new(),
+    });
+}
+
+/// Tells the app the watch connection cannot go on: it watches through the
+/// call's connection again.
+pub(super) fn lost(reason: &str) {
+    emit_watch_event(WatchEvent {
+        kind: WatchEventKind::Lost,
+        share_identity: String::new(),
+        width: 0,
+        height: 0,
+        reason: reason.to_string(),
+    });
 }
 
 /// Play [track] as [identity]'s sound, replacing one already playing.
@@ -359,11 +403,7 @@ async fn follow_room(mut events: tokio::sync::mpsc::UnboundedReceiver<RoomEvent>
             } => {
                 if let Some(watched) = lock(&shares).get_mut(participant.identity().as_str()) {
                     match track {
-                        RemoteTrack::Video(_) => {
-                            if let Some(task) = watched.picture.take() {
-                                task.abort();
-                            }
-                        }
+                        RemoteTrack::Video(_) => watched.picture = None,
                         RemoteTrack::Audio(_) => watched.sound = None,
                     }
                 }
@@ -372,13 +412,7 @@ async fn follow_room(mut events: tokio::sync::mpsc::UnboundedReceiver<RoomEvent>
             RoomEvent::Reconnected => log::info!("watching: reconnected"),
             RoomEvent::Disconnected { reason } => {
                 log::warn!("watching: disconnected ({reason:?})");
-                emit_watch_event(WatchEvent {
-                    kind: WatchEventKind::Lost,
-                    share_identity: String::new(),
-                    width: 0,
-                    height: 0,
-                    reason: format!("{reason:?}"),
-                });
+                lost(&format!("connection lost: {reason:?}"));
                 break;
             }
             _ => {}

@@ -10,7 +10,9 @@
 //! is lent rather than copied: [`rift_watch_frame_lock`] hands out its planes
 //! and keeps the picture alive until [`rift_watch_frame_unlock`], whatever
 //! happens to the slot meanwhile. The runner finds the two through
-//! [`entry_points`], as it finds DPDFNet's.
+//! [`entry_points`], as it finds DPDFNet's. A picture is libwebrtc's, three
+//! planes in memory, or one decoded on the GPU ([`super::decode`]), two
+//! DMA-BUF layers the runner imports.
 use livekit::webrtc::prelude::{I420Buffer, VideoBuffer};
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -19,8 +21,15 @@ use std::sync::Mutex;
 /// texture so Flutter asks for it on its next frame. Safe from any thread.
 pub(crate) type MarkFn = unsafe extern "C" fn(texture: u64);
 
-/// One picture's three planes as the runner uploads them: I420, the chroma
-/// planes half the size each way, rounded up.
+/// [`WatchPlanes::kind`] for a picture in memory: I420's three planes, the
+/// chroma planes half the size each way, rounded up.
+pub(crate) const IN_MEMORY: u32 = 0;
+/// [`WatchPlanes::kind`] for a picture on the GPU: NV12 as two DMA-BUF layers,
+/// Y as DRM's R8 and interleaved UV as GR88 at half the size each way.
+pub(crate) const ON_GPU: u32 = 1;
+
+/// One picture as the runner draws it. `linux/runner/stream_texture.cc` has
+/// the same fields in the same order.
 #[repr(C)]
 pub struct WatchPlanes {
     pub width: u32,
@@ -31,9 +40,39 @@ pub struct WatchPlanes {
     pub stride_y: u32,
     pub stride_u: u32,
     pub stride_v: u32,
+    /// [`IN_MEMORY`], with the planes above, or [`ON_GPU`], with the layers
+    /// below: their fds, the picture's until it is handed back.
+    pub kind: u32,
+    pub formats: [u32; 2],
+    pub fds: [i32; 2],
+    pub offsets: [u32; 2],
+    pub pitches: [u32; 2],
+    pub modifiers: [u64; 2],
 }
 
-/// What a slot holds: anything with three planes. A trait so the slot rules
+impl WatchPlanes {
+    /// A picture of `width` by `height` with nothing filled in yet.
+    pub(crate) fn sized(width: u32, height: u32) -> WatchPlanes {
+        WatchPlanes {
+            width,
+            height,
+            y: std::ptr::null(),
+            u: std::ptr::null(),
+            v: std::ptr::null(),
+            stride_y: 0,
+            stride_u: 0,
+            stride_v: 0,
+            kind: IN_MEMORY,
+            formats: [0; 2],
+            fds: [-1; 2],
+            offsets: [0; 2],
+            pitches: [0; 2],
+            modifiers: [0; 2],
+        }
+    }
+}
+
+/// What a slot holds: anything the runner can draw. A trait so the slot rules
 /// can be tested without a decoder.
 pub(crate) trait Picture: Send {
     fn planes(&self) -> WatchPlanes;
@@ -44,15 +83,20 @@ impl Picture for I420Buffer {
         let (y, u, v) = self.data();
         let (stride_y, stride_u, stride_v) = self.strides();
         WatchPlanes {
-            width: self.width(),
-            height: self.height(),
             y: y.as_ptr(),
             u: u.as_ptr(),
             v: v.as_ptr(),
             stride_y,
             stride_u,
             stride_v,
+            ..WatchPlanes::sized(self.width(), self.height())
         }
+    }
+}
+
+impl Picture for Box<dyn Picture> {
+    fn planes(&self) -> WatchPlanes {
+        (**self).planes()
     }
 }
 
@@ -108,9 +152,9 @@ impl<P: Picture> Table<P> {
     }
 }
 
-static TABLE: Mutex<Option<Table<I420Buffer>>> = Mutex::new(None);
+static TABLE: Mutex<Option<Table<Box<dyn Picture>>>> = Mutex::new(None);
 
-fn with_table<R>(f: impl FnOnce(&mut Table<I420Buffer>) -> R) -> R {
+fn with_table<R>(f: impl FnOnce(&mut Table<Box<dyn Picture>>) -> R) -> R {
     let mut guard = TABLE.lock().unwrap_or_else(|e| e.into_inner());
     f(guard.get_or_insert_with(Table::new))
 }
@@ -127,7 +171,8 @@ pub(crate) fn close(texture: u64) {
 }
 
 /// Hand the runner a new picture for [texture]. False when nothing watches it.
-pub(crate) fn deliver(texture: u64, picture: I420Buffer) -> bool {
+pub(crate) fn deliver(texture: u64, picture: impl Picture + 'static) -> bool {
+    let picture: Box<dyn Picture> = Box::new(picture);
     // The mark is called under the lock, which is what makes [close] a fence:
     // it takes the same lock, so no mark is still running once it returns.
     // Marking only posts to Flutter's engine and never waits for a draw, and
@@ -212,16 +257,7 @@ mod tests {
 
     impl Picture for Fake {
         fn planes(&self) -> WatchPlanes {
-            WatchPlanes {
-                width: self.id,
-                height: 0,
-                y: std::ptr::null(),
-                u: std::ptr::null(),
-                v: std::ptr::null(),
-                stride_y: 0,
-                stride_u: 0,
-                stride_v: 0,
-            }
+            WatchPlanes::sized(self.id, 0)
         }
     }
 
