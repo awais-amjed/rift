@@ -156,6 +156,93 @@ static RiftFfenc* find_encoder(char* node, size_t len) {
   return NULL;
 }
 
+// The bars round a placed picture are black and the picture is still there,
+// in every frame and so on every surface of the pad's pool: radeonsi ignores
+// pad_vaapi's colour and left them green (dmabuf.c). The stream is decoded by
+// the system's ffmpeg; with none, the check is skipped. 1 on a failure.
+static int check_bars(const char* node, const RiftDmabuf* buf) {
+  if (system("command -v ffmpeg >/dev/null 2>&1") != 0) {
+    fprintf(stderr, "bars: skipped, no ffmpeg to decode with\n");
+    return 0;
+  }
+  enum { W = 1280, H = 720, EACH = 12 };
+  // Pillarboxed, then letterboxed: a new graph, so a new pool.
+  const RiftRect places[2] = {{160, 0, 960, 720}, {0, 90, 1280, 540}};
+  char error[256];
+  RiftFfenc* enc = open_encoder(node, W, H, error, sizeof(error));
+  if (!enc) {
+    fprintf(stderr, "FAIL: bars: no encoder: %s\n", error);
+    return 1;
+  }
+  const char* tmp = getenv("TMPDIR");
+  char path[512];
+  snprintf(path, sizeof(path), "%s/test_dmabuf_bars_XXXXXX", tmp ? tmp : "/tmp");
+  int fd = mkstemp(path);
+  FILE* file = fd >= 0 ? fdopen(fd, "wb") : NULL;
+  if (!file) {
+    fprintf(stderr, "FAIL: bars: no file to write to\n");
+    rift_ffenc_close(enc);
+    return 1;
+  }
+  int bad = 0;
+  int64_t t = 0;
+  for (int i = 0; i < 2 * EACH; i++, t += 16667) {
+    int err = rift_ffenc_send_dmabuf(enc, buf, &places[i / EACH], t, i == 0);
+    if (err != 0) {
+      fprintf(stderr, "FAIL: bars: send %d returned %d\n", i, err);
+      bad = 1;
+    }
+    RiftFfencPacket packet;
+    while (rift_ffenc_receive(enc, &packet) == 1) {
+      fwrite(packet.data, 1, packet.len, file);
+    }
+  }
+  rift_ffenc_close(enc);
+  fclose(file);
+
+  char command[600];
+  snprintf(command, sizeof(command),
+           "ffmpeg -v error -i '%s' -f rawvideo -pix_fmt nv12 -", path);
+  FILE* decoded = popen(command, "r");
+  static uint8_t frame[W * H * 3 / 2];
+  int frames = 0;
+  while (decoded && fread(frame, 1, sizeof(frame), decoded) == sizeof(frame)) {
+    const RiftRect* place = &places[frames < EACH ? 0 : 1];
+    const uint8_t* uv = frame + W * H;
+    // A spot in the middle of each bar, and one in the picture's orange half.
+    int spots[2][2] = {{place->x / 2, place->y / 2},
+                       {W - (W - place->x - place->width) / 2 - 1,
+                        H - (H - place->y - place->height) / 2 - 1}};
+    if (place->x == 0) spots[0][0] = spots[1][0] = W / 2;
+    if (place->y == 0) spots[0][1] = spots[1][1] = H / 2;
+    for (int s = 0; s < 2; s++) {
+      int x = spots[s][0], y = spots[s][1];
+      int luma = frame[y * W + x];
+      int u = uv[(y / 2) * W + (x / 2) * 2], v = uv[(y / 2) * W + (x / 2) * 2 + 1];
+      if (abs(luma - 16) > 6 || abs(u - 128) > 6 || abs(v - 128) > 6) {
+        fprintf(stderr, "FAIL: bars: frame %d at %d,%d is Y %d U %d V %d, not black\n",
+                frames, x, y, luma, u, v);
+        bad = 1;
+      }
+    }
+    int px = place->x + place->width / 4, py = place->y + place->height / 2;
+    if (frame[py * W + px] < 40) {
+      fprintf(stderr, "FAIL: bars: frame %d lost its picture (Y %d at %d,%d)\n",
+              frames, frame[py * W + px], px, py);
+      bad = 1;
+    }
+    frames++;
+  }
+  if (decoded) pclose(decoded);
+  unlink(path);
+  if (frames != 2 * EACH) {
+    fprintf(stderr, "FAIL: bars: %d frames decoded, not %d\n", frames, 2 * EACH);
+    bad = 1;
+  }
+  if (!bad) fprintf(stderr, "bars: black round %d placed pictures\n", frames);
+  return bad;
+}
+
 int main(void) {
   rift_ffenc_set_log(log_line, 16 /* AV_LOG_ERROR */);
   char node[64];
@@ -225,6 +312,8 @@ int main(void) {
   CHECK(err == 0, "a placed buffer returned %d", err);
   CHECK(drain(enc, NULL) >= 0, "bad packet after the placed buffer");
   rift_ffenc_close(enc);
+
+  failures += check_bars(node, &buf);
 
   char error[256];
   RiftFfenc* tall = open_encoder(node, 1080, 1920, error, sizeof(error));

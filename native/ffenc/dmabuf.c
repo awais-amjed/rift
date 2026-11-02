@@ -5,6 +5,11 @@
 // frame's crop) to NV12, `transpose_vaapi` when the compositor turned it, and
 // `pad_vaapi` for black bars round a picture smaller than the share. The
 // graph is built for one input shape and built again when it changes.
+//
+// pad_vaapi asks the driver for black bars, but Mesa's radeonsi ignores the
+// colour and draws only the picture, so a bar keeps whatever its surface held:
+// zero on a new one, which is green in NV12. Each surface of the pad's pool is
+// therefore painted black once, whole, before it is drawn into (`barred`).
 #include "dmabuf.h"
 
 #include <stdio.h>
@@ -22,6 +27,10 @@
 #include <libavutil/pixdesc.h>
 #include <va/va.h>
 #include <va/va_drmcommon.h>
+
+// More surfaces than a pad's pool holds while a share runs: one past this is
+// painted on every use, which is slower but still right.
+#define BARRED_MAX 32
 
 // What a graph is built for: a change in any of it builds another.
 typedef struct Shape {
@@ -48,6 +57,15 @@ struct DmabufPath {
   // Set once the GPU's video processing refused to turn a picture; it is then
   // sent as it came, and said once.
   int turn_refused;
+  // The pad's surfaces painted black so far, and the black picture painted on
+  // them, for this graph (see `bar`).
+  VASurfaceID barred[BARRED_MAX];
+  int barred_count;
+  VAImage black;
+  int has_black;
+  // Set once the driver refused to paint a surface: the bars are then left as
+  // the driver draws them, and said once.
+  int bars_refused;
 };
 
 static enum AVPixelFormat sw_format_of(uint32_t drm_format) {
@@ -107,11 +125,20 @@ DmabufPath* dmabuf_path_alloc(AVBufferRef* vaapi, const char* render_node) {
   return path;
 }
 
+static VADisplay display_of(const DmabufPath* path) {
+  AVHWDeviceContext* device = (AVHWDeviceContext*)path->vaapi->data;
+  return ((AVVAAPIDeviceContext*)device->hwctx)->display;
+}
+
 static void drop_graph(DmabufPath* path) {
   avfilter_graph_free(&path->graph);
   path->source = NULL;
   path->sink = NULL;
   av_buffer_unref(&path->drm_frames);
+  // A new graph has a new pool, whose surface ids may repeat the old ones'.
+  path->barred_count = 0;
+  if (path->has_black) vaDestroyImage(display_of(path), path->black.image_id);
+  path->has_black = 0;
 }
 
 void dmabuf_path_free(DmabufPath** path) {
@@ -329,6 +356,85 @@ static int imports(DmabufPath* path, const RiftDmabuf* buf, const AVFrame* frame
   return 1;
 }
 
+// The buffer through the graph once, into `out`.
+static int filter(DmabufPath* path, const RiftDmabuf* buf, int64_t timestamp_us,
+                  AVFrame* out) {
+  AVFrame* frame = av_frame_alloc();
+  if (!frame) return AVERROR(ENOMEM);
+  int err = wrap(path, buf, frame);
+  if (err == 0 && !imports(path, buf, frame)) err = RIFT_FFENC_IMPORT_FAILED;
+  if (err < 0) {
+    av_frame_free(&frame);
+    return err;
+  }
+  frame->pts = timestamp_us;
+  err = av_buffersrc_add_frame(path->source, frame);
+  av_frame_free(&frame);
+  if (err >= 0) err = av_buffersink_get_frame(path->sink, out);
+  if (err == AVERROR(EINVAL) || err == AVERROR(EIO) || err == AVERROR(ENOSYS)) {
+    // The mapping failed after all; a fresh graph is a fresh mapping, since
+    // FFmpeg remembers a failed import for the frames context's life.
+    drop_graph(path);
+    path->imported_modifier = DRM_FORMAT_MOD_INVALID;
+    return RIFT_FFENC_IMPORT_FAILED;
+  }
+  return err;
+}
+
+// Whether `out` came from a pad surface not yet painted black.
+static int needs_bars(const DmabufPath* path, const AVFrame* out) {
+  const Shape* s = &path->shape;
+  if (path->bars_refused ||
+      (s->place.width == s->out_w && s->place.height == s->out_h)) {
+    return 0;
+  }
+  VASurfaceID surface = (VASurfaceID)(uintptr_t)out->data[3];
+  for (int i = 0; i < path->barred_count; i++) {
+    if (path->barred[i] == surface) return 0;
+  }
+  return 1;
+}
+
+// Paints `surface` black, whole: Y 16 and UV 128, black in the limited range
+// the stream says it uses.
+static int bar(DmabufPath* path, VASurfaceID surface) {
+  VADisplay display = display_of(path);
+  const Shape* s = &path->shape;
+  if (!path->has_black) {
+    VAImageFormat nv12 = {.fourcc = VA_FOURCC_NV12,
+                          .byte_order = VA_LSB_FIRST,
+                          .bits_per_pixel = 12};
+    if (vaCreateImage(display, &nv12, s->out_w, s->out_h, &path->black) !=
+        VA_STATUS_SUCCESS) {
+      return -1;
+    }
+    path->has_black = 1;
+    uint8_t* pixels;
+    if (vaMapBuffer(display, path->black.buf, (void**)&pixels) !=
+        VA_STATUS_SUCCESS) {
+      return -1;
+    }
+    for (int y = 0; y < s->out_h; y++) {
+      memset(pixels + path->black.offsets[0] + (size_t)y * path->black.pitches[0],
+             16, (size_t)s->out_w);
+    }
+    for (int y = 0; y < (s->out_h + 1) / 2; y++) {
+      memset(pixels + path->black.offsets[1] + (size_t)y * path->black.pitches[1],
+             128, (size_t)((s->out_w + 1) & ~1));
+    }
+    if (vaUnmapBuffer(display, path->black.buf) != VA_STATUS_SUCCESS) return -1;
+  }
+  if (vaPutImage(display, surface, path->black.image_id, 0, 0, (unsigned)s->out_w,
+                 (unsigned)s->out_h, 0, 0, (unsigned)s->out_w,
+                 (unsigned)s->out_h) != VA_STATUS_SUCCESS) {
+    return -1;
+  }
+  if (path->barred_count < BARRED_MAX) {
+    path->barred[path->barred_count++] = surface;
+  }
+  return 0;
+}
+
 int dmabuf_path_run(DmabufPath* path, const RiftDmabuf* buf,
                     const RiftRect* place, int out_w, int out_h,
                     int64_t timestamp_us, AVFrame* out) {
@@ -367,30 +473,27 @@ int dmabuf_path_run(DmabufPath* path, const RiftDmabuf* buf,
     path->shape = shape;
   }
 
-  AVFrame* frame = av_frame_alloc();
-  if (!frame) return AVERROR(ENOMEM);
-  err = wrap(path, buf, frame);
-  if (err == 0 && !imports(path, buf, frame)) err = RIFT_FFENC_IMPORT_FAILED;
-  if (err < 0) {
-    av_frame_free(&frame);
-    return err;
-  }
-  frame->pts = timestamp_us;
-  err = av_buffersrc_add_frame(path->source, frame);
-  av_frame_free(&frame);
-  if (err >= 0) err = av_buffersink_get_frame(path->sink, out);
-  if (err == AVERROR(EINVAL) || err == AVERROR(EIO) || err == AVERROR(ENOSYS)) {
-    // The mapping failed after all; a fresh graph is a fresh mapping, since
-    // FFmpeg remembers a failed import for the frames context's life.
-    drop_graph(path);
-    path->imported_modifier = DRM_FORMAT_MOD_INVALID;
-    return RIFT_FFENC_IMPORT_FAILED;
+  err = filter(path, buf, timestamp_us, out);
+  // A surface the pad has not drawn into before is painted black and the
+  // picture drawn again: the pool hands the same surface back, since it gives
+  // out the last one returned. Painting only the bars after the picture would
+  // be less work, but Mesa before 25 writes a whole surface whatever rectangle
+  // it is asked for.
+  for (int tries = 0; err == 0 && tries < 4 && needs_bars(path, out); tries++) {
+    VASurfaceID surface = (VASurfaceID)(uintptr_t)out->data[3];
+    // The picture's drawing finished first, or it could land after the black.
+    vaSyncSurface(display_of(path), surface);
+    av_frame_unref(out);
+    if (bar(path, surface) < 0) {
+      av_log(NULL, AV_LOG_WARNING,
+             "rift: the GPU would not paint the bars round the picture\n");
+      path->bars_refused = 1;
+    }
+    err = filter(path, buf, timestamp_us, out);
   }
   if (err < 0) return err;
   // Done with the buffer once the GPU has written the copy.
-  AVHWDeviceContext* device = (AVHWDeviceContext*)path->vaapi->data;
-  VADisplay display = ((AVVAAPIDeviceContext*)device->hwctx)->display;
-  if (vaSyncSurface(display, (VASurfaceID)(uintptr_t)out->data[3]) !=
+  if (vaSyncSurface(display_of(path), (VASurfaceID)(uintptr_t)out->data[3]) !=
       VA_STATUS_SUCCESS) {
     av_frame_unref(out);
     return AVERROR(EIO);

@@ -195,12 +195,14 @@ a pair: there was no moving round without a share.
    - **What is affected:** on any AMD GPU, a window resized mid-share would be letterboxed
      with green bars in place of black. The live tests show it too, since they encode a
      fixed 1280x720.
-   - **Not fixed.** Proposed: when `dmabuf.c` pads, fill each output surface's bars with
-     black (Y 16, UV 128) the first time the pool hands it out. The pad's surfaces come from
-     a fixed pool, and radeonsi never writes outside the picture's rectangle, so each needs
-     it once.
-   - **Test for it:** `test_dmabuf.c` letterboxes a picture and checks the bars' luma and
-     chroma.
+   - **Fix (Nov 2, built on the laptop, not yet run on AMD):** `dmabuf.c` paints each
+     surface of the pad's pool black, whole, the first time it comes out, then draws the
+     picture onto it again (the pool hands the same surface back). Painting only the bars
+     after the picture would be cheaper, but Mesa before 25 writes a whole surface whatever
+     rectangle `vaPutImage` is given, which would wipe the picture.
+   - **Test for it:** `test_dmabuf.c` encodes 24 placed pictures, pillarboxed then
+     letterboxed, decodes them with the system's ffmpeg, and checks in every frame that the
+     bars are black (Y 16, UV 128, within 6) and the picture is still there.
 2. **LiveKit's own VAAPI H264 encoder aborts on this GPU.**
    - **What:** in the **software** case of `live_gpu_h264_is_seen_with_the_key_and_by_nobody_else`,
      glibc reports `*** buffer overflow detected ***` inside `radeonsi_drv_video.so`, from
