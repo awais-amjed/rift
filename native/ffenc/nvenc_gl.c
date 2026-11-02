@@ -50,6 +50,7 @@
 #include <libavutil/hwcontext_cuda.h>
 #include <libavutil/log.h>
 
+#include "ff_shared.h"
 #include "nvenc_gl_geometry.h"
 
 // How often the worst wait on the GPU is logged at debug level.
@@ -410,9 +411,9 @@ static bool open_gl(NvencGl* self, char* error, size_t error_len) {
 // ── CUDA's side ─────────────────────────────────────────────────────────
 
 // The CUDA device that is this render node's card, or the first if it cannot be
-// told (src/cuda.c).
-static CUresult device_of_node(const CudaFunctions* cu, const char* render_node,
-                               CUdevice* device) {
+// told (src/cuda.c). The decoder finds its card the same way (ff_shared.h).
+CUresult rift_ff_cuda_device(const CudaFunctions* cu, const char* render_node,
+                             CUdevice* device) {
   int fd = open(render_node, O_RDONLY | O_CLOEXEC);
   if (fd >= 0) {
     drmDevicePtr drm = NULL;
@@ -444,7 +445,7 @@ static bool open_cuda(NvencGl* self, const char* render_node, char* error,
   CUdevice device;
   CUresult result = cu->cuInit(0);
   if (result == CUDA_SUCCESS) {
-    result = device_of_node(cu, render_node, &device);
+    result = rift_ff_cuda_device(cu, render_node, &device);
   }
   if (result == CUDA_SUCCESS) {
     result = cu->cuCtxCreate(&self->cu_context, 0, device);

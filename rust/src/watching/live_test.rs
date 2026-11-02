@@ -25,8 +25,8 @@
 //! ```
 //!
 //! The GPU decoding test turns the process's LiveKit runtime to pass-through
-//! for good, so it is run on its own too, under Wayland on an Intel or AMD
-//! GPU (Linux), with Rift's FFmpeg library built by `native/ffenc/build.sh`:
+//! for good, so it is run on its own too, under Wayland on the GPU that draws
+//! the screen (Linux), with Rift's FFmpeg library built by `native/ffenc/build.sh`:
 //!
 //! ```text
 //! WAYLAND_DISPLAY=wayland-0 RIFT_FFENC_LIB=<out>/librift_ffenc.so \
@@ -301,7 +301,7 @@ fn drawn(texture: u64) -> Option<(u32, u32, u8)> {
     let middle = (planes.height / 2 * planes.stride_y + planes.width / 2) as usize;
     // SAFETY: the picture is lent until the unlock below.
     let shade = unsafe { *planes.y.add(middle) };
-    frames::rift_watch_frame_unlock(texture);
+    frames::rift_watch_frame_unlock(texture, 1);
     Some((planes.width, planes.height, shade))
 }
 
@@ -518,7 +518,8 @@ async fn live_watched_sound_plays_in_stereo_at_its_volume() {
 
 #[cfg(gpu_encoder)]
 /// The picture waiting for [texture] when it was decoded on the GPU: its
-/// size, and whether both its layers' fds are open while it is lent.
+/// size, and whether it is there to draw while it is lent: both its layers'
+/// fds open, or, in CUDA's memory, the picture and the library's copy.
 fn lent_from_the_gpu(texture: u64) -> Option<(u32, u32, bool)> {
     let mut planes = std::mem::MaybeUninit::<frames::WatchPlanes>::uninit();
     // SAFETY: a WatchPlanes this test owns.
@@ -527,12 +528,17 @@ fn lent_from_the_gpu(texture: u64) -> Option<(u32, u32, bool)> {
     }
     // SAFETY: written, since lock answered 1.
     let planes = unsafe { planes.assume_init() };
-    let open = planes.kind == frames::ON_GPU
-        && planes
+    let open = match planes.kind {
+        frames::ON_GPU => planes
             .fds
             .iter()
-            .all(|fd| *fd >= 0 && std::fs::metadata(format!("/proc/self/fd/{fd}")).is_ok());
-    frames::rift_watch_frame_unlock(texture);
+            .all(|fd| *fd >= 0 && std::fs::metadata(format!("/proc/self/fd/{fd}")).is_ok()),
+        frames::IN_CUDA => {
+            !planes.picture.is_null() && planes.copy_to_gl.is_some() && planes.gl_close.is_some()
+        }
+        _ => false,
+    };
+    frames::rift_watch_frame_unlock(texture, 1);
     Some((planes.width, planes.height, open))
 }
 
@@ -543,7 +549,7 @@ async fn live_gpu_watch_decodes_each_codec_on_the_gpu() {
     let _ = env_logger::builder().is_test(true).try_init();
     super::decode::choose();
     let device = super::decode::gpu()
-        .expect("decoding on the GPU here: under Wayland, on an Intel or AMD GPU");
+        .expect("decoding on the GPU here: under Wayland, on the GPU drawing the screen");
     log::info!("gpu watch test: decoding on {device}");
     let server = Server::from_env();
     let key = shared_key();
@@ -594,7 +600,7 @@ async fn live_gpu_watch_decodes_each_codec_on_the_gpu() {
             (WIDTH, HEIGHT),
             "{codec:?} at the size sent"
         );
-        assert!(open, "{codec:?}: a GPU picture, its layers open while lent");
+        assert!(open, "{codec:?}: a GPU picture, there to draw while lent");
 
         session::unwatch(share_identity).await;
         let after = marks(texture);

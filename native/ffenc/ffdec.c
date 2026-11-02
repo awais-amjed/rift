@@ -1,4 +1,16 @@
 // A watched share's pictures decoded on the GPU (ffdec.h).
+//
+// The copy from CUDA into GL textures (rift_ffdec_copy_to_gl) is
+// Moonlight's (moonlight-qt at 1ced9dd, GPL-3.0,
+// app/streaming/video/ffmpeg-renderers/cuda.cpp, CUDAGLInteropHelper): the
+// decoder's context pushed, each plane's texture registered for writing,
+// mapped, copied into and unmapped for every picture. mpv's
+// (video/out/hwdec/hwdec_cuda*.c, LGPL-2.1+) does the same. Changed for Rift:
+// the registration kept between pictures and made again only for other
+// textures or another context; the copy waited for on the decoder's own
+// stream, as nvenc_gl.c waits for its copy the other way, so the picture can
+// go back to the decoder at once; and every decoder on FFmpeg's CUDA primary
+// context, which the runner's copy shares.
 #include "ffdec.h"
 
 #include <stdio.h>
@@ -6,10 +18,13 @@
 #include <string.h>
 
 #include <libavcodec/avcodec.h>
+#include <libavutil/dict.h>
 #include <libavutil/hwcontext.h>
 #include <libavutil/hwcontext_drm.h>
 
 #include "ff_shared.h"
+// After ff_shared.h, whose NVIDIA loader header gives it CUDA's types.
+#include <libavutil/hwcontext_cuda.h>
 
 // Surfaces past what the decoder needs for its references: the newest
 // picture waiting for the runner, the one it is drawing, and one on its way
@@ -24,15 +39,29 @@
 #define DRM_R8 FOURCC('R', '8', ' ', ' ')
 #define DRM_GR88 FOURCC('G', 'R', '8', '8')
 
+// GL's names, which the library otherwise does not need (gl.h).
+#define GL_TEXTURE_2D 0x0DE1
+
 struct RiftFfdec {
   AVBufferRef* device;
   AVCodecContext* codec;
   AVPacket* packet;
   AVFrame* frame;
+  // AV_PIX_FMT_VAAPI or AV_PIX_FMT_CUDA: the only format taken.
+  enum AVPixelFormat gpu_format;
   // The GPU had no decoder for the stream, said while choosing how to
   // decode it.
   int no_gpu_decoder;
   char driver[128];
+};
+
+struct RiftFfdecGl {
+  CudaFunctions* cu;
+  // Holds the context the textures are registered in.
+  AVBufferRef* device;
+  CUcontext context;
+  uint32_t textures[2];
+  CUgraphicsResource resources[2];
 };
 
 static enum AVCodecID codec_id_of(int32_t codec) {
@@ -54,12 +83,50 @@ static enum AVCodecID codec_id_of(int32_t codec) {
 // already costs, without that path's years of use.
 static enum AVPixelFormat gpu_only(AVCodecContext* codec,
                                    const enum AVPixelFormat* formats) {
-  for (const enum AVPixelFormat* f = formats; *f != AV_PIX_FMT_NONE; f++) {
-    if (*f == AV_PIX_FMT_VAAPI) return *f;
-  }
   RiftFfdec* dec = codec->opaque;
+  for (const enum AVPixelFormat* f = formats; *f != AV_PIX_FMT_NONE; f++) {
+    if (*f == dec->gpu_format) return *f;
+  }
   dec->no_gpu_decoder = 1;
   return AV_PIX_FMT_NONE;
+}
+
+// The NVIDIA card that is `node`'s, on CUDA's primary context: the one every
+// decoder in the process shares, so the runner's copy finds its textures
+// registered in the context each picture lies in, whichever decoder it came
+// from. Named in `driver`.
+static int open_cuda(RiftFfdec* dec, const char* node) {
+  CudaFunctions* cu = NULL;
+  if (cuda_load_functions(&cu, NULL) < 0) return AVERROR(ENOSYS);
+  CUdevice device = 0;
+  char ordinal[16] = "0";
+  if (cu->cuInit(0) == CUDA_SUCCESS &&
+      (!node || rift_ff_cuda_device(cu, node, &device) == CUDA_SUCCESS)) {
+    snprintf(ordinal, sizeof(ordinal), "%d", (int)device);
+    char name[96] = "";
+    if (cu->cuDeviceGetName(name, sizeof(name), device) == CUDA_SUCCESS) {
+      snprintf(dec->driver, sizeof(dec->driver), "%s, through CUDA", name);
+    }
+  }
+  cuda_free_functions(&cu);
+  AVDictionary* options = NULL;
+  av_dict_set(&options, "primary_ctx", "1", 0);
+  int err = av_hwdevice_ctx_create(&dec->device, AV_HWDEVICE_TYPE_CUDA,
+                                   ordinal, options, 0);
+  av_dict_free(&options);
+  return err;
+}
+
+static int32_t matrix_of(enum AVColorSpace space) {
+  switch (space) {
+    case AVCOL_SPC_BT709:
+      return RIFT_FFDEC_BT709;
+    case AVCOL_SPC_BT2020_NCL:
+    case AVCOL_SPC_BT2020_CL:
+      return RIFT_FFDEC_BT2020;
+    default:
+      return RIFT_FFDEC_BT601;
+  }
 }
 
 RiftFfdec* rift_ffdec_open(const RiftFfdecConfig* config, char* error,
@@ -74,8 +141,19 @@ RiftFfdec* rift_ffdec_open(const RiftFfdecConfig* config, char* error,
     rift_ff_fail(error, error_len, "out of memory", AVERROR(ENOMEM));
     return NULL;
   }
-  int err = av_hwdevice_ctx_create(&dec->device, AV_HWDEVICE_TYPE_VAAPI,
-                                   config->device, NULL, 0);
+  snprintf(dec->driver, sizeof(dec->driver), "an unnamed GPU");
+  int err;
+  if (config->api == RIFT_FFDEC_CUDA) {
+    dec->gpu_format = AV_PIX_FMT_CUDA;
+    err = open_cuda(dec, config->device);
+  } else if (config->api == RIFT_FFDEC_VAAPI) {
+    dec->gpu_format = AV_PIX_FMT_VAAPI;
+    err = av_hwdevice_ctx_create(&dec->device, AV_HWDEVICE_TYPE_VAAPI,
+                                 config->device, NULL, 0);
+  } else {
+    rift_ff_fail(error, error_len, "no such way to the GPU", 0);
+    goto failed;
+  }
   if (err < 0) {
     rift_ff_fail(error, error_len, "the GPU did not open", err);
     goto failed;
@@ -100,7 +178,6 @@ RiftFfdec* rift_ffdec_open(const RiftFfdecConfig* config, char* error,
     rift_ff_fail(error, error_len, "the decoder did not open", err);
     goto failed;
   }
-  snprintf(dec->driver, sizeof(dec->driver), "an unnamed GPU");
   const char* vendor = rift_ff_vaapi_vendor(dec->device);
   if (vendor) snprintf(dec->driver, sizeof(dec->driver), "%s", vendor);
   return dec;
@@ -133,9 +210,38 @@ int32_t rift_ffdec_receive(RiftFfdec* dec, RiftFfdecPicture* picture) {
   int err = avcodec_receive_frame(dec->codec, dec->frame);
   if (err == AVERROR(EAGAIN)) return 0;
   if (err < 0) return err;
-  if (dec->frame->format != AV_PIX_FMT_VAAPI) {
+  if (dec->frame->format != dec->gpu_format) {
     av_frame_unref(dec->frame);
     return AVERROR(ENOSYS);
+  }
+  picture->width = dec->frame->width;
+  picture->height = dec->frame->height;
+  picture->planes = 2;
+  picture->matrix = matrix_of(dec->frame->colorspace);
+  picture->full_range = dec->frame->color_range == AVCOL_RANGE_JPEG;
+  picture->timestamp_us = dec->frame->pts;
+  for (int i = 0; i < 4; i++) picture->fds[i] = -1;
+  if (dec->gpu_format == AV_PIX_FMT_CUDA) {
+    const AVHWFramesContext* frames =
+        (const AVHWFramesContext*)dec->frame->hw_frames_ctx->data;
+    if (frames->sw_format != AV_PIX_FMT_NV12) {
+      // A 10-bit stream: nothing here draws that.
+      av_frame_unref(dec->frame);
+      return AVERROR(ENOSYS);
+    }
+    // FFmpeg's NVIDIA decoder has copied the picture out of its own
+    // surfaces into a frame of its pool, so holding it holds nothing the
+    // decoder waits for.
+    AVFrame* held = av_frame_alloc();
+    if (!held) {
+      av_frame_unref(dec->frame);
+      return AVERROR(ENOMEM);
+    }
+    av_frame_move_ref(held, dec->frame);
+    picture->memory = RIFT_FFDEC_IN_CUDA;
+    for (int i = 0; i < 2; i++) picture->pitches[i] = (uint32_t)held->linesize[i];
+    picture->held = held;
+    return 1;
   }
   // The surface, exported as DMA-BUFs: the map holds the decoded frame, so
   // the surface stays the picture's until it is released.
@@ -146,7 +252,6 @@ int32_t rift_ffdec_receive(RiftFfdec* dec, RiftFfdecPicture* picture) {
   }
   mapped->format = AV_PIX_FMT_DRM_PRIME;
   err = av_hwframe_map(mapped, dec->frame, AV_HWFRAME_MAP_READ);
-  const int64_t pts = dec->frame->pts;
   av_frame_unref(dec->frame);
   if (err < 0) {
     av_frame_free(&mapped);
@@ -160,9 +265,7 @@ int32_t rift_ffdec_receive(RiftFfdec* dec, RiftFfdecPicture* picture) {
     av_frame_free(&mapped);
     return AVERROR(ENOSYS);
   }
-  picture->width = mapped->width;
-  picture->height = mapped->height;
-  picture->planes = 2;
+  picture->memory = RIFT_FFDEC_IN_DMABUF;
   for (int i = 0; i < 2; i++) {
     const AVDRMLayerDescriptor* layer = &drm->layers[i];
     const AVDRMPlaneDescriptor* plane = &layer->planes[0];
@@ -173,7 +276,6 @@ int32_t rift_ffdec_receive(RiftFfdec* dec, RiftFfdecPicture* picture) {
     picture->pitches[i] = (uint32_t)plane->pitch;
     picture->modifiers[i] = object->format_modifier;
   }
-  picture->timestamp_us = pts;
   picture->held = mapped;
   return 1;
 }
@@ -192,4 +294,122 @@ void rift_ffdec_close(RiftFfdec* dec) {
   av_frame_free(&dec->frame);
   av_buffer_unref(&dec->device);
   free(dec);
+}
+
+// ── Into the runner's GL textures ───────────────────────────────────────
+
+void rift_ffdec_gl_close(RiftFfdecGl* link) {
+  if (!link) return;
+  if (link->cu && link->context) {
+    CUcontext popped;
+    link->cu->cuCtxPushCurrent(link->context);
+    for (int i = 0; i < 2; i++) {
+      if (link->resources[i]) {
+        link->cu->cuGraphicsUnregisterResource(link->resources[i]);
+      }
+    }
+    link->cu->cuCtxPopCurrent(&popped);
+  }
+  av_buffer_unref(&link->device);
+  if (link->cu) cuda_free_functions(&link->cu);
+  free(link);
+}
+
+// `textures` registered with CUDA in `frames`' context, for writing.
+static RiftFfdecGl* link_textures(const AVHWFramesContext* frames,
+                                  const uint32_t textures[2]) {
+  RiftFfdecGl* link = calloc(1, sizeof(*link));
+  if (!link) return NULL;
+  const AVCUDADeviceContext* cuda = frames->device_ctx->hwctx;
+  link->device = av_buffer_ref(frames->device_ref);
+  link->context = cuda->cuda_ctx;
+  if (!link->device || cuda_load_functions(&link->cu, NULL) < 0) {
+    rift_ffdec_gl_close(link);
+    return NULL;
+  }
+  CUcontext popped;
+  CUresult result = link->cu->cuCtxPushCurrent(link->context);
+  for (int i = 0; i < 2 && result == CUDA_SUCCESS; i++) {
+    link->textures[i] = textures[i];
+    result = link->cu->cuGraphicsGLRegisterImage(
+        &link->resources[i], textures[i], GL_TEXTURE_2D,
+        CU_GRAPHICS_REGISTER_FLAGS_WRITE_DISCARD);
+    if (result != CUDA_SUCCESS) link->resources[i] = NULL;
+  }
+  link->cu->cuCtxPopCurrent(&popped);
+  if (result != CUDA_SUCCESS) {
+    av_log(NULL, AV_LOG_WARNING,
+           "ffdec: CUDA would not take the GL textures (CUDA error %d)\n",
+           (int)result);
+    rift_ffdec_gl_close(link);
+    return NULL;
+  }
+  return link;
+}
+
+int32_t rift_ffdec_copy_to_gl(const RiftFfdecPicture* picture,
+                              const uint32_t textures[2], RiftFfdecGl** link) {
+  if (!picture || !picture->held || picture->memory != RIFT_FFDEC_IN_CUDA ||
+      !textures || !link) {
+    return AVERROR(EINVAL);
+  }
+  const AVFrame* frame = picture->held;
+  const AVHWFramesContext* frames =
+      (const AVHWFramesContext*)frame->hw_frames_ctx->data;
+  const AVCUDADeviceContext* cuda = frames->device_ctx->hwctx;
+  RiftFfdecGl* kept = *link;
+  if (kept && (kept->context != cuda->cuda_ctx ||
+               kept->textures[0] != textures[0] ||
+               kept->textures[1] != textures[1])) {
+    rift_ffdec_gl_close(kept);
+    *link = kept = NULL;
+  }
+  if (!kept) {
+    kept = link_textures(frames, textures);
+    if (!kept) return AVERROR_EXTERNAL;
+    *link = kept;
+  }
+
+  CudaFunctions* cu = kept->cu;
+  CUcontext popped;
+  CUresult result = cu->cuCtxPushCurrent(kept->context);
+  if (result != CUDA_SUCCESS) goto done;
+  result = cu->cuGraphicsMapResources(2, kept->resources, cuda->stream);
+  if (result == CUDA_SUCCESS) {
+    CUresult copied = CUDA_SUCCESS;
+    for (int i = 0; i < 2 && copied == CUDA_SUCCESS; i++) {
+      CUarray array;
+      copied = cu->cuGraphicsSubResourceGetMappedArray(&array,
+                                                       kept->resources[i], 0, 0);
+      if (copied != CUDA_SUCCESS) break;
+      // UV is half the size each way, rounded up, two bytes a sample.
+      const size_t width = i ? (size_t)(picture->width + 1) / 2 * 2
+                             : (size_t)picture->width;
+      const size_t height = i ? (size_t)(picture->height + 1) / 2
+                              : (size_t)picture->height;
+      CUDA_MEMCPY2D copy = {0};
+      copy.srcMemoryType = CU_MEMORYTYPE_DEVICE;
+      copy.srcDevice = (CUdeviceptr)frame->data[i];
+      copy.srcPitch = (size_t)frame->linesize[i];
+      copy.dstMemoryType = CU_MEMORYTYPE_ARRAY;
+      copy.dstArray = array;
+      copy.WidthInBytes = width;
+      copy.Height = height;
+      copied = cu->cuMemcpy2DAsync(&copy, cuda->stream);
+    }
+    // On the decoder's stream, so after it wrote the picture; waited for, so
+    // the picture can go back to it as soon as this returns.
+    if (copied == CUDA_SUCCESS) copied = cu->cuStreamSynchronize(cuda->stream);
+    // Unmapping orders the copy before GL's next use of the textures.
+    cu->cuGraphicsUnmapResources(2, kept->resources, cuda->stream);
+    result = copied;
+  }
+  cu->cuCtxPopCurrent(&popped);
+done:
+  if (result != CUDA_SUCCESS) {
+    av_log(NULL, AV_LOG_WARNING, "ffdec: CUDA error %d copying a picture\n",
+           (int)result);
+    return AVERROR_EXTERNAL;
+  }
+  return 0;
 }

@@ -636,25 +636,33 @@ GPU can, it decodes the picture too, and nothing of it comes to the CPU
   a call's audio*): this SDK gives a sound's decryptor the receiver itself,
   not an id two receivers can share. Where Rust has no player yet
   (`watchPlaysSound`, Linux only for now), the sound stays with the call.
-- **Decoded on the GPU** where it can be (`rust/src/watching/decode`, Linux,
-  Intel and AMD). At start (`init_app`), before any room, Rust chooses how
-  the process's LiveKit runtime decodes: where Rift's FFmpeg library loads,
-  an Intel or AMD card draws the screen and GTK draws through EGL (Wayland),
-  the runtime decodes nothing (pass-through, from the LiveKit fork, `RIFT.md`
-  there). Each watched share's picture is then read still encoded and
-  decrypted, on a thread of its own, and decoded by FFmpeg through VAAPI on
-  that card (`native/ffenc/ffdec.h`). The surface leaves as two DMA-BUF
-  layers, Y and interleaved UV, which the runner imports into EGL as two
-  textures and draws with the same BT.601 shader, reading UV from one. The
-  runtime is the process's, so the choice holds for the share connections
-  too, which only send. A decoder starts at the stream's first keyframe and
-  asks for one after a picture fails. A share the GPU cannot decode, three
-  keyframes in a row that fail, or a runner that cannot import (it says so
-  when it makes the texture, `takesGpuPictures`) sends the call back to
-  watching through the call's connection. Elsewhere (X11, NVIDIA drawing the
-  screen, Windows, `RIFT_WATCH_DECODE=cpu`) libwebrtc decodes, as above.
-  Rift's FFmpeg library carries the three decoders for it, from 1.2 to 4.2
-  MB on Linux.
+- **Decoded on the GPU** where it can be (`rust/src/watching/decode`,
+  Linux). At start (`init_app`), before any room, Rust chooses how the
+  process's LiveKit runtime decodes: where Rift's FFmpeg library loads and
+  GTK draws through EGL (Wayland), the runtime decodes nothing (pass-through,
+  from the LiveKit fork, `RIFT.md` there). Each watched share's picture is
+  then read still encoded and decrypted, on a thread of its own, and decoded
+  by FFmpeg on the GPU that draws the screen, by the rule sharing follows
+  (`watch_decoder`): NVIDIA's only when it draws alone, else Intel's or
+  AMD's (`native/ffenc/ffdec.h`). From Intel or AMD, through VAAPI, the
+  surface leaves as two DMA-BUF layers, Y and interleaved UV, which the
+  runner imports into EGL as two textures. From NVIDIA, through NVDEC on
+  CUDA's primary context, the picture stays in CUDA's memory and the
+  runner, with its GL context current, has the library copy it into two GL
+  textures of its own (`rift_ffdec_copy_to_gl`, the way Moonlight does it),
+  registered once and kept. Either way the shader reads Y and UV, in the
+  matrix and range the stream says (BT.601, 709 or 2020, limited or full);
+  libwebrtc's pictures are drawn BT.601 limited, as flutter_webrtc drew them.
+  The runtime is the process's, so the choice holds for the share
+  connections too, which only send. A decoder starts at the stream's first
+  keyframe and asks for one after a picture fails. A share the GPU cannot
+  decode, three keyframes in a row that fail, a runner that cannot import
+  (it says so when it makes the texture, `takesGpuPictures`), or a GPU
+  picture the runner fails to import or copy (it hands it back undrawn,
+  `rift_watch_frame_unlock`) sends the call back to watching through the
+  call's connection. Elsewhere (X11, Windows, `RIFT_WATCH_DECODE=cpu`)
+  libwebrtc decodes, as above. Rift's FFmpeg library carries the three
+  decoders for it, through VAAPI and NVDEC, from 1.2 to 4.2 MB on Linux.
 - **Still through the call:** the receive stats under the picture, which a
   share watched through Rust does not show yet (the stats read the call's
   connection; turned on, they show nothing for such a share).
@@ -686,7 +694,13 @@ a 30-a-second share, so none lost; the decoder alone (`native/ffenc/test.sh`,
 drawn the runner's way. Then in the app: Cara's log shows H264 and then VP9
 decoded on the Iris Xe each time she watched, through two size changes and
 the pictures turned off and on, and the owner saw both move with the right
-colours and heard the sound. Not yet measured against the call's path.
+colours and heard the sound. On NVIDIA drawing alone (RTX 3070 Ti laptop,
+Nov 2) the same: `live_gpu_watch` decoded VP8, VP9 and H264 through CUDA, 89
+to 90 pictures in 3 s each; `test_ffdec cuda` gave back the four colours
+after CUDA's copy into GL; and in the app the owner saw H264 and VP9 move
+with the right colours, through resizes, minimising and rejoining, and the
+first watch after joining from the sidebar showed its picture. Not yet
+measured against the call's path.
 
 ## How a call is played out on the desktop — [Implemented October 2026]
 

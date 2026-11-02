@@ -240,8 +240,21 @@ A watch connection needs its own token, and so a change in `rift-self-host`:
    call's connection for the rest of the call rather than reopening the watch
    connection on libwebrtc's decoder: the runtime cannot change while the share
    connections hold it. Verified in Rust (VP8, VP9, H264 on the Iris Xe) and in
-   the app (H264 and VP9). Not yet: AMD, NVDEC, the cost measured, and receive
-   stats for a share Rust holds (the owner turned the stats on and saw none).
+   the app (H264 and VP9). NVDEC is done too (Nov 2, RTX 3070 Ti laptop on
+   discrete): FFmpeg's NVDEC on CUDA's primary context, the picture copied by CUDA
+   into the runner's GL textures (Moonlight's way, not EGLStreams), and its colour
+   matrix and range taken from the stream for both decoders. A GPU picture the runner
+   fails to draw is handed back undrawn, and the call goes back to its own
+   connection. Verified in Rust (VP8, VP9, H264 through CUDA) and in the app (H264
+   and VP9, resize, minimise, rejoin, the first watch after joining). Not yet: AMD,
+   the cost measured, and receive stats for a share Rust holds (the owner turned the
+   stats on and saw none).
+
+   The app's first fix on the way (Nov 2): watched straight after joining from the
+   sidebar, a share showed the sharer's avatar. The join's unsubscribe of the
+   unwatched picture went out while the watch connection's answer was awaited, and
+   livekit_client dropped the subscribe after it, still holding the old track (patch
+   8 in `third_party/livekit_client/RIFT_PATCHES.md`).
 4. **Windows** (phases A and B) by the Windows Claude, on the same Rust and Dart code
    with its own texture and decoder.
 

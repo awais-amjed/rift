@@ -294,8 +294,8 @@ fn show(shares: &Shares, identity: &str, track: RemoteVideoTrack) {
     watched.picture = None;
     let texture = watched.texture;
     let identity = identity.to_string();
-    if let Some(device) = decode::gpu() {
-        watched.picture = decode::feed(track, texture, identity, device)
+    if let Some(gpu) = decode::gpu() {
+        watched.picture = decode::feed(track, texture, identity, gpu)
             .map(|feed| PictureFeed::Encoded { _feed: feed });
         return;
     }

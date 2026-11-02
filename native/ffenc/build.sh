@@ -57,13 +57,15 @@ if [[ $os == linux ]]; then
   spa_headers_sha256=e75568ed18bcbe75e9779af57cb9cc256fd7ebfaadc12bb347a0717055d1d3a9
   # And the filters that take a Wayland share's DMA-BUF into VAAPI and make
   # NV12 of it on the GPU (dmabuf.c), with libdrm for DRM's frames. And a
-  # watched share's decoders (ffdec.c), each only through VAAPI: FFmpeg's
-  # decoders read the stream and the GPU decodes it.
+  # watched share's decoders (ffdec.c), each only through the GPU, VAAPI's or
+  # NVIDIA's (NVDEC, reached like NVENC): FFmpeg's decoders read the stream
+  # and the GPU decodes it.
   configure_flags+=(
     --enable-vaapi --enable-libdrm --enable-encoder=h264_vaapi,h264_nvenc
     --enable-filter=buffer,buffersink,hwmap,scale_vaapi,transpose_vaapi,pad_vaapi
     --enable-decoder=h264,vp8,vp9
-    --enable-hwaccel=h264_vaapi,vp8_vaapi,vp9_vaapi
+    --enable-nvdec
+    --enable-hwaccel=h264_vaapi,vp8_vaapi,vp9_vaapi,h264_nvdec,vp8_nvdec,vp9_nvdec
   )
 else
   library=$out/rift_ffenc.dll

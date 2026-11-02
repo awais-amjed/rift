@@ -1,7 +1,8 @@
 //! Which GPU encodes a Wayland share. The picture is on the GPU that draws the
 //! screen, so that is the one to encode on: NVIDIA's only when it draws alone.
 //! On a hybrid laptop Intel or AMD drives the screen, and VAAPI there keeps
-//! coming first (`ffmpeg.rs`, `candidates`).
+//! coming first (`ffmpeg.rs`, `candidates`). A watched share decodes by the
+//! same rule ([`watch_decoder`]), so its picture is drawn where it lies.
 
 use std::path::Path;
 
@@ -65,10 +66,30 @@ pub(crate) fn nvidia_draws_the_screen(cards: &[DrmCard]) -> Option<&str> {
         .as_deref()
 }
 
+/// The GPU a watched share decodes on, and how it is reached.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum WatchDecoder<'a> {
+    /// Intel's or AMD's render node, through VAAPI: its pictures go to the
+    /// runner as DMA-BUFs.
+    Vaapi(&'a str),
+    /// NVIDIA's, through CUDA: its pictures are copied into the runner's GL
+    /// textures, which needs GL on the same card.
+    Cuda(&'a str),
+}
+
+/// Where a watched share decodes: on the GPU that draws the screen, so the
+/// picture stays on the GPU that draws it. NVIDIA's only when it draws alone,
+/// as for sharing. `None` when no card that draws has a render node.
+pub(crate) fn watch_decoder(cards: &[DrmCard]) -> Option<WatchDecoder<'_>> {
+    if let Some(node) = nvidia_draws_the_screen(cards) {
+        return Some(WatchDecoder::Cuda(node));
+    }
+    intel_or_amd_drawing(cards).map(WatchDecoder::Vaapi)
+}
+
 /// The render node of the Intel or AMD card that draws the screen, the one
-/// with a display first: where a watched share decodes, so the picture stays
-/// on the GPU that draws it. `None` when NVIDIA draws alone, or there is none.
-pub(crate) fn intel_or_amd_drawing(cards: &[DrmCard]) -> Option<&str> {
+/// with a display first. `None` when NVIDIA draws alone, or there is none.
+fn intel_or_amd_drawing(cards: &[DrmCard]) -> Option<&str> {
     if nvidia_draws_the_screen(cards).is_some() {
         return None;
     }
@@ -302,6 +323,32 @@ mod tests {
         );
         assert_eq!(intel_or_amd_drawing(&[card(INTEL, true, None)]), None);
         assert_eq!(intel_or_amd_drawing(&[]), None);
+    }
+
+    #[test]
+    fn gpu_choice_watching_decodes_on_nvidia_only_when_it_draws_alone() {
+        const INTEL_NODE: &str = "/dev/dri/renderD128";
+        let nvidia_alone = [
+            card(INTEL, false, Some(INTEL_NODE)),
+            card(NVIDIA, true, Some(NODE)),
+        ];
+        assert_eq!(watch_decoder(&nvidia_alone), Some(WatchDecoder::Cuda(NODE)));
+        let hybrid = [
+            card(INTEL, true, Some(INTEL_NODE)),
+            card(NVIDIA, false, Some(NODE)),
+        ];
+        assert_eq!(
+            watch_decoder(&hybrid),
+            Some(WatchDecoder::Vaapi(INTEL_NODE))
+        );
+        // Both with a display: the picture is Intel's to draw, as for sharing.
+        let both = [
+            card(INTEL, true, Some(INTEL_NODE)),
+            card(NVIDIA, true, Some(NODE)),
+        ];
+        assert_eq!(watch_decoder(&both), Some(WatchDecoder::Vaapi(INTEL_NODE)));
+        assert_eq!(watch_decoder(&[card(NVIDIA, true, None)]), None);
+        assert_eq!(watch_decoder(&[]), None);
     }
 
     #[test]

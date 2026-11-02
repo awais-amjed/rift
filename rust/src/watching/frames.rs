@@ -11,10 +11,16 @@
 //! and keeps the picture alive until [`rift_watch_frame_unlock`], whatever
 //! happens to the slot meanwhile. The runner finds the two through
 //! [`entry_points`], as it finds DPDFNet's. A picture is libwebrtc's, three
-//! planes in memory, or one decoded on the GPU ([`super::decode`]), two
-//! DMA-BUF layers the runner imports.
+//! planes in memory, or one decoded on the GPU ([`super::decode`]): two
+//! DMA-BUF layers the runner imports, or CUDA's memory, which the runner has
+//! the decoder's library copy into its GL textures.
+//!
+//! A GPU picture the runner cannot draw is handed back saying so, and the
+//! app then watches through the call instead ([`super::session::lost`]):
+//! otherwise the share would stay black for as long as it is watched.
 use livekit::webrtc::prelude::{I420Buffer, VideoBuffer};
 use std::collections::HashMap;
+use std::ffi::c_void;
 use std::sync::Mutex;
 
 /// The runner's "a new picture is waiting" for one texture: it marks the
@@ -26,7 +32,22 @@ pub(crate) type MarkFn = unsafe extern "C" fn(texture: u64);
 pub(crate) const IN_MEMORY: u32 = 0;
 /// [`WatchPlanes::kind`] for a picture on the GPU: NV12 as two DMA-BUF layers,
 /// Y as DRM's R8 and interleaved UV as GR88 at half the size each way.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 pub(crate) const ON_GPU: u32 = 1;
+/// [`WatchPlanes::kind`] for a picture in CUDA's memory, NV12, which
+/// [`WatchPlanes::copy_to_gl`] copies into the runner's textures.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+pub(crate) const IN_CUDA: u32 = 2;
+
+/// `rift_ffdec_copy_to_gl` (`native/ffenc/ffdec.h`): the picture, the
+/// runner's two textures, and its registration of them, kept between calls.
+pub(crate) type CopyToGl = unsafe extern "C" fn(
+    picture: *const c_void,
+    textures: *const u32,
+    link: *mut *mut c_void,
+) -> i32;
+/// `rift_ffdec_gl_close`: lets the registration go before the textures do.
+pub(crate) type GlClose = unsafe extern "C" fn(link: *mut c_void);
 
 /// One picture as the runner draws it. `linux/runner/stream_texture.cc` has
 /// the same fields in the same order.
@@ -48,6 +69,17 @@ pub struct WatchPlanes {
     pub offsets: [u32; 2],
     pub pitches: [u32; 2],
     pub modifiers: [u64; 2],
+    /// The colour's matrix (`RiftFfdecMatrix`: BT.601, 709 or 2020), and 1
+    /// for full range. BT.601 limited, 0 and 0, for libwebrtc's pictures,
+    /// which flutter_webrtc always drew that way.
+    pub matrix: u32,
+    pub full_range: u32,
+    /// [`IN_CUDA`]: the decoder's picture, valid while lent, and the
+    /// library's functions the runner calls on it with its GL context
+    /// current.
+    pub picture: *const c_void,
+    pub copy_to_gl: Option<CopyToGl>,
+    pub gl_close: Option<GlClose>,
 }
 
 impl WatchPlanes {
@@ -68,6 +100,11 @@ impl WatchPlanes {
             offsets: [0; 2],
             pitches: [0; 2],
             modifiers: [0; 2],
+            matrix: 0,
+            full_range: 0,
+            picture: std::ptr::null(),
+            copy_to_gl: None,
+            gl_close: None,
         }
     }
 }
@@ -103,6 +140,8 @@ impl Picture for Box<dyn Picture> {
 struct Slot<P> {
     newest: Option<P>,
     mark: Option<MarkFn>,
+    /// The runner could not draw one of its pictures, and was answered.
+    failed: bool,
 }
 
 /// The slots, and the pictures lent out of them.
@@ -120,7 +159,14 @@ impl<P: Picture> Table<P> {
     }
 
     fn open(&mut self, texture: u64, mark: Option<MarkFn>) {
-        self.slots.insert(texture, Slot { newest: None, mark });
+        self.slots.insert(
+            texture,
+            Slot {
+                newest: None,
+                mark,
+                failed: false,
+            },
+        );
     }
 
     /// Nothing more is delivered to [texture]. A picture already lent stays
@@ -147,8 +193,18 @@ impl<P: Picture> Table<P> {
         Some(planes)
     }
 
-    fn unlock(&mut self, texture: u64) {
+    /// The runner is done with the lent picture, having drawn it or not.
+    /// True the first time it could not, for as long as [texture] is open:
+    /// the one time to give up on drawing it.
+    fn unlock(&mut self, texture: u64, drawn: bool) -> bool {
         self.lent.remove(&texture);
+        match self.slots.get_mut(&texture) {
+            Some(slot) if !drawn && !slot.failed => {
+                slot.failed = true;
+                true
+            }
+            _ => false,
+        }
     }
 }
 
@@ -214,16 +270,21 @@ pub unsafe extern "C" fn rift_watch_frame_lock(texture: u64, out: *mut WatchPlan
     }
 }
 
-/// The runner has finished uploading the picture [rift_watch_frame_lock] lent.
+/// The runner has finished with the picture [rift_watch_frame_lock] lent:
+/// [drawn] is 1, or 0 when it could not draw it, a GPU picture that would not
+/// import or copy. The first time, the app watches through the call instead.
 #[no_mangle]
-pub extern "C" fn rift_watch_frame_unlock(texture: u64) {
-    with_table(|t| t.unlock(texture));
+pub extern "C" fn rift_watch_frame_unlock(texture: u64, drawn: i32) {
+    if with_table(|t| t.unlock(texture, drawn != 0)) {
+        log::warn!("watching: the window could not draw a picture decoded on the GPU");
+        super::session::lost("the window could not draw a picture decoded on the GPU");
+    }
 }
 
 /// Where the runner finds the two functions above.
 pub(crate) fn entry_points() -> (usize, usize) {
     let lock: unsafe extern "C" fn(u64, *mut WatchPlanes) -> i32 = rift_watch_frame_lock;
-    let unlock: extern "C" fn(u64) = rift_watch_frame_unlock;
+    let unlock: extern "C" fn(u64, i32) = rift_watch_frame_unlock;
     (lock as usize, unlock as usize)
 }
 
@@ -283,7 +344,7 @@ mod tests {
         assert!(table.lock(7).is_some());
         table.close(7);
         assert_eq!(alive.load(Ordering::SeqCst), 1, "still being uploaded");
-        table.unlock(7);
+        table.unlock(7, true);
         assert_eq!(alive.load(Ordering::SeqCst), 0);
     }
 
@@ -297,6 +358,30 @@ mod tests {
         table.open(9, None);
         table.close(9);
         assert!(table.deliver(9, Fake::new(2, &alive)).is_none());
+    }
+
+    #[test]
+    fn a_picture_the_runner_cannot_draw_gives_up_once() {
+        let alive = Arc::new(AtomicUsize::new(0));
+        let mut table = Table::new();
+        table.open(7, None);
+        table.deliver(7, Fake::new(1, &alive));
+        assert!(table.lock(7).is_some());
+        assert!(!table.unlock(7, true), "drawn");
+        for (id, answer) in [(2, true), (3, false)] {
+            table.deliver(7, Fake::new(id, &alive));
+            assert!(table.lock(7).is_some());
+            assert_eq!(table.unlock(7, false), answer, "picture {id}");
+        }
+        assert_eq!(alive.load(Ordering::SeqCst), 0, "handed back all the same");
+        // Watched again, it may give up again.
+        table.open(7, None);
+        table.deliver(7, Fake::new(4, &alive));
+        assert!(table.lock(7).is_some());
+        assert!(table.unlock(7, false));
+        // A texture already closed has nothing to give up.
+        table.close(7);
+        assert!(!table.unlock(7, false));
     }
 
     #[test]

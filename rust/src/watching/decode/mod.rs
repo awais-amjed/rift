@@ -5,7 +5,9 @@
 //! a GPU decoder is there, it decodes nothing (pass-through, `RIFT.md` in the
 //! LiveKit fork), and each watched share's picture is read still encoded, on a
 //! thread of its own ([`feed`]), decoded on the GPU the screen is drawn with,
-//! and handed to the runner as DMA-BUFs. Nothing comes to the CPU. The
+//! and handed to the runner: as DMA-BUFs from Intel or AMD, and from NVIDIA
+//! as CUDA's memory, which the runner has copied into its GL textures on the
+//! GPU. Nothing comes to the CPU. The
 //! runtime cannot change while a room holds it, so the choice is the
 //! process's: the share connections only send, and never notice.
 //!
@@ -33,7 +35,11 @@ mod elsewhere;
 mod linux;
 
 #[cfg(not(target_os = "linux"))]
+pub(crate) use elsewhere::Gpu;
+#[cfg(not(target_os = "linux"))]
 use elsewhere::{device, DecodeError, Decoder};
+#[cfg(target_os = "linux")]
+pub(crate) use linux::Gpu;
 #[cfg(target_os = "linux")]
 use linux::{device, DecodeError, Decoder};
 
@@ -67,19 +73,19 @@ impl Codec {
     }
 }
 
-static GPU: OnceLock<Option<String>> = OnceLock::new();
+static GPU: OnceLock<Option<Gpu>> = OnceLock::new();
 
 /// Decides, once and before any room, whether watched shares decode on the
 /// GPU. `RIFT_WATCH_DECODE=cpu` keeps libwebrtc's decoder, to compare.
 pub(crate) fn choose() {
     GPU.get_or_init(|| {
-        let node = if std::env::var("RIFT_WATCH_DECODE").as_deref() == Ok("cpu") {
+        let gpu = if std::env::var("RIFT_WATCH_DECODE").as_deref() == Ok("cpu") {
             Err("RIFT_WATCH_DECODE=cpu".to_string())
         } else {
             device()
         };
-        let node = match node {
-            Ok(node) => node,
+        let gpu = match gpu {
+            Ok(gpu) => gpu,
             Err(why) => {
                 log::info!("watching: shares decode on the CPU ({why})");
                 return None;
@@ -87,8 +93,8 @@ pub(crate) fn choose() {
         };
         match livekit::webrtc::set_video_decoder_backend(VideoDecoderBackend::PassThrough) {
             Ok(()) => {
-                log::info!("watching: shares decode on the GPU ({node})");
-                Some(node)
+                log::info!("watching: shares decode on the GPU ({gpu})");
+                Some(gpu)
             }
             Err(e) => {
                 log::warn!("watching: shares decode on the CPU ({e})");
@@ -100,8 +106,8 @@ pub(crate) fn choose() {
 
 /// The GPU watched shares decode on, when they do: the runtime then decodes
 /// nothing itself.
-pub(crate) fn gpu() -> Option<&'static str> {
-    GPU.get()?.as_deref()
+pub(crate) fn gpu() -> Option<&'static Gpu> {
+    GPU.get()?.as_ref()
 }
 
 /// A share's picture being decoded. Dropped, it stops: the thread ends at
@@ -110,13 +116,13 @@ pub(crate) struct Feed {
     _stop: oneshot::Sender<()>,
 }
 
-/// Decodes `track` on `device` into `texture`, on a thread of its own.
+/// Decodes `track` on `gpu` into `texture`, on a thread of its own.
 /// Called inside the runtime, whose handle the thread reads the track with.
 pub(crate) fn feed(
     track: RemoteVideoTrack,
     texture: u64,
     identity: String,
-    device: &'static str,
+    gpu: &'static Gpu,
 ) -> Option<Feed> {
     let (stop, stopped) = oneshot::channel();
     let runtime = tokio::runtime::Handle::current();
@@ -140,7 +146,7 @@ pub(crate) fn feed(
                     }
                 })
             };
-            decode(next, texture, &identity, device);
+            decode(next, texture, &identity, gpu);
         })
         .map_err(|e| log::warn!("watching: no thread to decode on: {e}"))
         .ok()?;
@@ -151,7 +157,7 @@ fn decode(
     mut next: impl FnMut() -> Option<ReceivedEncodedFrame>,
     texture: u64,
     identity: &str,
-    device: &str,
+    gpu: &Gpu,
 ) {
     let mut chain = Chain::default();
     let mut decoder: Option<Decoder> = None;
@@ -172,7 +178,7 @@ fn decode(
                 ask_for_keyframe(&frame, &mut asked);
                 continue;
             }
-            Next::Open => match Decoder::open(codec, device) {
+            Next::Open => match Decoder::open(codec, gpu) {
                 Ok(opened) => {
                     log::info!("watching: decoding {codec:?} on {}", opened.driver());
                     decoder = Some(opened);

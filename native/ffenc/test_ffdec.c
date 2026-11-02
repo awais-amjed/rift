@@ -1,9 +1,12 @@
 // Decodes on the GPU what the GPU encoded, and draws it the way the runner
-// draws a watched share (linux/runner/stream_texture.cc): each plane of the
-// decoded DMA-BUF imported into EGL as a texture of its own, then one shader
-// turning NV12 into colour. Four coloured quarters go in, and the same four
-// must come out, at the size sent though H264 codes 1080 lines as 1088.
-// Run by native/ffenc/test.sh on a computer with a VAAPI encoder and decoder;
+// draws a watched share (linux/runner/stream_texture.cc): from VAAPI, each
+// plane of the decoded DMA-BUF imported into EGL as a texture of its own; from
+// NVIDIA's decoder, each plane copied by CUDA into a GL texture of the
+// runner's kind (rift_ffdec_copy_to_gl); then one shader turning NV12 into
+// colour. Four coloured quarters go in, and the same four must come out, at
+// the size sent though H264 codes 1080 lines as 1088.
+// Run by native/ffenc/test.sh on a computer with a VAAPI encoder and decoder,
+// and again with `cuda` on one with NVENC and NVIDIA's decoder;
 // RIFT_RENDER_NODE picks the GPU.
 #include "ffdec.h"
 
@@ -68,6 +71,11 @@ static void fill(uint8_t* nv12) {
 // ── Drawing, as the runner draws ────────────────────────────────────────
 
 static EGLDisplay display;
+// Through CUDA rather than DMA-BUFs: the textures CUDA copies into, as the
+// runner makes them, and their registration, kept between pictures.
+static int cuda;
+static GLuint cuda_textures[2];
+static RiftFfdecGl* gl_link;
 static PFNGLEGLIMAGETARGETTEXTURE2DOESPROC image_target;
 static GLuint program, target, framebuffer;
 
@@ -133,6 +141,13 @@ static int open_drawing(const char* node) {
   glEnableVertexAttribArray(0);
   glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, NULL);
 
+  glGenTextures(2, cuda_textures);
+  glBindTexture(GL_TEXTURE_2D, cuda_textures[0]);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, W, H, 0, GL_RED, GL_UNSIGNED_BYTE, NULL);
+  glBindTexture(GL_TEXTURE_2D, cuda_textures[1]);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RG8, (W + 1) / 2, (H + 1) / 2, 0, GL_RG,
+               GL_UNSIGNED_BYTE, NULL);
+
   glGenTextures(1, &target);
   glBindTexture(GL_TEXTURE_2D, target);
   glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, W, H);
@@ -164,10 +179,24 @@ static EGLImage import_plane(const RiftFfdecPicture* p, int i) {
 
 // Draws the picture and checks the middle of each quarter.
 static void draw_and_check(const RiftFfdecPicture* p, int index) {
-  EGLImage images[2];
+  CHECK(p->matrix == RIFT_FFDEC_BT601 && !p->full_range,
+        "picture %d: matrix %d, full range %d; sent BT.601 limited", index,
+        p->matrix, p->full_range);
+  EGLImage images[2] = {EGL_NO_IMAGE, EGL_NO_IMAGE};
   GLuint textures[2];
   glGenTextures(2, textures);
-  for (int i = 0; i < 2; i++) {
+  if (cuda) {
+    int err = rift_ffdec_copy_to_gl(p, cuda_textures, &gl_link);
+    CHECK(err == 0, "picture %d did not copy into GL (%d)", index, err);
+    if (err != 0) return;
+    for (int i = 0; i < 2; i++) {
+      glActiveTexture(GL_TEXTURE0 + i);
+      glBindTexture(GL_TEXTURE_2D, cuda_textures[i]);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    }
+  }
+  for (int i = 0; i < 2 && !cuda; i++) {
     images[i] = import_plane(p, i);
     CHECK(images[i] != EGL_NO_IMAGE, "picture %d plane %d did not import (0x%x)",
           index, i, eglGetError());
@@ -197,20 +226,25 @@ static void draw_and_check(const RiftFfdecPicture* p, int index) {
   }
   CHECK(glGetError() == GL_NO_ERROR, "GL error drawing picture %d", index);
   glDeleteTextures(2, textures);
-  for (int i = 0; i < 2; i++) eglDestroyImage(display, images[i]);
+  for (int i = 0; i < 2; i++) {
+    if (images[i] != EGL_NO_IMAGE) eglDestroyImage(display, images[i]);
+  }
 }
 
 // ── The round trip ──────────────────────────────────────────────────────
 
-int main(void) {
+int main(int argc, char** argv) {
+  cuda = argc > 1 && strcmp(argv[1], "cuda") == 0;
   const char* node = getenv("RIFT_RENDER_NODE");
   if (!node) node = "/dev/dri/renderD128";
   rift_ffenc_set_log(log_line, 16);
   char error[256] = {0};
+  const char* way = cuda ? "NVIDIA" : "VAAPI";
 
   RiftFfencConfig enc_config = {
-      .encoder = "h264_vaapi",
-      .device = node,
+      // NVENC from memory: a render node would open its GL side.
+      .encoder = cuda ? "h264_nvenc" : "h264_vaapi",
+      .device = cuda ? NULL : node,
       .width = W,
       .height = H,
       .fps = 60,
@@ -221,13 +255,17 @@ int main(void) {
   };
   RiftFfenc* enc = rift_ffenc_open(&enc_config, error, sizeof error);
   if (!enc) {
-    fprintf(stderr, "no VAAPI encoder on %s: %s\n", node, error);
+    fprintf(stderr, "no %s encoder on %s: %s\n", way, node, error);
     return 2;
   }
-  RiftFfdecConfig dec_config = {.codec = RIFT_FFDEC_H264, .device = node};
+  RiftFfdecConfig dec_config = {
+      .codec = RIFT_FFDEC_H264,
+      .device = node,
+      .api = cuda ? RIFT_FFDEC_CUDA : RIFT_FFDEC_VAAPI,
+  };
   RiftFfdec* dec = rift_ffdec_open(&dec_config, error, sizeof error);
   if (!dec) {
-    fprintf(stderr, "no VAAPI decoder on %s: %s\n", node, error);
+    fprintf(stderr, "no %s decoder on %s: %s\n", way, node, error);
     rift_ffenc_close(enc);
     return 2;
   }
@@ -237,9 +275,12 @@ int main(void) {
   }
   printf("decoding on %s\n", rift_ffdec_driver(dec));
 
-  RiftFfdecConfig bad = {.codec = 99, .device = node};
+  RiftFfdecConfig bad = {.codec = 99, .device = node, .api = dec_config.api};
   CHECK(rift_ffdec_open(&bad, error, sizeof error) == NULL,
         "a codec that is not one opened");
+  RiftFfdecConfig no_api = {.codec = RIFT_FFDEC_H264, .device = node, .api = 7};
+  CHECK(rift_ffdec_open(&no_api, error, sizeof error) == NULL,
+        "a way to the GPU that is not one opened");
 
   uint8_t* nv12 = malloc(W * H * 3 / 2);
   fill(nv12);
@@ -257,10 +298,27 @@ int main(void) {
       while ((got = rift_ffdec_receive(dec, &picture)) == 1) {
         CHECK(picture.width == W && picture.height == H, "size %dx%d",
               picture.width, picture.height);
-        CHECK(picture.planes == 2 && picture.formats[0] == DRM_FORMAT_R8 &&
-                  picture.formats[1] == DRM_FORMAT_GR88,
-              "not NV12 as R8 and GR88");
-        if (decoded == 0 || decoded == PICTURES - 1) draw_and_check(&picture, decoded);
+        if (cuda) {
+          CHECK(picture.planes == 2 && picture.memory == RIFT_FFDEC_IN_CUDA &&
+                    picture.fds[0] == -1 && picture.fds[1] == -1,
+                "not NV12 in CUDA's memory");
+        } else {
+          CHECK(picture.planes == 2 && picture.memory == RIFT_FFDEC_IN_DMABUF &&
+                    picture.formats[0] == DRM_FORMAT_R8 &&
+                    picture.formats[1] == DRM_FORMAT_GR88,
+                "not NV12 as R8 and GR88");
+        }
+        // Every picture through CUDA, as the runner copies each; the first and
+        // last checked.
+        if (decoded == 0 || decoded == PICTURES - 1) {
+          draw_and_check(&picture, decoded);
+        } else if (cuda) {
+          RiftFfdecGl* before = gl_link;
+          CHECK(rift_ffdec_copy_to_gl(&picture, cuda_textures, &gl_link) == 0,
+                "picture %d did not copy into GL", decoded);
+          CHECK(gl_link == before, "picture %d registered the textures again",
+                decoded);
+        }
         // One kept past the decoder's close, as the runner may still hold one.
         if (decoded == 3) {
           kept = picture;
@@ -279,6 +337,14 @@ int main(void) {
   if (kept.held) draw_and_check(&kept, 3);
   rift_ffdec_release(&kept);
   rift_ffdec_release(&kept);
+  if (cuda) {
+    CHECK(gl_link != NULL, "no textures linked");
+    RiftFfdecPicture none = {0};
+    CHECK(rift_ffdec_copy_to_gl(&none, cuda_textures, &gl_link) < 0,
+          "an empty picture copied");
+    rift_ffdec_gl_close(gl_link);
+    rift_ffdec_gl_close(NULL);
+  }
   CHECK(decoded == PICTURES, "%d of %d pictures decoded", decoded, PICTURES);
   free(nv12);
 
@@ -286,7 +352,7 @@ int main(void) {
     fprintf(stderr, "%d failures\n", failures);
     return 1;
   }
-  printf("ok: %d pictures decoded on the GPU and drawn from their DMA-BUFs\n",
-         decoded);
+  printf("ok: %d pictures decoded on the GPU and drawn %s\n", decoded,
+         cuda ? "after CUDA's copy into GL" : "from their DMA-BUFs");
   return 0;
 }

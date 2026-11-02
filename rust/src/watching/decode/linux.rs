@@ -1,21 +1,32 @@
-//! Linux: FFmpeg's VAAPI decoders, in Rift's FFmpeg library
-//! (`native/ffenc/ffdec.h`), on the Intel or AMD GPU that draws the screen.
-//! Each picture leaves as two DMA-BUF layers, which the runner imports.
+//! Linux: FFmpeg's GPU decoders, in Rift's FFmpeg library
+//! (`native/ffenc/ffdec.h`), on the GPU that draws the screen. On Intel or
+//! AMD through VAAPI, each picture leaving as two DMA-BUF layers, which the
+//! runner imports; on NVIDIA through CUDA, each picture copied by the library
+//! into the runner's GL textures as the runner draws it.
 
-use super::super::frames::{Picture, WatchPlanes, ON_GPU};
+use super::super::frames::{CopyToGl, GlClose, Picture, WatchPlanes, IN_CUDA, ON_GPU};
 use super::Codec;
 use crate::screenshare::encoder::ffmpeg::{library, symbol};
-use crate::screenshare::encoder::gpu_choice;
+use crate::screenshare::encoder::gpu_choice::{self, WatchDecoder};
 use std::ffi::{c_char, c_void, CStr, CString};
+use std::fmt;
 use std::sync::OnceLock;
 
 /// FFmpeg's AVERROR(ENOSYS): the GPU cannot decode this stream.
 const NO_GPU_DECODER: i32 = -38;
 
+/// `RiftFfdecApi`.
+const VAAPI: i32 = 0;
+const CUDA: i32 = 1;
+
+/// `RiftFfdecMemory`'s CUDA.
+const MEMORY_CUDA: i32 = 1;
+
 #[repr(C)]
 struct Config {
     codec: i32,
     device: *const c_char,
+    api: i32,
 }
 
 /// `RiftFfdecPicture`, as `ffdec.h` declares it.
@@ -24,6 +35,9 @@ struct RawPicture {
     width: i32,
     height: i32,
     planes: i32,
+    memory: i32,
+    matrix: i32,
+    full_range: i32,
     formats: [u32; 4],
     fds: [i32; 4],
     offsets: [u32; 4],
@@ -41,6 +55,8 @@ struct Api {
     receive: unsafe extern "C" fn(*mut c_void, *mut RawPicture) -> i32,
     release: unsafe extern "C" fn(*mut RawPicture),
     close: unsafe extern "C" fn(*mut c_void),
+    copy_to_gl: CopyToGl,
+    gl_close: GlClose,
 }
 
 fn api() -> Result<&'static Api, String> {
@@ -57,6 +73,8 @@ fn api() -> Result<&'static Api, String> {
                 receive: symbol(library, "rift_ffdec_receive")?,
                 release: symbol(library, "rift_ffdec_release")?,
                 close: symbol(library, "rift_ffdec_close")?,
+                copy_to_gl: symbol(library, "rift_ffdec_copy_to_gl")?,
+                gl_close: symbol(library, "rift_ffdec_gl_close")?,
             })
         }
     })
@@ -64,21 +82,44 @@ fn api() -> Result<&'static Api, String> {
     .map_err(Clone::clone)
 }
 
-/// The GPU a watched share decodes on, or why none does: the Intel or AMD
-/// card that draws the screen, under Wayland, where GTK draws with EGL, which
-/// imports DMA-BUFs. GTK 3 draws with GLX under X11, which cannot.
-pub(super) fn device() -> Result<String, String> {
+/// The GPU watched shares decode on.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct Gpu {
+    node: String,
+    cuda: bool,
+}
+
+impl fmt::Display for Gpu {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let through = if self.cuda { "CUDA" } else { "VAAPI" };
+        write!(f, "{}, through {through}", self.node)
+    }
+}
+
+/// The GPU a watched share decodes on, or why none does: the card that draws
+/// the screen (`gpu_choice::watch_decoder`), under Wayland, where GTK draws
+/// with EGL on that card. GTK 3 draws with GLX under X11, which imports no
+/// DMA-BUFs.
+pub(super) fn device() -> Result<Gpu, String> {
     let wayland = std::env::var_os("WAYLAND_DISPLAY").is_some()
         && !std::env::var("GDK_BACKEND").is_ok_and(|b| b.trim_start().starts_with("x11"));
     if !wayland {
         return Err("not under Wayland".to_string());
     }
     let cards = gpu_choice::read_cards();
-    let Some(node) = gpu_choice::intel_or_amd_drawing(&cards) else {
-        return Err("no Intel or AMD GPU draws the screen".to_string());
+    let gpu = match gpu_choice::watch_decoder(&cards) {
+        Some(WatchDecoder::Vaapi(node)) => Gpu {
+            node: node.to_owned(),
+            cuda: false,
+        },
+        Some(WatchDecoder::Cuda(node)) => Gpu {
+            node: node.to_owned(),
+            cuda: true,
+        },
+        None => return Err("no GPU that draws the screen has a render node".to_string()),
     };
     api()?;
-    Ok(node.to_owned())
+    Ok(gpu)
 }
 
 /// One share's decoder, used on its one thread.
@@ -98,9 +139,9 @@ pub(crate) enum DecodeError {
 }
 
 impl Decoder {
-    pub(crate) fn open(codec: Codec, device: &str) -> Result<Decoder, String> {
+    pub(crate) fn open(codec: Codec, gpu: &Gpu) -> Result<Decoder, String> {
         let api = api()?;
-        let device = CString::new(device).map_err(|e| e.to_string())?;
+        let device = CString::new(gpu.node.as_str()).map_err(|e| e.to_string())?;
         let config = Config {
             codec: match codec {
                 Codec::H264 => 1,
@@ -108,6 +149,7 @@ impl Decoder {
                 Codec::Vp9 => 3,
             },
             device: device.as_ptr(),
+            api: if gpu.cuda { CUDA } else { VAAPI },
         };
         let mut error = [0 as c_char; 256];
         // SAFETY: the config and the error buffer outlive the call, which
@@ -150,10 +192,7 @@ impl Decoder {
             // surface, which `Decoded` releases.
             let mut raw: RawPicture = unsafe { std::mem::zeroed() };
             match unsafe { (self.api.receive)(self.raw, &mut raw) } {
-                1 => pictures.push(Decoded {
-                    raw,
-                    release: self.api.release,
-                }),
+                1 => pictures.push(Decoded { raw, api: self.api }),
                 0 => return Ok(pictures),
                 NO_GPU_DECODER => return Err(DecodeError::NoGpuDecoder),
                 err => return Err(DecodeError::Failed(err)),
@@ -173,11 +212,12 @@ impl Drop for Decoder {
 /// A picture decoded on the GPU, holding its surface until it goes.
 pub(crate) struct Decoded {
     raw: RawPicture,
-    release: unsafe extern "C" fn(*mut RawPicture),
+    api: &'static Api,
 }
 
 // SAFETY: the picture is a reference to a GPU surface, which FFmpeg lets go
-// of from any thread (`rift_ffdec_release`).
+// of from any thread (`rift_ffdec_release`), and the runner copies from on
+// its own thread while it is lent (`rift_ffdec_copy_to_gl`).
 unsafe impl Send for Decoded {}
 
 impl Decoded {
@@ -189,6 +229,22 @@ impl Decoded {
 impl Picture for Decoded {
     fn planes(&self) -> WatchPlanes {
         let r = &self.raw;
+        let colour = WatchPlanes {
+            matrix: r.matrix as u32,
+            full_range: r.full_range as u32,
+            ..WatchPlanes::sized(r.width as u32, r.height as u32)
+        };
+        if r.memory == MEMORY_CUDA {
+            return WatchPlanes {
+                kind: IN_CUDA,
+                // Where the picture lies until it is dropped: inside the box
+                // the slot holds it in, which moving the box leaves in place.
+                picture: (r as *const RawPicture).cast(),
+                copy_to_gl: Some(self.api.copy_to_gl),
+                gl_close: Some(self.api.gl_close),
+                ..colour
+            };
+        }
         WatchPlanes {
             kind: ON_GPU,
             formats: [r.formats[0], r.formats[1]],
@@ -196,7 +252,7 @@ impl Picture for Decoded {
             offsets: [r.offsets[0], r.offsets[1]],
             pitches: [r.pitches[0], r.pitches[1]],
             modifiers: [r.modifiers[0], r.modifiers[1]],
-            ..WatchPlanes::sized(r.width as u32, r.height as u32)
+            ..colour
         }
     }
 }
@@ -204,6 +260,6 @@ impl Picture for Decoded {
 impl Drop for Decoded {
     fn drop(&mut self) {
         // SAFETY: a picture the library handed out, released once.
-        unsafe { (self.release)(&mut self.raw) };
+        unsafe { (self.api.release)(&mut self.raw) };
     }
 }
