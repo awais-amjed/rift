@@ -154,6 +154,68 @@ This is the plumbing for the drawing half, which comes first in `PLAN.md`.
   (open, last updated Jun 11). The Rust branch `dc/exp/av1_e2ee_support` is not
   merged either.
 
+### Step 3, checked again Nov 2, after the VAAPI half was built
+
+**rust-sdks #1515, the pass-through decoder in our fork.** By one outside
+contributor (himmelroman, whose only other LiveKit work is #1516, a crash fix,
+also open). About 4,400 lines with unit tests. An automated review found two
+issues; one was fixed with tests, the other answered from libwebrtc's frame
+buffer, correctly as far as we read it. A LiveKit maintainer asked another to
+lead the review on Oct 17; no human review yet. A recorder project asked for it
+on Oct 27. Its CI fails in two places:
+
+- **Windows doesn't link** (`livekit_ffi.dll`, LNK2019): the test-only bridge
+  type `DecodeForTest` is compiled on every platform, and MSVC wants the Rust side
+  of its `Vec`, which nothing on the Rust side uses. Linux's linker drops the
+  unused code, so it passed here. Rift's Windows build will meet the same error
+  through the fork, so the fork needs a fix (gate the test helper, or instantiate
+  the `Vec` in the bridge) before Windows builds on this commit.
+- A macOS data-track test timed out. That test has nothing to do with this PR.
+
+**Decode and draw, compared with Rift's own** (Moonlight at 1ced9dd, mpv at
+a687796). Rift's decoder is FFmpeg's standard GPU decode in about 200 lines,
+and FFmpeg does the decoding itself. The runner imports each plane into EGL,
+as Moonlight and mpv do. What they handle that Rift does not yet:
+
+- **A modifier of `DRM_FORMAT_MOD_INVALID`.** Both leave the modifier out of
+  the EGL import then. Rift always passes it. Intel's iHD always gives a real
+  one; an older Mesa on AMD may not.
+- **The picture's own colour space and range.** Moonlight reads both from the
+  decoded frame and passes them to EGL (`EGL_YUV_COLOR_SPACE_HINT_EXT`,
+  `EGL_SAMPLE_RANGE_HINT_EXT`). Rift's shader assumes BT.601 limited, which is
+  what every Rift sender writes (`ffenc.c`, libyuv). A share from a browser
+  with a hardware encoder could say BT.709, and its colours would be slightly
+  off. The old path assumes BT.601 too.
+- **Driver quirks** (Moonlight's `vaapi.cpp`): iHD crashing under XWayland
+  (Rift decodes only under Wayland), i965 needing the pixel format named
+  (Intel before Broadwell), and the VDPAU-backed VAAPI driver, which Moonlight
+  refuses.
+
+Licences: Moonlight GPL-3.0; mpv's `hwdec_cuda*.c`, `hwdec_vaapi.c` and
+`dmabuf_interop_gl.c` LGPL-2.1-or-later. Either can be copied into Rift.
+
+**NVIDIA, the options:**
+
+- **NVDEC through FFmpeg's CUDA decoder, copied into the runner's GL textures
+  on the GPU.** This is Moonlight's (`cuda.cpp`, `CUDAGLInteropHelper`) and
+  mpv's (`hwdec_cuda.c`, `hwdec_cuda_gl.c`) way. Register the two plane
+  textures with `cuGraphicsGLRegisterImage`, then `cuMemcpy2D` each picture
+  into them. It covers H264, VP8, VP9, AV1 and H265, on any driver Rift's
+  NVENC already needs. One copy a picture stays on the GPU. The copy has to
+  run in the runner's GL context, so the runner calls into the FFmpeg library
+  for it, as `nvenc_gl.c` already does the other way. **Recommended.**
+- **FFmpeg's Vulkan decoder, exported as DMA-BUF into the existing import.**
+  One path for every vendor in principle (`h264/hevc/vp9/av1_vulkan` in FFmpeg
+  9.0.2, and `vulkan_map_to_drm`). But it has no VP8; Firefox 153's Vulkan
+  decoding is still opt-in and wants NVIDIA 595 or later; and nobody shows
+  NVIDIA's decoded Vulkan images exported as DMA-BUF. Not a base for now.
+- **nvidia-vaapi-driver** (MIT, 0.0.18 in Aug 2026), VAAPI on top of NVDEC.
+  With it, Rift's VAAPI path would run on NVIDIA unchanged. But it is a
+  separate install that most people don't have, it has no 10-bit, and
+  Chromium keeps it off by default. At most a later extra, never the path.
+- LiveKit's own NVIDIA decoder in `webrtc-sys/src/nvidia/` stays out
+  (NVIDIA's licence), and reads each picture back to the CPU anyway.
+
 ## What this changes in the plan
 
 - **Step 1** has a second route: FFmpeg's `gfxcapture`/`ddagrab` inside ffenc,
@@ -181,3 +243,8 @@ This is the plumbing for the drawing half, which comes first in `PLAN.md`.
 - fvp / mdk-sdk licence: https://github.com/wang-bin/mdk-sdk
 - Vulkan encode reports: https://www.rendi.dev/post/ffmpeg-8-0-part-3-failed-attempts-to-use-vulkan-for-av1-encoding-vp9-decoding,
   https://community.intel.com/t5/Graphics/ffmpeg-h264-vulkan-and-hevc-vulkan-Encode-failed-on-A750-Linux/m-p/1651997
+- rust-sdks #1515 and its CI: https://github.com/livekit/rust-sdks/pull/1515
+- mpv: https://github.com/mpv-player/mpv (video/out/hwdec)
+- nvidia-vaapi-driver: https://github.com/elFarto/nvidia-vaapi-driver
+- nvidia-vaapi-driver 0.0.18: https://phoronix.com/news/NVIDIA-VA-API-Driver-0.0.18
+- Firefox 153 Vulkan decoding: https://daily.dev/posts/firefox-is-adding-vulkan-video-decoding-for-nvidia-gpus-om3p1pumx
