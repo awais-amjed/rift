@@ -200,6 +200,13 @@ A watch connection needs its own token, and so a change in `rift-self-host`:
    Done Nov 2 (above).
 2. **Phase A on Linux:** the server token, the watch connection, the `FlTextureGL` and
    shader, the sound, and Dart's switch between the two paths. Measured against today.
+   The server token is done (`rift-self-host`, Nov 2): verified on the local stack with
+   two members — refused unless the device's voice connection is in the room, hidden
+   from members, receives a stream, cannot publish a track or data, keeps its shape
+   under mute and deafen, and is removed once its voice connection leaves, by a roster
+   read or another watch mint. The same change stopped moderation letting a muted
+   sharer's share connection subscribe. The DM call's watch token is type-checked, not
+   yet run.
 3. **Phase B on Linux:** VAAPI on the Iris Xe, then NVDEC with the laptop on discrete.
    AMD by the AMD desktop's Claude.
 4. **Windows** (phases A and B) by the Windows Claude, on the same Rust and Dart code
