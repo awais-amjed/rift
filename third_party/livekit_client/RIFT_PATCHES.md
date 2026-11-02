@@ -123,6 +123,20 @@ uncorrelated.
    native viewer can misread the same way. Still the same on `main` on Oct 30
    2026.
 
+8. **`subscribe()` asks the server even when a track is here**
+   (`lib/src/publication/remote.dart`), the other half of patch 3. The SDK
+   counts a track as subscribed while it holds one, and after an unsubscribe
+   it keeps holding it until the server's removal arrives, which may be never.
+   A subscribe asked in that window returned early, so the server went on not
+   sending the picture. A member joining a call by watching a stream met it
+   every time once watching first asks for a watch connection (`CALLS.md`):
+   the join's unsubscribe of the unwatched picture goes out while that
+   answer is awaited, and the subscribe after it was dropped. Watch showed
+   the sharer's avatar until Stop watching and Watch again (Nov 2 2026, two
+   desktop clients on the local stack). LiveKit's JS SDK sends the request
+   whatever it holds; asking for a track the server already sends changes
+   nothing.
+
 ## When to remove it
 
 Patch 1 goes when a `livekit_client` release answers a stereo track with
@@ -131,6 +145,7 @@ Patch 1 goes when a `livekit_client` release answers a stereo track with
 unsubscribe without holding the track, patch 4 when a release can go back
 to letting visibility decide, patch 5 when a release keeps a disable
 through the server's bind, patch 6 when a release's web worker leaves no
-VP9 bytes in the clear, patch 7 when it passes H264 through the RBSP functions. With all seven gone, bump, delete this
+VP9 bytes in the clear, patch 7 when it passes H264 through the RBSP functions, patch 8 when a release subscribes
+whatever it holds. With all eight gone, bump, delete this
 folder and its `dependency_overrides` entry. Until then, a `livekit_client` upgrade needs this copy replaced with the
 new version and the changes put back.

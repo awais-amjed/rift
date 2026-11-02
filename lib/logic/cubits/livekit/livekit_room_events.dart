@@ -453,12 +453,19 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
   /// already watched, and the room was told this client was still watching.
   /// A watched share's picture, just published: through the Rust watch
   /// connection where it can be, in this room where it cannot.
+  ///
+  /// Asked whatever the publication holds: the wait for the watch
+  /// connection's answer is long enough for an unsubscribe to go out, the
+  /// join's of a picture not yet watched, and the old track stays here after
+  /// it (`third_party/livekit_client/RIFT_PATCHES.md`, patch 8).
   Future<void> _receiveWatchedPicture(
     RemoteParticipant participant,
     RemoteTrackPublication publication,
   ) async {
     if (await _watchThroughRust(participant.identity)) return;
-    if (!publication.subscribed) await publication.subscribe();
+    // Stopped watching while the answer was awaited.
+    if (!state.subscribedScreenshares.contains(participant.identity)) return;
+    await publication.subscribe();
     _applyScreenshareQualitySettings(participant);
   }
 

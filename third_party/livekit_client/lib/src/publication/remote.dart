@@ -363,7 +363,13 @@ class RemoteTrackPublication<T extends RemoteTrack> extends TrackPublication<T> 
   }
 
   Future<void> subscribe() async {
-    if (super.subscribed || !_subscriptionAllowed) {
+    // RIFT PATCH: sent even with a track here. After an unsubscribe the old
+    // track stays here until the server's removal arrives, which may be never
+    // (see unsubscribe below), and a subscribe asked in between was dropped:
+    // the server kept the picture off and Watch showed the sharer's avatar.
+    // Asking for a track the server already sends changes nothing. See
+    // third_party/livekit_client/RIFT_PATCHES.md.
+    if (!_subscriptionAllowed) {
       logger.fine('ignoring subscribe() request...');
       return;
     }
