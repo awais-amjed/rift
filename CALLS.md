@@ -607,7 +607,8 @@ and its next step, decoding on the GPU too, are in
 - **One connection per call,** `<user>~<device>_watch`, opened with the first
   share watched this way and closed with the last. The server mints it only
   while the device's voice connection is in the room (`get_channel_token`,
-  `watch`). It subscribes to the watched shares' pictures and nothing else.
+  `watch`). It subscribes to the watched shares' pictures and sound, and
+  nothing else.
 - **Which way a share goes** is `LiveKitCubit`'s (`_RustWatchMixin`). A share
   goes through Rust when it can; otherwise it is received in the call's room,
   as before: on a build without stream textures (every platform but Linux,
@@ -621,19 +622,43 @@ and its next step, decoding on the GPU too, are in
   own, and is told each version the call moves to.
 - **Unseen:** its pictures are turned off and on with the call's
   (`setWatchPicturesOn`).
-- **Still through the call:** the share's sound, and the receive stats under
-  the picture, which a share watched through Rust does not show yet.
+- **The sound** is played by Rust itself (`rust/src/watching/sound`), on a
+  PulseAudio stream of its own on the output chosen in settings, holding 60
+  ms. It is stereo and full band, where the call's playback ran a share's
+  sound through libwebrtc's processing at 32 kHz (*How a call is played out
+  on the desktop*, below). The cubit hands each share the volume the call
+  would have played it at (`_syncRustSound`): its own volume times the
+  call's, or nothing while it is muted, while deafened or while listening only
+  to somebody else. At nothing the server stops sending it, as the call holds
+  a sound nobody hears. The call's own copy is held all the while
+  (`hearsRemoteAudio`, `playedElsewhere`), so it plays once. The watch
+  connection may unsubscribe a sound, which the call's must never do (*Receiving
+  a call's audio*): this SDK gives a sound's decryptor the receiver itself,
+  not an id two receivers can share. Where Rust has no player yet
+  (`watchPlaysSound`, Linux only for now), the sound stays with the call.
+- **Still through the call:** the receive stats under the picture, which a
+  share watched through Rust does not show yet.
 
 Verified Nov 2 against the local stack, in Rust alone (`cargo test
 live_watch_`): a watched synthetic share arrives at its size and shade,
 unwatching stops it, and a share sealed under a rotated key is read once the
-key is added. Then in the app (Linux debug build, two clients on the local
+key is added. The sound was verified the same way (`cargo test
+live_watched_sound`, into a null sink, its monitor recorded): a tone sent at
+−15.2 dBFS into one ear came out at −15.2 dBFS in that ear and nothing in the
+other, silent at volume 0 and back when turned up, 6 dB down at half, and silent
+once unwatched. Then in the app (Linux debug build, two clients on the local
 stack, Nov 2): the watcher's log shows the share watched through Rust and the
 picture arriving at each size the sharer's window took, up to 1920×1048; the
 owner saw it move with the right colours in the tile and full size. Minimised
 and restored twice, the pictures went off and on; Stop watching closed the watch
 connection, watching again opened a new one, and leaving closed it. No fallback
-to the call. Not yet measured against the call's path.
+to the call. The sound through Rust was then heard in the app the same way (Nov
+2): left and right where they belong, starting as watching began, following the
+stream's volume, mute, deafen, Stop watching, a share restarted mid-watch and a
+change of output device mid-share. The
+first try played nothing until the slider moved: nothing told Rust the volume
+until the next roster change, so the cubit now syncs the sound the moment Rust
+takes a share. Not yet measured against the call's path.
 
 ## How a call is played out on the desktop — [Implemented October 2026]
 

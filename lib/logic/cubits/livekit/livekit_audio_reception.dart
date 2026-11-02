@@ -19,33 +19,56 @@ part of 'livekit_cubit.dart';
 /// that disabled instead.
 mixin _AudioReceptionMixin on Cubit<LiveKitState> {
   void _applyStoredSettings();
+  void _syncRustSound();
   Future<void> retryConnection();
 
   /// When the receiver check last joined the call again.
   DateTime? _lastReceiverRejoin;
 
-  /// Whether [publication], on [participant] in [room], is one to hear.
+  /// Whether [publication], on [participant] in [room], is one to hear
+  /// through this room.
   bool _hearsAudio(
     Room room,
     Participant participant,
     TrackPublication publication,
   ) {
     final identity = participant.identity;
+    final stream =
+        !ParticipantIdentity.isSoundShare(identity) &&
+        (ParticipantIdentity.isScreenshare(identity) ||
+            publication.source == TrackSource.screenShareAudio);
+    return _hears(
+      room,
+      identity,
+      stream: stream,
+      playedElsewhere:
+          stream &&
+          RustWatch.playsSound &&
+          state.watchedPictures.containsKey(identity),
+    );
+  }
+
+  /// Whether [identity]'s audio is one to hear — through this room, or for a
+  /// share the watch connection plays, there ([playedElsewhere] false).
+  bool _hears(
+    Room room,
+    String identity, {
+    required bool stream,
+    bool playedElsewhere = false,
+  }) {
     final identities = [
       if (room.localParticipant != null) room.localParticipant!.identity,
       ...room.remoteParticipants.keys,
     ];
     return hearsRemoteAudio(
       deafened: state.isDeafenedEffective,
-      stream:
-          !ParticipantIdentity.isSoundShare(identity) &&
-          (ParticipantIdentity.isScreenshare(identity) ||
-              publication.source == TrackSource.screenShareAudio),
+      stream: stream,
       watched: state.subscribedScreenshares.contains(identity),
       ownerless: sharesWithoutOwner(identities).contains(identity),
       someoneElse:
           state.listeningOnlyTo != null &&
           ParticipantIdentity.userIdOf(identity) != state.listeningOnlyTo,
+      playedElsewhere: playedElsewhere,
     );
   }
 
@@ -70,6 +93,7 @@ mixin _AudioReceptionMixin on Cubit<LiveKitState> {
     }
     // Back on with the listener's own mute and volume, not simply on.
     if (turnedOn) _applyStoredSettings();
+    _syncRustSound();
   }
 
   /// Joins the call again if two of its live audio receivers share an id.

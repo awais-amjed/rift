@@ -1,11 +1,15 @@
 //! The watch connection: one per call, open while the app watches through it.
 //!
 //! It subscribes to nothing by itself (`auto_subscribe` off). Watching a share
-//! subscribes to that share's picture, and every picture goes to the texture
-//! the runner made for it ([`super::frames`]). Not watching it any more
-//! unsubscribes again: a picture may be, where a call's sound must never be
-//! (`CALLS.md`, *Receiving a call's audio*).
+//! subscribes to that share's picture and its sound. Every picture goes to the
+//! texture the runner made for it ([`super::frames`]); the sound is played
+//! here ([`super::sound`]). Not watching it any more unsubscribes again. The
+//! call's connection must never do that to a sound, because flutter_webrtc
+//! finds a sound's decryptor by an id two receivers can share (`CALLS.md`,
+//! *Receiving a call's audio*). This SDK hands the decryptor the receiver
+//! itself, so here it is safe.
 use super::frames::{self, MarkFn};
+use super::sound::{self, Gain, Playing};
 use crate::api::watching::{emit_watch_event, WatchEvent, WatchEventKind, WatchRoom};
 use crate::sharing::room;
 use futures_util::StreamExt;
@@ -20,11 +24,14 @@ use tokio::task::JoinHandle;
 
 const KEY_BYTES: usize = 32;
 
-/// One watched share: the runner's texture, and the task feeding it while its
-/// picture track is subscribed.
+/// One watched share: the runner's texture and the task feeding it while its
+/// picture is subscribed, and its sound playing while that is.
 struct Watched {
     texture: u64,
     picture: Option<JoinHandle<()>>,
+    /// How loud the app wants the sound; kept from before it arrives.
+    gain: Arc<Gain>,
+    sound: Option<Playing>,
 }
 
 /// What both the bridge's calls and the room's events change, keyed by the
@@ -94,7 +101,8 @@ async fn close(session: Session) {
     }
 }
 
-/// Stop feeding a texture, and stop marking it before this returns.
+/// Stop feeding a texture, and stop marking it before this returns. The
+/// sound stops as `watched` goes.
 fn let_go(watched: Watched) {
     if let Some(task) = watched.picture {
         task.abort();
@@ -114,13 +122,23 @@ pub(crate) async fn watch(identity: String, texture: u64, mark: usize) -> Result
     };
 
     frames::open(texture, mark);
-    if let Some(old) = lock(&session.shares).insert(
+    let mut shares = lock(&session.shares);
+    // Watched again: the sound keeps the volume it was given.
+    let gain = shares
+        .get(&identity)
+        .map(|old| old.gain.clone())
+        .unwrap_or_default();
+    let old = shares.insert(
         identity.clone(),
         Watched {
             texture,
             picture: None,
+            gain,
+            sound: None,
         },
-    ) {
+    );
+    drop(shares);
+    if let Some(old) = old {
         if old.texture != texture {
             let_go(old);
         } else if let Some(task) = old.picture {
@@ -128,8 +146,8 @@ pub(crate) async fn watch(identity: String, texture: u64, mark: usize) -> Result
         }
     }
 
-    // Already published: subscribe now, or show it if it is subscribed
-    // already. Published later, the room's event does it.
+    // Already published: subscribe now, or show and play it if it is
+    // subscribed already. Published later, the room's event does it.
     let participant = session
         .room
         .remote_participants()
@@ -137,12 +155,13 @@ pub(crate) async fn watch(identity: String, texture: u64, mark: usize) -> Result
         .cloned();
     if let Some(participant) = participant {
         for publication in participant.track_publications().into_values() {
-            if publication.kind() != TrackKind::Video {
+            if !wanted(&publication) {
                 continue;
             }
             match publication.track() {
                 Some(RemoteTrack::Video(track)) => show(&session.shares, &identity, track),
-                _ => publication.set_subscribed(true),
+                Some(RemoteTrack::Audio(track)) => play(&session.shares, &identity, track),
+                None => publication.set_subscribed(true),
             }
         }
     }
@@ -163,12 +182,44 @@ pub(crate) async fn unwatch(identity: &str) {
         .get(&ParticipantIdentity(identity.to_string()))
     {
         for publication in participant.track_publications().into_values() {
-            if publication.kind() == TrackKind::Video && publication.is_subscribed() {
+            if publication.is_subscribed() {
                 publication.set_subscribed(false);
             }
         }
     }
     log::info!("watching: no longer a share");
+}
+
+/// Sets how loud [identity]'s sound plays: the share's own volume times the
+/// call's, or nothing (muted, deafened). At nothing the server is told to stop
+/// sending it, as the call holds a sound nobody hears.
+pub(crate) async fn set_volume(identity: &str, volume: f32) {
+    let slot = SESSION.lock().await;
+    let Some(session) = slot.as_ref() else { return };
+    let Some(gain) = lock(&session.shares).get(identity).map(|w| w.gain.clone()) else {
+        return;
+    };
+    gain.set(volume);
+    if let Some(participant) = session
+        .room
+        .remote_participants()
+        .get(&ParticipantIdentity(identity.to_string()))
+    {
+        for publication in participant.track_publications().into_values() {
+            if publication.kind() == TrackKind::Audio {
+                publication.set_enabled(volume > 0.0);
+            }
+        }
+    }
+}
+
+/// Whether this connection receives `publication` of a watched share: its
+/// picture always, its sound where this build plays it.
+fn wanted(publication: &RemoteTrackPublication) -> bool {
+    match publication.kind() {
+        TrackKind::Video => true,
+        TrackKind::Audio => sound::PLAYS,
+    }
 }
 
 pub(crate) async fn add_key(key: Vec<u8>, index: i32) -> Result<(), String> {
@@ -250,8 +301,20 @@ fn show(shares: &Shares, identity: &str, track: RemoteVideoTrack) {
     }));
 }
 
-/// The room's side: a watched share publishing, its picture arriving or going,
-/// and the connection ending.
+/// Play [track] as [identity]'s sound, replacing one already playing.
+/// Nothing when it is no longer watched.
+fn play(shares: &Shares, identity: &str, track: RemoteAudioTrack) {
+    let mut shares = lock(shares);
+    let Some(watched) = shares.get_mut(identity) else {
+        return;
+    };
+    watched.sound = None;
+    watched.sound = sound::play(track, watched.gain.clone());
+    log::info!("watching: playing a share's sound");
+}
+
+/// The room's side: a watched share publishing, its picture or sound arriving
+/// or going, and the connection ending.
 async fn follow_room(mut events: tokio::sync::mpsc::UnboundedReceiver<RoomEvent>, shares: Shares) {
     while let Some(event) = events.recv().await {
         match event {
@@ -260,7 +323,7 @@ async fn follow_room(mut events: tokio::sync::mpsc::UnboundedReceiver<RoomEvent>
                 participant,
             } => {
                 let watched = lock(&shares).contains_key(participant.identity().as_str());
-                if watched && publication.kind() == TrackKind::Video {
+                if watched && wanted(&publication) {
                     publication.set_subscribed(true);
                 }
             }
@@ -276,14 +339,32 @@ async fn follow_room(mut events: tokio::sync::mpsc::UnboundedReceiver<RoomEvent>
                 }
                 show(&shares, participant.identity().as_str(), track)
             }
-            RoomEvent::TrackUnsubscribed {
-                track: RemoteTrack::Video(_),
+            RoomEvent::TrackSubscribed {
+                track: RemoteTrack::Audio(track),
+                publication,
                 participant,
-                ..
+            } => {
+                // Arriving at nothing (muted, deafened, or before the app has
+                // said), the server stops sending it until it is turned up.
+                let identity = participant.identity();
+                let gain = lock(&shares).get(identity.as_str()).map(|w| w.gain.get());
+                if gain == Some(0.0) {
+                    log::info!("watching: sound arrived at nothing, held");
+                    publication.set_enabled(false);
+                }
+                play(&shares, identity.as_str(), track)
+            }
+            RoomEvent::TrackUnsubscribed {
+                track, participant, ..
             } => {
                 if let Some(watched) = lock(&shares).get_mut(participant.identity().as_str()) {
-                    if let Some(task) = watched.picture.take() {
-                        task.abort();
+                    match track {
+                        RemoteTrack::Video(_) => {
+                            if let Some(task) = watched.picture.take() {
+                                task.abort();
+                            }
+                        }
+                        RemoteTrack::Audio(_) => watched.sound = None,
                     }
                 }
             }

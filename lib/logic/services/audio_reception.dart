@@ -5,7 +5,10 @@
 /// share whose owner has left the call ([ownerless], see
 /// `sharesWithoutOwner`) not at all. While you listen only to one person
 /// (`LiveKitState.listeningOnlyTo`), nothing of anybody else's
-/// ([someoneElse]), their shares included.
+/// ([someoneElse]), their shares included. A stream whose sound the watch
+/// connection plays instead (`RustWatch.playsSound`) is not heard through the
+/// call at all ([playedElsewhere]), or it would play twice; what the watch
+/// connection plays it at is decided here too, asked without that.
 ///
 /// What is not heard is *disabled* (`LiveKitCubit._syncAudioReception`),
 /// never unsubscribed: an unsubscribed track's slot on the connection is
@@ -18,8 +21,9 @@ bool hearsRemoteAudio({
   required bool watched,
   required bool ownerless,
   bool someoneElse = false,
+  bool playedElsewhere = false,
 }) {
-  if (deafened || ownerless || someoneElse) return false;
+  if (deafened || ownerless || someoneElse || playedElsewhere) return false;
   return !stream || watched;
 }
 

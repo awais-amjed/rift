@@ -14,7 +14,7 @@ use super::{
 };
 use crate::cue::le_bytes;
 use crate::frb_generated::StreamSink;
-use crate::pulse::{self, Connection, Device};
+use crate::pulse::{self, Connection, Device, WEBRTC_DEFAULT_PREFIX};
 use libpulse_binding as pa;
 use pa::def::BufferAttr;
 use pa::sample::{Format, Spec};
@@ -30,10 +30,6 @@ const FRAGMENT_BYTES: u32 = SAMPLE_RATE / 50 * 2;
 /// 480-sample frames written into it. Cut to the room, the tail of nearly
 /// every write was dropped, which was heard as a crackle 10 ms apart (Oct 14).
 const PLAYBACK_SLACK_SAMPLES: usize = FRAGMENT_BYTES as usize / 2;
-
-/// How WebRTC's PulseAudio module labels the extra first entry it lists for
-/// the default device.
-const WEBRTC_DEFAULT_PREFIX: &str = "default: ";
 
 pub(super) fn run(
     device_id: Option<&str>,
@@ -153,20 +149,7 @@ fn open(connection: &mut Connection, source: Option<&str>) -> Result<Stream, Str
 /// [`PLAYBACK_SAMPLES`]. An output that is not there any more plays on the
 /// default instead: the test is about the microphone.
 fn open_output(connection: &mut Connection, playback: &Playback) -> Result<Stream, String> {
-    let sink = playback
-        .device_id
-        .as_deref()
-        .filter(|id| !id.starts_with(WEBRTC_DEFAULT_PREFIX))
-        .and_then(|id| {
-            let name = pulse::sinks(connection)
-                .into_iter()
-                .find(|sink| sink.description == id)
-                .map(|sink| sink.name);
-            if name.is_none() {
-                log::warn!("mic test: no output {id}, playing on the default");
-            }
-            name
-        });
+    let sink = pulse::sink_for(connection, playback.device_id.as_deref());
     let spec = Spec {
         format: Format::S16le,
         channels: 1,

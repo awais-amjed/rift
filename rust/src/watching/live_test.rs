@@ -13,7 +13,23 @@
 //! shade, through the call's key; unwatching stops the marks and watching
 //! again starts them; and a share sealed under a key the call rotated to is
 //! read once that key is added.
-use super::{frames, session};
+//!
+//! The sound test plays out loud, so it plays only into a test sink, and is
+//! run on its own (Linux):
+//!
+//! ```text
+//! pactl load-module module-null-sink sink_name=rift_watch_test \
+//!     sink_properties=device.description=rift_watch_test
+//! PULSE_SINK=rift_watch_test RIFT_WATCH_TEST_OUTPUT=rift_watch_test \
+//!     cargo test --release live_watched_sound -- --ignored --nocapture
+//! ```
+//!
+//! `PULSE_SINK` keeps anything that falls back to the default in the sink
+//! too. It is heard by recording the sink's monitor beside it: a 1 kHz tone
+//! in the left ear, then the right, a second each, for four seconds at full
+//! volume, two at nothing and three at half, then unwatched. The test logs
+//! when each begins.
+use super::{frames, session, sound};
 use crate::api::watching::WatchRoom;
 use crate::screenshare::live_test::{shared_key, Server, KEY_INDEX};
 use crate::sharing::room;
@@ -292,4 +308,107 @@ async fn live_watch_reads_a_share_sealed_after_a_rotation() {
     session::stop().await;
     before.end().await;
     after.end().await;
+}
+
+/// Interleaved stereo for frame [index] of 10 ms: a 1 kHz tone in the left
+/// ear for a second, then in the right.
+fn tone_frame(index: u32) -> Vec<i16> {
+    use crate::sharing::audio::SAMPLE_RATE;
+    let per_frame = SAMPLE_RATE / 100;
+    let left = (index / 100) % 2 == 0;
+    let mut samples = Vec::with_capacity(per_frame as usize * 2);
+    for i in 0..per_frame {
+        let t = f64::from(index * per_frame + i) / f64::from(SAMPLE_RATE);
+        let v = ((t * 1_000.0 * std::f64::consts::TAU).sin() * 8_000.0) as i16;
+        let (l, r) = if left { (v, 0) } else { (0, v) };
+        samples.push(l);
+        samples.push(r);
+    }
+    samples
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a LiveKit server and a test sink; see the module doc"]
+async fn live_watched_sound_plays_in_stereo_at_its_volume() {
+    use crate::sharing::audio::{publish_and_feed, Command, Pcm, SpawnCapture};
+    let _ = env_logger::builder().is_test(true).try_init();
+    let output = std::env::var("RIFT_WATCH_TEST_OUTPUT")
+        .expect("RIFT_WATCH_TEST_OUTPUT names a test sink; see the module doc");
+    assert!(output.starts_with("rift_"), "only into a rift_ test sink");
+    assert_eq!(
+        std::env::var("PULSE_SINK").as_deref(),
+        Ok(output.as_str()),
+        "PULSE_SINK is the test sink too, so a fallback stays in it"
+    );
+    let mut connection = crate::pulse::Connection::open("rift-watch-test").expect("pulse");
+    assert!(
+        crate::pulse::sink_for(&mut connection, Some(&output)).is_some(),
+        "the test sink is there"
+    );
+    drop(connection);
+    sound::set_output(Some(output));
+
+    let server = Server::from_env();
+    let name = room_name("sound");
+    let key = shared_key();
+    let share_identity = "member~desk_share";
+    const TEXTURE: u64 = 0;
+
+    let _voice = start_watching(&server, &name, key.clone(), KEY_INDEX).await;
+    session::watch(share_identity.to_string(), TEXTURE, mark_address())
+        .await
+        .expect("watches");
+    session::set_volume(share_identity, 1.0).await;
+    let share = Share::start(&server, &name, share_identity, &key, KEY_INDEX).await;
+    let spawn: SpawnCapture = Box::new(|commands, frames| {
+        std::thread::spawn(move || {
+            let start = Instant::now();
+            for index in 0.. {
+                if commands
+                    .try_recv()
+                    .is_ok_and(|c| matches!(c, Command::Terminate))
+                {
+                    return;
+                }
+                let due = start + Duration::from_millis(u64::from(index) * 10);
+                std::thread::sleep(due.saturating_duration_since(Instant::now()));
+                if frames
+                    .blocking_send(Pcm::read_now(tone_frame(index)))
+                    .is_err()
+                {
+                    return;
+                }
+            }
+        })
+    });
+    let feed = publish_and_feed(&share.room, spawn, "share-sound", None)
+        .await
+        .expect("the sound publishes");
+    assert!(
+        marked(TEXTURE, 0, 10, Duration::from_secs(15)).await,
+        "the picture arrives"
+    );
+
+    let at = |what: &str| {
+        let ms = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis();
+        log::info!("sound test: {what} at {ms}");
+    };
+    at("full");
+    tokio::time::sleep(Duration::from_secs(4)).await;
+    session::set_volume(share_identity, 0.0).await;
+    at("nothing");
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    session::set_volume(share_identity, 0.5).await;
+    at("half");
+    tokio::time::sleep(Duration::from_secs(3)).await;
+    session::unwatch(share_identity).await;
+    at("unwatched");
+    tokio::time::sleep(Duration::from_secs(1)).await;
+
+    feed.terminate();
+    session::stop().await;
+    share.end().await;
 }

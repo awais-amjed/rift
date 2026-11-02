@@ -447,6 +447,10 @@ class LiveKitCubit extends Cubit<LiveKitState>
     if (previous.outputVolume != appState.outputVolume) {
       _applyStoredSettings();
     }
+    // The call's playback moves by itself; a share Rust plays is told.
+    if (previous.outputDeviceId != appState.outputDeviceId) {
+      _syncRustSound();
+    }
 
     final pttChanged =
         previous.pushToTalkEnabled != appState.pushToTalkEnabled ||
@@ -749,6 +753,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
   void _applyStoredSettings() {
     final room = state.room;
     if (room == null) return;
+    _syncRustSound();
     // A setting turns a track back on; deafened, every one stays off. They
     // are put back when the deafen lifts ([_restoreRemoteAudio]).
     if (state.isDeafenedEffective) return;

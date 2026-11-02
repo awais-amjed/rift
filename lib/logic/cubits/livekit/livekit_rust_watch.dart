@@ -14,7 +14,10 @@ part of 'livekit_cubit.dart';
 ///   of the call, once, with a line in the log: the shares it held go back to
 ///   this room, and so does every share watched after.
 ///
-/// The share's sound still comes through this room for now.
+/// Its sound comes on the same connection and Rust plays it
+/// ([RustWatch.playsSound]), at what this room would play it at
+/// ([_syncRustSound]); this room's copy is held meanwhile
+/// ([_AudioReceptionMixin]).
 mixin _RustWatchMixin
     on Cubit<LiveKitState>, _E2EEMixin, _ScreenshareMixin, _RoomEventsMixin {
   Future<APIResponse> shareToken({
@@ -22,6 +25,18 @@ mixin _RustWatchMixin
     bool soundShare = false,
     bool watch = false,
   });
+
+  bool _hears(
+    Room room,
+    String identity, {
+    required bool stream,
+    bool playedElsewhere = false,
+  });
+
+  /// What each share's sound was last set to in Rust, and the output, so a
+  /// roster sync that changes neither costs nothing.
+  final Map<String, double> _rustVolumes = {};
+  String? _rustOutput;
 
   /// The room the watch connection was opened beside, and the opening, which
   /// two shares watched together wait on as one. Null while none is open.
@@ -87,6 +102,10 @@ mixin _RustWatchMixin
         unawaited(pub.unsubscribe());
       }
     }
+    // Now, not with the next roster change, which a quiet call may not have:
+    // this room's copy of the sound held, and Rust told how loud to play it,
+    // or it plays at nothing.
+    _syncAudioReception();
     HelperMethods.printDebug('[LiveKit] watching $identity through Rust');
     return true;
   }
@@ -102,6 +121,7 @@ mixin _RustWatchMixin
         watchedPictures: Map.of(state.watchedPictures)..remove(identity),
       ),
     );
+    _rustVolumes.remove(identity);
     await RustWatch.unwatch(identity, picture.textureId);
     // Not while another is on its way: it is about to use the connection.
     if (state.watchedPictures.isEmpty &&
@@ -230,6 +250,7 @@ mixin _RustWatchMixin
     final wasOpen = _rustWatchRoom != null || textures.isNotEmpty;
     _rustWatchRoom = null;
     _rustWatchOpening = null;
+    _rustVolumes.clear();
     if (!wasOpen) return;
     if (state.watchedPictures.isNotEmpty) {
       emit(state.copyWith(watchedPictures: const {}));
@@ -237,6 +258,41 @@ mixin _RustWatchMixin
     // Stopped first: once it returns, nothing marks the textures.
     await RustWatch.stop();
     await RustWatch.disposeAll(textures);
+  }
+
+  /// Plays each share Rust holds at what this room would play its sound at:
+  /// its own volume times the call's, or nothing while muted, deafened or
+  /// listening only to somebody else. Runs with every change to what is
+  /// heard ([_syncAudioReception]) and to a volume or mute.
+  @override
+  void _syncRustSound() {
+    if (!RustWatch.playsSound) return;
+    final room = state.room;
+    if (room == null || state.watchedPictures.isEmpty) return;
+    final app = _appCubit.state;
+    if (app.outputDeviceId != _rustOutput) {
+      _rustOutput = app.outputDeviceId;
+      RustWatch.setOutput(_rustOutput);
+    }
+    for (final identity in state.watchedPictures.keys) {
+      // Asked as the call would hear it, were it not played here.
+      final volume =
+          _hears(room, identity, stream: true, playedElsewhere: false)
+          ? CallVolume.of(
+              app.settingFor(
+                ParticipantIdentity.settingsKeyOf(
+                  identity,
+                  screenAudio: true,
+                  localIdentity: room.localParticipant?.identity,
+                ),
+              ),
+              app.outputVolume,
+            )
+          : 0.0;
+      if (_rustVolumes[identity] == volume) continue;
+      _rustVolumes[identity] = volume;
+      unawaited(RustWatch.setVolume(identity, volume));
+    }
   }
 
   /// The call moved to a new key version; shares started after it are

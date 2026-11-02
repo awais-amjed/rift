@@ -3,7 +3,7 @@
 //! bindings are generated once; off the desktop each one answers that there is
 //! nothing here, and the app watches through the call's own connection.
 #[cfg(desktop)]
-use crate::watching::{frames, session};
+use crate::watching::{frames, session, sound};
 
 use crate::frb_generated::StreamSink;
 use std::sync::Mutex;
@@ -102,7 +102,9 @@ pub async fn stop_watching() -> Result<(), String> {
 
 /// Receive the share [share_identity] publishes, its picture going to the
 /// runner's [texture], which [mark_frame] (the runner's address) marks as
-/// each picture arrives. Watching it already, the texture is replaced.
+/// each picture arrives, and its sound played where [watch_plays_sound], at
+/// what [set_watch_volume] last said (nothing until it does). Watching it
+/// already, the texture is replaced and the volume kept.
 pub async fn watch_share(
     share_identity: String,
     texture: u64,
@@ -159,4 +161,47 @@ pub async fn set_watch_pictures_on(pictures_on: bool) -> Result<(), String> {
         let _ = pictures_on;
     }
     Ok(())
+}
+
+/// Whether this build plays a watched share's sound itself. Where it does,
+/// the call's own copy of that sound is held; where not, the call plays it.
+#[flutter_rust_bridge::frb(sync)]
+pub fn watch_plays_sound() -> bool {
+    #[cfg(desktop)]
+    {
+        sound::PLAYS
+    }
+    #[cfg(not(desktop))]
+    {
+        false
+    }
+}
+
+/// How loud [share_identity]'s sound plays: its own volume times the call's
+/// (1 is as sent, up to 8), or 0 while it is muted or this device deafened.
+/// Kept for a share whose sound has not arrived yet.
+pub async fn set_watch_volume(share_identity: String, volume: f32) -> Result<(), String> {
+    #[cfg(desktop)]
+    {
+        session::set_volume(&share_identity, volume).await;
+    }
+    #[cfg(not(desktop))]
+    {
+        let _ = (share_identity, volume);
+    }
+    Ok(())
+}
+
+/// The output a watched share's sound plays on, as WebRTC lists it (None for
+/// the system default). Sounds already playing move to it.
+#[flutter_rust_bridge::frb(sync)]
+pub fn set_watch_output(device_id: Option<String>) {
+    #[cfg(desktop)]
+    {
+        sound::set_output(device_id);
+    }
+    #[cfg(not(desktop))]
+    {
+        let _ = device_id;
+    }
 }

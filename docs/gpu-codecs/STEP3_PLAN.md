@@ -224,8 +224,12 @@ A watch connection needs its own token, and so a change in `rift-self-host`:
    removed a test watcher that had no voice connection, as it should.
    The runner's texture and Dart's switch are built and driven in the app (Nov 2,
    two Linux clients): `stream_texture.cc` and `_RustWatchMixin`, described in
-   `CALLS.md`, *Watching a share through Rust*. The sound still comes through the
-   call, and the cost is not yet measured against the call's path.
+   `CALLS.md`, *Watching a share through Rust*. The sound is built too (Nov 2): Rust
+   plays it (`rust/src/watching/sound`) at the volume the cubit hands down, and the
+   call's copy is held. Verified by `cargo test live_watched_sound` into a null sink:
+   stereo kept, the level as sent, volume 0 and half right, silent once unwatched; and
+   heard right in the app by the owner (two Linux clients). The cost is not yet
+   measured against the call's path.
 3. **Phase B on Linux:** VAAPI on the Iris Xe, then NVDEC with the laptop on discrete.
    AMD by the AMD desktop's Claude.
 4. **Windows** (phases A and B) by the Windows Claude, on the same Rust and Dart code

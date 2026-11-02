@@ -11,9 +11,10 @@ import '../helper_methods.dart';
 /// A watched share's picture is received on a second, receive-only connection
 /// in Rust and drawn by the runner on the GPU into a texture Flutter shows,
 /// instead of through the call's own connection, which turned every picture
-/// into RGBA on the CPU (`docs/gpu-codecs/STEP3_PLAN.md`). This holds the
-/// calls; which shares go this way, and falling back when it fails, is the
-/// cubit's.
+/// into RGBA on the CPU (`docs/gpu-codecs/STEP3_PLAN.md`). Its sound comes
+/// on the same connection and Rust plays it, where [playsSound]. This holds
+/// the calls; which shares go this way, how loud each plays, and falling
+/// back when it fails, is the cubit's.
 ///
 /// The runner's side is the `rift/stream_texture` channel
 /// (`linux/runner/stream_texture.cc`).
@@ -29,6 +30,10 @@ class RustWatch {
       !kIsWeb &&
       Platform.isLinux &&
       Platform.environment['RIFT_WATCH_PATH'] != 'call';
+
+  /// Whether Rust plays a watched share's sound, and the call's own copy is
+  /// held. Where not, the call plays it as before.
+  static final bool playsSound = available && watchPlaysSound();
 
   static Stream<WatchEvent>? _events;
 
@@ -128,6 +133,25 @@ class RustWatch {
       await setWatchKey(e2EeKey: key, e2EeKeyIndex: keyIndex);
     } catch (e) {
       HelperMethods.printDebug('[RustWatch] key: $e');
+    }
+  }
+
+  /// How loud [identity]'s sound plays: what the call would play it at
+  /// (`CallVolume.of`), or 0 when it would not be heard.
+  static Future<void> setVolume(String identity, double volume) async {
+    try {
+      await setWatchVolume(shareIdentity: identity, volume: volume);
+    } catch (e) {
+      HelperMethods.printDebug('[RustWatch] volume: $e');
+    }
+  }
+
+  /// The output chosen in settings, as WebRTC lists it; null for the default.
+  static void setOutput(String? deviceId) {
+    try {
+      setWatchOutput(deviceId: deviceId);
+    } catch (e) {
+      HelperMethods.printDebug('[RustWatch] output: $e');
     }
   }
 

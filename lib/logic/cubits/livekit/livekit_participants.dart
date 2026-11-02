@@ -7,6 +7,7 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
   /// Implemented by [_AudioReceptionMixin] and the cubit.
   void _syncAudioReception();
   void _applyStoredSettings();
+  void _syncRustSound();
 
   /// Mutes/unmutes a participant for everyone in the room (requires is_channel_manager).
   /// Server-side moderation: persistently mute/deafen a user for everyone.
@@ -82,6 +83,7 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
   }
 
   void _applySettingFor(String key) {
+    _syncRustSound();
     // Stored for when the deafen lifts; nothing is playing to change now.
     if (state.isDeafenedEffective) return;
     final app = _appCubit.state;

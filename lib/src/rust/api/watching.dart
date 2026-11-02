@@ -27,7 +27,9 @@ Future<void> stopWatching() =>
 
 /// Receive the share [share_identity] publishes, its picture going to the
 /// runner's [texture], which [mark_frame] (the runner's address) marks as
-/// each picture arrives. Watching it already, the texture is replaced.
+/// each picture arrives, and its sound played where [watch_plays_sound], at
+/// what [set_watch_volume] last said (nothing until it does). Watching it
+/// already, the texture is replaced and the volume kept.
 Future<void> watchShare({
   required String shareIdentity,
   required BigInt texture,
@@ -61,6 +63,27 @@ Future<void> setWatchPicturesOn({required bool picturesOn}) => RustLib
     .instance
     .api
     .crateApiWatchingSetWatchPicturesOn(picturesOn: picturesOn);
+
+/// Whether this build plays a watched share's sound itself. Where it does,
+/// the call's own copy of that sound is held; where not, the call plays it.
+bool watchPlaysSound() =>
+    RustLib.instance.api.crateApiWatchingWatchPlaysSound();
+
+/// How loud [share_identity]'s sound plays: its own volume times the call's
+/// (1 is as sent, up to 8), or 0 while it is muted or this device deafened.
+/// Kept for a share whose sound has not arrived yet.
+Future<void> setWatchVolume({
+  required String shareIdentity,
+  required double volume,
+}) => RustLib.instance.api.crateApiWatchingSetWatchVolume(
+  shareIdentity: shareIdentity,
+  volume: volume,
+);
+
+/// The output a watched share's sound plays on, as WebRTC lists it (None for
+/// the system default). Sounds already playing move to it.
+void setWatchOutput({String? deviceId}) =>
+    RustLib.instance.api.crateApiWatchingSetWatchOutput(deviceId: deviceId);
 
 /// What the watch connection tells the app. One struct and a kind rather
 /// than an enum with fields, which the bindings would need `freezed` for.
