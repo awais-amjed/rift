@@ -77,7 +77,7 @@ Dart                        Rust                                   Runner (C++)
                              ├ picture: pass-through ─▶ ffdec (FFmpeg hwaccel)
                              │                           └ GPU frame ─▶ stream texture
  Texture(id) ◀─────────────────────────────────────────────────────── (shader, NV12 → RGBA)
-                             └ sound: PCM ─────────────▶ call playback (render hook)
+                             └ sound: PCM ─────────────▶ output device (mic test's playback)
 ```
 
 ### Phase A: the watch connection, drawing on the GPU
@@ -98,8 +98,12 @@ also the fallback when there is no hardware decoder.
     GL context current. It uploads the three planes as one-byte textures (1.5 bytes a
     pixel, against 4 for today's RGBA) and draws them through a YUV→RGBA shader into the
     texture Flutter shows. The CPU conversion is gone. Rift's Linux build draws with
-    Impeller on OpenGL ES, and no engine document says `FlTextureGL` works there: a small
-    probe checks it first, beside the sound check.
+    Impeller on OpenGL ES, and no engine document says `FlTextureGL` works there. **Probed
+    Nov 2** (a throwaway app, Flutter 3.47.7, the RTX 3070 Ti on discrete, GL ES 3.2): a
+    1280x720 I420 picture of four colour blocks, uploaded as three planes and drawn through
+    the shader, came out right under native Wayland (Flutter's own snapshot) and on screen
+    under X11 (a screenshot), at 60 updates a second with no GL error. The Iris Xe is
+    still to check.
   - **Windows:** a `GpuSurfaceTexture` from a DXGI shared handle on Flutter's own adapter,
     filled the same way by a D3D11 pixel shader.
 - **The sound** comes out of the Rust connection as PCM (`NativeAudioStream`), see
@@ -140,15 +144,24 @@ also the fallback when there is no hardware decoder.
 The owner's view (Nov 2): echo is not worth much effort. Most players wear headphones,
 and a speaker user's game is heard in a share anyway.
 
-- **First try:** the runner mixes the share's sound into the call's own playback through
-  libwebrtc's render hook (`RTCAudioProcessing::SetRenderPreProcessing`, the playback
-  twin of the hook the noise filter uses).
-  - It then plays on the call's output device and follows deafen.
-  - The call's echo canceller hears it, so a watcher on speakers does not send it back.
-- **Checked before anything else in phase A:** that sound mixed in there plays, and is
-  cancelled. Any buffering the hand-off adds is a fixed delay, measured and allowed for.
-- **If the hook fights back:** Rust plays the sound itself on the output device the app
-  has chosen. Echo for watchers on speakers is accepted (owner, Nov 2).
+**Rust plays the share's sound itself**, on the output the app has chosen, through the
+mic test's playback code (`mic_test`: PulseAudio on Linux, WASAPI on Windows). It applies
+the stream's volume, mute and deafen. Echo for watchers on speakers is accepted (owner,
+Nov 2). It is also better sound than today: stereo and full band, where the call's
+playback caps the share's sound at about 15 kHz (`CALLS.md`).
+
+Probed Nov 2 and not chosen: mixing it into the call's playback through libwebrtc's render
+hook (`RTCAudioProcessing::SetRenderPreProcessing`). A throwaway Flutter app on the vendored
+flutter_webrtc sent its mic between two connections in one process, with the playback
+going to a test sink whose monitor was the mic. The hook mixed in a signal at −23 dBFS:
+- **It plays, and the echo canceller takes it out:** noise came back at −64 dBFS with
+  echo cancellation on, and at −14 to −21 dBFS, feeding back, with it off. (A steady
+  1 kHz tone was not taken out either way: the canceller cannot find the delay of a pure
+  tone, so that was the wrong test signal.)
+- **But it reaches the left channel only:** recorded off the test sink, left −24.8 dBFS,
+  right −68.6. The hook is handed channel 0 of a stereo playback, and reaching the right
+  would mean writing past that buffer on a guess about the prebuilt library's memory.
+- It also runs at the playback's processing rate (32 kHz), the same 15 kHz cap.
 
 ### The server
 
@@ -172,7 +185,7 @@ A watch connection needs its own token, and so a change in `rift-self-host`:
 
   What is left: a modified client could keep listening, hidden, after leaving, until the
   next roster read or join in that room. It could only hear what it already had the
-  right to hear. **For the owner:** accept that, or have the server sweep on a timer.
+  right to hear. **Accepted (owner, Nov 2)**; a sweep on a timer only if it ever matters.
 - **Old servers:** a server without this would ignore `watch` and mint the voice identity
   itself, and joining with it would kick the watcher's own voice connection. The app
   checks the returned identity ends in `_watch` before connecting, and falls back to
@@ -183,6 +196,7 @@ A watch connection needs its own token, and so a change in `rift-self-host`:
 ## Order
 
 1. **Two small probes** on Linux: the sound hand-off, and `FlTextureGL` under Impeller.
+   Done Nov 2 (above).
 2. **Phase A on Linux:** the server token, the watch connection, the `FlTextureGL` and
    shader, the sound, and Dart's switch between the two paths. Measured against today.
 3. **Phase B on Linux:** VAAPI on the Iris Xe, then NVDEC with the laptop on discrete.
@@ -208,8 +222,6 @@ A watch connection needs its own token, and so a change in `rift-self-host`:
 
 ## Open, for the owner
 
-- The hidden-listener rule above: accept the gap until the next roster read, or sweep on a
-  timer.
 - Whether this step waits for the console release, or the app ships the path ready and
   each server picks it up when it updates (builder's view: the second; the fallback makes
   it safe).
