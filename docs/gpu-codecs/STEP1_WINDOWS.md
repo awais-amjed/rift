@@ -138,7 +138,7 @@ it converts, copies and encodes every picture too. On today's path the two cost 
 
 | What happens | Result |
 |---|---|
-| Switch off, VP9, or AMF so far | Entirely out of the new code. Today's path |
+| Switch off, VP9, or AMF without `RIFT_FFENC_AMF_TEXTURES=1` | Entirely out of the new code. Today's path |
 | Whole screen on Windows 10 | Today's path |
 | No adapter of the encoder's maker, device or session will not open | Today's path |
 | Converter or encoder will not take D3D11 | The encoder on memory, so `capture_wgc` hands over to libwebrtc's capturer |
@@ -296,7 +296,8 @@ meets the game's presenting.
 - Quick Sync takes the picture on the GPU (Nov 1, `test_windows.sh`, and one bench share of a moving test picture with a
   viewer: 58.3 fps decoded, the share process 16.4% of a core, two gaps of 107 ms). Against NVENC on the game
   in Hybrid it costs the game more, so NVENC stays first (*Which GPU encodes on a hybrid*). AMF is built the same way as NVENC
-  but is let onto this path only with `RIFT_FFENC_AMF_TEXTURES=1` until it runs on an AMD card.
+  but is let onto this path only with `RIFT_FFENC_AMF_TEXTURES=1`. It ran on an RX 9070 XT Nov 2–3 and passed,
+  gate included (`STEP1_AMD.md`); it stays behind the variable until a late viewer's 3.5 s on it is explained.
 - The app driven through everything a share does (Nov 1–2, *How it is proven*), and `TESTING.md` for it.
 
 ## How it is proven
