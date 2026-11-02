@@ -15,9 +15,14 @@ use std::thread::{self, JoinHandle};
 /// A `DesktopFrame` on its way to another thread.
 ///
 /// libwebrtc marks the frame `!Send` because it holds a raw pointer to the
-/// C++ buffer, not because the buffer is thread-affine: it is a plain heap
-/// allocation owned by this frame alone. The capture thread hands each frame
-/// over and never touches it again, so exactly one thread ever reads it.
+/// C++ buffer, not because the buffer is thread-affine. The capture thread
+/// hands each frame over and never touches it again, so one thread of ours
+/// reads it. It is not always this frame's alone, though: Wayland's capturer
+/// hands out a share of the newest of its two buffers
+/// (`SharedScreenCastStream::CaptureFrame`) and writes the next picture
+/// into the older one whether or not it is still shared. A conversion more
+/// than two of the compositor's pictures behind could read a torn one; at
+/// about 2 ms for 1080p it is far from that.
 pub(crate) struct SendableFrame(pub DesktopFrame);
 unsafe impl Send for SendableFrame {}
 
@@ -57,8 +62,14 @@ fn run(frame_rx: Taker<SendableFrame>, source_slot: VideoSlot) {
 /// A picture in memory on its way to its feed: libwebrtc's capture, or a
 /// Wayland share's memory buffer (`capture_pw.rs`).
 pub(crate) struct Converter {
-    /// Reused across frames; reallocated only if the capture size changes.
+    /// Reused across frames; reallocated when the capture size changes, or
+    /// once libwebrtc was handed it ([`lent`](Self::lent)).
     native: VideoFrame<I420Buffer>,
+    /// `native`'s buffer went to libwebrtc as it is. libwebrtc keeps it and
+    /// encodes it later on a thread of its own, so the next picture written
+    /// into it could be encoded half over the last one: written into a new
+    /// buffer instead. Sent again unchanged, it may go again.
+    lent: bool,
     /// The size of the picture `native` holds, while it is the last one
     /// converted, so it can be sent again ([`send_kept`](Self::send_kept)).
     kept: Option<Size>,
@@ -72,6 +83,7 @@ impl Converter {
         Self {
             native: VideoFrame::new(VideoRotation::VideoRotation0, I420Buffer::new(2, 2)),
             kept: None,
+            lent: false,
         }
     }
 
@@ -112,8 +124,9 @@ impl Converter {
     /// there yet: [`send_kept`](Self::send_kept) sends it once there is one.
     pub(crate) fn keep(&mut self, data: &[u8], stride: u32, order: ByteOrder, size: Size) {
         let native = &mut self.native;
-        if native.buffer.width() != size.width || native.buffer.height() != size.height {
+        if !writable(&native.buffer, size, self.lent) {
             native.buffer = I420Buffer::new(size.width, size.height);
+            self.lent = false;
         }
         let (stride_y, stride_u, stride_v) = native.buffer.strides();
         let (y, u, v) = native.buffer.data_mut();
@@ -171,6 +184,7 @@ impl Converter {
         match feed {
             Feed::Raw(source) if target == size => {
                 source.capture_frame(native);
+                self.lent = true;
                 true
             }
             Feed::Raw(source) => {
@@ -188,6 +202,12 @@ impl Converter {
             }
         }
     }
+}
+
+/// Whether a picture of `size` may be written into `buffer`: not one of
+/// another size, nor one libwebrtc holds ([`Converter::lent`]).
+fn writable(buffer: &I420Buffer, size: Size, lent: bool) -> bool {
+    !lent && buffer.width() == size.width && buffer.height() == size.height
 }
 
 /// `frame`, captured at `size`, as a picture of `target`'s size: scaled to
@@ -300,6 +320,34 @@ mod tests {
         }
         assert_eq!(luma(&fitted, 320, 0), 200);
         assert_eq!(luma(&fitted, 320, 359), 200);
+    }
+
+    /// A buffer handed to libwebrtc is never written again: it encodes it
+    /// later, and the next picture would land in it half way.
+    #[test]
+    fn a_picture_handed_to_libwebrtc_is_not_written_over() {
+        let size = Size {
+            width: 4,
+            height: 2,
+        };
+        let buffer = I420Buffer::new(4, 2);
+        assert!(writable(&buffer, size, false));
+        assert!(!writable(&buffer, size, true));
+        assert!(!writable(
+            &buffer,
+            Size {
+                width: 8,
+                height: 2
+            },
+            false
+        ));
+
+        let mut converter = Converter::new();
+        converter.keep(&[0u8; 32], 16, ByteOrder::Bgrx, size);
+        converter.lent = true;
+        converter.keep(&[255u8; 32], 16, ByteOrder::Bgrx, size);
+        assert!(!converter.lent, "a new buffer, free to write");
+        assert_eq!(converter.kept(), Some(size));
     }
 
     /// Red in either byte order is the same red once converted: a

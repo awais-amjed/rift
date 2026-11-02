@@ -228,6 +228,37 @@ the owner named as failure.
   stays on memory (VP9, or NVENC when the GL side does not open) gets no pictures while
   a fullscreen window fills this screen.
 
+### A window in VP9 (Nov 2)
+
+A window shared in VP9 from this screen showed a black band now and then at the
+viewer, on the CPU decoder and on the GPU's alike, its edges on the stream's 64-pixel
+grid, so it was in the stream sent. The same window in H264 (on Rift's stream) and the
+whole screen in VP9 (on libwebrtc's capturer) were clean (owner's tests, Nov 2, GNOME
+50.5, driver 615). The cause is libwebrtc's capturer: VP8 and VP9 go to it, and it
+imports GNOME's window DMA-BUFs and reads them with `glReadPixels` with no wait on the
+compositor. It offers no sync timeline, so GNOME queues each buffer at once, and
+NVIDIA's driver does not hold the read back for the drawing the way Mesa's implicit
+sync does: what it reads may be a window half drawn, cleared to black where it is not.
+`readpx.c` (a test kept out of the tree) found that NVIDIA's own `glReadPixels` never
+leaves anything unread, so it is the missing wait. Upstream libwebrtc has no fix, and
+the same bands are reported for browsers' and Discord's window shares on GNOME with
+NVIDIA; OBS fixed its own with the sync timeline (obs-studio #11708), which Rift's
+stream already waits on.
+
+So on a screen NVIDIA's card draws, a VP8 or VP9 **window** goes on Rift's stream and
+reads memory (`takes_rifts_stream`), which GNOME copies once it is drawn. A whole
+screen stays on libwebrtc's capturer, which was clean there and, unlike a memory
+stream, keeps going under a fullscreen window. Intel's and AMD's screens keep
+libwebrtc's capturer for every VP8 and VP9 share: their drivers sync implicitly. The
+memory picture is converted on Rift's processing thread as a VP9 fall back's is, and
+written each time into a buffer libwebrtc no longer holds (`Converter::lent`).
+Verified Nov 3 in the app by the owner (Dave sharing a Chrome window in VP9 to Cara,
+both Linux debug builds on this laptop): no band, smooth, and still moving with the
+window made fullscreen (F11) and back; Dave's log shows the share on Rift's stream,
+moved to memory buffers. Not yet tried with a real game's window going fullscreen. If
+one stalls on memory, the way left is DMA-BUFs waited on through the timeline and read
+back in `pipewire.c`.
+
 ### Keeping the game smooth
 
 - The share's GPU work is one small shader pass and a copy per picture, plus

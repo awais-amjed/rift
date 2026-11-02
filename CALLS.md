@@ -381,6 +381,11 @@ Studio's), and each picture handed to VAAPI as the compositor's DMA-BUF, never
 coming to the CPU. Only a share whose encoder takes that DMA-BUF runs on this stream
 (`takes_rifts_stream`): VP8, VP9 and an NVENC with no GL side go to libwebrtc's capturer, as with
 the settings switch off, because on memory this stream stands still under a fullscreen window (below).
+Except a VP8 or VP9 window on a screen NVIDIA's card draws alone, which comes here and reads
+memory (Nov 2): libwebrtc's capturer reads GNOME's window DMA-BUFs with no wait on the
+compositor, NVIDIA's driver does not make it wait, and the viewer saw black bands where the
+window was not yet drawn (`STEP2_NVIDIA.md`, *A window in VP9*). Verified Nov 3 with two
+clients: no band, and the window kept moving made fullscreen.
 The cost is capture at about 12% of a core against 5%, beside VP9's own encoding at about 50%, and
 no paused notice for a minimised window. A share whose GPU encoder fails partway goes out as VP9
 and stays on the stream, on memory buffers, which it switches to whenever the feed changes. Both kinds are offered blue first

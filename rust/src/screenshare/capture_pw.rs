@@ -1,7 +1,8 @@
 //! A Wayland share on Rift's own PipeWire stream (`docs/gpu-codecs/STEP2_LINUX.md`):
 //! the portal from Rust (`portal.rs`), the stream in Rift's FFmpeg library
 //! (`pw_stream.rs`), and each picture to the GPU encoder as the compositor's
-//! DMA-BUF where the encoder takes one, or from memory after a fall back to VP9.
+//! DMA-BUF where the encoder takes one, or from memory: a VP8 or VP9 window on
+//! NVIDIA's screen ([`takes_rifts_stream`]), or after a fall back to VP9.
 //! When any of it refuses, the share runs on libwebrtc's capturer as before.
 use super::capture::{CaptureRequest, Command, Feed, Progress, VideoSlot};
 use super::encoder::{dmabuf_target, DmabufTarget, GpuCodec};
@@ -205,13 +206,26 @@ fn first_buffers(target: Option<&DmabufTarget>) -> PwBuffers {
 /// Intel, none on NVIDIA; Oct 31, GNOME 50), where libwebrtc's capturer keeps
 /// going, so a share that would read memory gains little here and can lose its
 /// picture.
+///
+/// Except a window on a screen NVIDIA's card draws ([`DmabufTarget::external_modifiers`]),
+/// shared in VP8 or VP9, which goes here and reads memory: libwebrtc's capturer reads
+/// GNOME's window DMA-BUFs with no wait on the compositor's drawing, which NVIDIA's
+/// driver does not hold back for it, and its pictures had black bands where the
+/// window was not yet drawn (Nov 2, GNOME 50.5, RTX 3070 Ti; a whole screen and H264
+/// were clean). GNOME copies a memory picture once it is drawn. A screen stays on
+/// libwebrtc's capturer, whose screens were clean and kept going under a fullscreen
+/// window (`docs/gpu-codecs/STEP2_NVIDIA.md`, *A window in VP9*).
 fn takes_rifts_stream(
     gpu_capture: bool,
     wayland: bool,
     codec: VideoCodec,
+    window: bool,
     target: Option<&DmabufTarget>,
 ) -> bool {
-    gpu_capture && wayland && GpuCodec::for_share(codec).is_some() && target.is_some()
+    let Some(target) = target.filter(|_| gpu_capture && wayland) else {
+        return false;
+    };
+    GpuCodec::for_share(codec).is_some() || (window && target.external_modifiers)
 }
 
 /// How a share went on Rift's stream.
@@ -237,7 +251,14 @@ pub(super) fn run(
     let wayland = on_wayland();
     // Asked only with the switch on: it opens NVENC's GL side.
     let target = request.gpu_capture.then(dmabuf_target).flatten();
-    if !takes_rifts_stream(request.gpu_capture, wayland, request.codec, target.as_ref()) {
+    let window = request.source_type == DesktopCaptureSourceType::Window;
+    if !takes_rifts_stream(
+        request.gpu_capture,
+        wayland,
+        request.codec,
+        window,
+        target.as_ref(),
+    ) {
         log::info!(
             "capture: GPU capture {}; libwebrtc's capturer",
             if !request.gpu_capture {
@@ -245,7 +266,7 @@ pub(super) fn run(
             } else if !wayland {
                 "needs Wayland"
             } else {
-                "needs a GPU encoder taking DMA-BUFs"
+                "needs a GPU encoder taking DMA-BUFs, or a VP8/VP9 window on NVIDIA's screen"
             }
         );
         return Handoff::Fallback(request);
@@ -697,8 +718,9 @@ mod tests {
             render_node: "/dev/dri/renderD128".to_string(),
             external_modifiers: false,
         };
-        let takes =
-            |switch, wayland| takes_rifts_stream(switch, wayland, VideoCodec::H264, Some(&target));
+        let takes = |switch, wayland| {
+            takes_rifts_stream(switch, wayland, VideoCodec::H264, false, Some(&target))
+        };
         assert!(takes(true, true));
         assert!(!takes(false, true));
         assert!(!takes(true, false));
@@ -711,21 +733,52 @@ mod tests {
             render_node: "/dev/dri/renderD128".to_string(),
             external_modifiers: false,
         };
-        // libwebrtc encodes these, from memory.
-        assert!(!takes_rifts_stream(
-            true,
-            true,
-            VideoCodec::VP9,
-            Some(&target)
-        ));
-        assert!(!takes_rifts_stream(
-            true,
-            true,
-            VideoCodec::VP8,
-            Some(&target)
-        ));
+        // libwebrtc encodes these, from memory, and on Intel's or AMD's
+        // screen its capturer reads a window cleanly.
+        for codec in [VideoCodec::VP9, VideoCodec::VP8] {
+            for window in [false, true] {
+                assert!(!takes_rifts_stream(
+                    true,
+                    true,
+                    codec,
+                    window,
+                    Some(&target)
+                ));
+            }
+        }
         // No encoder here takes a DMA-BUF.
-        assert!(!takes_rifts_stream(true, true, VideoCodec::H264, None));
+        assert!(!takes_rifts_stream(
+            true,
+            true,
+            VideoCodec::H264,
+            false,
+            None
+        ));
+    }
+
+    #[test]
+    fn a_vp9_window_on_nvidias_screen_goes_on_rifts_stream() {
+        let nvidia = DmabufTarget {
+            render_node: "/dev/dri/renderD128".to_string(),
+            external_modifiers: true,
+        };
+        for codec in [VideoCodec::VP9, VideoCodec::VP8] {
+            // A window, in memory: libwebrtc's capturer gave it black bands.
+            assert!(takes_rifts_stream(true, true, codec, true, Some(&nvidia)));
+            // A screen stays on libwebrtc's capturer, which was clean there
+            // and keeps going under a fullscreen window.
+            assert!(!takes_rifts_stream(true, true, codec, false, Some(&nvidia)));
+            // The settings switch and X11 still keep it off.
+            assert!(!takes_rifts_stream(false, true, codec, true, Some(&nvidia)));
+            assert!(!takes_rifts_stream(true, false, codec, true, Some(&nvidia)));
+        }
+        assert!(takes_rifts_stream(
+            true,
+            true,
+            VideoCodec::H264,
+            false,
+            Some(&nvidia)
+        ));
     }
 
     #[test]
