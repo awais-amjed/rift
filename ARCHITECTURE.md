@@ -542,8 +542,9 @@ The server keeps it from becoming that listener. It mints one only while the sam
 device's voice connection is in the room, removes any whose voice connection has gone
 when anyone reads the roster or mints another, and moderation sets each kind's
 permissions as it was minted (`rift-self-host` `API.md`, `get_channel_token` and
-*Moderation has to reach the live room*). The gap left is a watch connection receiving
-for a moment after its device left, until the next roster read; accepted Nov 2 2026.
+*Moderation has to reach the live room*). **Not yet closed (Nov 2 2026):** a watch
+connection whose device has left keeps receiving until the next roster read or watch mint,
+and nothing schedules either, so the app must not ship the watch path until it is.
 
 **A stream is part of being in the call, never on its own.** A share is a
 connection of its own, so the app holds the two together from both ends: the
