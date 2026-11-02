@@ -65,15 +65,15 @@ as smooth and as sharp as today's and the sound no further from the picture than
 - A watcher who sees nothing because the new path failed. Any failure (no token, no
   GPU decoder, an import refused, a lost connection) falls back to today's path, once,
   with a line in the app's log.
-- A hidden listener: a watch connection that can hear a call its owner has left (see
-  *The server*).
+- A hidden listener: a watch connection that can hear a call unseen, or after its owner
+  has left (see *The server*).
 - A watch connection that kicks the watcher's own voice connection (see *Old servers*).
 
 ## How it works
 
 ```
 Dart                        Rust                                   Runner (C++)
- watch(share) ─────────────▶ watch connection (hidden, _watch)
+ watch(share) ─────────────▶ watch connection (_watch)
                              ├ picture: pass-through ─▶ ffdec (FFmpeg hwaccel)
                              │                           └ GPU frame ─▶ stream texture
  Texture(id) ◀─────────────────────────────────────────────────────── (shader, NV12 → RGBA)
@@ -167,32 +167,39 @@ going to a test sink whose monitor was the mic. The hook mixed in a signal at �
 ### The server
 
 A watch connection needs its own token, and so a change in `rift-self-host`:
-`get_channel_token`, `get_dm_call_token`, the roster's `voiceUserId`, and `kick_user` /
-`moderate_user`, with `API.md`.
+`get_channel_token`, `get_dm_call_token`, the roster's `voiceUserId`, `kick_user` /
+`moderate_user` and a new `livekit_webhook`, with `API.md`.
 
 - Asked with `watch: true`, the identity is `<userId>~<deviceId>_watch`.
 - The grant:
   - `canPublish: false`.
   - `canSubscribe` under the same rules as the voice connection (not deafened, may
     listen).
-  - `hidden: true`, so no client, old or new, ever shows it.
-- **A hidden connection that can subscribe is what share tokens were stopped from being**
-  (the `canSubscribe` comment in `get_channel_token`): somebody could sit in a call,
-  hearing everything, appearing nowhere. So:
-  - a watch token is minted only while that device's voice connection is in the room;
-  - the roster and every token mint remove any `_watch` connection whose voice
-    connection has gone;
+  - **Visible.** It was hidden at first, so nobody would draw the watcher twice. But a
+    hidden connection that can subscribe is what share tokens were stopped from being
+    (the `canSubscribe` comment in `get_channel_token`): somebody could sit in a call,
+    hearing everything, appearing nowhere. New apps fold it into its owner
+    (`ParticipantIdentity.isWatch`); an app from before draws the person a second time,
+    and plays the join and leave sounds as they start and stop watching, until it updates.
+- Kept tied to a device in the call:
+  - a watch token is minted only while that device's voice connection is in the room,
+    and joins for one minute;
+  - `livekit_webhook` removes a `_watch` connection as soon as its voice connection
+    leaves, and the roster and every watch mint do too;
   - a kick or moderation removes the watch connection with the voice one.
 
-  What is left: a modified client could keep listening, hidden, after leaving, until the
-  next roster read or join in that room. It could only hear what it already had the
-  right to hear. **Accepted (owner, Nov 2)**; a sweep on a timer only if it ever matters.
+  Hidden, a watcher whose device had left went on receiving until the next roster read
+  or mint, and nothing scheduled either (found Nov 2). Visible and swept on the
+  webhook, verified Nov 2 on the local stack: seen by the others, gone 69 ms after its
+  voice left. A region whose LiveKit has no webhook still sweeps on reads and mints,
+  and its leftover watcher shows as its owner, still in the call.
 - **Old servers:** a server without this would ignore `watch` and mint the voice identity
   itself, and joining with it would kick the watcher's own voice connection. The app
   checks the returned identity ends in `_watch` before connecting, and falls back to
   today's path if it does not.
 - Shipping it needs a console release (owner's OK). Until a server has it, its watchers
-  watch as today.
+  watch as today. The app that folds `_watch` in should ship at least a release before
+  the one that starts watching this way, so most apps have it before any watcher appears.
 
 ## Order
 

@@ -265,7 +265,9 @@ class LiveKitCubit extends Cubit<LiveKitState>
 
     final inRoom = <Participant>[
       if (room.localParticipant != null) room.localParticipant!,
-      ...room.remoteParticipants.values,
+      // A watch connection is its owner, already here.
+      for (final p in room.remoteParticipants.values)
+        if (!ParticipantIdentity.isWatch(p.identity)) p,
     ];
     // A stream is part of somebody being in the call, never on its own.
     final ownerless = sharesWithoutOwner(inRoom.map((p) => p.identity));

@@ -2,7 +2,8 @@
 ///
 /// Identity format: `<userId>~<deviceId>` for a normal participant, with a
 /// `_screenshare` or `_soundshare` suffix for that same device's screen share
-/// or sound share — e.g. `d290f1ee-…~a1b2c3d4` and
+/// or sound share, and `_watch` for the connection the desktop watches a
+/// stream on — e.g. `d290f1ee-…~a1b2c3d4` and
 /// `d290f1ee-…~a1b2c3d4_screenshare`.
 ///
 /// The device segment lets one user join from several devices without a
@@ -19,6 +20,7 @@ class ParticipantIdentity {
 
   static const screenshareSuffix = '_screenshare';
   static const soundShareSuffix = '_soundshare';
+  static const watchSuffix = '_watch';
 
   static bool isScreenshare(String identity) =>
       identity.endsWith(screenshareSuffix);
@@ -32,11 +34,24 @@ class ParticipantIdentity {
   static bool isShare(String identity) =>
       isScreenshare(identity) || isSoundShare(identity);
 
+  /// Whether this connection only receives a stream somebody in the call is
+  /// watching (`docs/gpu-codecs/STEP3_PLAN.md`).
+  ///
+  /// The server keeps it visible, since a hidden one could listen unseen, so
+  /// every room holds one beside each person watching that way. It is part of
+  /// that person and nothing of its own: no cell, no sound, not counted. The
+  /// call's participant list leaves it out (`LiveKitCubit._syncParticipants`).
+  static bool isWatch(String identity) => identity.endsWith(watchSuffix);
+
   /// The base (non-share) identity — `<userId>~<deviceId>`. A share's identity
   /// maps to its owner's base identity by dropping the suffix, which is how a
   /// share is paired with the connection that started it.
   static String baseOf(String identity) {
-    for (final suffix in const [screenshareSuffix, soundShareSuffix]) {
+    for (final suffix in const [
+      screenshareSuffix,
+      soundShareSuffix,
+      watchSuffix,
+    ]) {
       if (identity.endsWith(suffix)) {
         return identity.substring(0, identity.length - suffix.length);
       }
@@ -130,11 +145,11 @@ class ParticipantIdentity {
 
   /// Whether [identity] is one of [userId]'s voice connections — any device
   /// they've joined from, but neither of their shares, whose audio is handled
-  /// separately.
+  /// separately, nor a watch connection, which has none.
   ///
   /// This is the rule for anything that should reach *the person*: applying a
   /// local mute has to hit every device they're on, not the one connection
   /// whose identity happened to be at hand.
   static bool isVoiceConnectionOf(String identity, String userId) =>
-      !isShare(identity) && userIdOf(identity) == userId;
+      !isShare(identity) && !isWatch(identity) && userIdOf(identity) == userId;
 }

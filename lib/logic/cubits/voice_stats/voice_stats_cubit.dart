@@ -113,11 +113,13 @@ class VoiceStatsCubit extends Cubit<VoiceStatsState> {
     }
   }
 
-  /// Whether anybody else is here. Shares are left out: a screen share is a
-  /// second connection of somebody already counted, and a room containing
-  /// only your own share is a room you are alone in.
+  /// Whether anybody else is here. Shares and watch connections are left out:
+  /// each is a second connection of somebody already counted, and a room
+  /// containing only your own is a room you are alone in.
   bool _isAlone(Room room) => !room.remoteParticipants.values.any(
-    (p) => !ParticipantIdentity.isShare(p.identity),
+    (p) =>
+        !ParticipantIdentity.isShare(p.identity) &&
+        !ParticipantIdentity.isWatch(p.identity),
   );
 
   /// Stats for the transports themselves.

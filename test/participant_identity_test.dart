@@ -254,5 +254,33 @@ void main() {
         isFalse,
       );
     });
+
+    test('leaves their watch connection out', () {
+      const watch = '$userId~$device${ParticipantIdentity.watchSuffix}';
+      expect(ParticipantIdentity.isVoiceConnectionOf(watch, userId), isFalse);
+    });
+  });
+
+  // The server keeps a watch connection visible, so every client sees one
+  // beside each person watching a stream that way. It is that person.
+  group('ParticipantIdentity watch connections', () {
+    const watch = '$userId~$device${ParticipantIdentity.watchSuffix}';
+
+    test('is recognised, and is not a share', () {
+      expect(ParticipantIdentity.isWatch(watch), isTrue);
+      expect(ParticipantIdentity.isShare(watch), isFalse);
+      expect(ParticipantIdentity.isWatch('$userId~$device'), isFalse);
+      expect(
+        ParticipantIdentity.isWatch(
+          '$userId~$device${ParticipantIdentity.screenshareSuffix}',
+        ),
+        isFalse,
+      );
+    });
+
+    test('maps to the device that opened it, and to its person', () {
+      expect(ParticipantIdentity.baseOf(watch), '$userId~$device');
+      expect(ParticipantIdentity.userIdOf(watch), userId);
+    });
   });
 }

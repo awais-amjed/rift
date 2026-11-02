@@ -60,6 +60,12 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
       })
       ..on<ParticipantConnectedEvent>((e) {
         final identity = e.participant.identity;
+        if (ParticipantIdentity.isWatch(identity)) {
+          // Somebody already here starting to watch: nobody arrived. It is
+          // still a connection your voice's permissions must name.
+          _applyVoicePrivacy();
+          return;
+        }
         // Their key before their audio: a frame cryptor with no key for a
         // participant drops their frames, and somebody who joined a moment
         // before you registered them would simply never be audible.
@@ -77,6 +83,7 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
       })
       ..on<ParticipantDisconnectedEvent>((e) {
         final identity = e.participant.identity;
+        if (ParticipantIdentity.isWatch(identity)) return;
         _watchingSeen.remove(identity);
         // Gone without anybody pressing Stop watching, so it may well be
         // back in a moment — see [WatchResume].
