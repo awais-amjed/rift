@@ -423,3 +423,13 @@ What changed in the shared files:
   with `BENCH_SHARES=0` stays for a run of shares; `BENCH_GPU_CAPTURE=0` shares with the switch off.
 - `gpu_live_test.rs`: the new tests are Windows only.
 - `host_platform.dart`: the switch is offered on every Windows build; Linux's condition (Wayland) is unchanged.
+
+**Rechecked on Linux, Nov 2, at the branch's head after this work** (the RTX 3070 Ti laptop, GNOME on Wayland,
+1920x1080). In Hybrid, with the Iris Xe drawing: `cargo fmt --check` and `flutter analyze` clean, ffenc rebuilt and
+its `test.sh` passing, `cargo test --release` passing, `cargo xwin check` clean for Windows, the VAAPI live and room
+tests passing, and `bench_view` against a Linux share at 59.0 fps with a longest gap of 36 ms. In Discrete, with the
+RTX drawing: `test.sh`'s NVENC DMA-BUF and picture checks passing (CPU 0.54 ms a picture), and every NVENC test in
+`gpu_live_test.rs` passing: 544 pictures in and 544 frames out over 10 s with no refused import, memory buffers and
+back with no gap, resize, rejoin and the fall back to VP9, the key test, and a late viewer's picture 122 ms after
+joining. Both dumps of the tear picture came out clean (no torn, stale or repeated picture). Not rechecked: the app
+on Linux and the game gate, as nothing in the Linux pipeline's behaviour changed.
