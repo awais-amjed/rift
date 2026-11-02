@@ -228,8 +228,8 @@ A watch connection needs its own token, and so a change in `rift-self-host`:
    plays it (`rust/src/watching/sound`) at the volume the cubit hands down, and the
    call's copy is held. Verified by `cargo test live_watched_sound` into a null sink:
    stereo kept, the level as sent, volume 0 and half right, silent once unwatched; and
-   heard right in the app by the owner (two Linux clients). The cost is not yet
-   measured against the call's path.
+   heard right in the app by the owner (two Linux clients). The cost against the
+   call's path is in phase B's entry.
 3. **Phase B on Linux:** VAAPI on the Iris Xe, then NVDEC with the laptop on discrete.
    AMD by the AMD desktop's Claude.
    VAAPI is done (Nov 2, `CALLS.md`, *Watching a share through Rust*): LiveKit's
@@ -246,8 +246,13 @@ A watch connection needs its own token, and so a change in `rift-self-host`:
    matrix and range taken from the stream for both decoders. A GPU picture the runner
    fails to draw is handed back undrawn, and the call goes back to its own
    connection. Verified in Rust (VP8, VP9, H264 through CUDA) and in the app (H264
-   and VP9, resize, minimise, rejoin, the first watch after joining). Not yet: AMD,
-   the cost measured. Receive stats for a share Rust holds (the owner turned the
+   and VP9, resize, minimise, rejoin, the first watch after joining). Not yet: AMD.
+   The cost, measured Nov 3 on NVIDIA in the debug build (`CALLS.md`): a 1000×1080
+   window share at about 48 a second cost the watcher 28–32% of a core through Rust
+   against 39–41% through the call for H264, 33–35% against 52–55% for VP9. The
+   decoder went; the window redrawn at the picture's rate (raster and main threads,
+   11–13% each) is what is left, so *Success*'s "well under half" is not met yet.
+   Not yet measured in a release build at 1080p60. Receive stats for a share Rust holds (the owner turned the
    stats on and saw none) come from the watch connection since Nov 3
    (`watch_share_stats`), verified in Rust and in the app.
 

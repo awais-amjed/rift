@@ -712,8 +712,27 @@ Nov 2) the same: `live_gpu_watch` decoded VP8, VP9 and H264 through CUDA, 89
 to 90 pictures in 3 s each; `test_ffdec cuda` gave back the four colours
 after CUDA's copy into GL; and in the app the owner saw H264 and VP9 move
 with the right colours, through resizes, minimising and rejoining, and the
-first watch after joining from the sidebar showed its picture. Not yet
-measured against the call's path.
+first watch after joining from the sidebar showed its picture.
+
+Measured against the call's path Nov 3 (RTX 3070 Ti laptop, GNOME Wayland,
+the Linux debug build with the Rust library in release, Dave sharing a window
+of a moving test picture, Cara watching it large with the stats card open,
+`threadtop` on Cara 3 × 20 s each; `RIFT_WATCH_PATH=call` for the call's path).
+The window was 1000×1080 and the share reached Cara at 46–51 pictures a
+second on both paths, all that was sent:
+
+| Cara, whole process | Through Rust (NVDEC) | Through the call |
+|---|---|---|
+| H264 | 28–32% of a core | 39–41% |
+| VP9 | 33–35% | 52–55% |
+
+The difference is the decoder (libwebrtc's on the CPU, 10–11% of a core for
+H264 and 21% for VP9; the GPU's decoder 3–4% busy through Rust) and 3% of
+the raster thread (the convert and upload). What is left is the window
+redrawn at the picture's rate: the raster thread at 11–13% and the main
+thread at 11–13%, the same on both paths. The watch connection's own
+threads add about 4%. A 1920×1080 H264 share through Rust cost 30%, less
+than the call's path at half the size.
 
 ## How a call is played out on the desktop — [Implemented October 2026]
 
