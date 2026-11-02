@@ -8,8 +8,9 @@ the viewer sees a smooth stream.
 **Verdict: it passes.** A switch-on share of the whole screen added **0.019 ms** to an
 uncapped CS2 frame (the limit is 0.2 ms). With the switch off it added 0.168 ms. No capped
 frame went over twice its target in any case, and the viewer held 60 fps with no freeze.
-Two faults were found outside the measured path: green letterbox bars on AMD, and LiveKit's
-own VAAPI encoder crashing in one live test's control case. Both are under *Found*.
+Two faults were found outside the measured path: green letterbox bars on AMD (since fixed and
+rerun here), and LiveKit's own VAAPI encoder crashing in one live test's control case. Both
+are under *Found*.
 
 ## The machine
 
@@ -71,8 +72,8 @@ over `testsrc2`. That gave 598 frames, Constrained Baseline, signalled BT.601 li
 - **No solid frames:** none of the 598 is a solid colour (Mesa issue 6734), and the lowest
   spread in any frame is 61 levels.
 - **No faults:** no tearing, no blocks.
-- **The bars round it:** the encoder's letterbox around the 32:9 screen is **green**
-  (*Found*, 1).
+- **The bars round it:** the encoder's letterbox around the 32:9 screen was **green**
+  (*Found*, 1). It has been black since the fix in *Found*, 1.
 
 `tear_check.py` was never committed from the laptop, so it was rebuilt from the plan's
 description (`STEP2_NVIDIA_PLAN.md`, task 5), untracked in `scripts/perf/`. It now finds the
@@ -195,7 +196,7 @@ a pair: there was no moving round without a share.
    - **What is affected:** on any AMD GPU, a window resized mid-share would be letterboxed
      with green bars in place of black. The live tests show it too, since they encode a
      fixed 1280x720.
-   - **Fix (Nov 2, built on the laptop, not yet run on AMD):** `dmabuf.c` paints each
+   - **Fix (Nov 2, built on the laptop, then run on this AMD desktop the same day):** `dmabuf.c` paints each
      surface of the pad's pool black, whole, the first time it comes out, then draws the
      picture onto it again (the pool hands the same surface back). Painting only the bars
      after the picture would be cheaper, but Mesa before 25 writes a whole surface whatever
@@ -203,6 +204,20 @@ a pair: there was no moving round without a share.
    - **Test for it:** `test_dmabuf.c` encodes 24 placed pictures, pillarboxed then
      letterboxed, decodes them with the system's ffmpeg, and checks in every frame that the
      bars are black (Y 16, UV 128, within 6) and the picture is still there.
+   - **Run on the RX 9070 XT (Nov 2, Mesa 26.2.5):**
+     - **With the fix:** `native/ffenc/test.sh` passes: `bars: black round 24 placed
+       pictures`, and the rest as before (65 packets).
+     - **Without it:** the same test against the old `dmabuf.c` (a worktree of f2473ce8 with
+       the new `test_dmabuf.c`) fails in all 24 frames. Both bars of every frame read
+       `Y 0 U 0 V 0, not black`, and no frame lost its picture. So the test catches the fault,
+       and the picture was never the problem.
+     - **Live:** `live_gpu_encodes_the_stream` was run with `RIFT_SHARE_SECONDS=10` over
+       `testsrc2`, with the 5120x1440 screen letterboxed into 1280x720. It sent 594 pictures
+       and got 594 frames out, with 0 refused. In the decoded dump:
+       - The bars read Y 15–17 and UV 126–130 in all 594 frames. The dump before the fix read
+         Y 0–1 and UV 0–2.
+       - The picture's mean Y/U/V is 70.7/127.6/127.2, against 70.6/127.7/127.3 before.
+       - No frame is solid.
 2. **LiveKit's own VAAPI H264 encoder aborts on this GPU.**
    - **What:** in the **software** case of `live_gpu_h264_is_seen_with_the_key_and_by_nobody_else`,
      glibc reports `*** buffer overflow detected ***` inside `radeonsi_drv_video.so`, from
