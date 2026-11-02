@@ -249,7 +249,7 @@ A watch connection needs its own token, and so a change in `rift-self-host`:
    and VP9, resize, minimise, rejoin, the first watch after joining). Not yet: AMD,
    the cost measured. Receive stats for a share Rust holds (the owner turned the
    stats on and saw none) come from the watch connection since Nov 3
-   (`watch_share_stats`), verified in Rust.
+   (`watch_share_stats`), verified in Rust and in the app.
 
    The app's first fix on the way (Nov 2): watched straight after joining from the
    sidebar, a share showed the sharer's avatar. The join's unsubscribe of the

@@ -675,7 +675,10 @@ GPU can, it decodes the picture too, and nothing of it comes to the CPU
   the GPU they still count: the pass-through decoder hands libwebrtc a
   picture of the right size for each frame. Verified Nov 3 in Rust
   (`live_watch_`, `live_gpu_watch`): the size and codec sent and 30 pictures a
-  second for 30 sent, through CUDA for VP8, VP9 and H264.
+  second for 30 sent, through CUDA for VP8, VP9 and H264. Then in the app
+  (Nov 3, two clients, NVIDIA): the badge and the stats card showed the
+  share's numbers as they do through the call, for VP9, H264 and VP8 decoded
+  through CUDA.
 
 Verified Nov 2 against the local stack, in Rust alone (`cargo test
 live_watch_`): a watched synthetic share arrives at its size and shade,
