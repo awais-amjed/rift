@@ -160,7 +160,8 @@ step can take from our own code and from open source projects: `REUSE.md`.
    - Sunshine's PipeWire capture (`portalgrab.cpp`, `pipewire.cpp`, GPL-3.0) is
      nearly this shape; OBS fills the gaps (`REUSE.md`).
 3. **GPU decode and draw for desktop watchers.** This is what makes High, H265 and
-   AV1 worth having.
+   AV1 worth having. **Route (b) chosen (owner, Nov 2)**, with the share's sound on
+   the same Rust connection; designed in `STEP3_PLAN.md`, not yet agreed.
    - The drawing half comes first and is needed by every route below: a Flutter
      GPU texture fed by a shader. It can be built and measured before any decoder,
      on the planes today's software decoder already gives (`RTCVideoFrame::DataY/U/V`),
@@ -204,8 +205,7 @@ step can take from our own code and from open source projects: `REUSE.md`.
 ## Open, for the owner
 
 - ~~Which half comes first~~: the sharer, Linux first (owner, Oct 29).
-- Step 3: watch through a Rust receive connection (recommended), rebuild
-  flutter_webrtc's libwebrtc, or an upstream decoder hook.
+- ~~Step 3's route~~: a Rust receive connection, picture and sound (owner, Nov 2).
 - H265 decoding: FFmpeg's hevc decoder refusing to run without a hwaccel, or
   the vendors' decoders directly (cuvid, D3D11), so no software H265 ships.
 - Whether Windows 10 gets a GPU-side DXGI-duplication capturer, or keeps
