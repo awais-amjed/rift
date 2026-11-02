@@ -5,8 +5,8 @@
 #
 #   native/ffenc/build.sh OUT_DIR
 #
-# On Linux it makes librift_ffenc.so with the VAAPI and NVENC encoders and a
-# Wayland share's PipeWire stream, and needs a C compiler, make, and the
+# On Linux it makes librift_ffenc.so with the VAAPI and NVENC encoders, a
+# Wayland share's PipeWire stream and a watched share's VAAPI decoders, and needs a C compiler, make, and the
 # headers of libva, libdrm, PipeWire, EGL, GBM and GLES (libva-dev, libdrm-dev,
 # libpipewire-0.3-dev, libegl-dev, libgbm-dev, libgles-dev). On Windows it
 # makes rift_ffenc.dll with NVIDIA's, Intel's and AMD's encoders, and runs in
@@ -56,10 +56,14 @@ if [[ $os == linux ]]; then
   spa_headers=1.2.7
   spa_headers_sha256=e75568ed18bcbe75e9779af57cb9cc256fd7ebfaadc12bb347a0717055d1d3a9
   # And the filters that take a Wayland share's DMA-BUF into VAAPI and make
-  # NV12 of it on the GPU (dmabuf.c), with libdrm for DRM's frames.
+  # NV12 of it on the GPU (dmabuf.c), with libdrm for DRM's frames. And a
+  # watched share's decoders (ffdec.c), each only through VAAPI: FFmpeg's
+  # decoders read the stream and the GPU decodes it.
   configure_flags+=(
     --enable-vaapi --enable-libdrm --enable-encoder=h264_vaapi,h264_nvenc
     --enable-filter=buffer,buffersink,hwmap,scale_vaapi,transpose_vaapi,pad_vaapi
+    --enable-decoder=h264,vp8,vp9
+    --enable-hwaccel=h264_vaapi,vp8_vaapi,vp9_vaapi
   )
 else
   library=$out/rift_ffenc.dll
@@ -187,7 +191,7 @@ done
 if [[ $os == linux ]]; then
   "$cc" -shared -fPIC -O2 -fvisibility=hidden -I"$prefix/include" \
     $spa_include $(pkg-config --cflags libdrm libpipewire-0.3) \
-    "$here/ffenc.c" "$here/dmabuf.c" "$here/pipewire.c" "$here/dmabuf_caps.c" \
+    "$here/ffenc.c" "$here/ffdec.c" "$here/dmabuf.c" "$here/pipewire.c" "$here/dmabuf_caps.c" \
     "$here/nvenc_gl.c" "$here/nvenc_gl_geometry.c" \
     -o "$library.part" \
     "$prefix/lib/libavfilter.a" "$prefix/lib/libavcodec.a" \

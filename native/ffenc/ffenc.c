@@ -1,5 +1,6 @@
 // A GPU encoder through FFmpeg; see ffenc.h.
 #include "ffenc.h"
+#include "ff_shared.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -156,7 +157,7 @@ void rift_ffenc_set_log(RiftFfencLog log, int32_t max_level) {
   av_log_set_callback(log ? forward_log : av_log_default_callback);
 }
 
-static void fail(char* error, size_t error_len, const char* what, int err) {
+void rift_ff_fail(char* error, size_t error_len, const char* what, int err) {
   if (!error || error_len == 0) return;
   if (err < 0) {
     char reason[AV_ERROR_MAX_STRING_SIZE];
@@ -166,6 +167,15 @@ static void fail(char* error, size_t error_len, const char* what, int err) {
     snprintf(error, error_len, "%s", what);
   }
 }
+
+#if defined(__linux__)
+const char* rift_ff_vaapi_vendor(const AVBufferRef* device) {
+  const AVHWDeviceContext* context = (const AVHWDeviceContext*)device->data;
+  if (context->type != AV_HWDEVICE_TYPE_VAAPI) return NULL;
+  const AVVAAPIDeviceContext* vaapi = context->hwctx;
+  return vaQueryVendorString(vaapi->display);
+}
+#endif
 
 static Api api_of(const char* encoder) {
   const char* suffix = strrchr(encoder, '_');
@@ -186,12 +196,8 @@ static void name_driver(RiftFfenc* enc, const AVCodec* codec) {
     return;
   }
 #if defined(__linux__)
-  AVHWDeviceContext* device = (AVHWDeviceContext*)enc->device->data;
-  if (device->type == AV_HWDEVICE_TYPE_VAAPI) {
-    AVVAAPIDeviceContext* vaapi = device->hwctx;
-    const char* vendor = vaQueryVendorString(vaapi->display);
-    if (vendor) snprintf(enc->driver, sizeof(enc->driver), "%s", vendor);
-  }
+  const char* vendor = rift_ff_vaapi_vendor(enc->device);
+  if (vendor) snprintf(enc->driver, sizeof(enc->driver), "%s", vendor);
 #endif
 }
 
@@ -348,12 +354,12 @@ static int open_device(RiftFfenc* enc, const RiftFfencConfig* config,
   int err = av_hwdevice_ctx_create(&enc->device, AV_HWDEVICE_TYPE_VAAPI,
                                    config->device, NULL, 0);
   if (err < 0) {
-    fail(error, error_len, "the GPU did not open", err);
+    rift_ff_fail(error, error_len, "the GPU did not open", err);
     return err;
   }
   enc->frames = av_hwframe_ctx_alloc(enc->device);
   if (!enc->frames) {
-    fail(error, error_len, "no picture pool", AVERROR(ENOMEM));
+    rift_ff_fail(error, error_len, "no picture pool", AVERROR(ENOMEM));
     return AVERROR(ENOMEM);
   }
   AVHWFramesContext* frames = (AVHWFramesContext*)enc->frames->data;
@@ -364,7 +370,7 @@ static int open_device(RiftFfenc* enc, const RiftFfencConfig* config,
   frames->initial_pool_size = 16;
   err = av_hwframe_ctx_init(enc->frames);
   if (err < 0) {
-    fail(error, error_len, "the GPU took no NV12 pictures that size", err);
+    rift_ff_fail(error, error_len, "the GPU took no NV12 pictures that size", err);
   }
   return err;
 }
@@ -445,17 +451,17 @@ RiftFfenc* rift_ffenc_open(const RiftFfencConfig* config, char* error,
                            size_t error_len) {
   if (error && error_len) error[0] = '\0';
   if (EXITING()) {
-    fail(error, error_len, "the process is exiting", AVERROR_EXIT);
+    rift_ff_fail(error, error_len, "the process is exiting", AVERROR_EXIT);
     return NULL;
   }
   const AVCodec* codec = avcodec_find_encoder_by_name(config->encoder);
   if (!codec) {
-    fail(error, error_len, "this build has no such encoder", 0);
+    rift_ff_fail(error, error_len, "this build has no such encoder", 0);
     return NULL;
   }
   Api api = api_of(config->encoder);
   if (api == API_NONE) {
-    fail(error, error_len, "not a GPU encoder", 0);
+    rift_ff_fail(error, error_len, "not a GPU encoder", 0);
     return NULL;
   }
 
@@ -533,14 +539,14 @@ RiftFfenc* rift_ffenc_open(const RiftFfencConfig* config, char* error,
   }
 #endif
   if (err < 0) {
-    fail(error, error_len, "the encoder did not open", err);
+    rift_ff_fail(error, error_len, "the encoder did not open", err);
     goto fail;
   }
 
   enc->picture = av_frame_alloc();
   enc->packet = av_packet_alloc();
   if (!enc->picture || !enc->packet) {
-    fail(error, error_len, "out of memory", AVERROR(ENOMEM));
+    rift_ff_fail(error, error_len, "out of memory", AVERROR(ENOMEM));
     goto fail;
   }
   enc->picture->format = AV_PIX_FMT_NV12;
@@ -559,7 +565,7 @@ RiftFfenc* rift_ffenc_open(const RiftFfencConfig* config, char* error,
         err = av_frame_get_buffer(own, 0);
       }
       if (err < 0) {
-        fail(error, error_len, "out of memory", err);
+        rift_ff_fail(error, error_len, "out of memory", err);
         goto fail;
       }
     }
