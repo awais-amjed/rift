@@ -2876,8 +2876,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   WatchStats dco_decode_watch_stats(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 11)
-      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
+    if (arr.length != 12)
+      throw Exception('unexpected arr length: expect 12 but see ${arr.length}');
     return WatchStats(
       timestampUs: dco_decode_i_64(arr[0]),
       width: dco_decode_u_32(arr[1]),
@@ -2886,10 +2886,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       framesDropped: dco_decode_u_32(arr[4]),
       framesPerSecond: dco_decode_f_64(arr[5]),
       bytesReceived: dco_decode_u_64(arr[6]),
-      packetsLost: dco_decode_i_64(arr[7]),
-      jitterMs: dco_decode_f_64(arr[8]),
-      codec: dco_decode_String(arr[9]),
-      rttMs: dco_decode_opt_box_autoadd_f_64(arr[10]),
+      packetsReceived: dco_decode_u_64(arr[7]),
+      packetsLost: dco_decode_i_64(arr[8]),
+      jitterMs: dco_decode_f_64(arr[9]),
+      codec: dco_decode_String(arr[10]),
+      rttMs: dco_decode_opt_box_autoadd_f_64(arr[11]),
     );
   }
 
@@ -3609,6 +3610,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_framesDropped = sse_decode_u_32(deserializer);
     var var_framesPerSecond = sse_decode_f_64(deserializer);
     var var_bytesReceived = sse_decode_u_64(deserializer);
+    var var_packetsReceived = sse_decode_u_64(deserializer);
     var var_packetsLost = sse_decode_i_64(deserializer);
     var var_jitterMs = sse_decode_f_64(deserializer);
     var var_codec = sse_decode_String(deserializer);
@@ -3621,6 +3623,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       framesDropped: var_framesDropped,
       framesPerSecond: var_framesPerSecond,
       bytesReceived: var_bytesReceived,
+      packetsReceived: var_packetsReceived,
       packetsLost: var_packetsLost,
       jitterMs: var_jitterMs,
       codec: var_codec,
@@ -4344,6 +4347,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_u_32(self.framesDropped, serializer);
     sse_encode_f_64(self.framesPerSecond, serializer);
     sse_encode_u_64(self.bytesReceived, serializer);
+    sse_encode_u_64(self.packetsReceived, serializer);
     sse_encode_i_64(self.packetsLost, serializer);
     sse_encode_f_64(self.jitterMs, serializer);
     sse_encode_String(self.codec, serializer);

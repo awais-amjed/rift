@@ -10,7 +10,11 @@ class VideoStreamStats {
   final int? height;
   final double? fps;
   final double? bitrateKbps;
-  final int? packetsLost;
+
+  /// Packets lost in the last poll, as a share of those sent in it: what
+  /// the connection is doing now, which WebRTC's running count hid once a
+  /// stream had lost a few early on.
+  final double? lossPercent;
   final double? jitterMs;
   final String? codec;
   final double? rttMs;
@@ -21,7 +25,7 @@ class VideoStreamStats {
     this.height,
     this.fps,
     this.bitrateKbps,
-    this.packetsLost,
+    this.lossPercent,
     this.jitterMs,
     this.codec,
     this.rttMs,

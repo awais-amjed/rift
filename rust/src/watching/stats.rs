@@ -42,6 +42,7 @@ pub(crate) fn received(stats: &[RtcStats]) -> Option<WatchStats> {
         frames_dropped: inbound.inbound.frames_dropped,
         frames_per_second: inbound.inbound.frames_per_second,
         bytes_received: inbound.inbound.bytes_received,
+        packets_received: inbound.received.packets_received,
         packets_lost: inbound.received.packets_lost,
         jitter_ms: inbound.received.jitter * 1000.0,
         codec,
@@ -64,6 +65,7 @@ mod tests {
         i.inbound.frames_decoded = 600;
         i.inbound.bytes_received = 4_000_000;
         i.received.jitter = 0.004;
+        i.received.packets_received = 900;
         i.received.packets_lost = 3;
         RtcStats::InboundRtp(i)
     }
@@ -102,7 +104,7 @@ mod tests {
         assert_eq!((stats.width, stats.height), (1920, 1080));
         assert_eq!(stats.frames_decoded, 600);
         assert_eq!(stats.bytes_received, 4_000_000);
-        assert_eq!(stats.packets_lost, 3);
+        assert_eq!((stats.packets_received, stats.packets_lost), (900, 3));
         assert_eq!(stats.codec, "VP9");
         assert!((stats.jitter_ms - 4.0).abs() < 1e-9);
         let rtt = stats.rtt_ms.expect("the connected pair's round trip");

@@ -335,6 +335,10 @@ async fn assert_stats(identity: &str, codec: &str) {
         "{fps:.1} pictures a second, {FPS} sent"
     );
     assert!(kbps > 0.0, "bytes arriving");
+    assert!(
+        b.packets_received > a.packets_received,
+        "packets counted, for the loss of each poll"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]

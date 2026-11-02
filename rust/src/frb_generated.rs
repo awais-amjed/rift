@@ -3095,6 +3095,7 @@ impl SseDecode for crate::api::watching::WatchStats {
         let mut var_framesDropped = <u32>::sse_decode(deserializer);
         let mut var_framesPerSecond = <f64>::sse_decode(deserializer);
         let mut var_bytesReceived = <u64>::sse_decode(deserializer);
+        let mut var_packetsReceived = <u64>::sse_decode(deserializer);
         let mut var_packetsLost = <i64>::sse_decode(deserializer);
         let mut var_jitterMs = <f64>::sse_decode(deserializer);
         let mut var_codec = <String>::sse_decode(deserializer);
@@ -3107,6 +3108,7 @@ impl SseDecode for crate::api::watching::WatchStats {
             frames_dropped: var_framesDropped,
             frames_per_second: var_framesPerSecond,
             bytes_received: var_bytesReceived,
+            packets_received: var_packetsReceived,
             packets_lost: var_packetsLost,
             jitter_ms: var_jitterMs,
             codec: var_codec,
@@ -3849,6 +3851,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::watching::WatchStats {
             self.frames_dropped.into_into_dart().into_dart(),
             self.frames_per_second.into_into_dart().into_dart(),
             self.bytes_received.into_into_dart().into_dart(),
+            self.packets_received.into_into_dart().into_dart(),
             self.packets_lost.into_into_dart().into_dart(),
             self.jitter_ms.into_into_dart().into_dart(),
             self.codec.into_into_dart().into_dart(),
@@ -4458,6 +4461,7 @@ impl SseEncode for crate::api::watching::WatchStats {
         <u32>::sse_encode(self.frames_dropped, serializer);
         <f64>::sse_encode(self.frames_per_second, serializer);
         <u64>::sse_encode(self.bytes_received, serializer);
+        <u64>::sse_encode(self.packets_received, serializer);
         <i64>::sse_encode(self.packets_lost, serializer);
         <f64>::sse_encode(self.jitter_ms, serializer);
         <String>::sse_encode(self.codec, serializer);

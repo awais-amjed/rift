@@ -216,6 +216,9 @@ class WatchStats {
   final int framesDropped;
   final double framesPerSecond;
   final BigInt bytesReceived;
+  final BigInt packetsReceived;
+
+  /// Lost so far; it can fall, as late packets turn up.
   final PlatformInt64 packetsLost;
   final double jitterMs;
 
@@ -233,6 +236,7 @@ class WatchStats {
     required this.framesDropped,
     required this.framesPerSecond,
     required this.bytesReceived,
+    required this.packetsReceived,
     required this.packetsLost,
     required this.jitterMs,
     required this.codec,
@@ -248,6 +252,7 @@ class WatchStats {
       framesDropped.hashCode ^
       framesPerSecond.hashCode ^
       bytesReceived.hashCode ^
+      packetsReceived.hashCode ^
       packetsLost.hashCode ^
       jitterMs.hashCode ^
       codec.hashCode ^
@@ -265,6 +270,7 @@ class WatchStats {
           framesDropped == other.framesDropped &&
           framesPerSecond == other.framesPerSecond &&
           bytesReceived == other.bytesReceived &&
+          packetsReceived == other.packetsReceived &&
           packetsLost == other.packetsLost &&
           jitterMs == other.jitterMs &&
           codec == other.codec &&

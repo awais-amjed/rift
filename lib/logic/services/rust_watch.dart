@@ -187,6 +187,7 @@ class RustWatch {
       framesDropped: stats.framesDropped,
       framesPerSecond: stats.framesPerSecond,
       bytesReceived: stats.bytesReceived.toDouble(),
+      packetsReceived: stats.packetsReceived.toDouble(),
       packetsLost: stats.packetsLost,
       jitterMs: stats.jitterMs,
       codec: stats.codec.isEmpty ? null : stats.codec,

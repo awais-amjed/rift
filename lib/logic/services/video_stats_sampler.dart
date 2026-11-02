@@ -51,7 +51,7 @@ class VideoStatsSampler {
       fps: rates.fps ?? current.framesPerSecond,
       bitrateKbps: rates.bitrateKbps,
       framesDroppedPerSec: rates.framesDroppedPerSec,
-      packetsLost: current.packetsLost,
+      lossPercent: rates.lossPercent,
       jitterMs: current.jitterMs,
       codec: current.codec,
       rttMs: current.rttMs,
@@ -71,10 +71,11 @@ class VideoStatsSampler {
       width: values['frameWidth'] as int?,
       height: values['frameHeight'] as int?,
       bytesReceived: (values['bytesReceived'] as num?)?.toDouble(),
+      packetsReceived: (values['packetsReceived'] as num?)?.toDouble(),
       framesDecoded: (values['framesDecoded'] as num?)?.toDouble(),
       framesDropped: (values['framesDropped'] as num?)?.toInt(),
       framesPerSecond: (values['framesPerSecond'] as num?)?.toDouble(),
-      packetsLost: values['packetsLost'] as int?,
+      packetsLost: (values['packetsLost'] as num?)?.toInt(),
       jitterMs: jitter == null ? null : jitter * 1000,
       codec: codecId == null
           ? null
@@ -106,9 +107,19 @@ class VideoStatsSampler {
 
   /// The rates two polls' cumulative counters imply; none on the first poll,
   /// nor across a repeated time, and never a negative one.
-  static ({double? fps, double? bitrateKbps, int? framesDroppedPerSec})
+  static ({
+    double? fps,
+    double? bitrateKbps,
+    int? framesDroppedPerSec,
+    double? lossPercent,
+  })
   _ratesSince(InboundVideo? previous, InboundVideo current) {
-    const none = (fps: null, bitrateKbps: null, framesDroppedPerSec: null);
+    const none = (
+      fps: null,
+      bitrateKbps: null,
+      framesDroppedPerSec: null,
+      lossPercent: null,
+    );
     if (previous == null) return none;
 
     final dtMs = current.timestampMs - previous.timestampMs;
@@ -133,13 +144,35 @@ class VideoStatsSampler {
     final prevDropped = previous.framesDropped;
     if (dropped != null && prevDropped != null) {
       final diff = dropped - prevDropped;
-      framesDroppedPerSec = diff > 0 ? diff : 0;
+      framesDroppedPerSec = diff > 0 ? (diff * 1000 / dtMs).round() : 0;
     }
 
     return (
       fps: fps,
       bitrateKbps: bitrateKbps,
       framesDroppedPerSec: framesDroppedPerSec,
+      lossPercent: _lossPercent(previous, current),
     );
+  }
+
+  /// Lost over received-and-lost between two polls. The running count can
+  /// fall, as late packets turn up; that reads as none lost, not as less
+  /// than none.
+  static double? _lossPercent(InboundVideo previous, InboundVideo current) {
+    final lost = current.packetsLost;
+    final prevLost = previous.packetsLost;
+    final received = current.packetsReceived;
+    final prevReceived = previous.packetsReceived;
+    if (lost == null ||
+        prevLost == null ||
+        received == null ||
+        prevReceived == null) {
+      return null;
+    }
+    final newlyLost = (lost - prevLost).clamp(0, double.infinity);
+    final newlyReceived = (received - prevReceived).clamp(0, double.infinity);
+    final sent = newlyLost + newlyReceived;
+    if (sent == 0) return null;
+    return newlyLost * 100 / sent;
   }
 }

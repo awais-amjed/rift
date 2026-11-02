@@ -17,6 +17,10 @@ class InboundVideo {
   /// libwebrtc's own rate, shown until two polls give one.
   final double? framesPerSecond;
   final double? bytesReceived;
+  final double? packetsReceived;
+
+  /// Lost so far, not lately: WebRTC's running count, which can fall as
+  /// late packets turn up.
   final int? packetsLost;
   final double? jitterMs;
 
@@ -32,6 +36,7 @@ class InboundVideo {
     this.framesDropped,
     this.framesPerSecond,
     this.bytesReceived,
+    this.packetsReceived,
     this.packetsLost,
     this.jitterMs,
     this.codec,

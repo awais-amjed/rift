@@ -59,6 +59,8 @@ pub struct WatchStats {
     pub frames_dropped: u32,
     pub frames_per_second: f64,
     pub bytes_received: u64,
+    pub packets_received: u64,
+    /// Lost so far; it can fall, as late packets turn up.
     pub packets_lost: i64,
     pub jitter_ms: f64,
     /// "VP9", "H264"; empty when libwebrtc did not say.

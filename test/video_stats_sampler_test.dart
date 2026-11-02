@@ -2,8 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:rift/logic/services/rust_watch.dart';
 import 'package:rift/logic/services/video_stats_sampler.dart';
-import 'package:rift/src/rust/api/watching.dart';
 import 'package:rift/logic/services/video_stream_stats.dart';
+import 'package:rift/src/rust/api/watching.dart';
 
 /// Report timestamps are microseconds, so one second is 1e6.
 const _oneSecond = 1000000.0;
@@ -130,6 +130,51 @@ void main() {
       expect(stats.jitterMs, closeTo(4, 0.001));
     });
 
+    test('loss is of the last poll, not since watching began', () {
+      final sampler = VideoStatsSampler();
+      // 40 lost early on, which the running count keeps for good.
+      sampler.sample([
+        inbound(at: 0, extra: {'packetsReceived': 960, 'packetsLost': 40}),
+      ]);
+      final lossy = sampler.sample([
+        inbound(
+          at: _oneSecond,
+          extra: {'packetsReceived': 1950, 'packetsLost': 50},
+        ),
+      ]);
+      expect(lossy!.lossPercent, closeTo(1, 0.001));
+      final clean = sampler.sample([
+        inbound(
+          at: 2 * _oneSecond,
+          extra: {'packetsReceived': 2950, 'packetsLost': 50},
+        ),
+      ]);
+      expect(clean!.lossPercent, 0);
+    });
+
+    test('a running loss count falling reads as none lost', () {
+      final sampler = VideoStatsSampler();
+      sampler.sample([
+        inbound(at: 0, extra: {'packetsReceived': 100, 'packetsLost': 9}),
+      ]);
+      final stats = sampler.sample([
+        inbound(
+          at: _oneSecond,
+          extra: {'packetsReceived': 200, 'packetsLost': 4},
+        ),
+      ]);
+      expect(stats!.lossPercent, 0);
+    });
+
+    test('dropped frames are per second however long the poll', () {
+      final sampler = VideoStatsSampler();
+      sampler.sample([inbound(at: 0, framesDropped: 0)]);
+      final stats = sampler.sample([
+        inbound(at: 2 * _oneSecond, framesDropped: 6),
+      ]);
+      expect(stats!.framesDroppedPerSec, 3);
+    });
+
     // A share the Rust watch connection holds has no track in the call: its
     // numbers come from Rust, timed in microseconds, and give the same card.
     WatchStats fromRust({
@@ -147,6 +192,7 @@ void main() {
       framesDropped: 0,
       framesPerSecond: 0,
       bytesReceived: BigInt.from(bytesReceived),
+      packetsReceived: BigInt.zero,
       packetsLost: 0,
       jitterMs: 4,
       codec: codec,
