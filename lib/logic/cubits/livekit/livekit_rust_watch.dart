@@ -61,9 +61,18 @@ mixin _RustWatchMixin
     if (state.watchedPictures.containsKey(identity)) return Future.value(true);
     // One at a time per share: Watch pressed and the share published can
     // both ask, and a second texture would replace the first in Rust.
-    return _rustWatchPending[identity] ??= _beginRustWatch(
-      identity,
-    ).whenComplete(() => _rustWatchPending.remove(identity));
+    final pending = _rustWatchPending[identity];
+    if (pending != null) return pending;
+    // The beginning itself is kept and returned, not what `whenComplete`
+    // gives back: that one waits on whatever its callback returns, and
+    // `remove` returns the entry. Kept, the entry was that very future,
+    // waiting on itself, and every press of Watch stopped there — through
+    // Rust nobody was told you watch, and a server that refused the watch
+    // connection left the sharer's avatar where the picture should be.
+    final begun = _beginRustWatch(identity);
+    _rustWatchPending[identity] = begun;
+    unawaited(begun.whenComplete(() => _rustWatchPending.remove(identity)));
+    return begun;
   }
 
   Future<bool> _beginRustWatch(String identity) async {
