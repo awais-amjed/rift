@@ -96,6 +96,64 @@ impl fmt::Display for Gpu {
     }
 }
 
+#[cfg(test)]
+impl Gpu {
+    /// Whether the driver says it decodes [codec], asked through libva:
+    /// `None` through CUDA, or when libva cannot be asked.
+    pub(crate) fn decodes(&self, codec: Codec) -> Option<bool> {
+        if self.cuda {
+            return None;
+        }
+        // va.h's VAProfile values for each codec, and VAEntrypointVLD.
+        let profiles: &[i32] = match codec {
+            Codec::H264 => &[13, 6, 7],
+            Codec::Vp8 => &[14],
+            Codec::Vp9 => &[19],
+        };
+        const VLD: i32 = 1;
+        type Display = *mut c_void;
+        // SAFETY: libva's functions, looked up with the types va.h and
+        // va_drm.h give them, on a display opened and ended here.
+        unsafe {
+            let va = libloading::Library::new("libva.so.2").ok()?;
+            let drm = libloading::Library::new("libva-drm.so.2").ok()?;
+            let get_display: libloading::Symbol<unsafe extern "C" fn(i32) -> Display> =
+                drm.get(b"vaGetDisplayDRM\0").ok()?;
+            let initialize: libloading::Symbol<
+                unsafe extern "C" fn(Display, *mut i32, *mut i32) -> i32,
+            > = va.get(b"vaInitialize\0").ok()?;
+            let terminate: libloading::Symbol<unsafe extern "C" fn(Display) -> i32> =
+                va.get(b"vaTerminate\0").ok()?;
+            let max_entrypoints: libloading::Symbol<unsafe extern "C" fn(Display) -> i32> =
+                va.get(b"vaMaxNumEntrypoints\0").ok()?;
+            let entrypoints: libloading::Symbol<
+                unsafe extern "C" fn(Display, i32, *mut i32, *mut i32) -> i32,
+            > = va.get(b"vaQueryConfigEntrypoints\0").ok()?;
+            let file = std::fs::OpenOptions::new()
+                .read(true)
+                .write(true)
+                .open(&self.node)
+                .ok()?;
+            let display = get_display(std::os::fd::AsRawFd::as_raw_fd(&file));
+            if display.is_null() {
+                return None;
+            }
+            let (mut major, mut minor) = (0, 0);
+            if initialize(display, &mut major, &mut minor) != 0 {
+                return None;
+            }
+            let mut list = vec![0i32; max_entrypoints(display).max(1) as usize];
+            let decodes = profiles.iter().any(|&profile| {
+                let mut count = 0;
+                entrypoints(display, profile, list.as_mut_ptr(), &mut count) == 0
+                    && list[..count as usize].contains(&VLD)
+            });
+            terminate(display);
+            Some(decodes)
+        }
+    }
+}
+
 /// The GPU a watched share decodes on, or why none does: the card that draws
 /// the screen (`gpu_choice::watch_decoder`), under Wayland, where GTK draws
 /// with EGL on that card. GTK 3 draws with GLX under X11, which imports no

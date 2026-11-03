@@ -11,6 +11,13 @@ pub(super) fn device() -> Result<Gpu, String> {
 #[derive(Debug)]
 pub(crate) enum Gpu {}
 
+#[cfg(test)]
+impl Gpu {
+    pub(crate) fn decodes(&self, _codec: Codec) -> Option<bool> {
+        match *self {}
+    }
+}
+
 impl std::fmt::Display for Gpu {
     fn fmt(&self, _: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match *self {}

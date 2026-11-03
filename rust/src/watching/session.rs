@@ -363,6 +363,10 @@ pub(super) fn picture_size(identity: &str, seen: &mut (u32, u32), now: (u32, u32
 /// Tells the app the watch connection cannot go on: it watches through the
 /// call's connection again.
 pub(super) fn lost(reason: &str) {
+    #[cfg(test)]
+    LOST.lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .push(reason.to_string());
     emit_watch_event(WatchEvent {
         kind: WatchEventKind::Lost,
         share_identity: String::new(),
@@ -370,6 +374,16 @@ pub(super) fn lost(reason: &str) {
         height: 0,
         reason: reason.to_string(),
     });
+}
+
+/// Every reason the watch connection was lost for, for the tests, which have
+/// no app to tell.
+#[cfg(test)]
+static LOST: StdMutex<Vec<String>> = StdMutex::new(Vec::new());
+
+#[cfg(test)]
+pub(super) fn lost_reasons() -> Vec<String> {
+    LOST.lock().unwrap_or_else(|e| e.into_inner()).clone()
 }
 
 /// Play [track] as [identity]'s sound, replacing one already playing.

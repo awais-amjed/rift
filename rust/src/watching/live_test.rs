@@ -276,6 +276,18 @@ async fn start_watching(server: &Server, room_name: &str, key: Vec<u8>, index: i
     voice
 }
 
+/// Waits until the watch connection is lost with a reason naming [why].
+async fn lost_with(why: &str, within: Duration) -> bool {
+    let until = Instant::now() + within;
+    while Instant::now() < until {
+        if session::lost_reasons().iter().any(|r| r.contains(why)) {
+            return true;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    false
+}
+
 /// Waits until [texture] has been marked [more] times past [from].
 async fn marked(texture: u64, from: u64, more: u64, within: Duration) -> bool {
     let until = Instant::now() + within;
@@ -611,6 +623,30 @@ async fn live_gpu_watch_decodes_each_codec_on_the_gpu() {
             codec.clone(),
         )
         .await;
+
+        // A codec the driver says it lacks (AMD has no VP8 decoder) must
+        // fail in that named way, which sends the app back to the call's
+        // connection; the others must decode.
+        let ours = match codec {
+            VideoCodec::VP8 => super::decode::Codec::Vp8,
+            VideoCodec::VP9 => super::decode::Codec::Vp9,
+            _ => super::decode::Codec::H264,
+        };
+        let has = device.decodes(ours);
+        log::info!("gpu watch test: the driver decodes {ours:?}: {has:?}");
+        if has == Some(false) {
+            let why = format!("the GPU cannot decode this {ours:?}");
+            assert!(
+                lost_with(&why, Duration::from_secs(15)).await,
+                "{codec:?}, which the driver lacks: the watch connection lost with {why:?}"
+            );
+            assert_eq!(marks(texture), 0, "{codec:?}: no picture drawn");
+            session::unwatch(share_identity).await;
+            session::stop().await;
+            share.end().await;
+            let _ = voice.close().await;
+            continue;
+        }
 
         assert!(
             marked(texture, 0, 10, Duration::from_secs(15)).await,
