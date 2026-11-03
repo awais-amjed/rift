@@ -413,8 +413,12 @@ which mutter takes as none) and paces what comes itself, as on Windows (`pacer.r
 that comes too early is held until it is due, or replaced by a newer one, never dropped, since a
 screen that then stood still would show the one before. Measured Nov 3 on the 165 Hz screen, NVENC
 from NVIDIA's: the whole screen at 115–119 fps at 120 and 60 at 60, a 60 fps picture at 60, a
-window at 60 (55, 54 and 46 asked for the rate, Oct 31). How even the gaps are was not measured;
-dropping the extras, tried Oct 31, made them less even (`docs/gpu-codecs/PLAN.md`). If the GL
+window at 60 (55, 54 and 46 asked for the rate, Oct 31). The gaps, by
+`live_pw_stream_is_paced_to_the_rate` the same day: at 60, nine in ten within 16.6–16.7 ms; at 120,
+the average right (589 pictures in 5 s) but nine in ten between 5.9 and 12.2 ms, one refresh or two,
+since 165 does not divide into 120 and no pacing makes a picture between refreshes. KDE (Plasma 6.6.4
+in the VM, a 75 Hz screen, Nov 3) takes the stream with no cap too, and paced to 30, 60 and 75 it gave
+152, 301 and 376 in 5 s, nine in ten within 0.9 ms of the interval. If the GL
 side does not open, NVENC takes memory as before. A window keeps Dart's pick (no second picker); a screen
 is picked in the portal, and the first-picture limit starts once it answers. A
 lent buffer keeps its own fds and mapping until Rust lets it go, since PipeWire

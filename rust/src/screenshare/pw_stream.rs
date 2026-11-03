@@ -629,6 +629,8 @@ pub(crate) mod tests {
     /// newer comes to stand in for it. Needs nothing moving on the screen,
     /// unlike the tests above; GNOME's first pictures come in a burst, which
     /// fills Rust (with the library's old limit of two, the third never came).
+    /// GNOME's: KWin gives the stream three buffers, so the fourth never comes
+    /// there (Plasma 6.6.4, Nov 3 2026).
     #[test]
     #[ignore]
     fn live_pw_stream_keeps_a_picture_that_came_while_rust_held_its_fill() {
@@ -670,5 +672,74 @@ pub(crate) mod tests {
         std::thread::sleep(Duration::from_millis(200));
         drop(held);
         drop(session);
+    }
+
+    /// Opened as a GPU share opens it and paced as it is (`capture_pw.rs`), a
+    /// screen refreshing faster than `RIFT_PACED_FPS` (30 unless set) gives
+    /// that rate, evenly: what GNOME held to every other refresh of a 165 Hz
+    /// screen (82 of 120, Nov 3 2026), and a check that a compositor takes
+    /// the stream asked for with no cap. Needs something moving on the screen.
+    #[test]
+    #[ignore]
+    fn live_pw_stream_is_paced_to_the_rate() {
+        use crate::screenshare::pacer::{self, Pacer};
+        let fps: u32 = std::env::var("RIFT_PACED_FPS")
+            .ok()
+            .and_then(|fps| fps.parse().ok())
+            .unwrap_or(30);
+        let session = screen();
+        let (put, pictures) = latest::channel();
+        let _stream = PwStream::open(
+            &session,
+            pacer::asked_rate(fps),
+            Some(&render_node()),
+            false,
+            PwBuffers::DmaBuf,
+            move |picture| drop(put.put(picture)),
+            Box::new(|event| log::info!("pipewire event: {event:?}")),
+        )
+        .expect("the stream opens");
+        // Past the first pictures, which come in a burst.
+        let warm = Instant::now() + Duration::from_secs(1);
+        while Instant::now() < warm {
+            pictures.take_timeout(Duration::from_millis(50));
+        }
+        let mut pacer = Pacer::new();
+        let mut gaps = Vec::new();
+        let start = Instant::now();
+        let mut last = start;
+        while start.elapsed() < Duration::from_secs(5) {
+            let Some(picture) = pictures.take_timeout(Duration::from_millis(500)) else {
+                continue;
+            };
+            let picture = pacer.hold(&pictures, picture, &|| fps).expect("open");
+            drop(picture);
+            let now = Instant::now();
+            gaps.push(now - last);
+            last = now;
+        }
+        gaps.remove(0);
+        let interval = Duration::from_secs_f64(1.0 / f64::from(fps));
+        gaps.sort();
+        let at = |share: f64| gaps[((gaps.len() - 1) as f64 * share) as usize];
+        log::info!(
+            "{} pictures in 5 s at {fps} fps; gaps {:?} median, {:?} to {:?} for 90 in 100, {:?} at worst",
+            gaps.len() + 1,
+            at(0.5),
+            at(0.05),
+            at(0.95),
+            gaps[gaps.len() - 1],
+        );
+        let expected = fps as usize * 5;
+        assert!(
+            (gaps.len() + 1).abs_diff(expected) <= expected / 20,
+            "{} pictures in 5 s, not {expected}",
+            gaps.len() + 1
+        );
+        assert!(
+            at(0.95) < interval * 2,
+            "uneven: {:?} at 95 in 100",
+            at(0.95)
+        );
     }
 }
