@@ -734,6 +734,23 @@ thread at 11–13%, the same on both paths. The watch connection's own
 threads add about 4%. A 1920×1080 H264 share through Rust cost 30%, less
 than the call's path at half the size.
 
+Measured again Nov 3 in the release build, at the size the plan is about:
+Dave sharing the whole 1920×1080 screen with the test picture full screen
+behind Cara's window, which covered about half of it:
+
+| Cara, whole process | Through Rust (NVDEC) | Through the call |
+|---|---|---|
+| H264, 54–55 a second | 33–35% of a core | 56–59% |
+| VP9, 60 a second | 37–41% | 71–88% |
+
+At this size the call's path costs far more: libwebrtc's decoder 19% of a
+core for H264 and about 37% for VP9, and its raster thread 20–27% against
+12–16% through Rust, where the picture is not converted or uploaded. Through
+Rust the GPU's decoder was 5–8% busy and Rust's decoding thread under 2%.
+What is left is the redraw, the main and raster threads at 12–17% each, in
+step with the picture's rate: the release build costs no less there than the
+debug one.
+
 ## How a call is played out on the desktop — [Implemented October 2026]
 
 On the desktop, everything a call plays — voices, a share's sound, a bot —

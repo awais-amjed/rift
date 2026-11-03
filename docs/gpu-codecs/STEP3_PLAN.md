@@ -251,8 +251,12 @@ A watch connection needs its own token, and so a change in `rift-self-host`:
    window share at about 48 a second cost the watcher 28–32% of a core through Rust
    against 39–41% through the call for H264, 33–35% against 52–55% for VP9. The
    decoder went; the window redrawn at the picture's rate (raster and main threads,
-   11–13% each) is what is left, so *Success*'s "well under half" is not met yet.
-   Not yet measured in a release build at 1080p60. Receive stats for a share Rust holds (the owner turned the
+   11–13% each) is what is left. In the release build at 1920×1080 (a whole-screen
+   share, Nov 3) the call's path costs far more and Rust about half or a little over:
+   H264 at 54–55 a second 33–35% against 56–59%, VP9 at 60 a second 37–41% against
+   71–88%. That is half, not *well under*: the redraw (main and raster threads,
+   12–17% each) is what is left, and only drawing the picture outside Flutter's
+   frame would remove it. Receive stats for a share Rust holds (the owner turned the
    stats on and saw none) come from the watch connection since Nov 3
    (`watch_share_stats`), verified in Rust and in the app.
 
