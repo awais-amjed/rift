@@ -418,7 +418,12 @@ window at 60 (55, 54 and 46 asked for the rate, Oct 31). The gaps, by
 the average right (589 pictures in 5 s) but nine in ten between 5.9 and 12.2 ms, one refresh or two,
 since 165 does not divide into 120 and no pacing makes a picture between refreshes. KDE (Plasma 6.6.4
 in the VM, a 75 Hz screen, Nov 3) takes the stream with no cap too, and paced to 30, 60 and 75 it gave
-152, 301 and 376 in 5 s, nine in ten within 0.9 ms of the interval. If the GL
+152, 301 and 376 in 5 s, nine in ten within 0.9 ms of the interval. What it costs (Nov 3, release
+builds of both, NVENC, a 165 fps picture on the screen, 3 × 20 s): at 60, gnome-shell 28–29% of a
+core against 15–22% before, since it now records every refresh, Rift 16% against 16–20%, and the
+GPU kept its full clock where before it fell to about 400 MHz, NVENC's send then taking 9.8 ms a
+picture against 4.0; at 120, gnome-shell 30–31% against 27–28%, Rift 23–24% against 18–19%, for
+117 pictures a second against 82. If the GL
 side does not open, NVENC takes memory as before. A window keeps Dart's pick (no second picker); a screen
 is picked in the portal, and the first-picture limit starts once it answers. A
 lent buffer keeps its own fds and mapping until Rust lets it go, since PipeWire
