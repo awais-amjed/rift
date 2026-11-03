@@ -408,22 +408,28 @@ A VP9 share falling back from a failed GPU encoder would still stand still under
 that stream only on whole refreshes, and skips any refresh sooner than its cap allows, waiting for
 the next: at most 60 on a 165 Hz screen gave every third, 55 fps, and at most 120 every second,
 82 fps; asked for more, it clamps the cap to the screen's refresh, where a refresh that comes a
-little early is skipped too (about 100 fps at 120). So Rift asks for no cap (`maxFramerate` 0/1,
-which mutter takes as none) and paces what comes itself, as on Windows (`pacer.rs`): a picture
-that comes too early is held until it is due, or replaced by a newer one, never dropped, since a
-screen that then stood still would show the one before. Measured Nov 3 on the 165 Hz screen, NVENC
+little early is skipped too (about 100 fps at 120). So Rift asks for twice the share's rate and
+one more (121 at 60), and paces what comes itself, as on Windows (`pacer.rs`): a picture that
+comes too early is held until it is due, or replaced by a newer one, never dropped, since a screen
+that then stood still would show the one before. A screen faster than that cap gives at least half
+of it, more than the share needs, and the compositor records no more than about the cap whatever
+the screen (a 30 fps share of a 480 Hz screen would otherwise be 480 recordings a second). A screen
+no faster has the cap cut to its refresh, even one at twice the rate exactly, and then Rift asks for
+none (`maxFramerate` 0/1, which mutter takes as no cap at all), so 120 on the 165 Hz screen is
+uncapped. Measured Nov 3 on the 165 Hz screen, NVENC
 from NVIDIA's: the whole screen at 115–119 fps at 120 and 60 at 60, a 60 fps picture at 60, a
 window at 60 (55, 54 and 46 asked for the rate, Oct 31). The gaps, by
 `live_pw_stream_is_paced_to_the_rate` the same day: at 60, nine in ten within 16.6–16.7 ms; at 120,
 the average right (589 pictures in 5 s) but nine in ten between 5.9 and 12.2 ms, one refresh or two,
 since 165 does not divide into 120 and no pacing makes a picture between refreshes. KDE (Plasma 6.6.4
-in the VM, a 75 Hz screen, Nov 3) takes the stream with no cap too, and paced to 30, 60 and 75 it gave
-152, 301 and 376 in 5 s, nine in ten within 0.9 ms of the interval. What it costs (Nov 3, release
-builds of both, NVENC, a 165 fps picture on the screen, 3 × 20 s): at 60, gnome-shell 28–29% of a
-core against 15–22% before, since it now records every refresh, Rift 16% against 16–20%, and the
-GPU kept its full clock where before it fell to about 400 MHz, NVENC's send then taking 9.8 ms a
-picture against 4.0; at 120, gnome-shell 30–31% against 27–28%, Rift 23–24% against 18–19%, for
-117 pictures a second against 82. If the GL
+in the VM, a 75 Hz screen, Nov 3) keeps caps of 41 and 61, paced to 20 and 30 (101 and 151 in 5 s),
+cuts one of 121 to its 74 and then takes none, paced to 60 (301), nine in ten within 0.8 ms of the
+interval. What it costs (Nov 3, release builds, NVENC, a 165 fps picture on the screen, 3 × 20 s):
+at 60, gnome-shell 26% of a core with the cap of 121 (about 81 recordings a second), 28–29% with no
+cap (about 127) and 15–22% before (55), Rift 16% in each, and the GPU kept its full clock where
+before it fell to about 400 MHz, NVENC's send then taking 9.8 ms a picture against 4.0; at 120,
+gnome-shell 30–31% against 27–28%, Rift 23–24% against 18–19%, for 117 pictures a second against
+82. If the GL
 side does not open, NVENC takes memory as before. A window keeps Dart's pick (no second picker); a screen
 is picked in the portal, and the first-picture limit starts once it answers. A
 lent buffer keeps its own fds and mapping until Rust lets it go, since PipeWire

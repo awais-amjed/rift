@@ -134,6 +134,8 @@ struct RiftPwStream {
 
   int32_t buffers;
   int32_t max_fps;
+  // The compositor cut the cap to the screen's refresh, so none is asked.
+  bool uncapped;
 
   // The render node, for the explicit-sync timeline's sync objects.
   int drm_fd;
@@ -282,13 +284,20 @@ static inline struct spa_pod* build_format(RiftPwStream* s,
   // for 120 a 165 Hz screen gave every other refresh, 82 a second, and
   // asked for more it clamps the cap to the refresh, where a refresh that
   // comes a little early is skipped too (about 100, Nov 3 2026; 110 for
-  // a share of 60 without a maxFramerate, Oct 29). So none is asked
-  // first, 0/1, which mutter takes as no cap at all; a compositor that
-  // will not go that low clamps up to a cap of its own, at most max_fps.
-  struct spa_fraction max_framerate = SPA_FRACTION((uint32_t)s->max_fps, 1);
+  // a share of 60 without a maxFramerate, Oct 29). So the cap asked is
+  // max_fps, twice the share's rate, and one more: a faster screen gives
+  // at least half of it, more than Rust needs, without the compositor
+  // recording every refresh (at 60 on that screen gnome-shell took 28% of
+  // a core without a cap, 15-22% with 60). A screen no faster than that
+  // has the cap cut to its refresh, even one at max_fps exactly, and then
+  // none is asked, 0/1, which mutter takes as no cap at all
+  // (on_param_changed_cb).
+  uint32_t cap = (uint32_t)s->max_fps + 1;
+  struct spa_fraction max_framerate = SPA_FRACTION(cap, 1);
   struct spa_fraction min_framerate = SPA_FRACTION(0, 1);
   struct spa_fraction framerate = SPA_FRACTION((uint32_t)s->max_fps, 1);
   struct spa_fraction no_cap = SPA_FRACTION(0, 1);
+  struct spa_fraction asked = s->uncapped ? no_cap : max_framerate;
 
   /* Make an object of type SPA_TYPE_OBJECT_Format and id SPA_PARAM_EnumFormat.
    * The object type is important because it defines the properties that are
@@ -336,7 +345,7 @@ static inline struct spa_pod* build_format(RiftPwStream* s,
       SPA_POD_CHOICE_RANGE_Fraction(&framerate, &min_framerate,
                                     &max_framerate),
       SPA_FORMAT_VIDEO_maxFramerate,
-      SPA_POD_CHOICE_RANGE_Fraction(&no_cap, &no_cap, &max_framerate),
+      SPA_POD_CHOICE_RANGE_Fraction(&asked, &no_cap, &max_framerate),
       0);
   return spa_pod_builder_pop(b, &format_frame);
 }
@@ -792,6 +801,18 @@ static void on_param_changed_cb(void* user_data, uint32_t id,
          s->format.info.raw.max_framerate.num,
          s->format.info.raw.max_framerate.denom);
 
+  // A cap cut below the one asked is the screen's refresh: ask for none.
+  struct spa_fraction got = s->format.info.raw.max_framerate;
+  if (!s->uncapped && got.num > 0 && got.denom > 0 &&
+      (uint64_t)got.num < (uint64_t)(s->max_fps + 1) * got.denom) {
+    av_log(NULL, AV_LOG_INFO,
+           "pipewire: the screen refreshes at %u/%u, below a cap of %d; "
+           "asking for none\n",
+           got.num, got.denom, s->max_fps + 1);
+    s->uncapped = true;
+    pw_loop_signal_event(pw_thread_loop_get_loop(s->thread_loop), s->reneg);
+  }
+
   /* Video crop */
   pod_builder = SPA_POD_BUILDER_INIT(params_buffer, sizeof(params_buffer));
   params[n_params++] = spa_pod_builder_add_object(
@@ -1101,6 +1122,7 @@ void rift_pw_set_max_fps(RiftPwStream* s, int32_t max_fps) {
   pw_thread_loop_lock(s->thread_loop);
   if (s->max_fps != max_fps) {
     s->max_fps = max_fps;
+    s->uncapped = false;
     pw_loop_signal_event(pw_thread_loop_get_loop(s->thread_loop), s->reneg);
   }
   pw_thread_loop_unlock(s->thread_loop);

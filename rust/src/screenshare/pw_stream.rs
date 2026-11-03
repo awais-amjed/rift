@@ -259,8 +259,8 @@ impl PwStream {
     /// offered with the modifiers that import on `render_node`, and those that
     /// import only as external when `external_modifiers`, as NVENC's GL path
     /// can; `None` asks for memory buffers only. `events` runs on PipeWire's thread too, and
-    /// must not hold it up. The compositor is asked for no cap on the rate,
-    /// and `max_fps` is the cap one that will not go uncapped clamps to:
+    /// must not hold it up. The compositor is asked for a cap of `max_fps`
+    /// and one more, or none on a screen no faster (`pipewire.c` says why):
     /// the caller paces (`pacer.rs`).
     pub fn open(
         session: &PortalSession,
@@ -677,8 +677,9 @@ pub(crate) mod tests {
     /// Opened as a GPU share opens it and paced as it is (`capture_pw.rs`), a
     /// screen refreshing faster than `RIFT_PACED_FPS` (30 unless set) gives
     /// that rate, evenly: what GNOME held to every other refresh of a 165 Hz
-    /// screen (82 of 120, Nov 3 2026), and a check that a compositor takes
-    /// the stream asked for with no cap. Needs something moving on the screen.
+    /// screen (82 of 120, Nov 3 2026), and a check that a compositor keeps
+    /// the cap asked, or takes none once it cut it to the refresh. Needs
+    /// something moving on the screen.
     #[test]
     #[ignore]
     fn live_pw_stream_is_paced_to_the_rate() {

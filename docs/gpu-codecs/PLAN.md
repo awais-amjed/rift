@@ -80,7 +80,9 @@ step can take from our own code and from open source projects: `REUSE.md`.
      skips a refresh that comes a little early, which is why those stayed down. Asked for no cap
      (`maxFramerate` 0/1) and paced in Rust with Windows' `Pacer`, holding a picture that came
      early instead of dropping it, the same screen gave 115–119 fps at 120 (82 before), and 60 for
-     the screen, a 60 fps picture and a window at 60. Gaps not measured.
+     the screen, a 60 fps picture and a window at 60. Later the same day the cap became twice the
+     rate and one more, none only on a screen no faster, so a slow share of a fast screen does not
+     have the compositor record every refresh; gaps and cost in `CALLS.md`.
      glmark2 draws a frame in about 1 ms, so it is not a real game; none was on the
      laptop. No need for a low-priority GL context showed.
    - **Intel rechecked after the NVIDIA half, Oct 31** (BIOS on hybrid, the same noisy picture
