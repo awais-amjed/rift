@@ -9,6 +9,7 @@ use super::encoder::{dmabuf_target, DmabufTarget, GpuCodec};
 use super::frames::{now_us, Converter};
 use super::gpu_feed::{GpuFeed, Picture};
 use super::latest::{self, Taker};
+use super::pacer::{self, Pacer};
 use super::portal::{self, PortalError, PortalKind, PortalSession};
 use super::pw_stream::{self, PwBuffers, PwEvent, PwPicture, PwStream};
 use super::resolution::Size;
@@ -349,9 +350,11 @@ pub(super) fn run(
     // then switches the stream to the buffers it wants.
     let opens_on = first_buffers(target.as_ref());
     let rate = fps.load(Ordering::Relaxed);
+    // What the processing thread paces to, as the share's rate moves.
+    let paced = Arc::new(AtomicU32::new(rate));
     let stream = match PwStream::open(
         &session,
-        rate,
+        pacer::asked_rate(rate),
         render_node,
         target
             .as_ref()
@@ -381,13 +384,14 @@ pub(super) fn run(
 
     let processing = slot.clone();
     let controls = Arc::downgrade(&stream);
+    let pace = paced.clone();
     let _processing = thread::Builder::new()
         .name("share-frames".to_string())
-        .spawn(move || process(pictures, processing, controls, opens_on))
+        .spawn(move || process(pictures, processing, controls, opens_on, pace))
         .expect("no processing thread");
 
     watch(
-        &stream, &session, &ended, &arrived, &pauses, fps, rate, progress, command_rx,
+        &stream, &session, &ended, &arrived, &pauses, fps, &paced, rate, progress, command_rx,
     );
     // The stream first, which closes the processing thread's mailbox; the
     // portal session after it.
@@ -430,6 +434,7 @@ fn watch(
     arrived: &AtomicBool,
     pauses: &Mutex<Pauses>,
     fps: &AtomicU32,
+    paced: &AtomicU32,
     mut rate: u32,
     progress: &UnboundedSender<Progress>,
     command_rx: &mpsc::Receiver<Command>,
@@ -453,7 +458,8 @@ fn watch(
         let now = fps.load(Ordering::Relaxed);
         if now != rate {
             log::info!("capture: now at most {now} fps");
-            stream.set_max_fps(now);
+            paced.store(now, Ordering::Relaxed);
+            stream.set_max_fps(pacer::asked_rate(now));
             rate = now;
         }
     }
@@ -478,7 +484,13 @@ fn ended_by(stream_ended: Option<String>, session_closed: bool) -> Option<String
 /// And the newest picture of either kind is kept until a GPU feed takes it:
 /// the rate gate can leave it out, and a new encoder or track has not had
 /// it, and on a still screen nothing newer comes to take its place.
-fn process(pictures: Taker<PwPicture>, slot: VideoSlot, stream: Weak<PwStream>, asked: PwBuffers) {
+fn process(
+    pictures: Taker<PwPicture>,
+    slot: VideoSlot,
+    stream: Weak<PwStream>,
+    asked: PwBuffers,
+    fps: Arc<AtomicU32>,
+) {
     let mut sender = Sender {
         slot,
         converter: Converter::new(),
@@ -489,6 +501,8 @@ fn process(pictures: Taker<PwPicture>, slot: VideoSlot, stream: Weak<PwStream>, 
         warned_turned: false,
     };
     let mut newest: Option<Arc<PwPicture>> = None;
+    let mut pacer = Pacer::new();
+    let rate = || fps.load(Ordering::Relaxed);
     loop {
         let Some(picture) = pictures.take_timeout(REPEAT_EVERY) else {
             if pictures.closed() {
@@ -513,6 +527,10 @@ fn process(pictures: Taker<PwPicture>, slot: VideoSlot, stream: Weak<PwStream>, 
         // The older one goes back first, so the compositor is short one
         // buffer the less.
         drop(newest.take());
+        // GNOME is asked for twice the rate, and this takes it down to it.
+        let Some(picture) = pacer.hold(&pictures, picture, &rate) else {
+            break;
+        };
         let picture = Arc::new(picture);
         sender.taken.reset();
         sender.send(&picture);

@@ -275,15 +275,20 @@ static inline struct spa_pod* build_format(RiftPwStream* s,
   struct spa_rectangle min_resolution = SPA_RECTANGLE(1, 1);
   struct spa_rectangle resolution = SPA_RECTANGLE(1920, 1080);
   struct spa_pod_frame format_frame;
-  // At most the share's rate: the compositor sends a picture when the
-  // screen changes, never faster than maxFramerate. Mutter fixes framerate
-  // at 0/1, variable, and without a maxFramerate of ours sent at the
-  // screen's refresh: 110 a second on a 165 Hz laptop screen asked for 60
-  // (GNOME 50, Oct 29 2026).
+  // The compositor sends a picture when the screen changes, never faster
+  // than maxFramerate, and Rust paces what comes to the share's rate
+  // (pacer.rs). Mutter fixes framerate at 0/1, variable, and skips any
+  // refresh sooner than maxFramerate allows, waiting for the next: asked
+  // for 120 a 165 Hz screen gave every other refresh, 82 a second, and
+  // asked for more it clamps the cap to the refresh, where a refresh that
+  // comes a little early is skipped too (about 100, Nov 3 2026; 110 for
+  // a share of 60 without a maxFramerate, Oct 29). So none is asked
+  // first, 0/1, which mutter takes as no cap at all; a compositor that
+  // will not go that low clamps up to a cap of its own, at most max_fps.
   struct spa_fraction max_framerate = SPA_FRACTION((uint32_t)s->max_fps, 1);
   struct spa_fraction min_framerate = SPA_FRACTION(0, 1);
   struct spa_fraction framerate = SPA_FRACTION((uint32_t)s->max_fps, 1);
-  struct spa_fraction min_max_framerate = SPA_FRACTION(1, 1);
+  struct spa_fraction no_cap = SPA_FRACTION(0, 1);
 
   /* Make an object of type SPA_TYPE_OBJECT_Format and id SPA_PARAM_EnumFormat.
    * The object type is important because it defines the properties that are
@@ -331,8 +336,7 @@ static inline struct spa_pod* build_format(RiftPwStream* s,
       SPA_POD_CHOICE_RANGE_Fraction(&framerate, &min_framerate,
                                     &max_framerate),
       SPA_FORMAT_VIDEO_maxFramerate,
-      SPA_POD_CHOICE_RANGE_Fraction(&max_framerate, &min_max_framerate,
-                                    &max_framerate),
+      SPA_POD_CHOICE_RANGE_Fraction(&no_cap, &no_cap, &max_framerate),
       0);
   return spa_pod_builder_pop(b, &format_frame);
 }

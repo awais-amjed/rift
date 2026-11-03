@@ -405,11 +405,16 @@ Intel's screen is nearly the same (Oct 31): about one memory picture a second, e
 share begun over such a window to learn its size and move to DMA-BUFs, not enough to watch, which is
 why VP9 left the stream the same day: it stood still there and keeps going on libwebrtc's capturer.
 A VP9 share falling back from a failed GPU encoder would still stand still under such a window. GNOME sends
-that stream only on whole refreshes under its cap, so at most 60 on a 165 Hz screen gives every
-third, 55 fps, and at most 120 every second, 80 fps (measured Oct 30); a window came at 43–49 fps,
-where libwebrtc's capturer reached the viewer at 60 (Oct 31). Asking for more and dropping the
-extras reaches 60 only behind an uncapped game, with less even gaps, and moves neither a 60 fps
-picture nor a window (measured Oct 31, `docs/gpu-codecs/PLAN.md`), so Rift asks for the rate it sends. If the GL
+that stream only on whole refreshes, and skips any refresh sooner than its cap allows, waiting for
+the next: at most 60 on a 165 Hz screen gave every third, 55 fps, and at most 120 every second,
+82 fps; asked for more, it clamps the cap to the screen's refresh, where a refresh that comes a
+little early is skipped too (about 100 fps at 120). So Rift asks for no cap (`maxFramerate` 0/1,
+which mutter takes as none) and paces what comes itself, as on Windows (`pacer.rs`): a picture
+that comes too early is held until it is due, or replaced by a newer one, never dropped, since a
+screen that then stood still would show the one before. Measured Nov 3 on the 165 Hz screen, NVENC
+from NVIDIA's: the whole screen at 115–119 fps at 120 and 60 at 60, a 60 fps picture at 60, a
+window at 60 (55, 54 and 46 asked for the rate, Oct 31). How even the gaps are was not measured;
+dropping the extras, tried Oct 31, made them less even (`docs/gpu-codecs/PLAN.md`). If the GL
 side does not open, NVENC takes memory as before. A window keeps Dart's pick (no second picker); a screen
 is picked in the portal, and the first-picture limit starts once it answers. A
 lent buffer keeps its own fds and mapping until Rust lets it go, since PipeWire

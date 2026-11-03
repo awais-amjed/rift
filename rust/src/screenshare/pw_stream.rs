@@ -253,13 +253,15 @@ unsafe impl Send for PwStream {}
 unsafe impl Sync for PwStream {}
 
 impl PwStream {
-    /// Opens the stream on the session's node, at most `max_fps` pictures a
-    /// second, each handed to `pictures` on PipeWire's thread, which must
+    /// Opens the stream on the session's node, each picture handed to
+    /// `pictures` on PipeWire's thread, which must
     /// not hold it up: a picture it drops goes back to the compositor. DMA-BUFs are
     /// offered with the modifiers that import on `render_node`, and those that
     /// import only as external when `external_modifiers`, as NVENC's GL path
     /// can; `None` asks for memory buffers only. `events` runs on PipeWire's thread too, and
-    /// must not hold it up.
+    /// must not hold it up. The compositor is asked for no cap on the rate,
+    /// and `max_fps` is the cap one that will not go uncapped clamps to:
+    /// the caller paces (`pacer.rs`).
     pub fn open(
         session: &PortalSession,
         max_fps: u32,

@@ -96,8 +96,8 @@ New:
   `rift_ffenc_repeat` sends the last NV12 frame: on a viewer's keyframe request, and after a second of
   quiet (`worker.rs`).
 - **Rate.** Windows is asked for half a picture's time (`MinUpdateInterval`), since a 165 Hz screen gave
-  too few when asked for the whole. `Pacer` takes what arrives down to the rate on average, with slack so
-  a source just above it does not beat against it.
+  too few when asked for the whole. `Pacer` (`pacer.rs`, which Linux shares since Nov 3) takes what arrives
+  down to the rate on average, with slack so a source just above it does not beat against it.
 - **Shared window.** `SharedWindow` is reused through a small trait (`Recapture`), so closed and swapped
   windows behave as today: it asks Windows directly (`window_win::closed`) and hears `Closed`.
 - **Library.** `RIFT_FFENC_ABI` 9: `rift_ffenc_send_d3d11`, `rift_ffenc_takes_d3d11`, the config's
@@ -305,7 +305,7 @@ meets the game's presenting.
 Say what ran on what. **This laptop has no Windows 10, no older 11 and no AMD**; the desktop's RX 9070 XT is
 AMF's reference if available.
 
-- **Unit tests:** the routing (`takes_rifts_capture`), `Pacer` and `QuietWatch`, in `capture_wgc.rs`; which encoder takes
+- **Unit tests:** the routing (`takes_rifts_capture`) and `QuietWatch`, in `capture_wgc.rs`, and `Pacer` in `pacer.rs`; which encoder takes
   textures on whose adapter (`texture_vendor`, `ffmpeg.rs`).
 - **ffenc on its own:** `native/ffenc/test_windows.sh OUT_DIR`, in MSYS2's UCRT64 shell with `ffmpeg` and Python
   on the path, builds the library and, for each encoder that opens, sends BGRA textures on its own GPU through

@@ -76,6 +76,11 @@ step can take from our own code and from open source projects: `REUSE.md`.
      60, but less evenly: nine gaps in ten under 19 ms at 55, against 24 ms when asking 165 and
      25 ms when asking 90. It gained nothing elsewhere: a 60 fps picture filling the screen stays
      at 54 and a window at 46, so GNOME's cap is not what holds those down.
+     **Nov 3, kept in another form:** asked 165, GNOME clamps its cap to the refresh and still
+     skips a refresh that comes a little early, which is why those stayed down. Asked for no cap
+     (`maxFramerate` 0/1) and paced in Rust with Windows' `Pacer`, holding a picture that came
+     early instead of dropping it, the same screen gave 115–119 fps at 120 (82 before), and 60 for
+     the screen, a 60 fps picture and a window at 60. Gaps not measured.
      glmark2 draws a frame in about 1 ms, so it is not a real game; none was on the
      laptop. No need for a low-priority GL context showed.
    - **Intel rechecked after the NVIDIA half, Oct 31** (BIOS on hybrid, the same noisy picture

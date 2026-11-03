@@ -14,6 +14,7 @@ use super::encoder::{self, GpuCodec};
 use super::frames::now_us;
 use super::gpu_feed::{GpuFeed, Picture};
 use super::latest::{self, Putter, Taker};
+use super::pacer::{self, Pacer};
 use super::resolution::Size;
 use super::sources;
 use crate::api::screenshare::types::{ScreenshareEvent, VideoCodec};
@@ -180,35 +181,6 @@ fn takes_rifts_capture(
         && (source_type != DesktopCaptureSourceType::Screen || screens_on_wgc)
 }
 
-/// Which pictures go on, at the share's rate. Windows only sends a picture when
-/// the source changes, at a refresh of the screen, so what arrives seldom lines up
-/// with the rate: half a picture's time of slack keeps a source just above the
-/// share's rate from beating against it (a 62 Hz picture at 60 fps came through at
-/// 50, Nov 1 2026), and the time it is due moves on by a whole picture, so the
-/// average is still the share's.
-struct Pacer {
-    due: Option<Instant>,
-}
-
-impl Pacer {
-    fn new() -> Self {
-        Self { due: None }
-    }
-
-    fn admits(&mut self, now: Instant, fps: u32) -> bool {
-        let interval = Duration::from_secs_f64(1.0 / f64::from(fps.max(1)));
-        match self.due {
-            Some(due) if now + interval / 2 < due => false,
-            due => {
-                let next = due.unwrap_or(now) + interval;
-                // Never from long ago, or a pause would be made up in a burst.
-                self.due = Some(if next <= now { now + interval } else { next });
-                true
-            }
-        }
-    }
-}
-
 /// What a share does about a session that has gone quiet.
 #[derive(Debug, PartialEq)]
 enum Quiet {
@@ -352,12 +324,10 @@ fn item_for(target: Target) -> windows::core::Result<GraphicsCaptureItem> {
 }
 
 /// The interval Windows is asked for at `fps`, in 100 ns ticks: half a picture's
-/// time, so that what comes at the screen's refreshes can still make the rate
-/// (asked for a picture's whole time, a 165 Hz screen gives every third refresh or
-/// later, 55 fps at best of 60). [`Pacer`] takes it down to the rate.
+/// time ([`pacer::asked_rate`]), which [`Pacer`] takes down to the rate.
 fn update_interval(fps: u32) -> TimeSpan {
     TimeSpan {
-        Duration: 10_000_000 / i64::from(fps.max(1)) / 2,
+        Duration: 10_000_000 / i64::from(pacer::asked_rate(fps)),
     }
 }
 
@@ -1216,36 +1186,6 @@ mod tests {
         ));
     }
 
-    /// Counts what a screen refreshing at `hz` gets through a pacer at `fps`.
-    fn admitted(hz: f64, fps: u32) -> u32 {
-        let start = Instant::now();
-        let mut pacer = Pacer::new();
-        (0..(hz as u32 * 10))
-            .filter(|tick| {
-                pacer.admits(start + Duration::from_secs_f64(f64::from(*tick) / hz), fps)
-            })
-            .count() as u32
-    }
-
-    #[test]
-    fn a_faster_screen_is_paced_to_the_share() {
-        // Ten seconds of each: within a picture or two of the share's rate, even
-        // where the screen's does not divide into it.
-        assert!(admitted(165.0, 60).abs_diff(600) <= 2);
-        assert!(admitted(240.0, 60).abs_diff(600) <= 2);
-        assert!(admitted(165.0, 120).abs_diff(1200) <= 2);
-    }
-
-    #[test]
-    fn a_source_just_above_the_rate_does_not_beat_against_it() {
-        assert!(admitted(62.0, 60).abs_diff(600) <= 2);
-    }
-
-    #[test]
-    fn a_slower_screen_is_all_let_through() {
-        assert_eq!(admitted(60.0, 120), 600);
-    }
-
     /// A share that began just before a picture at `start`.
     fn after_a_picture(start: Instant) -> QuietWatch {
         QuietWatch::new(start - Duration::from_millis(1))
@@ -1326,15 +1266,5 @@ mod tests {
         assert_eq!(watch.step(at(9_000), start, true), Quiet::Wait);
         // Back, and still quiet: a new session again, not a hand over.
         assert_eq!(watch.step(at(9_050), start, false), Quiet::Reopen);
-    }
-
-    #[test]
-    fn a_pause_is_not_made_up_in_a_burst() {
-        let start = Instant::now();
-        let mut pacer = Pacer::new();
-        assert!(pacer.admits(start, 60));
-        let later = start + Duration::from_secs(5);
-        assert!(pacer.admits(later, 60));
-        assert!(!pacer.admits(later + Duration::from_millis(2), 60));
     }
 }

@@ -17,6 +17,8 @@ mod frames;
 mod gpu_feed;
 #[cfg_attr(not(desktop), allow(dead_code))]
 mod latest;
+#[cfg_attr(not(desktop), allow(dead_code))]
+mod pacer;
 mod pixels;
 #[cfg(target_os = "linux")]
 pub(crate) mod portal;
