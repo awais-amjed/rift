@@ -429,7 +429,11 @@ at 60, gnome-shell 26% of a core with the cap of 121 (about 81 recordings a seco
 cap (about 127) and 15–22% before (55), Rift 16% in each, and the GPU kept its full clock where
 before it fell to about 400 MHz, NVENC's send then taking 9.8 ms a picture against 4.0; at 120,
 gnome-shell 30–31% against 27–28%, Rift 23–24% against 18–19%, for 117 pictures a second against
-82. If the GL
+82. Those runs had RustDesk recording the screen as well, a second screencast that more than doubles
+gnome-shell's share and keeps NVIDIA's clock up: on Intel's screen at 120 (Hybrid, gears on the
+screen, the same day) gnome-shell was 28–30% with it and 14% without, Rift 17% and 15%, NVIDIA's
+card 39 W and 16–24 W, the share 120 a second either way. So the NVIDIA figures above are high
+by RustDesk's part, and the full clock may be its. If the GL
 side does not open, NVENC takes memory as before. A window keeps Dart's pick (no second picker); a screen
 is picked in the portal, and the first-picture limit starts once it answers. A
 lent buffer keeps its own fds and mapping until Rust lets it go, since PipeWire
