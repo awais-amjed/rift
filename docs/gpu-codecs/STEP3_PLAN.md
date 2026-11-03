@@ -246,7 +246,18 @@ A watch connection needs its own token, and so a change in `rift-self-host`:
    matrix and range taken from the stream for both decoders. A GPU picture the runner
    fails to draw is handed back undrawn, and the call goes back to its own
    connection. Verified in Rust (VP8, VP9, H264 through CUDA) and in the app (H264
-   and VP9, resize, minimise, rejoin, the first watch after joining). Not yet: AMD.
+   and VP9, resize, minimise, rejoin, the first watch after joining). AMD is done
+   too (Nov 3, RX 9070 XT desktop, `STEP3_AMD.md`): VAAPI on the card that draws
+   the screen, not the Ryzen's iGPU; each picture two DMA-BUF layers in AMD's tiled
+   layout, imported by EGL; verified in Rust (VP9, H264) and in the app (H264 and
+   VP9 up to 120 a second, resize, minimise, rejoin, the first watch after joining,
+   a late viewer's first picture within a second). AMD's VCN has no VP8 decoder:
+   a VP8 share falls back to the call's connection, as designed, and
+   `live_gpu_watch` now asks the driver which codecs it decodes and expects that
+   fallback for a codec it lacks. Watching through Rust cost 32–34% of a core
+   against 54–57% through the call for H264, 41–42% against 54–58% for VP9, and
+   added 0.10 ms to an uncapped CS2 frame (the call's path 0.16 ms). Not run
+   there: a 5120x1440 share.
    The cost, measured Nov 3 on NVIDIA in the debug build (`CALLS.md`): a 1000×1080
    window share at about 48 a second cost the watcher 28–32% of a core through Rust
    against 39–41% through the call for H264, 33–35% against 52–55% for VP9. The

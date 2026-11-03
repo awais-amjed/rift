@@ -712,7 +712,16 @@ Nov 2) the same: `live_gpu_watch` decoded VP8, VP9 and H264 through CUDA, 89
 to 90 pictures in 3 s each; `test_ffdec cuda` gave back the four colours
 after CUDA's copy into GL; and in the app the owner saw H264 and VP9 move
 with the right colours, through resizes, minimising and rejoining, and the
-first watch after joining from the sidebar showed its picture.
+first watch after joining from the sidebar showed its picture. On AMD (RX 9070
+XT desktop, Mesa 26.2.5, Nov 3) the same through VAAPI on the card that draws
+the screen, not the Ryzen's iGPU beside it: `live_gpu_watch` decoded VP9 and
+H264, 90 to 91 pictures in 3 s, and VP8, which AMD's VCN cannot decode, gave
+up with `the GPU cannot decode this Vp8`, as the test now expects of a codec
+the driver lacks; in the app the owner saw H264 and VP9 (up to 120 a second)
+with the right colours, through resizes, minimising and rejoining, and a VP8
+share came through the call's connection instead. Each picture leaves as an
+`R8` and a `GR88` layer of one DMA-BUF in AMD's tiled layout, which EGL
+imports. Every number is in `docs/gpu-codecs/STEP3_AMD.md`.
 
 Measured against the call's path Nov 3 (RTX 3070 Ti laptop, GNOME Wayland,
 the Linux debug build with the Rust library in release, Dave sharing a window
@@ -750,6 +759,21 @@ Rust the GPU's decoder was 5–8% busy and Rust's decoding thread under 2%.
 What is left is the redraw, the main and raster threads at 12–17% each, in
 step with the picture's rate: the release build costs no less there than the
 debug one.
+
+On AMD (Nov 3, RX 9070 XT desktop, release build, the owner watching Dave's
+whole 1920×1080 screen of ffplay's test picture from the laptop, 3 × 20 s each;
+`RIFT_WATCH_DECODE=cpu` keeps the watch connection on libwebrtc's decoder):
+
+| Watcher, whole process | Through Rust (VAAPI) | Rust, CPU decode | Through the call |
+|---|---|---|---|
+| H264, 53 a second | 32–34% of a core | 49–51% | 54–57% |
+| VP9, 60 a second | 41–42% | 48–52% | 54–58% |
+
+There the call's own audio thread (`webrtc_audio_module`) took 14–19% of a
+core on every path, watching or not, and the redraw less than on NVIDIA (main
+thread 7–14%, raster 2–4% through Rust). Playing CS2 uncapped beside it,
+watching through Rust added 0.10 ms to a game frame and through the call 0.16
+ms, with no frame over 16.7 ms (`docs/gpu-codecs/STEP3_AMD.md`).
 
 ## How a call is played out on the desktop — [Implemented October 2026]
 
