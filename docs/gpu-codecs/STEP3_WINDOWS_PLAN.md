@@ -65,20 +65,33 @@ cubit are Linux's, unchanged but for small additions.
   LUID. Video support and multithread protection are on from the start, so phase B needs no second device.
   It is let go only when it is lost.
 - **One texture per share, no ring.** The probe: the ring's p99 was 5.9 ms against 1.35 ms.
-- **The shaders are compiled at build time.** `fxc` writes a header the runner includes, so no
-  `d3dcompiler_47.dll` is loaded at run time.
+- **The shaders are compiled at build time, by MSBuild's own HLSL step.** Flutter's Windows build uses the
+  Visual Studio generator. CMake marks the `.hlsl` file with `VS_SHADER_TYPE`, `VS_SHADER_MODEL 5.0` and
+  `VS_SHADER_OUTPUT_HEADER_FILE`. MSBuild then runs the Windows SDK's `fxc` itself, so nothing looks for it on
+  `PATH`. The header goes in the build directory, and no `d3dcompiler_47.dll` is loaded at run time. The
+  GitHub release build (`release.yml`, `windows-latest`) uses the same generator and the same SDK (Task 1,
+  Step 5).
+- **Tearing under load is checked before anything is built on the texture route** (Task 0). The route rests
+  on the GPU finishing the runner's draw before Flutter reads the texture, with nothing but `Flush` ordering
+  them. So far this has only been checked on an idle GPU. If it tears, the runner waits for its draw to finish
+  before answering the descriptor: an event query after `Flush`, polled on the raster thread. That wait is
+  measured, and the design changes before Task 1.
 - **The runner's drawing is a part with no Flutter in it** (`stream_draw.{h,cpp}`), so a test program can drive
   it: draw, read back, check the colours. `stream_texture.cpp` is only the channel, the registrar and the
   lifetimes.
 - **Device loss in a test build is simulated** with `RIFT_STREAM_TEXTURE_FAIL_AFTER=<n>`: after n pictures, the
   runner answers as if the device were removed. A real reset (`dxcap -forcetdr`) is the owner's by-hand step,
   as in step 1.
-- **The device goes to Rust through Dart:**
-  - `create` answers `device`, its address.
-  - `watchShare` takes it as `gpuDevice` (0 on Linux, and in phase A).
-  - Rust keeps it with the share, and opens that share's decoder on it.
-
-  This is the only change to the bridge. Phase A ships without it.
+- **Rust asks the runner for the device; it never travels through Dart:**
+  - The runner exe exports `rift_stream_d3d11_device()`. It returns the device with a reference added, or null
+    when there is none yet or it was lost. It takes the same lock as the live map.
+  - Rust finds the export with `GetProcAddress(GetModuleHandleW(NULL), ...)` when it opens a share's decoder.
+    The decoder keeps that reference, and releases it when it closes.
+  - Because Rust holds its own reference, a device lost in between is still a live object: its calls fail with
+    `DXGI_ERROR_DEVICE_REMOVED` and the share falls back. No address can outlive the device behind it.
+  - A runner without the export (an old build, the test program) is "no device": that share is watched
+    through the call when decoding would be on the GPU.
+  - The bridge and Dart do not change, so Linux has nothing new to recheck there.
 - **Choosing at start:** Rust looks at adapter 0 (the one ANGLE takes, Rift setting no GPU preference) and asks
   its video device which profiles it has. With H264 or VP9 there, the runtime is made pass-through. The runner's
   `takesGpuPictures` is true only when its adapter's LUID is that one.
@@ -96,12 +109,34 @@ cubit are Linux's, unchanged but for small additions.
   (Tasks 2, 9).
 - **Lent surfaces:** a decoder surface is held only for the draw. FFmpeg's pool is `LENT_PICTURES` larger, so a
   slow draw never stalls decoding (Task 7).
-- **Linux untouched:** shared structs grow at the end. Linux passes `gpuDevice` 0. `cargo xwin` on Linux still
-  builds Windows (Tasks 6, 8).
+- **The device's lifetime across the runner and Rust:** `rift_stream_d3d11_device()` adds a reference under
+  the lock, and every path that opens a decoder releases it (Tasks 2, 8).
+- **Sound:** the share's sound through Rust is not turned down by Windows' ducking while the call is up (Tasks
+  4, 6).
+- **Linux untouched:** shared structs grow at the end, and the bridge does not change. `cargo xwin` on Linux
+  still builds Windows (Tasks 6, 8).
 
 ---
 
 ## Phase A
+
+### Task 0: Tearing under load, before building on the route
+
+The probe (`STEP3_WINDOWS.md`, *Probe evidence*) is the texture route with nothing else in it. It stays a
+scratch tool outside the repository. The load program is scratch too: one D3D11 window on adapter 0 drawing
+a heavy full-screen pixel shader without vsync, so Flutter's own GPU is busy.
+
+- [ ] **Step 1: Hybrid, the case people meet.** CS2 running in a match against bots, uncapped, on the RTX,
+  the way Hybrid runs it. The probe and `tear.ps1`, 300 grabs. The rows agree in every grab. Record the
+  probe's draw times and CS2's frame rate.
+- [ ] **Step 2: Hybrid, the worst case.** The load program on the Iris Xe, which is Flutter's adapter. Same
+  check, 300 grabs.
+- [ ] **Step 3: If anything tears,** add the wait to the probe (an event query after `Flush`, polled until
+  done) and run Steps 1–2 again. Record how long it waits at p50 and p99. The design then says the runner
+  waits, and Task 1's interface says so.
+- [ ] **Step 4: Discrete** comes at the owner's first Discrete boot, before phase B starts (Task 6, Step 7).
+- [ ] **Step 5: Commit** the result in `STEP3_WINDOWS.md` (*Probe evidence*), with the mode, the load and
+  the counts.
 
 ### Task 1: The runner's drawing, tested alone
 
@@ -109,7 +144,8 @@ cubit are Linux's, unchanged but for small additions.
 - Create: `windows/runner/stream_draw.h`, `windows/runner/stream_draw.cpp`, `windows/runner/stream_shaders.hlsl`
 - Create: `windows/runner/test/stream_draw_test.cpp`, `windows/runner/test/run.ps1` (builds the test with
   `cl` and runs it; no Flutter)
-- Modify: `windows/runner/CMakeLists.txt` (the sources, `fxc` as a custom command, `d3d11` and `dxgi`)
+- Modify: `windows/runner/CMakeLists.txt` (the sources, the `.hlsl` file's `VS_SHADER_*` properties, `d3d11`
+  and `dxgi`)
 
 **Interfaces:**
 - ```cpp
@@ -138,9 +174,16 @@ cubit are Linux's, unchanged but for small additions.
   - a second picture at 1280×720 resizes the texture;
   - odd sizes (1279×719) draw, with the chroma rounded up.
 - [ ] **Step 2: Run it to see it fail** (`run.ps1`: it does not link yet).
-- [ ] **Step 3: Implement** `MakeDevice` and `StreamDraw` for `IN_MEMORY`, and the `fxc` step.
+- [ ] **Step 3: Implement** `MakeDevice` and `StreamDraw` for `IN_MEMORY`, and the shader step.
 - [ ] **Step 4: Run it on both adapters:** the Iris Xe and the RTX, in Hybrid. Record the colours.
-- [ ] **Step 5: Commit.**
+- [ ] **Step 5: The release build finds the shader compiler.**
+  - Clean `build/windows`, then run `scripts/build_windows.ps1` from a plain PowerShell with no developer
+    environment, which is how `release.yml` runs it. It must build.
+  - Check the shader header was made by MSBuild's FxCompile step, in the build log.
+  - Check that `windows-latest`'s image lists a Windows 10/11 SDK, from its published software list.
+  - CI itself is checked on the first `release.yml` run the owner starts. Until then this is a claim, and
+    the commit says so.
+- [ ] **Step 6: Commit.**
 
 ### Task 2: The stream texture in the runner
 
@@ -155,6 +198,9 @@ cubit are Linux's, unchanged but for small additions.
   - `dispose` `{textureId}`.
 - `rift_stream_texture_mark(uint64_t)` looks the texture up under a lock and calls
   `MarkTextureFrameAvailable`; a texture already gone is nothing.
+- `extern "C" __declspec(dllexport) ID3D11Device* rift_stream_d3d11_device()`, exported by the runner exe: the
+  device with a reference added, under the same lock, or null when there is none or it was lost. Phase A
+  only exports it. Rust starts calling it in Task 8.
 - The callback runs on the raster thread:
   - lock; on a new picture, `Draw`; then unlock with `drawn`;
   - it answers the descriptor, or null when there is no texture yet and no device.
@@ -221,11 +267,23 @@ cubit are Linux's, unchanged but for small additions.
     - silent once unwatched.
 
   See it fail with `PLAYS` false, then pass.
-- [ ] **Step 4: `cargo test --release`, `cargo fmt --check`, commit** with `CALLS.md` (the sound on Windows).
+- [ ] **Step 4: Ducking.** A call's playback is a communications stream, and Windows turns other sounds down
+  for it, by 18 dB measured (`CALLS.md`, *Windows turning other apps down*). The share's sound through the
+  call is part of that stream, so it is never turned down. Rust's stream is not, so it might be.
+  - In the live test, a second render stream opens on VB-Cable with the communications role while the tone
+    plays, and the tone's level is measured before and after it opens. The level must not drop by more than
+    1 dB.
+  - If Windows ducks it, the stream is tagged as communications (`AudioClientProperties`, category
+    `AudioCategory_Communications`), or joins the call's audio session. The choice is made on what was
+    measured, and written down.
+  - If the test can't make Windows duck at all (ducking may not reach VB-Cable), it says so, and the real
+    check is the app's (Task 6, Step 6).
+- [ ] **Step 5: `cargo test --release`, `cargo fmt --check`, commit** with `CALLS.md` (the sound on Windows).
 
 ### Task 5: The server for the app (owner)
 
-- [ ] **Step 1:** Ask the owner to install Docker Desktop. Give the command; do not run it.
+- [ ] **Step 1:** The owner installs Docker Desktop (approved Nov 4) with the command given; it is not run
+  here.
 - [ ] **Step 2:** Bring up rift-self-host's stack (`dev`, 604f8c4 or later).
   - Copy `_shared`, `get_channel_token`, `get_dm_call_token`, `moderate_user`, `voice_roster` and
     `livekit_webhook` into the functions container, then restart it.
@@ -257,7 +315,16 @@ cubit are Linux's, unchanged but for small additions.
   - `RIFT_WATCH_PATH=call`.
 
   H264 and VP9 at 1080p. A sharer on the same PC is named in the table.
-- [ ] **Step 6: Commit** with `TESTING.md` row 26 and `CALLS.md` (what was driven, the cost table, what was not).
+- [ ] **Step 6: The sound against ducking, in the app.**
+  - The sharer shares a window playing a steady tone.
+  - The watcher's output is VB-Cable, with Windows' Communications setting left at its default (80%).
+  - Record VB-Cable for 10 s watching through Rust, then 10 s with `RIFT_WATCH_PATH=call`.
+  - The two levels agree within 1 dB.
+  - The log names which path each recording was.
+- [ ] **Step 7: Discrete, before phase B.** The owner reboots into Discrete. There, run Task 0's tear check
+  under load (CS2, then the load program on the RTX, which is Flutter's adapter there), then Steps 2 and 4 of
+  this task once.
+- [ ] **Step 8: Commit** with `TESTING.md` row 26 and `CALLS.md` (what was driven, the cost table, what was not).
 
 ## Phase B
 
@@ -304,14 +371,10 @@ cubit are Linux's, unchanged but for small additions.
 **Files:**
 - Create: `rust/src/watching/decode/windows.rs`
 - Modify:
-  - `rust/src/watching/decode/mod.rs`: the `mod` lines; `feed` and `Decoder::open` take the share's device,
-    which Linux ignores.
+  - `rust/src/watching/decode/mod.rs`: the `mod` lines. Windows' decoder asks for the runner's device when
+    it opens; Linux's is unchanged.
   - `rust/src/watching/frames.rs`: `IN_D3D11`; `texture` and `slice` appended to `WatchPlanes`; the unlock log
     line without "decoded on the GPU".
-  - `rust/src/watching/session.rs`: `gpu_device` kept per share.
-  - `rust/src/api/watching.rs`: `watch_share(..., gpu_device: usize)`.
-  - Regenerated bindings: `lib/src/rust/`, `rust/src/frb_generated.rs`.
-  - `lib/logic/services/rust_watch.dart`: passes `device`.
   - `linux/runner/stream_texture.cc`: the appended fields.
 
 **Interfaces:**
@@ -319,17 +382,21 @@ cubit are Linux's, unchanged but for small additions.
   pub(crate) struct Gpu { luid: i64, name: String, h264: bool, vp9: bool }
   pub(super) fn device() -> Result<Gpu, String>;  // adapter 0's video profiles; Err with none
   impl Gpu { pub(crate) fn decodes(&self, codec: Codec) -> Option<bool>; }  // VP8: Some(false)
+  // The runner's device, from its `rift_stream_d3d11_device` export, with the
+  // reference it added; None when the export or the device is missing.
+  fn runner_device() -> Option<ID3D11Device>;
   ```
-- `watch` refuses when `decode::gpu()` is some and `takes_gpu_pictures` is false, or `gpu_device` is 0, as on
-  Linux.
+- A decoder that finds no runner device fails by name ("the window has no GPU device"), and the share falls
+  back to the call's connection, as any decoder that cannot open does.
+- Tests put their own device in the runner's place (a `#[cfg(test)]` override, since a test binary exports
+  nothing).
 
 - [ ] **Step 1: The failing unit tests:**
   - `decodes` from a profile list (pure: a list of GUIDs in, the answer out);
-  - `watch` refusing a share with no device when decoding on the GPU (`session`'s refusal, without a server).
-- [ ] **Step 2: See them fail; implement; pass.** Regenerate the bindings (flutter_rust_bridge 2.13.0).
-  `flutter analyze`.
+  - with no runner device, opening a GPU decoder fails with the reason, and nothing is leaked.
+- [ ] **Step 2: See them fail; implement; pass.** `flutter analyze` (nothing in Dart should change).
 - [ ] **Step 3: `live_gpu_watch` on Windows.**
-  - The test hands a device made as the runner makes it.
+  - The test puts in place a device made as the runner makes it.
   - `lent_from_the_gpu` checks the `IN_D3D11` picture: a texture, a slice within the array, the size sent.
   - H264 and VP9 decode at 80% or more of the pictures sent; VP8 fails with
     `the GPU cannot decode this Vp8`.
@@ -340,8 +407,8 @@ cubit are Linux's, unchanged but for small additions.
 
 **Files:**
 - Modify: `windows/runner/stream_draw.{h,cpp}` (NV12 from a slice: R8 and R8G8 views, cached per texture and
-  slice; the copy where views cannot be made), `windows/runner/stream_texture.cpp` (`device` in `create`'s
-  answer; `takesGpuPictures` from the LUID), `windows/runner/test/stream_draw_test.cpp`
+  slice; the copy where views cannot be made), `windows/runner/stream_texture.cpp` (`takesGpuPictures` from
+  the LUID), `windows/runner/test/stream_draw_test.cpp`
 
 - [ ] **Step 1: The failing test:**
   - `stream_draw_test` makes an NV12 array texture as a decoder's, with `DECODER | SHADER_RESOURCE` where
@@ -368,8 +435,9 @@ cubit are Linux's, unchanged but for small additions.
 
 ### Task 11: The gate, Discrete, and a real reset
 
-- [ ] **Step 1: The probe's tear check under load.** CS2 running, in Hybrid and in Discrete: the rows agree in
-  every grab. Then `live_gpu_watch` on the RTX (Discrete).
+- [ ] **Step 1: Tearing again, now with the decoder's pictures.** CS2 running, in Hybrid and in Discrete:
+  watching a share of a moving bar, the rows agree in every grab. Then `live_gpu_watch` on the RTX
+  (Discrete).
 - [ ] **Step 2: The watcher's game.** CS2, three cases (no watch, the call's path, Rust's), capped and uncapped,
   Hybrid and Discrete. For each:
   - the mean, the p99, frames over twice the target;
@@ -386,8 +454,7 @@ cubit are Linux's, unchanged but for small additions.
 - [ ] **Step 1:** `STEP3_WINDOWS.md` gets *What Linux must recheck*:
   - the Linux build;
   - `cargo test --release` and `live_watch_`;
-  - `live_gpu_watch` on VAAPI and CUDA, with `gpuDevice` 0;
-  - the app once (the `create` answer and `watchShare`'s new argument);
+  - `live_gpu_watch` on VAAPI and CUDA (`WatchPlanes` grew);
   - `cargo xwin` building Windows;
   - every shared file this plan touched.
 - [ ] **Step 2:** Search the docs for lines this made untrue ("every platform but Linux", "Linux only for

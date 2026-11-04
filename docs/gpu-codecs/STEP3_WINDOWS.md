@@ -1,6 +1,8 @@
 # Step 3 on Windows: GPU decode and draw for watchers — design
 
-Nov 4 2026. Proposed to the owner; not yet agreed or built. Windows' half of step 3
+Nov 4 2026. Agreed by the owner Nov 4, with four changes from the review (the tearing
+check moved first, the device asked for rather than passed through Dart, ducking, the
+shader compiler in CI); not yet built. Windows' half of step 3
 (`STEP3_PLAN.md`), on the same Rust and Dart code Linux runs, with its own texture,
 decoder and sound. What is the owner's is marked so; the rest is the builder's call.
 
@@ -74,8 +76,12 @@ by LUID.
   A ring of three textures cost 0.56 ms on average, but 5.9 ms at p99.
 - **No tearing:** in 300 screen grabs, the bar never sat at different columns at the
   top and the bottom of the picture.
-- **Not yet tried:** the tearing check with the GPU under load, or in Discrete. See
-  *How it is proven*.
+- **Not yet tried:** the tearing check with the GPU under load, or in Discrete. The
+  whole route rests on the GPU finishing the runner's draw before ANGLE reads the
+  texture, with only the `Flush` between them. So this check comes before anything is
+  built on the route (the plan's Task 0). If it tears, the runner waits for its own draw
+  before answering the descriptor: an event query after the `Flush`, polled on the
+  raster thread. That wait's cost is then measured.
 
 ### Which adapter, on a hybrid
 
@@ -110,7 +116,10 @@ callback says the engine has let it go.
   channel, as on Linux (`create` with Rust's lock and unlock, answering `textureId`,
   `mark` and `takesGpuPictures`; `dispose`). `IN_MEMORY` pictures are uploaded as
   three R8 textures (`UpdateSubresource`, 1.5 bytes a pixel) and drawn BT.601 limited,
-  as on Linux. The shader is compiled into the runner at build time, not at run time.
+  as on Linux. The shader is compiled into the runner at build time, not at run time,
+  by MSBuild's own HLSL step (the `.hlsl` file's `VS_SHADER_*` properties). Flutter's
+  Windows build uses the Visual Studio generator, and so does `release.yml`'s, so the
+  Windows SDK's `fxc` is found the same way on the laptop and in CI.
 - **Colour:** the same matrix and range sums as `stream_texture.cc`'s `Colour`, in
   HLSL.
 - **The sound** (`rust/src/watching/sound/windows.rs`): a WASAPI render stream, shared
@@ -120,6 +129,12 @@ callback says the engine has let it go.
   playback is the model, including its lesson that Windows' engine empties the buffer
   in uneven gulps: room is counted from the padding, about 60 ms held as on Linux, and
   a short cushion of silence when it ran dry. `PLAYS` becomes true on Windows.
+- **Ducking:** Windows turns other sounds down while a communications stream plays, by
+  18 dB measured (`CALLS.md`, *Windows turning other apps down*). A call's playback is
+  such a stream. Through the call, the share's sound is part of it, so it is never
+  turned down; Rust's own stream might be. It is measured against the call's path. If
+  Windows ducks it, the stream is tagged as communications, or joins the call's audio
+  session, whichever the measurement shows works.
 - **Dart:** `RustWatch.available` takes Windows too. Nothing else in the cubit is
   platform-specific.
 - **The sound test** gets a Windows check: played into VB-Cable only (never the
@@ -146,8 +161,13 @@ How:
 
 - **The device.** The runner makes its device with video support and multithread
   protection (`ID3D10Multithread`), since the decode thread and the raster thread both
-  use it. `create` also answers the device's address. Dart passes it to `watchShare`
-  (`gpuDevice`, 0 on Linux), and Rust passes it to ffdec when it opens a decoder.
+  use it. **Rust asks the runner for it**, and it never passes through Dart. The runner
+  exe exports `rift_stream_d3d11_device()`, which returns the device with a reference
+  added, or null when there is none or it was lost. Rust finds it with
+  `GetProcAddress` on the exe when it opens a decoder, and hands it to ffdec. The
+  decoder holds that reference until it closes. So a device lost in between is still a
+  live object whose calls fail, and no address can outlive what it names; an address
+  carried through Dart could have. The bridge does not change.
 - **ffdec** (`RIFT_FFDEC_D3D11VA`): an `AVD3D11VADeviceContext` on that device (ffdec
   holds a reference), with FFmpeg's `d3d11va` hwaccel. The surfaces are made with
   `D3D11_BIND_SHADER_RESOURCE` as well as `DECODER`, so the shader can read them. A
@@ -227,8 +247,9 @@ Every number says which BIOS mode it came from. Hybrid first, then Discrete.
 2. **ffdec alone:** a Windows test beside `test_ffdec.c`, modelled on `test_d3d11.c`
    and `test_windows.sh`: the four colours back at 1920×1080 from H264 and VP9,
    decoded on a device made the runner's way and drawn by the runner's shader.
-3. **The probe again, under load and in Discrete:** the tearing check with CS2
-   running, in both modes.
+3. **The probe under load, first:** the tearing check with CS2 running, and with a load
+   program on Flutter's own GPU. Hybrid before anything is built; Discrete before phase
+   B. Then again with the decoder's pictures, in both modes.
 4. **The app** (owner by hand, release build; two clients with their own
    `RIFT_PROFILE`s against the Docker stack, handoff §5):
    - H264 and VP9 at 1080p60, a window share and a whole-screen share;
@@ -236,6 +257,8 @@ Every number says which BIOS mode it came from. Hybrid first, then Discrete.
    - leaving and rejoining, and the first Watch after joining from the sidebar;
    - a late viewer's wait, through Rust and through the call, each named;
    - volume, mute and deafen;
+   - the sound's level through Rust and through the call, in a call, within 1 dB
+     (ducking);
    - Quit from the tray while watching.
 
    The log must name the decoder and the texture each time, so a pass is known to
@@ -253,6 +276,8 @@ Every number says which BIOS mode it came from. Hybrid first, then Discrete.
 ## What is not known yet
 
 - Tearing with the GPU busy: the probe was idle.
+- Whether Windows ducks a stream in the same process as the call's.
+- The shader step on GitHub's `windows-latest`, until the first release run after it.
 - Whether every driver makes shader views of decoder surfaces. Moonlight's check and
   copy cover it; which GPUs take the copy is to be seen.
 - Multithread protection's cost on the raster thread while the decoder runs.
@@ -264,12 +289,10 @@ Every number says which BIOS mode it came from. Hybrid first, then Discrete.
 
 - `rust/src/watching/frames.rs`: the `IN_D3D11` kind and its fields; the unlock log
   line.
-- `rust/src/watching/session.rs` and `api/watching.rs`: `gpuDevice` on `watchShare`.
-  Regenerated bindings.
 - `rust/src/watching/decode/mod.rs`: Windows' module beside Linux's.
 - `rust/src/watching/sound/mod.rs`: Windows' module beside Linux's.
 - `native/ffenc/ffdec.c` and `ffdec.h`: `RIFT_FFDEC_D3D11VA`, `IN_D3D11`, ABI 12;
   `build.sh`'s hwaccel list.
-- `lib/logic/services/rust_watch.dart`: Windows in `available`; the device passed on.
+- `lib/logic/services/rust_watch.dart`: Windows in `available`.
 - `linux/runner/stream_texture.cc`: the new `WatchPlanes` fields, appended so Linux's
   layout keeps its order.
