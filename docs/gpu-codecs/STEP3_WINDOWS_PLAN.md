@@ -293,7 +293,7 @@ a heavy full-screen pixel shader without vsync, so Flutter's own GPU is busy.
 
   Nov 4, against `livekit-server --dev` on 7980: −15.2 dBFS in each ear for −15.3 sent, the other ear at
   −96.7, −21.3 at half, −96.5 at 0 and once unwatched. With `PLAYS` false: −96.5 at full, failed.
-- [ ] **Step 4: Ducking.** A call's playback is a communications stream, and Windows turns other sounds down
+- [x] **Step 4: Ducking.** A call's playback is a communications stream, and Windows turns other sounds down
   for it, by 18 dB measured (`CALLS.md`, *Windows turning other apps down*). The share's sound through the
   call is part of that stream, so it is never turned down. Rust's stream is not, so it might be.
   - In the live test, a second render stream opens on VB-Cable with the communications role while the tone
@@ -304,7 +304,15 @@ a heavy full-screen pixel shader without vsync, so Flutter's own GPU is busy.
     measured, and written down.
   - If the test can't make Windows duck at all (ducking may not reach VB-Cable), it says so, and the real
     check is the app's (Task 6, Step 6).
-- [ ] **Step 5: `cargo test --release`, `cargo fmt --check`, commit** with `CALLS.md` (the sound on Windows).
+
+  Nov 4, `live_watched_sound_is_not_turned_down_beside_a_call`: Windows ducks only the communications
+  device's own streams, so VB-Cable was made the communications device for the run (Windows set to lower
+  by 80%). A silent call stream in the same process: the tone stayed at −15.3 dBFS. The same stream from a
+  second process (a test the first starts): −33.3, 18 dB down, as measured in October, and back at −15.3
+  once it closed. Windows spares the process whose call it is, so Rust's stream needs no tag or session.
+  The test also checks that Windows ducked, and that another process's call turns the cable down, so it
+  cannot pass without measuring anything.
+- [x] **Step 5: `cargo test --release`, `cargo fmt --check`, commit** with `CALLS.md` (the sound on Windows).
 
 ### Task 5: The server for the app (owner)
 

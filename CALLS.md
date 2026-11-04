@@ -706,8 +706,14 @@ and hands Flutter the texture's shared handle, which ANGLE opens
   a call's audio*): this SDK gives a sound's decryptor the receiver itself,
   not an id two receivers can share. Where Rust has no player yet
   (`watchPlaysSound`, Linux and Windows for now), the sound stays with the
-  call. Whether Windows turns Rust's stream down beside a call, as it does
-  other apps' (*Windows turning other apps down*), is not yet measured.
+  call. Windows does not turn Rust's stream down beside Rift's own call,
+  though it does other apps' (*Windows turning other apps down*): it spares
+  the process whose call it is. Measured Nov 4 into VB-Cable made the
+  communications device (`live_watched_sound_is_not_turned_down_beside_a_call`):
+  a call's stream opened in the same process left the tone at −15.3 dBFS; the
+  same stream from another process took it to −33.3, 18 dB down, and back
+  once it closed. Windows ducks only the communications device's own
+  streams: with the cable not that device, neither moved it.
 - **Decoded on the GPU** where it can be (`rust/src/watching/decode`,
   Linux). At start (`init_app`), before any room, Rust chooses how the
   process's LiveKit runtime decodes: where Rift's FFmpeg library loads and

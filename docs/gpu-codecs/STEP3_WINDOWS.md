@@ -4,8 +4,8 @@ Nov 4 2026. Agreed by the owner Nov 4, with four changes from the review (the te
 check moved first, the device asked for rather than passed through Dart, ducking, the
 shader compiler in CI); phase A being built (the runner's drawing, Nov 4, which now
 waits for its draw: *A read at once does tear*; the texture installed in the runner
-and turned on in Dart; the sound through WASAPI, tested in Rust; neither yet driven
-in the app, and ducking not yet measured). Windows' half of step 3
+and turned on in Dart; the sound through WASAPI, tested in Rust, and not turned
+down beside Rift's own call; neither yet driven in the app). Windows' half of step 3
 (`STEP3_PLAN.md`), on the same Rust and Dart code Linux runs, with its own texture,
 decoder and sound. What is the owner's is marked so; the rest is the builder's call.
 
@@ -189,7 +189,9 @@ people send.
   such a stream. Through the call, the share's sound is part of it, so it is never
   turned down; Rust's own stream might be. It is measured against the call's path. If
   Windows ducks it, the stream is tagged as communications, or joins the call's audio
-  session, whichever the measurement shows works.
+  session, whichever the measurement shows works. Measured Nov 4: it does not. Windows
+  spares every stream of the process whose call it is (0 dB beside a call in the same
+  process, 18 dB down beside another process's), so nothing is needed.
 - **Dart:** `RustWatch.available` takes Windows too. Nothing else in the cubit is
   platform-specific.
 - **The sound test** gets a Windows check: played into VB-Cable only (never the

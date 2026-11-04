@@ -45,8 +45,13 @@
 //! down at half, and silence once unwatched.
 //!
 //! ```text
-//! cargo test --release live_watched_sound -- --ignored --nocapture
+//! cargo test --release live_watched_sound -- --ignored --nocapture --test-threads=1
 //! ```
+//!
+//! The ducking test among them needs Windows set to lower other sounds
+//! (the Sound window's Communications tab) and "CABLE Input" made the default
+//! communications device, not the default device: Windows ducks only that
+//! device's streams.
 use super::{frames, session};
 use crate::api::watching::WatchRoom;
 use crate::screenshare::live_test::{shared_key, Server, KEY_INDEX};
@@ -527,66 +532,108 @@ fn test_output() -> String {
     id
 }
 
+/// A share sending [tone_frame]'s tone, watched through Rust at full volume
+/// onto the test output, its picture arrived.
+#[cfg(any(target_os = "linux", windows))]
+struct ToneShare {
+    _voice: Room,
+    share: Share,
+    feed: crate::sharing::audio::AudioCaptureHandle,
+}
+
+#[cfg(any(target_os = "linux", windows))]
+impl ToneShare {
+    const IDENTITY: &str = "member~desk_share";
+    const TEXTURE: u64 = 0;
+
+    async fn start(what: &str) -> ToneShare {
+        use crate::sharing::audio::{publish_and_feed, Command, Pcm, SpawnCapture};
+        let server = Server::from_env();
+        let name = room_name(what);
+        let key = shared_key();
+        let voice = start_watching(&server, &name, key.clone(), KEY_INDEX).await;
+        session::watch(
+            Self::IDENTITY.to_string(),
+            Self::TEXTURE,
+            mark_address(),
+            false,
+        )
+        .await
+        .expect("watches");
+        session::set_volume(Self::IDENTITY, 1.0).await;
+        let share = Share::start(&server, &name, Self::IDENTITY, &key, KEY_INDEX).await;
+        let spawn: SpawnCapture = Box::new(|commands, frames| {
+            std::thread::spawn(move || {
+                let start = Instant::now();
+                for index in 0.. {
+                    if commands
+                        .try_recv()
+                        .is_ok_and(|c| matches!(c, Command::Terminate))
+                    {
+                        return;
+                    }
+                    let due = start + Duration::from_millis(u64::from(index) * 10);
+                    std::thread::sleep(due.saturating_duration_since(Instant::now()));
+                    if frames
+                        .blocking_send(Pcm::read_now(tone_frame(index)))
+                        .is_err()
+                    {
+                        return;
+                    }
+                }
+            })
+        });
+        let feed = publish_and_feed(&share.room, spawn, "share-sound", None)
+            .await
+            .expect("the sound publishes");
+        assert!(
+            marked(
+                Self::TEXTURE,
+                marks(Self::TEXTURE),
+                10,
+                Duration::from_secs(15)
+            )
+            .await,
+            "the picture arrives"
+        );
+        ToneShare {
+            _voice: voice,
+            share,
+            feed,
+        }
+    }
+
+    async fn end(self) {
+        self.feed.terminate();
+        session::stop().await;
+        self.share.end().await;
+    }
+}
+
+/// Logs when [what] begins, and adds it to [phases].
+#[cfg(any(target_os = "linux", windows))]
+fn begins(phases: &mut Vec<(&'static str, Instant)>, what: &'static str) {
+    let ms = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
+    log::info!("sound test: {what} at {ms}");
+    phases.push((what, Instant::now()));
+}
+
 #[cfg(any(target_os = "linux", windows))]
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "needs a LiveKit server and a test output; see the module doc"]
 async fn live_watched_sound_plays_in_stereo_at_its_volume() {
-    use crate::sharing::audio::{publish_and_feed, Command, Pcm, SpawnCapture};
     let _ = env_logger::builder().is_test(true).try_init();
     super::sound::set_output(Some(test_output()));
     #[cfg(windows)]
     let recording = cable::Recording::start();
-
-    let server = Server::from_env();
-    let name = room_name("sound");
-    let key = shared_key();
-    let share_identity = "member~desk_share";
-    const TEXTURE: u64 = 0;
-
-    let _voice = start_watching(&server, &name, key.clone(), KEY_INDEX).await;
-    session::watch(share_identity.to_string(), TEXTURE, mark_address(), false)
-        .await
-        .expect("watches");
-    session::set_volume(share_identity, 1.0).await;
-    let share = Share::start(&server, &name, share_identity, &key, KEY_INDEX).await;
-    let spawn: SpawnCapture = Box::new(|commands, frames| {
-        std::thread::spawn(move || {
-            let start = Instant::now();
-            for index in 0.. {
-                if commands
-                    .try_recv()
-                    .is_ok_and(|c| matches!(c, Command::Terminate))
-                {
-                    return;
-                }
-                let due = start + Duration::from_millis(u64::from(index) * 10);
-                std::thread::sleep(due.saturating_duration_since(Instant::now()));
-                if frames
-                    .blocking_send(Pcm::read_now(tone_frame(index)))
-                    .is_err()
-                {
-                    return;
-                }
-            }
-        })
-    });
-    let feed = publish_and_feed(&share.room, spawn, "share-sound", None)
-        .await
-        .expect("the sound publishes");
-    assert!(
-        marked(TEXTURE, 0, 10, Duration::from_secs(15)).await,
-        "the picture arrives"
-    );
+    let tone = ToneShare::start("sound").await;
+    let share_identity = ToneShare::IDENTITY;
 
     let mut phases = Vec::new();
-    let mut at = |what: &'static str| {
-        let ms = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_millis();
-        log::info!("sound test: {what} at {ms}");
-        phases.push((what, Instant::now()));
-    };
+    let mut at = |what: &'static str| begins(&mut phases, what);
     at("full");
     tokio::time::sleep(Duration::from_secs(4)).await;
     session::set_volume(share_identity, 0.0).await;
@@ -597,16 +644,98 @@ async fn live_watched_sound_plays_in_stereo_at_its_volume() {
     tokio::time::sleep(Duration::from_secs(3)).await;
     session::unwatch(share_identity).await;
     at("unwatched");
-    tokio::time::sleep(Duration::from_secs(1)).await;
+    tokio::time::sleep(Duration::from_secs(2)).await;
     at("end");
 
-    feed.terminate();
-    session::stop().await;
-    share.end().await;
+    tone.end().await;
     #[cfg(windows)]
     cable::check(&recording.stop(), &phases);
     #[cfg(not(windows))]
     let _ = phases;
+}
+
+/// Windows turns other sounds down while a call's playback is open on the
+/// communications device (`CALLS.md`, *Windows turning other apps down*). The
+/// share's sound through the call is part of that playback; Rust's own stream
+/// is not, so it might be turned down with everything else. Here a silent
+/// stream opens on the communications device, as a call's playback does,
+/// while the tone plays into VB-Cable: first in this process, as Rift's call
+/// is beside Rust's player, where the tone must not drop by more than 1 dB;
+/// then in another process, another app's call, which must turn the tone
+/// down, or the first proves nothing. Needs Windows' choice to be anything
+/// but "do nothing", which sends no duck at all.
+#[cfg(windows)]
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a LiveKit server and VB-Cable; see the module doc"]
+async fn live_watched_sound_is_not_turned_down_beside_a_call() {
+    let _ = env_logger::builder().is_test(true).try_init();
+    assert_ne!(
+        crate::ducking::preference(),
+        3,
+        "Windows is set to do nothing beside a call, so nothing would be turned down: choose a reduction in the Sound window's Communications tab (control mmsys.cpl,,3) and run again"
+    );
+    crate::ducking::listen().expect("the duck listener");
+    super::sound::set_output(Some(test_output()));
+    let recording = cable::Recording::start();
+    let tone = ToneShare::start("duck").await;
+
+    let mut phases = Vec::new();
+    begins(&mut phases, "alone");
+    tokio::time::sleep(Duration::from_secs(3)).await;
+    let ducks = crate::ducking::ducks();
+    let call = cable::Call::open();
+    begins(&mut phases, "beside its own call");
+    tokio::time::sleep(Duration::from_secs(4)).await;
+    let ducked = crate::ducking::ducks() > ducks;
+    drop(call);
+    begins(&mut phases, "between");
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    let mut other = std::process::Command::new(std::env::current_exe().unwrap())
+        .args([
+            "--ignored",
+            "--exact",
+            "watching::live_test::another_apps_call_for_the_ducking_test",
+        ])
+        .env(ANOTHER_APPS_CALL, "5")
+        .stdout(std::process::Stdio::null())
+        .spawn()
+        .expect("another process for the call");
+    let ducks = crate::ducking::ducks();
+    let until = Instant::now() + Duration::from_secs(10);
+    while crate::ducking::ducks() == ducks && Instant::now() < until {
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    let other_ducked = crate::ducking::ducks() > ducks;
+    begins(&mut phases, "beside another app's call");
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    let _ = other.wait();
+    begins(&mut phases, "after");
+    tokio::time::sleep(Duration::from_secs(3)).await;
+    begins(&mut phases, "end");
+    tone.end().await;
+
+    cable::check_beside_a_call(&recording.stop(), &phases, ducked, other_ducked);
+}
+
+/// How long [another_apps_call_for_the_ducking_test] holds its call, in
+/// seconds; without it, that test does nothing.
+#[cfg(windows)]
+const ANOTHER_APPS_CALL: &str = "RIFT_DUCK_TEST_CALL_SECONDS";
+
+/// The other process's call in the ducking test, which starts it.
+#[cfg(windows)]
+#[test]
+#[ignore = "started by live_watched_sound_is_not_turned_down_beside_a_call"]
+fn another_apps_call_for_the_ducking_test() {
+    let Some(seconds) = std::env::var(ANOTHER_APPS_CALL)
+        .ok()
+        .and_then(|s| s.parse().ok())
+    else {
+        return;
+    };
+    let call = cable::Call::open();
+    std::thread::sleep(Duration::from_secs(seconds));
+    drop(call);
 }
 
 /// VB-Cable, for the sound test on Windows: what plays into "CABLE Input"
@@ -718,31 +847,45 @@ mod cable {
         20.0 * (rms.max(1e-9) / 32768.0).log10()
     }
 
-    /// Each part, from half a second after it began to a fifth before the
-    /// next, which leaves the output's hold and the server's turn out of it.
+    /// The blocks of the part named `name`, from half a second after it began
+    /// to a fifth before the next, which leaves the output's hold and the
+    /// server's turn out of it.
+    fn part(packets: &Packets, phases: &[(&str, Instant)], name: &str) -> Vec<(f64, f64)> {
+        let i = phases.iter().position(|(n, _)| *n == name).unwrap();
+        let blocks = levels(
+            packets,
+            phases[i].1 + Duration::from_millis(500),
+            phases[i + 1].1 - Duration::from_millis(200),
+        );
+        assert!(
+            blocks.len() >= 3,
+            "{name}: recorded ({} blocks)",
+            blocks.len()
+        );
+        blocks
+    }
+
+    /// The loudest tenth of a second in the left, and in the right: the tone
+    /// moves ears each second, so each part has both.
+    fn loudest(blocks: &[(f64, f64)]) -> ((f64, f64), (f64, f64)) {
+        let left = blocks.iter().copied().max_by(|a, b| a.0.total_cmp(&b.0));
+        let right = blocks.iter().copied().max_by(|a, b| a.1.total_cmp(&b.1));
+        (left.unwrap(), right.unwrap())
+    }
+
+    /// The quietest tenth of a second, both ears together: the tone is in
+    /// one ear or the other, or half in each, so it is the same in every
+    /// block until something turns it down.
+    fn quietest_both(blocks: &[(f64, f64)]) -> f64 {
+        blocks
+            .iter()
+            .map(|(l, r)| 10.0 * (10f64.powf(l / 10.0) + 10f64.powf(r / 10.0)).log10())
+            .fold(f64::MAX, f64::min)
+    }
+
     pub(super) fn check(packets: &Packets, phases: &[(&str, Instant)]) {
         let sent = dbfs(tone_frame(0).iter().step_by(2));
-        let part = |name: &str| {
-            let i = phases.iter().position(|(n, _)| *n == name).unwrap();
-            let blocks = levels(
-                packets,
-                phases[i].1 + Duration::from_millis(500),
-                phases[i + 1].1 - Duration::from_millis(200),
-            );
-            assert!(
-                blocks.len() >= 3,
-                "{name}: recorded ({} blocks)",
-                blocks.len()
-            );
-            blocks
-        };
-        // The tenth loudest in the left, and the tenth loudest in the right:
-        // the tone moves ears each second, so each part has both.
-        let loudest = |blocks: &[(f64, f64)]| {
-            let left = blocks.iter().copied().max_by(|a, b| a.0.total_cmp(&b.0));
-            let right = blocks.iter().copied().max_by(|a, b| a.1.total_cmp(&b.1));
-            (left.unwrap(), right.unwrap())
-        };
+        let part = |name: &str| part(packets, phases, name);
         let quiet = |blocks: &[(f64, f64)]| {
             blocks
                 .iter()
@@ -800,6 +943,105 @@ mod cable {
         let unwatched = quiet(&part("unwatched"));
         log::info!("sound test: unwatched: loudest {unwatched:.1} dBFS");
         assert!(unwatched < -60.0, "silent once unwatched: {unwatched:.1}");
+    }
+
+    /// The tone beside this process's own call no more than 1 dB below the
+    /// tone alone, and beside another app's turned down by more than 6 dB,
+    /// or the first proves nothing.
+    pub(super) fn check_beside_a_call(
+        packets: &Packets,
+        phases: &[(&str, Instant)],
+        ducked: bool,
+        other_ducked: bool,
+    ) {
+        let level = |name: &str| quietest_both(&part(packets, phases, name));
+        let alone = level("alone");
+        let own = level("beside its own call");
+        let other = level("beside another app's call");
+        let after = level("after");
+        log::info!(
+        "sound test: quietest alone {alone:.1} dBFS, beside its own call {own:.1} (Windows ducked: {ducked}), beside another app's {other:.1} (ducked: {other_ducked}), after {after:.1}"
+        );
+        assert!(
+            ducked,
+            "Windows turned nothing down for this process's call"
+        );
+        assert!(
+            other_ducked && other < alone - 6.0,
+        "another app's call did not turn the cable down ({other:.1} beside it, {alone:.1} alone), so the cable is out of Windows' reach and this proves nothing"
+        );
+        assert!(
+            own >= alone - 1.0,
+            "turned down beside its own call: {alone:.1} alone, {own:.1} beside it"
+        );
+        assert!(
+            after >= alone - 1.0,
+            "back up once the other call ended: {after:.1}"
+        );
+    }
+
+    /// A call's playback as Windows sees one: a stream opened on the
+    /// communications device through its role, playing silence until dropped.
+    pub(super) struct Call {
+        stop: Arc<AtomicBool>,
+        thread: Option<JoinHandle<()>>,
+    }
+
+    impl Call {
+        pub(super) fn open() -> Call {
+            let stop = Arc::new(AtomicBool::new(false));
+            let stopped = stop.clone();
+            let (started, opened) = std::sync::mpsc::channel();
+            let thread = std::thread::spawn(move || {
+                let _ = wasapi::initialize_mta().ok();
+                let device = DeviceEnumerator::new()
+                    .and_then(|e| {
+                        e.get_default_device_for_role(
+                            &Direction::Render,
+                            &wasapi::Role::Communications,
+                        )
+                    })
+                    .expect("a communications device");
+                log::info!(
+                    "sound test: the call plays silence on {}",
+                    device.get_friendlyname().unwrap_or_default()
+                );
+                let mut client = device.get_iaudioclient().expect("a client");
+                let format = WaveFormat::new(16, 16, &SampleType::Int, 48_000, 2, None);
+                let mode = StreamMode::PollingShared {
+                    autoconvert: true,
+                    buffer_duration_hns: 1_000_000,
+                };
+                client
+                    .initialize_client(&format, &Direction::Render, &mode)
+                    .expect("the call's stream opens");
+                let render = client.get_audiorenderclient().expect("a render client");
+                client.start_stream().expect("the call's stream starts");
+                let _ = started.send(());
+                while !stopped.load(Ordering::SeqCst) {
+                    let frames = client.get_available_space_in_frames().unwrap_or(0) as usize;
+                    if frames > 0 {
+                        let _ = render.write_to_device(frames, &vec![0u8; frames * 4], None);
+                    }
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+                let _ = client.stop_stream();
+            });
+            opened.recv().expect("the call's stream opens");
+            Call {
+                stop,
+                thread: Some(thread),
+            }
+        }
+    }
+
+    impl Drop for Call {
+        fn drop(&mut self) {
+            self.stop.store(true, Ordering::SeqCst);
+            if let Some(thread) = self.thread.take() {
+                let _ = thread.join();
+            }
+        }
     }
 }
 
