@@ -166,35 +166,176 @@ bool Near(const Rgb& got, const Rgb& want) {
          std::abs(got.b - want.b) <= 2;
 }
 
-// Draws a w x h picture and checks each block's centre and the texture's size.
+// Reads back what |draw| drew and checks the texture's size, each block's
+// centre, and its corners: row 0 the top, and the last row the picture's own.
+// |flipped|: the bottom blocks on top.
+void CheckDrawn(StreamDraw& draw, Reader& reader, uint32_t w, uint32_t h,
+                bool flipped, const char* what) {
+  CHECK(draw.width() == w && draw.height() == h, "%s %ux%u: size %ux%u", what,
+        w, h, draw.width(), draw.height());
+  CHECK(draw.handle() != nullptr, "%s %ux%u: no handle", what, w, h);
+  Readback back;
+  if (!reader.Read(draw.handle(), &back)) {
+    CHECK(false, "%s %ux%u: could not read the shared texture back", what, w,
+          h);
+    return;
+  }
+  CHECK(back.width == w && back.height == h, "%s %ux%u: texture is %ux%u",
+        what, w, h, back.width, back.height);
+  auto want = [&](int block) { return kWant[flipped ? block ^ 2 : block]; };
+  const uint32_t xs[2] = {w / 4, w * 3 / 4}, ys[2] = {h / 4, h * 3 / 4};
+  for (int i = 0; i < 4; i++) {
+    const Rgb got = back.At(xs[i & 1], ys[i >> 1]);
+    std::printf("  %s %ux%u block %d at (%u,%u): %d,%d,%d\n", what, w, h, i,
+                xs[i & 1], ys[i >> 1], got.r, got.g, got.b);
+    CHECK(Near(got, want(i)), "%s %ux%u block %d: %d,%d,%d, want %d,%d,%d",
+          what, w, h, i, got.r, got.g, got.b, want(i).r, want(i).g, want(i).b);
+  }
+  // Row 0 is the top: the first row is red then green, never blue then white.
+  CHECK(Near(back.At(0, 0), want(0)) && Near(back.At(w - 1, 0), want(1)),
+        "%s %ux%u: row 0 is not the top", what, w, h);
+  const Rgb last_left = back.At(0, h - 1), last_right = back.At(w - 1, h - 1);
+  CHECK(Near(last_left, want(2)) && Near(last_right, want(3)),
+        "%s %ux%u: the last row is %d,%d,%d and %d,%d,%d, not the bottom's",
+        what, w, h, last_left.r, last_left.g, last_left.b, last_right.r,
+        last_right.g, last_right.b);
+}
+
+// Draws a w x h picture from memory and checks it.
 void DrawAndCheck(StreamDraw& draw, Reader& reader, uint32_t w,
                   uint32_t h) {
   Picture picture(w, h);
   CHECK(draw.Draw(picture.Planes()), "%ux%u: Draw failed", w, h);
-  CHECK(draw.width() == w && draw.height() == h, "%ux%u: size %ux%u", w, h,
-        draw.width(), draw.height());
-  CHECK(draw.handle() != nullptr, "%ux%u: no handle", w, h);
-  Readback back;
-  if (!reader.Read(draw.handle(), &back)) {
-    CHECK(false, "%ux%u: could not read the shared texture back", w, h);
-    return;
+  CheckDrawn(draw, reader, w, h, false, "memory");
+}
+
+// ── A GPU decoder's pictures (phase B) ────────────────────────────────────
+
+// The four blocks in BT.709 full range, as a stream may say it is coded.
+Yuv Bt709Full(const Rgb& c) {
+  auto byte = [](double v) {
+    return static_cast<uint8_t>(v < 0 ? 0 : v > 255 ? 255 : v + 0.5);
+  };
+  const double y = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+  return {byte(y), byte(128 + (c.b - y) / 1.8556),
+          byte(128 + (c.r - y) / 1.5748)};
+}
+
+// As FFmpeg's d3d11va makes a decoder's surfaces: one NV12 array, coded
+// 16-line aligned (1088 lines for 1080), the decoder's and, where |readable|,
+// a shader resource too. Slices |at| and |flipped_at| hold the four blocks in
+// |blocks|, the second upside down; every other slice is magenta, and so are
+// the coded rows past the picture in all of them, which would show if they
+// were drawn or bled into the last row.
+constexpr uint32_t kSlices = 8;
+ComPtr<ID3D11Texture2D> DecoderArray(ID3D11Device* device, uint32_t w,
+                                     uint32_t h, bool readable,
+                                     const Yuv blocks[4], uint32_t at,
+                                     uint32_t flipped_at) {
+  const uint32_t coded_w = (w + 15) / 16 * 16, coded_h = (h + 15) / 16 * 16;
+  D3D11_TEXTURE2D_DESC desc = {};
+  desc.Width = coded_w;
+  desc.Height = coded_h;
+  desc.MipLevels = 1;
+  desc.ArraySize = kSlices;
+  desc.Format = DXGI_FORMAT_NV12;
+  desc.SampleDesc.Count = 1;
+  desc.Usage = D3D11_USAGE_DEFAULT;
+  desc.BindFlags =
+      D3D11_BIND_DECODER | (readable ? D3D11_BIND_SHADER_RESOURCE : 0);
+  ComPtr<ID3D11Texture2D> array;
+  if (FAILED(device->CreateTexture2D(&desc, nullptr, &array))) return nullptr;
+
+  D3D11_TEXTURE2D_DESC one = desc;
+  one.ArraySize = 1;
+  one.Usage = D3D11_USAGE_STAGING;
+  one.BindFlags = 0;
+  one.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+  ComPtr<ID3D11DeviceContext> context;
+  device->GetImmediateContext(&context);
+  const Yuv magenta = {105, 212, 234};
+  for (uint32_t slice = 0; slice < kSlices; slice++) {
+    ComPtr<ID3D11Texture2D> staging;
+    if (FAILED(device->CreateTexture2D(&one, nullptr, &staging))) return nullptr;
+    D3D11_MAPPED_SUBRESOURCE mapped;
+    if (FAILED(context->Map(staging.Get(), 0, D3D11_MAP_WRITE, 0, &mapped)))
+      return nullptr;
+    uint8_t* rows = static_cast<uint8_t*>(mapped.pData);
+    uint8_t* uv = rows + size_t(mapped.RowPitch) * coded_h;
+    auto colour = [&](uint32_t c, uint32_t r) -> const Yuv& {
+      if (r >= h || c >= w || (slice != at && slice != flipped_at))
+        return magenta;
+      return blocks[Picture::Block(c, r, w, h, slice == flipped_at)];
+    };
+    for (uint32_t r = 0; r < coded_h; r++)
+      for (uint32_t c = 0; c < coded_w; c++)
+        rows[size_t(r) * mapped.RowPitch + c] = colour(c, r).y;
+    for (uint32_t r = 0; r < coded_h / 2; r++)
+      for (uint32_t c = 0; c < coded_w / 2; c++) {
+        const Yuv& b = colour(c * 2, r * 2);
+        uv[size_t(r) * mapped.RowPitch + c * 2] = b.u;
+        uv[size_t(r) * mapped.RowPitch + c * 2 + 1] = b.v;
+      }
+    context->Unmap(staging.Get(), 0);
+    context->CopySubresourceRegion(array.Get(),
+                                   D3D11CalcSubresource(0, slice, 1), 0, 0, 0,
+                                   staging.Get(), 0, nullptr);
   }
-  CHECK(back.width == w && back.height == h, "%ux%u: texture is %ux%u", w, h,
-        back.width, back.height);
-  const uint32_t xs[2] = {w / 4, w * 3 / 4}, ys[2] = {h / 4, h * 3 / 4};
-  for (int i = 0; i < 4; i++) {
-    const Rgb got = back.At(xs[i & 1], ys[i >> 1]);
-    std::printf("  %ux%u block %d at (%u,%u): %d,%d,%d\n", w, h, i, xs[i & 1],
-                ys[i >> 1], got.r, got.g, got.b);
-    CHECK(Near(got, kWant[i]), "%ux%u block %d: %d,%d,%d, want %d,%d,%d", w, h,
-          i, got.r, got.g, got.b, kWant[i].r, kWant[i].g, kWant[i].b);
+  return array;
+}
+
+WatchPlanes Slice(ID3D11Texture2D* array, uint32_t slice, uint32_t w,
+                  uint32_t h, uint32_t matrix, uint32_t full_range) {
+  WatchPlanes p{};
+  p.width = w;
+  p.height = h;
+  p.kind = kInD3d11;
+  p.fds[0] = p.fds[1] = -1;
+  p.matrix = matrix;
+  p.full_range = full_range;
+  p.texture = array;
+  p.slice = slice;
+  return p;
+}
+
+// Slices of a decoder's array drawn where they lie (or copied first, where
+// the array is no shader resource): the right slice, the right way up, only
+// the picture's part of the coded size, and the colour the stream says.
+void DrawsDecodedSlices(ID3D11Device* device, Reader& reader, bool readable) {
+  const char* what = readable ? "slice" : "copied slice";
+  const uint32_t w = 1920, h = 1080;
+  ComPtr<ID3D11Texture2D> array =
+      DecoderArray(device, w, h, readable, kBlocks, 3, 5);
+  CHECK(array != nullptr, "%s: no decoder array", what);
+  if (!array) return;
+  StreamDraw draw(device);
+  // Slice 3, then 5 (upside down), then 3 again: each slice's own views.
+  for (uint32_t slice : {3u, 5u, 3u}) {
+    CHECK(draw.Draw(Slice(array.Get(), slice, w, h, kBt601, 0)),
+          "%s %u: Draw failed", what, slice);
+    CheckDrawn(draw, reader, w, h, slice == 5, what);
   }
-  // Row 0 is the top: the first row is red then green, never blue then white.
-  CHECK(Near(back.At(0, 0), kWant[0]) && Near(back.At(w - 1, 0), kWant[1]),
-        "%ux%u: row 0 is not the top", w, h);
-  CHECK(Near(back.At(0, h - 1), kWant[2]) &&
-            Near(back.At(w - 1, h - 1), kWant[3]),
-        "%ux%u: the last row is not the bottom", w, h);
+
+  // BT.709 in full range, as the stream says.
+  Yuv bt709[4];
+  for (int i = 0; i < 4; i++) bt709[i] = Bt709Full(kWant[i]);
+  ComPtr<ID3D11Texture2D> full =
+      DecoderArray(device, w, h, readable, bt709, 2, 6);
+  CHECK(full != nullptr, "%s: no BT.709 array", what);
+  if (full) {
+    CHECK(draw.Draw(Slice(full.Get(), 2, w, h, kBt709, 1)),
+          "%s BT.709: Draw failed", what);
+    CheckDrawn(draw, reader, w, h, false, readable ? "BT.709 slice"
+                                                   : "BT.709 copied slice");
+  }
+
+  // A slice outside the array, or a picture larger than it, is refused.
+  CHECK(!draw.Draw(Slice(array.Get(), kSlices, w, h, kBt601, 0)),
+        "%s: a slice outside the array was drawn", what);
+  CHECK(!draw.Draw(Slice(array.Get(), 3, w, 2000, kBt601, 0)),
+        "%s: a picture taller than its array was drawn", what);
+  WatchPlanes none = Slice(nullptr, 0, w, h, kBt601, 0);
+  CHECK(!draw.Draw(none), "%s: a slice of no texture was drawn", what);
 }
 
 // Two pictures in turn, each read back by the other device the moment Draw
@@ -229,6 +370,8 @@ void ReadsTheWholePictureAtOnce(StreamDraw& draw, Reader& reader) {
 }  // namespace
 
 int main(int argc, char** argv) {
+  // Every line out at once, so a crash still shows how far it got.
+  std::setvbuf(stdout, nullptr, _IONBF, 0);
   const UINT index = argc > 1 ? UINT(std::atoi(argv[1])) : 0;
   DXGI_ADAPTER_DESC1 desc{};
   if (!Adapter(index, &desc)) {
@@ -278,6 +421,15 @@ int main(int argc, char** argv) {
   CHECK(!draw.Draw(odd), "a picture of an unknown kind was drawn");
   CHECK(draw.width() == 2560 && draw.height() == 1440,
         "a refused picture changed the texture");
+
+  // A GPU decoder's pictures: in place where the GPU lets the shader read
+  // NV12, and copied either way.
+  UINT support = 0;
+  device->CheckFormatSupport(DXGI_FORMAT_NV12, &support);
+  const bool readable = (support & D3D11_FORMAT_SUPPORT_SHADER_SAMPLE) != 0;
+  std::printf("NV12 %s shader views here\n", readable ? "takes" : "takes no");
+  if (readable) DrawsDecodedSlices(device.Get(), reader, true);
+  DrawsDecodedSlices(device.Get(), reader, false);
 
   if (failures) {
     std::printf("%d failed\n", failures);

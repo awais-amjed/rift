@@ -480,13 +480,22 @@ a heavy full-screen pixel shader without vsync, so Flutter's own GPU is busy.
   slice; the copy where views cannot be made), `windows/runner/stream_texture.cpp` (`takesGpuPictures` from
   the LUID), `windows/runner/test/stream_draw_test.cpp`
 
-- [ ] **Step 1: The failing test:**
+- [x] **Step 1: The failing test:**
   - `stream_draw_test` makes an NV12 array texture as a decoder's, with `DECODER | SHADER_RESOURCE` where
     allowed, and fills slice 3 with the four blocks. It draws from slice 3 and checks the colours.
   - Then again in BT.709 full range, the matrix the stream says.
   - Then with the copy forced.
-- [ ] **Step 2: See it fail; implement; pass** on both adapters.
-- [ ] **Step 3: Commit.**
+
+  *As built:* the array is coded 1920×1088 for a 1080-line picture, with every other slice and the coded rows
+  past the picture magenta, so a wrong slice or a bleed into the last row shows. Slices 3, 5 (upside down)
+  and 3 again are drawn, each through its own views; a slice outside the array, a picture taller than it and
+  no texture are refused. The copy is forced by an array that is only the decoder's.
+- [x] **Step 2: See it fail; implement; pass** on both adapters. *Nov 4:* failed (`Draw` took only
+  `kInMemory`); then all passed on the Iris Xe and the RTX 3070 Ti, Hybrid, both NV12 shader-readable,
+  the 1440p read-at-once check still 0 of 200 wrong. `Draw` holds the device's `ID3D10Multithread` lock
+  until its flush and waits outside it, since ffdec makes that lock FFmpeg's. `takesGpuPictures` is true
+  when Flutter's adapter is adapter 0 and the device has video support.
+- [x] **Step 3: Commit.**
 
 ### Task 10: Phase B in the app
 

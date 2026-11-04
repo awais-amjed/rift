@@ -6,9 +6,12 @@
 
 #include <cstdarg>
 #include <cstdio>
+#include <cstring>
 
-// Made at build time from stream_draw_vs.hlsl and stream_draw_ps.hlsl, by
-// MSBuild's shader step (CMakeLists.txt) or by test/run.ps1.
+// Made at build time from stream_draw_vs.hlsl, stream_draw_ps.hlsl and
+// stream_draw_nv12_ps.hlsl, by MSBuild's shader step (CMakeLists.txt) or by
+// test/run.ps1.
+#include "stream_draw_nv12_ps.h"
 #include "stream_draw_ps.h"
 #include "stream_draw_vs.h"
 
@@ -142,6 +145,7 @@ ComPtr<ID3D11Device> MakeDevice(LUID luid) {
 
 StreamDraw::StreamDraw(ID3D11Device* device) : device_(device) {
   device_->GetImmediateContext(&context_);
+  device_.As(&multithread_);
 }
 
 StreamDraw::~StreamDraw() {
@@ -155,6 +159,10 @@ bool StreamDraw::Prepare() {
   if (SUCCEEDED(hr)) {
     hr = device_->CreatePixelShader(kStreamDrawPs, sizeof kStreamDrawPs,
                                     nullptr, &pixel_);
+  }
+  if (SUCCEEDED(hr)) {
+    hr = device_->CreatePixelShader(kStreamDrawNv12Ps, sizeof kStreamDrawNv12Ps,
+                                    nullptr, &pixel_nv12_);
   }
   if (SUCCEEDED(hr)) {
     D3D11_SAMPLER_DESC desc = {};
@@ -171,6 +179,13 @@ bool StreamDraw::Prepare() {
     desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
     hr = device_->CreateBuffer(&desc, nullptr, &colour_);
   }
+  if (SUCCEEDED(hr)) {
+    D3D11_BUFFER_DESC desc = {};
+    desc.ByteWidth = sizeof place_written_;
+    desc.Usage = D3D11_USAGE_DEFAULT;
+    desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    hr = device_->CreateBuffer(&desc, nullptr, &place_);
+  }
   if (FAILED(hr)) {
     StreamLog("stream texture: shaders: %08lx", hr);
     return false;
@@ -179,20 +194,13 @@ bool StreamDraw::Prepare() {
   return true;
 }
 
-// The planes and the shared texture at the picture's size, made again only
-// when it changes. The chroma planes are half the size each way, rounded up.
+// The shared texture at the picture's size, made again only when it changes.
 bool StreamDraw::Size(uint32_t width, uint32_t height) {
   if (out_ && width == width_ && height == height_) return true;
   out_.Reset();
   target_.Reset();
   handle_ = nullptr;
   width_ = height_ = 0;
-  const uint32_t cw = (width + 1) / 2, ch = (height + 1) / 2;
-  if (!Plane(device_.Get(), width, height, &planes_[0], &plane_views_[0]) ||
-      !Plane(device_.Get(), cw, ch, &planes_[1], &plane_views_[1]) ||
-      !Plane(device_.Get(), cw, ch, &planes_[2], &plane_views_[2])) {
-    return false;
-  }
   D3D11_TEXTURE2D_DESC desc = {};
   desc.Width = width;
   desc.Height = height;
@@ -203,7 +211,7 @@ bool StreamDraw::Size(uint32_t width, uint32_t height) {
   desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
   // A legacy shared handle, which ANGLE opens as a pbuffer
   // (EGL_D3D_TEXTURE_2D_SHARE_HANDLE_ANGLE). No keyed mutex, which ANGLE never
-  // takes: Draw waits for the GPU instead (Finish, STEP3_WINDOWS.md).
+  // takes: Draw waits for the GPU instead (Submit and Wait, STEP3_WINDOWS.md).
   desc.MiscFlags = D3D11_RESOURCE_MISC_SHARED;
   ComPtr<ID3D11Texture2D> out;
   HRESULT hr = device_->CreateTexture2D(&desc, nullptr, &out);
@@ -233,53 +241,203 @@ void StreamDraw::SetColour(uint32_t matrix, uint32_t full_range) {
 }
 
 bool StreamDraw::Draw(const WatchPlanes& p) {
-  if (p.kind != kInMemory || p.width == 0 || p.height == 0 || !p.y || !p.u ||
-      !p.v) {
-    return false;
-  }
+  if (p.width == 0 || p.height == 0) return false;
+  if (p.kind == kInMemory && (!p.y || !p.u || !p.v)) return false;
+  if (p.kind == kInD3d11 && !p.texture) return false;
+  if (p.kind != kInMemory && p.kind != kInD3d11) return false;
   if (device_->GetDeviceRemovedReason() != S_OK) return false;
-  if (!Prepare() || !Size(p.width, p.height)) return false;
+  // Held through everything the draw puts on the immediate context, and let
+  // go before the wait: the decoder's FFmpeg takes the same lock for its own
+  // calls on the decode thread.
+  if (multithread_) multithread_->Enter();
+  bool drawn = Prepare() && Size(p.width, p.height) &&
+               (p.kind == kInMemory ? Upload(p) : Slice(p)) && Submit();
+  if (multithread_) multithread_->Leave();
+  if (!drawn || !Wait()) return false;
+  return device_->GetDeviceRemovedReason() == S_OK;
+}
 
+// libwebrtc's I420, uploaded into three planes of the picture's size, the
+// chroma planes half the size each way, rounded up; made again only when the
+// size changes.
+bool StreamDraw::Upload(const WatchPlanes& p) {
+  D3D11_TEXTURE2D_DESC desc = {};
+  if (planes_[0]) planes_[0]->GetDesc(&desc);
+  if (!planes_[0] || desc.Width != p.width || desc.Height != p.height) {
+    const uint32_t cw = (p.width + 1) / 2, ch = (p.height + 1) / 2;
+    if (!Plane(device_.Get(), p.width, p.height, &planes_[0], &plane_views_[0]) ||
+        !Plane(device_.Get(), cw, ch, &planes_[1], &plane_views_[1]) ||
+        !Plane(device_.Get(), cw, ch, &planes_[2], &plane_views_[2])) {
+      planes_[0].Reset();
+      return false;
+    }
+  }
   context_->UpdateSubresource(planes_[0].Get(), 0, nullptr, p.y, p.stride_y, 0);
   context_->UpdateSubresource(planes_[1].Get(), 0, nullptr, p.u, p.stride_u, 0);
   context_->UpdateSubresource(planes_[2].Get(), 0, nullptr, p.v, p.stride_v, 0);
   SetColour(p.matrix, p.full_range);
+  ID3D11ShaderResourceView* views[3] = {plane_views_[0].Get(),
+                                        plane_views_[1].Get(),
+                                        plane_views_[2].Get()};
+  Run(pixel_.Get(), views, 3);
+  return true;
+}
 
+// A GPU decoder's picture: one slice of its NV12 array, on this device,
+// sampled where it lies through views cached per slice, or copied into a
+// texture of ours first where the array is no shader resource (Moonlight's
+// d3d11va.cpp does the same).
+bool StreamDraw::Slice(const WatchPlanes& p) {
+  auto* texture = static_cast<ID3D11Texture2D*>(p.texture);
+  if (texture != source_.Get() && !Source(texture)) return false;
+  if (p.slice >= source_desc_.ArraySize || p.width > source_desc_.Width ||
+      p.height > source_desc_.Height) {
+    return false;
+  }
+  SliceViews* views = &copy_views_;
+  if (source_readable_) {
+    if (slice_views_.size() < source_desc_.ArraySize) {
+      slice_views_.resize(source_desc_.ArraySize);
+    }
+    views = &slice_views_[p.slice];
+    if (!views->y && !Views(texture, p.slice, views)) {
+      // Views the GPU would not make after all: copied from here on.
+      StreamLog("stream texture: no views of the decoder's slices; each "
+                "picture is copied");
+      source_readable_ = false;
+      slice_views_.clear();
+      views = &copy_views_;
+    }
+  }
+  if (!source_readable_) {
+    if (!copy_) {
+      D3D11_TEXTURE2D_DESC desc = source_desc_;
+      desc.ArraySize = 1;
+      desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+      desc.MiscFlags = 0;
+      desc.CPUAccessFlags = 0;
+      desc.Usage = D3D11_USAGE_DEFAULT;
+      const HRESULT hr = device_->CreateTexture2D(&desc, nullptr, &copy_);
+      if (FAILED(hr)) {
+        StreamLog("stream texture: no NV12 texture to copy into: %08lx", hr);
+        return false;
+      }
+      if (!Views(copy_.Get(), 0, &copy_views_)) {
+        copy_.Reset();
+        return false;
+      }
+    }
+    context_->CopySubresourceRegion(copy_.Get(), 0, 0, 0, 0, texture,
+                                    D3D11CalcSubresource(0, p.slice, 1),
+                                    nullptr);
+  }
+  SetColour(p.matrix, p.full_range);
+  SetPlace(p);
+  ID3D11ShaderResourceView* bound[2] = {views->y.Get(), views->uv.Get()};
+  Run(pixel_nv12_.Get(), bound, 2);
+  return true;
+}
+
+// A new decoder's array: checked to be NV12 on this device, and the views
+// and copy kept for the last one let go.
+bool StreamDraw::Source(ID3D11Texture2D* texture) {
+  source_.Reset();
+  slice_views_.clear();
+  copy_.Reset();
+  copy_views_ = {};
+  ComPtr<ID3D11Device> owner;
+  texture->GetDevice(&owner);
+  if (owner.Get() != device_.Get()) {
+    StreamLog("stream texture: a decoded picture from another device");
+    return false;
+  }
+  texture->GetDesc(&source_desc_);
+  if (source_desc_.Format != DXGI_FORMAT_NV12) {
+    StreamLog("stream texture: a decoded picture in format %d, not NV12",
+              int(source_desc_.Format));
+    return false;
+  }
+  source_readable_ =
+      (source_desc_.BindFlags & D3D11_BIND_SHADER_RESOURCE) != 0;
+  if (!source_readable_) {
+    StreamLog("stream texture: the decoder's surfaces are no shader "
+              "resources; each picture is copied");
+  }
+  source_ = texture;
+  return true;
+}
+
+bool StreamDraw::Views(ID3D11Texture2D* texture, uint32_t slice,
+                       SliceViews* views) {
+  D3D11_SHADER_RESOURCE_VIEW_DESC desc = {};
+  desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
+  desc.Texture2DArray.MostDetailedMip = 0;
+  desc.Texture2DArray.MipLevels = 1;
+  desc.Texture2DArray.FirstArraySlice = slice;
+  desc.Texture2DArray.ArraySize = 1;
+  desc.Format = DXGI_FORMAT_R8_UNORM;
+  HRESULT hr = device_->CreateShaderResourceView(texture, &desc, &views->y);
+  if (SUCCEEDED(hr)) {
+    desc.Format = DXGI_FORMAT_R8G8_UNORM;
+    hr = device_->CreateShaderResourceView(texture, &desc, &views->uv);
+  }
+  if (FAILED(hr)) {
+    StreamLog("stream texture: views of slice %u: %08lx", slice, hr);
+    *views = {};
+    return false;
+  }
+  return true;
+}
+
+// The picture's part of the coded slice, for the NV12 shader's Place.
+void StreamDraw::SetPlace(const WatchPlanes& p) {
+  const float coded_w = float(source_desc_.Width);
+  const float coded_h = float(source_desc_.Height);
+  const float chroma_w = float((p.width + 1) / 2);
+  const float chroma_h = float((p.height + 1) / 2);
+  const float place[4] = {
+      float(p.width) / coded_w, float(p.height) / coded_h,
+      (chroma_w - 0.5f) / (coded_w / 2), (chroma_h - 0.5f) / (coded_h / 2)};
+  if (std::memcmp(place, place_written_, sizeof place) == 0) return;
+  context_->UpdateSubresource(place_.Get(), 0, nullptr, place, 0, 0);
+  std::memcpy(place_written_, place, sizeof place);
+}
+
+// One triangle over the shared texture through |pixel|, reading |views|.
+void StreamDraw::Run(ID3D11PixelShader* pixel,
+                     ID3D11ShaderResourceView* const* views, UINT count) {
   ID3D11RenderTargetView* target = target_.Get();
   context_->OMSetRenderTargets(1, &target, nullptr);
   context_->OMSetBlendState(nullptr, nullptr, 0xffffffff);
   context_->OMSetDepthStencilState(nullptr, 0);
   context_->RSSetState(nullptr);
-  const D3D11_VIEWPORT viewport = {0, 0, float(p.width), float(p.height), 0, 1};
+  const D3D11_VIEWPORT viewport = {0, 0, float(width_), float(height_), 0, 1};
   context_->RSSetViewports(1, &viewport);
   context_->IASetInputLayout(nullptr);
   context_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
   context_->VSSetShader(vertex_.Get(), nullptr, 0);
-  context_->PSSetShader(pixel_.Get(), nullptr, 0);
-  ID3D11ShaderResourceView* views[3] = {plane_views_[0].Get(),
-                                        plane_views_[1].Get(),
-                                        plane_views_[2].Get()};
-  context_->PSSetShaderResources(0, 3, views);
+  context_->PSSetShader(pixel, nullptr, 0);
+  context_->PSSetShaderResources(0, count, views);
   ID3D11SamplerState* sampler = sampler_.Get();
   context_->PSSetSamplers(0, 1, &sampler);
-  ID3D11Buffer* colour = colour_.Get();
-  context_->PSSetConstantBuffers(0, 1, &colour);
+  ID3D11Buffer* buffers[2] = {colour_.Get(), place_.Get()};
+  context_->PSSetConstantBuffers(0, 2, buffers);
   context_->Draw(3, 0);
-  // Out of the pipeline again, so nothing of ours stays bound between draws.
+  // Out of the pipeline again, so nothing of ours stays bound between draws:
+  // a decoder's slice bound here would still be read by the next draw.
   ID3D11ShaderResourceView* none[3] = {};
   context_->PSSetShaderResources(0, 3, none);
   context_->OMSetRenderTargets(0, nullptr, nullptr);
-  if (!Finish()) return false;
-  return device_->GetDeviceRemovedReason() == S_OK;
 }
 
-// Flushes and waits for the GPU to finish the draw. ANGLE reads the texture on
-// its own device, and a flush alone does not order that read after the draw:
-// read back at once from a second device, the RTX gave 198 half-drawn 1440p
-// pictures in 200 and the Iris Xe 1; waiting first, none (STEP3_WINDOWS.md,
-// A read at once does tear). A fence with an event lets the thread sleep through the
-// wait; without one (Windows 10 before 1703) an event query is polled.
-bool StreamDraw::Finish() {
+// Flushes the draw with a way to wait for it, and Wait waits. ANGLE reads the
+// texture on its own device, and a flush alone does not order that read after
+// the draw: read back at once from a second device, the RTX gave 198
+// half-drawn 1440p pictures in 200 and the Iris Xe 1; waiting first, none
+// (STEP3_WINDOWS.md, A read at once does tear). A fence with an event lets
+// the thread sleep through the wait; without one (Windows 10 before 1703) an
+// event query is polled.
+bool StreamDraw::Submit() {
   if (!fence_ && !query_) {
     ComPtr<ID3D11Device5> device5;
     if (SUCCEEDED(device_.As(&device5)) && SUCCEEDED(context_.As(&context4_)) &&
@@ -301,12 +459,18 @@ bool StreamDraw::Finish() {
     const uint64_t value = ++fenced_;
     context4_->Signal(fence_.Get(), value);
     context_->Flush();
-    if (FAILED(fence_->SetEventOnCompletion(value, done_))) return false;
-    // A removed device never signals: give up after a second.
-    return WaitForSingleObject(done_, 1000) == WAIT_OBJECT_0;
+    return SUCCEEDED(fence_->SetEventOnCompletion(value, done_));
   }
   context_->End(query_.Get());
   context_->Flush();
+  return true;
+}
+
+bool StreamDraw::Wait() {
+  if (fence_) {
+    // A removed device never signals: give up after a second.
+    return WaitForSingleObject(done_, 1000) == WAIT_OBJECT_0;
+  }
   const ULONGLONG give_up = GetTickCount64() + 1000;
   for (;;) {
     const HRESULT hr = context_->GetData(query_.Get(), nullptr, 0, 0);

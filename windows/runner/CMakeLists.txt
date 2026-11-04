@@ -16,6 +16,7 @@ add_executable(${BINARY_NAME} WIN32
   "stream_draw.cpp"
   "stream_draw_vs.hlsl"
   "stream_draw_ps.hlsl"
+  "stream_draw_nv12_ps.hlsl"
   "stream_texture.cpp"
   "tray_icon.cpp"
   "utils.cpp"
@@ -59,7 +60,11 @@ set_source_files_properties("stream_draw_vs.hlsl" PROPERTIES
 set_source_files_properties("stream_draw_ps.hlsl" PROPERTIES
   VS_SHADER_TYPE Pixel
   VS_SHADER_VARIABLE_NAME kStreamDrawPs)
+set_source_files_properties("stream_draw_nv12_ps.hlsl" PROPERTIES
+  VS_SHADER_TYPE Pixel
+  VS_SHADER_VARIABLE_NAME kStreamDrawNv12Ps)
 set_source_files_properties("stream_draw_vs.hlsl" "stream_draw_ps.hlsl"
+  "stream_draw_nv12_ps.hlsl"
   PROPERTIES
   VS_SHADER_MODEL 5.0
   VS_SHADER_ENTRYPOINT main

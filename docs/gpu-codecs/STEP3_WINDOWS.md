@@ -219,7 +219,9 @@ How:
 
 - **The device.** The runner makes its device with video support and multithread
   protection (`ID3D10Multithread`), since the decode thread and the raster thread both
-  use it. **Rust asks the runner for it**, and it never passes through Dart. The runner
+  use it. That lock is also FFmpeg's (ffdec sets it as the device context's), and the
+  runner holds it through each draw up to its flush, so neither side's sequence of
+  calls on the immediate context is cut into by the other's. **Rust asks the runner for it**, and it never passes through Dart. The runner
   exe exports `rift_stream_d3d11_device()`, which returns the device with a reference
   added, or null when there is none or it was lost. Rust finds it with
   `GetProcAddress` on the exe when it opens a decoder, and hands it to ffdec. The

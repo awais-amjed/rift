@@ -34,6 +34,10 @@ struct Gpu {
   ComPtr<ID3D11Texture2D> black;
   HANDLE black_handle = nullptr;
   std::atomic<bool> lost{false};
+  // Rust decodes on the GPU on adapter 0 (rust/src/watching/decode/
+  // windows.rs), and on this device: it can draw those pictures only when
+  // this is that adapter, with a video device.
+  bool takes_gpu_pictures = false;
 };
 
 // One watched share's texture. Made on the platform thread; drawn, and freed,
@@ -105,6 +109,29 @@ void MakeBlack(Gpu* gpu) {
   }
 }
 
+// Whether |device|, on the adapter with |luid|, can draw what Rust decodes on
+// the GPU: Rust chose adapter 0, the one Flutter takes when Rift names no GPU,
+// and decodes on this device, which needs video support for that.
+bool TakesGpuPictures(ID3D11Device* device, LUID luid) {
+  ComPtr<IDXGIFactory1> factory;
+  ComPtr<IDXGIAdapter1> first;
+  DXGI_ADAPTER_DESC1 desc = {};
+  if (FAILED(CreateDXGIFactory1(IID_PPV_ARGS(&factory))) ||
+      factory->EnumAdapters1(0, &first) != S_OK ||
+      FAILED(first->GetDesc1(&desc))) {
+    return false;
+  }
+  if (desc.AdapterLuid.LowPart != luid.LowPart ||
+      desc.AdapterLuid.HighPart != luid.HighPart) {
+    StreamLog("stream texture: Flutter draws on another adapter than %ls; "
+              "shares are decoded the call's way",
+              desc.Description);
+    return false;
+  }
+  ComPtr<ID3D11VideoDevice> video;
+  return SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&video)));
+}
+
 // The device new textures are made on: the one there is, or a new one on
 // the adapter Flutter draws with, matched by LUID. Null when none can be
 // made; the share is then watched through the call. Platform thread.
@@ -130,6 +157,7 @@ std::shared_ptr<Gpu> Device() {
   gpu->device = MakeDevice(desc.AdapterLuid);
   if (!gpu->device) return nullptr;
   MakeBlack(gpu.get());
+  gpu->takes_gpu_pictures = TakesGpuPictures(gpu->device.Get(), desc.AdapterLuid);
   std::lock_guard<std::mutex> hold(live_mutex);
   current = gpu;
   return gpu;
@@ -264,9 +292,8 @@ void Create(const flutter::EncodableMap& args, Result result) {
       {flutter::EncodableValue("mark"),
        flutter::EncodableValue(static_cast<int64_t>(
            reinterpret_cast<intptr_t>(&rift_stream_texture_mark)))},
-      // Phase A: Rust decodes on the CPU (the plan's Task 9 changes this).
       {flutter::EncodableValue("takesGpuPictures"),
-       flutter::EncodableValue(false)},
+       flutter::EncodableValue(gpu->takes_gpu_pictures)},
   }));
 }
 

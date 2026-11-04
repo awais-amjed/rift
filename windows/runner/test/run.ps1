@@ -21,6 +21,7 @@ $build = @(
   "call `"$vcvars`" >nul",
   "fxc /nologo /T vs_5_0 /E main /Vn kStreamDrawVs /Fh `"$out\stream_draw_vs.h`" `"$runner\stream_draw_vs.hlsl`" >nul",
   "fxc /nologo /T ps_5_0 /E main /Vn kStreamDrawPs /Fh `"$out\stream_draw_ps.h`" `"$runner\stream_draw_ps.hlsl`" >nul",
+  "fxc /nologo /T ps_5_0 /E main /Vn kStreamDrawNv12Ps /Fh `"$out\stream_draw_nv12_ps.h`" `"$runner\stream_draw_nv12_ps.hlsl`" >nul",
   "cl /nologo /std:c++17 /EHsc /W4 /WX /O2 /DNOMINMAX /I`"$runner`" /I`"$out`" /Fo`"$out\\`" /Fe`"$out\stream_draw_test.exe`" `"$runner\test\stream_draw_test.cpp`" `"$runner\stream_draw.cpp`" d3d11.lib dxgi.lib"
 ) -join ' && '
 cmd /c $build

@@ -6,11 +6,14 @@
 // ANGLE opens by its handle (docs/gpu-codecs/STEP3_WINDOWS.md). No Flutter here, so
 // test/stream_draw_test.cpp can drive it alone.
 
+// d3d10.h after d3d11_4.h, which brings in d3d10_1.h that must come first.
 #include <d3d11_4.h>
+#include <d3d10.h>
 #include <windows.h>
 #include <wrl/client.h>
 
 #include <cstdint>
+#include <vector>
 
 // rust/src/watching/frames.rs, `WatchPlanes`: the same fields in the same
 // order, `#[repr(C)]` there. linux/runner/stream_texture.cc has them too.
@@ -67,10 +70,14 @@ class StreamDraw {
   StreamDraw(const StreamDraw&) = delete;
   StreamDraw& operator=(const StreamDraw&) = delete;
 
-  // Draws |planes| (kInMemory) and waits for the GPU to finish it, so another
-  // device (ANGLE's) reads the whole picture. False when it could not: a
-  // picture it does not take, or the device removed. The last picture drawn
-  // stays.
+  // Draws |planes| and waits for the GPU to finish it, so another device
+  // (ANGLE's) reads the whole picture. kInMemory is uploaded first; kInD3d11,
+  // a slice of a GPU decoder's array on this device, is drawn where it lies,
+  // or copied first where the array is no shader resource. Under the device's
+  // multithread lock, which the decoder's FFmpeg takes too, so neither uses
+  // the immediate context while the other is part way through. False when it
+  // could not: a picture it does not take, or the device removed. The last
+  // picture drawn stays.
   bool Draw(const WatchPlanes& planes);
   // The texture's DXGI shared handle, null before the first picture. A new
   // size makes a new texture, and so a new handle.
@@ -79,19 +86,45 @@ class StreamDraw {
   uint32_t height() const { return height_; }
 
  private:
+  // NV12's two views of one slice: Y as R8, interleaved UV as R8G8.
+  struct SliceViews {
+    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> y, uv;
+  };
+
   bool Prepare();
   bool Size(uint32_t width, uint32_t height);
   void SetColour(uint32_t matrix, uint32_t full_range);
-  bool Finish();
+  bool Upload(const WatchPlanes& planes);
+  bool Slice(const WatchPlanes& planes);
+  bool Source(ID3D11Texture2D* texture);
+  bool Views(ID3D11Texture2D* texture, uint32_t slice, SliceViews* views);
+  void SetPlace(const WatchPlanes& planes);
+  void Run(ID3D11PixelShader* pixel, ID3D11ShaderResourceView* const* views,
+           UINT count);
+  bool Submit();
+  bool Wait();
 
   Microsoft::WRL::ComPtr<ID3D11Device> device_;
   Microsoft::WRL::ComPtr<ID3D11DeviceContext> context_;
+  Microsoft::WRL::ComPtr<ID3D10Multithread> multithread_;
   Microsoft::WRL::ComPtr<ID3D11VertexShader> vertex_;
   Microsoft::WRL::ComPtr<ID3D11PixelShader> pixel_;
+  Microsoft::WRL::ComPtr<ID3D11PixelShader> pixel_nv12_;
   Microsoft::WRL::ComPtr<ID3D11SamplerState> sampler_;
   Microsoft::WRL::ComPtr<ID3D11Buffer> colour_;
+  Microsoft::WRL::ComPtr<ID3D11Buffer> place_;
   Microsoft::WRL::ComPtr<ID3D11Texture2D> planes_[3];
   Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> plane_views_[3];
+  // The decoder's array the slice views below are of, held so its address
+  // cannot name another array while they are kept; let go for the next
+  // array. Copied into |copy_| first when it is no shader resource.
+  Microsoft::WRL::ComPtr<ID3D11Texture2D> source_;
+  D3D11_TEXTURE2D_DESC source_desc_ = {};
+  bool source_readable_ = false;
+  std::vector<SliceViews> slice_views_;
+  Microsoft::WRL::ComPtr<ID3D11Texture2D> copy_;
+  SliceViews copy_views_;
+  float place_written_[4] = {};
   Microsoft::WRL::ComPtr<ID3D11Texture2D> out_;
   Microsoft::WRL::ComPtr<ID3D11RenderTargetView> target_;
   // Waiting for a draw: a fence and its event, or an event query where there
