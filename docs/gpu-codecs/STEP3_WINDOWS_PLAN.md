@@ -126,16 +126,17 @@ The probe (`STEP3_WINDOWS.md`, *Probe evidence*) is the texture route with nothi
 scratch tool outside the repository. The load program is scratch too: one D3D11 window on adapter 0 drawing
 a heavy full-screen pixel shader without vsync, so Flutter's own GPU is busy.
 
-- [ ] **Step 1: Hybrid, the case people meet.** CS2 running in a match against bots, uncapped, on the RTX,
-  the way Hybrid runs it. The probe and `tear.ps1`, 300 grabs. The rows agree in every grab. Record the
-  probe's draw times and CS2's frame rate.
-- [ ] **Step 2: Hybrid, the worst case.** The load program on the Iris Xe, which is Flutter's adapter. Same
+- [x] **Step 1: Hybrid, the case people meet.** CS2 running in a match against bots, at the owner's settings,
+  on the RTX, the way Hybrid runs it. The probe and `tear.ps1`, 600 grabs. The rows agree in every grab.
+  Record the probe's draw times and CS2's share of the RTX (its frame rate needs PresentMon, the owner's
+  admin step, and isn't needed for a tear check).
+- [x] **Step 2: Hybrid, the worst case.** The load program on the Iris Xe, which is Flutter's adapter. Same
   check, 300 grabs.
-- [ ] **Step 3: If anything tears,** add the wait to the probe (an event query after `Flush`, polled until
+- [x] **Step 3 (not needed: nothing tore, Nov 4): If anything tears,** add the wait to the probe (an event query after `Flush`, polled until
   done) and run Steps 1–2 again. Record how long it waits at p50 and p99. The design then says the runner
   waits, and Task 1's interface says so.
 - [ ] **Step 4: Discrete** comes at the owner's first Discrete boot, before phase B starts (Task 6, Step 7).
-- [ ] **Step 5: Commit** the result in `STEP3_WINDOWS.md` (*Probe evidence*), with the mode, the load and
+- [x] **Step 5: Commit** the result in `STEP3_WINDOWS.md` (*Probe evidence*), with the mode, the load and
   the counts.
 
 ### Task 1: The runner's drawing, tested alone

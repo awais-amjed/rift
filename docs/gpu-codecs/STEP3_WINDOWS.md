@@ -76,12 +76,24 @@ by LUID.
   A ring of three textures cost 0.56 ms on average, but 5.9 ms at p99.
 - **No tearing:** in 300 screen grabs, the bar never sat at different columns at the
   top and the bottom of the picture.
-- **Not yet tried:** the tearing check with the GPU under load, or in Discrete. The
-  whole route rests on the GPU finishing the runner's draw before ANGLE reads the
-  texture, with only the `Flush` between them. So this check comes before anything is
-  built on the route (the plan's Task 0). If it tears, the runner waits for its own draw
-  before answering the descriptor: an event query after the `Flush`, polled on the
-  raster thread. That wait's cost is then measured.
+- **No tearing under load either (Hybrid, Nov 4).** The whole route rests on the GPU
+  finishing the runner's draw before ANGLE reads the texture, with only the `Flush`
+  between them. So this was checked before anything was built on it (the plan's Task 0):
+  - **CS2 behind the probe:** a match against bots on dust2, the owner's settings (cap
+    400), on the RTX at 59–70% of its 3D engine while the probe was in front. 0 of 600
+    grabs torn. Per block of 600 pictures, the draw took 0.48–0.52 ms at p50 and
+    0.97–1.13 ms at p99; the longest was 31 ms, once, in the first block.
+  - **The worst case, a load on Flutter's own GPU:** a scratch program keeping the Iris
+    Xe's 3D engine busy with back-to-back 10–13 ms draws. 0 of 600 grabs torn. The draw
+    took 0.38–0.39 ms at p50 and 0.62–0.79 ms at p99; the longest were 15 ms and 32 ms,
+    once each, in two of the three blocks.
+  - **The check can see a tear:** with every fourth picture torn on purpose (its bar 400
+    columns apart in the bottom half), it found 68 of 300 grabs torn.
+
+  So the runner does not wait for its draw. If a later check tears (Discrete, or the
+  decoder's pictures), the fix is that wait: an event query after the `Flush`, polled on
+  the raster thread, and its cost measured.
+- **Not yet tried:** Discrete, which comes before phase B (the plan's Task 6).
 
 ### Which adapter, on a hybrid
 
@@ -248,8 +260,8 @@ Every number says which BIOS mode it came from. Hybrid first, then Discrete.
    and `test_windows.sh`: the four colours back at 1920×1080 from H264 and VP9,
    decoded on a device made the runner's way and drawn by the runner's shader.
 3. **The probe under load, first:** the tearing check with CS2 running, and with a load
-   program on Flutter's own GPU. Hybrid before anything is built; Discrete before phase
-   B. Then again with the decoder's pictures, in both modes.
+   program on Flutter's own GPU. Hybrid before anything is built (passed Nov 4, above);
+   Discrete before phase B. Then again with the decoder's pictures, in both modes.
 4. **The app** (owner by hand, release build; two clients with their own
    `RIFT_PROFILE`s against the Docker stack, handoff §5):
    - H264 and VP9 at 1080p60, a window share and a whole-screen share;
@@ -275,7 +287,8 @@ Every number says which BIOS mode it came from. Hybrid first, then Discrete.
 
 ## What is not known yet
 
-- Tearing with the GPU busy: the probe was idle.
+- Tearing in Discrete, where the game and Flutter share the RTX (Hybrid passed under
+  load, Nov 4).
 - Whether Windows ducks a stream in the same process as the call's.
 - The shader step on GitHub's `windows-latest`, until the first release run after it.
 - Whether every driver makes shader views of decoder surfaces. Moonlight's check and
