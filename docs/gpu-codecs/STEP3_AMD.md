@@ -16,6 +16,10 @@ any case. VP8, which AMD's VCN cannot decode, fell back to the call's connection
 designed. One test change came of it (*Found*, 1). The 5120x1440 whole-screen share was not
 run (*Not run*).
 
+The same on Windows, Nov 5 (*On Windows*, below): D3D11 on the 9070 XT, the decoder's surfaces
+read by the shader where they lie, no tearing with CS2 in front, 0.13 ms added to a game frame
+through Rust against 0.34 ms through the call.
+
 ## The machine
 
 | | |
@@ -208,3 +212,125 @@ these cannot show a cost (the owner's call). The other capped rounds were not ru
 - **Freezes over 50 ms** in the stream were not measured, only judged by eye: none seen.
   Nothing here records the gaps between pictures without a change to the code.
 - **AV1 and HEVC,** which the GPU decodes but Rift does not send.
+
+## On Windows
+
+Nov 5 2026, the same desktop under Windows 11 (build 26200), branch `gpu-codecs` at `ea10ee52`:
+the Windows design (`STEP3_WINDOWS.md`), built and proven on the laptop's Iris Xe and RTX 3070 Ti
+on Nov 4, run on AMD. Driver 32.0.31041.1004. The Ryzen's iGPU shows in Device Manager with an
+error and DXGI does not list it, so the 9070 XT is adapter 0 and the only GPU; a PC where both
+work is not tested. The sharer was Dave on the laptop, on its local stack with the watch
+functions; the watcher a test client (`RIFT_PROFILE`), release build, on the desktop.
+
+**Verdict: it works on AMD on Windows, with no tearing and less cost than the call's path.** H264
+and VP9 decoded on the 9070 XT through D3D11, on the runner's own device, every time the log was
+read; VP8 fell back to the call by name. Watching through Rust while CS2 ran uncapped added
+0.13 ms to a game frame, the call's path 0.34 ms, and the stream held 60 a second with no freeze
+over 50 ms on either path.
+
+### The decoder and the views
+
+- **Decoder profiles** (D3D11 video device on the 9070 XT, listed by a scratch probe): H264,
+  HEVC Main and Main10, VP9 Profile 0 and 2, AV1 Profile 0, all to NV12, and others not named.
+  **No VP8**, as on Linux.
+- **The views:** the 9070 XT makes shader views of decoder surfaces (`CheckFormatSupport`), so
+  the runner reads the decoder's slices **directly**; the copy is not taken. Both were checked.
+- **`windows/runner/test/run.ps1`** on adapter 0, the 9070 XT: the four colours right from memory
+  pictures at three sizes, 0 of 200 read wrong at once after the draw, and NV12 slices right
+  direct and copied, BT.601 and BT.709. Adapter 1, Microsoft's software renderer, has no video
+  support and fails the slice checks, as it must.
+- **`native/ffenc/test_ffdec_windows.sh`:** H264 from `h264_amf` 30 of 30 decoded on the 9070 XT
+  through D3D11, VP9 8 and 8, the matrix and range as each stream says; the colours right.
+- **`cargo test --release`:** passed.
+
+### The live tests
+
+Against a local `livekit-server --dev` 1.13.7 on the desktop:
+
+| Test | Outcome |
+|---|---|
+| `live_watch_` | passed, 2 tests |
+| `live_gpu_watch` | passed. VP8 lacking in the driver, lost with `the GPU cannot decode this Vp8`; VP9 90 pictures in 3 s, H264 89, at 640x360, on the 9070 XT through D3D11 |
+| `live_watched_sound` | not run: no VB-Cable on this PC |
+
+### In the app
+
+The owner drove both clients. Dave shared ffplay's `testsrc2` at 1920x1080, 60 a second, or a
+white bar moving on black for the tear check.
+
+- **Every watch through Rust** logged the runner's device on the 9070 XT and `decoding H264` or
+  `Vp9 on AMD Radeon RX 9070 XT, through D3D11`; at start, `shares decode on the GPU (AMD
+  Radeon RX 9070 XT, through D3D11)`.
+- **H264:** a window at 1920x1048 and 1920x1010, the whole screen at 1920x1080, about 13 Mbps.
+  **VP9:** a window at 1920x1008, the whole screen at 1920x1080, about 10 Mbps. 60 a second on
+  the stats card for both. The owner saw the right colours and clean edges, with no green or pink
+  frames.
+- **Resizing** the shared window: the picture followed. The log kept one size per share, as on
+  Linux.
+- **Minimising and restoring:** pictures off, and on 1.7 s later. Minimising logged a few
+  `received a decoded frame` warnings, as on the laptop.
+- **Stop watching and Watch again** (four times): a new watch connection each time.
+- **Leaving and Watch from the sidebar:** the watch connection 0.1 s after joining, and the
+  picture.
+- **From the watch connection to the first picture:** 0.41–1.06 s through Rust, over seven
+  watches. Through the call, from the cover going up to the picture: 0.65–1.35 s. The owner saw
+  under a second each time through Rust.
+- **VP8:** `the GPU cannot decode this Vp8`, and the call's connection showed it 1.28 s after the
+  cover went up. The call stayed there until the next call, as designed.
+- **The sound** played by Rust on the chosen output (a SteelSeries Sonar device); the stream's
+  volume, mute and deafen worked to the owner's ear. Not measured.
+- **Quit from the tray** while watching through Rust: the watch connection closed and the
+  process exited.
+- **Device loss,** faked in a debug build (`RIFT_STREAM_TEXTURE_FAIL_AFTER=300`), H264 decoded
+  on the GPU: the runner lost its device at picture 301 (`887a0005`), and the call's connection
+  took the share 15 ms later; its picture shown 672 ms after the cover went up. The owner saw the
+  tile keep moving. No real reset was run.
+- **The server** minted the watch connection every time.
+
+### The cost
+
+The watcher's whole process, CPU time over 3 × 20 s per case, release build; Dave sharing the
+whole 1920x1080 screen of `testsrc2`, the watcher's stream large with the stats open:
+
+| Watcher, whole process | Through Rust (D3D11) | Rust, CPU decode | Through the call |
+|---|---|---|---|
+| H264, 60 a second, about 13 Mbps | **77–80%** of a core | 93–99% | 94–109% |
+| VP9, 60 a second, about 10 Mbps | **72–76%** | 100–106% | 102–113% |
+
+The laptop's Iris Xe: 70–76% and 71–76% through Rust (`CALLS.md`). Not broken down by thread.
+
+### Tearing and the game
+
+CS2 in a window on the right half of the 5120x1440 screen, the watcher's window on the left
+(2574x1447), so a game covering Rift does not turn the pictures off. An offline map with no
+bots, standing still at one spot (`setpos`), the owner's settings, uncapped; CS2 in front in every
+round. Dave shared the moving bar as H264 1080p60.
+
+- **The tear check** (a scratch script outside the repository, from Task 11's description): 600
+  grabs of the watcher's tile with CS2 in front, the bar's column 12% from the top and 12% from
+  the bottom compared. Through Rust **0 of 600 torn** (the halves 0 px apart at worst), through
+  the call 0 of 600 (6 px at worst, against a limit of half a picture's move, 9 px). A grab with
+  its bottom half moved on purpose was found torn.
+- **The stream while the game ran:** a strip across the tile's middle grabbed 240 times a second
+  for 60 s, CS2 in front: through Rust the bar moved 60.0 times a second, its longest hold
+  29.7 ms; through the call 60.0, 29.6 ms. **No freeze over 50 ms** on either path.
+- **The game:** 3 × 60 s of PresentMon per case. The start of a round, where CS2 was still in
+  the background (about 44 fps), is cut: the first round of each case keeps 57.4–57.8 s.
+
+| CS2, uncapped | Mean frame | Fps | p99 | Worst | Over 16.7 ms |
+|---|---|---|---|---|---|
+| Not watching | 1.627–1.629 ms | 614–615 | 3.33–3.35 ms | 8.2–8.5 ms | 0 |
+| Through Rust (D3D11) | 1.744–1.768 ms | 566–573 | 3.57–3.59 ms | 8.9–12.3 ms | 0 |
+| Through the call | 1.953–1.981 ms | 505–512 | 3.74–3.77 ms | 8.5–14.8 ms | 0 |
+
+Through Rust 0.13 ms added to a game frame, through the call 0.34 ms (the laptop in Discrete:
+0.22 and 0.43). Every frame was *Hardware: Independent Flip*. Capped rounds were not run: the
+owner's call, since CS2 runs far above 120 here and a cap would hold.
+
+### Not run on Windows
+
+- `live_watched_sound`, and the sound's level against the call's (no VB-Cable).
+- A 5120x1440 share: no second account on the desktop to share it.
+- A real driver reset (`dxcap -forcetdr`).
+- The tear check with nothing else running, and with VP9; capped game rounds.
+- A second monitor.

@@ -383,16 +383,24 @@ Every number says which BIOS mode it came from. Hybrid first, then Discrete.
 
 ## What is not known yet
 
-- The stream's own rate and freezes beside a game, in either mode.
+- The stream's own rate and freezes beside a game on the laptop, in either mode. Measured on
+  the AMD desktop Nov 5: 60 a second and no freeze over 50 ms, through Rust and through the
+  call (`STEP3_AMD.md`, *On Windows*).
 - What holds CS2 to half its Discrete rate in Hybrid, watched or not: the RTX is busy
   only 2.3–3.0 ms of its 7 ms frames.
 - The shader step on GitHub's `windows-latest`, until the first release run after it.
 - Whether every driver makes shader views of decoder surfaces. Moonlight's check and
-  copy cover it; which GPUs take the copy is to be seen.
+  copy cover it; which GPUs take the copy is to be seen. The Iris Xe, the RTX 3070 Ti and the
+  RX 9070 XT all make the views.
 - Multithread protection's cost on the raster thread while the decoder runs.
 - The server: watching through Rust in the app needs rift-self-host `dev` 604f8c4 or
   later, run here in Docker Desktop since Nov 4.
-- AMD on Windows: the desktop, later.
+- AMD on Windows beyond the RX 9070 XT. That card was run Nov 5 (`STEP3_AMD.md`, *On
+  Windows*): it makes shader views of decoder surfaces, so the runner reads them directly;
+  H264 and VP9 decode through D3D11 and VP8 falls back by name; 0 of 600 grabs torn with CS2
+  in front; 0.13 ms added to a game frame through Rust against 0.34 ms through the call, the
+  stream at 60 a second with no freeze over 50 ms on either path. No GPU here has taken the
+  copy yet.
 
 ## What Linux must recheck
 

@@ -957,6 +957,34 @@ that was not broken down. The worst frames (70–107 ms) came in rounds without
 watching as well as with. Capped at 120, no case held it, not watching
 included (103–108 fps).
 
+On AMD (Nov 5, the RX 9070 XT desktop under Windows 11, the only GPU there;
+release build; Dave sharing from the laptop; `docs/gpu-codecs/STEP3_AMD.md`,
+*On Windows*). H264 and VP9 decoded on the 9070 XT through D3D11, the runner
+reading the decoder's slices directly (the card makes shader views of them),
+and VP8 through the call by name. The watcher's whole process, 3 × 20 s each,
+Dave's whole 1920×1080 screen of a test picture:
+
+| Watcher, whole process | Through Rust (D3D11) | Rust, CPU decode | Through the call |
+|---|---|---|---|
+| H264, 60 a second, about 13 Mbps | 77–80% of a core | 93–99% | 94–109% |
+| VP9, 60 a second, about 10 Mbps | 72–76% | 100–106% | 102–113% |
+
+CS2 uncapped in a window beside the watcher's, in front, standing still,
+watching a moving bar shared as H264 1080p60, 3 × 60 s of PresentMon each:
+
+| CS2, uncapped | Mean frame | Fps | p99 | Over 16.7 ms |
+|---|---|---|---|---|
+| Not watching | 1.627–1.629 ms | 614–615 | 3.33–3.35 ms | 0 |
+| Through Rust (D3D11) | 1.744–1.768 ms | 566–573 | 3.57–3.59 ms | 0 |
+| Through the call | 1.953–1.981 ms | 505–512 | 3.74–3.77 ms | 0 |
+
+Watching through Rust added 0.13 ms to a game frame, through the call
+0.34 ms. The stream itself was measured beside the game this time, from a
+strip of the watcher's tile grabbed 240 times a second for 60 s: the bar
+moved 60.0 times a second on both paths, its longest hold under 30 ms, so no
+freeze over 50 ms. In 600 grabs of the tile with CS2 in front, none was torn
+on either path.
+
 ## How a call is played out on the desktop — [Implemented October 2026]
 
 On the desktop, everything a call plays — voices, a share's sound, a bot —
