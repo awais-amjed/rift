@@ -364,16 +364,25 @@ a heavy full-screen pixel shader without vsync, so Flutter's own GPU is busy.
   Nov 4 (profiles s1 sharing and s2 watching, as profiles a and b are on the owner's real server): steps 2
   and 4 as written, the device loss falling back in 30 ms; cost in `CALLS.md` and `TESTING.md` row 26, H264
   92–97% of a core through Rust against 105–108%, VP9 107–110% against 127–130%.
-- [ ] **Step 6: The sound against ducking, in the app.**
+- [x] **Step 6: The sound against ducking, in the app.**
   - The sharer shares a window playing a steady tone.
   - The watcher's output is VB-Cable, with Windows' Communications setting left at its default (80%).
   - Record VB-Cable for 10 s watching through Rust, then 10 s with `RIFT_WATCH_PATH=call`.
   - The two levels agree within 1 dB.
   - The log names which path each recording was.
 
-  Not done in the app yet. A tone the sharer captures but nobody hears needs a source off the speakers, and
+  Not done in the app at first. A tone the sharer captures but nobody hears needs a source off the speakers, and
   two clients on one PC loop the watcher's sound back into a whole-screen share. The rule is measured in
   Rust (Task 4 Step 4): Windows spares the process whose call it is.
+
+  *Nov 4, Hybrid, later:* done without the loop. The tone came from a Chrome window playing only into
+  VB-Cable (`setSinkId`), and the watcher's playback was recorded by its process (WASAPI process loopback,
+  a scratch tool), whatever device it played on. s1 shared that window with its sound, H264; s2 played on
+  CABLE Input. Through the call (the log: "Hearing screenshare audio" in the call's room) −20.02 dBFS in
+  each ear; through Rust (the log: "watching … through Rust", "playing the sound on CABLE Input") −20.00,
+  for −20.0 sent, the tone 42–48 dB above everything else in both. It played once: a second copy would
+  read about −14. The Communications setting was at Do nothing, the owner's choice, so ducking rests on
+  Step 4's measurement.
 - [ ] **Step 7: Discrete, before phase B.** The owner reboots into Discrete. There, run Task 0's tear check
   under load (CS2, then the load program on the RTX, which is Flutter's adapter there), then Steps 2 and 4 of
   this task once.

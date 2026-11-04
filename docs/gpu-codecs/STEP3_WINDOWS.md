@@ -346,8 +346,9 @@ Every number says which BIOS mode it came from. Hybrid first, then Discrete.
    The log must name the decoder and the texture each time, so a pass is known to
    be the path it is meant to be.
 
-   Done Nov 4 in Hybrid with phase B (`TESTING.md`), all but the sound's level against
-   the call's path and a second monitor (none was attached). The volume, mute and
+   Done Nov 4 in Hybrid with phase B (`TESTING.md`), all but a second monitor (none was
+   attached). The sound's level was measured later the same day: −20.00 dBFS through
+   Rust and −20.02 through the call for a −20.0 tone (`CALLS.md`). The volume, mute and
    deafen were measured from VB-Cable rather than heard.
 5. **Cost:** the watcher's threads over 20 s per case, through Rust,
    `RIFT_WATCH_DECODE=cpu` and `RIFT_WATCH_PATH=call`, in a table like `CALLS.md`'s.

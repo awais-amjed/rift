@@ -714,7 +714,13 @@ libwebrtc still decodes, on the CPU.
   a call's stream opened in the same process left the tone at −15.3 dBFS; the
   same stream from another process took it to −33.3, 18 dB down, and back
   once it closed. Windows ducks only the communications device's own
-  streams: with the cable not that device, neither moved it.
+  streams: with the cable not that device, neither moved it. **The level
+  matches the call's** (Nov 4, Hybrid, H264, the release app): a window
+  playing a 1 kHz tone at −20.0 dBFS into VB-Cable was shared, and the
+  watcher's own playback was recorded by its process (WASAPI process
+  loopback), so the tone itself stayed out. Through the call −20.02 dBFS in
+  each ear, through Rust −20.00, at full volume. Windows' Communications
+  setting was at Do nothing, so this says nothing more about ducking.
 - **Decoded on the GPU** where it can be (`rust/src/watching/decode`,
   Linux and Windows). At start (`init_app`), before any room, Rust chooses how the
   process's LiveKit runtime decodes: where Rift's FFmpeg library loads and
