@@ -760,7 +760,11 @@ libwebrtc still decodes, on the CPU.
   D3D11 decoder for it, so a VP8 share is watched through the call.
   The runtime is the process's, so the choice holds for the share
   connections too, which only send. A decoder starts at the stream's first
-  keyframe and asks for one after a picture fails. A share the GPU cannot
+  keyframe and asks for one after a picture fails. A decoder 30 frames
+  behind loses the backlog whole; the stream marks the frames after it
+  (`after_gap`), and those wait for the keyframe asked for rather than
+  decode against references thrown away, which smeared the picture (found
+  by review Nov 5). A share the GPU cannot
   decode, three keyframes in a row that fail, a runner that cannot import
   (it says so when it makes the texture, `takesGpuPictures`), or a GPU
   picture the runner fails to import or copy (it hands it back undrawn,

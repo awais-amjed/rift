@@ -181,7 +181,7 @@ fn decode(
             return;
         };
         let key = frame.frame_type == EncodedFrameType::Key;
-        match chain.next(codec, key) {
+        match chain.next(codec, key, frame.after_gap) {
             Next::Wait => {
                 log::debug!("watching: {codec:?} frame before a keyframe, skipped");
                 ask_for_keyframe(&frame, &mut asked);
@@ -255,8 +255,9 @@ enum Next {
 }
 
 /// Where the stream's reference chain stands: which codec the decoder was
-/// opened for, and whether a picture failed since the last keyframe, after
-/// which only a keyframe decodes cleanly.
+/// opened for, and whether a picture failed or frames were lost since the
+/// last keyframe, after which only a keyframe decodes cleanly. Decoded
+/// against references thrown away, the picture smears until one comes.
 #[derive(Default)]
 struct Chain {
     codec: Option<Codec>,
@@ -265,7 +266,12 @@ struct Chain {
 }
 
 impl Chain {
-    fn next(&mut self, codec: Codec, key: bool) -> Next {
+    /// [after_gap]: the stream lost frames this one may build on, a flushed
+    /// backlog above all, and no keyframe has come since.
+    fn next(&mut self, codec: Codec, key: bool, after_gap: bool) -> Next {
+        if after_gap && !key {
+            self.broken = true;
+        }
         if self.codec != Some(codec) {
             if !key {
                 return Next::Wait;
@@ -307,26 +313,45 @@ mod tests {
     #[test]
     fn a_stream_joined_mid_way_waits_for_a_keyframe() {
         let mut chain = Chain::default();
-        assert_eq!(chain.next(Codec::H264, false), Next::Wait);
-        assert_eq!(chain.next(Codec::H264, true), Next::Open);
-        assert_eq!(chain.next(Codec::H264, false), Next::Decode);
+        assert_eq!(chain.next(Codec::H264, false, false), Next::Wait);
+        assert_eq!(chain.next(Codec::H264, true, false), Next::Open);
+        assert_eq!(chain.next(Codec::H264, false, false), Next::Decode);
     }
 
     #[test]
     fn a_failed_picture_waits_for_the_next_keyframe() {
         let mut chain = Chain::default();
-        chain.next(Codec::Vp9, true);
+        chain.next(Codec::Vp9, true, false);
         assert!(chain.failed(false));
-        assert_eq!(chain.next(Codec::Vp9, false), Next::Wait);
-        assert_eq!(chain.next(Codec::Vp9, true), Next::Decode);
+        assert_eq!(chain.next(Codec::Vp9, false, false), Next::Wait);
+        assert_eq!(chain.next(Codec::Vp9, true, false), Next::Decode);
         chain.decoded(true);
-        assert_eq!(chain.next(Codec::Vp9, false), Next::Decode);
+        assert_eq!(chain.next(Codec::Vp9, false, false), Next::Decode);
+    }
+
+    #[test]
+    fn a_flushed_backlog_waits_for_the_next_keyframe() {
+        // A decoder 30 frames behind loses the backlog; the frames after it
+        // reference ones it never saw, and the stream marks them.
+        let mut chain = Chain::default();
+        chain.next(Codec::H264, true, false);
+        chain.decoded(true);
+        assert_eq!(chain.next(Codec::H264, false, false), Next::Decode);
+        assert_eq!(chain.next(Codec::H264, false, true), Next::Wait);
+        assert_eq!(
+            chain.next(Codec::H264, false, false),
+            Next::Wait,
+            "still nothing to build on until a keyframe"
+        );
+        assert_eq!(chain.next(Codec::H264, true, true), Next::Decode);
+        chain.decoded(true);
+        assert_eq!(chain.next(Codec::H264, false, false), Next::Decode);
     }
 
     #[test]
     fn keyframes_that_keep_failing_give_up() {
         let mut chain = Chain::default();
-        chain.next(Codec::H264, true);
+        chain.next(Codec::H264, true, false);
         assert!(chain.failed(true));
         assert!(chain.failed(true));
         assert!(!chain.failed(true));
@@ -335,7 +360,7 @@ mod tests {
     #[test]
     fn a_keyframe_that_decodes_forgives_the_ones_before() {
         let mut chain = Chain::default();
-        chain.next(Codec::H264, true);
+        chain.next(Codec::H264, true, false);
         assert!(chain.failed(true));
         assert!(chain.failed(true));
         chain.decoded(true);
@@ -346,10 +371,10 @@ mod tests {
     #[test]
     fn a_new_codec_opens_a_new_decoder_at_its_keyframe() {
         let mut chain = Chain::default();
-        chain.next(Codec::Vp9, true);
+        chain.next(Codec::Vp9, true, false);
         assert!(chain.failed(false));
-        assert_eq!(chain.next(Codec::H264, false), Next::Wait);
-        assert_eq!(chain.next(Codec::H264, true), Next::Open);
-        assert_eq!(chain.next(Codec::H264, false), Next::Decode);
+        assert_eq!(chain.next(Codec::H264, false, false), Next::Wait);
+        assert_eq!(chain.next(Codec::H264, true, false), Next::Open);
+        assert_eq!(chain.next(Codec::H264, false, false), Next::Decode);
     }
 }
