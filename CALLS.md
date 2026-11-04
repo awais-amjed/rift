@@ -690,8 +690,16 @@ libwebrtc still decodes, on the CPU.
   of the call after anything on the Rust path fails, the shares it held going
   back to the room. The room's own track for a share Rust holds stays
   unsubscribed.
-- **The key:** the watch connection keeps the call's key in a ring of its
-  own, and is told each version the call moves to.
+- **The key:** the watch connection keeps the call's keys in a ring of its
+  own: every version the call has held, given when it opens, since a share
+  begun before a rotation stays sealed under the key it began with, and then
+  each version the call moves to. Given only the current one, a watch opened
+  after a rotation showed such a share as loading dots, with no sound and
+  no error (found by review Nov 5).
+- **No picture:** a watched share subscribed and on for 6 s with nothing
+  shown (`NO_PICTURE_WITHIN`) is taken as a loss, and the call's connection
+  watches instead: a share this ring cannot read decrypts to nothing and says
+  nothing (`live_watch_gives_up_on_a_share_it_cannot_read`).
 - **Unseen:** its pictures are turned off and on with the call's
   (`setWatchPicturesOn`).
 - **The sound** is played by Rust itself (`rust/src/watching/sound`), on a

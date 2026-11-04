@@ -156,6 +156,8 @@ struct Slot<P> {
     mark: Option<MarkFn>,
     /// The runner could not draw one of its pictures, and was answered.
     failed: bool,
+    /// A picture has come since the slot opened.
+    came: bool,
 }
 
 /// The slots, and the pictures lent out of them.
@@ -179,6 +181,7 @@ impl<P: Picture> Table<P> {
                 newest: None,
                 mark,
                 failed: false,
+                came: false,
             },
         );
     }
@@ -194,7 +197,13 @@ impl<P: Picture> Table<P> {
     fn deliver(&mut self, texture: u64, picture: P) -> Option<Option<MarkFn>> {
         let slot = self.slots.get_mut(&texture)?;
         slot.newest = Some(picture);
+        slot.came = true;
         Some(slot.mark)
+    }
+
+    /// Whether any picture has come for [texture] since it was opened.
+    fn delivered(&self, texture: u64) -> bool {
+        self.slots.get(&texture).is_some_and(|slot| slot.came)
     }
 
     /// The newest picture, lent until [unlock]; none when nothing new came.
@@ -238,6 +247,11 @@ pub(crate) fn open(texture: u64, mark: MarkFn) {
 /// runner may let the texture go.
 pub(crate) fn close(texture: u64) {
     with_table(|t| t.close(texture));
+}
+
+/// Whether any picture has come for [texture] since it was opened.
+pub(crate) fn delivered(texture: u64) -> bool {
+    with_table(|t| t.delivered(texture))
 }
 
 /// Hand the runner a new picture for [texture]. False when nothing watches it.
@@ -335,6 +349,21 @@ mod tests {
         fn planes(&self) -> WatchPlanes {
             WatchPlanes::sized(self.id, 0)
         }
+    }
+
+    #[test]
+    fn a_slot_knows_whether_any_picture_came() {
+        let alive = Arc::new(AtomicUsize::new(0));
+        let mut table = Table::new();
+        table.open(7, None);
+        assert!(!table.delivered(7));
+        table.deliver(7, Fake::new(1, &alive));
+        assert!(table.lock(7).is_some());
+        table.unlock(7, true);
+        assert!(table.delivered(7), "taken and drawn, still came");
+        table.open(7, None);
+        assert!(!table.delivered(7), "opened again, nothing yet");
+        assert!(!table.delivered(8), "nothing watches it");
     }
 
     #[test]

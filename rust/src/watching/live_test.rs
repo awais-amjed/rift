@@ -559,6 +559,35 @@ async fn live_watch_takes_only_a_phones_share() {
     phone.end().await;
 }
 
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a LiveKit server; see the module doc"]
+async fn live_watch_gives_up_on_a_share_it_cannot_read() {
+    let _ = env_logger::builder().is_test(true).try_init();
+    let server = Server::from_env();
+    let name = room_name("unreadable");
+    let old_key = shared_key();
+    let new_key: Vec<u8> = old_key.iter().map(|b| b ^ 0x5a).collect();
+    const TEXTURE: u64 = 5;
+
+    // The share began before a rotation; the watch connection opened after
+    // it, with the new key only.
+    let share = Share::start(&server, &name, "early~desk_share", &old_key, KEY_INDEX).await;
+    let _voice = start_watching(&server, &name, new_key, KEY_INDEX + 1).await;
+    session::watch("early~desk_share".into(), TEXTURE, mark_address(), false)
+        .await
+        .unwrap();
+
+    assert!(
+        lost_with("no picture", Duration::from_secs(12)).await,
+        "a share this connection cannot read goes back to the call: {:?}",
+        session::lost_reasons()
+    );
+    assert_eq!(marks(TEXTURE), 0);
+
+    session::stop().await;
+    share.end().await;
+}
+
 /// Interleaved stereo for frame [index] of 10 ms: a 1 kHz tone in the left
 /// ear for a second, then in the right.
 #[cfg(any(target_os = "linux", windows))]

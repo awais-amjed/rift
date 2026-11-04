@@ -190,6 +190,13 @@ mixin _RustWatchMixin
       await RustWatch.stop();
       return false;
     }
+    // Every key the call holds, not only the current one: a share begun
+    // before a rotation is still sealed under its old key, which this ring
+    // must have too or the share shows nothing. Oldest first, so the current
+    // one wins a slot two versions share.
+    for (final held in List.of(_callKeysHeld)) {
+      await RustWatch.addKey(held.key, held.index);
+    }
     return true;
   }
 

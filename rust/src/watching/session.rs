@@ -21,6 +21,7 @@ use livekit::webrtc::video_stream::native::NativeVideoStream;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex as StdMutex};
+use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
@@ -323,6 +324,7 @@ pub(crate) async fn set_pictures_on(on: bool) {
 /// Feed [track]'s pictures to the texture watching [identity], replacing a
 /// feed already running. Nothing when it is no longer watched.
 fn show(shares: &Shares, identity: &str, track: RemoteVideoTrack) {
+    let shares_handle = shares.clone();
     let mut shares = lock(shares);
     let Some(watched) = shares.get_mut(identity) else {
         return;
@@ -330,6 +332,7 @@ fn show(shares: &Shares, identity: &str, track: RemoteVideoTrack) {
     watched.picture = None;
     let texture = watched.texture;
     let identity = identity.to_string();
+    tokio::spawn(await_picture(shares_handle, identity.clone(), texture));
     if let Some(gpu) = decode::gpu() {
         watched.picture = decode::feed(track, texture, identity, gpu)
             .map(|feed| PictureFeed::Encoded { _feed: feed });
@@ -350,6 +353,71 @@ fn show(shares: &Shares, identity: &str, track: RemoteVideoTrack) {
             }
         }
     })));
+}
+
+/// How long a watched share's picture may be on, subscribed, and still show
+/// nothing before the call's connection takes it back. Long enough for the
+/// keyframe a late viewer asks for and a GPU decoder setting up; anything
+/// longer is a share this connection cannot read. One sealed under a key the
+/// watch connection was never given decrypts to nothing and says nothing, and
+/// the call, whose ring may hold that key, would have shown it.
+const NO_PICTURE_WITHIN: Duration = Duration::from_secs(6);
+const PICTURE_CHECK: Duration = Duration::from_millis(500);
+
+#[derive(Debug, PartialEq, Eq)]
+enum PictureVerdict {
+    Waiting,
+    Came,
+    Starved,
+}
+
+/// The time a subscribed picture has been on with nothing shown. Time with
+/// pictures off does not count: hidden, nothing is sent.
+#[derive(Default)]
+struct PictureWait {
+    on_for: Duration,
+}
+
+impl PictureWait {
+    fn tick(&mut self, elapsed: Duration, on: bool, came: bool) -> PictureVerdict {
+        if came {
+            return PictureVerdict::Came;
+        }
+        if on {
+            self.on_for += elapsed;
+        }
+        if self.on_for >= NO_PICTURE_WITHIN {
+            PictureVerdict::Starved
+        } else {
+            PictureVerdict::Waiting
+        }
+    }
+}
+
+/// Gives up on the watch connection when [identity]'s picture, subscribed,
+/// never comes. Ends when one does, or the share is no longer watched into
+/// [texture].
+async fn await_picture(shares: Shares, identity: String, texture: u64) {
+    let mut wait = PictureWait::default();
+    loop {
+        tokio::time::sleep(PICTURE_CHECK).await;
+        if lock(&shares).get(&identity).map(|w| w.texture) != Some(texture) {
+            return;
+        }
+        let on = PICTURES_ON.load(Ordering::SeqCst);
+        match wait.tick(PICTURE_CHECK, on, frames::delivered(texture)) {
+            PictureVerdict::Waiting => {}
+            PictureVerdict::Came => return,
+            PictureVerdict::Starved => {
+                log::warn!("watching: no picture from a watched share");
+                lost(&format!(
+                    "no picture within {} s",
+                    NO_PICTURE_WITHIN.as_secs()
+                ));
+                return;
+            }
+        }
+    }
 }
 
 /// Tells the app [identity]'s picture is `now` in size, when that is not
@@ -473,6 +541,28 @@ async fn follow_room(mut events: tokio::sync::mpsc::UnboundedReceiver<RoomEvent>
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_share_with_no_picture_is_given_up_after_its_time_on_screen() {
+        let step = Duration::from_millis(500);
+        let mut wait = PictureWait::default();
+        let mut verdict = PictureVerdict::Waiting;
+        // Off counts for nothing: hidden, no picture is sent.
+        for _ in 0..40 {
+            verdict = wait.tick(step, false, false);
+        }
+        assert_eq!(verdict, PictureVerdict::Waiting);
+        let mut ticks = 0;
+        while wait.tick(step, true, false) == PictureVerdict::Waiting {
+            ticks += 1;
+            assert!(ticks < 100);
+        }
+        assert_eq!(step * (ticks + 1), NO_PICTURE_WITHIN);
+
+        let mut wait = PictureWait::default();
+        wait.tick(step, true, false);
+        assert_eq!(wait.tick(step, true, true), PictureVerdict::Came);
+    }
 
     #[test]
     fn a_watch_takes_only_the_share() {
