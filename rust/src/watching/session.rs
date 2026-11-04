@@ -256,7 +256,7 @@ pub(crate) async fn set_volume(identity: &str, volume: f32) {
         .get(&ParticipantIdentity(identity.to_string()))
     {
         for publication in participant.track_publications().into_values() {
-            if publication.kind() == TrackKind::Audio {
+            if publication.source() == TrackSource::ScreenshareAudio {
                 publication.set_enabled(volume > 0.0);
             }
         }
@@ -266,9 +266,18 @@ pub(crate) async fn set_volume(identity: &str, volume: f32) {
 /// Whether this connection receives `publication` of a watched share: its
 /// picture always, its sound where this build plays it.
 fn wanted(publication: &RemoteTrackPublication) -> bool {
-    match publication.kind() {
-        TrackKind::Video => true,
-        TrackKind::Audio => sound::PLAYS,
+    wanted_source(publication.source(), sound::PLAYS)
+}
+
+/// The share's own tracks and nothing else. A phone shares on the connection
+/// it talks on, so its mic and camera sit beside the share: taken here, the
+/// mic played a second time over the call's copy, and the camera could take
+/// the share's tile.
+fn wanted_source(source: TrackSource, plays_sound: bool) -> bool {
+    match source {
+        TrackSource::Screenshare => true,
+        TrackSource::ScreenshareAudio => plays_sound,
+        _ => false,
     }
 }
 
@@ -458,5 +467,22 @@ async fn follow_room(mut events: tokio::sync::mpsc::UnboundedReceiver<RoomEvent>
             }
             _ => {}
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_watch_takes_only_the_share() {
+        // A phone shares on the connection it talks on: its mic and camera
+        // ride beside the share and are the call's to play, not the watch's.
+        assert!(wanted_source(TrackSource::Screenshare, true));
+        assert!(wanted_source(TrackSource::ScreenshareAudio, true));
+        assert!(!wanted_source(TrackSource::ScreenshareAudio, false));
+        assert!(!wanted_source(TrackSource::Microphone, true));
+        assert!(!wanted_source(TrackSource::Camera, true));
+        assert!(!wanted_source(TrackSource::Unknown, true));
     }
 }

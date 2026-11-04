@@ -97,6 +97,59 @@ fn room_name(what: &str) -> String {
     format!("rift-watch-test-{what}-{ms}")
 }
 
+/// Publishes a flat picture of [shade] on [room] as [kind], until [stop] is
+/// set.
+async fn publish_flat(
+    room: &Room,
+    kind: TrackSource,
+    codec: VideoCodec,
+    shade: u8,
+    stop: &Arc<AtomicBool>,
+) {
+    let track_name = if kind == TrackSource::Camera {
+        "camera"
+    } else {
+        "screen_share"
+    };
+    let source = NativeVideoSource::new(
+        VideoResolution {
+            width: WIDTH,
+            height: HEIGHT,
+        },
+        false,
+    );
+    let track =
+        LocalVideoTrack::create_video_track(track_name, RtcVideoSource::Native(source.clone()));
+    room.local_participant()
+        .publish_track(
+            LocalTrack::Video(track),
+            TrackPublishOptions {
+                source: kind,
+                video_codec: codec,
+                simulcast: false,
+                video_encoding: Some(VideoEncoding {
+                    max_bitrate: 2_000_000,
+                    max_framerate: f64::from(FPS),
+                }),
+                ..Default::default()
+            },
+        )
+        .await
+        .expect("publishes");
+    let stopping = stop.clone();
+    tokio::task::spawn_blocking(move || {
+        while !stopping.load(Ordering::SeqCst) {
+            let mut buffer = I420Buffer::new(WIDTH, HEIGHT);
+            let (y, u, v) = buffer.data_mut();
+            y.fill(shade);
+            u.fill(128);
+            v.fill(128);
+            source.capture_frame(&VideoFrame::new(VideoRotation::VideoRotation0, buffer));
+            std::thread::sleep(Duration::from_millis(1000 / u64::from(FPS)));
+        }
+    });
+}
+
 /// A member's share: a flat [SHADE] picture, sealed with [key] in [index],
 /// until [stop] is set.
 struct Share {
@@ -138,46 +191,8 @@ impl Share {
         )
         .await
         .expect("sharer connects");
-        let source = NativeVideoSource::new(
-            VideoResolution {
-                width: WIDTH,
-                height: HEIGHT,
-            },
-            false,
-        );
-        let track = LocalVideoTrack::create_video_track(
-            "screen_share",
-            RtcVideoSource::Native(source.clone()),
-        );
-        room.local_participant()
-            .publish_track(
-                LocalTrack::Video(track),
-                TrackPublishOptions {
-                    source: TrackSource::Screenshare,
-                    video_codec: codec,
-                    simulcast: false,
-                    video_encoding: Some(VideoEncoding {
-                        max_bitrate: 2_000_000,
-                        max_framerate: f64::from(FPS),
-                    }),
-                    ..Default::default()
-                },
-            )
-            .await
-            .expect("publishes");
         let stop = Arc::new(AtomicBool::new(false));
-        let stopping = stop.clone();
-        tokio::task::spawn_blocking(move || {
-            while !stopping.load(Ordering::SeqCst) {
-                let mut buffer = I420Buffer::new(WIDTH, HEIGHT);
-                let (y, u, v) = buffer.data_mut();
-                y.fill(SHADE);
-                u.fill(128);
-                v.fill(128);
-                source.capture_frame(&VideoFrame::new(VideoRotation::VideoRotation0, buffer));
-                std::thread::sleep(Duration::from_millis(1000 / u64::from(FPS)));
-            }
-        });
+        publish_flat(&room, TrackSource::Screenshare, codec, SHADE, &stop).await;
         Share { room, stop }
     }
 
@@ -478,6 +493,70 @@ async fn live_watch_reads_a_share_sealed_after_a_rotation() {
     session::stop().await;
     before.end().await;
     after.end().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a LiveKit server; see the module doc"]
+async fn live_watch_takes_only_a_phones_share() {
+    let _ = env_logger::builder().is_test(true).try_init();
+    let server = Server::from_env();
+    let name = room_name("phone");
+    let key = shared_key();
+    // A phone shares on the connection it talks on, its camera beside it.
+    let phone_identity = "member~phone";
+    const CAMERA_SHADE: u8 = 60;
+    const TEXTURE: u64 = 4;
+
+    let _voice = start_watching(&server, &name, key.clone(), KEY_INDEX).await;
+    let phone = Share {
+        room: room::connect(
+            &server.url,
+            &server.token(&name, phone_identity, false),
+            &key,
+            KEY_INDEX,
+        )
+        .await
+        .expect("the phone connects"),
+        stop: Arc::new(AtomicBool::new(false)),
+    };
+    publish_flat(
+        &phone.room,
+        TrackSource::Camera,
+        VideoCodec::VP8,
+        CAMERA_SHADE,
+        &phone.stop,
+    )
+    .await;
+    session::watch(phone_identity.to_string(), TEXTURE, mark_address(), false)
+        .await
+        .expect("watches");
+    tokio::time::sleep(Duration::from_secs(3)).await;
+    assert_eq!(marks(TEXTURE), 0, "the phone's camera is not its share");
+
+    publish_flat(
+        &phone.room,
+        TrackSource::Screenshare,
+        VideoCodec::VP8,
+        SHADE,
+        &phone.stop,
+    )
+    .await;
+    assert!(
+        marked(TEXTURE, 0, 30, Duration::from_secs(15)).await,
+        "the phone's share is drawn ({} marks)",
+        marks(TEXTURE)
+    );
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    let shade = drawn(TEXTURE)
+        .map(|(_, _, shade)| shade)
+        .unwrap_or_default();
+    assert!(
+        shade.abs_diff(SHADE) <= 4,
+        "the share's picture, not the camera's: {shade}"
+    );
+
+    session::stop().await;
+    phone.end().await;
 }
 
 /// Interleaved stereo for frame [index] of 10 ms: a 1 kHz tone in the left

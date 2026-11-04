@@ -676,8 +676,11 @@ libwebrtc still decodes, on the CPU.
 - **One connection per call,** `<user>~<device>_watch`, opened with the first
   share watched this way and closed with the last. The server mints it only
   while the device's voice connection is in the room (`get_channel_token`,
-  `watch`). It subscribes to the watched shares' pictures and sound, and
-  nothing else.
+  `watch`). It subscribes to the watched shares' pictures and sound, by
+  their sources (`Screenshare`, `ScreenshareAudio`), and nothing else: a
+  phone shares on the connection it talks on, so its mic and camera sit
+  beside the share, and taken by kind the mic played a second time over the
+  call's copy (found by review Nov 5; `live_watch_takes_only_a_phones_share`).
 - **Which way a share goes** is `LiveKitCubit`'s (`_RustWatchMixin`). A share
   goes through Rust when it can; otherwise it is received in the call's room,
   as before: on a build without stream textures (every platform but Linux
