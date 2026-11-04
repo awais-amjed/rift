@@ -113,7 +113,9 @@ if(EXISTS "${RIFT_MSYS2}/usr/bin/bash.exe")
       "${RIFT_MSYS2}/usr/bin/bash.exe" -lc "exec \"$0\" \"$1\""
       "${FFENC_SOURCE_DIR}/build.sh" "${PROJECT_BINARY_DIR}/ffenc"
     DEPENDS "${FFENC_SOURCE_DIR}/build.sh" "${FFENC_SOURCE_DIR}/ffenc.c"
-      "${FFENC_SOURCE_DIR}/ffenc.h" "${FFENC_SOURCE_DIR}/d3d11_nv12.c"
+      "${FFENC_SOURCE_DIR}/ffenc.h" "${FFENC_SOURCE_DIR}/ffdec.c"
+      "${FFENC_SOURCE_DIR}/ffdec.h" "${FFENC_SOURCE_DIR}/ff_shared.h"
+      "${FFENC_SOURCE_DIR}/d3d11_nv12.c"
       "${FFENC_SOURCE_DIR}/d3d11_nv12.h" ${FFENC_PATCHES}
     COMMENT "Building FFmpeg's GPU encoders (native/ffenc)"
     VERBATIM)

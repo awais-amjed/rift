@@ -4,6 +4,8 @@
 // Flutter draws with, never coming to the CPU. Linux: VAAPI on Intel and AMD,
 // handing the runner DMA-BUFs; NVIDIA's decoder through CUDA, whose pictures
 // the runner has copied into its own GL textures (rift_ffdec_copy_to_gl).
+// Windows: D3D11's video decoder on the runner's own device, whose surfaces
+// the runner draws where they lie.
 //
 // Only a hardware decoder: when the GPU cannot decode the share's codec, open
 // fails rather than decoding in software, and the app watches that share the
@@ -30,6 +32,7 @@ typedef enum {
 typedef enum {
   RIFT_FFDEC_VAAPI = 0,
   RIFT_FFDEC_CUDA = 1,
+  RIFT_FFDEC_D3D11VA = 2,
 } RiftFfdecApi;
 
 typedef struct RiftFfdecConfig {
@@ -39,6 +42,10 @@ typedef struct RiftFfdecConfig {
   const char* device;
   // RiftFfdecApi.
   int32_t api;
+  // D3D11VA: the ID3D11Device to decode on, the runner's, with video support
+  // and multithread protection. The decoder holds a reference of its own
+  // until it closes. NULL for the others.
+  void* d3d11_device;
 } RiftFfdecConfig;
 
 // Where a decoded picture lies.
@@ -47,6 +54,8 @@ typedef enum {
   RIFT_FFDEC_IN_DMABUF = 0,
   // CUDA's memory, for rift_ffdec_copy_to_gl: no fds.
   RIFT_FFDEC_IN_CUDA = 1,
+  // A slice of the D3D11 decoder's NV12 texture array, described below.
+  RIFT_FFDEC_IN_D3D11 = 2,
 } RiftFfdecMemory;
 
 // The matrix a picture's colour is coded with, as the stream says; BT.601
@@ -61,7 +70,11 @@ typedef enum {
 // each: Y as DRM's R8 at the picture's size, interleaved UV as GR88 at half
 // the size each way, rounded up. Each imports into EGL as an ordinary
 // texture, so one shader draws it whatever the GPU's own layout. From CUDA,
-// the same two planes, copied by rift_ffdec_copy_to_gl.
+// the same two planes, copied by rift_ffdec_copy_to_gl. From D3D11, one slice
+// of an NV12 texture array, coded at the decoder's aligned size (1088 lines
+// for 1080), of which the top left `width` by `height` is the picture. The
+// array is a shader resource as well as the decoder's where the GPU allows it
+// (its BindFlags say), and only the decoder's where it does not.
 typedef struct RiftFfdecPicture {
   // The visible picture, crop applied.
   int32_t width;
@@ -80,11 +93,17 @@ typedef struct RiftFfdecPicture {
   int64_t timestamp_us;
   // The picture's hold on its GPU surface, for rift_ffdec_release.
   void* held;
+  // IN_D3D11: the decoder's ID3D11Texture2D array and the picture's slice in
+  // it, both held by `held`.
+  void* d3d11_texture;
+  int32_t d3d11_slice;
 } RiftFfdecPicture;
 
 // Open a decoder, or NULL with the reason written into `error`. Opening
 // does not yet ask the GPU about the codec: the first picture does, and a
-// GPU that cannot decode it fails rift_ffdec_send.
+// GPU that cannot decode it fails rift_ffdec_send. So does a codec Windows'
+// build decodes nowhere (VP8: no D3D11 GPU offers it, and FFmpeg has no
+// d3d11va hwaccel for it).
 RIFT_FFENC_EXPORT RiftFfdec* rift_ffdec_open(const RiftFfdecConfig* config,
                                              char* error, size_t error_len);
 // The GPU's driver, as it names itself.
@@ -103,6 +122,7 @@ RIFT_FFENC_EXPORT int32_t rift_ffdec_receive(RiftFfdec* dec,
 RIFT_FFENC_EXPORT void rift_ffdec_release(RiftFfdecPicture* picture);
 RIFT_FFENC_EXPORT void rift_ffdec_close(RiftFfdec* dec);
 
+#if defined(__linux__)
 // Two GL textures registered with CUDA, kept between pictures, since
 // registering costs far more than a copy.
 typedef struct RiftFfdecGl RiftFfdecGl;
@@ -121,6 +141,7 @@ RIFT_FFENC_EXPORT int32_t rift_ffdec_copy_to_gl(
 // Lets the textures go from CUDA, on the same thread, before they are
 // deleted. NULL is nothing.
 RIFT_FFENC_EXPORT void rift_ffdec_gl_close(RiftFfdecGl* link);
+#endif
 
 #ifdef __cplusplus
 }

@@ -9,7 +9,7 @@
 // crate (rust/src/screenshare/encoder/ffmpeg.rs). A computer it cannot load on
 // simply has no encoder here. On Linux it also reads a Wayland share's
 // PipeWire stream (pipewire.c), so that libpipewire is only ever this
-// library's to need, and decodes a watched share on the GPU (ffdec.h).
+// library's to need. On both it decodes a watched share on the GPU (ffdec.h).
 #ifndef RIFT_FFENC_H_
 #define RIFT_FFENC_H_
 
@@ -28,7 +28,7 @@ extern "C" {
 
 // Bumped whenever a function or struct below changes, so the crate refuses a
 // library from another build instead of calling it wrongly.
-#define RIFT_FFENC_ABI 11
+#define RIFT_FFENC_ABI 12
 
 typedef struct RiftFfenc RiftFfenc;
 

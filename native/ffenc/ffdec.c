@@ -11,6 +11,16 @@
 // stream, as nvenc_gl.c waits for its copy the other way, so the picture can
 // go back to the decoder at once; and every decoder on FFmpeg's CUDA primary
 // context, which the runner's copy shares.
+//
+// Windows decodes with FFmpeg's d3d11va on the runner's own device, the way
+// Moonlight's d3d11va.cpp (moonlight-qt, GPL-3.0) does on its own: the
+// decoder's surfaces made shader resources as well where the GPU allows it,
+// so the runner draws each slice where it lies. Changed for Rift: the device
+// is the caller's, and its own multithread lock is FFmpeg's, so the runner's
+// drawing and the decoder never use the immediate context at once.
+#if defined(_WIN32)
+#define COBJMACROS
+#endif
 #include "ffdec.h"
 
 #include <stdio.h>
@@ -20,17 +30,28 @@
 #include <libavcodec/avcodec.h>
 #include <libavutil/dict.h>
 #include <libavutil/hwcontext.h>
-#include <libavutil/hwcontext_drm.h>
 
 #include "ff_shared.h"
+#if defined(__linux__)
+#include <libavutil/hwcontext_drm.h>
 // After ff_shared.h, whose NVIDIA loader header gives it CUDA's types.
 #include <libavutil/hwcontext_cuda.h>
+#endif
+#if defined(_WIN32)
+#include <d3d10.h>
+#include <d3d11.h>
+#include <dxgi.h>
+#include <windows.h>
+
+#include <libavutil/hwcontext_d3d11va.h>
+#endif
 
 // Surfaces past what the decoder needs for its references: the newest
 // picture waiting for the runner, the one it is drawing, and one on its way
 // between the two. Without them the decoder would wait for one back.
 #define LENT_PICTURES 4
 
+#if defined(__linux__)
 // DRM's fourccs for NV12's two planes, as their own layers (drm_fourcc.h,
 // which the library does not otherwise need).
 #define FOURCC(a, b, c, d)                                    \
@@ -41,20 +62,28 @@
 
 // GL's names, which the library otherwise does not need (gl.h).
 #define GL_TEXTURE_2D 0x0DE1
+#endif
 
 struct RiftFfdec {
   AVBufferRef* device;
   AVCodecContext* codec;
   AVPacket* packet;
   AVFrame* frame;
-  // AV_PIX_FMT_VAAPI or AV_PIX_FMT_CUDA: the only format taken.
+  // AV_PIX_FMT_VAAPI, AV_PIX_FMT_CUDA or AV_PIX_FMT_D3D11: the only format
+  // taken.
   enum AVPixelFormat gpu_format;
   // The GPU had no decoder for the stream, said while choosing how to
   // decode it.
   int no_gpu_decoder;
   char driver[128];
+#if defined(_WIN32)
+  // The GPU lets the shader read NV12 decoder surfaces, so they are made
+  // shader resources too.
+  int shader_readable;
+#endif
 };
 
+#if defined(__linux__)
 struct RiftFfdecGl {
   CudaFunctions* cu;
   // Holds the context the textures are registered in.
@@ -63,6 +92,7 @@ struct RiftFfdecGl {
   uint32_t textures[2];
   CUgraphicsResource resources[2];
 };
+#endif
 
 static enum AVCodecID codec_id_of(int32_t codec) {
   switch (codec) {
@@ -77,6 +107,37 @@ static enum AVCodecID codec_id_of(int32_t codec) {
   }
 }
 
+#if defined(_WIN32)
+// The decoder's surfaces, FFmpeg's own pool as it sizes it (with
+// LENT_PICTURES more), made shader resources as well where the GPU allows it,
+// and only the decoder's where it allows that but not this.
+static int d3d11_frames(AVCodecContext* codec, RiftFfdec* dec) {
+  int err = 0;
+  for (int shader = dec->shader_readable; shader >= 0; shader--) {
+    AVBufferRef* frames = NULL;
+    err = avcodec_get_hw_frames_parameters(codec, codec->hw_device_ctx,
+                                           AV_PIX_FMT_D3D11, &frames);
+    if (err < 0) return err;
+    AVHWFramesContext* context = (AVHWFramesContext*)frames->data;
+    AVD3D11VAFramesContext* d3d11 = context->hwctx;
+    if (shader) d3d11->BindFlags |= D3D11_BIND_SHADER_RESOURCE;
+    err = av_hwframe_ctx_init(frames);
+    if (err >= 0) {
+      av_buffer_unref(&codec->hw_frames_ctx);
+      codec->hw_frames_ctx = frames;
+      return 0;
+    }
+    av_buffer_unref(&frames);
+    if (shader) {
+      av_log(NULL, AV_LOG_WARNING,
+             "ffdec: no decoder surfaces the shader can read; the runner "
+             "copies each\n");
+    }
+  }
+  return err;
+}
+#endif
+
 // FFmpeg offers the GPU's format first when its hwaccel can take the stream,
 // and asks again without it when the GPU then refuses. Software is never
 // chosen: decoding it here would cost the CPU what the call's own path
@@ -85,12 +146,17 @@ static enum AVPixelFormat gpu_only(AVCodecContext* codec,
                                    const enum AVPixelFormat* formats) {
   RiftFfdec* dec = codec->opaque;
   for (const enum AVPixelFormat* f = formats; *f != AV_PIX_FMT_NONE; f++) {
-    if (*f == dec->gpu_format) return *f;
+    if (*f != dec->gpu_format) continue;
+#if defined(_WIN32)
+    if (*f == AV_PIX_FMT_D3D11 && d3d11_frames(codec, dec) < 0) break;
+#endif
+    return *f;
   }
   dec->no_gpu_decoder = 1;
   return AV_PIX_FMT_NONE;
 }
 
+#if defined(__linux__)
 // The NVIDIA card that is `node`'s, on CUDA's primary context: the one every
 // decoder in the process shares, so the runner's copy finds its textures
 // registered in the context each picture lies in, whichever decoder it came
@@ -116,6 +182,68 @@ static int open_cuda(RiftFfdec* dec, const char* node) {
   av_dict_free(&options);
   return err;
 }
+#endif
+
+#if defined(_WIN32)
+static void lock_device(void* multithread) {
+  ID3D10Multithread_Enter((ID3D10Multithread*)multithread);
+}
+
+static void unlock_device(void* multithread) {
+  ID3D10Multithread_Leave((ID3D10Multithread*)multithread);
+}
+
+static void free_lock(AVHWDeviceContext* context) {
+  if (context->user_opaque) {
+    ID3D10Multithread_Release((ID3D10Multithread*)context->user_opaque);
+  }
+}
+
+// FFmpeg's D3D11 device on the caller's, with a reference of its own, and
+// the device's multithread lock as FFmpeg's: the runner draws on the same
+// immediate context from Flutter's raster thread, under the same lock.
+// Named in `driver` after its adapter.
+static int open_d3d11(RiftFfdec* dec, ID3D11Device* device) {
+  if (!device) return AVERROR(EINVAL);
+  dec->device = av_hwdevice_ctx_alloc(AV_HWDEVICE_TYPE_D3D11VA);
+  if (!dec->device) return AVERROR(ENOMEM);
+  AVHWDeviceContext* context = (AVHWDeviceContext*)dec->device->data;
+  AVD3D11VADeviceContext* d3d11 = context->hwctx;
+  ID3D11Device_AddRef(device);
+  d3d11->device = device;
+  ID3D10Multithread* multithread = NULL;
+  if (SUCCEEDED(ID3D11Device_QueryInterface(device, &IID_ID3D10Multithread,
+                                            (void**)&multithread))) {
+    ID3D10Multithread_SetMultithreadProtected(multithread, TRUE);
+    context->user_opaque = multithread;
+    context->free = free_lock;
+    d3d11->lock = lock_device;
+    d3d11->unlock = unlock_device;
+    d3d11->lock_ctx = multithread;
+  }
+  UINT support = 0;
+  dec->shader_readable =
+      SUCCEEDED(ID3D11Device_CheckFormatSupport(device, DXGI_FORMAT_NV12,
+                                                &support)) &&
+      (support & D3D11_FORMAT_SUPPORT_SHADER_SAMPLE);
+  IDXGIDevice* dxgi = NULL;
+  IDXGIAdapter* adapter = NULL;
+  DXGI_ADAPTER_DESC desc;
+  if (SUCCEEDED(ID3D11Device_QueryInterface(device, &IID_IDXGIDevice,
+                                            (void**)&dxgi)) &&
+      SUCCEEDED(IDXGIDevice_GetAdapter(dxgi, &adapter)) &&
+      SUCCEEDED(IDXGIAdapter_GetDesc(adapter, &desc))) {
+    char name[96];
+    if (WideCharToMultiByte(CP_UTF8, 0, desc.Description, -1, name,
+                            sizeof(name), NULL, NULL) > 0) {
+      snprintf(dec->driver, sizeof(dec->driver), "%s, through D3D11", name);
+    }
+  }
+  if (adapter) IDXGIAdapter_Release(adapter);
+  if (dxgi) IDXGIDevice_Release(dxgi);
+  return av_hwdevice_ctx_init(dec->device);
+}
+#endif
 
 static int32_t matrix_of(enum AVColorSpace space) {
   switch (space) {
@@ -132,7 +260,12 @@ static int32_t matrix_of(enum AVColorSpace space) {
 RiftFfdec* rift_ffdec_open(const RiftFfdecConfig* config, char* error,
                            size_t error_len) {
   const AVCodec* codec = avcodec_find_decoder(codec_id_of(config->codec));
-  if (!codec) {
+  // A codec this build decodes nowhere still opens through D3D11, and fails
+  // its first picture as one the GPU cannot decode, as on any other GPU
+  // that lacks it.
+  int nowhere = !codec && codec_id_of(config->codec) != AV_CODEC_ID_NONE &&
+                config->api == RIFT_FFDEC_D3D11VA;
+  if (!codec && !nowhere) {
     rift_ff_fail(error, error_len, "no decoder for that codec", 0);
     return NULL;
   }
@@ -143,6 +276,7 @@ RiftFfdec* rift_ffdec_open(const RiftFfdecConfig* config, char* error,
   }
   snprintf(dec->driver, sizeof(dec->driver), "an unnamed GPU");
   int err;
+#if defined(__linux__)
   if (config->api == RIFT_FFDEC_CUDA) {
     dec->gpu_format = AV_PIX_FMT_CUDA;
     err = open_cuda(dec, config->device);
@@ -151,12 +285,24 @@ RiftFfdec* rift_ffdec_open(const RiftFfdecConfig* config, char* error,
     err = av_hwdevice_ctx_create(&dec->device, AV_HWDEVICE_TYPE_VAAPI,
                                  config->device, NULL, 0);
   } else {
+#elif defined(_WIN32)
+  if (config->api == RIFT_FFDEC_D3D11VA) {
+    dec->gpu_format = AV_PIX_FMT_D3D11;
+    err = open_d3d11(dec, config->d3d11_device);
+  } else {
+#else
+  {
+#endif
     rift_ff_fail(error, error_len, "no such way to the GPU", 0);
     goto failed;
   }
   if (err < 0) {
     rift_ff_fail(error, error_len, "the GPU did not open", err);
     goto failed;
+  }
+  if (nowhere) {
+    dec->no_gpu_decoder = 1;
+    return dec;
   }
   dec->codec = avcodec_alloc_context3(codec);
   dec->packet = av_packet_alloc();
@@ -178,8 +324,10 @@ RiftFfdec* rift_ffdec_open(const RiftFfdecConfig* config, char* error,
     rift_ff_fail(error, error_len, "the decoder did not open", err);
     goto failed;
   }
+#if defined(__linux__)
   const char* vendor = rift_ff_vaapi_vendor(dec->device);
   if (vendor) snprintf(dec->driver, sizeof(dec->driver), "%s", vendor);
+#endif
   return dec;
 
 failed:
@@ -207,6 +355,7 @@ int32_t rift_ffdec_send(RiftFfdec* dec, const uint8_t* data, size_t len,
 
 int32_t rift_ffdec_receive(RiftFfdec* dec, RiftFfdecPicture* picture) {
   memset(picture, 0, sizeof(*picture));
+  if (dec->no_gpu_decoder) return AVERROR(ENOSYS);
   int err = avcodec_receive_frame(dec->codec, dec->frame);
   if (err == AVERROR(EAGAIN)) return 0;
   if (err < 0) return err;
@@ -221,6 +370,32 @@ int32_t rift_ffdec_receive(RiftFfdec* dec, RiftFfdecPicture* picture) {
   picture->full_range = dec->frame->color_range == AVCOL_RANGE_JPEG;
   picture->timestamp_us = dec->frame->pts;
   for (int i = 0; i < 4; i++) picture->fds[i] = -1;
+#if defined(_WIN32)
+  if (dec->gpu_format == AV_PIX_FMT_D3D11) {
+    const AVHWFramesContext* frames =
+        (const AVHWFramesContext*)dec->frame->hw_frames_ctx->data;
+    if (frames->sw_format != AV_PIX_FMT_NV12) {
+      // A 10-bit stream: nothing here draws that.
+      av_frame_unref(dec->frame);
+      return AVERROR(ENOSYS);
+    }
+    // The frame holds its slice of the decoder's array, which goes back to
+    // the pool only when the frame is let go.
+    AVFrame* held = av_frame_alloc();
+    if (!held) {
+      av_frame_unref(dec->frame);
+      return AVERROR(ENOMEM);
+    }
+    av_frame_move_ref(held, dec->frame);
+    picture->memory = RIFT_FFDEC_IN_D3D11;
+    picture->d3d11_texture = held->data[0];
+    picture->d3d11_slice = (int32_t)(intptr_t)held->data[1];
+    picture->held = held;
+    return 1;
+  }
+  av_frame_unref(dec->frame);
+  return AVERROR(ENOSYS);
+#else
   if (dec->gpu_format == AV_PIX_FMT_CUDA) {
     const AVHWFramesContext* frames =
         (const AVHWFramesContext*)dec->frame->hw_frames_ctx->data;
@@ -278,6 +453,7 @@ int32_t rift_ffdec_receive(RiftFfdec* dec, RiftFfdecPicture* picture) {
   }
   picture->held = mapped;
   return 1;
+#endif
 }
 
 void rift_ffdec_release(RiftFfdecPicture* picture) {
@@ -296,7 +472,9 @@ void rift_ffdec_close(RiftFfdec* dec) {
   free(dec);
 }
 
-// ── Into the runner's GL textures ───────────────────────────────────────
+// ── Into the runner's GL textures (Linux) ───────────────────────────────
+
+#if defined(__linux__)
 
 void rift_ffdec_gl_close(RiftFfdecGl* link) {
   if (!link) return;
@@ -413,3 +591,4 @@ done:
   }
   return 0;
 }
+#endif

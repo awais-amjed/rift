@@ -27,6 +27,8 @@ struct Config {
     codec: i32,
     device: *const c_char,
     api: i32,
+    /// Windows' D3D11 device; none here.
+    d3d11_device: *mut c_void,
 }
 
 /// `RiftFfdecPicture`, as `ffdec.h` declares it.
@@ -45,6 +47,9 @@ struct RawPicture {
     modifiers: [u64; 4],
     timestamp_us: i64,
     held: *mut c_void,
+    /// Windows' D3D11 slice; never one here.
+    d3d11_texture: *mut c_void,
+    d3d11_slice: i32,
 }
 
 /// The library's decoder functions, as `ffdec.h` declares them.
@@ -208,6 +213,7 @@ impl Decoder {
             },
             device: device.as_ptr(),
             api: if gpu.cuda { CUDA } else { VAAPI },
+            d3d11_device: std::ptr::null_mut(),
         };
         let mut error = [0 as c_char; 256];
         // SAFETY: the config and the error buffer outlive the call, which

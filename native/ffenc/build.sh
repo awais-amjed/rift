@@ -9,7 +9,8 @@
 # Wayland share's PipeWire stream and a watched share's VAAPI decoders, and needs a C compiler, make, and the
 # headers of libva, libdrm, PipeWire, EGL, GBM and GLES (libva-dev, libdrm-dev,
 # libpipewire-0.3-dev, libegl-dev, libgbm-dev, libgles-dev). On Windows it
-# makes rift_ffenc.dll with NVIDIA's, Intel's and AMD's encoders, and runs in
+# makes rift_ffenc.dll with NVIDIA's, Intel's and AMD's encoders and a watched
+# share's D3D11 decoders, and runs in
 # MSYS2's UCRT64 shell with make, MinGW's gcc, CMake, Ninja and pkgconf
 # (windows/CMakeLists.txt starts it there). Every download is taken once
 # into OUT_DIR, or FFmpeg's from RIFT_FFMPEG_TARBALL, and its sha256 checked
@@ -77,6 +78,12 @@ else
   configure_flags+=(
     --enable-w32threads --enable-d3d11va --enable-amf --enable-libvpl
     --enable-encoder=h264_nvenc,h264_qsv,h264_amf
+    # A watched share's decoders (ffdec.c), only through D3D11's video
+    # decoder, in the forms that take frames of D3D11 textures (the `2`s;
+    # FFmpeg builds their code only with the older forms on too). No VP8: no
+    # GPU offers it through D3D11, and FFmpeg has no such hwaccel.
+    --enable-decoder=h264,vp9
+    --enable-hwaccel=h264_d3d11va,h264_d3d11va2,vp9_d3d11va,vp9_d3d11va2
     # libvpl is C++, and the pkg-config file it installs leaves its runtime
     # out.
     --pkg-config-flags=--static --extra-libs=-lstdc++
@@ -210,7 +217,7 @@ else
   # named rift_ffenc.dll.part looks for that (test_windows.sh).
   mkdir -p "$out/part"
   "$cc" -shared -O2 -I"$prefix/include" -I"$prefix/include/vpl" \
-    "$here/ffenc.c" "$here/d3d11_nv12.c" "$here/nvenc_gl_geometry.c" \
+    "$here/ffenc.c" "$here/ffdec.c" "$here/d3d11_nv12.c" "$here/nvenc_gl_geometry.c" \
     -o "$out/part/rift_ffenc.dll" \
     "$prefix/lib/libavcodec.a" "$prefix/lib/libavutil.a" "$prefix/lib/libvpl.a" \
     -static-libgcc -static-libstdc++ \

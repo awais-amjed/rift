@@ -404,17 +404,28 @@ a heavy full-screen pixel shader without vsync, so Flutter's own GPU is busy.
 - The picture carries the matrix and range from the stream, as on Linux.
 - VP8 on Windows answers `AVERROR(ENOSYS)`.
 
-- [ ] **Step 1: The failing test,** `test_ffdec_d3d11.c`:
+- [x] **Step 1: The failing test,** `test_ffdec_d3d11.c`:
   - It makes a device the way `MakeDevice` does.
   - It encodes four blocks at 1920×1080 with `h264_nvenc` or `h264_qsv`, whichever opens, and with the
     library's VP9 if none does; otherwise it takes a stream file from `test_ffdec.c`'s set.
+    *Done:* the library has no VP9 encoder on Windows and `test_ffdec.c` keeps no streams, so
+    `test_ffdec_windows.sh` has the command-line ffmpeg (libvpx) make VP9 of the same picture, flagged
+    BT.601 limited, and the same stream relabelled BT.709 full range (`vp9_metadata`).
   - It decodes them through `rift_ffdec_*` on that device.
   - It copies the slice to staging and checks the four colours in NV12.
   - It checks VP8 fails with `ENOSYS`.
-- [ ] **Step 2: See it fail** (no `RIFT_FFDEC_D3D11VA`). Implement. Build with `build.sh` in MSYS2 UCRT64 and
-  pass on the Iris Xe, then the RTX.
-- [ ] **Step 3: Check the stamp and the ABI.** An old DLL is refused with the ABI message, not a crash.
-- [ ] **Step 4: Commit.**
+- [x] **Step 2: See it fail** (no `RIFT_FFDEC_D3D11VA`). Implement. Build with `build.sh` in MSYS2 UCRT64 and
+  pass on the Iris Xe, then the RTX. *Nov 4, Hybrid:* it failed to link against the old library (no
+  `rift_ffdec_*`). Then on both GPUs: H264 from `h264_nvenc` 30 of 30, VP9 8 of 8 in each file, the four
+  colours within 8, BT.601 limited and BT.709 full reported as flagged, three pictures held while decoding
+  went on and read after the decoder closed, the arrays shader resources, VP8 `ENOSYS`, and the device's
+  references back where they started. Two things found: the plain `d3d11va` hwaccels must be on beside the
+  `d3d11va2` ones, whose code is in the same objects; and Windows' `ENOSYS` is 40, not Linux's 38.
+- [x] **Step 3: Check the stamp and the ABI.** An old DLL is refused with the ABI message, not a crash.
+  *Nov 4:* the stamp rebuilt the library on each change to `ffdec.c`; the ABI 11 library from Task 6 under
+  `RIFT_FFENC_LIB` gave "shares decode on the CPU (FFmpeg's library is version 11, not 12)". Linux's
+  `RawPicture` and `Config` in `decode/linux.rs` grew with the C structs.
+- [x] **Step 4: Commit.**
 
 ### Task 8: Rust decodes on the runner's device
 
