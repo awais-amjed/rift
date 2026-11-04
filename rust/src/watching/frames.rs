@@ -13,11 +13,14 @@
 //! [`entry_points`], as it finds DPDFNet's. A picture is libwebrtc's, three
 //! planes in memory, or one decoded on the GPU ([`super::decode`]): two
 //! DMA-BUF layers the runner imports, or CUDA's memory, which the runner has
-//! the decoder's library copy into its GL textures.
+//! the decoder's library copy into its GL textures, or on Windows a slice of
+//! the D3D11 decoder's texture array, on the runner's own device.
 //!
-//! A GPU picture the runner cannot draw is handed back saying so, and the
-//! app then watches through the call instead ([`super::session::lost`]):
-//! otherwise the share would stay black for as long as it is watched.
+//! A picture the runner cannot draw is handed back saying so, and the app
+//! then watches through the call instead ([`super::session::lost`]):
+//! otherwise the share would stay black for as long as it is watched. On
+//! Linux that is a GPU picture that would not import; on Windows any picture,
+//! once the runner's device is lost.
 use livekit::webrtc::prelude::{I420Buffer, VideoBuffer};
 use std::collections::HashMap;
 use std::ffi::c_void;
@@ -38,6 +41,11 @@ pub(crate) const ON_GPU: u32 = 1;
 /// [`WatchPlanes::copy_to_gl`] copies into the runner's textures.
 #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 pub(crate) const IN_CUDA: u32 = 2;
+/// [`WatchPlanes::kind`] for a slice of a D3D11 decoder's NV12 texture array
+/// ([`WatchPlanes::texture`] and [`WatchPlanes::slice`]), on the runner's
+/// device, coded at the decoder's aligned size: the picture is its top left.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(crate) const IN_D3D11: u32 = 3;
 
 /// `rift_ffdec_copy_to_gl` (`native/ffenc/ffdec.h`): the picture, the
 /// runner's two textures, and its registration of them, kept between calls.
@@ -80,6 +88,10 @@ pub struct WatchPlanes {
     pub picture: *const c_void,
     pub copy_to_gl: Option<CopyToGl>,
     pub gl_close: Option<GlClose>,
+    /// [`IN_D3D11`]: the decoder's `ID3D11Texture2D` array and the picture's
+    /// slice in it, both valid while lent.
+    pub texture: *mut c_void,
+    pub slice: u32,
 }
 
 impl WatchPlanes {
@@ -105,6 +117,8 @@ impl WatchPlanes {
             picture: std::ptr::null(),
             copy_to_gl: None,
             gl_close: None,
+            texture: std::ptr::null_mut(),
+            slice: 0,
         }
     }
 }
@@ -271,13 +285,14 @@ pub unsafe extern "C" fn rift_watch_frame_lock(texture: u64, out: *mut WatchPlan
 }
 
 /// The runner has finished with the picture [rift_watch_frame_lock] lent:
-/// [drawn] is 1, or 0 when it could not draw it, a GPU picture that would not
-/// import or copy. The first time, the app watches through the call instead.
+/// [drawn] is 1, or 0 when it could not draw it: a GPU picture that would not
+/// import or copy, or any picture once the runner's device is lost. The first
+/// time, the app watches through the call instead.
 #[no_mangle]
 pub extern "C" fn rift_watch_frame_unlock(texture: u64, drawn: i32) {
     if with_table(|t| t.unlock(texture, drawn != 0)) {
-        log::warn!("watching: the window could not draw a picture decoded on the GPU");
-        super::session::lost("the window could not draw a picture decoded on the GPU");
+        log::warn!("watching: the window could not draw a picture");
+        super::session::lost("the window could not draw a picture");
     }
 }
 

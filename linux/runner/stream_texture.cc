@@ -39,6 +39,9 @@ struct WatchPlanes {
   int32_t (*copy_to_gl)(const void* picture, const uint32_t* textures,
                         void** link);
   void (*gl_close)(void* link);
+  // Windows' D3D11 slice (frames.rs's IN_D3D11); never one here.
+  void* texture;
+  uint32_t slice;
 };
 constexpr uint32_t kOnGpu = 1;
 constexpr uint32_t kInCuda = 2;

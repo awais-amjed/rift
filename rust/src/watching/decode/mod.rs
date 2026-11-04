@@ -5,9 +5,10 @@
 //! a GPU decoder is there, it decodes nothing (pass-through, `RIFT.md` in the
 //! LiveKit fork), and each watched share's picture is read still encoded, on a
 //! thread of its own ([`feed`]), decoded on the GPU the screen is drawn with,
-//! and handed to the runner: as DMA-BUFs from Intel or AMD, and from NVIDIA
-//! as CUDA's memory, which the runner has copied into its GL textures on the
-//! GPU. Nothing comes to the CPU. The
+//! and handed to the runner: on Linux as DMA-BUFs from Intel or AMD, and from
+//! NVIDIA as CUDA's memory, which the runner has copied into its GL textures
+//! on the GPU; on Windows as a slice of the decoder's D3D11 textures, decoded
+//! on the runner's own device. Nothing comes to the CPU. The
 //! runtime cannot change while a room holds it, so the choice is the
 //! process's: the share connections only send, and never notice.
 //!
@@ -29,19 +30,27 @@ use std::thread;
 use std::time::{Duration, Instant};
 use tokio::sync::oneshot;
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(not(any(target_os = "linux", windows)))]
 mod elsewhere;
 #[cfg(target_os = "linux")]
 mod linux;
+#[cfg(windows)]
+mod windows;
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(not(any(target_os = "linux", windows)))]
 pub(crate) use elsewhere::Gpu;
-#[cfg(not(target_os = "linux"))]
+#[cfg(not(any(target_os = "linux", windows)))]
 use elsewhere::{device, DecodeError, Decoder};
 #[cfg(target_os = "linux")]
 pub(crate) use linux::Gpu;
 #[cfg(target_os = "linux")]
 use linux::{device, DecodeError, Decoder};
+#[cfg(all(test, windows))]
+pub(crate) use windows::tests::{slice_holds, RunnerDeviceInPlace};
+#[cfg(windows)]
+pub(crate) use windows::Gpu;
+#[cfg(windows)]
+use windows::{device, DecodeError, Decoder};
 
 /// How far the decoder may fall behind before the stream flushes what waits
 /// and asks for a keyframe: half a second at 60 pictures a second. Only a

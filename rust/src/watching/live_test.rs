@@ -33,6 +33,10 @@
 //!     cargo test --release live_gpu_watch -- --ignored --nocapture
 //! ```
 //!
+//! On Windows it decodes on adapter 0, on a device the test makes the way the
+//! runner makes its own and puts in the runner's place, with `RIFT_FFENC_LIB`
+//! naming the library's `rift_ffenc.dll`.
+//!
 //! `PULSE_SINK` keeps anything that falls back to the default in the sink
 //! too. It is heard by recording the sink's monitor beside it: a 1 kHz tone
 //! in the left ear, then the right, a second each, for four seconds at full
@@ -1048,7 +1052,8 @@ mod cable {
 #[cfg(gpu_encoder)]
 /// The picture waiting for [texture] when it was decoded on the GPU: its
 /// size, and whether it is there to draw while it is lent: both its layers'
-/// fds open, or, in CUDA's memory, the picture and the library's copy.
+/// fds open, or, in CUDA's memory, the picture and the library's copy, or on
+/// Windows a texture array holding its slice, at least the picture's size.
 fn lent_from_the_gpu(texture: u64) -> Option<(u32, u32, bool)> {
     let mut planes = std::mem::MaybeUninit::<frames::WatchPlanes>::uninit();
     // SAFETY: a WatchPlanes this test owns.
@@ -1065,6 +1070,8 @@ fn lent_from_the_gpu(texture: u64) -> Option<(u32, u32, bool)> {
         frames::IN_CUDA => {
             !planes.picture.is_null() && planes.copy_to_gl.is_some() && planes.gl_close.is_some()
         }
+        #[cfg(windows)]
+        frames::IN_D3D11 => super::decode::slice_holds(&planes),
         _ => false,
     };
     frames::rift_watch_frame_unlock(texture, 1);
@@ -1076,9 +1083,13 @@ fn lent_from_the_gpu(texture: u64) -> Option<(u32, u32, bool)> {
 #[ignore = "needs a LiveKit server and a GPU decoder; see the module doc"]
 async fn live_gpu_watch_decodes_each_codec_on_the_gpu() {
     let _ = env_logger::builder().is_test(true).try_init();
+    #[cfg(windows)]
+    let runner = super::decode::RunnerDeviceInPlace::new();
     super::decode::choose();
-    let device = super::decode::gpu()
-        .expect("decoding on the GPU here: under Wayland, on the GPU drawing the screen");
+    let device = super::decode::gpu().expect(
+        "decoding on the GPU here: under Wayland on the GPU drawing the screen (Linux), \
+         or on adapter 0 (Windows)",
+    );
     log::info!("gpu watch test: decoding on {device}");
     let server = Server::from_env();
     let key = shared_key();
@@ -1164,4 +1175,8 @@ async fn live_gpu_watch_decodes_each_codec_on_the_gpu() {
         share.end().await;
         let _ = voice.close().await;
     }
+    // Every decoder closed and every picture let go has handed back its
+    // reference to the runner's device.
+    #[cfg(windows)]
+    runner.assert_all_handed_back();
 }

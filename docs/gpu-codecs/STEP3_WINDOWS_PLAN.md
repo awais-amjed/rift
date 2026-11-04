@@ -452,17 +452,26 @@ a heavy full-screen pixel shader without vsync, so Flutter's own GPU is busy.
 - Tests put their own device in the runner's place (a `#[cfg(test)]` override, since a test binary exports
   nothing).
 
-- [ ] **Step 1: The failing unit tests:**
+- [x] **Step 1: The failing unit tests:**
   - `decodes` from a profile list (pure: a list of GUIDs in, the answer out);
   - with no runner device, opening a GPU decoder fails with the reason, and nothing is leaked.
-- [ ] **Step 2: See them fail; implement; pass.** `flutter analyze` (nothing in Dart should change).
-- [ ] **Step 3: `live_gpu_watch` on Windows.**
+- [x] **Step 2: See them fail; implement; pass.** `flutter analyze` (nothing in Dart should change).
+  *Nov 4:* written beside the implementation, so not seen failing first. They pass (`decodes_what_its_profiles_say`,
+  `vp8_is_never_decoded_on_the_gpu`, `a_window_with_no_gpu_device_opens_no_decoder`); the leak check is in
+  Step 3, which needs the library. `flutter analyze` clean, no Dart changed.
+- [x] **Step 3: `live_gpu_watch` on Windows.**
   - The test puts in place a device made as the runner makes it.
   - `lent_from_the_gpu` checks the `IN_D3D11` picture: a texture, a slice within the array, the size sent.
   - H264 and VP9 decode at 80% or more of the pictures sent; VP8 fails with
     `the GPU cannot decode this Vp8`.
   - Run it in Hybrid on the Iris Xe. The RTX's turn is in Task 11.
-- [ ] **Step 4: Commit.** The Linux side's recheck list gets this task's shared files.
+
+  *Nov 4, Hybrid, Iris Xe, against `livekit-server --dev`:* passed. VP8 lost the watch connection with
+  `the GPU cannot decode this Vp8`; VP9 88 and H264 89 pictures in 3 s at 30 a second, each lent as an NV12
+  slice within its array at 640×360; every reference to the device handed back at the end. `live_watch_`
+  passes beside it.
+- [x] **Step 4: Commit.** The Linux side's recheck list gets this task's shared files: `frames.rs`
+  (`WatchPlanes` grew, the unlock line), `decode/mod.rs`, `live_test.rs`, `linux/runner/stream_texture.cc`.
 
 ### Task 9: The runner draws decoded surfaces
 

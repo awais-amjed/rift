@@ -20,7 +20,8 @@ struct WatchPlanes {
   const uint8_t* u;
   const uint8_t* v;
   uint32_t stride_y, stride_u, stride_v;
-  // kInMemory: the three planes above. The rest is Linux's until phase B.
+  // kInMemory: the three planes above; kInD3d11: |texture| and |slice| below.
+  // The DMA-BUF layers and the CUDA picture are Linux's.
   uint32_t kind;
   uint32_t formats[2];
   int32_t fds[2];
@@ -32,8 +33,14 @@ struct WatchPlanes {
   int32_t (*copy_to_gl)(const void* picture, const uint32_t* textures,
                         void** link);
   void (*gl_close)(void* link);
+  // kInD3d11: the decoder's ID3D11Texture2D array, on this runner's device,
+  // and the picture's slice in it; NV12 at the decoder's aligned size, the
+  // picture its top left.
+  void* texture;
+  uint32_t slice;
 };
 constexpr uint32_t kInMemory = 0;
+constexpr uint32_t kInD3d11 = 3;
 constexpr uint32_t kBt601 = 0;
 constexpr uint32_t kBt709 = 1;
 constexpr uint32_t kBt2020 = 2;
