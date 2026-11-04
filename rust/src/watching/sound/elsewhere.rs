@@ -5,4 +5,6 @@ use std::sync::mpsc::Receiver;
 
 pub(crate) const PLAYS: bool = false;
 
-pub(super) fn run(_frames: Receiver<Vec<i16>>, _gain: &Gain) {}
+pub(super) fn run(_frames: Receiver<Vec<i16>>, _gain: &Gain) -> Result<(), String> {
+    Ok(())
+}

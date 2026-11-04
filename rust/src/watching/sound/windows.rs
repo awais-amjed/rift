@@ -32,10 +32,24 @@ const BUFFER_DURATION_HNS: i64 = 10_000_000;
 /// output again.
 const FAILURES_TO_GIVE_UP: u32 = 3;
 
-pub(super) fn run(frames: Receiver<Vec<i16>>, gain: &Gain) {
+pub(super) fn run(frames: Receiver<Vec<i16>>, gain: &Gain) -> Result<(), String> {
     // See `audio_endpoints::list` on why the result is not checked.
     let _ = wasapi::initialize_mta().ok();
     let mut output: Option<Output> = None;
+    let ended = play_until_fed(&frames, gain, &mut output);
+    if let Some(playing) = output {
+        playing.stop();
+    }
+    ended
+}
+
+/// Plays each frame until the feed ends (Ok), or the output will not open
+/// or keeps failing.
+fn play_until_fed(
+    frames: &Receiver<Vec<i16>>,
+    gain: &Gain,
+    output: &mut Option<Output>,
+) -> Result<(), String> {
     let mut failures = 0;
     // Each frame is 10 ms; the feed ends, and with it this, when the share
     // stops playing.
@@ -45,13 +59,7 @@ pub(super) fn run(frames: Receiver<Vec<i16>>, gain: &Gain) {
                 old.stop();
             }
             let (change, device) = super::output();
-            match Output::open(change, device.as_deref()) {
-                Ok(opened) => output = Some(opened),
-                Err(message) => {
-                    log::warn!("watching: {message}");
-                    break;
-                }
-            }
+            *output = Some(Output::open(change, device.as_deref())?);
         }
         let Some(playing) = output.as_ref() else {
             continue;
@@ -62,7 +70,7 @@ pub(super) fn run(frames: Receiver<Vec<i16>>, gain: &Gain) {
                 log::warn!("watching: playing the sound failed: {message}");
                 failures += 1;
                 if failures >= FAILURES_TO_GIVE_UP {
-                    break;
+                    return Err(format!("playing the sound failed: {message}"));
                 }
                 if let Some(old) = output.take() {
                     old.stop();
@@ -70,9 +78,7 @@ pub(super) fn run(frames: Receiver<Vec<i16>>, gain: &Gain) {
             }
         }
     }
-    if let Some(playing) = output {
-        playing.stop();
-    }
+    Ok(())
 }
 
 /// A started render stream, and the output change it was opened for.

@@ -85,9 +85,7 @@ pub(crate) fn play(track: RemoteAudioTrack, gain: Arc<Gain>) -> Option<Playing> 
         return None;
     }
     let (frames, feed) = mpsc::sync_channel::<Vec<i16>>(QUEUED_FRAMES);
-    thread::Builder::new()
-        .name("rift-watch-sound".to_string())
-        .spawn(move || run(feed, &gain))
+    start_player(feed, gain, run)
         .map_err(|e| log::warn!("watching: no thread for the sound: {e}"))
         .ok()?;
     let feed = tokio::spawn(async move {
@@ -102,6 +100,29 @@ pub(crate) fn play(track: RemoteAudioTrack, gain: Arc<Gain>) -> Option<Playing> 
         }
     });
     Some(Playing { feed })
+}
+
+/// What plays a share's sound: Ok once its feed has ended, as when the share
+/// is unwatched; an error when it could not go on.
+type Run = fn(mpsc::Receiver<Vec<i16>>, &Gain) -> Result<(), String>;
+
+/// Plays [feed] on a thread of its own. A player that fails gives the share
+/// back to the call's connection: the call's copy of the sound is held while
+/// Rust plays it, so a player that just stopped left the share silent with
+/// nothing to say why.
+fn start_player(
+    feed: mpsc::Receiver<Vec<i16>>,
+    gain: Arc<Gain>,
+    run: Run,
+) -> std::io::Result<thread::JoinHandle<()>> {
+    thread::Builder::new()
+        .name("rift-watch-sound".to_string())
+        .spawn(move || {
+            if let Err(why) = run(feed, &gain) {
+                log::warn!("watching: {why}");
+                super::session::lost(&format!("the share's sound stopped: {why}"));
+            }
+        })
 }
 
 /// The output chosen in settings, as WebRTC lists it (None for the default),
@@ -148,6 +169,38 @@ fn playable(samples: &[i16], room: usize, gain: f32) -> Vec<i16> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_player_that_fails_gives_the_sound_back_to_the_call() {
+        fn fails(_: mpsc::Receiver<Vec<i16>>, _: &Gain) -> Result<(), String> {
+            Err("output 7 would not open".to_string())
+        }
+        fn ends(frames: mpsc::Receiver<Vec<i16>>, _: &Gain) -> Result<(), String> {
+            while frames.recv().is_ok() {}
+            Ok(())
+        }
+        let (_frames, feed) = mpsc::sync_channel(1);
+        start_player(feed, Arc::default(), fails)
+            .unwrap()
+            .join()
+            .unwrap();
+        let lost = crate::watching::session::lost_reasons();
+        assert!(
+            lost.iter().any(|r| r.contains("output 7 would not open")),
+            "{lost:?}"
+        );
+
+        // Fed to its end, as when the share is unwatched: nothing is lost.
+        let (frames, feed) = mpsc::sync_channel(1);
+        let player = start_player(feed, Arc::default(), ends).unwrap();
+        drop(frames);
+        player.join().unwrap();
+        let after = crate::watching::session::lost_reasons();
+        assert!(
+            !after[lost.len()..].iter().any(|r| r.contains("sound")),
+            "{after:?}"
+        );
+    }
 
     #[test]
     fn plays_what_fits_at_the_gain() {

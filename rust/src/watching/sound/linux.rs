@@ -30,34 +30,39 @@ const SLACK_SAMPLES: usize = (SAMPLE_RATE * CHANNELS) as usize / 100;
 /// anyway: two frames' time.
 const WAIT: Duration = Duration::from_millis(20);
 
-pub(super) fn run(frames: Receiver<Vec<i16>>, gain: &Gain) {
-    let Some(mut connection) = Connection::open("rift-watch") else {
-        log::warn!("watching: could not reach the sound server");
-        return;
-    };
+pub(super) fn run(frames: Receiver<Vec<i16>>, gain: &Gain) -> Result<(), String> {
+    let mut connection =
+        Connection::open("rift-watch").ok_or("could not reach the sound server")?;
     let mut output: Option<(u64, Stream)> = None;
+    let ended = play_until_fed(&frames, gain, &mut connection, &mut output);
+    if let Some((_, mut stream)) = output {
+        let _ = stream.disconnect();
+    }
+    ended
+}
+
+/// Plays each frame until the feed ends (Ok) or the output fails.
+fn play_until_fed(
+    frames: &Receiver<Vec<i16>>,
+    gain: &Gain,
+    connection: &mut Connection,
+    output: &mut Option<(u64, Stream)>,
+) -> Result<(), String> {
     loop {
         let frame = match frames.recv_timeout(WAIT) {
             Ok(frame) => Some(frame),
             Err(RecvTimeoutError::Timeout) => None,
-            Err(RecvTimeoutError::Disconnected) => break,
+            Err(RecvTimeoutError::Disconnected) => return Ok(()),
         };
-        if !turn_over(&mut connection) {
-            log::warn!("watching: the sound server went away");
-            break;
+        if !turn_over(connection) {
+            return Err("the sound server went away".to_string());
         }
         if output.as_ref().map(|(change, _)| *change) != Some(output_changes()) {
             if let Some((_, mut old)) = output.take() {
                 let _ = old.disconnect();
             }
             let (change, device) = super::output();
-            match open(&mut connection, device.as_deref()) {
-                Ok(stream) => output = Some((change, stream)),
-                Err(message) => {
-                    log::warn!("watching: {message}");
-                    break;
-                }
-            }
+            *output = Some((change, open(connection, device.as_deref())?));
         }
         let (Some(frame), Some((_, stream))) = (frame, output.as_mut()) else {
             continue;
@@ -67,13 +72,9 @@ pub(super) fn run(frames: Receiver<Vec<i16>>, gain: &Gain) {
         if played.is_empty() {
             continue;
         }
-        if let Err(e) = stream.write(&le_bytes(&played), None, 0, SeekMode::Relative) {
-            log::warn!("watching: playing the sound failed: {e:?}");
-            break;
-        }
-    }
-    if let Some((_, mut stream)) = output {
-        let _ = stream.disconnect();
+        stream
+            .write(&le_bytes(&played), None, 0, SeekMode::Relative)
+            .map_err(|e| format!("playing the sound failed: {e:?}"))?;
     }
 }
 

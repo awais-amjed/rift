@@ -713,7 +713,11 @@ libwebrtc still decodes, on the CPU.
   call's, or nothing while it is muted, while deafened or while listening only
   to somebody else. At nothing the server stops sending it, as the call holds
   a sound nobody hears. The call's own copy is held all the while
-  (`hearsRemoteAudio`, `playedElsewhere`), so it plays once. The watch
+  (`hearsRemoteAudio`, `playedElsewhere`), so it plays once. A player that
+  cannot go on (an output that will not open, the sound server gone, three
+  failed writes in a row on Windows) is a loss, and the call's connection
+  takes the share back: a player that only stopped left the share silent
+  with the call's copy still held (found by review Nov 5). The watch
   connection may unsubscribe a sound, which the call's must never do (*Receiving
   a call's audio*): this SDK gives a sound's decryptor the receiver itself,
   not an id two receivers can share. Where Rust has no player yet
