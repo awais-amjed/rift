@@ -655,7 +655,7 @@ never on the timeout; the owner saw it come almost at once. In the fifth no
 keyframe had gone by yet, and the picture came at 0.25 s. Not yet tried on
 the web, a phone or Windows, which run the same code.
 
-## Watching a share through Rust — [Built November 2026, Linux, `gpu-codecs` branch]
+## Watching a share through Rust — [Built November 2026, Linux; Windows built, not yet driven; `gpu-codecs` branch]
 
 On a desktop, flutter_webrtc turned every decoded picture of a watched share
 into RGBA on the CPU and uploaded that, which is most of what watching cost a
@@ -666,7 +666,11 @@ the GPU (`linux/runner/stream_texture.cc`): the three I420 planes of the
 decoder's own buffer, lent to the runner when Flutter asks for a frame, are
 uploaded as one-byte textures and turned into colour by a shader. Where the
 GPU can, it decodes the picture too, and nothing of it comes to the CPU
-(below). The design is in `docs/gpu-codecs/STEP3_PLAN.md`.
+(below). The design is in `docs/gpu-codecs/STEP3_PLAN.md`. On Windows the
+runner draws the same planes with Direct3D 11 (`windows/runner/stream_texture.cpp`),
+on a device of its own on the adapter Flutter draws with, waits for the GPU,
+and hands Flutter the texture's shared handle, which ANGLE opens
+(`docs/gpu-codecs/STEP3_WINDOWS.md`). Built Nov 4, not yet driven in the app.
 
 - **One connection per call,** `<user>~<device>_watch`, opened with the first
   share watched this way and closed with the last. The server mints it only
@@ -675,8 +679,8 @@ GPU can, it decodes the picture too, and nothing of it comes to the CPU
   nothing else.
 - **Which way a share goes** is `LiveKitCubit`'s (`_RustWatchMixin`). A share
   goes through Rust when it can; otherwise it is received in the call's room,
-  as before: on a build without stream textures (every platform but Linux,
-  for now), with `RIFT_WATCH_PATH=call`, on a server whose answer to `watch`
+  as before: on a build without stream textures (every platform but Linux
+  and Windows, for now), with `RIFT_WATCH_PATH=call`, on a server whose answer to `watch`
   names the voice identity (one from before it, where joining with that would
   push this device's own voice connection out of the call), and for the rest
   of the call after anything on the Rust path fails, the shares it held going

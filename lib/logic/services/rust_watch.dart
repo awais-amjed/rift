@@ -18,7 +18,7 @@ import 'inbound_video.dart';
 /// back when it fails, is the cubit's.
 ///
 /// The runner's side is the `rift/stream_texture` channel
-/// (`linux/runner/stream_texture.cc`).
+/// (`linux/runner/stream_texture.cc`, `windows/runner/stream_texture.cpp`).
 class RustWatch {
   const RustWatch._();
 
@@ -29,7 +29,7 @@ class RustWatch {
   /// two against each other in one build.
   static final bool available =
       !kIsWeb &&
-      Platform.isLinux &&
+      (Platform.isLinux || Platform.isWindows) &&
       Platform.environment['RIFT_WATCH_PATH'] != 'call';
 
   /// Whether Rust plays a watched share's sound, and the call's own copy is

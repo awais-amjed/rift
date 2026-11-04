@@ -250,8 +250,10 @@ a heavy full-screen pixel shader without vsync, so Flutter's own GPU is busy.
 - Modify: `lib/logic/services/rust_watch.dart` (`available`: Linux or Windows), and its doc comment, which names
   the Windows runner's file
 
-- [ ] **Step 1:** Change `available`. Run `flutter analyze` and `flutter test`.
-- [ ] **Step 2: Commit** with `CALLS.md` (*Watching a share through Rust*: Windows in the first list, the texture
+- [x] **Step 1:** Change `available`. Run `flutter analyze` and `flutter test`. Analyze clean; the tests pass but
+  four in `overlay_material_test.dart`, which fail the same without the change on a Windows host (`DuckingCubit`
+  reaches Rust, which a widget test has not loaded).
+- [x] **Step 2: Commit** with `CALLS.md` (*Watching a share through Rust*: Windows in the first list, the texture
   route in two sentences). Mark it built, not yet driven.
 
 ### Task 4: The share's sound through WASAPI
