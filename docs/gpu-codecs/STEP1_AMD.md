@@ -7,8 +7,8 @@ with `RIFT_FFENC_AMF_TEXTURES=1`.
 **Verdict: AMF passes every test and the game-cost gate, at about a fifth of NVENC's cost. The variable
 (`RIFT_FFENC_AMF_TEXTURES`) stayed in at first,** because a late viewer waited about 3.5 s on this path and under 1 s
 with the switch off. That wait was the viewer's, not AMF's, and was fixed Nov 4 (*A late viewer*, below), and the
-variable came out the same day: AMF takes the picture on the GPU like NVENC and Quick Sync. The late viewer is not yet
-retried on this machine since.
+variable came out the same day: AMF takes the picture on the GPU like NVENC and Quick Sync. Retried in the app on this
+machine Nov 4, without the variable: a late viewer's picture in 0.7–1.3 s, AMF via D3D11 on Rift's session.
 
 ## The machine
 
@@ -102,7 +102,17 @@ out 6–10 pictures a second to keep within the rate, so about 110–115 went ou
   subscribe goes by before it. With nothing asking for another, the dots gave up at 3 s. The NVENC laptop's 3.1 s and
   Linux's (`STEP2_AMD.md`) were the same wait. The viewer now asks for a keyframe when decryption begins
   (`CALLS.md`, *Starting to watch through the call*). Why the switch-off path was faster was not checked; a keyframe
-  that came after decryption began would do it. Not yet retried on this machine.
+  that came after decryption began would do it.
+- **Retried Nov 4, in the app, without `RIFT_FFENC_AMF_TEXTURES`** (a release build of `gpu-codecs` with the fix, a
+  test client sharing, the laptop's Linux release watching through the call's connection). A window shared as H264
+  1080p60, moved, resized, minimised and restored, then the whole screen (5120x1440 published at 3840x1080). The
+  sharer's log named Rift's Windows Graphics Capture session and AMF via D3D11 for both shares, never libwebrtc's
+  capturer, and the 9070 XT the only working GPU; `send` took 2.1–2.6 ms a picture for the window and 3.0–3.8 ms for
+  the screen. Seven watches, five of the window and two of the screen: the viewer's log had decryption begin with one
+  keyframe already gone by every time, asked for a fresh one, and showed it 0.69–1.33 s after Watch, none on the
+  3 s timeout. The owner saw about 1 s each time, and no stutter or wrong colours. Both stops were clean, each with
+  the same harmless `failed to negotiate the publisher` line as on Nov 3 (*Not explained*). Not rerun without the
+  variable: the live tests, the game-cost gate and a VP9 share.
 
 ## Not explained
 
