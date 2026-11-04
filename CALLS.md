@@ -933,6 +933,24 @@ had one each in two rounds (21 and 20 ms). Capped at 120, every case held
 118–120 fps with a p99 of 11.5–11.7 ms. The stream's own rate and its
 freezes were not recorded (`docs/gpu-codecs/STEP3_WINDOWS.md`).
 
+The same in Hybrid (Nov 4; CS2 on the RTX, Flutter and the decoder on the
+Iris Xe, which also shows CS2's frames; H264, the tile reading 720p60;
+otherwise as above):
+
+| CS2, uncapped | Mean frame | Fps | p99 | Frames over 16.7 ms a minute |
+|---|---|---|---|---|
+| Not watching | 6.92–7.36 ms | 136–145 | 13.1–15.1 ms | 9–45 |
+| Through Rust (D3D11) | 7.49–8.76 ms | 114–134 | 14.7–16.8 ms | 14–71 |
+| Through the call | 8.62–9.05 ms | 111–116 | 16.9–18.6 ms | 78–141 |
+
+Watching through Rust added about 1.2 ms to a game frame and through the
+call about 1.7 ms, each against the rounds between its own. CS2 runs at half
+its Discrete rate here whether watched or not, with the RTX busy only
+2.3–3.0 ms a frame, so something other than the RTX's work sets its pace;
+that was not broken down. The worst frames (70–107 ms) came in rounds without
+watching as well as with. Capped at 120, no case held it, not watching
+included (103–108 fps).
+
 ## How a call is played out on the desktop — [Implemented October 2026]
 
 On the desktop, everything a call plays — voices, a share's sound, a bot —

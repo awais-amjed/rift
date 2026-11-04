@@ -6,7 +6,8 @@ shader compiler in CI); phase A being built (the runner's drawing, Nov 4, which 
 waits for its draw: *A read at once does tear*; the texture installed in the runner
 and turned on in Dart; the sound through WASAPI, tested in Rust, and not turned
 down beside Rift's own call; phase A driven in the app Nov 4, with the owner's pass by hand
-and Discrete done Nov 4 with phase B, Hybrid's game and tearing runs still to do).
+and the game, tearing and device-loss runs done Nov 4 with phase B, in Discrete and
+Hybrid).
 Windows' half of step 3
 (`STEP3_PLAN.md`), on the same Rust and Dart code Linux runs, with its own texture,
 decoder and sound. What is the owner's is marked so; the rest is the builder's call.
@@ -120,6 +121,10 @@ by LUID.
     window kept on top so its pictures stay on, 0 of 600 torn;
   - the check on the tile saw 74 of 300 torn on a page torn on purpose every fourth
     frame.
+- **Hybrid (Nov 4, the same check with phase B's pictures):** Flutter and the decoder
+  on the Iris Xe, CS2 on the RTX. H264 at 720p60 from a window share of the bar:
+  0 of 600 grabs torn with nothing else running, 0 of 600 with CS2 running behind the
+  watcher, and 0 of 600 with CS2 in front (the watcher's window kept on top).
 
 ### Which adapter, on a hybrid
 
@@ -323,7 +328,7 @@ Every number says which BIOS mode it came from. Hybrid first, then Discrete.
 3. **The probe under load, first:** the tearing check with CS2 running, and with a load
    program on Flutter's own GPU. Hybrid before anything is built (passed Nov 4, above);
    Discrete before phase B. Then again with the decoder's pictures, in both modes
-   (Discrete passed Nov 4, *The route*, above; Hybrid with them is still to do). The
+   (both passed Nov 4, *The route*, above). The
    drawing's own test reads every picture back on a second device the moment it is drawn
    (`windows/runner/test/run.ps1`, on each adapter).
 4. **The app** (owner by hand, release build; two clients with their own
@@ -356,7 +361,13 @@ Every number says which BIOS mode it came from. Hybrid first, then Discrete.
    0.22 ms added a frame uncapped, through the call 0.43 ms, no frame over 16.7 ms while
    watching; capped at 120, every case held 118–120. CS2 ran in a 1280×720 window beside
    the watcher's, since a game covering Rift turns the pictures off. The stream's rate
-   and freezes over 50 ms were not recorded. Hybrid is still to do.
+   and freezes over 50 ms were not recorded.
+
+   Done Nov 4 in Hybrid the same way: through Rust about 1.2 ms added a frame
+   uncapped, through the call about 1.7 ms, against 6.9–7.4 ms not watching. CS2
+   ran at about half its Discrete rate watched or not, and frames over 16.7 ms came in
+   every case, watching or not, more often watching through the call; capped at 120,
+   no case held it, not watching included.
 7. **Device loss:** `dxcap -forcetdr` in Discrete, as in step 1. The tile goes back to
    the call's renderer and does not freeze.
 
@@ -370,16 +381,16 @@ Every number says which BIOS mode it came from. Hybrid first, then Discrete.
 
 ## What is not known yet
 
-- Tearing in Hybrid with the decoder's pictures (Discrete passed with them, Nov 4).
-- The watcher's game in Hybrid, and the stream's own rate and freezes beside a game in
-  either mode.
+- The stream's own rate and freezes beside a game, in either mode.
+- What holds CS2 to half its Discrete rate in Hybrid, watched or not: the RTX is busy
+  only 2.3–3.0 ms of its 7 ms frames.
 - Whether Windows ducks a stream in the same process as the call's.
 - The shader step on GitHub's `windows-latest`, until the first release run after it.
 - Whether every driver makes shader views of decoder surfaces. Moonlight's check and
   copy cover it; which GPUs take the copy is to be seen.
 - Multithread protection's cost on the raster thread while the decoder runs.
 - The server: watching through Rust in the app needs rift-self-host `dev` 604f8c4 or
-  later, run in Docker Desktop here, which is not installed. The owner installs it.
+  later, run here in Docker Desktop since Nov 4.
 - AMD on Windows: the desktop, later.
 
 ## Shared files this changes (for the Linux side)

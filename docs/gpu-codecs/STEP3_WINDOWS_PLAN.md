@@ -140,7 +140,7 @@ a heavy full-screen pixel shader without vsync, so Flutter's own GPU is busy.
 - [x] **Step 3 (not needed: nothing tore, Nov 4): If anything tears,** add the wait to the probe (an event query after `Flush`, polled until
   done) and run Steps 1–2 again. Record how long it waits at p50 and p99. The design then says the runner
   waits, and Task 1's interface says so.
-- [ ] **Step 4: Discrete** comes at the owner's first Discrete boot, before phase B starts (Task 6, Step 7).
+- [x] **Step 4 (Nov 4: done instead with the decoder's pictures, Task 11, Step 1): Discrete** comes at the owner's first Discrete boot, before phase B starts (Task 6, Step 7).
 - [x] **Step 5: Commit** the result in `STEP3_WINDOWS.md` (*Probe evidence*), with the mode, the load and
   the counts.
 
@@ -530,16 +530,16 @@ a heavy full-screen pixel shader without vsync, so Flutter's own GPU is busy.
 
 ### Task 11: The gate, Discrete, and a real reset
 
-- [ ] **Step 1: Tearing again, now with the decoder's pictures.** CS2 running, in Hybrid and in Discrete:
+- [x] **Step 1: Tearing again, now with the decoder's pictures.** CS2 running, in Hybrid and in Discrete:
   watching a share of a moving bar, the rows agree in every grab. Then `live_gpu_watch` on the RTX
   (Discrete).
-- [ ] **Step 2: The watcher's game.** CS2, three cases (no watch, the call's path, Rust's), capped and uncapped,
+- [x] **Step 2 (without the stream's rate or freezes): The watcher's game.** CS2, three cases (no watch, the call's path, Rust's), capped and uncapped,
   Hybrid and Discrete. For each:
   - the mean, the p99, frames over twice the target;
   - the stream's rate, and any freeze over 50 ms.
 
   PresentMon is the owner's command. A sharer on the same PC is named. Report; the owner judges.
-- [ ] **Step 3: A real reset** (owner, Discrete, `dxcap -forcetdr` while watching):
+- [x] **Step 3 (keeps moving not seen): A real reset** (owner, Discrete, `dxcap -forcetdr` while watching):
   - the tile goes to the call's renderer and keeps moving;
   - the next call watches through Rust again.
 
@@ -547,9 +547,13 @@ a heavy full-screen pixel shader without vsync, so Flutter's own GPU is busy.
   `live_gpu_watch` passes on the RTX. Step 2 done in Discrete without the stream's rate or freezes:
   Rust +0.22 ms a frame uncapped, the call +0.43 ms. Step 3 done: the call's path took over a second
   after the reset, but both windows drew white (Flutter's own device lost), so "keeps moving" could not
-  be seen; Rift restarted watched through Rust. Hybrid's Steps 1 and 2 are still to do. Tools:
+  be seen; Rift restarted watched through Rust. Tools:
   `game_rounds.ps1` and `tile_tear.ps1` in the test folder, outside the repository.
-- [ ] **Step 4: Commit** with the numbers in `STEP3_WINDOWS.md` and `CALLS.md`.
+
+  *Nov 4, Hybrid:* Step 1 passed (0 of 600 idle, with CS2 running and with CS2 in front). Step 2 done,
+  again without the stream's rate or freezes: Rust about +1.2 ms a frame uncapped, the call about +1.7 ms;
+  CS2 ran at about half its Discrete rate watched or not, and nothing held a cap of 120.
+- [x] **Step 4: Commit** with the numbers in `STEP3_WINDOWS.md` and `CALLS.md`.
 
 ### Task 12: Docs and the Linux side's recheck
 
