@@ -5,7 +5,8 @@ check moved first, the device asked for rather than passed through Dart, ducking
 shader compiler in CI); phase A being built (the runner's drawing, Nov 4, which now
 waits for its draw: *A read at once does tear*; the texture installed in the runner
 and turned on in Dart; the sound through WASAPI, tested in Rust, and not turned
-down beside Rift's own call; neither yet driven in the app). Windows' half of step 3
+down beside Rift's own call; phase A driven in the app Nov 4, with the owner's pass by hand
+and Discrete still to do). Windows' half of step 3
 (`STEP3_PLAN.md`), on the same Rust and Dart code Linux runs, with its own texture,
 decoder and sound. What is the owner's is marked so; the rest is the builder's call.
 

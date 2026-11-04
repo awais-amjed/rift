@@ -655,7 +655,7 @@ never on the timeout; the owner saw it come almost at once. In the fifth no
 keyframe had gone by yet, and the picture came at 0.25 s. Not yet tried on
 the web, a phone or Windows, which run the same code.
 
-## Watching a share through Rust — [Built November 2026, Linux; Windows built, not yet driven; `gpu-codecs` branch]
+## Watching a share through Rust — [Built November 2026, Linux and Windows; `gpu-codecs` branch]
 
 On a desktop, flutter_webrtc turned every decoded picture of a watched share
 into RGBA on the CPU and uploaded that, which is most of what watching cost a
@@ -670,7 +670,8 @@ GPU can, it decodes the picture too, and nothing of it comes to the CPU
 runner draws the same planes with Direct3D 11 (`windows/runner/stream_texture.cpp`),
 on a device of its own on the adapter Flutter draws with, waits for the GPU,
 and hands Flutter the texture's shared handle, which ANGLE opens
-(`docs/gpu-codecs/STEP3_WINDOWS.md`). Built Nov 4, not yet driven in the app.
+(`docs/gpu-codecs/STEP3_WINDOWS.md`). Driven in the app Nov 4 (below); there
+libwebrtc still decodes, on the CPU.
 
 - **One connection per call,** `<user>~<device>_watch`, opened with the first
   share watched this way and closed with the last. The server mints it only
@@ -763,7 +764,14 @@ other, silent at volume 0 and back when turned up, 6 dB down at half, and silent
 once unwatched. On Windows the same test (Nov 4) plays into VB-Cable and
 records the cable's other end itself: −15.2 dBFS in each ear for −15.3 sent,
 nothing in the other, −21.3 at half, and silent at 0 and once unwatched; with
-no player (`PLAYS` false) it fails. Then in the app (Linux debug build, two clients on the local
+no player (`PLAYS` false) it fails. In the Windows app (Nov 4, release build,
+two clients on the local stack on this laptop): the watcher's log shows the
+runner's device on the Iris Xe, the share watched through Rust at 1920×1080
+and its sound on the chosen output, the server the `_watch` connection
+joining; the picture moved with the right colours, and the stats card read
+60 a second of H264. A lost device, faked in a debug build
+(`RIFT_STREAM_TEXTURE_FAIL_AFTER`), sent the share back to the call 30 ms
+later, still moving. Then in the Linux app (Linux debug build, two clients on the local
 stack, Nov 2): the watcher's log shows the share watched through Rust and the
 picture arriving at each size the sharer's window took, up to 1920×1048; the
 owner saw it move with the right colours in the tile and full size. Minimised
@@ -850,6 +858,22 @@ core on every path, watching or not, and the redraw less than on NVIDIA (main
 thread 7–14%, raster 2–4% through Rust). Playing CS2 uncapped beside it,
 watching through Rust added 0.10 ms to a game frame and through the call 0.16
 ms, with no frame over 16.7 ms (`docs/gpu-codecs/STEP3_AMD.md`).
+
+On Windows (Nov 4, the laptop in Hybrid: Flutter on the Iris Xe; release
+build; the sharer on the same PC, its window minimised, sharing the whole
+1920×1080 screen with a moving test page on half of it and the watcher's
+window on the other half; 3 × 20 s each of the watcher's whole process;
+`RIFT_WATCH_PATH=call` for the call's path), with libwebrtc decoding on the
+CPU on both paths:
+
+| Watcher, whole process | Through Rust (CPU decode) | Through the call |
+|---|---|---|
+| H264, 60 a second | 92–97% of a core | 105–108% |
+| VP9 | 107–110% | 127–130% |
+
+The difference is the convert and upload the call's path does on the CPU;
+the decoder is most of what is left, and goes with phase B. The VP9 share was
+encoded on the CPU by the sharer beside it, and its rate was not read.
 
 ## How a call is played out on the desktop — [Implemented October 2026]
 

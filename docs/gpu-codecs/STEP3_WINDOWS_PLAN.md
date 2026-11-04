@@ -316,22 +316,30 @@ a heavy full-screen pixel shader without vsync, so Flutter's own GPU is busy.
 
 ### Task 5: The server for the app (owner)
 
-- [ ] **Step 1:** The owner installs Docker Desktop (approved Nov 4) with the command given; it is not run
+- [x] **Step 1:** The owner installs Docker Desktop (approved Nov 4) with the command given; it is not run
   here.
-- [ ] **Step 2:** Bring up rift-self-host's stack (`dev`, 604f8c4 or later).
+- [x] **Step 2:** Bring up rift-self-host's stack (`dev`, 604f8c4 or later).
   - Copy `_shared`, `get_channel_token`, `get_dm_call_token`, `moderate_user`, `voice_roster` and
     `livekit_webhook` into the functions container, then restart it.
   - `diff` the copy against the repository.
   - Write a script that redoes the copy, since the console copies its old functions back on every start.
-- [ ] **Step 3:** Two test profiles join a channel on it.
+
+  As done Nov 4: the stack (1.2.0) updated to 1.4.1 by its console (`update --yes`), which ran migrations
+  022–024; `dev` at 604f8c4 cloned from the GitHub mirror (the Forgejo one wants credentials); the six
+  functions copied and diffed the same by a script kept with the test files (`copy-functions.sh`); and
+  LiveKit's `webhook:` block added from `dev`'s template, which 1.4.1's console does not add yet.
+- [x] **Step 3:** Two test profiles join a channel on it.
   - Check the watcher's log does not say `the server does not mint watch connections`.
   - Check the server's log shows the `_watch` identity joining.
 
+  Nov 4, s1 and s2: no such line; LiveKit logged `…~e22aaee4_watch` active and sent the webhook, which
+  `livekit_webhook` served.
+
 ### Task 6: Phase A in the app, measured
 
-- [ ] **Step 1: Release build** (`scripts/build_windows.ps1`, after the Rust build). Two clients on the stack:
+- [x] **Step 1: Release build** (`scripts/build_windows.ps1`, after the Rust build). Two clients on the stack:
   `RIFT_PROFILE=a` sharing, `RIFT_PROFILE=b` watching.
-- [ ] **Step 2: The watcher's log names the path:**
+- [x] **Step 2: The watcher's log names the path:**
   - `watching ... through Rust`;
   - `shares decode on the CPU`;
   - `watching: picture WxH`.
@@ -341,20 +349,28 @@ a heavy full-screen pixel shader without vsync, so Flutter's own GPU is busy.
   - leave and rejoin; the first Watch after joining from the sidebar;
   - volume, mute and deafen;
   - Quit from the tray while watching.
-- [ ] **Step 4: Device loss, simulated.** `RIFT_STREAM_TEXTURE_FAIL_AFTER=300` in a test build:
+- [x] **Step 4: Device loss, simulated.** `RIFT_STREAM_TEXTURE_FAIL_AFTER=300` in a test build:
   - the log says the window could not draw;
   - the tile is back on the call's renderer within a second, moving, not frozen.
-- [ ] **Step 5: Cost,** Hybrid. The watcher's threads over 20 s, three runs each:
+- [x] **Step 5: Cost,** Hybrid. The watcher's threads over 20 s, three runs each:
   - through Rust (CPU decode);
   - `RIFT_WATCH_PATH=call`.
 
   H264 and VP9 at 1080p. A sharer on the same PC is named in the table.
+
+  Nov 4 (profiles s1 sharing and s2 watching, as profiles a and b are on the owner's real server): steps 2
+  and 4 as written, the device loss falling back in 30 ms; cost in `CALLS.md` and `TESTING.md` row 26, H264
+  92–97% of a core through Rust against 105–108%, VP9 107–110% against 127–130%.
 - [ ] **Step 6: The sound against ducking, in the app.**
   - The sharer shares a window playing a steady tone.
   - The watcher's output is VB-Cable, with Windows' Communications setting left at its default (80%).
   - Record VB-Cable for 10 s watching through Rust, then 10 s with `RIFT_WATCH_PATH=call`.
   - The two levels agree within 1 dB.
   - The log names which path each recording was.
+
+  Not done in the app yet. A tone the sharer captures but nobody hears needs a source off the speakers, and
+  two clients on one PC loop the watcher's sound back into a whole-screen share. The rule is measured in
+  Rust (Task 4 Step 4): Windows spares the process whose call it is.
 - [ ] **Step 7: Discrete, before phase B.** The owner reboots into Discrete. There, run Task 0's tear check
   under load (CS2, then the load program on the RTX, which is Flutter's adapter there), then Steps 2 and 4 of
   this task once.
