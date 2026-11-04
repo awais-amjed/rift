@@ -706,8 +706,8 @@ libwebrtc still decodes, on the CPU.
   connection may unsubscribe a sound, which the call's must never do (*Receiving
   a call's audio*): this SDK gives a sound's decryptor the receiver itself,
   not an id two receivers can share. Where Rust has no player yet
-  (`watchPlaysSound`, Linux and Windows for now), the sound stays with the
-  call. Windows does not turn Rust's stream down beside Rift's own call,
+  (`watchPlaysSound`: it has one on Linux and Windows for now), the sound
+  stays with the call. Windows does not turn Rust's stream down beside Rift's own call,
   though it does other apps' (*Windows turning other apps down*): it spares
   the process whose call it is. Measured Nov 4 into VB-Cable made the
   communications device (`live_watched_sound_is_not_turned_down_beside_a_call`):

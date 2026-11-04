@@ -557,12 +557,17 @@ a heavy full-screen pixel shader without vsync, so Flutter's own GPU is busy.
 
 ### Task 12: Docs and the Linux side's recheck
 
-- [ ] **Step 1:** `STEP3_WINDOWS.md` gets *What Linux must recheck*:
+- [x] **Step 1:** `STEP3_WINDOWS.md` gets *What Linux must recheck*:
   - the Linux build;
   - `cargo test --release` and `live_watch_`;
   - `live_gpu_watch` on VAAPI and CUDA (`WatchPlanes` grew);
   - `cargo xwin` building Windows;
   - every shared file this plan touched.
-- [ ] **Step 2:** Search the docs for lines this made untrue ("every platform but Linux", "Linux only for
+- [x] **Step 2:** Search the docs for lines this made untrue ("every platform but Linux", "Linux only for
   now", `watchPlaysSound`) and fix them.
-- [ ] **Step 3:** Write the review prompt for the owner's cloud session (not run here). Commit.
+- [x] **Step 3:** Write the review prompt for the owner's cloud session (not run here). Commit.
+
+  *Nov 4:* the sweep found the line on `watchPlaysSound` in `CALLS.md`, which read as if
+  Rust had no player on Linux and Windows, and two lines in `STEP3_WINDOWS.md` that the
+  Windows sound test and the ducking measurement had answered. The prompt was handed to
+  the owner rather than kept here; the cloud session needs the branch pushed to read it.

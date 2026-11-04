@@ -33,7 +33,8 @@ picture than today's, and a game beside it no worse.
   on the laptop: a watched synthetic share arrives at its size and shade (VP8 at 30 a
   second), unwatching stops it, and a share sealed under a rotated key is read.
 - The sound test (`live_watched_sound`) finds its sink through PulseAudio, so it is
-  Linux only until the Windows player gives it a Windows check.
+  Linux only until the Windows player gives it a Windows check (it has one since, into
+  VB-Cable).
 
 ## The texture
 
@@ -384,7 +385,6 @@ Every number says which BIOS mode it came from. Hybrid first, then Discrete.
 - The stream's own rate and freezes beside a game, in either mode.
 - What holds CS2 to half its Discrete rate in Hybrid, watched or not: the RTX is busy
   only 2.3–3.0 ms of its 7 ms frames.
-- Whether Windows ducks a stream in the same process as the call's.
 - The shader step on GitHub's `windows-latest`, until the first release run after it.
 - Whether every driver makes shader views of decoder surfaces. Moonlight's check and
   copy cover it; which GPUs take the copy is to be seen.
@@ -393,14 +393,44 @@ Every number says which BIOS mode it came from. Hybrid first, then Discrete.
   later, run here in Docker Desktop since Nov 4.
 - AMD on Windows: the desktop, later.
 
-## Shared files this changes (for the Linux side)
+## What Linux must recheck
 
-- `rust/src/watching/frames.rs`: the `IN_D3D11` kind and its fields; the unlock log
-  line.
-- `rust/src/watching/decode/mod.rs`: Windows' module beside Linux's.
+Nothing here was built or run on Linux: every change was made and tested on the
+Windows laptop. Shared structs grew at the end and the bridge did not change, so Linux
+should behave as before, but only a Linux run shows that. On the Linux machine, on
+`gpu-codecs` from `fe4f0af8` on:
+
+1. **The build:** `native/ffenc/build.sh`, then `flutter build linux --release`. The
+   library's ABI is 12 now, so a `librift_ffenc.so` from before is refused by name.
+2. **Rust:** `cargo test --release`, then `live_watch_` against `livekit-server --dev`
+   (the module doc in `rust/src/watching/live_test.rs`).
+3. **The sound test:** `live_watched_sound` into the null sink, as the module doc
+   says. It was rebuilt to take a Windows check beside Linux's, so Linux's half (the
+   sink found through PulseAudio, the levels, ears and volumes) runs a changed body.
+4. **`live_gpu_watch`** on VAAPI (Intel or AMD) and on CUDA (NVIDIA): `WatchPlanes`
+   and `RiftFfdecConfig` and `RiftFfdecPicture` each grew two fields at the end, and
+   `ffdec.c`'s choice of format changed shape (the same choice on Linux). A layout
+   that disagreed would show as a black or garbled share, or a crash in the runner.
+5. **`cargo xwin check`** for Windows, as before.
+6. **In the app,** once: a share watched through Rust on the GPU, H264 or VP9, with its
+   sound. The log line when the runner cannot draw a picture now reads "the window
+   could not draw a picture", without "decoded on the GPU".
+
+The shared files, from `fe4f0af8`:
+
+- `rust/src/watching/frames.rs`: the `IN_D3D11` kind and the `texture` and `slice`
+  fields at the end of `WatchPlanes`; the unlock log line.
+- `linux/runner/stream_texture.cc`: the same two fields, appended so Linux's layout
+  keeps its order.
+- `native/ffenc/ffdec.c` and `ffdec.h`: `RIFT_FFDEC_D3D11VA`, `IN_D3D11`, the D3D11
+  fields at the end of the config and the picture; Linux's includes and the CUDA copy
+  behind `__linux__`; `get_format`'s loop.
+- `native/ffenc/ffenc.h` and `rust/src/screenshare/encoder/ffmpeg.rs`: ABI 12.
+- `native/ffenc/build.sh`: Windows' decoder and hwaccel list only; Linux's branch is
+  unchanged.
+- `rust/src/watching/decode/mod.rs` and `linux.rs`: Windows' module beside Linux's;
+  Linux's config and picture carry the new fields as null.
 - `rust/src/watching/sound/mod.rs`: Windows' module beside Linux's.
-- `native/ffenc/ffdec.c` and `ffdec.h`: `RIFT_FFDEC_D3D11VA`, `IN_D3D11`, ABI 12;
-  `build.sh`'s hwaccel list.
+- `rust/src/watching/live_test.rs`: the sound test's body, shared with Windows.
+- `rust/src/logging.rs`: `rift_runner_log`, an export Linux's runner does not use.
 - `lib/logic/services/rust_watch.dart`: Windows in `available`.
-- `linux/runner/stream_texture.cc`: the new `WatchPlanes` fields, appended so Linux's
-  layout keeps its order.
