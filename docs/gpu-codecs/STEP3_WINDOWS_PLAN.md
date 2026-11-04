@@ -542,6 +542,13 @@ a heavy full-screen pixel shader without vsync, so Flutter's own GPU is busy.
 - [ ] **Step 3: A real reset** (owner, Discrete, `dxcap -forcetdr` while watching):
   - the tile goes to the call's renderer and keeps moving;
   - the next call watches through Rust again.
+
+  *Nov 4, Discrete:* Step 1 passed in Discrete (0 of 600 idle, 0 of 600 with CS2 in front) and
+  `live_gpu_watch` passes on the RTX. Step 2 done in Discrete without the stream's rate or freezes:
+  Rust +0.22 ms a frame uncapped, the call +0.43 ms. Step 3 done: the call's path took over a second
+  after the reset, but both windows drew white (Flutter's own device lost), so "keeps moving" could not
+  be seen; Rift restarted watched through Rust. Hybrid's Steps 1 and 2 are still to do. Tools:
+  `game_rounds.ps1` and `tile_tear.ps1` in the test folder, outside the repository.
 - [ ] **Step 4: Commit** with the numbers in `STEP3_WINDOWS.md` and `CALLS.md`.
 
 ### Task 12: Docs and the Linux side's recheck

@@ -6,7 +6,8 @@ shader compiler in CI); phase A being built (the runner's drawing, Nov 4, which 
 waits for its draw: *A read at once does tear*; the texture installed in the runner
 and turned on in Dart; the sound through WASAPI, tested in Rust, and not turned
 down beside Rift's own call; phase A driven in the app Nov 4, with the owner's pass by hand
-and Discrete still to do). Windows' half of step 3
+and Discrete done Nov 4 with phase B, Hybrid's game and tearing runs still to do).
+Windows' half of step 3
 (`STEP3_PLAN.md`), on the same Rust and Dart code Linux runs, with its own texture,
 decoder and sound. What is the owner's is marked so; the rest is the builder's call.
 
@@ -111,8 +112,14 @@ by LUID.
   At 1080p, `Draw` with its upload took p50 0.86 ms and p99 2.0 ms on the Iris Xe, and
   p50 0.70 ms and p99 2.6 ms on the RTX. Without the wait it was 0.47 and 1.9 ms, and
   0.18 and 2.6 ms.
-- **Not yet tried:** Discrete. It was to come before phase B (the plan's Task 6); the owner
-  had phase B built in Hybrid first, so it is the plan's Task 11 now.
+- **Discrete (Nov 4, the plan's Task 11, with phase B's pictures):** Flutter, the
+  decoder and CS2 all on the RTX. Watching a share of the moving bar through Rust (H264
+  decoded through D3D11), the check grabbed the watcher's tile:
+  - with nothing else running, 0 of 600 grabs torn (picture 1898×1080);
+  - with CS2 in front and drawing (about 40% of the RTX's 3D engine), the watcher's
+    window kept on top so its pictures stay on, 0 of 600 torn;
+  - the check on the tile saw 74 of 300 torn on a page torn on purpose every fourth
+    frame.
 
 ### Which adapter, on a hybrid
 
@@ -305,7 +312,8 @@ Every number says which BIOS mode it came from. Hybrid first, then Discrete.
 1. **Rust:** `live_watch_` (passing, Nov 4); `live_watched_sound` into VB-Cable;
    `live_gpu_watch` once `d3d11va` exists (H264 and VP9 decoded on the GPU; VP8 fails
    by name). Passing Nov 4 on the Iris Xe, Hybrid: VP9 88 and H264 89 of 90 pictures in
-   3 s, VP8 given up by name, every reference to the device handed back.
+   3 s, VP8 given up by name, every reference to the device handed back. Passing Nov 4
+   on the RTX, Discrete: VP9 89 and H264 90.
 2. **ffdec alone:** a Windows test beside `test_ffdec.c`, modelled on `test_d3d11.c`
    and `test_windows.sh`: the four colours back at 1920×1080 from H264 and VP9,
    decoded on a device made the runner's way and drawn by the runner's shader.
@@ -314,7 +322,8 @@ Every number says which BIOS mode it came from. Hybrid first, then Discrete.
    (`stream_draw_test`). Both pass on the Iris Xe and the RTX 3070 Ti, Hybrid, Nov 4.
 3. **The probe under load, first:** the tearing check with CS2 running, and with a load
    program on Flutter's own GPU. Hybrid before anything is built (passed Nov 4, above);
-   Discrete before phase B. Then again with the decoder's pictures, in both modes. The
+   Discrete before phase B. Then again with the decoder's pictures, in both modes
+   (Discrete passed Nov 4, *The route*, above; Hybrid with them is still to do). The
    drawing's own test reads every picture back on a second device the moment it is drawn
    (`windows/runner/test/run.ps1`, on each adapter).
 4. **The app** (owner by hand, release build; two clients with their own
@@ -342,13 +351,28 @@ Every number says which BIOS mode it came from. Hybrid first, then Discrete.
    watching through Rust. Capped and uncapped, Hybrid and Discrete. Each reports the
    mean, the p99, the frames over twice the target, the stream's rate and any freeze
    over 50 ms. Sharing's gate was 0.2 ms added a game frame; the owner judges.
+
+   Done Nov 4 in Discrete (`CALLS.md`, *Watching a share through Rust*): through Rust
+   0.22 ms added a frame uncapped, through the call 0.43 ms, no frame over 16.7 ms while
+   watching; capped at 120, every case held 118–120. CS2 ran in a 1280×720 window beside
+   the watcher's, since a game covering Rift turns the pictures off. The stream's rate
+   and freezes over 50 ms were not recorded. Hybrid is still to do.
 7. **Device loss:** `dxcap -forcetdr` in Discrete, as in step 1. The tile goes back to
    the call's renderer and does not freeze.
 
+   Done Nov 4, watching H264 through Rust. The sharer's NVENC died with
+   the reset and it went on in VP9 by itself. A second later the watcher found the
+   runner's device gone and went back to the call's path ("the window has no GPU
+   device"), which then holds for the rest of that call. Both Rift windows drew white, then
+   black, as in step 1: Flutter's own device lost, which it does not recover from. So the
+   tile's picture could not be seen moving. Rift started again watched through Rust at
+   once (VP9 on the RTX through D3D11).
+
 ## What is not known yet
 
-- Tearing in Discrete, where the game and Flutter share the RTX (Hybrid passed under
-  load, Nov 4, before the wait; the wait makes a read at once whole on both GPUs).
+- Tearing in Hybrid with the decoder's pictures (Discrete passed with them, Nov 4).
+- The watcher's game in Hybrid, and the stream's own rate and freezes beside a game in
+  either mode.
 - Whether Windows ducks a stream in the same process as the call's.
 - The shader step on GitHub's `windows-latest`, until the first release run after it.
 - Whether every driver makes shader views of decoder surfaces. Moonlight's check and

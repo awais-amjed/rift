@@ -915,6 +915,24 @@ call for H264 and well over a third less for VP9. Where the rest goes was not
 broken down by thread. The screen behind differed from phase A's runs, so the
 two tables are not one series.
 
+Playing CS2 beside it (Nov 4, the laptop in Discrete, where Flutter, the
+decoder and the game share the RTX 3070 Ti; release build; CS2 in a 1280×720
+window with the watcher's window beside it, since a game covering Rift turns
+the stream's pictures off; the sharer and the shared page on the same PC in
+every case; H264 at 946×1032; 3 × 60 s of PresentMon per case, uncapped):
+
+| CS2, uncapped | Mean frame | Fps | p99 | Worst |
+|---|---|---|---|---|
+| Not watching | 3.15–3.20 ms | 313–318 | 5.7–5.8 ms | 8.0–21.4 ms |
+| Through Rust (D3D11) | 3.31–3.43 ms | 292–302 | 6.0–6.2 ms | 9.0–9.8 ms |
+| Through the call | 3.57–3.66 ms | 273–280 | 6.4–6.5 ms | 8.9–10.4 ms |
+
+Watching through Rust added about 0.22 ms to a game frame and through the
+call about 0.43 ms. No frame went over 16.7 ms while watching; not watching
+had one each in two rounds (21 and 20 ms). Capped at 120, every case held
+118–120 fps with a p99 of 11.5–11.7 ms. The stream's own rate and its
+freezes were not recorded (`docs/gpu-codecs/STEP3_WINDOWS.md`).
+
 ## How a call is played out on the desktop — [Implemented October 2026]
 
 On the desktop, everything a call plays — voices, a share's sound, a bot —
