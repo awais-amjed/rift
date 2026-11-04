@@ -49,8 +49,8 @@ pub(crate) type CopyToGl = unsafe extern "C" fn(
 /// `rift_ffdec_gl_close`: lets the registration go before the textures do.
 pub(crate) type GlClose = unsafe extern "C" fn(link: *mut c_void);
 
-/// One picture as the runner draws it. `linux/runner/stream_texture.cc` has
-/// the same fields in the same order.
+/// One picture as the runner draws it. `linux/runner/stream_texture.cc` and
+/// `windows/runner/stream_draw.h` have the same fields in the same order.
 #[repr(C)]
 pub struct WatchPlanes {
     pub width: u32,

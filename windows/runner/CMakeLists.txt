@@ -13,6 +13,9 @@ add_executable(${BINARY_NAME} WIN32
   "seen_watch.cpp"
   "single_instance.cpp"
   "startup_guard.cpp"
+  "stream_draw.cpp"
+  "stream_draw_vs.hlsl"
+  "stream_draw_ps.hlsl"
   "tray_icon.cpp"
   "utils.cpp"
   "velopack_hooks.cpp"
@@ -41,6 +44,28 @@ target_compile_definitions(${BINARY_NAME} PRIVATE "NOMINMAX")
 target_link_libraries(${BINARY_NAME} PRIVATE flutter flutter_wrapper_app)
 target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
+
+# A watched share's picture is drawn with D3D11 (stream_draw.cpp). Its shaders
+# are compiled at build time by MSBuild's own HLSL step, which finds the
+# Windows SDK's fxc itself, into headers in the build directory: nothing looks
+# for fxc on PATH, and no shader compiler is loaded at run time. The compiled
+# objects stay in the intermediate directory, out of the release folder.
+set(STREAM_SHADERS "${CMAKE_CURRENT_BINARY_DIR}/shaders")
+file(MAKE_DIRECTORY "${STREAM_SHADERS}")
+set_source_files_properties("stream_draw_vs.hlsl" PROPERTIES
+  VS_SHADER_TYPE Vertex
+  VS_SHADER_VARIABLE_NAME kStreamDrawVs)
+set_source_files_properties("stream_draw_ps.hlsl" PROPERTIES
+  VS_SHADER_TYPE Pixel
+  VS_SHADER_VARIABLE_NAME kStreamDrawPs)
+set_source_files_properties("stream_draw_vs.hlsl" "stream_draw_ps.hlsl"
+  PROPERTIES
+  VS_SHADER_MODEL 5.0
+  VS_SHADER_ENTRYPOINT main
+  VS_SHADER_OUTPUT_HEADER_FILE "${STREAM_SHADERS}/%(Filename).h"
+  VS_SHADER_OBJECT_FILE_NAME "$(IntDir)%(Filename).cso")
+target_include_directories(${BINARY_NAME} PRIVATE "${STREAM_SHADERS}")
+target_link_libraries(${BINARY_NAME} PRIVATE "d3d11.lib" "dxgi.lib")
 
 # The noise models on the microphone (native/noise_filter). Dart finds its
 # functions among the executable's exports.

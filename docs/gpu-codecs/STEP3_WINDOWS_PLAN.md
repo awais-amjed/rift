@@ -66,8 +66,8 @@ cubit are Linux's, unchanged but for small additions.
   It is let go only when it is lost.
 - **One texture per share, no ring.** The probe: the ring's p99 was 5.9 ms against 1.35 ms.
 - **The shaders are compiled at build time, by MSBuild's own HLSL step.** Flutter's Windows build uses the
-  Visual Studio generator. CMake marks the `.hlsl` file with `VS_SHADER_TYPE`, `VS_SHADER_MODEL 5.0` and
-  `VS_SHADER_OUTPUT_HEADER_FILE`. MSBuild then runs the Windows SDK's `fxc` itself, so nothing looks for it on
+  Visual Studio generator. CMake marks the `.hlsl` files (one per shader: the step takes one entry point a
+  file) with `VS_SHADER_TYPE`, `VS_SHADER_MODEL 5.0` and `VS_SHADER_OUTPUT_HEADER_FILE`. MSBuild then runs the Windows SDK's `fxc` itself, so nothing looks for it on
   `PATH`. The header goes in the build directory, and no `d3dcompiler_47.dll` is loaded at run time. The
   GitHub release build (`release.yml`, `windows-latest`) uses the same generator and the same SDK (Task 1,
   Step 5).
@@ -76,6 +76,11 @@ cubit are Linux's, unchanged but for small additions.
   them. So far this has only been checked on an idle GPU. If it tears, the runner waits for its draw to finish
   before answering the descriptor: an event query after `Flush`, polled on the raster thread. That wait is
   measured, and the design changes before Task 1.
+- **The runner waits for its draw (Task 1, Nov 4).** Nothing tore through Flutter (Task 0), but the drawing's
+  test, reading each picture back on a second device the moment it was drawn, found 198 of 200 half drawn
+  on the RTX at 1440p with a `Flush` alone. `Draw` now waits: a D3D11 fence with an event, so the raster
+  thread sleeps, or an event query where there is no fence. It costs about 0.4–0.5 ms a picture at p50
+  (`STEP3_WINDOWS.md`, *A read at once does tear*).
 - **The runner's drawing is a part with no Flutter in it** (`stream_draw.{h,cpp}`), so a test program can drive
   it: draw, read back, check the colours. `stream_texture.cpp` is only the channel, the registrar and the
   lifetimes.
@@ -142,10 +147,11 @@ a heavy full-screen pixel shader without vsync, so Flutter's own GPU is busy.
 ### Task 1: The runner's drawing, tested alone
 
 **Files:**
-- Create: `windows/runner/stream_draw.h`, `windows/runner/stream_draw.cpp`, `windows/runner/stream_shaders.hlsl`
+- Create: `windows/runner/stream_draw.h`, `windows/runner/stream_draw.cpp`,
+  `windows/runner/stream_draw_vs.hlsl`, `windows/runner/stream_draw_ps.hlsl`
 - Create: `windows/runner/test/stream_draw_test.cpp`, `windows/runner/test/run.ps1` (builds the test with
   `cl` and runs it; no Flutter)
-- Modify: `windows/runner/CMakeLists.txt` (the sources, the `.hlsl` file's `VS_SHADER_*` properties, `d3d11`
+- Modify: `windows/runner/CMakeLists.txt` (the sources, the `.hlsl` files' `VS_SHADER_*` properties, `d3d11`
   and `dxgi`)
 
 **Interfaces:**
@@ -159,7 +165,8 @@ a heavy full-screen pixel shader without vsync, so Flutter's own GPU is busy.
    public:
     explicit StreamDraw(ID3D11Device* device);
     // Draws `planes` (WatchPlanes, IN_MEMORY now; IN_D3D11 in Task 9) and
-    // flushes. False when it could not, the device removed included.
+    // waits for the GPU to finish it. False when it could not, the device
+    // removed included.
     bool Draw(const WatchPlanes& planes);
     HANDLE handle() const;
     uint32_t width() const, height() const;
@@ -167,17 +174,23 @@ a heavy full-screen pixel shader without vsync, so Flutter's own GPU is busy.
   ```
 - The colour sums are those of `stream_texture.cc`'s `Colour`, passed as a constant buffer.
 
-- [ ] **Step 1: The failing test.** `stream_draw_test.cpp` makes a device on adapter 0. It draws a 1920×1080
+- [x] **Step 1: The failing test.** `stream_draw_test.cpp` makes a device on adapter 0. It draws a 1920×1080
   I420 picture of four blocks (BT.601 limited: red, green, blue, white) and reads the BGRA texture back
   through a staging copy. Checks:
   - each block's centre is within 2 of (255,0,0), (0,255,0), (0,0,255) and (255,255,255);
   - row 0 is the top;
   - a second picture at 1280×720 resizes the texture;
-  - odd sizes (1279×719) draw, with the chroma rounded up.
-- [ ] **Step 2: Run it to see it fail** (`run.ps1`: it does not link yet).
-- [ ] **Step 3: Implement** `MakeDevice` and `StreamDraw` for `IN_MEMORY`, and the shader step.
-- [ ] **Step 4: Run it on both adapters:** the Iris Xe and the RTX, in Hybrid. Record the colours.
-- [ ] **Step 5: The release build finds the shader compiler.**
+  - odd sizes (1279×719) draw, with the chroma rounded up;
+  - two 2560×1440 pictures in turn, 200, each read back on the second device the moment `Draw` returns, all
+    whole (added Nov 4, after Task 0: it fails without the wait).
+- [x] **Step 2: Run it to see it fail** (`run.ps1`: it does not link yet).
+- [x] **Step 3: Implement** `MakeDevice` and `StreamDraw` for `IN_MEMORY`, and the shader step.
+- [x] **Step 4: Run it on both adapters:** the Iris Xe and the RTX, in Hybrid. Record the colours. (Nov 4: on
+  both, at every size, (254,0,0), (0,255,1), (0,0,255) and (255,255,255); the read-at-once check 0 of 200
+  wrong.)
+- [x] **Step 5: The release build finds the shader compiler.** (Nov 4: built clean from a plain PowerShell,
+  with no `fxc` on `PATH`. MSBuild ran the SDK's `fxc` 10.0.26100.0; the `.cso` files stay in the
+  intermediate directory. `windows-latest` (image 20261030) lists Windows SDK 10.0.26100.)
   - Clean `build/windows`, then run `scripts/build_windows.ps1` from a plain PowerShell with no developer
     environment, which is how `release.yml` runs it. It must build.
   - Check the shader header was made by MSBuild's FxCompile step, in the build log.

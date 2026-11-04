@@ -2,7 +2,8 @@
 
 Nov 4 2026. Agreed by the owner Nov 4, with four changes from the review (the tearing
 check moved first, the device asked for rather than passed through Dart, ducking, the
-shader compiler in CI); not yet built. Windows' half of step 3
+shader compiler in CI); phase A being built (the runner's drawing, Nov 4, which now
+waits for its draw: *A read at once does tear*). Windows' half of step 3
 (`STEP3_PLAN.md`), on the same Rust and Dart code Linux runs, with its own texture,
 decoder and sound. What is the owner's is marked so; the rest is the builder's call.
 
@@ -49,8 +50,8 @@ pbuffer bound to a GL texture (`external_texture_d3d.cc`). Two kinds of handle:
 So the runner makes its own D3D11 device on the adapter Flutter draws with, and keeps one
 BGRA texture per watched share, shared by handle. When Flutter asks, it takes Rust's
 picture (`rift_watch_frame_lock`), draws it into that texture with a YUV→RGB pixel
-shader, `Flush`es, gives it back (`_unlock`) and answers the handle. Linux's `populate`
-does the same with GL.
+shader, waits for the GPU to finish the draw, gives it back (`_unlock`) and answers the
+handle. Linux's `populate` does the same with GL.
 
 **One texture, not a ring.** Flutter keeps its pbuffer while the handle stays the same,
 and makes a new one each time it changes. A ring of textures therefore costs a new
@@ -58,10 +59,10 @@ pbuffer every picture.
 
 **No keyed mutex.** ANGLE only exposes a shared texture's keyed mutex for the app to
 take (`SwapChain11`'s `getKeyedMutex`); it never acquires one itself. A keyed mutex on
-the texture Flutter reads would sync nothing. Ordering between the runner's device and
-ANGLE's rests on the `Flush`, as media_kit's Windows video output does (MIT,
-`angle_surface_manager.cc`: one shared BGRA texture, `CopyResource`, `Flush`, no keyed
-mutex).
+the texture Flutter reads would sync nothing. media_kit's Windows video output orders
+the two devices with a `Flush` alone (MIT, `angle_surface_manager.cc`: one shared BGRA
+texture, `CopyResource`, `Flush`, no keyed mutex). That is not enough here: the runner
+waits for its draw to finish before it answers (*A read at once does tear*, below).
 
 **Probed Nov 4.** The probe is a throwaway Flutter 3.47.7 app, release build. It runs on
 the laptop in Hybrid, where Flutter draws on the Iris Xe. A 1920×1080 I420 picture is
@@ -90,9 +91,23 @@ by LUID.
   - **The check can see a tear:** with every fourth picture torn on purpose (its bar 400
     columns apart in the bottom half), it found 68 of 300 grabs torn.
 
-  So the runner does not wait for its draw. If a later check tears (Discrete, or the
-  decoder's pictures), the fix is that wait: an event query after the `Flush`, polled on
-  the raster thread, and its cost measured.
+- **A read at once does tear (Nov 4, the plan's Task 1).** The runner's drawing has a test
+  program (`windows/runner/test/`). It reads the texture back on a second device of the
+  same adapter, the moment the draw returns, keeping the opened texture between reads as
+  ANGLE keeps its pbuffer. Two 2560×1440 pictures were drawn in turn, 200 of them, with
+  only a `Flush` after each:
+  - **RTX:** 198 read wrong, nearly all half drawn: the new picture's bottom under the
+    old one's top.
+  - **Iris Xe:** 1 wrong.
+  - **On a texture just made** (a new size), the RTX once read it all black.
+
+  Through Flutter nothing tore, as above. Flutter's read comes later in its frame, but
+  nothing promises that. **So the runner waits for its draw** before answering: a D3D11
+  fence with an event, so the raster thread sleeps rather than spins, or an event query
+  polled where there is no fence (Windows 10 before 1703). With the wait, 0 of 200 on both.
+  At 1080p, `Draw` with its upload took p50 0.86 ms and p99 2.0 ms on the Iris Xe, and
+  p50 0.70 ms and p99 2.6 ms on the RTX. Without the wait it was 0.47 and 1.9 ms, and
+  0.18 and 2.6 ms.
 - **Not yet tried:** Discrete, which comes before phase B (the plan's Task 6).
 
 ### Which adapter, on a hybrid
@@ -113,7 +128,7 @@ index move while CS2 ran (`STEP1_WINDOWS.md`). The adapter is:
 |---|---|
 | `create`, `dispose` (method channel) | the platform thread (the window's) |
 | the device, made once on the first `create` | the platform thread |
-| the descriptor callback: lock, draw, `Flush`, unlock | Flutter's raster thread |
+| the descriptor callback: lock, draw, wait for the draw, unlock | Flutter's raster thread |
 | Rust's mark | the decode thread or the runtime; the registrar posts it to the platform thread |
 | freeing a texture's D3D resources | the raster thread, in `UnregisterTexture`'s callback |
 
@@ -128,8 +143,9 @@ callback says the engine has let it go.
   channel, as on Linux (`create` with Rust's lock and unlock, answering `textureId`,
   `mark` and `takesGpuPictures`; `dispose`). `IN_MEMORY` pictures are uploaded as
   three R8 textures (`UpdateSubresource`, 1.5 bytes a pixel) and drawn BT.601 limited,
-  as on Linux. The shader is compiled into the runner at build time, not at run time,
-  by MSBuild's own HLSL step (the `.hlsl` file's `VS_SHADER_*` properties). Flutter's
+  as on Linux. The shaders are compiled into the runner at build time, not at run time,
+  by MSBuild's own HLSL step (the `.hlsl` files' `VS_SHADER_*` properties; one file per
+  shader, since the step takes one entry point a file). Flutter's
   Windows build uses the Visual Studio generator, and so does `release.yml`'s, so the
   Windows SDK's `fxc` is found the same way on the laptop and in CI.
 - **Colour:** the same matrix and range sums as `stream_texture.cc`'s `Colour`, in
@@ -261,7 +277,9 @@ Every number says which BIOS mode it came from. Hybrid first, then Discrete.
    decoded on a device made the runner's way and drawn by the runner's shader.
 3. **The probe under load, first:** the tearing check with CS2 running, and with a load
    program on Flutter's own GPU. Hybrid before anything is built (passed Nov 4, above);
-   Discrete before phase B. Then again with the decoder's pictures, in both modes.
+   Discrete before phase B. Then again with the decoder's pictures, in both modes. The
+   drawing's own test reads every picture back on a second device the moment it is drawn
+   (`windows/runner/test/run.ps1`, on each adapter).
 4. **The app** (owner by hand, release build; two clients with their own
    `RIFT_PROFILE`s against the Docker stack, handoff §5):
    - H264 and VP9 at 1080p60, a window share and a whole-screen share;
@@ -288,7 +306,7 @@ Every number says which BIOS mode it came from. Hybrid first, then Discrete.
 ## What is not known yet
 
 - Tearing in Discrete, where the game and Flutter share the RTX (Hybrid passed under
-  load, Nov 4).
+  load, Nov 4, before the wait; the wait makes a read at once whole on both GPUs).
 - Whether Windows ducks a stream in the same process as the call's.
 - The shader step on GitHub's `windows-latest`, until the first release run after it.
 - Whether every driver makes shader views of decoder surfaces. Moonlight's check and
