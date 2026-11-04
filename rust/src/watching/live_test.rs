@@ -38,7 +38,7 @@
 //! in the left ear, then the right, a second each, for four seconds at full
 //! volume, two at nothing and three at half, then unwatched. The test logs
 //! when each begins.
-use super::{frames, session, sound};
+use super::{frames, session};
 use crate::api::watching::WatchRoom;
 use crate::screenshare::live_test::{shared_key, Server, KEY_INDEX};
 use crate::sharing::room;
@@ -464,6 +464,7 @@ async fn live_watch_reads_a_share_sealed_after_a_rotation() {
 
 /// Interleaved stereo for frame [index] of 10 ms: a 1 kHz tone in the left
 /// ear for a second, then in the right.
+#[cfg(target_os = "linux")]
 fn tone_frame(index: u32) -> Vec<i16> {
     use crate::sharing::audio::SAMPLE_RATE;
     let per_frame = SAMPLE_RATE / 100;
@@ -479,6 +480,8 @@ fn tone_frame(index: u32) -> Vec<i16> {
     samples
 }
 
+// Linux only: it finds its test sink through PulseAudio.
+#[cfg(target_os = "linux")]
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "needs a LiveKit server and a test sink; see the module doc"]
 async fn live_watched_sound_plays_in_stereo_at_its_volume() {
@@ -498,7 +501,7 @@ async fn live_watched_sound_plays_in_stereo_at_its_volume() {
         "the test sink is there"
     );
     drop(connection);
-    sound::set_output(Some(output));
+    super::sound::set_output(Some(output));
 
     let server = Server::from_env();
     let name = room_name("sound");
