@@ -716,9 +716,10 @@ libwebrtc still decodes, on the CPU.
   once it closed. Windows ducks only the communications device's own
   streams: with the cable not that device, neither moved it.
 - **Decoded on the GPU** where it can be (`rust/src/watching/decode`,
-  Linux). At start (`init_app`), before any room, Rust chooses how the
+  Linux and Windows). At start (`init_app`), before any room, Rust chooses how the
   process's LiveKit runtime decodes: where Rift's FFmpeg library loads and
-  GTK draws through EGL (Wayland), the runtime decodes nothing (pass-through,
+  GTK draws through EGL (Wayland), or on Windows where adapter 0 has a D3D11
+  video decoder for H264 or VP9, the runtime decodes nothing (pass-through,
   from the LiveKit fork, `RIFT.md` there). Each watched share's picture is
   then read still encoded and decrypted, on a thread of its own, and decoded
   by FFmpeg on the GPU that draws the screen, by the rule sharing follows
@@ -732,6 +733,14 @@ libwebrtc still decodes, on the CPU.
   registered once and kept. Either way the shader reads Y and UV, in the
   matrix and range the stream says (BT.601, 709 or 2020, limited or full);
   libwebrtc's pictures are drawn BT.601 limited, as flutter_webrtc drew them.
+  On Windows FFmpeg's D3D11 decoder runs on the runner's own device, the one
+  it draws watched shares with on Flutter's adapter (the runner exports it,
+  `rift_stream_d3d11_device`, so it never passes through Dart); each picture
+  leaves as a slice of the decoder's texture array, which the runner's shader
+  reads where it lies, or copies first where the driver will not let a
+  shader read it. The device's multithread lock is FFmpeg's, and the runner
+  holds it through each draw. VP8 is never decoded there: FFmpeg has no
+  D3D11 decoder for it, so a VP8 share is watched through the call.
   The runtime is the process's, so the choice holds for the share
   connections too, which only send. A decoder starts at the stream's first
   keyframe and asks for one after a picture fails. A share the GPU cannot
@@ -739,7 +748,8 @@ libwebrtc still decodes, on the CPU.
   (it says so when it makes the texture, `takesGpuPictures`), or a GPU
   picture the runner fails to import or copy (it hands it back undrawn,
   `rift_watch_frame_unlock`) sends the call back to watching through the
-  call's connection. Elsewhere (X11, Windows, `RIFT_WATCH_DECODE=cpu`)
+  call's connection. Elsewhere (X11, Windows without a decoder there,
+  `RIFT_WATCH_DECODE=cpu`)
   libwebrtc decodes, as above. Rift's FFmpeg library carries the three
   decoders for it, through VAAPI and NVDEC, from 1.2 to 4.2 MB on Linux.
 - **Receive stats from the watch connection.** A share Rust holds has no
@@ -771,7 +781,23 @@ and its sound on the chosen output, the server the `_watch` connection
 joining; the picture moved with the right colours, and the stats card read
 60 a second of H264. A lost device, faked in a debug build
 (`RIFT_STREAM_TEXTURE_FAIL_AFTER`), sent the share back to the call 30 ms
-later, still moving. Then in the Linux app (Linux debug build, two clients on the local
+later, still moving. Decoding on the GPU in the Windows app (Nov 4, the same
+laptop in Hybrid, release build): the watcher's log shows H264 and VP9
+decoded on the Iris Xe through D3D11, whole screen at 1920×1080 and a window
+at 946×1032, 60 a second on the stats card; a VP8 share came through the
+call's connection instead, named in the log, 5 ms after the watch connection
+gave it up. The owner saw H264 and VP9 move with the right colours, a whole
+screen and a window, through resizes, minimising and restoring, leaving and
+rejoining, and quitting from the tray while watching. With music shared from
+the whole screen and the watcher's output on VB-Cable, recorded from the
+cable's other end: −20 to −33 dBFS on average, −91 (silence) deafened or
+with the stream muted, back on undeafen and unmute, and lower with the
+stream's volume at 19%. A lost device faked while a decoder's picture was
+lent sent the share to the call 27 ms later, still moving, and the next
+watch made a new device and decoded on the GPU again. From the click on
+Watch to the picture: 508–550 ms through Rust (the picture about 270 ms
+after the watch connection found the share) and 266–773 ms through the call.
+Then in the Linux app (Linux debug build, two clients on the local
 stack, Nov 2): the watcher's log shows the share watched through Rust and the
 picture arriving at each size the sharer's window took, up to 1920×1048; the
 owner saw it move with the right colours in the tile and full size. Minimised
@@ -874,6 +900,20 @@ CPU on both paths:
 The difference is the convert and upload the call's path does on the CPU;
 the decoder is most of what is left, and goes with phase B. The VP9 share was
 encoded on the CPU by the sharer beside it, and its rate was not read.
+
+With phase B (Nov 4, the same set-up; `RIFT_WATCH_DECODE=cpu` keeps the watch
+connection on libwebrtc's decoder; the stats card read 60 a second of VP9 at
+10 Mbps and 61 of H264 at 14.4):
+
+| Watcher, whole process | Through Rust (D3D11) | Rust, CPU decode | Through the call |
+|---|---|---|---|
+| H264, 60 a second | 70–76% of a core | 92–97% | 97–99% |
+| VP9, 60 a second | 71–76% | 110–117% | 115–118% |
+
+Decoded on the GPU, watching costs about a quarter less than through the
+call for H264 and well over a third less for VP9. Where the rest goes was not
+broken down by thread. The screen behind differed from phase A's runs, so the
+two tables are not one series.
 
 ## How a call is played out on the desktop — [Implemented October 2026]
 

@@ -111,7 +111,8 @@ by LUID.
   At 1080p, `Draw` with its upload took p50 0.86 ms and p99 2.0 ms on the Iris Xe, and
   p50 0.70 ms and p99 2.6 ms on the RTX. Without the wait it was 0.47 and 1.9 ms, and
   0.18 and 2.6 ms.
-- **Not yet tried:** Discrete, which comes before phase B (the plan's Task 6).
+- **Not yet tried:** Discrete. It was to come before phase B (the plan's Task 6); the owner
+  had phase B built in Hybrid first, so it is the plan's Task 11 now.
 
 ### Which adapter, on a hybrid
 
@@ -303,10 +304,14 @@ Every number says which BIOS mode it came from. Hybrid first, then Discrete.
 
 1. **Rust:** `live_watch_` (passing, Nov 4); `live_watched_sound` into VB-Cable;
    `live_gpu_watch` once `d3d11va` exists (H264 and VP9 decoded on the GPU; VP8 fails
-   by name).
+   by name). Passing Nov 4 on the Iris Xe, Hybrid: VP9 88 and H264 89 of 90 pictures in
+   3 s, VP8 given up by name, every reference to the device handed back.
 2. **ffdec alone:** a Windows test beside `test_ffdec.c`, modelled on `test_d3d11.c`
    and `test_windows.sh`: the four colours back at 1920×1080 from H264 and VP9,
    decoded on a device made the runner's way and drawn by the runner's shader.
+   As built (`test_ffdec_d3d11.c`, `test_ffdec_windows.sh`), it reads the colours back
+   from the decoder's slices and the runner's drawing has its own test of NV12 slices
+   (`stream_draw_test`). Both pass on the Iris Xe and the RTX 3070 Ti, Hybrid, Nov 4.
 3. **The probe under load, first:** the tearing check with CS2 running, and with a load
    program on Flutter's own GPU. Hybrid before anything is built (passed Nov 4, above);
    Discrete before phase B. Then again with the decoder's pictures, in both modes. The
@@ -325,9 +330,14 @@ Every number says which BIOS mode it came from. Hybrid first, then Discrete.
 
    The log must name the decoder and the texture each time, so a pass is known to
    be the path it is meant to be.
+
+   Done Nov 4 in Hybrid with phase B (`TESTING.md`), all but the sound's level against
+   the call's path and a second monitor (none was attached). The volume, mute and
+   deafen were measured from VB-Cable rather than heard.
 5. **Cost:** the watcher's threads over 20 s per case, through Rust,
    `RIFT_WATCH_DECODE=cpu` and `RIFT_WATCH_PATH=call`, in a table like `CALLS.md`'s.
    A viewer on the same PC counts in any game-cost figure, so the figure says so.
+   Done Nov 4 in Hybrid, the whole process rather than by thread (`CALLS.md`).
 6. **The watcher's game (the gate):** CS2 with no watch, watching through the call, and
    watching through Rust. Capped and uncapped, Hybrid and Discrete. Each reports the
    mean, the p99, the frames over twice the target, the stream's rate and any freeze

@@ -343,12 +343,15 @@ a heavy full-screen pixel shader without vsync, so Flutter's own GPU is busy.
   - `watching ... through Rust`;
   - `shares decode on the CPU`;
   - `watching: picture WxH`.
-- [ ] **Step 3: By hand with the owner** (numbered steps for the owner):
+- [x] **Step 3: By hand with the owner** (numbered steps for the owner):
   - H264 and VP9, 1080p60, a window share and a whole-screen share;
   - resize; minimise and restore the watcher;
   - leave and rejoin; the first Watch after joining from the sidebar;
   - volume, mute and deafen;
   - Quit from the tray while watching.
+
+  Done on phase B's build instead (Task 10, Step 2), Nov 4; phase A's CPU-decoded pictures go through the
+  same texture and were not driven by hand on their own.
 - [x] **Step 4: Device loss, simulated.** `RIFT_STREAM_TEXTURE_FAIL_AFTER=300` in a test build:
   - the log says the window could not draw;
   - the tile is back on the call's renderer within a second, moving, not frozen.
@@ -499,17 +502,30 @@ a heavy full-screen pixel shader without vsync, so Flutter's own GPU is busy.
 
 ### Task 10: Phase B in the app
 
-- [ ] **Step 1:** Release build with the new ffenc DLL. The watcher's log names:
+- [x] **Step 1:** Release build with the new ffenc DLL. The watcher's log names:
   - `shares decode on the GPU (<adapter>)`;
   - `decoding H264 on <driver>`;
   - the texture.
-- [ ] **Step 2:** The same by-hand list as Task 6, Step 3, in Hybrid. Add:
+
+  *Nov 4:* `shares decode on the GPU (Intel(R) Iris(R) Xe Graphics, through D3D11)`, the runner's device on
+  the Iris Xe, `decoding H264 on Intel(R) Iris(R) Xe Graphics, through D3D11`, `picture 1920x1080`.
+- [x] **Step 2:** The same by-hand list as Task 6, Step 3, in Hybrid. Add:
   - a VP8 share falling back to the call's connection with its line in the log;
   - a late viewer's wait through Rust and through the call, each named.
-- [ ] **Step 3:** Device loss, simulated (as Task 6, Step 4), with a GPU picture lent.
-- [ ] **Step 4: Cost,** Hybrid, three runs of 20 s each: through Rust (GPU decode), `RIFT_WATCH_DECODE=cpu` and
-  `RIFT_WATCH_PATH=call`, H264 and VP9 at 1080p.
-- [ ] **Step 5: Commit** with `TESTING.md`, `CALLS.md` and `STEP3_PLAN.md` (step 4's line: Windows built and
+
+  *Nov 4:* the owner's pass, all as expected (`TESTING.md`). The sound was measured from VB-Cable's other end
+  with music shared: deafen and the stream's mute silence it, undeafen and unmute bring it back, and 19%
+  lowers it. VP8: `watching through the call instead of Rust: decoding ... failed: the GPU cannot decode this
+  Vp8`, picture shown. From the click on Watch to the picture: 508–550 ms through Rust, 266–773 ms through
+  the call.
+- [x] **Step 3:** Device loss, simulated (as Task 6, Step 4), with a GPU picture lent. *Nov 4:* debug build,
+  `RIFT_STREAM_TEXTURE_FAIL_AFTER=300`, H264 decoded on the GPU: the device lost at picture 301, the call took
+  the share 27 ms later, still moving; leaving and rejoining made a new device and decoded through Rust on the
+  GPU again.
+- [x] **Step 4: Cost,** Hybrid, three runs of 20 s each: through Rust (GPU decode), `RIFT_WATCH_DECODE=cpu` and
+  `RIFT_WATCH_PATH=call`, H264 and VP9 at 1080p. *Nov 4:* H264 70–76%, 92–97%, 97–99% of a core; VP9 71–76%,
+  110–117%, 115–118% (`CALLS.md`).
+- [x] **Step 5: Commit** with `TESTING.md`, `CALLS.md` and `STEP3_PLAN.md` (step 4's line: Windows built and
   where it was proven).
 
 ### Task 11: The gate, Discrete, and a real reset

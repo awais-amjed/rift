@@ -277,7 +277,14 @@ A watch connection needs its own token, and so a change in `rift-self-host`:
    livekit_client dropped the subscribe after it, still holding the old track (patch
    8 in `third_party/livekit_client/RIFT_PATCHES.md`).
 4. **Windows** (phases A and B) by the Windows Claude, on the same Rust and Dart code
-   with its own texture and decoder.
+   with its own texture and decoder. Built Nov 4 (`docs/gpu-codecs/STEP3_WINDOWS.md`):
+   the runner draws a watched share from a shared D3D11 texture, Rust plays its sound
+   through WASAPI, and FFmpeg decodes H264 and VP9 through D3D11 on the runner's own
+   device. Proven on the laptop in Hybrid (Iris Xe drawing): the decoder alone on the
+   Iris Xe and the RTX 3070 Ti, `live_gpu_watch` on the Iris Xe, and the app with two
+   clients and the owner's pass by hand; watching costs 70–76% of a core through Rust
+   against 97–118% through the call (`CALLS.md`). Discrete mode and a game beside it
+   are still to measure.
 
 ## Tests
 
