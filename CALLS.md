@@ -691,8 +691,10 @@ and hands Flutter the texture's shared handle, which ANGLE opens
 - **Unseen:** its pictures are turned off and on with the call's
   (`setWatchPicturesOn`).
 - **The sound** is played by Rust itself (`rust/src/watching/sound`), on a
-  PulseAudio stream of its own on the output chosen in settings, holding 60
-  ms. It is stereo and full band, where the call's playback ran a share's
+  stream of its own on the output chosen in settings, holding 60 ms:
+  PulseAudio's on Linux, and on Windows a WASAPI shared-mode stream, which
+  counts its room from what the device still holds, as the mic test's
+  playback does, and puts 30 ms of silence ahead when it ran dry. It is stereo and full band, where the call's playback ran a share's
   sound through libwebrtc's processing at 32 kHz (*How a call is played out
   on the desktop*, below). The cubit hands each share the volume the call
   would have played it at (`_syncRustSound`): its own volume times the
@@ -703,7 +705,9 @@ and hands Flutter the texture's shared handle, which ANGLE opens
   connection may unsubscribe a sound, which the call's must never do (*Receiving
   a call's audio*): this SDK gives a sound's decryptor the receiver itself,
   not an id two receivers can share. Where Rust has no player yet
-  (`watchPlaysSound`, Linux only for now), the sound stays with the call.
+  (`watchPlaysSound`, Linux and Windows for now), the sound stays with the
+  call. Whether Windows turns Rust's stream down beside a call, as it does
+  other apps' (*Windows turning other apps down*), is not yet measured.
 - **Decoded on the GPU** where it can be (`rust/src/watching/decode`,
   Linux). At start (`init_app`), before any room, Rust chooses how the
   process's LiveKit runtime decodes: where Rift's FFmpeg library loads and
@@ -750,7 +754,10 @@ key is added. The sound was verified the same way (`cargo test
 live_watched_sound`, into a null sink, its monitor recorded): a tone sent at
 −15.2 dBFS into one ear came out at −15.2 dBFS in that ear and nothing in the
 other, silent at volume 0 and back when turned up, 6 dB down at half, and silent
-once unwatched. Then in the app (Linux debug build, two clients on the local
+once unwatched. On Windows the same test (Nov 4) plays into VB-Cable and
+records the cable's other end itself: −15.2 dBFS in each ear for −15.3 sent,
+nothing in the other, −21.3 at half, and silent at 0 and once unwatched; with
+no player (`PLAYS` false) it fails. Then in the app (Linux debug build, two clients on the local
 stack, Nov 2): the watcher's log shows the share watched through Rust and the
 picture arriving at each size the sharer's window took, up to 1920×1048; the
 owner saw it move with the right colours in the tile and full size. Minimised

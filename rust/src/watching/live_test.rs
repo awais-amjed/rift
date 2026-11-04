@@ -14,8 +14,8 @@
 //! again starts them; and a share sealed under a key the call rotated to is
 //! read once that key is added.
 //!
-//! The sound test plays out loud, so it plays only into a test sink, and is
-//! run on its own (Linux):
+//! The sound test plays out loud, so it plays only into a test output, and is
+//! run on its own. On Linux, a null sink:
 //!
 //! ```text
 //! pactl load-module module-null-sink sink_name=rift_watch_test \
@@ -38,6 +38,15 @@
 //! in the left ear, then the right, a second each, for four seconds at full
 //! volume, two at nothing and three at half, then unwatched. The test logs
 //! when each begins.
+//!
+//! On Windows it plays into VB-Cable ("CABLE Input", never the default
+//! output) and records the cable's other end itself, through WASAPI, checking
+//! each part: the tone in each ear at the level sent, nothing at nothing, 6 dB
+//! down at half, and silence once unwatched.
+//!
+//! ```text
+//! cargo test --release live_watched_sound -- --ignored --nocapture
+//! ```
 use super::{frames, session};
 use crate::api::watching::WatchRoom;
 use crate::screenshare::live_test::{shared_key, Server, KEY_INDEX};
@@ -464,7 +473,7 @@ async fn live_watch_reads_a_share_sealed_after_a_rotation() {
 
 /// Interleaved stereo for frame [index] of 10 ms: a 1 kHz tone in the left
 /// ear for a second, then in the right.
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", windows))]
 fn tone_frame(index: u32) -> Vec<i16> {
     use crate::sharing::audio::SAMPLE_RATE;
     let per_frame = SAMPLE_RATE / 100;
@@ -480,13 +489,9 @@ fn tone_frame(index: u32) -> Vec<i16> {
     samples
 }
 
-// Linux only: it finds its test sink through PulseAudio.
+/// The test sink, checked: its name, as WebRTC lists it.
 #[cfg(target_os = "linux")]
-#[tokio::test(flavor = "multi_thread")]
-#[ignore = "needs a LiveKit server and a test sink; see the module doc"]
-async fn live_watched_sound_plays_in_stereo_at_its_volume() {
-    use crate::sharing::audio::{publish_and_feed, Command, Pcm, SpawnCapture};
-    let _ = env_logger::builder().is_test(true).try_init();
+fn test_output() -> String {
     let output = std::env::var("RIFT_WATCH_TEST_OUTPUT")
         .expect("RIFT_WATCH_TEST_OUTPUT names a test sink; see the module doc");
     assert!(output.starts_with("rift_"), "only into a rift_ test sink");
@@ -500,8 +505,37 @@ async fn live_watched_sound_plays_in_stereo_at_its_volume() {
         crate::pulse::sink_for(&mut connection, Some(&output)).is_some(),
         "the test sink is there"
     );
-    drop(connection);
-    super::sound::set_output(Some(output));
+    output
+}
+
+/// VB-Cable's input, checked: its endpoint id, as WebRTC lists it.
+#[cfg(windows)]
+fn test_output() -> String {
+    let input = cable::endpoint(wasapi::Direction::Render, "CABLE Input");
+    let name = input.get_friendlyname().unwrap_or_default();
+    assert!(name.contains("CABLE"), "only into VB-Cable: {name}");
+    let id = input.get_id().expect("an endpoint id");
+    let default = wasapi::DeviceEnumerator::new()
+        .and_then(|e| e.get_default_device(&wasapi::Direction::Render))
+        .and_then(|d| d.get_id())
+        .ok();
+    assert_ne!(
+        default.as_deref(),
+        Some(id.as_str()),
+        "VB-Cable is not the default output, which other sounds would play into"
+    );
+    id
+}
+
+#[cfg(any(target_os = "linux", windows))]
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a LiveKit server and a test output; see the module doc"]
+async fn live_watched_sound_plays_in_stereo_at_its_volume() {
+    use crate::sharing::audio::{publish_and_feed, Command, Pcm, SpawnCapture};
+    let _ = env_logger::builder().is_test(true).try_init();
+    super::sound::set_output(Some(test_output()));
+    #[cfg(windows)]
+    let recording = cable::Recording::start();
 
     let server = Server::from_env();
     let name = room_name("sound");
@@ -544,12 +578,14 @@ async fn live_watched_sound_plays_in_stereo_at_its_volume() {
         "the picture arrives"
     );
 
-    let at = |what: &str| {
+    let mut phases = Vec::new();
+    let mut at = |what: &'static str| {
         let ms = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_millis();
         log::info!("sound test: {what} at {ms}");
+        phases.push((what, Instant::now()));
     };
     at("full");
     tokio::time::sleep(Duration::from_secs(4)).await;
@@ -562,10 +598,209 @@ async fn live_watched_sound_plays_in_stereo_at_its_volume() {
     session::unwatch(share_identity).await;
     at("unwatched");
     tokio::time::sleep(Duration::from_secs(1)).await;
+    at("end");
 
     feed.terminate();
     session::stop().await;
     share.end().await;
+    #[cfg(windows)]
+    cable::check(&recording.stop(), &phases);
+    #[cfg(not(windows))]
+    let _ = phases;
+}
+
+/// VB-Cable, for the sound test on Windows: what plays into "CABLE Input"
+/// comes out of "CABLE Output", recorded here and measured.
+#[cfg(windows)]
+mod cable {
+    use super::tone_frame;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
+    use std::thread::JoinHandle;
+    use std::time::{Duration, Instant};
+    use wasapi::{DeviceEnumerator, Direction, SampleType, StreamMode, WaveFormat};
+
+    /// The active endpoint whose name starts with `name`.
+    pub(super) fn endpoint(direction: Direction, name: &str) -> wasapi::Device {
+        let _ = wasapi::initialize_mta().ok();
+        let collection = DeviceEnumerator::new()
+            .and_then(|e| e.get_device_collection(&direction))
+            .expect("the endpoints");
+        (0..collection.get_nbr_devices().unwrap_or(0))
+            .filter_map(|i| collection.get_device_at_index(i).ok())
+            .find(|d| d.get_friendlyname().is_ok_and(|n| n.starts_with(name)))
+            .unwrap_or_else(|| panic!("no {name}: is VB-Cable installed?"))
+    }
+
+    /// Each packet the cable's output gave, as it arrived: 48 kHz stereo.
+    type Packets = Vec<(Instant, Vec<i16>)>;
+
+    pub(super) struct Recording {
+        stop: Arc<AtomicBool>,
+        thread: JoinHandle<Packets>,
+    }
+
+    impl Recording {
+        pub(super) fn start() -> Recording {
+            let stop = Arc::new(AtomicBool::new(false));
+            let stopped = stop.clone();
+            let (started, opened) = std::sync::mpsc::channel();
+            let thread = std::thread::spawn(move || {
+                let device = endpoint(Direction::Capture, "CABLE Output");
+                let mut client = device.get_iaudioclient().expect("a client");
+                let format = WaveFormat::new(16, 16, &SampleType::Int, 48_000, 2, None);
+                let mode = StreamMode::PollingShared {
+                    autoconvert: true,
+                    buffer_duration_hns: 10_000_000,
+                };
+                client
+                    .initialize_client(&format, &Direction::Capture, &mode)
+                    .expect("the cable records 48 kHz stereo");
+                let capture = client.get_audiocaptureclient().expect("a capture client");
+                client.start_stream().expect("recording starts");
+                let _ = started.send(());
+                let mut buffer = vec![0u8; 64 * 1024];
+                let mut packets = Packets::new();
+                while !stopped.load(Ordering::SeqCst) {
+                    while let Ok((frames, info)) = capture.read_from_device(&mut buffer) {
+                        if frames == 0 {
+                            break;
+                        }
+                        let samples = if info.flags.silent {
+                            vec![0; frames as usize * 2]
+                        } else {
+                            buffer[..frames as usize * 4]
+                                .chunks_exact(2)
+                                .map(|b| i16::from_le_bytes([b[0], b[1]]))
+                                .collect()
+                        };
+                        packets.push((Instant::now(), samples));
+                    }
+                    std::thread::sleep(Duration::from_millis(5));
+                }
+                let _ = client.stop_stream();
+                packets
+            });
+            opened.recv().expect("the recording opens");
+            Recording { stop, thread }
+        }
+
+        pub(super) fn stop(self) -> Packets {
+            self.stop.store(true, Ordering::SeqCst);
+            self.thread.join().expect("the recording ends")
+        }
+    }
+
+    /// The level of each channel, in dBFS, of each tenth of a second recorded
+    /// between `from` and `to`.
+    fn levels(packets: &Packets, from: Instant, to: Instant) -> Vec<(f64, f64)> {
+        let samples: Vec<i16> = packets
+            .iter()
+            .filter(|(at, _)| *at >= from && *at <= to)
+            .flat_map(|(_, samples)| samples.iter().copied())
+            .collect();
+        samples
+            .chunks_exact(4800 * 2)
+            .map(|block| {
+                (
+                    dbfs(block.iter().step_by(2)),
+                    dbfs(block.iter().skip(1).step_by(2)),
+                )
+            })
+            .collect()
+    }
+
+    fn dbfs<'a>(samples: impl Iterator<Item = &'a i16>) -> f64 {
+        let (sum, count) = samples.fold((0.0, 0usize), |(sum, count), &s| {
+            (sum + f64::from(s).powi(2), count + 1)
+        });
+        let rms = (sum / count.max(1) as f64).sqrt();
+        20.0 * (rms.max(1e-9) / 32768.0).log10()
+    }
+
+    /// Each part, from half a second after it began to a fifth before the
+    /// next, which leaves the output's hold and the server's turn out of it.
+    pub(super) fn check(packets: &Packets, phases: &[(&str, Instant)]) {
+        let sent = dbfs(tone_frame(0).iter().step_by(2));
+        let part = |name: &str| {
+            let i = phases.iter().position(|(n, _)| *n == name).unwrap();
+            let blocks = levels(
+                packets,
+                phases[i].1 + Duration::from_millis(500),
+                phases[i + 1].1 - Duration::from_millis(200),
+            );
+            assert!(
+                blocks.len() >= 3,
+                "{name}: recorded ({} blocks)",
+                blocks.len()
+            );
+            blocks
+        };
+        // The tenth loudest in the left, and the tenth loudest in the right:
+        // the tone moves ears each second, so each part has both.
+        let loudest = |blocks: &[(f64, f64)]| {
+            let left = blocks.iter().copied().max_by(|a, b| a.0.total_cmp(&b.0));
+            let right = blocks.iter().copied().max_by(|a, b| a.1.total_cmp(&b.1));
+            (left.unwrap(), right.unwrap())
+        };
+        let quiet = |blocks: &[(f64, f64)]| {
+            blocks
+                .iter()
+                .map(|(l, r)| l.max(*r))
+                .fold(f64::MIN, f64::max)
+        };
+
+        let (left, right) = loudest(&part("full"));
+        log::info!(
+            "sound test: sent {sent:.1} dBFS; full: left {:.1} (right {:.1} then), right {:.1} (left {:.1} then)",
+            left.0,
+            left.1,
+            right.1,
+            right.0
+        );
+        assert!(
+            (left.0 - sent).abs() <= 1.0,
+            "left at the level sent: {:.1}",
+            left.0
+        );
+        assert!(
+            (right.1 - sent).abs() <= 1.0,
+            "right at the level sent: {:.1}",
+            right.1
+        );
+        assert!(
+            left.1 < sent - 40.0,
+            "nothing in the right while the left plays: {:.1}",
+            left.1
+        );
+        assert!(
+            right.0 < sent - 40.0,
+            "nothing in the left while the right plays: {:.1}",
+            right.0
+        );
+
+        let nothing = quiet(&part("nothing"));
+        log::info!("sound test: nothing: loudest {nothing:.1} dBFS");
+        assert!(nothing < -60.0, "silent at volume nothing: {nothing:.1}");
+
+        let (left, right) = loudest(&part("half"));
+        log::info!("sound test: half: left {:.1}, right {:.1}", left.0, right.1);
+        let half = sent - 6.02;
+        assert!(
+            (left.0 - half).abs() <= 1.0,
+            "6 dB down at half, left: {:.1}",
+            left.0
+        );
+        assert!(
+            (right.1 - half).abs() <= 1.0,
+            "6 dB down at half, right: {:.1}",
+            right.1
+        );
+
+        let unwatched = quiet(&part("unwatched"));
+        log::info!("sound test: unwatched: loudest {unwatched:.1} dBFS");
+        assert!(unwatched < -60.0, "silent once unwatched: {unwatched:.1}");
+    }
 }
 
 #[cfg(gpu_encoder)]

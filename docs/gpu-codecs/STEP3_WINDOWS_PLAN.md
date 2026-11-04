@@ -272,12 +272,14 @@ a heavy full-screen pixel shader without vsync, so Flutter's own GPU is busy.
 - Pure, and unit-tested: `room(queued, held) -> usize` and the cushion of silence after running dry. The mic
   test's lesson stands: count room from the padding, never trust the buffer size alone.
 
-- [ ] **Step 1: The failing unit tests** for the room and the cushion:
+- [x] **Step 1: The failing unit tests** for the room and the cushion:
   - empty: the cushion, then the frame;
   - full: nothing;
   - part full: whole frames only.
-- [ ] **Step 2: Run to see them fail; implement; pass.**
-- [ ] **Step 3: The live test on Windows.** `live_watched_sound` gets a Windows check:
+- [x] **Step 2: Run to see them fail; implement; pass.** Four failed against a stub; all pass. As built, the
+  room and the cushion are one function, `to_write(frame, queued, gain)`, beside `room`. A write that fails
+  (a device unplugged) opens the output again on the next frame; three in a row end the sound.
+- [x] **Step 3: The live test on Windows.** `live_watched_sound` gets a Windows check:
   - The output is VB-Cable's input, by name.
   - It asserts the name contains `CABLE` and is not the default output.
   - It records VB-Cable's output through WASAPI capture in the same test.
@@ -288,6 +290,9 @@ a heavy full-screen pixel shader without vsync, so Flutter's own GPU is busy.
     - silent once unwatched.
 
   See it fail with `PLAYS` false, then pass.
+
+  Nov 4, against `livekit-server --dev` on 7980: −15.2 dBFS in each ear for −15.3 sent, the other ear at
+  −96.7, −21.3 at half, −96.5 at 0 and once unwatched. With `PLAYS` false: −96.5 at full, failed.
 - [ ] **Step 4: Ducking.** A call's playback is a communications stream, and Windows turns other sounds down
   for it, by 18 dB measured (`CALLS.md`, *Windows turning other apps down*). The share's sound through the
   call is part of that stream, so it is never turned down. Rust's stream is not, so it might be.

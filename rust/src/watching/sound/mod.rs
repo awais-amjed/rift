@@ -23,19 +23,25 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use tokio::task::JoinHandle;
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(not(any(target_os = "linux", windows)))]
 mod elsewhere;
 #[cfg(target_os = "linux")]
 mod linux;
+#[cfg(windows)]
+mod windows;
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(not(any(target_os = "linux", windows)))]
 use elsewhere::run;
-#[cfg(not(target_os = "linux"))]
+#[cfg(not(any(target_os = "linux", windows)))]
 pub(crate) use elsewhere::PLAYS;
 #[cfg(target_os = "linux")]
 use linux::run;
 #[cfg(target_os = "linux")]
 pub(crate) use linux::PLAYS;
+#[cfg(windows)]
+use windows::run;
+#[cfg(windows)]
+pub(crate) use windows::PLAYS;
 
 const SAMPLE_RATE: u32 = 48_000;
 const CHANNELS: u32 = 2;
@@ -114,14 +120,14 @@ pub(crate) fn set_output(device_id: Option<String>) {
 
 /// The output to play on, and the change it is: read the change first, so a
 /// move made in between is seen on the next look rather than lost.
-#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+#[cfg_attr(not(any(target_os = "linux", windows)), allow(dead_code))]
 fn output() -> (u64, Option<String>) {
     let changes = OUTPUT_CHANGES.load(Ordering::SeqCst);
     let device = OUTPUT.lock().unwrap_or_else(|e| e.into_inner()).clone();
     (changes, device)
 }
 
-#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+#[cfg_attr(not(any(target_os = "linux", windows)), allow(dead_code))]
 fn output_changes() -> u64 {
     OUTPUT_CHANGES.load(Ordering::SeqCst)
 }
@@ -130,7 +136,7 @@ fn output_changes() -> u64 {
 /// `room` samples free, at `gain`. The rest is dropped rather than held: held,
 /// it would put the sound behind its picture for good. Whole frames only, so
 /// left stays left.
-#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+#[cfg_attr(not(any(target_os = "linux", windows)), allow(dead_code))]
 fn playable(samples: &[i16], room: usize, gain: f32) -> Vec<i16> {
     let take = samples.len().min(room) / CHANNELS as usize * CHANNELS as usize;
     samples[..take]

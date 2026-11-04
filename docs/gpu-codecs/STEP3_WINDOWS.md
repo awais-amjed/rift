@@ -3,8 +3,9 @@
 Nov 4 2026. Agreed by the owner Nov 4, with four changes from the review (the tearing
 check moved first, the device asked for rather than passed through Dart, ducking, the
 shader compiler in CI); phase A being built (the runner's drawing, Nov 4, which now
-waits for its draw: *A read at once does tear*; the texture installed in the runner,
-not yet turned on in Dart). Windows' half of step 3
+waits for its draw: *A read at once does tear*; the texture installed in the runner
+and turned on in Dart; the sound through WASAPI, tested in Rust; neither yet driven
+in the app, and ducking not yet measured). Windows' half of step 3
 (`STEP3_PLAN.md`), on the same Rust and Dart code Linux runs, with its own texture,
 decoder and sound. What is the owner's is marked so; the rest is the builder's call.
 
