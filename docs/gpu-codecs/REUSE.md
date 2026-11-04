@@ -167,9 +167,10 @@ on Oct 27. Its CI fails in two places:
 - **Windows doesn't link** (`livekit_ffi.dll`, LNK2019): the test-only bridge
   type `DecodeForTest` is compiled on every platform, and MSVC wants the Rust side
   of its `Vec`, which nothing on the Rust side uses. Linux's linker drops the
-  unused code, so it passed here. Rift's Windows build will meet the same error
-  through the fork, so the fork needs a fix (gate the test helper, or instantiate
-  the `Vec` in the bridge) before Windows builds on this commit.
+  unused code, so it passed here. Rift's Windows build met the same error through
+  the fork (Nov 4, on the AMD desktop). The fork fixed it the same day: the helper
+  returns plain numbers instead (`RIFT.md` there, patch 5). Verified Nov 4 by
+  linking Rift's library for Windows with cargo-xwin, which failed before.
 - A macOS data-track test timed out. That test has nothing to do with this PR.
 
 **Decode and draw, compared with Rift's own** (Moonlight at 1ced9dd, mpv at

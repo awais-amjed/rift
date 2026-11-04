@@ -715,7 +715,7 @@ dependencies = [
 [[package]]
 name = "device-info"
 version = "0.1.1"
-source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=14d8c5df612e9d2222bd063c73af1dba760a22b7#14d8c5df612e9d2222bd063c73af1dba760a22b7"
+source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=0d63df6003f7c25f2abb6882c9a174d404db2488#0d63df6003f7c25f2abb6882c9a174d404db2488"
 dependencies = [
  "core-foundation",
  "jni",
@@ -1662,7 +1662,7 @@ dependencies = [
 [[package]]
 name = "libwebrtc"
 version = "0.3.52"
-source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=14d8c5df612e9d2222bd063c73af1dba760a22b7#14d8c5df612e9d2222bd063c73af1dba760a22b7"
+source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=0d63df6003f7c25f2abb6882c9a174d404db2488#0d63df6003f7c25f2abb6882c9a174d404db2488"
 dependencies = [
  "cxx",
  "jni",
@@ -1706,7 +1706,7 @@ checksum = "47d9d19d1d6efa0109d2f65ff4c85cddd50bd572e5a00127ab10987290bcefae"
 [[package]]
 name = "livekit"
 version = "0.9.5"
-source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=14d8c5df612e9d2222bd063c73af1dba760a22b7#14d8c5df612e9d2222bd063c73af1dba760a22b7"
+source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=0d63df6003f7c25f2abb6882c9a174d404db2488#0d63df6003f7c25f2abb6882c9a174d404db2488"
 dependencies = [
  "bmrng",
  "bytes",
@@ -1734,7 +1734,7 @@ dependencies = [
 [[package]]
 name = "livekit-api"
 version = "0.9.0"
-source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=14d8c5df612e9d2222bd063c73af1dba760a22b7#14d8c5df612e9d2222bd063c73af1dba760a22b7"
+source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=0d63df6003f7c25f2abb6882c9a174d404db2488#0d63df6003f7c25f2abb6882c9a174d404db2488"
 dependencies = [
  "http",
  "livekit-protocol",
@@ -1752,7 +1752,7 @@ dependencies = [
 [[package]]
 name = "livekit-common"
 version = "0.1.5"
-source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=14d8c5df612e9d2222bd063c73af1dba760a22b7#14d8c5df612e9d2222bd063c73af1dba760a22b7"
+source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=0d63df6003f7c25f2abb6882c9a174d404db2488#0d63df6003f7c25f2abb6882c9a174d404db2488"
 dependencies = [
  "livekit-protocol",
 ]
@@ -1760,7 +1760,7 @@ dependencies = [
 [[package]]
 name = "livekit-data-stream"
 version = "0.1.8"
-source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=14d8c5df612e9d2222bd063c73af1dba760a22b7#14d8c5df612e9d2222bd063c73af1dba760a22b7"
+source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=0d63df6003f7c25f2abb6882c9a174d404db2488#0d63df6003f7c25f2abb6882c9a174d404db2488"
 dependencies = [
  "async-compression",
  "bmrng",
@@ -1782,7 +1782,7 @@ dependencies = [
 [[package]]
 name = "livekit-datatrack"
 version = "0.2.3"
-source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=14d8c5df612e9d2222bd063c73af1dba760a22b7#14d8c5df612e9d2222bd063c73af1dba760a22b7"
+source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=0d63df6003f7c25f2abb6882c9a174d404db2488#0d63df6003f7c25f2abb6882c9a174d404db2488"
 dependencies = [
  "anyhow",
  "bytes",
@@ -1800,7 +1800,7 @@ dependencies = [
 [[package]]
 name = "livekit-net"
 version = "0.1.3"
-source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=14d8c5df612e9d2222bd063c73af1dba760a22b7#14d8c5df612e9d2222bd063c73af1dba760a22b7"
+source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=0d63df6003f7c25f2abb6882c9a174d404db2488#0d63df6003f7c25f2abb6882c9a174d404db2488"
 dependencies = [
  "async-trait",
  "base64 0.21.7",
@@ -1819,7 +1819,7 @@ dependencies = [
 [[package]]
 name = "livekit-protocol"
 version = "0.8.1"
-source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=14d8c5df612e9d2222bd063c73af1dba760a22b7#14d8c5df612e9d2222bd063c73af1dba760a22b7"
+source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=0d63df6003f7c25f2abb6882c9a174d404db2488#0d63df6003f7c25f2abb6882c9a174d404db2488"
 dependencies = [
  "pbjson",
  "pbjson-types",
@@ -1830,7 +1830,7 @@ dependencies = [
 [[package]]
 name = "livekit-region"
 version = "0.1.1"
-source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=14d8c5df612e9d2222bd063c73af1dba760a22b7#14d8c5df612e9d2222bd063c73af1dba760a22b7"
+source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=0d63df6003f7c25f2abb6882c9a174d404db2488#0d63df6003f7c25f2abb6882c9a174d404db2488"
 dependencies = [
  "serde",
 ]
@@ -1838,7 +1838,7 @@ dependencies = [
 [[package]]
 name = "livekit-rpc"
 version = "0.1.4"
-source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=14d8c5df612e9d2222bd063c73af1dba760a22b7#14d8c5df612e9d2222bd063c73af1dba760a22b7"
+source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=0d63df6003f7c25f2abb6882c9a174d404db2488#0d63df6003f7c25f2abb6882c9a174d404db2488"
 dependencies = [
  "livekit-common",
  "livekit-data-stream",
@@ -1854,7 +1854,7 @@ dependencies = [
 [[package]]
 name = "livekit-signaling"
 version = "0.1.6"
-source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=14d8c5df612e9d2222bd063c73af1dba760a22b7#14d8c5df612e9d2222bd063c73af1dba760a22b7"
+source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=0d63df6003f7c25f2abb6882c9a174d404db2488#0d63df6003f7c25f2abb6882c9a174d404db2488"
 dependencies = [
  "base64 0.21.7",
  "device-info",
@@ -1877,7 +1877,7 @@ dependencies = [
 [[package]]
 name = "livekit-token"
 version = "0.3.0"
-source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=14d8c5df612e9d2222bd063c73af1dba760a22b7#14d8c5df612e9d2222bd063c73af1dba760a22b7"
+source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=0d63df6003f7c25f2abb6882c9a174d404db2488#0d63df6003f7c25f2abb6882c9a174d404db2488"
 dependencies = [
  "hmac",
  "jsonwebtoken",
@@ -3879,7 +3879,7 @@ dependencies = [
 [[package]]
 name = "webrtc-sys"
 version = "0.3.49"
-source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=14d8c5df612e9d2222bd063c73af1dba760a22b7#14d8c5df612e9d2222bd063c73af1dba760a22b7"
+source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=0d63df6003f7c25f2abb6882c9a174d404db2488#0d63df6003f7c25f2abb6882c9a174d404db2488"
 dependencies = [
  "cc",
  "cxx",
@@ -3893,7 +3893,7 @@ dependencies = [
 [[package]]
 name = "webrtc-sys-build"
 version = "0.3.19"
-source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=14d8c5df612e9d2222bd063c73af1dba760a22b7#14d8c5df612e9d2222bd063c73af1dba760a22b7"
+source = "git+https://github.com/awais-amjed/livekit-rust-sdks?rev=0d63df6003f7c25f2abb6882c9a174d404db2488#0d63df6003f7c25f2abb6882c9a174d404db2488"
 dependencies = [
  "anyhow",
  "fs2",
