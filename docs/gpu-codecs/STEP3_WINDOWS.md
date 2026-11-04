@@ -172,8 +172,9 @@ How:
   Windows a VP8 share fails by name (`the GPU cannot decode this Vp8`) and goes back
   to the call's connection, as on AMD's Linux. `live_gpu_watch` already expects that of
   a codec the device lacks.
-- **FFmpeg's build:** `--enable-hwaccel=h264_d3d11va,vp9_d3d11va` (the D3D11VA2 forms)
-  beside the decoders already built.
+- **FFmpeg's build:** Windows' `build.sh` branch builds `ffdec.c` too, which it does not
+  yet, with `--enable-decoder=h264,vp9` and `--enable-hwaccel=h264_d3d11va2,vp9_d3d11va2`
+  (the forms that take a frames context of D3D11 textures).
 
 ## Fallback
 
