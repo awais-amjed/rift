@@ -4,10 +4,11 @@ Nov 2–3 2026, branch `gpu-codecs`. Proves what `STEP1_WINDOWS.md` left for an 
 Capture session, the D3D11 NV12 converter and FFmpeg's `h264_amf` taking the picture on the GPU. Everything below ran
 with `RIFT_FFENC_AMF_TEXTURES=1`.
 
-**Verdict: AMF passes every test and the game-cost gate, at about a fifth of NVENC's cost. The gate
-(`RIFT_FFENC_AMF_TEXTURES`) stays in for now,** because a late viewer waited about 3.5 s on this path and under 1 s with
-the switch off. That wait was the viewer's, not AMF's, and was fixed Nov 4 (*A late viewer*, below); lifting the switch
-is the owner's call.
+**Verdict: AMF passes every test and the game-cost gate, at about a fifth of NVENC's cost. The variable
+(`RIFT_FFENC_AMF_TEXTURES`) stayed in at first,** because a late viewer waited about 3.5 s on this path and under 1 s
+with the switch off. That wait was the viewer's, not AMF's, and was fixed Nov 4 (*A late viewer*, below), and the
+variable came out the same day: AMF takes the picture on the GPU like NVENC and Quick Sync. The late viewer is not yet
+retried on this machine since.
 
 ## The machine
 

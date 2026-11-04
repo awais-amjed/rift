@@ -447,19 +447,18 @@ fn h264_encoder() -> Option<&'static (Candidate, String, bool)> {
 /// device there. `None` keeps the share on libwebrtc's capturer.
 #[cfg(target_os = "windows")]
 pub(crate) fn takes_textures() -> Option<u32> {
-    let amf = std::env::var("RIFT_FFENC_AMF_TEXTURES").is_ok_and(|v| v == "1");
-    h264_encoder().and_then(|(candidate, ..)| texture_vendor(candidate.encoder, amf))
+    h264_encoder().and_then(|(candidate, ..)| texture_vendor(candidate.encoder))
 }
 
-/// Which encoders take the picture on the GPU, and on whose adapter. AMF only
-/// when `amf` is let (`RIFT_FFENC_AMF_TEXTURES=1`), until it has run on an AMD
-/// card (`STEP1_WINDOWS_PLAN.md`).
+/// Which encoders take the picture on the GPU, and on whose adapter. AMF was
+/// let on only by a variable until it had run on an AMD card
+/// (`STEP1_AMD.md`).
 #[cfg(target_os = "windows")]
-fn texture_vendor(encoder: &CStr, amf: bool) -> Option<u32> {
+fn texture_vendor(encoder: &CStr) -> Option<u32> {
     match encoder.to_bytes() {
         b"h264_nvenc" => Some(0x10de),
         b"h264_qsv" => Some(0x8086),
-        b"h264_amf" if amf => Some(0x1002),
+        b"h264_amf" => Some(0x1002),
         _ => None,
     }
 }
@@ -874,23 +873,22 @@ mod tests {
 
     #[test]
     fn nvenc_takes_textures_on_nvidia() {
-        assert_eq!(texture_vendor(c"h264_nvenc", false), Some(0x10de));
+        assert_eq!(texture_vendor(c"h264_nvenc"), Some(0x10de));
     }
 
     #[test]
-    fn amf_takes_textures_only_when_let() {
-        assert_eq!(texture_vendor(c"h264_amf", false), None);
-        assert_eq!(texture_vendor(c"h264_amf", true), Some(0x1002));
+    fn amf_takes_textures_on_amd() {
+        assert_eq!(texture_vendor(c"h264_amf"), Some(0x1002));
     }
 
     #[test]
     fn quick_sync_takes_textures_on_intel() {
-        assert_eq!(texture_vendor(c"h264_qsv", false), Some(0x8086));
+        assert_eq!(texture_vendor(c"h264_qsv"), Some(0x8086));
     }
 
     #[test]
     fn nothing_else_takes_textures() {
-        assert_eq!(texture_vendor(c"h264_mf", true), None);
-        assert_eq!(texture_vendor(c"libx264", true), None);
+        assert_eq!(texture_vendor(c"h264_mf"), None);
+        assert_eq!(texture_vendor(c"libx264"), None);
     }
 }

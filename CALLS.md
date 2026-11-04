@@ -236,9 +236,9 @@ An H264 share with the GPU capture switch on, to NVENC or Quick Sync, now captur
 Rift's own Windows Graphics Capture session instead, on the encoder's GPU, so the picture
 stays on the GPU (`capture_wgc.rs`, `docs/gpu-codecs/STEP1_WINDOWS.md`; on branch
 `gpu-codecs` as of Nov 1 2026). AMF ran on an RX 9070 XT Nov 2–3 and passed, at about a fifth
-of NVENC's cost to a game (`docs/gpu-codecs/STEP1_AMD.md`), but takes this path only with
-`RIFT_FFENC_AMF_TEXTURES=1` for now. A late viewer's 3.5 s on it was the viewer's wait, fixed
-Nov 4 (*Starting to watch through the call*). Everything else stays
+of NVENC's cost to a game (`docs/gpu-codecs/STEP1_AMD.md`), and takes it too since Nov 4.
+Until then it needed `RIFT_FFENC_AMF_TEXTURES=1`, held back by a late viewer's 3.5 s on it,
+which was the viewer's wait (*Starting to watch through the call*). Everything else stays
 as below, and Rift's session falls back to it. Verified Nov 1 with a test program on
 NVENC: real shares with a viewer, the shared window closed 20 times (10
 closed, 10 killed) with no crash or hang, and known colours within 0.5 of a level of
