@@ -2,8 +2,8 @@
 #define RUNNER_STREAM_DRAW_H_
 
 // A watched share's picture drawn into a texture Flutter can show: one shared
-// BGRA texture, drawn on the runner's own D3D11 device and flushed, which ANGLE
-// opens by its handle (docs/gpu-codecs/STEP3_WINDOWS.md). No Flutter here, so
+// BGRA texture, drawn on the runner's own D3D11 device and waited for, which
+// ANGLE opens by its handle (docs/gpu-codecs/STEP3_WINDOWS.md). No Flutter here, so
 // test/stream_draw_test.cpp can drive it alone.
 
 #include <d3d11_4.h>
@@ -42,6 +42,8 @@ constexpr uint32_t kBt2020 = 2;
 // points it at the app's log.
 using StreamLogFn = void (*)(const char* line);
 void SetStreamLog(StreamLogFn log);
+// One line there, printf-style.
+void StreamLog(const char* format, ...);
 
 // The device on the adapter with |luid|, at feature level 11 or above, with
 // video support and multithread protection (phase B's decoder shares it); null

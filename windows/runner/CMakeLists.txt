@@ -16,6 +16,7 @@ add_executable(${BINARY_NAME} WIN32
   "stream_draw.cpp"
   "stream_draw_vs.hlsl"
   "stream_draw_ps.hlsl"
+  "stream_texture.cpp"
   "tray_icon.cpp"
   "utils.cpp"
   "velopack_hooks.cpp"

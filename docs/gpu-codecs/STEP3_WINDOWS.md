@@ -3,7 +3,8 @@
 Nov 4 2026. Agreed by the owner Nov 4, with four changes from the review (the tearing
 check moved first, the device asked for rather than passed through Dart, ducking, the
 shader compiler in CI); phase A being built (the runner's drawing, Nov 4, which now
-waits for its draw: *A read at once does tear*). Windows' half of step 3
+waits for its draw: *A read at once does tear*; the texture installed in the runner,
+not yet turned on in Dart). Windows' half of step 3
 (`STEP3_PLAN.md`), on the same Rust and Dart code Linux runs, with its own texture,
 decoder and sound. What is the owner's is marked so; the rest is the builder's call.
 
@@ -136,6 +137,31 @@ The device's immediate context is used on the raster thread alone in phase A. Th
 close fence holds as on Linux: once Rust's `unwatch` returns nothing marks the
 texture, and the runner frees the texture's object only when Flutter's unregister
 callback says the engine has let it go.
+
+**Read against the engine's sources** (3.47.7, `flutter_windows_texture_registrar.cc`
+and `external_texture_d3d.cc`, Nov 4, the plan's Task 2):
+
+- **Mark** may come from any thread: the registrar posts it to the platform thread.
+  The runner still looks the texture up under its own lock first, so a mark after
+  `dispose`, or after the window closed, does nothing.
+- **Unregister** is posted twice: to the platform thread, which takes the id out of
+  the engine, and to the raster thread, which deletes the engine's texture object
+  (releasing ANGLE's surface on our texture) and then calls our callback there. The
+  runner frees its `StreamDraw` in that callback. An engine that is stopping, and draws
+  no more, calls back at once on the caller's thread instead.
+- **Drawing:** the engine finds the texture object under its map's lock and then uses
+  it with the lock released. That is safe because only a raster task removes it, and
+  the raster thread is busy drawing.
+- **The handle** is opened, and its `release_callback` called, inside the descriptor
+  callback's frame. ANGLE keeps its surface, and with it a reference to our texture,
+  until the handle changes. So a texture of a new size can never reuse the old one's
+  handle while ANGLE still shows it.
+- **A null descriptor** makes the engine let go of its surface and draw nothing there
+  that frame. The runner answers null only once its device is lost.
+
+The runner writes its lines to the app's log through `rift_runner_log`, a function of
+Rust's library that it finds by name, so a lost device or a failed draw is in the file
+people send.
 
 ## Phase A: libwebrtc's pictures, the texture and the sound
 

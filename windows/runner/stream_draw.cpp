@@ -23,15 +23,6 @@ void DebuggerLog(const char* line) {
 
 StreamLogFn sink = DebuggerLog;
 
-void Log(const char* format, ...) {
-  char line[512];
-  va_list args;
-  va_start(args, format);
-  std::vsnprintf(line, sizeof line, format, args);
-  va_end(args);
-  sink(line);
-}
-
 // The pixel shader's Colour: what Y, U and V each add to red, green and blue,
 // then black's Y, U and V. Four float4s, as HLSL packs them.
 struct ColourSums {
@@ -77,7 +68,9 @@ bool Plane(ID3D11Device* device, uint32_t width, uint32_t height,
     hr = device->CreateShaderResourceView(texture->Get(), nullptr,
                                           view->ReleaseAndGetAddressOf());
   }
-  if (FAILED(hr)) Log("stream texture: plane %ux%u: %08lx", width, height, hr);
+  if (FAILED(hr)) {
+    StreamLog("stream texture: plane %ux%u: %08lx", width, height, hr);
+  }
   return SUCCEEDED(hr);
 }
 
@@ -85,11 +78,20 @@ bool Plane(ID3D11Device* device, uint32_t width, uint32_t height,
 
 void SetStreamLog(StreamLogFn log) { sink = log ? log : DebuggerLog; }
 
+void StreamLog(const char* format, ...) {
+  char line[512];
+  va_list args;
+  va_start(args, format);
+  std::vsnprintf(line, sizeof line, format, args);
+  va_end(args);
+  sink(line);
+}
+
 ComPtr<ID3D11Device> MakeDevice(LUID luid) {
   ComPtr<IDXGIFactory1> factory;
   HRESULT hr = CreateDXGIFactory1(IID_PPV_ARGS(&factory));
   if (FAILED(hr)) {
-    Log("stream texture: no DXGI factory: %08lx", hr);
+    StreamLog("stream texture: no DXGI factory: %08lx", hr);
     return nullptr;
   }
   ComPtr<IDXGIAdapter1> adapter;
@@ -103,7 +105,7 @@ ComPtr<ID3D11Device> MakeDevice(LUID luid) {
     adapter.Reset();
   }
   if (!adapter) {
-    Log("stream texture: no adapter with Flutter's LUID %08lx:%08lx",
+    StreamLog("stream texture: no adapter with Flutter's LUID %08lx:%08lx",
         luid.HighPart, luid.LowPart);
     return nullptr;
   }
@@ -119,14 +121,14 @@ ComPtr<ID3D11Device> MakeDevice(LUID luid) {
                          ARRAYSIZE(levels), D3D11_SDK_VERSION, &device, nullptr,
                          nullptr);
   if (FAILED(hr)) {
-    Log("stream texture: no video device on %ls (%08lx), drawing only",
+    StreamLog("stream texture: no video device on %ls (%08lx), drawing only",
         desc.Description, hr);
     hr = D3D11CreateDevice(adapter.Get(), D3D_DRIVER_TYPE_UNKNOWN, nullptr,
                            flags, levels, ARRAYSIZE(levels), D3D11_SDK_VERSION,
                            &device, nullptr, nullptr);
   }
   if (FAILED(hr)) {
-    Log("stream texture: no D3D11 device at level 11 on %ls: %08lx",
+    StreamLog("stream texture: no D3D11 device at level 11 on %ls: %08lx",
         desc.Description, hr);
     return nullptr;
   }
@@ -134,7 +136,7 @@ ComPtr<ID3D11Device> MakeDevice(LUID luid) {
   if (SUCCEEDED(device.As(&multithread))) {
     multithread->SetMultithreadProtected(TRUE);
   }
-  Log("stream texture: device on %ls", desc.Description);
+  StreamLog("stream texture: device on %ls", desc.Description);
   return device;
 }
 
@@ -170,7 +172,7 @@ bool StreamDraw::Prepare() {
     hr = device_->CreateBuffer(&desc, nullptr, &colour_);
   }
   if (FAILED(hr)) {
-    Log("stream texture: shaders: %08lx", hr);
+    StreamLog("stream texture: shaders: %08lx", hr);
     return false;
   }
   prepared_ = true;
@@ -200,8 +202,8 @@ bool StreamDraw::Size(uint32_t width, uint32_t height) {
   desc.Usage = D3D11_USAGE_DEFAULT;
   desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
   // A legacy shared handle, which ANGLE opens as a pbuffer
-  // (EGL_D3D_TEXTURE_2D_SHARE_HANDLE_ANGLE). No keyed mutex: the flush after
-  // each draw orders it before Flutter's read (STEP3_WINDOWS.md).
+  // (EGL_D3D_TEXTURE_2D_SHARE_HANDLE_ANGLE). No keyed mutex, which ANGLE never
+  // takes: Draw waits for the GPU instead (Finish, STEP3_WINDOWS.md).
   desc.MiscFlags = D3D11_RESOURCE_MISC_SHARED;
   ComPtr<ID3D11Texture2D> out;
   HRESULT hr = device_->CreateTexture2D(&desc, nullptr, &out);
@@ -211,7 +213,7 @@ bool StreamDraw::Size(uint32_t width, uint32_t height) {
   if (SUCCEEDED(hr)) hr = out.As(&resource);
   if (SUCCEEDED(hr)) hr = resource->GetSharedHandle(&handle);
   if (FAILED(hr)) {
-    Log("stream texture: texture %ux%u: %08lx", width, height, hr);
+    StreamLog("stream texture: texture %ux%u: %08lx", width, height, hr);
     target_.Reset();
     return false;
   }
@@ -273,9 +275,9 @@ bool StreamDraw::Draw(const WatchPlanes& p) {
 
 // Flushes and waits for the GPU to finish the draw. ANGLE reads the texture on
 // its own device, and a flush alone does not order that read after the draw:
-// read back at once from a second device, the RTX gave 93 half-drawn pictures
-// in 400 and the Iris Xe 2 stale ones; waiting first, none (STEP3_WINDOWS.md,
-// Probe evidence). A fence with an event lets the thread sleep through the
+// read back at once from a second device, the RTX gave 198 half-drawn 1440p
+// pictures in 200 and the Iris Xe 1; waiting first, none (STEP3_WINDOWS.md,
+// A read at once does tear). A fence with an event lets the thread sleep through the
 // wait; without one (Windows 10 before 1703) an event query is polled.
 bool StreamDraw::Finish() {
   if (!fence_ && !query_) {
@@ -290,7 +292,7 @@ bool StreamDraw::Finish() {
       D3D11_QUERY_DESC desc = {D3D11_QUERY_EVENT, 0};
       HRESULT hr = device_->CreateQuery(&desc, &query_);
       if (FAILED(hr)) {
-        Log("stream texture: no way to wait for a draw: %08lx", hr);
+        StreamLog("stream texture: no way to wait for a draw: %08lx", hr);
         return false;
       }
     }

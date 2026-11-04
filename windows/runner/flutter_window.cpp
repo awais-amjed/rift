@@ -51,6 +51,8 @@ bool FlutterWindow::OnCreate() {
   }
   RegisterPlugins(flutter_controller_->engine());
   rift::InstallNoiseFilter();
+  stream_textures_ =
+      std::make_unique<rift::StreamTextures>(flutter_controller_->engine());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   SetupPttChannel();
@@ -81,6 +83,7 @@ void FlutterWindow::OnDestroy() {
   ptt_event_sink_ = nullptr;
   seen_watch_ = nullptr;
   seen_event_sink_ = nullptr;
+  stream_textures_ = nullptr;
 
   if (flutter_controller_) {
     flutter_controller_ = nullptr;

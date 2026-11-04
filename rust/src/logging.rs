@@ -146,6 +146,22 @@ pub(crate) fn start(dir: &Path) -> Result<PathBuf, String> {
     Ok(path)
 }
 
+/// A line from the Windows runner (`windows/runner/stream_texture.cpp`), which
+/// has no logger of its own and finds this among the library's exports, so
+/// what it says lands in the same file.
+///
+/// # Safety
+/// [line] is null or a NUL-terminated string.
+#[no_mangle]
+pub unsafe extern "C" fn rift_runner_log(line: *const std::ffi::c_char) {
+    if line.is_null() {
+        return;
+    }
+    // SAFETY: non-null, and NUL-terminated as the caller promises.
+    let line = unsafe { std::ffi::CStr::from_ptr(line) };
+    log::info!(target: "runner", "{}", line.to_string_lossy());
+}
+
 /// Writes one line, timestamped and with anything secret taken out.
 pub(crate) fn write_line(level: &str, target: &str, message: &str) {
     let (secs, millis) = now();

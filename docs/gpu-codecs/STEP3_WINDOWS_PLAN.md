@@ -9,8 +9,8 @@ Measured against the call's path, and with a game beside it.
 
 **Architecture** (`STEP3_WINDOWS.md`): the runner makes one D3D11 device on the adapter Flutter draws with, matched
 by LUID. Each watched share has one shared BGRA texture, which Flutter reads by DXGI handle. On Flutter's raster
-thread, the runner borrows Rust's newest picture (`rift_watch_frame_lock`), draws it with a YUV→RGB shader,
-`Flush`es and hands it back. In phase B, ffdec decodes with FFmpeg's `d3d11va` on that same device, and the
+thread, the runner borrows Rust's newest picture (`rift_watch_frame_lock`), draws it with a YUV→RGB shader, waits
+for the GPU to finish it and hands it back. In phase B, ffdec decodes with FFmpeg's `d3d11va` on that same device, and the
 runner samples the decoder's surface where it lies. The sound plays through WASAPI. Rust's session and Dart's
 cubit are Linux's, unchanged but for small additions.
 
@@ -197,14 +197,16 @@ a heavy full-screen pixel shader without vsync, so Flutter's own GPU is busy.
   - Check that `windows-latest`'s image lists a Windows 10/11 SDK, from its published software list.
   - CI itself is checked on the first `release.yml` run the owner starts. Until then this is a claim, and
     the commit says so.
-- [ ] **Step 6: Commit.**
+- [x] **Step 6: Commit.**
 
 ### Task 2: The stream texture in the runner
 
 **Files:**
 - Create: `windows/runner/stream_texture.h`, `windows/runner/stream_texture.cpp`
-- Modify: `windows/runner/flutter_window.cpp` (install it, keep a `PluginRegistrarWindows` alive),
-  `windows/runner/CMakeLists.txt` (`flutter_wrapper_plugin`)
+- Modify: `windows/runner/flutter_window.{h,cpp}` (install it), `windows/runner/CMakeLists.txt`
+- Modify: `rust/src/logging.rs` (`rift_runner_log`, so the runner's lines reach the app's log)
+- As built (Nov 4): the runner uses Flutter's C texture API (`FlutterDesktopTextureRegistrar*`), so it needs
+  neither a `PluginRegistrarWindows` nor `flutter_wrapper_plugin`.
 
 **Interfaces:**
 - The `rift/stream_texture` channel, as on Linux:
@@ -221,23 +223,26 @@ a heavy full-screen pixel shader without vsync, so Flutter's own GPU is busy.
   - Before the first picture it answers a 1×1 black texture, as Linux's `DrawBlack`.
 - `dispose` takes the texture out of the live map, then calls `UnregisterTexture(id, callback)`. The callback
   frees the `StreamDraw` on the raster thread.
-- `RIFT_STREAM_TEXTURE_FAIL_AFTER=<n>`: test builds only (an `#ifndef NDEBUG` or a build flag, decided in the
-  task, never in a release). After n draws, `Draw` reports the device removed.
+- `RIFT_STREAM_TEXTURE_FAIL_AFTER=<n>`: debug builds only (`#ifdef _DEBUG`, which Flutter's CMake sets for
+  Debug alone, never Profile or Release). The picture after the n-th drawn in the process finds its device
+  removed, once, so the next `create` makes a working device.
 - Device removed (`GetDeviceRemovedReason`, or the hook):
   - unlock with 0;
   - a one-time warning;
   - the device is let go for the process;
   - the next `create` makes a new one.
 
-- [ ] **Step 1: Build the runner** with the texture installed and `RustWatch.available` still Linux only. The
-  app starts and nothing changes.
-- [ ] **Step 2: Read the lifetimes against the engine's sources:**
+- [x] **Step 1: Build the runner** with the texture installed and `RustWatch.available` still Linux only. The
+  app starts and nothing changes. (Nov 4: release build, no new warnings; the exe exports
+  `rift_stream_d3d11_device` and the Rust library `rift_runner_log`. A test client started, signed in and
+  answered, with no texture line in its log. The drawing's test still passes on both adapters.)
+- [x] **Step 2 (Nov 4: in `STEP3_WINDOWS.md`, *Threads*): Read the lifetimes against the engine's sources:**
   - mark from any thread;
   - unregister finishes on the raster thread;
   - `PopulateTexture` holds the texture's raw pointer only under the registrar's raster task.
 
   Write down where each call runs.
-- [ ] **Step 3: Commit.**
+- [x] **Step 3: Commit.**
 
 ### Task 3: Dart turns it on for Windows
 
