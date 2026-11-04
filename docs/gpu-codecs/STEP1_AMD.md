@@ -5,8 +5,9 @@ Capture session, the D3D11 NV12 converter and FFmpeg's `h264_amf` taking the pic
 with `RIFT_FFENC_AMF_TEXTURES=1`.
 
 **Verdict: AMF passes every test and the game-cost gate, at about a fifth of NVENC's cost. The gate
-(`RIFT_FFENC_AMF_TEXTURES`) stays in for now,** because a late viewer waits about 3.5 s on this path and under 1 s with
-the switch off, which is not explained yet (*Not explained*). The owner chose to look into it later.
+(`RIFT_FFENC_AMF_TEXTURES`) stays in for now,** because a late viewer waited about 3.5 s on this path and under 1 s with
+the switch off. That wait was the viewer's, not AMF's, and was fixed Nov 4 (*A late viewer*, below); lifting the switch
+is the owner's call.
 
 ## The machine
 
@@ -51,7 +52,7 @@ owner's own Rift.
   - VP9 went to libwebrtc's capturer (`GPU capture does not fit this share`), and H264 afterwards back to Rift's
     session with AMF via D3D11. The switch off: `GPU capture is off; libwebrtc's capturer`.
   - Quit from the tray mid-share: the share stopped in 28 ms and the process exited.
-  - A late viewer: *Not explained*.
+  - A late viewer: *A late viewer*, below.
 
 ## The game-cost gate (CS2)
 
@@ -89,17 +90,22 @@ of a core. AMF's `send` took about 6 ms a picture (longest 13 ms, against 8.3 ms
 out 6–10 pictures a second to keep within the rate, so about 110–115 went out, and the viewer stayed around and above
 110 fps.
 
+## A late viewer
+
+- **A late viewer waited about 3.5 s on this path, under 1 s with the switch off.** The owner, in the app, five tries
+  each: with the switch on, 3–4 s from the click to the picture, the viewer's loading dots for about 3 s first, once
+  the app's background showing for about a second; with the switch off, under a second every time. On both paths the
+  sharer's log has a keyframe within about 100 ms of the server asking for the layer, and the live tests' late viewer
+  gets its first picture in 277 ms against 274 ms. **Found Nov 4:** the viewer in the app watched through the call's
+  connection, where the loading dots wait for a keyframe decoded after decryption begins, and the keyframe sent at the
+  subscribe goes by before it. With nothing asking for another, the dots gave up at 3 s. The NVENC laptop's 3.1 s and
+  Linux's (`STEP2_AMD.md`) were the same wait. The viewer now asks for a keyframe when decryption begins
+  (`CALLS.md`, *Starting to watch through the call*). Why the switch-off path was faster was not checked; a keyframe
+  that came after decryption began would do it. Not yet retried on this machine.
+
 ## Not explained
 
-- **A late viewer waits about 3.5 s on this path, under 1 s with the switch off.** The owner, in the app, five tries
-  each: with the switch on, 3–4 s from the click to the picture, the viewer's loading dots for about 3 s first, once
-  the app's background showing for about a second; with the switch off, under a second every time. A moving clock on
-  screen (about 24 pictures a second on Rift's session) changed nothing, so the still screen's one picture a second is
-  not the cause. On both paths the sharer's log has a keyframe within about 100 ms of the server asking for the layer
-  (dynacast's `Low=true`), and the live tests' late viewer gets its first picture in 277 ms against 274 ms. So the
-  time goes somewhere between the server and the app's viewer. About 3 s is also what the NVENC laptop measured on
-  both paths and what Linux measures (`STEP2_AMD.md`); here the fast one is the switch-off path, AMF from memory
-  pictures. Next: the viewer's log for one late join on each path.
+
 - **The picture rate fell before WebRTC's target did**, twice at 1440p60. Not followed further.
 - **A still window gets a new session every 2–3 s on AMD** (3 in 8 s), where NVENC got none: WGC gave no picture
   for 2 s, so `QuietWatch` opened another. Why it does on AMD and not on NVIDIA is not known. No picture was lost and nothing was handed over.

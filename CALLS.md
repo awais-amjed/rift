@@ -237,8 +237,8 @@ Rift's own Windows Graphics Capture session instead, on the encoder's GPU, so th
 stays on the GPU (`capture_wgc.rs`, `docs/gpu-codecs/STEP1_WINDOWS.md`; on branch
 `gpu-codecs` as of Nov 1 2026). AMF ran on an RX 9070 XT Nov 2–3 and passed, at about a fifth
 of NVENC's cost to a game (`docs/gpu-codecs/STEP1_AMD.md`), but takes this path only with
-`RIFT_FFENC_AMF_TEXTURES=1` until a late viewer's 3.5 s on it (under 1 s with the switch off)
-is explained. Everything else stays
+`RIFT_FFENC_AMF_TEXTURES=1` for now. A late viewer's 3.5 s on it was the viewer's wait, fixed
+Nov 4 (*Starting to watch through the call*). Everything else stays
 as below, and Rift's session falls back to it. Verified Nov 1 with a test program on
 NVENC: real shares with a viewer, the shared window closed 20 times (10
 closed, 10 killed) with no crash or hang, and known colours within 0.5 of a level of
@@ -619,6 +619,41 @@ phone (Exynos) on its hardware decoder, though that phone's WebRTC lists only
 constrained baseline among its H264 decoders. Windows did the same on NVENC
 and Quick Sync, sharing and watching, and a Windows Rift without the change
 played a High share. AMD's AMF is not yet driven.
+
+## Starting to watch through the call — [Implemented November 2026]
+
+A stream watched through the call's connection (the web, a phone, a desktop
+where the Rust path is off or failed) is covered by loading dots until its
+picture is clean (`DecryptedVideo`, `CleanPictureGate`). LiveKit's Flutter
+SDK fits the receiver's decryptor only once the track is subscribed, by
+which point frames are already arriving. The server asks the sharer for a
+keyframe as the track is subscribed, so that keyframe usually goes through
+the decoder still encrypted and decodes as garbage, and the frames after it
+build on the garbage. The picture is clean only at the first keyframe after
+decryption begins. A sharer sends no other keyframe unless one is asked
+for, so the cover waited out its 3 s timeout nearly every time. That was
+the late viewer's "about 3 s" on Linux, on Windows NVENC and on AMF from
+textures: it depended on the viewer's path, not on the sharer's GPU.
+
+So when decryption begins, the cover asks for a fresh keyframe
+(`LiveKitCubit.renewPicture`). The SDK has no way to ask for one, but
+LiveKit's server asks the sharer for a keyframe whenever a subscriber turns
+a picture back on. So the picture is turned off for 300 ms and on again.
+The server applies an "off" 100 ms after it arrives, and an "on" arriving
+before then cancels it (`SubscribedTrack.UpdateSubscriberSettings`,
+livekit-server 1.13), so the pause has to outlast that and the trip to the
+server. The roster sync, which hands pictures back to adaptive stream, leaves
+a picture alone while it is paused like this. Rift's log says when decryption
+began, how many keyframes had decoded before it, and whether the cover came
+down on a clean keyframe or on the timeout.
+
+Verified Nov 4 2026 on the local stack. A Linux release build, Dave sharing,
+Cara watching through the call (`RIFT_WATCH_PATH=call`), five watches. In
+four, one keyframe had decoded before decryption began. The picture was
+clean 0.68–1.3 s after Watch, about 0.6 s after decryption began, and
+never on the timeout; the owner saw it come almost at once. In the fifth no
+keyframe had gone by yet, and the picture came at 0.25 s. Not yet tried on
+the web, a phone or Windows, which run the same code.
 
 ## Watching a share through Rust — [Built November 2026, Linux, `gpu-codecs` branch]
 

@@ -105,7 +105,8 @@ switch-on 1440p60 share.
   gaps.
 - **A late viewer** (stop watching, watch again) waited about **3 s** for a picture, the same
   as on other machines. This is the app viewer starting a stream; `TESTING.md` measured the
-  same 3 s on Intel.
+  same 3 s on Intel. It was the viewer's loading dots giving up on the call's path, fixed Nov 4
+  (`CALLS.md`, *Starting to watch through the call*).
 - **Asked for 120:** the switch-on share sent about 98 fps. `rift-pipewire` woke about 98
   times a second, so GNOME sent that many pictures; the encoder had room (5.8 ms a picture).
   This is GNOME sending only whole refreshes under the cap (`CALLS.md`), here on a 240 Hz

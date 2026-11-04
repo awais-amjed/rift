@@ -297,7 +297,8 @@ meets the game's presenting.
   viewer: 58.3 fps decoded, the share process 16.4% of a core, two gaps of 107 ms). Against NVENC on the game
   in Hybrid it costs the game more, so NVENC stays first (*Which GPU encodes on a hybrid*). AMF is built the same way as NVENC
   but is let onto this path only with `RIFT_FFENC_AMF_TEXTURES=1`. It ran on an RX 9070 XT Nov 2–3 and passed,
-  gate included (`STEP1_AMD.md`); it stays behind the variable until a late viewer's 3.5 s on it is explained.
+  gate included (`STEP1_AMD.md`); it stays behind the variable for now. A late viewer's 3.5 s on it was the viewer's wait, fixed Nov 4
+  (`STEP1_AMD.md`, *A late viewer*).
 - The app driven through everything a share does (Nov 1–2, *How it is proven*), and `TESTING.md` for it.
 
 ## How it is proven
@@ -349,7 +350,8 @@ AMF's reference if available.
     10 s later.
   - The switch off: the log said `GPU capture is off; libwebrtc's capturer`.
   - A late viewer on a still screen: about 3.1 s to the first picture on both paths, the new one slower in 2 of
-    10 tries (5.3 and 5.4 s). Not explained.
+    10 tries (5.3 and 5.4 s). The 3.1 s was the viewer's loading dots giving up, fixed Nov 4 (`STEP1_AMD.md`,
+    *A late viewer*); the two slower tries are not explained.
   - CS2 on dust2, 1080p, PresentMon, 50 s rounds: no share 386 and 380 fps (p99 4.9–5.0 ms); a share of CS2's
     window 339 fps (p99 5.5); of the screen 329 (5.7). No frame over 16.7 ms in any round (longest 10.4 ms), so
     the 80 ms frames were not seen. Every round, no share too, was composed (*Composed: Flip*) because of the
