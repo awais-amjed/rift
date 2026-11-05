@@ -9,10 +9,12 @@ part of 'livekit_cubit.dart';
 /// - a build without stream textures, or `RIFT_WATCH_PATH=call`;
 /// - a server that does not mint watch connections (its answer names the
 ///   voice identity instead, and joining with that would kick this device's
-///   own voice connection out of the call);
-/// - anything failing, before or after it opens. That ends it for the rest
-///   of the call, once, with a line in the log: the shares it held go back to
-///   this room, and so does every share watched after.
+///   own voice connection out of the call). Not asked again this call: the
+///   answer cannot change, and each asking delays the picture;
+/// - anything else failing, before or after it opens, with a line in the log:
+///   the shares it held go back to this room and stay there, so a picture
+///   never changes paths twice. The next share watched tries Rust again, since
+///   most failures end within milliseconds and most belong to one share.
 ///
 /// Its sound comes on the same connection and Rust plays it
 /// ([RustWatch.playsSound]), at what this room would play it at
@@ -43,9 +45,14 @@ mixin _RustWatchMixin
   Room? _rustWatchRoom;
   Future<bool>? _rustWatchOpening;
 
-  /// The Rust path failed during this call, which watches as before from
-  /// then on. Cleared when the call's room goes.
-  bool _rustWatchFailed = false;
+  /// This call's server does not mint watch connections. Cleared when the
+  /// call's room goes: the next room may be on another server.
+  bool _noWatchConnections = false;
+
+  /// The last closing of the watch connection. An opening waits for it: Rust
+  /// takes a start and a stop in whichever order they reach it, and a stop
+  /// overtaken by the start after it would close the new connection.
+  Future<void> _rustWatchClosed = Future.value();
 
   StreamSubscription<WatchEvent>? _rustWatchEvents;
 
@@ -57,7 +64,7 @@ mixin _RustWatchMixin
   /// once for a share it already holds.
   @override
   Future<bool> _watchThroughRust(String identity) {
-    if (!RustWatch.available || _rustWatchFailed) return Future.value(false);
+    if (!RustWatch.available || _noWatchConnections) return Future.value(false);
     if (state.watchedPictures.containsKey(identity)) return Future.value(true);
     // One at a time per share: Watch pressed and the share published can
     // both ask, and a second texture would replace the first in Rust.
@@ -138,7 +145,7 @@ mixin _RustWatchMixin
         _rustWatchRoom != null) {
       _rustWatchRoom = null;
       _rustWatchOpening = null;
-      await RustWatch.stop();
+      await _closeRustWatch();
     }
     return true;
   }
@@ -175,10 +182,13 @@ mixin _RustWatchMixin
       return _rustWatchRefused(response.error ?? 'no token');
     }
     if (identity is! String || !ParticipantIdentity.isWatch(identity)) {
+      _noWatchConnections = true;
       return _rustWatchRefused('the server does not mint watch connections');
     }
 
     _rustWatchEvents ??= RustWatch.events.listen(_onRustWatchEvent);
+    await _rustWatchClosed;
+    if (_rustWatchRoom != room) return false;
     final error = await RustWatch.start(
       url: url,
       token: token,
@@ -187,7 +197,7 @@ mixin _RustWatchMixin
     );
     if (error != null) return _rustWatchRefused(error);
     if (_rustWatchRoom != room) {
-      await RustWatch.stop();
+      await _closeRustWatch();
       return false;
     }
     // Every key the call holds, not only the current one: a share begun
@@ -204,7 +214,6 @@ mixin _RustWatchMixin
     HelperMethods.printDebug(
       '[LiveKit] watching through the call instead of Rust: $why',
     );
-    _rustWatchFailed = true;
     _rustWatchRoom = null;
     _rustWatchOpening = null;
     return false;
@@ -230,11 +239,15 @@ mixin _RustWatchMixin
   }
 
   /// The Rust path gave out mid-call: the shares it held go back to this
-  /// room, and the rest of the call watches that way.
+  /// room. A share watched from here on may open a new connection, even
+  /// before this ends, so nothing about the connection is touched after the
+  /// first wait.
   Future<void> _fallBackFromRust(String why) async {
+    HelperMethods.printDebug(
+      '[LiveKit] watching through the call instead of Rust: $why',
+    );
     final held = state.watchedPictures.keys.toList();
     await _endRustWatch();
-    _rustWatchRefused(why);
     final room = state.room;
     if (room == null) return;
     for (final identity in held) {
@@ -256,10 +269,10 @@ mixin _RustWatchMixin
   }
 
   /// Closes the watch connection and lets go of its textures — the call's
-  /// room going, for whatever reason. The next room may try Rust again.
+  /// room going, for whatever reason, or the connection failing.
   @override
   Future<void> _endRustWatch() async {
-    _rustWatchFailed = false;
+    _noWatchConnections = false;
     final textures = state.watchedPictures.values
         .map((p) => p.textureId)
         .toList();
@@ -272,9 +285,12 @@ mixin _RustWatchMixin
       emit(state.copyWith(watchedPictures: const {}));
     }
     // Stopped first: once it returns, nothing marks the textures.
-    await RustWatch.stop();
+    await _closeRustWatch();
     await RustWatch.disposeAll(textures);
   }
+
+  Future<void> _closeRustWatch() =>
+      _rustWatchClosed = _rustWatchClosed.then((_) => RustWatch.stop());
 
   /// Plays each share Rust holds at what this room would play its sound at:
   /// its own volume times the call's, or nothing while muted, deafened or

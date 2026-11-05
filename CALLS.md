@@ -686,10 +686,13 @@ libwebrtc still decodes, on the CPU.
   as before: on a build without stream textures (every platform but Linux
   and Windows, for now), with `RIFT_WATCH_PATH=call`, on a server whose answer to `watch`
   names the voice identity (one from before it, where joining with that would
-  push this device's own voice connection out of the call), and for the rest
-  of the call after anything on the Rust path fails, the shares it held going
-  back to the room. The room's own track for a share Rust holds stays
-  unsubscribed.
+  push this device's own voice connection out of the call, so it is not asked
+  again that call), and after anything on the Rust path fails. Then the shares
+  it held go back to the room and stay there, so a picture never changes paths
+  twice, and the next share watched, or the same one watched again, tries Rust
+  first: most failures end within milliseconds and belong to one share. The
+  slow ones are the 6 s below and a connection that will not open. The room's
+  own track for a share Rust holds stays unsubscribed.
 - **The key:** the watch connection keeps the call's keys in a ring of its
   own: every version the call has held, given when it opens, since a share
   begun before a rotation stays sealed under the key it began with, and then
