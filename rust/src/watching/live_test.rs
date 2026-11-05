@@ -608,7 +608,7 @@ fn tone_frame(index: u32) -> Vec<i16> {
 
 /// The test sink, checked: its name, as WebRTC lists it.
 #[cfg(target_os = "linux")]
-fn test_output() -> String {
+pub(super) fn test_output() -> String {
     let output = std::env::var("RIFT_WATCH_TEST_OUTPUT")
         .expect("RIFT_WATCH_TEST_OUTPUT names a test sink; see the module doc");
     assert!(output.starts_with("rift_"), "only into a rift_ test sink");
@@ -627,7 +627,7 @@ fn test_output() -> String {
 
 /// VB-Cable's input, checked: its endpoint id, as WebRTC lists it.
 #[cfg(windows)]
-fn test_output() -> String {
+pub(super) fn test_output() -> String {
     let input = cable::endpoint(wasapi::Direction::Render, "CABLE Input");
     let name = input.get_friendlyname().unwrap_or_default();
     assert!(name.contains("CABLE"), "only into VB-Cable: {name}");

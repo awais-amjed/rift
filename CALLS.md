@@ -703,10 +703,17 @@ libwebrtc still decodes, on the CPU.
 - **Unseen:** its pictures are turned off and on with the call's
   (`setWatchPicturesOn`).
 - **The sound** is played by Rust itself (`rust/src/watching/sound`), on a
-  stream of its own on the output chosen in settings, holding 60 ms:
-  PulseAudio's on Linux, and on Windows a WASAPI shared-mode stream, which
-  counts its room from what the device still holds, as the mic test's
-  playback does, and puts 30 ms of silence ahead when it ran dry. It is stereo and full band, where the call's playback ran a share's
+  stream of its own on the output chosen in settings: PulseAudio's on Linux,
+  and on Windows a WASAPI shared-mode stream, which counts its room from what
+  the device still holds, as the mic test's playback does, and puts 30 ms of
+  silence ahead when it ran dry. It holds about 30 ms on both once settled.
+  The sound arrives on the system's clock and the output plays on its own, so
+  `Drift` watches what the output holds and, when that wanders more than 8 ms
+  from where it settled, stretches or squeezes a frame by one left-and-right
+  pair. Before it, an output running fast left a 10 ms gap every 100 s or so at
+  100 parts per million, and one running slow held more and more on Linux, so
+  the sound fell further behind its picture, and on Windows had the ends of
+  frames cut off. It is stereo and full band, where the call's playback ran a share's
   sound through libwebrtc's processing at 32 kHz (*How a call is played out
   on the desktop*, below). The cubit hands each share the volume the call
   would have played it at (`_syncRustSound`): its own volume times the

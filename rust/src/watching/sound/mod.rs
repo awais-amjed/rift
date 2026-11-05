@@ -11,8 +11,9 @@
 //!
 //! Each share plays on a thread of its own, fed by a task reading the track;
 //! the thread ends when the task does. Each platform supplies `run`, which
-//! opens the output and plays what it is fed until the feed ends. Where there
-//! is none yet ([`PLAYS`] false), the share's sound stays with the call.
+//! opens the output and plays what it is fed until the feed ends, keeping level
+//! with the output's clock (`drift`). Where there is none yet ([`PLAYS`] false),
+//! the share's sound stays with the call.
 
 use futures_util::StreamExt;
 use livekit::prelude::RemoteAudioTrack;
@@ -23,6 +24,8 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use tokio::task::JoinHandle;
 
+#[cfg_attr(not(any(target_os = "linux", windows)), allow(dead_code))]
+mod drift;
 #[cfg(not(any(target_os = "linux", windows)))]
 mod elsewhere;
 #[cfg(target_os = "linux")]
@@ -200,6 +203,55 @@ mod tests {
             !after[lost.len()..].iter().any(|r| r.contains("sound")),
             "{after:?}"
         );
+    }
+
+    /// The real player against a real output, fed a 440 Hz tone off the system
+    /// clock by `RIFT_DRIFT_PPM` (positive: the sound arrives fast). Nothing
+    /// real runs that far out, which is what makes a minute's run show what
+    /// hours would. It checks nothing itself: record the output beside it and
+    /// look for gaps, and read how much it held in the log. As the sound test
+    /// in `live_test`, into a test output:
+    ///
+    /// ```text
+    /// PULSE_SINK=rift_watch_test RIFT_WATCH_TEST_OUTPUT=rift_watch_test RIFT_DRIFT_PPM=1000 \
+    ///     cargo test --release live_drifting_sound -- --ignored --nocapture
+    /// ```
+    #[cfg(any(target_os = "linux", windows))]
+    #[test]
+    #[ignore = "needs a test output; see above"]
+    fn live_drifting_sound() {
+        use std::time::{Duration, Instant};
+        let _ = env_logger::builder().is_test(true).try_init();
+        let ppm: f64 = std::env::var("RIFT_DRIFT_PPM").unwrap().parse().unwrap();
+        let minutes: f64 =
+            std::env::var("RIFT_DRIFT_MINUTES").map_or(1.0, |minutes| minutes.parse().unwrap());
+        set_output(Some(crate::watching::live_test::test_output()));
+        let gain: Arc<Gain> = Arc::default();
+        gain.set(1.0);
+        let (frames, feed) = mpsc::sync_channel::<Vec<i16>>(QUEUED_FRAMES);
+        let player = start_player(feed, gain, run).unwrap();
+        let start = Instant::now();
+        let period = 0.01 * (1.0 - ppm / 1e6);
+        let (mut made, mut phase, mut refused) = (0_u64, 0_f64, 0_u64);
+        while start.elapsed() < Duration::from_secs_f64(minutes * 60.0) {
+            let mut frame = Vec::with_capacity(960);
+            for _ in 0..480 {
+                let sample = (phase.sin() * 10_000.0) as i16;
+                phase += std::f64::consts::TAU * 440.0 / f64::from(SAMPLE_RATE);
+                frame.extend([sample, sample]);
+            }
+            if frames.try_send(frame).is_err() {
+                refused += 1;
+            }
+            made += 1;
+            let next = start + Duration::from_secs_f64(made as f64 * period);
+            if let Some(wait) = next.checked_duration_since(Instant::now()) {
+                thread::sleep(wait);
+            }
+        }
+        log::info!("drift test: {made} frames, {refused} refused");
+        drop(frames);
+        player.join().unwrap();
     }
 
     #[test]

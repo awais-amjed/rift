@@ -1,6 +1,7 @@
 //! Linux: a stereo playback stream on the chosen sink, through PulseAudio (or
 //! PipeWire's PulseAudio server), the way the mic test plays you back.
 
+use super::drift::Drift;
 use super::{output_changes, playable, Gain, CHANNELS, SAMPLE_RATE};
 use crate::cue::le_bytes;
 use crate::pulse::{self, Connection};
@@ -14,17 +15,24 @@ use std::time::Duration;
 
 pub(crate) const PLAYS: bool = true;
 
-/// How much the output holds ahead of what is heard, in samples: 60 ms, as
-/// the mic test's playback holds. Each millisecond here is one the sound
-/// trails its picture by, since libwebrtc times the picture to the sound as
-/// it leaves the connection, not as it reaches the ear.
+/// How much the output is asked to hold ahead of what is heard, in samples:
+/// 60 ms, as the mic test's playback asks. PipeWire keeps it to less (see
+/// [`CUSHION_SAMPLES`]). Each millisecond held is one the sound trails its
+/// picture by, since libwebrtc times the picture to the sound as it leaves the
+/// connection, not as it reaches the ear.
 const HELD_SAMPLES: usize = (SAMPLE_RATE * CHANNELS) as usize * 60 / 1000;
 
-/// How far past [`HELD_SAMPLES`] a frame may be written: one 10 ms frame. The
+/// How far past [`HELD_SAMPLES`] a frame may be written: one 10 ms frame, and
+/// the pair [`Drift`] may add to it. The
 /// server frees room a block of its own at a time, which is rarely one
 /// frame, and cut to the room nearly every frame lost its tail (the mic
 /// test's crackle, Oct 14).
-const SLACK_SAMPLES: usize = (SAMPLE_RATE * CHANNELS) as usize / 100;
+const SLACK_SAMPLES: usize = (SAMPLE_RATE * CHANNELS) as usize / 100 + CHANNELS as usize;
+
+/// Silence put ahead of the sound when a stream opens: 15 ms. PipeWire took a
+/// stream asking to hold 60 ms down to holding about 20, about 6 ms from
+/// running dry (Nov 5, a null sink), too little to steer by.
+const CUSHION_SAMPLES: usize = (SAMPLE_RATE * CHANNELS) as usize * 15 / 1000;
 
 /// How long to wait for a frame before turning the server's side over
 /// anyway: two frames' time.
@@ -33,12 +41,24 @@ const WAIT: Duration = Duration::from_millis(20);
 pub(super) fn run(frames: Receiver<Vec<i16>>, gain: &Gain) -> Result<(), String> {
     let mut connection =
         Connection::open("rift-watch").ok_or("could not reach the sound server")?;
-    let mut output: Option<(u64, Stream)> = None;
+    let mut output: Option<Output> = None;
     let ended = play_until_fed(&frames, gain, &mut connection, &mut output);
-    if let Some((_, mut stream)) = output {
-        let _ = stream.disconnect();
+    if let Some(mut output) = output {
+        let _ = output.stream.disconnect();
     }
     ended
+}
+
+/// A playback stream, and the output change it was opened for.
+struct Output {
+    change: u64,
+    stream: Stream,
+    drift: Drift,
+    /// What the server keeps the stream topped up to, in samples: its own
+    /// figure, as it may not be what was asked for.
+    target_length: usize,
+    /// No sound has gone in yet.
+    fresh: bool,
 }
 
 /// Plays each frame until the feed ends (Ok) or the output fails.
@@ -46,7 +66,7 @@ fn play_until_fed(
     frames: &Receiver<Vec<i16>>,
     gain: &Gain,
     connection: &mut Connection,
-    output: &mut Option<(u64, Stream)>,
+    output: &mut Option<Output>,
 ) -> Result<(), String> {
     loop {
         let frame = match frames.recv_timeout(WAIT) {
@@ -57,22 +77,42 @@ fn play_until_fed(
         if !turn_over(connection) {
             return Err("the sound server went away".to_string());
         }
-        if output.as_ref().map(|(change, _)| *change) != Some(output_changes()) {
-            if let Some((_, mut old)) = output.take() {
-                let _ = old.disconnect();
+        if output.as_ref().map(|output| output.change) != Some(output_changes()) {
+            if let Some(mut old) = output.take() {
+                let _ = old.stream.disconnect();
             }
             let (change, device) = super::output();
-            *output = Some((change, open(connection, device.as_deref())?));
+            let mut stream = open(connection, device.as_deref())?;
+            let target_length = stream
+                .get_buffer_attr()
+                .map_or(HELD_SAMPLES, |attr| attr.tlength as usize / 2);
+            *output = Some(Output {
+                change,
+                stream,
+                drift: Drift::new(target_length),
+                target_length,
+                fresh: true,
+            });
         }
-        let (Some(frame), Some((_, stream))) = (frame, output.as_mut()) else {
+        let (Some(frame), Some(output)) = (frame, output.as_mut()) else {
             continue;
         };
-        let room = stream.writable_size().unwrap_or(0) / 2 + SLACK_SAMPLES;
-        let played = playable(&frame, room, gain.get());
+        let writable = output.stream.writable_size().unwrap_or(0) / 2;
+        let queued = output.target_length.saturating_sub(writable);
+        let frame = output.drift.adjust(&frame, queued);
+        let room = writable + SLACK_SAMPLES;
+        let mut played = if output.fresh {
+            output.fresh = false;
+            vec![0; CUSHION_SAMPLES]
+        } else {
+            Vec::new()
+        };
+        played.extend(playable(&frame, room, gain.get()));
         if played.is_empty() {
             continue;
         }
-        stream
+        output
+            .stream
             .write(&le_bytes(&played), None, 0, SeekMode::Relative)
             .map_err(|e| format!("playing the sound failed: {e:?}"))?;
     }

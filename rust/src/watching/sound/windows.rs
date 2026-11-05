@@ -2,6 +2,7 @@
 //! shared mode, which converts 48 kHz 16-bit stereo to whatever the device
 //! mixes at, the way the mic test plays you back.
 
+use super::drift::Drift;
 use super::{output_changes, playable, Gain, CHANNELS, SAMPLE_RATE};
 use crate::cue::le_bytes;
 use std::sync::mpsc::Receiver;
@@ -11,17 +12,21 @@ use wasapi::{
 
 pub(crate) const PLAYS: bool = true;
 
-/// How much the output holds ahead of what is heard, in samples: 60 ms, as
-/// on Linux. Counted from the stream's padding rather than set as its buffer,
-/// which Windows' engine empties in uneven gulps: the mic test's small buffer
-/// was often full when the next packet came, and the voice was cut.
-const HELD_SAMPLES: usize = (SAMPLE_RATE * CHANNELS) as usize * 60 / 1000;
+/// The most the output may hold ahead of what is heard, in samples: 80 ms.
+/// What it does hold is about 35 (`CUSHION_SAMPLES`, `Drift`). Counted from the
+/// stream's padding rather than set as its buffer, which Windows' engine
+/// empties in uneven gulps: the mic test's small buffer was often full when the
+/// next packet came, and the voice was cut.
+const HELD_SAMPLES: usize = (SAMPLE_RATE * CHANNELS) as usize * 80 / 1000;
 
 /// Silence put ahead of the sound when the output holds nothing, at the start
 /// and after it ran dry: 30 ms. Without it a frame is played the moment it
 /// lands, the output never holds more than one, and one that arrives late is
 /// a click (the mic test's lesson).
 const CUSHION_SAMPLES: usize = (SAMPLE_RATE * CHANNELS) as usize * 30 / 1000;
+
+/// What the output should stay under, on average: 40 ms.
+const STEADY_SAMPLES: usize = (SAMPLE_RATE * CHANNELS) as usize * 40 / 1000;
 
 /// One second, in the 100 ns units WASAPI counts in: the buffer's size, of
 /// which no more than [`HELD_SAMPLES`] is used.
@@ -61,7 +66,7 @@ fn play_until_fed(
             let (change, device) = super::output();
             *output = Some(Output::open(change, device.as_deref())?);
         }
-        let Some(playing) = output.as_ref() else {
+        let Some(playing) = output.as_mut() else {
             continue;
         };
         match playing.play(&frame, gain.get()) {
@@ -86,6 +91,7 @@ struct Output {
     change: u64,
     client: AudioClient,
     render: AudioRenderClient,
+    drift: Drift,
 }
 
 impl Output {
@@ -138,16 +144,18 @@ impl Output {
             change,
             client,
             render,
+            drift: Drift::new(STEADY_SAMPLES),
         })
     }
 
-    fn play(&self, frame: &[i16], gain: f32) -> Result<(), String> {
+    fn play(&mut self, frame: &[i16], gain: f32) -> Result<(), String> {
         let queued = self
             .client
             .get_current_padding()
             .map_err(|e| format!("{e:?}"))? as usize
             * CHANNELS as usize;
-        let written = to_write(frame, queued, gain);
+        let frame = self.drift.adjust(frame, queued);
+        let written = to_write(&frame, queued, gain);
         if written.is_empty() {
             return Ok(());
         }
@@ -219,6 +227,13 @@ mod tests {
         assert_eq!(written, frame()[..100]);
         // Room for the whole frame: all of it, no cushion.
         assert_eq!(to_write(&frame(), HELD_SAMPLES - FRAME, 1.0), frame());
+    }
+
+    #[test]
+    fn a_frame_fits_while_the_output_is_steady() {
+        // The end of a frame that does not fit is cut off, which is a click.
+        const SWING: usize = 2 * FRAME;
+        const { assert!(STEADY_SAMPLES + SWING + FRAME <= HELD_SAMPLES) };
     }
 
     #[test]
