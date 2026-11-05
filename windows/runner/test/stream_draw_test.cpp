@@ -10,6 +10,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <string>
 #include <vector>
 
 #include "stream_draw.h"
@@ -367,6 +368,69 @@ void ReadsTheWholePictureAtOnce(StreamDraw& draw, Reader& reader) {
   CHECK(wrong == 0, "%d of 200 pictures were read stale or half drawn", wrong);
 }
 
+std::string logged;
+
+void Log(const char* line) {
+  std::printf("  log: %s\n", line);
+  logged += line;
+  logged += "\n";
+}
+
+// A draw's wait that timed out leaves its fence's event to be set when that
+// draw finishes, after the wait gave up; the event is auto-reset, so the next
+// draw's wait woke on it at once and answered drawn while its own draw was
+// still on the GPU, a half-drawn picture for ANGLE (found by review). Driven
+// with a fence of the draw's device and an event that is set late that way.
+void AStaleWakeUpIsNotTakenForTheDraw(ID3D11Device* device) {
+  std::printf("a stale wake-up is not taken for the draw\n");
+  ComPtr<ID3D11Device5> device5;
+  ComPtr<ID3D11DeviceContext> context;
+  ComPtr<ID3D11DeviceContext4> context4;
+  ComPtr<ID3D11Fence> fence;
+  device->GetImmediateContext(&context);
+  if (FAILED(device->QueryInterface(IID_PPV_ARGS(&device5))) ||
+      FAILED(context.As(&context4)) ||
+      FAILED(device5->CreateFence(0, D3D11_FENCE_FLAG_NONE,
+                                  IID_PPV_ARGS(&fence)))) {
+    std::printf("  no fence here; StreamDraw polls a query instead\n");
+    return;
+  }
+  HANDLE event = CreateEventW(nullptr, FALSE, FALSE, nullptr);
+  CHECK(event != nullptr, "no event");
+  if (!event) return;
+
+  // Draw 1 finishes after its wait gave up: the event is left set.
+  context4->Signal(fence.Get(), 1);
+  context->Flush();
+  fence->SetEventOnCompletion(1, event);
+  const ULONGLONG until = GetTickCount64() + 1000;
+  while (fence->GetCompletedValue() < 1 && GetTickCount64() < until) {
+    SwitchToThread();
+  }
+  CHECK(fence->GetCompletedValue() >= 1, "the fence never reached 1");
+
+  // Draw 2 is not on the GPU yet: its wait must not answer drawn.
+  logged.clear();
+  fence->SetEventOnCompletion(2, event);
+  const ULONGLONG start = GetTickCount64();
+  const bool drawn = WaitForFence(fence.Get(), 2, event, 200);
+  const ULONGLONG took = GetTickCount64() - start;
+  CHECK(!drawn, "answered drawn after %llu ms with the fence at %llu of 2",
+        took, fence->GetCompletedValue());
+  CHECK(took >= 150, "gave up after %llu ms, not the 200 asked", took);
+  CHECK(logged.find("did not finish a draw") != std::string::npos,
+        "the timeout was not logged by name");
+
+  // Draw 2 lands, after a stale wake-up again: answered once it is there.
+  SetEvent(event);
+  context4->Signal(fence.Get(), 2);
+  context->Flush();
+  CHECK(WaitForFence(fence.Get(), 2, event, 1000), "draw 2 was not waited for");
+  CHECK(fence->GetCompletedValue() >= 2, "answered with the fence at %llu of 2",
+        fence->GetCompletedValue());
+  CloseHandle(event);
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -430,6 +494,9 @@ int main(int argc, char** argv) {
   std::printf("NV12 %s shader views here\n", readable ? "takes" : "takes no");
   if (readable) DrawsDecodedSlices(device.Get(), reader, true);
   DrawsDecodedSlices(device.Get(), reader, false);
+
+  SetStreamLog(Log);
+  AStaleWakeUpIsNotTakenForTheDraw(device.Get());
 
   if (failures) {
     std::printf("%d failed\n", failures);

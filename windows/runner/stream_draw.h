@@ -60,6 +60,11 @@ void StreamLog(const char* format, ...);
 // with the reason logged.
 Microsoft::WRL::ComPtr<ID3D11Device> MakeDevice(LUID luid);
 
+// Waits up to |ms| for |fence| to reach |value|, whose completion was set to
+// signal |event| (auto-reset): true once it has, false with the wait logged
+// when it has not. StreamDraw's wait, apart so a test can drive it.
+bool WaitForFence(ID3D11Fence* fence, uint64_t value, HANDLE event, DWORD ms);
+
 // One share's picture: a shared BGRA texture, its handle, and what drawing
 // into it needs, sized to the picture as it comes. Used from one thread at a
 // time (the raster thread's).

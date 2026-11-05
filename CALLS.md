@@ -866,6 +866,17 @@ says it was removed. Checked Nov 5 on the laptop's RTX in Discrete
 (`windows/runner/test/run.ps1`): a D3D11 device over D3D12, removed alone by
 `RemoveDevice` with no driver reset, was let go by the next watch and by the
 export, each saying so once; a real reset was not run.
+The runner's wait for its draw could also answer early (found by review
+Nov 5): a draw that took over a second was handed back, but its fence set
+the wait's event when it finished after all, and the next draw's wait woke
+on that at once and answered drawn with its own draw still on the GPU, a
+picture ANGLE could read half drawn. Now a wait that wakes asks the fence
+whether its own draw is done and waits on if not, and a wait that gives up
+says so by name. Checked Nov 6 on the RTX in Discrete
+(`windows/runner/test/run.ps1`): with the event left set by an earlier
+draw, the wait answered drawn at once before the fix; after it, it waited
+the time it was given, logged the timeout, and answered drawn only once the
+fence was there. A draw that really takes over a second was not made.
 Then in the Linux app (Linux debug build, two clients on the local
 stack, Nov 2): the watcher's log shows the share watched through Rust and the
 picture arriving at each size the sharer's window took, up to 1920×1048; the

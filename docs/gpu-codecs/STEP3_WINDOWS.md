@@ -111,6 +111,9 @@ by LUID.
   nothing promises that. **So the runner waits for its draw** before answering: a D3D11
   fence with an event, so the raster thread sleeps rather than spins, or an event query
   polled where there is no fence (Windows 10 before 1703). With the wait, 0 of 200 on both.
+  Woken, the wait asks the fence whether its own draw is done: the event is auto-reset,
+  and a draw whose wait gave up after a second sets it when it finishes, which woke the
+  next draw's wait early (found by review Nov 5, fixed Nov 6, `stream_draw_test.cpp`).
   At 1080p, `Draw` with its upload took p50 0.86 ms and p99 2.0 ms on the Iris Xe, and
   p50 0.70 ms and p99 2.6 ms on the RTX. Without the wait it was 0.47 and 1.9 ms, and
   0.18 and 2.6 ms.

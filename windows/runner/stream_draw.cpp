@@ -466,16 +466,42 @@ bool StreamDraw::Submit() {
   return true;
 }
 
-bool StreamDraw::Wait() {
-  if (fence_) {
-    // A removed device never signals: give up after a second.
-    return WaitForSingleObject(done_, 1000) == WAIT_OBJECT_0;
+// Woken, the fence is asked whether it is there: a draw whose wait gave up
+// sets the event when it finishes after all, and the event, auto-reset, then
+// woke the next draw's wait at once, its own draw still on the GPU (found by
+// review, test/stream_draw_test.cpp). A removed device's fence answers past
+// every value, and Draw then finds the device removed.
+bool WaitForFence(ID3D11Fence* fence, uint64_t value, HANDLE event,
+                  DWORD ms) {
+  const ULONGLONG give_up = GetTickCount64() + ms;
+  for (;;) {
+    if (fence->GetCompletedValue() >= value) return true;
+    const ULONGLONG now = GetTickCount64();
+    if (now >= give_up ||
+        WaitForSingleObject(event, DWORD(give_up - now)) != WAIT_OBJECT_0) {
+      break;
+    }
   }
+  if (fence->GetCompletedValue() >= value) return true;
+  StreamLog("stream texture: the GPU did not finish a draw in %lu ms (fence "
+            "at %llu of %llu); the picture is handed back",
+            ms, fence->GetCompletedValue(), value);
+  return false;
+}
+
+bool StreamDraw::Wait() {
+  // A removed device never signals: give up after a second.
+  if (fence_) return WaitForFence(fence_.Get(), fenced_, done_, 1000);
   const ULONGLONG give_up = GetTickCount64() + 1000;
   for (;;) {
     const HRESULT hr = context_->GetData(query_.Get(), nullptr, 0, 0);
     if (hr == S_OK) return true;
-    if (hr != S_FALSE || GetTickCount64() > give_up) return false;
+    if (hr != S_FALSE) return false;
+    if (GetTickCount64() > give_up) {
+      StreamLog("stream texture: the GPU did not finish a draw in 1000 ms "
+                "(event query); the picture is handed back");
+      return false;
+    }
     SwitchToThread();
   }
 }
