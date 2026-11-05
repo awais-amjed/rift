@@ -9,7 +9,7 @@ import 'host_platform.dart';
 /// Runs the microphone for a moment, inside the app only, so a call heard
 /// muted plays at full quality.
 ///
-/// On Linux the WebRTC library flutter_webrtc ships always
+/// The WebRTC library flutter_webrtc ships on the desktop always
 /// installs a render pre-processor in its audio processing module — an
 /// empty one unless somebody sets it — and once one is installed, WebRTC
 /// plays out the module's own copy of everything it receives rather than
@@ -30,9 +30,10 @@ import 'host_platform.dart';
 /// with the track on it played your own microphone back to you. The rate
 /// then holds until the app quits, so this runs once per session.
 ///
-/// Linux only ([HostPlatform.playoutFollowsMicRate]). Windows uses the same
-/// library but measured differently: about 14 kHz joined muted, and the
-/// warm-up took it down to 7.4 kHz and made Windows duck other apps.
+/// Linux and Windows ([HostPlatform.playoutFollowsMicRate]). Windows joined
+/// the list on Nov 5 2026, when Rift stopped using its system echo canceller
+/// (windows/runner/echo_canceller.h). Without a microphone to open this cannot
+/// run, and the call stays at 16 kHz.
 class PlayoutWarmup {
   const PlayoutWarmup._();
 

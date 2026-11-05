@@ -101,12 +101,10 @@ class HostPlatform {
   ///
   /// The desktop WebRTC library flutter_webrtc ships always installs a
   /// render pre-processor, so every frame played is rebuilt from the audio
-  /// processing module's copy, and on Linux that copy runs at 16 kHz until
-  /// something has been recorded. See `PlayoutWarmup`. Not Windows: there a
-  /// call joined muted already played at about 14 kHz, and the warm-up made
-  /// it worse — 7.4 kHz, and Windows turned other apps down for it, since
-  /// recording there opens a communications stream.
-  static bool get playoutFollowsMicRate => !kIsWeb && Platform.isLinux;
+  /// processing module's copy, and that copy runs at 16 kHz until something
+  /// has been recorded. See `PlayoutWarmup`.
+  static bool get playoutFollowsMicRate =>
+      !kIsWeb && (Platform.isLinux || Platform.isWindows);
 
   /// Whether WebRTC lists the system default as an audio device of its own.
   ///

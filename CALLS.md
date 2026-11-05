@@ -1011,7 +1011,7 @@ passes through WebRTC's audio processing module on its way out, not around
 it. The library flutter_webrtc ships always installs a render
 pre-processor (an empty one unless set), and with one installed WebRTC plays
 the module's own copy of the audio instead of the audio. That copy runs at the
-module's processing rate, and on Linux that is the capture rate, 16 kHz until the
+module's processing rate, and that is the capture rate, 16 kHz until the
 microphone has recorded something. Somebody who joined muted and stayed muted
 heard the whole call cut off just under 8 kHz; one unmute was enough to bring
 it to the module's 32 kHz, and that held after muting again.
@@ -1037,10 +1037,52 @@ too), about 40 ms of the microphone, some 15–20 dB down, reached the output,
 with either end of the connection or both turned off. Whether a first unmute
 in a call does the same was not measured.
 
-**Linux only.** Windows uses the same library and measured differently in the
-VM: about 14 kHz joined muted and unmuted alike, while the warm-up took it to
-7.4 kHz and made Windows turn other apps down — recording there opens a
-communications stream, which is what Windows ducks for.
+**On Windows, libwebrtc is kept off the system's echo canceller.** With echo
+cancellation on, its audio device asks for the Voice Capture DMO
+(`CLSID_CWMAudioAEC`) when it is created, and when one is there it records
+through it and turns its own canceller off. The DMO records 16 kHz mono, so the
+module and its copy ran at 16 kHz once the microphone had started: a call heard
+on Windows was cut just under 8 kHz, and every Windows microphone was sent that
+way. It is also what the VM measured in October, 14 kHz until recording and
+7.4 kHz with the warm-up. libwebrtc has no switch for it, so the runner registers
+the DMO's class in its own process with a factory that refuses
+(`windows/runner/echo_canceller.h`), and libwebrtc cancels echo itself at 48 kHz,
+as on Linux. If registering fails, the DMO is used as before.
+
+Without the DMO Windows has Linux's 16 kHz start, so the warm-up runs there too.
+It adds no ducking: the old build already took another app's 17 kHz tone down
+18 dB on joining muted, with nothing recording, and the warm-up build did the
+same at the same moment. Windows' microphone icon should show for the half
+second, as it did in October (not looked at this time). A PC with no microphone
+has nothing to warm up with, so it should stay
+at 16 kHz where the DMO's build played 14 kHz (not measured).
+
+Measured Nov 5 2026 in the Windows 11 VM against 1.5.2-beta.10, the VM's output
+into VB-Cable and the cable as its mic, so the mic hears everything the call
+plays. Far end on Linux, noise filters off.
+
+| | System canceller | Rift's own |
+|---|---|---|
+| Highs heard, echo cancellation on | 7.5 kHz | 15.0 kHz |
+| Highs heard, joined muted | 14–15 kHz | 14–15 kHz (8 kHz without the warm-up) |
+| Mic sent, 8–10 kHz | −56 dB | −16 dB |
+| Echo sent, a voice call at −31 dBFS | −43 dBFS | −87 dBFS |
+| Echo sent, a song shared at −30 dBFS | −47, −48, −76, −80, −85 dBFS | −69, −72, −73 dBFS (−60 just after an unmute) |
+| Voice alone, gain | −10.7 dB | −9.8 dB |
+| Voice over the far end, gain | −20 to −23 dB | −12 to −19 dB |
+
+Rift's own is worse in three ways. **The far end's first unmute** after you join
+takes your voice down harder: over a few seconds of speech, about 30 dB down for
+a second or so in two runs of three, where the DMO's dip was 15–20 dB (the
+"Linux" line in `TESTING.md`, *Elsewhere*). **Turning echo cancellation on
+mid-call** takes it a while to settle, −52 to −81 dBFS at first. **A test sound
+that jumps between the ears** leaked, mostly −20 to −30 dBFS with some seconds
+near −90; the DMO also leaked it, −21 in one run and bursts of −38 to −65 in the
+next, and the song above did not.
+
+Neither canceller takes out sound played outside libwebrtc. A clip from another
+app reached the far end at the same level on both. The Rust path's player is such
+a stream, so its sound is not cancelled on Windows or Linux (not measured).
 
 **Still true:** nothing above about 15 kHz survives. It comes from the
 library, and fixing it means building it without the render pre-processor.
