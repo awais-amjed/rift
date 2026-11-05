@@ -711,7 +711,9 @@ libwebrtc still decodes, on the CPU.
   begun before a rotation stays sealed under the key it began with, and then
   each version the call moves to. Given only the current one, a watch opened
   after a rotation showed such a share as loading dots, with no sound and
-  no error (found by review Nov 5).
+  no error (found by review Nov 5). On Windows (Nov 5), a share begun on v1
+  and watched after a ban moved the call to v2 showed through Rust at once,
+  sound and all.
 - **No picture:** a watched share subscribed and on for 6 s with nothing
   shown (`NO_PICTURE_WITHIN`) is taken as a loss, and the call's connection
   watches instead: a share this ring cannot read decrypts to nothing and says
