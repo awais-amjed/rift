@@ -176,11 +176,12 @@ class RustWatch {
 
   /// Rust's numbers as the sampler reads them. libwebrtc says 0 for a size,
   /// and nothing for a codec, it does not know yet, which the card would
-  /// print as they are.
+  /// print as they are. A 64-bit number from Rust is a `BigInt` in the web
+  /// build, which compiles this file too, hence the `toInt`.
   static InboundVideo inboundOf(WatchStats stats) {
     final sized = stats.width > 0 && stats.height > 0;
     return InboundVideo(
-      timestampMs: stats.timestampUs / 1000,
+      timestampMs: stats.timestampUs.toInt() / 1000,
       width: sized ? stats.width : null,
       height: sized ? stats.height : null,
       framesDecoded: stats.framesDecoded.toDouble(),
@@ -188,7 +189,7 @@ class RustWatch {
       framesPerSecond: stats.framesPerSecond,
       bytesReceived: stats.bytesReceived.toDouble(),
       packetsReceived: stats.packetsReceived.toDouble(),
-      packetsLost: stats.packetsLost,
+      packetsLost: stats.packetsLost.toInt(),
       jitterMs: stats.jitterMs,
       codec: stats.codec.isEmpty ? null : stats.codec,
       rttMs: stats.rttMs,
