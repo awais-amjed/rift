@@ -1024,6 +1024,19 @@ Once per session, since the rate holds until the app quits. Measured Oct 10
 2026 on Linux: muted from the start went from a 7.3 kHz cut-off to 14 kHz, the
 same as having unmuted.
 
+**What it sends is silence.** The receiving end plays what it gets like any
+call audio, so until Nov 5 2026 the warm-up played your own microphone back to
+you for its half second, about 450 ms of it as loud as it was recorded. The
+track now goes off before it is added. It still records, which is all the
+module needs, and sends silence. Measured Nov 5 with a probe on the app's own
+WebRTC build and a test microphone playing a tone: a 12 kHz test sound in the
+call after the warm-up came through at the same level with the track off as
+with it on, and was gone without the warm-up. What remains is libwebrtc's, not
+the warm-up's: each time recording started (a second warm-up in the same run
+too), about 40 ms of the microphone, some 15–20 dB down, reached the output,
+with either end of the connection or both turned off. Whether a first unmute
+in a call does the same was not measured.
+
 **Linux only.** Windows uses the same library and measured differently in the
 VM: about 14 kHz joined muted and unmuted alike, while the warm-up took it to
 7.4 kHz and made Windows turn other apps down — recording there opens a

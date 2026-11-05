@@ -25,8 +25,10 @@ import 'host_platform.dart';
 /// for a stream that is sending. So the microphone is sent from one peer
 /// connection to another, both in this process, for half a second, and both
 /// are closed. Nothing leaves the app and nobody in the call sees the
-/// microphone open. The rate then holds until the app quits, so this runs
-/// once per session.
+/// microphone open. The track is off while it is sent, so what crosses is
+/// silence: the receiving end plays what it gets like any call audio, and
+/// with the track on it played your own microphone back to you. The rate
+/// then holds until the app quits, so this runs once per session.
 ///
 /// Linux only ([HostPlatform.playoutFollowsMicRate]). Windows uses the same
 /// library but measured differently: about 14 kHz joined muted, and the
@@ -64,6 +66,11 @@ class PlayoutWarmup {
     rtc.RTCPeerConnection? receiver;
     try {
       track = await LocalAudioTrack.create(options);
+      // Recording is what teaches the module, not what is sent, so the
+      // track goes off before it is added: it still records, and sends
+      // silence. Sent as it was, the receiving end played the microphone
+      // back for the whole half second.
+      track.mediaStreamTrack.enabled = false;
       sender = await rtc.createPeerConnection({});
       receiver = await rtc.createPeerConnection({});
       final a = sender;
