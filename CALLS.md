@@ -1105,7 +1105,9 @@ next, and the song above did not.
 
 Neither canceller takes out sound played outside libwebrtc. A clip from another
 app reached the far end at the same level on both. The Rust path's player is such
-a stream, so its sound is not cancelled on Windows or Linux (not measured).
+a stream, so its sound is not cancelled on Windows or Linux: on a real Windows
+laptop on speakers (Nov 5), the other side heard the watched share come back
+through the mic, by ear, not measured.
 
 **Still true:** nothing above about 15 kHz survives. It comes from the
 library, and fixing it means building it without the render pre-processor.
