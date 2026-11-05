@@ -15,6 +15,7 @@
 #include <mutex>
 #include <optional>
 
+#include "stream_device.h"
 #include "stream_draw.h"
 
 using Microsoft::WRL::ComPtr;
@@ -25,20 +26,6 @@ using LockFn = int32_t (*)(uint64_t, WatchPlanes*);
 // |drawn| is 0 when a picture could not be drawn, which gives up on drawing
 // the share here (rust/src/watching/frames.rs).
 using UnlockFn = void (*)(uint64_t, int32_t drawn);
-
-// The runner's device, and the black picture shown before a share's first.
-// Shared by every texture made on it; a lost one stays alive, unused, until
-// the last texture made on it is let go.
-struct Gpu {
-  ComPtr<ID3D11Device> device;
-  ComPtr<ID3D11Texture2D> black;
-  HANDLE black_handle = nullptr;
-  std::atomic<bool> lost{false};
-  // Rust decodes on the GPU on adapter 0 (rust/src/watching/decode/
-  // windows.rs), and on this device: it can draw those pictures only when
-  // this is that adapter, with a video device.
-  bool takes_gpu_pictures = false;
-};
 
 // One watched share's texture. Made on the platform thread; drawn, and freed,
 // on the raster thread.
@@ -56,12 +43,10 @@ struct Stream {
 FlutterDesktopPluginRegistrarRef plugin = nullptr;
 FlutterDesktopTextureRegistrarRef registrar = nullptr;
 
-// The textures Rust may mark, by id, and the device a new one is made on.
-// A texture leaves before it is let go, so a mark that finds nothing is a
-// share already stopped.
+// The textures Rust may mark, by id. A texture leaves before it is let go, so
+// a mark that finds nothing is a share already stopped.
 std::mutex live_mutex;
 std::map<int64_t, Stream*> live;
-std::shared_ptr<Gpu> current;
 
 // The app's log: Rust's (rust/src/logging.rs), found in its library by name
 // once Dart has loaded it, which is before the first `create`. The
@@ -132,14 +117,12 @@ bool TakesGpuPictures(ID3D11Device* device, LUID luid) {
   return SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&video)));
 }
 
-// The device new textures are made on: the one there is, or a new one on
-// the adapter Flutter draws with, matched by LUID. Null when none can be
-// made; the share is then watched through the call. Platform thread.
+// The device new textures are made on: the one there is, unless it was
+// removed, or a new one on the adapter Flutter draws with, matched by LUID.
+// Null when none can be made; the share is then watched through the call.
+// Platform thread.
 std::shared_ptr<Gpu> Device() {
-  {
-    std::lock_guard<std::mutex> hold(live_mutex);
-    if (current) return current;
-  }
+  if (std::shared_ptr<Gpu> gpu = CurrentGpu()) return gpu;
   IDXGIAdapter* adapter = nullptr;
   if (!FlutterDesktopPluginRegistrarGetGraphicsAdapter(plugin, &adapter) ||
       adapter == nullptr) {
@@ -158,21 +141,8 @@ std::shared_ptr<Gpu> Device() {
   if (!gpu->device) return nullptr;
   MakeBlack(gpu.get());
   gpu->takes_gpu_pictures = TakesGpuPictures(gpu->device.Get(), desc.AdapterLuid);
-  std::lock_guard<std::mutex> hold(live_mutex);
-  current = gpu;
+  UseGpu(gpu);
   return gpu;
-}
-
-// The device is gone, a reset or a driver update: said once, and no new
-// texture is made on it.
-void Lose(Gpu* gpu, HRESULT reason) {
-  if (gpu->lost.exchange(true)) return;
-  StreamLog(
-      "stream texture: the device was lost (%08lx); watching goes back to "
-      "the call, and the next watch makes a new device",
-      reason);
-  std::lock_guard<std::mutex> hold(live_mutex);
-  if (current.get() == gpu) current.reset();
 }
 
 #ifdef _DEBUG
@@ -206,12 +176,12 @@ const FlutterDesktopGpuSurfaceDescriptor* Obtain(size_t, size_t,
 #ifdef _DEBUG
     if (drawn && FailsForTest()) {
       drawn = false;
-      Lose(gpu, DXGI_ERROR_DEVICE_REMOVED);
+      LoseGpu(gpu, DXGI_ERROR_DEVICE_REMOVED);
     }
 #endif
     if (!drawn && !gpu->lost) {
       const HRESULT reason = gpu->device->GetDeviceRemovedReason();
-      if (reason != S_OK) Lose(gpu, reason);
+      if (reason != S_OK) LoseGpu(gpu, reason);
     }
     self->unlock(static_cast<uint64_t>(self->id), drawn ? 1 : 0);
   }
@@ -328,13 +298,7 @@ void Dispose(const flutter::EncodableMap& args, Result result) {
 }  // namespace
 
 extern "C" __declspec(dllexport) ID3D11Device* rift_stream_d3d11_device() {
-  std::lock_guard<std::mutex> hold(live_mutex);
-  if (!current || current->lost ||
-      current->device->GetDeviceRemovedReason() != S_OK) {
-    return nullptr;
-  }
-  current->device->AddRef();
-  return current->device.Get();
+  return LendGpuDevice();
 }
 
 namespace rift {

@@ -23,9 +23,11 @@
 // (docs/gpu-codecs/STEP3_WINDOWS.md).
 //
 // The device is the runner's, one for the process, made on the first `create`
-// on the adapter Flutter draws with. When it is lost, each picture is handed
-// back undrawn, which sends the share back to the call's connection, and the
-// next `create` makes a new one.
+// on the adapter Flutter draws with (stream_device.h). When it is lost, each
+// picture is handed back undrawn, which sends the share back to the call's
+// connection, and the next `create` makes a new one. A removed device is found
+// by a draw that failed, by the next `create`, or by Rust's decoder asking for
+// it, whichever comes first.
 //
 // The `rift/stream_texture` channel: `create` {lock, unlock} answers
 // {textureId, mark, takesGpuPictures}; `dispose` {textureId} lets one go,

@@ -223,11 +223,14 @@ fn decode(
                 return;
             }
             Err(DecodeError::Failed(err)) => {
-                if !chain.failed(key) {
-                    give_up(
-                        identity,
-                        &format!("{codec:?} keyframes did not decode ({err})"),
-                    );
+                let lost = decoder.device_lost();
+                if !chain.failed(key, lost) {
+                    let why = if lost {
+                        format!("the GPU device was lost ({err})")
+                    } else {
+                        format!("{codec:?} keyframes did not decode ({err})")
+                    };
+                    give_up(identity, &why);
                     return;
                 }
                 log::warn!("watching: a picture did not decode ({err}), waiting for a keyframe");
@@ -323,9 +326,13 @@ impl Chain {
     }
 
     /// A picture did not decode. False once keyframes keep failing, which
-    /// no later keyframe would fix.
-    fn failed(&mut self, key: bool) -> bool {
+    /// no later keyframe would fix, and at once when the device it decodes
+    /// on was removed.
+    fn failed(&mut self, key: bool, device_lost: bool) -> bool {
         self.broken = true;
+        if device_lost {
+            return false;
+        }
         if key {
             self.failed_keyframes += 1;
         }
@@ -349,7 +356,7 @@ mod tests {
     fn a_failed_picture_waits_for_the_next_keyframe() {
         let mut chain = Chain::default();
         chain.next(Codec::Vp9, true, false);
-        assert!(chain.failed(false));
+        assert!(chain.failed(false, false));
         assert_eq!(chain.next(Codec::Vp9, false, false), Next::Wait);
         assert_eq!(chain.next(Codec::Vp9, true, false), Next::Decode);
         chain.decoded(true);
@@ -379,27 +386,40 @@ mod tests {
     fn keyframes_that_keep_failing_give_up() {
         let mut chain = Chain::default();
         chain.next(Codec::H264, true, false);
-        assert!(chain.failed(true));
-        assert!(chain.failed(true));
-        assert!(!chain.failed(true));
+        assert!(chain.failed(true, false));
+        assert!(chain.failed(true, false));
+        assert!(!chain.failed(true, false));
+    }
+
+    #[test]
+    fn a_lost_device_gives_up_at_the_first_failure() {
+        // No keyframe decodes on a removed device; waiting for three only
+        // kept the share blank for seconds before the call took it.
+        let mut chain = Chain::default();
+        chain.next(Codec::H264, true, false);
+        chain.decoded(true);
+        assert!(!chain.failed(false, true));
+        let mut chain = Chain::default();
+        chain.next(Codec::Vp9, true, false);
+        assert!(!chain.failed(true, true));
     }
 
     #[test]
     fn a_keyframe_that_decodes_forgives_the_ones_before() {
         let mut chain = Chain::default();
         chain.next(Codec::H264, true, false);
-        assert!(chain.failed(true));
-        assert!(chain.failed(true));
+        assert!(chain.failed(true, false));
+        assert!(chain.failed(true, false));
         chain.decoded(true);
-        assert!(chain.failed(true));
-        assert!(chain.failed(true));
+        assert!(chain.failed(true, false));
+        assert!(chain.failed(true, false));
     }
 
     #[test]
     fn a_new_codec_opens_a_new_decoder_at_its_keyframe() {
         let mut chain = Chain::default();
         chain.next(Codec::Vp9, true, false);
-        assert!(chain.failed(false));
+        assert!(chain.failed(false, false));
         assert_eq!(chain.next(Codec::H264, false, false), Next::Wait);
         assert_eq!(chain.next(Codec::H264, true, false), Next::Open);
         assert_eq!(chain.next(Codec::H264, false, false), Next::Decode);

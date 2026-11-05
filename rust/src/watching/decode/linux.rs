@@ -227,6 +227,12 @@ impl Decoder {
         Ok(Decoder { api, raw })
     }
 
+    /// Whether the device it decodes on was removed: never asked here, where
+    /// keyframes that keep failing give up instead.
+    pub(crate) fn device_lost(&self) -> bool {
+        false
+    }
+
     /// The GPU's driver, as it names itself.
     pub(crate) fn driver(&self) -> String {
         // SAFETY: an open decoder answers a string it keeps.

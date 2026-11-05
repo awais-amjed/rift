@@ -14,6 +14,7 @@ add_executable(${BINARY_NAME} WIN32
   "seen_watch.cpp"
   "single_instance.cpp"
   "startup_guard.cpp"
+  "stream_device.cpp"
   "stream_draw.cpp"
   "stream_draw_vs.hlsl"
   "stream_draw_ps.hlsl"

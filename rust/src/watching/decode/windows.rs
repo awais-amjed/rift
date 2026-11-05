@@ -230,6 +230,9 @@ fn runner_device() -> Option<ID3D11Device> {
 pub(crate) struct Decoder {
     api: &'static Api,
     raw: *mut c_void,
+    /// The runner's device it decodes on, asked whether it was removed when
+    /// a picture fails.
+    device: ID3D11Device,
 }
 
 // SAFETY: FFmpeg's decoder is used from one thread at a time; it only moves
@@ -244,8 +247,7 @@ pub(crate) enum DecodeError {
 
 impl Decoder {
     pub(crate) fn open(codec: Codec, _gpu: &Gpu) -> Result<Decoder, String> {
-        // Held only while the decoder opens: it takes a reference of its own,
-        // let go when it closes.
+        // FFmpeg takes a reference of its own, let go when it closes.
         let device = runner_device().ok_or("the window has no GPU device")?;
         let api = api()?;
         let config = Config {
@@ -267,7 +269,15 @@ impl Decoder {
             let reason = unsafe { CStr::from_ptr(error.as_ptr()) }.to_string_lossy();
             return Err(format!("the GPU decoder did not open: {reason}"));
         }
-        Ok(Decoder { api, raw })
+        Ok(Decoder { api, raw, device })
+    }
+
+    /// Whether the device it decodes on was removed, a reset or a driver
+    /// update: no picture decodes on it again. The runner lets it go the next
+    /// time it is asked for one (`stream_device.cpp`).
+    pub(crate) fn device_lost(&self) -> bool {
+        // SAFETY: a plain call on a live device.
+        unsafe { self.device.GetDeviceRemovedReason() }.is_err()
     }
 
     /// The GPU's driver, as it names itself.

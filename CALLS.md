@@ -800,7 +800,9 @@ libwebrtc still decodes, on the CPU.
   by review Nov 5). On Windows (Nov 5, laptop, debug build, the
   decoder stalled 2 s by `RIFT_WATCH_DECODE_STALL_AT`): the stream flushed,
   the frames after it waited, logged, and a keyframe came within 0.5 s. A share the GPU cannot
-  decode, three keyframes in a row that fail, a runner that cannot import
+  decode, three keyframes in a row that fail (on Windows the first picture
+  that fails once the device it decodes on was removed, since none decodes
+  on it again), a runner that cannot import
   (it says so when it makes the texture, `takesGpuPictures`), or a GPU
   picture the runner fails to import or copy (it hands it back undrawn,
   `rift_watch_frame_unlock`) sends the call back to watching through the
@@ -853,6 +855,17 @@ lent sent the share to the call 27 ms later, still moving, and the next
 watch made a new device and decoded on the GPU again. From the click on
 Watch to the picture: 508–550 ms through Rust (the picture about 270 ms
 after the watch connection found the share) and 266–773 ms through the call.
+A device removed while only the decoder was using it went unnoticed by the
+runner before (found by review Nov 5): a failing decoder hands nothing over
+to draw, so it waited for three keyframes, and every later watch was made
+on the dead device and went back to the call, until Rift restarted. Now the
+runner asks the device whether it was removed whenever it is handed out, to
+a new watch or to Rust's decoder (`stream_device.cpp`), and lets a removed
+one go; the decoder gives up at its first failed picture once its device
+says it was removed. Checked Nov 5 on the laptop's RTX in Discrete
+(`windows/runner/test/run.ps1`): a D3D11 device over D3D12, removed alone by
+`RemoveDevice` with no driver reset, was let go by the next watch and by the
+export, each saying so once; a real reset was not run.
 Then in the Linux app (Linux debug build, two clients on the local
 stack, Nov 2): the watcher's log shows the share watched through Rust and the
 picture arriving at each size the sharer's window took, up to 1920×1048; the

@@ -45,6 +45,10 @@ impl Decoder {
     pub(crate) fn decode(&mut self, _: &[u8], _: i64) -> Result<Vec<Decoded>, DecodeError> {
         match self.0 {}
     }
+
+    pub(crate) fn device_lost(&self) -> bool {
+        match self.0 {}
+    }
 }
 
 pub(crate) enum Decoded {}
