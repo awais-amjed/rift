@@ -356,7 +356,10 @@ Windows-specific. Remove a line in the commit that fixes it.
   nor in the one try with your echo cancellation off, so it looks like WebRTC's
   echo canceller adapting as the far end starts. Windows has used the same
   canceller since Nov 5 2026, and shows it too in the VM (about 30 dB down for a
-  second or so in two tries of three; 15–20 dB with the system's). Not chased.
+  second or so in two tries of three; 15–20 dB with the system's). On a real
+  Windows laptop, Nov 5, the owner unmuted while the other side talked and heard
+  no dip, by ear (tries and the talker's speakers or headphones not noted).
+  Not chased.
 - Linux, Bluetooth headsets: changing the default device mid-call can leave the
   call silent until it is rejoined. Seen Oct 2 with an Arctis Nova Pro Wireless
   over Bluetooth. Its mic needs the headset profile (HFP), each switch flips it
