@@ -803,7 +803,13 @@ libwebrtc still decodes, on the CPU.
   decode, three keyframes in a row that fail (on Windows the first picture
   that fails once the device it decodes on was removed, since none decodes
   on it again), a runner that cannot import
-  (it says so when it makes the texture, `takesGpuPictures`), or a GPU
+  (it says so when it makes the texture, `takesGpuPictures`), a Windows
+  runner whose device is on another adapter than the one Rust chose at
+  start (Rust compares their LUIDs at each watch, `drawn_by_runner`; the
+  runner once compared its own with adapter 0 at its first watch and kept
+  the answer, and adapter 0 may have moved by then, found by review Nov 5;
+  checked Nov 6 in unit tests on the RTX in Discrete, both ways, with a
+  stand-in LUID for the other adapter), or a GPU
   picture the runner fails to import or copy (it hands it back undrawn,
   `rift_watch_frame_unlock`) sends the call back to watching through the
   call's connection. Elsewhere (X11, Windows without a decoder there,

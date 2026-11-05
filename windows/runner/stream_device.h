@@ -20,9 +20,9 @@ struct Gpu {
   Microsoft::WRL::ComPtr<ID3D11Texture2D> black;
   HANDLE black_handle = nullptr;
   std::atomic<bool> lost{false};
-  // Rust decodes on the GPU on adapter 0 (rust/src/watching/decode/
-  // windows.rs), and on this device: it can draw those pictures only when
-  // this is that adapter, with a video device.
+  // Rust decodes on the GPU on this device, which needs video support for
+  // that; whether it is on the adapter Rust decodes for, Rust asks itself
+  // (rust/src/watching/decode/windows.rs, `drawn_by_runner`).
   bool takes_gpu_pictures = false;
 };
 

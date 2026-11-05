@@ -16,7 +16,7 @@ use std::ffi::{c_char, c_void, CStr};
 use std::fmt;
 use std::sync::OnceLock;
 use windows::core::{Interface, GUID};
-use windows::Win32::Foundation::HMODULE;
+use windows::Win32::Foundation::{HMODULE, LUID};
 use windows::Win32::Graphics::Direct3D::{
     D3D_DRIVER_TYPE_UNKNOWN, D3D_FEATURE_LEVEL, D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_11_1,
 };
@@ -25,7 +25,7 @@ use windows::Win32::Graphics::Direct3D11::{
     D3D11_SDK_VERSION,
 };
 use windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_NV12;
-use windows::Win32::Graphics::Dxgi::{CreateDXGIFactory1, IDXGIFactory1};
+use windows::Win32::Graphics::Dxgi::{CreateDXGIFactory1, IDXGIDevice, IDXGIFactory1};
 
 /// FFmpeg's AVERROR(ENOSYS): the GPU cannot decode this stream. Windows'
 /// ENOSYS is 40, where Linux's is 38.
@@ -135,6 +135,46 @@ impl Gpu {
         }
     }
 
+    /// Whether the runner can draw what this GPU decodes: its device is on
+    /// this adapter. Asked at each watch, of the device the runner has then,
+    /// since adapter 0 may have moved since start (a GPU switched in Hybrid
+    /// mode): the runner's device is on the adapter Flutter draws with, which
+    /// is not always the one checked here.
+    pub(crate) fn drawn_by_runner(&self) -> bool {
+        self.drawn_on(runner_device().as_ref())
+    }
+
+    fn drawn_on(&self, device: Option<&ID3D11Device>) -> bool {
+        let Some(device) = device else {
+            log::warn!("watching: the window has no GPU device");
+            return false;
+        };
+        // SAFETY: plain COM calls on a live device; the adapter's description
+        // is written into a local.
+        let desc = unsafe {
+            device
+                .cast::<IDXGIDevice>()
+                .and_then(|dxgi| dxgi.GetAdapter())
+                .and_then(|adapter| adapter.GetDesc())
+        };
+        match desc {
+            Ok(desc) if luid_of(desc.AdapterLuid) == self.luid => true,
+            Ok(desc) => {
+                let len = desc.Description.iter().position(|&c| c == 0).unwrap_or(128);
+                log::warn!(
+                    "watching: the window draws on {}, not {}, which decodes",
+                    String::from_utf16_lossy(&desc.Description[..len]),
+                    self.name
+                );
+                false
+            }
+            Err(e) => {
+                log::warn!("watching: the window's adapter: {e}");
+                false
+            }
+        }
+    }
+
     /// Whether the GPU decodes [codec]: asked of its decoder at start, so
     /// always an answer. VP8 never: no GPU offers it through D3D11, and
     /// FFmpeg has no hwaccel for it.
@@ -146,6 +186,11 @@ impl Gpu {
             Codec::Vp8 => false,
         })
     }
+}
+
+/// A LUID as one number, to compare.
+fn luid_of(luid: LUID) -> i64 {
+    (i64::from(luid.HighPart) << 32) | i64::from(luid.LowPart)
 }
 
 /// Adapter 0 and its video decoder's profiles; an error when it has none Rift
@@ -165,8 +210,7 @@ fn adapter_zero() -> windows::core::Result<Gpu> {
         let factory: IDXGIFactory1 = CreateDXGIFactory1()?;
         let adapter = factory.EnumAdapters1(0)?;
         let desc = adapter.GetDesc1()?;
-        let luid =
-            (i64::from(desc.AdapterLuid.HighPart) << 32) | i64::from(desc.AdapterLuid.LowPart);
+        let luid = luid_of(desc.AdapterLuid);
         let len = desc.Description.iter().position(|&c| c == 0).unwrap_or(128);
         let name = String::from_utf16_lossy(&desc.Description[..len]);
         let levels: [D3D_FEATURE_LEVEL; 2] = [D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0];
@@ -502,6 +546,55 @@ pub(crate) mod tests {
     fn vp8_is_never_decoded_on_the_gpu() {
         let both = gpu(&[H264_PROFILES[0], VP9_PROFILES[0]]);
         assert_eq!(both.decodes(Codec::Vp8), Some(false));
+    }
+
+    /// A device on adapter 0, made the way the runner makes its own.
+    fn device_on_adapter_zero() -> (ID3D11Device, i64) {
+        // SAFETY: plain COM calls; every out-pointer is local.
+        unsafe {
+            let factory: IDXGIFactory1 = CreateDXGIFactory1().expect("DXGI");
+            let adapter = factory.EnumAdapters1(0).expect("adapter 0");
+            let luid = luid_of(adapter.GetDesc1().expect("its description").AdapterLuid);
+            let levels = [D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0];
+            let mut device = None;
+            D3D11CreateDevice(
+                &adapter,
+                D3D_DRIVER_TYPE_UNKNOWN,
+                HMODULE::default(),
+                D3D11_CREATE_DEVICE_VIDEO_SUPPORT,
+                Some(&levels),
+                D3D11_SDK_VERSION,
+                Some(&mut device),
+                None,
+                None,
+            )
+            .expect("a video device on adapter 0");
+            (device.expect("a device"), luid)
+        }
+    }
+
+    #[test]
+    fn the_runner_draws_what_its_own_adapter_decoded() {
+        let (device, luid) = device_on_adapter_zero();
+        let decoded_there = Gpu::from_profiles(luid, "a GPU".to_string(), &[H264_PROFILES[0]]);
+        assert!(decoded_there.drawn_on(Some(&device)));
+    }
+
+    #[test]
+    fn the_runner_refuses_what_another_adapter_decoded() {
+        // Rust checked one adapter at start; the runner's device is on
+        // another, as when the adapters' order moved before the first watch.
+        let (device, luid) = device_on_adapter_zero();
+        let decoded_elsewhere =
+            Gpu::from_profiles(luid ^ 1, "another GPU".to_string(), &[H264_PROFILES[0]]);
+        assert!(!decoded_elsewhere.drawn_on(Some(&device)));
+    }
+
+    #[test]
+    fn the_runner_draws_nothing_with_no_device() {
+        let (_, luid) = device_on_adapter_zero();
+        let gpu = Gpu::from_profiles(luid, "a GPU".to_string(), &[H264_PROFILES[0]]);
+        assert!(!gpu.drawn_on(None));
     }
 
     #[test]

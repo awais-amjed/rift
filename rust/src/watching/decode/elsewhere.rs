@@ -11,6 +11,12 @@ pub(super) fn device() -> Result<Gpu, String> {
 #[derive(Debug)]
 pub(crate) enum Gpu {}
 
+impl Gpu {
+    pub(crate) fn drawn_by_runner(&self) -> bool {
+        match *self {}
+    }
+}
+
 #[cfg(test)]
 impl Gpu {
     pub(crate) fn decodes(&self, _codec: Codec) -> Option<bool> {

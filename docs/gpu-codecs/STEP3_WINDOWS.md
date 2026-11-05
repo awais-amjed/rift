@@ -266,9 +266,13 @@ How:
 - **Choosing at start** (`decode::choose`, before any room): Rust looks at the adapter
   ANGLE will take (the system default, adapter 0 for this process) and asks its D3D11
   video device for decoder profiles. With H264 or VP9 there, the runtime goes
-  pass-through, as on Linux. The runner's `create` checks that its adapter is that one
-  (`takesGpuPictures`). If it is not, Rust refuses the watch, as Linux does under X11,
-  and the call's path is taken.
+  pass-through, as on Linux. The runner's `create` says whether its device has video
+  support (`takesGpuPictures`), and Rust, at each watch, whether that device is on the
+  adapter it chose, by LUID (`Gpu::drawn_by_runner`). If either is not, Rust refuses the
+  watch, as Linux does under X11, and the call's path is taken. The runner once compared
+  its adapter with adapter 0 itself, at its first `create` and for the rest of the run;
+  adapter 0 asked then could be another GPU than the one Rust asked at start (found by
+  review Nov 5).
 - **What the GPU decodes.** Asked of the device, not assumed (`Gpu::decodes`). Probed
   Nov 4 on the laptop: the Iris Xe and the RTX 3070 Ti both list H264 (NV12) and VP9
   profile 0, and neither lists VP8. FFmpeg has no VP8 `d3d11va` hwaccel anyway. So on
@@ -287,7 +291,8 @@ same way as on Linux (`session::lost`, `_fallBackFromRust`):
 | What | How it is seen |
 |---|---|
 | No device on Flutter's adapter | `create` answers no texture; the share is watched the call's way |
-| The runner's adapter is not the decoder's | `takesGpuPictures` false; Rust refuses the watch |
+| The runner's device has no video support | `takesGpuPictures` false; Rust refuses the watch |
+| The runner's adapter is not the decoder's | `drawn_by_runner` false, logged with both names; Rust refuses the watch |
 | A codec the GPU lacks (VP8 on Windows) | the decoder fails by name |
 | A picture that will not decode | three keyframes, then give up (`Chain`, as on Linux) |
 | A draw that fails, the device removed, a view that cannot be made | the runner hands the picture back undrawn (`unlock` with 0) |

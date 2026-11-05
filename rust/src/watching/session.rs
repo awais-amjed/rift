@@ -137,8 +137,11 @@ pub(crate) async fn watch(
     if mark == 0 {
         return Err("No texture to draw the share into".to_string());
     }
-    if decode::gpu().is_some() && !takes_gpu_pictures {
-        return Err("This window cannot draw a picture decoded on the GPU".to_string());
+    // Asked at each watch, so a refusal lasts only as long as its reason.
+    if let Some(gpu) = decode::gpu() {
+        if !takes_gpu_pictures || !gpu.drawn_by_runner() {
+            return Err("This window cannot draw a picture decoded on the GPU".to_string());
+        }
     }
     // SAFETY: the address of the runner's mark function, as it gave it to Dart.
     let mark: MarkFn = unsafe { std::mem::transmute::<usize, MarkFn>(mark) };

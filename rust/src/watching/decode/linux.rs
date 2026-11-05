@@ -101,6 +101,14 @@ impl fmt::Display for Gpu {
     }
 }
 
+impl Gpu {
+    /// Whether the runner can draw what this GPU decodes: always, here, where
+    /// the runner's own answer (`takesGpuPictures`) says all there is to say.
+    pub(crate) fn drawn_by_runner(&self) -> bool {
+        true
+    }
+}
+
 #[cfg(test)]
 impl Gpu {
     /// Whether the driver says it decodes [codec], asked through libva:

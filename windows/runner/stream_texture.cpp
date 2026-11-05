@@ -94,25 +94,12 @@ void MakeBlack(Gpu* gpu) {
   }
 }
 
-// Whether |device|, on the adapter with |luid|, can draw what Rust decodes on
-// the GPU: Rust chose adapter 0, the one Flutter takes when Rift names no GPU,
-// and decodes on this device, which needs video support for that.
-bool TakesGpuPictures(ID3D11Device* device, LUID luid) {
-  ComPtr<IDXGIFactory1> factory;
-  ComPtr<IDXGIAdapter1> first;
-  DXGI_ADAPTER_DESC1 desc = {};
-  if (FAILED(CreateDXGIFactory1(IID_PPV_ARGS(&factory))) ||
-      factory->EnumAdapters1(0, &first) != S_OK ||
-      FAILED(first->GetDesc1(&desc))) {
-    return false;
-  }
-  if (desc.AdapterLuid.LowPart != luid.LowPart ||
-      desc.AdapterLuid.HighPart != luid.HighPart) {
-    StreamLog("stream texture: Flutter draws on another adapter than %ls; "
-              "shares are decoded the call's way",
-              desc.Description);
-    return false;
-  }
+// Whether |device| can draw what Rust decodes on the GPU, which it decodes on
+// this device and so needs video support. Whether this is the adapter Rust
+// decodes for is Rust's to ask, at each watch (rust/src/watching/decode/
+// windows.rs, `drawn_by_runner`): adapter 0 here, asked later than Rust
+// asked it, could be another GPU by then.
+bool TakesGpuPictures(ID3D11Device* device) {
   ComPtr<ID3D11VideoDevice> video;
   return SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&video)));
 }
@@ -140,7 +127,7 @@ std::shared_ptr<Gpu> Device() {
   gpu->device = MakeDevice(desc.AdapterLuid);
   if (!gpu->device) return nullptr;
   MakeBlack(gpu.get());
-  gpu->takes_gpu_pictures = TakesGpuPictures(gpu->device.Get(), desc.AdapterLuid);
+  gpu->takes_gpu_pictures = TakesGpuPictures(gpu->device.Get());
   UseGpu(gpu);
   return gpu;
 }
