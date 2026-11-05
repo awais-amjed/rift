@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
 import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
 
@@ -26,6 +27,33 @@ const audioPrefix = 'livekit_audio_';
 
 web.AudioContext _audioContext = web.AudioContext();
 Map<String, web.Element> _audioElements = {};
+
+// RIFT PATCH: see [_muteWhileOff] and third_party/livekit_client/RIFT_PATCHES.md.
+Map<String, Timer> _offTracks = {};
+const _offTrackCheck = Duration(milliseconds: 100);
+
+/// Chrome can play a moment of a track that is off when it starts playing it,
+/// so an element given a held track is muted until the track is turned on. A
+/// track has no event for that, and the app turns tracks on from several
+/// places, so this looks. Only until then: a track turned off later is silent
+/// by itself. Unmuting can pause an element the page had no click to start, so
+/// it is asked to play again.
+void _muteWhileOff(String id, web.HTMLAudioElement audio, web.MediaStreamTrack track) {
+  _offTracks.remove(id)?.cancel();
+  audio.muted = !track.enabled;
+  if (track.enabled) return;
+  _offTracks[id] = Timer.periodic(_offTrackCheck, (timer) async {
+    if (!track.enabled) return;
+    timer.cancel();
+    _offTracks.remove(id);
+    audio.muted = false;
+    try {
+      await audio.play().toDart;
+    } catch (_) {
+      // No click yet: [startAllAudioElement] plays it when there is one.
+    }
+  });
+}
 
 Future<dynamic> startAudio(String id, rtc.MediaStreamTrack track) async {
   if (track is! MediaStreamTrackWeb) {
@@ -45,6 +73,7 @@ Future<dynamic> startAudio(String id, rtc.MediaStreamTrack track) async {
     return;
   }
   final audio = audioElement as web.HTMLAudioElement;
+  _muteWhileOff(id, audio, track.jsTrack);
   final audioStream = web.MediaStream();
   audioStream.addTrack(track.jsTrack);
   audioElement.srcObject = audioStream;
@@ -62,6 +91,7 @@ Future<bool> startAllAudioElement() async {
 }
 
 void stopAudio(String id) {
+  _offTracks.remove(id)?.cancel();
   final el = web.document.getElementById(audioPrefix + id);
   if (el != null) {
     if (el.instanceOfString('HTMLAudioElement')) {

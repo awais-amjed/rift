@@ -173,6 +173,19 @@ uncorrelated.
    of 13 played it before, up to 80 ms, starting up to 56 ms before Rift's hold;
    none of 13 after, and none heard by ear on the owner's headset.
 
+11. **On the web, an element given a track that is off stays muted until it is
+   on** (`_muteWhileOff` in `lib/src/track/web/_audio_html.dart`). Patch 10 keeps
+   a held track off, but Chrome can still play a moment of it when the element
+   starts: the track's `enabled` was false throughout. A track has no event for
+   being turned on and the app turns tracks on from several places, so a timer
+   looks every 100 ms until it is, then unmutes for good.
+
+   Measured Nov 5 2026 in headless Chrome on the local stack, Cara sharing a
+   5 kHz tone and Switcher rejoining without watching, recording its output:
+   5 joins of 11 began with 120–200 ms of the tone before, at full level; none
+   of 14 after, peak about −102 dB or lower. Watch still plays it at −23, also after a
+   deafened join and after a server restart, and voices come back on undeafening.
+
 ## When to remove it
 
 Patch 1 goes when a `livekit_client` release answers a stereo track with
@@ -182,6 +195,6 @@ unsubscribe without holding the track, patch 4 when a release can go back
 to letting visibility decide, patch 5 when a release keeps a disable
 through the server's bind, patch 6 when a release's web worker leaves no
 VP9 bytes in the clear, patch 7 when it passes H264 through the RBSP functions, patch 8 when a release subscribes
-whatever it holds, patch 9 when a release starts a track before announcing it, patch 10 when a release lets an app keep a remote track off from its arrival. With all ten gone, bump, delete this
+whatever it holds, patch 9 when a release starts a track before announcing it, patch 10 when a release lets an app keep a remote track off from its arrival, patch 11 when Chrome stops playing a track that is off or a release handles it. With all eleven gone, bump, delete this
 folder and its `dependency_overrides` entry. Until then, a `livekit_client` upgrade needs this copy replaced with the
 new version and the changes put back.

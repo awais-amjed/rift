@@ -1143,11 +1143,11 @@ the tone in 8 joins of 13 before, starting up to 56 ms before the hold, and in
 none of 13 after. Starting a track first, patch 9 alone, had passed a probe
 with no call encryption and did not stop it in the app.
 
-The web is not covered by this. Measured Nov 5 in headless Chrome, 5 of 11
-rapid rejoins began with 120–200 ms of the share's sound at full level, though
-the held track was never turned on: Chrome can play a disabled track attached
-to an `<audio>` element when sound starts. With that element muted by a test
-hook, none of 6.
+The web needed one more step. Chrome can play a disabled track attached to an
+`<audio>` element when sound starts, so a held track's element is muted until
+the track is first turned on (patch 11). Measured Nov 5 in headless Chrome: 5 of
+11 rapid rejoins began with 120–200 ms of the share's sound at full level, though
+the held track was never turned on; none of 14 after.
 
 **A joining client drops unwatched pictures twice.** LiveKit's server
 subscribes somebody joining to every track there is twice: when they join, and
