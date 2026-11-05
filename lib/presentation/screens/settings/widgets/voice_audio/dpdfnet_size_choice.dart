@@ -6,8 +6,8 @@ import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 
 /// Which of DPDFNet's two models runs, shown while DPDFNet is the noise
-/// filter. DPDFNet-2 is where it starts; DPDFNet-8 is for choosing, and
-/// still goes over to DPDFNet-2 by itself on a computer too slow for it.
+/// filter. DPDFNet-8 is where it starts, and goes over to DPDFNet-2 by itself
+/// on a computer too slow for it; DPDFNet-2 is for choosing, beside a game.
 class DpdfnetSizeChoice extends StatelessWidget {
   final bool small;
   final ValueChanged<bool> onChanged;

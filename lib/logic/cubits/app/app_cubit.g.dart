@@ -76,7 +76,7 @@ AppState _$AppStateFromJson(Map<String, dynamic> json) => AppState(
   noiseSuppression: json['noiseSuppression'] == null
       ? NoiseSuppression.dpdfnet
       : NoiseSuppression.fromJson(json['noiseSuppression']),
-  dpdfnetSmall: json['dpdfnetSmall'] as bool? ?? true,
+  dpdfnetSmall: json['dpdfnetSmall'] as bool? ?? false,
   echoCancellation: json['echoCancellation'] as bool? ?? true,
   autoGainControl: json['autoGainControl'] as bool? ?? true,
   recentEmojis:

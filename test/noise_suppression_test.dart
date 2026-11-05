@@ -51,10 +51,15 @@ void main() {
     }
   });
 
-  test('a new install starts on DPDFNet-2', () {
-    expect(const AppState().dpdfnetSmall, isTrue);
+  test('a new install starts on DPDFNet-8', () {
+    expect(const AppState().dpdfnetSmall, isFalse);
     final json = const AppState().toJson()..remove('dpdfnetSmall');
-    expect(AppState.fromJson(json).dpdfnetSmall, isTrue);
+    expect(AppState.fromJson(json).dpdfnetSmall, isFalse);
+  });
+
+  test('settings on DPDFNet-2 stay there now DPDFNet-8 is the default', () {
+    final saved = const AppState(dpdfnetSmall: true).toJson();
+    expect(AppState.fromJson(saved).dpdfnetSmall, isTrue);
   });
 
   test('DPDFNet-8 saved before DPDFNet-2 was the default moves to it once', () {

@@ -1311,6 +1311,16 @@ step above normal sent none unfiltered, for the same cost to that game, and
 was not tried in CS2. The model needs 30–40% of a core here, and a game that
 holds every core loses it whichever thread runs it.
 
+DPDFNet-8 is where a new install starts, as it was until Oct 24 and again since
+Nov 6 2026, the owner's call: it keeps the voice most natural, and a computer too
+slow for it goes over to DPDFNet-2 by itself for the rest of the call. Settings
+saved in between stay on DPDFNet-2. That change-over
+looks only at how long the model takes (`SLOW_FRAME`), so it does not act on a
+computer fast enough for the model beside a game. There DPDFNet-8 keeps taking
+about 3 times DPDFNet-2's work (3.4 ms against 1.2 of each 10 ms on an i7-12700H's
+performance core, Oct 14), on Windows ahead of the game. Not measured: a game
+beside DPDFNet-8 on the mic's thread. Everything above is DPDFNet-2.
+
 Measured Oct 25 2026 on a laptop's Windows: receiving a 1080p60 stream, the
 decoder took 25% of a core at time-critical while a stand-in game ran on every
 CPU, and the game's frames taking over 1.5 times its fastest went from 0.13% to
