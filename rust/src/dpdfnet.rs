@@ -62,11 +62,13 @@ const SLOW_FRAME: Duration = Duration::from_millis(7);
 
 /// The small model takes over once this many of the last [`WATCHED`] frames
 /// were slow, where a lone slow frame (the thread put aside for a moment) is
-/// no reason to. A slow frame holds up the microphone, heard as crackle. Paced
-/// as a call is, on the i7's efficiency cores DPDFNet-8 went over 7 ms on 4 to
-/// 11 frames in 500 and DPDFNet-2 on none (Oct 25); at ten in a hundred,
-/// DPDFNet-8 stayed and let them through.
-const SLOW_LIMIT: u32 = 3;
+/// no reason to. A slow frame holds up the microphone, heard as crackle, so a
+/// computer under this keeps DPDFNet-8 and lets them through: paced as a call
+/// is, on the i7's efficiency cores DPDFNet-8 went over 7 ms on 4 to 11 frames
+/// in 500, and DPDFNet-2 on none (Oct 25). It was 10 until Oct 25, when
+/// DPDFNet-8 stayed and let them through, then 3 until Nov 6, when the owner
+/// settled on 5.
+const SLOW_LIMIT: u32 = 5;
 const WATCHED: usize = 100;
 
 /// Set when the person chose DPDFNet-2 in settings ([`choose_small`]), for
@@ -521,9 +523,9 @@ mod tests {
     fn a_run_of_slow_frames_moves_to_the_small_model() {
         let (fast, slow) = (Duration::from_millis(4), Duration::from_millis(9));
         let mut watch = Watch::new();
-        // Two in a hundred, and the oldest ages out before the third.
-        for i in 0..300 {
-            assert!(!watch.add(if i % 50 == 0 { slow } else { fast }));
+        // Four in a hundred, and the oldest ages out before the fifth.
+        for i in 0..1000 {
+            assert!(!watch.add(if i % 25 == 0 { slow } else { fast }));
         }
         let tripped = (0..WATCHED).position(|_| watch.add(slow));
         assert!(tripped.is_some_and(|i| i < SLOW_LIMIT as usize));
