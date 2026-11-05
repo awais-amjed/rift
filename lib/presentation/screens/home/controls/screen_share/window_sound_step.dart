@@ -7,6 +7,7 @@ import '../../../../../data/classes/screen_share_settings.dart';
 import '../../../../../data/classes/share_sound_choice.dart';
 import '../../../../../data/classes/shared_window.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../../logic/cubits/screenshare/share_attempt.dart';
 import '../../../../../logic/helper_methods.dart';
 import '../../../../../logic/services/host_platform.dart';
 import '../../../../../logic/services/screen_share_sources.dart';
@@ -35,23 +36,35 @@ class WindowSoundStep {
       settings.shareAudio;
 
   /// The share to start, or null when the user backed out of the picker or
-  /// the popup.
+  /// the popup, or pressed Share again while waiting: [attempt] is given up
+  /// then, and its picker with it. A later press may have started a share by
+  /// the time this hears, so nothing more of this one is asked.
   static Future<WindowShare?> run(
     BuildContext context,
     ScreenShareSettings settings,
+    ShareAttempt attempt,
   ) async {
     final app = context.read<AppCubit>();
     String? token;
     SharedWindow? window;
     if (HostPlatform.picksShareWindowItself) {
-      switch (await WindowSharePortal.pick()) {
+      final picked = await WindowSharePortal.pick(
+        abandoned: attempt.whenAbandoned,
+      );
+      if (attempt.abandoned) {
+        if (picked is WindowPicked) {
+          unawaited(WindowSharePortal.forget(picked.token));
+        }
+        return null;
+      }
+      switch (picked) {
         case WindowPickCancelled():
           return null;
         // The capture asks for the window itself, as before.
         case WindowPickFailed():
           break;
-        case WindowPicked(token: final picked, window: final saved):
-          token = picked;
+        case WindowPicked(token: final chosen, window: final saved):
+          token = chosen;
           window = saved;
       }
     } else {
@@ -71,6 +84,10 @@ class WindowSoundStep {
     );
     if (saved != null && !settings.choosesSoundThisTime) {
       final playing = await ScreenShareSources.listAudio();
+      if (attempt.abandoned) {
+        if (token != null) unawaited(WindowSharePortal.forget(token));
+        return null;
+      }
       final found = ShareSoundMatch.remembered(saved, playing);
       if (found.found) {
         HelperMethods.printDebug(

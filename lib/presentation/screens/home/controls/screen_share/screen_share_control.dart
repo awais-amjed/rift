@@ -47,6 +47,9 @@ class _ScreenShareControlState extends State<ScreenShareControl> {
     final livekitCubit = context.read<LiveKitCubit>();
     final appCubit = context.read<AppCubit>();
 
+    final attempt = screenshareCubit.beginAttempt();
+    if (attempt == null) return;
+
     // The settings dialog is a *desktop* capture dialog — capture type,
     // window list, bitrate, codec, system-audio toggle. None of it exists
     // where the SDK does the capturing: a browser shows its own picker, and
@@ -78,7 +81,7 @@ class _ScreenShareControlState extends State<ScreenShareControl> {
     String? portalChoice;
     if (WindowSoundStep.appliesTo(settings)) {
       if (!mounted) return;
-      final share = await WindowSoundStep.run(context, settings);
+      final share = await WindowSoundStep.run(context, settings, attempt);
       if (share == null) return;
       (:settings, :portalChoice) = share;
     }

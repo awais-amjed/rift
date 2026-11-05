@@ -305,6 +305,19 @@ registers its connection too, or the pick is saved for an unnamed app that
 libwebrtc's request cannot see. Other Wayland desktops save nothing by
 default; there the app picks the sound in the share dialog as before.
 
+The picker is the desktop's window, so it does not hold Rift's Share button
+down as Rift's own dialogs do, and it may go away without answering. A second
+press of Share therefore takes over: it closes the first picker
+(`org.freedesktop.portal.Request.Close`) and that attempt ends (`ShareAttempt`).
+A picker nobody answers closes after 10 minutes, and the share is off. A press
+does nothing while a share is starting or stopping, and a start that arrives
+while a share runs leaves it alone. Before this, an attempt left waiting came
+back after a newer share had started, opened the sound popup over it, and its
+refusal marked the running share as failed: the bar offered Share screen again,
+nothing could stop the share, and it went on sending past Leave. If Rust still
+refuses a start as already sharing, the app shows that share as running, so
+Stop reaches it.
+
 ## Encoding a share on the GPU — [Implemented October 2026]
 
 LiveKit's Rust SDK has no hardware video encoder on Windows: every frame of a
