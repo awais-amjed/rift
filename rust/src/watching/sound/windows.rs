@@ -56,6 +56,7 @@ fn play_until_fed(
     output: &mut Option<Output>,
 ) -> Result<(), String> {
     let mut failures = 0;
+    let mut played: u32 = 0;
     // Each frame is 10 ms; the feed ends, and with it this, when the share
     // stops playing.
     while let Ok(frame) = frames.recv() {
@@ -69,7 +70,11 @@ fn play_until_fed(
         let Some(playing) = output.as_mut() else {
             continue;
         };
-        match playing.play(&frame, gain.get()) {
+        played = played.saturating_add(1);
+        let result = playing
+            .play(&frame, gain.get())
+            .and_then(|()| failure_for_test(played));
+        match result {
             Ok(()) => failures = 0,
             Err(message) => {
                 log::warn!("watching: playing the sound failed: {message}");
@@ -83,6 +88,29 @@ fn play_until_fed(
             }
         }
     }
+    Ok(())
+}
+
+/// Debug builds only: `RIFT_WATCH_SOUND_FAIL_AFTER=<n>` fails every frame
+/// after a player's n-th, as a broken output would, so the share going back
+/// to the call can be seen in the app.
+#[cfg(debug_assertions)]
+fn failure_for_test(played: u32) -> Result<(), String> {
+    static AFTER: std::sync::OnceLock<Option<u32>> = std::sync::OnceLock::new();
+    let after = AFTER.get_or_init(|| {
+        std::env::var("RIFT_WATCH_SOUND_FAIL_AFTER")
+            .ok()?
+            .parse()
+            .ok()
+    });
+    match after {
+        Some(after) if played > *after => Err(format!("RIFT_WATCH_SOUND_FAIL_AFTER={after}")),
+        _ => Ok(()),
+    }
+}
+
+#[cfg(not(debug_assertions))]
+fn failure_for_test(_played: u32) -> Result<(), String> {
     Ok(())
 }
 

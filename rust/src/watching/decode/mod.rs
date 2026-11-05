@@ -172,7 +172,10 @@ fn decode(
     let mut decoder: Option<Decoder> = None;
     let mut size = (0, 0);
     let mut asked: Option<Instant> = None;
+    let mut received: u32 = 0;
     while let Some(frame) = next() {
+        received = received.saturating_add(1);
+        stall_for_test(received);
         let Some(codec) = Codec::of(frame.codec) else {
             give_up(
                 identity,
@@ -181,6 +184,9 @@ fn decode(
             return;
         };
         let key = frame.frame_type == EncodedFrameType::Key;
+        if frame.after_gap && !key && !chain.broken {
+            log::info!("watching: {codec:?} frames were lost, waiting for a keyframe");
+        }
         match chain.next(codec, key, frame.after_gap) {
             Next::Wait => {
                 log::debug!("watching: {codec:?} frame before a keyframe, skipped");
@@ -230,6 +236,27 @@ fn decode(
         }
     }
 }
+
+/// Debug builds only: `RIFT_WATCH_DECODE_STALL_AT=<n>` stops the decoder for
+/// two seconds at its n-th frame, as a stalled GPU would, so the stream
+/// flushing its backlog can be seen in the app.
+#[cfg(debug_assertions)]
+fn stall_for_test(received: u32) {
+    static AT: OnceLock<Option<u32>> = OnceLock::new();
+    let at = AT.get_or_init(|| {
+        std::env::var("RIFT_WATCH_DECODE_STALL_AT")
+            .ok()?
+            .parse()
+            .ok()
+    });
+    if *at == Some(received) {
+        log::info!("watching: stalling the decoder for 2 s (RIFT_WATCH_DECODE_STALL_AT)");
+        thread::sleep(Duration::from_secs(2));
+    }
+}
+
+#[cfg(not(debug_assertions))]
+fn stall_for_test(_received: u32) {}
 
 fn ask_for_keyframe(frame: &ReceivedEncodedFrame, asked: &mut Option<Instant>) {
     if asked.is_none_or(|at| at.elapsed() >= ASK_EVERY) {

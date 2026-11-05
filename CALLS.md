@@ -740,7 +740,11 @@ libwebrtc still decodes, on the CPU.
   cannot go on (an output that will not open, the sound server gone, three
   failed writes in a row on Windows) is a loss, and the call's connection
   takes the share back: a player that only stopped left the share silent
-  with the call's copy still held (found by review Nov 5). The watch
+  with the call's copy still held (found by review Nov 5). Seen on Windows
+  (Nov 5, laptop, local stack): an output another program held, and three
+  write failures forced in a debug build (`RIFT_WATCH_SOUND_FAIL_AFTER`),
+  each sent the share back within 2 ms, the tone going on through the call
+  at −19.9 dBFS. The watch
   connection may unsubscribe a sound, which the call's must never do (*Receiving
   a call's audio*): this SDK gives a sound's decryptor the receiver itself,
   not an id two receivers can share. Where Rust has no player yet
@@ -791,7 +795,9 @@ libwebrtc still decodes, on the CPU.
   behind loses the backlog whole; the stream marks the frames after it
   (`after_gap`), and those wait for the keyframe asked for rather than
   decode against references thrown away, which smeared the picture (found
-  by review Nov 5). A share the GPU cannot
+  by review Nov 5). On Windows (Nov 5, laptop, debug build, the
+  decoder stalled 2 s by `RIFT_WATCH_DECODE_STALL_AT`): the stream flushed,
+  the frames after it waited, logged, and a keyframe came within 0.5 s. A share the GPU cannot
   decode, three keyframes in a row that fail, a runner that cannot import
   (it says so when it makes the texture, `takesGpuPictures`), or a GPU
   picture the runner fails to import or copy (it hands it back undrawn,
