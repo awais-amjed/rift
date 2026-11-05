@@ -154,6 +154,24 @@ uncorrelated.
    1 ms later and the tone played for 60 to 110 ms in 5 joins of 6; after,
    it stayed off and nothing played in 8 of 8. A listener that kept it on
    heard the tone from the start, as before.
+   That probe passed, but the real app still leaked: see patch 10.
+
+10. **Remote audio is off until it starts, and may start held**
+   (`pc.onTrack` in `lib/src/core/engine.dart`, `Room.audioHeldOnArrival` in
+   `lib/src/core/room.dart`, `RemoteTrack.holdOnStart` in
+   `lib/src/track/remote/remote.dart`, `addSubscribedMediaTrack` in
+   `lib/src/participant/remote.dart`). WebRTC plays a remote track from the
+   moment it has it. The SDK then queues the track until the room is connected,
+   so turning it off on `TrackSubscribedEvent` is too late however the event is
+   ordered. The track is now turned off at `pc.onTrack`, the first Dart hears of
+   it. Starting it turns it on as before, unless the app's
+   `audioHeldOnArrival` says it is held. With no callback set nothing changes
+   but those few moments off.
+
+   Measured Nov 5 2026 in the real app on the local stack, Linux, Cara sharing a
+   5 kHz tone and Dave joining without watching, recording his output: 8 joins
+   of 13 played it before, up to 80 ms, starting up to 56 ms before Rift's hold;
+   none of 13 after, and none heard by ear on the owner's headset.
 
 ## When to remove it
 
@@ -164,6 +182,6 @@ unsubscribe without holding the track, patch 4 when a release can go back
 to letting visibility decide, patch 5 when a release keeps a disable
 through the server's bind, patch 6 when a release's web worker leaves no
 VP9 bytes in the clear, patch 7 when it passes H264 through the RBSP functions, patch 8 when a release subscribes
-whatever it holds, patch 9 when a release starts a track before announcing it. With all nine gone, bump, delete this
+whatever it holds, patch 9 when a release starts a track before announcing it, patch 10 when a release lets an app keep a remote track off from its arrival. With all ten gone, bump, delete this
 folder and its `dependency_overrides` entry. Until then, a `livekit_client` upgrade needs this copy replaced with the
 new version and the changes put back.

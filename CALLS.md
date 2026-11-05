@@ -1128,15 +1128,18 @@ subscription stays (`_AudioReceptionMixin`). Only your own share is dropped,
 for good. A stream's picture is still unsubscribed while unwatched, so that
 adaptive streaming keeps pausing the ones on screen nobody can see.
 
-**Held from the moment it arrives.** LiveKit's SDK started a track, which
-turns it on, after telling the app it had arrived, so a sound held on
-arrival was turned on again behind it and played until the server stopped
-sending: joining a call with a share in it, about a tenth of a second of the
-share's sound before the join chime (reported Nov 5 2026 on Windows and
-Linux). The SDK now starts it first (`third_party/livekit_client/RIFT_PATCHES.md`,
-patch 9). Measured Nov 5 on the local stack, Linux, with a probe on that copy
-holding a stereo tone as Rift does: 60–110 ms of it in 5 joins of 6 before,
-none in 8 after.
+**Held from the moment it arrives.** A remote track plays as soon as WebRTC
+has it, and the app hears of it later: on a join it waits until the room is
+connected. So joining a call with a share in it played up to 80 ms of the
+share's sound, just before the join chime (reported Nov 5 2026 on Windows and
+Linux). Now every remote audio track is turned off the moment Dart hears of it
+and turned on when it starts, unless the app says it is held
+(`Room.audioHeldOnArrival`, asked with `hearsRemoteAudio`'s answer;
+`third_party/livekit_client/RIFT_PATCHES.md`, patches 9 and 10). Measured Nov 5
+in the real app on the local stack, Linux, a 5 kHz tone as the share's sound:
+the tone in 8 joins of 13 before, starting up to 56 ms before the hold, and in
+none of 13 after. Starting a track first, patch 9 alone, had passed a probe
+with no call encryption and did not stop it in the app.
 
 **A joining client drops unwatched pictures twice.** LiveKit's server
 subscribes somebody joining to every track there is twice: when they join, and

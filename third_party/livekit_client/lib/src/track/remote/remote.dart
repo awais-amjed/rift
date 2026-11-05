@@ -34,10 +34,14 @@ abstract class RemoteTrack extends Track {
          receiver: receiver,
        );
 
+  // RIFT PATCH: starting a track turns it on, unless it arrived held
+  // ([Room.audioHeldOnArrival]). See third_party/livekit_client/RIFT_PATCHES.md.
+  bool holdOnStart = false;
+
   @override
   Future<bool> start() async {
     final didStart = await super.start();
-    if (didStart) {
+    if (didStart && !holdOnStart) {
       await enable();
     }
     return didStart;

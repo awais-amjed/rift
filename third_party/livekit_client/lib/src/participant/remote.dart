@@ -250,6 +250,7 @@ class RemoteParticipant extends Participant<RemoteTrackPublication> {
     // app turned off on arrival was turned on again behind it and played
     // until the server stopped sending. See
     // third_party/livekit_client/RIFT_PATCHES.md.
+    track.holdOnStart = pub.kind == TrackType.AUDIO && (room.audioHeldOnArrival?.call(this, pub) ?? false);
     await track.start();
 
     [events, room.events].emit(

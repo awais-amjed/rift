@@ -35,6 +35,7 @@ import '../options.dart';
 import '../participant/local.dart';
 import '../participant/participant.dart';
 import '../participant/remote.dart';
+import '../publication/remote.dart';
 import '../preconnect/pre_connect_audio_buffer.dart';
 import '../proto/livekit_models.pb.dart' as lk_models;
 import '../proto/livekit_rtc.pb.dart' as lk_rtc;
@@ -68,6 +69,11 @@ import 'pending_track_queue.dart';
 /// * active speakers are different
 /// {@category Room}
 class Room extends DisposableChangeNotifier with EventsEmittable<RoomEvent> {
+  /// RIFT PATCH: whether a remote audio track that has just arrived stays off
+  /// when it starts, for an app to turn on later. Asked once, before
+  /// [TrackSubscribedEvent]. See third_party/livekit_client/RIFT_PATCHES.md.
+  bool Function(RemoteParticipant participant, RemoteTrackPublication publication)? audioHeldOnArrival;
+
   // expose engine's params
   /// connection state of the room
   ConnectionState get connectionState => engine.connectionState;
