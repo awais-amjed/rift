@@ -52,7 +52,7 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
     final stats = widget.stats;
     if (stats == null || !stats.hasResolution) return const SizedBox.shrink();
 
-    final packetsLost = stats.packetsLost;
+    final loss = stats.lossPercent;
     final dropped = stats.framesDroppedPerSec;
 
     return Material(
@@ -83,10 +83,11 @@ class _StreamStatsOverlayState extends State<StreamStatsOverlay> {
                 value: '${stats.jitterMs!.toStringAsFixed(1)}ms',
                 isWarning: stats.jitterMs! > _highJitterMs,
               ),
-            if (packetsLost != null && packetsLost > 0)
+            // Under a twentieth of a percent would print as 0.0%.
+            if (loss != null && loss >= 0.05)
               _StatRow(
                 label: 'Loss',
-                value: '$packetsLost pkts',
+                value: '${loss.toStringAsFixed(loss < 10 ? 1 : 0)}%',
                 isWarning: true,
               ),
             if (dropped != null && dropped > 0)

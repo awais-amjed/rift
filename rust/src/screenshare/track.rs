@@ -21,6 +21,8 @@ pub(crate) struct TrackSettings {
     pub bitrate: u32,
     pub codec: VideoCodec,
     pub priority: SharePriority,
+    /// The switch in settings; see [`ScreenShareConfig::gpu_capture`].
+    pub gpu_capture: bool,
 }
 
 impl From<&ScreenShareConfig> for TrackSettings {
@@ -31,6 +33,7 @@ impl From<&ScreenShareConfig> for TrackSettings {
             bitrate: config.bitrate,
             codec: config.codec,
             priority: config.priority,
+            gpu_capture: config.gpu_capture,
         }
     }
 }

@@ -11,6 +11,7 @@
 #include <memory>
 
 #include "seen_watch.h"
+#include "stream_texture.h"
 #include "tray_icon.h"
 #include "win32_window.h"
 
@@ -60,6 +61,9 @@ class FlutterWindow : public Win32Window {
 
   // Configure |tray_channel_| against the running Flutter engine.
   void SetupTrayChannel();
+
+  // Watched shares' pictures, drawn by the runner (stream_texture.h).
+  std::unique_ptr<rift::StreamTextures> stream_textures_;
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_

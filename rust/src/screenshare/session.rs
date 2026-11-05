@@ -25,8 +25,13 @@ use tokio::task::JoinHandle;
 
 /// How long the selected source gets to deliver its first frame, or to say
 /// it is waiting for a minimised window. A Wayland portal the user dismissed
-/// never does either.
-const FIRST_FRAME_TIMEOUT: Duration = Duration::from_secs(10);
+/// never does either, under libwebrtc's capturer. On Rift's own stream the
+/// time starts once the picker has its answer.
+pub(super) const FIRST_FRAME_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// How long the desktop's picker is left up on Rift's own stream, as long
+/// as Dart leaves its window picker (`WindowSharePortal`).
+const PICKER_TIMEOUT: Duration = Duration::from_secs(600);
 
 /// How long a share still reconnecting on its own is given to finish before
 /// it is moved instead — see [`move_to`].
@@ -377,25 +382,38 @@ async fn bring_up(
         },
         selected_index: config.selected_video_source_index,
         portal_choice: config.portal_choice.clone(),
+        gpu_capture: config.gpu_capture,
+        codec: config.codec,
         fps: config.fps,
         capture_cursor: true,
         on_paused: Some(announce_paused(participant.clone())),
+        following: None,
     });
 
-    let first = match tokio::time::timeout(FIRST_FRAME_TIMEOUT, started.recv()).await {
-        Ok(Some(Progress::FirstFrame(size))) => Some(size),
-        Ok(Some(Progress::Waiting)) => None,
-        Ok(Some(Progress::Failed(reason))) => return Err(stop_capture(capture, reason).await),
-        Ok(None) => {
-            let reason = "The capture thread stopped before producing a frame".to_string();
-            return Err(stop_capture(capture, reason).await);
-        }
-        Err(_) => {
-            let reason = format!(
-                "No frames arrived from the selected source in {} seconds",
-                FIRST_FRAME_TIMEOUT.as_secs()
-            );
-            return Err(stop_capture(capture, reason).await);
+    // While the desktop's picker is up, the first frame waits on a person.
+    let mut limit = FIRST_FRAME_TIMEOUT;
+    let first = loop {
+        match tokio::time::timeout(limit, started.recv()).await {
+            Ok(Some(Progress::Picking)) => limit = PICKER_TIMEOUT,
+            Ok(Some(Progress::Picked)) => limit = FIRST_FRAME_TIMEOUT,
+            Ok(Some(Progress::FirstFrame(size))) => break Some(size),
+            Ok(Some(Progress::Waiting)) => break None,
+            Ok(Some(Progress::Failed(reason))) => return Err(stop_capture(capture, reason).await),
+            Ok(None) => {
+                let reason = "The capture thread stopped before producing a frame".to_string();
+                return Err(stop_capture(capture, reason).await);
+            }
+            Err(_) if limit == PICKER_TIMEOUT => {
+                let reason = "The desktop's picker had no answer".to_string();
+                return Err(stop_capture(capture, reason).await);
+            }
+            Err(_) => {
+                let reason = format!(
+                    "No frames arrived from the selected source in {} seconds",
+                    FIRST_FRAME_TIMEOUT.as_secs()
+                );
+                return Err(stop_capture(capture, reason).await);
+            }
         }
     };
 
@@ -786,6 +804,7 @@ fn encoder_settings(
         max_bitrate_bps: settings.bitrate.saturating_mul(1_000_000),
         start_bitrate_bps,
         h264_high: encoder::SEND_H264_HIGH,
+        gpu_capture: settings.gpu_capture,
     }
 }
 
@@ -813,7 +832,7 @@ fn announce_picture(participant: &LocalParticipant, size: Size, fps: u32) {
 async fn publish_when_opened(video: Arc<Video>, mut started: Started) {
     while let Some(progress) = started.recv().await {
         match progress {
-            Progress::Waiting => {}
+            Progress::Waiting | Progress::Picking | Progress::Picked => {}
             Progress::Failed(reason) => {
                 log::info!("screenshare: gave up waiting: {reason}");
                 return;
@@ -836,17 +855,23 @@ async fn publish_when_opened(video: Arc<Video>, mut started: Started) {
 /// Tells the room, as an attribute of the share's own connection, when the
 /// shared window is minimised or gone and when it is back. Called from the
 /// capture thread, so the request is handed to the runtime rather than awaited
-/// there.
+/// there: to one task, which sends the latest word whenever it changes. A task
+/// for each could finish out of order, and leave a live share showing paused.
 fn announce_paused(participant: SharedParticipant) -> Box<dyn Fn(bool) + Send> {
-    let runtime = tokio::runtime::Handle::current();
-    Box::new(move |paused| {
-        let participant = participant.lock().unwrap().clone();
-        runtime.spawn(async move {
+    let (said, mut heard) = tokio::sync::watch::channel(false);
+    tokio::runtime::Handle::current().spawn(async move {
+        // Over once the capture lets go of the sender.
+        while heard.changed().await.is_ok() {
+            let paused = *heard.borrow_and_update();
+            let participant = participant.lock().unwrap().clone();
             let attributes = HashMap::from([(PAUSED_ATTRIBUTE.to_string(), paused.to_string())]);
             if let Err(e) = participant.set_attributes(attributes).await {
                 log::warn!("screenshare: telling viewers paused={paused}: {e:?}");
             }
-        });
+        }
+    });
+    Box::new(move |paused| {
+        let _ = said.send(paused);
     })
 }
 

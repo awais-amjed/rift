@@ -46,6 +46,9 @@ endif()
 function(APPLY_STANDARD_SETTINGS TARGET)
   target_compile_features(${TARGET} PUBLIC cxx_std_14)
   target_compile_options(${TARGET} PRIVATE -Wall -Werror)
+  # clang 23 warns on every GLib G_DEFINE_TYPE (and in flutter_webrtc), so -Werror
+  # stopped the build. The second flag keeps older compilers from failing on the first.
+  target_compile_options(${TARGET} PRIVATE -Wno-unused-but-set-global -Wno-unknown-warning-option)
   target_compile_options(${TARGET} PRIVATE "$<$<NOT:$<CONFIG:Debug>>:-O3>")
   target_compile_definitions(${TARGET} PRIVATE "$<$<NOT:$<CONFIG:Debug>>:NDEBUG>")
 endfunction()
@@ -125,6 +128,11 @@ add_custom_command(
   OUTPUT "${FFENC_LIBRARY}"
   COMMAND "${FFENC_SOURCE_DIR}/build.sh" "${PROJECT_BINARY_DIR}/ffenc"
   DEPENDS "${FFENC_SOURCE_DIR}/build.sh" "${FFENC_SOURCE_DIR}/ffenc.c"
+    "${FFENC_SOURCE_DIR}/dmabuf.c" "${FFENC_SOURCE_DIR}/dmabuf.h"
+    "${FFENC_SOURCE_DIR}/pipewire.c" "${FFENC_SOURCE_DIR}/dmabuf_caps.c"
+    "${FFENC_SOURCE_DIR}/dmabuf_caps.h" "${FFENC_SOURCE_DIR}/nvenc_gl.c"
+    "${FFENC_SOURCE_DIR}/nvenc_gl.h" "${FFENC_SOURCE_DIR}/nvenc_gl_geometry.c"
+    "${FFENC_SOURCE_DIR}/nvenc_gl_geometry.h"
     "${FFENC_SOURCE_DIR}/ffenc.h" ${FFENC_PATCHES}
   COMMENT "Building FFmpeg's GPU encoders (native/ffenc)"
   VERBATIM)

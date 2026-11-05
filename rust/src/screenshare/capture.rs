@@ -1,5 +1,10 @@
 //! The capture thread: asks libwebrtc for a frame on every tick and hands
-//! each one to the processing thread in `frames.rs`.
+//! each one to the processing thread in `frames.rs`. A Wayland share runs
+//! on Rift's own PipeWire stream instead where it can (`capture_pw.rs`).
+#[cfg(target_os = "linux")]
+use super::capture_pw;
+#[cfg(target_os = "windows")]
+use super::capture_wgc;
 use super::frames::{self, SendableFrame};
 #[cfg(gpu_encoder)]
 use super::gpu_feed::GpuFeed;
@@ -8,7 +13,7 @@ use super::resolution::Size;
 use super::sources;
 #[cfg(target_os = "windows")]
 use super::window_win;
-use crate::api::screenshare::types::ScreenshareEvent;
+use crate::api::screenshare::types::{ScreenshareEvent, VideoCodec};
 use livekit::webrtc::desktop_capturer::{
     CaptureError, CaptureSource as Source, DesktopCaptureSourceType, DesktopCapturer, DesktopFrame,
 };
@@ -43,14 +48,26 @@ pub(crate) struct CaptureRequest {
     /// A window already picked in the desktop's own picker: see
     /// [`ScreenShareConfig::portal_choice`](crate::api::screenshare::types::ScreenShareConfig).
     pub portal_choice: Option<String>,
+    /// [`ScreenShareConfig::gpu_capture`](crate::api::screenshare::types::ScreenShareConfig).
+    #[cfg_attr(not(any(target_os = "linux", target_os = "windows")), allow(dead_code))]
+    pub gpu_capture: bool,
+    /// The share's codec, which decides whether Rift's stream takes it
+    /// (`capture_pw.rs`, `capture_wgc.rs`).
+    #[cfg_attr(not(any(target_os = "linux", target_os = "windows")), allow(dead_code))]
+    pub codec: VideoCodec,
     pub fps: u32,
     pub capture_cursor: bool,
     /// Told `true` when the shared window is minimised or has gone away, and
-    /// `false` when it is back. Windows only: either way the capturer has
-    /// nothing new, so watchers are left with a still picture unless somebody
-    /// says why.
-    #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
+    /// `false` when it is back. Windows, and Wayland on Rift's own stream
+    /// (`capture_pw.rs`): either way the capturer has nothing new, so
+    /// watchers are left with a still picture unless somebody says why.
+    #[cfg_attr(not(any(target_os = "windows", target_os = "linux")), allow(dead_code))]
     pub on_paused: Option<Box<dyn Fn(bool) + Send>>,
+    /// What a share already under way showed when Rift's own capture handed it
+    /// to libwebrtc's (`capture_wgc.rs`): the window it followed, which may not
+    /// be the one picked, or the screen. Taken in place of `selected_index`,
+    /// which points into the picker's last list.
+    pub following: Option<sources::Listed>,
 }
 
 /// How the start of a capture went, as the capture thread learns it.
@@ -60,6 +77,14 @@ pub(crate) enum Progress {
     /// elsewhere the desktop's own picker chooses the window.
     #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
     Waiting,
+    /// The desktop's picker is up, which waits on a person: the first frame
+    /// is not due until [`Picked`](Self::Picked). Wayland on Rift's own
+    /// stream only, where Rift runs the picker (`capture_pw.rs`).
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+    Picking,
+    /// The picker has its answer, and the first frame is due.
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+    Picked,
     /// The first frame arrived, at this native size.
     FirstFrame(Size),
     /// There will never be a frame, and why.
@@ -179,10 +204,44 @@ pub(crate) fn spawn(request: CaptureRequest) -> (Capture, Started) {
     let fps = Arc::new(AtomicU32::new(request.fps));
     let clock = fps.clone();
     let (done_tx, done) = mpsc::channel();
-    let handle = thread::spawn(move || {
-        run(request, clock, progress_tx, feeds, command_rx);
-        let _ = done_tx.send(());
-    });
+    // The app's runtime, for the portal (`capture_pw::run`).
+    #[cfg(target_os = "linux")]
+    let runtime = tokio::runtime::Handle::try_current().ok();
+    // Named, as each of a share's threads is, so a profile of the app can
+    // tell what each stage costs.
+    let handle = thread::Builder::new()
+        .name("share-capture".to_string())
+        .spawn(move || {
+            // A Wayland share runs on Rift's own stream where it can.
+            #[cfg(target_os = "linux")]
+            let request = match capture_pw::run(
+                request,
+                runtime,
+                &clock,
+                &progress_tx,
+                &feeds,
+                &command_rx,
+            ) {
+                capture_pw::Handoff::Done => {
+                    let _ = done_tx.send(());
+                    return;
+                }
+                capture_pw::Handoff::Fallback(request) => request,
+            };
+            // A Windows H264 share runs on Rift's own capture where it can.
+            #[cfg(target_os = "windows")]
+            let request = match capture_wgc::run(request, &clock, &progress_tx, &feeds, &command_rx)
+            {
+                capture_wgc::Handoff::Done => {
+                    let _ = done_tx.send(());
+                    return;
+                }
+                capture_wgc::Handoff::Fallback(request) => request,
+            };
+            run(request, clock, progress_tx, feeds, command_rx);
+            let _ = done_tx.send(());
+        })
+        .expect("no capture thread");
     (
         Capture {
             command_tx,
@@ -207,11 +266,11 @@ pub(crate) fn spawn(request: CaptureRequest) -> (Capture, Started) {
 /// 88.7 fps; with throttling off, 119.8 and 118.3 (Oct 16 2026, an i7-12700H
 /// laptop). On drop, Windows decides again.
 #[cfg(target_os = "windows")]
-struct TimerResolutionGuard;
+pub(super) struct TimerResolutionGuard;
 
 #[cfg(target_os = "windows")]
 impl TimerResolutionGuard {
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         use windows::Win32::System::Threading::{
             PROCESS_POWER_THROTTLING_EXECUTION_SPEED,
             PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION,
@@ -262,6 +321,19 @@ fn set_power_throttling(held: u32) {
     }
 }
 
+/// Tells the share there will be no picture. Once it has started, which is when
+/// Rift's own capture hands one over, nobody is waiting on `progress` any more:
+/// the share then ends as a closed source does, rather than show its last
+/// picture, or nothing, for as long as nobody stops it.
+fn fail(progress: &UnboundedSender<Progress>, reason: String) {
+    if let Err(unheard) = progress.send(Progress::Failed(reason)) {
+        if let Progress::Failed(reason) = unheard.0 {
+            log::info!("capture: {reason}, ending the share");
+        }
+        crate::api::screenshare::emit_screenshare_event(ScreenshareEvent::SourceClosed);
+    }
+}
+
 fn run(
     request: CaptureRequest,
     fps: Arc<AtomicU32>,
@@ -275,9 +347,7 @@ fn run(
     let mut options = sources::options(request.source_type);
     options.set_include_cursor(request.capture_cursor);
     let Some(mut capturer) = DesktopCapturer::new(options) else {
-        let _ = progress.send(Progress::Failed(
-            "Could not create a desktop capturer".to_string(),
-        ));
+        fail(&progress, "Could not create a desktop capturer".to_string());
         return;
     };
 
@@ -296,7 +366,7 @@ fn run(
             // Stopped while waiting for the window.
             Ok(None) => return,
             Err(reason) => {
-                let _ = progress.send(Progress::Failed(reason));
+                fail(&progress, reason);
                 return;
             }
         }
@@ -333,7 +403,17 @@ fn run(
                 #[cfg(target_os = "windows")]
                 let ended = match window.as_mut() {
                     Some(window) => {
-                        window.ended(&mut capturer, &signals, request.on_paused.as_deref())
+                        let lost = signals.lost.clone();
+                        let arrived = signals.arrived.clone();
+                        window.ended(
+                            &lost,
+                            &arrived,
+                            &mut Libwebrtc {
+                                capturer: &mut capturer,
+                                signals: &signals,
+                            },
+                            request.on_paused.as_deref(),
+                        )
                     }
                     None => signals.lost.load(Ordering::Relaxed),
                 };
@@ -426,7 +506,7 @@ impl Signals {
 /// the share is paused. It ends once the program has quit, or after
 /// [`RECOVER_FOR`].
 #[cfg(target_os = "windows")]
-struct SharedWindow {
+pub(super) struct SharedWindow {
     id: u64,
     /// The program it belongs to, and its title: how a new window it was
     /// swapped for is known.
@@ -447,9 +527,37 @@ struct Gone {
     retaken: bool,
 }
 
+/// What captures a shared window, as [`SharedWindow`] looks for it again.
+#[cfg(target_os = "windows")]
+pub(super) trait Recapture {
+    fn listed(&self) -> Vec<Source>;
+    /// Start capturing `source`, which [`SharedWindow`] hears of through the
+    /// `arrived` and `lost` it is asked with.
+    fn capture(&mut self, source: Source);
+}
+
+/// libwebrtc's capturer as a [`Recapture`].
+#[cfg(target_os = "windows")]
+struct Libwebrtc<'a> {
+    capturer: &'a mut DesktopCapturer,
+    signals: &'a Signals,
+}
+
+#[cfg(target_os = "windows")]
+impl Recapture for Libwebrtc<'_> {
+    fn listed(&self) -> Vec<Source> {
+        self.capturer.get_source_list()
+    }
+
+    fn capture(&mut self, source: Source) {
+        self.capturer
+            .start_capture(Some(source), self.signals.callback(None));
+    }
+}
+
 #[cfg(target_os = "windows")]
 impl SharedWindow {
-    fn new(id: u64, title: String) -> Self {
+    pub(super) fn new(id: u64, title: String) -> Self {
         Self {
             id,
             owner: window_win::pid(id),
@@ -459,11 +567,17 @@ impl SharedWindow {
         }
     }
 
+    /// Minimised, or gone and being looked for: no pictures are to be expected.
+    pub(super) fn away(&self) -> bool {
+        self.minimised || self.gone.is_some()
+    }
+
     /// Whether the share is over, asked after each capture.
-    fn ended(
+    pub(super) fn ended(
         &mut self,
-        capturer: &mut DesktopCapturer,
-        signals: &Signals,
+        lost: &AtomicBool,
+        arrived: &AtomicBool,
+        capturer: &mut dyn Recapture,
         report: Option<&(dyn Fn(bool) + Send)>,
     ) -> bool {
         let report = |paused: bool| {
@@ -472,7 +586,7 @@ impl SharedWindow {
             }
         };
         let closed = window_win::closed(self.id);
-        let failed = signals.lost.swap(false, Ordering::Relaxed);
+        let failed = lost.swap(false, Ordering::Relaxed);
         let now = Instant::now();
         if self.gone.is_none() {
             if !closed && !failed {
@@ -498,7 +612,7 @@ impl SharedWindow {
         });
 
         if gone.retaken {
-            if !closed && !failed && signals.arrived.load(Ordering::Relaxed) {
+            if !closed && !failed && arrived.load(Ordering::Relaxed) {
                 log::info!("capture: the shared window is back");
                 self.gone = None;
                 self.minimised = false;
@@ -532,7 +646,7 @@ impl SharedWindow {
         }
         gone.looked = Some(now);
 
-        let listed = capturer.get_source_list();
+        let listed = capturer.listed();
         let known: Vec<(u64, Option<u32>, String)> = listed
             .iter()
             .map(|source| (source.id(), window_win::pid(source.id()), source.title()))
@@ -552,8 +666,8 @@ impl SharedWindow {
         );
         self.id = source.id();
         gone.retaken = true;
-        signals.arrived.store(false, Ordering::Relaxed);
-        capturer.start_capture(Some(source), signals.callback(None));
+        arrived.store(false, Ordering::Relaxed);
+        capturer.capture(source);
         false
     }
 
@@ -597,24 +711,28 @@ fn find_again(
 ///
 /// Found by id through the list the user picked from, so a window opening or
 /// closing in the meantime cannot move the choice onto another one.
-fn find_source(
+pub(super) fn find_source(
     capturer: &DesktopCapturer,
     request: &CaptureRequest,
     progress: &UnboundedSender<Progress>,
     command_rx: &mpsc::Receiver<Command>,
 ) -> Result<Option<Source>, String> {
     let sources = capturer.get_source_list();
-    // Nothing chosen: the Wayland portal, whose one source is what the user
-    // picked in the desktop's own dialog.
-    let Some(index) = request.selected_index else {
-        return sources
-            .into_iter()
-            .next()
-            .map(Some)
-            .ok_or_else(|| "No capture sources available".to_string());
-    };
-    let Some(chosen) = sources::listed(request.source_type, index) else {
-        return Err("Pick what to share again: the list has changed".to_string());
+    let chosen = match (&request.following, request.selected_index) {
+        (Some(following), _) => following.clone(),
+        (None, Some(index)) => match sources::listed(request.source_type, index) {
+            Some(chosen) => chosen,
+            None => return Err("Pick what to share again: the list has changed".to_string()),
+        },
+        // Nothing chosen: the Wayland portal, whose one source is what the user
+        // picked in the desktop's own dialog.
+        (None, None) => {
+            return sources
+                .into_iter()
+                .next()
+                .map(Some)
+                .ok_or_else(|| "No capture sources available".to_string())
+        }
     };
     if let Some(source) = sources.into_iter().find(|source| source.id() == chosen.id) {
         return Ok(Some(source));
@@ -735,16 +853,19 @@ mod tests {
             source_type: DesktopCaptureSourceType::Window,
             selected_index: Some(index),
             portal_choice: None,
+            gpu_capture: true,
+            codec: VideoCodec::VP9,
             fps: 30,
             capture_cursor: false,
             on_paused: Some(Box::new(move |now| {
                 heard.lock().unwrap().push((now, Instant::now()))
             })),
+            following: None,
         });
         let first = loop {
             match started.try_recv() {
                 Ok(Progress::FirstFrame(size)) => break size,
-                Ok(Progress::Waiting) => {}
+                Ok(Progress::Waiting | Progress::Picking | Progress::Picked) => {}
                 Ok(Progress::Failed(reason)) => panic!("{reason}"),
                 Err(_) => thread::sleep(Duration::from_millis(20)),
             }

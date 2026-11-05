@@ -95,6 +95,26 @@ pub(crate) struct Device {
     pub rate: u32,
 }
 
+/// How WebRTC's PulseAudio module labels the extra first entry it lists for
+/// the default device.
+pub(crate) const WEBRTC_DEFAULT_PREFIX: &str = "default: ";
+
+/// The name of the sink WebRTC lists as `device_id`, for a stream to play
+/// on; None for the server's default — no device, WebRTC's own "default: …"
+/// entry, or an output that is not there any more, which is logged. A sound
+/// on the default beats none.
+pub(crate) fn sink_for(connection: &mut Connection, device_id: Option<&str>) -> Option<String> {
+    let id = device_id.filter(|id| !id.starts_with(WEBRTC_DEFAULT_PREFIX))?;
+    let name = sinks(connection)
+        .into_iter()
+        .find(|sink| sink.description == id)
+        .map(|sink| sink.name);
+    if name.is_none() {
+        log::warn!("pulse: no output {id}, playing on the default");
+    }
+    name
+}
+
 /// Every sink, in the server's order, which is the order WebRTC lists them
 /// in. Empty if the server does not answer.
 pub(crate) fn sinks(connection: &mut Connection) -> Vec<Device> {

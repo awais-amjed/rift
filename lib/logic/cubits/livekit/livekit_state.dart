@@ -62,6 +62,12 @@ class LiveKitState extends Equatable {
   final bool isPushToTalkPressed;
   final Set<String> subscribedScreenshares;
 
+  /// The watched shares whose picture comes through the Rust watch connection
+  /// rather than this room, by identity: a tile draws these as the runner's
+  /// texture, and the room's track for them is not subscribed. Every other
+  /// watched share is drawn from its track, as before (`_RustWatchMixin`).
+  final Map<String, WatchedPicture> watchedPictures;
+
   /// Moderation imposed on *us*, read off our own participant metadata — the
   /// same channel every other client learns it from.
   final bool isServerMuted;
@@ -128,6 +134,7 @@ class LiveKitState extends Equatable {
     this.isMicTesting = false,
     this.isPushToTalkPressed = false,
     this.subscribedScreenshares = const {},
+    this.watchedPictures = const {},
     this.isServerMuted = false,
     this.isServerDeafened = false,
     this.connectedAt,
@@ -215,6 +222,7 @@ class LiveKitState extends Equatable {
     bool? isMicTesting,
     bool? isPushToTalkPressed,
     Set<String>? subscribedScreenshares,
+    Map<String, WatchedPicture>? watchedPictures,
     bool? isServerMuted,
     bool? isServerDeafened,
     DateTime? connectedAt,
@@ -268,6 +276,7 @@ class LiveKitState extends Equatable {
       isPushToTalkPressed: isPushToTalkPressed ?? this.isPushToTalkPressed,
       subscribedScreenshares:
           subscribedScreenshares ?? this.subscribedScreenshares,
+      watchedPictures: watchedPictures ?? this.watchedPictures,
       isServerMuted: isServerMuted ?? this.isServerMuted,
       isServerDeafened: isServerDeafened ?? this.isServerDeafened,
       // Tied to the connection rather than cleared by hand at each of the
@@ -312,6 +321,7 @@ class LiveKitState extends Equatable {
     isMicTesting,
     isPushToTalkPressed,
     SetProp(subscribedScreenshares),
+    watchedPictures,
     isServerMuted,
     isServerDeafened,
     connectedAt,

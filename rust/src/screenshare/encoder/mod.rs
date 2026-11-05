@@ -10,17 +10,31 @@
 //! encoded by the GPU, never by Rift itself.
 #![cfg_attr(not(gpu_encoder), allow(dead_code))]
 #[cfg(any(target_os = "linux", target_os = "windows"))]
-mod ffmpeg;
+pub(crate) mod ffmpeg;
+#[cfg(target_os = "linux")]
+pub(crate) mod gpu_choice;
 pub(crate) mod h264;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 mod timings;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 mod worker;
+#[cfg(target_os = "windows")]
+pub(crate) use ffmpeg::takes_textures;
+#[cfg(target_os = "linux")]
+pub(crate) use ffmpeg::{dmabuf_target, library, symbol};
+#[cfg(target_os = "linux")]
+pub(crate) use gpu_choice::DmabufTarget;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 pub(crate) use worker::GpuEncoder;
 
+#[cfg(target_os = "windows")]
+use super::capture_wgc::WgcPicture;
+#[cfg(target_os = "linux")]
+use super::pw_stream::PwPicture;
 use super::resolution::Size;
 use crate::api::screenshare::types::VideoCodec;
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+use std::sync::Arc;
 
 /// What the GPU encoder can be asked to make.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -93,6 +107,8 @@ pub(crate) mod test_hooks {
     pub(crate) static NO_GPU: AtomicBool = AtomicBool::new(false);
     /// 0 is never.
     pub(crate) static FAIL_AFTER: AtomicU32 = AtomicU32::new(0);
+    /// The next repeat of a still picture fails, as on a GPU that is gone.
+    pub(crate) static FAIL_REPEAT: AtomicBool = AtomicBool::new(false);
     /// The encoder stays at the share's cap whatever WebRTC asks for, as one
     /// that overshoots does (`worker.rs`).
     pub(crate) static IGNORE_RATE: AtomicBool = AtomicBool::new(false);
@@ -135,6 +151,9 @@ pub(crate) struct EncoderSettings {
     /// H264's High profile rather than constrained baseline. The track is
     /// published asking for the same (`track::publish_video_track`).
     pub h264_high: bool,
+    /// Whether GPU capture is on for this share, which NVENC's GL side needs
+    /// (`gpu_choice::encoder_device`).
+    pub gpu_capture: bool,
 }
 
 /// A picture to encode: `width * height` bytes of Y, then the interleaved U
@@ -150,6 +169,48 @@ pub(crate) struct Nv12Frame {
 impl Nv12Frame {
     pub(crate) fn len_for(width: u32, height: u32) -> usize {
         width as usize * height as usize * 3 / 2
+    }
+}
+
+/// A Wayland share's picture still on the GPU, as the compositor's DMA-BUF.
+/// The encoder crops, turns, scales and places it there (`ffenc.h`), and
+/// the buffer goes back to PipeWire once the GPU has copied it and the
+/// processing thread has a newer picture (`capture_pw::process`).
+#[cfg(target_os = "linux")]
+pub(crate) struct DmaBufFrame {
+    pub picture: Arc<PwPicture>,
+    /// On the same clock as an [`Nv12Frame`]'s.
+    pub timestamp_us: i64,
+}
+
+/// A Windows share's picture still on the GPU, in the frame pool's texture. The
+/// encoder scales and places it there (`ffenc.h`), and the buffer goes back once
+/// a newer picture has come (`capture_wgc::process`).
+#[cfg(target_os = "windows")]
+pub(crate) struct WgcFrame {
+    pub picture: Arc<WgcPicture>,
+    /// On the same clock as an [`Nv12Frame`]'s.
+    pub timestamp_us: i64,
+}
+
+/// What the encoder is handed: a picture in memory, or one on the GPU.
+pub(crate) enum EncoderInput {
+    Nv12(Nv12Frame),
+    #[cfg(target_os = "linux")]
+    DmaBuf(DmaBufFrame),
+    #[cfg(target_os = "windows")]
+    Wgc(WgcFrame),
+}
+
+impl EncoderInput {
+    pub(crate) fn timestamp_us(&self) -> i64 {
+        match self {
+            EncoderInput::Nv12(frame) => frame.timestamp_us,
+            #[cfg(target_os = "linux")]
+            EncoderInput::DmaBuf(frame) => frame.timestamp_us,
+            #[cfg(target_os = "windows")]
+            EncoderInput::Wgc(frame) => frame.timestamp_us,
+        }
     }
 }
 

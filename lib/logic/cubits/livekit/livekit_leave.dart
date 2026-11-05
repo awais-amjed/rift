@@ -23,6 +23,7 @@ mixin _LiveKitLeaveMixin on Cubit<LiveKitState>, _E2EEMixin {
   Future<void> _stopVoiceActivityMonitor();
   void _resetCaptureRevive();
   void _resetMicSilence();
+  Future<void> _endRustWatch();
 
   /// Disconnects from the current room.
   ///
@@ -110,6 +111,8 @@ mixin _LiveKitLeaveMixin on Cubit<LiveKitState>, _E2EEMixin {
     // disconnect and dispose the same Room twice over.
     _resetCaptureRevive();
     _resetMicSilence();
+    // The watch connection is this room's; the next room opens its own.
+    unawaited(_endRustWatch());
     final room = state.room;
     if (room == null) {
       await _stopVoiceActivityMonitor();

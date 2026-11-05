@@ -20,6 +20,11 @@
 //! `BENCH_SECS`: the share once for each simulcast layer, and both every
 //! [`SAMPLE`] as well, so a move between layers shows, or the share falling
 //! behind on a slow link. More viewers take a `BENCH_VIEWER` name each.
+//! The viewer also times every picture as it arrives and reports the longest
+//! gap. With `BENCH_SHARES=0` it stays in the room and reports each share in
+//! turn, so it can run on another machine, started once for a whole set of
+//! rounds: give the share's machine's address in `LIVEKIT_URL`, and start
+//! that server with `--bind 0.0.0.0 --node-ip <its address>`.
 //!
 //! `bench_churn`, run beside the other two, is viewers coming and going: one
 //! joins every `BENCH_CHURN_EVERY` seconds (4), stays `BENCH_CHURN_STAY` (2)
@@ -154,6 +159,8 @@ fn log_sending(last: &[RtcStats], now: &[RtcStats], elapsed: Duration) {
         rtt_ms,
         n.outbound.key_frames_encoded - p.outbound.key_frames_encoded,
     );
+    #[cfg(target_os = "windows")]
+    log::info!("bench capture: {}", super::capture_wgc::arrivals::take());
 }
 
 fn inbound(stats: &[RtcStats]) -> Option<&livekit::webrtc::stats::InboundRtpStats> {
@@ -195,6 +202,8 @@ async fn bench_share() {
     );
     let (full_screen, index) = source();
     let config = ScreenShareConfig {
+        // BENCH_GPU_CAPTURE=0 is the settings switch off: libwebrtc's capturer.
+        gpu_capture: env_or("BENCH_GPU_CAPTURE", "1") == "1",
         livekit_url: server.url.clone(),
         livekit_token: server.token(&room, "sharer", false),
         resolution: env_num("BENCH_HEIGHT", 1080),
@@ -280,52 +289,78 @@ async fn bench_share() {
     );
 }
 
-#[tokio::test(flavor = "multi_thread")]
-#[ignore = "needs a LiveKit server and a share to watch; see the module doc"]
-async fn bench_view() {
-    let _ = env_logger::builder()
-        .is_test(true)
-        .filter_level(log::LevelFilter::Info)
-        .try_init();
-    let server = Server::from_env();
-    let room = env_or("BENCH_ROOM", "bench");
-    let joined = Instant::now();
-    let identity = env_or("BENCH_VIEWER", "viewer");
-    let (viewer, mut events) = super::live_test::viewer_as(&server, &room, &identity).await;
-    let track = timeout(Duration::from_secs(120), async {
-        loop {
-            if let RoomEvent::TrackSubscribed {
-                track: RemoteTrack::Video(track),
-                ..
-            } = events.recv().await.expect("room events")
-            {
-                break track;
-            }
-        }
-    })
-    .await
-    .expect("a share to watch");
+/// The gaps between pictures as the viewer gets them: a stall a person sees,
+/// which WebRTC's own freeze count can miss, since it counts only gaps far
+/// longer than the usual one.
+#[derive(Debug, Default, PartialEq)]
+struct Gaps {
+    pictures: u64,
+    longest: Duration,
+    over_50ms: u32,
+    over_100ms: u32,
+}
 
-    // Say what the room says about encryption while the picture comes in:
-    // a frame that cannot be decrypted is never decoded, and nothing else
-    // tells the two apart.
-    let watch = tokio::spawn(async move {
-        while let Some(event) = events.recv().await {
-            if let RoomEvent::E2eeStateChanged { participant, state } = event {
-                log::info!(
-                    "bench view: encryption {state:?} for {}",
-                    participant.identity()
-                );
+impl Gaps {
+    fn add(&mut self, gap: Duration) {
+        self.pictures += 1;
+        self.longest = self.longest.max(gap);
+        self.over_50ms += u32::from(gap > Duration::from_millis(50));
+        self.over_100ms += u32::from(gap > Duration::from_millis(100));
+    }
+}
+
+/// Times each picture of a share, as a renderer would draw it, from
+/// [`WARMUP`] after the first until `stop`.
+async fn time_pictures(
+    mut stream: NativeVideoStream,
+    mut stop: tokio::sync::oneshot::Receiver<()>,
+) -> Gaps {
+    let first = Instant::now();
+    let mut last = first;
+    let mut gaps = Gaps::default();
+    loop {
+        tokio::select! {
+            _ = &mut stop => break,
+            picture = stream.next() => {
+                if picture.is_none() {
+                    break;
+                }
+                let now = Instant::now();
+                if now - first > WARMUP {
+                    gaps.add(now - last);
+                }
+                last = now;
             }
         }
-    });
+    }
+    gaps
+}
+
+/// Seconds since 1970, so a viewer's report can be matched to a round run on
+/// another machine.
+fn wall_clock() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |t| t.as_secs())
+}
+
+/// Watches one share until `BENCH_SECS` have been counted or it ends, and
+/// reports it. False when no picture came.
+async fn watch_share(
+    track: RemoteVideoTrack,
+    shares: &mut tokio::sync::mpsc::UnboundedReceiver<Option<RemoteVideoTrack>>,
+    round: u32,
+    joined: Instant,
+) -> bool {
     let mut stream = NativeVideoStream::new(track.rtc_track());
-    let first = timeout(Duration::from_secs(20), stream.next()).await;
-    if !matches!(first, Ok(Some(_))) {
-        let stats = track.get_stats().await.expect("stats");
-        if let Some(i) = inbound(&stats) {
+    if !matches!(
+        timeout(Duration::from_secs(20), stream.next()).await,
+        Ok(Some(_))
+    ) {
+        if let Some(i) = track.get_stats().await.ok().as_deref().and_then(inbound) {
             log::info!(
-                "bench view: no picture: decoder {:?}, {} frames received, {} decoded,                  {} keyframes decoded, {} dropped, {} PLIs, {} packets, {} bytes",
+                "bench view: no picture: decoder {:?}, {} frames received, {} decoded, \
+                 {} keyframes decoded, {} dropped, {} PLIs, {} packets, {} bytes",
                 i.inbound.decoder_implementation,
                 i.inbound.frames_received,
                 i.inbound.frames_decoded,
@@ -336,25 +371,40 @@ async fn bench_view() {
                 i.inbound.bytes_received,
             );
         }
-        panic!("no picture in 20 s");
+        log::info!("bench view: share {round}: no picture in 20 s");
+        return false;
     }
-    watch.abort();
     log::info!(
-        "bench view: first frame {:.0} ms after joining",
+        "bench view: share {round}: first frame {:.0} ms after joining or the last share",
         joined.elapsed().as_secs_f64() * 1000.0
     );
-    // Drain frames for the rest of the run, as a real viewer's renderer does.
-    let drain = tokio::spawn(async move { while stream.next().await.is_some() {} });
+    let (stop, stopped) = tokio::sync::oneshot::channel();
+    let timing = tokio::spawn(time_pictures(stream, stopped));
 
     tokio::time::sleep(WARMUP).await;
-    let a = track.get_stats().await.expect("stats");
+    let Ok(a) = track.get_stats().await else {
+        log::info!("bench view: share {round}: ended in its first seconds");
+        let _ = stop.send(());
+        return true;
+    };
+    let began_at = wall_clock();
     let started = Instant::now();
     // What arrived in each stretch, to see the server move this viewer
-    // between a share's layers.
+    // between a share's layers. The last one is the report's end: a share
+    // that has gone has no stats.
     let mut last = a.clone();
+    let mut last_at = started;
     while started.elapsed() < bench_secs() {
-        tokio::time::sleep(SAMPLE).await;
-        let now = track.get_stats().await.expect("stats");
+        let ended = tokio::select! {
+            _ = tokio::time::sleep(SAMPLE) => false,
+            share = shares.recv() => !matches!(share, Some(Some(_))),
+        };
+        if ended {
+            break;
+        }
+        let Ok(now) = track.get_stats().await else {
+            break;
+        };
         if let (Some(p), Some(n)) = (inbound(&last), inbound(&now)) {
             log::info!(
                 "bench view: {:>4.0} s | {}x{} | {:.1} fps | {:.2} Mbps | freezes {} | lost {} | PLIs {}",
@@ -372,14 +422,16 @@ async fn bench_view() {
             );
         }
         last = now;
+        last_at = Instant::now();
     }
-    let wall = started.elapsed().as_secs_f64();
-    let b = track.get_stats().await.expect("stats");
-    drain.abort();
-    viewer.close().await.unwrap();
+    let _ = stop.send(());
+    let gaps = timing.await.unwrap_or_default();
+    let wall = (last_at - started).as_secs_f64().max(f64::EPSILON);
 
-    let a = inbound(&a).expect("inbound video stats");
-    let b = inbound(&b).expect("inbound video stats");
+    let (Some(a), Some(b)) = (inbound(&a), inbound(&last)) else {
+        log::info!("bench view: share {round}: no inbound video stats");
+        return true;
+    };
     let decoded = f64::from(b.inbound.frames_decoded - a.inbound.frames_decoded);
     log::info!(
         "bench view: decoder {:?} {}x{} | {:.1} fps decoded | dropped {} | freezes {} ({:.2} s) | \
@@ -395,6 +447,112 @@ async fn bench_view() {
         b.inbound.pli_count - a.inbound.pli_count,
         (b.inbound.bytes_received - a.inbound.bytes_received) as f64 * 8.0 / wall / 1e6,
         wall,
+    );
+    log::info!(
+        "bench view: share {round} | counted from {began_at} to {} | {} pictures | longest gap \
+         {:.0} ms | gaps over 50 ms {} | over 100 ms {}",
+        wall_clock(),
+        gaps.pictures,
+        gaps.longest.as_secs_f64() * 1000.0,
+        gaps.over_50ms,
+        gaps.over_100ms,
+    );
+    true
+}
+
+/// `BENCH_SHARES` is how many shares to watch, one after another (1); 0
+/// watches every share until stopped, so a viewer on another machine can be
+/// started once for a whole set of rounds. Each is counted for `BENCH_SECS`
+/// or until it ends.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a LiveKit server and a share to watch; see the module doc"]
+async fn bench_view() {
+    let _ = env_logger::builder()
+        .is_test(true)
+        .filter_level(log::LevelFilter::Info)
+        .try_init();
+    let server = Server::from_env();
+    let room = env_or("BENCH_ROOM", "bench");
+    let wanted = env_num("BENCH_SHARES", 1);
+    let mut joined = Instant::now();
+    let identity = env_or("BENCH_VIEWER", "viewer");
+    let (viewer, mut events) = super::live_test::viewer_as(&server, &room, &identity).await;
+    // Each share as it starts, and None as it ends. What the room says about
+    // encryption is logged as it comes: a frame that cannot be decrypted is
+    // never decoded, and nothing else tells the two apart.
+    let (shares_tx, mut shares) = tokio::sync::mpsc::unbounded_channel();
+    let watch = tokio::spawn(async move {
+        while let Some(event) = events.recv().await {
+            match event {
+                RoomEvent::TrackSubscribed {
+                    track: RemoteTrack::Video(track),
+                    ..
+                } => {
+                    let _ = shares_tx.send(Some(track));
+                }
+                RoomEvent::TrackUnsubscribed {
+                    track: RemoteTrack::Video(_),
+                    ..
+                } => {
+                    let _ = shares_tx.send(None);
+                }
+                RoomEvent::E2eeStateChanged { participant, state } => log::info!(
+                    "bench view: encryption {state:?} for {}",
+                    participant.identity()
+                ),
+                _ => {}
+            }
+        }
+    });
+
+    let mut round = 0;
+    let mut pictured = 0;
+    while wanted == 0 || round < wanted {
+        let next = async {
+            loop {
+                match shares.recv().await {
+                    Some(Some(track)) => return Some(track),
+                    Some(None) => continue,
+                    None => return None,
+                }
+            }
+        };
+        let track = if wanted == 0 {
+            next.await
+        } else {
+            timeout(Duration::from_secs(120), next).await.ok().flatten()
+        };
+        let Some(track) = track else {
+            break;
+        };
+        round += 1;
+        if watch_share(track, &mut shares, round, joined).await {
+            pictured += 1;
+        }
+        joined = Instant::now();
+    }
+    watch.abort();
+    viewer.close().await.unwrap();
+    assert!(
+        wanted == 0 || pictured == wanted,
+        "watched {pictured} of {wanted} shares with a picture"
+    );
+}
+
+#[test]
+fn gaps_count_what_a_person_would_see() {
+    let mut gaps = Gaps::default();
+    for ms in [16, 17, 51, 16, 101, 16] {
+        gaps.add(Duration::from_millis(ms));
+    }
+    assert_eq!(
+        gaps,
+        Gaps {
+            pictures: 6,
+            longest: Duration::from_millis(101),
+            over_50ms: 2,
+            over_100ms: 1,
+        }
     );
 }
 

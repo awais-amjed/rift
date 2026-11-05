@@ -31,6 +31,9 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
   /// Whether [identity] is a share this client started — see
   /// [_LiveKitCubit._isOwnShare].
   bool _isOwnShare(String identity);
+  Future<bool> _watchThroughRust(String identity);
+  void _letGoOfUnwatchedPictures();
+  Future<void> _endRustWatch();
 
   /// Public because the connection mixin wires this up when a room is
   /// created — cubit-internal, not part of the UI-facing API.
@@ -60,6 +63,12 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
       })
       ..on<ParticipantConnectedEvent>((e) {
         final identity = e.participant.identity;
+        if (ParticipantIdentity.isWatch(identity)) {
+          // Somebody already here starting to watch: nobody arrived. It is
+          // still a connection your voice's permissions must name.
+          _applyVoicePrivacy();
+          return;
+        }
         // Their key before their audio: a frame cryptor with no key for a
         // participant drops their frames, and somebody who joined a moment
         // before you registered them would simply never be audible.
@@ -77,6 +86,7 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
       })
       ..on<ParticipantDisconnectedEvent>((e) {
         final identity = e.participant.identity;
+        if (ParticipantIdentity.isWatch(identity)) return;
         _watchingSeen.remove(identity);
         // Gone without anybody pressing Stop watching, so it may well be
         // back in a moment — see [WatchResume].
@@ -120,11 +130,10 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
                 e.publication.kind == TrackType.VIDEO) {
               e.publication.unsubscribe();
             }
-          } else {
-            if (!e.publication.subscribed) e.publication.subscribe();
-            if (e.publication.source == TrackSource.screenShareVideo) {
-              _applyScreenshareQualitySettings(e.participant);
-            }
+          } else if (e.publication.source == TrackSource.screenShareVideo) {
+            unawaited(_receiveWatchedPicture(e.participant, e.publication));
+          } else if (!e.publication.subscribed) {
+            e.publication.subscribe();
           }
         } else {
           _applyScreenshareQualitySettings(e.participant);
@@ -160,8 +169,11 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
             e.publication.unsubscribe();
           }
         } else if (_isStreamTrack(e.participant, e.publication)) {
+          // A picture the Rust watch connection holds is not received here
+          // as well ([_RustWatchMixin]).
           if (e.publication.source == TrackSource.screenShareVideo) {
-            if (_watching(e.participant.identity)) {
+            if (_watching(e.participant.identity) &&
+                !state.watchedPictures.containsKey(e.participant.identity)) {
               e.publication.setVideoQuality(VideoQuality.HIGH);
             } else {
               e.publication.unsubscribe();
@@ -296,6 +308,7 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
           return;
         }
 
+        unawaited(_endRustWatch());
         _appCubit.setSelectedChannelId(null);
         emit(
           state.copyWith(
@@ -438,6 +451,24 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
   /// Stops counting [identity]'s stream as watched once it has ended. It
   /// stayed in the list, so the next stream from the same phone opened
   /// already watched, and the room was told this client was still watching.
+  /// A watched share's picture, just published: through the Rust watch
+  /// connection where it can be, in this room where it cannot.
+  ///
+  /// Asked whatever the publication holds: the wait for the watch
+  /// connection's answer is long enough for an unsubscribe to go out, the
+  /// join's of a picture not yet watched, and the old track stays here after
+  /// it (`third_party/livekit_client/RIFT_PATCHES.md`, patch 8).
+  Future<void> _receiveWatchedPicture(
+    RemoteParticipant participant,
+    RemoteTrackPublication publication,
+  ) async {
+    if (await _watchThroughRust(participant.identity)) return;
+    // Stopped watching while the answer was awaited.
+    if (!state.subscribedScreenshares.contains(participant.identity)) return;
+    await publication.subscribe();
+    _applyScreenshareQualitySettings(participant);
+  }
+
   void _forgetStream(String identity) {
     if (!state.subscribedScreenshares.contains(identity)) return;
     emit(
@@ -446,6 +477,7 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
           ..remove(identity),
       ),
     );
+    _letGoOfUnwatchedPictures();
     unawaited(_publishSelfState());
   }
 }

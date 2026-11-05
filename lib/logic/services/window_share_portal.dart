@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:dbus/dbus.dart';
@@ -72,10 +73,9 @@ class WindowSharePortal {
   /// can be read.
   static const _untilRevoked = 2;
 
-  /// The user saying no.
-  static const _cancelled = 1;
-
-  static Future<WindowPick> pick() async {
+  /// Asks for a window. [abandoned] takes the picker away again
+  /// (`PortalRequests.call`).
+  static Future<WindowPick> pick({Future<void>? abandoned}) async {
     final client = DBusClient.session();
     final requests = PortalRequests(
       client,
@@ -97,6 +97,7 @@ class WindowSharePortal {
             ),
           }),
         ],
+        abandoned: abandoned,
       );
       final handle = created.results?['session_handle']?.asString();
       if (handle == null) return const WindowPickFailed();
@@ -113,6 +114,7 @@ class WindowSharePortal {
             'persist_mode': const DBusUint32(_untilRevoked),
           }),
         ],
+        abandoned: abandoned,
       );
       if (selected.results == null) return const WindowPickFailed();
 
@@ -123,11 +125,19 @@ class WindowSharePortal {
           const DBusString(''),
           DBusDict.stringVariant({'handle_token': DBusString(token)}),
         ],
+        abandoned: abandoned,
       );
-      if (started.code == _cancelled) return const WindowPickCancelled();
+      if (started.code == PortalRequests.cancelled) {
+        return const WindowPickCancelled();
+      }
       final token = started.results?['restore_token']?.asString();
       if (token == null || token.isEmpty) return const WindowPickFailed();
       return WindowPicked(token, await _saved(client, token));
+    } on TimeoutException {
+      // Nobody answered. Going on would open the rest of the share, or a
+      // second picker, in front of someone who may be long gone.
+      HelperMethods.printDebug('$_tag: no answer, giving up');
+      return const WindowPickCancelled();
     } catch (e) {
       HelperMethods.printDebug('$_tag: unavailable – $e');
       return const WindowPickFailed();

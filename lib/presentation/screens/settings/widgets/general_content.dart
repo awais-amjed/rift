@@ -84,6 +84,20 @@ class GeneralContent extends StatelessWidget {
             onChanged: context.read<AppCubit>().setShowOfflineChip,
           ),
         ),
+      if (HostPlatform.capturesShareOnGpu)
+        _titled(
+          'Screen sharing',
+          SettingToggleRow(
+            title: 'Capture the screen on the GPU',
+            description:
+                'Keeps your game smoother while you share. Turn it off if a '
+                'share looks wrong, then start it again.',
+            value: context.select<AppCubit, bool>(
+              (c) => c.state.gpuScreenCapture,
+            ),
+            onChanged: context.read<AppCubit>().setGpuScreenCapture,
+          ),
+        ),
       // A Linux folder copy; the AppImage keeps its entry by itself.
       if (LinuxDesktopEntry.offersToAdd) _titled('Desktop', const AppMenuRow()),
     ];

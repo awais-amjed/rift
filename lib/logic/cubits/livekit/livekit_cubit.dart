@@ -17,10 +17,12 @@ import '../../../data/classes/equality_props.dart';
 import '../../../data/classes/participant_info.dart';
 import '../../../data/classes/participant_setting.dart';
 import '../../../data/classes/server.dart';
+import '../../../data/classes/watched_picture.dart';
 import '../../../data/constants.dart';
 import '../../../data/enums/app_sound.dart';
 import '../../../data/participant_identity.dart';
 import '../../../data/repositories/session_repository.dart';
+import '../../../src/rust/api/watching.dart' show WatchEvent, WatchEventKind;
 import '../../helper_methods.dart';
 import '../../services/audio_devices.dart';
 import '../../services/audio_reception.dart';
@@ -42,6 +44,7 @@ import '../../services/pip_focus.dart';
 import '../../services/pip_service.dart';
 import '../../services/playout_warmup.dart';
 import '../../services/room_tiles.dart';
+import '../../services/rust_watch.dart';
 import '../../services/serial_queue.dart';
 import '../../services/share_presence.dart';
 import '../../services/sound_service.dart';
@@ -72,6 +75,7 @@ part 'livekit_media_controls.dart';
 part 'livekit_participants.dart';
 part 'livekit_picture_pause.dart';
 part 'livekit_room_events.dart';
+part 'livekit_rust_watch.dart';
 part 'livekit_screenshare.dart';
 part 'livekit_state.dart';
 part 'livekit_voice_activity.dart';
@@ -95,6 +99,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
         _AudioReceptionMixin,
         _PicturePauseMixin,
         _RoomEventsMixin,
+        _RustWatchMixin,
         _VoiceActivityMixin,
         _CaptureReviveMixin,
         _WatchRequestMixin {
@@ -265,7 +270,9 @@ class LiveKitCubit extends Cubit<LiveKitState>
 
     final inRoom = <Participant>[
       if (room.localParticipant != null) room.localParticipant!,
-      ...room.remoteParticipants.values,
+      // A watch connection is its owner, already here.
+      for (final p in room.remoteParticipants.values)
+        if (!ParticipantIdentity.isWatch(p.identity)) p,
     ];
     // A stream is part of somebody being in the call, never on its own.
     final ownerless = sharesWithoutOwner(inRoom.map((p) => p.identity));
@@ -439,6 +446,10 @@ class LiveKitCubit extends Cubit<LiveKitState>
 
     if (previous.outputVolume != appState.outputVolume) {
       _applyStoredSettings();
+    }
+    // The call's playback moves by itself; a share Rust plays is told.
+    if (previous.outputDeviceId != appState.outputDeviceId) {
+      _syncRustSound();
     }
 
     final pttChanged =
@@ -742,6 +753,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
   void _applyStoredSettings() {
     final room = state.room;
     if (room == null) return;
+    _syncRustSound();
     // A setting turns a track back on; deafened, every one stays off. They
     // are put back when the deafen lifts ([_restoreRemoteAudio]).
     if (state.isDeafenedEffective) return;
@@ -780,6 +792,8 @@ class LiveKitCubit extends Cubit<LiveKitState>
     _cancelPushToTalkRelease();
     await _appSubscription?.cancel();
     await _cleanupRoom();
+    await _endRustWatch();
+    await _closeRustWatchEvents();
     await _micLevelController.close();
     return super.close();
   }

@@ -18,10 +18,18 @@
 //! encoders send the bitrate to the GPU only when they open, and its NVENC
 //! encoder made a keyframe of every move, so the build patches them
 //! (`third_party/ffmpeg/RIFT_PATCHES.md`).
+#[cfg(target_os = "linux")]
+use super::gpu_choice::{self, DmabufTarget};
 use super::h264::{self, ParameterSets};
 use super::timings::EncodeTimes;
-use super::worker::{self, Session, SharedSink, GOP_SECONDS};
-use super::{Encoded, EncoderSettings, GpuCodec, Nv12Frame};
+use super::worker::{self, EncodeError, Session, SharedSink, GOP_SECONDS};
+use super::{Encoded, EncoderInput, EncoderSettings, GpuCodec};
+#[cfg(target_os = "windows")]
+use crate::screenshare::capture_wgc;
+#[cfg(target_os = "linux")]
+use crate::screenshare::pw_stream::RiftDmabuf;
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+use crate::screenshare::resolution;
 use libloading::Library;
 use std::ffi::{c_char, c_void, CStr, CString};
 use std::path::PathBuf;
@@ -30,7 +38,7 @@ use std::time::{Duration, Instant};
 
 /// The library's interface version this crate was written against
 /// (`RIFT_FFENC_ABI` in `ffenc.h`).
-const ABI: i32 = 4;
+const ABI: i32 = 12;
 
 /// The library's name: in the bundle's `lib` folder on Linux, beside the app
 /// on Windows.
@@ -65,7 +73,26 @@ struct Config {
     max_bitrate_bps: i64,
     delay_frames: i32,
     high: i32,
+    /// Windows: the `ID3D11Device` a share's pictures are on, or null.
+    d3d11_device: *mut c_void,
 }
+
+/// Where the upright picture goes inside the encoded size (`RiftRect`).
+#[repr(C)]
+struct Place {
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+}
+
+/// `rift_ffenc_send_dmabuf`'s answer for a format and modifier VAAPI would
+/// not map (`RIFT_FFENC_IMPORT_FAILED`).
+#[cfg(target_os = "linux")]
+const IMPORT_FAILED: i32 = -0x5249_4D50;
+
+/// FFmpeg's `AVERROR(EAGAIN)`: `rift_ffenc_repeat` before any picture on the GPU.
+const AVERROR_EAGAIN: i32 = -11;
 
 #[repr(C)]
 struct Packet {
@@ -75,22 +102,63 @@ struct Packet {
     keyframe: i32,
 }
 
-/// The library's functions, as `ffenc.h` declares them.
+/// The library's encoder functions, as `ffenc.h` declares them.
 struct Api {
     open: unsafe extern "C" fn(*const Config, *mut c_char, usize) -> *mut c_void,
     driver: unsafe extern "C" fn(*const c_void) -> *const c_char,
     set_bitrate: unsafe extern "C" fn(*mut c_void, i64),
     send: unsafe extern "C" fn(*mut c_void, *const u8, i64, i32) -> i32,
+    #[cfg(target_os = "linux")]
+    takes_dmabuf: unsafe extern "C" fn(*const c_void) -> i32,
+    #[cfg(target_os = "linux")]
+    send_dmabuf:
+        unsafe extern "C" fn(*mut c_void, *const RiftDmabuf, *const Place, i64, i32) -> i32,
+    #[cfg(target_os = "windows")]
+    takes_d3d11: unsafe extern "C" fn(*const c_void) -> i32,
+    #[cfg(target_os = "windows")]
+    send_d3d11:
+        unsafe extern "C" fn(*mut c_void, *mut c_void, i32, i32, *const Place, i64, i32) -> i32,
+    repeat: unsafe extern "C" fn(*mut c_void, i64, i32) -> i32,
     receive: unsafe extern "C" fn(*mut c_void, *mut Packet) -> i32,
     close: unsafe extern "C" fn(*mut c_void),
-    /// Kept open for as long as the functions above are called.
-    _library: Library,
 }
 
-/// The library, opened once.
+/// The library's encoder functions, looked up once.
 fn api() -> Result<&'static Api, String> {
     static API: OnceLock<Result<Api, String>> = OnceLock::new();
-    API.get_or_init(load).as_ref().map_err(Clone::clone)
+    API.get_or_init(|| {
+        let library = library()?;
+        // SAFETY: each symbol is looked up with the type ffenc.h gives it,
+        // in a library `library` checked is of this interface.
+        unsafe {
+            Ok(Api {
+                open: symbol(library, "rift_ffenc_open")?,
+                driver: symbol(library, "rift_ffenc_driver")?,
+                set_bitrate: symbol(library, "rift_ffenc_set_bitrate")?,
+                send: symbol(library, "rift_ffenc_send")?,
+                #[cfg(target_os = "linux")]
+                takes_dmabuf: symbol(library, "rift_ffenc_takes_dmabuf")?,
+                #[cfg(target_os = "linux")]
+                send_dmabuf: symbol(library, "rift_ffenc_send_dmabuf")?,
+                #[cfg(target_os = "windows")]
+                takes_d3d11: symbol(library, "rift_ffenc_takes_d3d11")?,
+                #[cfg(target_os = "windows")]
+                send_d3d11: symbol(library, "rift_ffenc_send_d3d11")?,
+                repeat: symbol(library, "rift_ffenc_repeat")?,
+                receive: symbol(library, "rift_ffenc_receive")?,
+                close: symbol(library, "rift_ffenc_close")?,
+            })
+        }
+    })
+    .as_ref()
+    .map_err(Clone::clone)
+}
+
+/// The library, opened once and kept open, its version checked: also what
+/// a Wayland share's PipeWire stream runs in (`pw_stream.rs`).
+pub(crate) fn library() -> Result<&'static Library, String> {
+    static LIBRARY: OnceLock<Result<Library, String>> = OnceLock::new();
+    LIBRARY.get_or_init(load).as_ref().map_err(Clone::clone)
 }
 
 /// Where the library is: beside the app's other libraries, or where a test
@@ -103,14 +171,14 @@ fn library_path() -> Option<PathBuf> {
     Some(exe.parent()?.join(LIBRARY))
 }
 
-fn load() -> Result<Api, String> {
+fn load() -> Result<Library, String> {
     let path = library_path().ok_or("no path to the FFmpeg library")?;
     // SAFETY: the library is Rift's own, built from native/ffenc, and runs no
     // code on load beyond FFmpeg's static initialisers.
     let library = unsafe { Library::new(&path) }
         .map_err(|e| format!("FFmpeg's library did not load from {}: {e}", path.display()))?;
     // SAFETY: each symbol is looked up with the type ffenc.h gives it, and the
-    // version check below refuses a library built for another interface.
+    // version check refuses a library built for another interface.
     unsafe {
         let abi: unsafe extern "C" fn() -> i32 = symbol(&library, "rift_ffenc_abi")?;
         if abi() != ABI {
@@ -119,23 +187,15 @@ fn load() -> Result<Api, String> {
         let set_log: unsafe extern "C" fn(Option<extern "C" fn(i32, *const c_char)>, i32) =
             symbol(&library, "rift_ffenc_set_log")?;
         set_log(Some(log_line), AV_LOG_INFO);
-        Ok(Api {
-            open: symbol(&library, "rift_ffenc_open")?,
-            driver: symbol(&library, "rift_ffenc_driver")?,
-            set_bitrate: symbol(&library, "rift_ffenc_set_bitrate")?,
-            send: symbol(&library, "rift_ffenc_send")?,
-            receive: symbol(&library, "rift_ffenc_receive")?,
-            close: symbol(&library, "rift_ffenc_close")?,
-            _library: library,
-        })
     }
+    Ok(library)
 }
 
 /// One of the library's functions.
 ///
 /// # Safety
 /// `T` must be the function's type as `ffenc.h` declares it.
-unsafe fn symbol<T: Copy>(library: &Library, name: &str) -> Result<T, String> {
+pub(crate) unsafe fn symbol<T: Copy>(library: &Library, name: &str) -> Result<T, String> {
     let name = CString::new(name).map_err(|e| e.to_string())?;
     library
         .get::<T>(name.as_bytes_with_nul())
@@ -170,16 +230,27 @@ struct Candidate {
 
 /// The encoders worth trying, in order: NVENC, then VAAPI on each render
 /// node, first to last. NVIDIA's driver finds its own GPU, which on a laptop
-/// with two is the NVIDIA one whichever drives the screen; the pictures come
-/// from memory, so that does not matter. [`ENCODER_ENV`] names the one to try
-/// instead.
+/// with two is the NVIDIA one whichever drives the screen; under X11 the
+/// pictures come from memory, so that does not matter. Under Wayland VAAPI
+/// comes first: it takes the compositor's DMA-BUF and the picture never
+/// comes to the CPU (`capture_pw.rs`), where NVENC takes it from memory on a
+/// screen another GPU draws. On a screen NVIDIA's card draws alone NVENC comes
+/// first again, with that card's render node, which opens its GL path to take
+/// the DMA-BUF too when GPU capture is on (`gpu_choice::encoder_device`).
+/// [`ENCODER_ENV`] names the one to try instead.
 #[cfg(target_os = "linux")]
 fn candidates() -> Vec<Candidate> {
-    let mut candidates = vec![Candidate {
+    let on_wayland = super::super::capture_pw::on_wayland();
+    let cards = gpu_choice::read_cards();
+    let nvidia_node = on_wayland
+        .then(|| gpu_choice::nvidia_draws_the_screen(&cards))
+        .flatten();
+    let nvenc = Candidate {
         encoder: c"h264_nvenc",
-        device: None,
+        device: nvidia_node.and_then(|node| CString::new(node).ok()),
         label: "NVENC".to_string(),
-    }];
+    };
+    let mut candidates = Vec::new();
     let mut nodes: Vec<PathBuf> = std::fs::read_dir("/dev/dri")
         .into_iter()
         .flatten()
@@ -198,7 +269,89 @@ fn candidates() -> Vec<Candidate> {
             label: format!("VAAPI on {}", node.display()),
         })
     }));
+    if on_wayland && nvidia_node.is_none() {
+        candidates.push(nvenc);
+    } else {
+        candidates.insert(0, nvenc);
+    }
     named_only(candidates)
+}
+
+/// Where a Wayland share's DMA-BUF is offered for: the GPU of what encodes H264
+/// here, when that takes one. `None` sends a share to libwebrtc's capturer
+/// (`capture_pw::takes_rifts_stream`).
+#[cfg(target_os = "linux")]
+pub(crate) fn dmabuf_target() -> Option<DmabufTarget> {
+    let (candidate, _, takes_dmabuf) = h264_encoder()?;
+    let nvenc = candidate.encoder == c"h264_nvenc";
+    let takes_dmabuf = if nvenc {
+        nvenc_gl_opens(candidate)
+    } else {
+        *takes_dmabuf
+    };
+    gpu_choice::target_for(
+        candidate
+            .device
+            .as_ref()
+            .and_then(|node| node.to_str().ok()),
+        nvenc,
+        takes_dmabuf,
+    )
+}
+
+/// Whether NVENC's GL side opens here. Asked once, by the first share with GPU
+/// capture on and never otherwise, since [`h264_encoder`]'s look at the GPU
+/// leaves that side out.
+#[cfg(target_os = "linux")]
+fn nvenc_gl_opens(candidate: &Candidate) -> bool {
+    static OPENS: OnceLock<bool> = OnceLock::new();
+    *OPENS.get_or_init(|| {
+        if candidate.device.is_none() {
+            return false;
+        }
+        let Ok(api) = api() else { return false };
+        let probe = EncoderSettings {
+            gpu_capture: true,
+            ..probe_settings()
+        };
+        match open_raw(api, &probe, candidate) {
+            Ok(raw) => {
+                // SAFETY: `raw` is a live encoder from this library, closed
+                // right after.
+                let opens = unsafe {
+                    let opens = (api.takes_dmabuf)(raw) != 0;
+                    (api.close)(raw);
+                    opens
+                };
+                log::info!(
+                    "encoder: {} {} DMA-BUFs",
+                    candidate.label,
+                    if opens { "takes" } else { "takes no" }
+                );
+                opens
+            }
+            Err(reason) => {
+                log::info!("encoder: {} with its GL side: {reason}", candidate.label);
+                false
+            }
+        }
+    })
+}
+
+/// What the look at an encoder opens it for: H264 as a share asks for it, on
+/// nothing NVENC would need its GL side for.
+fn probe_settings() -> EncoderSettings {
+    EncoderSettings {
+        codec: GpuCodec::H264,
+        width: 640,
+        height: 360,
+        fps: 30,
+        max_bitrate_bps: 1_000_000,
+        start_bitrate_bps: 1_000_000,
+        // Probed for what a share asks of it.
+        h264_high: super::SEND_H264_HIGH,
+        gpu_capture: false,
+    }
 }
 
 /// The encoders worth trying, in order: NVIDIA's, AMD's, then Intel's. Each
@@ -250,11 +403,11 @@ fn named_only(candidates: Vec<Candidate>) -> Vec<Candidate> {
         .collect()
 }
 
-/// The encoder that makes H264 here, and its driver's name: the first
-/// [`candidates`] entry that opens. Found once, since opening one takes a
+/// The encoder that makes H264 here, its driver's name, and whether it takes a
+/// DMA-BUF: the first [`candidates`] entry that opens. Found once, since opening one takes a
 /// moment and the GPUs do not change under a running app.
-fn h264_encoder() -> Option<&'static (Candidate, String)> {
-    static ENCODER: OnceLock<Option<(Candidate, String)>> = OnceLock::new();
+fn h264_encoder() -> Option<&'static (Candidate, String, bool)> {
+    static ENCODER: OnceLock<Option<(Candidate, String, bool)>> = OnceLock::new();
     ENCODER
         .get_or_init(|| {
             let api = match api() {
@@ -265,24 +418,19 @@ fn h264_encoder() -> Option<&'static (Candidate, String)> {
                 }
             };
             for candidate in candidates() {
-                let probe = EncoderSettings {
-                    codec: GpuCodec::H264,
-                    width: 640,
-                    height: 360,
-                    fps: 30,
-                    max_bitrate_bps: 1_000_000,
-                    start_bitrate_bps: 1_000_000,
-                    // Probed for what a share asks of it.
-                    h264_high: super::SEND_H264_HIGH,
-                };
+                let probe = probe_settings();
                 match open_raw(api, &probe, &candidate) {
                     Ok(raw) => {
                         // SAFETY: `raw` is a live encoder from this library,
                         // closed right after.
                         let driver = unsafe { driver_name(api, raw) };
+                        #[cfg(target_os = "linux")]
+                        let takes_dmabuf = unsafe { (api.takes_dmabuf)(raw) != 0 };
+                        #[cfg(not(target_os = "linux"))]
+                        let takes_dmabuf = false;
                         unsafe { (api.close)(raw) };
                         log::info!("encoder: {} ({driver}) encodes H264", candidate.label);
-                        return Some((candidate, driver));
+                        return Some((candidate, driver, takes_dmabuf));
                     }
                     Err(reason) => {
                         log::info!("encoder: no H264 from {}: {reason}", candidate.label)
@@ -292,6 +440,27 @@ fn h264_encoder() -> Option<&'static (Candidate, String)> {
             None
         })
         .as_ref()
+}
+
+/// The PCI vendor of the adapter what encodes H264 here needs a Windows Graphics
+/// Capture picture on, when it takes one on the GPU: the capture opens its
+/// device there. `None` keeps the share on libwebrtc's capturer.
+#[cfg(target_os = "windows")]
+pub(crate) fn takes_textures() -> Option<u32> {
+    h264_encoder().and_then(|(candidate, ..)| texture_vendor(candidate.encoder))
+}
+
+/// Which encoders take the picture on the GPU, and on whose adapter. AMF was
+/// let on only by a variable until it had run on an AMD card
+/// (`STEP1_AMD.md`).
+#[cfg(target_os = "windows")]
+fn texture_vendor(encoder: &CStr) -> Option<u32> {
+    match encoder.to_bytes() {
+        b"h264_nvenc" => Some(0x10de),
+        b"h264_qsv" => Some(0x8086),
+        b"h264_amf" => Some(0x1002),
+        _ => None,
+    }
 }
 
 /// Whether FFmpeg will encode `codec` on a GPU here. Asked once per run.
@@ -333,12 +502,32 @@ fn open_raw(
     if settings.codec != GpuCodec::H264 {
         return Err(format!("FFmpeg is not used for {} here", settings.codec));
     }
+    #[cfg(target_os = "linux")]
+    let device = gpu_choice::encoder_device(
+        candidate.device.as_ref(),
+        candidate.encoder == c"h264_nvenc",
+        settings.gpu_capture,
+    );
+    #[cfg(not(target_os = "linux"))]
+    let device = candidate.device.as_ref();
+    // Held until the call returns, which takes a reference of its own.
+    #[cfg(target_os = "windows")]
+    let d3d11_device = settings
+        .gpu_capture
+        .then(capture_wgc::share_device)
+        .flatten();
+    #[cfg(target_os = "windows")]
+    let d3d11_raw = {
+        use windows::core::Interface;
+        d3d11_device
+            .as_ref()
+            .map_or(std::ptr::null_mut(), |device| device.as_raw())
+    };
+    #[cfg(not(target_os = "windows"))]
+    let d3d11_raw = std::ptr::null_mut();
     let config = Config {
         encoder: candidate.encoder.as_ptr(),
-        device: candidate
-            .device
-            .as_ref()
-            .map_or(std::ptr::null(), |device| device.as_ptr()),
+        device: device.map_or(std::ptr::null(), |device| device.as_ptr()),
         width: settings.width as i32,
         height: settings.height as i32,
         fps: settings.fps as i32,
@@ -348,6 +537,7 @@ fn open_raw(
         max_bitrate_bps: i64::from(settings.max_bitrate_bps),
         delay_frames: delay_frames(settings.fps),
         high: i32::from(settings.h264_high),
+        d3d11_device: d3d11_raw,
     };
     let mut error = [0 as c_char; 256];
     // SAFETY: `config` and the strings it points at outlive the call, and
@@ -391,6 +581,9 @@ pub(super) struct FfmpegSession {
     parameter_sets: ParameterSets,
     /// Where each picture's time goes, for the log.
     times: EncodeTimes,
+    /// Whether the last picture was on the GPU, which the library keeps there
+    /// for a still screen's repeats; one from memory is not kept.
+    repeatable: bool,
 }
 
 // SAFETY: the encoder is used from the one thread that owns the session.
@@ -402,7 +595,7 @@ pub(super) fn open(
     sink: SharedSink,
 ) -> Result<(FfmpegSession, String), String> {
     let api = api()?;
-    let (candidate, driver) = h264_encoder().ok_or("no GPU here encodes H264 through FFmpeg")?;
+    let (candidate, driver, _) = h264_encoder().ok_or("no GPU here encodes H264 through FFmpeg")?;
     let raw = open_raw(api, settings, candidate)?;
     Ok((
         FfmpegSession {
@@ -415,6 +608,7 @@ pub(super) fn open(
             reopened: false,
             parameter_sets: ParameterSets::default(),
             times: EncodeTimes::default(),
+            repeatable: false,
         },
         format!("{} ({driver})", candidate.label),
     ))
@@ -427,44 +621,193 @@ impl Session for FfmpegSession {
         Ok(())
     }
 
-    fn encode(&mut self, frame: &Nv12Frame, keyframe: bool) -> Result<(), String> {
-        match self.encode_once(frame, keyframe) {
+    fn encode(&mut self, input: &EncoderInput, keyframe: bool) -> Result<(), EncodeError> {
+        match self.encode_once(input, keyframe) {
             // Intel's driver (Alder Lake, Oct 9 2026) failed about one first
             // picture in four inside the app, asked exactly what it is asked
             // when it works; opened again, it works. A failure later on is the
             // encoder's, and the share moves to VP9.
-            Err(reason) if self.pictures == 0 && !self.reopened => {
+            Err(EncodeError::Failed(reason)) if self.pictures == 0 && !self.reopened => {
                 log::warn!(
                     "encoder: the first picture failed ({reason}); opening the encoder again"
                 );
                 self.reopened = true;
-                let raw = open_raw(self.api, &self.settings, self.candidate)?;
+                let raw = open_raw(self.api, &self.settings, self.candidate)
+                    .map_err(EncodeError::Failed)?;
                 // SAFETY: the old encoder is closed once, here, and replaced.
                 unsafe { (self.api.close)(self.raw) };
                 self.raw = raw;
-                self.encode_once(frame, true)
+                self.encode_once(input, true)
             }
             result => result,
         }
     }
+
+    fn repeat(&mut self, timestamp_us: i64, keyframe: bool) -> Result<bool, String> {
+        if !self.repeatable {
+            return Ok(false);
+        }
+        let started = Instant::now();
+        // SAFETY: `raw` is live; the picture repeated is the library's own.
+        let sent = unsafe { (self.api.repeat)(self.raw, timestamp_us, i32::from(keyframe)) };
+        if sent == AVERROR_EAGAIN {
+            return Ok(false);
+        }
+        if sent < 0 {
+            return Err(format!("FFmpeg refused to repeat a picture ({sent})"));
+        }
+        self.receive(started)?;
+        Ok(true)
+    }
+
+    #[cfg(target_os = "linux")]
+    fn takes_gpu_picture(&self) -> bool {
+        // SAFETY: `raw` is live.
+        unsafe { (self.api.takes_dmabuf)(self.raw) != 0 }
+    }
+
+    #[cfg(target_os = "windows")]
+    fn takes_gpu_picture(&self) -> bool {
+        // SAFETY: `raw` is live.
+        unsafe { (self.api.takes_d3d11)(self.raw) != 0 }
+    }
 }
 
 impl FfmpegSession {
-    fn encode_once(&mut self, frame: &Nv12Frame, keyframe: bool) -> Result<(), String> {
+    fn encode_once(&mut self, input: &EncoderInput, keyframe: bool) -> Result<(), EncodeError> {
         let started = Instant::now();
-        // SAFETY: `raw` is live, and the picture is copied before the call
-        // returns.
+        match input {
+            EncoderInput::Nv12(frame) => {
+                // SAFETY: `raw` is live, and the picture is copied before the
+                // call returns.
+                let sent = unsafe {
+                    (self.api.send)(
+                        self.raw,
+                        frame.data.as_ptr(),
+                        frame.timestamp_us,
+                        i32::from(keyframe),
+                    )
+                };
+                if sent < 0 {
+                    return Err(EncodeError::Failed(format!(
+                        "FFmpeg refused a picture ({sent})"
+                    )));
+                }
+                self.repeatable = false;
+            }
+            #[cfg(target_os = "linux")]
+            EncoderInput::DmaBuf(frame) => self.send_dmabuf(frame, keyframe)?,
+            #[cfg(target_os = "windows")]
+            EncoderInput::Wgc(frame) => self.send_wgc(frame, keyframe)?,
+        }
+        self.receive(started).map_err(EncodeError::Failed)
+    }
+
+    /// Hand the library a DMA-BUF, letterboxed into the encoded size by the
+    /// same rule as a picture from memory (`frames::fit`).
+    #[cfg(target_os = "linux")]
+    fn send_dmabuf(
+        &mut self,
+        frame: &super::DmaBufFrame,
+        keyframe: bool,
+    ) -> Result<(), EncodeError> {
+        if !self.takes_gpu_picture() {
+            return Err(EncodeError::Failed(format!(
+                "{} takes no DMA-BUF",
+                self.candidate.label
+            )));
+        }
+        let Some(dmabuf) = frame.picture.dmabuf() else {
+            return Err(EncodeError::Failed(
+                "a picture in memory was sent as a DMA-BUF".to_string(),
+            ));
+        };
+        let target = resolution::Size {
+            width: self.settings.width,
+            height: self.settings.height,
+        };
+        let place = resolution::letterbox(frame.picture.size(), target).map(|rect| Place {
+            x: rect.x as i32,
+            y: rect.y as i32,
+            width: rect.width as i32,
+            height: rect.height as i32,
+        });
+        // SAFETY: `raw` is live, and the buffer and its fds stay the
+        // picture's until after the call returns, by which the GPU has
+        // copied it.
         let sent = unsafe {
-            (self.api.send)(
+            (self.api.send_dmabuf)(
                 self.raw,
-                frame.data.as_ptr(),
+                dmabuf,
+                place
+                    .as_ref()
+                    .map_or(std::ptr::null(), |place| place as *const Place),
+                frame.timestamp_us,
+                i32::from(keyframe),
+            )
+        };
+        if sent == IMPORT_FAILED {
+            return Err(EncodeError::ImportFailed {
+                drm_format: dmabuf.drm_format,
+                modifier: dmabuf.modifier,
+            });
+        }
+        if sent < 0 {
+            return Err(EncodeError::Failed(format!(
+                "FFmpeg refused a DMA-BUF ({sent})"
+            )));
+        }
+        self.repeatable = true;
+        Ok(())
+    }
+
+    /// Hand the library a Windows Graphics Capture picture, letterboxed into the
+    /// encoded size by the same rule as a picture from memory.
+    #[cfg(target_os = "windows")]
+    fn send_wgc(&mut self, frame: &super::WgcFrame, keyframe: bool) -> Result<(), EncodeError> {
+        if !self.takes_gpu_picture() {
+            return Err(EncodeError::Failed(format!(
+                "{} takes no GPU picture",
+                self.candidate.label
+            )));
+        }
+        let target = resolution::Size {
+            width: self.settings.width,
+            height: self.settings.height,
+        };
+        let size = frame.picture.size();
+        let place = resolution::letterbox(size, target).map(|rect| Place {
+            x: rect.x as i32,
+            y: rect.y as i32,
+            width: rect.width as i32,
+            height: rect.height as i32,
+        });
+        // SAFETY: `raw` is live, and the picture holds its texture past the call.
+        let sent = unsafe {
+            (self.api.send_d3d11)(
+                self.raw,
+                frame.picture.texture(),
+                size.width as i32,
+                size.height as i32,
+                place
+                    .as_ref()
+                    .map_or(std::ptr::null(), |place| place as *const Place),
                 frame.timestamp_us,
                 i32::from(keyframe),
             )
         };
         if sent < 0 {
-            return Err(format!("FFmpeg refused a picture ({sent})"));
+            return Err(EncodeError::Failed(format!(
+                "FFmpeg refused a GPU picture ({sent})"
+            )));
         }
+        self.repeatable = true;
+        Ok(())
+    }
+
+    /// Hand the sink what the encoder has ready, for a picture sent at
+    /// `started`.
+    fn receive(&mut self, started: Instant) -> Result<(), String> {
         let send = started.elapsed();
         let mut deliver = Duration::ZERO;
         loop {
@@ -521,5 +864,31 @@ impl Drop for FfmpegSession {
     fn drop(&mut self) {
         // SAFETY: the encoder is closed once, here.
         unsafe { (self.api.close)(self.raw) };
+    }
+}
+
+#[cfg(all(test, target_os = "windows"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn nvenc_takes_textures_on_nvidia() {
+        assert_eq!(texture_vendor(c"h264_nvenc"), Some(0x10de));
+    }
+
+    #[test]
+    fn amf_takes_textures_on_amd() {
+        assert_eq!(texture_vendor(c"h264_amf"), Some(0x1002));
+    }
+
+    #[test]
+    fn quick_sync_takes_textures_on_intel() {
+        assert_eq!(texture_vendor(c"h264_qsv"), Some(0x8086));
+    }
+
+    #[test]
+    fn nothing_else_takes_textures() {
+        assert_eq!(texture_vendor(c"h264_mf"), None);
+        assert_eq!(texture_vendor(c"libx264"), None);
     }
 }

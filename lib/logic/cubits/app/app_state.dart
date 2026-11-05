@@ -65,6 +65,11 @@ class AppState extends Equatable {
   /// server that can't be reached is still shown — that one is about Rift.
   final bool showOfflineChip;
 
+  /// Whether a share under Wayland is captured on the GPU. On by default; a
+  /// machine where a share looks wrong can go back to the old capture, from
+  /// the next share.
+  final bool gpuScreenCapture;
+
   /// Whether updates include pre-releases (betas). Unset until the person
   /// chooses, and then it follows the installed version: someone who
   /// installed a beta gets the next beta. See [wantsBetaUpdates].
@@ -270,6 +275,7 @@ class AppState extends Equatable {
     this.sensitiveContentMode = SensitiveContentMode.blur,
     this.linkPreviewsEnabled = true,
     this.showOfflineChip = true,
+    this.gpuScreenCapture = true,
     this.betaUpdates,
     this.addToAppMenu,
     this.launchAtLogin,
@@ -354,6 +360,7 @@ class AppState extends Equatable {
     SensitiveContentMode? sensitiveContentMode,
     bool? linkPreviewsEnabled,
     bool? showOfflineChip,
+    bool? gpuScreenCapture,
     bool? betaUpdates,
     bool? addToAppMenu,
     bool? launchAtLogin,
@@ -424,6 +431,7 @@ class AppState extends Equatable {
       sensitiveContentMode: sensitiveContentMode ?? this.sensitiveContentMode,
       linkPreviewsEnabled: linkPreviewsEnabled ?? this.linkPreviewsEnabled,
       showOfflineChip: showOfflineChip ?? this.showOfflineChip,
+      gpuScreenCapture: gpuScreenCapture ?? this.gpuScreenCapture,
       betaUpdates: betaUpdates ?? this.betaUpdates,
       addToAppMenu: addToAppMenu ?? this.addToAppMenu,
       launchAtLogin: launchAtLogin ?? this.launchAtLogin,
@@ -529,6 +537,7 @@ class AppState extends Equatable {
     sensitiveContentMode,
     linkPreviewsEnabled,
     showOfflineChip,
+    gpuScreenCapture,
     betaUpdates,
     addToAppMenu,
     launchAtLogin,

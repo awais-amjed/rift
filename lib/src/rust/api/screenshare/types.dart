@@ -126,6 +126,10 @@ class ScreenShareConfig {
   /// the user pick in the desktop's own picker, so the capture opens it
   /// without asking again. None asks.
   final String? portalChoice;
+
+  /// Linux under Wayland: capture on Rift's own stream, the picture staying
+  /// on the GPU where the encoder can take it. Off, libwebrtc's capturer runs.
+  final bool gpuCapture;
   final VideoCodec codec;
   final SharePriority priority;
 
@@ -158,6 +162,7 @@ class ScreenShareConfig {
     required this.captureFullScreen,
     this.selectedVideoSourceIndex,
     this.portalChoice,
+    required this.gpuCapture,
     required this.codec,
     required this.priority,
     this.selectedAudioSourceIndex,
@@ -178,6 +183,7 @@ class ScreenShareConfig {
       captureFullScreen.hashCode ^
       selectedVideoSourceIndex.hashCode ^
       portalChoice.hashCode ^
+      gpuCapture.hashCode ^
       codec.hashCode ^
       priority.hashCode ^
       selectedAudioSourceIndex.hashCode ^
@@ -200,6 +206,7 @@ class ScreenShareConfig {
           captureFullScreen == other.captureFullScreen &&
           selectedVideoSourceIndex == other.selectedVideoSourceIndex &&
           portalChoice == other.portalChoice &&
+          gpuCapture == other.gpuCapture &&
           codec == other.codec &&
           priority == other.priority &&
           selectedAudioSourceIndex == other.selectedAudioSourceIndex &&

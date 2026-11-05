@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:livekit_client/livekit_client.dart';
 
+import '../../../../../data/classes/watched_picture.dart';
 import '../../../../../data/enums/stream_pip_corner.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/services/video_stream_stats.dart';
@@ -14,6 +15,7 @@ import 'stream_camera_pip.dart';
 import 'stream_quality_badge.dart';
 import 'stream_stats_overlay.dart';
 import 'stream_stats_poller.dart';
+import 'stream_texture_view.dart';
 import 'stream_view.dart';
 import 'stream_view_buttons.dart';
 import 'stream_watchers.dart';
@@ -30,6 +32,10 @@ class ExpandedParticipantTile extends StatelessWidget {
   static const _fade = AppMotion.enter;
 
   final VideoTrack? videoTrack;
+
+  /// A share watched through the Rust watch connection, drawn instead of a
+  /// track ([StreamTextureView]).
+  final WatchedPicture? picture;
   final String name;
 
   /// The *user* id, which picks the avatar's gradient so a participant looks
@@ -108,6 +114,7 @@ class ExpandedParticipantTile extends StatelessWidget {
   const ExpandedParticipantTile({
     super.key,
     required this.videoTrack,
+    this.picture,
     required this.name,
     required this.userId,
     required this.isMicEnabled,
@@ -170,6 +177,7 @@ class ExpandedParticipantTile extends StatelessWidget {
           final lift = constraints.maxWidth < _crowdedWidth ? bottomInset : 0.0;
           return StreamStatsPoller(
             track: isWatching ? videoTrack : null,
+            rustShare: isWatching && picture != null ? shareIdentity : null,
             builder: (context, stats) => _stage(
               context,
               stats,
@@ -211,7 +219,9 @@ class ExpandedParticipantTile extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        if (videoTrack != null)
+        if (picture case final picture?)
+          StreamTextureView(picture: picture)
+        else if (videoTrack != null)
           DecryptedVideo(
             track: videoTrack!,
             child: VideoTrackRenderer(videoTrack!, fit: VideoViewFit.contain),

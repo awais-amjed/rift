@@ -12,6 +12,7 @@
 //!
 //! The choice of what Windows does is the user's, in the Sound window's
 //! Communications tab, and is stored in the registry ([preference]).
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Mutex;
 
 use windows::core::{implement, PCWSTR};
@@ -32,6 +33,9 @@ use crate::frb_generated::StreamSink;
 /// restart); the listener itself is registered once per process.
 static SINK: Mutex<Option<StreamSink<DuckingEvent>>> = Mutex::new(None);
 static STARTED: Mutex<bool> = Mutex::new(false);
+/// Ducks heard since the listener started, for a test to ask whether Windows
+/// turned anything down at all.
+static DUCKS: AtomicU32 = AtomicU32::new(0);
 
 /// What Windows does to other sounds while a call is open, as the Sound
 /// window's Communications tab stores it: 0 mutes them, 1 lowers them by
@@ -66,6 +70,17 @@ pub(crate) fn preference() -> u32 {
 /// back up, until the process ends.
 pub(crate) fn watch(sink: StreamSink<DuckingEvent>) -> Result<(), String> {
     *SINK.lock().unwrap_or_else(|e| e.into_inner()) = Some(sink);
+    listen()
+}
+
+/// How many ducks the listener has heard.
+#[cfg(test)]
+pub(crate) fn ducks() -> u32 {
+    DUCKS.load(Ordering::SeqCst)
+}
+
+/// Starts the listener, once per process.
+pub(crate) fn listen() -> Result<(), String> {
     let mut started = STARTED.lock().unwrap_or_else(|e| e.into_inner());
     if *started {
         return Ok(());
@@ -157,6 +172,9 @@ impl Listener {
                 return;
             }
             *last = Some((ducked, session.clone()));
+        }
+        if ducked {
+            DUCKS.fetch_add(1, Ordering::SeqCst);
         }
         let (app, pid) = session_owner(&session);
         let by_rift = pid == Some(std::process::id());

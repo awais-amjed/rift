@@ -6,16 +6,12 @@
 //! no device at all, both mean the server's default sink.
 
 use super::{le_bytes, Controls, Cue};
-use crate::pulse::{self, Connection};
+use crate::pulse::{self, Connection, WEBRTC_DEFAULT_PREFIX};
 use libpulse_binding as pa;
 use pa::sample::{Format, Spec};
 use pa::stream::{FlagSet, SeekMode, State, Stream};
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
-
-/// How WebRTC's PulseAudio module labels the extra first entry it lists for
-/// the default device.
-const WEBRTC_DEFAULT_PREFIX: &str = "default: ";
 
 pub(super) fn run(
     device_id: Option<&str>,

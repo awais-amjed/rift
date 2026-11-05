@@ -1,5 +1,6 @@
 // A GPU encoder through FFmpeg; see ffenc.h.
 #include "ffenc.h"
+#include "ff_shared.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -16,6 +17,15 @@
 
 #include <libavutil/hwcontext_vaapi.h>
 #include <va/va.h>
+
+#include "dmabuf.h"
+#include "nvenc_gl.h"
+#endif
+
+#if defined(_WIN32)
+#include <libavutil/hwcontext_qsv.h>
+
+#include "d3d11_nv12.h"
 #endif
 
 // The GPU APIs this library drives, told apart by the encoder's name: FFmpeg
@@ -29,7 +39,8 @@ typedef enum Api { API_NONE, API_VAAPI, API_NVENC, API_QSV, API_AMF } Api;
 struct RiftFfenc {
   Api api;
   // VAAPI's GPU and its picture pool. NULL for NVENC, QSV and AMF, which
-  // take the picture from memory and upload it themselves.
+  // take the picture from memory and upload it themselves, but for the pool
+  // of NVENC's GL path, when it has one.
   AVBufferRef* device;
   AVBufferRef* frames;
   AVCodecContext* codec;
@@ -47,6 +58,20 @@ struct RiftFfenc {
   pthread_mutex_t lock;
   int shut;
   RiftFfenc* next_nvenc;
+  // VAAPI's render node, for pictures that arrive as DMA-BUFs: the path
+  // that maps them, made at the first, and the last one made, for a repeat.
+  char render_node[64];
+  DmabufPath* dmabuf;
+  AVFrame* last;
+  // NVENC's way to take a DMA-BUF, when `device` asked for it and it opened.
+  NvencGl* gl;
+#endif
+#if defined(_WIN32)
+  // The way to take a Windows Graphics Capture picture, when the config gave
+  // a device and it opened, and the last frame sent, for a repeat. Quick
+  // Sync's are copies in its own surfaces (`device` and `frames`).
+  D3d11Nv12* d3d11;
+  AVFrame* last;
 #endif
 };
 
@@ -58,11 +83,18 @@ struct RiftFfenc {
 // that closed it first ended at once. A share is stopped before the app quits,
 // but quitting is not held up for it (lib/logic/services/before_quit.dart), so
 // the encoders still open are closed here, before NVIDIA's own handler runs:
-// registered after the first NVENC encoder opened, which loaded NVIDIA's
-// library, so it runs first. A closed encoder fails every later call, and
+// registered after each NVENC encoder opens, so it runs first. Once is not
+// enough: closing the last encoder unloads NVIDIA's library and the next open
+// loads it again, whose handler then ran first, and the probe that picks the
+// encoder opens and closes one before every share's (Oct 30 2026). A closed
+// encoder fails every later call, and
 // every call fails once the process is exiting: the encoder's thread, taking
 // the lock again straight after each picture, kept the handler waiting for
-// seconds.
+// seconds. A close then leaves everything as it is, and the process's end takes
+// it: the failed call makes that thread close its encoder while NVIDIA's own
+// handlers run, and tearing down EGL and CUDA there is what this keeps it out
+// of. A close already under way holds the lock until done, so the handler waits
+// for it and no close overlaps the exit (review of 643e0079..ee96162b, Oct 31).
 
 #if defined(__linux__)
 static pthread_mutex_t nvenc_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -82,25 +114,11 @@ static void close_nvenc_at_exit(void) {
   pthread_mutex_unlock(&nvenc_lock);
 }
 
-static void register_exit_handler(void) { atexit(close_nvenc_at_exit); }
-
 static void note_nvenc(RiftFfenc* enc) {
-  static pthread_once_t once = PTHREAD_ONCE_INIT;
-  pthread_once(&once, register_exit_handler);
+  atexit(close_nvenc_at_exit);
   pthread_mutex_lock(&nvenc_lock);
   enc->next_nvenc = nvenc_open;
   nvenc_open = enc;
-  pthread_mutex_unlock(&nvenc_lock);
-}
-
-static void forget_nvenc(RiftFfenc* enc) {
-  pthread_mutex_lock(&nvenc_lock);
-  for (RiftFfenc** at = &nvenc_open; *at; at = &(*at)->next_nvenc) {
-    if (*at == enc) {
-      *at = enc->next_nvenc;
-      break;
-    }
-  }
   pthread_mutex_unlock(&nvenc_lock);
 }
 
@@ -139,7 +157,7 @@ void rift_ffenc_set_log(RiftFfencLog log, int32_t max_level) {
   av_log_set_callback(log ? forward_log : av_log_default_callback);
 }
 
-static void fail(char* error, size_t error_len, const char* what, int err) {
+void rift_ff_fail(char* error, size_t error_len, const char* what, int err) {
   if (!error || error_len == 0) return;
   if (err < 0) {
     char reason[AV_ERROR_MAX_STRING_SIZE];
@@ -149,6 +167,15 @@ static void fail(char* error, size_t error_len, const char* what, int err) {
     snprintf(error, error_len, "%s", what);
   }
 }
+
+#if defined(__linux__)
+const char* rift_ff_vaapi_vendor(const AVBufferRef* device) {
+  const AVHWDeviceContext* context = (const AVHWDeviceContext*)device->data;
+  if (context->type != AV_HWDEVICE_TYPE_VAAPI) return NULL;
+  const AVVAAPIDeviceContext* vaapi = context->hwctx;
+  return vaQueryVendorString(vaapi->display);
+}
+#endif
 
 static Api api_of(const char* encoder) {
   const char* suffix = strrchr(encoder, '_');
@@ -169,12 +196,8 @@ static void name_driver(RiftFfenc* enc, const AVCodec* codec) {
     return;
   }
 #if defined(__linux__)
-  AVHWDeviceContext* device = (AVHWDeviceContext*)enc->device->data;
-  if (device->type == AV_HWDEVICE_TYPE_VAAPI) {
-    AVVAAPIDeviceContext* vaapi = device->hwctx;
-    const char* vendor = vaQueryVendorString(vaapi->display);
-    if (vendor) snprintf(enc->driver, sizeof(enc->driver), "%s", vendor);
-  }
+  const char* vendor = rift_ff_vaapi_vendor(enc->device);
+  if (vendor) snprintf(enc->driver, sizeof(enc->driver), "%s", vendor);
 #endif
 }
 
@@ -331,12 +354,12 @@ static int open_device(RiftFfenc* enc, const RiftFfencConfig* config,
   int err = av_hwdevice_ctx_create(&enc->device, AV_HWDEVICE_TYPE_VAAPI,
                                    config->device, NULL, 0);
   if (err < 0) {
-    fail(error, error_len, "the GPU did not open", err);
+    rift_ff_fail(error, error_len, "the GPU did not open", err);
     return err;
   }
   enc->frames = av_hwframe_ctx_alloc(enc->device);
   if (!enc->frames) {
-    fail(error, error_len, "no picture pool", AVERROR(ENOMEM));
+    rift_ff_fail(error, error_len, "no picture pool", AVERROR(ENOMEM));
     return AVERROR(ENOMEM);
   }
   AVHWFramesContext* frames = (AVHWFramesContext*)enc->frames->data;
@@ -347,22 +370,98 @@ static int open_device(RiftFfenc* enc, const RiftFfencConfig* config,
   frames->initial_pool_size = 16;
   err = av_hwframe_ctx_init(enc->frames);
   if (err < 0) {
-    fail(error, error_len, "the GPU took no NV12 pictures that size", err);
+    rift_ff_fail(error, error_len, "the GPU took no NV12 pictures that size", err);
   }
   return err;
 }
 
+#if defined(_WIN32)
+// Quick Sync takes only its own frames, and its pool is one texture array.
+// NV12 arrays bound as render targets were refused above two textures on
+// Intel's and NVIDIA's GPUs here (E_INVALIDARG, Nov 1 2026), too few for the
+// last picture kept for a repeat and the ones the encoder holds; arrays bound
+// for decoding were made up to 8. So its surfaces are those, on a Quick Sync
+// device over the share's own, and each picture the converter draws is copied
+// into one (to_qsv_surface), as OBS's Quick Sync encoder copies its input.
+#define QSV_SURFACES 8
+
+static int open_qsv_surfaces(RiftFfenc* enc, const RiftFfencConfig* config,
+                             char* reason, size_t reason_len) {
+  int err = av_hwdevice_ctx_create_derived(
+      &enc->device, AV_HWDEVICE_TYPE_QSV, d3d11_nv12_device(enc->d3d11), 0);
+  if (err < 0) {
+    snprintf(reason, reason_len, "no Quick Sync on the share's device (%d)", err);
+    return err;
+  }
+  enc->frames = av_hwframe_ctx_alloc(enc->device);
+  if (!enc->frames) {
+    av_buffer_unref(&enc->device);
+    snprintf(reason, reason_len, "out of memory");
+    return AVERROR(ENOMEM);
+  }
+  AVHWFramesContext* frames = (AVHWFramesContext*)enc->frames->data;
+  frames->format = AV_PIX_FMT_QSV;
+  frames->sw_format = AV_PIX_FMT_NV12;
+  frames->width = config->width;
+  frames->height = config->height;
+  frames->initial_pool_size = QSV_SURFACES;
+  AVQSVFramesContext* qsv = frames->hwctx;
+  qsv->frame_type = MFX_MEMTYPE_VIDEO_MEMORY_DECODER_TARGET;
+  err = av_hwframe_ctx_init(enc->frames);
+  if (err < 0) {
+    av_buffer_unref(&enc->frames);
+    av_buffer_unref(&enc->device);
+    snprintf(reason, reason_len, "no Quick Sync surfaces that size (%d)", err);
+  }
+  return err;
+}
+
+// The converter's frame in `frame` copied into a free Quick Sync surface,
+// which takes its place; the converter's goes back to its pool. On a failure
+// `frame` is left empty.
+static int to_qsv_surface(RiftFfenc* enc, AVFrame* frame) {
+  AVFrame* surface = av_frame_alloc();
+  AVFrame* mapped = av_frame_alloc();
+  int err = surface && mapped ? 0 : AVERROR(ENOMEM);
+  if (err == 0) {
+    err = av_hwframe_get_buffer(enc->frames, surface, 0);
+    // Every surface still in the encoder: a passing failure, so the last
+    // picture goes out again.
+    if (err == AVERROR(ENOMEM)) err = AVERROR(EAGAIN);
+  }
+  if (err == 0) {
+    // Its texture and slice, to write: what it held before is not wanted.
+    mapped->format = AV_PIX_FMT_D3D11;
+    err = av_hwframe_map(mapped, surface,
+                         AV_HWFRAME_MAP_WRITE | AV_HWFRAME_MAP_OVERWRITE);
+  }
+  if (err == 0) {
+    err = d3d11_nv12_copy(enc->d3d11, frame, mapped->data[0],
+                          (int)(intptr_t)mapped->data[1]);
+  }
+  av_frame_free(&mapped);
+  av_frame_unref(frame);
+  if (err == 0) av_frame_move_ref(frame, surface);
+  av_frame_free(&surface);
+  return err;
+}
+#endif
+
 RiftFfenc* rift_ffenc_open(const RiftFfencConfig* config, char* error,
                            size_t error_len) {
   if (error && error_len) error[0] = '\0';
+  if (EXITING()) {
+    rift_ff_fail(error, error_len, "the process is exiting", AVERROR_EXIT);
+    return NULL;
+  }
   const AVCodec* codec = avcodec_find_encoder_by_name(config->encoder);
   if (!codec) {
-    fail(error, error_len, "this build has no such encoder", 0);
+    rift_ff_fail(error, error_len, "this build has no such encoder", 0);
     return NULL;
   }
   Api api = api_of(config->encoder);
   if (api == API_NONE) {
-    fail(error, error_len, "not a GPU encoder", 0);
+    rift_ff_fail(error, error_len, "not a GPU encoder", 0);
     return NULL;
   }
 
@@ -377,18 +476,77 @@ RiftFfenc* rift_ffenc_open(const RiftFfencConfig* config, char* error,
   if (api == API_VAAPI && open_device(enc, config, error, error_len) < 0) {
     goto fail;
   }
+#if defined(__linux__)
+  if (config->device) {
+    snprintf(enc->render_node, sizeof(enc->render_node), "%s", config->device);
+  }
+#endif
   name_driver(enc, codec);
 
+#if defined(__linux__)
+  if (api == API_NVENC && config->device) {
+    char reason[200] = "";
+    enc->gl = nvenc_gl_open(config->device, config->width, config->height,
+                            reason, sizeof(reason));
+    if (enc->gl) {
+      enc->frames = av_buffer_ref(nvenc_gl_frames(enc->gl));
+    } else {
+      av_log(NULL, AV_LOG_WARNING, "nvenc gl: memory pictures instead: %s\n",
+             reason);
+    }
+  }
+#endif
+#if defined(_WIN32)
+  if (config->d3d11_device &&
+      (api == API_NVENC || api == API_AMF || api == API_QSV)) {
+    char reason[200] = "";
+    enc->d3d11 = d3d11_nv12_open(config->d3d11_device, config->width,
+                                 config->height, reason, sizeof(reason));
+    if (enc->d3d11 && api == API_QSV &&
+        open_qsv_surfaces(enc, config, reason, sizeof(reason)) < 0) {
+      d3d11_nv12_free(&enc->d3d11);
+    }
+    if (enc->d3d11) {
+      if (api != API_QSV) {
+        enc->frames = av_buffer_ref(d3d11_nv12_frames(enc->d3d11));
+      }
+    } else {
+      av_log(NULL, AV_LOG_WARNING, "d3d11: memory pictures instead: %s\n",
+             reason);
+    }
+  }
+#endif
   int err = open_codec(enc, codec, config);
+#if defined(_WIN32)
+  if (err < 0 && enc->d3d11) {
+    av_log(NULL, AV_LOG_WARNING,
+           "d3d11: memory pictures instead: the encoder refused D3D11's\n");
+    avcodec_free_context(&enc->codec);
+    av_buffer_unref(&enc->frames);
+    av_buffer_unref(&enc->device);
+    d3d11_nv12_free(&enc->d3d11);
+    err = open_codec(enc, codec, config);
+  }
+#endif
+#if defined(__linux__)
+  if (err < 0 && enc->gl) {
+    av_log(NULL, AV_LOG_WARNING,
+           "nvenc gl: memory pictures instead: the encoder refused CUDA's\n");
+    avcodec_free_context(&enc->codec);
+    av_buffer_unref(&enc->frames);
+    nvenc_gl_free(&enc->gl);
+    err = open_codec(enc, codec, config);
+  }
+#endif
   if (err < 0) {
-    fail(error, error_len, "the encoder did not open", err);
+    rift_ff_fail(error, error_len, "the encoder did not open", err);
     goto fail;
   }
 
   enc->picture = av_frame_alloc();
   enc->packet = av_packet_alloc();
   if (!enc->picture || !enc->packet) {
-    fail(error, error_len, "out of memory", AVERROR(ENOMEM));
+    rift_ff_fail(error, error_len, "out of memory", AVERROR(ENOMEM));
     goto fail;
   }
   enc->picture->format = AV_PIX_FMT_NV12;
@@ -407,7 +565,7 @@ RiftFfenc* rift_ffenc_open(const RiftFfencConfig* config, char* error,
         err = av_frame_get_buffer(own, 0);
       }
       if (err < 0) {
-        fail(error, error_len, "out of memory", err);
+        rift_ff_fail(error, error_len, "out of memory", err);
         goto fail;
       }
     }
@@ -491,6 +649,136 @@ done:
   return err < 0 ? err : 0;
 }
 
+int32_t rift_ffenc_takes_dmabuf(const RiftFfenc* enc) {
+#if defined(__linux__)
+  return enc->api == API_VAAPI || enc->gl != NULL;
+#else
+  (void)enc;
+  return 0;
+#endif
+}
+
+// One picture already on the GPU, as an NV12 VAAPI or CUDA frame, into the
+// encoder.
+static int send_gpu(RiftFfenc* enc, AVFrame* frame, int64_t timestamp_us,
+                    int32_t keyframe) {
+  frame->pts = timestamp_us;
+  frame->pict_type = keyframe ? AV_PICTURE_TYPE_I : AV_PICTURE_TYPE_NONE;
+  return avcodec_send_frame(enc->codec, frame);
+}
+
+int32_t rift_ffenc_send_dmabuf(RiftFfenc* enc, const RiftDmabuf* buf,
+                               const RiftRect* place, int64_t timestamp_us,
+                               int32_t keyframe) {
+#if defined(__linux__)
+  if (!rift_ffenc_takes_dmabuf(enc)) return AVERROR(ENOSYS);
+  if (EXITING()) return AVERROR_EXIT;
+  LOCK(enc);
+  int err = AVERROR_EXIT;
+  if (SHUT(enc)) goto done;
+  err = AVERROR(ENOMEM);
+  if (!enc->gl && !enc->dmabuf) {
+    enc->dmabuf = dmabuf_path_alloc(
+        enc->device, enc->render_node[0] ? enc->render_node : NULL);
+    if (!enc->dmabuf) goto done;
+  }
+  AVFrame* frame = av_frame_alloc();
+  if (!frame) goto done;
+  err = enc->gl ? nvenc_gl_run(enc->gl, buf, place, frame)
+                : dmabuf_path_run(enc->dmabuf, buf, place, enc->codec->width,
+                                  enc->codec->height, timestamp_us, frame);
+  if (err == 0) {
+    av_frame_free(&enc->last);
+    enc->last = av_frame_clone(frame);
+    err = send_gpu(enc, frame, timestamp_us, keyframe);
+  } else if (err == AVERROR(EAGAIN) && enc->last) {
+    // A passing failure (nvenc_gl.c): the picture before it again, so a keyframe
+    // asked for still goes out and the stream's time moves on.
+    err = av_frame_ref(frame, enc->last);
+    if (err == 0) err = send_gpu(enc, frame, timestamp_us, keyframe);
+  }
+  av_frame_free(&frame);
+done:
+  UNLOCK(enc);
+  return err < 0 ? err : 0;
+#else
+  (void)enc, (void)buf, (void)place, (void)timestamp_us, (void)keyframe;
+  return AVERROR(ENOSYS);
+#endif
+}
+
+int32_t rift_ffenc_takes_d3d11(const RiftFfenc* enc) {
+#if defined(_WIN32)
+  return enc->d3d11 != NULL;
+#else
+  (void)enc;
+  return 0;
+#endif
+}
+
+int32_t rift_ffenc_send_d3d11(RiftFfenc* enc, void* texture,
+                              int32_t source_width, int32_t source_height,
+                              const RiftRect* place, int64_t timestamp_us,
+                              int32_t keyframe) {
+#if defined(_WIN32)
+  if (!enc->d3d11) return AVERROR(ENOSYS);
+  AVFrame* frame = av_frame_alloc();
+  if (!frame) return AVERROR(ENOMEM);
+  int err = d3d11_nv12_run(enc->d3d11, texture, source_width, source_height,
+                           place, frame);
+  if (err == 0 && enc->api == API_QSV) err = to_qsv_surface(enc, frame);
+  if (err == 0) {
+    av_frame_free(&enc->last);
+    enc->last = av_frame_clone(frame);
+    err = send_gpu(enc, frame, timestamp_us, keyframe);
+  } else if (err == AVERROR(EAGAIN) && enc->last) {
+    // A passing failure: the picture before it again, so a keyframe asked for
+    // still goes out and the stream's time moves on.
+    err = av_frame_ref(frame, enc->last);
+    if (err == 0) err = send_gpu(enc, frame, timestamp_us, keyframe);
+  }
+  av_frame_free(&frame);
+  return err < 0 ? err : 0;
+#else
+  (void)enc, (void)texture, (void)source_width, (void)source_height,
+      (void)place, (void)timestamp_us, (void)keyframe;
+  return AVERROR(ENOSYS);
+#endif
+}
+
+int32_t rift_ffenc_repeat(RiftFfenc* enc, int64_t timestamp_us,
+                          int32_t keyframe) {
+#if defined(_WIN32)
+  if (!enc->d3d11) return AVERROR(ENOSYS);
+  if (!enc->last) return AVERROR(EAGAIN);
+  AVFrame* repeated = av_frame_clone(enc->last);
+  if (!repeated) return AVERROR(ENOMEM);
+  int sent = send_gpu(enc, repeated, timestamp_us, keyframe);
+  av_frame_free(&repeated);
+  return sent < 0 ? sent : 0;
+#elif defined(__linux__)
+  if (!rift_ffenc_takes_dmabuf(enc)) return AVERROR(ENOSYS);
+  if (EXITING()) return AVERROR_EXIT;
+  LOCK(enc);
+  int err = AVERROR_EXIT;
+  if (SHUT(enc)) goto done;
+  err = AVERROR(EAGAIN);
+  if (!enc->last) goto done;
+  // The same surface again, under a new time: the encoder only reads it.
+  AVFrame* frame = av_frame_clone(enc->last);
+  err = AVERROR(ENOMEM);
+  if (!frame) goto done;
+  err = send_gpu(enc, frame, timestamp_us, keyframe);
+  av_frame_free(&frame);
+done:
+  UNLOCK(enc);
+  return err < 0 ? err : 0;
+#else
+  (void)enc, (void)timestamp_us, (void)keyframe;
+  return AVERROR(ENOSYS);
+#endif
+}
+
 int32_t rift_ffenc_receive(RiftFfenc* enc, RiftFfencPacket* packet) {
   if (EXITING()) return AVERROR_EXIT;
   LOCK(enc);
@@ -513,14 +801,42 @@ int32_t rift_ffenc_receive(RiftFfenc* enc, RiftFfencPacket* packet) {
 void rift_ffenc_close(RiftFfenc* enc) {
   if (!enc) return;
 #if defined(__linux__)
-  if (enc->api == API_NVENC) forget_nvenc(enc);
+  pthread_mutex_lock(&nvenc_lock);
+  for (RiftFfenc** at = &nvenc_open; *at; at = &(*at)->next_nvenc) {
+    if (*at == enc) {
+      *at = enc->next_nvenc;
+      break;
+    }
+  }
+  if (EXITING()) {
+    pthread_mutex_unlock(&nvenc_lock);
+    return;
+  }
   pthread_mutex_destroy(&enc->lock);
+  av_frame_free(&enc->last);
+#endif
+#if defined(_WIN32)
+  av_frame_free(&enc->last);
 #endif
   av_packet_free(&enc->packet);
   av_frame_free(&enc->picture);
   for (int i = 0; i < OWN_PICTURES; i++) av_frame_free(&enc->own[i]);
   avcodec_free_context(&enc->codec);
+#if defined(__linux__)
+  dmabuf_path_free(&enc->dmabuf);
+#endif
   av_buffer_unref(&enc->frames);
   av_buffer_unref(&enc->device);
+#if defined(_WIN32)
+  // Last: the encoder and every frame stood on its device.
+  d3d11_nv12_free(&enc->d3d11);
+#endif
+#if defined(__linux__)
+  // Last: the encoder and every frame stood on its CUDA context.
+  nvenc_gl_free(&enc->gl);
+#endif
   av_free(enc);
+#if defined(__linux__)
+  pthread_mutex_unlock(&nvenc_lock);
+#endif
 }

@@ -9,7 +9,7 @@ import 'host_platform.dart';
 /// Runs the microphone for a moment, inside the app only, so a call heard
 /// muted plays at full quality.
 ///
-/// On Linux the WebRTC library flutter_webrtc ships always
+/// The WebRTC library flutter_webrtc ships on the desktop always
 /// installs a render pre-processor in its audio processing module — an
 /// empty one unless somebody sets it — and once one is installed, WebRTC
 /// plays out the module's own copy of everything it receives rather than
@@ -25,12 +25,15 @@ import 'host_platform.dart';
 /// for a stream that is sending. So the microphone is sent from one peer
 /// connection to another, both in this process, for half a second, and both
 /// are closed. Nothing leaves the app and nobody in the call sees the
-/// microphone open. The rate then holds until the app quits, so this runs
-/// once per session.
+/// microphone open. The track is off while it is sent, so what crosses is
+/// silence: the receiving end plays what it gets like any call audio, and
+/// with the track on it played your own microphone back to you. The rate
+/// then holds until the app quits, so this runs once per session.
 ///
-/// Linux only ([HostPlatform.playoutFollowsMicRate]). Windows uses the same
-/// library but measured differently: about 14 kHz joined muted, and the
-/// warm-up took it down to 7.4 kHz and made Windows duck other apps.
+/// Linux and Windows ([HostPlatform.playoutFollowsMicRate]). Windows joined
+/// the list on Nov 5 2026, when Rift stopped using its system echo canceller
+/// (windows/runner/echo_canceller.h). Without a microphone to open this cannot
+/// run, and the call stays at 16 kHz.
 class PlayoutWarmup {
   const PlayoutWarmup._();
 
@@ -64,6 +67,11 @@ class PlayoutWarmup {
     rtc.RTCPeerConnection? receiver;
     try {
       track = await LocalAudioTrack.create(options);
+      // Recording is what teaches the module, not what is sent, so the
+      // track goes off before it is added: it still records, and sends
+      // silence. Sent as it was, the receiving end played the microphone
+      // back for the whole half second.
+      track.mediaStreamTrack.enabled = false;
       sender = await rtc.createPeerConnection({});
       receiver = await rtc.createPeerConnection({});
       final a = sender;

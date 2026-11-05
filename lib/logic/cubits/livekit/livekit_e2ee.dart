@@ -24,6 +24,9 @@ part of 'livekit_cubit.dart';
 /// decrypted, and participants arrive at any time, so this runs on connect for
 /// whoever is already in the room and again whenever somebody joins.
 mixin _E2EEMixin on Cubit<LiveKitState> {
+  /// Tells the Rust watch connection, which keeps a key ring of its own.
+  void _rustWatchKeyMoved();
+
   CryptoRepository get _crypto;
   VaultCubit get _vaultCubit;
   SessionRepository? get _session;
@@ -66,6 +69,12 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
   BaseKeyProvider? _keyProvider;
   Uint8List? _callChannelKey;
   int _callKeyIndex = 0;
+
+  /// Every key version this call has held, oldest first: the one it joined on
+  /// and each it moved to. The ring keeps them all (see [_absorbKeyRotation]),
+  /// since a share begun before a rotation stays sealed under the key it
+  /// began with.
+  final List<({Uint8List key, int index})> _callKeysHeld = [];
 
   /// The key-sweep doorbell, held only for the duration of a call.
   ///
@@ -145,6 +154,9 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
 
     _callChannelKey = key;
     _callKeyIndex = VoiceKeys.keyIndex(keyring.currentVersion);
+    _callKeysHeld
+      ..clear()
+      ..add((key: key, index: _callKeyIndex));
     _callListeningBots = await _listeningBots(channelId, server.id);
 
     // `sharedKey: false` is the whole point — see the class comment.
@@ -159,6 +171,9 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
   Future<E2EEOptions> _prepareFixedKey(Uint8List key) async {
     _callChannelKey = key;
     _callKeyIndex = VoiceKeys.dmCallKeyIndex;
+    _callKeysHeld
+      ..clear()
+      ..add((key: key, index: _callKeyIndex));
     _callListeningBots = const {};
     final provider = await BaseKeyProvider.create(sharedKey: false);
     _keyProvider = provider;
@@ -225,6 +240,7 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
     _keyProvider = null;
     _callChannelKey = null;
     _callKeyIndex = 0;
+    _callKeysHeld.clear();
     _callListeningBots = const {};
   }
 
@@ -329,6 +345,7 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
 
     _callChannelKey = key;
     _callKeyIndex = VoiceKeys.keyIndex(after);
+    _callKeysHeld.add((key: key, index: _callKeyIndex));
     // A grant can have changed in the same breath as the rotation — revoking
     // one is what rotates the key — so which bot gets which kind is re-read
     // rather than carried over.
@@ -339,6 +356,7 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
     // when their tracks were published and keep using it until they are told
     // another.
     await room.e2eeManager?.setKeyIndex(_callKeyIndex);
+    _rustWatchKeyMoved();
     HelperMethods.printDebug(
       '[LiveKit] moved the call from key v$before to v$after',
     );

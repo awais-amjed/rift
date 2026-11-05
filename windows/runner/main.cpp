@@ -5,6 +5,7 @@
 
 #include <shellapi.h>
 
+#include "echo_canceller.h"
 #include "flutter_window.h"
 #include "single_instance.h"
 #include "startup_guard.h"
@@ -55,6 +56,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // Initialize COM, so that it is available for use in the library and/or
   // plugins.
   ::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+  // Before flutter_webrtc makes its audio device (echo_canceller.h).
+  KeepWebRtcEchoCanceller();
 
   flutter::DartProject project(L"data");
 
@@ -87,6 +90,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
     ::DispatchMessage(&msg);
   }
 
+  ReleaseWebRtcEchoCanceller();
   ::CoUninitialize();
   return EXIT_SUCCESS;
 }

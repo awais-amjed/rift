@@ -755,6 +755,12 @@ class Engine extends Disposable with EventsEmittable<EngineEvent> {
     subscriber?.pc.onTrack = (rtc.RTCTrackEvent event) {
       logger.fine('[WebRTC] pc.onTrack');
 
+      // RIFT PATCH: remote audio plays from the moment WebRTC has it, and on a
+      // join this track may wait here until the room is connected. Off until
+      // it is started, when the app has said whether it is held. See
+      // third_party/livekit_client/RIFT_PATCHES.md.
+      if (event.track.kind == 'audio') event.track.enabled = false;
+
       final stream = event.streams.firstOrNull;
       if (stream == null) {
         // we need the stream to get the track's id

@@ -11,6 +11,9 @@ class PortalRequests {
   static const service = 'org.freedesktop.portal.Desktop';
   static final object = DBusObjectPath('/org/freedesktop/portal/desktop');
 
+  /// A request's answer: the user saying no.
+  static const cancelled = 1;
+
   final DBusClient client;
 
   /// The portal's interface, `org.freedesktop.portal.GlobalShortcuts`.
@@ -65,23 +68,30 @@ class PortalRequests {
   /// The Request's path is derived from our bus name and a token we choose,
   /// so the subscription goes in *before* the call — the answer can arrive
   /// before the call itself returns.
+  ///
+  /// When [abandoned] completes first, the request is closed, which takes its
+  /// dialog away, and it answers as the user saying no ([cancelled]). No answer
+  /// within [timeout] closes it too, and throws: left open, the dialog would
+  /// wait on an answer nothing is listening for.
   Future<({int code, Map<String, DBusValue>? results})> call(
     String method,
-    List<DBusValue> Function(String token) args,
-  ) async {
+    List<DBusValue> Function(String token) args, {
+    Future<void>? abandoned,
+  }) async {
     final token = nextToken('rift');
     // A connection has no name until its first call, and the path needs it.
     if (client.uniqueName.isEmpty) await client.ping();
     final sender = client.uniqueName.substring(1).replaceAll('.', '_');
-    final answer = Completer<DBusSignal>();
+    final request = DBusObjectPath(
+      '/org/freedesktop/portal/desktop/request/$sender/$token',
+    );
+    final answer = Completer<DBusSignal?>();
     final sub =
         DBusSignalStream(
           client,
           interface: 'org.freedesktop.portal.Request',
           name: 'Response',
-          path: DBusObjectPath(
-            '/org/freedesktop/portal/desktop/request/$sender/$token',
-          ),
+          path: request,
         ).listen((signal) {
           if (!answer.isCompleted) answer.complete(signal);
         });
@@ -94,7 +104,23 @@ class PortalRequests {
         values: args(token),
         replySignature: DBusSignature('o'),
       );
-      final signal = await answer.future.timeout(timeout);
+      // After the call: until then the portal may not have the request yet.
+      unawaited(
+        abandoned?.then((_) {
+          if (!answer.isCompleted) answer.complete();
+        }),
+      );
+      final DBusSignal? signal;
+      try {
+        signal = await answer.future.timeout(timeout);
+      } on TimeoutException {
+        await _closeRequest(request);
+        rethrow;
+      }
+      if (signal == null) {
+        await _closeRequest(request);
+        return (code: cancelled, results: null);
+      }
       final code = signal.values[0].asUint32();
       if (code != 0) {
         // 1 is the user saying no, 2 anything else the desktop refused.
@@ -104,6 +130,22 @@ class PortalRequests {
       return (code: 0, results: signal.values[1].asStringVariantDict());
     } finally {
       await sub.cancel();
+    }
+  }
+
+  /// Ends a request and any dialog it has open. Never fatal: it may have just
+  /// been answered.
+  Future<void> _closeRequest(DBusObjectPath request) async {
+    try {
+      await client.callMethod(
+        destination: service,
+        path: request,
+        interface: 'org.freedesktop.portal.Request',
+        name: 'Close',
+        replySignature: DBusSignature(''),
+      );
+    } catch (e) {
+      HelperMethods.printDebug('$tag: close failed – $e');
     }
   }
 

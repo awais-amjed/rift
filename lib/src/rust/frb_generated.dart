@@ -20,6 +20,7 @@ import 'api/screenshare/types.dart';
 import 'api/soundshare.dart';
 import 'api/toast.dart';
 import 'api/updater.dart';
+import 'api/watching.dart';
 import 'frb_generated.dart';
 import 'frb_generated.io.dart'
     if (dart.library.js_interop) 'frb_generated.web.dart';
@@ -79,7 +80,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 2143916857;
+  int get rustContentHash => 1055330466;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -207,6 +208,20 @@ abstract class RustLibApi extends BaseApi {
     required BigInt destroy,
   });
 
+  Future<void> crateApiWatchingSetWatchKey({
+    required List<int> e2EeKey,
+    required int e2EeKeyIndex,
+  });
+
+  void crateApiWatchingSetWatchOutput({String? deviceId});
+
+  Future<void> crateApiWatchingSetWatchPicturesOn({required bool picturesOn});
+
+  Future<void> crateApiWatchingSetWatchVolume({
+    required String shareIdentity,
+    required double volume,
+  });
+
   Future<void> crateApiToastShowWindowsToast({
     required String appId,
     required String tag,
@@ -226,6 +241,8 @@ abstract class RustLibApi extends BaseApi {
     required SoundShareConfig config,
   });
 
+  Future<void> crateApiWatchingStartWatching({required WatchRoom room});
+
   Future<void> crateApiCueStopCue({required int id});
 
   Future<void> crateApiMicTestStopMicTest();
@@ -234,9 +251,13 @@ abstract class RustLibApi extends BaseApi {
 
   Future<String> crateApiSoundshareStopSoundShare();
 
+  Future<void> crateApiWatchingStopWatching();
+
   bool crateApiNoiseFilterTakeDpdfnetFellBack();
 
   int crateApiNoiseFilterTakeDpdfnetUnfiltered();
+
+  Future<void> crateApiWatchingUnwatchShare({required String shareIdentity});
 
   Future<ShareQuality> crateApiScreenshareUpdateScreenshare({
     required ShareQuality quality,
@@ -259,6 +280,23 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiUpdaterUpdaterResume();
 
   Future<String?> crateApiUpdaterUpdaterStartup();
+
+  Stream<WatchEvent> crateApiWatchingWatchEventStream();
+
+  WatchFrameEntry crateApiWatchingWatchFrameEntryPoints();
+
+  bool crateApiWatchingWatchPlaysSound();
+
+  Future<void> crateApiWatchingWatchShare({
+    required String shareIdentity,
+    required BigInt texture,
+    required BigInt markFrame,
+    required bool takesGpuPictures,
+  });
+
+  Future<WatchStats?> crateApiWatchingWatchShareStats({
+    required String shareIdentity,
+  });
 
   void crateApiLogsWriteLogLine({required String source, required String line});
 
@@ -1286,6 +1324,133 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiWatchingSetWatchKey({
+    required List<int> e2EeKey,
+    required int e2EeKeyIndex,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_list_prim_u_8_loose(e2EeKey, serializer);
+          sse_encode_i_32(e2EeKeyIndex, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 33,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiWatchingSetWatchKeyConstMeta,
+        argValues: [e2EeKey, e2EeKeyIndex],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWatchingSetWatchKeyConstMeta =>
+      const TaskConstMeta(
+        debugName: 'set_watch_key',
+        argNames: ['e2EeKey', 'e2EeKeyIndex'],
+      );
+
+  @override
+  void crateApiWatchingSetWatchOutput({String? deviceId}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_opt_String(deviceId, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 34)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiWatchingSetWatchOutputConstMeta,
+        argValues: [deviceId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWatchingSetWatchOutputConstMeta =>
+      const TaskConstMeta(
+        debugName: 'set_watch_output',
+        argNames: ['deviceId'],
+      );
+
+  @override
+  Future<void> crateApiWatchingSetWatchPicturesOn({required bool picturesOn}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_bool(picturesOn, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 35,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiWatchingSetWatchPicturesOnConstMeta,
+        argValues: [picturesOn],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWatchingSetWatchPicturesOnConstMeta =>
+      const TaskConstMeta(
+        debugName: 'set_watch_pictures_on',
+        argNames: ['picturesOn'],
+      );
+
+  @override
+  Future<void> crateApiWatchingSetWatchVolume({
+    required String shareIdentity,
+    required double volume,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(shareIdentity, serializer);
+          sse_encode_f_32(volume, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 36,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiWatchingSetWatchVolumeConstMeta,
+        argValues: [shareIdentity, volume],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWatchingSetWatchVolumeConstMeta =>
+      const TaskConstMeta(
+        debugName: 'set_watch_volume',
+        argNames: ['shareIdentity', 'volume'],
+      );
+
+  @override
   Future<void> crateApiToastShowWindowsToast({
     required String appId,
     required String tag,
@@ -1303,7 +1468,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 33,
+            funcId: 37,
             port: port_,
           );
         },
@@ -1336,7 +1501,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 34,
+              funcId: 38,
               port: port_,
             );
           },
@@ -1369,7 +1534,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 35,
+            funcId: 39,
             port: port_,
           );
         },
@@ -1399,7 +1564,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 36,
+            funcId: 40,
             port: port_,
           );
         },
@@ -1429,7 +1594,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 37,
+            funcId: 41,
             port: port_,
           );
         },
@@ -1448,6 +1613,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: 'start_sound_share', argNames: ['config']);
 
   @override
+  Future<void> crateApiWatchingStartWatching({required WatchRoom room}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_watch_room(room, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 42,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiWatchingStartWatchingConstMeta,
+        argValues: [room],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWatchingStartWatchingConstMeta =>
+      const TaskConstMeta(debugName: 'start_watching', argNames: ['room']);
+
+  @override
   Future<void> crateApiCueStopCue({required int id}) {
     return handler.executeNormal(
       NormalTask(
@@ -1457,7 +1650,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 38,
+            funcId: 43,
             port: port_,
           );
         },
@@ -1484,7 +1677,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 39,
+            funcId: 44,
             port: port_,
           );
         },
@@ -1511,7 +1704,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 40,
+            funcId: 45,
             port: port_,
           );
         },
@@ -1538,7 +1731,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 41,
+            funcId: 46,
             port: port_,
           );
         },
@@ -1557,12 +1750,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: 'stop_sound_share', argNames: []);
 
   @override
+  Future<void> crateApiWatchingStopWatching() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 47,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiWatchingStopWatchingConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWatchingStopWatchingConstMeta =>
+      const TaskConstMeta(debugName: 'stop_watching', argNames: []);
+
+  @override
   bool crateApiNoiseFilterTakeDpdfnetFellBack() {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 42)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 48)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_bool,
@@ -1584,7 +1804,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 43)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 49)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_u_32,
@@ -1601,6 +1821,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: 'take_dpdfnet_unfiltered', argNames: []);
 
   @override
+  Future<void> crateApiWatchingUnwatchShare({required String shareIdentity}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(shareIdentity, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 50,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiWatchingUnwatchShareConstMeta,
+        argValues: [shareIdentity],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWatchingUnwatchShareConstMeta =>
+      const TaskConstMeta(
+        debugName: 'unwatch_share',
+        argNames: ['shareIdentity'],
+      );
+
+  @override
   Future<ShareQuality> crateApiScreenshareUpdateScreenshare({
     required ShareQuality quality,
   }) {
@@ -1612,7 +1863,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 44,
+            funcId: 51,
             port: port_,
           );
         },
@@ -1642,7 +1893,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 45,
+            funcId: 52,
             port: port_,
           );
         },
@@ -1669,7 +1920,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 46,
+            funcId: 53,
             port: port_,
           );
         },
@@ -1699,7 +1950,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 47,
+            funcId: 54,
             port: port_,
           );
         },
@@ -1735,7 +1986,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 48,
+              funcId: 55,
               port: port_,
             );
           },
@@ -1764,7 +2015,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 49,
+            funcId: 56,
             port: port_,
           );
         },
@@ -1791,7 +2042,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 50,
+            funcId: 57,
             port: port_,
           );
         },
@@ -1818,7 +2069,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 51,
+            funcId: 58,
             port: port_,
           );
         },
@@ -1845,7 +2096,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 52,
+            funcId: 59,
             port: port_,
           );
         },
@@ -1864,6 +2115,153 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: 'updater_startup', argNames: []);
 
   @override
+  Stream<WatchEvent> crateApiWatchingWatchEventStream() {
+    final sink = RustStreamSink<WatchEvent>();
+    unawaited(
+      handler.executeNormal(
+        NormalTask(
+          callFfi: (port_) {
+            final serializer = SseSerializer(generalizedFrbRustBinding);
+            sse_encode_StreamSink_watch_event_Sse(sink, serializer);
+            pdeCallFfi(
+              generalizedFrbRustBinding,
+              serializer,
+              funcId: 60,
+              port: port_,
+            );
+          },
+          codec: SseCodec(
+            decodeSuccessData: sse_decode_unit,
+            decodeErrorData: null,
+          ),
+          constMeta: kCrateApiWatchingWatchEventStreamConstMeta,
+          argValues: [sink],
+          apiImpl: this,
+        ),
+      ),
+    );
+    return sink.stream;
+  }
+
+  TaskConstMeta get kCrateApiWatchingWatchEventStreamConstMeta =>
+      const TaskConstMeta(debugName: 'watch_event_stream', argNames: ['sink']);
+
+  @override
+  WatchFrameEntry crateApiWatchingWatchFrameEntryPoints() {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 61)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_watch_frame_entry,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiWatchingWatchFrameEntryPointsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWatchingWatchFrameEntryPointsConstMeta =>
+      const TaskConstMeta(debugName: 'watch_frame_entry_points', argNames: []);
+
+  @override
+  bool crateApiWatchingWatchPlaysSound() {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 62)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiWatchingWatchPlaysSoundConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWatchingWatchPlaysSoundConstMeta =>
+      const TaskConstMeta(debugName: 'watch_plays_sound', argNames: []);
+
+  @override
+  Future<void> crateApiWatchingWatchShare({
+    required String shareIdentity,
+    required BigInt texture,
+    required BigInt markFrame,
+    required bool takesGpuPictures,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(shareIdentity, serializer);
+          sse_encode_u_64(texture, serializer);
+          sse_encode_usize(markFrame, serializer);
+          sse_encode_bool(takesGpuPictures, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 63,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiWatchingWatchShareConstMeta,
+        argValues: [shareIdentity, texture, markFrame, takesGpuPictures],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWatchingWatchShareConstMeta => const TaskConstMeta(
+    debugName: 'watch_share',
+    argNames: ['shareIdentity', 'texture', 'markFrame', 'takesGpuPictures'],
+  );
+
+  @override
+  Future<WatchStats?> crateApiWatchingWatchShareStats({
+    required String shareIdentity,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(shareIdentity, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 64,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_box_autoadd_watch_stats,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiWatchingWatchShareStatsConstMeta,
+        argValues: [shareIdentity],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWatchingWatchShareStatsConstMeta =>
+      const TaskConstMeta(
+        debugName: 'watch_share_stats',
+        argNames: ['shareIdentity'],
+      );
+
+  @override
   void crateApiLogsWriteLogLine({
     required String source,
     required String line,
@@ -1874,7 +2272,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(source, serializer);
           sse_encode_String(line, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 53)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 65)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -1979,6 +2377,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  RustStreamSink<WatchEvent> dco_decode_StreamSink_watch_event_Sse(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    throw UnimplementedError();
+  }
+
+  @protected
   String dco_decode_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as String;
@@ -2042,6 +2448,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  double dco_decode_box_autoadd_f_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as double;
+  }
+
+  @protected
   MicTestPlayback dco_decode_box_autoadd_mic_test_playback(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_mic_test_playback(raw);
@@ -2075,6 +2487,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   int dco_decode_box_autoadd_u_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
+  }
+
+  @protected
+  WatchRoom dco_decode_box_autoadd_watch_room(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_watch_room(raw);
+  }
+
+  @protected
+  WatchStats dco_decode_box_autoadd_watch_stats(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_watch_stats(raw);
   }
 
   @protected
@@ -2124,6 +2548,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  double dco_decode_f_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as double;
+  }
+
+  @protected
   int dco_decode_i_16(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
@@ -2133,6 +2563,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   int dco_decode_i_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
+  }
+
+  @protected
+  PlatformInt64 dco_decode_i_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeI64(raw);
   }
 
   @protected
@@ -2220,6 +2656,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  double? dco_decode_opt_box_autoadd_f_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_f_64(raw);
+  }
+
+  @protected
   MicTestPlayback? dco_decode_opt_box_autoadd_mic_test_playback(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_mic_test_playback(raw);
@@ -2232,6 +2674,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  WatchStats? dco_decode_opt_box_autoadd_watch_stats(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_watch_stats(raw);
+  }
+
+  @protected
   Uint8List? dco_decode_opt_list_prim_u_8_strict(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_list_prim_u_8_strict(raw);
@@ -2241,8 +2689,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ScreenShareConfig dco_decode_screen_share_config(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 16)
-      throw Exception('unexpected arr length: expect 16 but see ${arr.length}');
+    if (arr.length != 17)
+      throw Exception('unexpected arr length: expect 17 but see ${arr.length}');
     return ScreenShareConfig(
       livekitUrl: dco_decode_String(arr[0]),
       livekitToken: dco_decode_String(arr[1]),
@@ -2253,13 +2701,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       captureFullScreen: dco_decode_bool(arr[6]),
       selectedVideoSourceIndex: dco_decode_opt_box_autoadd_u_32(arr[7]),
       portalChoice: dco_decode_opt_String(arr[8]),
-      codec: dco_decode_video_codec(arr[9]),
-      priority: dco_decode_share_priority(arr[10]),
-      selectedAudioSourceIndex: dco_decode_opt_box_autoadd_u_32(arr[11]),
-      selectedAudioSourceSink: dco_decode_opt_box_autoadd_u_32(arr[12]),
-      selectedAudioSourcePid: dco_decode_opt_box_autoadd_u_32(arr[13]),
-      e2EeKey: dco_decode_list_prim_u_8_strict(arr[14]),
-      e2EeKeyIndex: dco_decode_i_32(arr[15]),
+      gpuCapture: dco_decode_bool(arr[9]),
+      codec: dco_decode_video_codec(arr[10]),
+      priority: dco_decode_share_priority(arr[11]),
+      selectedAudioSourceIndex: dco_decode_opt_box_autoadd_u_32(arr[12]),
+      selectedAudioSourceSink: dco_decode_opt_box_autoadd_u_32(arr[13]),
+      selectedAudioSourcePid: dco_decode_opt_box_autoadd_u_32(arr[14]),
+      e2EeKey: dco_decode_list_prim_u_8_strict(arr[15]),
+      e2EeKeyIndex: dco_decode_i_32(arr[16]),
     );
   }
 
@@ -2334,6 +2783,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BigInt dco_decode_u_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeU64(raw);
+  }
+
+  @protected
   int dco_decode_u_8(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
@@ -2368,6 +2823,75 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   VideoCodec dco_decode_video_codec(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return VideoCodec.values[raw as int];
+  }
+
+  @protected
+  WatchEvent dco_decode_watch_event(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return WatchEvent(
+      kind: dco_decode_watch_event_kind(arr[0]),
+      shareIdentity: dco_decode_String(arr[1]),
+      width: dco_decode_u_32(arr[2]),
+      height: dco_decode_u_32(arr[3]),
+      reason: dco_decode_String(arr[4]),
+    );
+  }
+
+  @protected
+  WatchEventKind dco_decode_watch_event_kind(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return WatchEventKind.values[raw as int];
+  }
+
+  @protected
+  WatchFrameEntry dco_decode_watch_frame_entry(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return WatchFrameEntry(
+      lock: dco_decode_usize(arr[0]),
+      unlock: dco_decode_usize(arr[1]),
+    );
+  }
+
+  @protected
+  WatchRoom dco_decode_watch_room(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return WatchRoom(
+      livekitUrl: dco_decode_String(arr[0]),
+      livekitToken: dco_decode_String(arr[1]),
+      e2EeKey: dco_decode_list_prim_u_8_strict(arr[2]),
+      e2EeKeyIndex: dco_decode_i_32(arr[3]),
+    );
+  }
+
+  @protected
+  WatchStats dco_decode_watch_stats(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 12)
+      throw Exception('unexpected arr length: expect 12 but see ${arr.length}');
+    return WatchStats(
+      timestampUs: dco_decode_i_64(arr[0]),
+      width: dco_decode_u_32(arr[1]),
+      height: dco_decode_u_32(arr[2]),
+      framesDecoded: dco_decode_u_32(arr[3]),
+      framesDropped: dco_decode_u_32(arr[4]),
+      framesPerSecond: dco_decode_f_64(arr[5]),
+      bytesReceived: dco_decode_u_64(arr[6]),
+      packetsReceived: dco_decode_u_64(arr[7]),
+      packetsLost: dco_decode_i_64(arr[8]),
+      jitterMs: dco_decode_f_64(arr[9]),
+      codec: dco_decode_String(arr[10]),
+      rttMs: dco_decode_opt_box_autoadd_f_64(arr[11]),
+    );
   }
 
   @protected
@@ -2463,6 +2987,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  RustStreamSink<WatchEvent> sse_decode_StreamSink_watch_event_Sse(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    throw UnimplementedError('Unreachable ()');
+  }
+
+  @protected
   String sse_decode_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_list_prim_u_8_strict(deserializer);
@@ -2535,6 +3067,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  double sse_decode_box_autoadd_f_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_f_64(deserializer));
+  }
+
+  @protected
   MicTestPlayback sse_decode_box_autoadd_mic_test_playback(
     SseDeserializer deserializer,
   ) {
@@ -2579,6 +3117,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  WatchRoom sse_decode_box_autoadd_watch_room(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_watch_room(deserializer));
+  }
+
+  @protected
+  WatchStats sse_decode_box_autoadd_watch_stats(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_watch_stats(deserializer));
+  }
+
+  @protected
   CaptureSource sse_decode_capture_source(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_index = sse_decode_u_32(deserializer);
@@ -2619,6 +3169,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  double sse_decode_f_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getFloat64();
+  }
+
+  @protected
   int sse_decode_i_16(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getInt16();
@@ -2628,6 +3184,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   int sse_decode_i_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getInt32();
+  }
+
+  @protected
+  PlatformInt64 sse_decode_i_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getPlatformInt64();
   }
 
   @protected
@@ -2751,6 +3313,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  double? sse_decode_opt_box_autoadd_f_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_f_64(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   MicTestPlayback? sse_decode_opt_box_autoadd_mic_test_playback(
     SseDeserializer deserializer,
   ) {
@@ -2769,6 +3342,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_u_32(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  WatchStats? sse_decode_opt_box_autoadd_watch_stats(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_watch_stats(deserializer));
     } else {
       return null;
     }
@@ -2801,6 +3387,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       deserializer,
     );
     var var_portalChoice = sse_decode_opt_String(deserializer);
+    var var_gpuCapture = sse_decode_bool(deserializer);
     var var_codec = sse_decode_video_codec(deserializer);
     var var_priority = sse_decode_share_priority(deserializer);
     var var_selectedAudioSourceIndex = sse_decode_opt_box_autoadd_u_32(
@@ -2824,6 +3411,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       captureFullScreen: var_captureFullScreen,
       selectedVideoSourceIndex: var_selectedVideoSourceIndex,
       portalChoice: var_portalChoice,
+      gpuCapture: var_gpuCapture,
       codec: var_codec,
       priority: var_priority,
       selectedAudioSourceIndex: var_selectedAudioSourceIndex,
@@ -2921,6 +3509,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BigInt sse_decode_u_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getBigUint64();
+  }
+
+  @protected
   int sse_decode_u_8(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint8();
@@ -2957,6 +3551,84 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_i_32(deserializer);
     return VideoCodec.values[inner];
+  }
+
+  @protected
+  WatchEvent sse_decode_watch_event(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_kind = sse_decode_watch_event_kind(deserializer);
+    var var_shareIdentity = sse_decode_String(deserializer);
+    var var_width = sse_decode_u_32(deserializer);
+    var var_height = sse_decode_u_32(deserializer);
+    var var_reason = sse_decode_String(deserializer);
+    return WatchEvent(
+      kind: var_kind,
+      shareIdentity: var_shareIdentity,
+      width: var_width,
+      height: var_height,
+      reason: var_reason,
+    );
+  }
+
+  @protected
+  WatchEventKind sse_decode_watch_event_kind(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return WatchEventKind.values[inner];
+  }
+
+  @protected
+  WatchFrameEntry sse_decode_watch_frame_entry(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_lock = sse_decode_usize(deserializer);
+    var var_unlock = sse_decode_usize(deserializer);
+    return WatchFrameEntry(lock: var_lock, unlock: var_unlock);
+  }
+
+  @protected
+  WatchRoom sse_decode_watch_room(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_livekitUrl = sse_decode_String(deserializer);
+    var var_livekitToken = sse_decode_String(deserializer);
+    var var_e2EeKey = sse_decode_list_prim_u_8_strict(deserializer);
+    var var_e2EeKeyIndex = sse_decode_i_32(deserializer);
+    return WatchRoom(
+      livekitUrl: var_livekitUrl,
+      livekitToken: var_livekitToken,
+      e2EeKey: var_e2EeKey,
+      e2EeKeyIndex: var_e2EeKeyIndex,
+    );
+  }
+
+  @protected
+  WatchStats sse_decode_watch_stats(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_timestampUs = sse_decode_i_64(deserializer);
+    var var_width = sse_decode_u_32(deserializer);
+    var var_height = sse_decode_u_32(deserializer);
+    var var_framesDecoded = sse_decode_u_32(deserializer);
+    var var_framesDropped = sse_decode_u_32(deserializer);
+    var var_framesPerSecond = sse_decode_f_64(deserializer);
+    var var_bytesReceived = sse_decode_u_64(deserializer);
+    var var_packetsReceived = sse_decode_u_64(deserializer);
+    var var_packetsLost = sse_decode_i_64(deserializer);
+    var var_jitterMs = sse_decode_f_64(deserializer);
+    var var_codec = sse_decode_String(deserializer);
+    var var_rttMs = sse_decode_opt_box_autoadd_f_64(deserializer);
+    return WatchStats(
+      timestampUs: var_timestampUs,
+      width: var_width,
+      height: var_height,
+      framesDecoded: var_framesDecoded,
+      framesDropped: var_framesDropped,
+      framesPerSecond: var_framesPerSecond,
+      bytesReceived: var_bytesReceived,
+      packetsReceived: var_packetsReceived,
+      packetsLost: var_packetsLost,
+      jitterMs: var_jitterMs,
+      codec: var_codec,
+      rttMs: var_rttMs,
+    );
   }
 
   @protected
@@ -3110,6 +3782,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_StreamSink_watch_event_Sse(
+    RustStreamSink<WatchEvent> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(
+      self.setupAndSerialize(
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_watch_event,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+      ),
+      serializer,
+    );
+  }
+
+  @protected
   void sse_encode_String(String self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_list_prim_u_8_strict(utf8.encoder.convert(self), serializer);
@@ -3164,6 +3853,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_f_64(double self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_f_64(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_mic_test_playback(
     MicTestPlayback self,
     SseSerializer serializer,
@@ -3215,6 +3910,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_watch_room(
+    WatchRoom self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_watch_room(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_watch_stats(
+    WatchStats self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_watch_stats(self, serializer);
+  }
+
+  @protected
   void sse_encode_capture_source(CaptureSource self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_32(self.index, serializer);
@@ -3246,6 +3959,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_f_64(double self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putFloat64(self);
+  }
+
+  @protected
   void sse_encode_i_16(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putInt16(self);
@@ -3255,6 +3974,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_i_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putInt32(self);
+  }
+
+  @protected
+  void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putPlatformInt64(self);
   }
 
   @protected
@@ -3387,6 +4112,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_f_64(double? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_f_64(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_mic_test_playback(
     MicTestPlayback? self,
     SseSerializer serializer,
@@ -3406,6 +4141,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_u_32(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_watch_stats(
+    WatchStats? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_watch_stats(self, serializer);
     }
   }
 
@@ -3437,6 +4185,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self.captureFullScreen, serializer);
     sse_encode_opt_box_autoadd_u_32(self.selectedVideoSourceIndex, serializer);
     sse_encode_opt_String(self.portalChoice, serializer);
+    sse_encode_bool(self.gpuCapture, serializer);
     sse_encode_video_codec(self.codec, serializer);
     sse_encode_share_priority(self.priority, serializer);
     sse_encode_opt_box_autoadd_u_32(self.selectedAudioSourceIndex, serializer);
@@ -3511,6 +4260,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_u_64(BigInt self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putBigUint64(self);
+  }
+
+  @protected
   void sse_encode_u_8(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putUint8(self);
@@ -3542,6 +4297,61 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_video_codec(VideoCodec self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_watch_event(WatchEvent self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_watch_event_kind(self.kind, serializer);
+    sse_encode_String(self.shareIdentity, serializer);
+    sse_encode_u_32(self.width, serializer);
+    sse_encode_u_32(self.height, serializer);
+    sse_encode_String(self.reason, serializer);
+  }
+
+  @protected
+  void sse_encode_watch_event_kind(
+    WatchEventKind self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_watch_frame_entry(
+    WatchFrameEntry self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(self.lock, serializer);
+    sse_encode_usize(self.unlock, serializer);
+  }
+
+  @protected
+  void sse_encode_watch_room(WatchRoom self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.livekitUrl, serializer);
+    sse_encode_String(self.livekitToken, serializer);
+    sse_encode_list_prim_u_8_strict(self.e2EeKey, serializer);
+    sse_encode_i_32(self.e2EeKeyIndex, serializer);
+  }
+
+  @protected
+  void sse_encode_watch_stats(WatchStats self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_64(self.timestampUs, serializer);
+    sse_encode_u_32(self.width, serializer);
+    sse_encode_u_32(self.height, serializer);
+    sse_encode_u_32(self.framesDecoded, serializer);
+    sse_encode_u_32(self.framesDropped, serializer);
+    sse_encode_f_64(self.framesPerSecond, serializer);
+    sse_encode_u_64(self.bytesReceived, serializer);
+    sse_encode_u_64(self.packetsReceived, serializer);
+    sse_encode_i_64(self.packetsLost, serializer);
+    sse_encode_f_64(self.jitterMs, serializer);
+    sse_encode_String(self.codec, serializer);
+    sse_encode_opt_box_autoadd_f_64(self.rttMs, serializer);
   }
 }
 

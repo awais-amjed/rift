@@ -5,9 +5,12 @@
 #
 #   native/ffenc/build.sh OUT_DIR
 #
-# On Linux it makes librift_ffenc.so with the VAAPI and NVENC encoders, and
-# needs a C compiler, make and libva's headers (libva-dev). On Windows it
-# makes rift_ffenc.dll with NVIDIA's, Intel's and AMD's encoders, and runs in
+# On Linux it makes librift_ffenc.so with the VAAPI and NVENC encoders, a
+# Wayland share's PipeWire stream and a watched share's VAAPI decoders, and needs a C compiler, make, and the
+# headers of libva, libdrm, PipeWire, EGL, GBM and GLES (libva-dev, libdrm-dev,
+# libpipewire-0.3-dev, libegl-dev, libgbm-dev, libgles-dev). On Windows it
+# makes rift_ffenc.dll with NVIDIA's, Intel's and AMD's encoders and a watched
+# share's D3D11 decoders, and runs in
 # MSYS2's UCRT64 shell with make, MinGW's gcc, CMake, Ninja and pkgconf
 # (windows/CMakeLists.txt starts it there). Every download is taken once
 # into OUT_DIR, or FFmpeg's from RIFT_FFMPEG_TARBALL, and its sha256 checked
@@ -34,7 +37,7 @@ if [[ $os == linux ]]; then cc=${CC:-cc}; else cc=${CC:-gcc}; fi
 # found on the build machine pulled in behind our back.
 configure_flags=(
   --disable-everything --disable-autodetect --disable-programs --disable-doc
-  --disable-network --disable-avformat --disable-avfilter --disable-avdevice
+  --disable-network --disable-avformat --disable-avdevice
   --disable-swscale --disable-swresample --disable-x86asm --disable-debug
   --enable-static --disable-shared --enable-pic
 )
@@ -47,9 +50,27 @@ nv_headers_sha256=cbad7c68365ae50b03fe4cfbea05975c94406bdcc0a995bd094a3ea355656f
 configure_flags+=(--enable-ffnvcodec --enable-nvenc)
 if [[ $os == linux ]]; then
   library=$out/librift_ffenc.so
-  configure_flags+=(--enable-vaapi --enable-encoder=h264_vaapi,h264_nvenc)
+  # PipeWire's own SPA headers, 1.2's, for a machine with older ones: explicit
+  # sync's meta is only described from there on, and Ubuntu 24.04, where the
+  # release is built, has 1.0's. Only headers, so no newer library is needed
+  # (pipewire.c). Newer PipeWire headers need their own SPA, and have the meta.
+  spa_headers=1.2.7
+  spa_headers_sha256=e75568ed18bcbe75e9779af57cb9cc256fd7ebfaadc12bb347a0717055d1d3a9
+  # And the filters that take a Wayland share's DMA-BUF into VAAPI and make
+  # NV12 of it on the GPU (dmabuf.c), with libdrm for DRM's frames. And a
+  # watched share's decoders (ffdec.c), each only through the GPU, VAAPI's or
+  # NVIDIA's (NVDEC, reached like NVENC): FFmpeg's decoders read the stream
+  # and the GPU decodes it.
+  configure_flags+=(
+    --enable-vaapi --enable-libdrm --enable-encoder=h264_vaapi,h264_nvenc
+    --enable-filter=buffer,buffersink,hwmap,scale_vaapi,transpose_vaapi,pad_vaapi
+    --enable-decoder=h264,vp8,vp9
+    --enable-nvdec
+    --enable-hwaccel=h264_vaapi,vp8_vaapi,vp9_vaapi,h264_nvdec,vp8_nvdec,vp9_nvdec
+  )
 else
   library=$out/rift_ffenc.dll
+  configure_flags+=(--disable-avfilter)
   # AMF reaches AMD's driver through AMD's headers (AMF headers), and Quick
   # Sync Intel's through Intel's dispatcher (libvpl), which finds the runtime
   # Intel's driver installs. Direct3D 11 is how both reach the GPU. Both are
@@ -57,6 +78,12 @@ else
   configure_flags+=(
     --enable-w32threads --enable-d3d11va --enable-amf --enable-libvpl
     --enable-encoder=h264_nvenc,h264_qsv,h264_amf
+    # A watched share's decoders (ffdec.c), only through D3D11's video
+    # decoder, in the forms that take frames of D3D11 textures (the `2`s;
+    # FFmpeg builds their code only with the older forms on too). No VP8: no
+    # GPU offers it through D3D11, and FFmpeg has no such hwaccel.
+    --enable-decoder=h264,vp9
+    --enable-hwaccel=h264_d3d11va,h264_d3d11va2,vp9_d3d11va,vp9_d3d11va2
     # libvpl is C++, and the pkg-config file it installs leaves its runtime
     # out.
     --pkg-config-flags=--static --extra-libs=-lstdc++
@@ -70,7 +97,7 @@ fi
 stamp=$(
   {
     echo "$version $sha256 $cc ${configure_flags[*]}"
-    cat "$patches"/*.patch "$here/ffenc.c" "$here/ffenc.h" "$0"
+    cat "$patches"/*.patch "$here"/*.c "$here"/*.h "$0"
   } | sha256sum | cut -d' ' -f1
 )
 if [[ -f $library && -f $out/.stamp && $(<"$out/.stamp") == "$stamp" ]]; then
@@ -113,6 +140,16 @@ tar -C "$deps" -xzf "$out/nv-codec-headers-$nv_headers.tar.gz"
 quietly "$out/build.log" make -C "$deps/nv-codec-headers-$nv_headers" \
   PREFIX="$prefix" install
 export PKG_CONFIG_PATH=$prefix/lib/pkgconfig
+spa_include=
+if [[ $os == linux ]] && ! pkg-config --atleast-version=1.2.0 libpipewire-0.3; then
+  fetch "$out/pipewire-$spa_headers.tar.gz" \
+    "https://gitlab.freedesktop.org/pipewire/pipewire/-/archive/$spa_headers/pipewire-$spa_headers.tar.gz" \
+    "$spa_headers_sha256"
+  tar -C "$deps" -xzf "$out/pipewire-$spa_headers.tar.gz" \
+    "pipewire-$spa_headers/spa/include"
+  cp -r "$deps/pipewire-$spa_headers/spa/include" "$prefix/include/spa-1.2"
+  spa_include=-I$prefix/include/spa-1.2
+fi
 if [[ $os == windows ]]; then
   fetch "$out/AMF-headers-$amf_headers.tar.gz" \
     "https://github.com/GPUOpen-LibrariesAndSDKs/AMF/releases/download/$amf_headers/AMF-headers-$amf_headers.tar.gz" \
@@ -162,22 +199,33 @@ done
 # release's run.
 if [[ $os == linux ]]; then
   "$cc" -shared -fPIC -O2 -fvisibility=hidden -I"$prefix/include" \
-    "$here/ffenc.c" -o "$library.part" \
-    "$prefix/lib/libavcodec.a" "$prefix/lib/libavutil.a" \
-    -lva -lva-drm -lm -ldl -pthread \
+    $spa_include $(pkg-config --cflags libdrm libpipewire-0.3) \
+    "$here/ffenc.c" "$here/ffdec.c" "$here/dmabuf.c" "$here/pipewire.c" "$here/dmabuf_caps.c" \
+    "$here/nvenc_gl.c" "$here/nvenc_gl_geometry.c" \
+    -o "$library.part" \
+    "$prefix/lib/libavfilter.a" "$prefix/lib/libavcodec.a" \
+    "$prefix/lib/libavutil.a" \
+    -lva -lva-drm -ldrm -lpipewire-0.3 -lEGL -lgbm -lm -ldl -pthread \
     -Wl,--exclude-libs,ALL -Wl,-Bsymbolic -Wl,-z,defs \
     -Wl,-Map,"$out/librift_ffenc.map"
 else
   # A DLL exports only what is marked to (RIFT_FFENC_EXPORT), and carries
   # MinGW's own runtime inside it, so it needs nothing the app does not ship:
-  # only Windows' DLLs, which `objdump -p` lists.
-  "$cc" -shared -O2 -I"$prefix/include" \
-    "$here/ffenc.c" -o "$library.part" \
+  # only Windows' DLLs, which `objdump -p` lists. FFmpeg's Quick Sync header
+  # takes oneVPL's from include/vpl as its own. Linked in a folder of its own
+  # under its real name, which a DLL keeps inside it: a program linked to one
+  # named rift_ffenc.dll.part looks for that (test_windows.sh).
+  mkdir -p "$out/part"
+  "$cc" -shared -O2 -I"$prefix/include" -I"$prefix/include/vpl" \
+    "$here/ffenc.c" "$here/ffdec.c" "$here/d3d11_nv12.c" "$here/nvenc_gl_geometry.c" \
+    -o "$out/part/rift_ffenc.dll" \
     "$prefix/lib/libavcodec.a" "$prefix/lib/libavutil.a" "$prefix/lib/libvpl.a" \
     -static-libgcc -static-libstdc++ \
     -Wl,-Bstatic -lstdc++ -lwinpthread -Wl,-Bdynamic \
     -lole32 -luuid -ld3d11 -ldxgi -lbcrypt -lshlwapi -luser32 -ladvapi32 \
     -Wl,--exclude-libs,ALL -Wl,-Map,"$out/rift_ffenc.map"
+  mv "$out/part/rift_ffenc.dll" "$library.part"
+  rmdir "$out/part"
 fi
 mv "$library.part" "$library"
 rm -rf "$src" "$deps"

@@ -38,6 +38,10 @@ class ScreenshareState extends Equatable {
 
   bool get hasError => status == ScreenshareStatus.error;
 
+  /// Whether nothing is starting, running or stopping, so a new share may
+  /// start. Rust holds one share at a time.
+  bool get canStart => status == ScreenshareStatus.idle || hasError;
+
   ScreenshareState copyWith({
     ScreenshareStatus? status,
     String? channelId,

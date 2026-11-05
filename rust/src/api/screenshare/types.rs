@@ -42,6 +42,9 @@ pub struct ScreenShareConfig {
     /// the user pick in the desktop's own picker, so the capture opens it
     /// without asking again. None asks.
     pub portal_choice: Option<String>,
+    /// Linux under Wayland: capture on Rift's own stream, the picture staying
+    /// on the GPU where the encoder can take it. Off, libwebrtc's capturer runs.
+    pub gpu_capture: bool,
     pub codec: VideoCodec,
     pub priority: SharePriority,
     /// Linux: the PulseAudio sink-input to capture, and the sink it plays to;
@@ -176,6 +179,7 @@ mod tests {
         ScreenShareConfig {
             livekit_url: String::new(),
             livekit_token: String::new(),
+            gpu_capture: true,
             resolution: 1080,
             fps: 60,
             bitrate: 10,

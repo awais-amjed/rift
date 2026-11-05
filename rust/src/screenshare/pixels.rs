@@ -1,6 +1,18 @@
 //! Pure pixel work, kept free of the platform so it can be tested anywhere:
 //! the Windows thumbnail, and a resized window's letterbox.
 
+/// The order of a picture's four bytes a pixel. Blue first (BGRx, BGRA:
+/// libyuv's "ARGB") is what libwebrtc captures and most compositors share;
+/// some wlroots compositors share memory only red first (RGBx, RGBA:
+/// libyuv's "ABGR").
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ByteOrder {
+    Bgrx,
+    // Only a Wayland share's memory buffers come in it.
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+    Rgbx,
+}
+
 /// Shrink a strided BGRA frame to a packed RGB image at most `max_width`
 /// wide, by nearest-neighbour sampling straight from the source. Sampling
 /// while converting means a 4K frame costs a few hundred pixel reads rather

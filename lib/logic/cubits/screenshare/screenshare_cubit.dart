@@ -15,6 +15,7 @@ import '../../services/call_foreground_service.dart';
 import '../../services/gpu_codecs.dart';
 import '../../services/host_platform.dart';
 import '../livekit/livekit_cubit.dart';
+import 'share_attempt.dart';
 import 'stream_change_notice.dart';
 
 part 'screenshare_follow.dart';
@@ -39,6 +40,9 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
   final LiveKitCubit? _livekitCubit;
 
   StreamSubscription<ScreenshareEvent>? _eventSub;
+
+  /// The last press of Share.
+  ShareAttempt? _attempt;
 
   ScreenshareCubit({LiveKitCubit? livekitCubit})
     : _livekitCubit = livekitCubit,
@@ -92,13 +96,28 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
     }
   }
 
+  /// A press of Share. Null while a share is starting, running or stopping,
+  /// when there is nothing a press could start. Otherwise the press takes over
+  /// from any attempt still waiting ([ShareAttempt]).
+  ShareAttempt? beginAttempt() {
+    if (!state.canStart) return null;
+    _attempt?.abandon();
+    return _attempt = ShareAttempt();
+  }
+
   /// Starts screen sharing with the given settings. [portalChoice] is a
   /// window already picked in the desktop's own picker
-  /// (`ScreenShareConfig.portalChoice`).
+  /// (`ScreenShareConfig.portalChoice`). [gpuCapture] is the person's
+  /// setting (`ScreenShareConfig.gpuCapture`).
   Future<void> startScreenShare({
     required ScreenShareSettings settings,
+    required bool gpuCapture,
     String? portalChoice,
   }) async {
+    // Not a failure: marked as one, the running share lost its stop button
+    // while Rust went on sending it.
+    if (!state.canStart) return;
+
     emit(state.copyWith(status: ScreenshareStatus.connecting));
 
     try {
@@ -107,11 +126,30 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
       // the only way in — the Rust pipeline below captures a *desktop*, and
       // libwebrtc does not build its capturer for Android at all.
       if (_sdkCapturesScreen) return await _startSdkShare(settings);
-      await _startRustShare(settings, portalChoice);
+      await _startRustShare(settings, portalChoice, gpuCapture);
     } catch (e) {
       HelperMethods.printDebug('✗ Screen share error: $e');
+      if (e == _alreadySharing) return _keepRunningShare();
       _fail('Failed to start screen share: $e');
     }
+  }
+
+  /// Rust's refusal of a second share (`session::start`).
+  static const _alreadySharing = 'Already sharing screen';
+
+  /// Rust has a share the app had lost track of, a failed stop for one. It is
+  /// still going out, so it is shown as running: Stop is the way to end it.
+  void _keepRunningShare() {
+    emit(
+      state.copyWith(
+        status: ScreenshareStatus.sharing,
+        channelId: _livekitCubit?.state.callKey,
+        notice: Notice.info(
+          'You are already sharing',
+          'Stop this stream to start another.',
+        ),
+      ),
+    );
   }
 
   /// Where the SDK captures: a browser's picker, or MediaProjection on a
@@ -157,6 +195,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
   Future<void> _startRustShare(
     ScreenShareSettings settings,
     String? portalChoice,
+    bool gpuCapture,
   ) async {
     // The call's server, not the selected one: the person may be reading
     // another while the call runs.
@@ -252,6 +291,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
       captureFullScreen: settings.captureFullScreen,
       selectedVideoSourceIndex: settings.selectedVideoSourceIndex,
       portalChoice: portalChoice,
+      gpuCapture: gpuCapture,
       codec: codec,
       priority: settings.priority,
       selectedAudioSourceIndex: settings.selectedAudioSource?.index,

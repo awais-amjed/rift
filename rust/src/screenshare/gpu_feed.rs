@@ -2,7 +2,16 @@
 //! H264 out to a pre-encoded LiveKit source, and WebRTC's keyframe and
 //! bitrate requests back the other way. Pictures the encoder would make too
 //! much of are left out on the way in ([`RateGate`]).
+#[cfg(target_os = "windows")]
+use super::capture_wgc::WgcPicture;
 use super::encoder::{h264, Encoded, EncodedSink, EncoderSettings, GpuEncoder, Nv12Frame};
+#[cfg(target_os = "linux")]
+use super::encoder::{DmaBufFrame, EncoderInput};
+#[cfg(target_os = "windows")]
+use super::encoder::{EncoderInput, WgcFrame};
+use super::pixels::ByteOrder;
+#[cfg(target_os = "linux")]
+use super::pw_stream::PwPicture;
 use super::rate_gate::RateGate;
 use super::resolution::Size;
 use livekit::webrtc::native::yuv_helper;
@@ -58,24 +67,74 @@ impl GpuFeed {
         self.encoder.name()
     }
 
+    /// Whether the encoder takes a Wayland share's DMA-BUF whole: VAAPI's does,
+    /// and NVENC's where its GL side opened; otherwise it reads memory.
+    #[cfg(target_os = "linux")]
+    pub(crate) fn takes_dmabuf(&self) -> bool {
+        self.encoder.takes_gpu_picture()
+    }
+
+    /// Whether the encoder takes a Windows Graphics Capture picture on the GPU.
+    #[cfg(target_os = "windows")]
+    pub(crate) fn takes_gpu_picture(&self) -> bool {
+        self.encoder.takes_gpu_picture()
+    }
+
+    /// What to call, from the encoder's thread, with the format and modifier
+    /// of a DMA-BUF the GPU would not read.
+    #[cfg(target_os = "linux")]
+    pub(crate) fn on_import_failed(&self, told: Box<dyn Fn(u32, u64) + Send + Sync>) {
+        self.encoder.on_import_failed(told);
+    }
+
+    /// Whether the encoder has failed, telling the session so the first time:
+    /// [`send`](Self::send) asks, and a capture with no new picture to send.
+    pub(crate) fn failed(&self) -> bool {
+        if !self.encoder.failed() {
+            return false;
+        }
+        if !self.reported.swap(true, Ordering::Relaxed) {
+            (self.on_failed)();
+        }
+        true
+    }
+
     /// The rate the encoder is at, which one taking over starts from.
     pub(crate) fn bitrate(&self) -> u32 {
         self.encoder.bitrate()
     }
 
-    /// Hand the encoder one picture, already the target size in I420 or
-    /// still the native size in ARGB. Says false once the encoder has failed,
-    /// having told the session so the first time.
+    /// Hand the encoder one picture, already the target size in I420, still
+    /// the native size in ARGB, or a DMA-BUF the encoder fits itself. Says
+    /// whether the encoder took it: not when the rate gate left it out, nor
+    /// once the encoder has failed, having told the session so the first
+    /// time.
     pub(crate) fn send(&self, picture: Picture<'_>, target: Size, timestamp_us: i64) -> bool {
-        if self.encoder.failed() {
-            if !self.reported.swap(true, Ordering::Relaxed) {
-                (self.on_failed)();
-            }
+        if self.failed() {
             return false;
         }
         if !self.admits() {
-            return true;
+            return false;
         }
+        let picture = match picture {
+            #[cfg(target_os = "linux")]
+            Picture::DmaBuf(picture) => {
+                self.encoder.submit_input(EncoderInput::DmaBuf(DmaBufFrame {
+                    picture,
+                    timestamp_us,
+                }));
+                return true;
+            }
+            #[cfg(target_os = "windows")]
+            Picture::Wgc(picture) => {
+                self.encoder.submit_input(EncoderInput::Wgc(WgcFrame {
+                    picture,
+                    timestamp_us,
+                }));
+                return true;
+            }
+            picture => picture,
+        };
         let width = target.width as usize;
         let height = target.height as usize;
         let mut data = self
@@ -83,16 +142,26 @@ impl GpuFeed {
             .buffer(Nv12Frame::len_for(target.width, target.height));
         let (y, uv) = data.split_at_mut(width * height);
         match picture {
-            Picture::Argb { data: argb, stride } => yuv_helper::argb_to_nv12(
-                argb,
+            Picture::Packed {
+                data: packed,
                 stride,
-                y,
-                target.width,
-                uv,
-                target.width,
-                target.width as i32,
-                target.height as i32,
-            ),
+                order,
+            } => {
+                let to_nv12 = match order {
+                    ByteOrder::Bgrx => yuv_helper::argb_to_nv12,
+                    ByteOrder::Rgbx => yuv_helper::abgr_to_nv12,
+                };
+                to_nv12(
+                    packed,
+                    stride,
+                    y,
+                    target.width,
+                    uv,
+                    target.width,
+                    target.width as i32,
+                    target.height as i32,
+                )
+            }
             Picture::I420(buffer) => {
                 let (stride_y, stride_u, stride_v) = buffer.strides();
                 let (src_y, src_u, src_v) = buffer.data();
@@ -111,6 +180,10 @@ impl GpuFeed {
                     target.height as i32,
                 );
             }
+            #[cfg(target_os = "linux")]
+            Picture::DmaBuf(_) => unreachable!("sent whole above"),
+            #[cfg(target_os = "windows")]
+            Picture::Wgc(_) => unreachable!("sent whole above"),
         }
         self.encoder.submit(Nv12Frame { data, timestamp_us });
         true
@@ -142,10 +215,22 @@ impl GpuFeed {
 }
 
 /// One captured picture, in whichever form it is when it reaches the target
-/// size.
+/// size: or a Wayland share's DMA-BUF, sent to the encoder whole.
 pub(crate) enum Picture<'a> {
-    Argb { data: &'a [u8], stride: u32 },
+    /// Four bytes a pixel, in `order`.
+    Packed {
+        data: &'a [u8],
+        stride: u32,
+        order: ByteOrder,
+    },
     I420(&'a I420Buffer),
+    /// Shared with the processing thread, which keeps the newest picture
+    /// until a feed takes it.
+    #[cfg(target_os = "linux")]
+    DmaBuf(Arc<PwPicture>),
+    /// Shared the same way, the picture still in the frame pool's texture.
+    #[cfg(target_os = "windows")]
+    Wgc(Arc<WgcPicture>),
 }
 
 /// The pre-encoded source, as the encoder sees it.
@@ -164,10 +249,27 @@ struct SourceSink {
 #[cfg(test)]
 pub(crate) static DELIVERED: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
+#[cfg(test)]
+fn dump_for_test(payload: &[u8]) {
+    use std::io::Write;
+    static DUMP: Mutex<Option<Option<std::fs::File>>> = Mutex::new(None);
+    let mut dump = DUMP.lock().unwrap();
+    let file = dump.get_or_insert_with(|| {
+        std::env::var_os("RIFT_DUMP_H264")
+            .map(|path| std::fs::File::create(path).expect("the dump opens"))
+    });
+    if let Some(file) = file {
+        file.write_all(payload).expect("the dump is written");
+    }
+}
+
 impl EncodedSink for SourceSink {
     fn deliver(&mut self, frame: Encoded<'_>) {
         #[cfg(test)]
         DELIVERED.fetch_add(1, Ordering::Relaxed);
+        // RIFT_DUMP_H264 in a test: the stream, for a colour or tear check.
+        #[cfg(test)]
+        dump_for_test(frame.payload);
         // So the receiver authenticates the same bytes the sender encrypted,
         // and can find a keyframe's PPS.
         let rewritten = h264::for_encryption(frame.payload);

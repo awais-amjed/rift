@@ -101,12 +101,10 @@ class HostPlatform {
   ///
   /// The desktop WebRTC library flutter_webrtc ships always installs a
   /// render pre-processor, so every frame played is rebuilt from the audio
-  /// processing module's copy, and on Linux that copy runs at 16 kHz until
-  /// something has been recorded. See `PlayoutWarmup`. Not Windows: there a
-  /// call joined muted already played at about 14 kHz, and the warm-up made
-  /// it worse — 7.4 kHz, and Windows turned other apps down for it, since
-  /// recording there opens a communications stream.
-  static bool get playoutFollowsMicRate => !kIsWeb && Platform.isLinux;
+  /// processing module's copy, and that copy runs at 16 kHz until something
+  /// has been recorded. See `PlayoutWarmup`.
+  static bool get playoutFollowsMicRate =>
+      !kIsWeb && (Platform.isLinux || Platform.isWindows);
 
   /// Whether WebRTC lists the system default as an audio device of its own.
   ///
@@ -153,6 +151,14 @@ class HostPlatform {
   /// Rift list every window itself.
   static bool get picksShareSourceInApp =>
       !kIsWeb && !(Platform.isLinux && _underWayland);
+
+  /// Whether a share can be captured on the GPU, so the choice is offered.
+  ///
+  /// Every Windows build, whatever its GPU: the share takes Rift's own
+  /// capture there by default, and turning it off is always safe. Linux
+  /// only under Wayland, where Rift has its own capture.
+  static bool get capturesShareOnGpu =>
+      !kIsWeb && (Platform.isWindows || (Platform.isLinux && _underWayland));
 
   /// Whether Rift runs the desktop's window picker itself, before the share,
   /// to learn which app the window belongs to (`WindowSharePortal`). Only

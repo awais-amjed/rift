@@ -534,6 +534,19 @@ LiveKit, one room per channel, joined with a short-lived JWT minted by the edge
 function that holds the API secret. A screenshare joins the same room under an
 `_screenshare` identity suffix, so somebody sharing is two participants.
 
+**A share only publishes, and a watch connection only receives.** A share token never
+subscribes, since the roster leaves shares out and one that could would be a listener
+nobody sees. The desktop watches a stream on a third connection, `_watch`
+(`docs/gpu-codecs/STEP3_PLAN.md`), which subscribes, and so is never hidden: everyone in
+the call sees it, and the app folds it into its owner rather than drawing them twice
+(`ParticipantIdentity.isWatch`). The server keeps it tied to a device in the call. It
+mints one only while the same device's voice connection is in the room, removes one whose
+voice connection has gone as soon as LiveKit reports it (`livekit_webhook`), and again on
+any roster read or watch mint, and moderation sets each kind's permissions as it was
+minted (`rift-self-host` `API.md`, `get_channel_token`, `livekit_webhook` and
+*Moderation has to reach the live room*). Verified Nov 2 2026 on the local stack: the
+watcher was visible to the others, and gone 69 ms after its voice connection left.
+
 **A stream is part of being in the call, never on its own.** A share is a
 connection of its own, so the app holds the two together from both ends: the
 sharer's share follows every join, region change and rejoin of its call, or

@@ -1,0 +1,309 @@
+# Step 3: GPU decode and draw for desktop watchers — design
+
+Nov 2 2026. Proposed to the owner; not yet agreed or built. Step 3 of `PLAN.md`. What is
+the owner's is marked so; the rest is the builder's call, and says so where it is a
+judgement.
+
+## Why
+
+Watching a share on the desktop today: flutter_webrtc's libwebrtc decodes it on the CPU,
+`FlutterVideoRenderer::CopyPixelBuffer` converts every frame to RGBA on the CPU
+(`ConvertToARGB`), and Flutter uploads the RGBA picture on its raster thread. Measured
+(`PLAN.md`, step 0; `RESEARCH.md`):
+
+- **Linux** (Oct 26, 1080p60, Rift on the Iris Xe): about 65% of a core while watching.
+  The raster thread is 21–23% (convert, upload and the window's redraw), the decoder 15%,
+  the main thread 12–13%.
+- **Windows** (Oct 26, 1080p60 H264): 117% of a core, about 87% of it the stream page
+  (convert, upload, draw, nearly all on the raster thread), 7–30% the decoder.
+
+Gaming is Rift's main use (owner). A watcher who is also playing feels this as stutter.
+
+**Success:** watching a 1080p60 H264 share costs well under half of today's on Linux and
+Windows, measured the way step 0 was (`threadtop`, 20 s, release build), with the picture
+as smooth and as sharp as today's and the sound no further from the picture than today.
+
+## The route (owner, Nov 2): watch through Rust
+
+- A watcher opens a **second, receive-only LiveKit connection from Rust**, as a sharer
+  already opens one to publish (`rust/src/sharing/room.rs`). It exists only while a share
+  is watched.
+- It receives **both the share's picture and its sound** (owner, Nov 2). One connection
+  carries both, so WebRTC keeps them in step. The sharer's voice stays on the call's
+  connection and may drift a little against the share; the owner accepts that.
+- Not chosen: rebuilding flutter_webrtc's libwebrtc (`PLAN.md`, step 3 (a)), and waiting
+  for an upstream decoder hook ((c)).
+- **Not chosen: moving all call audio to Rust (owner, Nov 2).** Weighed and dropped: the
+  web and the phones would keep the Dart call, so every call fix would be made twice.
+
+## Goals
+
+- Linux (Intel and AMD through VAAPI, NVIDIA through NVDEC) and Windows (D3D11): the share
+  decoded on the GPU and drawn by a shader into a texture Flutter shows, with the picture
+  never on the CPU.
+- Everything watching does today still works:
+  - every place a share is drawn: the tile, the expanded tile, the member card and the
+    PiP window;
+  - the sharer's camera over the stream;
+  - the stream's volume, mute and deafen;
+  - the picture pausing while Rift cannot be seen, with the sound kept;
+  - the call's key and its rotation;
+  - a share that changes size;
+  - a late joiner's first picture.
+- A watcher whose server or GPU cannot do this watches as today. Nothing gets worse.
+
+## Not in this step
+
+- Cameras: they stay on the call's connection, decoded and drawn as today. The shader from
+  phase A could be put into flutter_webrtc's renderer for them later.
+- Phones and the web: phones already decode on the GPU and the browser decodes for itself.
+- H265 and AV1 (step 4), and the codec switch-down that comes with them.
+- macOS.
+
+## Anti-goals
+
+- A watcher who sees nothing because the new path failed. Any failure (no token, no
+  GPU decoder, an import refused, a lost connection) falls back to today's path, once,
+  with a line in the app's log.
+- A hidden listener: a watch connection that can hear a call unseen, or after its owner
+  has left (see *The server*).
+- A watch connection that kicks the watcher's own voice connection (see *Old servers*).
+
+## How it works
+
+```
+Dart                        Rust                                   Runner (C++)
+ watch(share) ─────────────▶ watch connection (_watch)
+                             ├ picture: pass-through ─▶ ffdec (FFmpeg hwaccel)
+                             │                           └ GPU frame ─▶ stream texture
+ Texture(id) ◀─────────────────────────────────────────────────────── (shader, NV12 → RGBA)
+                             └ sound: PCM ─────────────▶ output device (mic test's playback)
+```
+
+### Phase A: the watch connection, drawing on the GPU
+
+Built and measured first. It proves everything except the hardware decoder, and it is
+also the fallback when there is no hardware decoder.
+
+- **The connection** is LiveKit's normal Rust room. It subscribes only to the watched
+  share's tracks, at high quality, with the call's key (the same key handling as
+  `sharing/room.rs`). One connection per call, whichever shares are watched.
+- **The picture** comes out of libwebrtc's own decoder (LiveKit's build, in software) as
+  I420. Phase A only changes the drawing.
+- **The texture** is the runner's, as the noise filter is. Dart asks the runner for one
+  and passes its handle to Rust, the way DPDFNet's entry points reach the noise filter
+  (`dpdfnet::entry_points`). Rust says when a new frame is ready, and the runner draws it
+  when Flutter asks:
+  - **Linux:** an `FlTextureGL`. Its `populate` runs on the raster thread with Flutter's
+    GL context current. It uploads the three planes as one-byte textures (1.5 bytes a
+    pixel, against 4 for today's RGBA) and draws them through a YUV→RGBA shader into the
+    texture Flutter shows. The CPU conversion is gone. Rift's Linux build draws with
+    Impeller on OpenGL ES, and no engine document says `FlTextureGL` works there. **Probed
+    Nov 2** (a throwaway app, Flutter 3.47.7, the RTX 3070 Ti on discrete, GL ES 3.2): a
+    1280x720 I420 picture of four colour blocks, uploaded as three planes and drawn through
+    the shader, came out right under native Wayland (Flutter's own snapshot) and on screen
+    under X11 (a screenshot), at 60 updates a second with no GL error. The same probe on
+    the Iris Xe (laptop on hybrid, Mesa, GL ES 3.2) came out right under Wayland and X11
+    too, about 1.1 ms an update including the CPU fill, no GL error.
+  - **Windows:** a `GpuSurfaceTexture` from a DXGI shared handle on Flutter's own adapter,
+    filled the same way by a D3D11 pixel shader.
+- **The sound** comes out of the Rust connection as PCM (`NativeAudioStream`), see
+  *The sound*.
+- **Dart** switches each share's tile from `VideoTrackRenderer` to a `Texture` while the
+  Rust path holds it. It also stops subscribing to that share on the call's connection,
+  so the share is not received twice. The stream volume key stays
+  `screenshareSettingsKey`.
+
+### Phase B: decoding on the GPU
+
+- **LiveKit's pass-through decoder** (rust-sdks #1515, open upstream, last updated Oct
+  27) is taken into our fork's `rift` branch, as the stereo patches were. The watch
+  connection then hands Rust each frame still encoded and already decrypted.
+  - The jitter buffer and the A/V-sync delay still run before it (the PR, *Why smoothing
+    is off*), so the picture stays in step with the sound.
+- **ffdec**, a decoder next to ffenc in the same FFmpeg library (`native/ffenc`), decodes
+  each frame with FFmpeg's hwaccel:
+  - **Linux VAAPI** (Intel, AMD): the surface is exported as a DMA-BUF
+    (`vaExportSurfaceHandle`). The runner imports its planes into EGL images in Flutter's
+    context, and the same shader draws them. No copy.
+  - **Linux NVIDIA**: NVDEC through FFmpeg's `cuda` hwaccel. The planes are copied on the
+    GPU into GL textures through CUDA-GL interop, as ffenc's NVENC path does the other
+    way.
+  - **Windows**: `d3d11va` on Flutter's adapter, then the D3D11 shader.
+- **On a hybrid laptop,** decode on the GPU Flutter draws with, so the frame stays on one
+  GPU. This mirrors the sharer's rule (owner, Oct 29).
+- **No hardware decoder:**
+  - Checked once, before the connection opens. Without one, the connection uses
+    libwebrtc's own decoder, as in phase A.
+  - A failure mid-share reopens the watch connection that way. The viewer loses about a
+    second, once.
+  - No second software decoder ships (builder's call). FFmpeg is built with the hwaccels
+    only, so the H265 question in `PLAN.md` stays where it is.
+
+### The sound
+
+The owner's view (Nov 2): echo is not worth much effort. Most players wear headphones,
+and a speaker user's game is heard in a share anyway.
+
+**Rust plays the share's sound itself**, on the output the app has chosen, through the
+mic test's playback code (`mic_test`: PulseAudio on Linux, WASAPI on Windows). It applies
+the stream's volume, mute and deafen. Echo for watchers on speakers is accepted (owner,
+Nov 2). It is also better sound than today: stereo and full band, where the call's
+playback caps the share's sound at about 15 kHz (`CALLS.md`).
+
+Probed Nov 2 and not chosen: mixing it into the call's playback through libwebrtc's render
+hook (`RTCAudioProcessing::SetRenderPreProcessing`). A throwaway Flutter app on the vendored
+flutter_webrtc sent its mic between two connections in one process, with the playback
+going to a test sink whose monitor was the mic. The hook mixed in a signal at −23 dBFS:
+- **It plays, and the echo canceller takes it out:** noise came back at −64 dBFS with
+  echo cancellation on, and at −14 to −21 dBFS, feeding back, with it off. (A steady
+  1 kHz tone was not taken out either way: the canceller cannot find the delay of a pure
+  tone, so that was the wrong test signal.)
+- **But it reaches the left channel only:** recorded off the test sink, left −24.8 dBFS,
+  right −68.6. The hook is handed channel 0 of a stereo playback, and reaching the right
+  would mean writing past that buffer on a guess about the prebuilt library's memory.
+- It also runs at the playback's processing rate (32 kHz), the same 15 kHz cap.
+
+### The server
+
+A watch connection needs its own token, and so a change in `rift-self-host`:
+`get_channel_token`, `get_dm_call_token`, the roster's `voiceUserId`, `kick_user` /
+`moderate_user` and a new `livekit_webhook`, with `API.md`.
+
+- Asked with `watch: true`, the identity is `<userId>~<deviceId>_watch`.
+- The grant:
+  - `canPublish: false`.
+  - `canSubscribe` under the same rules as the voice connection (not deafened, may
+    listen).
+  - **Visible.** It was hidden at first, so nobody would draw the watcher twice. But a
+    hidden connection that can subscribe is what share tokens were stopped from being
+    (the `canSubscribe` comment in `get_channel_token`): somebody could sit in a call,
+    hearing everything, appearing nowhere. New apps fold it into its owner
+    (`ParticipantIdentity.isWatch`); an app from before draws the person a second time,
+    and plays the join and leave sounds as they start and stop watching, until it updates.
+- Kept tied to a device in the call:
+  - a watch token is minted only while that device's voice connection is in the room,
+    and joins for one minute;
+  - `livekit_webhook` removes a `_watch` connection as soon as its voice connection
+    leaves, and the roster and every watch mint do too;
+  - a kick or moderation removes the watch connection with the voice one.
+
+  Hidden, a watcher whose device had left went on receiving until the next roster read
+  or mint, and nothing scheduled either (found Nov 2). Visible and swept on the
+  webhook, verified Nov 2 on the local stack: seen by the others, gone 69 ms after its
+  voice left. A region whose LiveKit has no webhook still sweeps on reads and mints,
+  and its leftover watcher shows as its owner, still in the call.
+- **Old servers:** a server without this would ignore `watch` and mint the voice identity
+  itself, and joining with it would kick the watcher's own voice connection. The app
+  checks the returned identity ends in `_watch` before connecting, and falls back to
+  today's path if it does not.
+- Shipping it needs a console release (owner's OK). Until a server has it, its watchers
+  watch as today. The app that folds `_watch` in should ship at least a release before
+  the one that starts watching this way, so most apps have it before any watcher appears.
+
+## Order
+
+1. **Two small probes** on Linux: the sound hand-off, and `FlTextureGL` under Impeller.
+   Done Nov 2 (above).
+2. **Phase A on Linux:** the server token, the watch connection, the `FlTextureGL` and
+   shader, the sound, and Dart's switch between the two paths. Measured against today.
+   The server token is done (`rift-self-host`, Nov 2): verified on the local stack with
+   two members — refused unless the device's voice connection is in the room, seen by
+   the others, receives a stream, cannot publish a track or data, keeps its shape
+   under mute and deafen, and is removed once its voice connection leaves, by LiveKit's
+   webhook, a roster read or another watch mint. The same change stopped moderation
+   letting a muted sharer's share connection subscribe. The DM call's watch token is
+   type-checked, not yet run.
+   The watch connection is done (`rust/src/watching`, Nov 2): it subscribes only to
+   the shares it is told to watch, and hands each picture to the runner by lending the
+   decoder's own I420 buffer (`rift_watch_frame_lock` / `_unlock`), newest only, never
+   queued. Verified by `cargo test live_watch_` against the local stack: a watched
+   synthetic share arrives at its size and shade; unwatching stops it and watching
+   again brings it back; a share sealed under a key the call rotated to is read once
+   that key is added, and one under the old key still is. The local stack's webhook
+   removed a test watcher that had no voice connection, as it should.
+   The runner's texture and Dart's switch are built and driven in the app (Nov 2,
+   two Linux clients): `stream_texture.cc` and `_RustWatchMixin`, described in
+   `CALLS.md`, *Watching a share through Rust*. The sound is built too (Nov 2): Rust
+   plays it (`rust/src/watching/sound`) at the volume the cubit hands down, and the
+   call's copy is held. Verified by `cargo test live_watched_sound` into a null sink:
+   stereo kept, the level as sent, volume 0 and half right, silent once unwatched; and
+   heard right in the app by the owner (two Linux clients). The cost against the
+   call's path is in phase B's entry.
+3. **Phase B on Linux:** VAAPI on the Iris Xe, then NVDEC with the laptop on discrete.
+   AMD by the AMD desktop's Claude.
+   VAAPI is done (Nov 2, `CALLS.md`, *Watching a share through Rust*): LiveKit's
+   pass-through decoder in the fork, with the shared runtime made pass-through at
+   start rather than one factory for the watch connection (a factory is a set of
+   threads of its own), and a fix to the PR, whose connections LiveKit's Room
+   could not configure again. A share the GPU cannot decode goes back to the
+   call's connection for the rest of the call rather than reopening the watch
+   connection on libwebrtc's decoder: the runtime cannot change while the share
+   connections hold it. Verified in Rust (VP8, VP9, H264 on the Iris Xe) and in
+   the app (H264 and VP9). NVDEC is done too (Nov 2, RTX 3070 Ti laptop on
+   discrete): FFmpeg's NVDEC on CUDA's primary context, the picture copied by CUDA
+   into the runner's GL textures (Moonlight's way, not EGLStreams), and its colour
+   matrix and range taken from the stream for both decoders. A GPU picture the runner
+   fails to draw is handed back undrawn, and the call goes back to its own
+   connection. Verified in Rust (VP8, VP9, H264 through CUDA) and in the app (H264
+   and VP9, resize, minimise, rejoin, the first watch after joining). AMD is done
+   too (Nov 3, RX 9070 XT desktop, `STEP3_AMD.md`): VAAPI on the card that draws
+   the screen, not the Ryzen's iGPU; each picture two DMA-BUF layers in AMD's tiled
+   layout, imported by EGL; verified in Rust (VP9, H264) and in the app (H264 and
+   VP9 up to 120 a second, resize, minimise, rejoin, the first watch after joining,
+   a late viewer's first picture within a second). AMD's VCN has no VP8 decoder:
+   a VP8 share falls back to the call's connection, as designed, and
+   `live_gpu_watch` now asks the driver which codecs it decodes and expects that
+   fallback for a codec it lacks. Watching through Rust cost 32–34% of a core
+   against 54–57% through the call for H264, 41–42% against 54–58% for VP9, and
+   added 0.10 ms to an uncapped CS2 frame (the call's path 0.16 ms). Not run
+   there: a 5120x1440 share.
+   The cost, measured Nov 3 on NVIDIA in the debug build (`CALLS.md`): a 1000×1080
+   window share at about 48 a second cost the watcher 28–32% of a core through Rust
+   against 39–41% through the call for H264, 33–35% against 52–55% for VP9. The
+   decoder went; the window redrawn at the picture's rate (raster and main threads,
+   11–13% each) is what is left. In the release build at 1920×1080 (a whole-screen
+   share, Nov 3) the call's path costs far more and Rust about half or a little over:
+   H264 at 54–55 a second 33–35% against 56–59%, VP9 at 60 a second 37–41% against
+   71–88%. That is half, not *well under*: the redraw (main and raster threads,
+   12–17% each) is what is left, and only drawing the picture outside Flutter's
+   frame would remove it. Receive stats for a share Rust holds (the owner turned the
+   stats on and saw none) come from the watch connection since Nov 3
+   (`watch_share_stats`), verified in Rust and in the app.
+
+   The app's first fix on the way (Nov 2): watched straight after joining from the
+   sidebar, a share showed the sharer's avatar. The join's unsubscribe of the
+   unwatched picture went out while the watch connection's answer was awaited, and
+   livekit_client dropped the subscribe after it, still holding the old track (patch
+   8 in `third_party/livekit_client/RIFT_PATCHES.md`).
+4. **Windows** (phases A and B) by the Windows Claude, on the same Rust and Dart code
+   with its own texture and decoder. Built Nov 4 (`docs/gpu-codecs/STEP3_WINDOWS.md`):
+   the runner draws a watched share from a shared D3D11 texture, Rust plays its sound
+   through WASAPI, and FFmpeg decodes H264 and VP9 through D3D11 on the runner's own
+   device. Proven on the laptop in Hybrid (Iris Xe drawing): the decoder alone on the
+   Iris Xe and the RTX 3070 Ti, `live_gpu_watch` on the Iris Xe, and the app with two
+   clients and the owner's pass by hand; watching costs 70–76% of a core through Rust
+   against 97–118% through the call (`CALLS.md`). Discrete mode and a game beside it
+   are still to measure.
+
+## Tests
+
+- **Rust live tests** (`cargo test live_watch_ -- --ignored`), beside `gpu_live_test.rs`:
+  - a test share is watched by a watch connection; every picture arrives and decodes;
+  - the tear picture comes through clean;
+  - a resize mid-share;
+  - a late joiner;
+  - a refused token falls back;
+  - a hardware decoder failure falls back.
+- **A/V drift:** the beep-and-flash rig from the stream A/V-sync work (Oct 4), measured
+  on the Rust path against today's.
+- **Server:** each repository's DB/function tests for the new token, a minted-only-while-
+  in-the-call case, and the old-server identity check.
+- **The app:** the measurement, the drawing places listed in *Goals*, and a game beside
+  it. By hand, with the owner, recorded in `TESTING.md`.
+
+## Open, for the owner
+
+- Whether this step waits for the console release, or the app ships the path ready and
+  each server picks it up when it updates (builder's view: the second; the fallback makes
+  it safe).

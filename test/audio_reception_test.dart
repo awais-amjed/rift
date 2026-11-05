@@ -19,12 +19,14 @@ void main() {
       bool watched = false,
       bool ownerless = false,
       bool someoneElse = false,
+      bool playedElsewhere = false,
     }) => hearsRemoteAudio(
       deafened: deafened,
       stream: stream,
       watched: watched,
       ownerless: ownerless,
       someoneElse: someoneElse,
+      playedElsewhere: playedElsewhere,
     );
 
     test('a voice is heard unless deafened', () {
@@ -41,6 +43,13 @@ void main() {
     test('a share whose owner has left is not heard, watched or not', () {
       expect(hears(ownerless: true), isFalse);
       expect(hears(stream: true, watched: true, ownerless: true), isFalse);
+    });
+
+    test('a stream the watch connection plays is held in the call', () {
+      expect(
+        hears(stream: true, watched: true, playedElsewhere: true),
+        isFalse,
+      );
     });
 
     test('listening only to one person holds everyone else, streams too', () {

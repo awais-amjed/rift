@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:livekit_client/livekit_client.dart';
 
+import '../../../../../data/classes/watched_picture.dart';
 import '../../../../../data/participant_identity.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
@@ -243,9 +244,17 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
             );
 
         final themeState = context.theme;
-        final track = isSubscribed ? _videoPub?.track : null;
+        // A share watched through the Rust watch connection has no track in
+        // this room: its picture is the runner's texture instead.
+        final picture = _isScreenshare && isSubscribed
+            ? livekitState.watchedPictures[widget.participant.identity]
+            : null;
+        final track = isSubscribed && picture == null ? _videoPub?.track : null;
         final videoTrack = track is VideoTrack ? track : null;
-        final isWatching = _isScreenshare && isSubscribed && videoTrack != null;
+        final isWatching =
+            _isScreenshare &&
+            isSubscribed &&
+            (videoTrack != null || picture != null);
         // The identity carries a device segment (and a screenshare
         // suffix), so everything about the *person* — their name, their
         // gradient — keys off the user id inside it instead.
@@ -328,6 +337,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
               child: widget.isExpanded
                   ? ExpandedParticipantTile(
                       videoTrack: videoTrack,
+                      picture: picture,
                       name: name,
                       userId: userId,
                       isMicEnabled: VoiceAttributes.isMicOpen(
@@ -361,6 +371,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                   : _buildCollapsed(
                       themeState: themeState,
                       videoTrack: videoTrack,
+                      picture: picture,
                       name: name,
                       userId: userId,
                       isDeafened: isDeafened,
@@ -386,6 +397,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
   Widget _buildCollapsed({
     required ThemeState themeState,
     required VideoTrack? videoTrack,
+    required WatchedPicture? picture,
     required String name,
     required String userId,
     required bool isDeafened,
@@ -405,6 +417,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
       builder: (context, isSpeaking) {
         return CollapsedParticipantTile(
           videoTrack: videoTrack,
+          picture: picture,
           isSpeaking: isSpeaking && !widget.isMuted,
           name: name,
           userId: userId,

@@ -281,12 +281,12 @@ and these development packages:
 # Debian and Ubuntu. 24.04 ships clang 18: take clang-21 from apt.llvm.org,
 # and build with CC=clang-21 CXX=clang++-21.
 sudo apt install cmake ninja-build pkg-config libgtk-3-dev libsecret-1-dev \
-  libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libpulse-dev libva-dev \
-  libayatana-appindicator3-dev
+  libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libpulse-dev libva-dev libdrm-dev \
+  libpipewire-0.3-dev libegl-dev libgbm-dev libayatana-appindicator3-dev
 
 # Arch
 sudo pacman -S clang cmake ninja gtk3 libsecret gstreamer gst-plugins-base \
-  libpulse libva libayatana-appindicator
+  libpulse libva libdrm pipewire mesa libayatana-appindicator
 ```
 
 </details>

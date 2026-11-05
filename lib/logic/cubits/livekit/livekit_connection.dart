@@ -17,6 +17,11 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
   void _syncParticipants();
   void setupRoomListeners(Room room);
   void _applyStoredSettings();
+  bool _hearsAudio(
+    Room room,
+    Participant participant,
+    TrackPublication publication,
+  );
   void _applyVoicePrivacy([Room? room]);
   bool get _voiceRestricted;
 
@@ -284,6 +289,10 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
         e2eeOptions: e2ee,
       ),
     );
+    // Off from the start: the event comes too late to keep a held share's
+    // sound from playing as somebody joins (CALLS.md).
+    room.audioHeldOnArrival = (participant, publication) =>
+        !_hearsAudio(room, participant, publication);
     setupRoomListeners(room);
 
     try {
