@@ -809,7 +809,9 @@ libwebrtc still decodes, on the CPU.
   runner once compared its own with adapter 0 at its first watch and kept
   the answer, and adapter 0 may have moved by then, found by review Nov 5;
   checked Nov 6 in unit tests on the RTX in Discrete, both ways, with a
-  stand-in LUID for the other adapter), or a GPU
+  stand-in LUID for the other adapter, and in the app in Hybrid with
+  Flutter on the RTX and Rust on the Iris Xe, refused and watched through
+  the call), or a GPU
   picture the runner fails to import or copy (it hands it back undrawn,
   `rift_watch_frame_unlock`) sends the call back to watching through the
   call's connection. Elsewhere (X11, Windows without a decoder there,
