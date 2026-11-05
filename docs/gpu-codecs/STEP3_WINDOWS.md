@@ -121,7 +121,13 @@ by LUID.
   - with CS2 in front and drawing (about 40% of the RTX's 3D engine), the watcher's
     window kept on top so its pictures stay on, 0 of 600 torn;
   - the check on the tile saw 74 of 300 torn on a page torn on purpose every fourth
-    frame.
+    frame;
+  - **Nov 5, the load on Flutter's own GPU:** the scratch load program on the RTX at
+    about 1,900 draws a second, the watcher's window on top, H264 decoded on the RTX:
+    0 of 600 torn (picture 502×342).
+  - **The probe in Discrete (Nov 5), which has no wait:** 193 of 600 grabs torn with
+    nothing else running. This is the read at once above, seen through Flutter: on the
+    RTX the probe's route tears, and the runner's wait is what keeps the app's 0.
 - **Hybrid (Nov 4, the same check with phase B's pictures):** Flutter and the decoder
   on the Iris Xe, CS2 on the RTX. H264 at 720p60 from a window share of the bar:
   0 of 600 grabs torn with nothing else running, 0 of 600 with CS2 running behind the

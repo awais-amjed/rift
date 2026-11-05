@@ -383,9 +383,16 @@ a heavy full-screen pixel shader without vsync, so Flutter's own GPU is busy.
   for −20.0 sent, the tone 42–48 dB above everything else in both. It played once: a second copy would
   read about −14. The Communications setting was at Do nothing, the owner's choice, so ducking rests on
   Step 4's measurement.
-- [ ] **Step 7: Discrete, before phase B.** The owner reboots into Discrete. There, run Task 0's tear check
+- [x] **Step 7: Discrete, before phase B.** The owner reboots into Discrete. There, run Task 0's tear check
   under load (CS2, then the load program on the RTX, which is Flutter's adapter there), then Steps 2 and 4 of
   this task once.
+
+  *Nov 5, Discrete, after phase B:* the probe, which has no wait, tore 193 of 600 grabs with nothing else
+  running, so the load runs went to the app, which waits: 0 of 600 with the load program on the RTX (CS2
+  was Task 11 Step 1's, 0 of 600). Step 2: the log named Rust, H264 decoded on the RTX through D3D11, the
+  sound on CABLE Input. Step 4: the window could not draw at picture 300 and the call took over in 1 ms,
+  the tile moving at 61 a second and the sound going on at −20.0 dBFS; the next Watch went through Rust
+  again on a new device, without a rejoin, the sound playing once.
 - [ ] **Step 8: Commit** with `TESTING.md` row 26 and `CALLS.md` (what was driven, the cost table, what was not).
 
 ## Phase B
