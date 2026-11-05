@@ -228,11 +228,12 @@ hardware encoding and decoding, so they wait.
   and JS cryptors leave none, so a desktop's VP9 share stayed black in the
   browser. Proved and fixed live in Chrome and Firefox
   (`third_party/livekit_client/RIFT_PATCHES.md`, patch 6; `TESTING.md`).
-- **Phone and web shares in H264.** They go out as the SDK's default VP8 with
-  simulcast, often encoded on the CPU; H264 has a hardware encoder on nearly every
-  phone. But a phone's or browser's encoder may put the keyframe's PPS id past
-  what encryption leaves readable, and Rift cannot rewrite it inside the SDK. Test
-  each with `h264::idr_readable_when_encrypted` before changing the default.
+- **Web shares in H264, and more phones' encoders.** Android phones share in H264
+  since Nov 6 2026 (`CALLS.md`, *A phone's share*); web shares are still the SDK's
+  default VP8 with simulcast. An encoder may put the keyframe's PPS id past what
+  encryption leaves readable, and Rift cannot rewrite it inside the SDK. Only an
+  Exynos phone has been read so far: read other phones and browsers the way
+  `h264::idr_readable_when_encrypted` does.
 - **Web drawing:** `--dart-define=WEBRTC_USE_HTML_ELEMENT_VIEW=true` shows the
   browser's `<video>` directly instead of a Flutter frame per video frame. Check
   the stage's blurred overlays before using it.

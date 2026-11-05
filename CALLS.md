@@ -137,6 +137,48 @@ holds it to its camera bitrates: a share set to 6 Mbps sent 2. Real VP9
 simulcast needs a setting LiveKit's Rust SDK does not expose. And the path
 the GPU's H264 goes through carries one picture.
 
+## A phone's share — [Implemented November 2026]
+
+An Android phone's share goes through LiveKit's SDK, on MediaProjection, not
+through Rust. Since Nov 6 2026 it asks libwebrtc which encoders it has
+(`getRtpSenderCapabilities`). With H264 it publishes H264, capped at 30 fps and
+5 Mbps (`phoneSharePublishOptions`). Without it, it shares as it always did: the
+SDK's VP8 at 15 fps and 2.5 Mbps, because libwebrtc does not fall back by itself.
+libwebrtc has no software H264 on Android, so H264 there means the phone's
+hardware encoder. Cameras, web shares and iOS are untouched. The options are
+passed when the track is published, since `setScreenShareEnabled` takes none and
+the room's default would move the camera too.
+
+The cap has to be `screenShareEncoding`. The SDK picks an encoding by the
+picture's width and never reads the capture options' parameters, so asking the
+capture for 30 fps still sent 15. Android's capture has no rate of its own: it
+draws each frame the shared app draws, so a phone sends only what the app shows.
+The Clock app's stopwatch draws about 17 frames a second and was sent at 15.
+
+The SDK's half-size second picture stays on, as it does for VP8. It is a second
+hardware encoder, and the sent total is 6.25 Mbps, not 5, while anyone is
+watching. The SDK also names VP8 as a backup, for the server to ask for if a
+viewer cannot play H264. That has not been tried.
+
+Measured Nov 6 2026 on an SM-A566B (Exynos 1580, Android 17, on battery, not
+charging, `c2.exynos.h264.encoder`), sharing YouTube playing a 60 fps video to a
+Linux desktop viewer through Rust, encrypted, over Wi-Fi. For 6 minutes the
+phone sent 30 fps from about 60 captured, dropped no frames for congestion or a
+blocked encoder, and never adapted. The viewer got 2340x1080 at 30 fps and 4–5
+Mbps. Battery went from 29.4 to 30.6 °C, skin stayed near 35 °C (33.5 °C at the
+start) and Android's thermal status stayed 0. A longer share, and a phone that
+is already warm, have not been measured.
+
+**Other phones' encoders are the open risk.** Encryption leaves only the byte
+after an IDR's NAL header readable, and a viewer finds its PPS from there
+(*Encoding a share on the GPU*). An encoder writing slice type 7 pushes the id
+past that byte, and about one keyframe in two is dropped, so the viewer freezes
+until another arrives. Rust rewrites such a header on a desktop
+(`h264::with_readable_pps_id`), but the SDK's path has nowhere to do that. This
+phone's encoder writes type 2, with 5 bits used of the 8: read Nov 6 from a short
+`screenrecord` through the same encoder, not from the share itself. Qualcomm and
+MediaTek encoders have not been read.
+
 ## Watching while Rift cannot be seen — [Implemented October 2026]
 
 A watched stream's picture is turned off while nobody can see Rift: minimised,

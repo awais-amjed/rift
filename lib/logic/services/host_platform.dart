@@ -29,6 +29,10 @@ class HostPlatform {
   /// the cases where something more than padding changes.
   static bool get isMobile => !kIsWeb && (Platform.isAndroid || Platform.isIOS);
 
+  /// The Android app, where a share is LiveKit's own capture on the phone's
+  /// encoders. iOS has its own, and they differ.
+  static bool get isAndroid => !kIsWeb && Platform.isAndroid;
+
   /// A native desktop build: Windows, Linux or macOS. Where the app is a
   /// window that stays running, so it tells the user things itself rather
   /// than being woken by a push to do it.
