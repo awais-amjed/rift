@@ -245,6 +245,13 @@ class RemoteParticipant extends Participant<RemoteTrackPublication> {
     await pub.updateSubscriptionAllowed(true);
     addTrackPublication(pub);
 
+    // RIFT PATCH: started before anyone hears of it, not after. start()
+    // turns the track on, and the event's listeners ran before it, so a track an
+    // app turned off on arrival was turned on again behind it and played
+    // until the server stopped sending. See
+    // third_party/livekit_client/RIFT_PATCHES.md.
+    await track.start();
+
     [events, room.events].emit(
       TrackSubscribedEvent(
         participant: this,
@@ -252,8 +259,6 @@ class RemoteParticipant extends Participant<RemoteTrackPublication> {
         publication: pub,
       ),
     );
-
-    await track.start();
   }
 
   @override

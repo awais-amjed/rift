@@ -137,6 +137,24 @@ uncorrelated.
    whatever it holds; asking for a track the server already sends changes
    nothing.
 
+9. **A subscribed track is started before the event says it arrived**
+   (`addSubscribedMediaTrack` in `lib/src/participant/remote.dart`). The SDK
+   emitted `TrackSubscribedEvent` and then started the track, and starting a
+   remote track turns it on. Its listeners run on a later microtask, so
+   they ran first: an app that turned a track off on arrival had it turned on
+   again behind it, and heard it until the server, told the same, stopped
+   sending. Rift holds an unwatched stream's sound that way, so somebody
+   joining a call with a share in it heard about a tenth of a second of the
+   share's sound before the join chime. Still the same on `main` on Nov 5
+   2026.
+
+   Measured Nov 5 2026 on the local stack, Linux, with a probe on this copy:
+   a stereo tone published as a stream's sound, and a listener joining that
+   turned it off on arrival as Rift does. Before, the track was on again
+   1 ms later and the tone played for 60 to 110 ms in 5 joins of 6; after,
+   it stayed off and nothing played in 8 of 8. A listener that kept it on
+   heard the tone from the start, as before.
+
 ## When to remove it
 
 Patch 1 goes when a `livekit_client` release answers a stereo track with
@@ -146,6 +164,6 @@ unsubscribe without holding the track, patch 4 when a release can go back
 to letting visibility decide, patch 5 when a release keeps a disable
 through the server's bind, patch 6 when a release's web worker leaves no
 VP9 bytes in the clear, patch 7 when it passes H264 through the RBSP functions, patch 8 when a release subscribes
-whatever it holds. With all eight gone, bump, delete this
+whatever it holds, patch 9 when a release starts a track before announcing it. With all nine gone, bump, delete this
 folder and its `dependency_overrides` entry. Until then, a `livekit_client` upgrade needs this copy replaced with the
 new version and the changes put back.
