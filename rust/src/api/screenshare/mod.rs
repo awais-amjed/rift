@@ -8,7 +8,7 @@
 //! Dart SDK instead.
 pub mod types;
 
-#[cfg(target_os = "windows")]
+#[cfg(any(target_os = "windows", target_os = "linux"))]
 use crate::screenshare::thumbnail;
 #[cfg(desktop)]
 use crate::screenshare::{session, sources};
@@ -122,11 +122,11 @@ pub fn get_capture_source_thumbnail(
     capture_full_screen: bool,
     source_index: u32,
 ) -> Option<Vec<u8>> {
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
     {
         thumbnail::capture(capture_full_screen, source_index)
     }
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
     {
         let _ = (capture_full_screen, source_index);
         None

@@ -106,4 +106,52 @@ void main() {
       expect(find.text('Minimised'), findsNWidgets(3));
     });
   }
+
+  // X11 lists the windows itself and has no pictures of them: the same tiles,
+  // an icon and the window's app in place of the picture.
+  for (final width in [300.0, 430.0, 850.0]) {
+    testWidgets(
+      'a tile without a picture names its app at ${width.toInt()} px',
+      (tester) async {
+        await tester.pumpWidget(
+          BlocProvider<ThemeCubit>(
+            create: (_) => ThemeCubit(),
+            child: MaterialApp(
+              home: Scaffold(
+                body: Align(
+                  alignment: Alignment.topLeft,
+                  child: SizedBox(
+                    width: width,
+                    child: SourceThumbnailGrid(
+                      sources: const [
+                        CaptureSource(
+                          index: 0,
+                          title: 'A page - Mozilla Firefox',
+                          appId: 'firefox',
+                          minimised: false,
+                        ),
+                        CaptureSource(
+                          index: 1,
+                          title: 'Notes',
+                          appId: '',
+                          minimised: false,
+                        ),
+                      ],
+                      selectedIndex: 0,
+                      thumbnails: const {},
+                      captureFullScreen: false,
+                      onChanged: (_) {},
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        expect(tester.takeException(), isNull);
+        expect(find.text('firefox'), findsOneWidget);
+        expect(find.byIcon(Icons.web_asset), findsNWidgets(2));
+      },
+    );
+  }
 }

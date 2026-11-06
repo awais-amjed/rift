@@ -31,7 +31,7 @@ pub(crate) mod resolution;
 pub(crate) mod session;
 #[cfg(desktop)]
 pub(crate) mod sources;
-#[cfg(target_os = "windows")]
+#[cfg(any(target_os = "windows", target_os = "linux"))]
 pub(crate) mod thumbnail;
 #[cfg(desktop)]
 mod track;

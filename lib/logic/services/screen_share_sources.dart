@@ -48,7 +48,7 @@ class ScreenShareSources {
   }
 
   /// A JPEG preview of one source, or null when the platform can't produce
-  /// one. Windows is the only platform that supplies these today.
+  /// one. Windows and X11 supply these (`HostPlatform.hasShareThumbnails`).
   static Future<Uint8List?> thumbnail({
     required bool captureFullScreen,
     required int sourceIndex,

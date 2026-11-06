@@ -193,9 +193,10 @@ class HostPlatform {
     return desktops.contains('GNOME') || desktops.contains('KDE');
   }
 
-  /// Whether the source list can show a thumbnail of each window. Only the
-  /// Windows capturer produces them.
-  static bool get hasShareThumbnails => !kIsWeb && Platform.isWindows;
+  /// Whether the source list can show a thumbnail of each window: Windows,
+  /// and Linux under X11, whose capturers take a picture on the spot.
+  static bool get hasShareThumbnails =>
+      !kIsWeb && (Platform.isWindows || (Platform.isLinux && !_underWayland));
 
   /// Whether a screen share's sound is picked by hand: every app but Rift,
   /// or one PulseAudio stream. Linux cannot tell which app a window's sound

@@ -6,7 +6,10 @@ import '../../../../../logic/services/screen_share_sources.dart';
 import '../../../../../src/rust/api/screenshare/types.dart';
 import 'source_tile.dart';
 
-/// The windows or screens to pick from, as pictures (Windows only).
+/// The windows or screens to pick from, as tiles: with their pictures on
+/// Windows, the only capturer that makes them, and elsewhere with an icon and
+/// the window's app where it is known (X11), so every platform's list looks
+/// alike.
 ///
 /// It has a page of the dialog to itself, so a tile is big enough to recognise
 /// a window by: three to a row in a big window, two in a smaller one, and one
@@ -59,6 +62,8 @@ class SourceThumbnailGrid extends StatelessWidget {
             return SourceTile(
               label: ScreenShareSources.labelOf(source, captureFullScreen),
               thumbnail: thumbnails[source.index],
+              screen: captureFullScreen,
+              app: source.appId,
               minimised: source.minimised,
               selected: source.index == selectedIndex,
               onTap: () => onChanged(source),

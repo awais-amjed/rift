@@ -144,7 +144,7 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
     }
   }
 
-  /// Fetches JPEG thumbnails one source at a time (Windows only), updating
+  /// Fetches JPEG thumbnails one source at a time (Windows, X11), updating
   /// state as each arrives so the grid populates progressively.
   Future<void> _loadThumbnails(List<CaptureSource> sources) async {
     final listing = _listing;

@@ -21,6 +21,13 @@ class SourceTile extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
+  /// A screen rather than a window: which icon stands in for the picture.
+  final bool screen;
+
+  /// The window's app (X11's `WM_CLASS`), shown where there is no picture.
+  /// Empty where the platform does not say.
+  final String app;
+
   /// The name strip's height, which the grid adds to the picture's.
   static const labelHeight = 38.0;
 
@@ -31,10 +38,12 @@ class SourceTile extends StatelessWidget {
     required this.minimised,
     required this.selected,
     required this.onTap,
+    this.screen = false,
+    this.app = '',
   });
 
   static const _borderWidth = 2.0;
-  static const _waitingIconSize = 28.0;
+  static const _placeholderIconSize = 28.0;
   static const _badgeSize = 24.0;
   static const _badgeInset = 8.0;
 
@@ -82,11 +91,7 @@ class SourceTile extends StatelessWidget {
                         else if (minimised)
                           const MinimisedPreview()
                         else
-                          Icon(
-                            Icons.desktop_windows_outlined,
-                            size: _waitingIconSize,
-                            color: theme.textQuaternary,
-                          ),
+                          _Placeholder(screen: screen, app: app),
                         if (selected) const _Badge(),
                       ],
                     ),
@@ -136,6 +141,59 @@ class _Badge extends StatelessWidget {
         decoration: BoxDecoration(color: theme.primary, shape: BoxShape.circle),
         child: Icon(Icons.check, size: K.iconRow, color: theme.onPrimary),
       ),
+    );
+  }
+}
+
+/// What a tile shows with no picture: one still on its way on Windows, and
+/// every tile where the capturer makes none. The app's name, where known, is
+/// what tells two windows of one title apart.
+class _Placeholder extends StatelessWidget {
+  final bool screen;
+  final String app;
+
+  const _Placeholder({required this.screen, required this.app});
+
+  static const _gap = 6.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    final name = app.trim();
+    final style = AppText.meta.copyWith(color: theme.textTertiary);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // The smallest tiles leave about 40 px for the picture (see
+        // MinimisedPreview): there the icon alone.
+        final nameHeight = MediaQuery.textScalerOf(
+          context,
+        ).scale(style.fontSize! * (style.height ?? 1.4));
+        final showName =
+            name.isNotEmpty &&
+            SourceTile._placeholderIconSize + _gap + nameHeight <=
+                constraints.maxHeight;
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            spacing: _gap,
+            children: [
+              Icon(
+                screen ? Icons.desktop_windows_outlined : Icons.web_asset,
+                size: SourceTile._placeholderIconSize,
+                color: theme.textQuaternary,
+              ),
+              if (showName)
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: style,
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

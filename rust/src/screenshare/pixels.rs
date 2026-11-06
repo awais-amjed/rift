@@ -1,5 +1,5 @@
 //! Pure pixel work, kept free of the platform so it can be tested anywhere:
-//! the Windows thumbnail, and a resized window's letterbox.
+//! a source's thumbnail, and a resized window's letterbox.
 
 /// The order of a picture's four bytes a pixel. Blue first (BGRx, BGRA:
 /// libyuv's "ARGB") is what libwebrtc captures and most compositors share;
@@ -20,8 +20,8 @@ pub(crate) enum ByteOrder {
 ///
 /// Returns the packed pixels and the output size. `None` when the frame is
 /// empty or shorter than its own dimensions claim.
-// Only the Windows thumbnail path calls it; the tests run everywhere.
-#[cfg_attr(not(target_os = "windows"), allow(dead_code))]
+// Only the thumbnail path calls it (Windows, X11); the tests run everywhere.
+#[cfg_attr(not(any(target_os = "windows", target_os = "linux")), allow(dead_code))]
 pub(crate) fn thumbnail_rgb(
     bgra: &[u8],
     width: u32,

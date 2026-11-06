@@ -53,6 +53,8 @@ futures-util = "0.3"
 # (src/screenshare/encoder/ffmpeg.rs), so a computer it cannot load on still
 # runs the app.
 libloading = "0.9"
+# The share dialog's JPEG thumbnails (src/screenshare/thumbnail.rs): Windows, X11.
+image = { version = "0.25", default-features = false, features = ["jpeg"] }
 env_logger = { version = "0.11", default-features = false }
 nanomp3 = "0.2.0"
 deep_filter = { git = "https://github.com/Rikorose/DeepFilterNet", rev = "d375b2d8309e0935d165700c91da9de862a99c31", default-features = false }
@@ -93,7 +95,6 @@ windows = { version = "0.62.2", features = ["Win32_Devices_FunctionDiscovery", "
 # `#[implement]` expands to paths in windows-core, so it has to be a direct
 # dependency for the ducking listener (`ducking.rs`).
 windows-core = "0.62.2"
-image = { version = "0.25", default-features = false, features = ["jpeg"] }
 
 # For the live test in src/screenshare/live_test.rs: minting tokens and
 # reading the viewer's frames. Desktop only for the same reason livekit is.

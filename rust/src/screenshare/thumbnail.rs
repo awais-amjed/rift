@@ -1,6 +1,7 @@
-//! A JPEG preview of one capture source. Windows only: there the capturer
-//! delivers a frame synchronously inside `capture_frame`, which is what makes
-//! a one-shot grab possible without a thread.
+//! A JPEG preview of one capture source, on Windows and under X11: there the
+//! capturer delivers a frame synchronously inside `capture_frame`, which is
+//! what makes a one-shot grab possible without a thread. Not under Wayland,
+//! where libwebrtc's capturer is the desktop's portal and would ask the user.
 use super::pixels::thumbnail_rgb;
 use super::sources;
 use livekit::webrtc::desktop_capturer::DesktopCapturer;
@@ -11,6 +12,10 @@ const THUMBNAIL_WIDTH: u32 = 320;
 /// None for a minimised window: there is nothing on screen to take a
 /// picture of, and the picker says so instead.
 pub(crate) fn capture(capture_full_screen: bool, source_index: u32) -> Option<Vec<u8>> {
+    #[cfg(target_os = "linux")]
+    if under_wayland() {
+        return None;
+    }
     let source_type = sources::source_type(capture_full_screen);
     let chosen = sources::listed(source_type, source_index)?;
     if chosen.minimised {
@@ -31,7 +36,7 @@ pub(crate) fn capture(capture_full_screen: bool, source_index: u32) -> Option<Ve
                 frame.data(),
                 frame.width() as u32,
                 frame.height() as u32,
-                frame.stride() as u32,
+                frame.stride(),
                 THUMBNAIL_WIDTH,
             )
             .and_then(|(rgb, w, h)| encode_jpeg(rgb, w, h));
@@ -54,4 +59,12 @@ fn encode_jpeg(rgb: Vec<u8>, width: u32, height: u32) -> Option<Vec<u8>> {
         )
         .ok()?;
     Some(bytes)
+}
+
+/// The test the app makes before listing sources itself (`HostPlatform`), and
+/// libwebrtc before choosing the portal over X11.
+#[cfg(target_os = "linux")]
+fn under_wayland() -> bool {
+    std::env::var("XDG_SESSION_TYPE").is_ok_and(|t| t.starts_with("wayland"))
+        && std::env::var_os("WAYLAND_DISPLAY").is_some()
 }

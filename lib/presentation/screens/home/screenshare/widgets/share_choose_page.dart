@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import '../../../../../data/classes/screen_share_settings.dart';
-import '../../../../../logic/services/host_platform.dart';
 import '../../../../../src/rust/api/screenshare/types.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/loading_dots.dart';
@@ -11,7 +10,6 @@ import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 import 'share_dialog_header.dart';
 import 'share_summary.dart';
-import 'source_name_list.dart';
 import 'source_thumbnail_grid.dart';
 
 /// The list of windows or screens, with the whole dialog to itself: on a small
@@ -94,18 +92,10 @@ class ShareChoosePage extends StatelessWidget {
         ),
       );
     }
-    if (HostPlatform.hasShareThumbnails) {
-      return SourceThumbnailGrid(
-        sources: found,
-        selectedIndex: settings.selectedVideoSourceIndex,
-        thumbnails: thumbnails,
-        captureFullScreen: full,
-        onChanged: onChanged,
-      );
-    }
-    return SourceNameList(
+    return SourceThumbnailGrid(
       sources: found,
       selectedIndex: settings.selectedVideoSourceIndex,
+      thumbnails: thumbnails,
       captureFullScreen: full,
       onChanged: onChanged,
     );
