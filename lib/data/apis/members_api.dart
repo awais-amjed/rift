@@ -1,4 +1,5 @@
 import '../classes/member_page.dart';
+import '../classes/member_sidebar.dart';
 import '../classes/server_member.dart';
 import '../repositories/server_repository.dart';
 import '../repositories/server_session.dart';
@@ -140,6 +141,34 @@ class MembersApi {
 
   /// How many pages a whole read walks before it stops asking.
   static const int _wholePageBudget = 10;
+
+  /// What the sidebar's first frame needs, in one request. [unsupported] says
+  /// the server has no such call yet, as distinct from one that failed.
+  Future<({MemberSidebar? sidebar, bool unsupported})> sidebar() async {
+    final server = _target.server;
+    if (server == null) return (sidebar: null, unsupported: false);
+
+    final response = await _session.callFor(
+      server,
+      (token) => _repository.memberSidebar(
+        server.supabaseUrl,
+        anonKey: server.supabaseKey ?? '',
+        bearerToken: token,
+      ),
+    );
+    if (!response.success) {
+      return (sidebar: null, unsupported: response.errorCode == 'PGRST202');
+    }
+
+    final sidebar = MemberSidebar.fromJson(
+      response.data as Map<String, dynamic>,
+    );
+    _session.members.remember(server.id, [
+      ...sidebar.bots.members,
+      ...sidebar.people.members,
+    ]);
+    return (sidebar: sidebar, unsupported: false);
+  }
 
   // ── Resolving ───────────────────────────────────────────
 

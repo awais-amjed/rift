@@ -95,9 +95,14 @@ class ServerMembersCubit extends Cubit<ServerMembersState>
     );
   }
 
+  /// This server answered that it has no `member_sidebar`, so the wasted round
+  /// trip is not made again on this server until the app next starts.
+  bool _noSidebarCall = false;
+
   void _onServerChanged(Server? server) {
     if (isClosed) return;
     _loadId++;
+    _noSidebarCall = false;
     _people.reset();
     if (server == null) {
       emit(ServerMembersState());
@@ -127,10 +132,59 @@ class ServerMembersCubit extends Cubit<ServerMembersState>
     if (serverId == null) return;
     final loadId = ++_loadId;
 
-    final bots = await _membersOn(serverId).listBots();
-    final counts = await _membersOn(serverId).memberCounts();
-    final roles = await _rolesOn(serverId).listRoles();
-    await _people.next();
+    final read = _noSidebarCall ? null : await _membersOn(serverId).sidebar();
+    if (_stale(loadId, serverId)) return;
+    if (read?.unsupported ?? false) _noSidebarCall = true;
+
+    final sidebar = read?.sidebar;
+    if (sidebar == null) {
+      await _loadFirstOneByOne(serverId, loadId);
+    } else {
+      // A bot is somebody's program, so a page of them is already past any
+      // real server, but the list is meant to be whole.
+      final bots = sidebar.bots.hasMore
+          ? await _membersOn(serverId).listBots()
+          : sidebar.bots.members;
+      if (_stale(loadId, serverId)) return;
+      _people.seed(sidebar.people);
+      _emitLoaded(
+        state.copyWith(
+          bots: bots,
+          people: _people.loaded,
+          peopleCount: sidebar.peopleCount,
+          roles: sidebar.roles,
+          memberRoles: {
+            ...state.memberRoles,
+            // Holders and non-holders alike, as `_loadRoles` records them.
+            for (final member in [
+              ...sidebar.bots.members,
+              ...sidebar.people.members,
+            ])
+              member.id: sidebar.memberRoles[member.id] ?? const [],
+          },
+          loaded: true,
+          loading: false,
+        ),
+      );
+    }
+    if (_stale(loadId, serverId)) return;
+    await _loadRoles([
+      for (final member in [...state.bots, ..._people.loaded.members])
+        member.id,
+    ]);
+    if (_countingRoles) await _countRoles();
+    await _refreshExtras();
+  }
+
+  /// The same for a server not updated to answer `member_sidebar` yet: its
+  /// requests all at once, since none needs another, and the role chips after.
+  Future<void> _loadFirstOneByOne(String serverId, int loadId) async {
+    final (bots, counts, roles, _) = await (
+      _membersOn(serverId).listBots(),
+      _membersOn(serverId).memberCounts(),
+      _rolesOn(serverId).listRoles(),
+      _people.next(),
+    ).wait;
     if (_stale(loadId, serverId)) return;
 
     _emitLoaded(
@@ -143,11 +197,6 @@ class ServerMembersCubit extends Cubit<ServerMembersState>
         loading: false,
       ),
     );
-    await _loadRoles([
-      for (final member in [...bots, ..._people.loaded.members]) member.id,
-    ]);
-    if (_countingRoles) await _countRoles();
-    await _refreshExtras();
   }
 
   /// Page in more people — what the sidebar asks for as it is scrolled.
@@ -201,9 +250,11 @@ class ServerMembersCubit extends Cubit<ServerMembersState>
     if (!state.loaded) return _loadFirst();
     final loadId = ++_loadId;
 
-    final bots = await _membersOn(serverId).listBots();
-    final counts = await _membersOn(serverId).memberCounts();
-    final roles = await _rolesOn(serverId).listRoles();
+    final (bots, counts, roles) = await (
+      _membersOn(serverId).listBots(),
+      _membersOn(serverId).memberCounts(),
+      _rolesOn(serverId).listRoles(),
+    ).wait;
 
     // The pages reach a joiner only when somebody scrolls to them, which is
     // never when every page is already loaded: the count went up and the row

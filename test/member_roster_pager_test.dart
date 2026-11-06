@@ -59,6 +59,36 @@ void main() {
       },
     );
 
+    test('seeded with the first page, it goes on from there', () async {
+      final asked = <({String name, String id})?>[];
+      final pager = MemberRosterPager(
+        fetchPage: (after) async {
+          asked.add(after);
+          return page(['Cara'], hasMore: false);
+        },
+      );
+
+      pager.seed(page(['Alice', 'Bob'], hasMore: true));
+      expect(pager.isLoaded, isTrue);
+      expect(await pager.next(), isTrue);
+
+      expect(asked.single?.name, 'Bob');
+      expect(pager.loaded.members.map((m) => m.id), ['Alice', 'Bob', 'Cara']);
+      expect(pager.hasMore, isFalse);
+    });
+
+    test('a page in flight when it is seeded is dropped', () async {
+      final landing = Completer<MemberPage?>();
+      final pager = MemberRosterPager(fetchPage: (_) => landing.future);
+
+      final going = pager.next();
+      pager.seed(page(['Alice'], hasMore: false));
+      landing.complete(page(['Stale'], hasMore: false));
+      await going;
+
+      expect(pager.loaded.members.map((m) => m.id), ['Alice']);
+    });
+
     test('asking past the end does nothing', () async {
       var calls = 0;
       final pager = MemberRosterPager(

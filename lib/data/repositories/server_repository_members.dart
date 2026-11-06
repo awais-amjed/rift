@@ -161,6 +161,41 @@ mixin _MemberApiMixin {
     });
   }
 
+  /// All the sidebar's first frame asks for, in one call: the first page of
+  /// bots and of people, the counts, the roles, and who of those holds which.
+  ///
+  /// Answers `PGRST202` from a server not updated to have it yet, which is the
+  /// caller's cue to ask for them one by one.
+  Future<APIResponse> memberSidebar(
+    String supabaseUrl, {
+    required String anonKey,
+    String? bearerToken,
+    int limit = MemberPage.pageSize,
+  }) {
+    return ServerDb.run(() async {
+      final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      final row =
+          await db.rpc(
+                'member_sidebar',
+                // One row past the page — see Paging.split.
+                params: {'p_limit': limit + 1},
+              )
+              as Map<String, dynamic>;
+      Map<String, dynamic> page(String key) {
+        final split = Paging.split(_members(row[key]), limit: limit);
+        return {'users': split.rows, 'has_more': split.hasMore};
+      }
+
+      return {
+        'bots': page('bots'),
+        'people': page('people'),
+        'counts': row['counts'],
+        'roles': row['roles'],
+        'assignments': row['assignments'],
+      };
+    });
+  }
+
   /// Which roles these members hold, most senior first — the chips for the rows
   /// on screen rather than for everybody.
   ///

@@ -59,6 +59,15 @@ class MemberRosterPager {
     _busy = false;
   }
 
+  /// Start from [page], the first page, read some other way (`member_sidebar`).
+  /// Anything in flight is abandoned, as for [reset].
+  void seed(MemberPage page) {
+    _generation++;
+    _loaded = page;
+    _started = true;
+    _busy = false;
+  }
+
   /// Fetch the next page and append it. Returns whether [loaded] changed.
   ///
   /// Safe to call on every scroll frame: a call while one is in flight, or
