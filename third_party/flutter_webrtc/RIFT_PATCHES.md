@@ -35,6 +35,13 @@ and build the plugin's C++ from `common/cpp`. Android and iOS take theirs from
 their own package managers, and the web uses the browser's, so the first two
 patches change Linux and Windows only.
 
+5. **`getStats` refuses a disposed connection** (`common/cpp/src/flutter_webrtc.cc`,
+   marked `RIFT PATCH`). Disposing closes the connection and leaves it in the
+   map for a later close, and a track's stats read its receivers through a
+   pointer the close emptied. So a stats poll landing as a call ended took the
+   whole app down with a segfault (seen Nov 6, Linux, leaving a call). It now
+   answers with the error a missing connection gets, which the pollers ignore.
+
 ## Why the libwebrtc version
 
 From m150, WebRTC prints its INFO lines to stderr in every build type unless

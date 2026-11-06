@@ -326,6 +326,15 @@ void FlutterWebRTC::HandleMethodCall(
       result->Error("getStatsFailed", "getStats() peerConnection is null");
       return;
     }
+    // RIFT PATCH: disposing closes the connection but leaves it in the map, and
+    // asking a closed one for its receivers reads through a null pointer. A
+    // poll landing as a call ends took the whole app down. Only dispose removes
+    // the observer, so its absence says the connection is gone.
+    if (peerconnection_observers_.find(peerConnectionId) ==
+        peerconnection_observers_.end()) {
+      result->Error("getStatsFailed", "getStats() peerConnection is closed");
+      return;
+    }
     GetStats(track_id, pc, std::move(result));
   } else if (method_call.method_name().compare("createDataChannel") == 0) {
     if (!method_call.arguments()) {
