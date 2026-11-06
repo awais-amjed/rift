@@ -150,10 +150,15 @@ call, and a better phone may not mind.
   Upstream's plugin always captures the whole screen and ignores the constraints,
   so our copy reads a size of its own (`riftShortSide`,
   `third_party/flutter_webrtc/RIFT_PATCHES.md`) and keeps the screen's shape.
-- **Frame rate:** 15, 30 or 60. Android's capture has no rate of its own: it draws
-  each frame the shared app draws, up to the 60 a virtual display reports, so 120
-  is not offered. The Clock app's stopwatch draws about 17 a second and sends that
-  at most.
+- **Frame rate:** 15, 30 or 60, and 120 where the screen can run it (`ScreenRates`
+  reads the screen's modes, not its current rate, which an adaptive screen lowers
+  when little moves). Android's capture has no rate of its own: it sends each frame
+  the shared app draws. The Clock app's stopwatch draws about 17 a second and sends
+  that at most. On Nov 6 2026, at 1080p and 120 fps in H264 on the SM-A566B's 120 Hz
+  screen, two samples of the sender's stats read 86 and 109 captured a second and
+  71 and 76 encoded, at 36 and 43 ms a frame, with no adaptation. So the capture
+  goes past 60 and this phone's encoder stops short of 120. The owner saw above 60
+  on the viewer. A faster phone or a smaller picture has not been tried.
 - **Prioritise:** the desktop's three, as WebRTC's degradation preference.
 - **Codec:** whichever of VP8, H264 and VP9 `getRtpSenderCapabilities` lists, with
   Auto on H264 where it is listed and otherwise VP8, because libwebrtc does not fall

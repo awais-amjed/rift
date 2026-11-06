@@ -24,6 +24,10 @@ class PhoneShareDialog extends StatefulWidget {
   /// The screen's short side in pixels: the most it can send.
   final int shortSide;
 
+  /// The rates this phone's screen can be shared at
+  /// (`PhoneShare.frameRatesFor`).
+  final List<int> frameRates;
+
   /// What the call's server allows a share to use, or
   /// [ServerLimits.unlimited].
   final int maxShareMbps;
@@ -32,6 +36,7 @@ class PhoneShareDialog extends StatefulWidget {
     super.key,
     required this.codecs,
     required this.shortSide,
+    required this.frameRates,
     this.maxShareMbps = ServerLimits.unlimited,
   });
 
@@ -48,6 +53,7 @@ class _PhoneShareDialogState extends State<PhoneShareDialog> {
     _draft = PhoneShare.opening(
       context.read<AppCubit>().state.screenShareSettings,
       shortSide: widget.shortSide,
+      frameRates: widget.frameRates,
     );
   }
 
@@ -93,6 +99,7 @@ class _PhoneShareDialogState extends State<PhoneShareDialog> {
                     settings: _draft,
                     codecs: widget.codecs,
                     resolutions: PhoneShare.resolutionsFor(widget.shortSide),
+                    frameRates: widget.frameRates,
                     maxShareMbps: widget.maxShareMbps,
                     onChanged: (settings) => setState(() => _draft = settings),
                     onAdvancedToggled: _onAdvancedToggled,

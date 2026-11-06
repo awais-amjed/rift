@@ -39,8 +39,20 @@ class PhoneShareCapture extends ScreenShareCaptureOptions {
 class PhoneShare {
   const PhoneShare._();
 
-  /// Android's capture gives no more than 60 a second, so 120 is not offered.
-  static const frameRates = [15, 30, 60];
+  /// What any phone is offered.
+  static const _frameRates = [15, 30, 60];
+
+  /// The rate a fast screen is offered as well, and the slowest screen rate
+  /// that counts: some report just under a round figure.
+  static const _fastFps = 120;
+  static const _fastScreenHz = 119.0;
+
+  /// The rates a screen running up to [refreshRate] Hz can be shared at. Above
+  /// its own rate there is nothing more to capture.
+  static List<int> frameRatesFor(double refreshRate) => [
+    ..._frameRates,
+    if (refreshRate >= _fastScreenHz) _fastFps,
+  ];
 
   /// What a phone opens on. Its capture sends only what the shared app draws,
   /// so a screen that moves little sends less than this.
@@ -92,6 +104,7 @@ class PhoneShare {
   static ScreenShareSettings opening(
     ScreenShareSettings saved, {
     required int shortSide,
+    required List<int> frameRates,
   }) {
     final heights = resolutionsFor(shortSide);
     if (!saved.phoneSetUp) {

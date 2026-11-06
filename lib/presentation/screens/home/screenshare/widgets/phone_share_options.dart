@@ -23,6 +23,7 @@ class PhoneShareOptions extends StatelessWidget {
   final ScreenShareSettings settings;
   final List<VideoCodec> codecs;
   final List<int> resolutions;
+  final List<int> frameRates;
   final int maxShareMbps;
   final ValueChanged<ScreenShareSettings> onChanged;
 
@@ -34,6 +35,7 @@ class PhoneShareOptions extends StatelessWidget {
     required this.settings,
     required this.codecs,
     required this.resolutions,
+    required this.frameRates,
     required this.onChanged,
     required this.onAdvancedToggled,
     this.maxShareMbps = ServerLimits.unlimited,
@@ -66,7 +68,7 @@ class PhoneShareOptions extends StatelessWidget {
             Expanded(
               child: FrameRateSection(
                 selectedFps: settings.fps,
-                offered: PhoneShare.frameRates,
+                offered: frameRates,
                 onChanged: (value) => onChanged(settings.copyWith(fps: value)),
               ),
             ),

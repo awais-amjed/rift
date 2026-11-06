@@ -36,6 +36,7 @@ void main() {
                   settings: settings,
                   codecs: codecs,
                   resolutions: const [480, 720, 1080],
+                  frameRates: const [15, 30, 60],
                   onChanged: (_) {},
                   onAdvancedToggled: (_) {},
                 ),

@@ -11,6 +11,7 @@ import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/screenshare/screenshare_cubit.dart';
 import '../../../../../logic/services/host_platform.dart';
 import '../../../../../logic/services/phone_encoders.dart';
+import '../../../../../logic/services/phone_screen.dart';
 import '../../../../../logic/services/phone_share_publish.dart';
 import '../../../../../logic/services/window_share_portal.dart';
 import '../../../../common/app_modal.dart';
@@ -69,6 +70,9 @@ class _ScreenShareControlState extends State<ScreenShareControl> {
       final codecs = HostPlatform.isAndroid
           ? await PhoneEncoders.codecs()
           : null;
+      final frameRates = HostPlatform.isAndroid
+          ? PhoneShare.frameRatesFor(await PhoneScreen.topRefreshRate())
+          : const <int>[];
       if (!mounted) return;
       final screen = View.of(context).display.size;
       // Told what this server allows, so it can grey out what it will not
@@ -80,6 +84,7 @@ class _ScreenShareControlState extends State<ScreenShareControl> {
             ? PhoneShareDialog(
                 codecs: codecs,
                 shortSide: PhoneShare.shortSideOf(screen),
+                frameRates: frameRates,
                 maxShareMbps: maxShareMbps,
               )
             : ScreenShareSettingsDialog(maxShareMbps: maxShareMbps),

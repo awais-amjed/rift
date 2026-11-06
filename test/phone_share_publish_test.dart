@@ -13,8 +13,11 @@ void main() {
   const noH264 = [VideoCodec.vp8];
   const unlimited = ServerLimits();
 
-  ScreenShareSettings opened({int shortSide = 1080}) =>
-      PhoneShare.opening(const ScreenShareSettings(), shortSide: shortSide);
+  ScreenShareSettings opened({int shortSide = 1080}) => PhoneShare.opening(
+    const ScreenShareSettings(),
+    shortSide: shortSide,
+    frameRates: PhoneShare.frameRatesFor(60),
+  );
 
   group('what is offered', () {
     test('a screen offers its own height and the ones below, never above', () {
@@ -60,7 +63,14 @@ void main() {
         codec: 'VP9',
         codecChosen: true,
       );
-      expect(PhoneShare.opening(saved, shortSide: 1080), saved);
+      expect(
+        PhoneShare.opening(
+          saved,
+          shortSide: 1080,
+          frameRates: PhoneShare.frameRatesFor(60),
+        ),
+        saved,
+      );
     });
 
     test('a saved height or rate this phone cannot send goes back', () {
@@ -69,9 +79,31 @@ void main() {
         resolution: 1440,
         fps: 120,
       );
-      final settings = PhoneShare.opening(saved, shortSide: 1080);
+      final settings = PhoneShare.opening(
+        saved,
+        shortSide: 1080,
+        frameRates: PhoneShare.frameRatesFor(60),
+      );
       expect(settings.resolution, 1080);
       expect(settings.fps, 30);
+    });
+
+    test('a saved 120 stays on a screen that can run it', () {
+      const saved = ScreenShareSettings(phoneSetUp: true, fps: 120);
+      final settings = PhoneShare.opening(
+        saved,
+        shortSide: 1080,
+        frameRates: PhoneShare.frameRatesFor(120),
+      );
+      expect(settings.fps, 120);
+    });
+
+    test('120 is offered only on a screen that can run it', () {
+      expect(PhoneShare.frameRatesFor(60), [15, 30, 60]);
+      expect(PhoneShare.frameRatesFor(90), [15, 30, 60]);
+      expect(PhoneShare.frameRatesFor(119.88), [15, 30, 60, 120]);
+      expect(PhoneShare.frameRatesFor(120.00001), [15, 30, 60, 120]);
+      expect(PhoneShare.frameRatesFor(144), [15, 30, 60, 120]);
     });
 
     test('the flag survives a save, and old saves have none', () {
