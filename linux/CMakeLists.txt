@@ -46,6 +46,9 @@ endif()
 function(APPLY_STANDARD_SETTINGS TARGET)
   target_compile_features(${TARGET} PUBLIC cxx_std_14)
   target_compile_options(${TARGET} PRIVATE -Wall -Werror)
+  # clang 23 warns on every GLib G_DEFINE_TYPE (and in flutter_webrtc), so -Werror
+  # stopped the build. The second flag keeps older compilers from failing on the first.
+  target_compile_options(${TARGET} PRIVATE -Wno-unused-but-set-global -Wno-unknown-warning-option)
   target_compile_options(${TARGET} PRIVATE "$<$<NOT:$<CONFIG:Debug>>:-O3>")
   target_compile_definitions(${TARGET} PRIVATE "$<$<NOT:$<CONFIG:Debug>>:NDEBUG>")
 endfunction()
