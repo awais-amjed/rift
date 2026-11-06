@@ -335,28 +335,66 @@ void main() {
       },
     );
 
-    test('the hub holds the call\'s server while another is read', () async {
+    test(
+      'the hub keeps every listed server open, and shuts one left',
+      () async {
+        final session = SessionRepository()
+          ..publish(
+            servers: [signedIn('call', _callUrl), signedIn('other', _otherUrl)],
+            selectedServerId: 'call',
+          );
+        final opened = <String>[];
+        final closed = <String>[];
+        final hub = ServerHub(
+          session: session,
+          open: (id) {
+            opened.add(id);
+            return _FakeContext(session, id, onClose: closed.add);
+          },
+        );
+        expect(opened, ['call', 'other'], reason: 'open before the rail moves');
+
+        // Switching opens nothing and shuts nothing: what the sidebar draws
+        // for the server switched to is already there.
+        session.publish(servers: session.servers, selectedServerId: 'other');
+        await Future<void>.delayed(Duration.zero);
+        session.publish(servers: session.servers, selectedServerId: 'call');
+        await Future<void>.delayed(Duration.zero);
+        expect(opened, ['call', 'other']);
+        expect(closed, isEmpty);
+
+        session.publish(
+          servers: [signedIn('call', _callUrl)],
+          selectedServerId: 'call',
+        );
+        await Future<void>.delayed(Duration.zero);
+        expect(closed, ['other'], reason: 'nothing holds a server left');
+        expect(hub['other'], isNull);
+        await hub.dispose();
+        expect(closed, ['other', 'call']);
+      },
+    );
+
+    test('the call holds its server for as long as it runs', () async {
       final session = SessionRepository()
         ..publish(
           servers: [signedIn('call', _callUrl), signedIn('other', _otherUrl)],
-          selectedServerId: 'call',
+          selectedServerId: 'other',
         );
-      final opened = <String>[];
       final closed = <String>[];
       final hub = ServerHub(
         session: session,
-        open: (id) {
-          opened.add(id);
-          return _FakeContext(session, id, onClose: closed.add);
-        },
+        open: (id) => _FakeContext(session, id, onClose: closed.add),
       );
-      expect(opened, ['call']);
-
       session.publishCall('call');
       await Future<void>.delayed(Duration.zero);
-      session.publish(servers: session.servers, selectedServerId: 'other');
+
+      // Left while the call there is still being torn down.
+      session.publish(
+        servers: [signedIn('other', _otherUrl)],
+        selectedServerId: 'other',
+      );
       await Future<void>.delayed(Duration.zero);
-      expect(opened, ['call', 'other']);
       expect(closed, isEmpty, reason: 'the call still holds its server');
       expect(hub['call'], isNotNull);
 
@@ -402,8 +440,8 @@ void main() {
     );
 
     test('a server nothing holds is shut at once, and shared while held', () {
-      final session = SessionRepository()
-        ..publish(servers: [signedIn('call', _callUrl)]);
+      // Not on the list, so only the holds below keep it.
+      final session = SessionRepository();
       final closed = <String>[];
       final hub = ServerHub(
         session: session,

@@ -24,9 +24,9 @@ import '../cubits/voice_listeners/voice_listeners_cubit.dart';
 /// there and in which voice channel, its soundboard, which bots hear which
 /// channel, its reports and its doorbell.
 ///
-/// One per server something is using, kept in [ServerHub]: the selected
-/// server's, the call's, and the one a Manage page opened on another server
-/// holds. Each of these cubits used to be one app-wide copy that followed the
+/// One per server on the list, kept in [ServerHub] from launch until the
+/// server is left, so switching to one draws who is online and in calls at
+/// once. Each of these cubits used to be one app-wide copy that followed the
 /// selection, and what outlived the selection had to be patched with copies
 /// of its own — a second roster for the call, a second presence join for the
 /// call's server, a soundboard that followed the call, pinned copies for the

@@ -157,10 +157,11 @@ class AppProviders extends StatelessWidget {
         ),
       ],
       child: RepositoryProvider(
-        // Not lazy: it holds the selected server's context and the call's —
-        // the roster that tells a member their own moderation changed, the
-        // Reports badge, the doorbell, the call's ear for soundboard presses
-        // — whether or not anything on screen reads them yet.
+        // Not lazy: it holds every server's context — who is online and in
+        // calls there, the roster that tells a member their own moderation
+        // changed, the Reports badge, the doorbell, the call's ear for
+        // soundboard presses — whether or not anything on screen reads them
+        // yet.
         lazy: false,
         create: _createServerHub,
         dispose: (hub) => unawaited(hub.dispose()),

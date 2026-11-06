@@ -288,9 +288,9 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
 - **What the app keeps live about a server is that server's `ServerContext`**
   (`logic/services/`): its roster, presence, soundboard, voice listeners, reports, doorbell and the call's bot players,
   each cubit bound to that one server. `ServerHub` keeps one per server something holds — it
-  holds the selected server's and the call's itself, and a page about another server holds one
-  through `ServerContextScope` while it is open — and shuts a context down the moment the last
-  hold goes. None of these cubits follows the selection: a second copy for the call, or a
+  holds every server on the list itself, so switching servers reads a roster and presence
+  already there, and the call's and a page's (`ServerContextScope`) hold theirs too — and
+  shuts a context down the moment the last hold goes, which is when a server is left. None of these cubits follows the selection: a second copy for the call, or a
   pinned one for a dialog, is what this replaced. With nothing selected, `ServerHub.none` is
   provided instead — the same cubits, empty — since the channel list and the call's pane are
   drawn either way. A new per-server cubit goes in the context.

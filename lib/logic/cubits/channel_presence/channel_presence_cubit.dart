@@ -33,9 +33,10 @@ part 'channel_presence_tracking.dart';
 ///
 /// Each server's context holds one (`ServerContext`), and holding it is what
 /// keeps us there: our presence entry, and the location our call is announced
-/// at. The call holds its server's while its member reads another, so nobody
-/// there sees us leave a call we are still talking in, and the server being
-/// read is never told we are in a channel it does not have.
+/// at. Every server on the list is held (`ServerHub`), so we are online on
+/// each of them while Rift is open, nobody on the call's server sees us leave
+/// a call we are still talking in while we read another, and a server is
+/// never told we are in a channel it does not have.
 ///
 /// Two questions, and — the point of this class — **two transports**, because
 /// they change at completely different rates.

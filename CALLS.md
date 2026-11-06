@@ -42,13 +42,13 @@ The same holds for what the call draws and plays, and for where it is seen.
 `SessionRepository.callServer` names the call's server (published by
 `LiveKitCubit`). What the app keeps live about a server — its roster,
 presence, soundboard, voice listeners, reports and doorbell — is that server's
-`ServerContext`, and `ServerHub` holds the call's server's context for as long
-as the call lasts, beside the selected server's. So the call's tiles read the
+`ServerContext`, and `ServerHub` holds one for every server on the list, the
+call's server's among them for as long as the call lasts. So the call's tiles read the
 call's roster for faces and names, and the call reads it to tell its bots
 apart, whose key is a different one; a press is played from the call's
 server's library; and our presence entry and voice location stay on the call's
 server while another is open, since its presence cubit is alive. A context
-nothing holds is shut at once. The call's surfaces sit under the call's
+nothing holds — a server left — is shut at once. The call's surfaces sit under the call's
 server's scope (`CallServerScope`), which its menus, profile and full-screen
 stream carry with them, so a right-click on a tile moderates, moves, reports
 and messages on the call's server. Every call to a server is bound to the server it
@@ -67,6 +67,17 @@ the server the click names. So a send, a key sweep or a DM read begun on one
 server finishes on it, and which server notifications count as "open" is the
 one the chat and the DMs say they are on rather than whichever is selected by
 the time they ask.
+
+Every server on the list keeps its context from launch until it is left, not
+only the selected one. Switching servers used to close one server's presence
+and voice topics and join the next one's, then read its call roster and its
+first page of members, a round trip each, so on a slow link the Online group
+and the people in calls arrived well after the channels. Now they are already
+there. It also means a member counts as online on every server they are on
+while Rift is open, rather than only on the one they are reading. Each server
+pays for its own members only: their presence entries and call moves, on the
+socket the unread badges already held open, and two topics each against the
+console's allowance of 1,000 per member.
 
 ## Hiding your voice from somebody — [Implemented October 2026]
 

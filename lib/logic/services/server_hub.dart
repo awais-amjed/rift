@@ -6,13 +6,18 @@ import 'server_context.dart';
 /// The live [ServerContext]s, one per server something holds, and nothing
 /// for a server nothing holds.
 ///
-/// Holds two itself — the selected server's and the call's, which need not
-/// be the same — so the selected server's badge and doorbell run whatever is
-/// on screen, and a call keeps its server's presence and roster while its
-/// member reads another. A page about some other server takes a [hold] of its
-/// own (`ServerContextScope`) for as long as it is open. The last hold let go
-/// shuts that server's context down at once: its joins left, its watchers
-/// stopped, nobody there told we are about.
+/// Holds every server on the list itself, so who is online and who is in
+/// which call are already drawn when the rail moves to a server, instead of
+/// joined and read again over that server's round trips on every switch —
+/// and so a member with Rift open counts as online on each of their servers,
+/// not only on the one they happen to be reading. It costs each server its
+/// own members' presence and call moves, which its socket was open for
+/// anyway. It also holds the selected server's and the call's, for the
+/// moment one is named before the list has it or after it has gone. A page
+/// about a server takes a [hold] of its own (`ServerContextScope`) for as
+/// long as it is open. The last hold let go — a server left — shuts that
+/// server's context down at once: its joins left, its watchers stopped,
+/// nobody there told we are about.
 ///
 /// The one place below the server list that reads the selection. What shows
 /// the selected server's conversations — the open channel, the DM list — is
@@ -25,6 +30,7 @@ class ServerHub {
 
   final Map<String, ({ServerContext context, int holds})> _live = {};
   ServerContext? _none;
+  final Map<String, ServerHold> _listed = {};
   ServerHold? _selected;
   ServerHold? _call;
   String? _shownId;
@@ -80,12 +86,25 @@ class ServerHub {
   void _follow() {
     if (_disposed) return;
     final selectedId = _session.selectedServerId;
+    _holdListed();
     _selected = _move(_selected, selectedId);
     _call = _move(_call, _session.callServerId);
     if (_shown && selectedId == _shownId) return;
     _shown = true;
     _shownId = selectedId;
     _onSelected?.call(selectedId);
+  }
+
+  /// One hold per server on the list: taken when it arrives, let go when it
+  /// leaves.
+  void _holdListed() {
+    final listed = {for (final server in _session.servers) server.id};
+    for (final serverId in listed) {
+      _listed[serverId] ??= hold(serverId);
+    }
+    for (final serverId in [..._listed.keys]) {
+      if (!listed.contains(serverId)) _listed.remove(serverId)!.release();
+    }
   }
 
   /// [held] moved to [serverId]: the new one taken before the old one goes,
@@ -103,6 +122,7 @@ class ServerHub {
     await _callSub?.cancel();
     final live = [for (final entry in _live.values) entry.context, ?_none];
     _live.clear();
+    _listed.clear();
     for (final context in live) {
       await context.close();
     }
