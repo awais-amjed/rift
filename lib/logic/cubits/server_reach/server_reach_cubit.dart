@@ -15,7 +15,10 @@ part 'server_reach_state.dart';
 /// Only the selected one: a server you are not looking at being down is
 /// nothing to act on, and its unread badges simply stop moving. The signal is
 /// the server's realtime socket ([ServerRealtime.unreachable]) — the one
-/// connection every joined server keeps open.
+/// connection every joined server keeps open — or signing in to it having
+/// failed until we stopped trying ([SessionRepository.unreachable]): a
+/// server that will not take our key any more answers its socket no better
+/// than one that is off.
 class ServerReachCubit extends Cubit<ServerReachState> {
   /// How long a server has to stay out of reach before it is reported. A
   /// socket that drops reconnects in a second or two, and a red chip blinking
@@ -55,7 +58,7 @@ class ServerReachCubit extends Cubit<ServerReachState> {
     }
 
     return ServerReachCubit(
-      unreachable: session.realtime.unreachable,
+      unreachable: session.unreachable,
       selected: session.changes.map((_) => selectedOf()).distinct(),
       initial: selectedOf(),
     );

@@ -1,9 +1,11 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:rift_crypto/rift_crypto.dart';
 
 import '../../logic/helper_methods.dart';
 import '../../logic/services/server_realtime.dart';
+import '../../logic/services/sign_in_retries.dart';
 import '../../logic/services/siws_sign_in.dart';
 import '../classes/api_response.dart';
 import '../classes/server.dart';
@@ -13,6 +15,7 @@ import '../member_cache.dart';
 import 'attachment_repository.dart';
 import 'avatar_repository.dart';
 import 'secure_storage_repository.dart';
+import 'server_db.dart';
 import 'server_icon_repository.dart';
 import 'server_repository.dart';
 import 'server_session.dart';
@@ -167,6 +170,24 @@ class SessionRepository {
     onTokenRefused: (serverId) => unawaited(reAuthenticate(serverId)),
   );
 
+  /// The servers that keep refusing to sign us in, tried again a few times
+  /// and then left until opened — see [SignInRetries].
+  late final SignInRetries _retries = SignInRetries(
+    retry: (serverId) => unawaited(reAuthenticate(serverId)),
+    sockets: realtime.unreachable,
+  );
+
+  /// The servers that cannot be reached: their socket is down, or signing
+  /// in to them has failed until we stopped trying.
+  ValueListenable<Set<String>> get unreachable => _retries.outOfReach;
+
+  final _gone = StreamController<String>.broadcast();
+
+  /// A server a background sign-in found gone (`ServerDb.serverGone`):
+  /// deleted, or we were removed. `ServerCubit` forgets it, as it does one
+  /// found gone when opened.
+  Stream<String> get gone => _gone.stream;
+
   // ── Signing in ────────────────────────────────────────────
 
   final _logins = StreamController<SessionLogin>.broadcast(sync: true);
@@ -219,14 +240,37 @@ class SessionRepository {
   ///
   /// Hands back the token and the details together, or the reason it did not
   /// work — `ServerDb.serverGone` among them, which the selection uses to
-  /// notice a server deleted out from under it.
+  /// notice a server deleted out from under it. [asked] is a sign-in somebody
+  /// is waiting on, having opened the server: one that fails says at once
+  /// that the server can't be reached ([SignInRetries]).
   Future<({String? token, ServerDetails? details, String? error})> login(
+    Server server, {
+    bool asked = false,
+  }) async {
+    final result = await signInAndAsk(server);
+    if (result.token != null) {
+      _retries.succeeded(server.id);
+    } else if (result.error == ServerDb.serverGone) {
+      _retries.forget(server.id);
+    } else {
+      _retries.failed(server.id, asked: asked);
+    }
+    return result;
+  }
+
+  /// The sign-in and the question themselves, with nothing kept of how it
+  /// went — a test's stand-in for the server.
+  @protected
+  Future<({String? token, ServerDetails? details, String? error})> signInAndAsk(
     Server server,
   ) async {
     try {
       final login = await signIn(server.supabaseUrl, serverId: server.id);
       final token = login.accessToken;
       if (token == null) {
+        HelperMethods.printDebug(
+          '[Session] sign-in to ${server.name} refused: ${login.error}',
+        );
         return (token: null, details: null, error: login.error);
       }
 
@@ -243,6 +287,9 @@ class SessionRepository {
       // the same answer for the opposite reason: the caller lands what comes
       // back, and an empty reply blanks a server that is merely unreachable.
       if (!details.success || details.data is! Map) {
+        HelperMethods.printDebug(
+          '[Session] ${server.name} did not say who we are: ${details.error}',
+        );
         return (token: null, details: null, error: details.error);
       }
       return (
@@ -264,6 +311,7 @@ class SessionRepository {
   Future<String?> reAuthenticate(String serverId) {
     final existing = _refreshing[serverId];
     if (existing != null) return existing;
+    if (_retries.holdsBack(serverId)) return Future.value(null);
     final future = _reAuthenticate(serverId);
     _refreshing[serverId] = future;
     future.whenComplete(() => _refreshing.remove(serverId));
@@ -275,6 +323,7 @@ class SessionRepository {
     if (server == null) return null;
 
     final result = await login(server);
+    if (result.error == ServerDb.serverGone) _gone.add(serverId);
     final token = result.token;
     final details = result.details;
     if (token == null || details == null) return null;
@@ -385,6 +434,8 @@ class SessionRepository {
   }
 
   Future<void> dispose() async {
+    _retries.dispose();
+    await _gone.close();
     await realtime.dispose();
     await _changes.close();
     await _callChanges.close();

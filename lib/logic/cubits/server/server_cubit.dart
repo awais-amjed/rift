@@ -73,6 +73,7 @@ class ServerCubit extends HydratedCubit<ServerState>
   final SessionRepository _session;
   late final StreamSubscription<SessionLogin> _logins;
   late final StreamSubscription<SessionDetails> _rereads;
+  late final StreamSubscription<String> _gone;
 
   /// Whether the session was made here (a test), so closing ends it too.
   final bool _ownsSession;
@@ -84,6 +85,7 @@ class ServerCubit extends HydratedCubit<ServerState>
     _publishSession(state);
     _logins = _session.logins.listen(_onLogin);
     _rereads = _session.details.listen(_onDetails);
+    _gone = _session.gone.listen(_onGone);
     if (PushService.isSupported) {
       PushService.instance.token.addListener(_onPushToken);
       _onPushToken();
@@ -168,11 +170,20 @@ class ServerCubit extends HydratedCubit<ServerState>
     applyServerDetails(read.serverId, read.details);
   }
 
+  /// A background sign-in found a server gone, as opening it would have.
+  void _onGone(String serverId) {
+    if (isClosed) return;
+    for (final server in state.servers) {
+      if (server.id == serverId) return _forgetGoneServer(server);
+    }
+  }
+
   @override
   Future<void> close() async {
     PushService.instance.token.removeListener(_onPushToken);
     await _logins.cancel();
     await _rereads.cancel();
+    await _gone.cancel();
     if (_ownsSession) await _session.dispose();
     return super.close();
   }

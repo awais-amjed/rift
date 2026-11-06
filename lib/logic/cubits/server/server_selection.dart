@@ -58,7 +58,7 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
     final server = state.selectedServer;
     if (server == null) return false;
 
-    final result = await _session.login(server);
+    final result = await _session.login(server, asked: true);
 
     // The same answer `_fetchDetailsOf` gives, on the path that reaches a
     // deleted server first. A cold selection logs in before it refreshes, and

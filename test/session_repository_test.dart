@@ -1,25 +1,29 @@
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rift/data/classes/api_response.dart';
 import 'package:rift/data/classes/server.dart';
 import 'package:rift/data/classes/server_details.dart';
 import 'package:rift/data/enums/error_code.dart';
+import 'package:rift/data/repositories/server_db.dart';
 import 'package:rift/data/repositories/server_repository.dart';
 import 'package:rift/data/repositories/server_session.dart';
 import 'package:rift/data/repositories/session_repository.dart';
+import 'package:rift/logic/services/sign_in_retries.dart';
 
 /// A session whose sign-in answers at once, counting how often it is asked.
 class _CountingSession extends SessionRepository {
   int signIns = 0;
   String? next = 'fresh';
+  String refusal = 'refused';
 
   @override
-  Future<({String? token, ServerDetails? details, String? error})> login(
+  Future<({String? token, ServerDetails? details, String? error})> signInAndAsk(
     Server server,
   ) async {
     signIns++;
     await Future<void>.delayed(Duration.zero);
     final token = next;
-    if (token == null) return (token: null, details: null, error: 'refused');
+    if (token == null) return (token: null, details: null, error: refusal);
     return (
       token: token,
       details: ServerDetails.fromJson(const {}),
@@ -188,5 +192,70 @@ void main() {
 
     expect(await session.refreshDetails(_server()), isFalse);
     expect(heard, isEmpty);
+  });
+
+  group('a server that keeps refusing to sign us in', () {
+    test('is tried again further apart, then left as out of reach', () {
+      fakeAsync((async) {
+        final session = _CountingSession()..next = null;
+        session.publish(servers: [_server()], selectedServerId: 's1');
+
+        session.reAuthenticate('s1');
+        async.elapse(Duration.zero);
+        expect(session.signIns, 1);
+
+        // Everything that asks in between — a token near its end, a refused
+        // join — waits for the timed retry instead of trying again.
+        session.reAuthenticate('s1');
+        async.elapse(Duration.zero);
+        expect(session.signIns, 1);
+
+        for (final delay in SignInRetries.delays) {
+          async.elapse(delay);
+        }
+        expect(session.signIns, 1 + SignInRetries.delays.length);
+        expect(session.unreachable.value, {'s1'});
+
+        async.elapse(const Duration(hours: 1));
+        session.reAuthenticate('s1');
+        async.elapse(Duration.zero);
+        expect(session.signIns, 1 + SignInRetries.delays.length);
+
+        // Opened: tried once more, and back once it works.
+        session.next = 'fresh';
+        session.login(_server(), asked: true);
+        async.elapse(Duration.zero);
+        expect(session.signIns, 2 + SignInRetries.delays.length);
+        expect(session.unreachable.value, isEmpty);
+      });
+    });
+
+    test('is out of reach at once when opened and refused', () async {
+      final session = _CountingSession()..next = null;
+      session.publish(servers: [_server()], selectedServerId: 's1');
+
+      await session.login(_server(), asked: true);
+
+      expect(session.unreachable.value, {'s1'});
+      await session.dispose();
+    });
+
+    test('is forgotten, not retried, when it says it does not know us', () {
+      fakeAsync((async) {
+        final session = _CountingSession()
+          ..next = null
+          ..refusal = ServerDb.serverGone;
+        session.publish(servers: [_server()], selectedServerId: 's1');
+        final gone = <String>[];
+        session.gone.listen(gone.add);
+
+        session.reAuthenticate('s1');
+        async.elapse(const Duration(minutes: 10));
+
+        expect(gone, ['s1']);
+        expect(session.signIns, 1);
+        expect(session.unreachable.value, isEmpty);
+      });
+    });
   });
 }
