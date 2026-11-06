@@ -33,13 +33,26 @@ class CallNotificationContent {
 /// A sharing call says so instead of naming the channel: a screen leaving the
 /// device is the more consequential of the two facts, and it is the one the
 /// user will want to check on from the shade.
+///
+/// [shareNotSeen] is a share viewers cannot see (`PhoneEncoderWatch`). The shade
+/// is the one place that can say so while the person is in the app they share.
 CallNotificationContent callNotificationContent({
   String? channelName,
   String? serverName,
   required bool micEnabled,
   required bool sharing,
+  bool shareNotSeen = false,
 }) {
   final muteLabel = micEnabled ? 'Mute' : 'Unmute';
+
+  if (sharing && shareNotSeen) {
+    return CallNotificationContent(
+      title: 'People watching your stream see black',
+      text:
+          'Your phone could not start its video encoder. Stop and share again.',
+      muteLabel: muteLabel,
+    );
+  }
 
   if (sharing) {
     return CallNotificationContent(

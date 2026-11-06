@@ -240,4 +240,23 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
       rethrow;
     }
   }
+
+  /// Whether this phone's share has left the codec it was published in
+  /// ([PhoneEncoderWatch]). The publication's own type is no use: a local
+  /// track's is empty.
+  Future<bool> phoneShareLeftItsCodec() async {
+    final track = state.room?.localParticipant
+        ?.getTrackPublicationBySource(TrackSource.screenShareVideo)
+        ?.track;
+    if (track is! LocalVideoTrack) return false;
+    final codec = track.codec;
+    try {
+      final reports = await track.sender?.getStats();
+      if (codec == null || reports == null) return false;
+      return PhoneEncoderWatch.leftItsCodec(codec, reports);
+    } catch (e) {
+      HelperMethods.printDebug('[LiveKit] Share stats failed: $e');
+      return false;
+    }
+  }
 }

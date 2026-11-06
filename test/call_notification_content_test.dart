@@ -72,4 +72,26 @@ void main() {
     expect(content.title, isNotEmpty);
     expect(content.text, isNotEmpty);
   });
+
+  test('a share viewers cannot see says so, in the shade', () {
+    final content = callNotificationContent(
+      micEnabled: true,
+      sharing: true,
+      shareNotSeen: true,
+    );
+
+    expect(content.title, contains('black'));
+    expect(content.text, contains('share again'));
+  });
+
+  test('that warning goes with the share', () {
+    final content = callNotificationContent(
+      channelName: 'voice',
+      micEnabled: true,
+      sharing: false,
+      shareNotSeen: true,
+    );
+
+    expect(content.title, 'voice');
+  });
 }

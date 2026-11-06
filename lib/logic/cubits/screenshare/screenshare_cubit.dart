@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show AppLifecycleState, WidgetsBinding;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' show Helper;
 
@@ -14,6 +15,7 @@ import '../../helper_methods.dart';
 import '../../services/call_foreground_service.dart';
 import '../../services/gpu_codecs.dart';
 import '../../services/host_platform.dart';
+import '../../services/phone_encoder_watch.dart';
 import '../../services/phone_encoders.dart';
 import '../../services/phone_share_publish.dart';
 import '../livekit/livekit_cubit.dart';
@@ -45,6 +47,9 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
 
   /// The last press of Share.
   ShareAttempt? _attempt;
+
+  /// Looks out for a phone's share that viewers cannot see.
+  PhoneEncoderWatch? _encoderWatch;
 
   ScreenshareCubit({LiveKitCubit? livekitCubit})
     : _livekitCubit = livekitCubit,
@@ -197,7 +202,28 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
         settings: settings,
       ),
     );
+    if (HostPlatform.isAndroid) _watchPhoneEncoder(_livekitCubit);
     await _endIfCallGone(channelId);
+  }
+
+  void _watchPhoneEncoder(LiveKitCubit livekit) {
+    _encoderWatch?.stop();
+    _encoderWatch = PhoneEncoderWatch(
+      leftItsCodec: livekit.phoneShareLeftItsCodec,
+      stillSharing: () => state.isSharing,
+      inFront: () =>
+          WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed,
+      onFailed: () => unawaited(CallForegroundService.shareNotSeen()),
+      onSeen: () => emit(
+        state.copyWith(
+          notice: Notice.error(
+            'People watching your stream see black, because your phone could '
+            'not start its video encoder. Stop and share again.',
+            duration: Notice.long,
+          ),
+        ),
+      ),
+    )..start();
   }
 
   /// On a desktop: Rust captures, encodes and publishes, over a second
@@ -468,6 +494,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
   @override
   Future<void> close() async {
     await _eventSub?.cancel();
+    _encoderWatch?.stop();
     return super.close();
   }
 }

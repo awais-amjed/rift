@@ -625,8 +625,9 @@ class LocalParticipant extends Participant<LocalTrackPublication> {
           didRemoveSender = true;
         }
         track.clearSimulcastState();
-        // RIFT PATCH: see RIFT_PATCHES.md.
-        if (lkPlatformIs(PlatformType.android)) {
+        // RIFT PATCH: see RIFT_PATCHES.md. Not a track that grew a backup sender:
+        // the next share on this connection was never asked for after that.
+        if (lkPlatformIs(PlatformType.android) && removedSenders.length == 1) {
           await _stopPublisherSections(removedSenders);
         }
       }

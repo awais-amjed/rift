@@ -203,6 +203,15 @@ uncorrelated.
    one. Other platforms keep the SDK's behaviour; this has not been measured
    on them.
 
+   A track that grew a backup sender is left as the SDK leaves it. Stopping both
+   of its sections left the connection stuck: the server never asked for the next
+   share (`h264:[]`, and no layer after a viewer subscribed), so the sender stayed
+   suspended and viewers saw black until the phone left the call. Found the same
+   day by holding every encoder with `screenrecord`, so that the share fell back to
+   VP8 and the server asked for the backup. With the patch off, or with this
+   exception, the next share reached Cara. Why the server does that was not looked
+   into. Such a track keeps its encoders until the phone leaves the call.
+
 ## When to remove it
 
 Patch 1 goes when a `livekit_client` release answers a stereo track with

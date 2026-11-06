@@ -191,8 +191,25 @@ A stopped share gives its encoders back at once. Removing the track alone left t
 held until the phone left the call, and on a phone that allows 16 the 9th share in a
 call could not open one, so its viewers saw black with no error on the phone. The SDK
 now stops the section on Android (patch 12 in `third_party/livekit_client/RIFT_PATCHES.md`,
-measured Nov 6 2026). A share that cannot open an encoder for another reason still says
-nothing on the phone.
+measured Nov 6 2026), except for a share that grew a backup sender, which keeps its
+encoders until the phone leaves the call.
+
+When a phone cannot open the encoder for its share's codec, on Nov 6 2026 with every
+H264 encoder held by `screenrecord`, nothing stops. H264 gets `NO_MEMORY`, libwebrtc
+moves the sender to VP8 by itself (`libvpx` in the stats) and frames go on being encoded
+and sent, yet Cara stayed black, and stayed black after the encoders came free. A new
+share on the same connection reached Cara. So `PhoneEncoderWatch` compares the sender's
+codec with the track's every 3 seconds, and on a difference the call's notification says
+viewers see black at once, since the person is usually in the app they are sharing, and
+a toast says so when they are back in Rift. Frame counts would not do: they look healthy
+throughout. The move happens only when a frame arrives, so a failed share of a still
+screen says nothing until the screen moves. A share that fails with no codec left to
+move to has not been seen and is not caught.
+
+A still screen sends nothing. Android's capture delivers a frame only when the screen
+changes: on Nov 6 2026 a share of a still Settings page counted no captured frames for its
+first 18 seconds, and Cara, clicking Watch on it, stayed black until the phone was scrolled.
+That is not a failure and raises no warning. It has not been fixed.
 
 Measured Nov 6 2026 on an SM-A566B (Exynos 1580, Android 17, on battery, not
 charging, `c2.exynos.h264.encoder`), sharing YouTube playing a 60 fps video to a

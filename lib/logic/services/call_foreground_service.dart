@@ -55,6 +55,9 @@ class CallForegroundService {
   /// service or fall back to the call's own.
   static bool _sharing = false;
 
+  /// Whether viewers cannot see the running share (`PhoneEncoderWatch`).
+  static bool _shareNotSeen = false;
+
   /// The last set applied, so a change that does not move it does not restart
   /// the service for nothing.
   static List<ForegroundServiceTypes>? _applied;
@@ -134,6 +137,7 @@ class CallForegroundService {
     serverName: _serverName,
     micEnabled: _micEnabled,
     sharing: _sharing,
+    shareNotSeen: _shareNotSeen,
   );
 
   /// Mute and leave: the two things you do to a call you are not looking at.
@@ -241,6 +245,7 @@ class CallForegroundService {
     if (!HostPlatform.isMobile) return true;
     try {
       _sharing = true;
+      _shareNotSeen = false;
       await _apply();
       return true;
     } catch (e) {
@@ -261,6 +266,20 @@ class CallForegroundService {
     } catch (e) {
       HelperMethods.printDebug(
         'CallForegroundService: could not drop back – $e',
+      );
+    }
+  }
+
+  /// Viewers cannot see the running share. The notification says so until the
+  /// share ends; a new one starts clean ([screenShareStarting]).
+  static Future<void> shareNotSeen() async {
+    if (!HostPlatform.isMobile || !_sharing) return;
+    _shareNotSeen = true;
+    try {
+      await _refresh();
+    } catch (e) {
+      HelperMethods.printDebug(
+        'CallForegroundService: could not report the share – $e',
       );
     }
   }
