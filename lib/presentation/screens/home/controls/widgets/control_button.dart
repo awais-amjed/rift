@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/constants.dart';
+import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../../../theme/theme_context.dart';
@@ -23,6 +24,10 @@ class ControlButton extends StatelessWidget {
   /// The dock's shape: a filled tile [K.dockCallButtonHeight] tall that takes
   /// the width its slot gives it. Filled because the dock is a surface of
   /// its own, where a bare glyph in a row of four reads as a label.
+  ///
+  /// On a phone the call's controls share a row with its name instead, over
+  /// mute, deafen and settings, so there it is drawn as those are
+  /// (`DockIconButton`): a bare square a thumb's size, lined up beneath.
   final bool dense;
 
   /// A word beside the icon, for a [dense] tile with room to say what it
@@ -45,14 +50,15 @@ class ControlButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeState = context.theme;
-    Color bgColor = dense ? themeState.bgHover : Colors.transparent;
+    final flat = dense && context.layoutMode.isCompact;
+    Color bgColor = dense && !flat ? themeState.bgHover : Colors.transparent;
     Color iconColor;
 
     if (isActive) {
       bgColor = themeState.channelActiveBg;
       iconColor = themeState.primary;
     } else if (isError) {
-      bgColor = CustomColors.error.withValues(alpha: 0.1);
+      bgColor = CustomColors.error.withValues(alpha: flat ? 0.12 : 0.1);
       iconColor = CustomColors.error;
     } else if (isDimmed) {
       if (!dense) bgColor = themeState.bgTertiary;
@@ -75,8 +81,12 @@ class ControlButton extends StatelessWidget {
           child: SizedBox(
             // The shared control height, square: they were 46, beside a
             // Leave that came out 44 and every other button in the app.
-            width: dense ? double.infinity : K.controlHeight,
-            height: dense ? K.dockCallButtonHeight : K.controlHeight,
+            width: flat
+                ? K.touchTargetMin
+                : dense
+                ? double.infinity
+                : K.controlHeight,
+            height: dense && !flat ? K.dockCallButtonHeight : K.controlHeight,
             child: switch (label) {
               final label? => Row(
                 mainAxisAlignment: MainAxisAlignment.center,

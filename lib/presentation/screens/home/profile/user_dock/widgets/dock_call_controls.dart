@@ -17,16 +17,28 @@ import '../../../soundboard/soundboard_button.dart';
 class DockCallControls extends StatelessWidget {
   final bool cameraOn;
 
-  const DockCallControls({super.key, required this.cameraOn});
+  /// Squares, as wide as they are tall, rather than shares of the dock's
+  /// width: on a phone they sit in the call's own row, beside Leave, so the
+  /// dock is a row shorter.
+  final bool inline;
+
+  const DockCallControls({
+    super.key,
+    required this.cameraOn,
+    this.inline = false,
+  });
 
   static const _gap = SizedBox(width: K.dockCallButtonGap);
 
   @override
   Widget build(BuildContext context) {
+    Widget slot(Widget child) => inline ? child : Expanded(child: child);
+    final gap = inline ? const SizedBox(width: K.dockIconGap) : _gap;
     return Row(
+      mainAxisSize: inline ? MainAxisSize.min : MainAxisSize.max,
       children: [
-        Expanded(
-          child: ControlButton(
+        slot(
+          ControlButton(
             icon: cameraOn ? Icons.videocam : Icons.videocam_off,
             isDimmed: !cameraOn,
             tooltip: cameraOn ? 'Turn off camera' : 'Turn on camera',
@@ -34,14 +46,14 @@ class DockCallControls extends StatelessWidget {
             dense: true,
           ),
         ),
-        _gap,
-        const Expanded(child: ScreenShareControl(dense: true)),
+        gap,
+        slot(const ScreenShareControl(dense: true)),
         if (SoundShareCubit.isSupported) ...[
-          _gap,
-          const Expanded(child: SoundShareButton(dense: true)),
+          gap,
+          slot(const SoundShareButton(dense: true)),
         ],
         // Takes its own share and gap, since it is the one that can be absent.
-        const SoundboardButton(dense: true),
+        SoundboardButton(dense: true, width: inline ? K.touchTargetMin : null),
       ],
     );
   }

@@ -24,7 +24,9 @@ import 'widgets/dock_icon_button.dart';
 ///
 /// A floating pill inside the panel rather than a bar welded to its bottom
 /// edge — it belongs to the same family as the voice card above it, and both
-/// are things that sit *in* the sidebar rather than bound it.
+/// are things that sit *in* the sidebar rather than bound it. On a phone, with
+/// [docked], it is the screen's foot instead: a card floating in a gutter
+/// there read as a box inside a box.
 class UserDock extends StatelessWidget {
   /// Adds a gear for settings. On a phone the dock is at the foot of the
   /// switcher and the rail that carried the gear on a desktop isn't built, so
@@ -36,7 +38,16 @@ class UserDock extends StatelessWidget {
   /// ([MiniCallBar]), as they have no dock.
   final bool showCall;
 
-  const UserDock({super.key, this.showSettings = false, this.showCall = false});
+  /// Full width on the bottom edge, rounded only at the top, its fill running
+  /// on under the system's bar at the foot of a phone's screen.
+  final bool docked;
+
+  const UserDock({
+    super.key,
+    this.showSettings = false,
+    this.showCall = false,
+    this.docked = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -51,17 +62,28 @@ class UserDock extends StatelessWidget {
     );
 
     return Container(
-      margin: const EdgeInsets.all(10),
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
+      margin: docked ? EdgeInsets.zero : const EdgeInsets.all(10),
+      padding: docked
+          ? EdgeInsets.fromLTRB(
+              12,
+              18,
+              12,
+              18 + MediaQuery.paddingOf(context).bottom,
+            )
+          : const EdgeInsets.all(8),
+      decoration: ShapeDecoration(
         color: themeState.bgHover,
-        borderRadius: BorderRadius.circular(K.radiusCard),
-        border: Border.all(color: themeState.borderElevated),
+        shape: RoundedRectangleBorder(
+          borderRadius: docked
+              ? const BorderRadius.vertical(top: Radius.circular(K.radiusCard))
+              : BorderRadius.circular(K.radiusCard),
+          side: BorderSide(color: themeState.borderElevated),
+        ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (showCall) const DockCallPanel(),
+          if (showCall) DockCallPanel(inline: docked),
           Row(
             spacing: 9,
             children: [
@@ -136,7 +158,9 @@ class UserDock extends StatelessWidget {
 
         return Row(
           mainAxisSize: MainAxisSize.min,
-          spacing: 2,
+          // A desktop's dock is a strip of chrome; a phone's lines these up
+          // under the call's controls.
+          spacing: docked ? K.dockIconGap : 2,
           children: [
             DockIconButton(
               icon: micOn ? Icons.mic_rounded : Icons.mic_off_rounded,

@@ -30,7 +30,11 @@ import 'dock_call_controls.dart';
 /// The content stays put against the dock's own row while the top edge
 /// travels, so it reads as the dock opening rather than a panel dropping in.
 class DockCallPanel extends StatelessWidget {
-  const DockCallPanel({super.key});
+  /// The call's controls in the row with its name and Leave, rather than a
+  /// row of their own: a phone, where the dock's height is the list's.
+  final bool inline;
+
+  const DockCallPanel({super.key, this.inline = false});
 
   @override
   Widget build(BuildContext context) {
@@ -65,7 +69,11 @@ class DockCallPanel extends StatelessWidget {
           // One key for every call, so moving to another channel changes the
           // words in place rather than folding the panel and opening it again.
           child: shown
-              ? _CallSection(key: const ValueKey('call'), call: call)
+              ? _CallSection(
+                  key: const ValueKey('call'),
+                  call: call,
+                  inline: inline,
+                )
               : const SizedBox(width: double.infinity),
         );
       },
@@ -75,8 +83,9 @@ class DockCallPanel extends StatelessWidget {
 
 class _CallSection extends StatefulWidget {
   final LiveKitState call;
+  final bool inline;
 
-  const _CallSection({super.key, required this.call});
+  const _CallSection({super.key, required this.call, required this.inline});
 
   @override
   State<_CallSection> createState() => _CallSectionState();
@@ -223,11 +232,32 @@ class _CallSectionState extends State<_CallSection> {
                 ),
               ),
             ),
-            _LeaveButton(direct: dm != null, onTap: _leave),
+            if (widget.inline)
+              // Spaced as the dock's own buttons below, so each sits over
+              // one of them: Leave over settings.
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                spacing: K.dockIconGap,
+                children: [
+                  DockCallControls(
+                    cameraOn: call.isCameraEnabled,
+                    inline: true,
+                  ),
+                  _LeaveButton(
+                    direct: dm != null,
+                    onTap: _leave,
+                    size: K.touchTargetMin,
+                  ),
+                ],
+              )
+            else
+              _LeaveButton(direct: dm != null, onTap: _leave),
           ],
         ),
-        const SizedBox(height: 8),
-        DockCallControls(cameraOn: call.isCameraEnabled),
+        if (!widget.inline) ...[
+          const SizedBox(height: 8),
+          DockCallControls(cameraOn: call.isCameraEnabled),
+        ],
         Container(
           height: 1,
           margin: const EdgeInsets.symmetric(vertical: 8),
@@ -242,8 +272,13 @@ class _CallSectionState extends State<_CallSection> {
 class _LeaveButton extends StatelessWidget {
   final bool direct;
   final VoidCallback onTap;
+  final double size;
 
-  const _LeaveButton({required this.direct, required this.onTap});
+  const _LeaveButton({
+    required this.direct,
+    required this.onTap,
+    this.size = K.dockCallButtonHeight,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -259,9 +294,9 @@ class _LeaveButton extends StatelessWidget {
           borderRadius: radius,
           hoverColor: CustomColors.errorDark,
           onTap: onTap,
-          child: const SizedBox.square(
-            dimension: K.dockCallButtonHeight,
-            child: Icon(
+          child: SizedBox.square(
+            dimension: size,
+            child: const Icon(
               Icons.call_end,
               size: K.iconButton,
               color: CustomColors.onError,

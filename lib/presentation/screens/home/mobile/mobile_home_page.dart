@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../data/constants.dart';
 import '../../../../data/enums/home_surface.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
@@ -71,7 +70,10 @@ class MobileHomePage extends StatelessWidget {
     return Scaffold(
       backgroundColor: theme.bgSecondary,
       resizeToAvoidBottomInset: false,
+      // The dock pads itself for the system's bar, so its fill reaches the
+      // bottom of the screen.
       body: SafeArea(
+        bottom: false,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -81,15 +83,7 @@ class MobileHomePage extends StatelessWidget {
             // the sidebar on a desktop — the call's controls on top while in
             // one. It used to live only inside the switcher sheet, which made
             // muting yourself something you did by opening a server picker.
-            const Padding(
-              padding: EdgeInsets.fromLTRB(
-                K.panelGutter,
-                0,
-                K.panelGutter,
-                K.panelGutter,
-              ),
-              child: UserDock(showSettings: true, showCall: true),
-            ),
+            const UserDock(showSettings: true, showCall: true, docked: true),
           ],
         ),
       ),

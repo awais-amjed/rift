@@ -36,17 +36,23 @@ class SoundboardButton extends StatelessWidget {
   /// the dock's [Row].
   final bool dense;
 
-  const SoundboardButton({super.key, this.dense = false});
+  /// With [dense], a square of this width instead of a share of the row: a
+  /// phone's dock, where the controls sit beside the call's name.
+  final double? width;
+
+  const SoundboardButton({super.key, this.dense = false, this.width});
 
   @override
-  Widget build(BuildContext context) =>
-      CallServerScope(child: _CallSoundboardButton(dense: dense));
+  Widget build(BuildContext context) => CallServerScope(
+    child: _CallSoundboardButton(dense: dense, width: width),
+  );
 }
 
 class _CallSoundboardButton extends StatefulWidget {
   final bool dense;
+  final double? width;
 
-  const _CallSoundboardButton({required this.dense});
+  const _CallSoundboardButton({required this.dense, this.width});
 
   @override
   State<_CallSoundboardButton> createState() => _CallSoundboardButtonState();
@@ -205,6 +211,12 @@ class _CallSoundboardButtonState extends State<_CallSoundboardButton> {
         // The gap to the next control is carried here rather than by the
         // row, because this is the one control in it that can be absent —
         // left outside, it would be a hole beside nothing.
+        if (widget.dense && widget.width != null) {
+          return Padding(
+            padding: const EdgeInsets.only(left: K.dockIconGap),
+            child: SizedBox(width: widget.width, child: button),
+          );
+        }
         if (widget.dense) {
           return Expanded(
             child: Padding(

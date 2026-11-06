@@ -94,6 +94,10 @@ class K {
   static const double dockCallButtonHeight = 34;
   static const double dockCallButtonGap = 6;
 
+  /// Between a phone dock's square buttons — mute, deafen, settings — and
+  /// the call's controls in the row above, which line up with them.
+  static const double dockIconGap = 5;
+
   // ── Dialog widths ─────────────────────────────────────────
   /// A form dialog whose fields run in one column.
   static const double dialogWidth = 480;
