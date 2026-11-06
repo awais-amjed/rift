@@ -190,39 +190,44 @@ void main() {
       expect(request.capture.toMediaConstraintsMap()['riftShortSide'], 720);
     });
 
-    test('the encoding reaches the sent picture, not only the options', () {
-      final encodings = Utils.computeVideoEncodings(
-        isScreenShare: true,
-        dimensions: VideoDimensionsPresets.h1080_169,
-        options: PhoneShare.request(
-          opened().copyWith(fps: 60),
-          codecs: all,
-          limits: unlimited,
-        ).publish,
-        codec: 'h264',
-      )!;
+    test('one picture goes out, with what was asked', () {
+      for (final codec in ['h264', 'vp8']) {
+        final encodings = Utils.computeVideoEncodings(
+          isScreenShare: true,
+          dimensions: VideoDimensionsPresets.h1080_169,
+          options: PhoneShare.request(
+            opened().copyWith(fps: 60, codec: codec, codecChosen: true),
+            codecs: all,
+            limits: unlimited,
+          ).publish,
+          codec: codec,
+        )!;
 
-      expect(encodings.last.maxFramerate, 60);
+        expect(encodings, hasLength(1));
+        expect(encodings.single.maxFramerate, 60);
+        expect(encodings.single.scaleResolutionDownBy ?? 1, 1);
+      }
     });
 
-    test('everything sent stays within a server limit', () {
-      final encodings = Utils.computeVideoEncodings(
-        isScreenShare: true,
-        dimensions: VideoDimensionsPresets.h1080_169,
-        options: PhoneShare.request(
-          opened(),
-          codecs: all,
-          limits: const ServerLimits(maxShareMbps: 3),
-        ).publish,
-        codec: 'h264',
-      )!;
-
-      expect(encodings.length, greaterThan(1));
-      final total = encodings.fold(0, (sum, e) => sum + e.maxBitrate!);
-      expect(total, lessThanOrEqualTo(3 * 1000 * 1000));
+    test('a backup codec would send one picture as well', () {
+      final publish = PhoneShare.request(
+        opened(),
+        codecs: all,
+        limits: unlimited,
+      ).publish;
+      expect(publish.backupVideoCodec.simulcast, isFalse);
     });
 
-    test('with no limit, nothing is held back for the second picture', () {
+    test('a server limit is the whole of what is sent', () {
+      final request = PhoneShare.request(
+        opened(),
+        codecs: all,
+        limits: const ServerLimits(maxShareMbps: 3),
+      );
+      expect(request.publish.screenShareEncoding!.maxBitrate, 3 * 1000 * 1000);
+    });
+
+    test('with no limit, the whole of Auto goes out', () {
       final request = PhoneShare.request(
         opened(),
         codecs: all,

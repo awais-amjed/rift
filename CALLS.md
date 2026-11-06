@@ -191,16 +191,19 @@ The cap has to be `screenShareEncoding`. The SDK picks an encoding by the
 picture's width and never reads the capture options' parameters, so asking the
 capture for 30 fps still sent 15.
 
-The SDK's half-size second picture stays on, for VP8 and H264. It is a second
-encoder at a quarter of the bitrate, so the total sent is 1.25 times what the dialog
-names while anyone is watching. A server's share limit holds that total
-(`PhoneShare.request`), not only the first picture. VP9 sends one picture. The SDK
-also names VP8 as a backup, for the server to ask for if a viewer cannot play H264.
-That has not been tried.
+A share sends one picture, as a desktop's does (`simulcast: false`), since Nov 6
+2026, the owner's call. The SDK's half-size second picture was a second encoder at
+a quarter of the bitrate, on weaker hardware than a desktop's, for a viewer the
+first picture would be too much for. Such a viewer now gets what a desktop's share
+gives them. The figure in the dialog is what is sent, and a server's share limit
+holds it. While nobody watches, the encoder stops, and the next Watch starts a new
+one (7 Watches, 7 encoders, on the SM-A566B that day). The SDK also names VP8 as a
+backup, for the server to ask for if a viewer cannot play H264, with one picture
+too. That has not been tried.
 
 A stopped share gives its encoders back at once. Removing the track alone left them
 held until the phone left the call, and on a phone that allows 16 the 9th share in a
-call could not open one, so its viewers saw black with no error on the phone. The SDK
+call, at two encoders a share then, could not open one, so its viewers saw black with no error on the phone. The SDK
 now stops the section on Android (patch 12 in `third_party/livekit_client/RIFT_PATCHES.md`,
 measured Nov 6 2026), except for a share that grew a backup sender, which keeps its
 encoders until the phone leaves the call.

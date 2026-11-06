@@ -64,11 +64,6 @@ class PhoneShare {
   /// screen whatever is asked.
   static const _unknownShortSide = 1080;
 
-  /// The second, half-size picture the SDK sends beside the first takes a
-  /// quarter of its bitrate, so the two are this many times the first. VP9
-  /// sends one picture.
-  static const _simulcastTotal = 1.25;
-
   /// A phone's short side is its picture's height, as a landscape desktop's
   /// is, whichever way up the phone is held.
   static int shortSideOf(Size screen) =>
@@ -141,24 +136,22 @@ class PhoneShare {
   /// reach the encoder: the SDK picks a preset by the capture's width, and for
   /// 1920 that is the 15 fps one.
   ///
-  /// A server's limit holds everything the share sends, so where it would
-  /// bind, the first picture leaves room for the second.
+  /// One picture, as a desktop's share sends: the SDK's half-size second one
+  /// is a second encoder on a phone, for a viewer the first would be too much
+  /// for. A backup in another codec, should a viewer need one, sends one too.
   static PhoneShareRequest request(
     ScreenShareSettings settings, {
     required List<VideoCodec> codecs,
     required ServerLimits limits,
   }) {
     final codec = codecToSend(settings, codecs);
-    var bps =
+    final bps =
         settings.bitrateToSend(codec: codec, limits: limits) * 1000 * 1000;
-    if (limits.maxShareMbps != ServerLimits.unlimited &&
-        codec != VideoCodec.vp9) {
-      final room = limits.maxShareMbps * 1000 * 1000 ~/ _simulcastTotal;
-      bps = min(bps, room);
-    }
     return (
       publish: VideoPublishOptions(
         videoCodec: codec.name,
+        simulcast: false,
+        backupVideoCodec: const BackupVideoCodec(simulcast: false),
         screenShareEncoding: VideoEncoding(
           maxBitrate: bps,
           maxFramerate: settings.fps,
