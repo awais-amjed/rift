@@ -21,14 +21,14 @@ void main() {
 
   group('what is offered', () {
     test('a screen offers its own height and the ones below, never above', () {
-      expect(PhoneShare.resolutionsFor(1080), [480, 720, 1080]);
-      expect(PhoneShare.resolutionsFor(720), [480, 720]);
-      expect(PhoneShare.resolutionsFor(1440), [480, 720, 1080, 1440]);
-      expect(PhoneShare.resolutionsFor(1220), [480, 720, 1080, 1220]);
+      expect(PhoneShare.resolutionsFor(1080), [360, 480, 720, 1080]);
+      expect(PhoneShare.resolutionsFor(720), [360, 480, 720]);
+      expect(PhoneShare.resolutionsFor(1440), [360, 480, 720, 1080, 1440]);
+      expect(PhoneShare.resolutionsFor(1220), [360, 480, 720, 1080, 1220]);
     });
 
     test('a screen whose size is not known still offers something', () {
-      expect(PhoneShare.resolutionsFor(0), [480, 720, 1080]);
+      expect(PhoneShare.resolutionsFor(0), [360, 480, 720, 1080]);
     });
 
     test('the codecs are the ones the phone lists, with VP8 on any', () {

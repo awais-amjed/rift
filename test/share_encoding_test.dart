@@ -36,7 +36,7 @@ void main() {
     });
 
     test('grows with the picture', () {
-      final heights = [720, 1080, 1440, 2160];
+      final heights = [360, 480, 720, 1080, 1440, 2160];
       for (var i = 1; i < heights.length; i++) {
         expect(
           mbps(heights[i], 60, VideoCodec.vp9),
@@ -68,10 +68,10 @@ void main() {
       );
     });
 
-    test('has no ceiling of its own, and never goes under 2 Mbps', () {
+    test('has no ceiling of its own, and never goes under 1 Mbps', () {
       expect(mbps(1440, 120, VideoCodec.h264), 34);
       expect(mbps(2160, 60, VideoCodec.h264), 38);
-      expect(mbps(240, 15, VideoCodec.vp9), 2);
+      expect(mbps(240, 15, VideoCodec.vp9), 1);
     });
 
     test('sizes a height not in the table by its pixels', () {

@@ -25,7 +25,14 @@ class ShareEncoding {
 
   /// The most a share's VP9 needs at 60 fps, by height, in Mbps. 1080p is
   /// the 10 a share always started at.
-  static const _vp9At60 = {720: 5, 1080: 10, 1440: 15, 2160: 25};
+  static const _vp9At60 = {
+    360: 1,
+    480: 2,
+    720: 5,
+    1080: 10,
+    1440: 15,
+    2160: 25,
+  };
 
   /// What the other codecs need for the same picture. H264's constrained
   /// baseline, the profile a GPU share is held to, needs about half as much
@@ -59,7 +66,7 @@ class ShareEncoding {
   }) {
     final base = _vp9At60[resolution] ?? _nearestBase(resolution);
     final mbps = base * _fpsFactor(fps) * _codecFactor(codec);
-    return max(2, mbps.round());
+    return max(1, mbps.round());
   }
 
   /// A height not in the table, scaled by its pixels from 1080p.

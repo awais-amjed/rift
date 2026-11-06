@@ -12,7 +12,7 @@ import 'share_sound_choice.dart';
 /// fields are per-platform: a window index and title everywhere, a PID on
 /// Windows, a PulseAudio source on Linux.
 class ScreenShareSettings extends Equatable {
-  final int resolution; // height in px (720, 1080, 1440, 2160)
+  final int resolution; // height in px, one of [resolutions] on a desktop
   final int fps;
 
   /// In Mbps, used only when [bitrateChosen]; otherwise Auto sets it from
@@ -230,7 +230,7 @@ class ScreenShareSettings extends Equatable {
       SharePriority.values.asNameMap()[name] ?? defaultPriority;
 
   /// The heights offered, by the picker and by the menu on a running share.
-  static const resolutions = [720, 1080, 1440, 2160];
+  static const resolutions = [360, 480, 720, 1080, 1440, 2160];
 
   /// The frame rates offered, in the same two places.
   static const frameRates = [15, 30, 60, 120];

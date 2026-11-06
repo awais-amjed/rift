@@ -157,7 +157,7 @@ Android's sheet, which asks what to share. What the phone can send is offered
 whatever it does to the phone (`PhoneShare`): how warm it gets is the person's
 call, and a better phone may not mind.
 
-- **Resolution:** the screen's short side and the heights below it, from 480p.
+- **Resolution:** the screen's short side and the heights below it, from 360p.
   Upstream's plugin always captures the whole screen and ignores the constraints,
   so our copy reads a size of its own (`riftShortSide`,
   `third_party/flutter_webrtc/RIFT_PATCHES.md`) and keeps the screen's shape.

@@ -58,7 +58,7 @@ class PhoneShare {
   static const defaultFps = 30;
 
   /// The picture heights offered below a screen's own.
-  static const _heights = [480, 720, 1080, 1440, 2160];
+  static const _heights = [360, 480, 720, 1080, 1440, 2160];
 
   /// Where the screen's size is not known, and the capture takes the whole
   /// screen whatever is asked.
