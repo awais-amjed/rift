@@ -6,7 +6,6 @@ import '../../../../../logic/services/gpu_codecs.dart';
 import '../../../../../logic/services/host_platform.dart';
 import '../../../../../src/rust/api/screenshare/types.dart';
 import '../../../../common/app_button.dart';
-import '../../../../common/checkbox_row.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 import '../sections/audio_source_section.dart';
@@ -25,8 +24,7 @@ import 'share_summary.dart';
 /// their list being different every time.
 ///
 /// Reached before anybody has said what they will share, so what it shows
-/// about sound cannot depend on that: both a whole screen's choice and the
-/// window's are here, and each says which it is for.
+/// about sound cannot depend on that, so the sound's label says what it is for.
 class ShareAdvancedPage extends StatelessWidget {
   final ScreenShareSettings settings;
   final int maxShareMbps;
@@ -53,13 +51,6 @@ class ShareAdvancedPage extends StatelessWidget {
   /// a whole screen's; elsewhere on Linux it is every share's.
   static String get _soundLabel =>
       HostPlatform.matchesWindowSound ? 'Sound with an entire screen' : 'Sound';
-
-  /// A window's sound may be one remembered for its app, which this asks about
-  /// again.
-  bool get _offersChoosingSound =>
-      HostPlatform.matchesWindowSound &&
-      settings.shareAudio &&
-      settings.soundForApps.isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -93,14 +84,6 @@ class ShareAdvancedPage extends StatelessWidget {
                           : settings.copyWith(selectedAudioSource: source),
                     ),
                     onRefresh: onRefreshAudioSources,
-                  ),
-                if (_offersChoosingSound)
-                  CheckboxRow(
-                    label: 'Choose a window’s sound this time',
-                    value: settings.choosesSoundThisTime,
-                    onChanged: (value) => onChanged(
-                      settings.copyWith(choosesSoundThisTime: value),
-                    ),
                   ),
               ],
             ),

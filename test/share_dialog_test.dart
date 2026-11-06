@@ -7,8 +7,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rift/data/classes/screen_share_settings.dart';
+import 'package:rift/data/classes/share_sound_choice.dart';
 import 'package:rift/logic/cubits/app/app_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
+import 'package:rift/logic/services/host_platform.dart';
 import 'package:rift/presentation/common/selectable_surface.dart';
 import 'package:rift/presentation/common/show_custom_dialog.dart';
 import 'package:rift/presentation/screens/home/screenshare/screen_share_settings_dialog.dart';
@@ -357,6 +359,39 @@ void main() {
       expect(isSelected(tester, '8 Mbps'), isTrue);
       expect(find.textContaining('limits screen shares to 8 Mbps'), findsOne);
     });
+  });
+
+  group('asking about a window\'s sound', () {
+    const remembered = ScreenShareSettings(
+      soundForApps: {'app': ShareSoundChoice.allApps()},
+    );
+    // Needs a desktop that matches a window to its sound.
+    final unavailable = !HostPlatform.matchesWindowSound;
+
+    testWidgets('is on the first page, and goes through with a share', (
+      tester,
+    ) async {
+      final answers = await open(tester, settings: remembered);
+      await tester.tap(find.text('Ask which sound'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('A window'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Start sharing'));
+      await tester.pumpAndSettle();
+      expect(answers.single?.choosesSoundThisTime, isTrue);
+    }, skip: unavailable);
+
+    testWidgets('is not offered with nothing remembered', (tester) async {
+      await open(tester);
+      expect(find.text('Ask which sound'), findsNothing);
+    }, skip: unavailable);
+
+    testWidgets('goes with the sound', (tester) async {
+      await open(tester, settings: remembered);
+      await tester.tap(find.text('Share sound'));
+      await tester.pumpAndSettle();
+      expect(find.text('Ask which sound'), findsNothing);
+    }, skip: unavailable);
   });
 
   group('wraps', () {
