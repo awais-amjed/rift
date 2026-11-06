@@ -22,6 +22,14 @@ out. The app uses this copy through `dependency_overrides` in its own
    is kept. Without it the capture is what it always was (`CALLS.md`, *A
    phone's share*).
 
+4. **Android's screen capture repeats its last frame on a still screen**
+   (`OrientationAwareScreenCapturer`, marked `RIFT PATCH`). Android delivers a
+   frame only when the screen changes, so a viewer arriving at a still screen
+   left the encoder nothing to start on and saw black until something moved.
+   After a second with no frame it calls WebRTC's own
+   `SurfaceTextureHelper.forceFrame`, once a second, and gives the repeat a new
+   time (`CALLS.md`, *A phone's share*).
+
 Nothing else differs. The desktop builds take their libwebrtc from that file
 and build the plugin's C++ from `common/cpp`. Android and iOS take theirs from
 their own package managers, and the web uses the browser's, so the first two

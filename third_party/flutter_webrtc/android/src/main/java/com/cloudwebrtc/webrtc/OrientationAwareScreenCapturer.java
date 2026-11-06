@@ -18,6 +18,7 @@ import android.hardware.display.DisplayManager;
 import android.util.DisplayMetrics;
 import android.hardware.display.VirtualDisplay;
 import android.media.projection.MediaProjectionManager;
+import android.os.SystemClock;
 import android.view.Display;
 
 /**
@@ -46,6 +47,25 @@ public class OrientationAwareScreenCapturer implements VideoCapturer, VideoSink 
     private MediaProjectionManager mediaProjectionManager;
     private WindowManager windowManager;
     private boolean isPortrait;
+
+    // RIFT PATCH: see RIFT_PATCHES.md. Android delivers a frame only when the
+    // screen changes, so a viewer arriving at a still screen had nothing to open
+    // the encoder with and saw black until something moved. All on the
+    // SurfaceTextureHelper thread.
+    private static final long STILL_SCREEN_REPEAT_MS = 1000;
+    private boolean hasFrame = false;
+    private long lastFrameAtMs;
+    private long lastSourceTimestampNs;
+    private final Runnable repeatOnStillScreen = new Runnable() {
+        @Override
+        public void run() {
+            if (isDisposed || isStopped) return;
+            if (hasFrame && SystemClock.elapsedRealtime() - lastFrameAtMs >= STILL_SCREEN_REPEAT_MS) {
+                surfaceTextureHelper.forceFrame();
+            }
+            surfaceTextureHelper.getHandler().postDelayed(this, STILL_SCREEN_REPEAT_MS);
+        }
+    };
 
     /**
      * Constructs a new Screen Capturer.
@@ -76,7 +96,16 @@ public class OrientationAwareScreenCapturer implements VideoCapturer, VideoSink 
         if (newW != this.oldWidth || newH != this.oldHeight) {
             changeCaptureFormat(newW, newH, 15);
         }
-        capturerObserver.onFrameCaptured(frame);
+        // RIFT PATCH: a repeat carries the frame's old time, which libwebrtc would
+        // take for a frame it has already seen. The buffer stays the helper's.
+        final long sourceTimestampNs = frame.getTimestampNs();
+        final boolean repeat = hasFrame && sourceTimestampNs == lastSourceTimestampNs;
+        lastSourceTimestampNs = sourceTimestampNs;
+        lastFrameAtMs = SystemClock.elapsedRealtime();
+        hasFrame = true;
+        capturerObserver.onFrameCaptured(repeat
+                ? new VideoFrame(frame.getBuffer(), frame.getRotation(), System.nanoTime())
+                : frame);
     }
 
     private boolean isDeviceOrientationPortrait() {
@@ -137,6 +166,8 @@ public class OrientationAwareScreenCapturer implements VideoCapturer, VideoSink 
         createVirtualDisplay();
         capturerObserver.onCapturerStarted(true);
         surfaceTextureHelper.startListening(this);
+        surfaceTextureHelper.getHandler().removeCallbacks(repeatOnStillScreen);
+        surfaceTextureHelper.getHandler().postDelayed(repeatOnStillScreen, STILL_SCREEN_REPEAT_MS);
     }
 
     @Override
@@ -150,6 +181,7 @@ public class OrientationAwareScreenCapturer implements VideoCapturer, VideoSink 
         ThreadUtils.invokeAtFrontUninterruptibly(surfaceTextureHelper.getHandler(), new Runnable() {
             @Override
             public void run() {
+                surfaceTextureHelper.getHandler().removeCallbacks(repeatOnStillScreen);
                 surfaceTextureHelper.stopListening();
                 capturerObserver.onCapturerStopped();
                 if (virtualDisplay != null) {

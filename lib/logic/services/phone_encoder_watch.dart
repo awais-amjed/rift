@@ -9,8 +9,8 @@ import 'package:flutter_webrtc/flutter_webrtc.dart' show StatsReport;
 /// the sender to another codec by itself and goes on sending. The track is still
 /// published as the first one, so viewers stay black, and they stay black after
 /// an encoder comes free: only a new share mends it (`CALLS.md`, *A phone's
-/// share*). The frame counts look healthy throughout, and a still screen sends
-/// no frames at all, so what gives it away is the codec itself.
+/// share*). The frame counts look healthy throughout, so what gives it away is
+/// the codec itself.
 ///
 /// A phone's share is usually of another app, so the person has often left Rift
 /// by then. [onFailed] runs at once, for what can be seen from outside, and

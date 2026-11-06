@@ -204,14 +204,22 @@ place for a person sharing a phone, gets a notification of its own that pops up,
 channel, since the call's notification changes without a sound and was missed. The call's
 notification says so too, and a toast does once they are in Rift; the pop-up goes when the
 share ends. Frame counts would not do: they look healthy
-throughout. The move happens only when a frame arrives, so a failed share of a still
-screen says nothing until the screen moves. A share that fails with no codec left to
+throughout. The move happens only when a frame arrives, which a still screen now gets
+from the repeat below: started in Rift and left untouched, a failed share warned about 2
+seconds later, where it had said nothing for 15 samples before the repeat. A share that fails with no codec left to
 move to has not been seen and is not caught.
 
-A still screen sends nothing. Android's capture delivers a frame only when the screen
-changes: on Nov 6 2026 a share of a still Settings page counted no captured frames for its
-first 18 seconds, and Cara, clicking Watch on it, stayed black until the phone was scrolled.
-That is not a failure and raises no warning. It has not been fixed.
+A still screen gets its last frame again. Android's capture delivers a frame only when the
+screen changes: on Nov 6 2026 a share of a still Settings page counted no captured frames for
+its first 18 seconds, and Cara, clicking Watch on it, stayed black until the phone was
+scrolled, since the encoder had nothing to start on. So after a second with no new frame the
+capturer has `SurfaceTextureHelper` deliver the last one again, once a second, with a new
+time (`third_party/flutter_webrtc/RIFT_PATCHES.md`). Measured the same day on the SM-A566B:
+Cara had a picture within a second of Watch on Settings shared alone, with the phone
+untouched. The sender then settled at 1 frame a second and 1 to 3 kbps, went to 60 a second
+for a video and came back, without adapting. Nobody watching, the repeats are not encoded
+(`suspended: true`), though the encoders stay open and idle, as they do for a screen that
+moves. A share that has delivered no frame at all has nothing to repeat.
 
 Measured Nov 6 2026 on an SM-A566B (Exynos 1580, Android 17, on battery, not
 charging, `c2.exynos.h264.encoder`), sharing YouTube playing a 60 fps video to a
