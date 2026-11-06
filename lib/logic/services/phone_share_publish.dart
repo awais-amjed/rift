@@ -5,7 +5,6 @@ import 'package:livekit_client/livekit_client.dart';
 
 import '../../data/classes/screen_share_settings.dart';
 import '../../data/classes/server_limits.dart';
-import '../../data/classes/share_encoding.dart';
 import '../../src/rust/api/screenshare/types.dart';
 
 /// How an Android phone's share is captured and published.
@@ -136,31 +135,6 @@ class PhoneShare {
       ? settings.videoCodec
       : autoCodec(codecs);
 
-  /// What Auto caps a phone's picture at, in Mbps: half of what a desktop's
-  /// H264 asks for. A phone usually uploads over less, and 1080p at 30 fps comes
-  /// to 5, measured as clean on a phone's share. It is the same in every codec:
-  /// a desktop's VP9 is given less for being tighter, which a phone's real-time
-  /// encoder cannot count on, and 720p at 60 fps in VP9 came to 2.
-  static int autoMbps({required int resolution, required int fps}) => max(
-    2,
-    ShareEncoding.autoMbps(
-          resolution: resolution,
-          fps: fps,
-          codec: VideoCodec.h264,
-        ) ~/
-        2,
-  );
-
-  /// The first picture's bitrate, the one the dialog names, in Mbps.
-  static int mbpsToSend(
-    ScreenShareSettings settings, {
-    required ServerLimits limits,
-  }) => limits.shareMbps(
-    settings.bitrateChosen
-        ? settings.bitrate
-        : autoMbps(resolution: settings.resolution, fps: settings.fps),
-  );
-
   /// How [settings] go out.
   ///
   /// The encoding has to be set here. The capture options' parameters do not
@@ -175,7 +149,8 @@ class PhoneShare {
     required ServerLimits limits,
   }) {
     final codec = codecToSend(settings, codecs);
-    var bps = mbpsToSend(settings, limits: limits) * 1000 * 1000;
+    var bps =
+        settings.bitrateToSend(codec: codec, limits: limits) * 1000 * 1000;
     if (limits.maxShareMbps != ServerLimits.unlimited &&
         codec != VideoCodec.vp9) {
       final room = limits.maxShareMbps * 1000 * 1000 ~/ _simulcastTotal;

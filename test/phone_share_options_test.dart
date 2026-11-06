@@ -75,7 +75,7 @@ void main() {
     await pump(tester, opened.copyWith(showsAdvanced: true));
     await tester.pumpAndSettle();
     expect(find.text('Auto (H264)'), findsOneWidget);
-    expect(find.text('Auto (5 Mbps)'), findsOneWidget);
+    expect(find.text('Auto (11 Mbps)'), findsOneWidget);
 
     await pump(
       tester,

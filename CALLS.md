@@ -165,9 +165,10 @@ call, and a better phone may not mind.
   back by itself. libwebrtc has no software H264 on Android, so H264 means the
   phone's hardware encoder. The list can also name H265 and AV1, as the SM-A566B's
   does. The picker has neither, and viewers have not been tried on them.
-- **Bitrate:** a choice from the desktop's ladder, or Auto. Auto is half of what a
-  desktop's H264 asks for, in every codec: 5 Mbps at 1080p and 30 fps, 7 at 1080p and
-  60 fps, 4 at 720p and 60 fps.
+- **Bitrate:** the desktop's: a choice from its ladder, or Auto, which is the same
+  figure a desktop asks for in that codec (`ShareEncoding.autoMbps`). In H264 that
+  is 11 Mbps at 1080p and 30 fps, 15 at 1080p and 60, and 23 at 1080p and 120. It is
+  only a cap: WebRTC follows the connection under it.
 
 A phone opens on its whole screen at 30 fps until its dialog has been confirmed
 once (`ScreenShareSettings.phoneSetUp`), since the saved settings before that are a

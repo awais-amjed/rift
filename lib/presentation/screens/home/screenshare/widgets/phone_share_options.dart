@@ -43,8 +43,10 @@ class PhoneShareOptions extends StatelessWidget {
 
   ServerLimits get _limits => ServerLimits(maxShareMbps: maxShareMbps);
 
-  int _mbpsOf(ScreenShareSettings of) =>
-      PhoneShare.mbpsToSend(of, limits: _limits);
+  int _mbpsOf(ScreenShareSettings of) => of.bitrateToSend(
+    codec: PhoneShare.codecToSend(of, codecs),
+    limits: _limits,
+  );
 
   @override
   Widget build(BuildContext context) {

@@ -131,25 +131,32 @@ void main() {
   });
 
   group('the bitrate', () {
-    test('Auto keeps 1080p at 30 fps in H264 at the measured 5 Mbps', () {
-      expect(PhoneShare.mbpsToSend(opened(), limits: unlimited), 5);
-    });
+    int auto(ScreenShareSettings settings, VideoCodec codec) =>
+        settings.bitrateToSend(codec: codec, limits: unlimited);
 
-    test('Auto follows the picture, and never goes below 2', () {
-      int auto(int resolution, int fps) =>
-          PhoneShare.autoMbps(resolution: resolution, fps: fps);
-      expect(auto(1080, 60), greaterThan(auto(1080, 30)));
-      expect(auto(720, 30), lessThan(auto(1080, 30)));
-      expect(auto(480, 15), 2);
-      expect(auto(720, 60), 4);
+    test('Auto asks what a desktop asks in the codec going out', () {
+      for (final (codec, name) in [
+        (VideoCodec.h264, 'H264'),
+        (VideoCodec.vp8, 'VP8'),
+        (VideoCodec.vp9, 'VP9'),
+      ]) {
+        final settings = opened().copyWith(codec: name, codecChosen: true);
+        final sent = PhoneShare.request(
+          settings,
+          codecs: all,
+          limits: unlimited,
+        ).publish.screenShareEncoding!.maxBitrate;
+        expect(sent, auto(settings, codec) * 1000 * 1000);
+      }
+      expect(auto(opened(), VideoCodec.h264), 11);
     });
 
     test('one picked by hand is sent, held to the server', () {
       final settings = opened().copyWith(bitrate: 20, bitrateChosen: true);
-      expect(PhoneShare.mbpsToSend(settings, limits: unlimited), 20);
+      expect(auto(settings, VideoCodec.h264), 20);
       expect(
-        PhoneShare.mbpsToSend(
-          settings,
+        settings.bitrateToSend(
+          codec: VideoCodec.h264,
           limits: const ServerLimits(maxShareMbps: 8),
         ),
         8,
@@ -221,7 +228,7 @@ void main() {
         codecs: all,
         limits: unlimited,
       );
-      expect(request.publish.screenShareEncoding!.maxBitrate, 5 * 1000 * 1000);
+      expect(request.publish.screenShareEncoding!.maxBitrate, 11 * 1000 * 1000);
     });
   });
 }
