@@ -55,10 +55,10 @@ void main() {
 
   // Three window tiles to a row once left the minimised tile's text 2 to 8 px
   // taller than its preview area: Flutter's overflow stripe, seen on Windows
-  // Oct 5 2026. Tiles are now as wide as the dialog allows, and never under
-  // about 240 px beside another, so these are the smallest it gets.
-  for (final width in [240.0, 288.0, 340.0]) {
-    testWidgets('a minimised tile fits in a ${width.toInt()} px dialog', (
+  // Oct 5 2026. These are the smallest a tile gets at one, two and three to a
+  // row, in the narrowest window the app allows and each step above it.
+  for (final width in [300.0, 430.0, 850.0]) {
+    testWidgets('a minimised tile fits in a ${width.toInt()} px list', (
       tester,
     ) async {
       await tester.pumpWidget(

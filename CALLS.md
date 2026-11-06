@@ -438,7 +438,7 @@ and KDE keeps it, so Rift deletes it after every share. Both ask as the same
 app: GTK registers the app's own connection with the portal, so Rift's picker
 registers its connection too, or the pick is saved for an unnamed app that
 libwebrtc's request cannot see. Other Wayland desktops save nothing by
-default; there the app picks the sound in the share dialog as before.
+default; there the app picks the sound in the share dialog's Advanced page.
 
 The picker is the desktop's window, so it does not hold Rift's Share button
 down as Rift's own dialogs do, and it may go away without answering. A second

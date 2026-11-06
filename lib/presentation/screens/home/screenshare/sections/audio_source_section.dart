@@ -18,9 +18,11 @@ class AudioSourceSection extends StatelessWidget {
   /// Null for every app but Rift.
   final ValueChanged<AudioSource?> onChanged;
   final VoidCallback onRefresh;
+  final String label;
 
   const AudioSourceSection({
     super.key,
+    this.label = 'Audio source',
     required this.audioSources,
     required this.selectedAudioSource,
     required this.isLoading,
@@ -48,7 +50,7 @@ class AudioSourceSection extends StatelessWidget {
     final themeState = context.theme;
     final sources = audioSources ?? const <AudioSource>[];
     return SettingsSection(
-      label: 'Audio source',
+      label: label,
       children: [
         if (isLoading)
           Center(

@@ -39,6 +39,14 @@ class ScreenShareSources {
     }
   }
 
+  /// What to call a source in the list: its title, or its place there where it
+  /// has none.
+  static String labelOf(CaptureSource source, bool captureFullScreen) {
+    final title = source.title.trim();
+    if (title.isNotEmpty) return title;
+    return '${captureFullScreen ? 'Screen' : 'Window'} ${source.index + 1}';
+  }
+
   /// A JPEG preview of one source, or null when the platform can't produce
   /// one. Windows is the only platform that supplies these today.
   static Future<Uint8List?> thumbnail({

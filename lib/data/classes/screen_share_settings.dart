@@ -40,7 +40,7 @@ class ScreenShareSettings extends Equatable {
   /// follows the hardware and the priority (see [codecToSend]).
   final bool codecChosen;
 
-  /// Whether the dialog's advanced settings (codec, bitrate) are shown.
+  /// Whether a phone's dialog shows its advanced settings (codec, bitrate).
   /// Somebody who opened them once wants them there the next time.
   final bool showsAdvanced;
 
