@@ -37,7 +37,7 @@ class ErrorView extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeState = context.theme;
     return Container(
-      color: themeState.bgSecondary,
+      color: themeState.bgContent,
       child: EmptyState(
         icon: Icons.cloud_off_rounded,
         title: failure.title,

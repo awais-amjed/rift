@@ -11,7 +11,7 @@ class ConnectingView extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeState = context.theme;
     return Container(
-      color: themeState.bgSecondary,
+      color: themeState.bgContent,
       child: const EmptyState(
         icon: Icons.sync_rounded,
         busy: true,
