@@ -890,6 +890,8 @@ files, gzipped, into `bug-reports/<uid>/<report id>/`. The bucket takes a file
 only under the uploader's own report, within an hour of filing it and four
 files to a report, so a report id is not somewhere to keep putting bytes. Only
 a moderator with a second factor reads them, on `rift-admin`'s Bug reports
-page; central deletes a report after 90 days and the nightly sweep its files.
+page; central deletes a report after 90 days and the nightly sweep its files. A
+report's words, without its logs or who sent it, can also post to the moderators'
+private channel (`report_webhook_config`, in `rift-central`'s HOSTING.md).
 The dialog says what goes with it before anything is sent. On a desktop,
 Help also opens the logs folder, for someone sending them by hand.
