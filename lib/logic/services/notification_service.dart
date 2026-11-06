@@ -306,6 +306,58 @@ class NotificationService with _CallNotificationsMixin {
     }
   }
 
+  // ── A share nobody can see ────────────────────────────────
+
+  /// Its own channel: a share that has gone black is not a message, and
+  /// silencing messages must not hide it. Fixed at creation, like the others.
+  static const _shareProblemChannel = 'rift_share_problems';
+  static const _shareProblemChannelName = 'Stream problems';
+  static const _shareProblemChannelDescription =
+      'When people watching your stream cannot see it.';
+
+  static final _shareProblemId = stableNotificationId('share-problem');
+
+  /// Pops up over the app being shared, which the call's own notification
+  /// cannot do: that one is on a quiet channel so it never buzzes
+  /// (`CallForegroundService`). Android only: a phone's share is the only one
+  /// that can fail this way. A press brings Rift forward, like any notification
+  /// with no conversation to open.
+  Future<void> showShareProblem({
+    required String title,
+    required String body,
+  }) async {
+    if (!_ready || kIsWeb || !Platform.isAndroid) return;
+    try {
+      await _plugin.show(
+        id: _shareProblemId,
+        title: title,
+        body: body,
+        notificationDetails: NotificationDetails(
+          android: AndroidNotificationDetails(
+            _shareProblemChannel,
+            _shareProblemChannelName,
+            channelDescription: _shareProblemChannelDescription,
+            importance: Importance.high,
+            priority: Priority.high,
+            styleInformation: BigTextStyleInformation(body),
+          ),
+        ),
+      );
+    } catch (e) {
+      HelperMethods.printDebug('NotificationService: share problem – $e');
+    }
+  }
+
+  /// The share it was about has ended.
+  Future<void> cancelShareProblem() async {
+    if (!_ready || kIsWeb || !Platform.isAndroid) return;
+    try {
+      await _plugin.cancel(id: _shareProblemId);
+    } catch (e) {
+      HelperMethods.printDebug('NotificationService: cancel failed – $e');
+    }
+  }
+
   /// The toast the plugin would build for [showMessage] — a title, a body,
   /// no sound of its own — with no `launch`, so a press carries no payload
   /// and only brings the window forward, as before.

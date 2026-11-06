@@ -199,9 +199,11 @@ H264 encoder held by `screenrecord`, nothing stops. H264 gets `NO_MEMORY`, libwe
 moves the sender to VP8 by itself (`libvpx` in the stats) and frames go on being encoded
 and sent, yet Cara stayed black, and stayed black after the encoders came free. A new
 share on the same connection reached Cara. So `PhoneEncoderWatch` compares the sender's
-codec with the track's every 3 seconds, and on a difference the call's notification says
-viewers see black at once, since the person is usually in the app they are sharing, and
-a toast says so when they are back in Rift. Frame counts would not do: they look healthy
+codec with the track's every 3 seconds. On a difference, someone in another app, the usual
+place for a person sharing a phone, gets a notification of its own that pops up, on its own
+channel, since the call's notification changes without a sound and was missed. The call's
+notification says so too, and a toast does once they are in Rift; the pop-up goes when the
+share ends. Frame counts would not do: they look healthy
 throughout. The move happens only when a frame arrives, so a failed share of a still
 screen says nothing until the screen moves. A share that fails with no codec left to
 move to has not been seen and is not caught.

@@ -207,13 +207,15 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
   }
 
   void _watchPhoneEncoder(LiveKitCubit livekit) {
+    bool inFront() =>
+        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
     _encoderWatch?.stop();
     _encoderWatch = PhoneEncoderWatch(
       leftItsCodec: livekit.phoneShareLeftItsCodec,
       stillSharing: () => state.isSharing,
-      inFront: () =>
-          WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed,
-      onFailed: () => unawaited(CallForegroundService.shareNotSeen()),
+      inFront: inFront,
+      onFailed: () =>
+          unawaited(CallForegroundService.shareNotSeen(alert: !inFront())),
       onSeen: () => emit(
         state.copyWith(
           notice: Notice.error(

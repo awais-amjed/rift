@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -6,6 +8,7 @@ import '../helper_methods.dart';
 import 'call_notification_content.dart';
 import 'call_notification_task.dart';
 import 'host_platform.dart';
+import 'notification_service.dart';
 
 /// Over the helper budget and one job: Android's foreground service for a call
 /// — starting it, keeping its notification current, and ending it.
@@ -245,7 +248,7 @@ class CallForegroundService {
     if (!HostPlatform.isMobile) return true;
     try {
       _sharing = true;
-      _shareNotSeen = false;
+      _shareProblemOver();
       await _apply();
       return true;
     } catch (e) {
@@ -261,6 +264,7 @@ class CallForegroundService {
   static Future<void> screenShareStopped() async {
     if (!HostPlatform.isMobile || !_sharing) return;
     _sharing = false;
+    _shareProblemOver();
     try {
       await _apply();
     } catch (e) {
@@ -272,9 +276,22 @@ class CallForegroundService {
 
   /// Viewers cannot see the running share. The notification says so until the
   /// share ends; a new one starts clean ([screenShareStarting]).
-  static Future<void> shareNotSeen() async {
+  ///
+  /// [alert] is for someone not looking at Rift. This notification changes
+  /// without a sound or a pop-up, so only a person opening the shade would
+  /// ever read it.
+  static Future<void> shareNotSeen({required bool alert}) async {
     if (!HostPlatform.isMobile || !_sharing) return;
     _shareNotSeen = true;
+    final content = _content;
+    if (alert) {
+      unawaited(
+        NotificationService.instance.showShareProblem(
+          title: content.title,
+          body: content.text,
+        ),
+      );
+    }
     try {
       await _refresh();
     } catch (e) {
@@ -282,6 +299,13 @@ class CallForegroundService {
         'CallForegroundService: could not report the share – $e',
       );
     }
+  }
+
+  /// Nothing is left to warn about once that share has ended.
+  static void _shareProblemOver() {
+    if (!_shareNotSeen) return;
+    _shareNotSeen = false;
+    unawaited(NotificationService.instance.cancelShareProblem());
   }
 
   /// The mic has been muted or unmuted, from anywhere — the app, the shade,
@@ -323,6 +347,7 @@ class CallForegroundService {
   static Future<void> callEnded() async {
     if (!HostPlatform.isMobile) return;
     _sharing = false;
+    _shareProblemOver();
     _applied = null;
     _channelName = null;
     _serverName = null;
