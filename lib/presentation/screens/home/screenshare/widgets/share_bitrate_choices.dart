@@ -8,18 +8,17 @@ import '../../../../common/tap_to_focus.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 import '../sections/bitrate_section.dart';
-import 'share_choice_button.dart';
-import 'share_choice_grid.dart';
+import 'settings_chip.dart';
 
 /// The share's bitrate: Auto, the usual numbers, and a box for any other.
 ///
-/// Typing lets go of the buttons and pressing one empties the box, so one thing
+/// Typing lets go of the chips and pressing one empties the box, so one thing
 /// is ever selected; an empty box is Auto again. It keeps what is being typed
 /// as its own state, because the setting alone cannot tell: on the way to 100,
-/// the 10 is a number there is a button for, and lighting that button would
+/// the 10 is a number there is a chip for, and lighting that chip would
 /// take the box away from under the caret.
 ///
-/// [maxMbps] is what this server allows. A button over it is greyed, and a
+/// [maxMbps] is what this server allows. A chip over it is greyed, and a
 /// number typed over it is held to it, as [BitrateSection.effectiveFor] holds
 /// any choice.
 class ShareBitrateChoices extends StatefulWidget {
@@ -41,7 +40,7 @@ class ShareBitrateChoices extends StatefulWidget {
     this.maxMbps = ServerLimits.unlimited,
   });
 
-  /// The buttons. Anything else goes in the box.
+  /// The chips. Anything else goes in the box.
   static const choices = [2, 4, 6, 8, 10, 15, 20, 30, 50];
 
   /// The most the box takes, which is the most the picker has ever offered.
@@ -63,6 +62,9 @@ class _ShareBitrateChoicesState extends State<ShareBitrateChoices> {
   }
 
   bool get _typing => (int.tryParse(_typed.text) ?? 0) > 0;
+
+  /// Room for "Custom" and "Mbps" together, and for what can be typed.
+  static const _boxWidth = 112.0;
 
   bool _allowed(int mbps) =>
       widget.maxMbps == ServerLimits.unlimited || mbps <= widget.maxMbps;
@@ -108,21 +110,17 @@ class _ShareBitrateChoicesState extends State<ShareBitrateChoices> {
   @override
   Widget build(BuildContext context) {
     final sent = _sent;
-    return ShareChoiceGrid(
-      columns: 6,
-      minWidth: 74,
-      lastSpan: 2,
+    return SettingsChips(
       children: [
-        ShareChoiceButton(
-          label: 'Auto',
-          sub: '${widget.auto} Mbps',
-          selected: !_typing && sent == null,
+        SettingsChip(
+          label: 'Auto · ${widget.auto} Mbps',
+          active: !_typing && sent == null,
           onTap: () => _pressed(null),
         ),
         for (final mbps in ShareBitrateChoices.choices)
-          ShareChoiceButton(
+          SettingsChip(
             label: '$mbps Mbps',
-            selected: !_typing && sent == mbps,
+            active: !_typing && sent == mbps,
             onTap: _allowed(mbps) ? () => _pressed(mbps) : null,
           ),
         _box(context),
@@ -137,8 +135,11 @@ class _ShareBitrateChoicesState extends State<ShareBitrateChoices> {
       child: ListenableBuilder(
         listenable: _focus,
         builder: (context, field) => Container(
-          height: K.fieldHeight,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
+          width: _boxWidth,
+          height: SettingsChip.heightIn(context),
+          padding: const EdgeInsets.symmetric(
+            horizontal: SettingsChip.sidePadding,
+          ),
           decoration: BoxDecoration(
             color: _typing ? theme.channelActiveBg : theme.bgTertiary,
             borderRadius: BorderRadius.circular(K.radiusRow),
@@ -171,7 +172,9 @@ class _ShareBitrateChoicesState extends State<ShareBitrateChoices> {
                   ),
                 ],
                 onChanged: _onTyped,
-                style: AppText.rowQuiet.copyWith(color: theme.textPrimary),
+                style: SettingsChip.restingStyle.copyWith(
+                  color: theme.textPrimary,
+                ),
                 // The box above is the field; the theme's outline would draw a
                 // second one inside it.
                 decoration: InputDecoration(
@@ -182,7 +185,7 @@ class _ShareBitrateChoicesState extends State<ShareBitrateChoices> {
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
                   hintText: 'Custom',
-                  hintStyle: AppText.rowQuiet.copyWith(
+                  hintStyle: SettingsChip.restingStyle.copyWith(
                     color: theme.textTertiary,
                   ),
                 ),

@@ -12,6 +12,7 @@ import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/presentation/common/selectable_surface.dart';
 import 'package:rift/presentation/common/show_custom_dialog.dart';
 import 'package:rift/presentation/screens/home/screenshare/screen_share_settings_dialog.dart';
+import 'package:rift/presentation/screens/home/screenshare/widgets/settings_chip.dart';
 import 'package:rift/presentation/screens/home/screenshare/widgets/share_choice_button.dart';
 import 'package:rift/presentation/screens/home/screenshare/widgets/share_choice_grid.dart';
 import 'package:rift/presentation/screens/home/screenshare/widgets/share_quality_row.dart';
@@ -243,20 +244,36 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    bool isGreyed(WidgetTester tester, String label) => find
-        .ancestor(of: find.text(label), matching: find.byType(Opacity))
-        .evaluate()
-        .isNotEmpty;
-
-    bool isSelected(WidgetTester tester, String label) => tester
-        .widget<SelectableSurface>(
+    SelectableSurface surfaceOf(WidgetTester tester, String label) =>
+        tester.widget<SelectableSurface>(
           find.ancestor(
-            // The last: Auto's second line can read the same as a button.
-            of: find.text(label).last,
+            of: find.text(label),
             matching: find.byType(SelectableSurface),
           ),
-        )
-        .selected;
+        );
+
+    bool isGreyed(WidgetTester tester, String label) =>
+        surfaceOf(tester, label).onTap == null;
+
+    bool isSelected(WidgetTester tester, String label) =>
+        surfaceOf(tester, label).selected;
+
+    testWidgets('the bitrate box is as tall as the chips beside it', (
+      tester,
+    ) async {
+      await openAdvanced(tester);
+      final chip = find.ancestor(
+        of: find.text('2 Mbps'),
+        matching: find.byType(SettingsChip),
+      );
+      final box = find
+          .ancestor(
+            of: find.byType(TextField),
+            matching: find.byType(Container),
+          )
+          .last;
+      expect(tester.getSize(box).height, tester.getSize(chip).height);
+    });
 
     testWidgets('greys 120 fps at 4K and falls to 60, keeping 120 for later', (
       tester,
@@ -379,13 +396,6 @@ void main() {
       expect(across(units: 6, columns: 6), 3);
     });
 
-    test('the bitrate box always ends its row level with the others', () {
-      for (var room = 100.0; room <= 800; room += 10) {
-        final columns = across(units: 12, columns: 6, room: room);
-        expect(12 % columns, 0, reason: 'at $room');
-      }
-    });
-
     group('in Rift\'s own font', () {
       setUpAll(() async {
         final loader = FontLoader('Geist');
@@ -400,7 +410,9 @@ void main() {
 
       void expectNoWordCut(WidgetTester tester, double width) {
         final words = find.descendant(
-          of: find.byType(ShareChoiceButton),
+          of: find.byWidgetPredicate(
+            (w) => w is ShareChoiceButton || w is SettingsChip,
+          ),
           matching: find.byType(RichText),
         );
         expect(words, findsWidgets);

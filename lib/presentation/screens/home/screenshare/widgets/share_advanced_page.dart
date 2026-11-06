@@ -10,10 +10,9 @@ import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 import '../sections/audio_source_section.dart';
 import '../sections/priority_section.dart';
+import 'settings_chip.dart';
 import 'settings_section.dart';
 import 'share_bitrate_choices.dart';
-import 'share_choice_button.dart';
-import 'share_choice_grid.dart';
 import 'share_dialog_header.dart';
 import 'share_summary.dart';
 
@@ -100,14 +99,12 @@ class ShareAdvancedPage extends StatelessWidget {
   Widget _priority(BuildContext context) => SettingsSection(
     label: 'Prioritise',
     children: [
-      ShareChoiceGrid(
-        columns: SharePriority.values.length,
-        minWidth: 96,
+      SettingsChips(
         children: [
           for (final priority in SharePriority.values)
-            ShareChoiceButton(
+            SettingsChip(
               label: PrioritySection.labelFor(priority),
-              selected: priority == settings.priority,
+              active: priority == settings.priority,
               onTap: () => onChanged(settings.copyWith(priority: priority)),
             ),
         ],
@@ -120,13 +117,12 @@ class ShareAdvancedPage extends StatelessWidget {
   Widget _resolution() => SettingsSection(
     label: 'Resolution',
     children: [
-      ShareChoiceGrid(
-        columns: ScreenShareSettings.resolutions.length,
+      SettingsChips(
         children: [
           for (final height in ScreenShareSettings.resolutions)
-            ShareChoiceButton(
+            SettingsChip(
               label: ScreenShareSettings.labelFor(height),
-              selected: height == settings.resolution,
+              active: height == settings.resolution,
               onTap: () => onChanged(settings.copyWith(resolution: height)),
             ),
         ],
@@ -139,13 +135,12 @@ class ShareAdvancedPage extends StatelessWidget {
     return SettingsSection(
       label: 'Frame rate',
       children: [
-        ShareChoiceGrid(
-          columns: ScreenShareSettings.frameRates.length,
+        SettingsChips(
           children: [
             for (final fps in ScreenShareSettings.frameRates)
-              ShareChoiceButton(
+              SettingsChip(
                 label: '$fps fps',
-                selected: fps == settings.fpsToSend,
+                active: fps == settings.fpsToSend,
                 onTap: offered.contains(fps)
                     ? () => onChanged(settings.copyWith(fps: fps))
                     : null,
@@ -168,19 +163,17 @@ class ShareAdvancedPage extends StatelessWidget {
     return SettingsSection(
       label: 'Codec',
       children: [
-        ShareChoiceGrid(
-          columns: offered.length + 1,
+        SettingsChips(
           children: [
-            ShareChoiceButton(
-              label: 'Auto',
-              sub: ScreenShareSettings.nameOf(auto),
-              selected: chosen == null,
+            SettingsChip(
+              label: 'Auto · ${ScreenShareSettings.nameOf(auto)}',
+              active: chosen == null,
               onTap: () => onChanged(settings.copyWith(codecChosen: false)),
             ),
             for (final codec in offered)
-              ShareChoiceButton(
+              SettingsChip(
                 label: ScreenShareSettings.nameOf(codec),
-                selected: codec == chosen,
+                active: codec == chosen,
                 onTap: () => onChanged(
                   settings.copyWith(
                     codec: ScreenShareSettings.nameOf(codec),

@@ -50,7 +50,6 @@ class ShareQualityRow extends StatelessWidget {
             label: ScreenShareSettings.labelFor(preset.height),
             sub: '${preset.fps} fps',
             height: _height,
-            largeSub: true,
             selected:
                 preset.height == settings.resolution &&
                 preset.fps == settings.fpsToSend,
@@ -63,7 +62,6 @@ class ShareQualityRow extends StatelessWidget {
             label: 'Custom',
             sub: '${settings.resolutionLabel} ${settings.fpsToSend}',
             height: _height,
-            largeSub: true,
             selected: true,
             onTap: onCustom,
           ),

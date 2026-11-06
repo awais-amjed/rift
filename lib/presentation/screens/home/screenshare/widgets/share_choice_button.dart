@@ -5,40 +5,27 @@ import '../../../../common/selectable_surface.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 
-/// One option of the share dialog's selection rows: a label, and under it what
-/// the option comes to where that is worth saying (Auto's codec, a preset's
-/// frame rate).
-///
-/// [onTap] null is an option this share cannot use, 120 fps at 4K or a bitrate
-/// over the server's limit: greyed rather than left out, so the rows keep their
-/// shape and the reason is there to be seen.
+/// One of the first page's quality chips: a size, and its frame rate under it.
 class ShareChoiceButton extends StatelessWidget {
   final String label;
-  final String? sub;
+  final String sub;
   final bool selected;
-  final VoidCallback? onTap;
+  final VoidCallback onTap;
   final double height;
-
-  /// [sub] in the larger small size, for the taller quality chips.
-  final bool largeSub;
 
   const ShareChoiceButton({
     super.key,
     required this.label,
     required this.selected,
     required this.onTap,
-    this.sub,
-    this.height = K.controlHeight,
-    this.largeSub = false,
+    required this.sub,
+    required this.height,
   });
-
-  static const _greyed = 0.4;
 
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    final under = sub;
-    final button = SizedBox(
+    return SizedBox(
       height: height,
       child: Semantics(
         selected: selected,
@@ -56,20 +43,18 @@ class ShareChoiceButton extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: selected ? AppText.row : AppText.rowQuiet,
               ),
-              if (under != null)
-                Text(
-                  under,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: (largeSub ? AppText.secondary : AppText.meta).copyWith(
-                    color: selected ? theme.textSecondary : theme.textTertiary,
-                  ),
+              Text(
+                sub,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.secondary.copyWith(
+                  color: selected ? theme.textSecondary : theme.textTertiary,
                 ),
+              ),
             ],
           ),
         ),
       ),
     );
-    return onTap == null ? Opacity(opacity: _greyed, child: button) : button;
   }
 }

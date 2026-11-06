@@ -2,12 +2,9 @@ import 'dart:math' show max, min;
 
 import 'package:flutter/material.dart';
 
-/// A selection row of the share dialog: equal columns, which go onto more rows
-/// where the window is too narrow for [columns] of them at [minWidth], rather
-/// than squeezing the words out of them.
-///
-/// Worked out by hand rather than with flexes, so that the bitrate's custom box
-/// ([lastSpan]) covers exactly the columns above it, the gap between them too.
+/// The first page's quality chips: equal columns, which go onto more rows where
+/// the window is too narrow for [columns] of them at [minWidth], rather than
+/// squeezing the words out of them.
 class ShareChoiceGrid extends StatelessWidget {
   final int columns;
 
@@ -16,15 +13,11 @@ class ShareChoiceGrid extends StatelessWidget {
   final double minWidth;
   final List<Widget> children;
 
-  /// How many columns the last child takes.
-  final int lastSpan;
-
   const ShareChoiceGrid({
     super.key,
     required this.columns,
+    required this.minWidth,
     required this.children,
-    this.minWidth = 72,
-    this.lastSpan = 1,
   });
 
   static const _gap = 6.0;
@@ -48,29 +41,20 @@ class ShareChoiceGrid extends StatelessWidget {
       builder: (context, constraints) {
         final room = constraints.maxWidth;
         final across = acrossFor(
-          units: children.length + lastSpan - 1,
+          units: children.length,
           columns: columns,
           room: room,
           minWidth: minWidth * MediaQuery.textScalerOf(context).scale(1),
         );
         final unit = (room - _gap * (across - 1)) / across;
 
-        final rows = <List<Widget>>[[]];
-        var used = 0;
-        for (var i = 0; i < children.length; i++) {
-          final span = i == children.length - 1 ? min(lastSpan, across) : 1;
-          if (used + span > across) {
-            rows.add([]);
-            used = 0;
-          }
-          rows.last.add(
-            SizedBox(
-              width: unit * span + _gap * (span - 1),
-              child: children[i],
-            ),
-          );
-          used += span;
-        }
+        final rows = [
+          for (var i = 0; i < children.length; i += across)
+            [
+              for (final child in children.skip(i).take(across))
+                SizedBox(width: unit, child: child),
+            ],
+        ];
         return Column(
           mainAxisSize: MainAxisSize.min,
           spacing: _gap,
