@@ -187,6 +187,13 @@ names while anyone is watching. A server's share limit holds that total
 also names VP8 as a backup, for the server to ask for if a viewer cannot play H264.
 That has not been tried.
 
+A stopped share gives its encoders back at once. Removing the track alone left them
+held until the phone left the call, and on a phone that allows 16 the 9th share in a
+call could not open one, so its viewers saw black with no error on the phone. The SDK
+now stops the section on Android (patch 12 in `third_party/livekit_client/RIFT_PATCHES.md`,
+measured Nov 6 2026). A share that cannot open an encoder for another reason still says
+nothing on the phone.
+
 Measured Nov 6 2026 on an SM-A566B (Exynos 1580, Android 17, on battery, not
 charging, `c2.exynos.h264.encoder`), sharing YouTube playing a 60 fps video to a
 Linux desktop viewer through Rust, encrypted, over Wi-Fi. For 6 minutes the

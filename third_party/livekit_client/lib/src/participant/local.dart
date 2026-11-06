@@ -562,6 +562,23 @@ class LocalParticipant extends Participant<LocalTrackPublication> {
     return pub;
   }
 
+  /// RIFT PATCH: `removeTrack` leaves a section inactive with its send stream,
+  /// and so its hardware encoders, alive until the connection closes. Stopping
+  /// the section is what lets them go.
+  Future<void> _stopPublisherSections(List<String> senderIds) async {
+    final pc = room.engine.publisher?.pc;
+    if (pc == null || senderIds.isEmpty) return;
+    try {
+      for (final transceiver in await pc.getTransceivers()) {
+        if (senderIds.contains(transceiver.sender.senderId)) {
+          await transceiver.stop();
+        }
+      }
+    } catch (e) {
+      logger.warning('[$objectId] rtc transceiver stop did throw $e');
+    }
+  }
+
   Future<void> removePublishedTrack(String trackSid, {bool notify = true}) async {
     logger.finer('Unpublish track sid: $trackSid, notify: $notify');
     final pub = trackPublications.remove(trackSid);
@@ -577,7 +594,9 @@ class LocalParticipant extends Participant<LocalTrackPublication> {
 
       final sender = track.transceiver?.sender;
       var didRemoveSender = false;
+      final removedSenders = <String>[];
       if (sender != null) {
+        removedSenders.add(sender.senderId);
         try {
           await room.engine.publisher?.pc.removeTrack(sender);
         } catch (e) {
@@ -596,6 +615,7 @@ class LocalParticipant extends Participant<LocalTrackPublication> {
           if (simulcastSender == null) {
             continue;
           }
+          removedSenders.add(simulcastSender.senderId);
           try {
             await room.engine.publisher?.pc.removeTrack(simulcastSender);
           } catch (e) {
@@ -605,6 +625,10 @@ class LocalParticipant extends Participant<LocalTrackPublication> {
           didRemoveSender = true;
         }
         track.clearSimulcastState();
+        // RIFT PATCH: see RIFT_PATCHES.md.
+        if (lkPlatformIs(PlatformType.android)) {
+          await _stopPublisherSections(removedSenders);
+        }
       }
 
       // doesn't make sense to negotiate if already disposed

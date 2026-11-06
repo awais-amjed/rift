@@ -186,6 +186,23 @@ uncorrelated.
    of 14 after, peak about −102 dB or lower. Watch still plays it at −23, also after a
    deafened join and after a server restart, and voices come back on undeafening.
 
+12. **On Android, unpublishing a video track stops its section**
+   (`_stopPublisherSections` in `lib/src/participant/local.dart`). The SDK only
+   calls `removeTrack`, which leaves the section inactive, with its send stream
+   and so its encoders alive until the connection closes. A phone's share holds
+   two hardware encoders, one for each picture, and a phone allows a limited
+   number. After enough stopped shares in one call the next could not open an
+   encoder, and its viewers saw black with no error on the phone.
+
+   Measured Nov 6 2026 on an SM-A566B, which allows 16 `c2.exynos.h264.encoder`,
+   on the local stack with Cara watching on Linux. Before: 8 shares started and
+   stopped left 16 encoders held with nothing being shared. The 9th and 10th
+   shares got `NO_MEMORY` opening H264, WebRTC's switch to VP8 failed the same
+   way, and Cara saw black. Leaving the call freed all 16. After: 2 encoders
+   during each of 4 shares in a row, none after each stop, and Cara saw every
+   one. Other platforms keep the SDK's behaviour; this has not been measured
+   on them.
+
 ## When to remove it
 
 Patch 1 goes when a `livekit_client` release answers a stereo track with
@@ -195,6 +212,6 @@ unsubscribe without holding the track, patch 4 when a release can go back
 to letting visibility decide, patch 5 when a release keeps a disable
 through the server's bind, patch 6 when a release's web worker leaves no
 VP9 bytes in the clear, patch 7 when it passes H264 through the RBSP functions, patch 8 when a release subscribes
-whatever it holds, patch 9 when a release starts a track before announcing it, patch 10 when a release lets an app keep a remote track off from its arrival, patch 11 when Chrome stops playing a track that is off or a release handles it. With all eleven gone, bump, delete this
+whatever it holds, patch 9 when a release starts a track before announcing it, patch 10 when a release lets an app keep a remote track off from its arrival, patch 11 when Chrome stops playing a track that is off or a release handles it, patch 12 when a release stops a section as it unpublishes. With all twelve gone, bump, delete this
 folder and its `dependency_overrides` entry. Until then, a `livekit_client` upgrade needs this copy replaced with the
 new version and the changes put back.
