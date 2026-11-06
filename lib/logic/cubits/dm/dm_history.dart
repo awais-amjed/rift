@@ -248,16 +248,19 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
 
     // `beforeId` is exclusive, so the target rides in with the older half
     // rather than being fetched a third time.
-    final older = await _dms.listDms(
-      peerId: peerId,
-      beforeId: id + 1,
-      limit: ChatMessageOps.windowHalf,
-    );
-    final newer = await _dms.listDms(
-      peerId: peerId,
-      afterId: id,
-      limit: ChatMessageOps.windowHalf,
-    );
+    // Together: the reader is waiting on the two halves, not one then the other.
+    final (older, newer) = await (
+      _dms.listDms(
+        peerId: peerId,
+        beforeId: id + 1,
+        limit: ChatMessageOps.windowHalf,
+      ),
+      _dms.listDms(
+        peerId: peerId,
+        afterId: id,
+        limit: ChatMessageOps.windowHalf,
+      ),
+    ).wait;
     if (state.openPeerId != peerId) return false;
     if (!older.success || !newer.success) {
       emit(state.copyWith(isLoadingMore: false));

@@ -172,24 +172,41 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       return;
     }
 
-    String livekitToken;
-    // Where the mint said to take it. Null from a server too old to say, and
-    // then the server row answers — see [CachedToken.livekitUrl].
-    String? mintedUrl;
     final cached = _tokenCubit.getValidToken(
       server.supabaseUrl,
       channelId,
       userId,
     );
+
+    // The token and the key at once, since neither needs the other: asked for
+    // one after the other, each added a round trip to the wait for the room.
+    // Both are waited for before either answer counts, so that a token refused
+    // leaves nothing of the key still on its way.
+    //
+    // The key before the room. A call joined without one would connect, work,
+    // and be readable by the server — the single thing this is here to stop —
+    // so there is no unencrypted fallback path to take by accident.
+    final (minted, e2ee) = await (
+      cached != null
+          ? Future<APIResponse?>.value()
+          : _voiceOn(server.id)!.getChannelToken(channelId),
+      _prepareE2EE(channelId, server),
+    ).wait;
+
+    String livekitToken;
+    // Where the mint said to take it. Null from a server too old to say, and
+    // then the server row answers — see [CachedToken.livekitUrl].
+    String? mintedUrl;
     if (cached != null) {
       livekitToken = cached.token;
       mintedUrl = cached.livekitUrl;
     } else {
-      final response = await _voiceOn(server.id)!.getChannelToken(channelId);
+      final response = minted!;
       if (!response.success) {
         HelperMethods.printDebug(
           '[LiveKit] Failed to get channel token: ${response.error}',
         );
+        _clearE2EE();
         emit(
           state.copyWith(
             connectionState: LiveKitConnectionState.error,
@@ -215,6 +232,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
     // has to be told so by the thing that decided it.
     final livekitUrl = mintedUrl ?? server.livekitUrl;
     if (livekitUrl == null) {
+      _clearE2EE();
       emit(
         state.copyWith(
           connectionState: LiveKitConnectionState.error,
@@ -224,10 +242,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       return;
     }
 
-    // The key before the room. A call joined without one would connect, work,
-    // and be readable by the server — the single thing this is here to stop —
-    // so there is no unencrypted fallback path to take by accident.
-    final (:options, :refused) = await _prepareE2EE(channelId, server);
+    final (:options, :refused) = e2ee;
     if (options == null) {
       emit(
         state.copyWith(

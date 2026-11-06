@@ -182,16 +182,19 @@ mixin _ChannelChatHistoryMixin
     // The message itself comes with the older half: `beforeId` is exclusive,
     // so it is asked for by its own id plus one rather than fetched a third
     // time.
-    final older = await _channelMessages.listChatMessages(
-      channelId: channelId,
-      beforeId: id + 1,
-      limit: ChatMessageOps.windowHalf,
-    );
-    final newer = await _channelMessages.listChatMessages(
-      channelId: channelId,
-      afterId: id,
-      limit: ChatMessageOps.windowHalf,
-    );
+    // Together: the reader is waiting on the two halves, not one then the other.
+    final (older, newer) = await (
+      _channelMessages.listChatMessages(
+        channelId: channelId,
+        beforeId: id + 1,
+        limit: ChatMessageOps.windowHalf,
+      ),
+      _channelMessages.listChatMessages(
+        channelId: channelId,
+        afterId: id,
+        limit: ChatMessageOps.windowHalf,
+      ),
+    ).wait;
     if (state.channelId != channelId) return false;
     if (!older.success || !newer.success) {
       emit(state.copyWith(isLoadingMore: false));

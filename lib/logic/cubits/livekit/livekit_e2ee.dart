@@ -115,6 +115,10 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
       return (options: null, refused: const ConnectionFailure.noChannelKey());
     }
 
+    // Which bots hear the call, asked for alongside the key rather than after
+    // it, which was one more round trip before the room.
+    var listening = _listeningBots(channelId, server.id);
+
     // The ring keeps the server it loads from, so the heals, seals and
     // rotations that follow go there too, whatever the person reads meanwhile.
     var outcome = await keyring.loadOrBootstrap(channelId, serverId: server.id);
@@ -134,6 +138,8 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
       _watchKeyRotations(server, channelId);
       _rotations.ring();
       outcome = await _awaitHeal(keyring, channelId, server.id);
+      // The wait may be long enough for the answer above to have gone stale.
+      listening = _listeningBots(channelId, server.id);
     }
 
     final key = keyring.currentKey;
@@ -157,7 +163,7 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
     _callKeysHeld
       ..clear()
       ..add((key: key, index: _callKeyIndex));
-    _callListeningBots = await _listeningBots(channelId, server.id);
+    _callListeningBots = await listening;
 
     // `sharedKey: false` is the whole point — see the class comment.
     final provider = await BaseKeyProvider.create(sharedKey: false);
