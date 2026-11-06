@@ -62,8 +62,10 @@ uncorrelated.
    track arriving at the client again. The SDK then believed it had dropped a
    track the server was still sending, and had nothing to ask with. LiveKit's
    JS SDK sends the request whatever it holds; asking about a track the
-   server is not sending changes nothing. Rift asks again once it is told
-   its connection is active (`_dropUnwatchedPictures`, `CALLS.md`).
+   server is not sending changes nothing. Rift asked again once it was told
+   its connection was active, until Nov 6 2026, when it stopped unsubscribing
+   from pictures at all (`CALLS.md`, *Receiving a stream's picture*). Only its
+   own share is unsubscribed now, and that goes through here.
 
    Measured Oct 25 2026 on the local stack with the server's debug log: a
    member rejoining a call with a stream running, unwatched, left it flowing
@@ -135,7 +137,9 @@ uncorrelated.
    the sharer's avatar until Stop watching and Watch again (Nov 2 2026, two
    desktop clients on the local stack). LiveKit's JS SDK sends the request
    whatever it holds; asking for a track the server already sends changes
-   nothing.
+   nothing. Pictures are held rather than unsubscribed since Nov 6 2026
+   (`CALLS.md`), so that window should not open; Watch still asks, for a track
+   the server has not sent yet.
 
 9. **A subscribed track is started before the event says it arrived**
    (`addSubscribedMediaTrack` in `lib/src/participant/remote.dart`). The SDK

@@ -9,6 +9,7 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
   Future<bool> _watchThroughRust(String identity);
   Future<bool> _unwatchThroughRust(String identity);
   void _letGoOfUnwatchedPictures();
+  void _syncPictureReception();
 
   /// Subscribes to a participant's screenshare tracks.
   Future<void> subscribeToScreenshare(String identity) async {
@@ -32,8 +33,8 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
     // Watching is recorded before the subscription is asked for, not after.
     // Starting to watch also opens the stream full size, and the tile that
     // opens checks this set as it appears — finding the stream not yet in
-    // it, it unsubscribed from what had just been asked for, and the stage
-    // showed the sharer's avatar instead of their screen.
+    // it, it held what had just been asked for, and the stage showed the
+    // sharer's avatar instead of their screen.
     final wasWatching = state.subscribedScreenshares.contains(identity);
     if (!wasWatching) {
       emit(
@@ -54,10 +55,13 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
           continue;
         }
         try {
+          // A track the server already sends, held, unless it has not sent
+          // one yet; asking again changes nothing.
           await pub.subscribe();
+          _syncPictureReception();
           await pub.setVideoQuality(VideoQuality.HIGH);
           HelperMethods.printDebug(
-            '[LiveKit] Subscribed to screenshare video from $identity',
+            '[LiveKit] Watching screenshare video from $identity',
           );
           subscribedAny = true;
         } catch (e) {
@@ -107,7 +111,8 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
     }
   }
 
-  /// Unsubscribes from a participant's screenshare tracks.
+  /// Stops watching a participant's stream. Its tracks stay subscribed, held
+  /// off by the syncs [_recordUnwatched] runs ([_PicturePauseMixin]).
   Future<void> unsubscribeFromScreenshare(String identity) async {
     final room = state.room;
     if (room == null) return;
@@ -127,24 +132,17 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
       return;
     }
 
-    for (final pub in participant.videoTrackPublications) {
-      if (pub.source == TrackSource.screenShareVideo) {
-        try {
-          await pub.unsubscribe();
-          HelperMethods.printDebug(
-            '[LiveKit] Unsubscribed from screenshare video from $identity',
-          );
-          unsubscribedAny = true;
-        } catch (e) {
-          HelperMethods.printDebug(
-            '[LiveKit] Failed to unsubscribe from screenshare video: $e',
-          );
-        }
-      }
+    if (participant.videoTrackPublications.any(
+      (pub) => pub.source == TrackSource.screenShareVideo,
+    )) {
+      HelperMethods.printDebug(
+        '[LiveKit] Holding screenshare video from $identity',
+      );
+      unsubscribedAny = true;
     }
 
-    // Held rather than unsubscribed: the sync below turns it off once the
-    // stream has left the watched set ([_AudioReceptionMixin]).
+    // Likewise: the sync below turns it off once the stream has left the
+    // watched set ([_AudioReceptionMixin]).
     if (participant.audioTrackPublications.any(
       (pub) => pub.source == TrackSource.screenShareAudio,
     )) {

@@ -63,14 +63,13 @@ void main() {
     expect(sharedReceiverIds(['TR_a', 'TR_b', 'TR_a', 'TR_a']), {'TR_a'});
   });
 
-  test('the call unsubscribes only from pictures and its own share', () {
+  test('the call unsubscribes only from its own share', () {
     // Every `unsubscribe()` left in the call has to say, just above it, that
-    // it is a picture or this client's own share — either is dropped for
-    // good or carries no frame cryptor clash anyone can hear. Audio goes
-    // through `disable()` (`_AudioReceptionMixin`).
-    final allowed = RegExp(
-      r'TrackType\.VIDEO|screenShareVideo|videoTrackPublications|_isOwnShare',
-    );
+    // it is this client's own share, which is dropped for good. Subscribing
+    // to anything else again puts its frame cryptor on the wrong receiver, so
+    // audio and pictures both go through `disable()` (`_AudioReceptionMixin`,
+    // `_PicturePauseMixin`).
+    final allowed = RegExp(r'_isOwnShare');
     final offenders = <String>[];
     for (final file in Directory('lib/logic/cubits/livekit').listSync()) {
       if (file is! File || !file.path.endsWith('.dart')) continue;

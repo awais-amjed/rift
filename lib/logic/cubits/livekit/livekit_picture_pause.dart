@@ -1,8 +1,14 @@
 part of 'livekit_cubit.dart';
 
-/// Watched streams' pictures, turned off while nobody can see Rift:
-/// minimised, hidden to the tray, or covered by another app's window
-/// (`AppSeenListener` says which).
+/// Stream pictures, held off unless somebody is looking: an unwatched stream's
+/// always, a stream the Rust watch connection holds always, and a watched one
+/// while nobody can see Rift: minimised, hidden to the tray, or covered by
+/// another app's window (`AppSeenListener` says which).
+///
+/// Held, never unsubscribed. Subscribing to a picture again opens a second
+/// receiver under the first one's id, and its frame cryptor goes on the wrong
+/// one, so Watch drew the stream still encrypted: a green screen (`CALLS.md`,
+/// *Receiving a stream's picture*).
 ///
 /// Every decoded frame redraws the whole window, whether or not it is on
 /// screen. On a laptop's Windows, watching cost 117% of a core in front and
@@ -44,6 +50,9 @@ mixin _PicturePauseMixin on Cubit<LiveKitState> {
   /// turns a picture back on. A stream watched through this room is
   /// decrypted only once it is subscribed, after its first keyframe has gone
   /// by, and nothing else asks for another (`DecryptedVideo`).
+  ///
+  /// Asked for on a picture already decrypting too, when Watch turns it on
+  /// again: nothing else says when its keyframe has been decoded.
   Future<void> renewPicture(RemoteVideoTrack track) async {
     final pub = _publicationOf(track);
     if (pub == null || !_appSeen || !_renewing.add(pub.sid)) return;
@@ -69,21 +78,51 @@ mixin _PicturePauseMixin on Cubit<LiveKitState> {
     return null;
   }
 
-  /// Brings every stream's picture in line with [_appSeen]. It runs with
-  /// every roster sync, so a picture subscribed while Rift is hidden starts
-  /// off. Cheap when nothing changed: both calls return at once then.
+  /// Tracks whose frame cryptor has said it is decrypting. It says so once,
+  /// and a held picture may have said so long before anybody watched it.
+  final Expando<bool> _decrypting = Expando('decrypting picture');
+
+  /// Tracks whose picture has come clean since they were last watched. The
+  /// same track is drawn by a new widget whenever its tile moves between full
+  /// size and the stage, and that is no reason to cover it again.
+  final Expando<bool> _clean = Expando('clean picture');
+
+  // Called from `_RoomEventsMixin` through its abstract declaration, which
+  // the unused-element check can't follow.
+  // ignore: unused_element
+  void _noteDecryption(TrackE2EEStateEvent e) {
+    final track = e.publication.track;
+    if (track != null) _decrypting[track] = e.state == E2EEState.kOk;
+  }
+
+  bool isDecrypting(VideoTrack track) => _decrypting[track] ?? false;
+  bool isPictureClean(VideoTrack track) => _clean[track] ?? false;
+  void markPictureClean(VideoTrack track) => _clean[track] = true;
+
+  /// Brings every stream's picture in line with who is looking. It runs with
+  /// every roster sync, so a picture that arrives unwatched, or while Rift is
+  /// hidden, starts off. Cheap when nothing changed: both calls return at once
+  /// then.
   void _syncPictureReception() {
     final room = state.room;
     if (room == null) return;
     for (final participant in room.remoteParticipants.values) {
       for (final pub in participant.videoTrackPublications) {
         if (pub.source != TrackSource.screenShareVideo) continue;
+        final identity = participant.identity;
+        final watched = state.subscribedScreenshares.contains(identity);
+        final track = pub.track;
+        if (!watched && track != null) _clean[track] = null;
         if (_renewing.contains(pub.sid)) continue;
         // Handed back to adaptive stream rather than turned on: `enable()`
         // would keep the picture coming for good, drawn anywhere or not.
-        if (_appSeen) {
+        // Said before any track is here as well: the server keeps it for
+        // when the track arrives.
+        if (_appSeen &&
+            watched &&
+            !state.watchedPictures.containsKey(identity)) {
           unawaited(pub.clearEnabled());
-        } else if (pub.subscribed) {
+        } else {
           unawaited(pub.disable());
         }
       }

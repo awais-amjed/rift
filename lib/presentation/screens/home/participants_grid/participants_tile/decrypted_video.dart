@@ -40,12 +40,6 @@ class _DecryptedVideoState extends State<DecryptedVideo> {
   /// A stream is shown after this whatever the counts say.
   static const _giveUpAfter = Duration(seconds: 3);
 
-  /// Tracks whose picture has already come clean. The same track is drawn by
-  /// a new widget whenever its tile moves between full size and the stage,
-  /// and the SDK reports decryption starting only once per track — so a new
-  /// cover waited out its full timeout every time the stream was resized.
-  static final Expando<bool> _clean = Expando('clean picture');
-
   late CleanPictureGate _gate;
   EventsListener<RoomEvent>? _listener;
   Timer? _pollTimer;
@@ -80,11 +74,14 @@ class _DecryptedVideoState extends State<DecryptedVideo> {
     _waited
       ..reset()
       ..start();
-    if (_clean[widget.track] == true) {
+    final cubit = context.read<LiveKitCubit>();
+    // The same track is drawn by a new widget whenever its tile moves between
+    // full size and the stage, and that needs no cover.
+    if (cubit.isPictureClean(widget.track)) {
       _gate.giveUp();
       return;
     }
-    final room = context.read<LiveKitCubit>().state.room;
+    final room = cubit.state.room;
     // Nothing to wait for where nothing is encrypted, or on our own track.
     if (widget.track is! RemoteVideoTrack || room?.e2eeManager == null) {
       _gate.giveUp();
@@ -96,6 +93,9 @@ class _DecryptedVideoState extends State<DecryptedVideo> {
         if (e.state == E2EEState.kOk && !_gate.isDecrypting) _onDecrypting();
       });
     _giveUpTimer = Timer(_giveUpAfter, () => _open(_gate.giveUp, gaveUp: true));
+    // The SDK reports decryption starting once per track, and a held picture
+    // may have done that before anyone watched it.
+    if (cubit.isDecrypting(widget.track)) unawaited(_onDecrypting());
   }
 
   void _stop() {
@@ -143,7 +143,7 @@ class _DecryptedVideoState extends State<DecryptedVideo> {
           : '[Stream] clean keyframe ${_waited.elapsedMilliseconds} ms after '
                 'the cover went up; shown',
     );
-    _clean[widget.track] = true;
+    context.read<LiveKitCubit>().markPictureClean(widget.track);
     _stop();
     setState(() {});
   }

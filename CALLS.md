@@ -860,7 +860,7 @@ libwebrtc still decodes, on the CPU.
   twice, and the next share watched, or the same one watched again, tries Rust
   first: most failures end within milliseconds and belong to one share. The
   slow ones are the 6 s below and a connection that will not open. The room's
-  own track for a share Rust holds stays unsubscribed.
+  own track for a share Rust holds stays held (*Receiving a stream's picture*).
 - **The key:** the watch connection keeps the call's keys in a ring of its
   own: every version the call has held, given when it opens, since a share
   begun before a rotation stays sealed under the key it began with, and then
@@ -1322,8 +1322,7 @@ nothing is heard; a stream's sound only while it is watched; a share whose
 owner has left, not at all (`hearsRemoteAudio`). The rest is turned off on the
 device and the server is told to stop sending it (`disable()`), but the
 subscription stays (`_AudioReceptionMixin`). Only your own share is dropped,
-for good. A stream's picture is still unsubscribed while unwatched, so that
-adaptive streaming keeps pausing the ones on screen nobody can see.
+for good. A stream's picture is held as well (*Receiving a stream's picture*).
 
 **Held from the moment it arrives.** A remote track plays as soon as WebRTC
 has it, and the app hears of it later: on a join it waits until the room is
@@ -1343,23 +1342,6 @@ The web needed one more step. Chrome can play a disabled track attached to an
 the track is first turned on (patch 11). Measured Nov 5 in headless Chrome: 5 of
 11 rapid rejoins began with 120–200 ms of the share's sound at full level, though
 the held track was never turned on; none of 14 after.
-
-**A joining client drops unwatched pictures twice.** LiveKit's server
-subscribes somebody joining to every track there is twice: when they join, and
-again when their connection comes up ("participant active"), and the second
-pass undoes an unsubscribe sent between the two. Often no track arrives at the
-client to say so, so the SDK went on believing it had dropped the picture.
-The stream was then downloaded and decoded, unwatched, until the call ended:
-15 to 33 Mbit/s and a video decoder at up to 17% of a core on a laptop's
-Windows. Watch asked for a track the server was already sending, so nothing
-new arrived and the stage showed the sharer's avatar. A server restart, which
-rejoins everyone, did the same to the sharer's own connection. So when this
-client hears that it is active, it unsubscribes again from every picture it is
-not watching (`_dropUnwatchedPictures`). The SDK sends that request even with
-no track in hand (`third_party/livekit_client/RIFT_PATCHES.md`, patch 3).
-Measured Oct 25 2026 on the local stack, from LiveKit's debug log: before the
-change, about one rejoin in four while somebody shared left the stream
-flowing; after it, none in sixteen, and the restart left it unsubscribed.
 
 Unsubscribing is what turned calls to static. It hands the track's slot on the
 subscriber connection back to LiveKit's server, which gives the slot to the
@@ -1381,8 +1363,56 @@ for two receivers under one id (`_checkReceivers`, desktop and phone; the web
 fits a cryptor to the receiver itself) and joins the call again if it finds
 them, at most once a minute. On the local stack the shared id was there about
 fifteen seconds before the static, so the rejoin usually beats it. Pictures
-sharing an id are only logged: they are still unsubscribed, so it can happen
-often, and it costs one picture.
+sharing an id are only logged: they are held now too, so this client does not
+cause it, and it costs one picture.
+
+## Receiving a stream's picture — [Implemented November 2026]
+
+**A picture nobody here is looking at is held, never unsubscribed.** An
+unwatched stream, a stream the Rust watch connection holds, and a watched one
+while nobody can see Rift are all turned off with `disable()`; the subscription
+stays (`_PicturePauseMixin`). The server then has nobody to send the picture
+to, as when nobody subscribes (dynacast), and Watch only turns it back on
+(`clearEnabled`, so adaptive stream still decides for a tile out of sight).
+
+Unsubscribing went wrong in two ways, both at a join. LiveKit's server
+subscribes somebody joining to every track twice: when they join, and again
+when their connection comes up ("participant active"). An unsubscribe sent
+before the second pass is undone by it, and this client's drop could land
+either side of it: 41 and 84 ms early in the two green runs read from the
+server's debug log.
+
+- The second pass opens a new receiver under the id of the one just dropped.
+  The frame cryptor goes on the first with that id (*Receiving a call's audio*),
+  so the live one draws the stream still encrypted: a green screen with a
+  scrap of noise at the top, until Stop watching and Watch. Watch had to come
+  soon after the join, as the track arrived. Reported Nov 6 2026; on the local
+  stack, a phone sharing in H264, 2 of 4 rejoins, and the client logged
+  `video receivers share an id` just before the green in the one run with that
+  check on.
+- Often no track arrives at the client to say the server is sending again. The
+  stream was then downloaded and decoded, unwatched, until the call ended
+  (15 to 33 Mbit/s and a video decoder at up to 17% of a core on a laptop's
+  Windows), and Watch asked for what the server already sent, so nothing new
+  arrived and the stage showed the sharer's avatar until Stop watching and
+  Watch. Asking again on hearing the connection was active helped (Oct 25: one
+  rejoin in four before, none in sixteen after) but did not close it: the runs
+  above still had the last unsubscribe land before the second pass.
+
+A subscription that is never taken back has nothing for either pass to undo.
+A held track keeps its frame cryptor, which says it is decrypting once, so
+`DecryptedVideo` asks `isDecrypting` when a cover goes up as well as listening,
+and asks for a fresh keyframe either way (`renewPicture`). A picture counts as
+clean only until it stops being watched, so each Watch is covered again.
+
+Measured Nov 6 2026 on the local stack with LiveKit's debug log, Linux debug
+client, a phone sharing in H264: 10 rejoins (some pressing Watch at once, some
+after 10 s) and 14 Watches, all clean. No shared ids, no decoder errors, and no
+unsubscribe of the picture on the server. The server had the picture off for
+this client 0.25 to 0.7 s after each join, which is how long a join still
+receives it. From Watch to the picture: 1.1 to 1.8 s on the first Watch of a
+join, 0.75 to 1.45 s after. Not driven yet: a viewer on the Rust path (the local
+stack's functions mint no watch connection), a phone or web viewer, Windows.
 
 ## Windows turning other apps down — [Implemented October 2026]
 

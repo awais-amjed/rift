@@ -344,7 +344,7 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   (`hearsRemoteAudio`) and uses `disable()`/`enable()`. A track subscribed again after an
   unsubscribe gets a second receiver with the first one's id, and its frame cryptor lands
   on the wrong one: static until rejoin (`CALLS.md`, *Receiving a call's
-  audio*). Only a picture or your own share may be unsubscribed;
+  audio*). A stream's picture is held the same way (`_PicturePauseMixin`). Only your own share may be unsubscribed;
   `test/audio_reception_test.dart` fails on any other `unsubscribe()` in the call.
 - **On Windows, Dart is not on the main thread.** The runner gives it its own UI thread
   (`windows/runner/main.cpp`; on the main thread the engine's timer woke Rift a thousand

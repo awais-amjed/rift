@@ -106,8 +106,8 @@ mixin _AudioReceptionMixin on Cubit<LiveKitState> {
   /// which fits a cryptor to the receiver itself rather than finding it by
   /// id.
   ///
-  /// Pictures are only logged. They are still unsubscribed while unwatched,
-  /// so they can share an id often, and what that costs is one picture.
+  /// Pictures are only logged. They are held too ([_PicturePauseMixin]), so
+  /// this client does not cause it, and what it costs is one picture.
   // Called from `_RoomEventsMixin` through its abstract declaration, which
   // the unused-element check can't follow.
   // ignore: unused_element

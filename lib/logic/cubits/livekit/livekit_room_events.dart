@@ -33,6 +33,8 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
   bool _isOwnShare(String identity);
   Future<bool> _watchThroughRust(String identity);
   void _letGoOfUnwatchedPictures();
+  void _syncPictureReception();
+  void _noteDecryption(TrackE2EEStateEvent e);
   Future<void> _endRustWatch();
 
   /// Public because the connection mixin wires this up when a room is
@@ -53,14 +55,7 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
         _releaseMicAfterRestart();
         emit(state.copyWith(arrivals: state.arrivals + 1));
       })
-      // The server's second pass over the tracks there are, which undoes a
-      // picture dropped before it — see [_dropUnwatchedPictures].
-      ..on<ParticipantStateUpdatedEvent>((e) {
-        if (e.participant is LocalParticipant &&
-            e.state == ParticipantState.active) {
-          _dropUnwatchedPictures();
-        }
-      })
+      ..on<TrackE2EEStateEvent>(_noteDecryption)
       ..on<ParticipantConnectedEvent>((e) {
         final identity = e.participant.identity;
         if (ParticipantIdentity.isWatch(identity)) {
@@ -124,12 +119,9 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
             SoundService.instance.play(AppSound.stream);
           }
           if (!_watching(e.participant.identity)) {
-            // A picture nobody watches is not received at all. Its sound is
-            // held instead, once it arrives ([_AudioReceptionMixin]).
-            if (e.publication.subscribed &&
-                e.publication.kind == TrackType.VIDEO) {
-              e.publication.unsubscribe();
-            }
+            // Nobody watches it, so it is held, and so is its sound once that
+            // arrives ([_PicturePauseMixin], [_AudioReceptionMixin]).
+            _syncPictureReception();
           } else if (e.publication.source == TrackSource.screenShareVideo) {
             unawaited(_receiveWatchedPicture(e.participant, e.publication));
           } else if (!e.publication.subscribed) {
@@ -149,10 +141,8 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
         // for people who arrive *after* you. Whoever joined second heard
         // silence — connected, subscribed, and decrypting nothing.
         unawaited(_registerTrackKey(e.participant.identity));
-        // A new audio receiver is where two can come to share an id.
-        if (e.publication.kind == TrackType.AUDIO) {
-          unawaited(_checkReceivers());
-        }
+        // A new receiver is where two can come to share an id.
+        unawaited(_checkReceivers());
         // Deafening drops the audio there is at that moment; the SDK
         // subscribes to every track that comes after it by itself. Somebody
         // joining, a mic published afresh, or rejoining the call while
@@ -170,14 +160,13 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
           }
         } else if (_isStreamTrack(e.participant, e.publication)) {
           // A picture the Rust watch connection holds is not received here
-          // as well ([_RustWatchMixin]).
+          // as well ([_RustWatchMixin]); nor is one nobody watches.
           if (e.publication.source == TrackSource.screenShareVideo) {
             if (_watching(e.participant.identity) &&
                 !state.watchedPictures.containsKey(e.participant.identity)) {
               e.publication.setVideoQuality(VideoQuality.HIGH);
-            } else {
-              e.publication.unsubscribe();
             }
+            _syncPictureReception();
           } else if (e.publication.source == TrackSource.screenShareAudio) {
             // Held, not dropped, while unwatched; asking may also resume a
             // stream that dropped out a moment ago, so the sync runs after.
@@ -385,26 +374,6 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
     return true;
   }
 
-  /// Drops again every stream picture this client is not watching. The
-  /// server subscribes somebody joining to every track twice, at the join
-  /// and again once their connection is up, and the second undid a picture
-  /// dropped in between, usually with nothing arriving here to say so. The
-  /// stream was then downloaded and decoded unwatched until the call ended,
-  /// and Watch, asking for what the server was already sending, showed only
-  /// the sharer's avatar (Oct 25: a laptop's Windows, and Linux). Being told
-  /// we are active comes after that second pass, and the SDK asks even with
-  /// no track here (`third_party/livekit_client/RIFT_PATCHES.md`).
-  void _dropUnwatchedPictures() {
-    final room = state.room;
-    if (room == null) return;
-    for (final p in room.remoteParticipants.values) {
-      if (state.subscribedScreenshares.contains(p.identity)) continue;
-      for (final pub in p.videoTrackPublications) {
-        if (_isStreamTrack(p, pub)) unawaited(pub.unsubscribe());
-      }
-    }
-  }
-
   static bool _isStreamTrack(
     Participant participant,
     TrackPublication publication,
@@ -454,10 +423,8 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
   /// A watched share's picture, just published: through the Rust watch
   /// connection where it can be, in this room where it cannot.
   ///
-  /// Asked whatever the publication holds: the wait for the watch
-  /// connection's answer is long enough for an unsubscribe to go out, the
-  /// join's of a picture not yet watched, and the old track stays here after
-  /// it (`third_party/livekit_client/RIFT_PATCHES.md`, patch 8).
+  /// Asked whatever the publication holds, for a track the server has not
+  /// sent yet (`third_party/livekit_client/RIFT_PATCHES.md`, patch 8).
   Future<void> _receiveWatchedPicture(
     RemoteParticipant participant,
     RemoteTrackPublication publication,
@@ -466,6 +433,7 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
     // Stopped watching while the answer was awaited.
     if (!state.subscribedScreenshares.contains(participant.identity)) return;
     await publication.subscribe();
+    _syncPictureReception();
     _applyScreenshareQualitySettings(participant);
   }
 

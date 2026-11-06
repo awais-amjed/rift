@@ -110,14 +110,8 @@ mixin _RustWatchMixin
         },
       ),
     );
-    // Not received twice: the room subscribes by itself to what is
-    // published, and may have done so before this was ready.
-    final participant = room.remoteParticipants[identity];
-    for (final pub in participant?.videoTrackPublications ?? const []) {
-      if (pub.source == TrackSource.screenShareVideo && pub.subscribed) {
-        unawaited(pub.unsubscribe());
-      }
-    }
+    // Not received twice: this room's copy stays held.
+    _syncPictureReception();
     // Now, not with the next roster change, which a quiet call may not have:
     // this room's copy of the sound held, and Rust told how loud to play it,
     // or it plays at nothing.
@@ -257,6 +251,7 @@ mixin _RustWatchMixin
         if (pub.source != TrackSource.screenShareVideo) continue;
         try {
           await pub.subscribe();
+          _syncPictureReception();
           await pub.setVideoQuality(VideoQuality.HIGH);
         } catch (e) {
           HelperMethods.printDebug(

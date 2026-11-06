@@ -680,7 +680,7 @@ rather than a request. The cooldown and length cutoff are applied by the
 what a share sends and to whom (dynacast, and one picture rather than
 simulcast), how a shared window's sound is found on Linux, the GPU encoders
 maker by maker, how the desktop plays a call out and its 15 kHz ceiling, why
-audio this client should not hear is held rather than unsubscribed, Windows
+audio and stream pictures this client is not using are held rather than unsubscribed, Windows
 turning other apps down, and the speaking indicator.
 
 ---
