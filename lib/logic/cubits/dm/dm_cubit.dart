@@ -48,6 +48,7 @@ import '../../services/pin_ops.dart';
 import '../../services/quote_lookup.dart';
 import '../../services/reaction_ops.dart';
 import '../../services/saved_conversation.dart';
+import '../../services/saved_copy_refresh.dart';
 import '../../services/sealed_open.dart';
 import '../../services/server_realtime.dart';
 import '../../services/server_topics.dart';
@@ -314,6 +315,38 @@ class DmCubit extends Cubit<DmState>
               serverId,
               c.peerId,
             ).encode(),
+    );
+  }
+
+  /// Copies brought up to date while their conversations are not open.
+  final SavedCopyRefresh _savedRefresh = SavedCopyRefresh();
+
+  /// Bring the saved copy of the DM with [peerId] on [serverId] up to its
+  /// newest message — one that just rang, on this server or another, so
+  /// that opening it draws the message at once (see [SavedCopyRefresh]). Not
+  /// the open one, whose copy is fed as it changes.
+  void refreshSavedCopy(String serverId, String peerId) {
+    if (serverId == _readyServerId && state.openPeerId == peerId) return;
+    final server = _session.serverById(serverId);
+    if (server == null) return;
+    final dms = DmsApi(_session.on(serverId));
+    _savedRefresh.refresh(
+      _seed,
+      MessageCacheSlot.serverDm(
+        supabaseUrl: server.supabaseUrl,
+        serverId: server.id,
+        peerId: peerId,
+      ),
+      (afterId) async {
+        final response = await dms.listDms(
+          peerId: peerId,
+          afterId: afterId,
+          limit: ChatMessageOps.pageSize,
+        );
+        if (!response.success) return null;
+        final data = response.data as Map<String, dynamic>;
+        return (data['messages'] as List).cast<Map<String, dynamic>>();
+      },
     );
   }
 

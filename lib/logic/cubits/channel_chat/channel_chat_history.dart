@@ -22,11 +22,17 @@ mixin _ChannelChatHistoryMixin
   /// A re-read row reaching the bar's copy — see [_ChannelChatLiveMixin].
   void _updateLive(String messageId, ChatMessage? message);
 
-  Future<void> _fetchLatest(String channelId) async {
-    final response = await _channelMessages.listChatMessages(
-      channelId: channelId,
-      limit: ChatMessageOps.pageSize,
-    );
+  Future<void> _fetchLatest(String channelId) async =>
+      _showLatest(channelId, await _readLatest(channelId));
+
+  /// Ask for [channelId]'s newest page. Apart from [_showLatest] so a channel
+  /// being opened can ask while its key is still on the way: the page needs
+  /// the key to be opened, not to be asked for.
+  Future<APIResponse> _readLatest(String channelId) => _channelMessages
+      .listChatMessages(channelId: channelId, limit: ChatMessageOps.pageSize);
+
+  /// Draw the page [_readLatest] brought, opened with the keys held now.
+  Future<void> _showLatest(String channelId, APIResponse response) async {
     if (!response.success || state.channelId != channelId) return;
 
     final data = response.data as Map<String, dynamic>;

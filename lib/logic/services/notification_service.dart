@@ -19,6 +19,19 @@ import 'window_focus_service.dart';
 
 part 'notification_service_calls.dart';
 
+/// A message said inside a focused window (`NotificationService.showInApp`).
+///
+/// [senderId] and [avatarPath] draw the sender's picture; [what] is what they
+/// did, and [place] the server it was on, for a message that has one.
+typedef InAppMessage = ({
+  String? senderId,
+  String sender,
+  String? avatarPath,
+  String what,
+  String? place,
+  ConversationNotificationPayload target,
+});
+
 /// Over the helper budget and one job: the app's own notifications, set up
 /// for each platform it posts them on.
 ///
@@ -27,8 +40,9 @@ part 'notification_service_calls.dart';
 ///
 /// Notifications are only surfaced while the window is unfocused — the trigger
 /// sites in the chat cubits gate on [WindowFocusService.isFocused] before
-/// calling [showMessage]. The service itself is a thin wrapper around
-/// `flutter_local_notifications`, and a no-op before [init] completes.
+/// calling [showMessage], and call [showInApp] for a focused window instead.
+/// The service itself is a thin wrapper around `flutter_local_notifications`,
+/// and a no-op before [init] completes.
 ///
 /// The web goes through the browser's own `Notification` API instead
 /// (`browser_apis.dart`), because `flutter_local_notifications` has no web
@@ -201,6 +215,36 @@ class NotificationService with _CallNotificationsMixin {
       _messagePresses.stream;
   final StreamController<ConversationNotificationPayload?> _messagePresses =
       StreamController.broadcast();
+
+  /// What a focused window shows in place of a notification: a mention, or a
+  /// DM, said inside the app (`InAppMessageToasts`). A banner from the
+  /// system over the window being used is noise, but the chime alone left
+  /// nothing saying where the message was, so the badge had to be hunted for.
+  Stream<InAppMessage> get inAppMessages => _inAppMessages.stream;
+  final StreamController<InAppMessage> _inAppMessages =
+      StreamController.broadcast();
+
+  /// Say a message arrived, inside the app; a press on it opens [target], as
+  /// a press on a notification would.
+  void showInApp({
+    required String? senderId,
+    required String sender,
+    String? avatarPath,
+    required String what,
+    String? place,
+    required ConversationNotificationPayload target,
+  }) => _inAppMessages.add((
+    senderId: senderId,
+    sender: sender,
+    avatarPath: avatarPath,
+    what: what,
+    place: place,
+    target: target,
+  ));
+
+  /// A press on what [showInApp] said: taken where a notification's goes.
+  void pressInApp(ConversationNotificationPayload target) =>
+      _messagePresses.add(target);
 
   void _onResponse(NotificationResponse response) {
     final press = CallNotificationPress.of(response);

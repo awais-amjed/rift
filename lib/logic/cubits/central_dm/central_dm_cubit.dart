@@ -40,11 +40,13 @@ import '../../services/media_store.dart';
 import '../../services/message_cache.dart';
 import '../../services/new_message_notifier.dart';
 import '../../services/notification_ids.dart';
+import '../../services/notification_service.dart';
 import '../../services/outbox.dart';
 import '../../services/pin_ops.dart';
 import '../../services/push_service.dart';
 import '../../services/quote_lookup.dart';
 import '../../services/saved_conversation.dart';
+import '../../services/saved_copy_refresh.dart';
 import '../../services/sealed_open.dart';
 import '../../services/sound_service.dart';
 import '../../services/window_focus_service.dart';
@@ -226,7 +228,19 @@ class CentralDmCubit extends Cubit<CentralDmState>
         (state.levelsByPeer[senderId] ?? NotificationLevel.dmDefault).isMuted;
     if (WindowFocusService.instance.isFocused && !onScreen && !muted) {
       unawaited(SoundService.instance.play(AppSound.message));
+      // And who it is from, so the chime is not a hunt through the badges.
+      final name = state.conversations
+          .where((c) => c.peerId == senderId)
+          .firstOrNull
+          ?.peerName;
+      NotificationService.instance.showInApp(
+        senderId: senderId,
+        sender: name ?? 'Somebody',
+        what: 'sent you a message',
+        target: ConversationNotificationPayload.centralDm(senderId),
+      );
     }
+    if (!muted) _refreshSavedCopy(senderId);
   }
 
   /// The peer edited or deleted a message. `_fetchAfterLatest` can't see
@@ -280,6 +294,28 @@ class CentralDmCubit extends Cubit<CentralDmState>
       payloadFor: (c) =>
           ConversationNotificationPayload.centralDm(c.peerId).encode(),
     );
+  }
+
+  /// Copies brought up to date while their conversations are not open.
+  final SavedCopyRefresh _savedRefresh = SavedCopyRefresh();
+
+  /// Bring [peerId]'s saved copy up to its newest message — one that just
+  /// rang — so that opening the conversation draws it at once (see
+  /// [SavedCopyRefresh]). Not the open one, whose copy is fed as it changes.
+  void _refreshSavedCopy(String peerId) {
+    if (state.openPeerId == peerId) return;
+    _savedRefresh.refresh(_seed, MessageCacheSlot.centralDm(peerId: peerId), (
+      afterId,
+    ) async {
+      final response = await _repo.listDms(
+        peerId: peerId,
+        afterId: afterId,
+        limit: ChatMessageOps.pageSize,
+      );
+      if (!response.success) return null;
+      final data = response.data as Map<String, dynamic>;
+      return (data['messages'] as List).cast<Map<String, dynamic>>();
+    });
   }
 
   /// Seeds the add-friend field and shows the page it lives on — see

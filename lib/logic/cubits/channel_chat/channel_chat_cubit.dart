@@ -57,6 +57,7 @@ import '../../services/poll_ops.dart';
 import '../../services/quote_lookup.dart';
 import '../../services/reaction_ops.dart';
 import '../../services/saved_conversation.dart';
+import '../../services/saved_copy_refresh.dart';
 import '../../services/sealed_open.dart';
 import '../../services/server_realtime.dart';
 import '../../services/server_topics.dart';
@@ -304,10 +305,13 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     // synchronously, and the next line begins replacing it.
     unawaited(_saved.flush(leaving: true));
     final generation = ++_openGeneration;
-    // The old channel's handlers are detached the moment this is called; only
-    // the server's goodbye is waited on, and that waits below the saved copy
-    // rather than above it. On a connection that has stalled, the goodbye is
-    // exactly what never comes back.
+    // The same channel's feeds are joined again below, and a join must not
+    // cross the leave of the one it replaces.
+    final rejoining = _rtChannelId == channelId;
+    // The old channel's handlers are detached the moment this is called. The
+    // server's goodbye is waited on only by a channel joining the same feeds
+    // again: on a connection that has stalled, it is exactly what never comes
+    // back.
     final released = _teardownRealtime();
     // Before the state below is emitted: whoever hears the channel open asks
     // which server it is on.
@@ -338,12 +342,38 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
       return;
     }
 
-    // What this device saved last time, drawn before the first request. The
-    // rest of this method is several round trips, and it replaces what this
-    // draws with what the server says the moment it has an answer.
+    if (rejoining) {
+      await released;
+      if (_isStale(generation)) return;
+    } else {
+      unawaited(released);
+    }
+    // The feeds first, so a message sent while the page below is on its way
+    // is heard; what they ring is held until the page is on screen.
+    _setupRealtime(server, channelId, hold: true);
+
+    // Everything the channel needs from the server is asked for at once:
+    // asked one after another — the key, the bots reading it, the bots a `/`
+    // reaches, the page — the newest message showed a ping for each after the
+    // click. Only the key has anything to wait on, and the page needs the key
+    // to be opened, not to be asked for.
+    //
+    // Who is listening: a member is entitled to know a bot holds this
+    // channel's key *while reading it*, not a moment after, so it is drawn
+    // before the messages are. Which bots a `/` command here can reach:
+    // before there is a composer to type one into, and asked with the
+    // channel, so a private one answers with the bots seated in it rather
+    // than with the server's. And the page, fetched either way, including
+    // when no key is found: without one most of it comes back as locked rows
+    // and any webhook message readable, which is the difference between a
+    // channel that looks empty and one that looks like what it is.
+    final listenersRead = _botKeys.channelListeners(channelId);
+    final botsRead = _members.listBots(channelId: channelId);
+    final pageRead = _readLatest(channelId);
+
+    // What this device saved last time, drawn before anything is back. It is
+    // replaced the moment the server's page is.
     await _drawSaved(server, channelId);
-    if (_isStale(generation)) return;
-    await released;
     if (_isStale(generation)) return;
 
     await _keyring.ensureChatKeyPublished(server);
@@ -356,6 +386,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     if (_isStale(generation)) return;
 
     if (keyring.failure != null) {
+      unawaited(_teardownRealtime());
       emit(
         state.copyWith(
           status: ChannelChatStatus.error,
@@ -366,27 +397,17 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
       return;
     }
 
-    _setupRealtime(server, channelId);
-
-    // Who is listening, before the messages. A member is entitled to know a
-    // bot holds this channel's key *while reading it*, not a moment after.
-    final listeners = await _botKeys.channelListeners(channelId);
+    final listeners = await listenersRead;
     if (_isStale(generation)) return;
     emit(state.copyWith(botListeners: listeners));
 
-    // And which bots a `/` command here can reach, before there is a composer
-    // to type one into. Asked with the channel, so a private one answers with
-    // the bots seated in it rather than with the server's.
-    final bots = await _members.listBots(channelId: channelId);
+    final bots = await botsRead;
     if (_isStale(generation)) return;
     emit(state.copyWith(bots: bots));
 
-    // The history is fetched either way, including when no key was found.
-    // Without a key most of it comes back as locked rows and any webhook
-    // message comes back readable — which is the difference between a channel
-    // that looks empty and one that looks like what it is.
-    await _fetchLatest(channelId);
+    await _showLatest(channelId, await pageRead);
     if (_isStale(generation)) return;
+    _ringHeldDoorbells();
     // What the bar holds, which the page may not. Not awaited: the bar can
     // fill a moment after the history does.
     unawaited(refreshLive());

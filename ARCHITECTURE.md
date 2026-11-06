@@ -456,6 +456,16 @@ window and gives the save up to three seconds (`BeforeQuit`). Measured Sep 28
 with `pg_stat_statements` over the same scripted session: 83 statements before,
 85 after, all of it that one read.
 
+**Brought up to date when something rings.** The copy was saved when the
+conversation was last left, so on its own it lacks the very message a
+notification, a chime or an in-app banner is about, and that message arrived a
+ping after the click. So a message that rings for a conversation with a copy
+reads what is newer than the copy's newest row, and merges it in
+(`SavedCopyRefresh`): one read per burst, usually one row, and nothing for a muted
+conversation or one never opened on this device. More than a page newer, and the
+newest page replaces the copy, so it never holds a gap. This is still a head
+start: the open that follows replaces it with a fresh page as ever.
+
 **Rows, not messages.** What is saved is the rows exactly as the server sent
 them, so a saved row goes back through the same open-or-lock-or-drop path as a
 fresh one (*Three things a client can do with a row*, above). A channel's keys

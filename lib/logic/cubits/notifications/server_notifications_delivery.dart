@@ -10,6 +10,7 @@ mixin _DeliveryMixin
         _ReadMarkingMixin,
         _LevelsMixin {
   DmCubit get _dmCubit;
+  ChannelChatCubit get _chatCubit;
 
   /// The open channel and conversation, and whether their surface shows.
   String? get _openServerId;
@@ -54,22 +55,26 @@ mixin _DeliveryMixin
     final level = state.channelLevel(serverId, channelId);
     if (!level.announces(mentioned: _rowNamesMe(serverId, row))) return;
 
+    // It rang, so it is likely to be opened next, from the notification or
+    // the badge: read it into the channel's saved copy now, so that opening
+    // it shows this message at once rather than a ping after the click.
+    _chatCubit.refreshSavedCopy(serverId, channelId);
+
     // Looking at the app but not at this channel: no notification, which
     // would be a banner over the window you are using, but the chime. An
     // unfocused window gets it from [NotificationService] instead.
     if (focused) {
       unawaited(SoundService.instance.play(AppSound.message));
+      // A mention says where it is, too: the chime alone sent the person
+      // looking through the badges for it.
+      if (_rowNamesMe(serverId, row)) {
+        unawaited(_sayMentionInApp(serverId, channelId, row));
+      }
       return;
     }
     if (!isOpenChannel) {
       final server = _serverById(serverId);
-      String? channelName;
-      for (final c in server?.channels ?? const []) {
-        if (c.id == channelId) {
-          channelName = c.name;
-          break;
-        }
-      }
+      final channelName = _channelName(server, channelId);
       NotificationService.instance.showMessage(
         title: server?.name ?? 'Rift',
         body: channelName != null
@@ -112,17 +117,76 @@ mixin _DeliveryMixin
     // A DM has nobody else in it to be named among, so `mentions` reads as
     // `all` here — the same answer the server's ring trigger gives it.
     if (state.dmLevel(serverId, peerId).isMuted) return;
+    // As for a channel: opened next, it shows this message at once.
+    _dmCubit.refreshSavedCopy(serverId, peerId);
 
-    // Focused, on any server: the chime, as for a channel. DmCubit never
-    // speaks while the window is focused, so this is the only one that does.
+    // Focused, on any server: the chime, and who it is from, inside the app.
+    // DmCubit never speaks while the window is focused, so this is the only
+    // one that does.
     if (WindowFocusService.instance.isFocused) {
       unawaited(SoundService.instance.play(AppSound.message));
+      unawaited(_sayDmInApp(serverId, peerId));
       return;
     }
     if (serverId != _dmCubit.serverId) {
       unawaited(_notifyBackgroundDm(serverId, peerId));
     }
   }
+
+  String? _channelName(Server? server, String channelId) {
+    for (final c in server?.channels ?? const []) {
+      if (c.id == channelId) return c.name;
+    }
+    return null;
+  }
+
+  /// Say inside the focused window that somebody named us in [channelId].
+  /// The row is ciphertext, so who and where is all there is to say.
+  Future<void> _sayMentionInApp(
+    String serverId,
+    String channelId,
+    Map<String, dynamic> row,
+  ) async {
+    final senderId = row['sender_id'] as String?;
+    final name = senderId == null
+        ? null
+        : await _peerDisplayName(serverId, senderId);
+    if (isClosed) return;
+    final server = _serverById(serverId);
+    final channelName = _channelName(server, channelId);
+    final me = _subs[serverId]?.userId;
+    final named = row['mentions'];
+    final everyone = !(me != null && named is List && named.contains(me));
+    NotificationService.instance.showInApp(
+      senderId: senderId,
+      sender: name ?? 'Somebody',
+      avatarPath: _avatarOf(serverId, senderId),
+      what:
+          'mentioned ${everyone ? 'everyone' : 'you'}'
+          '${channelName == null ? '' : ' in #$channelName'}',
+      place: server?.name,
+      target: ConversationNotificationPayload.channel(serverId, channelId),
+    );
+  }
+
+  /// Say inside the focused window that a DM arrived.
+  Future<void> _sayDmInApp(String serverId, String peerId) async {
+    final name = await _peerDisplayName(serverId, peerId);
+    if (isClosed) return;
+    NotificationService.instance.showInApp(
+      senderId: peerId,
+      sender: name ?? 'Somebody',
+      avatarPath: _avatarOf(serverId, peerId),
+      what: 'sent you a message',
+      place: _serverById(serverId)?.name,
+      target: ConversationNotificationPayload.serverDm(serverId, peerId),
+    );
+  }
+
+  /// The picture of somebody [_peerDisplayName] has just looked up.
+  String? _avatarOf(String serverId, String? userId) => userId == null
+      ? null
+      : _session.members.lookup(serverId, userId)?.avatarPath;
 
   /// A message in a channel was edited or deleted.
   ///

@@ -17,6 +17,7 @@ mixin _ChannelChatRealtimeMixin
         _ChannelChatReactionsMixin,
         _ChannelChatPinsMixin,
         _ChannelChatPollsMixin {
+  @override
   SessionRepository get _session;
 
   /// Re-open the channel — how a member waiting for a key retries once someone
@@ -42,10 +43,51 @@ mixin _ChannelChatRealtimeMixin
   static const _typingThrottle = Duration(seconds: 2);
   static const _typingTimeout = Duration(seconds: 5);
 
+  /// The channel whose feeds are held, so an open of the same channel can
+  /// let the old joins go before making its own.
+  String? _rtChannelId;
+
+  /// Doorbells rung while the channel is still opening, rung in order once
+  /// its page is on screen ([_ringHeldDoorbells]). The feeds are joined
+  /// before the page is asked for, so nothing said while it is on its way is
+  /// lost; and a doorbell is not answered before then, since what it reads
+  /// is opened with keys still on their way. Null when nothing is held.
+  List<void Function()>? _heldDoorbells;
+
+  /// Ring what was held while the channel opened, and stop holding.
+  void _ringHeldDoorbells() {
+    final held = _heldDoorbells;
+    _heldDoorbells = null;
+    for (final ring in held ?? const <void Function()>[]) {
+      ring();
+    }
+  }
+
   // ── Realtime doorbell ─────────────────────────────────────
 
-  void _setupRealtime(Server server, String channelId) {
+  /// Join the open channel's feeds. [hold] keeps their doorbells until
+  /// [_ringHeldDoorbells], for a channel whose page is not in yet.
+  void _setupRealtime(Server server, String channelId, {bool hold = false}) {
     final realtime = _session.realtime;
+    _rtChannelId = channelId;
+    if (hold) _heldDoorbells = [];
+    void Function(T) held<T>(void Function(T) ring) => (value) {
+      final waiting = _heldDoorbells;
+      if (waiting == null) {
+        ring(value);
+      } else {
+        waiting.add(() => ring(value));
+      }
+    };
+    void reopened() {
+      final waiting = _heldDoorbells;
+      if (waiting == null) {
+        _onFeedReopen();
+      } else {
+        waiting.add(_onFeedReopen);
+      }
+    }
+
     _rtTopic = realtime.join(server, ServerTopics.chat(channelId))
       ?..onBroadcast(ServerEvent.typing, _onTyping);
 
@@ -69,25 +111,40 @@ mixin _ChannelChatRealtimeMixin
       final feed = realtime.join(server, topic);
       if (feed == null) continue;
       feed
-        ..onReopen(_onFeedReopen)
-        ..onBroadcast(ServerEvent.message, (message) {
-          // Our own sends are already on screen from their insert.
-          if (!here(message)) return;
-          if (BroadcastPayload.stringOf(message, 'sender_id') == me) return;
-          _onDoorbell(announced: BroadcastPayload.stringOf(message, 'id'));
-        })
-        ..onBroadcast(ServerEvent.messageChanged, (message) {
-          if (here(message)) _onChangeDoorbell(message);
-        })
-        ..onBroadcast(ServerEvent.reaction, (message) {
-          if (here(message)) _onReactionDoorbell(message);
-        })
-        ..onBroadcast(ServerEvent.pin, (message) {
-          if (here(message)) _onPinDoorbell(message);
-        })
-        ..onBroadcast(ServerEvent.poll, (message) {
-          if (here(message)) _onPollDoorbell(message);
-        });
+        ..onReopen(reopened)
+        ..onBroadcast(
+          ServerEvent.message,
+          held((message) {
+            // Our own sends are already on screen from their insert.
+            if (!here(message)) return;
+            if (BroadcastPayload.stringOf(message, 'sender_id') == me) return;
+            _onDoorbell(announced: BroadcastPayload.stringOf(message, 'id'));
+          }),
+        )
+        ..onBroadcast(
+          ServerEvent.messageChanged,
+          held((message) {
+            if (here(message)) _onChangeDoorbell(message);
+          }),
+        )
+        ..onBroadcast(
+          ServerEvent.reaction,
+          held((message) {
+            if (here(message)) _onReactionDoorbell(message);
+          }),
+        )
+        ..onBroadcast(
+          ServerEvent.pin,
+          held((message) {
+            if (here(message)) _onPinDoorbell(message);
+          }),
+        )
+        ..onBroadcast(
+          ServerEvent.poll,
+          held((message) {
+            if (here(message)) _onPollDoorbell(message);
+          }),
+        );
       _rtFeeds.add(feed);
     }
 
@@ -98,7 +155,10 @@ mixin _ChannelChatRealtimeMixin
     // read.
     final roster = realtime.join(server, ServerTopics.server(server.id));
     if (roster != null) {
-      roster.onBroadcast(ServerEvent.bots, (_) => _onBotsDoorbell(channelId));
+      roster.onBroadcast(
+        ServerEvent.bots,
+        held((_) => _onBotsDoorbell(channelId)),
+      );
       _rtFeeds.add(roster);
     }
   }
@@ -147,6 +207,8 @@ mixin _ChannelChatRealtimeMixin
     final feeds = [..._rtFeeds];
     _rtTopic = null;
     _rtFeeds.clear();
+    _rtChannelId = null;
+    _heldDoorbells = null;
     _reopenDebounce?.cancel();
     _reopenDebounce = null;
     _lastTypingSent = null;

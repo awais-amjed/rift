@@ -25,6 +25,7 @@ import '../../responsive/shell_scope.dart';
 import '../../theme/app_motion.dart';
 import 'calls/call_notification_router.dart';
 import 'conversation_notification_router.dart';
+import 'in_app_message_toasts.dart';
 import 'main_content/main_content.dart';
 import 'main_content/widgets/call_resumer.dart';
 import 'main_content/widgets/voice_connection_listener.dart';
@@ -270,11 +271,14 @@ class _HomeScreenState extends State<HomeScreen> {
               // And on a message's: back to the window, into the
               // conversation.
               child: ConversationNotificationRouter(
-                // A phone is a different shell, not a squeezed desktop: the
-                // list is the screen and everything else is pushed over it.
-                child: context.layoutMode.isCompact
-                    ? _QuickSwitcherShortcut(child: _buildPhone())
-                    : _QuickSwitcherShortcut(child: _buildDesktop(context)),
+                // What a focused window says in place of a notification.
+                child: InAppMessageToasts(
+                  // A phone is a different shell, not a squeezed desktop: the
+                  // list is the screen and everything else is pushed over it.
+                  child: context.layoutMode.isCompact
+                      ? _QuickSwitcherShortcut(child: _buildPhone())
+                      : _QuickSwitcherShortcut(child: _buildDesktop(context)),
+                ),
               ),
             ),
           ),

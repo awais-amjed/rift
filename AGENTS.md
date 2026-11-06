@@ -143,7 +143,8 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   live end calls `merge`; one that learns a row changed or went away calls
   `update` or `remove`; an acknowledged send calls `noteSent`. Forget one and the
   next open draws a stale page for a moment, which is exactly the defect nobody
-  sees in a test. The copy is a head start that the fresh page *replaces*.
+  sees in a test. One that is not open is brought up to date by `SavedCopyRefresh`
+  when a message rings for it. The copy is a head start that the fresh page *replaces*.
   Never merge it into live state (`ARCHITECTURE.md` §4, *Saved on the device*).
 
 ## Crypto rules

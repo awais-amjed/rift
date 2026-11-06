@@ -14,6 +14,7 @@ mixin _ChannelChatSavedMixin on Cubit<ChannelChatState>, _ChannelChatRowsMixin {
   VaultCubit get _vaultCubit;
   MessageCache get _messageCache;
   SavedConversation get _saved;
+  SessionRepository get _session;
 
   /// Draw the saved copy of [channelId], if there is one. Returns before any
   /// network is touched; what the server says replaces it moments later.
@@ -98,6 +99,40 @@ mixin _ChannelChatSavedMixin on Cubit<ChannelChatState>, _ChannelChatRowsMixin {
     if (!response.success) return null;
     final data = response.data as Map<String, dynamic>;
     return (data['messages'] as List).cast<Map<String, dynamic>>();
+  }
+
+  /// Copies brought up to date while their channels are not open.
+  late final SavedCopyRefresh _savedRefresh = SavedCopyRefresh(
+    cache: _messageCache,
+  );
+
+  /// Bring [channelId]'s saved copy on [serverId] up to its newest message —
+  /// one that just rang, with a notification or a chime — so that opening the
+  /// channel draws it at once (see [SavedCopyRefresh]). Not the open channel,
+  /// whose copy is fed as it changes.
+  void refreshSavedCopy(String serverId, String channelId) {
+    if (serverId == _server?.id && channelId == state.channelId) return;
+    final server = _session.serverById(serverId);
+    if (server == null) return;
+    final messages = ChannelMessagesApi(_session.on(serverId));
+    _savedRefresh.refresh(
+      _vaultCubit.state.masterSeed,
+      MessageCacheSlot.channel(
+        supabaseUrl: server.supabaseUrl,
+        serverId: server.id,
+        channelId: channelId,
+      ),
+      (afterId) async {
+        final response = await messages.listChatMessages(
+          channelId: channelId,
+          afterId: afterId,
+          limit: ChatMessageOps.pageSize,
+        );
+        if (!response.success) return null;
+        final data = response.data as Map<String, dynamic>;
+        return (data['messages'] as List).cast<Map<String, dynamic>>();
+      },
+    );
   }
 
   /// What a channel keeps beside its rows. Read at the moment of writing, so

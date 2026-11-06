@@ -8,6 +8,7 @@ import '../theme/app_text.dart';
 import '../theme/custom_colors.dart';
 import '../theme/theme_context.dart';
 import 'app_button.dart';
+import 'app_toast_close.dart';
 
 /// A button along a toast's foot. Pressing one closes the toast first.
 class ToastAction {
@@ -124,7 +125,7 @@ class AppToast extends StatelessWidget {
                 const SizedBox(width: 10),
                 Flexible(child: _selectable(_words(theme))),
                 const SizedBox(width: 8),
-                _CloseButton(onTap: onClose),
+                AppToastClose(onTap: onClose),
               ],
             ),
           ),
@@ -192,34 +193,6 @@ class _Clickable extends StatelessWidget {
       child: onTap == null
           ? child
           : GestureDetector(onTap: onTap, child: child),
-    );
-  }
-}
-
-class _CloseButton extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _CloseButton({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.theme;
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(K.radiusRow),
-      child: InkWell(
-        mouseCursor: WidgetStateMouseCursor.clickable,
-        borderRadius: BorderRadius.circular(K.radiusRow),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(4),
-          child: Icon(
-            Icons.close_rounded,
-            size: K.iconRow,
-            color: theme.textTertiary,
-          ),
-        ),
-      ),
     );
   }
 }

@@ -57,6 +57,7 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
   @override
   final SessionRepository _session;
   final AppCubit _appCubit;
+  @override
   final ChannelChatCubit _chatCubit;
   @override
   final DmCubit _dmCubit;
