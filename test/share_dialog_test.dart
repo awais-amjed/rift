@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -9,6 +12,8 @@ import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/presentation/common/selectable_surface.dart';
 import 'package:rift/presentation/common/show_custom_dialog.dart';
 import 'package:rift/presentation/screens/home/screenshare/screen_share_settings_dialog.dart';
+import 'package:rift/presentation/screens/home/screenshare/widgets/share_choice_button.dart';
+import 'package:rift/presentation/screens/home/screenshare/widgets/share_choice_grid.dart';
 import 'package:rift/presentation/screens/home/screenshare/widgets/share_quality_row.dart';
 import 'package:rift/src/rust/api/screenshare/types.dart';
 
@@ -47,6 +52,8 @@ void main() {
     int maxShareMbps = 0,
     ScreenShareSettings settings = const ScreenShareSettings(),
     Size size = const Size(1180, 780),
+    String? font,
+    double textScale = 1,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -61,6 +68,12 @@ void main() {
           BlocProvider<AppCubit>.value(value: app),
         ],
         child: MaterialApp(
+          theme: ThemeData(fontFamily: font),
+          builder: (context, child) => MediaQuery.withClampedTextScaling(
+            minScaleFactor: textScale,
+            maxScaleFactor: textScale,
+            child: child!,
+          ),
           home: Builder(
             builder: (context) => TextButton(
               onPressed: () async {
@@ -343,6 +356,86 @@ void main() {
       // The stored 15 goes out at 8, so 8 is what shows.
       expect(isSelected(tester, '8 Mbps'), isTrue);
       expect(find.textContaining('limits screen shares to 8 Mbps'), findsOne);
+    });
+  });
+
+  group('wraps', () {
+    int across({required int units, required int columns, double room = 392}) {
+      return ShareChoiceGrid.acrossFor(
+        units: units,
+        columns: columns,
+        room: room,
+        minWidth: 84,
+      );
+    }
+
+    test('keeps one row while everything fits', () {
+      expect(across(units: 5, columns: 5, room: 592), 5);
+      expect(across(units: 6, columns: 6, room: 592), 6);
+    });
+
+    test('evens out the rows when it does not', () {
+      expect(across(units: 5, columns: 5), 3);
+      expect(across(units: 6, columns: 6), 3);
+    });
+
+    test('the bitrate box always ends its row level with the others', () {
+      for (var room = 100.0; room <= 800; room += 10) {
+        final columns = across(units: 12, columns: 6, room: room);
+        expect(12 % columns, 0, reason: 'at $room');
+      }
+    });
+
+    group('in Rift\'s own font', () {
+      setUpAll(() async {
+        final loader = FontLoader('Geist');
+        for (final weight in ['Regular', 'Medium', 'SemiBold', 'Bold']) {
+          final bytes = File(
+            'assets/fonts/Geist-$weight.ttf',
+          ).readAsBytesSync();
+          loader.addFont(Future.value(ByteData.sublistView(bytes)));
+        }
+        await loader.load();
+      });
+
+      void expectNoWordCut(WidgetTester tester, double width) {
+        final words = find.descendant(
+          of: find.byType(ShareChoiceButton),
+          matching: find.byType(RichText),
+        );
+        expect(words, findsWidgets);
+        for (final element in words.evaluate()) {
+          final paragraph = element.renderObject! as RenderParagraph;
+          expect(
+            paragraph.didExceedMaxLines,
+            isFalse,
+            reason:
+                '"${paragraph.text.toPlainText()}" cut off in a '
+                '${width.toInt()} px wide window',
+          );
+        }
+      }
+
+      for (final textScale in const [1.0, 15 / 14]) {
+        testWidgets('no choice loses a word at text scale '
+            '${textScale.toStringAsFixed(2)}', (tester) async {
+          for (var width = 340.0; width <= 700; width += 10) {
+            await open(
+              tester,
+              size: Size(width, 2000),
+              font: 'Geist',
+              textScale: textScale,
+              settings: const ScreenShareSettings(resolution: 1080, fps: 120),
+            );
+            expectNoWordCut(tester, width);
+            await tester.ensureVisible(find.text('Advanced'));
+            await tester.tap(find.text('Advanced'));
+            await tester.pumpAndSettle();
+            expectNoWordCut(tester, width);
+            await tester.pumpWidget(const SizedBox());
+          }
+        });
+      }
     });
   });
 

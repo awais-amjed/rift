@@ -42,6 +42,8 @@ class ShareQualityRow extends StatelessWidget {
     final custom = !isPreset(settings);
     return ShareChoiceGrid(
       columns: presets.length + (custom ? 1 : 0),
+      // Room for the Custom chip's "1080p 120".
+      minWidth: 84,
       children: [
         for (final preset in presets)
           ShareChoiceButton(

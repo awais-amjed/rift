@@ -119,7 +119,7 @@ class ShareAdvancedPage extends StatelessWidget {
     children: [
       ShareChoiceGrid(
         columns: SharePriority.values.length,
-        minWidth: 88,
+        minWidth: 96,
         children: [
           for (final priority in SharePriority.values)
             ShareChoiceButton(

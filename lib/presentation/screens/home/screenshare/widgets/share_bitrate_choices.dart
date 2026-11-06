@@ -110,6 +110,7 @@ class _ShareBitrateChoicesState extends State<ShareBitrateChoices> {
     final sent = _sent;
     return ShareChoiceGrid(
       columns: 6,
+      minWidth: 74,
       lastSpan: 2,
       children: [
         ShareChoiceButton(
