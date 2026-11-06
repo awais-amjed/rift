@@ -1504,7 +1504,8 @@ looks only at how long the model takes (`SLOW_FRAME`), so it does not act on a
 computer fast enough for the model beside a game. There DPDFNet-8 keeps taking
 about 3 times DPDFNet-2's work (3.4 ms against 1.2 of each 10 ms on an i7-12700H's
 performance core, Oct 14), on Windows ahead of the game. Not measured: a game
-beside DPDFNet-8 on the mic's thread. Everything above is DPDFNet-2.
+beside DPDFNet-8 on the mic's thread, though the owner played one on real Windows
+on Nov 6 and reported no stutter. Everything above is DPDFNet-2.
 
 Measured Oct 25 2026 on a laptop's Windows: receiving a 1080p60 stream, the
 decoder took 25% of a core at time-critical while a stand-in game ran on every
