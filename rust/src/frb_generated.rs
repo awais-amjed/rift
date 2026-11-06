@@ -2906,11 +2906,13 @@ impl SseDecode for crate::api::screenshare::types::ShareQuality {
         let mut var_resolution = <u32>::sse_decode(deserializer);
         let mut var_fps = <u32>::sse_decode(deserializer);
         let mut var_bitrate = <u32>::sse_decode(deserializer);
+        let mut var_codec = <crate::api::screenshare::types::VideoCodec>::sse_decode(deserializer);
         let mut var_shareAudio = <bool>::sse_decode(deserializer);
         return crate::api::screenshare::types::ShareQuality {
             resolution: var_resolution,
             fps: var_fps,
             bitrate: var_bitrate,
+            codec: var_codec,
             share_audio: var_shareAudio,
         };
     }
@@ -3619,6 +3621,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::screenshare::types::ShareQual
             self.resolution.into_into_dart().into_dart(),
             self.fps.into_into_dart().into_dart(),
             self.bitrate.into_into_dart().into_dart(),
+            self.codec.into_into_dart().into_dart(),
             self.share_audio.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -4301,6 +4304,7 @@ impl SseEncode for crate::api::screenshare::types::ShareQuality {
         <u32>::sse_encode(self.resolution, serializer);
         <u32>::sse_encode(self.fps, serializer);
         <u32>::sse_encode(self.bitrate, serializer);
+        <crate::api::screenshare::types::VideoCodec>::sse_encode(self.codec, serializer);
         <bool>::sse_encode(self.share_audio, serializer);
     }
 }

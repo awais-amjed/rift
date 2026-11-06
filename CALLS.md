@@ -645,6 +645,12 @@ what was driven are in `TESTING.md`).
   own because it is only a cap (2K at 120 fps in H264 asks for 34 Mbps). The
   server's share limit holds it, like a chosen one, which can be up to 100.
   Either can still be picked by hand under the dialog's advanced settings.
+  The codec can also be changed while sharing, from the menu by the share's
+  button (`update_screenshare`). A track's codec is fixed when it is
+  published, so this publishes a new track and viewers see the picture blink,
+  where a new size or rate on the GPU keeps the track. The capture carries
+  on, since both CPU and GPU encoders take its pictures, so the desktop's
+  picker is not asked again.
 - **Auto never drops to VP8 under load.** VP8 is the lighter codec only on an
   idle machine; on a busy one its encoder threads fight over the cores.
   Measured Oct 5 2026 on Linux (`bench_test.rs`, a moving 960x1000 window at

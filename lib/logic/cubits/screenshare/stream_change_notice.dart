@@ -10,6 +10,7 @@ import '../../../data/classes/screen_share_settings.dart';
   required ScreenShareSettings now,
   bool fpsChanged = false,
   bool fpsLowered = false,
+  bool codecChanged = false,
   bool soundChanged = false,
 }) {
   if (soundChanged) {
@@ -19,6 +20,9 @@ import '../../../data/classes/screen_share_settings.dart';
           ? 'Viewers can hear it'
           : 'Viewers no longer hear it',
     );
+  }
+  if (codecChanged) {
+    return (title: 'Codec updated', description: now.codec);
   }
   if (fpsChanged) {
     return (title: 'Frame rate updated', description: '${now.fps} fps');

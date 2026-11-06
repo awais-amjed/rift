@@ -287,19 +287,28 @@ pub(crate) async fn update(quality: ShareQuality) -> Result<ShareQuality, String
         return Err("Not sharing".to_string());
     };
     log::info!(
-        "screenshare: changing to {}p{} at {} Mbps, audio {}",
+        "screenshare: changing to {}p{} at {} Mbps in {:?}, audio {}",
         quality.resolution,
         quality.fps,
         quality.bitrate,
+        quality.codec,
         quality.share_audio
     );
 
     session.capture.set_fps(quality.fps);
-    if session
+    let new_codec = session.video.set_codec(quality.codec);
+    let new_picture = session
         .video
-        .set_picture(quality.resolution, quality.fps, quality.bitrate)
-    {
-        if let Err(reason) = session.video.change_picture().await {
+        .set_picture(quality.resolution, quality.fps, quality.bitrate);
+    if new_codec || new_picture {
+        // A track's codec is settled when it is published, so another codec
+        // is another track; a size or rate alone may keep the one it has.
+        let changed = if new_codec {
+            session.video.republish().await
+        } else {
+            session.video.change_picture().await
+        };
+        if let Err(reason) = changed {
             // The old picture is already gone, so the share has nothing to
             // show: end it, the way a closed window does.
             crate::api::screenshare::emit_screenshare_event(
@@ -337,6 +346,7 @@ pub(crate) async fn update(quality: ShareQuality) -> Result<ShareQuality, String
     }
 
     Ok(ShareQuality {
+        codec: session.video.codec(),
         share_audio: session.audio.is_some(),
         ..quality
     })
@@ -513,6 +523,21 @@ impl Video {
         settings.fps = fps;
         settings.bitrate = bitrate;
         changed
+    }
+
+    /// Takes the codec to publish in next, and says whether it changed. A
+    /// share that fell back to VP9 tries the GPU again when H264 is asked
+    /// for: the user asked, and a second failure falls back the same way.
+    fn set_codec(&self, codec: VideoCodec) -> bool {
+        let mut settings = self.settings.lock().unwrap();
+        let changed = settings.codec != codec;
+        settings.codec = codec;
+        changed
+    }
+
+    /// The codec the picture goes out in, after any fall back.
+    fn codec(&self) -> VideoCodec {
+        self.settings.lock().unwrap().codec
     }
 
     /// Put a new size or rate into effect.

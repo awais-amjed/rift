@@ -2728,13 +2728,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ShareQuality dco_decode_share_quality(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
     return ShareQuality(
       resolution: dco_decode_u_32(arr[0]),
       fps: dco_decode_u_32(arr[1]),
       bitrate: dco_decode_u_32(arr[2]),
-      shareAudio: dco_decode_bool(arr[3]),
+      codec: dco_decode_video_codec(arr[3]),
+      shareAudio: dco_decode_bool(arr[4]),
     );
   }
 
@@ -3442,11 +3443,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_resolution = sse_decode_u_32(deserializer);
     var var_fps = sse_decode_u_32(deserializer);
     var var_bitrate = sse_decode_u_32(deserializer);
+    var var_codec = sse_decode_video_codec(deserializer);
     var var_shareAudio = sse_decode_bool(deserializer);
     return ShareQuality(
       resolution: var_resolution,
       fps: var_fps,
       bitrate: var_bitrate,
+      codec: var_codec,
       shareAudio: var_shareAudio,
     );
   }
@@ -4216,6 +4219,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_u_32(self.resolution, serializer);
     sse_encode_u_32(self.fps, serializer);
     sse_encode_u_32(self.bitrate, serializer);
+    sse_encode_video_codec(self.codec, serializer);
     sse_encode_bool(self.shareAudio, serializer);
   }
 

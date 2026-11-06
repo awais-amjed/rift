@@ -244,8 +244,8 @@ enum SharePriority {
   sharpness,
 }
 
-/// What can change while a share is running: the picture's size, rate and
-/// bitrate, and whether its sound goes with it. The source, codec and
+/// What can change while a share is running: the picture's size, rate,
+/// bitrate and codec, and whether its sound goes with it. The source and
 /// priority stay as the share started.
 class ShareQuality {
   /// Height cap in rows, as [`ScreenShareConfig::resolution`].
@@ -255,12 +255,17 @@ class ShareQuality {
   /// Megabits per second, as [`ScreenShareConfig::bitrate`]: a bigger or
   /// faster picture may be given more.
   final int bitrate;
+
+  /// As [`ScreenShareConfig::codec`]. What comes back is the codec the
+  /// picture went out in, which is VP9 if the GPU's encoder would not open.
+  final VideoCodec codec;
   final bool shareAudio;
 
   const ShareQuality({
     required this.resolution,
     required this.fps,
     required this.bitrate,
+    required this.codec,
     required this.shareAudio,
   });
 
@@ -269,6 +274,7 @@ class ShareQuality {
       resolution.hashCode ^
       fps.hashCode ^
       bitrate.hashCode ^
+      codec.hashCode ^
       shareAudio.hashCode;
 
   @override
@@ -279,6 +285,7 @@ class ShareQuality {
           resolution == other.resolution &&
           fps == other.fps &&
           bitrate == other.bitrate &&
+          codec == other.codec &&
           shareAudio == other.shareAudio;
 }
 

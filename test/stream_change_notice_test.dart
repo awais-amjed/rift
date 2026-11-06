@@ -26,6 +26,15 @@ void main() {
     expect(notice.description, '30 fps');
   });
 
+  test('a codec change names the new codec', () {
+    final notice = streamChangeNotice(
+      now: now.copyWith(codec: 'H264'),
+      codecChanged: true,
+    );
+    expect(notice.title, 'Codec updated');
+    expect(notice.description, 'H264');
+  });
+
   test('a sound change says which way it went', () {
     expect(
       streamChangeNotice(now: now, soundChanged: true).title,

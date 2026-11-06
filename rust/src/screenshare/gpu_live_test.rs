@@ -546,6 +546,7 @@ async fn live_gpu_share_resizes_rejoins_and_falls_back() {
         resolution: 720,
         fps: 30,
         bitrate: 8,
+        codec: share::VideoCodec::H264,
         share_audio: false,
     })
     .await

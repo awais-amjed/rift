@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../data/constants.dart';
+import '../../theme/app_text.dart';
 import '../../theme/theme_context.dart';
 import '../server_scope.dart';
 import 'context_menu_item.dart';
@@ -29,11 +30,16 @@ class ContextMenuSubmenuItem extends StatefulWidget {
   /// toggle can leave it open the way the top-level toggles do.
   final WidgetBuilder submenuBuilder;
 
+  /// What the submenu has chosen now, shown before the chevron so the menu
+  /// answers "what is it on?" without opening it.
+  final String? value;
+
   const ContextMenuSubmenuItem({
     super.key,
     required this.icon,
     required this.label,
     required this.submenuBuilder,
+    this.value,
   });
 
   @override
@@ -126,11 +132,25 @@ class _ContextMenuSubmenuItemState extends State<ContextMenuSubmenuItem> {
   Widget build(BuildContext context) {
     final sheet = ContextMenuPresentation.of(context);
     final themeState = context.theme;
-    final chevron = Icon(
+    final arrow = Icon(
       Icons.chevron_right_rounded,
       size: K.iconRow,
       color: themeState.textQuaternary,
     );
+    final value = widget.value;
+    final chevron = value == null
+        ? arrow
+        : Row(
+            mainAxisSize: MainAxisSize.min,
+            spacing: 4,
+            children: [
+              Text(
+                value,
+                style: AppText.meta.copyWith(color: themeState.textTertiary),
+              ),
+              arrow,
+            ],
+          );
     // No room beside a sheet, so the submenu takes the sheet's place and
     // its heading carries the way back.
     if (sheet != null) {

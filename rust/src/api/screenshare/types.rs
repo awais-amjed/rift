@@ -75,8 +75,8 @@ pub struct ShareRoom {
     pub e2ee_key_index: i32,
 }
 
-/// What can change while a share is running: the picture's size, rate and
-/// bitrate, and whether its sound goes with it. The source, codec and
+/// What can change while a share is running: the picture's size, rate,
+/// bitrate and codec, and whether its sound goes with it. The source and
 /// priority stay as the share started.
 pub struct ShareQuality {
     /// Height cap in rows, as [`ScreenShareConfig::resolution`].
@@ -85,6 +85,9 @@ pub struct ShareQuality {
     /// Megabits per second, as [`ScreenShareConfig::bitrate`]: a bigger or
     /// faster picture may be given more.
     pub bitrate: u32,
+    /// As [`ScreenShareConfig::codec`]. What comes back is the codec the
+    /// picture went out in, which is VP9 if the GPU's encoder would not open.
+    pub codec: VideoCodec,
     pub share_audio: bool,
 }
 
@@ -222,6 +225,7 @@ mod tests {
             resolution,
             fps,
             bitrate,
+            codec: VideoCodec::VP9,
             share_audio: false,
         };
         assert!(check_quality(&quality(720, 30, 6)).is_ok());

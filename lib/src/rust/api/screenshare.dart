@@ -24,10 +24,10 @@ Stream<ScreenshareEvent> screenshareEventStream() =>
 Future<String> startScreenshare({required ScreenShareConfig config}) =>
     RustLib.instance.api.crateApiScreenshareStartScreenshare(config: config);
 
-/// Change a running share's frame rate, size or sound without stopping it,
-/// and return what is now in effect. The capture carries on, so a desktop
+/// Change a running share's frame rate, size, codec or sound without stopping
+/// it, and return what is now in effect. The capture carries on, so a desktop
 /// portal is not asked again; viewers see the picture blink while its track
-/// is published again at the new size.
+/// is published again at the new size or in the new codec.
 Future<ShareQuality> updateScreenshare({required ShareQuality quality}) =>
     RustLib.instance.api.crateApiScreenshareUpdateScreenshare(quality: quality);
 

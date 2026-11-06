@@ -361,17 +361,20 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
   /// on a desktop, where Rust captures. The SDK's capture has no such knob.
   static bool get changesQualityLive => !_sdkCapturesScreen;
 
-  /// Changes the running share's frame rate, height or sound in place, and
-  /// returns the settings now in effect — null if nothing changed.
+  /// Changes the running share's frame rate, height, codec or sound in
+  /// place, and returns the settings now in effect — null if nothing changed.
   ///
   /// Sound is reported as it came out, not as it was asked for: an
   /// application that stopped playing has nothing to capture, and a menu
-  /// ticked for sound nobody hears is the wrong menu. The sharer is told the
-  /// change went through ([streamChangeNotice]): the viewers' picture
-  /// blinking is the only other sign of it.
+  /// ticked for sound nobody hears is the wrong menu. So is the codec: an
+  /// H264 the GPU would not open goes out as VP9, and the fall back says so
+  /// itself. The sharer is told the change went through
+  /// ([streamChangeNotice]): the viewers' picture blinking is the only other
+  /// sign of it.
   Future<ScreenShareSettings?> changeQuality({
     int? fps,
     int? resolution,
+    VideoCodec? codec,
     bool? shareAudio,
   }) async {
     final current = state.settings;
@@ -385,23 +388,29 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
     );
     // A picture too big for 120 fps takes 60 with it.
     final wanted = asked.copyWith(fps: asked.fpsToSend);
+    final wantedCodec = codec ?? state.codec ?? wanted.videoCodec;
     try {
       final applied = await updateScreenshare(
         quality: ShareQuality(
           resolution: wanted.resolution,
           fps: wanted.fps,
-          // Auto's bitrate follows the picture, so a bigger or faster one
-          // is given more.
+          // Auto's bitrate follows the picture and the codec, so a bigger or
+          // faster one is given more.
           bitrate: wanted.bitrateToSend(
-            codec: state.codec ?? wanted.videoCodec,
+            codec: wantedCodec,
             limits: state.limits,
           ),
+          codec: wantedCodec,
           shareAudio: wanted.shareAudio && HostPlatform.capturesSystemAudio,
         ),
       );
       if (!state.isSharing) return null;
-      final now = wanted.copyWith(shareAudio: applied.shareAudio);
-      emit(state.copyWith(settings: now));
+      final now = wanted.copyWith(
+        shareAudio: applied.shareAudio,
+        codec: codec == null ? null : ScreenShareSettings.nameOf(codec),
+        codecChosen: codec == null ? null : true,
+      );
+      emit(state.copyWith(settings: now, codec: applied.codec));
       if (wanted.shareAudio && !applied.shareAudio) {
         emit(
           state.copyWith(
@@ -411,11 +420,12 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
             ),
           ),
         );
-      } else {
+      } else if (applied.codec == wantedCodec) {
         final notice = streamChangeNotice(
           now: now,
           fpsChanged: fps != null,
           fpsLowered: fps == null && now.fps < current.fps,
+          codecChanged: codec != null,
           soundChanged: shareAudio != null,
         );
         emit(
