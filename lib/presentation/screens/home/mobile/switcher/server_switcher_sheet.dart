@@ -56,6 +56,9 @@ class ServerSwitcherSheet extends StatelessWidget {
   const ServerSwitcherSheet({super.key});
 
   static const double _maxWidth = 340;
+  static const BorderRadius _shape = BorderRadius.horizontal(
+    right: Radius.circular(K.radiusCard),
+  );
 
   void _close(BuildContext context) => Navigator.of(context).pop();
 
@@ -77,17 +80,19 @@ class ServerSwitcherSheet extends StatelessWidget {
 
     return Align(
       alignment: Alignment.centerLeft,
-      child: Material(
-        color: theme.bgSecondary,
-        elevation: 0,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.horizontal(
-            right: Radius.circular(K.radiusCard),
-          ),
+      // The shadow sits behind the panel, not inside it: inside, where the
+      // panel's own fill showed through its blurred edges, it drew a dark
+      // block with lighter bands round it on the phone.
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          borderRadius: _shape,
+          boxShadow: AppShadows.overlayPane,
         ),
-        clipBehavior: Clip.antiAlias,
-        child: DecoratedBox(
-          decoration: const BoxDecoration(boxShadow: AppShadows.overlayPane),
+        child: Material(
+          color: theme.bgSecondary,
+          elevation: 0,
+          shape: const RoundedRectangleBorder(borderRadius: _shape),
+          clipBehavior: Clip.antiAlias,
           child: SizedBox(
             width: width,
             height: double.infinity,
