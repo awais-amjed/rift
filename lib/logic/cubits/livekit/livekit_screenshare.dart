@@ -192,9 +192,11 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
     unawaited(_publishSelfState());
   }
 
-  /// Toggle screen sharing on/off.
+  /// Toggle screen sharing on/off. [phone] is how an Android phone's share
+  /// goes out; everywhere else the SDK decides.
   Future<void> toggleScreenShare({
     ScreenShareCaptureOptions? captureOptions,
+    PhoneShareRequest? phone,
   }) async {
     final room = state.room;
     if (room == null) return;
@@ -202,11 +204,8 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
     final next = !state.isScreenSharing;
     const fallback = ScreenShareCaptureOptions(useiOSBroadcastExtension: false);
     try {
-      final h264 = next && HostPlatform.isAndroid
-          ? await _androidShareOptions()
-          : null;
-      if (h264 != null) {
-        await _publishAndroidShare(room, h264, captureOptions ?? fallback);
+      if (next && phone != null) {
+        await _publishAndroidShare(room, phone);
       } else {
         await room.localParticipant?.setScreenShareEnabled(
           next,
@@ -226,33 +225,15 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
     }
   }
 
-  /// Null if the encoders cannot be asked: the share goes out in the SDK's
-  /// default, rather than not at all.
-  Future<VideoPublishOptions?> _androidShareOptions() async {
-    try {
-      final caps = await rtc.getRtpSenderCapabilities('video');
-      final encoders = (caps.codecs ?? const []).map((c) => c.mimeType);
-      HelperMethods.printDebug('[LiveKit] Phone share encoders: $encoders');
-      return phoneSharePublishOptions(encoders);
-    } catch (e) {
-      HelperMethods.printDebug('[LiveKit] Phone share encoders unknown: $e');
-      return null;
-    }
-  }
-
   /// [LocalParticipant.setScreenShareEnabled] takes no publish options, and
   /// [RoomOptions.defaultVideoPublishOptions] would move the camera too. The
   /// options stay on the track, so a reconnect publishes it the same way.
-  Future<void> _publishAndroidShare(
-    Room room,
-    VideoPublishOptions options,
-    ScreenShareCaptureOptions captureOptions,
-  ) async {
-    final track = await LocalVideoTrack.createScreenShareTrack(captureOptions);
+  Future<void> _publishAndroidShare(Room room, PhoneShareRequest phone) async {
+    final track = await LocalVideoTrack.createScreenShareTrack(phone.capture);
     try {
       await room.localParticipant!.publishVideoTrack(
         track,
-        publishOptions: options,
+        publishOptions: phone.publish,
       );
     } catch (_) {
       await track.stop();

@@ -520,15 +520,33 @@ public class GetUserMediaImpl {
                                 resultError("screenRequestPermissions", "User didn't give permission to capture the screen.", result);
                                 return;
                             }
-                            getDisplayMedia(result, mediaStream, mediaProjectionData);
+                            getDisplayMedia(constraints, result, mediaStream, mediaProjectionData);
                         }
                     });
         } else {
-            getDisplayMedia(result, mediaStream, mediaProjectionData);
+            getDisplayMedia(constraints, result, mediaStream, mediaProjectionData);
         }
     }
 
-    private void getDisplayMedia(final Result result, final MediaStream mediaStream, final Intent mediaProjectionData) {
+    /**
+     * RIFT PATCH: the capture's size, with its short side at what the share
+     * asked for ("riftShortSide"), and never larger than the screen. Upstream
+     * always captures the whole screen and ignores the constraints.
+     */
+    private static Point captureSize(Point screen, ConstraintsMap constraints) {
+        final ConstraintsMap video =
+                constraints.getType("video") == ObjectType.Map ? constraints.getMap("video") : null;
+        final int asked = video != null && video.hasKey("riftShortSide") ? video.getInt("riftShortSide") : 0;
+        final int shortSide = Math.min(screen.x, screen.y);
+        if (asked <= 0 || asked >= shortSide) return screen;
+        final double scale = asked / (double) shortSide;
+        // Encoders take even sizes only.
+        return new Point(
+                (int) Math.round(screen.x * scale / 2) * 2,
+                (int) Math.round(screen.y * scale / 2) * 2);
+    }
+
+    private void getDisplayMedia(final ConstraintsMap constraints, final Result result, final MediaStream mediaStream, final Intent mediaProjectionData) {
         /* Create ScreenCapture */
         VideoTrack displayTrack = null;
         VideoCapturer videoCapturer = null;
@@ -564,10 +582,11 @@ public class GetUserMediaImpl {
         Display display = wm.getDefaultDisplay();
         Point size = new Point();
         display.getRealSize(size);
+        final Point captured = captureSize(size, constraints);
 
         VideoCapturerInfoEx info = new VideoCapturerInfoEx();
-        info.width = size.x;
-        info.height = size.y;
+        info.width = captured.x;
+        info.height = captured.y;
         info.fps = DEFAULT_FPS;
         info.isScreenCapture = true;
         info.capturer = videoCapturer;

@@ -15,10 +15,17 @@ out. The app uses this copy through `dependency_overrides` in its own
    (`common/cpp/src/flutter_webrtc_base.cc`, marked `RIFT PATCH`). See
    *Thread priorities* below.
 
+3. **Android's screen capture takes a size** (`GetUserMediaImpl.captureSize`,
+   marked `RIFT PATCH`). Upstream always captures the whole screen and ignores
+   the constraints, so a phone's share could not go out smaller. A constraint
+   of Rift's own, `riftShortSide`, sets the short side, and the screen's shape
+   is kept. Without it the capture is what it always was (`CALLS.md`, *A
+   phone's share*).
+
 Nothing else differs. The desktop builds take their libwebrtc from that file
 and build the plugin's C++ from `common/cpp`. Android and iOS take theirs from
-their own package managers, and the web uses the browser's, so both patches
-change Linux and Windows only.
+their own package managers, and the web uses the browser's, so the first two
+patches change Linux and Windows only.
 
 ## Why the libwebrtc version
 

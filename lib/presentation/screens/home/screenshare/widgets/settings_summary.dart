@@ -6,7 +6,8 @@ import '../../../../theme/theme_context.dart';
 
 /// Summary display of selected screen share settings
 class SettingsSummary extends StatelessWidget {
-  final bool captureFullScreen;
+  /// Null where the system asks what to share, after this.
+  final bool? captureFullScreen;
   final String resolution;
   final int fps;
   final int bitrate;
@@ -15,7 +16,7 @@ class SettingsSummary extends StatelessWidget {
 
   const SettingsSummary({
     super.key,
-    required this.captureFullScreen,
+    this.captureFullScreen,
     required this.resolution,
     required this.fps,
     required this.bitrate,
@@ -38,11 +39,13 @@ class SettingsSummary extends StatelessWidget {
           text: TextSpan(
             style: AppText.rowQuiet.copyWith(color: themeState.textSecondary),
             children: [
-              TextSpan(
-                text: captureFullScreen ? 'Screen' : 'Window',
-                style: AppText.strong,
-              ),
-              const TextSpan(text: ' · '),
+              if (captureFullScreen case final fullScreen?) ...[
+                TextSpan(
+                  text: fullScreen ? 'Screen' : 'Window',
+                  style: AppText.strong,
+                ),
+                const TextSpan(text: ' · '),
+              ],
               TextSpan(text: resolution, style: AppText.strong),
               const TextSpan(text: ' · '),
               TextSpan(text: '$fps fps', style: AppText.strong),

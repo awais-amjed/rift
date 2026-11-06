@@ -140,25 +140,46 @@ the GPU's H264 goes through carries one picture.
 ## A phone's share — [Implemented November 2026]
 
 An Android phone's share goes through LiveKit's SDK, on MediaProjection, not
-through Rust. Since Nov 6 2026 it asks libwebrtc which encoders it has
-(`getRtpSenderCapabilities`). With H264 it publishes H264, capped at 30 fps and
-5 Mbps (`phoneSharePublishOptions`). Without it, it shares as it always did: the
-SDK's VP8 at 15 fps and 2.5 Mbps, because libwebrtc does not fall back by itself.
-libwebrtc has no software H264 on Android, so H264 there means the phone's
-hardware encoder. Cameras, web shares and iOS are untouched. The options are
-passed when the track is published, since `setScreenShareEnabled` takes none and
-the room's default would move the camera too.
+through Rust. Since Nov 6 2026 it opens with a dialog of its own
+(`PhoneShareDialog`), made from the desktop dialog's sections and followed by
+Android's sheet, which asks what to share. What the phone can send is offered
+whatever it does to the phone (`PhoneShare`): how warm it gets is the person's
+call, and a better phone may not mind.
+
+- **Resolution:** the screen's short side and the heights below it, from 480p.
+  Upstream's plugin always captures the whole screen and ignores the constraints,
+  so our copy reads a size of its own (`riftShortSide`,
+  `third_party/flutter_webrtc/RIFT_PATCHES.md`) and keeps the screen's shape.
+- **Frame rate:** 15, 30 or 60. Android's capture has no rate of its own: it draws
+  each frame the shared app draws, up to the 60 a virtual display reports, so 120
+  is not offered. The Clock app's stopwatch draws about 17 a second and sends that
+  at most.
+- **Prioritise:** the desktop's three, as WebRTC's degradation preference.
+- **Codec:** whichever of VP8, H264 and VP9 `getRtpSenderCapabilities` lists, with
+  Auto on H264 where it is listed and otherwise VP8, because libwebrtc does not fall
+  back by itself. libwebrtc has no software H264 on Android, so H264 means the
+  phone's hardware encoder. The list can also name H265 and AV1, as the SM-A566B's
+  does. The picker has neither, and viewers have not been tried on them.
+- **Bitrate:** a choice from the desktop's ladder, or Auto. Auto is half of what a
+  desktop's H264 asks for, in every codec: 5 Mbps at 1080p and 30 fps, 7 at 1080p and
+  60 fps, 4 at 720p and 60 fps.
+
+A phone opens on its whole screen at 30 fps until its dialog has been confirmed
+once (`ScreenShareSettings.phoneSetUp`), since the saved settings before that are a
+desktop's defaults. Nothing can be changed during a share. Cameras, web shares and
+iOS are untouched. The options are passed when the track is published, since
+`setScreenShareEnabled` takes none and the room's default would move the camera too.
 
 The cap has to be `screenShareEncoding`. The SDK picks an encoding by the
 picture's width and never reads the capture options' parameters, so asking the
-capture for 30 fps still sent 15. Android's capture has no rate of its own: it
-draws each frame the shared app draws, so a phone sends only what the app shows.
-The Clock app's stopwatch draws about 17 frames a second and was sent at 15.
+capture for 30 fps still sent 15.
 
-The SDK's half-size second picture stays on, as it does for VP8. It is a second
-hardware encoder, and the sent total is 6.25 Mbps, not 5, while anyone is
-watching. The SDK also names VP8 as a backup, for the server to ask for if a
-viewer cannot play H264. That has not been tried.
+The SDK's half-size second picture stays on, for VP8 and H264. It is a second
+encoder at a quarter of the bitrate, so the total sent is 1.25 times what the dialog
+names while anyone is watching. A server's share limit holds that total
+(`PhoneShare.request`), not only the first picture. VP9 sends one picture. The SDK
+also names VP8 as a backup, for the server to ask for if a viewer cannot play H264.
+That has not been tried.
 
 Measured Nov 6 2026 on an SM-A566B (Exynos 1580, Android 17, on battery, not
 charging, `c2.exynos.h264.encoder`), sharing YouTube playing a 60 fps video to a
@@ -168,6 +189,16 @@ blocked encoder, and never adapted. The viewer got 2340x1080 at 30 fps and 4–5
 Mbps. Battery went from 29.4 to 30.6 °C, skin stayed near 35 °C (33.5 °C at the
 start) and Android's thermal status stayed 0. A longer share, and a phone that
 is already warm, have not been measured.
+
+Each setting was then sent to the same viewer on the same phone on Nov 6 2026, for
+a minute or so each, with the 60 fps video in YouTube. H264 at 720p and 60 fps
+arrived as 1560x720 at 60 fps. VP8 at 720p and 60 fps arrived at 59 fps, about 3.9
+Mbps. H264 at 1080p and 60 fps, prioritising sharpness, arrived as 2340x1080 at 60
+fps, with the phone sending about 6 Mbps and dropping nothing, AP 40.8 °C, skin 36.3
+°C and thermal status 0. VP9 played, but this phone encodes it on the CPU
+(`libvpx_vp9_encoder`): asked for 720p at 60 fps, WebRTC reported the CPU limited
+and the viewer got 1040x480 at about 29 fps. That is a choice left to the person, and
+a reason Auto stays on H264.
 
 **Other phones' encoders are the open risk.** Encryption leaves only the byte
 after an IDR's NAL header readable, and a viewer finds its PPS from there

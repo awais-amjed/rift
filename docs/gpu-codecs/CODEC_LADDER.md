@@ -30,8 +30,8 @@ second encode on its CPU.
 - A viewer whose PC struggles to decode (High costs a software decoder about a
   third more CPU, measured Oct 28 on Windows). Not the focus now (owner, Oct 29).
 - Phone and web shares. They go through LiveKit's SDK: web in VP8, which every
-  viewer plays, and Android in H264 since Nov 6 2026 where the phone has the
-  encoder (`CALLS.md`, *A phone's share*). A viewer without H264 relies on the
+  viewer plays, and Android in what its dialog chooses since Nov 6 2026, H264 by
+  default where the phone has the encoder (`CALLS.md`, *A phone's share*). A viewer without H264 relies on the
   SDK's VP8 backup there, not this ladder; that backup has not been tried.
 - AV1 and H265. H265 was ruled out for sending; AV1 joins the ladder once
   LiveKit's encryption carries it. The design leaves room for it, nothing more.

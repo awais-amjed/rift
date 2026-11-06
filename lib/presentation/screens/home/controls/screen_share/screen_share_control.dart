@@ -10,9 +10,12 @@ import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/screenshare/screenshare_cubit.dart';
 import '../../../../../logic/services/host_platform.dart';
+import '../../../../../logic/services/phone_encoders.dart';
+import '../../../../../logic/services/phone_share_publish.dart';
 import '../../../../../logic/services/window_share_portal.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/context_menu/context_menu_overlay.dart';
+import '../../screenshare/phone_share_dialog.dart';
 import '../../screenshare/screen_share_settings_dialog.dart';
 import '../widgets/control_button.dart';
 import 'widgets/screen_share_menu.dart';
@@ -50,29 +53,36 @@ class _ScreenShareControlState extends State<ScreenShareControl> {
     final attempt = screenshareCubit.beginAttempt();
     if (attempt == null) return;
 
-    // The settings dialog is a *desktop* capture dialog — capture type,
-    // window list, bitrate, codec, system-audio toggle. None of it exists
-    // where the SDK does the capturing: a browser shows its own picker, and
-    // Android shows the MediaProjection consent sheet, which is the picker.
-    // Putting ours in front of either would be asking twice, the first time
-    // about things that cannot be chosen.
+    // The call's server's limit, which is what carries the share; another
+    // server may be the one on screen.
+    final maxShareMbps =
+        livekitCubit.callServer?.limits.maxShareMbps ?? ServerLimits.unlimited;
+
+    // The desktop's dialog also picks what to share. Where the SDK captures,
+    // the system asks that: a browser shows its own picker, and Android the
+    // MediaProjection consent sheet. A browser's share takes no settings, so
+    // it opens no dialog; a phone's dialog asks only how the share goes out.
     ScreenShareSettings settings;
-    if (kIsWeb || HostPlatform.isMobile) {
+    if (kIsWeb || (HostPlatform.isMobile && !HostPlatform.isAndroid)) {
       settings = const ScreenShareSettings();
     } else {
-      // The picker is told what this server allows so it can grey out what it
-      // will not carry. The clamp in [ScreenshareCubit] still applies — web
-      // and mobile never open this dialog at all — but a control that offers
-      // a number and then quietly uses a different one is the wrong control.
+      final codecs = HostPlatform.isAndroid
+          ? await PhoneEncoders.codecs()
+          : null;
+      if (!mounted) return;
+      final screen = View.of(context).display.size;
+      // Told what this server allows, so it can grey out what it will not
+      // carry: a control that offers a number and then quietly uses a
+      // different one is the wrong control.
       final dialogSettings = await showCustomDialog<ScreenShareSettings>(
         context: context,
-        build: (_) => ScreenShareSettingsDialog(
-          // The call's server's limit, which is what carries the share;
-          // another server may be the one on screen.
-          maxShareMbps:
-              livekitCubit.callServer?.limits.maxShareMbps ??
-              ServerLimits.unlimited,
-        ),
+        build: (_) => codecs != null
+            ? PhoneShareDialog(
+                codecs: codecs,
+                shortSide: PhoneShare.shortSideOf(screen),
+                maxShareMbps: maxShareMbps,
+              )
+            : ScreenShareSettingsDialog(maxShareMbps: maxShareMbps),
       );
       if (dialogSettings == null) return;
       settings = dialogSettings;

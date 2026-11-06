@@ -14,6 +14,8 @@ import '../../helper_methods.dart';
 import '../../services/call_foreground_service.dart';
 import '../../services/gpu_codecs.dart';
 import '../../services/host_platform.dart';
+import '../../services/phone_encoders.dart';
+import '../../services/phone_share_publish.dart';
 import '../livekit/livekit_cubit.dart';
 import 'share_attempt.dart';
 import 'stream_change_notice.dart';
@@ -178,7 +180,15 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
       }
     }
 
-    await _livekitCubit.toggleScreenShare();
+    await _livekitCubit.toggleScreenShare(
+      phone: HostPlatform.isAndroid
+          ? PhoneShare.request(
+              settings,
+              codecs: await PhoneEncoders.codecs(),
+              limits: _livekitCubit.callServer?.limits ?? const ServerLimits(),
+            )
+          : null,
+    );
 
     emit(
       state.copyWith(

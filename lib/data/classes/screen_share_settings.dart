@@ -48,6 +48,11 @@ class ScreenShareSettings extends Equatable {
   final SharePriority priority;
   final AudioSource? selectedAudioSource; // Linux PulseAudio source
 
+  /// Whether a phone's dialog has confirmed these. Until then they are the
+  /// defaults above, written for a desktop, which a phone does not open on
+  /// (`PhoneShare.opening`).
+  final bool phoneSetUp;
+
   /// Linux: the sound a window of each app is shared with, by the app's id,
   /// or by the window's title where the desktop did not say whose it is
   /// (`ShareSoundMatch.appKey`), for the ones the user said to remember.
@@ -76,6 +81,7 @@ class ScreenShareSettings extends Equatable {
     this.showsAdvanced = false,
     this.priority = defaultPriority,
     this.selectedAudioSource,
+    this.phoneSetUp = false,
     this.soundForApps = const {},
     this.choosesSoundThisTime = false,
   });
@@ -105,6 +111,7 @@ class ScreenShareSettings extends Equatable {
           json['codecChosen'] as bool? ?? codecFromName(codec) != defaultCodec,
       showsAdvanced: json['showsAdvanced'] as bool? ?? false,
       priority: priorityFromName(json['priority'] as String?),
+      phoneSetUp: json['phoneSetUp'] as bool? ?? false,
       // selectedAudioSource is not persisted in JSON (runtime only)
       soundForApps: {
         for (final entry
@@ -131,6 +138,7 @@ class ScreenShareSettings extends Equatable {
     'codecChosen': codecChosen,
     'showsAdvanced': showsAdvanced,
     'priority': priority.name,
+    'phoneSetUp': phoneSetUp,
     'soundForApps': {
       for (final entry in soundForApps.entries) entry.key: entry.value.toJson(),
     },
@@ -266,6 +274,7 @@ class ScreenShareSettings extends Equatable {
         showsAdvanced: showsAdvanced,
         priority: priority,
         selectedAudioSource: selectedAudioSource,
+        phoneSetUp: phoneSetUp,
         soundForApps: soundForApps,
         choosesSoundThisTime: choosesSoundThisTime,
       );
@@ -289,6 +298,7 @@ class ScreenShareSettings extends Equatable {
     bool? showsAdvanced,
     SharePriority? priority,
     AudioSource? selectedAudioSource,
+    bool? phoneSetUp,
     Map<String, ShareSoundChoice>? soundForApps,
     bool? choosesSoundThisTime,
     bool clearVideoSource = false,
@@ -320,6 +330,7 @@ class ScreenShareSettings extends Equatable {
       selectedAudioSource: clearAudioSource
           ? null
           : selectedAudioSource ?? this.selectedAudioSource,
+      phoneSetUp: phoneSetUp ?? this.phoneSetUp,
       soundForApps: soundForApps ?? this.soundForApps,
       choosesSoundThisTime: choosesSoundThisTime ?? this.choosesSoundThisTime,
     );
@@ -342,6 +353,7 @@ class ScreenShareSettings extends Equatable {
     showsAdvanced,
     priority,
     selectedAudioSource,
+    phoneSetUp,
     soundForApps,
     choosesSoundThisTime,
   ];

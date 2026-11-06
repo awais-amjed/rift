@@ -7,12 +7,16 @@ import '../widgets/settings_section.dart';
 /// The share's picture height, as a dropdown.
 class ResolutionSection extends StatelessWidget {
   final int selectedResolution;
+
+  /// The heights this device can send.
+  final List<int> offered;
   final ValueChanged<int> onChanged;
 
   const ResolutionSection({
     super.key,
     required this.selectedResolution,
     required this.onChanged,
+    this.offered = ScreenShareSettings.resolutions,
   });
 
   @override
@@ -23,7 +27,7 @@ class ResolutionSection extends StatelessWidget {
         AppDropdown<int>(
           value: selectedResolution,
           options: [
-            for (final r in ScreenShareSettings.resolutions)
+            for (final r in offered)
               AppDropdownOption(
                 value: r,
                 label: ScreenShareSettings.labelFor(r),
