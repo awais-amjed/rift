@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../../data/classes/participant_setting.dart';
@@ -42,6 +43,31 @@ class SoundService {
   static const _messageGap = Duration(seconds: 1);
 
   // ── Public API ────────────────────────────────────────────
+
+  /// What each player on Android starts with: no claim on the audio focus.
+  ///
+  /// The player's default is the whole focus, which tells every other app to
+  /// stop for good. A half-second chime paused a video in YouTube or Jellyfin,
+  /// and it stayed paused (`CALLS.md`, *Rift's sounds beside other apps*).
+  @visibleForTesting
+  static final AudioContext playBesideOtherApps = AudioContextConfig(
+    focus: AudioContextConfigFocus.mixWithOthers,
+  ).build();
+
+  /// Sets [playBesideOtherApps], once at startup, before any player exists.
+  ///
+  /// Never during a call: on Android, setting a context writes the phone's
+  /// audio mode as well, and that would take the call out of its communication
+  /// mode. The same goes for a player's own `setAudioContext`, so none has one
+  /// (`test/sound_focus_test.dart`).
+  Future<void> playBesideOtherAppsOnAndroid() async {
+    if (!HostPlatform.isAndroid) return;
+    try {
+      await AudioPlayer.global.setAudioContext(playBesideOtherApps);
+    } catch (e) {
+      HelperMethods.printDebug('SoundService: audio context failed – $e');
+    }
+  }
 
   /// Where [play] reads each sound's mute and volume — `AppState.appSounds`,
   /// connected once at startup by [readSettingsFrom].

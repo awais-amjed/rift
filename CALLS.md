@@ -210,6 +210,28 @@ phone's encoder writes type 2, with 5 bits used of the 8: read Nov 6 from a shor
 `screenrecord` through the same encoder, not from the share itself. Qualcomm and
 MediaTek encoders have not been read.
 
+## Rift's sounds beside other apps — [Implemented November 2026]
+
+On Android, Rift's sounds play over whatever else is playing and take no audio
+focus. That covers the cues, the message chime, the rings, the soundboard and
+voice notes: everything played through `audioplayers`.
+
+The player's default is the whole focus, and an app that loses it is meant to
+stop and stay stopped. So the cue for a started share or a new watcher paused a
+video in YouTube or Jellyfin until it was pressed again. The phone's focus log
+showed it on Nov 6 2026 (SM-A566B, `adb shell dumpsys audio`): Rift's request,
+then Jellyfin's loss a millisecond later, and only Rift letting go when the
+sound ended.
+
+`SoundService.playBesideOtherAppsOnAndroid` sets this once at startup. Setting
+a context on Android also writes the phone's audio mode, so doing it during a
+call, or giving one player a context of its own, would take the call out of its
+communication mode. `test/sound_focus_test.dart` fails on any other caller.
+
+Joining a call is separate and still takes the focus once, through LiveKit's
+call audio. On Nov 6 2026 YouTube lost it at the join and took it back when
+played again 3.5 s later, and the call's audio mode held until the phone left.
+
 ## Watching while Rift cannot be seen — [Implemented October 2026]
 
 A watched stream's picture is turned off while nobody can see Rift: minimised,
