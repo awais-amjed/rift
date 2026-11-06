@@ -4,7 +4,8 @@ import '../../src/rust/api/screenshare/types.dart';
 
 /// Which app's sound goes with a shared window, on Linux, where nothing ties
 /// a window to the stream playing its sound. A best guess, shown in the sound
-/// popup for the user to confirm, and the choice they asked to keep.
+/// popup for the user to confirm, and the choice they asked to keep, which
+/// the popup starts on next time.
 ///
 /// A guess that is not good names nothing, which is every app but Rift: the
 /// window's sound is then heard anyway, with the rest. Picking some other app
@@ -98,9 +99,24 @@ class ShareSoundMatch {
     return _newest(sources.where((s) => _names(s).contains(initials)));
   }
 
+  /// What the sound popup starts on for [window]: the sound remembered for
+  /// its app ([saved]) while that app is playing, or else the [guess].
+  static AudioSource? preselect(
+    SharedWindow window,
+    ShareSoundChoice? saved,
+    List<AudioSource> sources, {
+    int? Function(int pid) parentOf = _noParent,
+  }) {
+    if (saved != null) {
+      final kept = remembered(saved, sources);
+      if (kept.found) return kept.source;
+    }
+    return guess(window, sources, parentOf: parentOf);
+  }
+
   /// A remembered [choice] among what is playing now: `found` false when its
-  /// app is not playing, and the popup asks again. Every app is always found,
-  /// as a null source.
+  /// app is not playing, and the popup guesses instead. Every app is always
+  /// found, as a null source.
   static ({bool found, AudioSource? source}) remembered(
     ShareSoundChoice choice,
     List<AudioSource> sources,

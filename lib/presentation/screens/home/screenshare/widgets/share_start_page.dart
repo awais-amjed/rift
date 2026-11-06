@@ -4,7 +4,6 @@ import '../../../../../data/classes/screen_share_settings.dart';
 import '../../../../../logic/services/host_platform.dart';
 import 'settings_section.dart';
 import 'share_advanced_button.dart';
-import 'share_ask_sound_box.dart';
 import 'share_dialog_header.dart';
 import 'share_kind_card.dart';
 import 'share_quality_row.dart';
@@ -37,13 +36,6 @@ class ShareStartPage extends StatelessWidget {
   });
 
   static const _sideBySideWidth = 420.0;
-
-  /// A window's sound may be one remembered for its app, which this asks about
-  /// again.
-  bool get _offersAskingSound =>
-      HostPlatform.matchesWindowSound &&
-      settings.shareAudio &&
-      settings.soundForApps.isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -97,22 +89,9 @@ class ShareStartPage extends StatelessWidget {
                       summary: ShareSummary.advanced(settings, maxShareMbps),
                       onTap: onAdvanced,
                     );
-                    final soundSwitch = Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        ShareSoundSwitch(
-                          on: settings.shareAudio,
-                          onTap: onAudioToggle,
-                        ),
-                        if (_offersAskingSound)
-                          ShareAskSoundBox(
-                            value: settings.choosesSoundThisTime,
-                            onChanged: (value) => onChanged(
-                              settings.copyWith(choosesSoundThisTime: value),
-                            ),
-                          ),
-                      ],
+                    final soundSwitch = ShareSoundSwitch(
+                      on: settings.shareAudio,
+                      onTap: onAudioToggle,
                     );
                     // Side by side the summary would be cut to nothing.
                     if (constraints.maxWidth < _sideBySideWidth) {

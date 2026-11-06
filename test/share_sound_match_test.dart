@@ -212,18 +212,55 @@ void main() {
     });
   });
 
+  group('ShareSoundMatch.preselect', () {
+    const window = SharedWindow(appId: 'google-chrome', title: '');
+
+    test('starts on the sound kept for the app, over the guess', () {
+      expect(
+        ShareSoundMatch.preselect(window, ShareSoundChoice.of(spotify), [
+          chrome,
+          spotify,
+        ]),
+        spotify,
+      );
+    });
+
+    test('starts on every app where that was kept', () {
+      expect(
+        ShareSoundMatch.preselect(window, const ShareSoundChoice.allApps(), [
+          chrome,
+        ]),
+        isNull,
+      );
+    });
+
+    test('guesses while the kept app plays nothing', () {
+      expect(
+        ShareSoundMatch.preselect(window, ShareSoundChoice.of(spotify), [
+          firefox,
+          chrome,
+        ]),
+        chrome,
+      );
+    });
+
+    test('guesses with nothing kept', () {
+      expect(
+        ShareSoundMatch.preselect(window, null, [firefox, chrome]),
+        chrome,
+      );
+    });
+  });
+
   test('remembered sounds survive a restart', () {
     final settings = const ScreenShareSettings().copyWith(
       soundForApps: {
         'google-chrome': ShareSoundChoice.of(chrome),
         'org.gnome.totem': const ShareSoundChoice.allApps(),
       },
-      choosesSoundThisTime: true,
     );
     final back = ScreenShareSettings.fromJson(settings.toJson());
     expect(back.soundForApps, settings.soundForApps);
-    // Only ever for the share it was ticked for.
-    expect(back.choosesSoundThisTime, isFalse);
   });
 
   test('a GNOME title comes back as it was written', () {

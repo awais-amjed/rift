@@ -17,8 +17,6 @@ import '../theme/theme_context.dart';
 /// than passed in, because every caller would have to be told and one would
 /// be forgotten.
 class AppSwitch extends StatefulWidget {
-  static const double desktopTrackWidth = 38;
-
   final bool value;
 
   /// Null renders the toggle locked — the caller dims it.
@@ -35,6 +33,7 @@ class AppSwitch extends StatefulWidget {
 /// form like "Create channel" had a setting you could not reach without a
 /// mouse.
 class _AppSwitchState extends State<AppSwitch> {
+  static const double _trackWidth = 38;
   static const double _trackHeight = 22;
   static const double _thumbSize = 18;
   static const double _inset = 2;
@@ -51,7 +50,7 @@ class _AppSwitchState extends State<AppSwitch> {
   @override
   Widget build(BuildContext context) {
     final touch = context.layoutMode.isCompact;
-    final trackWidth = touch ? _touchTrackWidth : AppSwitch.desktopTrackWidth;
+    final trackWidth = touch ? _touchTrackWidth : _trackWidth;
     final trackHeight = touch ? _touchTrackHeight : _trackHeight;
     final thumbSize = touch ? _touchThumbSize : _thumbSize;
     final value = widget.value;

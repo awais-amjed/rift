@@ -106,9 +106,7 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
   @override
   void initState() {
     super.initState();
-    _draft = context.read<AppCubit>().state.screenShareSettings.copyWith(
-      choosesSoundThisTime: false,
-    );
+    _draft = context.read<AppCubit>().state.screenShareSettings;
     if (_needsAudioSources) _loadAudioSources();
   }
 

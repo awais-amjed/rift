@@ -3,6 +3,7 @@ import 'dart:math' show max;
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
+import '../../../../../data/classes/share_sound_choice.dart';
 import '../../../../../data/classes/shared_window.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../logic/services/process_tree.dart';
@@ -20,15 +21,20 @@ import '../sections/audio_source_section.dart';
 /// window's app.
 typedef ShareSoundAnswer = ({AudioSource? source, bool remember});
 
-/// Linux: which sound goes out with the window just picked, asked after the
-/// pick, with the app [ShareSoundMatch] thinks is the window's already
-/// chosen. Returns null when dismissed, which cancels the share.
+/// Linux: which sound goes out with the window just picked, asked after every
+/// pick, with the sound remembered for the window's app already chosen, or
+/// else the app [ShareSoundMatch] thinks is the window's. Asked every time,
+/// rather than a remembered sound going out unseen, so the user always sees
+/// what is shared. Returns null when dismissed, which cancels the share.
 class ShareSoundDialog extends StatefulWidget {
   /// The window being shared, or null when the desktop did not say: then
   /// there is no guess and nothing to remember the answer by.
   final SharedWindow? window;
 
-  const ShareSoundDialog({super.key, required this.window});
+  /// The sound kept for the window's app, if any.
+  final ShareSoundChoice? saved;
+
+  const ShareSoundDialog({super.key, required this.window, this.saved});
 
   @override
   State<ShareSoundDialog> createState() => _ShareSoundDialogState();
@@ -40,7 +46,7 @@ class _ShareSoundDialogState extends State<ShareSoundDialog> {
   bool _loading = false;
 
   /// Ticked to start with: the same window nearly always wants the same
-  /// sound, and asking every share is what the box exists to stop.
+  /// sound, and a kept one is what the popup starts on next time.
   bool _remember = true;
 
   /// Whether the user picked by hand. Until then a reload guesses again, so
@@ -71,8 +77,9 @@ class _ShareSoundDialogState extends State<ShareSoundDialog> {
           ? ScreenShareSources.keepAudioSource(sources, _selected)
           : window == null
           ? null
-          : ShareSoundMatch.guess(
+          : ShareSoundMatch.preselect(
               window,
+              widget.saved,
               sources,
               parentOf: ProcessTree.parentOf,
             );

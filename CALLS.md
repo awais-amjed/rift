@@ -421,8 +421,11 @@ Linux finds the window's app, guesses its stream (`ShareSoundMatch`: the
 window's process or one it started, then the app's id word by word, then a
 player naming its track in the title), and asks the user to confirm in a popup
 after the window is picked. The popup can **remember** the answer per app, and
-the next share of that app's window skips it while that app is playing. No good
-guess means every app but Rift, which still carries the window's sound.
+since Nov 6 2026 it opens on every window share, starting on the remembered
+sound while that app is playing (`ShareSoundMatch.preselect`): before, a
+remembered sound went out without asking, and choosing again took a box in the
+share dialog. No good guess means every app but Rift, which still carries the
+window's sound.
 
 Finding the app is where the platforms differ. X11 says it outright
 (`_NET_WM_PID`, `WM_CLASS`), so the window is picked in Rift's own dialog.

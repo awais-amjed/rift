@@ -10,7 +10,6 @@ import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/screenshare/share_attempt.dart';
 import '../../../../../logic/helper_methods.dart';
 import '../../../../../logic/services/host_platform.dart';
-import '../../../../../logic/services/screen_share_sources.dart';
 import '../../../../../logic/services/share_sound_match.dart';
 import '../../../../../logic/services/window_share_portal.dart';
 import '../../../../../src/rust/api/screenshare/types.dart';
@@ -25,8 +24,8 @@ typedef WindowShare = ({ScreenShareSettings settings, String? portalChoice});
 /// Linux: what starting a window share with sound asks after the share
 /// dialog. First the window — on GNOME and KDE the desktop's own picker, run
 /// here rather than by the capture, so Rift learns whose window it is — then
-/// the sound to go with it: the one remembered for the window's app, or the
-/// sound popup with a guess already picked.
+/// the sound popup, starting on the sound remembered for the window's app, or
+/// else a guess.
 class WindowSoundStep {
   const WindowSoundStep._();
 
@@ -79,32 +78,13 @@ class WindowSoundStep {
     final saved = key == null ? null : settings.soundForApps[key];
     HelperMethods.printDebug(
       '$_tag: ${_describe(key)}, '
-      '${saved == null ? 'no sound kept for it' : 'a sound kept for it'}'
-      '${settings.choosesSoundThisTime ? ', choosing again' : ''}',
+      '${saved == null ? 'no sound kept for it' : 'a sound kept for it'}',
     );
-    if (saved != null && !settings.choosesSoundThisTime) {
-      final playing = await ScreenShareSources.listAudio();
-      if (attempt.abandoned) {
-        if (token != null) unawaited(WindowSharePortal.forget(token));
-        return null;
-      }
-      final found = ShareSoundMatch.remembered(saved, playing);
-      if (found.found) {
-        HelperMethods.printDebug(
-          '$_tag: sharing the kept sound, ${found.source?.appName ?? 'every app'}',
-        );
-        return (
-          settings: _withSound(settings, found.source),
-          portalChoice: token,
-        );
-      }
-      HelperMethods.printDebug('$_tag: the kept app is not playing, asking');
-    }
 
     final answer = context.mounted
         ? await showCustomDialog<ShareSoundAnswer>(
             context: context,
-            build: (_) => ShareSoundDialog(window: window),
+            build: (_) => ShareSoundDialog(window: window, saved: saved),
           )
         : null;
     if (answer == null) {

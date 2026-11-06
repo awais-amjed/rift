@@ -58,13 +58,6 @@ class ScreenShareSettings extends Equatable {
   /// (`ShareSoundMatch.appKey`), for the ones the user said to remember.
   final Map<String, ShareSoundChoice> soundForApps;
 
-  // ── Transient ──
-
-  /// This share asks which sound goes with the window even where one is
-  /// remembered, and keeps the new answer if told to. Only for the share the
-  /// dialog was confirmed for: the dialog starts it off every time.
-  final bool choosesSoundThisTime;
-
   const ScreenShareSettings({
     this.resolution = 1080,
     this.fps = 60,
@@ -83,7 +76,6 @@ class ScreenShareSettings extends Equatable {
     this.selectedAudioSource,
     this.phoneSetUp = false,
     this.soundForApps = const {},
-    this.choosesSoundThisTime = false,
   });
 
   /// The bitrate every share started at before there was Auto.
@@ -276,7 +268,6 @@ class ScreenShareSettings extends Equatable {
         selectedAudioSource: selectedAudioSource,
         phoneSetUp: phoneSetUp,
         soundForApps: soundForApps,
-        choosesSoundThisTime: choosesSoundThisTime,
       );
 
   /// Passing null keeps the current value, so removing a selection needs an
@@ -300,7 +291,6 @@ class ScreenShareSettings extends Equatable {
     AudioSource? selectedAudioSource,
     bool? phoneSetUp,
     Map<String, ShareSoundChoice>? soundForApps,
-    bool? choosesSoundThisTime,
     bool clearVideoSource = false,
     bool clearAudioSource = false,
   }) {
@@ -332,7 +322,6 @@ class ScreenShareSettings extends Equatable {
           : selectedAudioSource ?? this.selectedAudioSource,
       phoneSetUp: phoneSetUp ?? this.phoneSetUp,
       soundForApps: soundForApps ?? this.soundForApps,
-      choosesSoundThisTime: choosesSoundThisTime ?? this.choosesSoundThisTime,
     );
   }
 
@@ -355,6 +344,5 @@ class ScreenShareSettings extends Equatable {
     selectedAudioSource,
     phoneSetUp,
     soundForApps,
-    choosesSoundThisTime,
   ];
 }
