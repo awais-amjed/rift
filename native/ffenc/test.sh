@@ -33,9 +33,18 @@ run_on_gpu "$out/test_dmabuf"
   -o "$out/test_ffdec" -L"$out" -lrift_ffenc -lEGL -lGLESv2 -lgbm \
   -Wl,-rpath,"$out"
 run_on_gpu "$out/test_ffdec"
-run_on_gpu "$out/test_ffdec" cuda
 run_on_gpu "$out/test_ffdec" h265
-run_on_gpu "$out/test_ffdec" cuda h265
+# CUDA's copy needs GL on NVIDIA's card, which on a laptop with two is not the
+# first render node.
+nvidia_node=
+for card in /sys/class/drm/renderD*; do
+  if [[ $(basename "$(readlink -f "$card/device/driver")") == nvidia ]]; then
+    nvidia_node=/dev/dri/${card##*/}
+    break
+  fi
+done
+RIFT_RENDER_NODE=${RIFT_RENDER_NODE:-$nvidia_node} run_on_gpu "$out/test_ffdec" cuda
+RIFT_RENDER_NODE=${RIFT_RENDER_NODE:-$nvidia_node} run_on_gpu "$out/test_ffdec" cuda h265
 
 "$cc" -O1 -g -Wall -I"$here" -I/usr/include/libdrm "$here/test_nvenc_dmabuf.c" \
   -o "$out/test_nvenc_dmabuf" -L"$out" -lrift_ffenc -lEGL -lGLESv2 -lgbm \
