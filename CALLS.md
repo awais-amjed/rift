@@ -761,6 +761,19 @@ what was driven are in `TESTING.md`).
   excess back: pure noise at 1 Mbps, 2.5 times, and H264 at 200 kbps, about twice. An Oct 9 note that this
   encoder ignored the rate (22 Mbps) no longer holds here, on iHD 26.2.4 or 26.3.5,
   though older drivers are untried. Windows' Quick Sync is not measured.
+
+  Other Intel GPUs, from Intel's driver documentation and not yet run on one. Arc's
+  A series has only this encoder, so it should behave as measured here. From Meteor
+  Lake on, Arc's B series included, the driver keeps this encoder behind the default
+  entrypoint, so asking for it by name should fail and the share reopens on the
+  default, which is the same encoder there. An H265 share keeps the short buffer
+  through that reopening, in case those chips send the same oversized pictures. An
+  H264 share goes back to the whole second, because on an older chip's shader encoder
+  the short buffer took H264 far under its rate, to 0.07 of it at 1 Mbps with moves.
+  With low power hidden from this GPU (Nov 7 2026, a shim in front of libva), H264
+  kept its old numbers; H265 on the shader encoder ran 0.79 to 0.89 of a moving rate
+  and held a still one, and lost at most 0.33 VMAF at 10 Mbps. That proves the
+  reopening, not how those newer chips behave.
 - **AV1 is parked.** AMD's encoder makes AV1 that WebRTC carries, but no viewer
   gets it encrypted: LiveKit's Rust SDK does not negotiate what the server needs
   to find an encrypted AV1 keyframe, and its JS SDK refuses to encrypt AV1. The

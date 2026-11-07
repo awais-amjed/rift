@@ -70,7 +70,8 @@ Nov 7 2026, in the app on Linux (Intel VAAPI, a 720p window, local stack; `TESTI
 ## To prove, in the app
 
 - NVENC's moves in the app, and CUDA with NVIDIA drawing the screen.
-- Intel's low-power encoder on older drivers, and on GPUs before Alder Lake.
+- Intel's low-power encoder on older drivers, on GPUs before Alder Lake, on Arc, and
+  on Meteor Lake and later, where it should reopen on the default entrypoint.
 - Windows' Quick Sync beside a game: it may have the same cost, and `low_power` there
   is another option.
 - A real 1080p60 screen, a phone viewer, and Windows.

@@ -54,6 +54,12 @@ struct RiftFfenc {
   int32_t peak_percent;
   // Intel's low-power VAAPI encoder (use_low_power).
   int low_power;
+  // Held over a tenth of a second (set_rates). Outlives low_power in H265:
+  // Intel's driver says its chips from Meteor Lake on have that encoder behind
+  // the default entrypoint, so asking for it by name should fail there. Not in
+  // H264, whose default encoder on an older chip then falls far under the rate
+  // (x0.07 at 1 Mbps with moves, Nov 7 2026).
+  int short_buffer;
   char driver[128];
 #if defined(__linux__)
   // Held for every call into the encoder, so the exit handler below never
@@ -241,7 +247,7 @@ static void set_rates(RiftFfenc* enc, int64_t bitrate_bps) {
   // encoder otherwise answers any rate move, even of 0.5%, with a picture ten
   // times the size, and WebRTC moves the rate every few seconds on a poor
   // connection. This costs the picture next to nothing (Nov 7 2026, CALLS.md).
-  if (enc->low_power) c->rc_buffer_size = (int)(c->rc_max_rate / 10);
+  if (enc->short_buffer) c->rc_buffer_size = (int)(c->rc_max_rate / 10);
 }
 
 // Open the encoder itself, on the picture pool when there is one.
@@ -540,11 +546,13 @@ RiftFfenc* rift_ffenc_open(const RiftFfencConfig* config, char* error,
   }
 #endif
   enc->low_power = use_low_power(enc);
+  enc->short_buffer = enc->low_power;
   int err = open_codec(enc, codec, config);
   if (err < 0 && enc->low_power) {
     av_log(NULL, AV_LOG_WARNING,
            "vaapi: Intel's default encoder: the low-power one did not open\n");
     enc->low_power = 0;
+    enc->short_buffer = codec->id == AV_CODEC_ID_HEVC;
     err = open_codec(enc, codec, config);
   }
   if (enc->low_power) {
