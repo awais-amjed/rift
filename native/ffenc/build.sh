@@ -62,11 +62,11 @@ if [[ $os == linux ]]; then
   # NVIDIA's (NVDEC, reached like NVENC): FFmpeg's decoders read the stream
   # and the GPU decodes it.
   configure_flags+=(
-    --enable-vaapi --enable-libdrm --enable-encoder=h264_vaapi,h264_nvenc
+    --enable-vaapi --enable-libdrm --enable-encoder=h264_vaapi,h264_nvenc,hevc_vaapi,hevc_nvenc
     --enable-filter=buffer,buffersink,hwmap,scale_vaapi,transpose_vaapi,pad_vaapi
-    --enable-decoder=h264,vp8,vp9
+    --enable-decoder=h264,hevc,vp8,vp9
     --enable-nvdec
-    --enable-hwaccel=h264_vaapi,vp8_vaapi,vp9_vaapi,h264_nvdec,vp8_nvdec,vp9_nvdec
+    --enable-hwaccel=h264_vaapi,hevc_vaapi,vp8_vaapi,vp9_vaapi,h264_nvdec,hevc_nvdec,vp8_nvdec,vp9_nvdec
   )
 else
   library=$out/rift_ffenc.dll
@@ -77,13 +77,13 @@ else
   # MIT; neither needs --enable-nonfree.
   configure_flags+=(
     --enable-w32threads --enable-d3d11va --enable-amf --enable-libvpl
-    --enable-encoder=h264_nvenc,h264_qsv,h264_amf
+    --enable-encoder=h264_nvenc,h264_qsv,h264_amf,hevc_nvenc,hevc_qsv,hevc_amf
     # A watched share's decoders (ffdec.c), only through D3D11's video
     # decoder, in the forms that take frames of D3D11 textures (the `2`s;
     # FFmpeg builds their code only with the older forms on too). No VP8: no
     # GPU offers it through D3D11, and FFmpeg has no such hwaccel.
-    --enable-decoder=h264,vp9
-    --enable-hwaccel=h264_d3d11va,h264_d3d11va2,vp9_d3d11va,vp9_d3d11va2
+    --enable-decoder=h264,hevc,vp9
+    --enable-hwaccel=h264_d3d11va,h264_d3d11va2,hevc_d3d11va,hevc_d3d11va2,vp9_d3d11va,vp9_d3d11va2
     # libvpl is C++, and the pkg-config file it installs leaves its runtime
     # out.
     --pkg-config-flags=--static --extra-libs=-lstdc++

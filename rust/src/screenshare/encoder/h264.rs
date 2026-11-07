@@ -336,7 +336,7 @@ fn escape(rbsp: &[u8]) -> Vec<u8> {
     ebsp
 }
 
-fn start_code_len(unit: &[u8]) -> usize {
+pub(super) fn start_code_len(unit: &[u8]) -> usize {
     if unit.starts_with(&[0, 0, 0, 1]) {
         4
     } else {

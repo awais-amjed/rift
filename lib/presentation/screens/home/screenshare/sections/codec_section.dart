@@ -31,6 +31,7 @@ class CodecSection extends StatelessWidget {
   /// What the codec a share goes out in is best for.
   static String explain(VideoCodec codec) => switch (codec) {
     VideoCodec.h264 => 'Best for games and video.',
+    VideoCodec.h265 => 'Best for slow connections.',
     VideoCodec.vp8 => 'Best for older devices.',
     VideoCodec.vp9 => 'Best for text and slides.',
   };

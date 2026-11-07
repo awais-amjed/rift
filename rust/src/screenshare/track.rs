@@ -39,7 +39,7 @@ impl From<&ScreenShareConfig> for TrackSettings {
 }
 
 /// Publish `source` as the share's picture. A source with a `gpu` encoder
-/// carries H264 the GPU already made, in the profile that encoder makes, which WebRTC passes through as it is; it cannot
+/// carries H264 or H265 the GPU already made, in the profile that encoder makes, which WebRTC passes through as it is; it cannot
 /// scale or drop frames for the connection the way it does with raw ones, so
 /// whatever the priority, the encoder keeps the frame rate and lowers its
 /// bitrate to what WebRTC asks.
@@ -53,6 +53,7 @@ pub(crate) async fn publish_video_track(
     let max_bitrate = u64::from(settings.bitrate) * BITS_PER_MEGABIT;
     let video_codec = match settings.codec {
         VideoCodec::H264 => options::VideoCodec::H264,
+        VideoCodec::H265 => options::VideoCodec::H265,
         VideoCodec::VP8 => options::VideoCodec::VP8,
         VideoCodec::VP9 => options::VideoCodec::VP9,
     };

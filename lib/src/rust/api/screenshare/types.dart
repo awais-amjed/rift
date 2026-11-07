@@ -325,4 +325,4 @@ class ShareRoom {
 
 /// Codec for the published video track. The Dart settings store these same
 /// names as strings, so the mapping there is by name.
-enum VideoCodec { h264, vp8, vp9 }
+enum VideoCodec { h264, h265, vp8, vp9 }

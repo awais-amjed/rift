@@ -26,6 +26,7 @@ typedef enum {
   RIFT_FFDEC_H264 = 1,
   RIFT_FFDEC_VP8 = 2,
   RIFT_FFDEC_VP9 = 3,
+  RIFT_FFDEC_H265 = 4,
 } RiftFfdecCodec;
 
 // How the GPU is reached.

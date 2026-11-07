@@ -6,6 +6,7 @@
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum VideoCodec {
     H264,
+    H265,
     VP8,
     VP9,
 }

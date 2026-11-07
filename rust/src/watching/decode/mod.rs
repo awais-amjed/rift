@@ -67,6 +67,7 @@ const ASK_EVERY: Duration = Duration::from_secs(1);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Codec {
     H264,
+    H265,
     Vp8,
     Vp9,
 }
@@ -75,6 +76,7 @@ impl Codec {
     fn of(codec: EncodedVideoCodec) -> Option<Codec> {
         match codec {
             EncodedVideoCodec::H264 => Some(Codec::H264),
+            EncodedVideoCodec::H265 => Some(Codec::H265),
             EncodedVideoCodec::VP8 => Some(Codec::Vp8),
             EncodedVideoCodec::VP9 => Some(Codec::Vp9),
             _ => None,

@@ -34,6 +34,8 @@ run_on_gpu "$out/test_dmabuf"
   -Wl,-rpath,"$out"
 run_on_gpu "$out/test_ffdec"
 run_on_gpu "$out/test_ffdec" cuda
+run_on_gpu "$out/test_ffdec" h265
+run_on_gpu "$out/test_ffdec" cuda h265
 
 "$cc" -O1 -g -Wall -I"$here" -I/usr/include/libdrm "$here/test_nvenc_dmabuf.c" \
   -o "$out/test_nvenc_dmabuf" -L"$out" -lrift_ffenc -lEGL -lGLESv2 -lgbm \

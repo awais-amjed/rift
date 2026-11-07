@@ -74,7 +74,10 @@ const HEIGHT: u32 = 360;
 const FPS: u32 = 30;
 const SHADE: u8 = 200;
 
-static MARKS: [AtomicU64; 9] = [const { AtomicU64::new(0) }; 9];
+/// Whether a GPU share's picture moves rather than being flat.
+static MOVING_PICTURE: AtomicBool = AtomicBool::new(false);
+
+static MARKS: [AtomicU64; 10] = [const { AtomicU64::new(0) }; 10];
 
 unsafe extern "C" fn count_mark(texture: u64) {
     MARKS[texture as usize].fetch_add(1, Ordering::SeqCst);
@@ -185,6 +188,20 @@ impl Share {
             return Share::start_gpu_h264(server, room_name, identity, key, index, SEND_H264_HIGH)
                 .await;
         }
+        #[cfg(gpu_encoder)]
+        if codec == VideoCodec::H265 {
+            use crate::screenshare::encoder::GpuCodec;
+            return Share::start_gpu(
+                server,
+                room_name,
+                identity,
+                key,
+                index,
+                GpuCodec::H265,
+                false,
+            )
+            .await;
+        }
         let room = room::connect(
             &server.url,
             &server.token(room_name, identity, false),
@@ -207,8 +224,33 @@ impl Share {
         index: i32,
         high: bool,
     ) -> Share {
-        use crate::screenshare::encoder::{EncoderSettings, GpuCodec, GpuEncoder, Nv12Frame};
-        use crate::screenshare::gpu_live_test::ToSource;
+        use crate::screenshare::encoder::GpuCodec;
+        Share::start_gpu(
+            server,
+            room_name,
+            identity,
+            key,
+            index,
+            GpuCodec::H264,
+            high,
+        )
+        .await
+    }
+
+    #[cfg(gpu_encoder)]
+    async fn start_gpu(
+        server: &Server,
+        room_name: &str,
+        identity: &str,
+        key: &[u8],
+        index: i32,
+        gpu_codec: crate::screenshare::encoder::GpuCodec,
+        high: bool,
+    ) -> Share {
+        use crate::screenshare::encoder::{
+            EncodedSink, EncoderSettings, GpuCodec, GpuEncoder, Nv12Frame,
+        };
+        use crate::screenshare::gpu_live_test::{H265ToSource, ToSource};
         use livekit::options::VideoEncoderBackend;
         let room = room::connect(
             &server.url,
@@ -222,9 +264,13 @@ impl Share {
             width: WIDTH,
             height: HEIGHT,
         });
+        let sink: Box<dyn EncodedSink> = match gpu_codec {
+            GpuCodec::H264 => Box::new(ToSource(source.clone())),
+            GpuCodec::H265 => Box::new(H265ToSource(source.clone())),
+        };
         let encoder = GpuEncoder::open(
             EncoderSettings {
-                codec: GpuCodec::H264,
+                codec: gpu_codec,
                 width: WIDTH,
                 height: HEIGHT,
                 fps: FPS,
@@ -233,9 +279,9 @@ impl Share {
                 h264_high: high,
                 gpu_capture: true,
             },
-            Box::new(ToSource(source.clone())),
+            sink,
         )
-        .expect("a hardware H264 encoder opens");
+        .expect("a hardware encoder opens");
         let track =
             LocalVideoTrack::create_video_track("screen_share", RtcVideoSource::Native(source));
         room.local_participant()
@@ -243,7 +289,10 @@ impl Share {
                 LocalTrack::Video(track),
                 TrackPublishOptions {
                     source: TrackSource::Screenshare,
-                    video_codec: VideoCodec::H264,
+                    video_codec: match gpu_codec {
+                        GpuCodec::H264 => VideoCodec::H264,
+                        GpuCodec::H265 => VideoCodec::H265,
+                    },
                     video_encoder: VideoEncoderBackend::PreEncoded,
                     h264_high: high,
                     simulcast: false,
@@ -261,10 +310,29 @@ impl Share {
         tokio::task::spawn_blocking(move || {
             let len = Nv12Frame::len_for(WIDTH, HEIGHT);
             let luma = (WIDTH * HEIGHT) as usize;
+            let mut moved = 0u32;
             while !stopping.load(Ordering::SeqCst) {
                 let mut data = encoder.buffer(len);
                 data[..luma].fill(SHADE);
                 data[luma..].fill(128);
+                if MOVING_PICTURE.load(Ordering::Relaxed) {
+                    // A third noise, the rest bands that move: each frame's bytes
+                    // differ, and so does what encryption makes of them. All
+                    // noise costs more than the rate here, and Intel's H265
+                    // rate control lets go when asked below that.
+                    moved = moved.wrapping_add(1);
+                    let mut bits = moved.wrapping_mul(0x9e37_79b9) | 1;
+                    let noise_to = luma / 3;
+                    for byte in data[..noise_to].iter_mut() {
+                        bits ^= bits << 13;
+                        bits ^= bits >> 17;
+                        bits ^= bits << 5;
+                        *byte = (bits >> 24) as u8;
+                    }
+                    for (row, line) in data[noise_to..luma].chunks_mut(WIDTH as usize).enumerate() {
+                        line.fill((row as u32).wrapping_add(moved * 3) as u8);
+                    }
+                }
                 let timestamp_us = SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .unwrap()
@@ -1190,6 +1258,72 @@ fn lent_from_the_gpu(texture: u64) -> Option<(u32, u32, bool)> {
     Some((planes.width, planes.height, open))
 }
 
+/// H265's keyframes through encryption: an H264 keyframe whose PPS id fell in
+/// the encrypted bytes was lost about one time in two, with every picture up to
+/// the next (Oct 16 2026). A loss here shows as pictures missing, since each
+/// keyframe starts a run of only half a second. `RIFT_FFENC_ENCODER=h264_nvenc`
+/// sends from NVIDIA's encoder instead.
+#[cfg(gpu_encoder)]
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a LiveKit server and a GPU decoder; see the module doc"]
+async fn live_gpu_watch_h265_keyframes_survive_encryption() {
+    use crate::screenshare::encoder::GpuCodec;
+    use crate::screenshare::gpu_live_test::{H265_KEYS_SENT, H265_KEY_EVERY, H265_SENT};
+    let _ = env_logger::builder().is_test(true).try_init();
+    #[cfg(windows)]
+    let runner = super::decode::RunnerDeviceInPlace::new();
+    super::decode::choose();
+    super::decode::gpu().expect("decoding on the GPU here");
+    let server = Server::from_env();
+    let key = shared_key();
+    let share_identity = "member~desk_share";
+    let texture = 4;
+    let name = room_name("gpu-h265-keys");
+    let voice = start_watching(&server, &name, key.clone(), KEY_INDEX).await;
+    session::watch(share_identity.to_string(), texture, mark_address(), true)
+        .await
+        .expect("watches");
+    MOVING_PICTURE.store(true, Ordering::Relaxed);
+    H265_KEY_EVERY.store(FPS / 2, Ordering::Relaxed);
+    let share = Share::start_gpu(
+        &server,
+        &name,
+        share_identity,
+        &key,
+        KEY_INDEX,
+        GpuCodec::H265,
+        false,
+    )
+    .await;
+    assert!(
+        marked(texture, 0, 10, Duration::from_secs(15)).await,
+        "pictures reach the runner's slot"
+    );
+    let (from_marks, from_sent, from_keys) = (
+        marks(texture),
+        H265_SENT.load(Ordering::Relaxed),
+        H265_KEYS_SENT.load(Ordering::Relaxed),
+    );
+    tokio::time::sleep(Duration::from_secs(20)).await;
+    let got = marks(texture) - from_marks;
+    let sent = H265_SENT.load(Ordering::Relaxed) - from_sent;
+    let keys = H265_KEYS_SENT.load(Ordering::Relaxed) - from_keys;
+    log::info!("h265 keyframes: {keys} keyframes, {sent} pictures sent, {got} drawn");
+    assert_stats(share_identity, "H265").await;
+    assert!(keys >= 30, "{keys} keyframes in 20 s");
+    assert!(
+        got >= u64::from(sent) * 95 / 100,
+        "{got} pictures drawn of {sent} sent, across {keys} keyframes"
+    );
+    H265_KEY_EVERY.store(0, Ordering::Relaxed);
+    session::unwatch(share_identity).await;
+    session::stop().await;
+    share.end().await;
+    let _ = voice.close().await;
+    #[cfg(windows)]
+    runner.assert_all_handed_back();
+}
+
 #[cfg(gpu_encoder)]
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "needs a LiveKit server and a GPU decoder; see the module doc"]
@@ -1214,6 +1348,7 @@ async fn live_gpu_watch_decodes_each_codec_on_the_gpu() {
         (6, VideoCodec::VP9, None),
         (7, VideoCodec::H264, Some(false)),
         (8, VideoCodec::H264, Some(true)),
+        (9, VideoCodec::H265, None),
     ] {
         let name = room_name(&format!("gpu-{}", codec.as_str()));
         let voice = start_watching(&server, &name, key.clone(), KEY_INDEX).await;
@@ -1243,6 +1378,7 @@ async fn live_gpu_watch_decodes_each_codec_on_the_gpu() {
         let ours = match codec {
             VideoCodec::VP8 => super::decode::Codec::Vp8,
             VideoCodec::VP9 => super::decode::Codec::Vp9,
+            VideoCodec::H265 => super::decode::Codec::H265,
             _ => super::decode::Codec::H264,
         };
         let has = device.decodes(ours);

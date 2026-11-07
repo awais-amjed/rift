@@ -37,6 +37,52 @@ const FPS: u32 = 30;
 /// (also what the watch test shares H264 with, `watching/live_test.rs`).
 pub(crate) struct ToSource(pub(crate) NativeVideoSource);
 
+/// The same for H265, which needs nothing rewritten but its start codes.
+pub(crate) struct H265ToSource(pub(crate) NativeVideoSource);
+
+/// Set by a test: a keyframe every so many pictures, as viewers joining ask
+/// for them. 0 is only those WebRTC asks for.
+pub(crate) static H265_KEY_EVERY: std::sync::atomic::AtomicU32 =
+    std::sync::atomic::AtomicU32::new(0);
+/// Pictures and keyframes sent so far.
+pub(crate) static H265_SENT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+pub(crate) static H265_KEYS_SENT: std::sync::atomic::AtomicU32 =
+    std::sync::atomic::AtomicU32::new(0);
+
+impl EncodedSink for H265ToSource {
+    fn deliver(&mut self, frame: Encoded<'_>) {
+        H265_SENT.fetch_add(1, Ordering::Relaxed);
+        if frame.keyframe {
+            H265_KEYS_SENT.fetch_add(1, Ordering::Relaxed);
+        }
+        let rewritten = h264::with_long_start_codes(frame.payload);
+        self.0.capture_encoded_frame(&EncodedVideoFrame {
+            codec: EncodedVideoCodec::H265,
+            payload: rewritten.as_deref().unwrap_or(frame.payload),
+            timestamp_us: frame.timestamp_us,
+            frame_type: if frame.keyframe {
+                EncodedFrameType::Key
+            } else {
+                EncodedFrameType::Delta
+            },
+            resolution: self.0.video_resolution(),
+            frame_metadata: None,
+        });
+    }
+
+    fn keyframe_wanted(&mut self) -> bool {
+        let every = H265_KEY_EVERY.load(Ordering::Relaxed);
+        let due = every > 0 && H265_SENT.load(Ordering::Relaxed) % every == 0;
+        self.0.take_keyframe_request() || due
+    }
+
+    fn bitrate_wanted(&mut self) -> Option<u64> {
+        self.0
+            .take_rate_control_request()
+            .map(|request| u64::from(request.target_bitrate_bps))
+    }
+}
+
 /// H264 keyframes an encrypted viewer could not have found the parameter sets
 /// of ([`h264::idr_readable_when_encrypted`]).
 static UNREADABLE_KEYFRAMES: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);

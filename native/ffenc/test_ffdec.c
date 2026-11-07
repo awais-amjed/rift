@@ -6,8 +6,8 @@
 // colour. Four coloured quarters go in, and the same four must come out, at
 // the size sent though H264 codes 1080 lines as 1088.
 // Run by native/ffenc/test.sh on a computer with a VAAPI encoder and decoder,
-// and again with `cuda` on one with NVENC and NVIDIA's decoder;
-// RIFT_RENDER_NODE picks the GPU.
+// and again with `cuda` on one with NVENC and NVIDIA's decoder, each also with
+// `h265`; RIFT_RENDER_NODE picks the GPU.
 #include "ffdec.h"
 
 #include <fcntl.h>
@@ -234,7 +234,11 @@ static void draw_and_check(const RiftFfdecPicture* p, int index) {
 // ── The round trip ──────────────────────────────────────────────────────
 
 int main(int argc, char** argv) {
-  cuda = argc > 1 && strcmp(argv[1], "cuda") == 0;
+  int h265 = 0;
+  for (int i = 1; i < argc; i++) {
+    if (strcmp(argv[i], "cuda") == 0) cuda = 1;
+    if (strcmp(argv[i], "h265") == 0) h265 = 1;
+  }
   const char* node = getenv("RIFT_RENDER_NODE");
   if (!node) node = "/dev/dri/renderD128";
   rift_ffenc_set_log(log_line, 16);
@@ -243,7 +247,8 @@ int main(int argc, char** argv) {
 
   RiftFfencConfig enc_config = {
       // NVENC from memory: a render node would open its GL side.
-      .encoder = cuda ? "h264_nvenc" : "h264_vaapi",
+      .encoder = h265 ? (cuda ? "hevc_nvenc" : "hevc_vaapi")
+                      : (cuda ? "h264_nvenc" : "h264_vaapi"),
       .device = cuda ? NULL : node,
       .width = W,
       .height = H,
@@ -259,7 +264,7 @@ int main(int argc, char** argv) {
     return 2;
   }
   RiftFfdecConfig dec_config = {
-      .codec = RIFT_FFDEC_H264,
+      .codec = h265 ? RIFT_FFDEC_H265 : RIFT_FFDEC_H264,
       .device = node,
       .api = cuda ? RIFT_FFDEC_CUDA : RIFT_FFDEC_VAAPI,
   };

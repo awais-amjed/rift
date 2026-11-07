@@ -3022,8 +3022,9 @@ impl SseDecode for crate::api::screenshare::types::VideoCodec {
         let mut inner = <i32>::sse_decode(deserializer);
         return match inner {
             0 => crate::api::screenshare::types::VideoCodec::H264,
-            1 => crate::api::screenshare::types::VideoCodec::VP8,
-            2 => crate::api::screenshare::types::VideoCodec::VP9,
+            1 => crate::api::screenshare::types::VideoCodec::H265,
+            2 => crate::api::screenshare::types::VideoCodec::VP8,
+            3 => crate::api::screenshare::types::VideoCodec::VP9,
             _ => unreachable!("Invalid variant for VideoCodec: {}", inner),
         };
     }
@@ -3737,8 +3738,9 @@ impl flutter_rust_bridge::IntoDart for crate::api::screenshare::types::VideoCode
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
             Self::H264 => 0.into_dart(),
-            Self::VP8 => 1.into_dart(),
-            Self::VP9 => 2.into_dart(),
+            Self::H265 => 1.into_dart(),
+            Self::VP8 => 2.into_dart(),
+            Self::VP9 => 3.into_dart(),
             _ => unreachable!(),
         }
     }
@@ -4399,8 +4401,9 @@ impl SseEncode for crate::api::screenshare::types::VideoCodec {
         <i32>::sse_encode(
             match self {
                 crate::api::screenshare::types::VideoCodec::H264 => 0,
-                crate::api::screenshare::types::VideoCodec::VP8 => 1,
-                crate::api::screenshare::types::VideoCodec::VP9 => 2,
+                crate::api::screenshare::types::VideoCodec::H265 => 1,
+                crate::api::screenshare::types::VideoCodec::VP8 => 2,
+                crate::api::screenshare::types::VideoCodec::VP9 => 3,
                 _ => {
                     unimplemented!("");
                 }

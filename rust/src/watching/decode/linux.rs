@@ -120,6 +120,7 @@ impl Gpu {
         // va.h's VAProfile values for each codec, and VAEntrypointVLD.
         let profiles: &[i32] = match codec {
             Codec::H264 => &[13, 6, 7],
+            Codec::H265 => &[17],
             Codec::Vp8 => &[14],
             Codec::Vp9 => &[19],
         };
@@ -218,6 +219,7 @@ impl Decoder {
                 Codec::H264 => 1,
                 Codec::Vp8 => 2,
                 Codec::Vp9 => 3,
+                Codec::H265 => 4,
             },
             device: device.as_ptr(),
             api: if gpu.cuda { CUDA } else { VAAPI },

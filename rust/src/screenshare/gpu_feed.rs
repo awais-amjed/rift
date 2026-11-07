@@ -4,7 +4,9 @@
 //! much of are left out on the way in ([`RateGate`]).
 #[cfg(target_os = "windows")]
 use super::capture_wgc::WgcPicture;
-use super::encoder::{h264, Encoded, EncodedSink, EncoderSettings, GpuEncoder, Nv12Frame};
+use super::encoder::{
+    h264, Encoded, EncodedSink, EncoderSettings, GpuCodec, GpuEncoder, Nv12Frame,
+};
 #[cfg(target_os = "linux")]
 use super::encoder::{DmaBufFrame, EncoderInput};
 #[cfg(target_os = "windows")]
@@ -46,6 +48,7 @@ impl GpuFeed {
         let encoder = GpuEncoder::open(
             settings,
             Box::new(SourceSink {
+                codec: settings.codec,
                 source: source.clone(),
                 resolution: VideoResolution {
                     width: settings.width,
@@ -235,6 +238,7 @@ pub(crate) enum Picture<'a> {
 
 /// The pre-encoded source, as the encoder sees it.
 struct SourceSink {
+    codec: GpuCodec,
     source: NativeVideoSource,
     resolution: VideoResolution,
     gate: Arc<Mutex<RateGate>>,
@@ -272,9 +276,15 @@ impl EncodedSink for SourceSink {
         dump_for_test(frame.payload);
         // So the receiver authenticates the same bytes the sender encrypted,
         // and can find a keyframe's PPS.
-        let rewritten = h264::for_encryption(frame.payload);
+        let rewritten = match self.codec {
+            GpuCodec::H264 => h264::for_encryption(frame.payload),
+            GpuCodec::H265 => h264::with_long_start_codes(frame.payload),
+        };
         let payload = rewritten.as_deref().unwrap_or(frame.payload);
-        if frame.keyframe && !self.warned_unreadable && !h264::idr_readable_when_encrypted(payload)
+        if self.codec == GpuCodec::H264
+            && frame.keyframe
+            && !self.warned_unreadable
+            && !h264::idr_readable_when_encrypted(payload)
         {
             log::warn!(
                 "screenshare: this encoder's keyframes put the slice's PPS id past what \
@@ -288,7 +298,10 @@ impl EncodedSink for SourceSink {
             .unwrap()
             .spent(frame.payload.len(), frame.keyframe, Instant::now());
         self.source.capture_encoded_frame(&EncodedVideoFrame {
-            codec: EncodedVideoCodec::H264,
+            codec: match self.codec {
+                GpuCodec::H264 => EncodedVideoCodec::H264,
+                GpuCodec::H265 => EncodedVideoCodec::H265,
+            },
             payload,
             timestamp_us: frame.timestamp_us,
             frame_type: if frame.keyframe {

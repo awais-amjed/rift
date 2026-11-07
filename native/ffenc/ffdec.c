@@ -102,6 +102,8 @@ static enum AVCodecID codec_id_of(int32_t codec) {
       return AV_CODEC_ID_VP8;
     case RIFT_FFDEC_VP9:
       return AV_CODEC_ID_VP9;
+    case RIFT_FFDEC_H265:
+      return AV_CODEC_ID_HEVC;
     default:
       return AV_CODEC_ID_NONE;
   }

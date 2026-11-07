@@ -28,12 +28,12 @@ extern "C" {
 
 // Bumped whenever a function or struct below changes, so the crate refuses a
 // library from another build instead of calling it wrongly.
-#define RIFT_FFENC_ABI 12
+#define RIFT_FFENC_ABI 13
 
 typedef struct RiftFfenc RiftFfenc;
 
 typedef struct RiftFfencConfig {
-  // FFmpeg's name for the encoder, such as "h264_vaapi" or "h264_nvenc".
+  // FFmpeg's name for the encoder, such as "h264_vaapi" or "hevc_nvenc".
   const char* encoder;
   // The GPU to open, as FFmpeg's hardware device names it: a DRM render
   // node for VAAPI. NULL is FFmpeg's default, and the only choice for
@@ -56,7 +56,7 @@ typedef struct RiftFfencConfig {
   // NVENC's "delay": a picture comes out once this many are encoded or
   // waiting, so 0 and 1 hold none and 2 holds one. Other encoders ignore it.
   int32_t delay_frames;
-  // 1 for H264's High profile, 0 for constrained baseline.
+  // 1 for H264's High profile, 0 for constrained baseline. H265 is always Main.
   int32_t high;
   // Windows: the ID3D11Device a share's Windows Graphics Capture runs on, the
   // caller's to keep, on the encoder's own GPU, which rift_ffenc_send_d3d11

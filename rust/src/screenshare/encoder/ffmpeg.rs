@@ -1,4 +1,4 @@
-//! H264 on a GPU through FFmpeg: its NVENC encoder for NVIDIA's GPUs on both
+//! H264 and H265 on a GPU through FFmpeg: its NVENC encoder for NVIDIA's GPUs on both
 //! systems, its VAAPI encoder for Intel's and AMD's on Linux, and on Windows
 //! its Quick Sync encoder for Intel's and its AMF encoder for AMD's.
 //!
@@ -20,9 +20,9 @@
 //! (`third_party/ffmpeg/RIFT_PATCHES.md`).
 #[cfg(target_os = "linux")]
 use super::gpu_choice::{self, DmabufTarget};
-use super::h264::{self, ParameterSets};
 use super::timings::EncodeTimes;
 use super::worker::{self, EncodeError, Session, SharedSink, GOP_SECONDS};
+use super::{h264, h265};
 use super::{Encoded, EncoderInput, EncoderSettings, GpuCodec};
 #[cfg(target_os = "windows")]
 use crate::screenshare::capture_wgc;
@@ -38,7 +38,7 @@ use std::time::{Duration, Instant};
 
 /// The library's interface version this crate was written against
 /// (`RIFT_FFENC_ABI` in `ffenc.h`).
-const ABI: i32 = 12;
+const ABI: i32 = 13;
 
 /// The library's name: in the bundle's `lib` folder on Linux, beside the app
 /// on Windows.
@@ -219,7 +219,8 @@ extern "C" fn log_line(level: i32, line: *const c_char) {
     }
 }
 
-/// An FFmpeg encoder that may make H264 here, and the GPU to open it on.
+/// An FFmpeg encoder that may make H264 here, and the GPU to open it on. Its
+/// H265 is [`encoder_for`]'s.
 struct Candidate {
     encoder: &'static CStr,
     /// As FFmpeg names the GPU; `None` leaves it to the driver.
@@ -336,6 +337,18 @@ fn nvenc_gl_opens(candidate: &Candidate) -> bool {
             }
         }
     })
+}
+
+/// The FFmpeg encoder for `codec` on the GPU `h264_encoder` found: the same API,
+/// so the share's picture reaches it the same way.
+fn encoder_for(codec: GpuCodec, h264: &'static CStr) -> &'static CStr {
+    match (codec, h264.to_bytes()) {
+        (GpuCodec::H265, b"h264_nvenc") => c"hevc_nvenc",
+        (GpuCodec::H265, b"h264_vaapi") => c"hevc_vaapi",
+        (GpuCodec::H265, b"h264_qsv") => c"hevc_qsv",
+        (GpuCodec::H265, b"h264_amf") => c"hevc_amf",
+        _ => h264,
+    }
 }
 
 /// What the look at an encoder opens it for: H264 as a share asks for it, on
@@ -463,13 +476,45 @@ fn texture_vendor(encoder: &CStr) -> Option<u32> {
     }
 }
 
+/// Whether the GPU that encodes H264 here also encodes H265. Only that GPU is
+/// asked: capture is set up for the one encoder (`dmabuf_target`), and a share
+/// moving down from H265 to H264 keeps its way of reaching the GPU. Found once.
+fn h265_opens() -> bool {
+    static OPENS: OnceLock<bool> = OnceLock::new();
+    *OPENS.get_or_init(|| {
+        let (Ok(api), Some((candidate, ..))) = (api(), h264_encoder()) else {
+            return false;
+        };
+        let probe = EncoderSettings {
+            codec: GpuCodec::H265,
+            ..probe_settings()
+        };
+        match open_raw(api, &probe, candidate) {
+            Ok(raw) => {
+                // SAFETY: `raw` is a live encoder from this library, closed
+                // right after.
+                unsafe { (api.close)(raw) };
+                log::info!("encoder: {} encodes H265", candidate.label);
+                true
+            }
+            Err(reason) => {
+                log::info!("encoder: no H265 from {}: {reason}", candidate.label);
+                false
+            }
+        }
+    })
+}
+
 /// Whether FFmpeg will encode `codec` on a GPU here. Asked once per run.
 pub(crate) fn opens(codec: GpuCodec) -> bool {
     #[cfg(test)]
     if super::test_hooks::NO_GPU.load(std::sync::atomic::Ordering::Relaxed) {
         return false;
     }
-    codec == GpuCodec::H264 && h264_encoder().is_some()
+    match codec {
+        GpuCodec::H264 => h264_encoder().is_some(),
+        GpuCodec::H265 => h265_opens(),
+    }
 }
 
 /// NVENC's `delay` for a share at `fps`: 2 above 60 fps, which has it hold
@@ -499,9 +544,6 @@ fn open_raw(
     settings: &EncoderSettings,
     candidate: &Candidate,
 ) -> Result<*mut c_void, String> {
-    if settings.codec != GpuCodec::H264 {
-        return Err(format!("FFmpeg is not used for {} here", settings.codec));
-    }
     #[cfg(target_os = "linux")]
     let device = gpu_choice::encoder_device(
         candidate.device.as_ref(),
@@ -526,7 +568,7 @@ fn open_raw(
     #[cfg(not(target_os = "windows"))]
     let d3d11_raw = std::ptr::null_mut();
     let config = Config {
-        encoder: candidate.encoder.as_ptr(),
+        encoder: encoder_for(settings.codec, candidate.encoder).as_ptr(),
         device: device.map_or(std::ptr::null(), |device| device.as_ptr()),
         width: settings.width as i32,
         height: settings.height as i32,
@@ -576,9 +618,9 @@ pub(super) struct FfmpegSession {
     /// after failing the first.
     pictures: u64,
     reopened: bool,
-    /// An IDR sent without SPS and PPS gets the last ones put back in front,
-    /// since a viewer can only start from one that has them.
-    parameter_sets: ParameterSets,
+    /// A keyframe sent without its parameter sets gets the last ones put back
+    /// in front, since a viewer can only start from one that has them.
+    parameter_sets: Parameters,
     /// Where each picture's time goes, for the log.
     times: EncodeTimes,
     /// Whether the last picture was on the GPU, which the library keeps there
@@ -606,12 +648,41 @@ pub(super) fn open(
             candidate,
             pictures: 0,
             reopened: false,
-            parameter_sets: ParameterSets::default(),
+            parameter_sets: Parameters::for_codec(settings.codec),
             times: EncodeTimes::default(),
             repeatable: false,
         },
         format!("{} ({driver})", candidate.label),
     ))
+}
+
+/// The parameter sets kept for a share, in its codec's own form.
+enum Parameters {
+    H264(h264::ParameterSets),
+    H265(h265::ParameterSets),
+}
+
+impl Parameters {
+    fn for_codec(codec: GpuCodec) -> Parameters {
+        match codec {
+            GpuCodec::H264 => Parameters::H264(h264::ParameterSets::default()),
+            GpuCodec::H265 => Parameters::H265(h265::ParameterSets::default()),
+        }
+    }
+
+    fn is_keyframe(&self, payload: &[u8]) -> bool {
+        match self {
+            Parameters::H264(_) => h264::is_idr(payload),
+            Parameters::H265(_) => h265::is_keyframe(payload),
+        }
+    }
+
+    fn complete(&mut self, payload: Vec<u8>) -> Vec<u8> {
+        match self {
+            Parameters::H264(sets) => sets.complete(payload),
+            Parameters::H265(sets) => sets.complete(payload),
+        }
+    }
 }
 
 impl Session for FfmpegSession {
@@ -831,7 +902,7 @@ impl FfmpegSession {
             // SAFETY: as above.
             let payload = unsafe { std::slice::from_raw_parts(packet.data, packet.len) };
             let delivering = Instant::now();
-            let keyframe = packet.keyframe != 0 || h264::is_idr(payload);
+            let keyframe = packet.keyframe != 0 || self.parameter_sets.is_keyframe(payload);
             let payload = self.parameter_sets.complete(payload.to_vec());
             self.sink.lock().unwrap().deliver(Encoded {
                 payload: &payload,

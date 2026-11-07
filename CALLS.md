@@ -692,10 +692,19 @@ what was driven are in `TESTING.md`).
   waiting out each one at the idle clocks NVIDIA's driver drops to a few
   seconds into a share had kept it near 87 fps, and with it the viewer got
   118.7, at one more picture of delay (8 ms).
-- **H265 is measured, not built.** On game footage at 10 Mbps it matched baseline
-  H264 at 15, about 2 Mbps below what High asks, and it gains most on a tight upload.
-  It would need a viewer that decodes it on the GPU, with H264 for the rest
-  (`docs/gpu-codecs/RESEARCH.md`, `PLAN.md`).
+- **H265 works from the GPU to the GPU, and is not offered yet.** On game footage
+  at 10 Mbps it matched baseline H264 at 15, about 2 Mbps below what High asks, and
+  it gains most on a tight upload (`docs/gpu-codecs/RESEARCH.md`). Rift's encoder
+  makes it (FFmpeg's `hevc_*`, on the GPU that makes the share's H264) and its
+  decoder reads it, never in software. Verified Nov 7 2026 against a local server:
+  encrypted, 40 keyframes in 20 s from Intel's and from NVIDIA's encoders with every
+  picture drawn, so unlike H264 nothing in a slice needs rewriting; a keyframe's
+  parameter sets are put back as H264's are (`encoder/h265.rs`). On game footage it
+  follows a moved rate as H264 does, on both GPUs, down to 150 kbps on Intel. Intel's
+  rate control lets go only on a picture of pure noise asked below what it can
+  cost (13 times the target at 1 Mbps, 640x360); `rate_gate.rs` holds that back
+  in a share. Nothing sends it until viewers say what they decode and a share can
+  step down for one who cannot (`docs/gpu-codecs/CODEC_LADDER.md`).
 - **AV1 is parked.** AMD's encoder makes AV1 that WebRTC carries, but no viewer
   gets it encrypted: LiveKit's Rust SDK does not negotiate what the server needs
   to find an encrypted AV1 keyframe, and its JS SDK refuses to encrypt AV1. The

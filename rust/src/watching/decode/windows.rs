@@ -45,6 +45,8 @@ const H264_PROFILES: [GUID; 3] = [
     GUID::from_u128(0x1b81be69_a0c7_11d3_b984_00c04f2e73c5),
     GUID::from_u128(0x604f8e68_4951_4c54_88fe_abd25c15b3d6),
 ];
+/// D3D11_DECODER_PROFILE_HEVC_VLD_MAIN: eight bits, all a share sends.
+const H265_PROFILES: [GUID; 1] = [GUID::from_u128(0x5b11d51b_2f4c_4452_bcc3_09f2a1160cc0)];
 const VP9_PROFILES: [GUID; 1] = [GUID::from_u128(0x463707f8_a1d0_4585_876d_83aa6d60b89e)];
 
 #[repr(C)]
@@ -114,6 +116,7 @@ pub(crate) struct Gpu {
     luid: i64,
     name: String,
     h264: bool,
+    h265: bool,
     vp9: bool,
 }
 
@@ -131,6 +134,7 @@ impl Gpu {
             luid,
             name,
             h264: has(&H264_PROFILES),
+            h265: has(&H265_PROFILES),
             vp9: has(&VP9_PROFILES),
         }
     }
@@ -182,6 +186,7 @@ impl Gpu {
     pub(crate) fn decodes(&self, codec: Codec) -> Option<bool> {
         Some(match codec {
             Codec::H264 => self.h264,
+            Codec::H265 => self.h265,
             Codec::Vp9 => self.vp9,
             Codec::Vp8 => false,
         })
@@ -299,6 +304,7 @@ impl Decoder {
                 Codec::H264 => 1,
                 Codec::Vp8 => 2,
                 Codec::Vp9 => 3,
+                Codec::H265 => 4,
             },
             device: std::ptr::null(),
             api: D3D11VA,

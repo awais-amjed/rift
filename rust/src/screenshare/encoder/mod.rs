@@ -7,13 +7,15 @@
 //! Intel's and AMD's GPUs. On Linux its NVENC on NVIDIA's, since LiveKit's own
 //! NVENC carries code the GPL client cannot, and its VAAPI encoder on Intel's
 //! and AMD's, since LiveKit's own VAAPI encoder stalls. H264 is only ever
-//! encoded by the GPU, never by Rift itself.
+//! encoded by the GPU, never by Rift itself, and so is H265 where the GPU has an
+//! encoder for it.
 #![cfg_attr(not(gpu_encoder), allow(dead_code))]
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 pub(crate) mod ffmpeg;
 #[cfg(target_os = "linux")]
 pub(crate) mod gpu_choice;
 pub(crate) mod h264;
+pub(crate) mod h265;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 mod timings;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
@@ -40,6 +42,7 @@ use std::sync::Arc;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum GpuCodec {
     H264,
+    H265,
 }
 
 impl GpuCodec {
@@ -48,6 +51,7 @@ impl GpuCodec {
     pub(crate) fn for_share(codec: VideoCodec) -> Option<GpuCodec> {
         match codec {
             VideoCodec::H264 => Some(GpuCodec::H264),
+            VideoCodec::H265 => Some(GpuCodec::H265),
             VideoCodec::VP8 | VideoCodec::VP9 => None,
         }
     }
@@ -57,6 +61,7 @@ impl std::fmt::Display for GpuCodec {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
             GpuCodec::H264 => "H264",
+            GpuCodec::H265 => "H265",
         })
     }
 }
@@ -95,14 +100,14 @@ impl GpuEncoder {
         sink: Box<dyn EncodedSink>,
     ) -> Result<GpuEncoder, String> {
         log::info!(
-            "encoder: {:?} at {}x{}, H264 in {}",
+            "encoder: {:?} at {}x{}, {}",
             settings.codec,
             settings.width,
             settings.height,
-            if settings.h264_high {
-                "High"
-            } else {
-                "baseline"
+            match (settings.codec, settings.h264_high) {
+                (GpuCodec::H265, _) => "H265 in Main",
+                (GpuCodec::H264, true) => "H264 in High",
+                (GpuCodec::H264, false) => "H264 in baseline",
             }
         );
         GpuEncoder::start(settings, sink, ffmpeg::open)
@@ -223,7 +228,7 @@ impl EncoderInput {
     }
 }
 
-/// One frame out of the encoder: an H264 access unit in Annex B.
+/// One frame out of the encoder: an H264 or H265 access unit in Annex B.
 pub(crate) struct Encoded<'a> {
     pub payload: &'a [u8],
     pub timestamp_us: i64,

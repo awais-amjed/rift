@@ -201,20 +201,22 @@ step can take from our own code and from open source projects: `REUSE.md`.
    - Enable `hevc_*` and `av1_*` in ffenc.
    - The passthrough encoder advertises the new formats.
    - Check H265's encryption-readable bytes, as `with_readable_pps_id` does for H264.
+     Done Nov 7 2026: H265 needs no rewrite (`CALLS.md`). Encoder, decoder and the
+     fork's pass-through are built; the ladder and the share dialog remain.
    - The codec ladder comes back: viewers publish `plays`, and the share steps down
      to what every watcher plays (the parked switch-down spec).
    - AV1 needs LiveKit's AV1 encryption on both ends, so it reaches Rift desktops
      only.
-   - Patents: H265 by the GPU only, as H264. Decoding through FFmpeg's hevc decoder
-     still ships its software path; refuse without a hwaccel, or use cuvid / D3D11
-     directly. Owner's call.
+   - Patents: H265 by the GPU only, as H264. FFmpeg's hevc decoder still ships its
+     software path, and `gpu_only` in `ffdec.c` refuses to run it, as for H264. The
+     owner was content with hardware only on Nov 7 2026 ("dont need to worry about
+     license").
 
 ## Open, for the owner
 
 - ~~Which half comes first~~: the sharer, Linux first (owner, Oct 29).
 - ~~Step 3's route~~: a Rust receive connection, picture and sound (owner, Nov 2).
-- H265 decoding: FFmpeg's hevc decoder refusing to run without a hwaccel, or
-  the vendors' decoders directly (cuvid, D3D11), so no software H265 ships.
+- ~~H265 decoding~~: FFmpeg's hevc decoder, refused without a hwaccel (Nov 7 2026).
 - Whether Windows 10 gets a GPU-side DXGI-duplication capturer, or keeps
   today's path. FFmpeg's `ddagrab` would be that capturer.
 

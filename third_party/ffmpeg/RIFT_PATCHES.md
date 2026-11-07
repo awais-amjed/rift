@@ -7,7 +7,8 @@ against FFmpeg's release key (`FCF9 86EA 15E6 E293 A564 4F10 B432 2F04 D676
 before every build. Only the patches are kept here; the build downloads the
 rest.
 
-Built with everything off but `libavcodec`, `libavutil` and the GPU encoders,
+Built with everything off but `libavcodec`, `libavutil` and the GPU encoders
+(H264 and H265) and decoders,
 statically, where every FFmpeg symbol stays hidden: LiveKit's libwebrtc
 carries Chromium's FFmpeg under the same names. On Linux that is
 `librift_ffenc.so` (`native/ffenc`) with the NVENC and VAAPI encoders; on
