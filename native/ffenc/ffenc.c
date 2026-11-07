@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include <libavcodec/avcodec.h>
+#include <libavutil/avstring.h>
 #include <libavutil/hwcontext.h>
 #include <libavutil/opt.h>
 #include <libavutil/pixdesc.h>
@@ -51,6 +52,8 @@ struct RiftFfenc {
   AVFrame* own[OWN_PICTURES];
   AVPacket* packet;
   int32_t peak_percent;
+  // Intel's low-power VAAPI encoder (use_low_power).
+  int low_power;
   char driver[128];
 #if defined(__linux__)
   // Held for every call into the encoder, so the exit handler below never
@@ -201,6 +204,17 @@ static void name_driver(RiftFfenc* enc, const AVCodec* codec) {
 #endif
 }
 
+// Whether to ask Intel's GPU for its fixed-function encoder. The default one
+// runs on the same shader cores as a game: a share beside a game on that GPU
+// cost it 21% of its frames in H264 and 52% in H265, and 11% in both with this
+// one (Nov 7 2026, CALLS.md). It needs the driver's HuC firmware for VBR, so it
+// may not open (rift_ffenc_open). Only Intel's driver has it, so no other GPU
+// is asked. RIFT_FFENC_NO_LOW_POWER turns it off, to compare.
+static int use_low_power(const RiftFfenc* enc) {
+  return enc->api == API_VAAPI && strstr(enc->driver, "iHD") != NULL &&
+         getenv("RIFT_FFENC_NO_LOW_POWER") == NULL;
+}
+
 static int64_t peak_of(Api api, int64_t bitrate_bps, int32_t peak_percent) {
   int64_t peak = bitrate_bps * peak_percent / 100;
   // QSV runs constant bitrate whenever the peak equals the average, and has
@@ -223,6 +237,11 @@ static void set_rates(RiftFfenc* enc, int64_t bitrate_bps) {
   if (enc->api == API_NVENC || enc->api == API_AMF) {
     c->rc_buffer_size = (int)c->rc_max_rate;
   }
+  // A tenth of a second, not VAAPI's whole one. H265 on Intel's low-power
+  // encoder otherwise answers any rate move, even of 0.5%, with a picture ten
+  // times the size, and WebRTC moves the rate every few seconds on a poor
+  // connection. This costs the picture next to nothing (Nov 7 2026, CALLS.md).
+  if (enc->low_power) c->rc_buffer_size = (int)(c->rc_max_rate / 10);
 }
 
 // Open the encoder itself, on the picture pool when there is one.
@@ -292,6 +311,7 @@ static int open_codec(RiftFfenc* enc, const AVCodec* codec,
   switch (enc->api) {
     case API_VAAPI:
       av_opt_set(c->priv_data, "rc_mode", "VBR", 0);
+      if (enc->low_power) av_opt_set_int(c->priv_data, "low_power", 1, 0);
       break;
     case API_NVENC:
       av_opt_set(c->priv_data, "rc", "vbr", 0);
@@ -346,8 +366,6 @@ static int open_codec(RiftFfenc* enc, const AVCodec* codec,
       av_opt_set(c->priv_data, "forced_idr", "1", 0);
       break;
     default:
-      // Not Intel's low-power VAAPI encoder: on Alder Lake it ignored the
-      // rate altogether, 22 Mbps whatever was asked (HuC loaded, Oct 9 2026).
       break;
   }
   return avcodec_open2(c, codec, NULL);
@@ -521,7 +539,17 @@ RiftFfenc* rift_ffenc_open(const RiftFfencConfig* config, char* error,
     }
   }
 #endif
+  enc->low_power = use_low_power(enc);
   int err = open_codec(enc, codec, config);
+  if (err < 0 && enc->low_power) {
+    av_log(NULL, AV_LOG_WARNING,
+           "vaapi: Intel's default encoder: the low-power one did not open\n");
+    enc->low_power = 0;
+    err = open_codec(enc, codec, config);
+  }
+  if (enc->low_power) {
+    av_strlcat(enc->driver, ", low power", sizeof(enc->driver));
+  }
 #if defined(_WIN32)
   if (err < 0 && enc->d3d11) {
     av_log(NULL, AV_LOG_WARNING,

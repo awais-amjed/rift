@@ -732,6 +732,35 @@ what was driven are in `TESTING.md`).
   with H265 off, and VP9 and VP8 from a test override. A Rust watcher's picture came
   back about 0.8 s after a move down, 0.25 s after a climb; the web watcher's took
   about 3 s. See `docs/gpu-codecs/CODEC_LADDER.md`.
+- **Intel's low-power encoder, on Linux.** VAAPI on Intel's driver asks for the
+  fixed-function encoder, since the default one runs on the shader cores a game
+  needs. It may not open (it needs the HuC firmware for VBR), and then the share uses
+  the default; the log says `, low power` when it did. AMD is not asked. Measured Nov 7
+  2026 on an i7-12700H's Iris Xe, iHD 26.3.5, the app sharing the whole screen at
+  1080p60 beside glmark2's terrain, uncapped, full screen on the same GPU, three runs
+  each (a viewer was subscribed, but its picture is off while covered, so nothing was
+  decoded during the game):
+
+  | Beside the game | Default encoder | Low power |
+  |---|---|---|
+  | No share | 298 fps, p99 6.4 ms | 300 fps, p99 6.4 ms |
+  | H264 at 12 Mbps | 235 fps, p99 6.6 ms | 265 fps, p99 4.9 ms |
+  | H265 at 10 Mbps | 143 fps, p99 10.2 ms, the share at 50 fps | 265 fps, p99 4.9 ms |
+
+  Most of what is left is the capture: the encoder alone, fed from a file, took under
+  1% of the game's frames on low power, against 12% in H264 and 45% in H265 on the
+  default. On NVENC with the game on NVIDIA, H265 cost no more than H264, about 3%
+  against no share. Low power's picture on three game clips (VMAF, CSGO / GTAV /
+  Witcher 3): H265 at 10 Mbps 95.9 / 98.3 / 90.1, still above the default's H264 High
+  at 12 (95.3 / 98.2 / 89.7) and baseline at 15 (94.1 / 98.1 / 88.1); its own H264
+  High at 12 is 93.9 / 98.2 / 88.5, about baseline at 15. Its rate buffer is a tenth
+  of a second, not a whole one: with a whole one, H265 answered any rate move, even
+  of 0.5%, with a picture ten times the size, 1.15 to 1.36 times the target on a
+  moving rate. With the short one both codecs stay within about 5% through moves, and
+  the picture loses under 0.5 VMAF. Two cases run over, and `rate_gate.rs` holds the
+  excess back: pure noise at 1 Mbps, 2.5 times, and H264 at 200 kbps, about twice. An Oct 9 note that this
+  encoder ignored the rate (22 Mbps) no longer holds here, on iHD 26.2.4 or 26.3.5,
+  though older drivers are untried. Windows' Quick Sync is not measured.
 - **AV1 is parked.** AMD's encoder makes AV1 that WebRTC carries, but no viewer
   gets it encrypted: LiveKit's Rust SDK does not negotiate what the server needs
   to find an encrypted AV1 keyframe, and its JS SDK refuses to encrypt AV1. The

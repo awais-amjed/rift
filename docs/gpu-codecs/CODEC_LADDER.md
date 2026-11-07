@@ -63,10 +63,16 @@ Nov 7 2026, in the app on Linux (Intel VAAPI, a 720p window, local stack; `TESTI
   RTX 3070 Ti, in `test_ffdec` with GL on NVIDIA's node. Not yet in the app with NVIDIA
   drawing the screen.
 
+- H265's cost beside a game: no more than H264 on NVENC. On Intel it took half the
+  game's frames until the share moved to the low-power encoder, where it costs the
+  same as H264 (`CALLS.md`, *Intel's low-power encoder*).
+
 ## To prove, in the app
 
-- H265's encoder cost beside a game.
-- NVENC and CUDA in the app: NVIDIA encoding the share, NVIDIA drawing the screen.
+- NVENC's moves in the app, and CUDA with NVIDIA drawing the screen.
+- Intel's low-power encoder on older drivers, and on GPUs before Alder Lake.
+- Windows' Quick Sync beside a game: it may have the same cost, and `low_power` there
+  is another option.
 - A real 1080p60 screen, a phone viewer, and Windows.
 - A Firefox share at 1440p dropping to VP9: Firefox caps VP8 and VP9 at about 3.1
   megapixels (`max-fs`), so it may be refused or scaled.
