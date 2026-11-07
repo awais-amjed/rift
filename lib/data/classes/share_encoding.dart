@@ -12,16 +12,21 @@ class ShareEncoding {
 
   /// The codec Auto sends.
   ///
-  /// H264 where the GPU encodes it, because it leaves the CPU to whatever is
-  /// being shared — usually a game. VP9 where sharpness was asked for: it
-  /// keeps text crisper at the same rate, and it is all a computer without a
-  /// GPU encoder has (H264 is never encoded on the CPU there).
+  /// H265 where the GPU encodes it, or else H264 where it does: either leaves
+  /// the CPU to whatever is being shared — usually a game — and H265 asks the
+  /// connection for less. A watcher who cannot play H265 brings the share down
+  /// to H264 by themselves (`ShareLadder`). VP9 where sharpness was asked for:
+  /// it keeps text crisper at the same rate, and it is all a computer without
+  /// a GPU encoder has (H264 is never encoded on the CPU there).
   static VideoCodec autoCodec({
     required SharePriority priority,
     required bool gpuH264,
-  }) => gpuH264 && priority != SharePriority.sharpness
-      ? VideoCodec.h264
-      : VideoCodec.vp9;
+    bool gpuH265 = false,
+  }) {
+    if (priority == SharePriority.sharpness) return VideoCodec.vp9;
+    if (gpuH265) return VideoCodec.h265;
+    return gpuH264 ? VideoCodec.h264 : VideoCodec.vp9;
+  }
 
   /// The most a share's VP9 needs at 60 fps, by height, in Mbps. 1080p is
   /// the 10 a share always started at.

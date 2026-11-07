@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:livekit_client/livekit_client.dart';
 
+import '../../src/rust/api/screenshare/types.dart';
 import 'video_stream_stats.dart';
 
 /// The state a client publishes about itself into a call.
@@ -29,6 +30,15 @@ class VoiceAttributes {
   /// The streams this client is watching, as a JSON list of share identities.
   static const watchingKey = 'watching';
 
+  /// The codecs this client can play of somebody's share, as a JSON list of
+  /// lower-case names, so a sharer can send what its watchers play
+  /// (`ShareLadder`). Sent from the start of the call, like [watchingKey].
+  static const playsKey = 'plays';
+
+  /// What a client that has not said plays: everything, except the H265 that
+  /// only a client new enough to say so can play.
+  static const playsUnsaid = {VideoCodec.h264, VideoCodec.vp9, VideoCodec.vp8};
+
   /// What to publish for a client that is (or is not) deafened, watching
   /// [watching]. Watching is always sent, even empty, so that the first value
   /// anyone sees is a baseline rather than a change — see `watchCues`.
@@ -36,11 +46,34 @@ class VoiceAttributes {
     required bool deafened,
     required Set<String> watching,
     required bool pushToTalkIdle,
+    required Set<VideoCodec> plays,
   }) => {
     deafenedKey: deafened ? 'true' : 'false',
     watchingKey: jsonEncode(watching.toList()..sort()),
     pushToTalkIdleKey: pushToTalkIdle ? 'true' : 'false',
+    playsKey: jsonEncode(plays.map((c) => c.name).toList()..sort()),
   };
+
+  /// The codecs [attributes] says it plays; [playsUnsaid] for a client from
+  /// before this was published, or anything unreadable. A name this build does
+  /// not know is a codec it cannot send, so it is passed over.
+  static Set<VideoCodec> playsOf(Map<String, String> attributes) {
+    final raw = attributes[playsKey];
+    if (raw == null || raw.isEmpty) return playsUnsaid;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return playsUnsaid;
+      return playsFromNames(decoded.whereType<String>());
+    } on FormatException {
+      return playsUnsaid;
+    }
+  }
+
+  /// [names] as codecs, leaving out any this build does not know.
+  static Set<VideoCodec> playsFromNames(Iterable<String> names) {
+    final known = VideoCodec.values.asNameMap();
+    return {for (final name in names) ?known[name.trim().toLowerCase()]};
+  }
 
   static bool isDeafened(Map<String, String> attributes) =>
       attributes[deafenedKey] == 'true';

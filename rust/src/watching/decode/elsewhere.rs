@@ -17,7 +17,6 @@ impl Gpu {
     }
 }
 
-#[cfg(test)]
 impl Gpu {
     pub(crate) fn decodes(&self, _codec: Codec) -> Option<bool> {
         match *self {}

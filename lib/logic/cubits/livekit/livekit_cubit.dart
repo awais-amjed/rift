@@ -53,6 +53,7 @@ import '../../services/sound_service.dart';
 import '../../services/soundboard_play.dart';
 import '../../services/speech_detector.dart';
 import '../../services/steady_clock.dart';
+import '../../services/viewer_codecs.dart';
 import '../../services/voice_attributes.dart';
 import '../../services/voice_keys.dart';
 import '../../services/voice_privacy.dart';
@@ -370,6 +371,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
     }).toList();
 
     _appCubit.setParticipants(ParticipantRoster.dedupeByUser(infos));
+    if (!speakingOnly) _tellShareItsWatchers(allParticipants);
     _syncSelfModeration(infos);
     _openWanted();
   }
@@ -714,6 +716,10 @@ class LiveKitCubit extends Cubit<LiveKitState>
   /// is watching the rest of the effects of.
   @override
   Future<void> _publishSelfState() async {
+    if (state.room?.localParticipant == null) return;
+    final plays = await ViewerCodecs.forCall(
+      rustWatchGaveOut: _rustWatchGaveOut,
+    );
     final local = state.room?.localParticipant;
     if (local == null) return;
     try {
@@ -722,6 +728,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
           deafened: state.isSelfDeafened,
           watching: state.subscribedScreenshares,
           pushToTalkIdle: _pushToTalkIdle,
+          plays: plays,
         ),
       );
     } catch (e) {
@@ -730,6 +737,23 @@ class LiveKitCubit extends Cubit<LiveKitState>
     // Our own row reads what we watch from the cubit, so a stream's watchers
     // include us as soon as we open it.
     if (!isClosed) _syncParticipants();
+  }
+
+  /// Who is watching this device's screen share and what each can play, for
+  /// the share's codec to follow (`ShareLadder`). Connection by connection, not
+  /// the roster's one row per person: somebody's laptop may play what their
+  /// phone cannot, and it may be the sharer's own phone that is watching.
+  void _tellShareItsWatchers(List<Participant> participants) {
+    final own = state.room?.localParticipant?.identity;
+    if (own == null || !ScreenshareCubit.changesQualityLive) return;
+    final share = '$own${ParticipantIdentity.screenshareSuffix}';
+    _screenshareCubit?.followWatchers([
+      for (final p in participants)
+        if (p is! LocalParticipant &&
+            !ParticipantIdentity.isShare(p.identity) &&
+            VoiceAttributes.watchingOf(p.attributes).contains(share))
+          (name: p.name, plays: VoiceAttributes.playsOf(p.attributes)),
+    ]);
   }
 
   /// What a sound share's track is called, which is the application it came

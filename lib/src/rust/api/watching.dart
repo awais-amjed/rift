@@ -82,6 +82,13 @@ Future<void> setWatchPicturesOn({required bool picturesOn}) => RustLib
 bool watchPlaysSound() =>
     RustLib.instance.api.crateApiWatchingWatchPlaysSound();
 
+/// Whether a share sent in H265 would reach the screen on this computer. A
+/// viewer says so to whoever shares (`plays`, in `VoiceAttributes`), and a
+/// share nobody here could decode steps down to something they can. Asks the
+/// driver, so not on the bridge's own thread.
+Future<bool> watchPlaysH265() =>
+    RustLib.instance.api.crateApiWatchingWatchPlaysH265();
+
 /// How loud [share_identity]'s sound plays: its own volume times the call's
 /// (1 is as sent, up to 8), or 0 while it is muted or this device deafened.
 /// Kept for a share whose sound has not arrived yet.

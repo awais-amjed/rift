@@ -15,6 +15,11 @@ class ScreenshareState extends Equatable {
   /// bitrate for this one.
   final VideoCodec? codec;
 
+  /// The best the running share may send: what was picked or Auto chose, or
+  /// less once the GPU has failed. Watchers may hold [codec] below it
+  /// (`ShareLadder`).
+  final VideoCodec? topCodec;
+
   /// What the server allowed this share, which a quality change is held to.
   final ServerLimits limits;
   final String? error;
@@ -27,6 +32,7 @@ class ScreenshareState extends Equatable {
     this.channelId,
     this.settings,
     this.codec,
+    this.topCodec,
     this.limits = const ServerLimits(),
     this.error,
     this.notice,
@@ -47,6 +53,7 @@ class ScreenshareState extends Equatable {
     String? channelId,
     ScreenShareSettings? settings,
     VideoCodec? codec,
+    VideoCodec? topCodec,
     ServerLimits? limits,
     String? error,
     bool clearChannelId = false,
@@ -61,6 +68,7 @@ class ScreenshareState extends Equatable {
       // describe, and go with them.
       settings: clearSettings ? null : (settings ?? this.settings),
       codec: clearSettings ? null : (codec ?? this.codec),
+      topCodec: clearSettings ? null : (topCodec ?? this.topCodec),
       limits: clearSettings ? const ServerLimits() : (limits ?? this.limits),
       error: clearError ? null : (error ?? this.error),
       notice: notice ?? this.notice,
@@ -73,6 +81,7 @@ class ScreenshareState extends Equatable {
     channelId,
     settings,
     codec,
+    topCodec,
     limits,
     error,
     notice,

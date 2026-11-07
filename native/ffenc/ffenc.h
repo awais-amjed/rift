@@ -28,7 +28,7 @@ extern "C" {
 
 // Bumped whenever a function or struct below changes, so the crate refuses a
 // library from another build instead of calling it wrongly.
-#define RIFT_FFENC_ABI 13
+#define RIFT_FFENC_ABI 14
 
 typedef struct RiftFfenc RiftFfenc;
 

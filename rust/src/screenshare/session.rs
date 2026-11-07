@@ -690,9 +690,13 @@ impl Video {
         // share on the GPU"): from Rift's own encoder, and as VP9 if it will
         // not open.
         #[cfg(gpu_encoder)]
-        if let Some(codec) = GpuCodec::for_share(settings.codec) {
+        while let Some(codec) = GpuCodec::for_share(settings.codec) {
             let target = gpu_target(target);
-            let published = if encoder::encodes_itself(codec) {
+            let published = if codec == GpuCodec::H265
+                && !server_takes_h265(&self.participant().enabled_publish_codecs())
+            {
+                Err("this server does not take H265".to_string())
+            } else if encoder::encodes_itself(codec) {
                 self.publish_from_gpu(target, codec, &settings).await
             } else {
                 Err(format!("no GPU here encodes {codec}"))
@@ -762,18 +766,26 @@ impl Video {
         Ok(sid)
     }
 
-    /// Give up on the GPU for the rest of this share, and say so.
+    /// Give up on this codec for the rest of this share, and say so: H265
+    /// for H264 from the same GPU, and H264 for VP9 on the CPU.
     #[cfg(gpu_encoder)]
     fn fall_back(&self, reason: &str) -> TrackSettings {
-        log::warn!("screenshare: {reason}; sharing as VP9 instead");
+        let from = self.settings.lock().unwrap().codec;
+        let (next, event) = if from == VideoCodec::H265 && encoder::encodes_itself(GpuCodec::H264) {
+            (VideoCodec::H264, ScreenshareEvent::H265FellBack)
+        } else {
+            (VideoCodec::VP9, ScreenshareEvent::EncoderFellBack)
+        };
+        log::warn!("screenshare: {reason}; sharing as {next:?} instead");
         let mut settings = self.settings.lock().unwrap();
-        settings.codec = VideoCodec::VP9;
-        crate::api::screenshare::emit_screenshare_event(ScreenshareEvent::EncoderFellBack);
+        settings.codec = next;
+        crate::api::screenshare::emit_screenshare_event(event);
         *settings
     }
 
     /// What the processing thread calls when the encoder stops working
-    /// mid-share: publish again as VP9, so the picture never stays black.
+    /// mid-share: publish again in the next codec down
+    /// ([`fall_back`](Self::fall_back)), so the picture never stays black.
     #[cfg(gpu_encoder)]
     fn on_gpu_failed(&self) -> Box<dyn Fn() + Send + Sync> {
         let me = self.me.clone();
@@ -797,6 +809,14 @@ impl Video {
 /// The size the GPU encodes a `target` at: the same, unless it is bigger than
 /// a hardware encoder takes, when it is scaled down to fit rather than going
 /// to VP9 on the CPU.
+/// Whether a server's list of the codecs it takes has H265 on it. One with
+/// H265 off, or too old to have it, does not refuse a track in H265: viewers
+/// just get no picture (`CALLS.md`, *Stepping a share down*).
+#[cfg(gpu_encoder)]
+fn server_takes_h265(codecs: &[String]) -> bool {
+    codecs.iter().any(|codec| codec == "video/h265")
+}
+
 #[cfg(gpu_encoder)]
 fn gpu_target(target: Size) -> Size {
     let fitted = fit_within(target, encoder::MAX_SIZE);
@@ -905,4 +925,17 @@ fn announce_paused(participant: SharedParticipant) -> Box<dyn Fn(bool) + Send> {
 async fn stop_capture(capture: Capture, reason: String) -> String {
     let _ = tokio::task::spawn_blocking(move || capture.stop()).await;
     reason
+}
+
+#[cfg(all(test, gpu_encoder))]
+mod tests {
+    use super::server_takes_h265;
+
+    #[test]
+    fn h265_goes_out_only_where_the_server_lists_it() {
+        let on = ["video/vp8".to_string(), "video/h265".to_string()];
+        assert!(server_takes_h265(&on));
+        assert!(!server_takes_h265(&on[..1]), "H265 off");
+        assert!(!server_takes_h265(&[]), "a server too old to say");
+    }
 }

@@ -225,6 +225,10 @@ enum ScreenshareEvent {
   /// H264 was asked for and the GPU could not encode it, at the start or
   /// part way through, so the share went out as VP9 instead.
   encoderFellBack,
+
+  /// H265 was asked for and could not go out, at the start or part way
+  /// through, so the share went out as H264 from the same GPU instead.
+  h265FellBack,
 }
 
 /// What a share gives up when the computer or the connection cannot keep up:

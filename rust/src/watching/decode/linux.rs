@@ -60,6 +60,7 @@ struct Api {
     receive: unsafe extern "C" fn(*mut c_void, *mut RawPicture) -> i32,
     release: unsafe extern "C" fn(*mut RawPicture),
     close: unsafe extern "C" fn(*mut c_void),
+    cuda_decodes: unsafe extern "C" fn(i32, *const c_char) -> i32,
     copy_to_gl: CopyToGl,
     gl_close: GlClose,
 }
@@ -78,6 +79,7 @@ fn api() -> Result<&'static Api, String> {
                 receive: symbol(library, "rift_ffdec_receive")?,
                 release: symbol(library, "rift_ffdec_release")?,
                 close: symbol(library, "rift_ffdec_close")?,
+                cuda_decodes: symbol(library, "rift_ffdec_cuda_decodes")?,
                 copy_to_gl: symbol(library, "rift_ffdec_copy_to_gl")?,
                 gl_close: symbol(library, "rift_ffdec_gl_close")?,
             })
@@ -85,6 +87,16 @@ fn api() -> Result<&'static Api, String> {
     })
     .as_ref()
     .map_err(Clone::clone)
+}
+
+/// `RiftFfdecCodec`.
+fn codec_number(codec: Codec) -> i32 {
+    match codec {
+        Codec::H264 => 1,
+        Codec::Vp8 => 2,
+        Codec::Vp9 => 3,
+        Codec::H265 => 4,
+    }
 }
 
 /// The GPU watched shares decode on.
@@ -109,13 +121,15 @@ impl Gpu {
     }
 }
 
-#[cfg(test)]
 impl Gpu {
-    /// Whether the driver says it decodes [codec], asked through libva:
-    /// `None` through CUDA, or when libva cannot be asked.
+    /// Whether the driver says it decodes [codec], asked through libva or
+    /// NVIDIA's decoder: `None` when it cannot be asked.
     pub(crate) fn decodes(&self, codec: Codec) -> Option<bool> {
         if self.cuda {
-            return None;
+            let node = CString::new(self.node.as_str()).ok()?;
+            // SAFETY: the node outlives the call, which only reads it.
+            let answer = unsafe { (api().ok()?.cuda_decodes)(codec_number(codec), node.as_ptr()) };
+            return (answer >= 0).then_some(answer > 0);
         }
         // va.h's VAProfile values for each codec, and VAEntrypointVLD.
         let profiles: &[i32] = match codec {
@@ -215,12 +229,7 @@ impl Decoder {
         let api = api()?;
         let device = CString::new(gpu.node.as_str()).map_err(|e| e.to_string())?;
         let config = Config {
-            codec: match codec {
-                Codec::H264 => 1,
-                Codec::Vp8 => 2,
-                Codec::Vp9 => 3,
-                Codec::H265 => 4,
-            },
+            codec: codec_number(codec),
             device: device.as_ptr(),
             api: if gpu.cuda { CUDA } else { VAAPI },
             d3d11_device: std::ptr::null_mut(),

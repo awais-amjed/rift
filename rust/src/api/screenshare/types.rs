@@ -133,6 +133,9 @@ pub enum ScreenshareEvent {
     /// H264 was asked for and the GPU could not encode it, at the start or
     /// part way through, so the share went out as VP9 instead.
     EncoderFellBack,
+    /// H265 was asked for and could not go out, at the start or part way
+    /// through, so the share went out as H264 from the same GPU instead.
+    H265FellBack,
 }
 
 const FPS_LIMIT: u32 = 240;

@@ -124,6 +124,14 @@ RIFT_FFENC_EXPORT void rift_ffdec_release(RiftFfdecPicture* picture);
 RIFT_FFENC_EXPORT void rift_ffdec_close(RiftFfdec* dec);
 
 #if defined(__linux__)
+// Whether NVIDIA's decoder on `node` takes 8-bit 4:2:0 in `codec`: 1 or 0, or
+// negative when it could not be asked. VAAPI's answer comes from libva, and
+// opening a decoder would not tell: only the first picture asks the GPU.
+RIFT_FFENC_EXPORT int32_t rift_ffdec_cuda_decodes(int32_t codec,
+                                                  const char* node);
+#endif
+
+#if defined(__linux__)
 // Two GL textures registered with CUDA, kept between pictures, since
 // registering costs far more than a copy.
 typedef struct RiftFfdecGl RiftFfdecGl;

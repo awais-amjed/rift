@@ -49,6 +49,18 @@ mixin _RustWatchMixin
   /// call's room goes: the next room may be on another server.
   bool _noWatchConnections = false;
 
+  /// The watch connection gave out in this call, so the call's own connection
+  /// may be what shows a share, and that plays no H265. It stays said for the
+  /// rest of the call: a GPU that fails on H265 would fail again, and take
+  /// everybody's picture through another step up and down to do it.
+  bool _rustWatchGaveOut = false;
+
+  void _noteRustWatchGaveOut() {
+    if (_rustWatchGaveOut) return;
+    _rustWatchGaveOut = true;
+    unawaited(_publishSelfState());
+  }
+
   /// The last closing of the watch connection. An opening waits for it: Rust
   /// takes a start and a stop in whichever order they reach it, and a stop
   /// overtaken by the start after it would close the new connection.
@@ -210,6 +222,7 @@ mixin _RustWatchMixin
     );
     _rustWatchRoom = null;
     _rustWatchOpening = null;
+    _noteRustWatchGaveOut();
     return false;
   }
 
@@ -240,6 +253,7 @@ mixin _RustWatchMixin
     HelperMethods.printDebug(
       '[LiveKit] watching through the call instead of Rust: $why',
     );
+    _noteRustWatchGaveOut();
     final held = state.watchedPictures.keys.toList();
     await _endRustWatch();
     final room = state.room;

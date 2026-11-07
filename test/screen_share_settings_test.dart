@@ -307,4 +307,48 @@ void main() {
         );
     expect(settings.selectedVideoSourcePid, isNull);
   });
+
+  group('H265', () {
+    const both = {VideoCodec.h264, VideoCodec.h265};
+    const h264Only = {VideoCodec.h264};
+    const chosen = ScreenShareSettings(codec: 'H265', codecChosen: true);
+
+    test('is read back by name', () {
+      expect(ScreenShareSettings.codecFromName('H265'), VideoCodec.h265);
+    });
+
+    test('is offered only where the GPU encodes it', () {
+      expect(
+        ScreenShareSettings.codecsOffered(gpuOnlyH264: true, gpu: both),
+        contains(VideoCodec.h265),
+      );
+      expect(
+        ScreenShareSettings.codecsOffered(gpuOnlyH264: true, gpu: h264Only),
+        isNot(contains(VideoCodec.h265)),
+      );
+    });
+
+    test('is what Auto sends where the GPU encodes it', () {
+      expect(
+        const ScreenShareSettings().codecToSend(gpuOnlyH264: true, gpu: both),
+        VideoCodec.h265,
+      );
+    });
+
+    test('picked by hand goes out as the next best where it cannot', () {
+      expect(chosen.codecToSend(gpuOnlyH264: true, gpu: both), VideoCodec.h265);
+      expect(
+        chosen.codecToSend(gpuOnlyH264: true, gpu: h264Only),
+        VideoCodec.h264,
+      );
+      expect(
+        chosen.codecToSend(gpuOnlyH264: true, gpu: const {}),
+        VideoCodec.vp9,
+      );
+      expect(
+        chosen.codecToSend(gpuOnlyH264: false, gpu: const {}),
+        VideoCodec.vp9,
+      );
+    });
+  });
 }

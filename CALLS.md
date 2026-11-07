@@ -692,7 +692,7 @@ what was driven are in `TESTING.md`).
   waiting out each one at the idle clocks NVIDIA's driver drops to a few
   seconds into a share had kept it near 87 fps, and with it the viewer got
   118.7, at one more picture of delay (8 ms).
-- **H265 works from the GPU to the GPU, and is not offered yet.** On game footage
+- **H265 from the GPU to the GPU.** On game footage
   at 10 Mbps it matched baseline H264 at 15, about 2 Mbps below what High asks, and
   it gains most on a tight upload (`docs/gpu-codecs/RESEARCH.md`). Rift's encoder
   makes it (FFmpeg's `hevc_*`, on the GPU that makes the share's H264) and its
@@ -703,8 +703,35 @@ what was driven are in `TESTING.md`).
   follows a moved rate as H264 does, on both GPUs, down to 150 kbps on Intel. Intel's
   rate control lets go only on a picture of pure noise asked below what it can
   cost (13 times the target at 1 Mbps, 640x360); `rate_gate.rs` holds that back
-  in a share. Nothing sends it until viewers say what they decode and a share can
-  step down for one who cannot (`docs/gpu-codecs/CODEC_LADDER.md`).
+  in a share. Auto sends it where the GPU encodes it, at 10 Mbps at 1080p60, unless
+  sharpness was asked for, which stays on VP9. A viewer who cannot play it brings
+  the share down (*Stepping a share down*, below).
+- **Stepping a share down.** A desktop share goes out as one stream, never a second
+  encode, in the best of H265, H264, VP9 and VP8, from what was picked or Auto chose
+  downwards, that everyone watching plays (`ShareLadder`). Each client publishes
+  what it plays from the start of a call, as the `plays` attribute: WebRTC is asked
+  about VP8, VP9 and H264, and only the Rust watch connection on a GPU that decodes
+  H265 adds that (`ViewerCodecs`). So phones and browsers do not say H265, and
+  neither does an old Rift, which says nothing and counts as everything but H265. A
+  watch connection that gives out in a call takes H265 off the list until the next
+  room, since the call's own connection has no decoder for it. Only those watching
+  count, connection by connection: somebody in the call who has not opened the
+  stream changes nothing. The share goes down at once and climbs back 30 s after
+  nobody needs the lower rung (`ShareRungFollow`), moving by republishing, as a
+  codec picked from the menu does, so the picture blinks. Auto's bitrate follows
+  the rung; one picked by hand stays. A codec that fails drops for the rest of the
+  share, H265 to H264 and H264 to VP9, unless one is picked by hand. A server with
+  H265 off (`room.enabled_codecs`; on by default since LiveKit 1.9.1) does not refuse
+  a track in H265: publishing succeeds, the server lists it as VP8, and no picture
+  reaches anyone. So the share reads the codecs from the join response and starts in
+  H264 there, with a note. Each move publishes a new track, and a viewer may hear of
+  the new track before the old one goes, so a watch connection lets a picture go only
+  if it came from the track that left, and judges "no picture" by the new track alone.
+  Driven Nov 7 2026 on Linux, Intel VAAPI, one 720p window: desktop to desktop in
+  H265, a web watcher down to H264 and back 30 s after, three times over, a server
+  with H265 off, and VP9 and VP8 from a test override. A Rust watcher's picture came
+  back about 0.8 s after a move down, 0.25 s after a climb; the web watcher's took
+  about 3 s. See `docs/gpu-codecs/CODEC_LADDER.md`.
 - **AV1 is parked.** AMD's encoder makes AV1 that WebRTC carries, but no viewer
   gets it encrypted: LiveKit's Rust SDK does not negotiate what the server needs
   to find an encrypted AV1 keyframe, and its JS SDK refuses to encrypt AV1. The

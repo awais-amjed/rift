@@ -105,4 +105,48 @@ void main() {
       expect(mbps(1200, 60, VideoCodec.vp9), inInclusiveRange(10, 15));
     });
   });
+
+  group('Auto with H265 on the GPU', () {
+    test('takes H265 for smoothness', () {
+      expect(
+        ShareEncoding.autoCodec(
+          priority: SharePriority.smoothness,
+          gpuH264: true,
+          gpuH265: true,
+        ),
+        VideoCodec.h265,
+      );
+    });
+
+    test('keeps VP9 for sharpness', () {
+      expect(
+        ShareEncoding.autoCodec(
+          priority: SharePriority.sharpness,
+          gpuH264: true,
+          gpuH265: true,
+        ),
+        VideoCodec.vp9,
+      );
+    });
+
+    test('asks 10 Mbps at 1080p60, where H264 High asks 12', () {
+      expect(
+        ShareEncoding.autoMbps(
+          resolution: 1080,
+          fps: 60,
+          codec: VideoCodec.h265,
+        ),
+        10,
+      );
+      expect(
+        ShareEncoding.autoMbps(
+          resolution: 1080,
+          fps: 60,
+          codec: VideoCodec.h264,
+          h264High: true,
+        ),
+        12,
+      );
+    });
+  });
 }

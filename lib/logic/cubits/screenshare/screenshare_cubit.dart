@@ -9,6 +9,7 @@ import 'package:flutter_webrtc/flutter_webrtc.dart' show Helper;
 import '../../../data/classes/notice.dart';
 import '../../../data/classes/screen_share_settings.dart';
 import '../../../data/classes/server_limits.dart';
+import '../../../data/classes/share_ladder.dart';
 import '../../../src/rust/api/screenshare.dart';
 import '../../../src/rust/api/screenshare/types.dart';
 import '../../helper_methods.dart';
@@ -18,11 +19,13 @@ import '../../services/host_platform.dart';
 import '../../services/phone_encoder_watch.dart';
 import '../../services/phone_encoders.dart';
 import '../../services/phone_share_publish.dart';
+import '../../services/share_rung_follow.dart';
 import '../livekit/livekit_cubit.dart';
 import 'share_attempt.dart';
 import 'stream_change_notice.dart';
 
 part 'screenshare_follow.dart';
+part 'screenshare_ladder.dart';
 part 'screenshare_state.dart';
 
 /// Cubit managing screen sharing.
@@ -36,7 +39,7 @@ part 'screenshare_state.dart';
 /// Android has MediaProjection, which libwebrtc does not expose a desktop
 /// capturer for at all — [_sdkCapturesScreen] is which of the two applies.
 class ScreenshareCubit extends Cubit<ScreenshareState>
-    with _ScreenshareFollowMixin {
+    with _ScreenshareFollowMixin, _ScreenshareLadderMixin {
   /// Whether the LiveKit SDK captures the screen here, rather than Rust.
   static bool get _sdkCapturesScreen => kIsWeb || HostPlatform.isMobile;
 
@@ -90,18 +93,37 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
           stopScreenShare();
         }
       case ScreenshareEvent.encoderFellBack:
-        // The share is still up; only how it is encoded changed.
-        if (state.isSharing) emit(state.copyWith(codec: VideoCodec.vp9));
-        emit(
-          state.copyWith(
-            notice: Notice.info(
-              'Sharing as VP9',
-              'Your graphics card could not encode H264 this time.',
-            ),
-          ),
+        _fellBackTo(
+          VideoCodec.vp9,
+          'Your graphics card could not encode H264 this time.',
         );
+      case ScreenshareEvent.h265FellBack:
+        _fellBackTo(VideoCodec.h264, 'H265 could not go out this time.');
     }
   }
+
+  /// A codec that failed partway through a share, or while it was starting,
+  /// when it is not known to be running yet. Nothing above this goes out for
+  /// the rest of the share, unless a codec is picked by hand.
+  void _fellBackTo(VideoCodec codec, String why) {
+    // The share is still up; only how it is encoded changed.
+    if (state.isSharing) {
+      emit(state.copyWith(codec: codec, topCodec: codec));
+    } else {
+      _fellBackWhileStarting = codec;
+    }
+    emit(
+      state.copyWith(
+        notice: Notice.info(
+          'Sharing as ${ScreenShareSettings.nameOf(codec)}',
+          why,
+        ),
+      ),
+    );
+  }
+
+  /// See [_fellBackTo]. Read when the share comes up.
+  VideoCodec? _fellBackWhileStarting;
 
   /// A press of Share. Null while a share is starting, running or stopping,
   /// when there is nothing a press could start. Otherwise the press takes over
@@ -346,18 +368,22 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
       e2EeKeyIndex: encryption.index,
     );
 
+    _fellBackWhileStarting = null;
     final result = await startScreenshare(config: config);
     HelperMethods.printDebug('✓ Rust connection result: $result');
 
+    final sent = _fellBackWhileStarting ?? codec;
     emit(
       state.copyWith(
         status: ScreenshareStatus.sharing,
         channelId: channelId,
         settings: settings.copyWith(fps: fps),
-        codec: codec,
+        codec: sent,
+        topCodec: sent,
         limits: allowed,
       ),
     );
+    _followRung();
     await _endIfCallGone(channelId);
   }
 
@@ -392,7 +418,11 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
     );
     // A picture too big for 120 fps takes 60 with it.
     final wanted = asked.copyWith(fps: asked.fpsToSend);
-    final wantedCodec = codec ?? state.codec ?? wanted.videoCodec;
+    // A codec picked by hand is the new top, and those watching may still
+    // hold the share below it. Anything else leaves it where it stands.
+    final wantedCodec = codec != null
+        ? ShareLadder.rungFor(top: codec, watchers: _watchers)
+        : state.codec ?? wanted.videoCodec;
     try {
       final applied = await updateScreenshare(
         quality: ShareQuality(
@@ -415,7 +445,13 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
         codec: codec == null ? null : ScreenShareSettings.nameOf(codec),
         codecChosen: codec == null ? null : true,
       );
-      emit(state.copyWith(settings: now, codec: applied.codec));
+      emit(
+        state.copyWith(
+          settings: now,
+          codec: applied.codec,
+          topCodec: codec == wantedCodec ? applied.codec : codec,
+        ),
+      );
       if (wanted.shareAudio && !applied.shareAudio) {
         emit(
           state.copyWith(
@@ -425,20 +461,16 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
             ),
           ),
         );
+      } else if (codec != null && applied.codec == wantedCodec) {
+        if (wantedCodec != codec) {
+          emit(state.copyWith(notice: _steppedDownNotice(wantedCodec)));
+        } else {
+          _noteChange(now, current, fps, shareAudio, codecChanged: true);
+        }
       } else if (applied.codec == wantedCodec) {
-        final notice = streamChangeNotice(
-          now: now,
-          fpsChanged: fps != null,
-          fpsLowered: fps == null && now.fps < current.fps,
-          codecChanged: codec != null,
-          soundChanged: shareAudio != null,
-        );
-        emit(
-          state.copyWith(
-            notice: Notice.success(notice.title, notice.description),
-          ),
-        );
+        _noteChange(now, current, fps, shareAudio, codecChanged: false);
       }
+      _followRung();
       return now;
     } catch (e) {
       HelperMethods.printDebug('✗ Screen share change error: $e');
@@ -454,11 +486,31 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
     }
   }
 
+  void _noteChange(
+    ScreenShareSettings now,
+    ScreenShareSettings before,
+    int? fps,
+    bool? shareAudio, {
+    required bool codecChanged,
+  }) {
+    final notice = streamChangeNotice(
+      now: now,
+      fpsChanged: fps != null,
+      fpsLowered: fps == null && now.fps < before.fps,
+      codecChanged: codecChanged,
+      soundChanged: shareAudio != null,
+    );
+    emit(
+      state.copyWith(notice: Notice.success(notice.title, notice.description)),
+    );
+  }
+
   /// Stops screen sharing.
   @override
   Future<void> stopScreenShare() async {
     if (state.status != ScreenshareStatus.sharing) return;
 
+    _rungFollow.cancel();
     emit(state.copyWith(status: ScreenshareStatus.stopping));
 
     try {
@@ -512,6 +564,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
   Future<void> close() async {
     await _eventSub?.cancel();
     _encoderWatch?.stop();
+    _rungFollow.cancel();
     return super.close();
   }
 }

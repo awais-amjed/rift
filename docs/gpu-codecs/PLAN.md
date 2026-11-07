@@ -202,9 +202,10 @@ step can take from our own code and from open source projects: `REUSE.md`.
    - The passthrough encoder advertises the new formats.
    - Check H265's encryption-readable bytes, as `with_readable_pps_id` does for H264.
      Done Nov 7 2026: H265 needs no rewrite (`CALLS.md`). Encoder, decoder and the
-     fork's pass-through are built; the ladder and the share dialog remain.
+     fork's pass-through are built, and the ladder and the share dialog are driven in
+     the app on Linux (`CODEC_LADDER.md`).
    - The codec ladder comes back: viewers publish `plays`, and the share steps down
-     to what every watcher plays (the parked switch-down spec).
+     to what every watcher plays (`CODEC_LADDER.md`).
    - AV1 needs LiveKit's AV1 encryption on both ends, so it reaches Rift desktops
      only.
    - Patents: H265 by the GPU only, as H264. FFmpeg's hevc decoder still ships its

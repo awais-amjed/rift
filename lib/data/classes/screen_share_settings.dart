@@ -34,7 +34,7 @@ class ScreenShareSettings extends Equatable {
 
   /// X11: the chosen window's app, which a remembered sound is kept under.
   final String? selectedVideoSourceAppId;
-  final String codec; // "VP8", "H264" or "VP9", as the picker shows it
+  final String codec; // "VP8", "H264", "H265" or "VP9", as the picker shows it
 
   /// Whether [codec] was picked by hand. One that was not is Auto, which
   /// follows the hardware and the priority (see [codecToSend]).
@@ -145,6 +145,7 @@ class ScreenShareSettings extends Equatable {
 
   static VideoCodec codecFromName(String name) => switch (name.toUpperCase()) {
     'H264' => VideoCodec.h264,
+    'H265' => VideoCodec.h265,
     'VP8' => VideoCodec.vp8,
     'VP9' => VideoCodec.vp9,
     _ => defaultCodec,
@@ -152,13 +153,15 @@ class ScreenShareSettings extends Equatable {
 
   /// The codecs the picker offers besides Auto. Where H264 is only ever
   /// encoded on the GPU ([gpuOnlyH264]), it is offered only if the GPU
-  /// encodes it ([gpu]); VP8 and VP9 are always there, encoded on the CPU.
+  /// encodes it ([gpu]), and H265 only ever comes from there; VP8 and VP9 are
+  /// always there, encoded on the CPU.
   static List<VideoCodec> codecsOffered({
     required bool gpuOnlyH264,
     required Set<VideoCodec> gpu,
   }) => [
     VideoCodec.vp8,
     if (!gpuOnlyH264 || gpu.contains(VideoCodec.h264)) VideoCodec.h264,
+    if (gpu.contains(VideoCodec.h265)) VideoCodec.h265,
     VideoCodec.vp9,
   ];
 
@@ -166,19 +169,28 @@ class ScreenShareSettings extends Equatable {
   ///
   /// Auto ([codecChosen] false) is [ShareEncoding.autoCodec]: H264 only where
   /// it is only ever encoded on the GPU ([gpuOnlyH264]) and the GPU encodes
-  /// it, since elsewhere nothing says a hardware encoder is there. A codec
-  /// picked by hand is sent as picked, except an H264 with no GPU to encode
-  /// it where it is GPU-only: that goes out as VP9, rather than as H264
-  /// encoded on the CPU.
+  /// it, since elsewhere nothing says a hardware encoder is there, and H265
+  /// where the GPU encodes that too. A codec picked by hand is sent as picked,
+  /// except an H264 with no GPU to encode it where it is GPU-only: that goes
+  /// out as VP9, rather than as H264 encoded on the CPU. A saved H265 the GPU
+  /// here does not encode goes out as the next best of the two.
   VideoCodec codecToSend({
     required bool gpuOnlyH264,
     required Set<VideoCodec> gpu,
   }) {
     final gpuH264 = gpuOnlyH264 && gpu.contains(VideoCodec.h264);
+    final gpuH265 = gpuH264 && gpu.contains(VideoCodec.h265);
     if (!codecChosen) {
-      return ShareEncoding.autoCodec(priority: priority, gpuH264: gpuH264);
+      return ShareEncoding.autoCodec(
+        priority: priority,
+        gpuH264: gpuH264,
+        gpuH265: gpuH265,
+      );
     }
     final saved = codecFromName(codec);
+    if (saved == VideoCodec.h265 && !gpuH265) {
+      return gpuH264 ? VideoCodec.h264 : VideoCodec.vp9;
+    }
     if (gpuOnlyH264 && saved == VideoCodec.h264 && !gpuH264) {
       return VideoCodec.vp9;
     }

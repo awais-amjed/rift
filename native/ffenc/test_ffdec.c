@@ -268,6 +268,11 @@ int main(int argc, char** argv) {
       .device = node,
       .api = cuda ? RIFT_FFDEC_CUDA : RIFT_FFDEC_VAAPI,
   };
+  // NVIDIA's own answer agrees with what is about to decode here.
+  if (cuda) {
+    CHECK(rift_ffdec_cuda_decodes(dec_config.codec, node) == 1,
+          "NVIDIA says it does not decode this codec");
+  }
   RiftFfdec* dec = rift_ffdec_open(&dec_config, error, sizeof error);
   if (!dec) {
     fprintf(stderr, "no %s decoder on %s: %s\n", way, node, error);

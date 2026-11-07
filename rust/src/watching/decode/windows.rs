@@ -182,7 +182,6 @@ impl Gpu {
     /// Whether the GPU decodes [codec]: asked of its decoder at start, so
     /// always an answer. VP8 never: no GPU offers it through D3D11, and
     /// FFmpeg has no hwaccel for it.
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn decodes(&self, codec: Codec) -> Option<bool> {
         Some(match codec {
             Codec::H264 => self.h264,

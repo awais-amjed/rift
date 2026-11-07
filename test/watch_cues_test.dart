@@ -99,6 +99,7 @@ void main() {
         deafened: false,
         watching: {theirStream, myStream},
         pushToTalkIdle: false,
+        plays: const {},
       );
       expect(VoiceAttributes.watchingOf(attrs), {myStream, theirStream});
     });
@@ -109,6 +110,7 @@ void main() {
           deafened: false,
           watching: {},
           pushToTalkIdle: up,
+          plays: const {},
         ),
       );
       expect(idle(true), isTrue);
@@ -122,6 +124,7 @@ void main() {
         deafened: false,
         watching: {},
         pushToTalkIdle: false,
+        plays: const {},
       );
       expect(attrs.containsKey(VoiceAttributes.watchingKey), isTrue);
       expect(VoiceAttributes.watchingOf(attrs), isEmpty);

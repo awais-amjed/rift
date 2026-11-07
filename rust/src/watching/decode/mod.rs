@@ -121,6 +121,14 @@ pub(crate) fn gpu() -> Option<&'static Gpu> {
     GPU.get()?.as_ref()
 }
 
+/// Whether a share in H265 would reach the screen here: the GPU that watched
+/// shares decode on says it decodes H265, and the runner draws that GPU's
+/// pictures. Nothing else here plays H265: the call's own connection has no
+/// decoder for it, nor has libwebrtc's on this connection.
+pub(crate) fn plays_h265() -> bool {
+    gpu().is_some_and(|gpu| gpu.drawn_by_runner() && gpu.decodes(Codec::H265) == Some(true))
+}
+
 /// A share's picture being decoded. Dropped, it stops: the thread ends at
 /// its next frame or wait.
 pub(crate) struct Feed {

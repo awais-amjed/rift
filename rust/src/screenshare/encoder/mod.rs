@@ -66,15 +66,19 @@ impl std::fmt::Display for GpuCodec {
     }
 }
 
-/// The codecs this computer's GPU can make a share in: H264 where FFmpeg
-/// opens one of its GPU encoders (`ffmpeg::opens`, asked once). Without one
-/// LiveKit would make H264 with OpenH264 on the CPU, which Rift never does.
+/// The codecs this computer's GPU can make a share in: each where FFmpeg opens
+/// one of its GPU encoders (`ffmpeg::opens`, asked once). Without one LiveKit
+/// would make H264 with OpenH264 on the CPU, which Rift never does. H265 is
+/// only asked of the GPU that makes the H264, so it needs that too.
 pub(crate) fn gpu_codecs() -> Vec<VideoCodec> {
-    if encodes_itself(GpuCodec::H264) {
-        vec![VideoCodec::H264]
-    } else {
-        Vec::new()
+    if !encodes_itself(GpuCodec::H264) {
+        return Vec::new();
     }
+    let mut codecs = vec![VideoCodec::H264];
+    if encodes_itself(GpuCodec::H265) {
+        codecs.push(VideoCodec::H265);
+    }
+    codecs
 }
 
 /// Whether a share in `codec` is encoded by Rift's own GPU encoder here:

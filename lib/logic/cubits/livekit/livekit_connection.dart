@@ -31,6 +31,9 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
   /// it cannot see for itself.
   Future<void> _publishSelfState();
 
+  /// See `_RustWatchMixin`: starts over with each room.
+  set _rustWatchGaveOut(bool gaveOut);
+
   /// Implemented by [_MediaControlsMixin]; needed here so the call
   /// notification's Mute button has something to press.
   Future<void> toggleMicrophone();
@@ -396,6 +399,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       unawaited(SoundService.instance.play(AppSound.presence));
       // Joining already deafened is a state nobody else can see unless it is
       // said — and rejoining while deafened is exactly what a reconnect does.
+      _rustWatchGaveOut = false;
       unawaited(_publishSelfState());
       _syncParticipants();
       _applyStoredSettings();

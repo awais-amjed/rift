@@ -339,6 +339,57 @@ failed:
 
 const char* rift_ffdec_driver(const RiftFfdec* dec) { return dec->driver; }
 
+#if defined(__linux__)
+int32_t rift_ffdec_cuda_decodes(int32_t codec, const char* node) {
+  cudaVideoCodec asked;
+  switch (codec) {
+    case RIFT_FFDEC_H264:
+      asked = cudaVideoCodec_H264;
+      break;
+    case RIFT_FFDEC_VP8:
+      asked = cudaVideoCodec_VP8;
+      break;
+    case RIFT_FFDEC_VP9:
+      asked = cudaVideoCodec_VP9;
+      break;
+    case RIFT_FFDEC_H265:
+      asked = cudaVideoCodec_HEVC;
+      break;
+    default:
+      return -1;
+  }
+  CudaFunctions* cu = NULL;
+  CuvidFunctions* cuvid = NULL;
+  int32_t answer = -1;
+  if (cuda_load_functions(&cu, NULL) < 0) return -1;
+  if (cuvid_load_functions(&cuvid, NULL) < 0) goto unloaded;
+  CUdevice device = 0;
+  CUcontext context = NULL;
+  if (cu->cuInit(0) != CUDA_SUCCESS ||
+      (node && rift_ff_cuda_device(cu, node, &device) != CUDA_SUCCESS) ||
+      cu->cuDevicePrimaryCtxRetain(&context, device) != CUDA_SUCCESS) {
+    goto unloaded;
+  }
+  if (cu->cuCtxPushCurrent(context) == CUDA_SUCCESS) {
+    CUVIDDECODECAPS caps = {
+        .eCodecType = asked,
+        .eChromaFormat = cudaVideoChromaFormat_420,
+        .nBitDepthMinus8 = 0,
+    };
+    if (cuvid->cuvidGetDecoderCaps(&caps) == CUDA_SUCCESS) {
+      answer = caps.bIsSupported ? 1 : 0;
+    }
+    CUcontext popped;
+    cu->cuCtxPopCurrent(&popped);
+  }
+  cu->cuDevicePrimaryCtxRelease(device);
+unloaded:
+  cuvid_free_functions(&cuvid);
+  cuda_free_functions(&cu);
+  return answer;
+}
+#endif
+
 int32_t rift_ffdec_send(RiftFfdec* dec, const uint8_t* data, size_t len,
                         int64_t timestamp_us) {
   if (dec->no_gpu_decoder) return AVERROR(ENOSYS);
