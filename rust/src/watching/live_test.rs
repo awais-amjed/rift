@@ -74,7 +74,7 @@ const HEIGHT: u32 = 360;
 const FPS: u32 = 30;
 const SHADE: u8 = 200;
 
-static MARKS: [AtomicU64; 8] = [const { AtomicU64::new(0) }; 8];
+static MARKS: [AtomicU64; 9] = [const { AtomicU64::new(0) }; 9];
 
 unsafe extern "C" fn count_mark(texture: u64) {
     MARKS[texture as usize].fetch_add(1, Ordering::SeqCst);
@@ -181,7 +181,9 @@ impl Share {
     ) -> Share {
         #[cfg(gpu_encoder)]
         if codec == VideoCodec::H264 {
-            return Share::start_gpu_h264(server, room_name, identity, key, index).await;
+            use crate::screenshare::encoder::SEND_H264_HIGH;
+            return Share::start_gpu_h264(server, room_name, identity, key, index, SEND_H264_HIGH)
+                .await;
         }
         let room = room::connect(
             &server.url,
@@ -203,6 +205,7 @@ impl Share {
         identity: &str,
         key: &[u8],
         index: i32,
+        high: bool,
     ) -> Share {
         use crate::screenshare::encoder::{EncoderSettings, GpuCodec, GpuEncoder, Nv12Frame};
         use crate::screenshare::gpu_live_test::ToSource;
@@ -227,7 +230,7 @@ impl Share {
                 fps: FPS,
                 max_bitrate_bps: 2_000_000,
                 start_bitrate_bps: 2_000_000,
-                h264_high: false,
+                h264_high: high,
                 gpu_capture: true,
             },
             Box::new(ToSource(source.clone())),
@@ -242,6 +245,7 @@ impl Share {
                     source: TrackSource::Screenshare,
                     video_codec: VideoCodec::H264,
                     video_encoder: VideoEncoderBackend::PreEncoded,
+                    h264_high: high,
                     simulcast: false,
                     video_encoding: Some(VideoEncoding {
                         max_bitrate: 2_000_000,
@@ -1203,25 +1207,35 @@ async fn live_gpu_watch_decodes_each_codec_on_the_gpu() {
     let key = shared_key();
     let share_identity = "member~desk_share";
 
-    for (texture, codec) in [
-        (5, VideoCodec::VP8),
-        (6, VideoCodec::VP9),
-        (7, VideoCodec::H264),
+    // H264 in both profiles: a share sends High, and a sharer on an older
+    // version sends constrained baseline.
+    for (texture, codec, high) in [
+        (5, VideoCodec::VP8, None),
+        (6, VideoCodec::VP9, None),
+        (7, VideoCodec::H264, Some(false)),
+        (8, VideoCodec::H264, Some(true)),
     ] {
         let name = room_name(&format!("gpu-{}", codec.as_str()));
         let voice = start_watching(&server, &name, key.clone(), KEY_INDEX).await;
         session::watch(share_identity.to_string(), texture, mark_address(), true)
             .await
             .expect("watches");
-        let share = Share::start_in(
-            &server,
-            &name,
-            share_identity,
-            &key,
-            KEY_INDEX,
-            codec.clone(),
-        )
-        .await;
+        let share = match high {
+            Some(high) => {
+                Share::start_gpu_h264(&server, &name, share_identity, &key, KEY_INDEX, high).await
+            }
+            None => {
+                Share::start_in(
+                    &server,
+                    &name,
+                    share_identity,
+                    &key,
+                    KEY_INDEX,
+                    codec.clone(),
+                )
+                .await
+            }
+        };
 
         // A codec the driver says it lacks (AMD has no VP8 decoder) must
         // fail in that named way, which sends the app back to the call's
@@ -1256,7 +1270,14 @@ async fn live_gpu_watch_decodes_each_codec_on_the_gpu() {
         let from = marks(texture);
         tokio::time::sleep(Duration::from_secs(3)).await;
         let got = marks(texture) - from;
-        log::info!("gpu watch test: {codec:?}, {got} pictures in 3 s");
+        log::info!("gpu watch test: {codec:?}, high {high:?}, {got} pictures in 3 s");
+        if let Some(high) = high {
+            assert_eq!(
+                crate::screenshare::gpu_live_test::SENT_PROFILE.load(Ordering::Relaxed),
+                if high { 100 } else { 66 },
+                "the SPS sent"
+            );
+        }
         assert!(
             got >= u64::from(FPS * 3) * 8 / 10,
             "{codec:?}: {got} pictures in 3 s at {FPS} a second"

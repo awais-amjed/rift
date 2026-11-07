@@ -34,9 +34,10 @@ class ShareEncoding {
     2160: 25,
   };
 
-  /// What the other codecs need for the same picture. H264's constrained
-  /// baseline, the profile a GPU share is held to, needs about half as much
-  /// again as VP9; VP8 a little less than that.
+  /// What the other codecs need for the same picture. H264 needs about half
+  /// as much again as VP9, measured on constrained baseline, which a phone
+  /// still sends; a desktop's High needs less and gets the same, so its
+  /// picture is sharper for it. VP8 a little less than that.
   static double _codecFactor(VideoCodec codec) => switch (codec) {
     VideoCodec.vp9 => 1.0,
     VideoCodec.vp8 => 1.3,

@@ -94,6 +94,17 @@ impl GpuEncoder {
         settings: EncoderSettings,
         sink: Box<dyn EncodedSink>,
     ) -> Result<GpuEncoder, String> {
+        log::info!(
+            "encoder: {:?} at {}x{}, H264 in {}",
+            settings.codec,
+            settings.width,
+            settings.height,
+            if settings.h264_high {
+                "High"
+            } else {
+                "baseline"
+            }
+        );
         GpuEncoder::start(settings, sink, ffmpeg::open)
     }
 }
@@ -129,13 +140,11 @@ pub(crate) const MAX_SIZE: Size = Size {
 /// faster from a picture than from nothing.
 const MIN_BITRATE_BPS: u32 = 150_000;
 
-/// Whether a GPU share's H264 goes out in High profile. Off since Oct 29
-/// 2026: at a share's own rate High buys little (NVENC sent the same at
-/// 15 Mbps), and a viewer decoding on the CPU, as every desktop one does,
-/// pays 33 to 50% more for it. High itself works and stays tested
-/// (`gpu_live_test.rs`); turn it on again once viewers decode on the GPU
-/// (CALLS.md, "H264 in High profile").
-pub(crate) const SEND_H264_HIGH: bool = false;
+/// Whether a GPU share's H264 goes out in High profile. Off from Oct 29 to
+/// Nov 7 2026, while every desktop viewer decoded on the CPU and paid 33 to
+/// 50% more for it; on again now that viewers decode on the GPU, where it
+/// costs them about nothing (CALLS.md, "H264 in High profile").
+pub(crate) const SEND_H264_HIGH: bool = true;
 
 /// What the encoder is opened for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

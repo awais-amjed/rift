@@ -215,3 +215,12 @@ so shares go out as constrained baseline and the `h264-high` rung is gone.
 What remains is H264 → VP9 → VP8 for a viewer without H264 or VP9; none of
 the players tried lacks either. Build it small, or park it until one turns up:
 the owner's call.
+
+## Nov 7: High on again, H265 wanted
+
+Now that viewers decode on the GPU, the owner turned High back on (`CALLS.md`,
+*H264 in High profile*), and asked for H265 where a GPU can play it. So the lines
+above that rule H265 out for sending, and those from Oct 29 that drop High, no
+longer stand. Firefox still plays High, so this page's opening is wrong about it.
+What H265 needs from this ladder is viewers saying what their GPU can decode,
+and to be designed again with the owner before it is built.

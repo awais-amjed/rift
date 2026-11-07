@@ -43,7 +43,7 @@ static UNREADABLE_KEYFRAMES: std::sync::atomic::AtomicU32 = std::sync::atomic::A
 
 /// The `profile_idc` of the last SPS the GPU encoder sent: 100 is High, 66
 /// baseline.
-static SENT_PROFILE: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
+pub(crate) static SENT_PROFILE: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
 
 impl EncodedSink for ToSource {
     fn deliver(&mut self, frame: Encoded<'_>) {

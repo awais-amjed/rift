@@ -698,9 +698,8 @@ what was driven are in `TESTING.md`).
   to find an encrypted AV1 keyframe, and its JS SDK refuses to encrypt AV1. The
   encoder keeps AV1, with a live test that says when that changes. The full
   notes, including the AV1 findings, are kept on the `gpu-encoding` branch.
-- **GPU H264 goes out as constrained baseline.** High is built and tested
-  but off (below): at a share's own rate it buys little, and every desktop
-  viewer pays for it on the CPU.
+- **GPU H264 goes out in High profile** (below). A viewer decoding on the GPU
+  pays nothing for it, and one still on the CPU pays more.
 - **What LiveKit's encryption leaves readable has to be enough.** Its frame
   cryptor leaves an H264 frame's bytes up to the first slice in the clear and
   authenticates them, plus that slice's NAL header and the byte after it, and
@@ -749,22 +748,32 @@ what was driven are in `TESTING.md`).
   on, where a picture left out changes nothing on screen. So the buffer stays
   at one second.
 
-### H264 in High profile — [Implemented October 2026, off since Oct 29]
+### H264 in High profile — [Implemented October 2026, off Oct 29 to Nov 7 2026]
 
-A GPU share's H264 can go out in High profile instead of constrained
-baseline: with no B-frames it adds CABAC and 8x8 transforms, which measured
-12 to 20% less rate at the same quality on motion and about 30% on text
-(Oct 19 2026, Intel VAAPI with `ffenc.c`'s settings, offline). Decoding it
-costs a viewer's CPU 20 to 55% more.
+A GPU share's H264 goes out in High profile instead of constrained baseline:
+with no B-frames it adds CABAC and 8x8 transforms, which measured 12 to 20%
+less rate at the same quality on motion and about 30% on text (Oct 19 2026,
+Intel VAAPI with `ffenc.c`'s settings, offline). A share runs at the rate its
+sharer picked, so High does not save upload; it can only sharpen the picture at
+that rate, and at the default 15 Mbps for 1080p60 there can be little left to
+sharpen: NVENC sent the same in High as in baseline, at its quality floor, and
+Quick Sync 10% less (Windows, Oct 28).
 
-It is off (`encoder::SEND_H264_HIGH`, Oct 29 2026). A share runs at the
-rate its sharer picked, so High does not save upload; it can only sharpen
-the picture at that rate, and at the default 15 Mbps for 1080p60 there was
-little left to sharpen: NVENC sent the same in High as in baseline, at its
-quality floor, and Quick Sync 10% less (Windows, Oct 28). Every desktop
-viewer decodes on the CPU, and paid 33% more for the clip in High, 50% at
-its full rate. Worth turning on again once desktop viewers decode on the GPU,
-or for a share whose rate is tight. With it on, the encoder is asked for it (`EncoderSettings::h264_high`,
+It was off while every desktop viewer decoded on the CPU, and came back
+(`encoder::SEND_H264_HIGH`) once they decode on the GPU, where it costs no more
+CPU. Nov 7 2026, the same 10-second 600-picture clips on the laptop, no remote
+desktop connected, best of three, CPU seconds, baseline then High:
+
+| Clip | VAAPI (Iris Xe) | NVDEC (RTX 3070 Ti) | Software, one thread |
+|---|---|---|---|
+| Text, 4 Mbps | 0.17, 0.17 | 0.17, 0.16 | 0.55, 0.66 (+20%) |
+| Zoom, 12 Mbps | 0.18, 0.18 | 0.18, 0.18 | 1.27, 2.12 (+67%) |
+| Mixed, 6 Mbps | 0.17, 0.17 | 0.17, 0.17 | 0.83, 1.20 (+45%) |
+
+That is FFmpeg alone, not the app, and the decoder chip's own load was not
+measured. A viewer with no working GPU decoder, or on a server without watch
+tokens, still decodes in software through the call's connection and pays that
+extra, along with what it pays to draw. The encoder is asked for it (`EncoderSettings::h264_high`,
 the library's `high`), and the track is published offering High alone
 (`TrackPublishOptions::h264_high`, a patch in our LiveKit fork, its
 `RIFT.md`), because the server answers in its own order, which puts
@@ -789,7 +798,12 @@ a High share the same day: a Linux desktop, Chrome on the web, and an Android
 phone (Exynos) on its hardware decoder, though that phone's WebRTC lists only
 constrained baseline among its H264 decoders. Windows did the same on NVENC
 and Quick Sync, sharing and watching, and a Windows Rift without the change
-played a High share. AMD's AMF is not yet driven.
+played a High share. AMD's AMF is not yet driven. On Nov 7 2026
+`live_gpu_watch_decodes_each_codec_on_the_gpu` decoded a High share on Intel
+VAAPI at the rate sent, encrypted, with NVENC and with VAAPI encoding it, and
+the app did the same: Dave shared a window from VAAPI, its log saying High, and
+Cara's said it decoded H264 on the Intel driver, the owner seeing a good
+picture. NVDEC in the app, and Windows's D3D11 decoding, are not yet driven with High.
 
 ## Starting to watch through the call — [Implemented November 2026]
 
