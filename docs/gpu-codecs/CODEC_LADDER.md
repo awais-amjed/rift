@@ -19,6 +19,10 @@ a weak PC cannot afford a second encode.
   (about 1.5 cores at 1080p60) and may cost a game frames (owner, Oct 29).
 - Someone in the call who is not watching must not pull the share down.
 - Never above what the sharer picked. A hand-picked VP9 only ever drops to VP8.
+- A Rift desktop that would have to decode H264 on the CPU says it does not play it, so
+  the share goes to VP9 for it (owner, Nov 7). H264 is only ever hardware's business in
+  Rift: encoding has been GPU only all along. Phones and browsers use the system's or
+  the browser's decoder and say what WebRTC lists.
 - No `h264-high` rung. Firefox plays High though it lists only baseline, in the one
   browser tried, on Linux (Oct 29). Should one be found that refuses High, it comes
   back then.

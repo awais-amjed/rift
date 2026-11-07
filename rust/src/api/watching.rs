@@ -224,14 +224,35 @@ pub fn watch_plays_sound() -> bool {
 /// share nobody here could decode steps down to something they can. Asks the
 /// driver, so not on the bridge's own thread.
 pub async fn watch_plays_h265() -> bool {
+    plays_on_gpu(GpuPlayed::H265).await
+}
+
+/// The same for H264: a viewer that would have to decode it on the CPU says it
+/// does not play it, and the share steps down to VP9.
+pub async fn watch_plays_h264() -> bool {
+    plays_on_gpu(GpuPlayed::H264).await
+}
+
+enum GpuPlayed {
+    H264,
+    H265,
+}
+
+async fn plays_on_gpu(codec: GpuPlayed) -> bool {
     #[cfg(desktop)]
     {
-        tokio::task::spawn_blocking(crate::watching::decode::plays_h265)
+        use crate::watching::decode::{plays_on_gpu, Codec};
+        let codec = match codec {
+            GpuPlayed::H264 => Codec::H264,
+            GpuPlayed::H265 => Codec::H265,
+        };
+        tokio::task::spawn_blocking(move || plays_on_gpu(codec))
             .await
             .unwrap_or(false)
     }
     #[cfg(not(desktop))]
     {
+        let _ = codec;
         false
     }
 }

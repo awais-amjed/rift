@@ -722,11 +722,17 @@ what was driven are in `TESTING.md`).
   encode, in the best of H265, H264, VP9 and VP8, from what was picked or Auto chose
   downwards, that everyone watching plays (`ShareLadder`). Each client publishes
   what it plays from the start of a call, as the `plays` attribute: WebRTC is asked
-  about VP8, VP9 and H264, and only the Rust watch connection on a GPU that decodes
-  H265 adds that (`ViewerCodecs`). So phones and browsers do not say H265, and
-  neither does an old Rift, which says nothing and counts as everything but H265. A
-  watch connection that gives out in a call takes H265 off the list until the next
-  room, since the call's own connection has no decoder for it. Only those watching
+  about VP8 and VP9, and about H264 on phones and in browsers, whose decoders are the
+  system's or the browser's. On Linux and Windows H264 is said only where the GPU
+  decodes it: libwebrtc lists it everywhere, but there it would decode on the CPU,
+  which Rift does not use, so a viewer under X11 or without a GPU decoder brings the
+  share down to VP9. Only the Rust watch connection on a GPU that decodes H265 adds
+  that (`ViewerCodecs`). So phones and browsers do not say H265, and neither does an
+  old Rift, which says nothing and counts as everything but H265. A watch connection
+  that gives out in a call takes H264 and H265 off the list until the next room, since
+  the call's own connection has no H265 and decodes H264 on the CPU. Two cases still
+  decode H264 on the CPU: a phone's share, which does not step down, and an old
+  sharer, which does not read `plays`. Only those watching
   count, connection by connection: somebody in the call who has not opened the
   stream changes nothing. The share goes down at once and climbs back 30 s after
   nobody needs the lower rung (`ShareRungFollow`), moving by republishing, as a

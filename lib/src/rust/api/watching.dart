@@ -7,7 +7,8 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 import '../frb_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `emit_watch_event`
+// These functions are ignored because they are not marked as `pub`: `emit_watch_event`, `plays_on_gpu`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `GpuPlayed`
 
 /// Subscribe to the watch connection's events, for the app's lifetime.
 Stream<WatchEvent> watchEventStream() =>
@@ -88,6 +89,11 @@ bool watchPlaysSound() =>
 /// driver, so not on the bridge's own thread.
 Future<bool> watchPlaysH265() =>
     RustLib.instance.api.crateApiWatchingWatchPlaysH265();
+
+/// The same for H264: a viewer that would have to decode it on the CPU says it
+/// does not play it, and the share steps down to VP9.
+Future<bool> watchPlaysH264() =>
+    RustLib.instance.api.crateApiWatchingWatchPlaysH264();
 
 /// How loud [share_identity]'s sound plays: its own volume times the call's
 /// (1 is as sent, up to 8), or 0 while it is muted or this device deafened.
