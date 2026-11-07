@@ -198,3 +198,33 @@ share's default rate the picture barely changes; the gain is on a tight upload,
 mostly on Intel. Encoding, wall time over the 600 pictures including reading the
 clip: Intel went from about 3.4 to 9 or 10 ms a picture on the zoom, NVIDIA from
 about 3.6 to 4.2, and 5.4 at 15 Mbps and up. Not measured under a game's load.
+
+### The same, on real game footage (Nov 7 2026)
+
+Three 10-second 1080p60 clips cut from Xiph's Twitch test set (2015 footage, no later
+game), same machine and settings, no remote desktop connected. The question was
+whether H265 at 10 Mbps can stand in for H264 at 15, which is the default for
+1080p60. Baseline is what shipped until High came back on Nov 7.
+
+VMAF:
+
+| Game | GPU | Baseline 15 | High 15 | High 12 | High 10 | H265 12 | H265 10 |
+|---|---|---|---|---|---|---|---|
+| CS:GO | Intel | 94.1 | 97.4 | 95.3 | 93.0 | 98.3 | 97.2 |
+| CS:GO | NVIDIA | 96.2 | 98.6 | 96.8 | 94.8 | 98.0 | 96.7 |
+| GTA V | Intel | 98.1 | 98.5 | 98.2 | 97.9 | 98.6 | 98.4 |
+| GTA V | NVIDIA | 98.4 | 98.7 | 98.5 | 98.2 | 98.5 | 98.3 |
+| Witcher 3 | Intel | 88.1 | 91.6 | 89.7 | 87.8 | 93.0 | 91.7 |
+| Witcher 3 | NVIDIA | 90.1 | 92.4 | 90.5 | 88.6 | 91.1 | 89.7 |
+
+So on games H265 saves more than the synthetic clips showed. Against High at 15, H265
+at 10 matches on Intel and falls 0.4 to 2.7 short on NVIDIA. Against baseline at 15,
+H265 at 10 is ahead on Intel and at most 0.4 behind on NVIDIA. High at 12 is at or above
+baseline at 15 on all six by VMAF; PSNR has them level, within 0.2 dB either way.
+
+NVENC's settings do not close the gap: on CS:GO and Witcher 3, H265 at 10 Mbps moved
+by under 0.1 from `p4` to `p5` or `p7`, from `ull` to `ll`, or with `multipass qres`,
+and spatial AQ lowered it by 0.7 to 1.9. `p7` also cost H264 about 2.5 ms a picture.
+
+Encoding at 10 Mbps, wall time including reading the clip: Intel from about 5 to 7 or
+8 ms a picture, NVIDIA from about 5 to 5 or 6. Not measured under a game's load.
