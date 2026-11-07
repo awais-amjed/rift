@@ -129,14 +129,14 @@ void main() {
       );
     });
 
-    test('asks 10 Mbps at 1080p60, where H264 High asks 12', () {
+    test('asks 11 Mbps at 1080p60, where H264 High asks 12', () {
       expect(
         ShareEncoding.autoMbps(
           resolution: 1080,
           fps: 60,
           codec: VideoCodec.h265,
         ),
-        10,
+        11,
       );
       expect(
         ShareEncoding.autoMbps(

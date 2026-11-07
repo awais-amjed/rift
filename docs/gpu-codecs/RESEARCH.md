@@ -222,6 +222,12 @@ at 10 matches on Intel and falls 0.4 to 2.7 short on NVIDIA. Against baseline at
 H265 at 10 is ahead on Intel and at most 0.4 behind on NVIDIA. High at 12 is at or above
 baseline at 15 on all six by VMAF; PSNR has them level, within 0.2 dB either way.
 
+Auto's H265 went from 10 to 11 Mbps the same day. H265 at 10 fell just short of H264 on
+NVIDIA, so 11 was measured with the same settings: NVIDIA 97.4 / 98.5 / 90.4 and Intel's
+low-power encoder 96.8 / 98.4 / 90.8 (CS:GO, GTA V, Witcher 3). That is at or above
+baseline at 15 on all six and level with or above High at 12, within 0.05 on NVIDIA's
+GTA V and Witcher 3, for about 8% fewer bits than High.
+
 NVENC's settings do not close the gap: on CS:GO and Witcher 3, H265 at 10 Mbps moved
 by under 0.1 from `p4` to `p5` or `p7`, from `ull` to `ll`, or with `multipass qres`,
 and spatial AQ lowered it by 0.7 to 1.9. `p7` also cost H264 about 2.5 ms a picture.

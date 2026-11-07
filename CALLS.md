@@ -693,7 +693,8 @@ what was driven are in `TESTING.md`).
   seconds into a share had kept it near 87 fps, and with it the viewer got
   118.7, at one more picture of delay (8 ms).
 - **H265 from the GPU to the GPU.** On game footage
-  at 10 Mbps it matched baseline H264 at 15, about 2 Mbps below what High asks, and
+  at 11 Mbps it stayed at or above baseline H264 at 15 and level with High at 12, the
+  least that did on both Intel and NVIDIA, and
   it gains most on a tight upload (`docs/gpu-codecs/RESEARCH.md`). Rift's encoder
   makes it (FFmpeg's `hevc_*`, on the GPU that makes the share's H264) and its
   decoder reads it, never in software. Verified Nov 7 2026 against a local server:
@@ -703,7 +704,7 @@ what was driven are in `TESTING.md`).
   follows a moved rate as H264 does, on both GPUs, down to 150 kbps on Intel. Intel's
   rate control lets go only on a picture of pure noise asked below what it can
   cost (13 times the target at 1 Mbps, 640x360); `rate_gate.rs` holds that back
-  in a share. Auto sends it where the GPU encodes it, at 10 Mbps at 1080p60, unless
+  in a share. Auto sends it where the GPU encodes it, at 11 Mbps at 1080p60, unless
   sharpness was asked for, which stays on VP9. A viewer who cannot play it brings
   the share down (*Stepping a share down*, below).
 - **Stepping a share down.** A desktop share goes out as one stream, never a second
@@ -760,7 +761,9 @@ what was driven are in `TESTING.md`).
   the picture loses under 0.5 VMAF. Two cases run over, and `rate_gate.rs` holds the
   excess back: pure noise at 1 Mbps, 2.5 times, and H264 at 200 kbps, about twice. An Oct 9 note that this
   encoder ignored the rate (22 Mbps) no longer holds here, on iHD 26.2.4 or 26.3.5,
-  though older drivers are untried. Windows' Quick Sync is not measured.
+  though older drivers are untried. Windows' Quick Sync is not measured. These runs
+  were at 10 Mbps, Auto's H265 until later that day; at 11 the picture is 96.8 / 98.4 /
+  90.8, and the game was not run again.
 
   Other Intel GPUs, from Intel's driver documentation and not yet run on one. Arc's
   A series has only this encoder, so it should behave as measured here. From Meteor

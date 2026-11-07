@@ -44,9 +44,10 @@ class ShareEncoding {
   /// and a browser still send. VP8 a little less than that.
   static double _codecFactor(VideoCodec codec) => switch (codec) {
     VideoCodec.vp9 => 1.0,
-    // Only a GPU sends it. 10 Mbps at 1080p60 matched or beat 15 of H264
-    // baseline on game footage (`CALLS.md`, "H265").
-    VideoCodec.h265 => 1.0,
+    // Only a GPU sends it. 11 Mbps at 1080p60 is the least that kept up with
+    // what H264 sends on game footage, on Intel and NVIDIA alike (`CALLS.md`,
+    // "H265").
+    VideoCodec.h265 => 1.1,
     VideoCodec.vp8 => 1.3,
     VideoCodec.h264 => 1.5,
   };

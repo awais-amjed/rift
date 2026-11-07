@@ -6,7 +6,7 @@ design (Oct 29) is in this file's history.
 
 ## Why
 
-H265 is sent at 10 Mbps where H264 High needs 12, for friends on slow connections,
+H265 is sent at 11 Mbps where H264 High needs 12, for friends on slow connections,
 but only a Rift desktop whose GPU decodes it can play it. Without this a browser, a
 phone or an old Rift would get a black picture and no explanation.
 
@@ -40,14 +40,15 @@ a weak PC cannot afford a second encode.
 - Note wording: "Sharing as H264 / So Sam can watch." and "Sharing as H265 again /
   Everyone watching can play it."
 - A server with H265 off gets H264 with the failure's note, "H265 could not go out
-  this time.", on each share, at Auto's H265 bitrate (10 Mbps, not 12) until a move.
+  this time.", on each share, at Auto's H265 bitrate (11 Mbps, not 12) until a move.
   A rare setup, so neither is special-cased.
 
 ## Proved
 
 Nov 7 2026, in the app on Linux (Intel VAAPI, a 720p window, local stack; `TESTING.md`):
 
-- Desktop to desktop in H265 at Auto's 10 Mbps, decoded on the GPU through Rust.
+- Desktop to desktop in H265 at 10 Mbps, Auto's rate then (11 since), decoded on the GPU
+  through Rust.
 - Someone in the call not watching changes nothing.
 - A web watcher brings it to H264 at 12 Mbps at once, with the note; 30 s after they
   stop or leave it is back in H265, three times over.
