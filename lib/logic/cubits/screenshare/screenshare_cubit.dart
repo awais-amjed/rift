@@ -300,7 +300,11 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
       gpuOnlyH264: HostPlatform.encodesH264OnGpuOnly,
       gpu: await GpuCodecs.supported,
     );
-    final bitrate = settings.bitrateToSend(codec: codec, limits: allowed);
+    final bitrate = settings.bitrateToSend(
+      codec: codec,
+      limits: allowed,
+      h264High: HostPlatform.encodesH264OnGpuOnly,
+    );
     // The running share holds the rate it actually goes out at, so its menu
     // ticks that; the dialog's saved choice keeps a 120 the picture is too
     // big for, for when it is not.
@@ -399,6 +403,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
           bitrate: wanted.bitrateToSend(
             codec: wantedCodec,
             limits: state.limits,
+            h264High: HostPlatform.encodesH264OnGpuOnly,
           ),
           codec: wantedCodec,
           shareAudio: wanted.shareAudio && HostPlatform.capturesSystemAudio,

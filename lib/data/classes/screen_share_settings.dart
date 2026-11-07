@@ -187,9 +187,12 @@ class ScreenShareSettings extends Equatable {
 
   /// The bitrate a share in [codec] goes out at, in Mbps: the one picked by
   /// hand, or Auto's for the picture, and never more than the server allows.
+  /// [h264High] is whether this computer's H264 goes out in High profile, which
+  /// needs less for the same picture.
   int bitrateToSend({
     required VideoCodec codec,
     required ServerLimits limits,
+    bool h264High = false,
   }) => limits.shareMbps(
     bitrateChosen
         ? bitrate
@@ -197,6 +200,7 @@ class ScreenShareSettings extends Equatable {
             resolution: resolution,
             fps: fpsToSend,
             codec: codec,
+            h264High: h264High,
           ),
   );
 

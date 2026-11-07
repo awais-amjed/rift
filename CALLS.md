@@ -176,10 +176,10 @@ call, and a better phone may not mind.
   back by itself. libwebrtc has no software H264 on Android, so H264 means the
   phone's hardware encoder. The list can also name H265 and AV1, as the SM-A566B's
   does. The picker has neither, and viewers have not been tried on them.
-- **Bitrate:** the desktop's: a choice from its ladder, or Auto, which is the same
-  figure a desktop asks for in that codec (`ShareEncoding.autoMbps`). In H264 that
-  is 11 Mbps at 1080p and 30 fps, 15 at 1080p and 60, and 23 at 1080p and 120. It is
-  only a cap: WebRTC follows the connection under it.
+- **Bitrate:** the desktop's: a choice from its ladder, or Auto
+  (`ShareEncoding.autoMbps`). A phone's H264 is constrained baseline, so it asks
+  more than a desktop's High: 11 Mbps at 1080p and 30 fps, 15 at 1080p and 60, and
+  23 at 1080p and 120. It is only a cap: WebRTC follows the connection under it.
 
 A phone opens on its whole screen at 30 fps until its dialog has been confirmed
 once (`ScreenShareSettings.phoneSetUp`), since the saved settings before that are a
@@ -692,7 +692,10 @@ what was driven are in `TESTING.md`).
   waiting out each one at the idle clocks NVIDIA's driver drops to a few
   seconds into a share had kept it near 87 fps, and with it the viewer got
   118.7, at one more picture of delay (8 ms).
-- **H265 is skipped**: too many viewers cannot play it.
+- **H265 is measured, not built.** On game footage at 10 Mbps it matched baseline
+  H264 at 15, about 2 Mbps below what High asks, and it gains most on a tight upload.
+  It would need a viewer that decodes it on the GPU, with H264 for the rest
+  (`docs/gpu-codecs/RESEARCH.md`, `PLAN.md`).
 - **AV1 is parked.** AMD's encoder makes AV1 that WebRTC carries, but no viewer
   gets it encrypted: LiveKit's Rust SDK does not negotiate what the server needs
   to find an encrypted AV1 keyframe, and its JS SDK refuses to encrypt AV1. The
@@ -753,11 +756,12 @@ what was driven are in `TESTING.md`).
 A GPU share's H264 goes out in High profile instead of constrained baseline:
 with no B-frames it adds CABAC and 8x8 transforms, which measured 12 to 20%
 less rate at the same quality on motion and about 30% on text (Oct 19 2026,
-Intel VAAPI with `ffenc.c`'s settings, offline). A share runs at the rate its
-sharer picked, so High does not save upload; it can only sharpen the picture at
-that rate, and at the default 15 Mbps for 1080p60 there can be little left to
-sharpen: NVENC sent the same in High as in baseline, at its quality floor, and
-Quick Sync 10% less (Windows, Oct 28).
+Intel VAAPI with `ffenc.c`'s settings, offline). A share set by hand runs at the
+rate its sharer picked, so there it can only sharpen the picture. Auto takes the
+saving as upload instead: since Nov 7 2026 a desktop's H264 asks 12 Mbps at 1080p60,
+where baseline asks 15 (`ShareEncoding.autoMbps`). On game footage High at 12 matched
+baseline at 15 on Intel and NVIDIA (`docs/gpu-codecs/RESEARCH.md`, 1080p60 only; the
+other sizes and rates scale from it, unmeasured).
 
 It was off while every desktop viewer decoded on the CPU, and came back
 (`encoder::SEND_H264_HIGH`) once they decode on the GPU, where it costs no more

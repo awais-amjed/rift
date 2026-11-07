@@ -68,6 +68,33 @@ void main() {
       );
     });
 
+    test('asks less of H264 in High profile', () {
+      int high(int resolution, int fps) => ShareEncoding.autoMbps(
+        resolution: resolution,
+        fps: fps,
+        codec: VideoCodec.h264,
+        h264High: true,
+      );
+      expect(high(1080, 60), 12);
+      expect(high(1080, 30), 8);
+      expect(high(1080, 120), 18);
+      expect(mbps(1080, 60, VideoCodec.h264), 15);
+    });
+
+    test('High changes nothing for the other codecs', () {
+      for (final codec in [VideoCodec.vp8, VideoCodec.vp9]) {
+        expect(
+          ShareEncoding.autoMbps(
+            resolution: 1080,
+            fps: 60,
+            codec: codec,
+            h264High: true,
+          ),
+          mbps(1080, 60, codec),
+        );
+      }
+    });
+
     test('has no ceiling of its own, and never goes under 1 Mbps', () {
       expect(mbps(1440, 120, VideoCodec.h264), 34);
       expect(mbps(2160, 60, VideoCodec.h264), 38);

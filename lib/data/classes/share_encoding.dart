@@ -36,13 +36,18 @@ class ShareEncoding {
 
   /// What the other codecs need for the same picture. H264 needs about half
   /// as much again as VP9, measured on constrained baseline, which a phone
-  /// still sends; a desktop's High needs less and gets the same, so its
-  /// picture is sharper for it. VP8 a little less than that.
+  /// and a browser still send. VP8 a little less than that.
   static double _codecFactor(VideoCodec codec) => switch (codec) {
     VideoCodec.vp9 => 1.0,
     VideoCodec.vp8 => 1.3,
     VideoCodec.h264 => 1.5,
   };
+
+  /// What a desktop's H264 needs in place of [_codecFactor]'s: it goes out in
+  /// High profile (`SEND_H264_HIGH` in the Rust encoder), and 12 Mbps of that
+  /// at 1080p60 matched 15 of baseline on game footage (`CALLS.md`, "H264 in
+  /// High profile").
+  static const _h264HighFactor = 1.2;
 
   /// Fewer frames need fewer bits, though not in proportion: each one still
   /// has to be sharp. More need more for the same reason, though less than
@@ -60,13 +65,19 @@ class ShareEncoding {
   /// It is only a cap: WebRTC follows the connection under it, and a still
   /// screen sends far less. So it is what the picture needs, with no ceiling
   /// of its own; a server that wants one sets its share limit.
+  ///
+  /// [h264High] is whether this computer's H264 goes out in High profile.
   static int autoMbps({
     required int resolution,
     required int fps,
     required VideoCodec codec,
+    bool h264High = false,
   }) {
     final base = _vp9At60[resolution] ?? _nearestBase(resolution);
-    final mbps = base * _fpsFactor(fps) * _codecFactor(codec);
+    final factor = codec == VideoCodec.h264 && h264High
+        ? _h264HighFactor
+        : _codecFactor(codec);
+    final mbps = base * _fpsFactor(fps) * factor;
     return max(1, mbps.round());
   }
 

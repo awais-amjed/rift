@@ -23,6 +23,7 @@ class ShareSummary {
       settings.bitrateToSend(
         codec: codecOf(settings),
         limits: ServerLimits(maxShareMbps: maxMbps),
+        h264High: HostPlatform.encodesH264OnGpuOnly,
       );
 
   /// What the Advanced button says is behind it.
