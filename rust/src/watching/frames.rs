@@ -201,7 +201,15 @@ impl<P: Picture> Table<P> {
         Some(slot.mark)
     }
 
-    /// Whether any picture has come for [texture] since it was opened.
+    /// A new track feeds [texture]: only a picture from now on counts.
+    fn expect_picture(&mut self, texture: u64) {
+        if let Some(slot) = self.slots.get_mut(&texture) {
+            slot.came = false;
+        }
+    }
+
+    /// Whether any picture has come for [texture] since it was opened, or
+    /// since [expect_picture].
     fn delivered(&self, texture: u64) -> bool {
         self.slots.get(&texture).is_some_and(|slot| slot.came)
     }
@@ -249,7 +257,14 @@ pub(crate) fn close(texture: u64) {
     with_table(|t| t.close(texture));
 }
 
-/// Whether any picture has come for [texture] since it was opened.
+/// A new track feeds [texture]: [delivered] answers for it from now on, so a
+/// share changing codec is judged by the new track's pictures, not the old's.
+pub(crate) fn expect_picture(texture: u64) {
+    with_table(|t| t.expect_picture(texture))
+}
+
+/// Whether any picture has come for [texture] since it was opened, or since
+/// [expect_picture].
 pub(crate) fn delivered(texture: u64) -> bool {
     with_table(|t| t.delivered(texture))
 }
@@ -363,6 +378,10 @@ mod tests {
         assert!(table.delivered(7), "taken and drawn, still came");
         table.open(7, None);
         assert!(!table.delivered(7), "opened again, nothing yet");
+        table.deliver(7, Fake::new(2, &alive));
+        assert!(table.delivered(7));
+        table.expect_picture(7);
+        assert!(!table.delivered(7), "a new track, nothing from it yet");
         assert!(!table.delivered(8), "nothing watches it");
     }
 

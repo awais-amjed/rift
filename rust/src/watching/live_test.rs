@@ -77,7 +77,7 @@ const SHADE: u8 = 200;
 /// Whether a GPU share's picture moves rather than being flat.
 static MOVING_PICTURE: AtomicBool = AtomicBool::new(false);
 
-static MARKS: [AtomicU64; 10] = [const { AtomicU64::new(0) }; 10];
+static MARKS: [AtomicU64; 11] = [const { AtomicU64::new(0) }; 11];
 
 unsafe extern "C" fn count_mark(texture: u64) {
     MARKS[texture as usize].fetch_add(1, Ordering::SeqCst);
@@ -247,11 +247,6 @@ impl Share {
         gpu_codec: crate::screenshare::encoder::GpuCodec,
         high: bool,
     ) -> Share {
-        use crate::screenshare::encoder::{
-            EncodedSink, EncoderSettings, GpuCodec, GpuEncoder, Nv12Frame,
-        };
-        use crate::screenshare::gpu_live_test::{H265ToSource, ToSource};
-        use livekit::options::VideoEncoderBackend;
         let room = room::connect(
             &server.url,
             &server.token(room_name, identity, false),
@@ -260,6 +255,38 @@ impl Share {
         )
         .await
         .expect("sharer connects");
+        let stop = Self::publish_gpu(&room, gpu_codec, high).await;
+        Share { room, stop }
+    }
+
+    /// As a share changing codec does: the old picture unpublished, then the
+    /// new one published on the same connection.
+    #[cfg(gpu_encoder)]
+    async fn change_gpu(&mut self, gpu_codec: crate::screenshare::encoder::GpuCodec) {
+        self.stop.store(true, Ordering::SeqCst);
+        let participant = self.room.local_participant();
+        for sid in participant.track_publications().into_keys() {
+            participant
+                .unpublish_track(&sid)
+                .await
+                .expect("unpublishes");
+        }
+        self.stop = Self::publish_gpu(&self.room, gpu_codec, false).await;
+    }
+
+    /// Publishes a picture from the GPU's encoder on [room], until what it
+    /// answers is set.
+    #[cfg(gpu_encoder)]
+    async fn publish_gpu(
+        room: &Room,
+        gpu_codec: crate::screenshare::encoder::GpuCodec,
+        high: bool,
+    ) -> Arc<AtomicBool> {
+        use crate::screenshare::encoder::{
+            EncodedSink, EncoderSettings, GpuCodec, GpuEncoder, Nv12Frame,
+        };
+        use crate::screenshare::gpu_live_test::{H265ToSource, ToSource};
+        use livekit::options::VideoEncoderBackend;
         let source = NativeVideoSource::new_encoded(VideoResolution {
             width: WIDTH,
             height: HEIGHT,
@@ -341,7 +368,7 @@ impl Share {
                 std::thread::sleep(Duration::from_millis(1000 / u64::from(FPS)));
             }
         });
-        Share { room, stop }
+        stop
     }
 
     async fn end(self) {
@@ -1316,6 +1343,103 @@ async fn live_gpu_watch_h265_keyframes_survive_encryption() {
         "{got} pictures drawn of {sent} sent, across {keys} keyframes"
     );
     H265_KEY_EVERY.store(0, Ordering::Relaxed);
+    session::unwatch(share_identity).await;
+    session::stop().await;
+    share.end().await;
+    let _ = voice.close().await;
+    #[cfg(windows)]
+    runner.assert_all_handed_back();
+}
+
+/// What the server says of H265 reaches the participant. `RIFT_TEST_H265_OFF`
+/// says the server under test has it off (`room.enabled_codecs`).
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a LiveKit server; see the module doc"]
+async fn live_watch_reads_whether_the_server_takes_h265() {
+    let server = Server::from_env();
+    let name = room_name("codecs");
+    let room = room::connect(
+        &server.url,
+        &server.token(&name, "member~desk_share", false),
+        &shared_key(),
+        KEY_INDEX,
+    )
+    .await
+    .expect("connects");
+    let codecs = room.local_participant().enabled_publish_codecs();
+    log::info!("the server takes {codecs:?}");
+    assert!(
+        codecs.iter().any(|codec| codec == "video/vp8"),
+        "{codecs:?}"
+    );
+    assert_eq!(
+        codecs.iter().any(|codec| codec == "video/h265"),
+        std::env::var_os("RIFT_TEST_H265_OFF").is_none(),
+        "{codecs:?}"
+    );
+    let _ = room.close().await;
+}
+
+/// A share stepping down and back up, as a viewer who cannot play H265 comes
+/// and goes: the one watching through Rust keeps its picture at every move.
+/// On Nov 7 2026 the climb back to H265 froze it, with nothing in the log.
+#[cfg(gpu_encoder)]
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a LiveKit server and a GPU decoder; see the module doc"]
+async fn live_gpu_watch_follows_a_share_changing_codec() {
+    use crate::screenshare::encoder::GpuCodec;
+    let _ = env_logger::builder().is_test(true).try_init();
+    #[cfg(windows)]
+    let runner = super::decode::RunnerDeviceInPlace::new();
+    super::decode::choose();
+    super::decode::gpu().expect("decoding on the GPU here");
+    let server = Server::from_env();
+    let key = shared_key();
+    let share_identity = "member~desk_share";
+    let texture = 10;
+    let name = room_name("gpu-moves");
+    let voice = start_watching(&server, &name, key.clone(), KEY_INDEX).await;
+    session::watch(share_identity.to_string(), texture, mark_address(), true)
+        .await
+        .expect("watches");
+    MOVING_PICTURE.store(true, Ordering::Relaxed);
+    let mut share = Share::start_gpu(
+        &server,
+        &name,
+        share_identity,
+        &key,
+        KEY_INDEX,
+        GpuCodec::H265,
+        false,
+    )
+    .await;
+    assert!(
+        marked(texture, 0, 10, Duration::from_secs(15)).await,
+        "the first picture reaches the runner's slot"
+    );
+    for (step, codec) in [
+        GpuCodec::H264,
+        GpuCodec::H265,
+        GpuCodec::H264,
+        GpuCodec::H265,
+        GpuCodec::H264,
+        GpuCodec::H265,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let moved = Instant::now();
+        share.change_gpu(codec).await;
+        let from = marks(texture);
+        assert!(
+            marked(texture, from, 10, Duration::from_secs(15)).await,
+            "move {step}: no pictures after changing to {codec:?}"
+        );
+        log::info!(
+            "gpu watch test: move {step} to {codec:?}, pictures after {:?}",
+            moved.elapsed()
+        );
+    }
     session::unwatch(share_identity).await;
     session::stop().await;
     share.end().await;

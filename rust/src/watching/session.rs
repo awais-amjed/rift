@@ -32,6 +32,10 @@ const KEY_BYTES: usize = 32;
 struct Watched {
     texture: u64,
     picture: Option<PictureFeed>,
+    /// The tracks these two came from. A share changing codec publishes a new
+    /// track, and its old one may be reported gone after the new one came.
+    picture_track: Option<TrackSid>,
+    sound_track: Option<TrackSid>,
     /// How loud the app wants the sound; kept from before it arrives.
     gain: Arc<Gain>,
     sound: Option<Playing>,
@@ -162,6 +166,8 @@ pub(crate) async fn watch(
         Watched {
             texture,
             picture: None,
+            picture_track: None,
+            sound_track: None,
             gain,
             sound: None,
         },
@@ -186,8 +192,12 @@ pub(crate) async fn watch(
                 continue;
             }
             match publication.track() {
-                Some(RemoteTrack::Video(track)) => show(&session.shares, &identity, track),
-                Some(RemoteTrack::Audio(track)) => play(&session.shares, &identity, track),
+                Some(RemoteTrack::Video(track)) => {
+                    show(&session.shares, &identity, publication.sid(), track)
+                }
+                Some(RemoteTrack::Audio(track)) => {
+                    play(&session.shares, &identity, publication.sid(), track)
+                }
                 None => publication.set_subscribed(true),
             }
         }
@@ -326,16 +336,18 @@ pub(crate) async fn set_pictures_on(on: bool) {
 
 /// Feed [track]'s pictures to the texture watching [identity], replacing a
 /// feed already running. Nothing when it is no longer watched.
-fn show(shares: &Shares, identity: &str, track: RemoteVideoTrack) {
+fn show(shares: &Shares, identity: &str, sid: TrackSid, track: RemoteVideoTrack) {
     let shares_handle = shares.clone();
     let mut shares = lock(shares);
     let Some(watched) = shares.get_mut(identity) else {
         return;
     };
     watched.picture = None;
+    watched.picture_track = Some(sid.clone());
     let texture = watched.texture;
+    frames::expect_picture(texture);
     let identity = identity.to_string();
-    tokio::spawn(await_picture(shares_handle, identity.clone(), texture));
+    tokio::spawn(await_picture(shares_handle, identity.clone(), texture, sid));
     if let Some(gpu) = decode::gpu() {
         watched.picture = decode::feed(track, texture, identity, gpu)
             .map(|feed| PictureFeed::Encoded { _feed: feed });
@@ -399,12 +411,15 @@ impl PictureWait {
 
 /// Gives up on the watch connection when [identity]'s picture, subscribed,
 /// never comes. Ends when one does, or the share is no longer watched into
-/// [texture].
-async fn await_picture(shares: Shares, identity: String, texture: u64) {
+/// [texture] from [sid].
+async fn await_picture(shares: Shares, identity: String, texture: u64, sid: TrackSid) {
     let mut wait = PictureWait::default();
     loop {
         tokio::time::sleep(PICTURE_CHECK).await;
-        if lock(&shares).get(&identity).map(|w| w.texture) != Some(texture) {
+        let still_waited_for = lock(&shares)
+            .get(&identity)
+            .is_some_and(|w| w.texture == texture && w.picture_track.as_ref() == Some(&sid));
+        if !still_waited_for {
             return;
         }
         let on = PICTURES_ON.load(Ordering::SeqCst);
@@ -468,12 +483,13 @@ pub(super) fn lost_reasons() -> Vec<String> {
 
 /// Play [track] as [identity]'s sound, replacing one already playing.
 /// Nothing when it is no longer watched.
-fn play(shares: &Shares, identity: &str, track: RemoteAudioTrack) {
+fn play(shares: &Shares, identity: &str, sid: TrackSid, track: RemoteAudioTrack) {
     let mut shares = lock(shares);
     let Some(watched) = shares.get_mut(identity) else {
         return;
     };
     watched.sound = None;
+    watched.sound_track = Some(sid);
     watched.sound = sound::play(track, watched.gain.clone());
     log::info!("watching: playing a share's sound");
 }
@@ -502,7 +518,12 @@ async fn follow_room(mut events: tokio::sync::mpsc::UnboundedReceiver<RoomEvent>
                 if !PICTURES_ON.load(Ordering::SeqCst) {
                     publication.set_enabled(false);
                 }
-                show(&shares, participant.identity().as_str(), track)
+                show(
+                    &shares,
+                    participant.identity().as_str(),
+                    publication.sid(),
+                    track,
+                )
             }
             RoomEvent::TrackSubscribed {
                 track: RemoteTrack::Audio(track),
@@ -517,15 +538,25 @@ async fn follow_room(mut events: tokio::sync::mpsc::UnboundedReceiver<RoomEvent>
                     log::info!("watching: sound arrived at nothing, held");
                     publication.set_enabled(false);
                 }
-                play(&shares, identity.as_str(), track)
+                play(&shares, identity.as_str(), publication.sid(), track)
             }
             RoomEvent::TrackUnsubscribed {
-                track, participant, ..
+                track,
+                publication,
+                participant,
             } => {
+                let sid = Some(publication.sid());
                 if let Some(watched) = lock(&shares).get_mut(participant.identity().as_str()) {
                     match track {
-                        RemoteTrack::Video(_) => watched.picture = None,
-                        RemoteTrack::Audio(_) => watched.sound = None,
+                        RemoteTrack::Video(_) if watched.picture_track == sid => {
+                            watched.picture = None;
+                            watched.picture_track = None;
+                        }
+                        RemoteTrack::Audio(_) if watched.sound_track == sid => {
+                            watched.sound = None;
+                            watched.sound_track = None;
+                        }
+                        _ => {}
                     }
                 }
             }
