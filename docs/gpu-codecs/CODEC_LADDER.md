@@ -79,9 +79,8 @@ Nov 7 2026, in the app on Linux (Intel VAAPI, a 720p window, local stack; `TESTI
 
 ## To prove, in the app
 
-- Why a first H265 share can start so low: 0.24 Mbps at 14 s, 1.4 Mbps at 80 s and
-  9.8 Mbps after 5 minutes on NVIDIA, on a mostly still screen, and 0.24 Mbps once on
-  Intel, where fresh H264 shares began at 4 to 5 Mbps. Too few runs to blame the codec.
+- Why H265 opening on a still screen starts so low, and whether the 4 Mbps start
+  helps on Intel and on a slow connection (CALLS.md, "H265 from a still screen").
 - Intel's low-power encoder on older drivers, on GPUs before Alder Lake, on Arc, and
   on Meteor Lake and later, where it should reopen on the default entrypoint.
 - Windows' Quick Sync beside a game: it may have the same cost, and `low_power` there

@@ -139,6 +139,8 @@ pub(crate) mod test_hooks {
     /// The encoder stays at the share's cap whatever WebRTC asks for, as one
     /// that overshoots does (`worker.rs`).
     pub(crate) static IGNORE_RATE: AtomicBool = AtomicBool::new(false);
+    /// The rate WebRTC last had the encoder take, in bits a second.
+    pub(crate) static LAST_RATE: AtomicU32 = AtomicU32::new(0);
 }
 
 /// The largest picture a hardware H264 encoder is sure to take: H264 level

@@ -294,6 +294,8 @@ fn run<S, F>(
         if let Some(requested) = wanted_rate {
             let rate = clamp_bitrate(requested, settings.max_bitrate_bps);
             #[cfg(test)]
+            super::test_hooks::LAST_RATE.store(rate, Ordering::Relaxed);
+            #[cfg(test)]
             if super::test_hooks::IGNORE_RATE.load(Ordering::Relaxed) {
                 // Heard, so the rest of the share knows the target, but not
                 // passed on.

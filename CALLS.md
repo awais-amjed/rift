@@ -707,6 +707,17 @@ what was driven are in `TESTING.md`).
   in a share. Auto sends it where the GPU encodes it, at 11 Mbps at 1080p60, unless
   sharpness was asked for, which stays on VP9. A viewer who cannot play it brings
   the share down (*Stepping a share down*, below).
+- **H265 from a still screen.** A share opening on a still screen starts lower in
+  H265 than in H264, and takes longer to reach its rate once the picture moves. On
+  NVENC at 1080p60 (Nov 7 2026, `climb_live_test`, real screen, each case twice or
+  more), with the encoder starting at 1 Mbps, H265 sat at about 0.24 Mbps at 2 s and
+  needed 16 to 29 s to reach 90% of the cap after the picture began to move; H264 sat
+  at 4 to 5 Mbps and needed 8 to 12 s. Moving from the start, or a viewer joining
+  late to a moving picture, the two matched: about 10 s from the start, and already
+  near full rate for a late viewer. H265's encoder now starts at 4 Mbps, which brought
+  it to 9 to 14 s in four runs of five and 27 s in the other, so this is better, not
+  cured. 8 Mbps did no better. The cause is not known; LiveKit's start hint covers
+  H265, so it is not that. Not measured on Intel or on a slow connection.
 - **Stepping a share down.** A desktop share goes out as one stream, never a second
   encode, in the best of H265, H264, VP9 and VP8, from what was picked or Auto chose
   downwards, that everyone watching plays (`ShareLadder`). Each client publishes
