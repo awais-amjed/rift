@@ -83,10 +83,17 @@ pub(crate) fn gpu_codecs() -> Vec<VideoCodec> {
 
 /// Whether a share in `codec` is encoded by Rift's own GPU encoder here:
 /// where FFmpeg opens one, asked once.
+///
+/// H265 also needs watched shares to decode on the GPU, though sending decodes
+/// nothing. The server settles a connection's codecs from its first video
+/// section, a receiving one, and only the pass-through decoder lists H265
+/// there. Without it the track goes out as VP8 and nobody sees a picture
+/// (under X11, Nov 7 2026).
 pub(crate) fn encodes_itself(codec: GpuCodec) -> bool {
     #[cfg(any(target_os = "linux", target_os = "windows"))]
     {
         ffmpeg::opens(codec)
+            && (codec != GpuCodec::H265 || crate::watching::decode::gpu().is_some())
     }
     #[cfg(not(any(target_os = "linux", target_os = "windows")))]
     {

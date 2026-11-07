@@ -728,11 +728,20 @@ what was driven are in `TESTING.md`).
   H264 there, with a note. Each move publishes a new track, and a viewer may hear of
   the new track before the old one goes, so a watch connection lets a picture go only
   if it came from the track that left, and judges "no picture" by the new track alone.
+  A client whose watched shares do not decode on the GPU (X11, Windows without a
+  decoder, `RIFT_WATCH_DECODE=cpu`) does not offer H265 at all, though sending decodes
+  nothing. The server settles a connection's codecs from its first video section, a
+  receiving one, and only the pass-through decoder lists H265 there; without it the
+  track went out as VP8 and no picture reached anyone. Such a client shares in H264.
   Driven Nov 7 2026 on Linux, Intel VAAPI, one 720p window: desktop to desktop in
   H265, a web watcher down to H264 and back 30 s after, three times over, a server
   with H265 off, and VP9 and VP8 from a test override. A Rust watcher's picture came
   back about 0.8 s after a move down, 0.25 s after a climb; the web watcher's took
-  about 3 s. See `docs/gpu-codecs/CODEC_LADDER.md`.
+  about 3 s. Driven the same day with NVIDIA alone drawing the screen, NVENC and CUDA,
+  a whole 1080p60 screen at 11 Mbps: the same three cycles, with the Rust watcher's
+  picture back about 0.95 s after a move down and 0.43 s after a climb, and the web
+  watcher's by about 3 s. Under X11 the share read H264 at 12 Mbps and was seen. See
+  `docs/gpu-codecs/CODEC_LADDER.md`.
 - **Intel's low-power encoder, on Linux.** VAAPI on Intel's driver asks for the
   fixed-function encoder, since the default one runs on the shader cores a game
   needs. It may not open (it needs the HuC firmware for VBR), and then the share uses

@@ -61,8 +61,17 @@ Nov 7 2026, in the app on Linux (Intel VAAPI, a 720p window, local stack; `TESTI
   six times with a Rust watcher. The climb froze it until the watch connection stopped
   taking the old track's unsubscribe for the new one's.
 - NVIDIA's decoder answer (`rift_ffdec_cuda_decodes`) says yes to H264 and H265 on the
-  RTX 3070 Ti, in `test_ffdec` with GL on NVIDIA's node. Not yet in the app with NVIDIA
-  drawing the screen.
+  RTX 3070 Ti, in `test_ffdec` with GL on NVIDIA's node.
+- NVENC's moves and CUDA in the app, with NVIDIA alone drawing the screen, driven
+  Nov 7 2026 on a laptop in Discrete mode: a whole 1080p60 screen on Auto at 11 Mbps,
+  Cara and Dave on Wayland, Eve on the web. Three cycles down to H264 at 12 and back
+  30 s after Eve stopped. Dave's picture was back 0.94 to 0.99 s after a move down and
+  0.39 to 0.46 s after a climb, going by the logs; Eve's by about 3 s. H264 picked by
+  hand and VP9 picked by hand both played on CUDA.
+- A client not decoding on the GPU no longer offers H265. The first run of the above
+  had Cara under X11, where the share said H265, the server listed it as VP8 and
+  nobody got a picture. Under X11 it now reads H264 at 12 Mbps and is seen. H265 from
+  X11 itself stays off. It would need the fork's decoder factory to list H265.
 
 - H265's cost beside a game: no more than H264 on NVENC. On Intel it took half the
   game's frames until the share moved to the low-power encoder, where it costs the
@@ -70,11 +79,14 @@ Nov 7 2026, in the app on Linux (Intel VAAPI, a 720p window, local stack; `TESTI
 
 ## To prove, in the app
 
-- NVENC's moves in the app, and CUDA with NVIDIA drawing the screen.
+- Why a first H265 share can start so low: 0.24 Mbps at 14 s, 1.4 Mbps at 80 s and
+  9.8 Mbps after 5 minutes on NVIDIA, on a mostly still screen, and 0.24 Mbps once on
+  Intel, where fresh H264 shares began at 4 to 5 Mbps. Too few runs to blame the codec.
 - Intel's low-power encoder on older drivers, on GPUs before Alder Lake, on Arc, and
   on Meteor Lake and later, where it should reopen on the default entrypoint.
 - Windows' Quick Sync beside a game: it may have the same cost, and `low_power` there
   is another option.
-- A real 1080p60 screen, a phone viewer, and Windows.
+- A full-screen game at 1080p60, a phone viewer, and Windows, where a client without
+  a GPU decoder should share in H264 as X11 does.
 - A Firefox share at 1440p dropping to VP9: Firefox caps VP8 and VP9 at about 3.1
   megapixels (`max-fs`), so it may be refused or scaled.
