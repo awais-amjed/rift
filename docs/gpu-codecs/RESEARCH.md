@@ -175,3 +175,26 @@ Who can watch:
   https://github.com/LizardByte/Sunshine
 - LiveKit encoders: https://docs.livekit.io/robotics/media/video/encoders/
 - LiveKit's AV1 encryption experiment: branch `dc/exp/av1_e2ee_support` of livekit/rust-sdks
+
+## H265 against H264 High, measured (Nov 7 2026)
+
+Offline, on the laptop (Iris Xe through VAAPI, RTX 3070 Ti through NVENC), each with
+`ffenc.c`'s settings and no remote desktop connected. 10-second 1080p60 clips, none
+of them a real game: scrolling text, a Mandelbrot zoom, and `testsrc2`.
+
+VMAF at the same bitrate, H264 High then H265:
+
+| Clip | Rate | Intel | NVIDIA |
+|---|---|---|---|
+| Zoom | 15 Mbps | 78, 79 | 83, 86 |
+| Zoom | 4 Mbps | 27, 55 | 50, 62 |
+| Mixed | 15 Mbps | 96.5, 96.7 | 96.7, 96.8 |
+| Mixed | 4 Mbps | 85, 88 | 90, 90 |
+| Mixed | 2 Mbps | 48, 75 | 78, 80 |
+
+Bitrate saved at equal quality on the moving clips: 12 to 25% on Intel and 5 to 17%
+on NVIDIA by VMAF; PSNR agrees apart from the zoom on both, 21 to 24%. So at a
+share's default rate the picture barely changes; the gain is on a tight upload,
+mostly on Intel. Encoding, wall time over the 600 pictures including reading the
+clip: Intel went from about 3.4 to 9 or 10 ms a picture on the zoom, NVIDIA from
+about 3.6 to 4.2, and 5.4 at 15 Mbps and up. Not measured under a game's load.
