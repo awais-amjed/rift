@@ -83,8 +83,8 @@ Nov 7 2026, in the app on Linux (Intel VAAPI, a 720p window, local stack; `TESTI
 
 ## To prove, in the app
 
-- Why H265 opening on a still screen starts so low, and whether the 4 Mbps start
-  helps on Intel and on a slow connection (CALLS.md, "H265 from a still screen").
+- Pinning the LiveKit fork's start hint for H265, which lifts a share opening on a
+  still screen (CALLS.md, "H265 from a still screen").
 - Intel's low-power encoder on older drivers, on GPUs before Alder Lake, on Arc, and
   on Meteor Lake and later, where it should reopen on the default entrypoint.
 - Windows' Quick Sync beside a game: it may have the same cost, and `low_power` there

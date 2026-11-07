@@ -10,7 +10,9 @@
 //! still screen the encoder hears nothing, while a viewer joining still needs
 //! a keyframe and WebRTC still wants a frame now and then. The last picture
 //! is encoded again then: at once when a keyframe is wanted, and after
-//! [`REPEAT_AFTER`] of quiet otherwise.
+//! [`REPEAT_AFTER`] of quiet otherwise. A keyframe asked for again straight away
+//! waits its turn ([`KeyframePacing`]).
+use super::key_pacing::KeyframePacing;
 use super::{clamp_bitrate, EncodedSink, EncoderInput, EncoderSettings, Nv12Frame};
 use crate::screenshare::latest::{self, Putter, Taker};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
@@ -259,6 +261,7 @@ fn run<S, F>(
     // from; a request that arrives while a picture is being dropped waits for
     // the next.
     let mut keyframe = true;
+    let mut pacing = KeyframePacing::new();
     // The last picture encoded, its timestamp and when: what a still screen
     // repeats, and how long it has been still.
     let mut last: Option<(i64, Instant)> = None;
@@ -313,6 +316,10 @@ fn run<S, F>(
             }
         }
 
+        // A keyframe waiting its turn still moves things on: a still screen repeats
+        // its picture rather than wait for one that may never come.
+        let key_now = keyframe && pacing.allows_key();
+
         let Some(input) = input else {
             // A still screen.
             let Some((timestamp_us, at)) = last else {
@@ -329,9 +336,10 @@ fn run<S, F>(
                 shared.failed.store(true, Ordering::Relaxed);
                 break;
             }
-            match session.repeat(timestamp_us, keyframe) {
+            match session.repeat(timestamp_us, key_now) {
                 Ok(true) => {
-                    keyframe = false;
+                    pacing.encoded(key_now);
+                    keyframe &= !key_now;
                     last = Some((timestamp_us, Instant::now()));
                 }
                 // The session keeps no picture from memory: this thread does.
@@ -339,7 +347,7 @@ fn run<S, F>(
                     let mut frame = kept.take().unwrap();
                     frame.timestamp_us = timestamp_us;
                     let input = EncoderInput::Nv12(frame);
-                    let result = session.encode(&input, keyframe);
+                    let result = session.encode(&input, key_now);
                     kept = match input {
                         EncoderInput::Nv12(frame) => Some(frame),
                         #[cfg(target_os = "linux")]
@@ -349,7 +357,8 @@ fn run<S, F>(
                     };
                     match result {
                         Ok(()) => {
-                            keyframe = false;
+                            pacing.encoded(key_now);
+                            keyframe &= !key_now;
                             last = Some((timestamp_us, Instant::now()));
                         }
                         Err(EncodeError::Failed(e)) => {
@@ -372,7 +381,7 @@ fn run<S, F>(
             continue;
         };
         let timestamp_us = input.timestamp_us();
-        let result = session.encode(&input, keyframe);
+        let result = session.encode(&input, key_now);
         match input {
             EncoderInput::Nv12(frame) if result.is_ok() => {
                 if let Some(older) = kept.replace(frame) {
@@ -391,7 +400,8 @@ fn run<S, F>(
         }
         match result {
             Ok(()) => {
-                keyframe = false;
+                pacing.encoded(key_now);
+                keyframe &= !key_now;
                 last = Some((timestamp_us, Instant::now()));
             }
             Err(EncodeError::ImportFailed {

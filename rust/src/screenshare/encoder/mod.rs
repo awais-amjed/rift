@@ -17,6 +17,8 @@ pub(crate) mod gpu_choice;
 pub(crate) mod h264;
 pub(crate) mod h265;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
+mod key_pacing;
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 mod timings;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 mod worker;

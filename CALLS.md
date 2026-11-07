@@ -716,8 +716,21 @@ what was driven are in `TESTING.md`).
   late to a moving picture, the two matched: about 10 s from the start, and already
   near full rate for a late viewer. H265's encoder now starts at 4 Mbps, which brought
   it to 9 to 14 s in four runs of five and 27 s in the other, so this is better, not
-  cured. 8 Mbps did no better. The cause is not known; LiveKit's start hint covers
-  H265, so it is not that. Not measured on Intel or on a slow connection.
+  cured. 8 Mbps did no better. On Intel it is worse: it never reached 90% in the 50 s
+  measured (Nov 8 2026, five runs). The cause: libwebrtc reads LiveKit's start hint
+  from the answer, and the server repeats it for H264 but not for H265, so H265 starts
+  at libwebrtc's 300 kbps. Fixed in the LiveKit fork, not yet pinned here.
+- **A share that stopped on a slow upload.** When too much sent goes unacknowledged,
+  WebRTC's congestion window drops every Nth frame before the pass-through encoder,
+  which then holds the deltas after the gap and asks for a keyframe. At a low rate the
+  frames ran key, delta, key, delta, and with every second one dropped each keyframe
+  was. Nothing went out, so nothing was acknowledged and the window never reopened. It
+  stopped for good in 4 of 8 H265 shares (0 of 8 in H264) on a 1 Mbps upload, with the
+  start hint in place (Nov 8 2026, Intel, `climb_live_test`, the upload limited with
+  `tc` on the LiveKit container). WebRTC's `DroppedFrames.CongestionWindow` counted every
+  frame lost, and 3 keyframes of 53 got through. A keyframe asked for again straight
+  away now waits one picture longer each time (`encoder/key_pacing.rs`), so no regular
+  drop stays on it: 0 of 8 stopped, in the same test.
 - **Stepping a share down.** A desktop share goes out as one stream, never a second
   encode, in the best of H265, H264, VP9 and VP8, from what was picked or Auto chose
   downwards, that everyone watching plays (`ShareLadder`). Each client publishes
