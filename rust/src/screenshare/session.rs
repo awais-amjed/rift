@@ -55,13 +55,6 @@ const FPS_ATTRIBUTE: &str = "fps";
 #[cfg(gpu_encoder)]
 const START_BITRATE_BPS: u32 = 1_000_000;
 
-/// The same for H265. From 1 Mbps, a share opening on a still screen left WebRTC's
-/// estimate at about 0.24 Mbps, and a picture that then moved took 16 to 29 s to
-/// reach the share's rate, against 8 to 12 s for H264. From 4 it took 9 to 14 s in
-/// four runs of five, and 27 in the other (CALLS.md, "H265 from a still screen").
-#[cfg(gpu_encoder)]
-const H265_START_BITRATE_BPS: u32 = 4_000_000;
-
 /// A screen share's sound keeps the plain name it has always had — nothing
 /// reads it, because the picture says what this is.
 const AUDIO_TRACK_NAME: &str = "screen_share_audio";
@@ -749,11 +742,7 @@ impl Video {
             height: target.height,
         });
         let fed = source.clone();
-        let start_bps = match codec {
-            GpuCodec::H264 => START_BITRATE_BPS,
-            GpuCodec::H265 => H265_START_BITRATE_BPS,
-        };
-        let encoder = encoder_settings(codec, target, settings, start_bps);
+        let encoder = encoder_settings(codec, target, settings, START_BITRATE_BPS);
         let on_failed = self.on_gpu_failed();
         let feed = tokio::task::spawn_blocking(move || GpuFeed::open(&fed, encoder, on_failed))
             .await

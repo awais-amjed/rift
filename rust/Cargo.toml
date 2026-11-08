@@ -111,12 +111,12 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
 # sound can be matched before sharing); a Windows screen can be captured
 # without Windows Graphics Capture's yellow border; a pre-encoded H264 track
 # can go out in High profile; a pre-encoded H265 track can go out without a
-# real H265 encoder, and a participant can read the codecs its server takes;
+# real H265 encoder, with the start bitrate hint the server leaves out, and a participant can read the codecs its server takes;
 # and received video can be read still encoded, for Rift to decode on the GPU
 # (src/watching/decode). RIFT.md on that branch
 # says why, and when each change can go. Every crate of LiveKit's this
 # library builds comes from the one commit, so they always match.
 [patch.crates-io]
-livekit = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "77450786c44b9452c77ca01fce4e8114d6ace234" }
-livekit-api = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "77450786c44b9452c77ca01fce4e8114d6ace234" }
-webrtc-sys = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "77450786c44b9452c77ca01fce4e8114d6ace234" }
+livekit = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "3f23823c06a3efc023ce0562b2b16dbd6dca5be7" }
+livekit-api = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "3f23823c06a3efc023ce0562b2b16dbd6dca5be7" }
+webrtc-sys = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "3f23823c06a3efc023ce0562b2b16dbd6dca5be7" }

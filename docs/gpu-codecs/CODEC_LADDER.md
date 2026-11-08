@@ -83,8 +83,9 @@ Nov 7 2026, in the app on Linux (Intel VAAPI, a 720p window, local stack; `TESTI
 
 ## To prove, in the app
 
-- Pinning the LiveKit fork's start hint for H265, which lifts a share opening on a
-  still screen (CALLS.md, "H265 from a still screen").
+- H265's start hint on NVIDIA, and the picture a viewer sees on a slow upload, in the
+  app and on a real slow link (CALLS.md, "H265 from a still screen", "A share that
+  stopped on a slow upload").
 - Intel's low-power encoder on older drivers, on GPUs before Alder Lake, on Arc, and
   on Meteor Lake and later, where it should reopen on the default entrypoint.
 - Windows' Quick Sync beside a game: it may have the same cost, and `low_power` there

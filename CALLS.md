@@ -707,26 +707,26 @@ what was driven are in `TESTING.md`).
   in a share. Auto sends it where the GPU encodes it, at 11 Mbps at 1080p60, unless
   sharpness was asked for, which stays on VP9. A viewer who cannot play it brings
   the share down (*Stepping a share down*, below).
-- **H265 from a still screen.** A share opening on a still screen starts lower in
-  H265 than in H264, and takes longer to reach its rate once the picture moves. On
-  NVENC at 1080p60 (Nov 7 2026, `climb_live_test`, real screen, each case twice or
-  more), with the encoder starting at 1 Mbps, H265 sat at about 0.24 Mbps at 2 s and
-  needed 16 to 29 s to reach 90% of the cap after the picture began to move; H264 sat
-  at 4 to 5 Mbps and needed 8 to 12 s. Moving from the start, or a viewer joining
-  late to a moving picture, the two matched: about 10 s from the start, and already
-  near full rate for a late viewer. H265's encoder now starts at 4 Mbps, which brought
-  it to 9 to 14 s in four runs of five and 27 s in the other, so this is better, not
-  cured. 8 Mbps did no better. On Intel it is worse: it never reached 90% in the 50 s
-  measured (Nov 8 2026, five runs). The cause: libwebrtc reads LiveKit's start hint
-  from the answer, and the server repeats it for H264 but not for H265, so H265 starts
-  at libwebrtc's 300 kbps. Fixed in the LiveKit fork, not yet pinned here.
+- **H265 from a still screen.** libwebrtc reads LiveKit's start hint from the answer,
+  and the server repeats it for H264 but not for H265, so an H265 track started at
+  libwebrtc's 300 kbps. On a still screen its estimate then fell to the floor with
+  nothing to climb back to. On Intel at 1080p60 a picture that then moved never reached
+  90% of the cap in the 50 s measured, against 8 to 12 s for H264; on NVENC it took 16 to
+  29 s. The LiveKit fork now puts the hint in the answer's H265 (its `RIFT.md`), and on
+  Intel H265 took 10, 10 and 18 s, with H264 at 10 s (Nov 8 2026, `climb_live_test`, real
+  screen). Moving from the start, or a viewer joining late to a moving picture, the two
+  match: about 10 s, and already near full rate. The hint is capped at 1 Mbps: from 3 Mbps
+  up the first probes go out at 5 Mbps, which a slow upload loses. On a 1 Mbps upload, sent
+  after 14 s: no hint 848 kbps, 1 Mbps 762, 3 Mbps 647, 5 Mbps 741, 9.9 Mbps 706, with
+  every hint climbing as fast on a fast link. The final code sent 811 kbps there at 41 fps
+  in H265, against H264's 840 kbps at 20. NVIDIA is not measured with the hint.
 - **A share that stopped on a slow upload.** When too much sent goes unacknowledged,
   WebRTC's congestion window drops every Nth frame before the pass-through encoder,
   which then holds the deltas after the gap and asks for a keyframe. At a low rate the
   frames ran key, delta, key, delta, and with every second one dropped each keyframe
   was. Nothing went out, so nothing was acknowledged and the window never reopened. It
-  stopped for good in 4 of 8 H265 shares (0 of 8 in H264) on a 1 Mbps upload, with the
-  start hint in place (Nov 8 2026, Intel, `climb_live_test`, the upload limited with
+  stopped for good in 4 of 8 H265 shares (0 of 8 in H264) on a 1 Mbps upload, with a
+  9.9 Mbps start hint (Nov 8 2026, Intel, `climb_live_test`, the upload limited with
   `tc` on the LiveKit container). WebRTC's `DroppedFrames.CongestionWindow` counted every
   frame lost, and 3 keyframes of 53 got through. A keyframe asked for again straight
   away now waits one picture longer each time (`encoder/key_pacing.rs`), so no regular
