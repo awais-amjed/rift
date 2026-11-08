@@ -216,6 +216,27 @@ uncorrelated.
    exception, the next share reached Cara. Why the server does that was not looked
    into. Such a track keeps its encoders until the phone leaves the call.
 
+13. **A track that cannot be published while joining no longer ends the join**
+   (the `EngineJoinResponseEvent` handler in `lib/src/core/room.dart`). The mic,
+   camera and screen asked for at the connect (`FastConnectOptions`) are
+   published in the same handler that then creates everybody already in the
+   room and announces `RoomConnectedEvent`. A refused device threw out of it,
+   uncaught, so neither happened: `room.connect` still returned, the call came
+   up, and the only people in it were whoever joined afterwards. Each of the
+   three is now tried on its own and a failure is logged, and the app turns
+   the mic on again after the connect as it always did, where a refusal is
+   already handled.
+
+   Found Nov 8 2026 on the web build in Chrome with the mic blocked for the
+   page, on the local stack, Windows, with two desktop clients in the call:
+   every join, and every join after a reload, showed only the web viewer's own
+   tile, and the console had an uncaught `Unable to getUserMedia:
+   NotAllowedError` at each join click. Anybody joining unmuted from a browser
+   that refuses the mic met the same. After, the same day and setup: an unmuted
+   join, a rejoin, a join after a reload and a muted join each showed both
+   desktop clients and the share, with no uncaught error, and the app's own
+   later attempt at the mic logged the refusal as before.
+
 ## When to remove it
 
 Patch 1 goes when a `livekit_client` release answers a stereo track with
@@ -225,6 +246,6 @@ unsubscribe without holding the track, patch 4 when a release can go back
 to letting visibility decide, patch 5 when a release keeps a disable
 through the server's bind, patch 6 when a release's web worker leaves no
 VP9 bytes in the clear, patch 7 when it passes H264 through the RBSP functions, patch 8 when a release subscribes
-whatever it holds, patch 9 when a release starts a track before announcing it, patch 10 when a release lets an app keep a remote track off from its arrival, patch 11 when Chrome stops playing a track that is off or a release handles it, patch 12 when a release stops a section as it unpublishes. With all twelve gone, bump, delete this
+whatever it holds, patch 9 when a release starts a track before announcing it, patch 10 when a release lets an app keep a remote track off from its arrival, patch 11 when Chrome stops playing a track that is off or a release handles it, patch 12 when a release stops a section as it unpublishes, patch 13 when a release goes on joining past a track it could not publish. With all thirteen gone, bump, delete this
 folder and its `dependency_overrides` entry. Until then, a `livekit_client` upgrade needs this copy replaced with the
 new version and the changes put back.

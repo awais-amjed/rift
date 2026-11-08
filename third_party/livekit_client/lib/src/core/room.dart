@@ -529,55 +529,75 @@ class Room extends DisposableChangeNotifier with EventsEmittable<RoomEvent> {
           !engine.isFullReconnectInProgress) {
         final options = engine.fastConnectOptions!;
 
-        final audio = options.microphone;
-        final bool audioEnabled = audio.enabled == true || audio.track != null;
-
-        // Only enable microphone if preconnect buffer is not active
-        if (audioEnabled && !preConnectAudioBuffer.isRecording) {
-          if (audio.track != null) {
-            await _localParticipant!.publishAudioTrack(
-              audio.track as LocalAudioTrack,
-              publishOptions: roomOptions.defaultAudioPublishOptions,
-            );
-          } else {
-            await _localParticipant!.setMicrophoneEnabled(
-              true,
-              audioCaptureOptions: roomOptions.defaultAudioCaptureOptions,
-            );
+        // RIFT PATCH: a device that cannot be opened (a browser refusing the
+        // mic, a machine with no camera) no longer ends this handler before
+        // the people already here are created below. It did, and the call
+        // came up with nobody else in it until somebody joined after you.
+        // Each track is tried on its own, so a refused mic still lets the
+        // camera through.
+        Future<void> attempt(String what, Future<void> Function() publish) async {
+          try {
+            await publish();
+          } catch (error) {
+            logger.warning('could not publish the $what while joining: $error');
           }
         }
 
-        final video = options.camera;
-        final bool videoEnabled = video.enabled == true || video.track != null;
-        if (videoEnabled) {
-          if (video.track != null) {
-            await _localParticipant!.publishVideoTrack(
-              video.track as LocalVideoTrack,
-              publishOptions: roomOptions.defaultVideoPublishOptions,
-            );
-          } else {
-            await _localParticipant!.setCameraEnabled(
-              true,
-              cameraCaptureOptions: roomOptions.defaultCameraCaptureOptions,
-            );
-          }
-        }
+        await attempt('mic', () async {
+          final audio = options.microphone;
+          final bool audioEnabled = audio.enabled == true || audio.track != null;
 
-        final screen = options.screen;
-        final bool screenEnabled = screen.enabled == true || screen.track != null;
-        if (screenEnabled) {
-          if (screen.track != null) {
-            await _localParticipant!.publishVideoTrack(
-              screen.track as LocalVideoTrack,
-              publishOptions: roomOptions.defaultVideoPublishOptions,
-            );
-          } else {
-            await _localParticipant!.setScreenShareEnabled(
-              true,
-              screenShareCaptureOptions: roomOptions.defaultScreenShareCaptureOptions,
-            );
+          // Only enable microphone if preconnect buffer is not active
+          if (audioEnabled && !preConnectAudioBuffer.isRecording) {
+            if (audio.track != null) {
+              await _localParticipant!.publishAudioTrack(
+                audio.track as LocalAudioTrack,
+                publishOptions: roomOptions.defaultAudioPublishOptions,
+              );
+            } else {
+              await _localParticipant!.setMicrophoneEnabled(
+                true,
+                audioCaptureOptions: roomOptions.defaultAudioCaptureOptions,
+              );
+            }
           }
-        }
+        });
+
+        await attempt('camera', () async {
+          final video = options.camera;
+          final bool videoEnabled = video.enabled == true || video.track != null;
+          if (videoEnabled) {
+            if (video.track != null) {
+              await _localParticipant!.publishVideoTrack(
+                video.track as LocalVideoTrack,
+                publishOptions: roomOptions.defaultVideoPublishOptions,
+              );
+            } else {
+              await _localParticipant!.setCameraEnabled(
+                true,
+                cameraCaptureOptions: roomOptions.defaultCameraCaptureOptions,
+              );
+            }
+          }
+        });
+
+        await attempt('screen', () async {
+          final screen = options.screen;
+          final bool screenEnabled = screen.enabled == true || screen.track != null;
+          if (screenEnabled) {
+            if (screen.track != null) {
+              await _localParticipant!.publishVideoTrack(
+                screen.track as LocalVideoTrack,
+                publishOptions: roomOptions.defaultVideoPublishOptions,
+              );
+            } else {
+              await _localParticipant!.setScreenShareEnabled(
+                true,
+                screenShareCaptureOptions: roomOptions.defaultScreenShareCaptureOptions,
+              );
+            }
+          }
+        });
       }
 
       for (final info in event.response.otherParticipants) {
