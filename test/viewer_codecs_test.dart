@@ -25,8 +25,9 @@ void main() {
       });
     });
 
-    test('H265 never comes from WebRTC: a phone lists it', () {
+    test('reads H265 where WebRTC lists it', () {
       expect(ViewerCodecs.fromMimeTypes(const ['video/H265', 'video/VP8']), {
+        VideoCodec.h265,
         VideoCodec.vp8,
       });
     });
@@ -50,6 +51,7 @@ void main() {
           gpuDecodesOnly: true,
           gpuPlaysH264: true,
           gpuPlaysH265: true,
+          webrtcPlaysH265: false,
         ),
         {...listed, VideoCodec.h265},
       );
@@ -62,8 +64,48 @@ void main() {
           gpuDecodesOnly: true,
           gpuPlaysH264: false,
           gpuPlaysH265: false,
+          webrtcPlaysH265: false,
         ),
         {VideoCodec.vp8, VideoCodec.vp9},
+      );
+    });
+
+    test('a desktop says H265 only from the GPU, whatever WebRTC lists', () {
+      expect(
+        ViewerCodecs.onDevice(
+          {...listed, VideoCodec.h265},
+          gpuDecodesOnly: true,
+          gpuPlaysH264: true,
+          gpuPlaysH265: false,
+          webrtcPlaysH265: false,
+        ),
+        listed,
+      );
+    });
+
+    test('an Android phone says the H265 its WebRTC lists', () {
+      expect(
+        ViewerCodecs.onDevice(
+          {...listed, VideoCodec.h265},
+          gpuDecodesOnly: false,
+          gpuPlaysH264: false,
+          gpuPlaysH265: false,
+          webrtcPlaysH265: true,
+        ),
+        {...listed, VideoCodec.h265},
+      );
+    });
+
+    test('a browser does not say H265', () {
+      expect(
+        ViewerCodecs.onDevice(
+          {...listed, VideoCodec.h265},
+          gpuDecodesOnly: false,
+          gpuPlaysH264: false,
+          gpuPlaysH265: false,
+          webrtcPlaysH265: false,
+        ),
+        listed,
       );
     });
 
@@ -74,6 +116,7 @@ void main() {
           gpuDecodesOnly: false,
           gpuPlaysH264: false,
           gpuPlaysH265: false,
+          webrtcPlaysH265: false,
         ),
         listed,
       );

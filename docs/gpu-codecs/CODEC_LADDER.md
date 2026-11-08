@@ -33,7 +33,9 @@ a weak PC cannot afford a second encode.
 
 ## Calls made without the owner
 
-- Phones and browsers do not say H265 at first, though the SM-A566B lists it.
+- Phones and browsers did not say H265 at first, though the SM-A566B lists it. Since
+  Nov 9 an Android phone says it when its WebRTC lists it (tried on the SM-A566B);
+  browsers and iPhones still do not.
 - A watch connection that gives out takes H265 off the list until the next room, so a
   GPU failing on H265 does not bounce everyone's picture up and down. A brief network
   failure costs that viewer the same.

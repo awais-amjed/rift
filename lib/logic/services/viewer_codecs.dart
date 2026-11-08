@@ -17,9 +17,10 @@ import 'voice_attributes.dart';
 /// whose decoders are the system's or the browser's. On Linux and Windows H264 is
 /// only said where the GPU decodes it: libwebrtc lists it there too, but would decode
 /// it on the CPU, which Rift does not use, so such a viewer brings the share down to
-/// VP9. H265 is said only by the Rust watch connection on a GPU that decodes it,
-/// whatever WebRTC lists (a phone's does list it; phones and browsers do not get H265
-/// until one has been tried).
+/// VP9. On Linux and Windows H265 is said only by the Rust watch connection on a GPU
+/// that decodes it, whatever WebRTC lists. An Android phone says it when its WebRTC
+/// lists it, which it does where the phone has a hardware H265 decoder; a browser
+/// does not, since none has been tried.
 class ViewerCodecs {
   const ViewerCodecs._();
 
@@ -62,6 +63,7 @@ class ViewerCodecs {
       gpuDecodesOnly: !kIsWeb && (Platform.isLinux || Platform.isWindows),
       gpuPlaysH264: await _rustPlays(watchPlaysH264),
       gpuPlaysH265: await _rustPlays(watchPlaysH265),
+      webrtcPlaysH265: !kIsWeb && Platform.isAndroid,
     );
     HelperMethods.printDebug('This device plays ${plays.map((c) => c.name)}');
     return plays;
@@ -78,25 +80,34 @@ class ViewerCodecs {
   }
 
   /// What WebRTC [listed], with what the GPU decodes settled. [gpuDecodesOnly]:
-  /// H264 counts only from the GPU on this device.
+  /// H264 counts only from the GPU on this device. [webrtcPlaysH265]: H265 counts
+  /// from WebRTC's list here, which is the phone's own decoder.
   @visibleForTesting
   static Set<VideoCodec> onDevice(
     Set<VideoCodec> listed, {
     required bool gpuDecodesOnly,
     required bool gpuPlaysH264,
     required bool gpuPlaysH265,
+    required bool webrtcPlaysH265,
   }) => {
-    ...listed.where((c) => !gpuDecodesOnly || c != VideoCodec.h264),
+    ...listed.where(
+      (c) => switch (c) {
+        VideoCodec.h264 => !gpuDecodesOnly,
+        VideoCodec.h265 => webrtcPlaysH265,
+        _ => true,
+      },
+    ),
     if (gpuDecodesOnly && gpuPlaysH264) VideoCodec.h264,
     if (gpuPlaysH265) VideoCodec.h265,
   };
 
-  /// `video/VP9` and the like, as WebRTC names them, into codecs. H265 never
-  /// comes from here. A list that names nothing known says nothing, so it
-  /// counts as having said nothing at all.
+  /// `video/VP9` and the like, as WebRTC names them, into codecs. Whether a
+  /// listed H265 counts is [onDevice]'s to say. A list that names nothing known
+  /// says nothing, so it counts as having said nothing at all.
   static Set<VideoCodec> fromMimeTypes(Iterable<String> mimeTypes) {
     final names = mimeTypes.map((m) => m.split('/').last.toLowerCase()).toSet();
     final plays = {
+      if (names.contains('h265')) VideoCodec.h265,
       if (names.contains('h264')) VideoCodec.h264,
       if (names.contains('vp9')) VideoCodec.vp9,
       if (names.contains('vp8')) VideoCodec.vp8,
