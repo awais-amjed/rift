@@ -493,8 +493,9 @@ fn h265_opens() -> bool {
             Ok(raw) => {
                 // SAFETY: `raw` is a live encoder from this library, closed
                 // right after.
+                let driver = unsafe { driver_name(api, raw) };
                 unsafe { (api.close)(raw) };
-                log::info!("encoder: {} encodes H265", candidate.label);
+                log::info!("encoder: {} ({driver}) encodes H265", candidate.label);
                 true
             }
             Err(reason) => {
@@ -637,8 +638,12 @@ pub(super) fn open(
     sink: SharedSink,
 ) -> Result<(FfmpegSession, String), String> {
     let api = api()?;
-    let (candidate, driver, _) = h264_encoder().ok_or("no GPU here encodes H264 through FFmpeg")?;
+    let (candidate, ..) = h264_encoder().ok_or("no GPU here encodes H264 through FFmpeg")?;
     let raw = open_raw(api, settings, candidate)?;
+    // The encoder just opened, not the H264 one it was found by: an H265
+    // share named NVIDIA's H.264 encoder.
+    // SAFETY: `raw` is a live encoder from this library.
+    let driver = unsafe { driver_name(api, raw) };
     Ok((
         FfmpegSession {
             api,

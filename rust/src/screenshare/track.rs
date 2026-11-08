@@ -1,5 +1,5 @@
 //! Publishing the video track.
-use super::encoder::EncoderSettings;
+use super::encoder::{EncoderSettings, GpuCodec};
 use crate::api::screenshare::types::{ScreenShareConfig, SharePriority, VideoCodec};
 use livekit::options::{self, TrackPublishOptions, VideoEncoderBackend, VideoEncoding};
 use livekit::prelude::*;
@@ -66,7 +66,10 @@ pub(crate) async fn publish_video_track(
         "track: publishing {:?}{} at {} bps, {} fps, keeping {:?}",
         video_codec,
         match gpu {
-            Some(gpu) if gpu.h264_high => " from the GPU, High profile",
+            // H265 is always Main, whatever H264 would have gone out in.
+            Some(gpu) if gpu.h264_high && gpu.codec == GpuCodec::H264 => {
+                " from the GPU, High profile"
+            }
             Some(_) => " from the GPU",
             None => "",
         },
