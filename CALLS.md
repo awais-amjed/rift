@@ -796,7 +796,9 @@ what was driven are in `TESTING.md`).
   Most of what is left is the capture: the encoder alone, fed from a file, took under
   1% of the game's frames on low power, against 12% in H264 and 45% in H265 on the
   default. On NVENC with the game on NVIDIA, H265 cost no more than H264, about 3%
-  against no share. Low power's picture on three game clips (VMAF, CSGO / GTAV /
+  against no share, and on AMD's VAAPI (RX 9070 XT, Mesa 26.2.5, Nov 8 2026, CS2 uncapped
+  beside a 1080p60 share of its window) the same: 783 fps with no share, 754 in H264
+  High, 756 in H265, the share at 60 in both (`docs/gpu-codecs/STEP4_AMD_LINUX.md`). Low power's picture on three game clips (VMAF, CSGO / GTAV /
   Witcher 3): H265 at 10 Mbps 95.9 / 98.3 / 90.1, still above the default's H264 High
   at 12 (95.3 / 98.2 / 89.7) and baseline at 15 (94.1 / 98.1 / 88.1); its own H264
   High at 12 is 93.9 / 98.2 / 88.5, about baseline at 15. Its rate buffer is a tenth
@@ -933,7 +935,8 @@ played a High share. AMD's AMF is not yet driven. On Nov 7 2026
 VAAPI at the rate sent, encrypted, with NVENC and with VAAPI encoding it, and
 the app did the same: Dave shared a window from VAAPI, its log saying High, and
 Cara's said it decoded H264 on the Intel driver, the owner seeing a good
-picture. NVDEC in the app, and Windows's D3D11 decoding, are not yet driven with High.
+picture. On Nov 8 2026 AMD did the same under Linux, encoding High and decoding it
+on radeonsi, with no `no sender capability`. NVDEC in the app, and Windows's D3D11 decoding, are not yet driven with High.
 
 ## Starting to watch through the call — [Implemented November 2026]
 
