@@ -719,7 +719,9 @@ what was driven are in `TESTING.md`).
   up the first probes go out at 5 Mbps, which a slow upload loses. On a 1 Mbps upload, sent
   after 14 s: no hint 848 kbps, 1 Mbps 762, 3 Mbps 647, 5 Mbps 741, 9.9 Mbps 706, with
   every hint climbing as fast on a fast link. The final code sent 811 kbps there at 41 fps
-  in H265, against H264's 840 kbps at 20. NVIDIA is not measured with the hint.
+  in H265, against H264's 840 kbps at 20. On NVENC, with NVIDIA's card drawing the screen
+  and nothing from Intel, H265 took 10, 10 and 8 s and H264 8 s, and on the 1 Mbps upload
+  H265 sent 849 kbps at 56 fps against H264's 792 at 38 (Nov 8 2026, same test).
 - **A share that stopped on a slow upload.** When too much sent goes unacknowledged,
   WebRTC's congestion window drops every Nth frame before the pass-through encoder,
   which then holds the deltas after the gap and asks for a keyframe. At a low rate the
@@ -730,7 +732,8 @@ what was driven are in `TESTING.md`).
   `tc` on the LiveKit container). WebRTC's `DroppedFrames.CongestionWindow` counted every
   frame lost, and 3 keyframes of 53 got through. A keyframe asked for again straight
   away now waits one picture longer each time (`encoder/key_pacing.rs`), so no regular
-  drop stays on it: 0 of 8 stopped, in the same test.
+  drop stays on it: 0 of 8 stopped, in the same test, and 0 of 8 on NVENC (0 of 3 in
+  H264).
 - **Stepping a share down.** A desktop share goes out as one stream, never a second
   encode, in the best of H265, H264, VP9 and VP8, from what was picked or Auto chose
   downwards, that everyone watching plays (`ShareLadder`). Each client publishes
