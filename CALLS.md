@@ -386,6 +386,8 @@ Rift's own Windows Graphics Capture session instead, on the encoder's GPU, so th
 stays on the GPU (`capture_wgc.rs`, `docs/gpu-codecs/STEP1_WINDOWS.md`; on branch
 `gpu-codecs` as of Nov 1 2026). AMF ran on an RX 9070 XT Nov 2–3 and passed, at about a fifth
 of NVENC's cost to a game (`docs/gpu-codecs/STEP1_AMD.md`), and takes it too since Nov 4.
+H265 and H264 High from AMF were shared through it on Nov 8 2026, a window and CS2's
+(`docs/gpu-codecs/STEP4_AMD_WINDOWS.md`).
 Until then it needed `RIFT_FFENC_AMF_TEXTURES=1`, held back by a late viewer's 3.5 s on it,
 which was the viewer's wait (*Starting to watch through the call*). Everything else stays
 as below, and Rift's session falls back to it. Verified Nov 1 with a test program on
@@ -404,8 +406,10 @@ with the window followed to, and a new window that will not open at once is trie
 viewer froze on the last picture for good; a capturer started a few seconds into the
 reset fails at once, which is why the share waits out five. On a real reset (`dxcap
 -forcetdr`, Nov 2) the pictures came back from the third new session, 6.6 s after they
-stopped. A still source rarely trips this, since Windows also sends a picture whenever
-the screen around it is drawn. The switch is *Capture the screen on the
+stopped. On NVENC a still source rarely trips this, since Windows also sends a picture
+whenever the screen around it is drawn. On AMD a still window does, a new session every 2 to
+3 s, with no picture lost at any (`STEP1_AMD.md`; again in H265 Nov 8 2026, 14 and 17 new
+sessions in about 35 s still). The switch is *Capture the screen on the
 GPU* in settings, shown on every Windows build: off, the next share never reaches Rift's
 session, nor opens its device, and goes as below.
 
@@ -798,7 +802,10 @@ what was driven are in `TESTING.md`).
   default. On NVENC with the game on NVIDIA, H265 cost no more than H264, about 3%
   against no share, and on AMD's VAAPI (RX 9070 XT, Mesa 26.2.5, Nov 8 2026, CS2 uncapped
   beside a 1080p60 share of its window) the same: 783 fps with no share, 754 in H264
-  High, 756 in H265, the share at 60 in both (`docs/gpu-codecs/STEP4_AMD_LINUX.md`). Low power's picture on three game clips (VMAF, CSGO / GTAV /
+  High, 756 in H265, the share at 60 in both (`docs/gpu-codecs/STEP4_AMD_LINUX.md`). On the
+  same card under Windows, through AMF and with the game's sound shared too, the same shape at
+  about twice the cost: 620, 566 in H264 High, 572 in H265, the share at 60 in both
+  (`docs/gpu-codecs/STEP4_AMD_WINDOWS.md`). Low power's picture on three game clips (VMAF, CSGO / GTAV /
   Witcher 3): H265 at 10 Mbps 95.9 / 98.3 / 90.1, still above the default's H264 High
   at 12 (95.3 / 98.2 / 89.7) and baseline at 15 (94.1 / 98.1 / 88.1); its own H264
   High at 12 is 93.9 / 98.2 / 88.5, about baseline at 15. Its rate buffer is a tenth
@@ -930,13 +937,17 @@ a High share the same day: a Linux desktop, Chrome on the web, and an Android
 phone (Exynos) on its hardware decoder, though that phone's WebRTC lists only
 constrained baseline among its H264 decoders. Windows did the same on NVENC
 and Quick Sync, sharing and watching, and a Windows Rift without the change
-played a High share. AMD's AMF is not yet driven. On Nov 7 2026
+played a High share. AMD's AMF did on Nov 8 2026, on an RX 9070 XT: `ffprobe` read
+High from it with Rift's options, the app said `H264 in High`, and the share was decoded
+through D3D11 on the same card, with no `no sender capability`
+(`docs/gpu-codecs/STEP4_AMD_WINDOWS.md`). On Nov 7 2026
 `live_gpu_watch_decodes_each_codec_on_the_gpu` decoded a High share on Intel
 VAAPI at the rate sent, encrypted, with NVENC and with VAAPI encoding it, and
 the app did the same: Dave shared a window from VAAPI, its log saying High, and
 Cara's said it decoded H264 on the Intel driver, the owner seeing a good
 picture. On Nov 8 2026 AMD did the same under Linux, encoding High and decoding it
-on radeonsi, with no `no sender capability`. NVDEC in the app, and Windows's D3D11 decoding, are not yet driven with High.
+on radeonsi, with no `no sender capability`. Windows's D3D11 decoding was driven with High
+on the RX 9070 XT the same day (above); NVDEC in the app is not yet.
 
 ## Starting to watch through the call — [Implemented November 2026]
 
