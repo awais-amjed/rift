@@ -1234,6 +1234,75 @@ async fn live_wgc_switch_keeps_the_share_off_the_gpu() {
     viewer.close().await.unwrap();
 }
 
+/// An H265 share moved to VP9 leaves Rift's capture for libwebrtc's, since VP9
+/// reads its pictures from memory, and moved back to H265 comes back to Rift's
+/// session on the same device, its new encoder taking the GPU's pictures again:
+/// what FFmpeg's AMF logs as "AMF via D3D11." once more. Before, the share stayed
+/// on libwebrtc's capturer and its encoder read memory to the end, and the rate
+/// gate left out about one picture in seven (Nov 8 2026, `STEP4_AMD_WINDOWS.md`).
+#[cfg(target_os = "windows")]
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a LiveKit server, a display and a hardware H265 encoder that takes textures"]
+async fn live_wgc_share_comes_back_from_vp9() {
+    use super::capture_wgc::counts;
+    let _ = env_logger::builder()
+        .is_test(true)
+        .filter_level(log::LevelFilter::Info)
+        .try_init();
+    let server = Server::from_env();
+    let room = live_room("wgc-back");
+    let title = "rift live test: back from VP9";
+    // As an app whose watched shares decode on the GPU: only that offers H265.
+    crate::watching::decode::choose();
+    crate::watching::decode::gpu().expect("decoding on the GPU here");
+    let _window = test_window::TestWindow::open(title, true);
+    let (viewer, mut events) = viewer_as(&server, &room, "viewer").await;
+    let devices = counts::DEVICES.load(Ordering::Relaxed);
+    let sessions = counts::SESSIONS.load(Ordering::Relaxed);
+    let feeds = counts::TEXTURE_FEEDS.load(Ordering::Relaxed);
+    let mut config = window_share(&server, &room, title);
+    config.codec = share::VideoCodec::H265;
+    session::start(config).await.expect("share starts");
+    let seen = watch(&next_video_track(&mut events).await, Duration::from_secs(2)).await;
+    assert!(seen.frames > 30, "H265: {} frames", seen.frames);
+    for codec in [share::VideoCodec::VP9, share::VideoCodec::H265] {
+        session::update(ShareQuality {
+            resolution: 1080,
+            fps: 30,
+            bitrate: 8,
+            codec,
+            share_audio: false,
+        })
+        .await
+        .expect("the share changes codec");
+        let seen = watch(&next_video_track(&mut events).await, Duration::from_secs(2)).await;
+        log::info!(
+            "wgc share, moved to {codec:?}: {} frames in 2 s, decoder {}",
+            seen.frames,
+            seen.decoder
+        );
+        assert!(seen.frames > 30, "{codec:?}: {} frames", seen.frames);
+    }
+    let opened = (
+        counts::DEVICES.load(Ordering::Relaxed) - devices,
+        counts::SESSIONS.load(Ordering::Relaxed) - sessions,
+        counts::TEXTURE_FEEDS.load(Ordering::Relaxed) - feeds,
+    );
+    log::info!(
+        "wgc share, H265 to VP9 and back: {} devices, {} of Rift's sessions, {} encoders on the GPU's pictures",
+        opened.0,
+        opened.1,
+        opened.2
+    );
+    assert_eq!(
+        opened,
+        (1, 2, 2),
+        "devices, sessions, encoders on the GPU's pictures"
+    );
+    assert_eq!(session::stop().await.unwrap(), "Stopped successfully");
+    viewer.close().await.unwrap();
+}
+
 /// A shared window closed mid-share, five times: each time the capture hears
 /// it within 3 s and ends the share, and the stop the app then sends returns
 /// at once.

@@ -397,7 +397,20 @@ BT.601 limited. Driven in the app Nov 1–2 on NVENC (`TESTING.md`), CS2 among i
 share with a viewer (58.3 fps decoded). A picture that fails to draw sends the last one again;
 a second of them in a row, or the GPU gone, ends the encoder and the share goes on as VP9
 (`live_wgc_failing_gpu_moves_to_vp9`), found within a tick even while no new picture
-comes; a removed device hands the share to libwebrtc's capturer at once. A session that gives no picture for 2 s is
+comes; a removed device hands the share to libwebrtc's capturer at once. A share also
+leaves Rift's session when its feed reads memory: a move to VP9, or an encoder that opened
+without the share's device. It then keeps the device, and comes back to a new session on
+it as soon as the feed takes the GPU's pictures again, as when the codec moves back to
+H265 or H264, whose new encoder opens on that device; libwebrtc's capturer closes first.
+Only that hand-over comes back: a removed device, sessions that gave nothing, or a share
+started in VP9 stay on libwebrtc's capturer to the end. Before Nov 8 2026 none came back,
+and a share moved H265 → VP9 → H265 went on with its pictures through memory, scaled on
+the CPU, and the rate gate left out 38 to 45 pictures in every 5 s where a fresh share left
+out 1 to 22 (`STEP4_AMD_WINDOWS.md`, oddity 1). `live_wgc_share_comes_back_from_vp9` checks
+it: one device, two sessions, and both H265 encoders handed the GPU's pictures (verified
+Nov 8 2026 on AMF, against a local LiveKit). Driven in the app the same evening on AMF: back
+on Rift's session 40 ms after the move to H265, then 0 to 15 left out every 5 s against 1 to
+12 at a fresh share, and 0 to 17 after a web viewer's step down to H264 and the climb back. A session that gives no picture for 2 s is
 replaced by a new one on the same source, and again every 2 s while the new ones give
 nothing; after five, the share goes to libwebrtc's capturer and stays H264 on the same
 track (after one, 4 s, for a share that has had no picture yet, which would otherwise

@@ -11,10 +11,11 @@ AMF wrote real High and Main streams, and the 9070 XT decoded both through D3D11
 edges at 1080 and at an odd size. Codec, size and rate moves came back within 0.1 to 0.7 s, the
 web viewer's step down and back held, and a 1 Mbps upload never stopped the share. Beside CS2,
 H265 cost the game what H264 High did, and the share held 60 pictures a second in both. The
-two things: after AMF is reopened mid-share in H265 (any codec move), the rate gate leaves out
-about one picture in seven on a busy pattern for the rest of the share, so a viewer gets about
-52 a second instead of about 56; and on the 1 Mbps upload the watcher's clock stood still for
-1.2 to 3.3 s four times in the first 46 s. Nothing was changed in the code.
+two things: after a move through VP9 the share stayed on libwebrtc's capturer for good, and the
+rate gate then left out about one picture in seven on a busy pattern, so a viewer got about 52 a
+second instead of about 56 (oddity 1, fixed the same evening); and on the 1 Mbps upload the
+watcher's clock stood still for 1.2 to 3.3 s four times in the first 46 s. Nothing else was
+changed in the code.
 
 ## The machine
 
@@ -133,21 +134,33 @@ watching numbers (`STEP3_AMD.md`) are a different case (watching, not sharing).
   logged, so its 26–30 s is from the owner's word and the sharer's log.
 - A phone or Firefox viewer, a real slow connection (a limiter drops where a real link queues),
   a real driver reset.
-- Rust live tests: they need the server's LiveKit keys, which stay on the laptop.
+- Rust live tests against the laptop's LiveKit: its keys stay on the laptop. The Windows
+  capture ones (`live_wgc_*`) ran that evening against a local LiveKit instead, for oddity 1.
 
 ## Oddities
 
-1. **More pictures left out after AMF is reopened mid-share in H265.** At a fresh share the gate
-   left out 1 to 22 pictures in each 5 s (11 Mbps, the pattern); after a codec move back to
-   H265, 38 to 45 in every 5 s for as long as the share ran, and the same after the web viewer's
-   climb back. The watcher's stats then read 52 to 56 fps. A fresh share right after, on the same
-   pattern, left out 1 to 13 again. AMF's send time differed too: 1.7 ms a picture after a
-   reopen, 2.1 to 2.2 ms fresh. A fresh share opens AMF at libwebrtc's start rate (about 1 Mbps)
-   and moves it up through the patched dynamic properties; a reopen opens it straight at the
-   share's rate. FFmpeg's command line opened at 11 Mbps with the same options averaged 10.9
-   Mbps on the pattern over 20 s, in both codecs, so the average is not over: the pictures
-   most likely come in bigger bursts, which the gate trims. Not isolated further. H264 after
-   the web's step down left out 13 to 23 every 5 s against 1 to 8 fresh.
+1. **More pictures left out after a move through VP9, and the cause: the share never came back
+   to Rift's capture.** At a fresh share the gate left out 1 to 22 pictures in each 5 s
+   (11 Mbps, the pattern); after G's move from VP9 back to H265, 38 to 45 in every 5 s for as
+   long as the share ran, and the same through H's step down and climb back, which ran on the
+   same share (H264 13 to 23 against 1 to 8 fresh). The watcher's stats then read 52 to 56 fps.
+   It first looked like AMF opened straight at 11 Mbps making bigger bursts than one moved up
+   from libwebrtc's start rate. A test program against `rift_ffenc.dll` ruled that out: H265 on
+   the moving pattern at 1080p60, opened at 11, opened at 4 and moved to 11, ramped from 1 over
+   10 s, or reopened at 11 in the same process, gave the same frames over 20 s (mean 23.5 to
+   23.6 KB, p95 24.3, max 24.8 to 25.0, 11.28 to 11.32 Mbps). The sharer's full log showed the
+   cause: the move to VP9 logged `capture: this feed reads memory; on to libwebrtc's capturer`,
+   and the share never went back. The move to H265 opened AMF without the share's device (no
+   `AMF via D3D11.` line), so every picture after it was scaled on the CPU and uploaded, at 1.7
+   ms a picture against 2.1 to 2.2 ms on the GPU's. A share now comes back to Rift's session
+   when its feed takes the GPU's pictures again (`CALLS.md`, *How Windows captures a screen*;
+   `live_wgc_share_comes_back_from_vp9`). Driven the same evening, the same pattern, sharer and
+   watcher on the same PC: a fresh H265 share left out 1 to 12 every 5 s; H265 → H264 → VP9 →
+   H265 came back to Rift's session 40 ms after the last move, left out 0 to 15, sent at 2.2 to
+   2.5 ms; the web viewer's step down to H264 left out 0, and the climb back to H265 0 to 17.
+   The watcher's picture came back 0.2 to 0.6 s after each move, with no `stopped working`, `no
+   picture` or keyframe wait in either log. Why pictures through memory left out so many more is
+   not known; with the share back on the GPU's it no longer matters here.
 2. **Stalls on the 1 Mbps upload** (F): five of 19 shots between 14 and 46 s after Watch had the
    watcher 1.2 to 3.3 s behind, its stats reading 0 or 31 fps, four separate stalls that each
    cleared by itself, with no keyframe wait or other line in either log. Settled after that.

@@ -146,10 +146,34 @@ pub(crate) fn share_device() -> Option<ID3D11Device> {
         .map(|held| held.0.clone())
 }
 
-/// Clears [`SHARE_DEVICE`] however the share ends.
-struct DeviceHeld;
+/// A share's device, made [`SHARE_DEVICE`] while this is held and cleared
+/// when it goes, however the share ends.
+///
+/// It outlives the session when a feed reading memory took the share to
+/// libwebrtc's capturer ([`Handoff::ReadsMemory`]): an encoder opened while it
+/// runs there, as for a move from VP9 back to H265, then opens on this device,
+/// and the share comes back to Rift's session on it (`capture::spawn`). Cleared
+/// with it, as before, the encoder opened without the device and the share
+/// stayed on libwebrtc's capturer, its pictures through memory, to the end
+/// (Nov 8 2026, `STEP4_AMD_WINDOWS.md`).
+pub(super) struct HeldDevice {
+    device: ID3D11Device,
+    winrt: IDirect3DDevice,
+}
 
-impl Drop for DeviceHeld {
+impl HeldDevice {
+    fn share(device: ID3D11Device, winrt: IDirect3DDevice) -> HeldDevice {
+        *SHARE_DEVICE.lock().unwrap() = Some(SharedDevice(device.clone()));
+        HeldDevice { device, winrt }
+    }
+
+    fn removed(&self) -> Option<windows::core::Error> {
+        // SAFETY: a question of a device this thread holds.
+        unsafe { self.device.GetDeviceRemovedReason() }.err()
+    }
+}
+
+impl Drop for HeldDevice {
     fn drop(&mut self) {
         *SHARE_DEVICE.lock().unwrap() = None;
     }
@@ -161,6 +185,10 @@ pub(super) enum Handoff {
     Done,
     /// Not here, or not any more: libwebrtc's capturer takes the request.
     Fallback(CaptureRequest),
+    /// The feed reads memory (VP9, or an encoder opened without the device):
+    /// libwebrtc's capturer takes the request, until the feed takes GPU
+    /// pictures again, when [`run`] is given the device back.
+    ReadsMemory(CaptureRequest, HeldDevice),
 }
 
 /// Whether a share goes on Rift's own capture: with the switch on, in a codec the
@@ -754,8 +782,10 @@ impl Recapture for Running<'_> {
 
 /// Runs the share on Rift's own capture until a stop, the source's end, or a feed
 /// that needs pictures in memory, which hands over to libwebrtc's capturer.
+/// `held` is the device of a share coming back from there, opened on again.
 pub(super) fn run(
     mut request: CaptureRequest,
+    held: Option<HeldDevice>,
     fps: &Arc<AtomicU32>,
     progress: &UnboundedSender<Progress>,
     slot: &capture::VideoSlot,
@@ -781,12 +811,23 @@ pub(super) fn run(
         );
         return Handoff::Fallback(request);
     };
-    let (device, winrt_device) = match open_device(vendor) {
-        Ok(devices) => devices,
-        Err(e) => {
-            log::info!("capture: no D3D11 device for GPU capture ({e}); libwebrtc's capturer");
-            return Handoff::Fallback(request);
+    // Back on the device the share's encoder opened on: a new one would be
+    // another the encoder cannot read textures from.
+    let (device, winrt_device) = match &held {
+        Some(held) => {
+            if let Some(e) = held.removed() {
+                log::warn!("capture: the GPU device was removed ({e}); libwebrtc's capturer");
+                return Handoff::Fallback(request);
+            }
+            (held.device.clone(), held.winrt.clone())
         }
+        None => match open_device(vendor) {
+            Ok(devices) => devices,
+            Err(e) => {
+                log::info!("capture: no D3D11 device for GPU capture ({e}); libwebrtc's capturer");
+                return Handoff::Fallback(request);
+            }
+        },
     };
     hold_winrt();
     let _timer = capture::TimerResolutionGuard::new();
@@ -799,7 +840,8 @@ pub(super) fn run(
         Ok(Some(source)) => source,
         Ok(None) => return Handoff::Done,
         Err(reason) => {
-            let _ = progress.send(Progress::Failed(reason));
+            // Coming back mid-share, nobody waits on `progress`: the share ends.
+            capture::fail(progress, reason);
             return Handoff::Done;
         }
     };
@@ -815,9 +857,7 @@ pub(super) fn run(
         return Handoff::Fallback(request);
     };
 
-    let watched = device.clone();
-    *SHARE_DEVICE.lock().unwrap() = Some(SharedDevice(device));
-    let _device_held = DeviceHeld;
+    let held = held.unwrap_or_else(|| HeldDevice::share(device, winrt_device.clone()));
     let (put, pictures) = latest::channel::<WgcPicture>();
     let flow = Arc::new(Flow {
         pictures: Mutex::new(Some(put)),
@@ -858,21 +898,20 @@ pub(super) fn run(
     let mut rate = fps.load(Ordering::Relaxed);
     let mut quiet = QuietWatch::new(*flow.last.lock().unwrap());
     let mut reopens = 0u32;
-    let hand_over = loop {
+    let ending = loop {
         match command_rx.recv_timeout(POLL) {
-            Ok(Command::Terminate) | Err(RecvTimeoutError::Disconnected) => break false,
+            Ok(Command::Terminate) | Err(RecvTimeoutError::Disconnected) => break Ending::Done,
             Err(RecvTimeoutError::Timeout) => {}
         }
         if wants_memory.load(Ordering::Relaxed) {
             log::info!("capture: this feed reads memory; on to libwebrtc's capturer");
-            break true;
+            break Ending::ReadsMemory;
         }
         // A reset that removes the device leaves no session here a picture to
         // give, new ones too; libwebrtc's capturer makes devices of its own.
-        // SAFETY: a question of a device this thread holds.
-        if let Err(e) = unsafe { watched.GetDeviceRemovedReason() } {
+        if let Some(e) = held.removed() {
             log::warn!("capture: the GPU device was removed ({e}); libwebrtc's capturer");
-            break true;
+            break Ending::Fallback;
         }
         let ended = match window.as_mut() {
             Some(window) => window.ended(
@@ -888,7 +927,7 @@ pub(super) fn run(
             #[cfg(test)]
             counts::CLOSED.fetch_add(1, Ordering::Relaxed);
             crate::api::screenshare::emit_screenshare_event(ScreenshareEvent::SourceClosed);
-            break false;
+            break Ending::Done;
         }
         let now = fps.load(Ordering::Relaxed);
         if now != rate {
@@ -931,7 +970,7 @@ pub(super) fn run(
                 log::info!("capture: the new sessions gave no picture; libwebrtc's capturer");
                 #[cfg(test)]
                 counts::HANDOVERS.fetch_add(1, Ordering::Relaxed);
-                break true;
+                break Ending::Fallback;
             }
         }
     };
@@ -950,16 +989,29 @@ pub(super) fn run(
     drop(capturer);
     debug_layer::report();
     log::info!("capture: thread exiting");
-    if hand_over {
-        request.following = Some(sources::Listed {
-            id: now_on,
-            title: source.title(),
-            minimised: false,
-        });
-        Handoff::Fallback(request)
-    } else {
-        Handoff::Done
+    if ending == Ending::Done {
+        return Handoff::Done;
     }
+    request.following = Some(sources::Listed {
+        id: now_on,
+        title: source.title(),
+        minimised: false,
+    });
+    match ending {
+        Ending::ReadsMemory => Handoff::ReadsMemory(request, held),
+        _ => Handoff::Fallback(request),
+    }
+}
+
+/// Why a share on Rift's session stopped there.
+#[derive(PartialEq)]
+enum Ending {
+    /// A stop, or the source's end.
+    Done,
+    /// For good: a device removed, or a source sessions gave nothing of.
+    Fallback,
+    /// For now: the feed reads memory ([`Handoff::ReadsMemory`]).
+    ReadsMemory,
 }
 
 /// The processing thread: each picture to its feed. The newest is kept until a GPU
@@ -968,6 +1020,8 @@ pub(super) fn run(
 fn process(pictures: Taker<WgcPicture>, slot: capture::VideoSlot, wants_memory: Arc<AtomicBool>) {
     let mut newest: Option<Arc<WgcPicture>> = None;
     let mut taken: Weak<GpuFeed> = Weak::new();
+    #[cfg(test)]
+    let mut counted: Weak<GpuFeed> = Weak::new();
     loop {
         match pictures.take_timeout(QUIET) {
             Some(picture) => {
@@ -992,6 +1046,11 @@ fn process(pictures: Taker<WgcPicture>, slot: capture::VideoSlot, wants_memory: 
                     gpu.failed();
                 } else if gpu.send(Picture::Wgc(picture.clone()), target, now_us()) {
                     taken = Arc::downgrade(&gpu);
+                    #[cfg(test)]
+                    if !Weak::ptr_eq(&counted, &taken) {
+                        counted = taken.clone();
+                        counts::TEXTURE_FEEDS.fetch_add(1, Ordering::Relaxed);
+                    }
                 }
             }
             // VP9 after a fall back, or an encoder opened without the device.
@@ -1012,6 +1071,9 @@ pub(super) mod counts {
     pub(in super::super) static DEVICES: AtomicU32 = AtomicU32::new(0);
     /// Shares that ran on Rift's own session.
     pub(in super::super) static SESSIONS: AtomicU32 = AtomicU32::new(0);
+    /// Encoders handed a picture on the GPU, each counted once: one opened on
+    /// the share's device, which FFmpeg's AMF logs as "AMF via D3D11.".
+    pub(in super::super) static TEXTURE_FEEDS: AtomicU32 = AtomicU32::new(0);
     /// Shared windows heard closing.
     pub(in super::super) static CLOSED: AtomicU32 = AtomicU32::new(0);
     /// New sessions opened on a quiet source.

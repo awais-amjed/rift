@@ -137,6 +137,16 @@ impl VideoSlot {
         self.0.lock().unwrap().feed = None;
     }
 
+    /// Whether the feed attached takes Windows Graphics Capture's pictures on the
+    /// GPU: an encoder opened on the share's device.
+    #[cfg(target_os = "windows")]
+    fn takes_textures(&self) -> bool {
+        matches!(
+            &self.0.lock().unwrap().feed,
+            Some((Feed::Gpu(gpu), _)) if gpu.takes_gpu_picture()
+        )
+    }
+
     /// The size the source is capturing at, once a frame has arrived.
     pub(crate) fn native(&self) -> Option<Size> {
         self.0.lock().unwrap().native
@@ -228,17 +238,41 @@ pub(crate) fn spawn(request: CaptureRequest) -> (Capture, Started) {
                 }
                 capture_pw::Handoff::Fallback(request) => request,
             };
-            // A Windows H264 share runs on Rift's own capture where it can.
+            // A Windows share in a codec the GPU makes runs on Rift's own capture
+            // where it can, and comes back to it from libwebrtc's when a feed that
+            // read memory gives way to one that takes the GPU's pictures again.
             #[cfg(target_os = "windows")]
-            let request = match capture_wgc::run(request, &clock, &progress_tx, &feeds, &command_rx)
             {
-                capture_wgc::Handoff::Done => {
-                    let _ = done_tx.send(());
-                    return;
+                let mut request = request;
+                let mut held = None;
+                loop {
+                    match capture_wgc::run(
+                        request,
+                        held.take(),
+                        &clock,
+                        &progress_tx,
+                        &feeds,
+                        &command_rx,
+                    ) {
+                        capture_wgc::Handoff::Done => break,
+                        capture_wgc::Handoff::Fallback(request) => {
+                            run(request, &clock, &progress_tx, &feeds, &command_rx, false);
+                            break;
+                        }
+                        capture_wgc::Handoff::ReadsMemory(memory, device) => {
+                            match run(memory, &clock, &progress_tx, &feeds, &command_rx, true) {
+                                Some(back) => {
+                                    request = back;
+                                    held = Some(device);
+                                }
+                                None => break,
+                            }
+                        }
+                    }
                 }
-                capture_wgc::Handoff::Fallback(request) => request,
-            };
-            run(request, clock, progress_tx, feeds, command_rx);
+            }
+            #[cfg(not(target_os = "windows"))]
+            run(request, &clock, &progress_tx, &feeds, &command_rx, false);
             let _ = done_tx.send(());
         })
         .expect("no capture thread");
@@ -325,7 +359,7 @@ fn set_power_throttling(held: u32) {
 /// Rift's own capture hands one over, nobody is waiting on `progress` any more:
 /// the share then ends as a closed source does, rather than show its last
 /// picture, or nothing, for as long as nobody stops it.
-fn fail(progress: &UnboundedSender<Progress>, reason: String) {
+pub(super) fn fail(progress: &UnboundedSender<Progress>, reason: String) {
     if let Err(unheard) = progress.send(Progress::Failed(reason)) {
         if let Progress::Failed(reason) = unheard.0 {
             log::info!("capture: {reason}, ending the share");
@@ -334,21 +368,28 @@ fn fail(progress: &UnboundedSender<Progress>, reason: String) {
     }
 }
 
+/// Runs the share on libwebrtc's capturer until a stop or the source's end. With
+/// `until_gpu`, only until the feed takes Windows Graphics Capture pictures on the
+/// GPU, when the request comes back for Rift's own capture to take again: a share
+/// that came here because its feed read memory (`capture_wgc::Handoff`).
 fn run(
     request: CaptureRequest,
-    fps: Arc<AtomicU32>,
-    progress: UnboundedSender<Progress>,
-    source_slot: VideoSlot,
-    command_rx: mpsc::Receiver<Command>,
-) {
+    fps: &Arc<AtomicU32>,
+    progress: &UnboundedSender<Progress>,
+    source_slot: &VideoSlot,
+    command_rx: &mpsc::Receiver<Command>,
+    until_gpu: bool,
+) -> Option<CaptureRequest> {
+    #[cfg(not(target_os = "windows"))]
+    let _ = until_gpu;
     #[cfg(target_os = "windows")]
     let _timer = TimerResolutionGuard::new();
 
     let mut options = sources::options(request.source_type);
     options.set_include_cursor(request.capture_cursor);
     let Some(mut capturer) = DesktopCapturer::new(options) else {
-        fail(&progress, "Could not create a desktop capturer".to_string());
-        return;
+        fail(progress, "Could not create a desktop capturer".to_string());
+        return None;
     };
 
     // A choice the portal saved is the capturer's to restore, and takes no
@@ -361,13 +402,13 @@ fn run(
         log::info!("capture: the window picked in the desktop's picker");
         None
     } else {
-        match find_source(&capturer, &request, &progress, &command_rx) {
+        match find_source(&capturer, &request, progress, command_rx) {
             Ok(Some(source)) => Some(source),
             // Stopped while waiting for the window.
-            Ok(None) => return,
+            Ok(None) => return None,
             Err(reason) => {
-                fail(&progress, reason);
-                return;
+                fail(progress, reason);
+                return None;
             }
         }
     };
@@ -382,22 +423,28 @@ fn run(
 
     // One raw frame waits for the processing thread, a newer one replacing it.
     let (frame_tx, frame_rx) = latest::channel::<SendableFrame>();
-    let _processing = frames::spawn_processing(frame_rx, source_slot);
+    let processing = frames::spawn_processing(frame_rx, source_slot.clone());
     let signals = Signals {
         frames: Arc::new(frame_tx),
         lost: Arc::new(AtomicBool::new(false)),
         arrived: Arc::new(AtomicBool::new(false)),
     };
-    capturer.start_capture(source, signals.callback(Some(progress)));
+    #[cfg(target_os = "windows")]
+    let listed = source.as_ref().map(|source| sources::Listed {
+        id: source.id(),
+        title: source.title(),
+        minimised: false,
+    });
+    capturer.start_capture(source, signals.callback(Some(progress.clone())));
 
     let interval = |fps: u32| Duration::from_secs_f64(1.0 / f64::from(fps.max(1)));
     let mut rate = fps.load(Ordering::Relaxed);
     let mut frame_interval = interval(rate);
     let mut next_frame = Instant::now() + frame_interval;
-    loop {
+    let back = loop {
         let timeout = next_frame.saturating_duration_since(Instant::now());
         match command_rx.recv_timeout(timeout) {
-            Ok(Command::Terminate) | Err(RecvTimeoutError::Disconnected) => break,
+            Ok(Command::Terminate) | Err(RecvTimeoutError::Disconnected) => break false,
             Err(RecvTimeoutError::Timeout) => {
                 capturer.capture_frame();
                 #[cfg(target_os = "windows")]
@@ -422,7 +469,14 @@ fn run(
                 if ended {
                     log::info!("capture: source closed, ending the share");
                     crate::api::screenshare::emit_screenshare_event(ScreenshareEvent::SourceClosed);
-                    break;
+                    break false;
+                }
+                #[cfg(target_os = "windows")]
+                if until_gpu && source_slot.takes_textures() {
+                    log::info!(
+                        "capture: the feed takes GPU pictures again; back to Rift's Windows Graphics Capture"
+                    );
+                    break true;
                 }
                 let now_rate = fps.load(Ordering::Relaxed);
                 if now_rate != rate {
@@ -441,8 +495,25 @@ fn run(
                 }
             }
         }
+    };
+    #[cfg(target_os = "windows")]
+    if back {
+        // What it shows now, as Rift's own capture hands over: a window the
+        // game has swapped in since, or the screen.
+        let mut request = request;
+        request.following = window.as_ref().map(SharedWindow::listed).or(listed);
+        // The capturer goes first, and with it the processing thread's
+        // mailbox, so none of its pictures reaches the feed after Rift's do.
+        drop(capturer);
+        drop(signals);
+        let _ = processing.join();
+        log::info!("capture: libwebrtc's capturer closed");
+        return Some(request);
     }
+    #[cfg(not(target_os = "windows"))]
+    let _ = (back, processing);
     log::info!("capture: thread exiting");
+    None
 }
 
 /// What the capture thread learns from the capturer's results, shared with
@@ -557,6 +628,15 @@ impl Recapture for Libwebrtc<'_> {
 
 #[cfg(target_os = "windows")]
 impl SharedWindow {
+    /// The window followed now, as Rift's capture or libwebrtc's takes it up.
+    fn listed(&self) -> sources::Listed {
+        sources::Listed {
+            id: self.id,
+            title: self.title.clone(),
+            minimised: false,
+        }
+    }
+
     pub(super) fn new(id: u64, title: String) -> Self {
         Self {
             id,
