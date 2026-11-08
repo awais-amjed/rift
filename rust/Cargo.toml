@@ -32,7 +32,7 @@ sha2 = "0.11"
 # ANDROID_NDK_HOME happens to be set, to link code that could never run. Now
 # the mobile build never sees it.
 [target.'cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))'.dependencies]
-livekit = { version = "0.9.5", features = ["rustls-tls-native-roots"] }
+livekit = { version = "0.10.1", features = ["rustls-tls-native-roots"] }
 # Reading a stream: the portal session's Closed signal (src/screenshare/
 # portal.rs) and a watched share's pictures (src/watching). livekit and ashpd
 # build on it already, so nothing new ships.
@@ -99,7 +99,7 @@ windows-core = "0.62.2"
 # For the live test in src/screenshare/live_test.rs: minting tokens and
 # reading the viewer's frames. Desktop only for the same reason livekit is.
 [target.'cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))'.dev-dependencies]
-livekit-api = { version = "0.9.0", default-features = false, features = ["access-token"] }
+livekit-api = { version = "0.10.1", default-features = false, features = ["access-token"] }
 futures-util = "0.3"
 
 [lints.rust]
@@ -110,13 +110,13 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
 # can start from a ScreenCast pick Rift already made (Linux, so the window's
 # sound can be matched before sharing); a Windows screen can be captured
 # without Windows Graphics Capture's yellow border; a pre-encoded H264 track
-# can go out in High profile; a pre-encoded H265 track can go out without a
-# real H265 encoder, with the start bitrate hint the server leaves out, and a participant can read the codecs its server takes;
-# and received video can be read still encoded, for Rift to decode on the GPU
+# can go out in High profile; an H265 track gets the start bitrate hint the
+# server leaves out; a participant can read the codecs its server takes; and
+# received video can be read still encoded, for Rift to decode on the GPU
 # (src/watching/decode). RIFT.md on that branch
 # says why, and when each change can go. Every crate of LiveKit's this
 # library builds comes from the one commit, so they always match.
 [patch.crates-io]
-livekit = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "3f23823c06a3efc023ce0562b2b16dbd6dca5be7" }
-livekit-api = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "3f23823c06a3efc023ce0562b2b16dbd6dca5be7" }
-webrtc-sys = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "3f23823c06a3efc023ce0562b2b16dbd6dca5be7" }
+livekit = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "da4202e955eb3caf11d19353e28ca4f6f65af628" }
+livekit-api = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "da4202e955eb3caf11d19353e28ca4f6f65af628" }
+webrtc-sys = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "da4202e955eb3caf11d19353e28ca4f6f65af628" }
