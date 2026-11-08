@@ -144,8 +144,32 @@ impl Gpu {
     /// since adapter 0 may have moved since start (a GPU switched in Hybrid
     /// mode): the runner's device is on the adapter Flutter draws with, which
     /// is not always the one checked here.
+    ///
+    /// Before the first watch the runner has no device yet, so the adapter
+    /// Flutter draws with, which it will be made on, answers instead: what
+    /// this computer plays is said when a call is joined, before any watch.
     pub(crate) fn drawn_by_runner(&self) -> bool {
-        self.drawn_on(runner_device().as_ref())
+        match runner_device() {
+            Some(device) => self.drawn_on(Some(&device)),
+            None => self.drawn_on_adapter(runner_adapter()),
+        }
+    }
+
+    fn drawn_on_adapter(&self, luid: Option<i64>) -> bool {
+        match luid {
+            None => {
+                log::warn!("watching: the window has no GPU device");
+                false
+            }
+            Some(luid) if luid == self.luid => true,
+            Some(_) => {
+                log::warn!(
+                    "watching: the window draws on another GPU than {}, which decodes",
+                    self.name
+                );
+                false
+            }
+        }
     }
 
     fn drawn_on(&self, device: Option<&ID3D11Device>) -> bool {
@@ -270,6 +294,30 @@ fn runner_device() -> Option<ID3D11Device> {
             let export: unsafe extern "C" fn() -> *mut c_void = std::mem::transmute(export);
             let raw = export();
             (!raw.is_null()).then(|| ID3D11Device::from_raw(raw))
+        }
+    }
+}
+
+/// The LUID of the adapter Flutter draws with, which the runner makes its
+/// device on, from its `rift_stream_adapter_luid` export; none when the
+/// export is missing or Flutter named no adapter.
+fn runner_adapter() -> Option<i64> {
+    #[cfg(test)]
+    {
+        None
+    }
+    #[cfg(not(test))]
+    {
+        use windows::core::s;
+        use windows::Win32::System::LibraryLoader::{GetModuleHandleW, GetProcAddress};
+        // SAFETY: the export, when the exe has it, is the runner's, with this
+        // type (stream_texture.h); it writes one number into a local.
+        unsafe {
+            let exe = GetModuleHandleW(None).ok()?;
+            let export = GetProcAddress(exe, s!("rift_stream_adapter_luid"))?;
+            let export: unsafe extern "C" fn(*mut i64) -> i32 = std::mem::transmute(export);
+            let mut luid = 0i64;
+            (export(&mut luid) == 1).then_some(luid)
         }
     }
 }
@@ -600,6 +648,15 @@ pub(crate) mod tests {
         let (_, luid) = device_on_adapter_zero();
         let gpu = Gpu::from_profiles(luid, "a GPU".to_string(), &[H264_PROFILES[0]]);
         assert!(!gpu.drawn_on(None));
+    }
+
+    #[test]
+    fn before_a_device_the_adapter_flutter_draws_with_answers() {
+        // A call joined before any watch: the runner has made no device yet.
+        let gpu = Gpu::from_profiles(7, "a GPU".to_string(), &[H264_PROFILES[0]]);
+        assert!(gpu.drawn_on_adapter(Some(7)));
+        assert!(!gpu.drawn_on_adapter(Some(8)));
+        assert!(!gpu.drawn_on_adapter(None));
     }
 
     #[test]

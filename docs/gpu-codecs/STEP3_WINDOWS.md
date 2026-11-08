@@ -269,7 +269,10 @@ How:
   pass-through, as on Linux. The runner's `create` says whether its device has video
   support (`takesGpuPictures`), and Rust, at each watch, whether that device is on the
   adapter it chose, by LUID (`Gpu::drawn_by_runner`). If either is not, Rust refuses the
-  watch, as Linux does under X11, and the call's path is taken. The runner once compared
+  watch, as Linux does under X11, and the call's path is taken. Before the first watch
+  there is no device yet, so the LUID of the adapter Flutter draws with, read by the
+  runner when its view is made (`rift_stream_adapter_luid`), answers instead: that is
+  when a call asks what this computer plays. The runner once compared
   its adapter with adapter 0 itself, at its first `create` and for the rest of the run;
   adapter 0 asked then could be another GPU than the one Rust asked at start (found by
   review Nov 5).

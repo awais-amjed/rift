@@ -43,6 +43,13 @@ struct Stream {
 FlutterDesktopPluginRegistrarRef plugin = nullptr;
 FlutterDesktopTextureRegistrarRef registrar = nullptr;
 
+// The LUID of the adapter Flutter draws with, read once the view is there,
+// which is where the device is made later. Rust asks it before the first
+// watch, when there is no device yet, to say what this computer plays
+// (rust/src/watching/decode/windows.rs, `drawn_by_runner`).
+std::atomic<bool> flutter_adapter_known{false};
+std::atomic<int64_t> flutter_adapter{0};
+
 // The textures Rust may mark, by id. A texture leaves before it is let go, so
 // a mark that finds nothing is a share already stopped.
 std::mutex live_mutex;
@@ -288,11 +295,30 @@ extern "C" __declspec(dllexport) ID3D11Device* rift_stream_d3d11_device() {
   return LendGpuDevice();
 }
 
+extern "C" __declspec(dllexport) int32_t rift_stream_adapter_luid(
+    int64_t* luid) {
+  if (luid == nullptr || !flutter_adapter_known.load()) return 0;
+  *luid = flutter_adapter.load();
+  return 1;
+}
+
 namespace rift {
 
 StreamTextures::StreamTextures(flutter::FlutterEngine* engine) {
   SetStreamLog(AppLog);
   plugin = engine->GetRegistrarForPlugin("RiftStreamTexture");
+  IDXGIAdapter* adapter = nullptr;
+  if (FlutterDesktopPluginRegistrarGetGraphicsAdapter(plugin, &adapter) &&
+      adapter != nullptr) {
+    DXGI_ADAPTER_DESC desc = {};
+    if (SUCCEEDED(adapter->GetDesc(&desc))) {
+      flutter_adapter.store(
+          (static_cast<int64_t>(desc.AdapterLuid.HighPart) << 32) |
+          static_cast<int64_t>(desc.AdapterLuid.LowPart));
+      flutter_adapter_known.store(true);
+    }
+    adapter->Release();
+  }
   {
     std::lock_guard<std::mutex> hold(live_mutex);
     registrar = FlutterDesktopRegistrarGetTextureRegistrar(plugin);

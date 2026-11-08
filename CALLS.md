@@ -743,7 +743,10 @@ what was driven are in `TESTING.md`).
   decodes it: libwebrtc lists it everywhere, but there it would decode on the CPU,
   which Rift does not use, so a viewer under X11 or without a GPU decoder brings the
   share down to VP9. Only the Rust watch connection on a GPU that decodes H265 adds
-  that (`ViewerCodecs`). So phones and browsers do not say H265, and neither does an
+  that (`ViewerCodecs`). On Windows this is asked at the first join, before any watch
+  has made the runner's device, so the adapter Flutter draws with answers for it
+  (`rift_stream_adapter_luid`); until Nov 8 the missing device made every Windows
+  viewer say VP9 and VP8 alone. So phones and browsers do not say H265, and neither does an
   old Rift, which says nothing and counts as everything but H265. A watch connection
   that gives out in a call takes H264 and H265 off the list until the next room, since
   the call's own connection has no H265 and decodes H264 on the CPU. Two cases still

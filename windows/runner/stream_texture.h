@@ -54,4 +54,10 @@ class StreamTextures {
 // executable's exports when it opens a share's decoder on the GPU.
 extern "C" __declspec(dllexport) ID3D11Device* rift_stream_d3d11_device();
 
+// The LUID of the adapter Flutter draws with, which the device is made on,
+// into |luid|: 1, or 0 when Flutter named none. Rust asks it before the first
+// watch, when there is no device yet, to say whether it plays H264 and H265.
+extern "C" __declspec(dllexport) int32_t rift_stream_adapter_luid(
+    int64_t* luid);
+
 #endif  // RUNNER_STREAM_TEXTURE_H_
