@@ -118,6 +118,10 @@ class LiveKitState extends Equatable {
   /// [AppCubit]'s per-person list — see `VoicePrivacy`.
   final String? voiceOnlyFor;
 
+  /// Something the call has to tell the person, shown once by
+  /// `NoticeListeners`: so far, that the microphone could not be opened.
+  final Notice? notice;
+
   const LiveKitState({
     this.connectionState = LiveKitConnectionState.disconnected,
     this.room,
@@ -143,6 +147,7 @@ class LiveKitState extends Equatable {
     this.arrivals = 0,
     this.listeningOnlyTo,
     this.voiceOnlyFor,
+    this.notice,
   });
 
   /// In a call of either kind, connected or on the way.
@@ -233,6 +238,7 @@ class LiveKitState extends Equatable {
     bool clearListeningOnlyTo = false,
     String? voiceOnlyFor,
     bool clearVoiceOnlyFor = false,
+    Notice? notice,
     bool clearStreamToOpen = false,
     bool clearRoom = false,
     bool clearChannelId = false,
@@ -301,6 +307,7 @@ class LiveKitState extends Equatable {
       voiceOnlyFor: sameCall && !clearVoiceOnlyFor
           ? (voiceOnlyFor ?? this.voiceOnlyFor)
           : null,
+      notice: notice ?? this.notice,
     );
   }
 
@@ -330,5 +337,6 @@ class LiveKitState extends Equatable {
     arrivals,
     listeningOnlyTo,
     voiceOnlyFor,
+    notice,
   ];
 }

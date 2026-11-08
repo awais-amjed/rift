@@ -14,6 +14,7 @@ import '../../../data/classes/api_response.dart';
 import '../../../data/classes/channel.dart';
 import '../../../data/classes/dm_call_place.dart';
 import '../../../data/classes/equality_props.dart';
+import '../../../data/classes/notice.dart';
 import '../../../data/classes/participant_info.dart';
 import '../../../data/classes/participant_setting.dart';
 import '../../../data/classes/server.dart';
@@ -567,17 +568,29 @@ class LiveKitCubit extends Cubit<LiveKitState>
     // the latest noise-suppression / echo / AGC settings, not the ones frozen
     // into RoomOptions at connect time.
     final options = _buildAudioCaptureOptions();
-    if (transmit || silenced) {
-      // A running track is only switched back on; a stopped one is restarted.
-      await local.setMicrophoneEnabled(
-        true,
-        audioCaptureOptions: options.copyWith(stopAudioCaptureOnMute: !running),
-      );
-    } else if (capture && !running) {
-      // Unmuting would restart a stopped track switched on, and it would be
-      // heard before it could be muted again. A new one is published instead.
-      if (published != null) await local.removePublishedTrack(published.sid);
-      await _publishMutedMicrophone(local, options);
+    if (transmit || silenced || (capture && !running)) {
+      try {
+        if (transmit || silenced) {
+          // A running track is only switched back on; a stopped one is
+          // restarted.
+          await local.setMicrophoneEnabled(
+            true,
+            audioCaptureOptions: options.copyWith(
+              stopAudioCaptureOnMute: !running,
+            ),
+          );
+        } else {
+          // Unmuting would restart a stopped track switched on, and it would
+          // be heard before it could be muted again. A new one is published
+          // instead.
+          if (published != null) {
+            await local.removePublishedTrack(published.sid);
+          }
+          await _publishMutedMicrophone(local, options);
+        }
+      } catch (error) {
+        _microphoneWouldNotOpen(error);
+      }
     } else {
       await local.setMicrophoneEnabled(
         false,
@@ -590,6 +603,34 @@ class LiveKitCubit extends Cubit<LiveKitState>
     // Re-bind the level monitor to the (possibly new) mic track.
     await _updateVoiceActivityMonitor();
     if (syncParticipants) _syncParticipants();
+  }
+
+  /// The mic was meant to be on and could not be opened: a browser refusing
+  /// it, no input device, one another program holds.
+  ///
+  /// The call goes on muted, and says so. It used to keep the toggle on, so
+  /// the call bar showed a live mic while your own tile, which reads the
+  /// track, showed you muted, and nobody could hear you. Only this call's
+  /// toggle moves: the saved choice is left, so the next call tries the mic
+  /// again, and unmuting here does too.
+  void _microphoneWouldNotOpen(Object error) {
+    HelperMethods.printDebug('[LiveKit] microphone would not open: $error');
+    if (isClosed) return;
+    emit(
+      state.copyWith(
+        isMicEnabled: false,
+        notice: Notice.error(
+          kIsWeb
+              ? 'Rift could not open your microphone, so you are muted. '
+                    'Check that this site may use it, then unmute.'
+              : 'Rift could not open your microphone, so you are muted. '
+                    'Check that one is connected, then unmute.',
+          duration: Notice.long,
+        ),
+      ),
+    );
+    // Behind this step, to settle the rest the way the toggle now says.
+    unawaited(_syncMicrophoneTransmission(syncParticipants: true));
   }
 
   /// Push-to-talk with the key up. Where the runner can, the mic keeps

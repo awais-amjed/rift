@@ -7,6 +7,7 @@ import '../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../logic/cubits/dm_call/dm_call_cubit.dart';
+import '../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../logic/cubits/screenshare/screenshare_cubit.dart';
 import '../../../logic/cubits/server/server_cubit.dart';
 import '../../../logic/cubits/sound_share/sound_share_cubit.dart';
@@ -32,6 +33,7 @@ class NoticeListeners extends StatelessWidget {
         _on<DmCubit, DmState>((s) => s.notice),
         _on<CentralDmCubit, CentralDmState>((s) => s.notice),
         _on<DmCallCubit, DmCallState>((s) => s.notice),
+        _on<LiveKitCubit, LiveKitState>((s) => s.notice),
         _on<ScreenshareCubit, ScreenshareState>((s) => s.notice),
         _on<SoundShareCubit, SoundShareState>((s) => s.notice),
         _on<SupabaseBackupCubit, SupabaseBackupState>((s) => s.notice),

@@ -64,6 +64,9 @@ mixin _LiveKitLeaveMixin on Cubit<LiveKitState>, _E2EEMixin {
           clearDmCall: true,
           clearFailure: true,
           participants: [],
+          // Back to the saved choice, which the next call joins with: a mic
+          // that would not open muted this call only (`_microphoneWouldNotOpen`).
+          isMicEnabled: _appCubit.state.audioEnabled,
         ),
       );
 
