@@ -41,7 +41,7 @@ class _FakeUpdates implements UpdateRepository {
   final calls = <String>[];
 
   @override
-  String? get installed => '1.5.0-beta.9';
+  String? installed = '1.5.0-beta.9';
 
   @override
   Future<AvailableUpdate?> check({required bool includePrereleases}) async =>
@@ -246,6 +246,29 @@ void main() {
         const AppState().copyWith(betaUpdates: true).wantsBetaUpdates('1.4.0'),
         isTrue,
       );
+    });
+
+    test('a beta saves them as on, so the stable after it keeps them', () {
+      HydratedBloc.storage = _MemoryStorage();
+      final app = AppCubit();
+      final cubit = UpdateCubit(appCubit: app, repository: _FakeUpdates());
+      expect(app.state.betaUpdates, isTrue);
+      expect(app.state.wantsBetaUpdates('1.5.0'), isTrue);
+      cubit.close();
+    });
+
+    test('a stable leaves them unchosen, and a choice stands', () {
+      HydratedBloc.storage = _MemoryStorage();
+      final stable = AppCubit();
+      UpdateCubit(
+        appCubit: stable,
+        repository: _FakeUpdates()..installed = '1.5.0',
+      ).close();
+      expect(stable.state.betaUpdates, isNull);
+
+      final chose = AppCubit()..setBetaUpdates(false);
+      UpdateCubit(appCubit: chose, repository: _FakeUpdates()).close();
+      expect(chose.state.betaUpdates, isFalse);
     });
 
     test('the choice is saved', () {

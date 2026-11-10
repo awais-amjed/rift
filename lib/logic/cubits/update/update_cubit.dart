@@ -52,6 +52,12 @@ class UpdateCubit extends Cubit<UpdateState> {
                ),
        ) {
     if (!state.canUpdate) return;
+    // A beta's unset choice follows the version, so the stable it updates to
+    // would turn betas off by itself. Saving it now keeps them on.
+    if (appCubit.state.betaUpdates == null &&
+        (state.installedVersion?.contains('-') ?? false)) {
+      appCubit.setBetaUpdates(true);
+    }
     _timer = Timer(firstCheckAfter, _scheduled);
     // Turning betas on is a reason to look again now, not in six hours. The
     // person is in Settings, so what it finds waits for them.

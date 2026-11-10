@@ -72,7 +72,9 @@ class AppState extends Equatable {
 
   /// Whether updates include pre-releases (betas). Unset until the person
   /// chooses, and then it follows the installed version: someone who
-  /// installed a beta gets the next beta. See [wantsBetaUpdates].
+  /// installed a beta gets the next beta. A beta saves it as on when it
+  /// starts ([UpdateCubit]), so the stable it updates to keeps betas coming.
+  /// See [wantsBetaUpdates].
   final bool? betaUpdates;
 
   /// A Linux folder copy (the `.tar.gz`)'s answer to "Add Rift to your app
