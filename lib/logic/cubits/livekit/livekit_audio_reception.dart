@@ -65,9 +65,7 @@ mixin _AudioReceptionMixin on Cubit<LiveKitState> {
       stream: stream,
       watched: state.subscribedScreenshares.contains(identity),
       ownerless: sharesWithoutOwner(identities).contains(identity),
-      someoneElse:
-          state.listeningOnlyTo != null &&
-          ParticipantIdentity.userIdOf(identity) != state.listeningOnlyTo,
+      someoneElse: state.holdsVoiceOf(ParticipantIdentity.userIdOf(identity)),
       playedElsewhere: playedElsewhere,
     );
   }

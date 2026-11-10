@@ -79,14 +79,14 @@ class ChannelRoster extends StatelessWidget {
       (cubit) => cubit.state.voiceHiddenFrom,
     );
     // And, for this call only, everyone but one person on either side.
-    final hearOnly = context.select<LiveKitCubit, String?>(
+    final hearOnly = context.select<LiveKitCubit, Set<String>?>(
       (cubit) => cubit.state.listeningOnlyTo,
     );
     final voiceOnly = context.select<LiveKitCubit, String?>(
       (cubit) => cubit.state.voiceOnlyFor,
     );
     ParticipantSetting? heard(ParticipantInfo p) =>
-        hearOnly != null && !p.isLocal && p.userId != hearOnly
+        hearOnly != null && !p.isLocal && !hearOnly.contains(p.userId)
         ? (settings[p.userId] ?? const ParticipantSetting()).copyWith(
             muted: true,
           )

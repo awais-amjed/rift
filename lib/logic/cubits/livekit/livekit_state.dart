@@ -103,15 +103,16 @@ class LiveKitState extends Equatable {
   /// moves, even though the channel has not.
   final int arrivals;
 
-  /// "Mute everyone else for me": the one person, by user id, this device
-  /// still hears in the call. Everyone else's voice and shares are held
+  /// "Mute everyone else for me": the people, by user id, this device still
+  /// hears in the call — the one it was chosen on, and each one unmuted since
+  /// ([holdsVoiceOf]). Everyone else's voice and shares are held
   /// ([hearsRemoteAudio]), and so are their soundboard clips. Their own
   /// mutes and volumes are untouched, so turning this off puts back exactly
   /// what each had.
   ///
   /// For this call only, like [voiceOnlyFor]: dropped when the call ends or
   /// moves to another channel, and kept through a rejoin of the same one.
-  final String? listeningOnlyTo;
+  final Set<String>? listeningOnlyTo;
 
   /// "Hide my voice from others": the one person, by user id, who
   /// still receives your microphone. The call server enforces it, as it does
@@ -190,6 +191,11 @@ class LiveKitState extends Equatable {
   /// the local controls unusable rather than merely off.
   bool get isModerated => isServerMuted || isServerDeafened;
 
+  /// Whether "Mute everyone else for me" holds [userId]'s voice. Menus show
+  /// such a person as muted, so their Unmute is there to let them through.
+  bool holdsVoiceOf(String userId) =>
+      listeningOnlyTo != null && !listeningOnlyTo!.contains(userId);
+
   /// Why the voice controls won't move, or null when nothing is holding them.
   ///
   /// The button already carries this as a tooltip, which is no use at all on a
@@ -234,7 +240,7 @@ class LiveKitState extends Equatable {
     String? connectedLivekitUrl,
     String? streamToOpen,
     int? arrivals,
-    String? listeningOnlyTo,
+    Set<String>? listeningOnlyTo,
     bool clearListeningOnlyTo = false,
     String? voiceOnlyFor,
     bool clearVoiceOnlyFor = false,

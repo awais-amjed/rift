@@ -9,7 +9,7 @@ void main() {
   const inCall = LiveKitState(
     currentChannelId: 'general',
     currentServerId: 's1',
-    listeningOnlyTo: 'alice',
+    listeningOnlyTo: {'alice'},
     voiceOnlyFor: 'bob',
   );
 
@@ -19,7 +19,7 @@ void main() {
       currentChannelId: 'general',
       clearRoom: true,
     );
-    expect(state.listeningOnlyTo, 'alice');
+    expect(state.listeningOnlyTo, {'alice'});
     expect(state.voiceOnlyFor, 'bob');
   });
 
@@ -57,5 +57,14 @@ void main() {
     final state = inCall.copyWith(clearListeningOnlyTo: true);
     expect(state.listeningOnlyTo, isNull);
     expect(state.voiceOnlyFor, 'bob');
+  });
+
+  test('"Mute everyone else" holds everyone but the ones let through', () {
+    expect(inCall.holdsVoiceOf('alice'), isFalse);
+    expect(inCall.holdsVoiceOf('carol'), isTrue);
+    final letThrough = inCall.copyWith(listeningOnlyTo: {'alice', 'carol'});
+    expect(letThrough.holdsVoiceOf('carol'), isFalse);
+    expect(letThrough.holdsVoiceOf('dave'), isTrue);
+    expect(const LiveKitState().holdsVoiceOf('dave'), isFalse);
   });
 }

@@ -277,7 +277,7 @@ class SoundboardCubit extends Cubit<SoundboardState>
           )];
     // Listening only to one person in the call leaves out everyone else's
     // clips too.
-    final only = _livekitCubit?.state.listeningOnlyTo;
+    final livekit = _livekitCubit?.state;
     return SoundboardVolume.resolve(
       deafened: _livekitCubit?.state.isDeafenedEffective ?? false,
       muted: app.soundboardMuted,
@@ -285,7 +285,7 @@ class SoundboardCubit extends Cubit<SoundboardState>
       fromSelf: userId == null,
       personMuted:
           (setting?.muted ?? false) ||
-          (userId != null && only != null && userId != only),
+          (userId != null && (livekit?.holdsVoiceOf(userId) ?? false)),
       personVolume: setting?.volume ?? 1.0,
     );
   }

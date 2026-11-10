@@ -102,8 +102,19 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
   /// is stored per user (`userIdOf` returns the string unchanged when there is
   /// no device segment), so this works for a member who isn't in a voice
   /// channel right now.
-  Future<void> setParticipantMute(String target, bool muted) async =>
-      setMuteFor(ParticipantIdentity.userIdOf(target), muted);
+  ///
+  /// Unmuting somebody "Mute everyone else for me" holds lets them through
+  /// as well, so they are heard beside the ones already let through.
+  Future<void> setParticipantMute(String target, bool muted) async {
+    final userId = ParticipantIdentity.userIdOf(target);
+    if (!muted && state.holdsVoiceOf(userId)) {
+      emit(
+        state.copyWith(listeningOnlyTo: {...?state.listeningOnlyTo, userId}),
+      );
+      _syncAudioReception();
+    }
+    setMuteFor(userId, muted);
+  }
 
   /// Sets the local volume of a remote participant's voice — see
   /// [setParticipantMute] for why [target] may be a bare user id.
@@ -122,7 +133,8 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
 
   /// Hears only [target] in this call, or everyone again — see
   /// [LiveKitState.listeningOnlyTo]. [target] may be an identity or a bare
-  /// user id, as for [setParticipantMute].
+  /// user id, as for [setParticipantMute]. Choosing it again, on somebody
+  /// held, starts over with only them.
   ///
   /// Hearing only somebody you had muted would be hearing nobody, so their
   /// own mute comes off.
@@ -133,7 +145,7 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
     }
     emit(
       state.copyWith(
-        listeningOnlyTo: only ? userId : null,
+        listeningOnlyTo: only ? {userId} : null,
         clearListeningOnlyTo: !only,
       ),
     );

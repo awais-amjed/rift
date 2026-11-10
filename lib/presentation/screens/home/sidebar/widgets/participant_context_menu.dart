@@ -193,7 +193,11 @@ class ParticipantContextMenu extends StatelessWidget {
           volume = 1.0; // Volume slider not applicable for self
         } else {
           final setting = appState.participantSettings[targetUserId];
-          isMuted = setting?.muted ?? false;
+          // Held by "Mute everyone else for me" is muted too, as far as
+          // you can tell, so Unmute is what lets them through.
+          isMuted =
+              (setting?.muted ?? false) ||
+              liveKitState.holdsVoiceOf(targetUserId);
           volume = setting?.volume ?? 1.0;
         }
 

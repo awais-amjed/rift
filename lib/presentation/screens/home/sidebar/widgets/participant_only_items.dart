@@ -6,8 +6,8 @@ import '../../../../common/context_menu/context_menu_item.dart';
 
 /// "Mute everyone else for me": the call goes quiet but for this one person,
 /// on this device, until you take it back or the call ends — see
-/// `LiveKitState.listeningOnlyTo`. Choosing it on somebody else moves it to
-/// them.
+/// `LiveKitState.listeningOnlyTo`. Unmuting somebody else lets them through
+/// too; choosing this on somebody held starts over with only them.
 class ParticipantHearOnlyItem extends StatelessWidget {
   final String targetUserId;
 
@@ -16,7 +16,8 @@ class ParticipantHearOnlyItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final only = context.select(
-      (LiveKitCubit c) => c.state.listeningOnlyTo == targetUserId,
+      (LiveKitCubit c) =>
+          c.state.listeningOnlyTo?.contains(targetUserId) ?? false,
     );
     return ContextMenuItem(
       icon: Icons.hearing_rounded,
