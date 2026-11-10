@@ -126,8 +126,15 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
   ///
   /// [target] may be an identity or a bare user id, as for
   /// [setParticipantMute].
+  ///
+  /// Showing it to somebody "Hide my voice from others" keeps it from lets
+  /// them hear you as well, beside the ones already shown it.
   void setVoiceHiddenFrom(String target, bool hidden) {
-    _appCubit.setVoiceHiddenFrom(ParticipantIdentity.userIdOf(target), hidden);
+    final userId = ParticipantIdentity.userIdOf(target);
+    if (!hidden && state.withholdsVoiceFrom(userId)) {
+      emit(state.copyWith(voiceOnlyFor: {...?state.voiceOnlyFor, userId}));
+    }
+    _appCubit.setVoiceHiddenFrom(userId, hidden);
     _applyVoicePrivacy();
   }
 
@@ -155,11 +162,12 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
   }
 
   /// Lets only [target] hear you in this call, or everyone again — see
-  /// [LiveKitState.voiceOnlyFor]. Sent to the call server at once.
+  /// [LiveKitState.voiceOnlyFor]. Sent to the call server at once. Choosing
+  /// it again, on somebody it hides from, starts over with only them.
   void setVoiceOnlyFor(String target, bool only) {
     emit(
       state.copyWith(
-        voiceOnlyFor: only ? ParticipantIdentity.userIdOf(target) : null,
+        voiceOnlyFor: only ? {ParticipantIdentity.userIdOf(target)} : null,
         clearVoiceOnlyFor: !only,
       ),
     );

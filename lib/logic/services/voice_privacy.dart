@@ -26,21 +26,21 @@ abstract final class VoicePrivacy {
   /// [nonMicTrackSids] are the tracks of yours a hidden person still gets —
   /// a camera, or a phone's screen share.
   ///
-  /// [onlyTo], a user id, hides it from everyone else as well. Somebody in
+  /// [onlyTo], user ids, hides it from everyone else as well. Somebody in
   /// [hiddenFrom] stays hidden even then.
   static ({bool allowAll, List<ParticipantTrackPermission> permissions})
   permissions({
     required Iterable<String> remoteIdentities,
     required Iterable<String> hiddenFrom,
     required Iterable<String> nonMicTrackSids,
-    String? onlyTo,
+    Set<String>? onlyTo,
   }) {
     final hidden = hiddenFrom.toSet();
     if (hidden.isEmpty && onlyTo == null) {
       return (allowAll: true, permissions: const []);
     }
     bool isHidden(String userId) =>
-        hidden.contains(userId) || (onlyTo != null && userId != onlyTo);
+        hidden.contains(userId) || (onlyTo != null && !onlyTo.contains(userId));
     final others = nonMicTrackSids.toList();
     return (
       allowAll: false,

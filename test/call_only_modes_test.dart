@@ -10,7 +10,7 @@ void main() {
     currentChannelId: 'general',
     currentServerId: 's1',
     listeningOnlyTo: {'alice'},
-    voiceOnlyFor: 'bob',
+    voiceOnlyFor: {'bob'},
   );
 
   test('a rejoin of the same call keeps both', () {
@@ -20,7 +20,7 @@ void main() {
       clearRoom: true,
     );
     expect(state.listeningOnlyTo, {'alice'});
-    expect(state.voiceOnlyFor, 'bob');
+    expect(state.voiceOnlyFor, {'bob'});
   });
 
   test('leaving drops both', () {
@@ -56,7 +56,7 @@ void main() {
   test('each turns off on its own', () {
     final state = inCall.copyWith(clearListeningOnlyTo: true);
     expect(state.listeningOnlyTo, isNull);
-    expect(state.voiceOnlyFor, 'bob');
+    expect(state.voiceOnlyFor, {'bob'});
   });
 
   test('"Mute everyone else" holds everyone but the ones let through', () {
@@ -66,5 +66,14 @@ void main() {
     expect(letThrough.holdsVoiceOf('carol'), isFalse);
     expect(letThrough.holdsVoiceOf('dave'), isTrue);
     expect(const LiveKitState().holdsVoiceOf('dave'), isFalse);
+  });
+
+  test('"Hide my voice from others" hides from all but the ones shown it', () {
+    expect(inCall.withholdsVoiceFrom('bob'), isFalse);
+    expect(inCall.withholdsVoiceFrom('carol'), isTrue);
+    final shown = inCall.copyWith(voiceOnlyFor: {'bob', 'carol'});
+    expect(shown.withholdsVoiceFrom('carol'), isFalse);
+    expect(shown.withholdsVoiceFrom('dave'), isTrue);
+    expect(const LiveKitState().withholdsVoiceFrom('dave'), isFalse);
   });
 }

@@ -31,7 +31,8 @@ class ParticipantHearOnlyItem extends StatelessWidget {
 
 /// "Hide my voice from others": only this person receives your
 /// microphone, for this call — see `LiveKitState.voiceOnlyFor`. The call
-/// server enforces it, as it does "Hide my voice from them".
+/// server enforces it, as it does "Hide my voice from them". "Stop hiding my
+/// voice" on somebody else lets them hear you too.
 class ParticipantVoiceOnlyItem extends StatelessWidget {
   final String targetUserId;
 
@@ -40,7 +41,7 @@ class ParticipantVoiceOnlyItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final only = context.select(
-      (LiveKitCubit c) => c.state.voiceOnlyFor == targetUserId,
+      (LiveKitCubit c) => c.state.voiceOnlyFor?.contains(targetUserId) ?? false,
     );
     return ContextMenuItem(
       icon: Icons.record_voice_over_rounded,

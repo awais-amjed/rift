@@ -127,8 +127,11 @@ clips are held here the way a deafen holds them (`hearsRemoteAudio`), leaving
 each person's own mute and volume as they were, and the one person's own mute
 comes off. A held person shows as muted, in the sidebar, their menu and their
 card, and unmuting them lets them through beside the first
-(`LiveKitState.holdsVoiceOf`); before Nov 10 2026 their menu offered Mute, and
-the only way to hear anybody else was to turn the whole thing off. Both last for the call they were set in: a rejoin of it keeps them,
+(`LiveKitState.holdsVoiceOf`). "Hide my voice from others" works the same
+way round: somebody it hides from shows as hidden from, and "Stop hiding my
+voice" lets them hear you beside the first (`withholdsVoiceFrom`). Before Nov
+10 2026 each menu offered the opposite, and "Hide my voice from them" on a
+person already hidden put them on the list for every call. Both last for the call they were set in: a rejoin of it keeps them,
 and leaving or moving to another channel drops them. Verified Oct 24 2026 with
 two Linux debug clients on the local stack (`TESTING.md`).
 

@@ -82,7 +82,7 @@ class ChannelRoster extends StatelessWidget {
     final hearOnly = context.select<LiveKitCubit, Set<String>?>(
       (cubit) => cubit.state.listeningOnlyTo,
     );
-    final voiceOnly = context.select<LiveKitCubit, String?>(
+    final voiceOnly = context.select<LiveKitCubit, Set<String>?>(
       (cubit) => cubit.state.voiceOnlyFor,
     );
     ParticipantSetting? heard(ParticipantInfo p) =>
@@ -93,7 +93,7 @@ class ChannelRoster extends StatelessWidget {
         : settings[p.userId];
     bool hiddenFrom(ParticipantInfo p) =>
         voiceHiddenFrom.contains(p.userId) ||
-        (voiceOnly != null && !p.isLocal && p.userId != voiceOnly);
+        (voiceOnly != null && !p.isLocal && !voiceOnly.contains(p.userId));
     final keys = _RowKeys();
 
     // Rows touch, as the sidebar's do: a row is [RosterRowMetrics.rowHeight]

@@ -114,10 +114,11 @@ class LiveKitState extends Equatable {
   /// moves to another channel, and kept through a rejoin of the same one.
   final Set<String>? listeningOnlyTo;
 
-  /// "Hide my voice from others": the one person, by user id, who
-  /// still receives your microphone. The call server enforces it, as it does
+  /// "Hide my voice from others": the people, by user id, who still receive
+  /// your microphone — the one it was chosen on, and each one shown it since
+  /// ([withholdsVoiceFrom]). The call server enforces it, as it does
   /// [AppCubit]'s per-person list — see `VoicePrivacy`.
-  final String? voiceOnlyFor;
+  final Set<String>? voiceOnlyFor;
 
   /// Something the call has to tell the person, shown once by
   /// `NoticeListeners`: so far, that the microphone could not be opened.
@@ -196,6 +197,12 @@ class LiveKitState extends Equatable {
   bool holdsVoiceOf(String userId) =>
       listeningOnlyTo != null && !listeningOnlyTo!.contains(userId);
 
+  /// Whether "Hide my voice from others" keeps your microphone from
+  /// [userId]. Menus show such a person as hidden from, so "Stop hiding my
+  /// voice" is there to let them hear you.
+  bool withholdsVoiceFrom(String userId) =>
+      voiceOnlyFor != null && !voiceOnlyFor!.contains(userId);
+
   /// Why the voice controls won't move, or null when nothing is holding them.
   ///
   /// The button already carries this as a tooltip, which is no use at all on a
@@ -242,7 +249,7 @@ class LiveKitState extends Equatable {
     int? arrivals,
     Set<String>? listeningOnlyTo,
     bool clearListeningOnlyTo = false,
-    String? voiceOnlyFor,
+    Set<String>? voiceOnlyFor,
     bool clearVoiceOnlyFor = false,
     Notice? notice,
     bool clearStreamToOpen = false,

@@ -33,9 +33,14 @@ class ProfileLocalAudio extends StatelessWidget {
   Widget build(BuildContext context) {
     final app = context.watch<AppCubit>().state;
     final settings = app.participantSettings;
-    final voiceHidden = app.voiceHiddenFrom.contains(userId);
+    // What this call holds counts as well ("Mute everyone else for me",
+    // "Hide my voice from others"), so a switch never reads off while it is
+    // not, and turning it off lets them through.
+    final call = context.watch<LiveKitCubit>().state;
+    final voiceHidden =
+        app.voiceHiddenFrom.contains(userId) || call.withholdsVoiceFrom(userId);
     final setting = settings[userId];
-    final muted = setting?.muted ?? false;
+    final muted = (setting?.muted ?? false) || call.holdsVoiceOf(userId);
     final volume = setting?.volume ?? 1.0;
     // A third setting of their own, stored under its own key: somebody whose
     // airhorn is too loud has not said anything wrong.

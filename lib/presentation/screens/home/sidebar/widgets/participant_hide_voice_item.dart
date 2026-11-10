@@ -16,9 +16,16 @@ class ParticipantHideVoiceItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hidden = context.select(
+    // Kept from them by "Hide my voice from others" is hidden too, so
+    // "Stop hiding my voice" is what lets them hear you. Both asked every
+    // build: a select skipped by `||` would drop its listener.
+    final hiddenEverywhere = context.select(
       (AppCubit c) => c.state.voiceHiddenFrom.contains(targetUserId),
     );
+    final withheld = context.select(
+      (LiveKitCubit c) => c.state.withholdsVoiceFrom(targetUserId),
+    );
+    final hidden = hiddenEverywhere || withheld;
     return ContextMenuItem(
       icon: Icons.voice_over_off_rounded,
       label: hidden ? 'Stop hiding my voice' : 'Hide my voice from them',

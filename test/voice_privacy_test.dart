@@ -58,7 +58,7 @@ void main() {
       ],
       hiddenFrom: const [],
       nonMicTrackSids: const ['TR_cam'],
-      onlyTo: alice,
+      onlyTo: const {alice},
     );
     expect(result.allowAll, isFalse);
     final byId = {for (final p in result.permissions) p.participantIdentity: p};
@@ -75,8 +75,21 @@ void main() {
       remoteIdentities: ['$bob~d2'],
       hiddenFrom: const [bob],
       nonMicTrackSids: const [],
-      onlyTo: bob,
+      onlyTo: const {bob},
     );
     expect(result.permissions.single.allTracksAllowed, isFalse);
+  });
+
+  test('somebody shown it after "only one" hears you beside the one', () {
+    final result = VoicePrivacy.permissions(
+      remoteIdentities: ['$alice~d1', '$bob~d2', 'cccc-3333~d3'],
+      hiddenFrom: const [],
+      nonMicTrackSids: const [],
+      onlyTo: const {alice, bob},
+    );
+    final byId = {for (final p in result.permissions) p.participantIdentity: p};
+    expect(byId['$alice~d1']!.allTracksAllowed, isTrue);
+    expect(byId['$bob~d2']!.allTracksAllowed, isTrue);
+    expect(byId['cccc-3333~d3']!.allTracksAllowed, isFalse);
   });
 }

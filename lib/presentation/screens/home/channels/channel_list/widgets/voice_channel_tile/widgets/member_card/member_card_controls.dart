@@ -100,9 +100,13 @@ class _TheirControls extends StatelessWidget {
   Widget build(BuildContext context) {
     final app = context.watch<AppCubit>().state;
     final setting = app.participantSettings[userId];
-    // Held by "Mute everyone else for me" counts, as in the menu.
+    // Held by "Mute everyone else for me" counts, as in the menu, and so
+    // does being kept from by "Hide my voice from others".
     final held = context.select<LiveKitCubit, bool>(
       (cubit) => cubit.state.holdsVoiceOf(userId),
+    );
+    final withheld = context.select<LiveKitCubit, bool>(
+      (cubit) => cubit.state.withholdsVoiceFrom(userId),
     );
     final muted = (setting?.muted ?? false) || held;
     final soundboardMuted =
@@ -112,7 +116,7 @@ class _TheirControls extends StatelessWidget {
             )]
             ?.muted ??
         false;
-    final voiceHidden = app.voiceHiddenFrom.contains(userId);
+    final voiceHidden = app.voiceHiddenFrom.contains(userId) || withheld;
     final isBot = context.select<ServerMembersCubit, bool>(
       (cubit) => cubit.state.byId[userId]?.isBot ?? false,
     );
