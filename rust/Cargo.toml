@@ -65,12 +65,15 @@ deep_filter = { git = "https://github.com/Rikorose/DeepFilterNet", rev = "d375b2
 # abseil, and clash with libwebrtc's.
 ort = { version = "=2.0.0-rc.13", default-features = false, features = ["std", "load-dynamic"] }
 # Velopack installs Rift and replaces it with a newer release (src/updater);
-# `public-utils` opens its HTTP download helpers to the update source there.
-# ring checks the release key's signature on each release feed (Ed25519), and
-# is already in the build through rustls. ureq is Velopack's own HTTP client,
-# which the update's pausable download (src/updater/transfer.rs) reads with.
+# `public-utils` opens its modules, `bundle`'s manifest among them, to the
+# update source there. ring checks the release key's signature on each release
+# feed (Ed25519), and is already in the build through rustls. ureq is
+# Velopack's own HTTP client, which the update source reads the releases with
+# and the update's pausable download (src/updater/transfer.rs) its packages;
+# semver is Velopack's version type, for leaving out releases not newer.
 velopack = { version = "=1.2.161", features = ["public-utils"] }
 ureq = "3.4"
+semver = "1"
 ring = "0.17"
 base64 = "0.23"
 serde = { version = "1", features = ["derive"] }

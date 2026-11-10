@@ -765,8 +765,14 @@ Velopack (`rust/src/updater`). The release workflow packs each platform with
 `vpk`: an installer that puts Rift in the person's own folder (no administrator
 prompt to install or update), an AppImage, and for each a full package, a
 delta from the release before, and a feed, `releases.<channel>.json`, listing
-every package with its size and SHA-256. Installed copies read the feeds of
-the last ten GitHub releases, download the newest in the background, and
+every package with its size and SHA-256. Installed copies list the last thirty
+GitHub releases and read the feeds of only those newer than themselves (the
+deltas from here to the newest), so a check that finds nothing is one request.
+The whole check has a minute; a GitHub too slow for that, or erring, fails it,
+since passing over a release it could not read could answer "up to date" with
+a newer one out (verified Nov 10 2026: local slow and failing servers in the
+tests, and one real check from 2.0.0 that found 2.1.0-beta.1 in 3 s). Copies
+download the newest in the background, and
 replace themselves when the person restarts, or at the next start. A check
 the person makes in Settings only finds: the download waits for them. Rift
 fetches the packages itself (`rust/src/updater/transfer.rs`) rather than
