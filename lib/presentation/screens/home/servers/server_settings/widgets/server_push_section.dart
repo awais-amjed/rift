@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../../common/app_switch.dart';
 import '../../../../../common/hint_card.dart';
+import '../../../../../common/message_banner.dart';
 import '../../../../../common/no_central_account.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
@@ -49,6 +50,19 @@ class ServerPushSection extends StatelessWidget {
           'time someone opens the app.',
           style: AppText.secondary.copyWith(color: themeState.textTertiary),
         ),
+        // Push starts off, and nothing else says so: a server could run with
+        // every member's phone silent and nobody connecting the two. Here
+        // rather than over the whole dialog, where it stood in front of every
+        // page for an admin who may want it off.
+        if (enabled == false) ...[
+          const SizedBox(height: 14),
+          const MessageBanner(
+            kind: MessageBannerKind.caution,
+            message:
+                'Phone notifications are off for this server. Members’ '
+                'phones hear nothing while Rift is closed.',
+          ),
+        ],
         const SizedBox(height: 14),
         if (!signedIn)
           const NoCentralAccount(
