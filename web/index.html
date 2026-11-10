@@ -26,11 +26,18 @@
 <div id="loading-screen">
     <div class="logo-container">
         <div class="logo-icon">
-            <!-- Simple signal / radio waves icon representing "Rift" communication -->
-            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path d="M5.636 5.636a9 9 0 1 0 12.728 0"/>
-                <path d="M9.172 9.172a4.5 4.5 0 1 0 5.656 0"/>
-                <circle cx="12" cy="12" r="1" fill="white" stroke="none"/>
+            <!-- The app icon, as assets/brand/rift-tile.svg draws it. -->
+            <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="rift-g" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="100" y2="100">
+                        <stop offset="0" stop-color="#7B83FF"/>
+                        <stop offset=".52" stop-color="#A56BFA"/>
+                        <stop offset="1" stop-color="#EC4899"/>
+                    </linearGradient>
+                </defs>
+                <rect width="100" height="100" rx="22" fill="#08080B"/>
+                <path fill="url(#rift-g)" d="M46.5 10 A32 32 0 0 0 46.5 74 Z"/>
+                <path fill="url(#rift-g)" d="M53.5 26 A32 32 0 0 1 53.5 90 Z"/>
             </svg>
         </div>
         <div>

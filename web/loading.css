@@ -60,23 +60,15 @@ html, body {
 .logo-icon {
   width: 64px;
   height: 64px;
-  border-radius: 18px;
-  background: linear-gradient(135deg, #6366F1, #4F46E5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 0 32px rgba(99, 102, 241, 0.35), 0 4px 16px rgba(0, 0, 0, 0.5);
+  border-radius: 14px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
   animation: icon-float 3s ease-in-out infinite;
 }
 
 .logo-icon svg {
-  width: 36px;
-  height: 36px;
-  fill: none;
-  stroke: #ffffff;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  display: block;
+  width: 64px;
+  height: 64px;
 }
 
 @keyframes icon-float {
