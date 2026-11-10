@@ -55,6 +55,61 @@ mixin _CentralDmUnreadMixin on Cubit<CentralDmState> {
   void _resetUnread() {
     _readCursors.clear();
     _latestInbound.clear();
+    _readRecount?.cancel();
+    _readRecount = null;
+    _lastFocusRecount = null;
+  }
+
+  // ── Read on another device ────────────────────────────────────
+
+  /// A re-count waiting to run. A conversation read as its messages land
+  /// moves the cursor once per message; one count after they settle answers
+  /// all of them.
+  Timer? _readRecount;
+
+  /// When the window coming back last counted again.
+  DateTime? _lastFocusRecount;
+
+  static const _recountSettle = Duration(milliseconds: 400);
+
+  /// The least time between two focus re-counts. The `read` event is what
+  /// keeps a badge current; this only catches one that was missed, a socket
+  /// that dropped while the laptop slept.
+  static const _focusRecountEvery = Duration(minutes: 1);
+
+  /// One of our devices moved a read cursor (`read`, on our own topic).
+  /// [peerId] is the conversation, or null when several moved at once. One
+  /// this device already shows as read needs nothing — which is also the
+  /// device that did the reading, since it hears its own event. Otherwise
+  /// count again rather than clearing here: a cursor partway up a
+  /// conversation leaves some of it unread.
+  // Called through the ready mixin's abstract declaration, which the
+  // unused-element check can't follow back here.
+  // ignore: unused_element
+  void _onReadElsewhere(String? peerId) {
+    if (isClosed) return;
+    final stillUnread = peerId == null
+        ? state.unreadByPeer.isNotEmpty
+        : state.unreadByPeer.containsKey(peerId);
+    if (stillUnread) _recountSoon();
+  }
+
+  /// The window came back: count again, at most once a [_focusRecountEvery].
+  void _recountOnFocus() {
+    if (state.status != CentralDmStatus.ready) return;
+    final now = DateTime.now();
+    final last = _lastFocusRecount;
+    if (last != null && now.difference(last) < _focusRecountEvery) return;
+    _lastFocusRecount = now;
+    _recountSoon();
+  }
+
+  void _recountSoon() {
+    _readRecount?.cancel();
+    _readRecount = Timer(_recountSettle, () {
+      _readRecount = null;
+      if (!isClosed) unawaited(refreshConversations());
+    });
   }
 
   /// How much [peerId] may interrupt. Applied locally first: the change is the

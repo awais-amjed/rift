@@ -15,6 +15,7 @@ mixin _SubscriptionsMixin on Cubit<NotificationsState>, _PeerNamesMixin {
   void _onDmMessage(String serverId, Map<String, dynamic> row);
   void _onChannelMessageChanged(String serverId, Map<String, dynamic> row);
   void _onDmMessageChanged(String serverId);
+  void _onReadElsewhere(String serverId, Map<String, dynamic> payload);
 
   void _sync() {
     final servers = _session.servers;
@@ -104,7 +105,12 @@ mixin _SubscriptionsMixin on Cubit<NotificationsState>, _PeerNamesMixin {
       // ago. Every event re-seeds rather than being applied on its own, because
       // the answer is a chain across three scopes and a re-seed is one round
       // trip that already returns all of it.
-      ..onBroadcast(ServerEvent.prefs, (_) => unawaited(_seed(server.id)));
+      ..onBroadcast(ServerEvent.prefs, (_) => unawaited(_seed(server.id)))
+      // A read cursor moved on another of our devices.
+      ..onBroadcast(
+        ServerEvent.read,
+        (message) => _onReadElsewhere(server.id, BroadcastPayload.of(message)),
+      );
     _subs[server.id] = _ServerSub(
       topics: [shared, own],
       token: server.token,

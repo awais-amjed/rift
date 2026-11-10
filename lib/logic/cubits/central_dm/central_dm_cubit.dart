@@ -189,7 +189,10 @@ class CentralDmCubit extends Cubit<CentralDmState>
     markOpenConversationRead();
   }
 
-  void _onFocusChanged() => markOpenConversationRead();
+  void _onFocusChanged() {
+    markOpenConversationRead();
+    if (WindowFocusService.instance.isFocused) _recountOnFocus();
+  }
 
   @override
   String? get _myUserId => _repo.currentUser?.id;

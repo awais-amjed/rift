@@ -257,7 +257,8 @@ class CentralDmRepository
   /// Hear what the central database says to us alone, on our own private
   /// topic: [onInsert] for a DM that arrived,
   /// [onUpdate] for one its sender edited or deleted, [onPrefsChanged] for a
-  /// notification level set on another device, [onGraphChanged] for a
+  /// notification level set on another device, [onRead] for a read cursor
+  /// moved on one, [onGraphChanged] for a
   /// friendship or a block, and [onPinChanged] for a pin either side moved.
   ///
   /// Both DM callbacks carry the peer, so the caller can re-read that one
@@ -272,6 +273,7 @@ class CentralDmRepository
     void Function(String senderId) onInsert, {
     required void Function(String messageId, String senderId) onUpdate,
     required void Function() onPrefsChanged,
+    required void Function(String? peerId) onRead,
     required void Function() onGraphChanged,
     required void Function(String peerId, String messageId) onPinChanged,
   }) {
@@ -313,6 +315,13 @@ class CentralDmRepository
             },
           )
           ..onBroadcast(event: 'prefs', callback: (_) => onPrefsChanged())
+          // A read cursor moved on one of our devices: `{scope_id}` names the
+          // peer when one did, `{}` when several did.
+          ..onBroadcast(
+            event: 'read',
+            callback: (message) =>
+                onRead(BroadcastPayload.stringOf(message, 'scope_id')),
+          )
           ..onBroadcast(event: 'graph', callback: (_) => onGraphChanged())
           ..subscribe();
     return channel;

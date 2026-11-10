@@ -77,6 +77,11 @@ class ServerEvent {
   static const String dmPin = 'dm_pin';
   static const String prefs = 'prefs';
 
+  /// One of our read cursors moved forward, on this or another device:
+  /// `{scope, scope_id, last_read_id}` when one did, `{}` when several did
+  /// ("mark all as read"). A device still showing that unread counts again.
+  static const String read = 'read';
+
   /// Somebody new asked to DM us, or one of our devices answered a request.
   static const String dmRequests = 'dm_requests';
 

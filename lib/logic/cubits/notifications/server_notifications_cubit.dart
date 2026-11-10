@@ -247,7 +247,9 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
   }
 
   void _onFocusChanged() {
-    if (WindowFocusService.instance.isFocused) _markOnScreenRead();
+    if (!WindowFocusService.instance.isFocused) return;
+    _markOnScreenRead();
+    _recountOnFocus();
   }
 
   /// Marks whatever the user is currently looking at read. [onlyServerId]
@@ -283,6 +285,7 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
   Future<void> close() async {
     WindowFocusService.instance.focused.removeListener(_onFocusChanged);
     _refreshTimer?.cancel();
+    _cancelRecounts();
     await _serverSub?.cancel();
     await _chatSub?.cancel();
     await _dmSub?.cancel();

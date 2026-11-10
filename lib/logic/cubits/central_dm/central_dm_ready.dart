@@ -31,6 +31,8 @@ mixin _CentralDmReadyMixin
   void _onIncoming(String senderId);
   void _onMessageUpdated(String messageId, String senderId);
   void _onGraphChanged();
+  @override
+  void _onReadElsewhere(String? peerId);
 
   /// Read cursors and notification levels come from the unread mixin, which
   /// this is `on` rather than declaring them abstractly: two private members
@@ -232,6 +234,7 @@ mixin _CentralDmReadyMixin
       _onIncoming,
       onUpdate: _onMessageUpdated,
       onPrefsChanged: () => unawaited(refreshConversations()),
+      onRead: _onReadElsewhere,
       onGraphChanged: _onGraphChanged,
       onPinChanged: _onPinChanged,
     );
