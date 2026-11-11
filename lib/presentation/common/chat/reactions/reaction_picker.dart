@@ -49,6 +49,8 @@ Future<void> showReactionPicker(
       minWidth: _popoverWidth,
       maxWidth: _popoverWidth,
     ),
+    // Opens at once, like the message menu.
+    popUpAnimationStyle: AnimationStyle.noAnimation,
     items: [
       const PopupMenuItem<String>(
         padding: EdgeInsets.zero,

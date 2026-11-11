@@ -43,6 +43,8 @@ Future<void> showEmojiPickerPopup(
       minWidth: EmojiPickerPanel.width,
       maxWidth: EmojiPickerPanel.width,
     ),
+    // Opens at once, like the message menu.
+    popUpAnimationStyle: AnimationStyle.noAnimation,
     items: [
       PopupMenuItem<void>(
         // Disabled so tapping an emoji doesn't dismiss the whole menu; the
