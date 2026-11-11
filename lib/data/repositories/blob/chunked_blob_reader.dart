@@ -30,9 +30,14 @@ typedef OpenedChunks = Stream<Uint8List> Function(int from);
 /// read least lately that nothing waits on; a read is never left waiting on
 /// a run that was stopped.
 ///
-/// Each run stays at most [ahead] chunks past the last read it served and then
-/// pauses, which holds its connection open without reading it, so a paused
-/// video does not download the rest of itself. The last [keep] chunks read or
+/// Each run keeps ahead of the last read it served by one chunk fewer than it
+/// has been read past where it started, up to [ahead], and then pauses, which
+/// holds its connection open without reading it, so a paused video does not
+/// download the rest of itself. A run read once or twice — a demuxer's look
+/// at an index or the middle of the file — thus brings only what was read,
+/// and its request stays small (`AttachmentRepository.readerFor` asks for
+/// small spans first); one being played gets its full lead within a few
+/// chunks. The last [keep] chunks read or
 /// landed stay in memory, enough that a demuxer moving between the sound and
 /// the picture it has just read does not fetch them again; the file is never
 /// held whole.
@@ -43,7 +48,8 @@ class ChunkedBlobReader implements BlobReader {
   /// Chunks held at most.
   final int keep;
 
-  /// Chunks a run may get past the last read it served before it pauses.
+  /// Chunks a run read in order may get past the last read it served before
+  /// it pauses.
   final int ahead;
 
   /// How far past a run's next chunk a read still waits for it.
@@ -188,11 +194,13 @@ class ChunkedBlobReader implements BlobReader {
     }
   }
 
-  /// Pauses each run once it is [ahead] past the last read it served, and
+  /// Pauses each run once it is its lead past the last read it served, and
   /// lets it go again when a read catches up or waits for what it brings.
   void _pace() {
     for (final run in _runs) {
-      run.pace(hold: !_waitedOn(run) && run.next > run.wanted + ahead);
+      run.pace(
+        hold: !_waitedOn(run) && run.next > run.wanted + run.lead(ahead),
+      );
     }
   }
 
@@ -231,6 +239,10 @@ class _Run {
 
   /// Whether chunk [index] is one this run is about to bring.
   bool reaches(int index, int reach) => index >= next && index <= next + reach;
+
+  /// Chunks it may get past the last read it served: one fewer than it has
+  /// been read past where it started, at most [ahead].
+  int lead(int ahead) => (wanted - from - 1).clamp(0, ahead);
 
   void served(int index, int read) {
     wanted = index;

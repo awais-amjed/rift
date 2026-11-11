@@ -114,21 +114,28 @@ void main() {
   );
 
   test(
-    'a run pauses ahead of the last read and goes on when it moves',
+    'a run read once brings only that; read on, it pauses further ahead',
     () async {
       final fake = _Fake(40);
       final reader = fake.reader(ahead: 4);
-      await reader.read(0, 1);
+      // A demuxer's look somewhere: nothing past what it read.
+      await reader.read(size * 10, 1);
       await _settle();
       expect(reader.running.single.paused, isTrue);
-      expect(reader.running.single.next, 5);
-      expect(fake.produced, lessThanOrEqualTo(6));
+      expect(reader.running.single.next, 11);
 
-      await reader.read(size * 3, 1);
+      // Read on in order: the lead grows by one a chunk, up to [ahead].
+      await reader.read(size * 11, 1);
+      await reader.read(size * 12, 1);
       await _settle();
-      expect(reader.running.single.next, 8);
+      expect(reader.running.single.next, 14);
+      for (var i = 13; i <= 20; i++) {
+        await reader.read(size * i, 1);
+      }
+      await _settle();
       expect(reader.running.single.paused, isTrue);
-      expect(fake.starts, [0]);
+      expect(reader.running.single.next, 25);
+      expect(fake.starts, [10]);
     },
   );
 
@@ -155,24 +162,27 @@ void main() {
     },
   );
 
-  test('reads in two places at once each get theirs, and each run pauses', () async {
-    final fake = _Fake(60);
-    final reader = fake.reader(ahead: 4, reach: 3);
-    // The start, and at the same moment the index at the end.
-    final start = reader.read(size * 2, 1);
-    final end = reader.read(size * 58, 1);
-    expect(await start, [2]);
-    expect(await end, [58]);
-    // Back to where the start was going: that run still serves it.
-    expect(await reader.read(size * 3, 1), [3]);
-    expect(fake.starts, [2, 58]);
-    await _settle();
-    // Neither runs on to the end of the file by itself.
-    expect(fake.produced, lessThan(20));
-    for (final run in reader.running) {
-      expect(run.paused || run.next >= 60, isTrue);
-    }
-  });
+  test(
+    'reads in two places at once each get theirs, and each run pauses',
+    () async {
+      final fake = _Fake(60);
+      final reader = fake.reader(ahead: 4, reach: 3);
+      // The start, and at the same moment the index at the end.
+      final start = reader.read(size * 2, 1);
+      final end = reader.read(size * 58, 1);
+      expect(await start, [2]);
+      expect(await end, [58]);
+      // Back to where the start was going: that run still serves it.
+      expect(await reader.read(size * 3, 1), [3]);
+      expect(fake.starts, [2, 58]);
+      await _settle();
+      // Neither runs on to the end of the file by itself.
+      expect(fake.produced, lessThan(20));
+      for (final run in reader.running) {
+        expect(run.paused || run.next >= 60, isTrue);
+      }
+    },
+  );
 
   test('a run that is replaced never strands a read waiting on it', () async {
     final fake = _Fake(60);

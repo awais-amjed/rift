@@ -486,7 +486,11 @@ mod tests {
                     let from = read.offset as usize;
                     let to = bytes.len().min(from + read.length as usize);
                     asked.fetch_add((to - from) as u64, Ordering::SeqCst);
-                    super::super::source::answer(texture, read.request, Ok(bytes[from..to].to_vec()));
+                    super::super::source::answer(
+                        texture,
+                        read.request,
+                        Ok(bytes[from..to].to_vec()),
+                    );
                 }
             });
         }
@@ -514,20 +518,87 @@ mod tests {
         std::thread::sleep(Duration::from_millis(2000));
         let read = asked.load(Ordering::SeqCst);
         println!("after 2 s of play, {read} bytes read");
-        assert!(read < bytes.len() as u64 / 2, "it does not read the whole file to play");
+        assert!(
+            read < bytes.len() as u64 / 2,
+            "it does not read the whole file to play"
+        );
 
         let (_, duration) = super::super::with(texture, |c| c.time()).unwrap();
         let far = duration.unwrap() * 2 / 3;
         let marks = MARKS.load(Ordering::SeqCst);
-        super::super::with(texture, |c| c.seek(far)).unwrap().unwrap();
+        super::super::with(texture, |c| c.seek(far))
+            .unwrap()
+            .unwrap();
         std::thread::sleep(Duration::from_millis(1500));
         let (position, _) = super::super::with(texture, |c| c.time()).unwrap();
-        println!("after a seek to {far} ms: at {position:?}, {} bytes read", asked.load(Ordering::SeqCst));
+        println!(
+            "after a seek to {far} ms: at {position:?}, {} bytes read",
+            asked.load(Ordering::SeqCst)
+        );
         assert!(position.unwrap() >= far);
-        assert!(MARKS.load(Ordering::SeqCst) > marks + 10, "it plays on after the seek");
+        assert!(
+            MARKS.load(Ordering::SeqCst) > marks + 10,
+            "it plays on after the seek"
+        );
 
         let closing = std::time::Instant::now();
         super::super::close(texture);
         println!("closed in {:?}", closing.elapsed());
+    }
+
+    /// Logs every read a pulled clip asks for while it plays a few seconds
+    /// and is then paused, with when it came:
+    ///
+    /// ```text
+    /// RIFT_CLIP_TEST=<a big video> RIFT_CLIP_TEST_OUTPUT=<a sink> \
+    ///     cargo test --release live_pulled_read_log -- --ignored --nocapture
+    /// ```
+    #[test]
+    #[ignore = "needs a video and a test output; see above"]
+    fn live_pulled_read_log() {
+        use std::sync::Arc;
+        let bytes = Arc::new(std::fs::read(std::env::var("RIFT_CLIP_TEST").unwrap()).unwrap());
+        let output = std::env::var("RIFT_CLIP_TEST_OUTPUT").ok();
+        let texture = 9003;
+        let started = std::time::Instant::now();
+        let (tx, rx) = std::sync::mpsc::channel::<crate::api::clips::ClipRead>();
+        {
+            let bytes = bytes.clone();
+            std::thread::spawn(move || {
+                for read in rx {
+                    std::thread::sleep(Duration::from_millis(20));
+                    let from = read.offset as usize;
+                    let to = bytes.len().min(from + read.length as usize);
+                    println!(
+                        "READ {:>6} ms  offset {:>9}  length {:>7}",
+                        started.elapsed().as_millis(),
+                        read.offset,
+                        to - from
+                    );
+                    super::super::source::answer(
+                        texture,
+                        read.request,
+                        Ok(bytes[from..to].to_vec()),
+                    );
+                }
+            });
+        }
+        let source = super::super::source::Source::pulled(
+            texture,
+            bytes.len() as u64,
+            Box::new(move |read| {
+                let _ = tx.send(read);
+            }),
+        );
+        super::super::open(source, texture, mark, output).unwrap();
+        std::thread::sleep(Duration::from_millis(2000));
+        println!("PLAY {} ms", started.elapsed().as_millis());
+        super::super::with(texture, |c| c.play()).unwrap().unwrap();
+        std::thread::sleep(Duration::from_millis(3000));
+        println!("PAUSE {} ms", started.elapsed().as_millis());
+        super::super::with(texture, |c| c.pause()).unwrap().unwrap();
+        std::thread::sleep(Duration::from_millis(15000));
+        println!("CLOSE {} ms", started.elapsed().as_millis());
+        super::super::close(texture);
     }
 }

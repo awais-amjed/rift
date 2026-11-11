@@ -48,7 +48,11 @@ mixin _StreamReaderMixin on _StreamDownloadMixin {
   }
 
   /// Chunks [from] on, opened as they arrive, a span at a time: one request
-  /// for [span] chunks, the next only once those are through. A request
+  /// for a span of chunks, the next only once those are through. The first
+  /// span is a quarter of [span] (at least 2), each after it twice the last
+  /// up to [span]: a read here and there (a demuxer's look at the middle of
+  /// the file) costs a small request, and a run being played soon asks for
+  /// spans big enough to pay for a request's start. A request
   /// left open and unread is no limit on what arrives — the system keeps
   /// taking the body into its socket buffers, tens of megabytes on a fast
   /// link — so a span is what bounds how far a paused video runs ahead.
@@ -67,10 +71,11 @@ mixin _StreamReaderMixin on _StreamDownloadMixin {
   ) async* {
     var next = from;
     var attempt = 1;
+    var size = (span ~/ 4).clamp(2, span);
     while (next < layout.chunkCount) {
       final abort = Completer<void>();
       final reached = next;
-      final end = math.min(layout.chunkCount, next + span);
+      final end = math.min(layout.chunkCount, next + size);
       try {
         final body = await _bodyFrom(
           uri,
@@ -100,6 +105,7 @@ mixin _StreamReaderMixin on _StreamDownloadMixin {
         }
         if (next != end) throw const FormatException('The file ends early');
         attempt = 1;
+        size = math.min(span, size * 2);
       } catch (e) {
         if (next > reached) attempt = 1;
         if (!await _waitToRetry(e, attempt++)) rethrow;

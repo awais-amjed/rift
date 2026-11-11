@@ -437,7 +437,11 @@ first chunk not yet opened. It is saved beside the chosen name and renamed into
   chunks): an open-ended request left unread still fills the system's socket
   buffers, tens of megabytes on a fast link, so only a bounded one stops a
   paused video downloading on (measured Nov 11: a paused 55 MB video had been
-  sent whole). The last couple of dozen chunks stay in memory, never the whole
+  sent whole). A run's first range is a quarter of that, each after it twice
+  the last, and it keeps ahead of the player only as far as it has been read
+  in order: opening a video, a demuxer looks at the middle of the file once,
+  and a full range there cost two (replayed from a recorded player's reads,
+  Nov 11: 3 s of play then pause asked for 33 chunks before, 9 after). The last couple of dozen chunks stay in memory, never the whole
   file. A file sealed in one
   piece, or sent unencrypted (whose digest checks only at the end), is fetched
   whole to play, up to 64 MB (`ChatClip.wholeMaxBytes`).
