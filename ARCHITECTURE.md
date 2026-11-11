@@ -532,10 +532,15 @@ app, which fetches it as it plays (above, *Played as it downloads*), and Rust
 draws its pictures into a runner texture, as a
 watched share's are (on Windows on the runner's own GPU device, where it decodes video)
 (`ChatClip`, `rust/src/clips`). On the web the browser's own `<video>` plays it from a
-`blob:` URL, for now over the whole file, read first. Its card's poster, the first picture, is made the same way
-and held beside it in memory. A big video's is read in pieces too, as far as its index and
-first picture (about 3 of a 58 MB file's, measured Nov 11), in small requests
-(`readerFor(glance:)`); on the web only a video small enough to fetch whole gets one. In the app's cache folder, which the OS may empty and Android
+`blob:` URL, for now over the whole file, read first. Its card's poster, the first picture, is
+made by the **sender**, from the file on their device, by the same player
+(`ChatClip.posterToSend`; on the web from the picked file's `blob:` URL), and sealed beside
+the video as a small JPEG attachment of its own (`Attachment.poster`, `WIRE.md` §8), as a link
+preview's picture is. So a reader's card fetches that picture and not a byte of the video
+until play is pressed; before Nov 11 each reader read the video's index and first picture
+for one, about 3 MB of a 58 MB file. A video sent before posters, or from a device whose
+build cannot play video (Android, macOS for now), has none and stays dark until played, and a
+forward carries the poster it came with. In the app's cache folder, which the OS may empty and Android
 and iOS leave out of backups; not on the web.
 
 ### Decisions locked in for day one

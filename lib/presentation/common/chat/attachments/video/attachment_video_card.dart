@@ -10,7 +10,6 @@ import '../../../../../data/repositories/blob/blob_reader.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/media/media_cubit.dart';
 import '../../../../../logic/services/chat_clip/chat_clip.dart';
-import '../../../../../logic/services/media_store.dart';
 import '../../../../../src/rust/api/clips.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/media_colors.dart';
@@ -22,7 +21,8 @@ import 'widgets/video_middle.dart';
 import 'widgets/video_seek_bar.dart';
 
 /// A video attachment, played in the message list: a box the shape of the
-/// video with a play disc, which downloads and plays it in place.
+/// video with its poster and a play disc, which downloads and plays it in
+/// place.
 ///
 /// The file is played from memory by [ChatClip], with the system's own
 /// decoders: a big one fetched as it plays, a small one whole. Where this build has no player the card is a file to save, and
@@ -66,27 +66,18 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
     _wantPoster();
   }
 
-  /// The first picture, to show until it plays: fetched as a picture
-  /// attachment is, when the card is drawn. A big video's is read from its
-  /// index and first picture alone, a small one's from the whole file.
+  /// The first picture, to show until it plays: the poster the sender made
+  /// and sealed beside the video, fetched as a picture attachment is. Not a
+  /// byte of the video is fetched before play is pressed, so a video sent
+  /// without one stays dark until then.
   void _wantPoster() {
-    final attachment = widget.attachment;
-    if (!ChatClip.available) return;
-    final big = attachment.size > ChatClip.posterMaxBytes;
-    // Only a file sealed in chunks can be read in pieces.
-    if (big && (kIsWeb || attachment.chunkSize == null)) return;
+    final poster = widget.attachment.poster;
+    if (poster == null || !ChatClip.available) return;
     final loader = widget.loader;
-    final key = MediaStore.posterOf(attachment.storagePath);
     context.read<MediaCubit>().want(
       MediaKind.attachment,
-      key,
-      () => MediaStore.attachments.load(key, () async {
-        final glance = loader.readerFor(attachment, glance: true);
-        if (glance != null) return ChatClip.poster(glance);
-        if (big) return null;
-        final video = await loader(attachment);
-        return video == null ? null : ChatClip.poster(MemoryBlobReader(video));
-      }),
+      poster.storagePath,
+      () => loader(poster),
     );
   }
 
@@ -246,13 +237,11 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
         loader: widget.loader,
       );
     }
+    final posterPath = widget.attachment.poster?.storagePath;
     final poster = context.select<MediaCubit, Uint8List?>(
-      (c) => c.state
-          .entry(
-            MediaKind.attachment,
-            MediaStore.posterOf(widget.attachment.storagePath),
-          )
-          ?.bytes,
+      (c) => posterPath == null
+          ? null
+          : c.state.entry(MediaKind.attachment, posterPath)?.bytes,
     );
     return LayoutBuilder(
       builder: (context, constraints) {

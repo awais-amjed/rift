@@ -19,4 +19,7 @@ abstract class WebChatClip implements ChatClip {
     Uint8List video, {
     int longest = 880,
   }) async => null;
+
+  static Future<Uint8List?> posterAt(String url, {int longest = 880}) async =>
+      null;
 }

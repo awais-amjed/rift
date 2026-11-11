@@ -99,6 +99,27 @@ void main() {
       expect(back.durationMs, isNull);
     });
 
+    test("a video's poster round-trips, and an old one has none", () {
+      final video = Attachment(
+        id: 'v1',
+        kind: AttachmentKind.video,
+        name: 'clip.mp4',
+        mime: 'video/mp4',
+        size: 50000000,
+        storagePath: 's/v.bin',
+        keyB64: 'k',
+        nonceB64: 'n',
+        chunkSize: 1048576,
+        durationMs: 90000,
+        poster: sampleAttachment(),
+      );
+      final back = Attachment.fromJson(video.toJson());
+      expect(back, video);
+      expect(back.poster!.storagePath, sampleAttachment().storagePath);
+      final old = video.toJson()..remove('poster');
+      expect(Attachment.fromJson(old).poster, isNull);
+    });
+
     test('an encrypted file says nothing of being plain', () {
       final json = sampleAttachment().toJson();
       expect(json.containsKey('plain'), isFalse);

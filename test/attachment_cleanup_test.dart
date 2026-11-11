@@ -48,6 +48,24 @@ void main() {
       );
       expect(AttachmentCleanup.pathsOf(message), ['c1/a.bin', 'c1/b.bin']);
     });
+
+    test("a video's poster goes with it", () {
+      final video = Attachment(
+        id: 'v',
+        kind: AttachmentKind.video,
+        name: 'clip.mp4',
+        mime: 'video/mp4',
+        size: 10,
+        storagePath: 'c1/v.bin',
+        keyB64: 'k',
+        nonceB64: 'n',
+        poster: _attachment('c1/p.bin'),
+      );
+      expect(AttachmentCleanup.pathsOf(_message(attachments: [video])), [
+        'c1/v.bin',
+        'c1/p.bin',
+      ]);
+    });
   });
 
   group('AttachmentCleanup.forMessage', () {

@@ -4,7 +4,9 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
+import '../../../data/classes/pending_attachment.dart';
 import '../../../data/repositories/blob/blob_reader.dart';
+import '../../../data/repositories/blob/file_chunks.dart';
 import '../../../src/rust/api/clips.dart';
 import 'rust_chat_clip.dart';
 import 'web_chat_clip.dart';
@@ -42,12 +44,26 @@ abstract class ChatClip {
   /// offers it to save.
   static const int wholeMaxBytes = 64 * 1024 * 1024;
 
-  /// The most a video's card downloads whole by itself to draw its poster,
-  /// the size a file is read into memory to send at. A bigger one's poster
-  /// is read from its index and first picture alone, where it can be read
-  /// in pieces (`AttachmentLoader.readerFor`) and the player reads that way
-  /// (not yet on the web); otherwise the card stays dark until played.
+  /// The most the browser's player is handed in memory to draw a poster
+  /// from: the size a file is read into memory to send at. A bigger one's
+  /// is drawn from its blob URL ([posterToSend]).
   static const int posterMaxBytes = 16 * 1024 * 1024;
+
+  /// The poster a video being sent carries (`Attachment.poster`): its first
+  /// picture, made from the file on this device before it goes, so nobody's
+  /// card fetches the video to show one. A big one is read where it lies,
+  /// never into memory. Null where this build cannot make one.
+  static Future<Uint8List?> posterToSend(PendingAttachment video) async {
+    if (!available) return null;
+    if (video.bytes case final bytes?) return poster(MemoryBlobReader(bytes));
+    final file = video.file;
+    if (file == null) return null;
+    if (kIsWeb) {
+      return file.path.isEmpty ? null : WebChatClip.posterAt(file.path);
+    }
+    final reader = fileBlobReader(file, video.size);
+    return reader == null ? null : poster(reader);
+  }
 
   /// The first picture of the video [file] reads, as a JPEG, its longer
   /// side at most [longest] pixels; null where it cannot be made. Owns

@@ -94,6 +94,13 @@ class Attachment extends Equatable {
   final int? height;
   final int? durationMs;
 
+  /// A video's first picture, a small JPEG made on the sender's device and
+  /// sealed beside it like any attachment, so its card shows what the video
+  /// is without anybody fetching a byte of the video before they press
+  /// play. Null for one sent before posters, or from a device that could
+  /// not make one: its card stays dark until played.
+  final Attachment? poster;
+
   const Attachment({
     required this.id,
     required this.kind,
@@ -108,6 +115,7 @@ class Attachment extends Equatable {
     this.width,
     this.height,
     this.durationMs,
+    this.poster,
   });
 
   /// Whether the server holds ciphertext ([keyB64] opens it) rather than the
@@ -136,6 +144,9 @@ class Attachment extends Equatable {
       width: json['w'] as int?,
       height: json['h'] as int?,
       durationMs: json['dur'] as int?,
+      poster: json['poster'] is Map<String, dynamic>
+          ? Attachment.fromJson(json['poster'] as Map<String, dynamic>)
+          : null,
     );
   }
 
@@ -159,6 +170,7 @@ class Attachment extends Equatable {
     if (width != null) 'w': width,
     if (height != null) 'h': height,
     if (durationMs != null) 'dur': durationMs,
+    if (poster != null) 'poster': poster!.toJson(),
   };
 
   @override
@@ -176,5 +188,6 @@ class Attachment extends Equatable {
     width,
     height,
     durationMs,
+    poster,
   ];
 }

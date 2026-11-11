@@ -147,9 +147,8 @@ class AttachmentsApi {
 
   /// [attachment], read where a player wants it as it plays — see
   /// `AttachmentRepository.readerFor`. Null for a file that can only be
-  /// fetched whole, or when the server is gone. A [glance] reads only a few
-  /// places, as a poster does.
-  BlobReader? readerFor(Attachment attachment, {bool glance = false}) {
+  /// fetched whole, or when the server is gone.
+  BlobReader? readerFor(Attachment attachment) {
     final target = _withKey();
     if (target == null) return null;
     return _attachments.readerFor(
@@ -158,7 +157,6 @@ class AttachmentsApi {
       token: _session.bearerFor(target.server),
       bucket: _bucketFor(target.server),
       attachment: attachment,
-      glance: glance,
     );
   }
 

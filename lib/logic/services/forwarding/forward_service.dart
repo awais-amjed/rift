@@ -19,6 +19,7 @@ import '../../../supabase_config.dart';
 import '../../cubits/vault/vault_cubit.dart';
 import '../../helper_methods.dart';
 import '../attachment_staging.dart';
+import '../chat_attachment_uploader.dart';
 import '../file_save/save_target.dart';
 import 'forward_target.dart';
 

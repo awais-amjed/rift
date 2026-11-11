@@ -233,6 +233,16 @@ class WebChatClip implements ChatClip {
       HelperMethods.printDebug('[ChatClip] poster: $e');
       return null;
     }
+    try {
+      return await posterAt(url, longest: longest);
+    } finally {
+      web.URL.revokeObjectURL(url);
+    }
+  }
+
+  /// [poster] of the video at [url], a picked file's blob URL, which the
+  /// browser reads where it lies: a big one is never copied into memory.
+  static Future<Uint8List?> posterAt(String url, {int longest = 880}) async {
     final element = _element(url)..muted = true;
     try {
       final ready = Completer<bool>();
@@ -271,7 +281,6 @@ class WebChatClip implements ChatClip {
       element
         ..removeAttribute('src')
         ..load();
-      web.URL.revokeObjectURL(url);
     }
   }
 

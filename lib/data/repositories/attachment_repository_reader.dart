@@ -7,18 +7,12 @@ mixin _StreamReaderMixin on _StreamDownloadMixin {
   /// that cannot be read that way — sealed in one piece, which opens only
   /// whole, or sent unencrypted, whose digest checks only once all of it has
   /// come — or one claiming a chunk size out of range.
-  ///
-  /// A [glance] reads a few chunks here and there, as a poster does (the
-  /// index and the first picture): it asks for [_glanceSpan] chunks at a
-  /// time and keeps few, where playing asks for a span that pays for a
-  /// request's start.
   BlobReader? readerFor({
     required String baseUrl,
     required String anonKey,
     required BearerToken token,
     required String bucket,
     required Attachment attachment,
-    bool glance = false,
   }) {
     final chunk = attachment.chunkSize;
     if (!attachment.isEncrypted || chunk == null) return null;
@@ -33,18 +27,10 @@ mixin _StreamReaderMixin on _StreamDownloadMixin {
     );
     final key = CryptoRepository.fromBase64(attachment.keyB64);
     final prefix = CryptoRepository.fromBase64(attachment.nonceB64);
-    final span = glance ? _glanceSpan : _span(layout);
+    final span = _span(layout);
     Stream<Uint8List> fetch(int from) =>
         _openedFrom(uri, anonKey, token, layout, key, prefix, from, span);
-    return glance
-        ? ChunkedBlobReader(
-            layout: layout,
-            fetch: fetch,
-            keep: 6,
-            ahead: 1,
-            reach: 2,
-          )
-        : ChunkedBlobReader(layout: layout, fetch: fetch);
+    return ChunkedBlobReader(layout: layout, fetch: fetch);
   }
 
   /// Chunks [from] on, opened as they arrive, a span at a time: one request
@@ -117,12 +103,10 @@ mixin _StreamReaderMixin on _StreamDownloadMixin {
     }
   }
 
-  /// Chunks to a request: more for a bigger file, since Storage's file
-  /// backend takes longer to start answering each one the bigger the file
-  /// (it hashes all of it first); 8 to 32 of them.
+  /// Chunks to a request: more for a bigger file, since a server whose
+  /// Storage still hashes the whole file before answering each one
+  /// (`STORAGE_FILE_ETAG_ALGORITHM` left at md5) takes longer to start the
+  /// bigger the file; 8 to 32 of them.
   static int _span(ChunkedLayout layout) =>
       (layout.chunkCount ~/ 32).clamp(8, 32);
-
-  /// Chunks to a request for a [readerFor] glance.
-  static const int _glanceSpan = 2;
 }

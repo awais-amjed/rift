@@ -55,9 +55,12 @@ class AttachmentCleanup {
     }
   }
 
-  /// The storage paths [message] carries, or empty when it has none.
+  /// The storage paths [message] carries, a video's poster's too, or empty
+  /// when it has none.
   static List<String> pathsOf(ChatMessage? message) => [
-    for (final attachment in message?.attachments ?? const [])
+    for (final attachment in message?.attachments ?? const []) ...[
       attachment.storagePath,
+      if (attachment.poster case final poster?) poster.storagePath,
+    ],
   ];
 }

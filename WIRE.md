@@ -346,6 +346,7 @@ nothing that opens them. Each entry:
 | `chunk` | present only when the file is sealed a chunk at a time: the plaintext bytes per chunk |
 | `plain`, `sha256` | present only when the file was sent unencrypted: `true`, and the base64 SHA-256 of its bytes |
 | `w`, `h`, `dur` | optional: a picture's or video's size as shown (a video turned upright), a recording's or video's length in ms |
+| `poster` | optional, a video's only: its first picture, a JPEG made by the sender, as an entry of its own in this same shape, sealed and stored like any file. A reader shows it until the video is played, and fetches nothing of the video before then |
 
 **In one piece** (no `chunk`): the object is `AES-256-GCM(file, key, nonce)`
 with no associated data and the 16-byte tag after the ciphertext.

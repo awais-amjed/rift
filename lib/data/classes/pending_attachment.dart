@@ -44,6 +44,10 @@ class PendingAttachment extends Equatable {
   /// (`AttachmentStaging.discard`). Never set on a file the person owns.
   final bool temporary;
 
+  /// A video's poster made already, sent as it is (`Attachment.poster`):
+  /// a forwarded video's, fetched with it. Null to make one from the file.
+  final Uint8List? poster;
+
   // Not const: [size] is read off the bytes.
   // ignore: prefer_const_constructors_in_immutables
   PendingAttachment({
@@ -55,6 +59,7 @@ class PendingAttachment extends Equatable {
     this.height,
     this.durationMs,
     this.plain = false,
+    this.poster,
   }) : file = null,
        size = bytes.length,
        temporary = false;
@@ -71,6 +76,7 @@ class PendingAttachment extends Equatable {
     this.durationMs,
     this.plain = false,
     this.temporary = false,
+    this.poster,
   }) : bytes = null;
 
   const PendingAttachment._({
@@ -85,6 +91,7 @@ class PendingAttachment extends Equatable {
     required this.durationMs,
     required this.plain,
     required this.temporary,
+    required this.poster,
   });
 
   /// Whether it is read from [file] as it goes rather than held.
@@ -105,6 +112,7 @@ class PendingAttachment extends Equatable {
     durationMs: durationMs,
     plain: plain ?? this.plain,
     temporary: temporary,
+    poster: poster,
   );
 
   @override
@@ -120,5 +128,6 @@ class PendingAttachment extends Equatable {
     durationMs,
     plain,
     temporary,
+    IdentityProp(poster),
   ];
 }

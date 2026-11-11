@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:cross_file/cross_file.dart';
 
+import 'blob_reader.dart';
 import 'fixed_chunks.dart';
 import 'stream_spans.dart';
 
@@ -48,4 +49,42 @@ fileSpans(XFile file) async {
   }
 
   return (read: read, close: handle.close);
+}
+
+/// [file] read at any point, as a player reads one, straight off the disk;
+/// null for a file with no path. What a video's poster is made from when it
+/// is too big to have been read into memory.
+BlobReader? fileBlobReader(XFile file, int size) =>
+    file.path.isEmpty ? null : _FileBlobReader(file.path, size);
+
+class _FileBlobReader implements BlobReader {
+  final String _path;
+  @override
+  final int length;
+  RandomAccessFile? _handle;
+
+  /// One read at a time: a [RandomAccessFile] refuses a second while one is
+  /// under way, and a player may ask in two places at once.
+  Future<void> _last = Future.value();
+
+  _FileBlobReader(this._path, this.length);
+
+  @override
+  Future<Uint8List> read(int offset, int max) {
+    if (offset < 0) throw RangeError.value(offset, 'offset');
+    final done = _last.then((_) async {
+      final handle = _handle ??= await File(_path).open();
+      await handle.setPosition(offset);
+      return handle.read(max);
+    });
+    _last = done.then((_) {}, onError: (_) {});
+    return done;
+  }
+
+  @override
+  Future<void> close() async {
+    await _last;
+    await _handle?.close();
+    _handle = null;
+  }
 }

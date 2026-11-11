@@ -6,6 +6,9 @@ import '../../data/classes/attachment.dart';
 import '../../data/classes/link_preview.dart';
 import '../../data/classes/pending_attachment.dart';
 import '../../data/repositories/attachment_repository.dart';
+import '../helper_methods.dart';
+import 'chat_clip/chat_clip.dart';
+import 'image_dimensions.dart';
 import 'link_preview_fetcher.dart';
 import 'media_store.dart';
 
@@ -17,6 +20,9 @@ typedef BlobUpload =
       PendingAttachment file, {
       TransferProgress? onProgress,
     });
+
+/// A video's poster, made from the file being sent; null where none can be.
+typedef PosterMaker = Future<Uint8List?> Function(PendingAttachment video);
 
 /// Shared "upload staged files → attachment metadata" step used by all three
 /// chat pipelines (channels, server DMs, central DMs). The only thing that
@@ -64,10 +70,13 @@ class ChatAttachmentUploader {
   /// [onProgress] hears how much of all of [pending] has gone, 0 to 1, in
   /// steps of at least a percent — often enough for a bar, rarely enough not
   /// to redraw a chat list for every request.
+  ///
+  /// A video gets its poster made here and uploaded after it ([posterFor]).
   static Future<List<Attachment>> uploadAll({
     required List<PendingAttachment> pending,
     required BlobUpload uploadOne,
     void Function(double progress)? onProgress,
+    PosterMaker posterOf = ChatClip.posterToSend,
   }) async {
     final result = <Attachment>[];
     final total = pending.fold(0, (sum, a) => sum + a.size);
@@ -118,10 +127,58 @@ class ChatAttachmentUploader {
           width: pa.width,
           height: pa.height,
           durationMs: pa.durationMs,
+          poster: pa.kind == AttachmentKind.video
+              ? await posterFor(pa, uploadOne: uploadOne, posterOf: posterOf)
+              : null,
         ),
       );
     }
     return result;
+  }
+
+  /// [video]'s poster, made (unless it came with one) and uploaded as a
+  /// picture attachment the same way as the video, or null. Never fails the send: a video without one
+  /// still plays, and only its card stays dark until it does.
+  static Future<Attachment?> posterFor(
+    PendingAttachment video, {
+    required BlobUpload uploadOne,
+    PosterMaker posterOf = ChatClip.posterToSend,
+  }) async {
+    try {
+      final jpeg = video.poster ?? await posterOf(video);
+      if (jpeg == null || jpeg.isEmpty) return null;
+      final shape = await readImageDimensions(jpeg);
+      final response = await uploadOne(
+        PendingAttachment(
+          bytes: jpeg,
+          name: 'poster.jpg',
+          mime: 'image/jpeg',
+          kind: AttachmentKind.image,
+          width: shape?.width,
+          height: shape?.height,
+        ),
+      );
+      if (!response.success || response.data is! UploadedBlob) return null;
+      final r = response.data as UploadedBlob;
+      MediaStore.attachments.put(r.path, jpeg);
+      return Attachment(
+        id: _attachmentId(),
+        kind: AttachmentKind.image,
+        name: 'poster.jpg',
+        mime: 'image/jpeg',
+        size: jpeg.length,
+        storagePath: r.path,
+        keyB64: r.keyB64,
+        nonceB64: r.nonceB64,
+        sha256B64: r.sha256B64,
+        chunkSize: r.chunkSize,
+        width: shape?.width,
+        height: shape?.height,
+      );
+    } catch (e) {
+      HelperMethods.printDebug('[Attachments] poster not sent: $e');
+      return null;
+    }
   }
 
   /// Return an attachment's decrypted bytes, from [MediaStore.attachments] if

@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:cross_file/cross_file.dart';
 import 'package:web/web.dart' as web;
 
+import 'blob_reader.dart';
 import 'fixed_chunks.dart';
 import 'stream_spans.dart';
 
@@ -32,6 +33,10 @@ fileSpans(XFile file) async {
   final spans = StreamSpans(_read(file.path));
   return (read: spans.read, close: spans.close);
 }
+
+/// None on the web, which has no path to read a file at; a video's poster
+/// is drawn from its blob URL there instead.
+BlobReader? fileBlobReader(XFile file, int size) => null;
 
 Stream<Uint8List> _read(String url) async* {
   final response = await web.window.fetch(url.toJS).toDart;

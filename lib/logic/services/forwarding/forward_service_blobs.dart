@@ -27,6 +27,7 @@ mixin _ForwardBlobsMixin {
     final scratch = <ScratchSink>[];
     for (final attachment in attachments) {
       try {
+        final poster = await _fetchPoster(attachment, sourceServerId);
         // No server id means it came from central, which keeps its own
         // bucket and its own client, and whose files are all small.
         if (sourceServerId != null &&
@@ -50,6 +51,7 @@ mixin _ForwardBlobsMixin {
               width: attachment.width,
               height: attachment.height,
               durationMs: attachment.durationMs,
+              poster: poster,
             ),
           );
           continue;
@@ -81,6 +83,7 @@ mixin _ForwardBlobsMixin {
                   width: attachment.width,
                   height: attachment.height,
                   durationMs: attachment.durationMs,
+                  poster: poster,
                 ),
         );
       } catch (e) {
@@ -89,6 +92,39 @@ mixin _ForwardBlobsMixin {
       }
     }
     return (files: files, scratch: scratch);
+  }
+
+  /// [attachment]'s poster, a video's, opened to send on with it: a device
+  /// that cannot make one still forwards the one it came with. Null when it
+  /// has none or will not open, and the copy's is then made from the file.
+  Future<Uint8List?> _fetchPoster(
+    Attachment attachment,
+    String? sourceServerId,
+  ) async {
+    final poster = attachment.poster;
+    if (poster == null) return null;
+    try {
+      final response = sourceServerId == null
+          ? await central.downloadAttachment(
+              path: poster.storagePath,
+              keyB64: poster.keyB64,
+              nonceB64: poster.nonceB64,
+              sha256B64: poster.sha256B64,
+              chunkSize: poster.chunkSize,
+            )
+          : await blobsOn(sourceServerId).downloadAttachment(
+              path: poster.storagePath,
+              keyB64: poster.keyB64,
+              nonceB64: poster.nonceB64,
+              sha256B64: poster.sha256B64,
+              chunkSize: poster.chunkSize,
+            );
+      return response.success ? response.data as Uint8List? : null;
+    } catch (e) {
+      // Its own failure, not the video's: the copy makes one instead.
+      HelperMethods.printDebug('[Forward] poster fetch failed: $e');
+      return null;
+    }
   }
 
   /// Re-encrypt and upload into one destination, answering with the
@@ -114,7 +150,10 @@ mixin _ForwardBlobsMixin {
       final file = i < files.length ? files[i] : null;
       if (file == null) continue;
       try {
-        final response = serverId == null
+        Future<APIResponse> upload(
+          PendingAttachment file, {
+          TransferProgress? onProgress,
+        }) async => serverId == null
             ? await central.uploadAttachment(
                 scopePrefix: scopePrefix,
                 data: file.bytes ?? await file.source.readAsBytes(),
@@ -122,6 +161,7 @@ mixin _ForwardBlobsMixin {
             : await blobsOn(
                 serverId,
               ).uploadStaged(file, scopePrefix: scopePrefix, plain: plain);
+        final response = await upload(file);
         if (!response.success) continue;
         final blob = response.data as UploadedBlob;
         final source = attachments[i];
@@ -140,6 +180,12 @@ mixin _ForwardBlobsMixin {
             width: source.width,
             height: source.height,
             durationMs: source.durationMs,
+            poster: source.kind == AttachmentKind.video
+                ? await ChatAttachmentUploader.posterFor(
+                    file,
+                    uploadOne: upload,
+                  )
+                : null,
           ),
         );
       } catch (e) {

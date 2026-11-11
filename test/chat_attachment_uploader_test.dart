@@ -155,6 +155,103 @@ void main() {
     });
   });
 
+  group('posters', () {
+    PendingAttachment video({Uint8List? poster}) => PendingAttachment(
+      bytes: Uint8List.fromList([9, 9, 9]),
+      name: 'clip.mp4',
+      mime: 'video/mp4',
+      kind: AttachmentKind.video,
+      width: 1920,
+      height: 1080,
+      poster: poster,
+    );
+    final jpeg = Uint8List.fromList([0xff, 0xd8, 1, 2]);
+
+    test('a video goes up, then its poster, the same way', () async {
+      final sent = <PendingAttachment>[];
+      var n = 0;
+      final result = await ChatAttachmentUploader.uploadAll(
+        pending: [video()],
+        uploadOne: (f, {onProgress}) async {
+          sent.add(f);
+          return stored('p${n++}');
+        },
+        posterOf: (_) async => jpeg,
+      );
+
+      expect(sent.map((f) => f.name), ['clip.mp4', 'poster.jpg']);
+      final poster = result.single.poster!;
+      expect(poster.storagePath, 'p1');
+      expect(poster.kind, AttachmentKind.image);
+      expect(poster.mime, 'image/jpeg');
+      expect(poster.size, jpeg.length);
+      expect(poster.keyB64, 'k-p1');
+      // The sender's card draws it without fetching it back.
+      expect(MediaStore.attachments['p1']?.bytes, jpeg);
+    });
+
+    test('a picture or a sound gets no poster', () async {
+      var asked = 0;
+      final result = await ChatAttachmentUploader.uploadAll(
+        pending: [
+          file('a.png', [1]),
+        ],
+        uploadOne: (_, {onProgress}) async => stored('p'),
+        posterOf: (_) async {
+          asked++;
+          return jpeg;
+        },
+      );
+      expect(asked, 0);
+      expect(result.single.poster, isNull);
+    });
+
+    test('one that cannot be made sends the video without', () async {
+      var uploads = 0;
+      final result = await ChatAttachmentUploader.uploadAll(
+        pending: [video()],
+        uploadOne: (_, {onProgress}) async => stored('p${uploads++}'),
+        posterOf: (_) async => null,
+      );
+      expect(uploads, 1);
+      expect(result.single.poster, isNull);
+    });
+
+    test('one that will not make or upload never fails the send', () async {
+      final thrown = await ChatAttachmentUploader.uploadAll(
+        pending: [video()],
+        uploadOne: (_, {onProgress}) async => stored('p'),
+        posterOf: (_) async => throw StateError('no decoder'),
+      );
+      expect(thrown.single.storagePath, 'p');
+      expect(thrown.single.poster, isNull);
+
+      var n = 0;
+      final refused = await ChatAttachmentUploader.uploadAll(
+        pending: [video()],
+        uploadOne: (_, {onProgress}) async =>
+            n++ == 0 ? stored('v') : APIResponse.error('full'),
+        posterOf: (_) async => jpeg,
+      );
+      expect(refused.single.storagePath, 'v');
+      expect(refused.single.poster, isNull);
+    });
+
+    test('a forwarded video sends the poster it came with', () async {
+      var made = 0;
+      final result = await ChatAttachmentUploader.uploadAll(
+        pending: [video(poster: jpeg)],
+        uploadOne: (_, {onProgress}) async => stored('p'),
+        posterOf: (_) async {
+          made++;
+          return Uint8List(1);
+        },
+      );
+      expect(made, 0);
+      expect(result.single.poster!.size, jpeg.length);
+    });
+  });
+
   group('uploadPreview', () {
     test('no preview uploads nothing', () async {
       final preview = await ChatAttachmentUploader.uploadPreview(

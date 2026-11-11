@@ -44,6 +44,7 @@ mixin _MessageRowActionsMixin on State<ChatMessageRow> {
       !message.isMine &&
       !message.isPending &&
       !message.isLocked;
+
   /// What Save is called for this message, or null when it has none: a
   /// message carrying one attachment, readable here. With several, each card
   /// saves its own.

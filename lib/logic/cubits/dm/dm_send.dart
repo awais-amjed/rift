@@ -302,10 +302,9 @@ mixin _DmSendMixin on Cubit<DmState> {
     onProgress: onProgress,
   );
 
-  /// An attachment read as it plays, for a video, or glanced at for its
-  /// poster.
-  BlobReader? readAttachment(Attachment attachment, {bool glance = false}) =>
-      _attachments.readerFor(attachment, glance: glance);
+  /// An attachment read as it plays, for a video.
+  BlobReader? readAttachment(Attachment attachment) =>
+      _attachments.readerFor(attachment);
 
   /// What the message list draws, saves and plays attachments with.
   AttachmentLoader get attachmentLoader => AttachmentLoader(
