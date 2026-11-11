@@ -75,6 +75,9 @@ Future<MessageMenuAction?> showMessageContextMenu({
       side: BorderSide(color: themeState.borderPrimary),
     ),
     constraints: const BoxConstraints(minWidth: 172),
+    // Opens at once, like the app's other right-click menus: Material's
+    // grow-and-fade read as lag under the pointer.
+    popUpAnimationStyle: AnimationStyle.noAnimation,
     items: [
       if (canReact)
         _item(
