@@ -5,8 +5,9 @@
 //! player is handed the file's bytes and reads them where they lie. Each
 //! platform's own player decodes it, with the system's decoders: Rift ships
 //! none for a chat video (the owner's rule on H264, `CALLS.md`). On Linux
-//! that is GStreamer ([`linux`]); elsewhere there is none yet
-//! ([`AVAILABLE`] false), and the card offers the file to save.
+//! that is GStreamer ([`linux`]), on Windows the Media Engine ([`windows`]);
+//! elsewhere there is none yet ([`available`] false), and the card offers
+//! the file to save.
 //!
 //! A clip is known by its texture: the app makes one per open clip and hands
 //! it here, and every call after names it.
@@ -22,13 +23,36 @@ use linux::Clip;
 #[cfg(target_os = "linux")]
 mod poster_linux;
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(windows)]
+mod media_engine;
+#[cfg(windows)]
+mod poster_windows;
+#[cfg(windows)]
+mod windows;
+#[cfg(windows)]
+use windows::Clip;
+
+#[cfg(not(any(target_os = "linux", windows)))]
 mod elsewhere;
-#[cfg(not(target_os = "linux"))]
+#[cfg(not(any(target_os = "linux", windows)))]
 use elsewhere::Clip;
 
-/// Whether this platform plays a chat video here.
-pub(crate) const AVAILABLE: bool = cfg!(target_os = "linux");
+/// Whether this computer plays a chat video here: on Windows, one without
+/// Media Foundation (an N edition) does not.
+pub(crate) fn available() -> bool {
+    #[cfg(target_os = "linux")]
+    {
+        true
+    }
+    #[cfg(windows)]
+    {
+        media_engine::usable()
+    }
+    #[cfg(not(any(target_os = "linux", windows)))]
+    {
+        false
+    }
+}
 
 static CLIPS: Mutex<Option<HashMap<u64, Clip>>> = Mutex::new(None);
 
@@ -82,7 +106,11 @@ pub(crate) fn poster(bytes: Vec<u8>, longest: u32) -> Result<Vec<u8>, String> {
     {
         poster_linux::poster(bytes, longest)
     }
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(windows)]
+    {
+        poster_windows::poster(bytes, longest)
+    }
+    #[cfg(not(any(target_os = "linux", windows)))]
     {
         let _ = (bytes, longest);
         Err("No poster here yet".to_string())
@@ -90,7 +118,7 @@ pub(crate) fn poster(bytes: Vec<u8>, longest: u32) -> Result<Vec<u8>, String> {
 }
 
 /// What a player tells the app about [texture]'s clip.
-#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+#[cfg_attr(not(any(target_os = "linux", windows)), allow(dead_code))]
 fn emit(texture: u64, kind: ClipEventKind, width: u32, height: u32, reason: String) {
     crate::api::clips::emit_clip_event(ClipEvent {
         texture,

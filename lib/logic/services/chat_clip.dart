@@ -24,7 +24,9 @@ class ChatClip {
   /// Whether this build plays a chat video itself. Where not, the card
   /// offers the file to save.
   static final bool available =
-      !kIsWeb && Platform.isLinux && _safely(clipsAvailable, false);
+      !kIsWeb &&
+      (Platform.isLinux || Platform.isWindows) &&
+      _safely(clipsAvailable, false);
 
   static T _safely<T>(T Function() read, T otherwise) {
     try {
@@ -60,7 +62,9 @@ class ChatClip {
     _listen();
     final texture = await RunnerTextures.create();
     if (texture == null) return (clip: null, error: 'No surface to draw on');
-    final events = StreamController<ClipEvent>.broadcast();
+    // Not a broadcast: what the player says before the card listens (a
+    // file Windows cannot read fails at once) waits for it.
+    final events = StreamController<ClipEvent>();
     _open[texture.id] = events;
     try {
       await clipOpen(

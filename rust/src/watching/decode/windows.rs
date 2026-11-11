@@ -275,8 +275,9 @@ fn adapter_zero() -> windows::core::Result<Gpu> {
 
 /// The runner's device, from its `rift_stream_d3d11_device` export, with the
 /// reference it added; none when the export or the device is missing (an old
-/// runner, the test program, or a device lost).
-fn runner_device() -> Option<ID3D11Device> {
+/// runner, the test program, or a device lost). A chat video plays on it too
+/// (`crate::clips`).
+pub(crate) fn runner_device() -> Option<ID3D11Device> {
     #[cfg(test)]
     {
         tests::device_in_place()

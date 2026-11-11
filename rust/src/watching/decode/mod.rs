@@ -45,6 +45,8 @@ use elsewhere::{device, DecodeError, Decoder};
 pub(crate) use linux::Gpu;
 #[cfg(target_os = "linux")]
 use linux::{device, DecodeError, Decoder};
+#[cfg(windows)]
+pub(crate) use windows::runner_device;
 #[cfg(all(test, windows))]
 pub(crate) use windows::tests::{slice_holds, RunnerDeviceInPlace};
 #[cfg(windows)]

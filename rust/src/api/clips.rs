@@ -61,7 +61,7 @@ pub(crate) fn emit_clip_event(event: ClipEvent) {
 pub fn clips_available() -> bool {
     #[cfg(desktop)]
     {
-        clips::AVAILABLE
+        clips::available()
     }
     #[cfg(not(desktop))]
     {
@@ -86,7 +86,8 @@ pub async fn clip_open(
         }
         // SAFETY: the runner's address for its mark function, as for a
         // watched share (`watch_share`).
-        let mark: crate::watching::frames::MarkFn = unsafe { std::mem::transmute::<usize, crate::watching::frames::MarkFn>(mark_frame) };
+        let mark: crate::watching::frames::MarkFn =
+            unsafe { std::mem::transmute::<usize, crate::watching::frames::MarkFn>(mark_frame) };
         tokio::task::spawn_blocking(move || clips::open(bytes, texture, mark, output))
             .await
             .map_err(|e| e.to_string())?

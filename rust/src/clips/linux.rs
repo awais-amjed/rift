@@ -128,9 +128,9 @@ impl Drop for Clip {
     fn drop(&mut self) {
         // The watcher first: a stopped pipeline flushes its bus, which would
         // throw away the message that wakes it.
-        let _ = self.bus.post(
-            gst::message::Application::builder(gst::Structure::new_empty(CLOSING)).build(),
-        );
+        let _ = self
+            .bus
+            .post(gst::message::Application::builder(gst::Structure::new_empty(CLOSING)).build());
         if let Some(watcher) = self.watcher.take() {
             let _ = watcher.join();
         }
