@@ -508,7 +508,8 @@ lets go (`ChatAudioSource`). A chat video never leaves memory: Rust hands its by
 to the system's own player (GStreamer on Linux, the Media Engine on Windows, with whatever
 decoders the system has: Rift ships none) and draws its pictures into a runner texture, as a
 watched share's are (on Windows on the runner's own GPU device, where it decodes video)
-(`ChatClip`, `rust/src/clips`); its card's poster, the first picture, is made the same way
+(`ChatClip`, `rust/src/clips`). On the web the browser's own `<video>` plays it from a
+`blob:` URL over the same bytes. Its card's poster, the first picture, is made the same way
 and held beside it in memory. In the app's cache folder, which the OS may empty and Android
 and iOS leave out of backups; not on the web.
 

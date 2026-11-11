@@ -1,38 +1,30 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 
-import '../../src/rust/api/clips.dart';
-import '../helper_methods.dart';
-import 'runner_textures.dart';
+import '../../../src/rust/api/clips.dart';
+import '../../helper_methods.dart';
+import '../runner_textures.dart';
+import 'chat_clip.dart';
 
-/// A video from the chat, played by Rust from memory into a runner texture
-/// (`rust/src/clips`), with the system's own decoders.
-///
-/// An attachment is decrypted message content and never goes to disk, so
-/// the player gets the bytes themselves. One per card that is playing; the
-/// card closes it when it goes.
-class ChatClip {
+/// A chat video played by Rust from memory into a runner texture
+/// (`rust/src/clips`): GStreamer on Linux, the Media Engine on Windows.
+class RustChatClip implements ChatClip {
   /// What Flutter's `Texture` draws.
   final int textureId;
 
   final StreamController<ClipEvent> _events;
 
-  ChatClip._(this.textureId, this._events);
+  RustChatClip._(this.textureId, this._events);
 
-  /// Whether this build plays a chat video itself. Where not, the card
-  /// offers the file to save.
-  static final bool available =
-      !kIsWeb &&
-      (Platform.isLinux || Platform.isWindows) &&
-      _safely(clipsAvailable, false);
-
-  static T _safely<T>(T Function() read, T otherwise) {
+  /// Whether the library has a player here. Not on Windows N without its
+  /// media pack.
+  static bool available() {
     try {
-      return read();
+      return clipsAvailable();
     } catch (_) {
-      return otherwise;
+      return false;
     }
   }
 
@@ -48,13 +40,11 @@ class ChatClip {
     });
   }
 
-  /// What the player says about this clip: its picture's shape, the end, a
-  /// failure.
+  @override
   Stream<ClipEvent> get events => _events.stream;
 
-  /// Opens [bytes], a whole video file, paused on its first picture, its
-  /// sound to play on [output] (as WebRTC lists outputs; null for the
-  /// default). Null, with nothing left behind, when it would not open.
+  /// [ChatClip.open], in a runner texture. [output] is WebRTC's id for the
+  /// output.
   static Future<({ChatClip? clip, String? error})> open(
     Uint8List bytes, {
     String? output,
@@ -73,7 +63,7 @@ class ChatClip {
         markFrame: BigInt.from(texture.mark),
         output: output,
       );
-      return (clip: ChatClip._(texture.id, events), error: null);
+      return (clip: RustChatClip._(texture.id, events), error: null);
     } catch (e) {
       HelperMethods.printDebug('[ChatClip] open: $e');
       _open.remove(texture.id);
@@ -83,13 +73,6 @@ class ChatClip {
     }
   }
 
-  /// The most a video's card downloads by itself to draw its poster, the
-  /// size a file is read into memory to send at: past it the card stays
-  /// dark until played.
-  static const int posterMaxBytes = 16 * 1024 * 1024;
-
-  /// [video]'s first picture as a JPEG, its longer side [longest] pixels;
-  /// null where it cannot be made.
   static Future<Uint8List?> poster(Uint8List video, {int longest = 880}) async {
     try {
       return await clipPoster(bytes: video, longest: longest);
@@ -101,10 +84,16 @@ class ChatClip {
 
   BigInt get _texture => BigInt.from(textureId);
 
-  Future<void> play() => _quietly('play', () => clipPlay(texture: _texture));
+  @override
+  Widget picture() => Texture(textureId: textureId);
 
+  @override
+  Future<bool> play() => _quietly('play', () => clipPlay(texture: _texture));
+
+  @override
   Future<void> pause() => _quietly('pause', () => clipPause(texture: _texture));
 
+  @override
   Future<void> seek(Duration to) => _quietly(
     'seek',
     () => clipSeek(
@@ -113,13 +102,13 @@ class ChatClip {
     ),
   );
 
-  /// 1 as recorded.
+  @override
   Future<void> setVolume(double volume) => _quietly(
     'volume',
     () => clipSetVolume(texture: _texture, volume: volume),
   );
 
-  /// Where it is, and how long it is, where the player knows.
+  @override
   ({Duration? position, Duration? length}) time() {
     try {
       final t = clipTime(texture: _texture);
@@ -132,6 +121,7 @@ class ChatClip {
   }
 
   /// Stops it, lets the bytes go, then the texture.
+  @override
   Future<void> close() async {
     await _quietly('close', () => clipClose(texture: _texture));
     _open.remove(textureId);
@@ -139,11 +129,14 @@ class ChatClip {
     await RunnerTextures.dispose(textureId);
   }
 
-  Future<void> _quietly(String what, Future<void> Function() call) async {
+  /// Whether [call] went through; a failure is logged, not thrown.
+  Future<bool> _quietly(String what, Future<void> Function() call) async {
     try {
       await call();
+      return true;
     } catch (e) {
       HelperMethods.printDebug('[ChatClip] $what: $e');
+      return false;
     }
   }
 }

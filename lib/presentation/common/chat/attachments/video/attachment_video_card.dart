@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -8,7 +8,7 @@ import '../../../../../data/classes/attachment.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/media/media_cubit.dart';
-import '../../../../../logic/services/chat_clip.dart';
+import '../../../../../logic/services/chat_clip/chat_clip.dart';
 import '../../../../../logic/services/media_store.dart';
 import '../../../../../src/rust/api/clips.dart';
 import '../../../../theme/app_text.dart';
@@ -108,8 +108,7 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
         _position = Duration.zero;
       });
     }
-    await clip.play();
-    _setPlaying(true);
+    _setPlaying(await clip.play());
   }
 
   Future<void> _open() async {
@@ -142,8 +141,7 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
       _clip = clip;
       _opening = false;
     });
-    await clip.play();
-    _setPlaying(true);
+    _setPlaying(await clip.play());
   }
 
   void _heard(ClipEvent event) {
@@ -162,8 +160,8 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
         });
       case ClipEventKind.cannotDecode:
         _fail(
-          "This video's format doesn't play on this computer. Save it "
-          'to watch it.',
+          "This video's format doesn't play ${kIsWeb ? 'in this browser' : 'on this computer'}. "
+          'Save it to watch it.',
         );
       case ClipEventKind.failed:
         _fail('This video could not be played.');
@@ -255,8 +253,7 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
             // Under the picture, so it shows until the first one lands.
             if (poster != null)
               Image.memory(poster, fit: BoxFit.contain, gaplessPlayback: true),
-            if (clip != null && _picture != null)
-              Texture(textureId: clip.textureId),
+            if (clip != null && _picture != null) clip.picture(),
             Material(
               type: MaterialType.transparency,
               child: InkWell(
