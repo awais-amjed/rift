@@ -36,7 +36,8 @@ RIFT_NOISE_FILTER_EXPORT int32_t rift_noise_filter_available(void);
 RIFT_NOISE_FILTER_EXPORT void rift_noise_filter_set_model(int32_t model);
 
 // The mic volume, as a gain on every capture track, after the model: 1 as it
-// is, below 1 quieter, above 1 louder with the peaks limited rather than cut.
+// is, below 1 quieter down to 0, which is silence, above 1 louder with the
+// peaks limited rather than cut.
 RIFT_NOISE_FILTER_EXPORT void rift_noise_filter_set_gain(float gain);
 
 // Push-to-talk with the key up: 1 sends silence from the next 10 ms while the

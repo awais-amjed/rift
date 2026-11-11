@@ -106,9 +106,11 @@ class NoiseProcessing final
     dpdfnet_.Set(process, reset);
   }
 
-  // The mic volume, as a gain: 1 leaves the voice as it is.
+  // The mic volume, as a gain: 1 leaves the voice as it is, and 0, the
+  // slider at its foot, is silence. Taken for nonsense, 0 sent the microphone
+  // at full volume there (until Nov 11 2026).
   void SetGain(float gain) {
-    gain_.store(gain > 0 && std::isfinite(gain) ? gain : 1.0f,
+    gain_.store(gain >= 0 && std::isfinite(gain) ? gain : 1.0f,
                 std::memory_order_release);
   }
 

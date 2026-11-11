@@ -28,7 +28,9 @@ const HOLD_SECONDS: f32 = 0.02;
 static GAIN: AtomicU32 = AtomicU32::new(0x3f80_0000);
 
 pub(crate) fn set_gain(gain: f32) {
-    let gain = if gain.is_finite() && gain > 0.0 {
+    // 0 is the slider at its foot, which is silence: taken for nonsense, it
+    // sent the microphone at full volume there (until Nov 11 2026).
+    let gain = if gain.is_finite() && gain >= 0.0 {
         gain
     } else {
         1.0
@@ -283,8 +285,21 @@ mod tests {
     fn a_nonsense_gain_is_one() {
         set_gain(f32::NAN);
         assert_eq!(gain(), 1.0);
+        set_gain(-1.0);
+        assert_eq!(gain(), 1.0);
         set_gain(2.0);
         assert_eq!(gain(), 2.0);
+        // The slider at 0% is silence, not nonsense.
+        set_gain(0.0);
+        assert_eq!(gain(), 0.0);
         set_gain(1.0);
+    }
+
+    #[test]
+    fn a_gain_of_nothing_is_silence() {
+        let mut boost = Boost::new(48_000);
+        let mut loud = vec![20_000; 4_800];
+        boost.apply_gain(&mut loud, 0.0);
+        assert!(loud.iter().all(|&s| s == 0));
     }
 }
