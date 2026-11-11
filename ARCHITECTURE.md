@@ -420,9 +420,12 @@ is staged, and is read, sealed and sent a chunk at a time:
   because a browser will not stream a request body; a failed request resumes
   from the offset the server reports.
 - *Downloaded as one response*, each chunk opened as it completes, rather than
-  in ranged spans, which Storage's file backend is slow to start: it hashes the
-  whole file before answering any request, ranged or not (its default
-  `STORAGE_FILE_ETAG_ALGORITHM`, md5; about 1.7 s for 650 MB, measured Oct 7). A
+  in ranged spans, which Storage's file backend can be slow to start: left at
+  its default `STORAGE_FILE_ETAG_ALGORITHM`, md5, it hashes the whole file
+  before answering any request, ranged or not (about 1.7 s for 650 MB,
+  measured Oct 7). `rift-self-host`'s compose file sets it to `mtime` (Nov 11
+  2026: a one-byte range of a 300 MB file in 5 ms rather than 460 ms), but a
+  server on an older compose file still pays it. A
   dropped connection resumes with a range from the
 first chunk not yet opened. It is saved beside the chosen name and renamed into
   place only once everything has opened, so a tampered or truncated file

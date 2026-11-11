@@ -16,9 +16,10 @@ typedef OpenedChunks = Stream<Uint8List> Function(int from);
 
 /// Random access to a file sealed a chunk at a time, fetched as it is read.
 ///
-/// A request costs more to start than to keep reading: Storage's file backend
-/// hashes the whole file before it answers one (`STORAGE_FILE_ETAG_ALGORITHM`),
-/// ranged or not. So reading is done in **runs** — a request from some chunk
+/// A request costs more to start than to keep reading, and on a server whose
+/// Storage still hashes the whole file before it answers one
+/// (`STORAGE_FILE_ETAG_ALGORITHM` left at md5), ranged or not, it costs a lot
+/// more. So reading is done in **runs** — a request from some chunk
 /// on, each chunk opened as it lands — and a read that wants a chunk a run is
 /// about to reach waits for it rather than starting another. A read far from
 /// every run (a demuxer looking at an index at the end of the file, a seek)
