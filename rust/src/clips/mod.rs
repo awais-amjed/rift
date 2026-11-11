@@ -111,22 +111,23 @@ pub(crate) fn close(texture: u64) {
     frames::close(texture);
 }
 
-/// [bytes]' first picture, its longer side at most [longest], as a JPEG:
-/// what a video's card shows before it plays.
-pub(crate) fn poster(bytes: Vec<u8>, longest: u32) -> Result<Vec<u8>, String> {
+/// [source]'s first picture, its longer side at most [longest], as a JPEG:
+/// what a video's card shows before it plays. The app's answers for [name]
+/// go to [source] meanwhile, as a clip's do for its texture; a poster reads
+/// only as far as the file's index and first picture.
+pub(crate) fn poster(source: Arc<Source>, name: u64, longest: u32) -> Result<Vec<u8>, String> {
+    source::register(name, source.clone());
     #[cfg(target_os = "linux")]
-    {
-        poster_linux::poster(bytes, longest)
-    }
+    let made = poster_linux::poster(source, longest);
     #[cfg(windows)]
-    {
-        poster_windows::poster(bytes, longest)
-    }
+    let made = poster_windows::poster(source, longest);
     #[cfg(not(any(target_os = "linux", windows)))]
-    {
-        let _ = (bytes, longest);
+    let made = {
+        let _ = (source, longest);
         Err("No poster here yet".to_string())
-    }
+    };
+    source::unregister(name);
+    made
 }
 
 /// What a player tells the app about [texture]'s clip.

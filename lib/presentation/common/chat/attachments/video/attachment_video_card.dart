@@ -67,20 +67,25 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
   }
 
   /// The first picture, to show until it plays: fetched as a picture
-  /// attachment is, when the card is drawn, for a video small enough.
+  /// attachment is, when the card is drawn. A big video's is read from its
+  /// index and first picture alone, a small one's from the whole file.
   void _wantPoster() {
     final attachment = widget.attachment;
-    if (!ChatClip.available || attachment.size > ChatClip.posterMaxBytes) {
-      return;
-    }
+    if (!ChatClip.available) return;
+    final big = attachment.size > ChatClip.posterMaxBytes;
+    // Only a file sealed in chunks can be read in pieces.
+    if (big && (kIsWeb || attachment.chunkSize == null)) return;
     final loader = widget.loader;
     final key = MediaStore.posterOf(attachment.storagePath);
     context.read<MediaCubit>().want(
       MediaKind.attachment,
       key,
       () => MediaStore.attachments.load(key, () async {
+        final glance = loader.readerFor(attachment, glance: true);
+        if (glance != null) return ChatClip.poster(glance);
+        if (big) return null;
         final video = await loader(attachment);
-        return video == null ? null : ChatClip.poster(video);
+        return video == null ? null : ChatClip.poster(MemoryBlobReader(video));
       }),
     );
   }

@@ -31,13 +31,15 @@ class AttachmentLoader {
   /// it as it plays, so a big one starts at once and is never held whole.
   /// Null where this conversation's files cannot be read that way (central
   /// DMs, whose files are small and in one piece), and its answer null for
-  /// a file that cannot (see `AttachmentRepository.readerFor`).
-  final BlobReader? Function(Attachment attachment)? read;
+  /// a file that cannot (see `AttachmentRepository.readerFor`). A glance
+  /// reads only a few places, as a poster does.
+  final BlobReader? Function(Attachment attachment, {bool glance})? read;
 
   const AttachmentLoader({required this.load, required this.save, this.read});
 
-  /// [attachment] read as it plays, where it can be.
-  BlobReader? readerFor(Attachment attachment) => read?.call(attachment);
+  /// [attachment] read as it plays, where it can be, or glanced at.
+  BlobReader? readerFor(Attachment attachment, {bool glance = false}) =>
+      read?.call(attachment, glance: glance);
 
   Future<Uint8List?> call(Attachment attachment) => load(attachment);
 

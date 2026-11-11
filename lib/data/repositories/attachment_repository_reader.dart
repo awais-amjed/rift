@@ -7,12 +7,18 @@ mixin _StreamReaderMixin on _StreamDownloadMixin {
   /// that cannot be read that way — sealed in one piece, which opens only
   /// whole, or sent unencrypted, whose digest checks only once all of it has
   /// come — or one claiming a chunk size out of range.
+  ///
+  /// A [glance] reads a few chunks here and there, as a poster does (the
+  /// index and the first picture): it asks for [_glanceSpan] chunks at a
+  /// time and keeps few, where playing asks for a span that pays for a
+  /// request's start.
   BlobReader? readerFor({
     required String baseUrl,
     required String anonKey,
     required BearerToken token,
     required String bucket,
     required Attachment attachment,
+    bool glance = false,
   }) {
     final chunk = attachment.chunkSize;
     if (!attachment.isEncrypted || chunk == null) return null;
@@ -27,15 +33,22 @@ mixin _StreamReaderMixin on _StreamDownloadMixin {
     );
     final key = CryptoRepository.fromBase64(attachment.keyB64);
     final prefix = CryptoRepository.fromBase64(attachment.nonceB64);
-    return ChunkedBlobReader(
-      layout: layout,
-      fetch: (from) =>
-          _openedFrom(uri, anonKey, token, layout, key, prefix, from),
-    );
+    final span = glance ? _glanceSpan : _span(layout);
+    Stream<Uint8List> fetch(int from) =>
+        _openedFrom(uri, anonKey, token, layout, key, prefix, from, span);
+    return glance
+        ? ChunkedBlobReader(
+            layout: layout,
+            fetch: fetch,
+            keep: 6,
+            ahead: 1,
+            reach: 2,
+          )
+        : ChunkedBlobReader(layout: layout, fetch: fetch);
   }
 
   /// Chunks [from] on, opened as they arrive, a span at a time: one request
-  /// for [_span] chunks, the next only once those are through. A request
+  /// for [span] chunks, the next only once those are through. A request
   /// left open and unread is no limit on what arrives — the system keeps
   /// taking the body into its socket buffers, tens of megabytes on a fast
   /// link — so a span is what bounds how far a paused video runs ahead.
@@ -50,8 +63,8 @@ mixin _StreamReaderMixin on _StreamDownloadMixin {
     Uint8List key,
     Uint8List prefix,
     int from,
+    int span,
   ) async* {
-    final span = _span(layout);
     var next = from;
     var attempt = 1;
     while (next < layout.chunkCount) {
@@ -103,4 +116,7 @@ mixin _StreamReaderMixin on _StreamDownloadMixin {
   /// (it hashes all of it first); 8 to 32 of them.
   static int _span(ChunkedLayout layout) =>
       (layout.chunkCount ~/ 32).clamp(8, 32);
+
+  /// Chunks to a request for a [readerFor] glance.
+  static const int _glanceSpan = 2;
 }

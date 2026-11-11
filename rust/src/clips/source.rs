@@ -8,7 +8,8 @@
 //! blocks stay, so a demuxer reading a sample at a time crosses to the app
 //! once a block, not once a sample.
 //!
-//! A small video, and a poster's, is read where it lies ([`Source::memory`]).
+//! A small video, and a poster's, is read the same way, from the whole file
+//! the app holds; tests read one in memory ([`Source::memory`]).
 use crate::api::clips::ClipRead;
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Condvar, Mutex};
@@ -71,7 +72,8 @@ struct State {
 }
 
 impl Source {
-    /// A file in memory.
+    /// A file in memory, for tests.
+    #[cfg(test)]
     pub(crate) fn memory(bytes: Vec<u8>) -> Arc<Source> {
         let length = bytes.len() as u64;
         let state = State {

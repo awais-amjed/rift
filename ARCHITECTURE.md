@@ -526,7 +526,9 @@ draws its pictures into a runner texture, as a
 watched share's are (on Windows on the runner's own GPU device, where it decodes video)
 (`ChatClip`, `rust/src/clips`). On the web the browser's own `<video>` plays it from a
 `blob:` URL, for now over the whole file, read first. Its card's poster, the first picture, is made the same way
-and held beside it in memory. In the app's cache folder, which the OS may empty and Android
+and held beside it in memory. A big video's is read in pieces too, as far as its index and
+first picture (about 3 of a 58 MB file's, measured Nov 11), in small requests
+(`readerFor(glance:)`); on the web only a video small enough to fetch whole gets one. In the app's cache folder, which the OS may empty and Android
 and iOS leave out of backups; not on the web.
 
 ### Decisions locked in for day one

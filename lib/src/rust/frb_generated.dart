@@ -128,7 +128,8 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiClipsClipPlay({required BigInt texture});
 
   Future<Uint8List> crateApiClipsClipPoster({
-    required List<int> bytes,
+    required BigInt length,
+    required BigInt name,
     required int longest,
   });
 
@@ -691,14 +692,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @override
   Future<Uint8List> crateApiClipsClipPoster({
-    required List<int> bytes,
+    required BigInt length,
+    required BigInt name,
     required int longest,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_list_prim_u_8_loose(bytes, serializer);
+          sse_encode_u_64(length, serializer);
+          sse_encode_u_64(name, serializer);
           sse_encode_u_32(longest, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
@@ -712,7 +715,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiClipsClipPosterConstMeta,
-        argValues: [bytes, longest],
+        argValues: [length, name, longest],
         apiImpl: this,
       ),
     );
@@ -720,7 +723,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiClipsClipPosterConstMeta => const TaskConstMeta(
     debugName: 'clip_poster',
-    argNames: ['bytes', 'longest'],
+    argNames: ['length', 'name', 'longest'],
   );
 
   @override

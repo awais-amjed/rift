@@ -60,13 +60,18 @@ Future<void> clipOpen({
   output: output,
 );
 
-/// [bytes]' first picture, a whole video file's, its longer side at most
-/// [longest], as a JPEG: what the video's card shows before it plays.
+/// The first picture of a video file of [length] bytes, its longer side at
+/// most [longest], as a JPEG: what the video's card shows before it plays.
+/// Its player reads the file by asking for it (`clip_read_stream`) under
+/// [name], as a clip's does under its texture, and only as far as the
+/// file's index and first picture.
 Future<Uint8List> clipPoster({
-  required List<int> bytes,
+  required BigInt length,
+  required BigInt name,
   required int longest,
 }) => RustLib.instance.api.crateApiClipsClipPoster(
-  bytes: bytes,
+  length: length,
+  name: name,
   longest: longest,
 );
 
@@ -156,6 +161,7 @@ enum ClipEventKind {
 /// which the app answers with `clip_answer` (or `clip_refuse`) naming the
 /// same [request].
 class ClipRead {
+  /// The clip's texture, or the name a poster was asked under.
   final BigInt texture;
   final BigInt request;
   final BigInt offset;

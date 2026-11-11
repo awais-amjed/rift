@@ -3,7 +3,8 @@
 //! file from memory, silent, on a device of its own, and draws its first
 //! picture already shrunk into a texture, which is read back and encoded.
 use super::media_engine::{failure, own_device, Com, Engine, EVENT_ERROR};
-use std::sync::mpsc;
+use super::source::Source;
+use std::sync::{mpsc, Arc};
 use std::time::{Duration, Instant};
 use windows::Win32::Foundation::RECT;
 use windows::Win32::Graphics::Direct3D11::{
@@ -12,14 +13,24 @@ use windows::Win32::Graphics::Direct3D11::{
 };
 use windows::Win32::Graphics::Dxgi::Common::{DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_SAMPLE_DESC};
 
-/// How long the first picture may take before there is no poster.
-const PATIENCE: Duration = Duration::from_secs(10);
+/// How long the first picture may take before there is no poster: long
+/// enough for a big file's index and first picture to be fetched.
+const PATIENCE: Duration = Duration::from_secs(30);
 /// How long a paused engine is given to show its first picture before it is
 /// played, silent, to make one.
 const NUDGE_AFTER: Duration = Duration::from_millis(1500);
 
-/// [bytes]' first picture, its longer side at most [longest], as a JPEG.
-pub(crate) fn poster(bytes: Vec<u8>, longest: u32) -> Result<Vec<u8>, String> {
+/// Closes the file it holds when it goes.
+struct ClosedOnDrop(Arc<Source>);
+
+impl Drop for ClosedOnDrop {
+    fn drop(&mut self) {
+        self.0.close();
+    }
+}
+
+/// [file]'s first picture, its longer side at most [longest], as a JPEG.
+pub(crate) fn poster(file: Arc<Source>, longest: u32) -> Result<Vec<u8>, String> {
     let _com = Com::enter();
     let longest = longest.clamp(16, 4096);
     let device = own_device()?;
@@ -27,7 +38,10 @@ pub(crate) fn poster(bytes: Vec<u8>, longest: u32) -> Result<Vec<u8>, String> {
     let engine = Engine::new(&device, DXGI_FORMAT_B8G8R8A8_UNORM, None, notes)?;
     // SAFETY: a plain call on a live engine.
     let _ = unsafe { engine.engine.SetMuted(true) };
-    engine.load(super::source::Source::memory(bytes))?;
+    // Declared after the engine, so dropped before it: its reads are woken
+    // before the engine is shut down, which waits for them.
+    let _closing = ClosedOnDrop(file.clone());
+    engine.load(file)?;
 
     let started = Instant::now();
     let mut nudged = false;
@@ -180,7 +194,7 @@ mod tests {
         let path = std::env::var("RIFT_CLIP_TEST").unwrap();
         let bytes = std::fs::read(&path).unwrap();
         let started = Instant::now();
-        let jpeg = super::poster(bytes, 440).unwrap();
+        let jpeg = super::poster(super::Source::memory(bytes), 440).unwrap();
         println!("{} bytes in {:?}", jpeg.len(), started.elapsed());
         assert_eq!(&jpeg[..2], &[0xff, 0xd8], "a JPEG");
         if let Ok(out) = std::env::var("RIFT_POSTER_OUT") {

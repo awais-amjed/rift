@@ -461,14 +461,16 @@ fn wire__crate__api__clips__clip_poster_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_bytes = <Vec<u8>>::sse_decode(&mut deserializer);
+            let api_length = <u64>::sse_decode(&mut deserializer);
+            let api_name = <u64>::sse_decode(&mut deserializer);
             let api_longest = <u32>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, String>(
                     (move || async move {
                         let output_ok =
-                            crate::api::clips::clip_poster(api_bytes, api_longest).await?;
+                            crate::api::clips::clip_poster(api_length, api_name, api_longest)
+                                .await?;
                         std::result::Result::Ok(output_ok)
                     })()
                     .await,

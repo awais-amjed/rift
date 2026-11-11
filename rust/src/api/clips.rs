@@ -36,6 +36,7 @@ pub enum ClipEventKind {
 /// which the app answers with `clip_answer` (or `clip_refuse`) naming the
 /// same [request].
 pub struct ClipRead {
+    /// The clip's texture, or the name a poster was asked under.
     pub texture: u64,
     pub request: u64,
     pub offset: u64,
@@ -157,18 +158,22 @@ pub async fn clip_open(
     }
 }
 
-/// [bytes]' first picture, a whole video file's, its longer side at most
-/// [longest], as a JPEG: what the video's card shows before it plays.
-pub async fn clip_poster(bytes: Vec<u8>, longest: u32) -> Result<Vec<u8>, String> {
+/// The first picture of a video file of [length] bytes, its longer side at
+/// most [longest], as a JPEG: what the video's card shows before it plays.
+/// Its player reads the file by asking for it (`clip_read_stream`) under
+/// [name], as a clip's does under its texture, and only as far as the
+/// file's index and first picture.
+pub async fn clip_poster(length: u64, name: u64, longest: u32) -> Result<Vec<u8>, String> {
     #[cfg(desktop)]
     {
-        tokio::task::spawn_blocking(move || clips::poster(bytes, longest))
+        let source = clips::source::Source::pulled(name, length, Box::new(emit_clip_read));
+        tokio::task::spawn_blocking(move || clips::poster(source, name, longest))
             .await
             .map_err(|e| e.to_string())?
     }
     #[cfg(not(desktop))]
     {
-        let _ = (bytes, longest);
+        let _ = (length, name, longest);
         Err("No poster here".to_string())
     }
 }

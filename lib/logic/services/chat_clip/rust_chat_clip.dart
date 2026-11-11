@@ -113,12 +113,27 @@ class RustChatClip implements ChatClip {
     }
   }
 
-  static Future<Uint8List?> poster(Uint8List video, {int longest = 880}) async {
+  /// The names posters read under, apart from every texture's.
+  static int _posters = 1 << 62;
+
+  /// [ChatClip.poster]: the player reads [file] as a clip's does, under a
+  /// name of its own, only as far as its first picture.
+  static Future<Uint8List?> poster(BlobReader file, {int longest = 880}) async {
+    _listen();
+    final name = _posters++;
+    _files[name] = file;
     try {
-      return await clipPoster(bytes: video, longest: longest);
+      return await clipPoster(
+        length: BigInt.from(file.length),
+        name: BigInt.from(name),
+        longest: longest,
+      );
     } catch (e) {
       HelperMethods.printDebug('[ChatClip] poster: $e');
       return null;
+    } finally {
+      _files.remove(name);
+      await file.close();
     }
   }
 

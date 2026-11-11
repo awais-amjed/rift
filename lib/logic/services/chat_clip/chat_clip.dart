@@ -42,17 +42,33 @@ abstract class ChatClip {
   /// offers it to save.
   static const int wholeMaxBytes = 64 * 1024 * 1024;
 
-  /// The most a video's card downloads by itself to draw its poster, the
-  /// size a file is read into memory to send at: past it the card stays
-  /// dark until played.
+  /// The most a video's card downloads whole by itself to draw its poster,
+  /// the size a file is read into memory to send at. A bigger one's poster
+  /// is read from its index and first picture alone, where it can be read
+  /// in pieces (`AttachmentLoader.readerFor`) and the player reads that way
+  /// (not yet on the web); otherwise the card stays dark until played.
   static const int posterMaxBytes = 16 * 1024 * 1024;
 
-  /// [video]'s first picture as a JPEG, its longer side at most [longest]
-  /// pixels; null where it cannot be made.
-  static Future<Uint8List?> poster(Uint8List video, {int longest = 880}) =>
+  /// The first picture of the video [file] reads, as a JPEG, its longer
+  /// side at most [longest] pixels; null where it cannot be made. Owns
+  /// [file] and closes it.
+  static Future<Uint8List?> poster(BlobReader file, {int longest = 880}) =>
       kIsWeb
-      ? WebChatClip.poster(video, longest: longest)
-      : RustChatClip.poster(video, longest: longest);
+      ? _webPoster(file, longest)
+      : RustChatClip.poster(file, longest: longest);
+
+  /// The browser's player takes the file whole.
+  static Future<Uint8List?> _webPoster(BlobReader file, int longest) async {
+    try {
+      if (file.length > posterMaxBytes) return null;
+      final video = await file.readFully(0, file.length);
+      return await WebChatClip.poster(video, longest: longest);
+    } catch (_) {
+      return null;
+    } finally {
+      await file.close();
+    }
+  }
 
   /// What the player says about this clip: its picture's shape, the end, a
   /// failure. Said before anyone listens, it waits.
