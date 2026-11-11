@@ -107,6 +107,8 @@ dependencies {
     // one for its own module. A lower one fails the AAR metadata check that
     // sent us here.
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    // Chat videos (ChatClips.kt): the phone's own decoders; ExoPlayer ships none.
+    implementation("androidx.media3:media3-exoplayer:1.9.2")
 }
 
 flutter {

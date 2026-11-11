@@ -185,13 +185,18 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
         });
       case ClipEventKind.cannotDecode:
         _fail(
-          "This video's format doesn't play ${kIsWeb ? 'in this browser' : 'on this computer'}. "
-          'Save it to watch it.',
+          "This video's format doesn't play ${_here()}. Save it to watch it.",
         );
       case ClipEventKind.failed:
         _fail('This video could not be played.');
     }
   }
+
+  static String _here() => kIsWeb
+      ? 'in this browser'
+      : defaultTargetPlatform == TargetPlatform.android
+      ? 'on this phone'
+      : 'on this computer';
 
   void _fail(String why) {
     _setPlaying(false);

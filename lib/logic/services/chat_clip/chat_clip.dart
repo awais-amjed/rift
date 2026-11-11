@@ -8,12 +8,14 @@ import '../../../data/classes/pending_attachment.dart';
 import '../../../data/repositories/blob/blob_reader.dart';
 import '../../../data/repositories/blob/file_chunks.dart';
 import '../../../src/rust/api/clips.dart';
+import 'android_chat_clip.dart';
 import 'rust_chat_clip.dart';
 import 'web_chat_clip.dart';
 
 /// A video from the chat, played from memory with the system's own
 /// decoders: by Rust into a runner texture on Linux and Windows
-/// ([RustChatClip], `rust/src/clips`), by the browser's own `<video>` on the
+/// ([RustChatClip], `rust/src/clips`), by ExoPlayer into a texture on Android
+/// ([AndroidChatClip], `ChatClips.kt`), by the browser's own `<video>` on the
 /// web ([WebChatClip]).
 ///
 /// An attachment is decrypted message content and never goes to disk, so
@@ -26,7 +28,9 @@ abstract class ChatClip {
   /// offers the file to save.
   static final bool available = kIsWeb
       ? WebChatClip.available
-      : (Platform.isLinux || Platform.isWindows) && RustChatClip.available();
+      : Platform.isAndroid ||
+            (Platform.isLinux || Platform.isWindows) &&
+                RustChatClip.available();
 
   /// Gets ready to play, at start: on the web, installs the worker a big
   /// video streams through.
@@ -45,6 +49,9 @@ abstract class ChatClip {
     String? type,
   }) => kIsWeb
       ? WebChatClip.open(file, output: output, type: type)
+      : Platform.isAndroid
+      // Android sends a video's sound where it sends all media's.
+      ? AndroidChatClip.open(file)
       : RustChatClip.open(file, output: output);
 
   /// The most a video that can only be fetched whole — sealed in one piece,
@@ -63,6 +70,15 @@ abstract class ChatClip {
   /// never into memory. Null where this build cannot make one.
   static Future<Uint8List?> posterToSend(PendingAttachment video) async {
     if (!available) return null;
+    if (!kIsWeb && Platform.isAndroid) {
+      final path = video.file?.path;
+      return AndroidChatClip.poster(
+        bytes: video.bytes,
+        path: video.bytes == null && path != null && path.isNotEmpty
+            ? path
+            : null,
+      );
+    }
     if (video.bytes case final bytes?) return poster(MemoryBlobReader(bytes));
     final file = video.file;
     if (file == null) return null;

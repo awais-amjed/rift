@@ -40,6 +40,7 @@ class MainActivity : FlutterActivity() {
     private var channel: MethodChannel? = null
     private var exitReasons: MethodChannel? = null
     private var screenRates: MethodChannel? = null
+    private var chatClips: ChatClips? = null
 
     /** Whether there is currently something worth floating. */
     private var autoEnter = false
@@ -61,6 +62,7 @@ class MainActivity : FlutterActivity() {
         }
         exitReasons = ExitReasons.register(applicationContext, flutterEngine.dartExecutor.binaryMessenger)
         screenRates = ScreenRates.register(applicationContext, flutterEngine.dartExecutor.binaryMessenger)
+        chatClips = ChatClips.register(applicationContext, flutterEngine)
     }
 
     override fun onDestroy() {
@@ -70,6 +72,8 @@ class MainActivity : FlutterActivity() {
         exitReasons = null
         screenRates?.setMethodCallHandler(null)
         screenRates = null
+        chatClips?.dispose()
+        chatClips = null
         super.onDestroy()
     }
 

@@ -531,7 +531,9 @@ system has: Rift ships none) asks Rust for it a block at a time, Rust asks the
 app, which fetches it as it plays (above, *Played as it downloads*), and Rust
 draws its pictures into a runner texture, as a
 watched share's are (on Windows on the runner's own GPU device, where it decodes video)
-(`ChatClip`, `rust/src/clips`). On the web the browser's own `<video>` plays it from a
+(`ChatClip`, `rust/src/clips`). On Android ExoPlayer plays it with the phone's own
+decoders into a Flutter texture, asking the app for each 512 KB block over a channel and
+keeping the last few (`ChatClips.kt`, `AndroidChatClip`). On the web the browser's own `<video>` plays it from a
 URL the page itself answers, through Rift's service worker (`web/clip-sw.js`,
 `WebClipStream`): the worker answers each range the player asks for by asking the page
 that made the request, which reads it from the same reader, so a big video plays as it
@@ -543,12 +545,13 @@ read whole into a `blob:` URL, as before. The worker is why Flutter's own loader
 of no service worker (`web/flutter_bootstrap.js`): its default replaced any worker it
 found with Flutter's, which unregisters itself and reloads the page. Its card's poster, the first picture, is
 made by the **sender**, from the file on their device, by the same player
-(`ChatClip.posterToSend`; on the web from the picked file's `blob:` URL), and sealed beside
+(`ChatClip.posterToSend`; on the web from the picked file's `blob:` URL, on Android by
+`MediaMetadataRetriever` from the picked file), and sealed beside
 the video as a small JPEG attachment of its own (`Attachment.poster`, `WIRE.md` §8), as a link
 preview's picture is. So a reader's card fetches that picture and not a byte of the video
 until play is pressed; before Nov 11 each reader read the video's index and first picture
 for one, about 3 MB of a 58 MB file. A video sent before posters, or from a device whose
-build cannot play video (Android, macOS for now), has none and stays dark until played, and a
+build cannot play video (macOS and iOS for now), has none and stays dark until played, and a
 forward carries the poster it came with. In the app's cache folder, which the OS may empty and Android
 and iOS leave out of backups; not on the web.
 
