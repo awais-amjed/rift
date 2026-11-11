@@ -10,6 +10,7 @@ import '../../../../../data/repositories/blob/blob_reader.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/media/media_cubit.dart';
 import '../../../../../logic/services/chat_clip/chat_clip.dart';
+import '../../../../../logic/services/host_platform.dart';
 import '../../../../../src/rust/api/clips.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/media_colors.dart';
@@ -50,6 +51,7 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
 
   ChatClip? _clip;
   StreamSubscription<ClipEvent>? _events;
+  AppLifecycleListener? _away;
   Timer? _ticker;
   bool _opening = false;
   bool _playing = false;
@@ -65,6 +67,17 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
   void initState() {
     super.initState();
     _wantPoster();
+    // On a phone a video stops when Rift goes out of sight (Home, another
+    // app, the screen off) and waits there, as other chat apps do; on a
+    // desktop or in a browser it plays on behind other windows.
+    if (HostPlatform.isMobile) _away = AppLifecycleListener(onHide: _hidden);
+  }
+
+  void _hidden() {
+    final clip = _clip;
+    if (clip == null || !_playing) return;
+    unawaited(clip.pause());
+    _setPlaying(false);
   }
 
   /// The first picture, to show until it plays: the poster the sender made
@@ -84,6 +97,7 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
 
   @override
   void dispose() {
+    _away?.dispose();
     _ticker?.cancel();
     _events?.cancel();
     _clip?.close();

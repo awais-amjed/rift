@@ -533,7 +533,7 @@ draws its pictures into a runner texture, as a
 watched share's are (on Windows on the runner's own GPU device, where it decodes video)
 (`ChatClip`, `rust/src/clips`). On Android ExoPlayer plays it with the phone's own
 decoders into a Flutter texture, asking the app for each 512 KB block over a channel and
-keeping the last few (`ChatClips.kt`, `AndroidChatClip`). On the web the browser's own `<video>` plays it from a
+keeping the last few (`ChatClips.kt`, `AndroidChatClip`). On a phone a playing video pauses when Rift goes out of sight (Home, another app, the screen off), as other chat apps' do; on a desktop or the web it plays on. Starting one never pauses other apps' sound. On the web the browser's own `<video>` plays it from a
 URL the page itself answers, through Rift's service worker (`web/clip-sw.js`,
 `WebClipStream`): the worker answers each range the player asks for by asking the page
 that made the request, which reads it from the same reader, so a big video plays as it
