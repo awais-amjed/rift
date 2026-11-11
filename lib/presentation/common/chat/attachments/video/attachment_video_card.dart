@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../data/classes/attachment.dart';
 import '../../../../../data/constants.dart';
+import '../../../../../data/repositories/blob/blob_reader.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/media/media_cubit.dart';
 import '../../../../../logic/services/chat_clip/chat_clip.dart';
@@ -24,7 +25,7 @@ import 'widgets/video_seek_bar.dart';
 /// video with a play disc, which downloads and plays it in place.
 ///
 /// The file is played from memory by [ChatClip], with the system's own
-/// decoders. Where this build has no player the card is a file to save, and
+/// decoders: a big one fetched as it plays, a small one whole. Where this build has no player the card is a file to save, and
 /// where the system cannot decode what the file holds it says so and still
 /// offers it.
 class AttachmentVideoCard extends StatefulWidget {
@@ -114,16 +115,20 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
   Future<void> _open() async {
     setState(() => _opening = true);
     final output = context.read<AppCubit>().state.outputDeviceId;
-    final bytes = await widget.loader(widget.attachment);
-    if (!mounted) return;
-    if (bytes == null) {
+    final file = await _file();
+    final reader = file.reader;
+    if (!mounted) {
+      await reader?.close();
+      return;
+    }
+    if (reader == null) {
       setState(() {
         _opening = false;
-        _problem = 'This video could not be downloaded.';
+        _problem = file.problem;
       });
       return;
     }
-    final opened = await ChatClip.open(bytes, output: output);
+    final opened = await ChatClip.open(reader, output: output);
     final clip = opened.clip;
     if (!mounted) {
       await clip?.close();
@@ -142,6 +147,25 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
       _opening = false;
     });
     _setPlaying(await clip.play());
+  }
+
+  /// What the player reads: the file fetched as it plays where it can be,
+  /// or else the whole of it, when that is small enough to hold.
+  Future<({BlobReader? reader, String? problem})> _file() async {
+    final attachment = widget.attachment;
+    final streamed = widget.loader.readerFor(attachment);
+    if (streamed != null) return (reader: streamed, problem: null);
+    if (attachment.size > ChatClip.wholeMaxBytes) {
+      return (
+        reader: null,
+        problem: 'This video is too big to play here. Save it to watch it.',
+      );
+    }
+    final bytes = await widget.loader(attachment);
+    if (bytes == null) {
+      return (reader: null, problem: 'This video could not be downloaded.');
+    }
+    return (reader: MemoryBlobReader(bytes), problem: null);
   }
 
   void _heard(ClipEvent event) {

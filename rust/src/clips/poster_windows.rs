@@ -27,8 +27,7 @@ pub(crate) fn poster(bytes: Vec<u8>, longest: u32) -> Result<Vec<u8>, String> {
     let engine = Engine::new(&device, DXGI_FORMAT_B8G8R8A8_UNORM, None, notes)?;
     // SAFETY: a plain call on a live engine.
     let _ = unsafe { engine.engine.SetMuted(true) };
-    engine.load(&bytes)?;
-    drop(bytes);
+    engine.load(super::source::Source::memory(bytes))?;
 
     let started = Instant::now();
     let mut nudged = false;

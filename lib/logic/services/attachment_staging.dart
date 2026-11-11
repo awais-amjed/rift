@@ -2,6 +2,7 @@ import 'package:cross_file/cross_file.dart';
 
 import '../../data/classes/attachment.dart';
 import '../../data/classes/pending_attachment.dart';
+import '../../data/repositories/blob/file_chunks.dart';
 import 'byte_format.dart';
 import 'file_save/save_target.dart';
 import 'image_dimensions.dart';
@@ -66,6 +67,21 @@ class AttachmentStaging {
     return null;
   }
 
+  /// [isoMediaInfoOf] for a file on disk; null when it is not one, or will
+  /// not read.
+  static Future<IsoMediaInfo?> _mediaOf(XFile file, int size) async {
+    try {
+      final spans = await fileSpans(file);
+      try {
+        return await isoMediaInfoOf(spans.read, size);
+      } finally {
+        await spans.close();
+      }
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Build the staged attachment for [file], [size] bytes.
   ///
   /// A file up to [inMemoryMaxBytes] is read now; a bigger one is only
@@ -89,12 +105,26 @@ class AttachmentStaging {
         : mimeFromName(name);
     final kind = AttachmentKind.fromMime(mime);
     if (size > inMemoryMaxBytes) {
+      // A big video's shape and length too, from its box tree on disk, so
+      // its card is the right size and says how long it is before anyone
+      // fetches a byte of it.
+      final media = kind == AttachmentKind.audio || kind == AttachmentKind.video
+          ? await _mediaOf(file, size)
+          : null;
+      final video = media != null && media.hasVideo;
+      // What it holds over what it was called, as for a small one below.
+      final held = media == null
+          ? kind
+          : (video ? AttachmentKind.video : AttachmentKind.audio);
       return PendingAttachment.file(
         file: file,
         size: size,
         name: name,
-        mime: mime,
-        kind: kind,
+        mime: held == kind ? mime : (video ? 'video/mp4' : 'audio/mp4'),
+        kind: held,
+        width: video ? media.width : null,
+        height: video ? media.height : null,
+        durationMs: media?.durationMs,
         temporary: temporary,
       );
     }

@@ -62,6 +62,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RustStreamSink<ClipEvent> dco_decode_StreamSink_clip_event_Sse(dynamic raw);
 
   @protected
+  RustStreamSink<ClipRead> dco_decode_StreamSink_clip_read_Sse(dynamic raw);
+
+  @protected
   RustStreamSink<DuckingEvent> dco_decode_StreamSink_ducking_event_Sse(
     dynamic raw,
   );
@@ -147,6 +150,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ClipEventKind dco_decode_clip_event_kind(dynamic raw);
+
+  @protected
+  ClipRead dco_decode_clip_read(dynamic raw);
 
   @protected
   ClipTime dco_decode_clip_time(dynamic raw);
@@ -310,6 +316,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RustStreamSink<ClipRead> sse_decode_StreamSink_clip_read_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   RustStreamSink<DuckingEvent> sse_decode_StreamSink_ducking_event_Sse(
     SseDeserializer deserializer,
   );
@@ -411,6 +422,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ClipEventKind sse_decode_clip_event_kind(SseDeserializer deserializer);
+
+  @protected
+  ClipRead sse_decode_clip_read(SseDeserializer deserializer);
 
   @protected
   ClipTime sse_decode_clip_time(SseDeserializer deserializer);
@@ -595,6 +609,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_StreamSink_clip_read_Sse(
+    RustStreamSink<ClipRead> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_StreamSink_ducking_event_Sse(
     RustStreamSink<DuckingEvent> self,
     SseSerializer serializer,
@@ -719,6 +739,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_clip_event_kind(ClipEventKind self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_clip_read(ClipRead self, SseSerializer serializer);
 
   @protected
   void sse_encode_clip_time(ClipTime self, SseSerializer serializer);

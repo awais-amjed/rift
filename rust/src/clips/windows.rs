@@ -9,6 +9,7 @@
 //! support on the runner's device) the engine has a device of its own and
 //! each picture is read back into memory as I420, which every runner draws.
 use super::emit;
+use super::source::Source;
 use super::media_engine::{
     failure, own_device, protect, Com, Engine, Note, EVENT_ENDED, EVENT_ERROR,
 };
@@ -63,7 +64,7 @@ struct Time {
 
 impl Clip {
     pub(super) fn open(
-        bytes: Vec<u8>,
+        file: Arc<Source>,
         texture: u64,
         output: Option<String>,
     ) -> Result<Clip, String> {
@@ -77,7 +78,7 @@ impl Clip {
             let time = time.clone();
             thread::Builder::new()
                 .name("rift-clip".into())
-                .spawn(move || run(bytes, texture, output, inbox, time, opened))
+                .spawn(move || run(file, texture, output, inbox, time, opened))
                 .map_err(|e| format!("No thread for the video: {e}"))?
         };
         match open_result.recv() {
@@ -142,7 +143,7 @@ impl Drop for Clip {
 /// The clip's thread: sets the engine up, says whether that worked, then
 /// serves requests and pictures until the clip is dropped.
 fn run(
-    bytes: Vec<u8>,
+    file: Arc<Source>,
     texture: u64,
     output: Option<String>,
     inbox: Receiver<Command>,
@@ -158,10 +159,9 @@ fn run(
         };
         protect(&device);
         let engine = Engine::new(&device, DXGI_FORMAT_NV12, output.as_deref(), to_commands)?;
-        engine.load(&bytes)?;
+        engine.load(file)?;
         Ok::<_, String>((engine, Pictures::new(device, on_gpu)))
     })();
-    drop(bytes);
     let (engine, mut pictures) = match set_up {
         Ok(ready) => {
             let _ = opened.send(Ok(()));
@@ -587,7 +587,7 @@ mod tests {
             .then(crate::watching::decode::RunnerDeviceInPlace::new);
         let texture = 9001;
         let started = std::time::Instant::now();
-        super::super::open(bytes, texture, mark, None).unwrap();
+        super::super::open(super::Source::memory(bytes), texture, mark, None).unwrap();
         println!("opened in {:?}", started.elapsed());
         thread::sleep(Duration::from_millis(1000));
         let paused = MARKS.load(Ordering::SeqCst);

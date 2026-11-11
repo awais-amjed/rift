@@ -11,6 +11,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:web/web.dart' as web;
 
+import '../../../data/repositories/blob/blob_reader.dart';
 import '../../../src/rust/api/clips.dart';
 import '../../helper_methods.dart';
 import 'chat_clip.dart';
@@ -75,17 +76,22 @@ class WebChatClip implements ChatClip {
   /// [ChatClip.open] in a `<video>`. [output] is a browser device id; a
   /// browser that cannot choose (Safari, Firefox before 116) plays on the
   /// default.
+  ///
+  /// For now the whole of [file] is read before it plays.
   static Future<({ChatClip? clip, String? error})> open(
-    Uint8List bytes, {
+    BlobReader file, {
     String? output,
   }) async {
     _register();
     final String url;
     try {
+      final bytes = await file.readFully(0, file.length);
       url = web.URL.createObjectURL(web.Blob([bytes.toJS].toJS));
     } catch (e) {
-      HelperMethods.printDebug('[ChatClip] open: $e');
+      HelperMethods.printDebug('[ChatClip] open: ${e.runtimeType}');
       return (clip: null, error: '$e');
+    } finally {
+      await file.close();
     }
     final video = _element(url);
     if (output != null && output.isNotEmpty && video.has('setSinkId')) {

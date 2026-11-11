@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
+import '../../../data/repositories/blob/blob_reader.dart';
 import '../../../src/rust/api/clips.dart';
 import 'rust_chat_clip.dart';
 import 'web_chat_clip.dart';
@@ -14,8 +15,10 @@ import 'web_chat_clip.dart';
 /// web ([WebChatClip]).
 ///
 /// An attachment is decrypted message content and never goes to disk, so
-/// the player gets the bytes themselves. One per card that is playing; the
-/// card closes it when it goes.
+/// the player reads it from memory, through a [BlobReader]: a big one is
+/// fetched and opened a chunk at a time as the player wants it, so it starts
+/// at once and is never held whole. One per card that is playing; the card
+/// closes it when it goes.
 abstract class ChatClip {
   /// Whether this build plays a chat video itself. Where not, the card
   /// offers the file to save.
@@ -23,16 +26,21 @@ abstract class ChatClip {
       ? WebChatClip.available
       : (Platform.isLinux || Platform.isWindows) && RustChatClip.available();
 
-  /// Opens [bytes], a whole video file, paused on its first picture, its
-  /// sound to play on [output] (the device id the app's output setting
-  /// holds; null for the default). Null, with nothing left behind, when it
-  /// would not open.
+  /// Opens the video [file] reads, paused on its first picture, its sound
+  /// to play on [output] (the device id the app's output setting holds; null
+  /// for the default). The clip owns [file] from here and closes it with
+  /// itself. Null, with nothing left behind, when it would not open.
   static Future<({ChatClip? clip, String? error})> open(
-    Uint8List bytes, {
+    BlobReader file, {
     String? output,
   }) => kIsWeb
-      ? WebChatClip.open(bytes, output: output)
-      : RustChatClip.open(bytes, output: output);
+      ? WebChatClip.open(file, output: output)
+      : RustChatClip.open(file, output: output);
+
+  /// The most a video that can only be fetched whole — sealed in one piece,
+  /// or sent unencrypted — is fetched into memory to play. Past it the card
+  /// offers it to save.
+  static const int wholeMaxBytes = 64 * 1024 * 1024;
 
   /// The most a video's card downloads by itself to draw its poster, the
   /// size a file is read into memory to send at: past it the card stays
@@ -68,6 +76,6 @@ abstract class ChatClip {
   /// Where it is, and how long it is, where the player knows.
   ({Duration? position, Duration? length}) time();
 
-  /// Stops it and lets the bytes go.
+  /// Stops it and lets the file go.
   Future<void> close();
 }

@@ -3,20 +3,24 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
+import '../../../data/repositories/blob/blob_reader.dart';
 import '../../../src/rust/api/clips.dart';
 import '../../helper_methods.dart';
 import '../runner_textures.dart';
 import 'chat_clip.dart';
 
-/// A chat video played by Rust from memory into a runner texture
-/// (`rust/src/clips`): GStreamer on Linux, the Media Engine on Windows.
+/// A chat video played by Rust into a runner texture (`rust/src/clips`):
+/// GStreamer on Linux, the Media Engine on Windows. The player asks for the
+/// file a block at a time, on its own thread (`ClipRead`), and is answered
+/// from the clip's [BlobReader].
 class RustChatClip implements ChatClip {
   /// What Flutter's `Texture` draws.
   final int textureId;
 
   final StreamController<ClipEvent> _events;
+  final BlobReader _file;
 
-  RustChatClip._(this.textureId, this._events);
+  RustChatClip._(this.textureId, this._events, this._file);
 
   /// Whether the library has a player here. Not on Windows N without its
   /// media pack.
@@ -32,12 +36,41 @@ class RustChatClip implements ChatClip {
   /// lasts the app's life: the Rust side keeps one sink.
   // ignore: cancel_subscriptions
   static StreamSubscription<ClipEvent>? _listening;
+  // ignore: cancel_subscriptions
+  static StreamSubscription<ClipRead>? _reading;
   static final Map<int, StreamController<ClipEvent>> _open = {};
+  static final Map<int, BlobReader> _files = {};
 
   static void _listen() {
     _listening ??= clipEventStream().listen((event) {
       _open[event.texture.toInt()]?.add(event);
     });
+    _reading ??= clipReadStream().listen((read) => unawaited(_answer(read)));
+  }
+
+  /// What a player asked for, from its clip's file. Nothing for a clip that
+  /// has closed: Rust has stopped waiting.
+  static Future<void> _answer(ClipRead read) async {
+    final file = _files[read.texture.toInt()];
+    if (file == null) return;
+    try {
+      final bytes = await file.readFully(read.offset.toInt(), read.length);
+      await clipAnswer(
+        texture: read.texture,
+        request: read.request,
+        bytes: bytes,
+      );
+    } catch (e) {
+      if (_files[read.texture.toInt()] != file) return;
+      // Not the error itself, which may carry the file's address.
+      final why = e is FormatException ? e.message : '${e.runtimeType}';
+      HelperMethods.printDebug('[ChatClip] read failed: $why');
+      await clipRefuse(
+        texture: read.texture,
+        request: read.request,
+        reason: why,
+      );
+    }
   }
 
   @override
@@ -46,27 +79,34 @@ class RustChatClip implements ChatClip {
   /// [ChatClip.open], in a runner texture. [output] is WebRTC's id for the
   /// output.
   static Future<({ChatClip? clip, String? error})> open(
-    Uint8List bytes, {
+    BlobReader file, {
     String? output,
   }) async {
     _listen();
     final texture = await RunnerTextures.create();
-    if (texture == null) return (clip: null, error: 'No surface to draw on');
+    if (texture == null) {
+      await file.close();
+      return (clip: null, error: 'No surface to draw on');
+    }
     // Not a broadcast: what the player says before the card listens (a
     // file Windows cannot read fails at once) waits for it.
     final events = StreamController<ClipEvent>();
     _open[texture.id] = events;
+    // Before it opens: opening reads the file.
+    _files[texture.id] = file;
     try {
       await clipOpen(
-        bytes: bytes,
+        length: BigInt.from(file.length),
         texture: BigInt.from(texture.id),
         markFrame: BigInt.from(texture.mark),
         output: output,
       );
-      return (clip: RustChatClip._(texture.id, events), error: null);
+      return (clip: RustChatClip._(texture.id, events, file), error: null);
     } catch (e) {
       HelperMethods.printDebug('[ChatClip] open: $e');
       _open.remove(texture.id);
+      _files.remove(texture.id);
+      await file.close();
       await events.close();
       await RunnerTextures.dispose(texture.id);
       return (clip: null, error: '$e');
@@ -120,11 +160,13 @@ class RustChatClip implements ChatClip {
     }
   }
 
-  /// Stops it, lets the bytes go, then the texture.
+  /// Stops it, lets the file go, then the texture.
   @override
   Future<void> close() async {
     await _quietly('close', () => clipClose(texture: _texture));
     _open.remove(textureId);
+    _files.remove(textureId);
+    await _file.close();
     await _events.close();
     await RunnerTextures.dispose(textureId);
   }

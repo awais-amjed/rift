@@ -42,6 +42,52 @@ IsoMediaInfo? isoMediaInfo(Uint8List bytes) {
   return (hasVideo: false, width: null, height: null, durationMs: durationMs);
 }
 
+/// [isoMediaInfo] for a file too big to read whole, [size] bytes, which
+/// [read] hands over by span ([length] bytes from [offset], forward only).
+/// Walks the top-level boxes by their headers and reads only `ftyp` and
+/// `moov`, wherever in the file the `moov` sits: a camera writes it at the
+/// end, after the media.
+Future<IsoMediaInfo?> isoMediaInfoOf(
+  Future<Uint8List> Function(int offset, int length) read,
+  int size,
+) async {
+  Uint8List? ftyp;
+  var at = 0;
+  while (at + 8 <= size) {
+    final head = await read(at, size - at < 16 ? size - at : 16);
+    if (head.length < 8) return null;
+    final data = ByteData.sublistView(head);
+    var length = data.getUint32(0);
+    final type = _type(data, 4);
+    if (length == 1) {
+      if (head.length < 16) return null;
+      length = data.getUint64(8);
+    } else if (length == 0) {
+      length = size - at;
+    }
+    if (length < 8 || length > size - at) return null;
+    if (at == 0 && type != 'ftyp') return null;
+    if (type == 'ftyp') {
+      if (length > _boxMax) return null;
+      ftyp = await read(at, length);
+    } else if (type == 'moov') {
+      if (ftyp == null || length > _boxMax) return null;
+      final moov = await read(at, length);
+      return isoMediaInfo(
+        Uint8List(ftyp.length + moov.length)
+          ..setAll(0, ftyp)
+          ..setAll(ftyp.length, moov),
+      );
+    }
+    at += length;
+  }
+  return null;
+}
+
+/// The most of a box [isoMediaInfoOf] reads: a `moov` for hours of video is
+/// a few megabytes.
+const int _boxMax = 32 * 1024 * 1024;
+
 typedef IsoMediaInfo = ({
   bool hasVideo,
   int? width,

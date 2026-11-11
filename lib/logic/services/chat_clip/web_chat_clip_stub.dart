@@ -3,6 +3,7 @@ library;
 
 import 'package:flutter/foundation.dart';
 
+import '../../../data/repositories/blob/blob_reader.dart';
 import 'chat_clip.dart';
 
 /// Never used off the web.
@@ -10,7 +11,7 @@ abstract class WebChatClip implements ChatClip {
   static const bool available = false;
 
   static Future<({ChatClip? clip, String? error})> open(
-    Uint8List bytes, {
+    BlobReader file, {
     String? output,
   }) async => (clip: null, error: 'Not a browser');
 

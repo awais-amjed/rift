@@ -6,7 +6,6 @@ use super::linux::{feed, init};
 use gstreamer as gst;
 use gstreamer::prelude::*;
 use gstreamer_app as gst_app;
-use std::sync::Arc;
 
 /// How long the first picture may take before there is no poster.
 const PATIENCE: gst::ClockTime = gst::ClockTime::from_seconds(10);
@@ -19,11 +18,11 @@ pub(crate) fn poster(bytes: Vec<u8>, longest: u32) -> Result<Vec<u8>, String> {
         .property("uri", "appsrc://")
         .build()
         .map_err(|_| "GStreamer has no playbin".to_string())?;
-    let bytes = Arc::new(bytes);
+    let file = super::source::Source::memory(bytes);
     playbin.connect("source-setup", false, move |args| {
         if let Ok(source) = args[1].get::<gst::Element>() {
             if let Ok(source) = source.downcast::<gst_app::AppSrc>() {
-                feed(&source, bytes.clone());
+                feed(&source, file.clone());
             }
         }
         None

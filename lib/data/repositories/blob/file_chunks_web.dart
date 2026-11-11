@@ -5,6 +5,7 @@ import 'package:cross_file/cross_file.dart';
 import 'package:web/web.dart' as web;
 
 import 'fixed_chunks.dart';
+import 'stream_spans.dart';
 
 /// [file] as [size]-byte chunks, the last one whatever is left, re-cut from
 /// a stream of the browser's file.
@@ -17,6 +18,20 @@ import 'fixed_chunks.dart';
 /// at 2 MB a piece and 200 MB in a quarter of a second.
 Stream<Uint8List> fileChunks(XFile file, int size) =>
     fixedChunks(_read(file.path), size);
+
+/// [file] read by span, forward only: [read] [length] bytes from [offset],
+/// fewer where it ends. The browser streams it, so a span near the end is a
+/// pass over the file, which Chrome makes at about a gigabyte a second.
+Future<
+  ({
+    Future<Uint8List> Function(int offset, int length) read,
+    Future<void> Function() close,
+  })
+>
+fileSpans(XFile file) async {
+  final spans = StreamSpans(_read(file.path));
+  return (read: spans.read, close: spans.close);
+}
 
 Stream<Uint8List> _read(String url) async* {
   final response = await web.window.fetch(url.toJS).toDart;

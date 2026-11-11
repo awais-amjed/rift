@@ -5,7 +5,7 @@ pub(crate) struct Clip;
 
 impl Clip {
     pub(super) fn open(
-        _bytes: Vec<u8>,
+        _file: std::sync::Arc<super::source::Source>,
         _texture: u64,
         _output: Option<String>,
     ) -> Result<Clip, String> {

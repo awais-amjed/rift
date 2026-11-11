@@ -420,13 +420,27 @@ is staged, and is read, sealed and sent a chunk at a time:
   because a browser will not stream a request body; a failed request resumes
   from the offset the server reports.
 - *Downloaded as one response*, each chunk opened as it completes, rather than
-  in ranged spans, which Storage's file backend is slow to start (about 1.7 s
-  each, measured Oct 7); a dropped connection resumes with a range from the
+  in ranged spans, which Storage's file backend is slow to start: it hashes the
+  whole file before answering any request, ranged or not (its default
+  `STORAGE_FILE_ETAG_ALGORITHM`, md5; about 1.7 s for 650 MB, measured Oct 7). A
+  dropped connection resumes with a range from the
 first chunk not yet opened. It is saved beside the chosen name and renamed into
   place only once everything has opened, so a tampered or truncated file
   leaves nothing behind. Each platform saves through its own dialog
   (`file_save/save_target.dart`), and a copy the app makes of a picked or
   dropped file is the app's to delete (`PendingAttachment.temporary`).
+- *Played as it downloads* [November 2026]: a chat video is read where its
+  player wants it (`ChunkedBlobReader`). A run fetches from some chunk on,
+  opened as it lands, and pauses a little ahead of what has been played; only a
+  read far from every run (an MP4's index at its end, a seek) starts another,
+  up to three side by side. A run asks for a bounded range at a time (8 to 32
+  chunks): an open-ended request left unread still fills the system's socket
+  buffers, tens of megabytes on a fast link, so only a bounded one stops a
+  paused video downloading on (measured Nov 11: a paused 55 MB video had been
+  sent whole). The last couple of dozen chunks stay in memory, never the whole
+  file. A file sealed in one
+  piece, or sent unencrypted (whose digest checks only at the end), is fetched
+  whole to play, up to 64 MB (`ChatClip.wholeMaxBytes`).
 
 ### Saved on the device [Implemented September 2026]
 
@@ -504,12 +518,14 @@ its bytes in that one's place; the copy in memory is held the same way. Attachme
 message content. The one copy outside memory is a chat sound playing on Linux,
 where the system player takes only a file: it is written under
 `$XDG_RUNTIME_DIR` (memory-backed, the user's alone) and deleted when the card
-lets go (`ChatAudioSource`). A chat video never leaves memory: Rust hands its bytes
-to the system's own player (GStreamer on Linux, the Media Engine on Windows, with whatever
-decoders the system has: Rift ships none) and draws its pictures into a runner texture, as a
+lets go (`ChatAudioSource`). A chat video never leaves memory: the system's own player
+(GStreamer on Linux, the Media Engine on Windows, with whatever decoders the
+system has: Rift ships none) asks Rust for it a block at a time, Rust asks the
+app, which fetches it as it plays (above, *Played as it downloads*), and Rust
+draws its pictures into a runner texture, as a
 watched share's are (on Windows on the runner's own GPU device, where it decodes video)
 (`ChatClip`, `rust/src/clips`). On the web the browser's own `<video>` plays it from a
-`blob:` URL over the same bytes. Its card's poster, the first picture, is made the same way
+`blob:` URL, for now over the whole file, read first. Its card's poster, the first picture, is made the same way
 and held beside it in memory. In the app's cache folder, which the OS may empty and Android
 and iOS leave out of backups; not on the web.
 

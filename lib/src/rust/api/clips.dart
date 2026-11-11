@@ -7,26 +7,54 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 import '../frb_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `emit_clip_event`
+// These functions are ignored because they are not marked as `pub`: `emit_clip_event`, `emit_clip_read`
 
 /// What every clip reports, on one stream for the app's life.
 Stream<ClipEvent> clipEventStream() =>
     RustLib.instance.api.crateApiClipsClipEventStream();
 
+/// What every clip's player asks for, on one stream for the app's life.
+Stream<ClipRead> clipReadStream() =>
+    RustLib.instance.api.crateApiClipsClipReadStream();
+
+/// The bytes [texture]'s player asked for in [request]: fewer than asked
+/// where the file ends.
+Future<void> clipAnswer({
+  required BigInt texture,
+  required BigInt request,
+  required List<int> bytes,
+}) => RustLib.instance.api.crateApiClipsClipAnswer(
+  texture: texture,
+  request: request,
+  bytes: bytes,
+);
+
+/// [texture]'s [request] cannot be answered, for [reason]: the clip fails.
+Future<void> clipRefuse({
+  required BigInt texture,
+  required BigInt request,
+  required String reason,
+}) => RustLib.instance.api.crateApiClipsClipRefuse(
+  texture: texture,
+  request: request,
+  reason: reason,
+);
+
 /// Whether this build plays a chat video itself.
 bool clipsAvailable() => RustLib.instance.api.crateApiClipsClipsAvailable();
 
-/// Opens [bytes], a whole video file, into the runner's [texture], which
-/// [mark_frame] (the runner's address) marks when a picture waits. Paused on
+/// Opens a video file of [length] bytes into the runner's [texture], which
+/// [mark_frame] (the runner's address) marks when a picture waits. Its
+/// player reads the file by asking for it (`clip_read_stream`). Paused on
 /// its first picture; its sound plays on [output], the system's default when
 /// none.
 Future<void> clipOpen({
-  required List<int> bytes,
+  required BigInt length,
   required BigInt texture,
   required BigInt markFrame,
   String? output,
 }) => RustLib.instance.api.crateApiClipsClipOpen(
-  bytes: bytes,
+  length: length,
   texture: texture,
   markFrame: markFrame,
   output: output,
@@ -122,6 +150,37 @@ enum ClipEventKind {
 
   /// It failed some other way.
   failed,
+}
+
+/// A player asking for its file's bytes: [length] of them from [offset],
+/// which the app answers with `clip_answer` (or `clip_refuse`) naming the
+/// same [request].
+class ClipRead {
+  final BigInt texture;
+  final BigInt request;
+  final BigInt offset;
+  final int length;
+
+  const ClipRead({
+    required this.texture,
+    required this.request,
+    required this.offset,
+    required this.length,
+  });
+
+  @override
+  int get hashCode =>
+      texture.hashCode ^ request.hashCode ^ offset.hashCode ^ length.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ClipRead &&
+          runtimeType == other.runtimeType &&
+          texture == other.texture &&
+          request == other.request &&
+          offset == other.offset &&
+          length == other.length;
 }
 
 /// Where a clip is, in milliseconds, where the player knows.

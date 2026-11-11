@@ -27,6 +27,7 @@ import '../../../data/classes/server.dart';
 import '../../../data/enums/dm_link_state.dart';
 import '../../../data/enums/dm_policy.dart';
 import '../../../data/repositories/attachment_repository.dart';
+import '../../../data/repositories/blob/blob_reader.dart';
 import '../../../data/repositories/blob/blob_sink.dart';
 import '../../../data/repositories/server_session.dart';
 import '../../../data/repositories/session_repository.dart';

@@ -6,12 +6,16 @@
 //! them (through a D3D11 device it is lent), keeps sound and picture together
 //! and seeks. In frame server mode it draws nowhere itself: whoever drives it
 //! asks whether a new picture is due ([`new_picture`]) and has it drawn into a
-//! texture of their own. The file is read where it lies in memory, through a
-//! byte stream over a copy of the bytes.
+//! texture of their own. The file is read from its [`Source`] through a
+//! byte stream over our own `IStream` ([`super::pulled_stream`]), so a big
+//! one is fetched as it plays.
 //!
 //! N editions of Windows without the Media Feature Pack have no Media
 //! Foundation; [`usable`] says so, and the card offers the file to save.
+use super::pulled_stream::PulledStream;
+use super::source::Source;
 use crate::api::clips::ClipEventKind;
+use std::sync::Arc;
 use std::sync::mpsc::Sender;
 use std::sync::{Mutex, OnceLock};
 use windows::core::{implement, Interface, BSTR, HSTRING};
@@ -36,7 +40,6 @@ use windows::Win32::Media::MediaFoundation::{
 use windows::Win32::System::Com::{
     CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED,
 };
-use windows::Win32::UI::Shell::SHCreateMemStream;
 
 /// `MF_MEDIA_ENGINE_EVENT`s a driver acts on.
 pub(super) const EVENT_ERROR: u32 = 5;
@@ -223,20 +226,20 @@ impl Engine {
         }
     }
 
-    /// Starts reading [bytes], a whole file, which it copies: the caller's
-    /// may go once this returns.
-    pub(super) fn load(&self, bytes: &[u8]) -> Result<(), String> {
-        if u32::try_from(bytes.len()).is_err() {
-            return Err("The video is too big to play".to_string());
-        }
-        // SAFETY: plain COM calls; the stream copies the bytes.
+    /// Starts reading [file], which the engine holds until it shuts down.
+    pub(super) fn load(&self, file: Arc<Source>) -> Result<(), String> {
+        let head = file
+            .read_at(0, 12)
+            .map(|span| span.as_ref().to_vec())
+            .unwrap_or_default();
+        let stream = PulledStream::new(file);
+        // SAFETY: plain COM calls on a live engine and a stream of our own.
         unsafe {
-            let stream = SHCreateMemStream(Some(bytes)).ok_or("No memory for the video")?;
             let byte_stream = MFCreateMFByteStreamOnStream(&stream)
                 .map_err(|e| format!("No byte stream: {e}"))?;
             let _ = self.engine.SetAutoPlay(false);
             self.ex
-                .SetSourceFromByteStream(&byte_stream, &BSTR::from(name_for(bytes)))
+                .SetSourceFromByteStream(&byte_stream, &BSTR::from(name_for(&head)))
                 .map_err(|e| format!("The video would not open: {e}"))
         }
     }

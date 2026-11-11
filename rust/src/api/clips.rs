@@ -32,6 +32,16 @@ pub enum ClipEventKind {
     Failed,
 }
 
+/// A player asking for its file's bytes: [length] of them from [offset],
+/// which the app answers with `clip_answer` (or `clip_refuse`) naming the
+/// same [request].
+pub struct ClipRead {
+    pub texture: u64,
+    pub request: u64,
+    pub offset: u64,
+    pub length: u32,
+}
+
 /// Where a clip is, in milliseconds, where the player knows.
 pub struct ClipTime {
     pub position_ms: Option<u64>,
@@ -39,6 +49,7 @@ pub struct ClipTime {
 }
 
 static EVENT_SINK: Mutex<Option<StreamSink<ClipEvent>>> = Mutex::new(None);
+static READ_SINK: Mutex<Option<StreamSink<ClipRead>>> = Mutex::new(None);
 
 /// What every clip reports, on one stream for the app's life.
 pub fn clip_event_stream(sink: StreamSink<ClipEvent>) {
@@ -56,6 +67,47 @@ pub(crate) fn emit_clip_event(event: ClipEvent) {
     }
 }
 
+/// What every clip's player asks for, on one stream for the app's life.
+pub fn clip_read_stream(sink: StreamSink<ClipRead>) {
+    *READ_SINK.lock().unwrap_or_else(|e| e.into_inner()) = Some(sink);
+}
+
+#[cfg(desktop)]
+pub(crate) fn emit_clip_read(read: ClipRead) {
+    if let Some(sink) = READ_SINK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .as_ref()
+    {
+        let _ = sink.add(read);
+    }
+}
+
+/// The bytes [texture]'s player asked for in [request]: fewer than asked
+/// where the file ends.
+pub fn clip_answer(texture: u64, request: u64, bytes: Vec<u8>) {
+    #[cfg(desktop)]
+    {
+        clips::source::answer(texture, request, Ok(bytes));
+    }
+    #[cfg(not(desktop))]
+    {
+        let _ = (texture, request, bytes);
+    }
+}
+
+/// [texture]'s [request] cannot be answered, for [reason]: the clip fails.
+pub fn clip_refuse(texture: u64, request: u64, reason: String) {
+    #[cfg(desktop)]
+    {
+        clips::source::answer(texture, request, Err(reason));
+    }
+    #[cfg(not(desktop))]
+    {
+        let _ = (texture, request, reason);
+    }
+}
+
 /// Whether this build plays a chat video itself.
 #[flutter_rust_bridge::frb(sync)]
 pub fn clips_available() -> bool {
@@ -69,12 +121,13 @@ pub fn clips_available() -> bool {
     }
 }
 
-/// Opens [bytes], a whole video file, into the runner's [texture], which
-/// [mark_frame] (the runner's address) marks when a picture waits. Paused on
+/// Opens a video file of [length] bytes into the runner's [texture], which
+/// [mark_frame] (the runner's address) marks when a picture waits. Its
+/// player reads the file by asking for it (`clip_read_stream`). Paused on
 /// its first picture; its sound plays on [output], the system's default when
 /// none.
 pub async fn clip_open(
-    bytes: Vec<u8>,
+    length: u64,
     texture: u64,
     mark_frame: usize,
     output: Option<String>,
@@ -88,13 +141,18 @@ pub async fn clip_open(
         // watched share (`watch_share`).
         let mark: crate::watching::frames::MarkFn =
             unsafe { std::mem::transmute::<usize, crate::watching::frames::MarkFn>(mark_frame) };
-        tokio::task::spawn_blocking(move || clips::open(bytes, texture, mark, output))
+        let source = clips::source::Source::pulled(
+            texture,
+            length,
+            Box::new(emit_clip_read),
+        );
+        tokio::task::spawn_blocking(move || clips::open(source, texture, mark, output))
             .await
             .map_err(|e| e.to_string())?
     }
     #[cfg(not(desktop))]
     {
-        let _ = (bytes, texture, mark_frame, output);
+        let _ = (length, texture, mark_frame, output);
         Err("Videos do not play here".to_string())
     }
 }

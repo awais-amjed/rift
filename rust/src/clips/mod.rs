@@ -2,7 +2,8 @@
 //! textures, the same kind a watched share is drawn into (`crate::watching`).
 //!
 //! An attachment is decrypted message content and never goes to disk, so the
-//! player is handed the file's bytes and reads them where they lie. Each
+//! player reads it from memory: from the app, a block at a time as it plays
+//! ([`source`]), since a big one is fetched as it is watched. Each
 //! platform's own player decodes it, with the system's decoders: Rift ships
 //! none for a chat video (the owner's rule on H264, `CALLS.md`). On Linux
 //! that is GStreamer ([`linux`]), on Windows the Media Engine ([`windows`]);
@@ -13,8 +14,11 @@
 //! it here, and every call after names it.
 use crate::api::clips::{ClipEvent, ClipEventKind};
 use crate::watching::frames;
+use source::Source;
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
+
+pub(crate) mod source;
 
 #[cfg(target_os = "linux")]
 mod linux;
@@ -27,6 +31,8 @@ mod poster_linux;
 mod media_engine;
 #[cfg(windows)]
 mod poster_windows;
+#[cfg(windows)]
+mod pulled_stream;
 #[cfg(windows)]
 mod windows;
 #[cfg(windows)]
@@ -61,22 +67,25 @@ fn with_clips<R>(f: impl FnOnce(&mut HashMap<u64, Clip>) -> R) -> R {
     f(guard.get_or_insert_with(HashMap::new))
 }
 
-/// Opens [bytes] into [texture], paused on its first picture, its sound to
-/// play on [output] (the system's default when none).
+/// Opens [source] into [texture], paused on its first picture, its sound
+/// to play on [output] (the system's default when none). The app's answers
+/// for [texture] go to [source] from now on.
 pub(crate) fn open(
-    bytes: Vec<u8>,
+    source: Arc<Source>,
     texture: u64,
     mark: frames::MarkFn,
     output: Option<String>,
 ) -> Result<(), String> {
     close(texture);
+    source::register(texture, source.clone());
     frames::open(texture, mark);
-    match Clip::open(bytes, texture, output) {
+    match Clip::open(source, texture, output) {
         Ok(clip) => {
             with_clips(|clips| clips.insert(texture, clip));
             Ok(())
         }
         Err(e) => {
+            source::unregister(texture);
             frames::close(texture);
             Err(e)
         }
@@ -92,10 +101,13 @@ pub(crate) fn with<R>(texture: u64, f: impl FnOnce(&Clip) -> R) -> Result<R, Str
 /// Stops [texture]'s clip and lets its bytes go. Once this returns its
 /// texture is not marked again, so the runner may let it go.
 pub(crate) fn close(texture: u64) {
-    // Out of the table first, then dropped outside its lock: stopping waits
-    // for the player's threads, which may be delivering a picture.
+    // Its reads woken first: stopping waits for the player's threads, which
+    // may be waiting on the app for bytes, or delivering a picture. Then out
+    // of the table, and dropped outside its lock.
+    source::close(texture);
     let clip = with_clips(|clips| clips.remove(&texture));
     drop(clip);
+    source::unregister(texture);
     frames::close(texture);
 }
 

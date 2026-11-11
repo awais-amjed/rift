@@ -27,6 +27,7 @@ import '../../../data/classes/server_member.dart';
 import '../../../data/enums/message_origin.dart';
 import '../../../data/enums/notification_level.dart';
 import '../../../data/repositories/attachment_repository.dart';
+import '../../../data/repositories/blob/blob_reader.dart';
 import '../../../data/repositories/blob/blob_sink.dart';
 import '../../../data/repositories/server_session.dart';
 import '../../../data/repositories/session_repository.dart';

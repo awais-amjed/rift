@@ -1,5 +1,5 @@
 //! A chat video played by the system's GStreamer: `playbin` reads the file
-//! from memory through an `appsrc`, its pictures come out of an `appsink` as
+//! from its [`Source`] through an `appsrc`, its pictures come out of an `appsink` as
 //! I420 into the clip's texture slot ([`frames`]), and its sound goes to
 //! PulseAudio (PipeWire's or the real one) on the chosen output.
 //!
@@ -9,6 +9,7 @@
 //! file nothing on the system can decode fails saying so
 //! ([`ClipEventKind::CannotDecode`]), and the card offers it to save.
 use super::emit;
+use super::source::{ReadError, Source};
 use crate::api::clips::ClipEventKind;
 use crate::watching::frames::{self, Picture, WatchPlanes};
 use gstreamer as gst;
@@ -40,7 +41,7 @@ pub(super) fn init() -> Result<(), String> {
 
 impl Clip {
     pub(super) fn open(
-        bytes: Vec<u8>,
+        file: Arc<Source>,
         texture: u64,
         output: Option<String>,
     ) -> Result<Clip, String> {
@@ -49,11 +50,10 @@ impl Clip {
             .property("uri", "appsrc://")
             .build()
             .map_err(|_| "GStreamer has no playbin".to_string())?;
-        let bytes = Arc::new(bytes);
         playbin.connect("source-setup", false, move |args| {
             if let Ok(source) = args[1].get::<gst::Element>() {
                 if let Ok(source) = source.downcast::<gst_app::AppSrc>() {
-                    feed(&source, bytes.clone());
+                    feed(&source, file.clone());
                 }
             }
             None
@@ -138,10 +138,12 @@ impl Drop for Clip {
     }
 }
 
-/// Serves [bytes] to GStreamer as a seekable file: it asks for a length at an
-/// offset, and seeks by moving the offset.
-pub(super) fn feed(source: &gst_app::AppSrc, bytes: Arc<Vec<u8>>) {
-    source.set_size(bytes.len() as i64);
+/// Serves [file] to GStreamer as a seekable file: it asks for a length at an
+/// offset, and seeks by moving the offset. A read waits here, on GStreamer's
+/// thread, while the app fetches what it has not got; one that fails stops
+/// the clip with a read error, which the card shows as a failure.
+pub(super) fn feed(source: &gst_app::AppSrc, file: Arc<Source>) {
+    source.set_size(file.len() as i64);
     source.set_stream_type(gst_app::AppStreamType::RandomAccess);
     source.set_format(gst::Format::Bytes);
     let offset = Arc::new(AtomicU64::new(0));
@@ -149,26 +151,37 @@ pub(super) fn feed(source: &gst_app::AppSrc, bytes: Arc<Vec<u8>>) {
     source.set_callbacks(
         gst_app::AppSrcCallbacks::builder()
             .need_data(move |source, length| {
-                let at = offset.load(Ordering::SeqCst) as usize;
-                if at >= bytes.len() {
-                    let _ = source.end_of_stream();
-                    return;
-                }
+                let at = offset.load(Ordering::SeqCst);
                 let wanted = if length == u32::MAX {
                     PIECE
                 } else {
-                    length as usize
+                    (length as usize).max(1)
                 };
-                let end = bytes.len().min(at + wanted.max(1));
-                offset.store(end as u64, Ordering::SeqCst);
-                let mut buffer = gst::Buffer::from_slice(Piece {
-                    bytes: bytes.clone(),
-                    from: at,
-                    to: end,
-                });
-                if let Some(buffer) = buffer.get_mut() {
-                    buffer.set_offset(at as u64);
-                }
+                let buffer = match fill(&file, at, wanted) {
+                    Ok(Some(buffer)) => buffer,
+                    Ok(None) => {
+                        let _ = source.end_of_stream();
+                        return;
+                    }
+                    // Being stopped: nothing to say.
+                    Err(ReadError::Closed) => return,
+                    Err(ReadError::Failed(why)) => {
+                        log::warn!("Chat video read failed: {why}");
+                        gst::element_error!(
+                            source,
+                            gst::ResourceError::Read,
+                            ["The video could not be fetched: {}", why]
+                        );
+                        return;
+                    }
+                };
+                // Only moved on if no seek came while this read waited.
+                let _ = offset.compare_exchange(
+                    at,
+                    at + buffer.size() as u64,
+                    Ordering::SeqCst,
+                    Ordering::SeqCst,
+                );
                 let _ = source.push_buffer(buffer);
             })
             .seek_data(move |_, to| {
@@ -179,17 +192,32 @@ pub(super) fn feed(source: &gst_app::AppSrc, bytes: Arc<Vec<u8>>) {
     );
 }
 
-/// A run of the file's bytes, lent to GStreamer without a copy.
-struct Piece {
-    bytes: Arc<Vec<u8>>,
-    from: usize,
-    to: usize,
-}
-
-impl AsRef<[u8]> for Piece {
-    fn as_ref(&self) -> &[u8] {
-        &self.bytes[self.from..self.to]
+/// [wanted] bytes of [file] from [at], or fewer only where it ends: a
+/// demuxer reading by offset takes a short buffer for the end of the file.
+/// Lent without a copy when one block holds them all. None at the end.
+fn fill(file: &Source, at: u64, wanted: usize) -> Result<Option<gst::Buffer>, ReadError> {
+    let first = file.read_at(at, wanted)?;
+    if first.is_empty() {
+        return Ok(None);
     }
+    let mut buffer = if first.len() == wanted {
+        gst::Buffer::from_slice(first)
+    } else {
+        let mut all = Vec::with_capacity(wanted);
+        all.extend_from_slice(first.as_ref());
+        while all.len() < wanted {
+            let more = file.read_at(at + all.len() as u64, wanted - all.len())?;
+            if more.is_empty() {
+                break;
+            }
+            all.extend_from_slice(more.as_ref());
+        }
+        gst::Buffer::from_mut_slice(all)
+    };
+    if let Some(buffer) = buffer.get_mut() {
+        buffer.set_offset(at);
+    }
+    Ok(Some(buffer))
 }
 
 /// The picture side: converted to I420, which the runner draws from memory,
@@ -394,7 +422,7 @@ mod tests {
         let bytes = std::fs::read(std::env::var("RIFT_CLIP_TEST").unwrap()).unwrap();
         let output = std::env::var("RIFT_CLIP_TEST_OUTPUT").ok();
         let texture = 9001;
-        super::super::open(bytes, texture, mark, output).unwrap();
+        super::super::open(super::Source::memory(bytes), texture, mark, output).unwrap();
         std::thread::sleep(Duration::from_millis(500));
         let paused = MARKS.load(Ordering::SeqCst);
         assert!(paused >= 1, "the first picture is shown while paused");
@@ -430,5 +458,76 @@ mod tests {
             after,
             "nothing marked once closed"
         );
+    }
+
+    /// Plays a real file read a block at a time, each answered a little
+    /// late as the app's would be, and reads only what it plays:
+    ///
+    /// ```text
+    /// RIFT_CLIP_TEST=<a big video> RIFT_CLIP_TEST_OUTPUT=<a sink> \
+    ///     cargo test --release live_pulled -- --ignored --nocapture
+    /// ```
+    #[test]
+    #[ignore = "needs a video and a test output; see above"]
+    fn live_pulled_clip_reads_as_it_plays() {
+        use std::sync::atomic::AtomicU64 as Counter;
+        use std::sync::Arc;
+        let bytes = Arc::new(std::fs::read(std::env::var("RIFT_CLIP_TEST").unwrap()).unwrap());
+        let output = std::env::var("RIFT_CLIP_TEST_OUTPUT").ok();
+        let texture = 9002;
+        let asked = Arc::new(Counter::new(0));
+        let (tx, rx) = std::sync::mpsc::channel::<crate::api::clips::ClipRead>();
+        {
+            let bytes = bytes.clone();
+            let asked = asked.clone();
+            std::thread::spawn(move || {
+                for read in rx {
+                    std::thread::sleep(Duration::from_millis(20));
+                    let from = read.offset as usize;
+                    let to = bytes.len().min(from + read.length as usize);
+                    asked.fetch_add((to - from) as u64, Ordering::SeqCst);
+                    super::super::source::answer(texture, read.request, Ok(bytes[from..to].to_vec()));
+                }
+            });
+        }
+        let source = super::super::source::Source::pulled(
+            texture,
+            bytes.len() as u64,
+            Box::new(move |read| {
+                let _ = tx.send(read);
+            }),
+        );
+        let started = std::time::Instant::now();
+        super::super::open(source, texture, mark, output).unwrap();
+        while MARKS.load(Ordering::SeqCst) == 0 && started.elapsed() < Duration::from_secs(10) {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        println!(
+            "first picture after {:?}, {} of {} bytes read",
+            started.elapsed(),
+            asked.load(Ordering::SeqCst),
+            bytes.len()
+        );
+        assert!(MARKS.load(Ordering::SeqCst) >= 1);
+
+        super::super::with(texture, |c| c.play()).unwrap().unwrap();
+        std::thread::sleep(Duration::from_millis(2000));
+        let read = asked.load(Ordering::SeqCst);
+        println!("after 2 s of play, {read} bytes read");
+        assert!(read < bytes.len() as u64 / 2, "it does not read the whole file to play");
+
+        let (_, duration) = super::super::with(texture, |c| c.time()).unwrap();
+        let far = duration.unwrap() * 2 / 3;
+        let marks = MARKS.load(Ordering::SeqCst);
+        super::super::with(texture, |c| c.seek(far)).unwrap().unwrap();
+        std::thread::sleep(Duration::from_millis(1500));
+        let (position, _) = super::super::with(texture, |c| c.time()).unwrap();
+        println!("after a seek to {far} ms: at {position:?}, {} bytes read", asked.load(Ordering::SeqCst));
+        assert!(position.unwrap() >= far);
+        assert!(MARKS.load(Ordering::SeqCst) > marks + 10, "it plays on after the seek");
+
+        let closing = std::time::Instant::now();
+        super::super::close(texture);
+        println!("closed in {:?}", closing.elapsed());
     }
 }

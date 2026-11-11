@@ -7,6 +7,7 @@ import '../classes/attachment.dart';
 import '../classes/pending_attachment.dart';
 import '../classes/server.dart';
 import '../repositories/attachment_repository.dart';
+import '../repositories/blob/blob_reader.dart';
 import '../repositories/blob/blob_sink.dart';
 import '../repositories/server_session.dart';
 import '../repositories/session_repository.dart';
@@ -141,6 +142,21 @@ class AttachmentsApi {
       attachment: attachment,
       sink: sink,
       onProgress: onProgress,
+    );
+  }
+
+  /// [attachment], read where a player wants it as it plays — see
+  /// `AttachmentRepository.readerFor`. Null for a file that can only be
+  /// fetched whole, or when the server is gone.
+  BlobReader? readerFor(Attachment attachment) {
+    final target = _withKey();
+    if (target == null) return null;
+    return _attachments.readerFor(
+      baseUrl: target.server.supabaseUrl,
+      anonKey: target.anonKey,
+      token: _session.bearerFor(target.server),
+      bucket: _bucketFor(target.server),
+      attachment: attachment,
     );
   }
 

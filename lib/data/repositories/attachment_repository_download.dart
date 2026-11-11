@@ -187,10 +187,24 @@ mixin _StreamDownloadMixin on _AttachmentStreamMixin {
     BearerToken token,
     int start,
     Future<void> Function(Stream<List<int>> body) consume,
-  ) async {
+  ) async => consume(await _bodyFrom(uri, anonKey, token, start));
+
+  /// [uri]'s body from byte [start] to the end, or to byte [until] (not
+  /// included), as it arrives; [abort], once completed, ends the request
+  /// whether or not its body was ever read.
+  Future<Stream<List<int>>> _bodyFrom(
+    Uri uri,
+    String anonKey,
+    BearerToken token,
+    int start, {
+    int? until,
+    Future<void>? abort,
+  }) async {
+    final ranged = start > 0 || until != null;
+    final range = 'bytes=$start-${until == null ? '' : until - 1}';
     final response = await _authorized(anonKey, token, (auth) async {
-      final request = http.Request('GET', uri)
-        ..headers.addAll({...auth, if (start > 0) 'Range': 'bytes=$start-'});
+      final request = http.AbortableRequest('GET', uri, abortTrigger: abort)
+        ..headers.addAll({...auth, if (ranged) 'Range': range});
       final streamed = await _http.send(request).timeout(StorageRest.timeout);
       if (streamed.statusCode >= 300) {
         final reply = await http.Response.fromStream(streamed);
@@ -199,11 +213,13 @@ mixin _StreamDownloadMixin on _AttachmentStreamMixin {
           status: reply.statusCode,
         );
       }
-      if (start > 0 && streamed.statusCode != 206) {
+      if (ranged && streamed.statusCode != 206) {
         throw const FormatException('The server ignored the range');
       }
       return streamed;
     });
-    await consume(response.stream.timeout(const Duration(minutes: 1)));
+    // Paused, the stream's clock stops too, so a player holding a
+    // download open is not taken for a dropped connection.
+    return response.stream.timeout(const Duration(minutes: 1));
   }
 }

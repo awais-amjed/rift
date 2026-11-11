@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import '../../data/classes/api_response.dart';
 import '../../data/classes/attachment.dart';
 import '../../data/repositories/attachment_repository.dart';
+import '../../data/repositories/blob/blob_reader.dart';
 import '../../data/repositories/blob/blob_sink.dart';
 
 /// How a chat draws and saves the attachments in it, handed down from the
@@ -26,14 +27,27 @@ class AttachmentLoader {
   })
   save;
 
-  const AttachmentLoader({required this.load, required this.save});
+  /// The third road, for a video being played: read where the player wants
+  /// it as it plays, so a big one starts at once and is never held whole.
+  /// Null where this conversation's files cannot be read that way (central
+  /// DMs, whose files are small and in one piece), and its answer null for
+  /// a file that cannot (see `AttachmentRepository.readerFor`).
+  final BlobReader? Function(Attachment attachment)? read;
+
+  const AttachmentLoader({required this.load, required this.save, this.read});
+
+  /// [attachment] read as it plays, where it can be.
+  BlobReader? readerFor(Attachment attachment) => read?.call(attachment);
 
   Future<Uint8List?> call(Attachment attachment) => load(attachment);
 
   @override
   bool operator ==(Object other) =>
-      other is AttachmentLoader && other.load == load && other.save == save;
+      other is AttachmentLoader &&
+      other.load == load &&
+      other.save == save &&
+      other.read == read;
 
   @override
-  int get hashCode => Object.hash(load, save);
+  int get hashCode => Object.hash(load, save, read);
 }

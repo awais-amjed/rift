@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:cross_file/cross_file.dart';
@@ -9,13 +10,16 @@ import 'package:rift_crypto/rift_crypto.dart';
 import '../classes/api_response.dart';
 import '../classes/attachment.dart';
 import '../classes/chunked_layout.dart';
+import 'blob/blob_reader.dart';
 import 'blob/blob_sink.dart';
+import 'blob/chunked_blob_reader.dart';
 import 'blob/file_chunks.dart';
 import 'blob/fixed_chunks.dart';
 import 'blob/tus_client.dart';
 import 'storage_rest.dart';
 
 part 'attachment_repository_download.dart';
+part 'attachment_repository_reader.dart';
 part 'attachment_repository_stream.dart';
 part 'attachment_repository_upload.dart';
 
@@ -52,7 +56,11 @@ typedef UploadedBlob = ({
 /// way, by the streamed half in `attachment_repository_stream.dart` and its
 /// upload and download parts.
 class AttachmentRepository
-    with _AttachmentStreamMixin, _StreamUploadMixin, _StreamDownloadMixin {
+    with
+        _AttachmentStreamMixin,
+        _StreamUploadMixin,
+        _StreamDownloadMixin,
+        _StreamReaderMixin {
   @override
   final CryptoRepository _crypto;
   @override

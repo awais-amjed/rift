@@ -472,7 +472,14 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
     onProgress: onProgress,
   );
 
-  /// What the message list draws and saves attachments with.
-  AttachmentLoader get attachmentLoader =>
-      AttachmentLoader(load: loadAttachment, save: saveAttachment);
+  /// An attachment read as it plays, for a video.
+  BlobReader? readAttachment(Attachment attachment) =>
+      _attachments.readerFor(attachment);
+
+  /// What the message list draws, saves and plays attachments with.
+  AttachmentLoader get attachmentLoader => AttachmentLoader(
+    load: loadAttachment,
+    save: saveAttachment,
+    read: readAttachment,
+  );
 }

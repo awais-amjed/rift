@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rift/data/repositories/blob/stream_spans.dart';
 import 'package:rift/logic/services/media_sniff.dart';
 
 /// One box: a 32-bit size, the type, then [body].
@@ -123,5 +124,82 @@ void main() {
       height: null,
       durationMs: 2000,
     ));
+  });
+
+  group('a file too big to read whole', () {
+    final mvhd = box('mvhd', [
+      ...List.filled(12, 0),
+      ...u32(1000),
+      ...u32(90000),
+    ]);
+
+    /// [bytes] read the way staging reads a file: forward, a piece at a
+    /// time, noting how much it was asked for.
+    Future<IsoMediaInfo?> walk(Uint8List bytes, List<int> asked) async {
+      final pieces = Stream.fromIterable([
+        for (var at = 0; at < bytes.length; at += 7)
+          Uint8List.sublistView(bytes, at, (at + 7).clamp(0, bytes.length)),
+      ]);
+      final spans = StreamSpans(pieces);
+      try {
+        return await isoMediaInfoOf((offset, length) {
+          asked.add(length);
+          return spans.read(offset, length);
+        }, bytes.length);
+      } finally {
+        await spans.close();
+      }
+    }
+
+    test(
+      'its index is found by the box headers, at the start or the end',
+      () async {
+        for (final last in [false, true]) {
+          final bytes = file(
+            [track('vide', header: tkhd(1920, 1080)), track('soun')],
+            mvhd: mvhd,
+            moovLast: last,
+          );
+          final asked = <int>[];
+          final info = await walk(bytes, asked);
+          expect(info, (
+            hasVideo: true,
+            width: 1920,
+            height: 1080,
+            durationMs: 90000,
+          ));
+          // Never the media (the 72-byte mdat): headers, the ftyp, the moov.
+          expect(asked, isNot(contains(72)));
+          expect(asked.where((n) => n == 16).length, greaterThanOrEqualTo(2));
+        }
+      },
+    );
+
+    test('something that is not MP4, or is cut short, is not judged', () async {
+      expect(await walk(Uint8List.fromList(List.filled(100, 1)), []), isNull);
+      final whole = file([track('vide')], moovLast: true);
+      expect(
+        await walk(Uint8List.sublistView(whole, 0, whole.length - 10), []),
+        isNull,
+      );
+    });
+
+    test(
+      'a forward reader serves a span again from where the last began',
+      () async {
+        final spans = StreamSpans(
+          Stream.fromIterable([
+            Uint8List.fromList([0, 1, 2]),
+            Uint8List.fromList([3, 4, 5, 6]),
+            Uint8List.fromList([7, 8, 9]),
+          ]),
+        );
+        expect(await spans.read(1, 2), [1, 2]);
+        expect(await spans.read(1, 4), [1, 2, 3, 4]);
+        expect(await spans.read(8, 5), [8, 9]);
+        expect(() => spans.read(2, 1), throwsStateError);
+        await spans.close();
+      },
+    );
   });
 }
