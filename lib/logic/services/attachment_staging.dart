@@ -5,6 +5,7 @@ import '../../data/classes/pending_attachment.dart';
 import 'byte_format.dart';
 import 'file_save/save_target.dart';
 import 'image_dimensions.dart';
+import 'media_sniff.dart';
 import 'mime_util.dart';
 
 /// Turning picked bytes into a staged attachment — or into the reason they
@@ -99,6 +100,16 @@ class AttachmentStaging {
     }
     final bytes = await file.readAsBytes();
     if (temporary) await discardCopy(file);
+    // A phone's picker labels a short MP4 video `audio/mp4` often enough
+    // that it is checked: sent as sound, it is drawn as a voice note.
+    if (kind == AttachmentKind.audio && isoMediaHasVideo(bytes) == true) {
+      return PendingAttachment(
+        bytes: bytes,
+        name: name,
+        mime: 'video/mp4',
+        kind: AttachmentKind.file,
+      );
+    }
     final dimensions = kind == AttachmentKind.image
         ? await readImageDimensions(bytes)
         : null;

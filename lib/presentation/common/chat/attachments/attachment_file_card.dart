@@ -6,9 +6,9 @@ import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 import '../../icon_tile.dart';
-import '../../loading_dots.dart';
 import 'attachment_download.dart';
 import 'attachment_loader.dart';
+import 'attachment_saving.dart';
 
 /// A non-media attachment: name, size, and a tap to decrypt and save it.
 /// The card owns the in-flight state so a download shows how far it has got
@@ -26,35 +26,9 @@ class AttachmentFileCard extends StatefulWidget {
   State<AttachmentFileCard> createState() => _AttachmentFileCardState();
 }
 
-class _AttachmentFileCardState extends State<AttachmentFileCard> {
+class _AttachmentFileCardState extends State<AttachmentFileCard>
+    with AttachmentSaving {
   static const double _width = 270;
-
-  bool _busy = false;
-
-  /// How far a download has got, 0 to 1. Null before the first piece lands.
-  double? _progress;
-
-  Future<void> _download() async {
-    if (_busy) return;
-    setState(() => _busy = true);
-    try {
-      await saveAttachment(
-        context,
-        widget.loader,
-        widget.attachment,
-        onProgress: (p) {
-          if (mounted) setState(() => _progress = p);
-        },
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _busy = false;
-          _progress = null;
-        });
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -76,7 +50,7 @@ class _AttachmentFileCardState extends State<AttachmentFileCard> {
         type: MaterialType.transparency,
         child: InkWell(
           mouseCursor: WidgetStateMouseCursor.clickable,
-          onTap: _download,
+          onTap: () => saveFile(widget.loader, widget.attachment),
           borderRadius: radius,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
@@ -94,7 +68,7 @@ class _AttachmentFileCardState extends State<AttachmentFileCard> {
                   iconSize: 19,
                 ),
                 Expanded(child: _details(theme)),
-                _trailing(theme),
+                SaveProgressGlyph(busy: savingNow, progress: saveProgress),
               ],
             ),
           ),
@@ -122,22 +96,6 @@ class _AttachmentFileCardState extends State<AttachmentFileCard> {
           style: AppText.meta.copyWith(color: theme.textTertiary),
         ),
       ],
-    );
-  }
-
-  Widget _trailing(ThemeState theme) {
-    if (!_busy) {
-      return Icon(
-        Icons.download_rounded,
-        size: K.iconButton,
-        color: theme.textTertiary,
-      );
-    }
-    final progress = _progress;
-    if (progress == null) return LoadingDots(color: theme.primary, dotSize: 4);
-    return Text(
-      '${(progress * 100).floor()}%',
-      style: AppText.figure.copyWith(color: theme.textSecondary),
     );
   }
 }

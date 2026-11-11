@@ -4,6 +4,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../data/classes/attachment.dart';
 import '../../../../data/classes/chat_message.dart';
 import '../../../../data/classes/poll.dart';
 import '../../../../data/constants.dart';
@@ -18,6 +19,7 @@ import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 import '../../confirm_dialog.dart';
 import '../../message_markup_text.dart';
+import '../attachments/attachment_download.dart';
 import '../attachments/attachment_loader.dart';
 import '../attachments/message_attachments.dart';
 import '../link_preview_card.dart';

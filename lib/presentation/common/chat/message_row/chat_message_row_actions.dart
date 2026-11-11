@@ -44,6 +44,26 @@ mixin _MessageRowActionsMixin on State<ChatMessageRow> {
       !message.isMine &&
       !message.isPending &&
       !message.isLocked;
+  /// What Save is called for this message, or null when it has none: a
+  /// message carrying one attachment, readable here. With several, each card
+  /// saves its own.
+  String? get _saveLabel {
+    final loader = widget.attachmentLoader;
+    if (loader == null || message.isPending || message.isLocked) return null;
+    if (message.attachments.length != 1) return null;
+    return switch (message.attachments.single.kind) {
+      AttachmentKind.image => 'Save picture',
+      AttachmentKind.audio => 'Save audio',
+      AttachmentKind.file => 'Save file',
+    };
+  }
+
+  Future<void> _save() async {
+    final loader = widget.attachmentLoader;
+    if (loader == null || message.attachments.length != 1) return;
+    await saveAttachment(context, loader, message.attachments.single);
+  }
+
   bool get _canDelete =>
       widget.onDelete != null &&
       MessagePermissions.canDelete(message, isModerator: widget.isModerator);
@@ -101,6 +121,7 @@ mixin _MessageRowActionsMixin on State<ChatMessageRow> {
       canEdit: _canEdit,
       canReport: _canReport,
       canDelete: _canDelete,
+      saveLabel: _saveLabel,
     );
     if (!mounted || action == null) return;
     switch (action) {
@@ -114,6 +135,8 @@ mixin _MessageRowActionsMixin on State<ChatMessageRow> {
         _pickReaction(context);
       case MessageMenuAction.copy:
         await _copy();
+      case MessageMenuAction.save:
+        await _save();
       case MessageMenuAction.pin:
         _togglePin();
       case MessageMenuAction.edit:
@@ -138,6 +161,7 @@ mixin _MessageRowActionsMixin on State<ChatMessageRow> {
       canEdit: _canEdit,
       canReport: _canReport,
       canDelete: _canDelete,
+      saveLabel: _saveLabel,
     );
     if (!mounted || choice == null) return;
     switch (choice) {
@@ -152,6 +176,8 @@ mixin _MessageRowActionsMixin on State<ChatMessageRow> {
         if (mounted && emoji != null) _toggle(emoji);
       case MenuActionChoice(action: MessageMenuAction.copy):
         await _copy();
+      case MenuActionChoice(action: MessageMenuAction.save):
+        await _save();
       case MenuActionChoice(action: MessageMenuAction.pin):
         _togglePin();
       case MenuActionChoice(action: MessageMenuAction.edit):

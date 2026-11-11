@@ -51,6 +51,7 @@ Future<MessageSheetChoice?> showMessageActionSheet({
   bool canForward = false,
   bool canPin = false,
   bool canReport = false,
+  String? saveLabel,
 }) {
   final theme = context.theme;
   final themeCubit = context.read<ThemeCubit>();
@@ -120,6 +121,13 @@ Future<MessageSheetChoice?> showMessageActionSheet({
                       label: 'Copy text',
                       onTap: () =>
                           pick(const MenuActionChoice(MessageMenuAction.copy)),
+                    ),
+                  if (saveLabel != null)
+                    ContextMenuItem(
+                      icon: Icons.download_rounded,
+                      label: saveLabel,
+                      onTap: () =>
+                          pick(const MenuActionChoice(MessageMenuAction.save)),
                     ),
                   if (canPin)
                     ContextMenuItem(

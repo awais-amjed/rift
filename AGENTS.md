@@ -137,7 +137,9 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   between runs (`MediaDiskCache`), since a server chooses its own paths and could repeat
   another's. So whatever loads or puts one passes its `origin`, and whatever draws one hands
   `StoredPicture` the same host (without one, nothing is drawn or saved).
-  Attachments never go to disk: they are decrypted message content.
+  Attachments never go to disk: they are decrypted message content. A chat
+  sound on Linux plays from a memory-backed copy that is deleted after
+  (`ChatAudioSource`); nothing else may write one out.
 - **A conversation's saved copy is fed by the code that fetches its rows.** Each
   chat cubit holds a `SavedConversation`. A new path that brings rows in at the
   live end calls `merge`; one that learns a row changed or went away calls

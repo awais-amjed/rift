@@ -12,6 +12,7 @@ enum MessageMenuAction {
   reply,
   forward,
   copy,
+  save,
   pin,
   edit,
   report,
@@ -44,6 +45,7 @@ Future<MessageMenuAction?> showMessageContextMenu({
   bool canForward = false,
   bool canPin = false,
   bool canReport = false,
+  String? saveLabel,
 }) async {
   final overlay = Overlay.of(context).context.findRenderObject() as RenderBox?;
   if (overlay == null) return null;
@@ -53,6 +55,7 @@ Future<MessageMenuAction?> showMessageContextMenu({
       !canReply &&
       !canForward &&
       !canCopy &&
+      saveLabel == null &&
       !canPin &&
       !canEdit &&
       !canReport &&
@@ -105,6 +108,13 @@ Future<MessageMenuAction?> showMessageContextMenu({
           MessageMenuAction.copy,
           Icons.copy_rounded,
           'Copy text',
+          themeState.textSecondary,
+        ),
+      if (saveLabel != null)
+        _item(
+          MessageMenuAction.save,
+          Icons.download_rounded,
+          saveLabel,
           themeState.textSecondary,
         ),
       if (canPin)
