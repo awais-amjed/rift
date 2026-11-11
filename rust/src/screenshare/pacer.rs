@@ -48,8 +48,6 @@ impl Pacer {
     /// waited: dropping one that came too early would leave a screen that
     /// then stood still showing the picture before it. `None` once nothing
     /// more will come.
-    // Windows drops an early picture instead: it has no mailbox to wait on.
-    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     pub(crate) fn hold<T>(
         &mut self,
         pictures: &Taker<T>,
