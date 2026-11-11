@@ -10,9 +10,12 @@ import 'chat_clip.dart';
 abstract class WebChatClip implements ChatClip {
   static const bool available = false;
 
+  static Future<void> prepare() async {}
+
   static Future<({ChatClip? clip, String? error})> open(
     BlobReader file, {
     String? output,
+    String? type,
   }) async => (clip: null, error: 'Not a browser');
 
   static Future<Uint8List?> poster(

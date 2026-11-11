@@ -20,6 +20,7 @@ import 'logic/helper_methods.dart';
 import 'logic/services/app_exit_reasons.dart';
 import 'logic/services/app_log.dart';
 import 'logic/services/browser_apis.dart';
+import 'logic/services/chat_clip/chat_clip.dart';
 import 'logic/services/file_save/save_target.dart';
 import 'logic/services/gpu_codecs.dart';
 import 'logic/services/host_platform.dart';
@@ -140,6 +141,9 @@ class AppBootstrap {
     // the window being *un*focused.
     if (kIsWeb) {
       startBrowserFocusTracking(WindowFocusService.instance.setFocused);
+      // The worker a big chat video streams through, installed now so it is
+      // in control by the first one played. Not awaited: nothing waits on it.
+      unawaited(ChatClip.prepare());
     }
     return appCubit;
   }

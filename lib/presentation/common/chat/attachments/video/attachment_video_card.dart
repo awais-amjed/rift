@@ -25,7 +25,8 @@ import 'widgets/video_seek_bar.dart';
 /// place.
 ///
 /// The file is played from memory by [ChatClip], with the system's own
-/// decoders: a big one fetched as it plays, a small one whole. Where this build has no player the card is a file to save, and
+/// decoders: a big one fetched as it plays, a small one whole. Where this
+/// build has no player the card is a file to save, and
 /// where the system cannot decode what the file holds it says so and still
 /// offers it.
 class AttachmentVideoCard extends StatefulWidget {
@@ -124,7 +125,11 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
       });
       return;
     }
-    final opened = await ChatClip.open(reader, output: output);
+    final opened = await ChatClip.open(
+      reader,
+      output: output,
+      type: widget.attachment.mime,
+    );
     final clip = opened.clip;
     if (!mounted) {
       await clip?.close();

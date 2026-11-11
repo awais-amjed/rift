@@ -28,15 +28,23 @@ abstract class ChatClip {
       ? WebChatClip.available
       : (Platform.isLinux || Platform.isWindows) && RustChatClip.available();
 
+  /// Gets ready to play, at start: on the web, installs the worker a big
+  /// video streams through.
+  static Future<void> prepare() async {
+    if (kIsWeb) await WebChatClip.prepare();
+  }
+
   /// Opens the video [file] reads, paused on its first picture, its sound
   /// to play on [output] (the device id the app's output setting holds; null
-  /// for the default). The clip owns [file] from here and closes it with
-  /// itself. Null, with nothing left behind, when it would not open.
+  /// for the default). [type] is its media type, where known. The clip owns
+  /// [file] from here and closes it with itself. Null, with nothing left
+  /// behind, when it would not open.
   static Future<({ChatClip? clip, String? error})> open(
     BlobReader file, {
     String? output,
+    String? type,
   }) => kIsWeb
-      ? WebChatClip.open(file, output: output)
+      ? WebChatClip.open(file, output: output, type: type)
       : RustChatClip.open(file, output: output);
 
   /// The most a video that can only be fetched whole — sealed in one piece,

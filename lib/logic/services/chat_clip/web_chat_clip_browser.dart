@@ -15,16 +15,20 @@ import '../../../data/repositories/blob/blob_reader.dart';
 import '../../../src/rust/api/clips.dart';
 import '../../helper_methods.dart';
 import 'chat_clip.dart';
+import 'web_clip_stream.dart';
 
-/// A chat video played by the browser's own `<video>`, from a `blob:` URL
-/// over the bytes, so the decrypted file never leaves memory and the
-/// browser's decoders do the work.
+/// A chat video played by the browser's own `<video>`, so the browser's
+/// decoders do the work, from a URL the page itself answers: a big one is
+/// fetched as the player reads it, through Rift's service worker
+/// ([WebClipStream]), and one already in memory, or one played where there
+/// is no worker, from a `blob:` URL over the whole of it. Either way the
+/// decrypted file never leaves memory.
 ///
 /// The element is made here, not by the view, so it loads and plays the
 /// same whether or not the card is drawing it; [picture] puts it on the
 /// page. It takes no pointer: the card's own controls sit over it.
 class WebChatClip implements ChatClip {
-  WebChatClip._(this._id, this._video, this._url, this._events) {
+  WebChatClip._(this._id, this._video, this._url, this._file, this._events) {
     _watching = [
       web.EventStreamProviders.loadedMetadataEvent
           .forTarget(_video)
@@ -65,6 +69,10 @@ class WebChatClip implements ChatClip {
   final int _id;
   final web.HTMLVideoElement _video;
   final String _url;
+
+  /// What [_url] is read from, where the worker serves it; null for a
+  /// `blob:` URL.
+  final BlobReader? _file;
   final StreamController<ClipEvent> _events;
   late final List<StreamSubscription<web.Event>> _watching;
   (int, int)? _shape;
@@ -73,25 +81,37 @@ class WebChatClip implements ChatClip {
   @override
   Stream<ClipEvent> get events => _events.stream;
 
+  /// Installs the worker that streams a big video, so it is in control by
+  /// the first one played.
+  static Future<void> prepare() => WebClipStream.start();
+
   /// [ChatClip.open] in a `<video>`. [output] is a browser device id; a
   /// browser that cannot choose (Safari, Firefox before 116) plays on the
-  /// default.
-  ///
-  /// For now the whole of [file] is read before it plays.
+  /// default. [type] is the file's media type, which Safari wants.
   static Future<({ChatClip? clip, String? error})> open(
     BlobReader file, {
     String? output,
+    String? type,
   }) async {
     _register();
+    final streamed = file is MemoryBlobReader
+        ? null
+        : WebClipStream.urlFor(file, type: type);
     final String url;
-    try {
-      final bytes = await file.readFully(0, file.length);
-      url = web.URL.createObjectURL(web.Blob([bytes.toJS].toJS));
-    } catch (e) {
-      HelperMethods.printDebug('[ChatClip] open: ${e.runtimeType}');
-      return (clip: null, error: '$e');
-    } finally {
-      await file.close();
+    if (streamed != null) {
+      url = streamed;
+    } else {
+      try {
+        final bytes = await file.readFully(0, file.length);
+        url = web.URL.createObjectURL(
+          web.Blob([bytes.toJS].toJS, web.BlobPropertyBag(type: type ?? '')),
+        );
+      } catch (e) {
+        HelperMethods.printDebug('[ChatClip] open: ${e.runtimeType}');
+        return (clip: null, error: '$e');
+      } finally {
+        await file.close();
+      }
     }
     final video = _element(url);
     if (output != null && output.isNotEmpty && video.has('setSinkId')) {
@@ -106,7 +126,13 @@ class WebChatClip implements ChatClip {
     _videos[id] = video;
     // Not a broadcast: what the player says before the card listens waits
     // for it.
-    final clip = WebChatClip._(id, video, url, StreamController<ClipEvent>());
+    final clip = WebChatClip._(
+      id,
+      video,
+      url,
+      streamed == null ? null : file,
+      StreamController<ClipEvent>(),
+    );
     return (clip: clip, error: null);
   }
 
@@ -201,7 +227,7 @@ class WebChatClip implements ChatClip {
   }
 
   /// Stops it, empties the element so the browser lets its buffers go, then
-  /// the bytes.
+  /// the file.
   @override
   Future<void> close() async {
     if (_closed) return;
@@ -214,7 +240,12 @@ class WebChatClip implements ChatClip {
       ..pause()
       ..removeAttribute('src')
       ..load();
-    web.URL.revokeObjectURL(_url);
+    if (_file case final file?) {
+      WebClipStream.forget(_url);
+      await file.close();
+    } else {
+      web.URL.revokeObjectURL(_url);
+    }
     await _events.close();
   }
 

@@ -532,7 +532,16 @@ app, which fetches it as it plays (above, *Played as it downloads*), and Rust
 draws its pictures into a runner texture, as a
 watched share's are (on Windows on the runner's own GPU device, where it decodes video)
 (`ChatClip`, `rust/src/clips`). On the web the browser's own `<video>` plays it from a
-`blob:` URL, for now over the whole file, read first. Its card's poster, the first picture, is
+URL the page itself answers, through Rift's service worker (`web/clip-sw.js`,
+`WebClipStream`): the worker answers each range the player asks for by asking the page
+that made the request, which reads it from the same reader, so a big video plays as it
+downloads there too. The bytes go page to worker in memory, under `no-store`, and a page
+answers only for its own videos (a random token per play); another tab, or a page
+without the token, gets a 404. Where there is no worker in control (Firefox's private
+windows, a page not on a secure origin, the first moment of a first visit), the video is
+read whole into a `blob:` URL, as before. The worker is why Flutter's own loader is told
+of no service worker (`web/flutter_bootstrap.js`): its default replaced any worker it
+found with Flutter's, which unregisters itself and reloads the page. Its card's poster, the first picture, is
 made by the **sender**, from the file on their device, by the same player
 (`ChatClip.posterToSend`; on the web from the picked file's `blob:` URL), and sealed beside
 the video as a small JPEG attachment of its own (`Attachment.poster`, `WIRE.md` §8), as a link
