@@ -658,13 +658,11 @@ async fn live_gpu_share_resizes_rejoins_and_falls_back() {
 }
 
 /// Counts what the encoder makes.
-#[cfg(target_os = "linux")]
 struct Counting(
     std::sync::Arc<std::sync::atomic::AtomicU32>,
     Option<std::fs::File>,
 );
 
-#[cfg(target_os = "linux")]
 impl EncodedSink for Counting {
     fn deliver(&mut self, frame: Encoded<'_>) {
         self.0.fetch_add(1, Ordering::Relaxed);
@@ -681,6 +679,57 @@ impl EncodedSink for Counting {
     fn bitrate_wanted(&mut self) -> Option<u64> {
         None
     }
+}
+
+/// One picture and then a still screen, at a rate above 60: the picture has to
+/// come out without a second's wait. NVENC is asked to hold one back up there
+/// (`ffmpeg.rs`, `delay_frames`), and what it holds comes out only when the
+/// next goes in, so the encoder's thread sends it again (`worker.rs`). It kept
+/// a lone picture past half a second before that (RTX 3070 Ti, Nov 11 2026).
+/// `RIFT_TEST_FPS` names another rate, `RIFT_FFENC_ENCODER` the encoder.
+#[test]
+#[ignore = "needs a hardware H264 encoder"]
+fn live_gpu_a_lone_picture_is_not_held() {
+    let fps = std::env::var("RIFT_TEST_FPS")
+        .ok()
+        .and_then(|fps| fps.parse().ok())
+        .unwrap_or(120);
+    let made = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
+    let encoder = GpuEncoder::open(
+        EncoderSettings {
+            codec: GpuCodec::H264,
+            width: WIDTH,
+            height: HEIGHT,
+            fps,
+            max_bitrate_bps: 4_000_000,
+            start_bitrate_bps: 4_000_000,
+            h264_high: true,
+            gpu_capture: false,
+        },
+        Box::new(Counting(made.clone(), None)),
+    )
+    .expect("a GPU encoder opens");
+    let mut data = encoder.buffer(Nv12Frame::len_for(WIDTH, HEIGHT));
+    data.fill(128);
+    let sent = Instant::now();
+    encoder.submit(Nv12Frame {
+        data,
+        timestamp_us: 0,
+    });
+    while made.load(Ordering::Relaxed) == 0 && sent.elapsed() < Duration::from_millis(150) {
+        std::thread::sleep(Duration::from_millis(2));
+    }
+    let waited = sent.elapsed();
+    println!(
+        "{} at {fps} fps: {} out after {waited:?}",
+        encoder.name(),
+        made.load(Ordering::Relaxed)
+    );
+    assert!(
+        made.load(Ordering::Relaxed) >= 1,
+        "{} kept a lone picture for {waited:?}",
+        encoder.name()
+    );
 }
 
 /// A Wayland share's PipeWire stream and the encoder this computer picks, with

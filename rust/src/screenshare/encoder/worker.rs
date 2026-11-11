@@ -12,6 +12,14 @@
 //! is encoded again then: at once when a keyframe is wanted, and after
 //! [`REPEAT_AFTER`] of quiet otherwise. A keyframe asked for again straight away
 //! waits its turn ([`KeyframePacing`]).
+//!
+//! An encoder may keep each picture until the next goes in, as NVENC is asked
+//! to above 60 fps ([`Session::holds_one_back`]). While pictures keep coming
+//! that is one picture of delay, but the last one before a screen goes still
+//! stayed in the encoder until the repeat a second later: a keystroke, a
+//! click's result, a share's first picture and a late viewer's keyframe all
+//! reached viewers that late (Nov 11 2026). So that picture is sent again once,
+//! [`push_after`] with nothing new, which brings it out.
 use super::key_pacing::KeyframePacing;
 use super::{clamp_bitrate, EncodedSink, EncoderInput, EncoderSettings, Nv12Frame};
 use crate::screenshare::latest::{self, Putter, Taker};
@@ -60,6 +68,15 @@ pub(super) trait Session {
     /// Whether it takes a picture on the GPU, [`EncoderInput::DmaBuf`] or
     /// [`EncoderInput::Wgc`]; one that does not fails on it.
     fn takes_gpu_picture(&self) -> bool;
+    /// Whether each picture stays in the encoder until the next goes in.
+    fn holds_one_back(&self) -> bool;
+}
+
+/// How long a picture may stay in an encoder that holds one back before it is
+/// sent again to bring it out: two pictures' time, so a share whose pictures
+/// keep coming never pays for it.
+pub(super) fn push_after(fps: u32) -> Duration {
+    Duration::from_secs_f64(2.0 / f64::from(fps.max(1)))
 }
 
 /// What a [`GpuEncoder`] is told of a DMA-BUF the GPU would not read: its
@@ -269,10 +286,21 @@ fn run<S, F>(
     // to repeat itself, but not one of these, and a still Wayland screen
     // sends nothing more.
     let mut kept: Option<Nv12Frame> = None;
+    // Since when the session holds back a picture viewers have yet to see: a
+    // new one, or a keyframe. A repeat sent only to mark time is not one.
+    let holds = session.holds_one_back();
+    let push_after = push_after(settings.fps);
+    let mut held: Option<Instant> = None;
     #[cfg(test)]
     let mut fed = 0u32;
     loop {
-        let input = frames.take_timeout(KEYFRAME_POLL);
+        let wait = match held {
+            Some(since) => push_after
+                .saturating_sub(since.elapsed())
+                .clamp(Duration::from_millis(1), KEYFRAME_POLL),
+            None => KEYFRAME_POLL,
+        };
+        let input = frames.take_timeout(wait);
         if input.is_none() && frames.closed() {
             break;
         }
@@ -326,7 +354,8 @@ fn run<S, F>(
                 continue;
             };
             let still = at.elapsed();
-            if !keyframe && still < REPEAT_AFTER {
+            let push = held.is_some_and(|since| since.elapsed() >= push_after);
+            if !keyframe && !push && still < REPEAT_AFTER {
                 continue;
             }
             let timestamp_us = timestamp_us + still.as_micros() as i64;
@@ -341,6 +370,7 @@ fn run<S, F>(
                     pacing.encoded(key_now);
                     keyframe &= !key_now;
                     last = Some((timestamp_us, Instant::now()));
+                    held = (holds && key_now).then(Instant::now);
                 }
                 // The session keeps no picture from memory: this thread does.
                 Ok(false) if kept.is_some() => {
@@ -360,6 +390,7 @@ fn run<S, F>(
                             pacing.encoded(key_now);
                             keyframe &= !key_now;
                             last = Some((timestamp_us, Instant::now()));
+                            held = (holds && key_now).then(Instant::now);
                         }
                         Err(EncodeError::Failed(e)) => {
                             log::warn!("encoder: {name} stopped working: {e}");
@@ -367,11 +398,14 @@ fn run<S, F>(
                             break;
                         }
                         // Only a DMA-BUF is imported.
-                        Err(EncodeError::ImportFailed { .. }) => {}
+                        Err(EncodeError::ImportFailed { .. }) => held = None,
                     }
                 }
                 // Nothing kept to repeat: the next picture is the keyframe.
-                Ok(false) => last = None,
+                Ok(false) => {
+                    last = None;
+                    held = None;
+                }
                 Err(e) => {
                     log::warn!("encoder: {name} stopped working: {e}");
                     shared.failed.store(true, Ordering::Relaxed);
@@ -403,6 +437,7 @@ fn run<S, F>(
                 pacing.encoded(key_now);
                 keyframe &= !key_now;
                 last = Some((timestamp_us, Instant::now()));
+                held = holds.then(Instant::now);
             }
             Err(EncodeError::ImportFailed {
                 drm_format,
@@ -450,6 +485,8 @@ mod tests {
         /// Whether it keeps a picture to repeat, as VAAPI keeps a DMA-BUF's;
         /// a picture from memory it does not.
         repeats_itself: bool,
+        /// Whether it says it holds each picture until the next goes in.
+        holds: bool,
     }
 
     impl Session for FakeSession {
@@ -478,6 +515,10 @@ mod tests {
 
         fn takes_gpu_picture(&self) -> bool {
             true
+        }
+
+        fn holds_one_back(&self) -> bool {
+            self.holds
         }
     }
 
@@ -510,12 +551,13 @@ mod tests {
 
     /// A fake encoder, what it is asked, and the sink's keyframe request.
     fn fake(import_fails: Option<(u32, u64)>) -> (GpuEncoder, Arc<Mutex<Asked>>, Arc<AtomicBool>) {
-        fake_session(import_fails, true)
+        fake_session(import_fails, true, false)
     }
 
     fn fake_session(
         import_fails: Option<(u32, u64)>,
         repeats_itself: bool,
+        holds: bool,
     ) -> (GpuEncoder, Arc<Mutex<Asked>>, Arc<AtomicBool>) {
         let asked = Arc::new(Mutex::new(Asked::default()));
         let keyframe = Arc::new(AtomicBool::new(false));
@@ -523,6 +565,7 @@ mod tests {
             asked: asked.clone(),
             import_fails,
             repeats_itself,
+            holds,
         };
         let encoder = GpuEncoder::start(
             SETTINGS,
@@ -588,7 +631,7 @@ mod tests {
     fn a_still_picture_from_memory_is_encoded_again() {
         // NVENC takes every picture from memory and keeps none to repeat, and
         // a GNOME screen that is still sends nothing more.
-        let (encoder, asked, keyframe) = fake_session(None, false);
+        let (encoder, asked, keyframe) = fake_session(None, false, false);
         encoder.submit_input(picture());
         assert!(until(Duration::from_millis(200), || asked
             .lock()
@@ -606,6 +649,66 @@ mod tests {
         thread::sleep(Duration::from_millis(1200));
         assert_eq!(asked.lock().unwrap().pictures, 3);
         assert!(!encoder.failed());
+    }
+
+    #[test]
+    fn a_picture_held_back_is_sent_again_once_to_bring_it_out() {
+        // NVENC above 60 fps hands a picture out when the next goes in, and
+        // on a still screen none does.
+        let (encoder, asked, keyframe) = fake_session(None, true, true);
+        encoder.submit_input(picture());
+        assert!(until(Duration::from_millis(200), || asked
+            .lock()
+            .unwrap()
+            .pictures
+            == 1));
+        // Two pictures' time later (67 ms at 30 fps), not the second a still
+        // screen otherwise waits.
+        assert!(until(Duration::from_millis(250), || {
+            asked.lock().unwrap().repeats == vec![false]
+        }));
+        // Once: the repeat itself is nothing a viewer waits for.
+        thread::sleep(Duration::from_millis(400));
+        assert_eq!(asked.lock().unwrap().repeats, vec![false]);
+        // A keyframe a viewer asks for is held back too, and brought out.
+        keyframe.store(true, Ordering::Relaxed);
+        assert!(until(Duration::from_millis(400), || {
+            asked.lock().unwrap().repeats == vec![false, true, false]
+        }));
+        thread::sleep(Duration::from_millis(300));
+        assert_eq!(asked.lock().unwrap().repeats, vec![false, true, false]);
+    }
+
+    #[test]
+    fn a_held_picture_from_memory_is_encoded_again_to_bring_it_out() {
+        // NVENC taking pictures from memory keeps none to repeat: the thread
+        // sends its own copy again.
+        let (encoder, asked, _) = fake_session(None, false, true);
+        encoder.submit_input(picture());
+        assert!(until(Duration::from_millis(350), || asked
+            .lock()
+            .unwrap()
+            .pictures
+            == 2));
+        thread::sleep(Duration::from_millis(400));
+        assert_eq!(asked.lock().unwrap().pictures, 2);
+    }
+
+    #[test]
+    fn pictures_that_keep_coming_are_not_sent_again() {
+        let (encoder, asked, _) = fake_session(None, true, true);
+        // 30 a second for half a second: each brings the one before it out.
+        for _ in 0..15 {
+            encoder.submit_input(picture());
+            thread::sleep(Duration::from_millis(33));
+        }
+        assert!(asked.lock().unwrap().repeats.len() <= 1);
+    }
+
+    #[test]
+    fn the_push_waits_two_pictures() {
+        assert_eq!(push_after(120), Duration::from_secs_f64(2.0 / 120.0));
+        assert_eq!(push_after(0), Duration::from_secs(2));
     }
 
     #[test]

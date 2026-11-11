@@ -714,7 +714,14 @@ what was driven are in `TESTING.md`).
   NVENC also holds one picture above 60 fps (`ffmpeg.rs`, `delay_frames`):
   waiting out each one at the idle clocks NVIDIA's driver drops to a few
   seconds into a share had kept it near 87 fps, and with it the viewer got
-  118.7, at one more picture of delay (8 ms).
+  118.7, at one more picture of delay (8 ms). The picture held comes out when
+  the next goes in, and on a screen that has gone still none does: a share's
+  pictures from Windows Graphics Capture or a Wayland compositor come only
+  when something changes. So the last change stayed in the encoder until the
+  still screen's repeat a second later (an RTX 3070 Ti kept a lone picture
+  past half a second, Nov 11 2026). The encoder's thread now sends that
+  picture again two pictures' time later, which brings it out: 18 ms at 120
+  (`worker.rs`, `Session::holds_one_back`).
 - **H265 from the GPU to the GPU.** On game footage
   at 11 Mbps it stayed at or above baseline H264 at 15 and level with High at 12, the
   least that did on both Intel and NVIDIA, and

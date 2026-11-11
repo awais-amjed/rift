@@ -532,6 +532,10 @@ pub(crate) fn opens(codec: GpuCodec) -> bool {
 /// nothing is held, and the picture is not a frame later. FFmpeg hands a
 /// picture out once `delay` are ready or waiting, and the newest is ready as
 /// soon as it is in, so 1 holds nothing.
+///
+/// A picture held comes out when the next goes in, so the encoder's thread
+/// sends a still screen's last one again to bring it out
+/// (`Session::holds_one_back`, `worker.rs`).
 fn delay_frames(fps: u32) -> i32 {
     if fps > 60 {
         2
@@ -734,6 +738,11 @@ impl Session for FfmpegSession {
         }
         self.receive(started)?;
         Ok(true)
+    }
+
+    fn holds_one_back(&self) -> bool {
+        // Only NVENC reads the delay (`ffenc.c`), and holds one from 2 up.
+        self.candidate.encoder == c"h264_nvenc" && delay_frames(self.settings.fps) > 1
     }
 
     #[cfg(target_os = "linux")]
