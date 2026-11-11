@@ -71,9 +71,11 @@ class ComposerStagedChip extends StatelessWidget {
         spacing: 8,
         children: [
           Icon(
-            attachment.kind == AttachmentKind.audio
-                ? Icons.audiotrack_rounded
-                : Icons.description_outlined,
+            switch (attachment.kind) {
+              AttachmentKind.audio => Icons.audiotrack_rounded,
+              AttachmentKind.video => Icons.movie_outlined,
+              _ => Icons.description_outlined,
+            },
             size: K.iconLarge,
             color: themeState.textTertiary,
           ),

@@ -14,15 +14,15 @@ import '../../../theme/app_shadows.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 import '../../loading_dots.dart';
-import 'attachment_file_card.dart';
 import 'attachment_loader.dart';
 import 'attachment_saving.dart';
+import 'video/attachment_video_card.dart';
 
 /// Inline player for an audio attachment (voice note or attached audio file).
 /// Bytes are fetched + decrypted lazily on first play via [loader]; playback is
 /// driven by the `audioplayers` package, from memory where it can
 /// ([ChatAudioSource]). A file that turns out to hold a video
-/// ([isoMediaHasVideo]) is not played: the card becomes a file card to save.
+/// ([isoMediaHasVideo]) is not played as sound: the card becomes a video card.
 class AudioMessagePlayer extends StatefulWidget {
   final Attachment attachment;
   final AttachmentLoader loader;
@@ -56,6 +56,7 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer>
     }
     return _checkedVideo;
   }
+
   bool _loading = false;
   bool _playing = false;
   Duration _position = Duration.zero;
@@ -130,7 +131,7 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer>
           ?.bytes,
     );
     if (_holdsVideo(held)) {
-      return AttachmentFileCard(
+      return AttachmentVideoCard(
         attachment: widget.attachment,
         loader: widget.loader,
       );
@@ -196,10 +197,7 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer>
           onTap: () => saveFile(widget.loader, widget.attachment),
           child: Padding(
             padding: const EdgeInsets.all(4),
-            child: SaveProgressGlyph(
-              busy: savingNow,
-              progress: saveProgress,
-            ),
+            child: SaveProgressGlyph(busy: savingNow, progress: saveProgress),
           ),
         ),
       ),

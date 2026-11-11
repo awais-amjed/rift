@@ -54,6 +54,7 @@ mixin _MessageRowActionsMixin on State<ChatMessageRow> {
     return switch (message.attachments.single.kind) {
       AttachmentKind.image => 'Save picture',
       AttachmentKind.audio => 'Save audio',
+      AttachmentKind.video => 'Save video',
       AttachmentKind.file => 'Save file',
     };
   }

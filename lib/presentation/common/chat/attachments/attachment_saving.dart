@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../data/classes/attachment.dart';
 import '../../../../data/constants.dart';
 import '../../../theme/app_text.dart';
+import '../../../theme/media_colors.dart';
 import '../../../theme/theme_context.dart';
 import '../../loading_dots.dart';
 import 'attachment_download.dart';
@@ -43,7 +44,16 @@ mixin AttachmentSaving<T extends StatefulWidget> on State<T> {
 class SaveProgressGlyph extends StatelessWidget {
   final bool busy;
   final double? progress;
-  const SaveProgressGlyph({super.key, required this.busy, this.progress});
+
+  /// Drawn over a video, which is dark whatever the theme.
+  final bool onMedia;
+
+  const SaveProgressGlyph({
+    super.key,
+    required this.busy,
+    this.progress,
+    this.onMedia = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -53,13 +63,20 @@ class SaveProgressGlyph extends StatelessWidget {
       return Icon(
         Icons.download_rounded,
         size: K.iconButton,
-        color: theme.textTertiary,
+        color: onMedia ? MediaColors.onMedia : theme.textTertiary,
       );
     }
-    if (progress == null) return LoadingDots(color: theme.primary, dotSize: 4);
+    if (progress == null) {
+      return LoadingDots(
+        color: onMedia ? MediaColors.onMedia : theme.primary,
+        dotSize: 4,
+      );
+    }
     return Text(
       '${(progress * 100).floor()}%',
-      style: AppText.figure.copyWith(color: theme.textSecondary),
+      style: AppText.figure.copyWith(
+        color: onMedia ? MediaColors.onMedia : theme.textSecondary,
+      ),
     );
   }
 }

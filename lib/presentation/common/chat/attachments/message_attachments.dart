@@ -6,10 +6,11 @@ import 'attachment_image_thumb.dart';
 import 'attachment_loader.dart';
 import 'attachment_plain_badge.dart';
 import 'audio_message_player.dart';
+import 'video/attachment_video_card.dart';
 
 /// Renders a message's decrypted attachments beneath its text: images as
-/// rounded thumbnails, audio inline players, and everything else as a download
-/// card. Bytes are fetched lazily via [loader] (cache-first).
+/// rounded thumbnails, audio and video inline players, and everything else as
+/// a download card. Bytes are fetched lazily via [loader] (cache-first).
 class MessageAttachments extends StatelessWidget {
   final List<Attachment> attachments;
   final AttachmentLoader loader;
@@ -33,6 +34,11 @@ class MessageAttachments extends StatelessWidget {
       loader: loader,
     ),
     AttachmentKind.audio => AudioMessagePlayer(
+      key: ValueKey(a.id),
+      attachment: a,
+      loader: loader,
+    ),
+    AttachmentKind.video => AttachmentVideoCard(
       key: ValueKey(a.id),
       attachment: a,
       loader: loader,

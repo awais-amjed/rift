@@ -91,6 +91,12 @@ libpulse-binding = "2.30.1"
 # (src/screenshare/portal.rs): D-Bus through zbus, pure Rust, no system
 # library.
 ashpd = { version = "0.13", default-features = false, features = ["tokio", "screencast"] }
+# A video in the chat, played by the system's GStreamer (src/clips/linux.rs),
+# which the app already needs for its sound (audioplayers). Its decoders are
+# whatever the system has: Rift ships none.
+gstreamer = "0.25"
+gstreamer-app = "0.25"
+gstreamer-video = "0.25"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 wasapi = "0.26.0"

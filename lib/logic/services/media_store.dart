@@ -58,6 +58,10 @@ class MediaStore {
   static String keyOf(String? origin, String path) =>
       origin == null ? path : '$origin\n$path';
 
+  /// Where [attachments] holds a video's poster, its first picture, beside
+  /// the video at [path]: made from decrypted content, so it goes with it.
+  static String posterOf(String path) => '$path#poster';
+
   MediaEntry? operator [](String key) => _entries[key];
 
   /// Everything held, for a reader starting late.
@@ -134,6 +138,9 @@ class MediaStore {
   void remove(String path) {
     _inFlight.remove(path);
     if (_entries.remove(path) != null) _changes.add(path);
+    final poster = posterOf(path);
+    _inFlight.remove(poster);
+    if (_entries.remove(poster) != null) _changes.add(poster);
   }
 
   /// Forget everything held, every fetch on its way, and what is on disk.

@@ -1,11 +1,11 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 
 import '../../src/rust/api/watching.dart';
 import '../helper_methods.dart';
 import 'inbound_video.dart';
+import 'runner_textures.dart';
 
 /// The Rust watch connection and the runner's textures, for `LiveKitCubit`.
 ///
@@ -17,12 +17,9 @@ import 'inbound_video.dart';
 /// the calls; which shares go this way, how loud each plays, and falling
 /// back when it fails, is the cubit's.
 ///
-/// The runner's side is the `rift/stream_texture` channel
-/// (`linux/runner/stream_texture.cc`, `windows/runner/stream_texture.cpp`).
+/// The runner's side is [RunnerTextures].
 class RustWatch {
   const RustWatch._();
-
-  static const MethodChannel _textures = MethodChannel('rift/stream_texture');
 
   /// Whether this build can watch this way: a runner with stream textures.
   /// `RIFT_WATCH_PATH=call` keeps the call's own connection, to measure the
@@ -77,41 +74,21 @@ class RustWatch {
   /// Makes a texture and watches [identity] into it; the texture's id, or
   /// null when either half failed, with nothing left behind.
   static Future<int?> watch(String identity) async {
-    final entry = watchFrameEntryPoints();
-    final int textureId;
-    final int mark;
-    // Whether the runner can draw a picture decoded on the GPU; where Rust
-    // decodes there and it cannot, watching is refused and the call's way
-    // taken.
-    final bool takesGpuPictures;
+    final texture = await RunnerTextures.create();
+    if (texture == null) return null;
     try {
-      final made = await _textures.invokeMapMethod<String, Object?>('create', {
-        'lock': entry.lock.toInt(),
-        'unlock': entry.unlock.toInt(),
-      });
-      final id = made?['textureId'];
-      final markAt = made?['mark'];
-      if (id is! int || markAt is! int) return null;
-      textureId = id;
-      mark = markAt;
-      takesGpuPictures = made?['takesGpuPictures'] == true;
-    } on MissingPluginException {
-      return null;
-    } catch (e) {
-      HelperMethods.printDebug('[RustWatch] no texture: $e');
-      return null;
-    }
-    try {
+      // Where Rust decodes on the GPU and the runner cannot draw that,
+      // watching is refused and the call's way taken.
       await watchShare(
         shareIdentity: identity,
-        texture: BigInt.from(textureId),
-        markFrame: BigInt.from(mark),
-        takesGpuPictures: takesGpuPictures,
+        texture: BigInt.from(texture.id),
+        markFrame: BigInt.from(texture.mark),
+        takesGpuPictures: texture.takesGpuPictures,
       );
-      return textureId;
+      return texture.id;
     } catch (e) {
       HelperMethods.printDebug('[RustWatch] watch: $e');
-      await _dispose(textureId);
+      await RunnerTextures.dispose(texture.id);
       return null;
     }
   }
@@ -205,11 +182,6 @@ class RustWatch {
     }
   }
 
-  static Future<void> _dispose(int textureId) async {
-    try {
-      await _textures.invokeMethod<void>('dispose', {'textureId': textureId});
-    } catch (e) {
-      HelperMethods.printDebug('[RustWatch] dispose: $e');
-    }
-  }
+  static Future<void> _dispose(int textureId) =>
+      RunnerTextures.dispose(textureId);
 }

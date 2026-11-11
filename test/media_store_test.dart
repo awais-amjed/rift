@@ -66,6 +66,17 @@ void main() {
       expect(store['q'], isNull);
     });
 
+    test("a video's poster goes with the video", () async {
+      // Made from decrypted content, so a deleted message takes it too.
+      final store = MediaStore(maxEntries: 10);
+      final poster = MediaStore.posterOf('v');
+      await store.load('v', () async => pic);
+      await store.load(poster, () async => pic);
+      store.remove('v');
+      expect(store['v'], isNull);
+      expect(store[poster], isNull);
+    });
+
     test('evicts the oldest and says so', () async {
       final store = MediaStore(maxEntries: 2);
       final changed = <String>[];

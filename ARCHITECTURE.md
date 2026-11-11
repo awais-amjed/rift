@@ -504,7 +504,11 @@ its bytes in that one's place; the copy in memory is held the same way. Attachme
 message content. The one copy outside memory is a chat sound playing on Linux,
 where the system player takes only a file: it is written under
 `$XDG_RUNTIME_DIR` (memory-backed, the user's alone) and deleted when the card
-lets go (`ChatAudioSource`). In the app's cache folder, which the OS may empty and Android
+lets go (`ChatAudioSource`). A chat video never leaves memory: Rust hands its bytes
+to the system's own player (GStreamer on Linux, with whatever decoders the system has:
+Rift ships none) and draws its pictures into a runner texture, as a watched share's are
+(`ChatClip`, `rust/src/clips`); its card's poster, the first picture, is made the same way
+and held beside it in memory. In the app's cache folder, which the OS may empty and Android
 and iOS leave out of backups; not on the web.
 
 ### Decisions locked in for day one

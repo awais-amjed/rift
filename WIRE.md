@@ -339,13 +339,13 @@ nothing that opens them. Each entry:
 
 | Key | Holds |
 |---|---|
-| `id`, `kind`, `name`, `mime` | the file's id in the message, `image` / `audio` / `file`, its name and type |
+| `id`, `kind`, `name`, `mime` | the file's id in the message, `image` / `audio` / `video` / `file`, its name and type. A kind a reader does not know is a `file`, so a client from before `video` offers a video to save; and a `file` whose type is `video/…` is read as a `video`, which is how one went before |
 | `size` | the **plaintext** length in bytes |
 | `path` | the object in the server's attachment bucket; which folder a member may write is the server's rule (`API.md`), not the format's |
 | `key`, `nonce` | base64: a 32-byte key, random per file, and a 12-byte nonce — or a 7-byte prefix when `chunk` is set |
 | `chunk` | present only when the file is sealed a chunk at a time: the plaintext bytes per chunk |
 | `plain`, `sha256` | present only when the file was sent unencrypted: `true`, and the base64 SHA-256 of its bytes |
-| `w`, `h`, `dur` | optional: a picture's size, a recording's length in ms |
+| `w`, `h`, `dur` | optional: a picture's or video's size as shown (a video turned upright), a recording's or video's length in ms |
 
 **In one piece** (no `chunk`): the object is `AES-256-GCM(file, key, nonce)`
 with no associated data and the 16-byte tag after the ciphertext.

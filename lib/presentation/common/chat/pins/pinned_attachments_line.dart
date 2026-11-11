@@ -20,6 +20,7 @@ class PinnedAttachmentsLine extends StatelessWidget {
   static IconData _iconFor(AttachmentKind kind) => switch (kind) {
     AttachmentKind.image => Icons.image_outlined,
     AttachmentKind.audio => Icons.graphic_eq_rounded,
+    AttachmentKind.video => Icons.movie_outlined,
     AttachmentKind.file => Icons.insert_drive_file_outlined,
   };
 

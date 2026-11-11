@@ -33,10 +33,7 @@ class ChatAudioSource {
     ).join();
     final file = File('${dir.path}/$name');
     await file.writeAsBytes(bytes, flush: true);
-    return ChatAudioSource._(
-      DeviceFileSource(file.path, mimeType: mime),
-      file,
-    );
+    return ChatAudioSource._(DeviceFileSource(file.path, mimeType: mime), file);
   }
 
   /// Deletes the copy, if there is one. Call once the player has stopped
@@ -76,9 +73,9 @@ class ChatAudioSource {
   static Future<void> _sweep(Directory root) async {
     try {
       await for (final entry in root.list()) {
-        final owner = int.tryParse(entry.uri.pathSegments.lastWhere(
-          (s) => s.isNotEmpty,
-        ));
+        final owner = int.tryParse(
+          entry.uri.pathSegments.lastWhere((s) => s.isNotEmpty),
+        );
         if (owner == null || owner == pid) continue;
         if (await Directory('/proc/$owner').exists()) continue;
         await entry.delete(recursive: true);

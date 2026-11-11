@@ -1,14 +1,19 @@
 import 'package:equatable/equatable.dart';
 
 /// What kind of attachment this is, so the UI knows how to render it.
+///
+/// A kind a client does not know reads as [file] (`fromName`), so a client
+/// from before [video] shows a video as a file to save.
 enum AttachmentKind {
   image,
   audio,
+  video,
   file;
 
   static AttachmentKind fromMime(String mime) {
     if (mime.startsWith('image/')) return AttachmentKind.image;
     if (mime.startsWith('audio/')) return AttachmentKind.audio;
+    if (mime.startsWith('video/')) return AttachmentKind.video;
     return AttachmentKind.file;
   }
 
@@ -18,9 +23,22 @@ enum AttachmentKind {
         return AttachmentKind.image;
       case 'audio':
         return AttachmentKind.audio;
+      case 'video':
+        return AttachmentKind.video;
       default:
         return AttachmentKind.file;
     }
+  }
+
+  /// The kind written in a message, [name], for a file of type [mime]. A
+  /// video sent before videos played went as a file, so one with a video
+  /// type plays as well.
+  static AttachmentKind read(String name, String mime) {
+    final kind = fromName(name);
+    if (kind == AttachmentKind.file && mime.startsWith('video/')) {
+      return AttachmentKind.video;
+    }
+    return kind;
   }
 }
 
@@ -99,7 +117,10 @@ class Attachment extends Equatable {
   factory Attachment.fromJson(Map<String, dynamic> json) {
     return Attachment(
       id: json['id'] as String,
-      kind: AttachmentKind.fromName(json['kind'] as String? ?? 'file'),
+      kind: AttachmentKind.read(
+        json['kind'] as String? ?? 'file',
+        json['mime'] as String,
+      ),
       name: json['name'] as String,
       mime: json['mime'] as String,
       size: json['size'] as int,

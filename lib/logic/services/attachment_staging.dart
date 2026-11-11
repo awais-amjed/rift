@@ -100,15 +100,32 @@ class AttachmentStaging {
     }
     final bytes = await file.readAsBytes();
     if (temporary) await discardCopy(file);
-    // A phone's picker labels a short MP4 video `audio/mp4` often enough
-    // that it is checked: sent as sound, it is drawn as a voice note.
-    if (kind == AttachmentKind.audio && isoMediaHasVideo(bytes) == true) {
-      return PendingAttachment(
-        bytes: bytes,
-        name: name,
-        mime: 'video/mp4',
-        kind: AttachmentKind.file,
-      );
+    // What a sound or video file holds is read from it, not its label: a
+    // phone's picker labels a short MP4 video `audio/mp4` often enough that
+    // one sent as sound was drawn as a voice note.
+    if (kind == AttachmentKind.audio || kind == AttachmentKind.video) {
+      final media = isoMediaInfo(bytes);
+      if (media != null && media.hasVideo) {
+        return PendingAttachment(
+          bytes: bytes,
+          name: name,
+          mime: kind == AttachmentKind.video ? mime : 'video/mp4',
+          kind: AttachmentKind.video,
+          width: media.width,
+          height: media.height,
+          durationMs: media.durationMs,
+        );
+      }
+      if (media != null) {
+        // An MP4 with sound only, whatever it was called.
+        return PendingAttachment(
+          bytes: bytes,
+          name: name,
+          mime: kind == AttachmentKind.audio ? mime : 'audio/mp4',
+          kind: AttachmentKind.audio,
+          durationMs: media.durationMs,
+        );
+      }
     }
     final dimensions = kind == AttachmentKind.image
         ? await readImageDimensions(bytes)

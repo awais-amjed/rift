@@ -13,6 +13,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_web.dart';
 
 import 'api/audio_endpoints.dart';
 import 'api/blob_cipher.dart';
+import 'api/clips.dart';
 import 'api/cue.dart';
 import 'api/ducking.dart';
 import 'api/logs.dart';
@@ -58,6 +59,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlobHasher(
     dynamic raw,
   );
+
+  @protected
+  RustStreamSink<ClipEvent> dco_decode_StreamSink_clip_event_Sse(dynamic raw);
 
   @protected
   RustStreamSink<DuckingEvent> dco_decode_StreamSink_ducking_event_Sse(
@@ -129,6 +133,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int dco_decode_box_autoadd_u_32(dynamic raw);
 
   @protected
+  BigInt dco_decode_box_autoadd_u_64(dynamic raw);
+
+  @protected
   WatchRoom dco_decode_box_autoadd_watch_room(dynamic raw);
 
   @protected
@@ -136,6 +143,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   CaptureSource dco_decode_capture_source(dynamic raw);
+
+  @protected
+  ClipEvent dco_decode_clip_event(dynamic raw);
+
+  @protected
+  ClipEventKind dco_decode_clip_event_kind(dynamic raw);
+
+  @protected
+  ClipTime dco_decode_clip_time(dynamic raw);
 
   @protected
   CueStarted dco_decode_cue_started(dynamic raw);
@@ -202,6 +218,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
+
+  @protected
+  BigInt? dco_decode_opt_box_autoadd_u_64(dynamic raw);
 
   @protected
   WatchStats? dco_decode_opt_box_autoadd_watch_stats(dynamic raw);
@@ -284,6 +303,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   BlobHasher
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlobHasher(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  RustStreamSink<ClipEvent> sse_decode_StreamSink_clip_event_Sse(
     SseDeserializer deserializer,
   );
 
@@ -373,6 +397,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
+  BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer);
+
+  @protected
   WatchRoom sse_decode_box_autoadd_watch_room(SseDeserializer deserializer);
 
   @protected
@@ -380,6 +407,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   CaptureSource sse_decode_capture_source(SseDeserializer deserializer);
+
+  @protected
+  ClipEvent sse_decode_clip_event(SseDeserializer deserializer);
+
+  @protected
+  ClipEventKind sse_decode_clip_event_kind(SseDeserializer deserializer);
+
+  @protected
+  ClipTime sse_decode_clip_time(SseDeserializer deserializer);
 
   @protected
   CueStarted sse_decode_cue_started(SseDeserializer deserializer);
@@ -454,6 +490,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
+
+  @protected
+  BigInt? sse_decode_opt_box_autoadd_u_64(SseDeserializer deserializer);
 
   @protected
   WatchStats? sse_decode_opt_box_autoadd_watch_stats(
@@ -548,6 +587,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBlobHasher(
     BlobHasher self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_StreamSink_clip_event_Sse(
+    RustStreamSink<ClipEvent> self,
     SseSerializer serializer,
   );
 
@@ -654,6 +699,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_watch_room(
     WatchRoom self,
     SseSerializer serializer,
@@ -667,6 +715,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_capture_source(CaptureSource self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_clip_event(ClipEvent self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_clip_event_kind(ClipEventKind self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_clip_time(ClipTime self, SseSerializer serializer);
 
   @protected
   void sse_encode_cue_started(CueStarted self, SseSerializer serializer);
@@ -763,6 +820,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_u_64(BigInt? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_watch_stats(

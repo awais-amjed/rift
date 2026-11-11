@@ -48,6 +48,7 @@ class MessageExcerpt {
     return switch (only) {
       AttachmentKind.image => several ? 'Images' : 'Image',
       AttachmentKind.audio => several ? 'Voice messages' : 'Voice message',
+      AttachmentKind.video => several ? 'Videos' : 'Video',
       AttachmentKind.file => several ? 'Files' : 'File',
       null => 'Attachments',
     };
