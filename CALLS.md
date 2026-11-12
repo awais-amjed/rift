@@ -1734,9 +1734,17 @@ runtimes' outputs
 were 31 to 46 dB apart under the voice, with the same 50 ms delay, and the
 owner, played pairs of them, heard no difference. On a made-up voice that
 DPDFNet-2 half takes for noise they came 20 dB apart, where each turns it
-down by a different few decibels. Not measured: an AMD CPU, and in the app a
-CPU without AVX-VNNI (outside it, on the same laptop with those kernels left
-out, DPDFNet-2 took 0.54 ms a frame against 0.43, DPDFNet-8 1.21 against 0.93).
+down by a different few decibels. On a laptop with the AVX-VNNI kernels left
+out, outside the app, DPDFNet-2 took 0.54 ms a frame against 0.43 and DPDFNet-8
+1.21 against 0.93. An AMD CPU without AVX-VNNI runs fine on the AVX2 kernels.
+This was measured on Nov 13 2026 on a Ryzen 9 7950X (Zen 4, whose AVX-512 VNNI
+Ceva's check does not count) running Linux:
+
+- Per frame: DPDFNet-2 took 0.34 ms against ONNX Runtime's 0.92, and DPDFNet-8
+  took 0.83 against 2.78.
+- In a call, the mic's thread used 11 to 12% of a core on DPDFNet-8, against
+  32 to 33% on ONNX Runtime.
+- The two runtimes' outputs came out the same as on Intel.
 
 Beside a game, the same night on the same laptop: CS2 in front, uncapped, on a
 local map with no bots and the player standing still, the same two clients in
