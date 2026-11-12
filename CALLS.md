@@ -1693,10 +1693,10 @@ saved in between stay on DPDFNet-2. That change-over
 looks only at how long the model takes (`SLOW_FRAME`), so it does not act on a
 computer fast enough for the model beside a game. There DPDFNet-8 keeps taking
 about 3 times DPDFNet-2's work (3.4 ms against 1.2 of each 10 ms on an i7-12700H's
-performance core, Oct 14), on Windows ahead of the game. Not measured: a game
-beside DPDFNet-8 on the mic's thread, though the owner played one on real Windows
-on Nov 6 and reported no stutter. Everything above is DPDFNet-2, and all of it
-on ONNX Runtime.
+performance core, Oct 14), on Windows ahead of the game. The owner played one
+beside it on real Windows on Nov 6 and reported no stutter. Everything above is
+DPDFNet-2, and all of it on ONNX Runtime; a game beside DPDFNet-8 was first
+measured on Nov 12, on both runtimes (below).
 
 Since Nov 12 2026 the model runs on Ceva's own runtime for it on Windows
 (`native/dpdfnet`, `rust/src/dpdfnet/ceva.rs`): the code the models' maker
@@ -1731,10 +1731,32 @@ runtimes' outputs
 were 31 to 46 dB apart under the voice, with the same 50 ms delay, and the
 owner, played pairs of them, heard no difference. On a made-up voice that
 DPDFNet-2 half takes for noise they came 20 dB apart, where each turns it
-down by a different few decibels. Not measured: a game beside the model on
-Ceva's runtime, an AMD CPU, and in the app a CPU without AVX-VNNI (outside it,
-on the same laptop with those kernels left out, DPDFNet-2 took 0.54 ms a frame
-against 0.43, DPDFNet-8 1.21 against 0.93).
+down by a different few decibels. Not measured: an AMD CPU, and in the app a
+CPU without AVX-VNNI (outside it, on the same laptop with those kernels left
+out, DPDFNet-2 took 0.54 ms a frame against 0.43, DPDFNet-8 1.21 against 0.93).
+
+Beside a game, the same night on the same laptop: CS2 in front, uncapped, on a
+local map with no bots and the player standing still, the same two clients in
+the call and recorded speech into the mic, 60 s a round with PresentMon timing
+the game's frames, each runtime and model twice and CS2 alone at the start and
+end. The call took 6.3 to 6.6% of CS2's frame rate whichever ran the model
+(335 frames a second alone, 313 to 314 in a call, both clients counted), and no
+frame over 16.7 ms in any round. Its slowest 1% of frames went 0.33 ms longer
+on Ceva's runtime and 0.42 on ONNX Runtime. CS2 alone drifted 7% between the
+first round and the last, more than any gap between the two runtimes, so for
+the game they are alike. The difference is on the mic's thread, which the game
+pushes up from the quiet call's numbers:
+
+| Beside CS2 | ONNX Runtime | Ceva's runtime |
+|---|---|---|
+| DPDFNet-2, the mic's thread | 34% of a core | 9 to 10% |
+| DPDFNet-2, slowest frame | 5.1 to 6.3 ms, 2 or 3 over 5 ms | 2.0 ms, none over 5 |
+| DPDFNet-8, the mic's thread | 34% (as DPDFNet-2, below) | 17 to 18% |
+| DPDFNet-8, slowest frame | 10.8 to 11.6 ms, 9 to 11 over 5 ms | 4.1 ms, none over 5 |
+
+On ONNX Runtime DPDFNet-8 went over to DPDFNet-2 in both its calls (`too slow
+here`); on Ceva's runtime it stayed in both. So beside a game DPDFNet-8 now
+keeps up, for what DPDFNet-2 costs the game.
 
 Measured Oct 25 2026 on a laptop's Windows: receiving a 1080p60 stream, the
 decoder took 25% of a core at time-critical while a stand-in game ran on every
