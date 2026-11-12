@@ -1654,8 +1654,10 @@ On Linux the same switch changes nothing: libwebrtc asks for real-time
 scheduling, which an ordinary user is refused, so every queue stays at nice 0.
 
 The mic's own thread is time-critical on Windows ("Pro Audio"), and libwebrtc
-runs the noise model on it, so DPDFNet takes its 2 to 8 ms of every 10 ahead of
-a game. That is a price chosen on purpose. From Oct 25 to Oct 31 2026 the model
+runs the noise model on it, so DPDFNet takes its share of every 10 ms ahead of
+a game: 2 to 8 ms on ONNX Runtime, half a millisecond to 3 on Ceva's own
+runtime, which Windows has had since Nov 12 2026 (below). That is a price
+chosen on purpose. From Oct 25 to Oct 31 2026 the model
 had a thread of its own at normal priority, sharing the cores with the game,
 where a frame it was late with went out unfiltered. On that build (beta.9)
 testers heard a Windows friend's voice crackle and cut out, so beta.10 let them
@@ -1693,7 +1695,46 @@ computer fast enough for the model beside a game. There DPDFNet-8 keeps taking
 about 3 times DPDFNet-2's work (3.4 ms against 1.2 of each 10 ms on an i7-12700H's
 performance core, Oct 14), on Windows ahead of the game. Not measured: a game
 beside DPDFNet-8 on the mic's thread, though the owner played one on real Windows
-on Nov 6 and reported no stutter. Everything above is DPDFNet-2.
+on Nov 6 and reported no stutter. Everything above is DPDFNet-2, and all of it
+on ONNX Runtime.
+
+Since Nov 12 2026 the model runs on Ceva's own runtime for it on Windows
+(`native/dpdfnet`, `rust/src/dpdfnet/ceva.rs`): the code the models' maker
+wrote for exactly these two, with their matrix products in 8-bit whole numbers
+and AVX2 assembly, where ONNX Runtime runs each as a graph of some 470 small
+steps. No setting of ONNX Runtime had made a difference worth having: its
+optimisation levels, denormals as zero, and its memory options were all within
+5% (the models as floats; Ceva publishes no 8-bit ONNX files). ONNX Runtime
+stays for a CPU without AVX2 and FMA, which Ceva's needs, and for Linux, where
+the library is not built yet. Measured that day on the i7-12700H's Windows, a
+release build in a call with a second client deafened, the same build held to
+ONNX Runtime for comparison (`RIFT_DPDFNET_ONNX`), 20 s each:
+
+| The mic's thread, of one core | ONNX Runtime | Ceva's runtime |
+|---|---|---|
+| DPDFNet-2, silence | 21.1% | 5.4% |
+| DPDFNet-2, speech | 21.2% | 6.4% |
+| DPDFNet-8, silence | 48.1% | 11.6% |
+| DPDFNet-8, speech | 50.8% | 12.2% |
+
+DPDFNet-8's slowest frame of the call was 2.5 ms where it had been 7.4, and
+none took over 5 ms where 1,833 of 7,293 had. So DPDFNet-8 now costs about
+half of what DPDFNet-2 did. Silence costs what speech does on both: the model
+does the same work whatever it hears. A GPU was not tried. A frame is a few
+hundred tiny steps a hundred times a second, which a trip to the GPU and back
+would cost more than, beside the game the change is for.
+
+The sound, held against ONNX Runtime's: on 18 clips of speech in noise (five
+mixed here, thirteen from DeepFilterNet's published samples, people recorded
+near real noise and VoiceBank-DEMAND among them; both models) the two
+runtimes' outputs
+were 31 to 46 dB apart under the voice, with the same 50 ms delay, and the
+owner, played pairs of them, heard no difference. On a made-up voice that
+DPDFNet-2 half takes for noise they came 20 dB apart, where each turns it
+down by a different few decibels. Not measured: a game beside the model on
+Ceva's runtime, an AMD CPU, and in the app a CPU without AVX-VNNI (outside it,
+on the same laptop with those kernels left out, DPDFNet-2 took 0.54 ms a frame
+against 0.43, DPDFNet-8 1.21 against 0.93).
 
 Measured Oct 25 2026 on a laptop's Windows: receiving a 1080p60 stream, the
 decoder took 25% of a core at time-critical while a stand-in game ran on every

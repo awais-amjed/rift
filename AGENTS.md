@@ -48,8 +48,9 @@ third_party/      # Code kept here: packages to patch, and RNNoise — each says
                   # (LiveKit's Rust SDKs are patched in a fork instead, pinned in rust/Cargo.toml)
 native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model inside
                       # libwebrtc's processing of the mic — RNNoise, or DPDFNet
-                      # (rust/src/dpdfnet.rs, on the ONNX Runtime native/onnxruntime
-                      # bundles beside the app) from the Rust library — then the mic volume, with a limiter,
+                      # (rust/src/dpdfnet, on Ceva's own runtime for it, which
+                      # native/dpdfnet builds for Windows, or on the ONNX Runtime
+                      # native/onnxruntime bundles beside the app) from the Rust library — then the mic volume, with a limiter,
                       # all switched from Dart over FFI (NoiseFilter, MicVolume). The
                       # settings mic test reads the mic outside libwebrtc and runs the
                       # same steps in rust/src/mic_test/clean.rs, borrowing the runner's
@@ -401,8 +402,11 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
 - Pure logic (frame sizing, pixel sampling, sample conversion) is a plain function with unit
   tests; `cargo test --release` runs them anywhere. `cargo test live_ -- --ignored --test-threads=1` runs a real share
   against a LiveKit server (see `rust/src/screenshare/live_test.rs`). DPDFNet's tests need
-  ONNX Runtime, which is not part of the crate: `RIFT_ONNXRUNTIME=<libonnxruntime.so>
-  cargo test --release dpdfnet -- --ignored` (the bundle's `lib/` has one after a build).
+  a runtime, and neither is part of the crate: `RIFT_DPDFNET_LIB=<rift_dpdfnet.dll>` for
+  Ceva's (`native/dpdfnet/test.sh OUT_DIR` builds one, and runs Ceva's own tests on it),
+  `RIFT_ONNXRUNTIME=<libonnxruntime.so>` for ONNX Runtime (the bundle's `lib/` has one after
+  a build), and both for the test that holds one against the other:
+  `cargo test --release dpdfnet -- --ignored`.
 - `rust/src/frb_generated.rs` and `lib/src/rust/` are generated. After changing the API surface,
   regenerate with flutter_rust_bridge codegen (config in `flutter_rust_bridge.yaml`,
   pinned to flutter_rust_bridge 2.13.0 — keep the Dart package and codegen versions in lockstep).

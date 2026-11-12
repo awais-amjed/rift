@@ -1,5 +1,6 @@
 # ONNX Runtime, Microsoft's own CPU build, which the Rust crate opens at run
-# time for DPDFNet, a noise model on the microphone (rust/src/dpdfnet.rs). It
+# time for DPDFNet, a noise model on the microphone, on a computer Ceva's own
+# runtime for it (native/dpdfnet) cannot run on (rust/src/dpdfnet). It
 # is not linked into that library: the static build brings its own protobuf
 # and abseil, which clash with libwebrtc's. Microsoft's shared library exports
 # only its C API.

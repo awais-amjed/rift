@@ -23,6 +23,12 @@ try {
   if (-not (Test-Path (Join-Path $release 'rift_ffenc.dll'))) {
     throw 'rift_ffenc.dll was not built: install MSYS2 and the packages native/ffenc/build.sh names'
   }
+  # Ceva's runtime for DPDFNet (native/dpdfnet), left out the same way. A
+  # release without it would run the noise model on ONNX Runtime, at four
+  # times the work for every frame of the microphone.
+  if (-not (Test-Path (Join-Path $release 'rift_dpdfnet.dll'))) {
+    throw 'rift_dpdfnet.dll was not built: install MSYS2 and the packages native/dpdfnet/build.sh names'
+  }
 } finally {
   Pop-Location
 }

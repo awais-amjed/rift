@@ -1,6 +1,13 @@
-Licence for DPDFNet-8, the 48 kHz model from Ceva (huggingface.co/Ceva-IP/DPDFNet,
-onnx/dpdfnet8_48khz_hr.onnx; code at github.com/ceva-ip/DPDFNet), built into the
+Licence for DPDFNet-8 and DPDFNet-2, the 48 kHz models from Ceva
+(huggingface.co/Ceva-IP/DPDFNet, onnx/dpdfnet8_48khz_hr.onnx and
+onnx/dpdfnet2_48khz_hr.onnx; code at github.com/ceva-ip/DPDFNet), built into the
 Linux and Windows apps to filter noise from the microphone. Unmodified.
+
+And for Ceva's own runtime for those models, with their weights (the same
+repository, branch optimized-inference, folder optimized_inference), built into
+rift_dpdfnet.dll in the Windows app. Modified: the prototypes of its assembly
+kernels are marked as System V's calling convention, so that it builds for
+Windows (third_party/dpdfnet in Rift's source).
 
                                  Apache License
                            Version 2.0, January 2004

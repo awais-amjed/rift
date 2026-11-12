@@ -45,7 +45,7 @@ RIFT_NOISE_FILTER_EXPORT void rift_noise_filter_set_gain(float gain);
 RIFT_NOISE_FILTER_EXPORT void rift_noise_filter_set_silenced(int32_t silenced);
 
 // Where DPDFNet is, once the Rust library has loaded it: its
-// rift_dpdfnet_process and rift_dpdfnet_reset (rust/src/dpdfnet.rs). The
+// rift_dpdfnet_process and rift_dpdfnet_reset (rust/src/dpdfnet). The
 // runner does not link that library, so Dart passes the addresses on.
 RIFT_NOISE_FILTER_EXPORT void rift_noise_filter_set_dpdfnet(void* process,
                                                             void* reset);

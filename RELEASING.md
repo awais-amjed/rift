@@ -55,7 +55,8 @@ each platform (`scripts/vpk_pack.sh`):
 
 Not published, and kept with the run for as long as GitHub keeps a run's
 artifacts: `windows-symbols`, the FFmpeg library's linker map
-(`rift_ffenc.map`) and the Rust library's PDB from that exact build. A crash in
+(`rift_ffenc.map`), the same for Ceva's runtime for DPDFNet
+(`rift_dpdfnet.map`) and the Rust library's PDB from that exact build. A crash in
 someone's log gives offsets into those libraries (`ARCHITECTURE.md` §9), and
 only the same build's map or PDB turns them into function names, so download
 it from the release's run when a report needs it.

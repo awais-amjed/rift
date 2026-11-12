@@ -1,0 +1,12 @@
+/* What leaves librift_dpdfnet.so: rift_dpdfnet.h, and nothing of Ceva's. */
+{
+  global:
+    rift_dpdfnet_abi;
+    rift_dpdfnet_model_supported;
+    rift_dpdfnet_model_open;
+    rift_dpdfnet_model_run;
+    rift_dpdfnet_model_reset;
+    rift_dpdfnet_model_close;
+  local:
+    *;
+};

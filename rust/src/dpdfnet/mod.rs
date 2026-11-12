@@ -1,19 +1,29 @@
 //! DPDFNet, the third model the microphone filter can run: Ceva's 48 kHz
-//! models (Apache-2.0, `models/`), on ONNX Runtime, which is opened from
-//! beside the app the first time the model loads ([`RUNTIME`]).
+//! models (Apache-2.0), on Ceva's own runtime for them ([`ceva`]), or on ONNX
+//! Runtime ([`onnx`]) where that one cannot run: a CPU without AVX2 and FMA,
+//! or a bundle without its library, which is every Linux one so far.
 //!
 //! It keeps more of the voice than DeepFilterNet, which it grew out of and
-//! which Rift offered until Oct 21, for more work. DPDFNet-8, the one that sounded best, took 3.4 ms a frame on a
-//! performance core of an i7-12700H and 7.7 on one of its efficiency cores,
-//! where libwebrtc's capture thread sometimes runs: there a call had 6% of its
-//! frames late, which is heard as crackle. DPDFNet-2 took 1.2 and 2.8 ms
-//! (Oct 14; DeepFilterNet 0.6 on a performance core). So both are loaded, and
-//! the large one runs until frames show the computer cannot keep up with it
-//! ([`SLOW_FRAME`]), when the small one takes over until the call ends
-//! ([`retry_large`]): the large one gets another go with each call, since a
-//! computer is often slow only for a while (a game loading, a build), and a
-//! slow one costs a second of crackle at the start of a call, not of every
-//! unmute.
+//! which Rift offered until Oct 21, for more work. On ONNX Runtime, the only
+//! runtime until Nov 12, DPDFNet-8, the one that sounded best, took 3.4 ms a
+//! frame on a performance core of an i7-12700H and 7.7 on one of its
+//! efficiency cores, where libwebrtc's capture thread sometimes runs: there a
+//! call had 6% of its frames late, which is heard as crackle. DPDFNet-2 took
+//! 1.2 and 2.8 ms (Oct 14; DeepFilterNet 0.6 on a performance core). So both
+//! are loaded, and the large one runs until frames show the computer cannot
+//! keep up with it ([`SLOW_FRAME`]), when the small one takes over until the
+//! call ends ([`retry_large`]): the large one gets another go with each call,
+//! since a computer is often slow only for a while (a game loading, a build),
+//! and a slow one costs a second of crackle at the start of a call, not of
+//! every unmute.
+//!
+//! Ceva's runtime does the same frame in a quarter of the time. In a call on
+//! that laptop's Windows the capture thread took 5% of a core on DPDFNet-2
+//! where ONNX Runtime took 21%, and 12% on DPDFNet-8 where it took 48%, with
+//! no frame of DPDFNet-8 over 5 ms where a quarter of them had been (Nov 12,
+//! `CALLS.md`, *Rift beside a game*). So there the change-over above should
+//! be rare; it stays for the computers that need it.
+//!
 //! The model runs on libwebrtc's capture thread, left on whichever cores the
 //! system gives it, and on Windows that thread is time-critical, so it goes
 //! ahead of a game. From Oct 25 to Oct 31 it had a thread of its own at normal
@@ -30,27 +40,26 @@
 //! once Dart has loaded the model ([`load`]) and handed their addresses on.
 //! The settings mic test runs a [`Model`] of its own (`mic_test::clean`).
 
-use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-use std::sync::{Mutex, OnceLock};
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use df::{Complex32, DFState};
-use ort::session::{builder::GraphOptimizationLevel, Session};
-use ort::value::TensorRef;
+
+mod ceva;
+mod onnx;
 
 /// What libwebrtc hands over: 10 ms at 48 kHz, which is also the models' hop.
 pub(crate) const FRAME: usize = 480;
-
-/// DPDFNet-8 and DPDFNet-2 at 48 kHz, from huggingface.co/Ceva-IP/DPDFNet
-/// (`onnx/dpdfnet8_48khz_hr.onnx`, `onnx/dpdfnet2_48khz_hr.onnx`).
-static LARGE: &[u8] = include_bytes!("../models/dpdfnet8_48khz_hr.onnx");
-static SMALL: &[u8] = include_bytes!("../models/dpdfnet2_48khz_hr.onnx");
 
 /// The models' window: 20 ms, moved on 10 ms at a time. Its spectrum has
 /// this many bins over two.
 const WINDOW: usize = 960;
 const BINS: usize = WINDOW / 2 + 1;
+
+/// A spectrum as the models take it: each bin's real and imaginary parts
+/// side by side.
+const SPECTRUM: usize = BINS * 2;
 
 /// libwebrtc's samples are on the 16-bit scale; the model's are on ±1.
 const SCALE: f32 = 32768.0;
@@ -90,58 +99,51 @@ static UNFILTERED: AtomicU32 = AtomicU32::new(0);
 /// the log itself.
 static FELL_BACK: AtomicBool = AtomicBool::new(false);
 
-/// ONNX Runtime, from Microsoft's release, which the runner's CMake bundles
-/// (`native/onnxruntime`).
-#[cfg(target_os = "linux")]
-const RUNTIME: &str = "lib/libonnxruntime.so";
-#[cfg(target_os = "windows")]
-const RUNTIME: &str = "onnxruntime.dll";
+/// Which of the two models: DPDFNet-8 or DPDFNet-2.
+#[derive(Clone, Copy)]
+enum Size {
+    Large,
+    Small,
+}
 
-/// What a test points at a copy of it elsewhere.
-const RUNTIME_ENV: &str = "RIFT_ONNXRUNTIME";
-
-/// One of the two models, and what it carries from one frame to the next.
-struct Net {
-    session: Session,
-    /// Everything the model keeps between frames, in one tensor.
-    state: Vec<f32>,
-    /// The state it starts from: zeros, but for the running means its
-    /// normalisation begins at, which the model file says.
-    initial: Vec<f32>,
+/// One of the two models, on the runtime this computer has for it, and what
+/// it carries from one frame to the next.
+enum Net {
+    Ceva(ceva::Net),
+    Onnx(onnx::Net),
 }
 
 impl Net {
-    fn load(onnx: &[u8]) -> Result<Net, String> {
-        let session = session(onnx).map_err(|e| format!("DPDFNet would not load: {e}"))?;
-        let initial = initial_state(&session)?;
-        Ok(Net {
-            session,
-            state: initial.clone(),
-            initial,
-        })
+    /// On Ceva's runtime where it opens, on ONNX Runtime where it does not.
+    fn load(size: Size) -> Result<Net, String> {
+        match ceva::Net::load(size) {
+            Ok(net) => Ok(Net::Ceva(net)),
+            Err(_) => onnx::Net::load(size).map(Net::Onnx),
+        }
     }
 
-    /// One step: `input` in, the cleaned spectrum out to `spec` (scaled back
-    /// for libDF's inverse transform), and the state carried on.
-    fn run(&mut self, input: &[f32], spec: &mut [Complex32]) -> ort::Result<()> {
-        let outputs = self.session.run(ort::inputs![
-            "spec" => TensorRef::from_array_view(([1usize, 1, BINS, 2], input))?,
-            "state_in" => TensorRef::from_array_view(([self.state.len()], self.state.as_slice()))?,
-        ])?;
-        let (_, cleaned) = outputs["spec_e"].try_extract_tensor::<f32>()?;
-        for (bin, pair) in spec.iter_mut().zip(cleaned.chunks_exact(2)) {
-            *bin = Complex32::new(pair[0], pair[1]) / WINDOW as f32;
+    /// One step, in place: a spectrum as a plain FFT gives it in, the
+    /// cleaned one out, and the state carried on. False if the model failed.
+    fn run(&mut self, spectrum: &mut [f32; SPECTRUM]) -> bool {
+        match self {
+            Net::Ceva(net) => net.run(spectrum),
+            Net::Onnx(net) => net.run(spectrum).is_ok(),
         }
-        let (_, state) = outputs["state_out"].try_extract_tensor::<f32>()?;
-        if state.len() != self.state.len() {
-            return Err(ort::Error::new("the state changed size"));
-        }
-        self.state.copy_from_slice(state);
-        Ok(())
     }
 
     fn reset(&mut self) {
-        self.state.copy_from_slice(&self.initial);
+        match self {
+            Net::Ceva(net) => net.reset(),
+            Net::Onnx(net) => net.reset(),
+        }
+    }
+
+    /// For the log.
+    fn runtime(&self) -> &'static str {
+        match self {
+            Net::Ceva(_) => "Ceva's runtime",
+            Net::Onnx(_) => "ONNX Runtime",
+        }
     }
 }
 
@@ -188,28 +190,31 @@ pub(crate) struct Model {
     /// samples that DPDFNet was trained with.
     stft: DFState,
     spec: Vec<Complex32>,
-    /// `spec` as the model takes it: real and imaginary side by side.
-    input: Vec<f32>,
+    /// `spec` as the model takes it, and as it hands it back.
+    spectrum: [f32; SPECTRUM],
     samples: [f32; FRAME],
 }
 
 impl Model {
     pub(crate) fn new() -> Result<Model, String> {
-        open_runtime()?;
+        Ok(Model::of(Net::load(Size::Large)?, Net::load(Size::Small)?))
+    }
+
+    fn of(large: Net, small: Net) -> Model {
         let mut model = Model {
-            large: Net::load(LARGE)?,
-            small: Net::load(SMALL)?,
+            large,
+            small,
             slow: false,
             retries_seen: RETRIES.load(Ordering::Relaxed),
             ran_large: true,
             watch: Watch::new(),
             stft: DFState::new(48000, WINDOW, FRAME, 32, 1),
             spec: vec![Complex32::default(); BINS],
-            input: vec![0.0; BINS * 2],
+            spectrum: [0.0; SPECTRUM],
             samples: [0.0; FRAME],
         };
         model.warm_up();
-        Ok(model)
+        model
     }
 
     /// A model's first runs set up what later ones reuse and take several
@@ -264,17 +269,21 @@ impl Model {
         self.stft.analysis(&self.samples, &mut self.spec);
         // libDF scales its spectrum by 1 / WINDOW; the models take it as a
         // plain FFT gives it.
-        for (pair, bin) in self.input.chunks_exact_mut(2).zip(&self.spec) {
-            pair[0] = bin.re * WINDOW as f32;
-            pair[1] = bin.im * WINDOW as f32;
+        let (pairs, _) = self.spectrum.as_chunks_mut::<2>();
+        for (pair, bin) in pairs.iter_mut().zip(&self.spec) {
+            *pair = [bin.re * WINDOW as f32, bin.im * WINDOW as f32];
         }
         let net = if large {
             &mut self.large
         } else {
             &mut self.small
         };
-        if net.run(&self.input, &mut self.spec).is_err() {
+        if !net.run(&mut self.spectrum) {
             return false;
+        }
+        let (pairs, _) = self.spectrum.as_chunks::<2>();
+        for (bin, pair) in self.spec.iter_mut().zip(pairs) {
+            *bin = Complex32::new(pair[0], pair[1]) / WINDOW as f32;
         }
         self.stft.synthesis(&mut self.spec, &mut self.samples);
         for (to, from) in frame.iter_mut().zip(self.samples.iter()) {
@@ -317,81 +326,6 @@ pub(crate) fn take_fell_back() -> bool {
 /// because the model failed on them, which starts the count again.
 pub(crate) fn take_unfiltered() -> u32 {
     UNFILTERED.swap(0, Ordering::Relaxed)
-}
-
-/// Opens ONNX Runtime once. A computer it will not open on still runs the
-/// app, without this model.
-fn open_runtime() -> Result<(), String> {
-    static OPENED: OnceLock<Result<(), String>> = OnceLock::new();
-    OPENED
-        .get_or_init(|| {
-            let path = match std::env::var_os(RUNTIME_ENV) {
-                Some(path) => PathBuf::from(path),
-                None => std::env::current_exe()
-                    .map_err(|e| e.to_string())?
-                    .parent()
-                    .ok_or("the app has no folder")?
-                    .join(RUNTIME),
-            };
-            ort::init_from(&path)
-                .map_err(|e| format!("ONNX Runtime did not open: {e}"))?
-                .commit();
-            Ok(())
-        })
-        .clone()
-}
-
-/// One thread: the model's own runs it, and a frame is too small to share
-/// out.
-fn session(onnx: &[u8]) -> Result<Session, String> {
-    Session::builder()
-        .map_err(|e| e.to_string())?
-        .with_optimization_level(GraphOptimizationLevel::Level3)
-        .map_err(|e| e.to_string())?
-        .with_intra_threads(1)
-        .map_err(|e| e.to_string())?
-        .with_inter_threads(1)
-        .map_err(|e| e.to_string())?
-        .commit_from_memory(onnx)
-        .map_err(|e| e.to_string())
-}
-
-/// The state DPDFNet starts from, from the model file's metadata: the size of
-/// the one tensor it keeps everything in, and where its two normalisations'
-/// running means begin.
-fn initial_state(session: &Session) -> Result<Vec<f32>, String> {
-    let meta = session.metadata().map_err(|e| e.to_string())?;
-    let read = |key: &str| {
-        meta.custom(key)
-            .ok_or_else(|| format!("DPDFNet's model has no {key}"))
-    };
-    let size = |key: &str| {
-        read(key)?
-            .parse::<usize>()
-            .map_err(|e| format!("DPDFNet's {key}: {e}"))
-    };
-    let values = |key: &str| -> Result<Vec<f32>, String> {
-        read(key)?
-            .split(',')
-            .map(|v| {
-                v.trim()
-                    .parse::<f32>()
-                    .map_err(|e| format!("DPDFNet's {key}: {e}"))
-            })
-            .collect()
-    };
-    let mut state = vec![0.0; size("state_size")?];
-    let erb = values("erb_norm_init")?;
-    let spec = values("spec_norm_init")?;
-    if erb.len() != size("erb_norm_state_size")?
-        || spec.len() != size("spec_norm_state_size")?
-        || erb.len() + spec.len() > state.len()
-    {
-        return Err("DPDFNet's model does not add up".to_string());
-    }
-    state[..erb.len()].copy_from_slice(&erb);
-    state[erb.len()..erb.len() + spec.len()].copy_from_slice(&spec);
-    Ok(state)
 }
 
 /// Locked by the capture thread for each frame. Nothing else takes it once
@@ -439,7 +373,7 @@ pub(crate) fn load() -> Result<(), String> {
         return Ok(());
     }
     let model = CallModel::new(Model::new()?);
-    log::info!("DPDFNet loaded");
+    log::info!("DPDFNet loaded, on {}", model.model.large.runtime());
     *MODEL.lock().map_err(|e| e.to_string())? = Some(model);
     Ok(())
 }
@@ -565,11 +499,12 @@ mod tests {
         assert!(frame.iter().all(|&s| s == 1000.0));
     }
 
-    // The model's tests need ONNX Runtime, which is not part of the crate:
-    // RIFT_ONNXRUNTIME=<path to libonnxruntime.so> cargo test --release
-    // dpdfnet -- --ignored
+    // The model's tests need a runtime, and neither is part of the crate.
+    // They run on Ceva's with RIFT_DPDFNET_LIB=<path to librift_dpdfnet.so>,
+    // or without it on ONNX Runtime with RIFT_ONNXRUNTIME=<path to
+    // libonnxruntime.so>: cargo test --release dpdfnet -- --ignored
     #[test]
-    #[ignore = "needs ONNX Runtime at RIFT_ONNXRUNTIME"]
+    #[ignore = "needs a runtime, at RIFT_DPDFNET_LIB or RIFT_ONNXRUNTIME"]
     fn loaded_it_quietens_noise() {
         load().unwrap();
         let mut seed = 1u32;
@@ -595,8 +530,96 @@ mod tests {
         assert!(reduction_db > 20.0, "only {reduction_db:.1} dB quieter");
     }
 
+    /// A voice of sorts on the 16-bit scale, in a hiss: pulses at a falling
+    /// pitch through three resonances that move from vowel to vowel, in
+    /// syllables with gaps between. The models take it for speech and keep
+    /// it, where they take a steady tone for noise.
+    fn voice(frames: usize, seed: &mut u32) -> Vec<[f32; FRAME]> {
+        const VOWELS: [[f32; 3]; 4] = [
+            [730.0, 1090.0, 2440.0],
+            [270.0, 2290.0, 3010.0],
+            [300.0, 870.0, 2240.0],
+            [530.0, 1840.0, 2480.0],
+        ];
+        let mut hiss = noise(frames, seed).into_iter();
+        let mut until_pulse = 0.0f32;
+        // Each resonance's last two outputs.
+        let mut rings = [[0.0f32; 2]; 3];
+        (0..frames)
+            .map(|i| {
+                let mut frame = hiss.next().unwrap();
+                for (j, s) in frame.iter_mut().enumerate() {
+                    let t = (i * FRAME + j) as f32 / 48000.0;
+                    // A syllable every 250 ms, sounding for 180 of them.
+                    let within = t % 0.25;
+                    let loud = if within < 0.18 {
+                        (std::f32::consts::PI * within / 0.18).sin()
+                    } else {
+                        0.0
+                    };
+                    let pitch = 150.0 - 40.0 * (t % 1.0);
+                    until_pulse -= 1.0;
+                    let pulse = if until_pulse <= 0.0 {
+                        until_pulse += 48000.0 / pitch;
+                        1.0
+                    } else {
+                        0.0
+                    };
+                    let from = VOWELS[(t / 0.25) as usize % 4];
+                    let to = VOWELS[((t / 0.25) as usize + 1) % 4];
+                    let mut out = 0.0;
+                    for (k, ring) in rings.iter_mut().enumerate() {
+                        let formant = from[k] + (to[k] - from[k]) * within / 0.25;
+                        let r = (-std::f32::consts::PI * 90.0 / 48000.0).exp();
+                        let turn = std::f32::consts::TAU * formant / 48000.0;
+                        let y = pulse + 2.0 * r * turn.cos() * ring[0] - r * r * ring[1];
+                        *ring = [y, ring[0]];
+                        out += y / (k + 1) as f32;
+                    }
+                    *s = *s * 0.3 + out * loud * 600.0;
+                }
+                frame
+            })
+            .collect()
+    }
+
     #[test]
-    #[ignore = "needs ONNX Runtime at RIFT_ONNXRUNTIME"]
+    #[ignore = "needs both runtimes, at RIFT_DPDFNET_LIB and RIFT_ONNXRUNTIME"]
+    fn both_runtimes_give_the_same_sound() {
+        // Ceva's runtime rounds the models' weights to 7 bits and what flows
+        // between their layers to 8. What comes out has to stay what the
+        // models as published give: the two apart by 30 dB under the sound
+        // or more, as they were on recorded speech in noise (31 to 46 dB,
+        // Nov 12).
+        let ceva = |size| Net::Ceva(ceva::Net::load(size).unwrap());
+        let onnx = |size| Net::Onnx(onnx::Net::load(size).unwrap());
+        let mut ours = Model::of(ceva(Size::Large), ceva(Size::Small));
+        let mut theirs = Model::of(onnx(Size::Large), onnx(Size::Small));
+        for large in [true, false] {
+            let (mut sound, mut apart, mut raw) = (0.0f64, 0.0f64, 0.0f64);
+            for (i, frame) in voice(400, &mut 3).into_iter().enumerate() {
+                let (mut a, mut b) = (frame, frame);
+                assert!(ours.process_with(&mut a, large));
+                assert!(theirs.process_with(&mut b, large));
+                if i < 100 {
+                    continue;
+                }
+                for ((a, b), r) in a.iter().zip(&b).zip(&frame) {
+                    sound += (*b as f64).powi(2);
+                    apart += ((a - b) as f64).powi(2);
+                    raw += (*r as f64).powi(2);
+                }
+            }
+            let kept_db = 10.0 * (sound / raw).log10();
+            let apart_db = 10.0 * (sound / apart.max(1e-9)).log10();
+            println!("large {large}: kept {kept_db:.1} dB of the input, apart by {apart_db:.1} dB");
+            assert!(kept_db > -10.0, "the model kept too little to compare");
+            assert!(apart_db > 30.0, "only {apart_db:.1} dB apart");
+        }
+    }
+
+    #[test]
+    #[ignore = "needs a runtime, at RIFT_DPDFNET_LIB or RIFT_ONNXRUNTIME"]
     fn choosing_dpdfnet_2_runs_it_from_the_start() {
         let mut seed = 1u32;
         let before = noise(50, &mut seed);
@@ -619,7 +642,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "needs ONNX Runtime at RIFT_ONNXRUNTIME"]
+    #[ignore = "needs a runtime, at RIFT_DPDFNET_LIB or RIFT_ONNXRUNTIME"]
     fn the_large_model_comes_back_with_the_next_call_only() {
         let mut model = Model::new().unwrap();
         let mut seed = 1u32;
@@ -641,7 +664,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "needs ONNX Runtime at RIFT_ONNXRUNTIME"]
+    #[ignore = "needs a runtime, at RIFT_DPDFNET_LIB or RIFT_ONNXRUNTIME"]
     fn the_calls_model_filters_every_frame_where_it_is_called() {
         let mut call = CallModel::new(Model::new().unwrap());
         let mut alone = Model::new().unwrap();
@@ -656,7 +679,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "needs ONNX Runtime at RIFT_ONNXRUNTIME"]
+    #[ignore = "needs a runtime, at RIFT_DPDFNET_LIB or RIFT_ONNXRUNTIME"]
     fn a_reset_starts_the_model_over() {
         let mut used = Model::new().unwrap();
         let mut seed = 1u32;

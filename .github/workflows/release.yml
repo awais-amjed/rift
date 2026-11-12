@@ -142,9 +142,10 @@ jobs:
       - name: Build the Rust library
         working-directory: rust
         run: cargo build --release --target x86_64-pc-windows-msvc
-      # FFmpeg's GPU encoders (native/ffenc) are built with MinGW in the MSYS2
-      # the runner carries at C:\msys64, where windows/CMakeLists.txt looks.
-      - name: Install the FFmpeg library's build tools
+      # FFmpeg's GPU encoders (native/ffenc) and Ceva's runtime for DPDFNet
+      # (native/dpdfnet) are built with MinGW in the MSYS2 the runner carries
+      # at C:\msys64, where windows/CMakeLists.txt looks.
+      - name: Install the MinGW libraries' build tools
         shell: cmd
         env:
           MSYSTEM: UCRT64
@@ -171,13 +172,14 @@ jobs:
           path: build/release/*
           if-no-files-found: error
       # Not shipped: what turns the offsets in a crash's log into names
-      # (rust/src/diagnostics). The FFmpeg library's linker map, and the
-      # Rust library's PDB, both from exactly this build.
+      # (rust/src/diagnostics). The MinGW libraries' linker maps, and the
+      # Rust library's PDB, all from exactly this build.
       - uses: actions/upload-artifact@v7
         with:
           name: windows-symbols
           path: |
             build/windows/x64/ffenc/rift_ffenc.map
+            build/windows/x64/dpdfnet/rift_dpdfnet.map
             rust/target/x86_64-pc-windows-msvc/release/rust_lib_rift.pdb
           if-no-files-found: warn
 

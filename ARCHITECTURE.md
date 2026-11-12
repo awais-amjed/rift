@@ -919,8 +919,9 @@ person to dig it out.
 An offset in Rift's own Rust library is read back with `addr2line` (Linux) or
 its PDB (Windows) from the same build. FFmpeg is built without debug
 information, so `native/ffenc/build.sh` writes a linker map beside its library,
-naming the function at each offset, and the release workflow keeps the Windows
-map and PDB with the run (`RELEASING.md`).
+naming the function at each offset, as `native/dpdfnet/build.sh` does for
+Ceva's runtime for DPDFNet, and the release workflow keeps the Windows
+maps and PDB with the run (`RELEASING.md`).
 - **Android** also records why each run ended (`ApplicationExitInfo`, Android
   11 and up): killed for memory, an ANR, force-stopped, a native crash. Each
   session writes the recent ones into its log (`AppExitReasons`), since a

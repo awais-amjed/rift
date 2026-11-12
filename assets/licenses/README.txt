@@ -6,7 +6,8 @@ geist_ofl.txt                  Geist and Geist Mono fonts (assets/fonts/)
 image_safety_classifier.txt    assets/models/image_safety.tflite
 profanity_list.txt             assets/models/profanity_en.json
 rnnoise.txt                    RNNoise, the microphone noise filter (third_party/rnnoise)
-dpdfnet.txt                    DPDFNet, another noise model for the microphone (rust/models/)
+dpdfnet.txt                    DPDFNet, another noise model for the microphone (rust/models/),
+                               and Ceva's own runtime for it (native/dpdfnet)
 onnxruntime.txt                ONNX Runtime, which runs DPDFNet (native/onnxruntime)
 ffmpeg.txt                     FFmpeg, driving the GPU's H264 encoder (native/ffenc)
 obs_studio.txt                 OBS Studio's PipeWire stream, in FFmpeg's library (Linux)

@@ -1,5 +1,5 @@
 //! The Rust library's noise model for the microphone filter: DPDFNet
-//! (`src/dpdfnet.rs`).
+//! (`src/dpdfnet`).
 
 /// Where the runner's filter calls a model: the addresses of the frame
 /// function and the reset function, for Dart to pass on.
