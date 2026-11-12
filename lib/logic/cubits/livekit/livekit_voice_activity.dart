@@ -157,7 +157,10 @@ mixin _VoiceActivityMixin on Cubit<LiveKitState> {
   void _onAudioFrame(AudioFrame frame) {
     if (!_monitorActive) return;
     final level = PcmLevel.fromInt16(frame.data);
-    final now = DateTime.now();
+    // UTC: a frame arrives every 10 ms while the mic is open, and adding the
+    // hold to a local time looks the time zone up each time. That lookup was
+    // the largest single cost of talking on Linux (Nov 12 2026 profile).
+    final now = DateTime.timestamp();
 
     if (_speechDetector.update(level, now)) {
       _syncParticipants(speakingOnly: true);
