@@ -23,7 +23,7 @@ use std::time::Duration;
 use windows::core::Interface;
 use windows::Win32::Foundation::RECT;
 use windows::Win32::Graphics::Direct3D11::{
-    ID3D11Device, ID3D11DeviceContext, ID3D11Texture2D, ID3D11VideoDevice,
+    ID3D11Device, ID3D11DeviceContext, ID3D11Texture2D, ID3D11VideoDevice, D3D11_BIND_DECODER,
     D3D11_BIND_RENDER_TARGET, D3D11_BIND_SHADER_RESOURCE, D3D11_CPU_ACCESS_READ,
     D3D11_MAPPED_SUBRESOURCE, D3D11_MAP_READ, D3D11_TEXTURE2D_DESC, D3D11_USAGE_DEFAULT,
     D3D11_USAGE_STAGING,
@@ -346,17 +346,21 @@ impl Pictures {
     /// The array lent to the runner, which samples a slice where it lies
     /// when the array is a shader resource and copies it out first when not.
     ///
-    /// Intel's Iris Xe driver refuses an NV12 *array* a shader may read
-    /// (E_INVALIDARG, Nov 12 2026), though it makes one alone; Moonlight
-    /// meets the same on Intel. Asking for none still keeps the picture on
-    /// the GPU, at the cost of one copy there per picture, where giving up
-    /// read every picture back to memory.
+    /// Asked for as a decoder's, the only NV12 array Intel's Iris Xe driver
+    /// makes: without `D3D11_BIND_DECODER` it refuses one with or without
+    /// the shader's flag (E_INVALIDARG, Nov 12 2026), though it makes a
+    /// single NV12 texture either way. The device can decode, or the clip
+    /// would not be on the GPU, so it makes decoder arrays. A GPU that will
+    /// not let a shader read one still keeps the picture on the GPU, at the
+    /// cost of one copy there per picture, where giving up read every picture
+    /// back to memory.
     fn lent_array(&self, size: (u32, u32)) -> Result<ID3D11Texture2D, String> {
         let slices = SLICES as u32;
-        self.texture(size, slices, D3D11_BIND_SHADER_RESOURCE.0, false)
+        let decoder = D3D11_BIND_DECODER.0;
+        self.texture(size, slices, decoder | D3D11_BIND_SHADER_RESOURCE.0, false)
             .or_else(|readable| {
                 let array = self
-                    .texture(size, slices, 0, false)
+                    .texture(size, slices, decoder, false)
                     .map_err(|plain| format!("{readable}; nor one no shader reads: {plain}"))?;
                 log::info!(
                     "Chat video: this GPU makes no NV12 array a shader reads; \
