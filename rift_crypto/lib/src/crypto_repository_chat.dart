@@ -134,7 +134,19 @@ mixin _ChatCryptoMixin {
   /// keyring, healing members who lack an entry, and the background sweep all
   /// need exactly this, and a keyring built even slightly differently by one
   /// of them would lock those members out of the channel.
+  ///
+  /// Off the UI thread where there is one to get off ([CryptoRepository._derive]).
+  /// Each seal is two X25519 operations in pure Dart, and the awaits between
+  /// them never yield to a frame: a sweep pass of 500 entries held the UI for
+  /// 457 ms on a laptop in one piece, several times that on a phone.
   Future<List<Map<String, dynamic>>> sealKeyringEntries({
+    required Uint8List key,
+    required List<Map<String, dynamic>> members,
+  }) => CryptoRepository._derive(
+    () => CryptoRepository()._sealEach(key: key, members: members),
+  );
+
+  Future<List<Map<String, dynamic>>> _sealEach({
     required Uint8List key,
     required List<Map<String, dynamic>> members,
   }) async {

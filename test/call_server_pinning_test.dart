@@ -244,8 +244,15 @@ void main() {
       };
     });
 
-    /// Lets the fire-and-forget heals and seals finish.
-    Future<void> settle() => Future<void>.delayed(Duration.zero);
+    /// Lets the fire-and-forget heals and seals finish. Sealing runs in an
+    /// isolate, so the post lands some milliseconds later, not on the next
+    /// tick; wait for it (two seconds at most).
+    Future<void> settle() async {
+      for (var i = 0; i < 200; i++) {
+        if (servers.calls.any((c) => c.$1 == 'post')) return;
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+    }
 
     test('loads, heals and seals on the server it was asked for', () async {
       session.publish(
