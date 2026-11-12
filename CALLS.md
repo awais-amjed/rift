@@ -1705,8 +1705,11 @@ and AVX2 assembly, where ONNX Runtime runs each as a graph of some 470 small
 steps. No setting of ONNX Runtime had made a difference worth having: its
 optimisation levels, denormals as zero, and its memory options were all within
 5% (the models as floats; Ceva publishes no 8-bit ONNX files). ONNX Runtime
-stays for a CPU without AVX2 and FMA, which Ceva's needs, and for Linux, where
-the library is not built yet. Measured that day on the i7-12700H's Windows, a
+stays for a CPU without AVX2 and FMA, which Ceva's needs. Linux has it too since
+Nov 13 (`librift_dpdfnet.so`, built with gcc as Ceva build it); timed there on
+the same laptop, in a test on made-up voice frames, a frame of DPDFNet-8 took 0.8 ms on a
+performance core against ONNX Runtime's 3.5, and 2.8 on an efficiency core
+against 7.9 (DPDFNet-2: 0.4 against 1.2, and 1.1 against 2.8). Measured that day on the i7-12700H's Windows, a
 release build in a call with a second client deafened, the same build held to
 ONNX Runtime for comparison (`RIFT_DPDFNET_ONNX`), 20 s each:
 

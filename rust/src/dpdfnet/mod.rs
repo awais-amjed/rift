@@ -1,7 +1,7 @@
 //! DPDFNet, the third model the microphone filter can run: Ceva's 48 kHz
 //! models (Apache-2.0), on Ceva's own runtime for them ([`ceva`]), or on ONNX
 //! Runtime ([`onnx`]) where that one cannot run: a CPU without AVX2 and FMA,
-//! or a bundle without its library, which is every Linux one so far.
+//! or a bundle without its library.
 //!
 //! It keeps more of the voice than DeepFilterNet, which it grew out of and
 //! which Rift offered until Oct 21, for more work. On ONNX Runtime, the only
@@ -21,8 +21,10 @@
 //! that laptop's Windows the capture thread took 5% of a core on DPDFNet-2
 //! where ONNX Runtime took 21%, and 12% on DPDFNet-8 where it took 48%, with
 //! no frame of DPDFNet-8 over 5 ms where a quarter of them had been (Nov 12,
-//! `CALLS.md`, *Rift beside a game*). So there the change-over above should
-//! be rare; it stays for the computers that need it.
+//! `CALLS.md`, *Rift beside a game*). On the same laptop's Linux, timed in a
+//! test on made-up voice frames, a frame took 0.8 ms of DPDFNet-8 on a performance core
+//! against 3.5, and 2.8 on an efficiency core against 7.9 (Nov 13). So the
+//! change-over above should be rare; it stays for the computers that need it.
 //!
 //! The model runs on libwebrtc's capture thread, left on whichever cores the
 //! system gives it, and on Windows that thread is time-critical, so it goes

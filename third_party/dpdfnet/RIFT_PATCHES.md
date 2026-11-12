@@ -27,9 +27,10 @@ each time it matters with `native/dpdfnet/test.sh`, which runs Ceva's own contra
 on the objects the library is linked from, on Windows too. They passed there
 on Nov 12 2026 (an i7-12700H, MSYS2's GCC 16.2), the AVX-VNNI ones included.
 
-Not built or run yet on Linux, where the app still runs the models on ONNX
-Runtime: `build.sh` has the Linux half, untried, and the Linux runner does not
-call it.
+On Linux it is `librift_dpdfnet.so`, built with gcc and no patch needed beyond
+the one below. `test.sh` passed there on Nov 13 2026 with GCC 16.2 (the same
+i7-12700H) and with Ubuntu 24.04's GCC 13.3, which the Linux release builds
+with; the library needs glibc 2.27.
 
 ## `sysv-kernels.patch`
 

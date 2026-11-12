@@ -49,7 +49,7 @@ third_party/      # Code kept here: packages to patch, and RNNoise — each says
 native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model inside
                       # libwebrtc's processing of the mic — RNNoise, or DPDFNet
                       # (rust/src/dpdfnet, on Ceva's own runtime for it, which
-                      # native/dpdfnet builds for Windows, or on the ONNX Runtime
+                      # native/dpdfnet builds for Linux and Windows, or on the ONNX Runtime
                       # native/onnxruntime bundles beside the app) from the Rust library — then the mic volume, with a limiter,
                       # all switched from Dart over FFI (NoiseFilter, MicVolume). The
                       # settings mic test reads the mic outside libwebrtc and runs the

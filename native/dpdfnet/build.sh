@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Builds Ceva's own runtime for DPDFNet into OUT_DIR, with the two models'
 # weights inside it (rift_dpdfnet.h says why it is a library of its own). The
-# Windows runner's CMake runs it; it can also run by hand.
+# Linux and Windows runners' CMake run it; it can also run by hand.
 #
 #   native/dpdfnet/build.sh OUT_DIR
 #
