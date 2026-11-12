@@ -346,10 +346,10 @@ impl Pictures {
     /// The array lent to the runner, which samples a slice where it lies
     /// when the array is a shader resource and copies it out first when not.
     ///
-    /// Asked for as a decoder's, the only NV12 array Intel's Iris Xe driver
-    /// makes: without `D3D11_BIND_DECODER` it refuses one with or without
-    /// the shader's flag (E_INVALIDARG, Nov 12 2026), though it makes a
-    /// single NV12 texture either way. The device can decode, or the clip
+    /// Asked for as a decoder's, the only NV12 array Intel's Iris Xe and
+    /// NVIDIA's RTX 3070 Ti drivers make: without `D3D11_BIND_DECODER` each
+    /// refuses one with or without the shader's flag (E_INVALIDARG, Nov 12
+    /// 2026), though it makes a single NV12 texture either way. The device can decode, or the clip
     /// would not be on the GPU, so it makes decoder arrays. A GPU that will
     /// not let a shader read one still keeps the picture on the GPU, at the
     /// cost of one copy there per picture, where giving up read every picture
