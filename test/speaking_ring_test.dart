@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/presentation/common/speaking_ring.dart';
+import 'package:rift/presentation/theme/app_motion.dart';
 
 /// In-memory stand-in so the hydrated theme cubit can be built in tests.
 class _MemoryStorage implements Storage {
@@ -121,12 +122,23 @@ void main() {
 
     // A ring that breathed asked for a frame every vsync for as long as
     // anyone talked: the whole window redrawn sixty times a second, behind
-    // a game too. It fades in and then asks for nothing.
+    // a game too. A fade that animated asked for one every vsync of its
+    // 140 ms, 23 frames on a 165 Hz screen at every pause in speech. It
+    // steps instead: a frame for the first step at once, then nothing asked
+    // for between steps, and nothing once it is shown.
     await tester.pumpWidget(ring(false));
     await tester.pumpWidget(ring(true));
-    expect(tester.hasRunningAnimations, isTrue);
-    await tester.pumpAndSettle();
     expect(tester.hasRunningAnimations, isFalse);
+    expect(tester.binding.hasScheduledFrame, isFalse);
+    expect(
+      find.descendant(
+        of: find.byType(SpeakingRing),
+        matching: find.byType(CustomPaint),
+      ),
+      paints..rrect(),
+    );
+    await tester.pump(AppMotion.state);
+    expect(tester.binding.hasScheduledFrame, isFalse);
     expect(
       find.descendant(
         of: find.byType(SpeakingRing),
@@ -137,7 +149,8 @@ void main() {
 
     // And fades out when they stop, leaving nothing drawn.
     await tester.pumpWidget(ring(false));
-    await tester.pumpAndSettle();
+    await tester.pump(AppMotion.state);
+    expect(tester.binding.hasScheduledFrame, isFalse);
     expect(
       find.descendant(
         of: find.byType(SpeakingRing),

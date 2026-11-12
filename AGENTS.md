@@ -337,7 +337,10 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   compares with `sameApartFromSpeaking`. `SpeakingRing` sits between repaint
   boundaries, so its short fade repaints only itself, and holds still while someone
   talks: a ring that breathed redrew the whole window sixty times a second for as long
-  as anyone spoke, minimised or behind a game too (`test/speaking_ring_test.dart`). A
+  as anyone spoke, minimised or behind a game too (`test/speaking_ring_test.dart`). Its
+  fade is three steps on a timer, not an animation: each frame still costs the whole
+  window, and a 140 ms animation was 23 frames at every pause in speech on a 165 Hz
+  screen. Anything that changes as often as speech does steps the same way. A
   call's length ticks in its own `CallClock`, never by `setState` on the widget around
   it, and in whole minutes: one a second redrew the window every second of every call. A list beside the call keeps its rows the same way as the chat: each rail chip
   selects its own unread count, and `MembersSidebarList` keeps unchanged rows.
