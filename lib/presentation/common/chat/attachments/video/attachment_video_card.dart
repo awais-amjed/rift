@@ -192,6 +192,10 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
               _picture = Size(event.width.toDouble(), event.height.toDouble()),
         );
       case ClipEventKind.ended:
+        // The player itself still means to play: ExoPlayer and GStreamer
+        // play on from wherever a seek after the end lands, under controls
+        // that say it stopped. Paused, a seek there shows that picture only.
+        unawaited(_clip?.pause());
         _setPlaying(false);
         setState(() {
           _ended = true;
