@@ -10,6 +10,7 @@ import 'blob_cipher.dart';
 import 'chat_identity.dart';
 import 'message_envelope.dart';
 import 'server_identity.dart';
+import 'signature_verifier.dart';
 import 'wrapped_key.dart';
 
 // Re-exported so `import 'crypto_repository.dart'` still hands over the types
@@ -19,6 +20,7 @@ export 'blob_cipher.dart';
 export 'chat_identity.dart';
 export 'message_envelope.dart';
 export 'server_identity.dart';
+export 'signature_verifier.dart';
 export 'wrapped_key.dart';
 
 part 'crypto_repository_chat.dart';
@@ -230,6 +232,12 @@ class CryptoRepository
   /// the app has its native library loaded and swaps in the faster one; the
   /// bytes are the same either way.
   static BlobCipher blobCipher = const DartBlobCipher();
+
+  /// What every message signature is checked with. [DartSignatureVerifier]
+  /// until the app has its native library loaded and swaps in the faster one.
+  /// Per isolate, like [blobCipher]: one started without the library, a push
+  /// woken in the background, keeps the Dart one, which agrees.
+  static SignatureVerifier signatureVerifier = const DartSignatureVerifier();
 
   /// Encrypt raw bytes with AES-256-GCM using [key] (attachment blobs). The
   /// returned ciphertext includes the GCM auth tag, matching [decryptBytes].

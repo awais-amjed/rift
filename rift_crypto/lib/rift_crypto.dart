@@ -24,4 +24,5 @@ export 'src/crypto_repository.dart';
 export 'src/message_envelope.dart';
 export 'src/safety_code.dart';
 export 'src/server_identity.dart';
+export 'src/signature_verifier.dart';
 export 'src/wrapped_key.dart';

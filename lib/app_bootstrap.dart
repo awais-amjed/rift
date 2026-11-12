@@ -14,6 +14,7 @@ import 'data/classes/api_response.dart';
 import 'data/constants.dart';
 import 'data/device_id.dart';
 import 'data/repositories/native_blob_cipher.dart';
+import 'data/repositories/native_signature_verifier.dart';
 import 'data/repositories/update_repository.dart';
 import 'logic/cubits/app/app_cubit.dart';
 import 'logic/helper_methods.dart';
@@ -73,6 +74,7 @@ class AppBootstrap {
       // Android's record of how the runs before this one ended.
       unawaited(AppExitReasons.log());
       CryptoRepository.blobCipher = const NativeBlobCipher();
+      CryptoRepository.signatureVerifier = const NativeSignatureVerifier();
       // First after the bridge: it may put a downloaded update in place and
       // restart into it, and nothing should have started by then.
       await UpdateRepository.startup();

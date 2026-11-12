@@ -7,6 +7,7 @@ pub mod logs;
 pub mod mic_test;
 pub mod noise_filter;
 pub mod screenshare;
+pub mod signatures;
 pub mod soundshare;
 pub mod toast;
 pub mod updater;

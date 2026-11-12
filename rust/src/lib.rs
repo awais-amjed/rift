@@ -20,6 +20,7 @@ mod mic_test;
 #[cfg(target_os = "linux")]
 mod pulse;
 mod screenshare;
+mod signatures;
 #[cfg(desktop)]
 mod sharing;
 #[cfg(target_os = "windows")]

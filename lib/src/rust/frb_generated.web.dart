@@ -21,6 +21,7 @@ import 'api/mic_test.dart';
 import 'api/noise_filter.dart';
 import 'api/screenshare.dart';
 import 'api/screenshare/types.dart';
+import 'api/signatures.dart';
 import 'api/soundshare.dart';
 import 'api/toast.dart';
 import 'api/updater.dart';

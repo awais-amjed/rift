@@ -9,9 +9,11 @@ part of 'crypto_repository.dart';
 /// in the server's page, and checks them all again on every later open. In
 /// pure Dart each check costs a few milliseconds even in a release build, so a
 /// page of them held the main thread long enough to drop frames, and in a debug
-/// build long enough for Android to report the app not responding. A triple
-/// that passed once passes for ever, so only passes are remembered, under a
-/// SHA-256 of all three. The key and signature have fixed lengths, so no two
+/// build long enough for Android to report the app not responding. The check
+/// itself now runs in Rust off the main thread outside the web
+/// ([CryptoRepository.signatureVerifier]), but each one is still a trip to a
+/// worker thread and back. A triple that passed once passes for ever, so only
+/// passes are remembered, under a SHA-256 of all three. The key and signature have fixed lengths, so no two
 /// different triples hash the same input. A failure is never remembered: a
 /// forged row is rare, and checking it again costs nothing that matters.
 Future<bool> _verifyEd25519({
@@ -23,12 +25,10 @@ Future<bool> _verifyEd25519({
   if (remembered != null && _VerifiedSignatures.contains(remembered)) {
     return true;
   }
-  final valid = await Ed25519().verify(
-    message,
-    signature: Signature(
-      signature,
-      publicKey: SimplePublicKey(publicKey, type: KeyPairType.ed25519),
-    ),
+  final valid = await CryptoRepository.signatureVerifier.verify(
+    message: message,
+    signature: signature,
+    publicKey: publicKey,
   );
   if (valid && remembered != null) _VerifiedSignatures.add(remembered);
   return valid;

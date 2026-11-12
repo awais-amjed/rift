@@ -525,6 +525,64 @@ void main() {
       );
     });
 
+    test('every signature goes through the installed verifier, and its '
+        'refusal drops the message (the app installs the Rust one)', () async {
+      final sender = await senderIdentity();
+      final key = crypto.generateChannelKey();
+      final env = await crypto.sealMessage(
+        plaintext: 'secret',
+        messageKey: key,
+        signingKeyPair: sender.id.keyPair,
+        contextId: 'channel-seam',
+        keyVersion: 1,
+      );
+      final refusing = _CountingVerifier(answer: false);
+      CryptoRepository.signatureVerifier = refusing;
+      addTearDown(
+        () =>
+            CryptoRepository.signatureVerifier = const DartSignatureVerifier(),
+      );
+
+      Future<String?> open() => crypto.openMessage(
+        envelope: env,
+        messageKey: key,
+        senderPublicKey: sender.pub,
+        contextId: 'channel-seam',
+      );
+      expect(await open(), isNull);
+      expect(await open(), isNull, reason: 'a refusal is never remembered');
+      expect(refusing.calls, 2);
+
+      final passing = _CountingVerifier(answer: true);
+      CryptoRepository.signatureVerifier = passing;
+      expect(await open(), 'secret');
+      expect(await open(), 'secret');
+      expect(passing.calls, 1, reason: 'a pass is remembered');
+    });
+
+    test(
+      'the Dart verifier says false, not throws, for wrong lengths',
+      () async {
+        const verifier = DartSignatureVerifier();
+        expect(
+          await verifier.verify(
+            message: [1],
+            signature: Uint8List(63),
+            publicKey: Uint8List(32),
+          ),
+          isFalse,
+        );
+        expect(
+          await verifier.verify(
+            message: [1],
+            signature: Uint8List(64),
+            publicKey: Uint8List(31),
+          ),
+          isFalse,
+        );
+      },
+    );
+
     test(
       'a valid signature but wrong message key throws (AES-GCM auth failure)',
       () async {
@@ -605,4 +663,21 @@ void main() {
       );
     });
   });
+}
+
+/// Answers [answer] for every signature, and counts how often it was asked.
+class _CountingVerifier implements SignatureVerifier {
+  final bool answer;
+  int calls = 0;
+  _CountingVerifier({required this.answer});
+
+  @override
+  Future<bool> verify({
+    required List<int> message,
+    required Uint8List signature,
+    required Uint8List publicKey,
+  }) async {
+    calls++;
+    return answer;
+  }
 }
