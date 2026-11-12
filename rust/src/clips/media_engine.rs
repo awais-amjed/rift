@@ -15,8 +15,8 @@
 use super::pulled_stream::PulledStream;
 use super::source::Source;
 use crate::api::clips::ClipEventKind;
-use std::sync::Arc;
 use std::sync::mpsc::Sender;
+use std::sync::Arc;
 use std::sync::{Mutex, OnceLock};
 use windows::core::{implement, Interface, BSTR, HSTRING};
 use windows::Win32::Foundation::{HMODULE, S_OK};
@@ -32,9 +32,9 @@ use windows::Win32::Graphics::Direct3D11::{
 use windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT;
 use windows::Win32::Media::MediaFoundation::{
     CLSID_MFMediaEngineClassFactory, IMFAttributes, IMFDXGIDeviceManager, IMFMediaEngine,
-    IMFMediaEngineClassFactory, IMFMediaEngineEx, IMFMediaEngineNotify, IMFMediaEngineNotify_Impl,
-    MFCreateAttributes, MFCreateDXGIDeviceManager, MFCreateMFByteStreamOnStream, MFStartup,
-    MFSTARTUP_FULL, MF_AUDIO_RENDERER_ATTRIBUTE_ENDPOINT_ID, MF_MEDIA_ENGINE_CALLBACK,
+    IMFMediaEngineAudioEndpointId, IMFMediaEngineClassFactory, IMFMediaEngineEx,
+    IMFMediaEngineNotify, IMFMediaEngineNotify_Impl, MFCreateAttributes, MFCreateDXGIDeviceManager,
+    MFCreateMFByteStreamOnStream, MFStartup, MFSTARTUP_FULL, MF_MEDIA_ENGINE_CALLBACK,
     MF_MEDIA_ENGINE_DXGI_MANAGER, MF_MEDIA_ENGINE_VIDEO_OUTPUT_FORMAT, MF_VERSION,
 };
 use windows::Win32::System::Com::{
@@ -206,17 +206,22 @@ impl Engine {
             attributes
                 .SetUINT32(&MF_MEDIA_ENGINE_VIDEO_OUTPUT_FORMAT, format.0 as u32)
                 .map_err(fail("No output format"))?;
-            if let Some(output) = output.filter(|o| !o.is_empty()) {
-                // The audio renderer's own attribute, which the engine passes
-                // on to it; an id it does not know is the default's.
-                let _ = attributes.SetString(
-                    &MF_AUDIO_RENDERER_ATTRIBUTE_ENDPOINT_ID,
-                    &HSTRING::from(output),
-                );
-            }
             let engine = factory()
                 .and_then(|f| f.CreateInstance(0, &attributes))
                 .map_err(fail("No Media Engine"))?;
+            if let Some(output) = output.filter(|o| !o.is_empty()) {
+                // The engine's own way to name an output, before the source
+                // is set. The audio renderer's attribute, given to the engine
+                // at creation, was ignored: the sound stayed on the default
+                // device (Windows, Nov 12 2026). An id it cannot use leaves
+                // the default, which still plays.
+                if let Err(e) = engine
+                    .cast::<IMFMediaEngineAudioEndpointId>()
+                    .and_then(|ids| ids.SetAudioEndpointId(&HSTRING::from(output)))
+                {
+                    log::warn!("Chat video: sound stays on the default output: {e}");
+                }
+            }
             let ex: IMFMediaEngineEx = engine.cast().map_err(fail("An old Media Engine"))?;
             Ok(Engine {
                 engine,

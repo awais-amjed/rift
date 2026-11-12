@@ -9,10 +9,10 @@
 //! support on the runner's device) the engine has a device of its own and
 //! each picture is read back into memory as I420, which every runner draws.
 use super::emit;
-use super::source::Source;
 use super::media_engine::{
     failure, own_device, protect, Com, Engine, Note, EVENT_ENDED, EVENT_ERROR,
 };
+use super::source::Source;
 use crate::api::clips::ClipEventKind;
 use crate::watching::frames::{self, Picture, WatchPlanes, IN_D3D11};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -343,6 +343,29 @@ impl Pictures {
         texture.ok_or_else(|| "no texture".to_string())
     }
 
+    /// The array lent to the runner, which samples a slice where it lies
+    /// when the array is a shader resource and copies it out first when not.
+    ///
+    /// Intel's Iris Xe driver refuses an NV12 *array* a shader may read
+    /// (E_INVALIDARG, Nov 12 2026), though it makes one alone; Moonlight
+    /// meets the same on Intel. Asking for none still keeps the picture on
+    /// the GPU, at the cost of one copy there per picture, where giving up
+    /// read every picture back to memory.
+    fn lent_array(&self, size: (u32, u32)) -> Result<ID3D11Texture2D, String> {
+        let slices = SLICES as u32;
+        self.texture(size, slices, D3D11_BIND_SHADER_RESOURCE.0, false)
+            .or_else(|readable| {
+                let array = self
+                    .texture(size, slices, 0, false)
+                    .map_err(|plain| format!("{readable}; nor one no shader reads: {plain}"))?;
+                log::info!(
+                    "Chat video: this GPU makes no NV12 array a shader reads; \
+                     each picture is copied on the GPU"
+                );
+                Ok(array)
+            })
+    }
+
     /// Has the engine draw its current picture, [stored] in size, and hands
     /// it to [clip]'s slot.
     fn draw(&mut self, engine: &Engine, clip: u64, stored: (u32, u32)) -> Result<(), String> {
@@ -353,8 +376,7 @@ impl Pictures {
             if self.on_gpu {
                 // A new array, so the slices lent of the old are not reused:
                 // they hold it until handed back.
-                self.array =
-                    Some(self.texture(size, SLICES as u32, D3D11_BIND_SHADER_RESOURCE.0, false)?);
+                self.array = Some(self.lent_array(size)?);
                 self.busy = Arc::new(Default::default());
             } else {
                 self.staging = Some(self.texture(size, 1, 0, true)?);
