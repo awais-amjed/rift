@@ -54,6 +54,8 @@ quietly() {
 }
 
 tarball=${RIFT_DPDFNET_TARBALL:-$out/dpdfnet-$commit.tar.gz}
+# tar takes the C: of a Windows path for a host to fetch it from.
+if [[ $os == windows ]]; then tarball=$(cygpath -u "$tarball"); fi
 if [[ ! -f $tarball ]]; then
   curl -fsSL "https://github.com/ceva-ip/DPDFNet/archive/$commit.tar.gz" -o "$tarball.part"
   mv "$tarball.part" "$tarball"
