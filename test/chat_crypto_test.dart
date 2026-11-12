@@ -471,6 +471,60 @@ void main() {
       expect(opened, isNull);
     });
 
+    test('a signature that passed once still binds its sender, channel and '
+        'version (passes are remembered, so a second open must not loosen '
+        'the check)', () async {
+      final sender = await senderIdentity();
+      final key = crypto.generateChannelKey();
+      final imposter = await crypto.deriveServerIdentity(
+        masterSeed: bobSeed,
+        host: 'h',
+        serverId: 's1',
+      );
+
+      final env = await crypto.sealMessage(
+        plaintext: 'secret',
+        messageKey: key,
+        signingKeyPair: sender.id.keyPair,
+        contextId: 'channel-1',
+        keyVersion: 1,
+      );
+      Future<String?> open(
+        MessageEnvelope envelope, {
+        Uint8List? from,
+        String contextId = 'channel-1',
+      }) => crypto.openMessage(
+        envelope: envelope,
+        messageKey: key,
+        senderPublicKey: from ?? sender.pub,
+        contextId: contextId,
+      );
+
+      expect(await open(env), 'secret');
+      expect(await open(env), 'secret');
+      expect(await open(env, from: imposter.publicKeyBytes), isNull);
+      expect(await open(env, contextId: 'channel-2'), isNull);
+      expect(
+        await open(
+          MessageEnvelope(
+            ciphertext: env.ciphertext,
+            nonce: env.nonce,
+            signature: env.signature,
+            keyVersion: 2,
+          ),
+        ),
+        isNull,
+      );
+      expect(
+        await crypto.verifyPlaintext(
+          envelope: env,
+          senderPublicKey: imposter.publicKeyBytes,
+          contextId: 'channel-1',
+        ),
+        isFalse,
+      );
+    });
+
     test(
       'a valid signature but wrong message key throws (AES-GCM auth failure)',
       () async {

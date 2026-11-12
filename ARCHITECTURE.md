@@ -377,6 +377,16 @@ The locked row carries the author and the timestamp, which are columns the serve
 the clear (§4, *metadata is visible*). Showing them reveals nothing a member without the key could
 not read off the table directly, and without them the row says nothing about whose history this is.
 
+**A signature that passed is remembered for the run.** Opening a channel checks each row twice,
+once in the saved copy and again in the server's page, and checks every row again on each later
+open. Ed25519 in pure Dart costs a few milliseconds a row even in a release build, so a page held
+the main thread for a fifth of a second on a phone, and in a debug build long enough for Android to
+report the app not responding. So a pass is kept in memory, never on disk, under a SHA-256 of the
+sender's key, the signature and the signed bytes together (`_verifyEd25519`). The same signature
+under another key, channel or version is a different entry and is checked in full. A failure is
+never remembered. Measured Nov 12 on a phone, profile build: the first open of a channel spent
+84 ms in signature checks instead of about 210, and opening it again spent none.
+
 ### Attachments
 
 Encrypted under their own key, carried inside the sealed message body, so the

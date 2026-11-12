@@ -4,6 +4,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
+import 'package:cryptography/dart.dart' show DartSha256;
 
 import 'blob_cipher.dart';
 import 'chat_identity.dart';
@@ -24,6 +25,7 @@ part 'crypto_repository_chat.dart';
 part 'crypto_repository_command.dart';
 part 'crypto_repository_identity.dart';
 part 'crypto_repository_recovery.dart';
+part 'crypto_repository_verify.dart';
 
 /// Repository wrapping all cryptographic operations.
 ///

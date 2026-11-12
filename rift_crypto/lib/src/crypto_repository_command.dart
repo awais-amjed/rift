@@ -64,8 +64,8 @@ mixin _CommandCryptoMixin {
     required String contextId,
   }) async {
     try {
-      return await Ed25519().verify(
-        utf8.encode(
+      return await _verifyEd25519(
+        message: utf8.encode(
           MessageEnvelope.signedPayload(
             contextId: contextId,
             keyVersion: envelope.keyVersion,
@@ -73,13 +73,8 @@ mixin _CommandCryptoMixin {
             ciphertext: envelope.ciphertext,
           ),
         ),
-        signature: Signature(
-          CryptoRepository.fromBase64(envelope.signature),
-          publicKey: SimplePublicKey(
-            senderPublicKey,
-            type: KeyPairType.ed25519,
-          ),
-        ),
+        signature: CryptoRepository.fromBase64(envelope.signature),
+        publicKey: senderPublicKey,
       );
     } catch (_) {
       return false;

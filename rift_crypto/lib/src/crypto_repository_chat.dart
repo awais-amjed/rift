@@ -294,12 +294,10 @@ mixin _ChatCryptoMixin {
       nonce: envelope.nonce,
       ciphertext: envelope.ciphertext,
     );
-    final valid = await Ed25519().verify(
-      utf8.encode(payload),
-      signature: Signature(
-        CryptoRepository.fromBase64(envelope.signature),
-        publicKey: SimplePublicKey(senderPublicKey, type: KeyPairType.ed25519),
-      ),
+    final valid = await _verifyEd25519(
+      message: utf8.encode(payload),
+      signature: CryptoRepository.fromBase64(envelope.signature),
+      publicKey: senderPublicKey,
     );
     if (!valid) return null;
 
