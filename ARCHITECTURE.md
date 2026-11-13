@@ -813,7 +813,8 @@ An `@all` is the row's flag, not the words: the body is sealed, so the server ca
 only drop `mentions_all`, and the app highlights and announces `@all` where the row
 kept it (`ChatMessage.mentionsAll`, `Mentions.mentionableFor`).
 Whoever manages a channel edits it, and only with bits they hold, on roles below
-their own. Verified Nov 13 2026 by the policy suite; not yet driven through the app.
+their own. Verified Nov 13 2026 by the policy suite, and driven through the app
+on Nov 14 2026 with three Linux clients (`TESTING.md`); summoning a bot was not.
 
 **Leaving** a server is a kick by your own hand (`leave_server`), so it is enforced
 the same way and lifted the same way: you drop off the member list and out of the
