@@ -302,7 +302,6 @@ struct Flow {
     /// When the last one came, kept or not, which [`QuietWatch`] reads.
     last: Mutex<Instant>,
     fps: Arc<AtomicU32>,
-    pacer: Mutex<Pacer>,
 }
 
 /// One running session, undone on drop.
@@ -473,12 +472,6 @@ fn picture_arrived(
     if size.width < 2 || size.height < 2 {
         return Ok(());
     }
-    let fps = flow.fps.load(Ordering::Relaxed);
-    if !flow.pacer.lock().unwrap().admits(Instant::now(), fps) {
-        return Ok(());
-    }
-    #[cfg(test)]
-    arrivals::kept();
     if let Some(tx) = flow.first.lock().unwrap().take() {
         let _ = tx.send(Progress::FirstFrame(size));
     }
@@ -866,7 +859,6 @@ pub(super) fn run(
         arrived: AtomicBool::new(false),
         last: Mutex::new(Instant::now()),
         fps: fps.clone(),
-        pacer: Mutex::new(Pacer::new()),
     });
     let session = match open_session(&winrt_device, target, request.capture_cursor, &flow) {
         Ok(session) => session,
@@ -883,7 +875,10 @@ pub(super) fn run(
     let told = wants_memory.clone();
     let _processing = thread::Builder::new()
         .name("share-frames".to_string())
-        .spawn(move || process(pictures, processing, told))
+        .spawn({
+            let fps = fps.clone();
+            move || process(pictures, processing, told, fps)
+        })
         .expect("no processing thread");
 
     let mut running = Running {
@@ -1014,12 +1009,27 @@ enum Ending {
     ReadsMemory,
 }
 
-/// The processing thread: each picture to its feed. The newest is kept until a GPU
-/// feed has taken it: the first comes before any feed, the rate gate can leave one
-/// out, and on a still screen nothing newer comes to take its place.
-fn process(pictures: Taker<WgcPicture>, slot: capture::VideoSlot, wants_memory: Arc<AtomicBool>) {
+/// The processing thread: each picture to its feed, at the share's rate. The
+/// newest is kept until a GPU feed has taken it: the first comes before any feed,
+/// the rate gate can leave one out, and on a still screen nothing newer comes to
+/// take its place.
+///
+/// Windows is asked for twice the rate ([`pacer::asked_rate`]), and a picture
+/// that comes too early waits here for its turn, or for a newer one
+/// ([`Pacer::hold`]). Until Nov 11 2026 it was dropped as it arrived, on the
+/// frame pool's thread, and when the screen then stood still viewers were left
+/// with the picture before it: the last change of a scroll or a drag never
+/// reached them until something else moved.
+fn process(
+    pictures: Taker<WgcPicture>,
+    slot: capture::VideoSlot,
+    wants_memory: Arc<AtomicBool>,
+    fps: Arc<AtomicU32>,
+) {
     let mut newest: Option<Arc<WgcPicture>> = None;
     let mut taken: Weak<GpuFeed> = Weak::new();
+    let mut pacer = Pacer::new();
+    let rate = || fps.load(Ordering::Relaxed);
     #[cfg(test)]
     let mut counted: Weak<GpuFeed> = Weak::new();
     loop {
@@ -1027,6 +1037,11 @@ fn process(pictures: Taker<WgcPicture>, slot: capture::VideoSlot, wants_memory: 
             Some(picture) => {
                 // The older one goes back first, so the pool is short one the less.
                 drop(newest.take());
+                let Some(picture) = pacer.hold(&pictures, picture, &rate) else {
+                    break;
+                };
+                #[cfg(test)]
+                arrivals::kept();
                 taken = Weak::new();
                 newest = Some(Arc::new(picture));
             }
