@@ -79,6 +79,26 @@ void main() {
       );
     });
 
+    test('H264 is offered only where the browser encodes it in hardware', () {
+      expect(WebShare.codecsOffered(all, hardwareH264: false), [
+        VideoCodec.vp8,
+        VideoCodec.vp9,
+      ]);
+      expect(WebShare.codecsOffered(all, hardwareH264: true), all);
+    });
+
+    test('a saved H264 without the hardware goes out as Auto', () {
+      const h264 = ScreenShareSettings(codec: 'H264', codecChosen: true);
+      expect(
+        WebShare.codecToSend(h264, all, hardwareH264: false),
+        VideoCodec.vp9,
+      );
+      expect(
+        WebShare.codecToSend(h264, all, hardwareH264: true),
+        VideoCodec.h264,
+      );
+    });
+
     test('one picked by hand goes out, unless the browser lacks it', () {
       const vp8 = ScreenShareSettings(codec: 'VP8', codecChosen: true);
       expect(

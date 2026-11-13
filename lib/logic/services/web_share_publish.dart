@@ -93,6 +93,17 @@ class WebShare {
   /// to know.
   static Future<bool> hardwareH264() => browserEncodesH264InHardware();
 
+  /// The codecs offered from what the browser lists: H264 only where it
+  /// encodes it in hardware, as on a desktop (`ScreenShareSettings
+  /// .codecsOffered`). Without a GPU it is OpenH264, on the CPU.
+  static List<VideoCodec> codecsOffered(
+    List<VideoCodec> codecs, {
+    required bool hardwareH264,
+  }) => [
+    for (final codec in codecs)
+      if (codec != VideoCodec.h264 || hardwareH264) codec,
+  ];
+
   /// H264 where the browser encodes it in hardware. Otherwise VP9, which
   /// every Rift viewer decodes and which carries a screen in less than VP8:
   /// a browser's H264 without a GPU is OpenH264, in software, and VP9 is no
@@ -106,13 +117,18 @@ class WebShare {
       ? VideoCodec.vp9
       : VideoCodec.vp8;
 
-  /// The codec a share goes out in. One picked here and missing in this
-  /// browser goes back to Auto.
+  /// The codec a share goes out in. One picked here and not offered in this
+  /// browser, an H264 without the hardware included, goes back to Auto.
   static VideoCodec codecToSend(
     ScreenShareSettings settings,
     List<VideoCodec> codecs, {
     required bool hardwareH264,
-  }) => settings.codecChosen && codecs.contains(settings.videoCodec)
+  }) =>
+      settings.codecChosen &&
+          codecsOffered(
+            codecs,
+            hardwareH264: hardwareH264,
+          ).contains(settings.videoCodec)
       ? settings.videoCodec
       : autoCodec(codecs, hardwareH264: hardwareH264);
 

@@ -86,7 +86,7 @@ class _ScreenShareControlState extends State<ScreenShareControl> {
         build: (_) => switch (codecs) {
           null => ScreenShareSettingsDialog(maxShareMbps: maxShareMbps),
           _ when kIsWeb => SdkShareDialog(
-            codecs: codecs,
+            codecs: WebShare.codecsOffered(codecs, hardwareH264: hardwareH264),
             autoCodec: WebShare.autoCodec(codecs, hardwareH264: hardwareH264),
             resolutions: WebShare.resolutions,
             frameRates: frameRates,
