@@ -62,8 +62,15 @@ mixin _PicturePauseMixin on Cubit<LiveKitState> {
       await Future<void>.delayed(_renewPause);
     } finally {
       _renewing.remove(sid);
-      // Back to whatever it should be now; Rift may have gone out of sight.
-      _syncPictureReception();
+      if (pub.source == TrackSource.screenShareVideo) {
+        // Back to whatever it should be now; Rift may have gone out of sight.
+        _syncPictureReception();
+      } else {
+        // A camera is no stream: nothing here holds it, and the sync above
+        // passes it by, so it stayed off after its first few frames. Handed
+        // back to adaptive stream, which turns it on while it is drawn.
+        unawaited(pub.clearEnabled());
+      }
     }
   }
 

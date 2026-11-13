@@ -999,7 +999,11 @@ The server applies an "off" 100 ms after it arrives, and an "on" arriving
 before then cancels it (`SubscribedTrack.UpdateSubscriberSettings`,
 livekit-server 1.13), so the pause has to outlast that and the trip to the
 server. The roster sync, which hands pictures back to adaptive stream, leaves
-a picture alone while it is paused like this. Rift's log says when decryption
+a picture alone while it is paused like this. A camera goes through the same
+cover, but the roster sync passes cameras by, so the pause hands a camera back
+to adaptive stream itself. From Nov 4 to Nov 13 2026 it did not, and every
+camera in an encrypted call stopped after its first few frames for whoever
+watched it (found on the web, where a viewer's inbound frames stood at 2–3). Rift's log says when decryption
 began, how many keyframes had decoded before it, and whether the cover came
 down on a clean keyframe or on the timeout.
 
