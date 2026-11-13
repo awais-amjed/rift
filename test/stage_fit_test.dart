@@ -58,5 +58,70 @@ void main() {
         expect(used, lessThanOrEqualTo(h + 0.5), reason: '$w x $h');
       }
     });
+    test('an unopened stream on a phone is no narrower than its least', () {
+      // The phone's stage that crowded Watch onto the name: 360 wide.
+      final fit = stageFit(
+        width: 360,
+        height: 640,
+        people: 3,
+        streams: 1,
+        minStreamWidth: 320,
+        personAspect: 4 / 3,
+      );
+      expect(fit.streamWidth, 320);
+      expect(fit.tileWidth, (360 - 8) ~/ 2);
+    });
+
+    test('the least never goes past the stage', () {
+      final fit = stageFit(
+        width: 300,
+        height: 900,
+        people: 0,
+        streams: 1,
+        minStreamWidth: 320,
+      );
+      expect(fit.streamWidth, 300);
+    });
+
+    test('a stage too short for the least shrinks the stream again', () {
+      final fit = stageFit(
+        width: 360,
+        height: 150,
+        people: 2,
+        streams: 1,
+        minStreamWidth: 320,
+      );
+      final used = fit.streamWidth * 9 / 16 + 8 + fit.tileWidth * 9 / 16;
+      expect(used, lessThanOrEqualTo(150.5));
+      expect(fit.tileWidth, greaterThan(0));
+    });
+
+    test('squarer people take more height for the same width', () {
+      // Tall enough for both to be held by the width alone.
+      const args = (width: 360.0, height: 900.0);
+      final wide = stageFit(
+        width: args.width,
+        height: args.height,
+        people: 4,
+        streams: 0,
+      );
+      final square = stageFit(
+        width: args.width,
+        height: args.height,
+        people: 4,
+        streams: 0,
+        personAspect: 4 / 3,
+      );
+      expect(square.tileWidth, wide.tileWidth);
+      // Short enough that 4:3 rows run out of height first.
+      final short = stageFit(
+        width: 360,
+        height: 260,
+        people: 4,
+        streams: 0,
+        personAspect: 4 / 3,
+      );
+      expect(2 * short.tileWidth * 3 / 4 + 8, lessThanOrEqualTo(260.5));
+    });
   });
 }

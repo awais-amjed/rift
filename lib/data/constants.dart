@@ -353,6 +353,15 @@ class K {
   /// the call's length and the mic, in a 40px capsule.
   static const double callPillClearance = callBarOffset + 40;
 
+  /// The least width a stream nobody has opened takes on the stage, room
+  /// enough for its Watch button above its name and quality. At a person's
+  /// width on a phone the three ran into each other.
+  static const double streamTileMinWidth = 320;
+
+  /// A person's tile on a stage taller than it is wide: squarer than 16:9,
+  /// so a phone's people use the height instead of sitting in a short strip.
+  static const double personTileAspectTall = 4 / 3;
+
   // ── DM calls ──────────────────────────────────────────────
 
   /// Answer and hang up: round and bigger than any other control, because

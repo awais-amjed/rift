@@ -5,6 +5,7 @@ import 'package:livekit_client/livekit_client.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../../data/classes/participant_setting.dart';
+import '../../../../../data/constants.dart';
 import '../../../../../data/participant_identity.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
@@ -271,6 +272,62 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
           final shareSpace =
               constraints.maxHeight - padding * 2 - barRoom - gap - railHeight;
           final slot = (shareSpace - gap * (shares.length - 1)) / shares.length;
+          final shareSizes = [
+            for (final share in shares)
+              fitAspect(
+                _aspects[_keyOf(share)] ?? _defaultAspect,
+                Size(width, slot),
+              ),
+          ];
+          Widget everyoneElse = CameraRail(
+            count: cameras.length,
+            height: railHeight,
+            gap: gap,
+            itemBuilder: (context, index) => _buildTile(cameras[index]),
+          );
+          // A tall stage, a phone's above all, has the share held by its
+          // width and room to spare under it: everyone else fills that, two
+          // to a row and squarer, rather than a strip of tiles too short for
+          // their names.
+          if (constraints.maxHeight > constraints.maxWidth) {
+            final sharesHeight =
+                shareSizes.fold(0.0, (sum, size) => sum + size.height) +
+                gap * (shares.length - 1);
+            final room =
+                constraints.maxHeight -
+                padding * 2 -
+                barRoom -
+                sharesHeight -
+                gap;
+            final fit = stageFit(
+              width: width,
+              height: room,
+              people: cameras.length,
+              streams: 0,
+              gap: gap,
+              personAspect: K.personTileAspectTall,
+            );
+            // Never wider than half: the share stays the thing on stage.
+            final tileWidth = min(
+              fit.tileWidth,
+              ((width - gap) / 2).floorToDouble(),
+            );
+            if (tileWidth / K.personTileAspectTall > railHeight) {
+              everyoneElse = Wrap(
+                alignment: WrapAlignment.center,
+                spacing: gap,
+                runSpacing: gap,
+                children: [
+                  for (final tile in cameras)
+                    SizedBox(
+                      width: tileWidth,
+                      height: tileWidth / K.personTileAspectTall,
+                      child: _buildTile(tile),
+                    ),
+                ],
+              );
+            }
+          }
           return Padding(
             padding: EdgeInsets.fromLTRB(
               padding,
@@ -284,20 +341,12 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
                 for (var i = 0; i < shares.length; i++) ...[
                   if (i > 0) const SizedBox(height: gap),
                   SizedBox.fromSize(
-                    size: fitAspect(
-                      _aspects[_keyOf(shares[i])] ?? _defaultAspect,
-                      Size(width, slot),
-                    ),
+                    size: shareSizes[i],
                     child: _buildTile(shares[i]),
                   ),
                 ],
                 const SizedBox(height: gap),
-                CameraRail(
-                  count: cameras.length,
-                  height: railHeight,
-                  gap: gap,
-                  itemBuilder: (context, index) => _buildTile(cameras[index]),
-                ),
+                everyoneElse,
               ],
             ),
           );
@@ -321,27 +370,35 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
         final height = constraints.maxHeight.isFinite
             ? constraints.maxHeight - padding * 2 - barRoom
             : width;
+        // A tall stage, a phone's above all, gives people squarer tiles to
+        // fill its height with.
+        final personAspect = height > width ? K.personTileAspectTall : 16 / 9;
         final fit = stageFit(
           width: width,
           height: height,
           people: people.length,
           streams: streams.length,
           gap: gap,
+          minStreamWidth: K.streamTileMinWidth,
+          personAspect: personAspect,
         );
-        Widget row(List<VoiceTile<Participant>> group, double tileWidth) =>
-            Wrap(
-              alignment: WrapAlignment.center,
-              spacing: gap,
-              runSpacing: gap,
-              children: [
-                for (final tile in group)
-                  SizedBox(
-                    width: tileWidth,
-                    height: tileWidth * 9 / 16,
-                    child: _buildTile(tile),
-                  ),
-              ],
-            );
+        Widget row(
+          List<VoiceTile<Participant>> group,
+          double tileWidth,
+          double aspect,
+        ) => Wrap(
+          alignment: WrapAlignment.center,
+          spacing: gap,
+          runSpacing: gap,
+          children: [
+            for (final tile in group)
+              SizedBox(
+                width: tileWidth,
+                height: tileWidth / aspect,
+                child: _buildTile(tile),
+              ),
+          ],
+        );
         return Padding(
           padding: EdgeInsets.only(bottom: barRoom),
           child: Center(
@@ -350,10 +407,11 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (streams.isNotEmpty) row(streams, fit.streamWidth),
+                  if (streams.isNotEmpty) row(streams, fit.streamWidth, 16 / 9),
                   if (streams.isNotEmpty && people.isNotEmpty)
                     const SizedBox(height: gap),
-                  if (people.isNotEmpty) row(people, fit.tileWidth),
+                  if (people.isNotEmpty)
+                    row(people, fit.tileWidth, personAspect),
                 ],
               ),
             ),
