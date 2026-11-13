@@ -10,8 +10,8 @@ import 'package:material_ui/material_ui.dart';
 /// Both trace to Flutter 3.47's Impeller on Linux, which has no working MSAA
 /// (flutter/flutter#191171): a clip's edge, a stroke and a path go
 /// unsmoothed, and only a filled primitive is. Fixed upstream by #191379,
-/// which no stable release has yet. Until one does, these corners are
-/// stepped on Linux like every other clip in the app, and smooth elsewhere.
+/// in Flutter 3.50, where these corners came out smooth on Linux too
+/// (Nov 13 2026).
 class RoundedPicture extends StatelessWidget {
   final ImageProvider image;
   final double size;
