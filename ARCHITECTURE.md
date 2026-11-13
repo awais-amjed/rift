@@ -949,12 +949,11 @@ call left its key behind, and nothing outside the library turns that off since
 m150. libwebrtc `.04` made release builds silent again, and the desktop builds
 take `.07`, which has that change, through flutter_webrtc 1.6.3 (verified with
 `.04` Oct 21 2026 and with `.07` Nov 13 2026); the web logs none.
-**Android printed them to logcat** on its separate build
+Android printed them to logcat on its separate build
 (`io.github.webrtc-sdk:android` `150.7871.01`) with the same default and no way
-to change it from outside; 1.6.3 moves it to `150.7871.04`, not yet checked. Logcat is readable only by the
-app, the system and a computer with USB debugging, and is not kept across a
-restart, so this is far narrower than the journal, but it waits on a fixed
-Android build. iOS and macOS are not checked.
+to change it from outside. 1.6.3 moves it to `150.7871.04`, which prints none
+(verified Nov 13 2026 on a phone in an encrypted call: libwebrtc still logs
+there, but no key lines). iOS and macOS are not checked.
 
 **Report a bug** (Settings → Help) sends it. The person writes what
 happened; `BugReportRepository` files it on central (`submit_bug_report`, ten

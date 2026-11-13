@@ -59,7 +59,9 @@ count there.
 Until 1.6.3 a patch here pinned `.04`. 1.6.3 downloads `m150.7871.07`, which
 has #153 and three later changes (desktop capturer options, video frame
 processors, a missing include), and drops a compromised eMudhra root from the
-TURN/TLS roots, so the pin went (Nov 13 2026).
+TURN/TLS roots, so the pin went (Nov 13 2026). It also moves Android to
+`io.github.webrtc-sdk:android` `150.7871.04`, whose `.01` had printed the keys
+to logcat; a phone's call the same day printed none.
 
 ## Thread priorities
 
