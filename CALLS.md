@@ -1798,3 +1798,13 @@ running in its sidebar: the main thread woke 759–1,113 times a second idle and
 1,746 in the call watching a stream; with Dart on its own thread 114–142 idle
 and 172 in the call. A message notification showed and opened its channel
 when clicked, typing and sending worked, and the call and the stream played.
+
+Measured again Nov 13 2026 on Flutter 3.50, on a laptop's own Windows (Iris Xe
+and an RTX), by the owner's Windows session: with
+Dart on the main thread, the main thread switched 166 times a second idle and
+666 in a call watching a share, against 96 and 285 on its own thread, and the
+process used 40.8% of a core in that call against 27.1%. The runaway timer is
+gone (nowhere near 1,000, where this laptop showed 2,500–5,500 before), though
+the timer code reads the same, but Dart on the main thread still costs about a
+seventh of a core in a call, which is what a game beside Rift pays. So Dart
+stays on its own thread.

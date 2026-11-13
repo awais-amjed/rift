@@ -71,8 +71,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // TimerThread, which keeps firing once one has fired (a later time does
   // not replace a passed one): Rift idle on a server woke this thread 1,000
   // times a second in a VM, against about 100 with Dart on its own thread
-  // (CALLS.md, "Rift beside a game"). Remove when the engine schedules a
-  // later time over a passed one, or drops this policy.
+  // (CALLS.md, "Rift beside a game"). On Flutter 3.50 the runaway is gone,
+  // but Dart here still cost 41% of a core in a call against 27% on its
+  // own thread (Nov 13), so it stays until the engine drops this policy.
   project.set_ui_thread_policy(flutter::UIThreadPolicy::RunOnSeparateThread);
 
   FlutterWindow window(project);
