@@ -115,6 +115,9 @@ class SoundboardPopover extends StatelessWidget {
         false;
     final canManage =
         permissions?.can(ServerPermission.manageSoundboard) ?? false;
+    // Say which one took it: the call's channel can deny what the server gives.
+    final channelTookIt =
+        !canPlay && (permissions?.can(ServerPermission.useSoundboard) ?? false);
 
     return BlocBuilder<SoundboardCubit, SoundboardState>(
       builder: (context, state) {
@@ -148,8 +151,8 @@ class SoundboardPopover extends StatelessWidget {
               if (!canPlay)
                 _note(
                   context,
-                  'You cannot play clips on this server — everything '
-                  'below is somebody else\'s to press.',
+                  '${channelTookIt ? 'This channel doesn\'t let you play clips' : 'You cannot play clips on this server'}'
+                  ' — everything below is somebody else\'s to press.',
                 ),
               Flexible(
                 child: ConstrainedBox(
