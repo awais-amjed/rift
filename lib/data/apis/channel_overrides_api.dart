@@ -1,4 +1,6 @@
+import '../classes/channel.dart';
 import '../classes/channel_override.dart';
+import '../enums/channel_type.dart';
 import '../repositories/server_repository.dart';
 import '../repositories/server_session.dart';
 import '../repositories/session_repository.dart';
@@ -46,11 +48,15 @@ class ChannelOverridesApi {
     };
   }
 
-  /// Replace [override]'s row in [channelId]; an empty one goes back to
+  /// Replace [override]'s row in [channel]; an empty one goes back to
   /// inheriting everything. Re-reads the server before answering, so the
   /// caller's own `myPermissions` already holds the change.
+  ///
+  /// A voice channel's goes through the edge function, so turning a call
+  /// Listen-only takes the microphone of whoever is talking in it now, not
+  /// at their next join.
   Future<({bool success, String? error})> set(
-    String channelId,
+    Channel channel,
     ChannelOverride override,
   ) async {
     final server = _target.server;
@@ -58,15 +64,24 @@ class ChannelOverridesApi {
 
     final response = await _session.callFor(
       server,
-      (token) => _repository.setChannelOverride(
-        server.supabaseUrl,
-        channelId,
-        anonKey: server.supabaseKey ?? '',
-        bearerToken: token,
-        roleId: override.roleId,
-        allow: override.allow,
-        deny: override.deny,
-      ),
+      (token) => channel.channelType == ChannelType.voice
+          ? _repository.setVoiceChannelOverride(
+              server.supabaseUrl,
+              channel.id,
+              bearerToken: token,
+              roleId: override.roleId,
+              allow: override.allow,
+              deny: override.deny,
+            )
+          : _repository.setChannelOverride(
+              server.supabaseUrl,
+              channel.id,
+              anonKey: server.supabaseKey ?? '',
+              bearerToken: token,
+              roleId: override.roleId,
+              allow: override.allow,
+              deny: override.deny,
+            ),
     );
     if (!response.success) {
       // A server from before overrides has no such function.

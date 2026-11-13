@@ -124,7 +124,7 @@ class _ChannelPermissionsPanelState extends State<ChannelPermissionsPanel> {
     for (final id in {..._original.keys, ..._draft.keys}) {
       final row = _rowFor(id);
       if (row == (_original[id] ?? ChannelOverride(roleId: id))) continue;
-      final result = await api.set(_channel.id, row);
+      final result = await api.set(_channel, row);
       if (!mounted) return;
       if (!result.success) {
         setState(() {

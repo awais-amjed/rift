@@ -181,6 +181,26 @@ mixin _ChannelApiMixin {
     });
   }
 
+  /// The same row as [setChannelOverride], through the edge function of the
+  /// same name, for a voice channel: it also gives or takes the microphone
+  /// of everyone already in the call, which needs the LiveKit secret. The
+  /// answer's `reason` is the RPC's.
+  Future<APIResponse> setVoiceChannelOverride(
+    String supabaseUrl,
+    String channelId, {
+    String? bearerToken,
+    required String roleId,
+    required int allow,
+    required int deny,
+  }) {
+    return _post(supabaseUrl, 'set_channel_override', {
+      'channel_id': channelId,
+      'role_id': roleId,
+      'allow': allow,
+      'deny': deny,
+    }, bearerToken: bearerToken);
+  }
+
   /// Remove yourself from a private channel.
   ///
   /// Its own function rather than a `set_channel_members` with one name
