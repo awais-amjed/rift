@@ -25,6 +25,7 @@ import '../../../common/chat/chat_message_list.dart';
 import '../../../common/chat/chat_reply_draft.dart';
 import '../../../common/chat/chat_scroll_load_more.dart';
 import '../../../common/chat/composer/chat_composer.dart';
+import '../../../common/chat/composer_notice.dart';
 import '../../../common/chat/drop/chat_drop_zone.dart';
 import '../../../common/chat/forward/show_forward_dialog.dart';
 import '../../../common/chat/live_bar/live_bar_escape.dart';
@@ -87,6 +88,17 @@ class _ChannelChatViewState extends State<ChannelChatView>
     final serverId = ServerScope.idOf(context);
     context.select<ServerCubit, int?>(
       (cubit) => cubit.state.permissionsOn(serverId)?.bits,
+    );
+    // ...and the channel's own, which its overrides change without touching
+    // the server's (`channel_overrides`).
+    final openId = context.select((ChannelChatCubit c) => c.state.channelId);
+    context.select<ServerCubit, int?>(
+      (cubit) => cubit.state
+          .serverOn(serverId)
+          ?.channels
+          .where((c) => c.id == openId)
+          .firstOrNull
+          ?.myPermissions,
     );
     return BlocBuilder<ChannelChatCubit, ChannelChatState>(
       // Only what decides the frame: which state is drawn and what holds the
@@ -164,49 +176,62 @@ class _ChannelChatViewState extends State<ChannelChatView>
                         until: context.select<ServerCubit, DateTime?>(
                           (c) => c.state.meOn(serverId)?.timedOutUntil,
                         ),
-                        child: ChatComposer(
-                          conversation: chatState.channelId,
-                          canSend: status == ChannelChatStatus.ready,
-                          onSend: (text, attachments, preview, toBotId) =>
-                              _send(
-                                context,
-                                text,
-                                attachments,
-                                preview,
-                                toBotId,
+                        child: !_canPost(context)
+                            ? const ComposerNotice(
+                                icon: Icons.campaign_outlined,
+                                text:
+                                    'You can\'t send messages in this '
+                                    'channel.',
+                              )
+                            : ChatComposer(
+                                conversation: chatState.channelId,
+                                canSend: status == ChannelChatStatus.ready,
+                                onSend: (text, attachments, preview, toBotId) =>
+                                    _send(
+                                      context,
+                                      text,
+                                      attachments,
+                                      preview,
+                                      toBotId,
+                                    ),
+                                replyingTo: replyingTo,
+                                onCancelReply: cancelReply,
+                                // A channel is the one surface with somebody to ring
+                                // who is not already being written to.
+                                replyPings: replyPings,
+                                onToggleReplyPing: setReplyPing,
+                                onTyping: () => context
+                                    .read<ChannelChatCubit>()
+                                    .notifyTyping(),
+                                canAttach: _canAttach(context),
+                                maxAttachmentBytes: _maxAttachmentBytes(
+                                  context,
+                                ),
+                                remainingStorageBytes: _remainingStorage(
+                                  context,
+                                ),
+                                // Every file goes as it is where encryption is off, so
+                                // there is no choice to offer per file.
+                                offersPlainFiles:
+                                    !_notEncrypted(context) &&
+                                    _isPublic(context),
+                                notEncrypted: _notEncrypted(context),
+                                bots: context.select(
+                                  (ChannelChatCubit c) => c.state.bots,
+                                ),
+                                onCreatePoll: _canCreatePoll(context)
+                                    ? () => _createPoll(context)
+                                    : null,
+                                onMentionSearch: (query) =>
+                                    _searchMentionable(context, query),
+                                onCommandSuggest: (bot, command, text) =>
+                                    _askBot(context, bot, command, text),
+                                selfUserId: context
+                                    .read<ServerCubit>()
+                                    .state
+                                    .meOn(serverId)
+                                    ?.id,
                               ),
-                          replyingTo: replyingTo,
-                          onCancelReply: cancelReply,
-                          // A channel is the one surface with somebody to ring
-                          // who is not already being written to.
-                          replyPings: replyPings,
-                          onToggleReplyPing: setReplyPing,
-                          onTyping: () =>
-                              context.read<ChannelChatCubit>().notifyTyping(),
-                          canAttach: _canAttach(context),
-                          maxAttachmentBytes: _maxAttachmentBytes(context),
-                          remainingStorageBytes: _remainingStorage(context),
-                          // Every file goes as it is where encryption is off, so
-                          // there is no choice to offer per file.
-                          offersPlainFiles:
-                              !_notEncrypted(context) && _isPublic(context),
-                          notEncrypted: _notEncrypted(context),
-                          bots: context.select(
-                            (ChannelChatCubit c) => c.state.bots,
-                          ),
-                          onCreatePoll: _canCreatePoll(context)
-                              ? () => _createPoll(context)
-                              : null,
-                          onMentionSearch: (query) =>
-                              _searchMentionable(context, query),
-                          onCommandSuggest: (bot, command, text) =>
-                              _askBot(context, bot, command, text),
-                          selfUserId: context
-                              .read<ServerCubit>()
-                              .state
-                              .meOn(serverId)
-                              ?.id,
-                        ),
                       ),
                     ],
                   ],
@@ -388,19 +413,38 @@ class _ChannelChatViewState extends State<ChannelChatView>
       .where((c) => c.id == channelId)
       .firstOrNull;
 
-  /// Channel managers and server admins may delete anyone's message here.
+  /// Who may delete anyone's message here, as `messages_delete` decides it:
+  /// the channel's `MANAGE_MESSAGES`, or managing the channel.
   bool _isModerator(BuildContext context) {
     final permissions = _myPermissions(context);
-    return (permissions?.isChannelManager ?? false) ||
-        (permissions?.isServerAdmin ?? false);
+    if (permissions == null) return false;
+    if (permissions.can(ServerPermission.manageMessages)) return true;
+    final channel = _channel(
+      context,
+      context.read<ChannelChatCubit>().state.channelId,
+    );
+    return channel != null && channel.isPrivate
+        ? channel.canManage
+        : permissions.isChannelManager || permissions.isServerAdmin;
   }
 
+  /// Ours in the open channel: the server's, with the channel's overrides
+  /// applied (`Channel.myPermissions`).
   UserPermissions? _myPermissions(BuildContext context) => context
       .read<ServerCubit>()
       .state
       .serverOn(ServerScope.readId(context))
       ?.user
-      ?.permissions;
+      ?.permissions
+      .inChannel(
+        _channel(context, context.read<ChannelChatCubit>().state.channelId),
+      );
+
+  /// Whether the composer is offered at all. A channel can be read-only for a
+  /// role (`channel_overrides`), and the database refuses the row there
+  /// (`messages_insert`), so typing into it would be a promise it breaks.
+  bool _canPost(BuildContext context) =>
+      _myPermissions(context)?.can(ServerPermission.sendMessages) ?? false;
 
   /// Asked here rather than inside the list, because the answer is the
   /// server's and a DM surface has no roles to ask about. The database

@@ -42,6 +42,11 @@ capability the app has, a bot has, under the same policies.
 A headless member written against the app's own `CryptoRepository` was the working proof: it
 joined a server, kept its keyring healed, and sent messages.
 
+So a channel's own permissions (`channel_overrides`, ARCHITECTURE.md §7) hold a bot exactly as they
+hold a person with its roles: a read-only channel refuses its post, and a listen-only call mints its
+token without a microphone. A summoned bot is judged by its own bits in that call, not the
+summoner's.
+
 ### Adding one
 
 Bots are added by invite, the same as people, because an invite already carries exactly the right

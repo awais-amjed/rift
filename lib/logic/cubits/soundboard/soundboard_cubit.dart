@@ -106,10 +106,11 @@ class SoundboardCubit extends Cubit<SoundboardState>
   bool get _canPlay {
     final serverId = _watcher.serverId;
     if (serverId == null) return false;
-    return _session
-            .serverById(serverId)
-            ?.user
-            ?.permissions
+    // The call's channel can override it (`channel_overrides`).
+    final server = _session.serverById(serverId);
+    final callId = _livekitCubit?.state.currentChannelId;
+    return server?.user?.permissions
+            .inChannel(server.channels.where((c) => c.id == callId).firstOrNull)
             .can(ServerPermission.useSoundboard) ??
         false;
   }

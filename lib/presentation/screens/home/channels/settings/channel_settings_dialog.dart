@@ -19,6 +19,7 @@ import 'channel_settings_tab.dart';
 import 'panels/channel_access_panel.dart';
 import 'panels/channel_delete_panel.dart';
 import 'panels/channel_overview_panel.dart';
+import 'panels/channel_permissions_panel.dart';
 import 'panels/channel_webhooks_panel.dart';
 
 /// Over the widget budget and one job: one channel's settings, a page per
@@ -191,6 +192,10 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
       switch (tab) {
         ChannelSettingsTab.overview => ChannelOverviewPanel(
           key: ValueKey('overview-${channel.id}'),
+          channel: channel,
+        ),
+        ChannelSettingsTab.permissions => ChannelPermissionsPanel(
+          key: ValueKey('permissions-${channel.id}'),
           channel: channel,
         ),
         // Keyed on privacy, so opening or closing the room starts the page

@@ -18,7 +18,7 @@ mixin _MediaControlsMixin on Cubit<LiveKitState> {
   /// intent the user can't see the effect of, and the button is disabled to
   /// match. Their pre-existing choice is what gets restored on release.
   Future<void> toggleMicrophone() async {
-    if (state.isModerated) return;
+    if (state.isMicHeld) return;
     if (state.isMicTesting) return setMicTesting(false);
     if (state.isDeafened) {
       await _setDeafened(false);

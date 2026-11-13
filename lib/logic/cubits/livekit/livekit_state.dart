@@ -73,6 +73,12 @@ class LiveKitState extends Equatable {
   final bool isServerMuted;
   final bool isServerDeafened;
 
+  /// The call's channel does not let us speak (`SPEAK`, which a channel can
+  /// take away from a role): our connection may not publish a microphone,
+  /// though no moderator muted us. Read off the connection's own permissions,
+  /// so it follows a change that reaches the call.
+  final bool isSpeakDenied;
+
   /// When this call reached [LiveKitConnectionState.connected], so every
   /// timer drawn for it — the call's own header and the bar that stands in
   /// for it elsewhere — counts from the same moment rather than from whenever
@@ -143,6 +149,7 @@ class LiveKitState extends Equatable {
     this.watchedPictures = const {},
     this.isServerMuted = false,
     this.isServerDeafened = false,
+    this.isSpeakDenied = false,
     this.connectedAt,
     this.connectedLivekitUrl,
     this.streamToOpen,
@@ -175,7 +182,11 @@ class LiveKitState extends Equatable {
   /// Whether the microphone is live: the user wants it on, hasn't deafened
   /// themselves, isn't testing it, and no moderator has taken it away.
   bool get isMicOn =>
-      isMicEnabled && !isSelfDeafened && !isServerMuted && !isServerDeafened;
+      isMicEnabled &&
+      !isSelfDeafened &&
+      !isServerMuted &&
+      !isServerDeafened &&
+      !isSpeakDenied;
 
   /// Deafened by this device — their own choice, or the mic test. What the
   /// rest of the call is told.
@@ -191,6 +202,22 @@ class LiveKitState extends Equatable {
   /// Whether a moderator is holding the mic or the ears, which is what makes
   /// the local controls unusable rather than merely off.
   bool get isModerated => isServerMuted || isServerDeafened;
+
+  /// Whether the mic button won't move: a moderator holds it, or the channel
+  /// does not let us speak.
+  bool get isMicHeld => isModerated || isSpeakDenied;
+
+  /// What the mic button says while [isMicHeld].
+  String get micHeldLabel =>
+      isModerated ? 'Muted by a moderator' : 'You can\'t speak here';
+
+  /// Why the mic won't move, for a tap: [moderationNotice], or the channel's
+  /// rule. Deafen is not held by the channel, so this is the mic's alone.
+  String? get micHeldNotice =>
+      moderationNotice ??
+      (isSpeakDenied
+          ? 'This channel doesn\'t let you speak. You can still listen.'
+          : null);
 
   /// Whether "Mute everyone else for me" holds [userId]'s voice. Menus show
   /// such a person as muted, so their Unmute is there to let them through.
@@ -243,6 +270,7 @@ class LiveKitState extends Equatable {
     Map<String, WatchedPicture>? watchedPictures,
     bool? isServerMuted,
     bool? isServerDeafened,
+    bool? isSpeakDenied,
     DateTime? connectedAt,
     String? connectedLivekitUrl,
     String? streamToOpen,
@@ -298,6 +326,7 @@ class LiveKitState extends Equatable {
       watchedPictures: watchedPictures ?? this.watchedPictures,
       isServerMuted: isServerMuted ?? this.isServerMuted,
       isServerDeafened: isServerDeafened ?? this.isServerDeafened,
+      isSpeakDenied: isSpeakDenied ?? this.isSpeakDenied,
       // Tied to the connection rather than cleared by hand at each of the
       // places a call can end, so no path out of a call can leave a stale one.
       connectedAt: nextConnection == LiveKitConnectionState.connected
@@ -344,6 +373,7 @@ class LiveKitState extends Equatable {
     watchedPictures,
     isServerMuted,
     isServerDeafened,
+    isSpeakDenied,
     connectedAt,
     connectedLivekitUrl,
     streamToOpen,

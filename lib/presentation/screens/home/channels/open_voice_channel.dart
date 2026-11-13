@@ -2,12 +2,16 @@ import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:toastification/toastification.dart';
 
 import '../../../../data/classes/channel.dart';
 import '../../../../data/enums/home_surface.dart';
+import '../../../../data/enums/server_permission.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../logic/cubits/livekit/livekit_cubit.dart';
+import '../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../logic/helper_methods.dart';
 import '../mobile/mobile_shell_scope.dart';
 import 'confirm_voice_switch.dart';
 
@@ -25,6 +29,23 @@ Future<bool> openVoiceChannel(BuildContext context, Channel ch) async {
   if (shell != null && selected == ch.id) {
     shell.openCall();
     return true;
+  }
+  // A channel can keep a role out of its call (`CONNECT`, in
+  // `channel_overrides`). Said here rather than left to the token's refusal,
+  // which would have taken you out of the call you are in first.
+  final servers = context.read<ServerCubit>().state;
+  final mayJoin =
+      servers
+          .permissionsIn(servers.serverWithChannel(ch.id)?.id, ch.id)
+          ?.can(ServerPermission.connect) ??
+      true;
+  if (!mayJoin) {
+    HelperMethods.showToast(
+      title: 'You can\'t join ${ch.name}',
+      description: 'This channel doesn\'t let you join its call.',
+      type: ToastificationType.info,
+    );
+    return false;
   }
   // Asked before anything moves, so cancelling leaves the screen exactly as
   // it was — the chat you were reading included.

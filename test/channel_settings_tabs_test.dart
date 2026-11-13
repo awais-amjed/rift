@@ -24,6 +24,7 @@ void main() {
     expect(visibleChannelSettingsTabs(text, canManage: true), [
       ChannelSettingsTab.overview,
       ChannelSettingsTab.access,
+      ChannelSettingsTab.permissions,
       ChannelSettingsTab.bots,
       ChannelSettingsTab.webhooks,
       ChannelSettingsTab.delete,
@@ -41,6 +42,13 @@ void main() {
     expect(visibleChannelSettingsTabs(privateText, canManage: false), [
       ChannelSettingsTab.access,
     ]);
+  });
+
+  test('a voice channel has its own permissions page too', () {
+    expect(
+      visibleChannelSettingsTabs(voice, canManage: true),
+      contains(ChannelSettingsTab.permissions),
+    );
   });
 
   test('a member of a public channel gets nothing', () {

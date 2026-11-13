@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../../data/classes/user_permissions.dart';
 import '../../../../data/constants.dart';
 import '../../../../data/enums/server_permission.dart';
+import '../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/soundboard/soundboard_cubit.dart';
 import '../../../common/popover_surface.dart';
@@ -100,7 +101,18 @@ class SoundboardPopover extends StatelessWidget {
     final permissions = context.select<ServerCubit, UserPermissions?>(
       (cubit) => cubit.state.permissionsOn(serverId),
     );
-    final canPlay = permissions?.can(ServerPermission.useSoundboard) ?? false;
+    // Playing is the call's channel's to allow (`channel_overrides`);
+    // managing the library is the server's.
+    final callId = context.select<LiveKitCubit, String?>(
+      (c) => c.state.currentChannelId,
+    );
+    final canPlay =
+        context
+            .select<ServerCubit, UserPermissions?>(
+              (cubit) => cubit.state.permissionsIn(serverId, callId),
+            )
+            ?.can(ServerPermission.useSoundboard) ??
+        false;
     final canManage =
         permissions?.can(ServerPermission.manageSoundboard) ?? false;
 

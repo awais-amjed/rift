@@ -41,6 +41,7 @@ class ControlBar extends StatelessWidget {
           prev.isDeafenedEffective != curr.isDeafenedEffective ||
           prev.isServerMuted != curr.isServerMuted ||
           prev.isServerDeafened != curr.isServerDeafened ||
+          prev.isSpeakDenied != curr.isSpeakDenied ||
           prev.subscribedScreenshares.isEmpty !=
               curr.subscribedScreenshares.isEmpty,
       builder: (context, livekitState) {
@@ -64,7 +65,9 @@ class ControlBar extends StatelessWidget {
                     isMicOn: livekitState.isMicOn,
                     isCameraEnabled: livekitState.isCameraEnabled,
                     isDeafened: livekitState.isDeafenedEffective,
-                    isServerMuted: livekitState.isServerMuted,
+                    micHeldLabel: livekitState.isMicHeld
+                        ? livekitState.micHeldLabel
+                        : null,
                     isServerDeafened: livekitState.isServerDeafened,
                     isWatching: livekitState.subscribedScreenshares.isNotEmpty,
                   ),
@@ -87,13 +90,14 @@ class _ControlBarContent extends StatelessWidget {
   /// leaving — see [LeaveButton].
   final bool isWatching;
 
-  /// Moderation, so the tooltip can say why the button won't move.
-  final bool isServerMuted;
+  /// Why the mic won't move (`LiveKitState.micHeldLabel`), or null; and the
+  /// moderator's deafen, so each tooltip can say why its button won't move.
+  final String? micHeldLabel;
   final bool isServerDeafened;
 
   const _ControlBarContent({
     required this.isMicOn,
-    required this.isServerMuted,
+    required this.micHeldLabel,
     required this.isServerDeafened,
     required this.isCameraEnabled,
     required this.isDeafened,
@@ -102,7 +106,17 @@ class _ControlBarContent extends StatelessWidget {
 
   Future<void> _toggleMic(BuildContext context) async {
     final cubit = context.read<LiveKitCubit>();
-    if (_announceModeration(cubit)) return;
+    final held = cubit.state.micHeldNotice;
+    if (held != null) {
+      HelperMethods.showToast(
+        title: cubit.state.isModerated
+            ? 'Held by a moderator'
+            : 'Listen-only channel',
+        description: held,
+        type: ToastificationType.warning,
+      );
+      return;
+    }
     await cubit.toggleMicrophone();
   }
 
@@ -217,9 +231,7 @@ class _ControlBarContent extends StatelessWidget {
                 ControlButton(
                   icon: isMicOn ? Icons.mic : Icons.mic_off,
                   isError: !isMicOn,
-                  tooltip: isServerMuted || isServerDeafened
-                      ? 'Muted by a moderator'
-                      : (isMicOn ? 'Mute' : 'Unmute'),
+                  tooltip: micHeldLabel ?? (isMicOn ? 'Mute' : 'Unmute'),
                   onTap: () => _toggleMic(context),
                 ),
                 const SizedBox(width: 4),

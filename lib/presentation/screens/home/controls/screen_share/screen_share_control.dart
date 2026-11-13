@@ -3,12 +3,16 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:toastification/toastification.dart';
 
 import '../../../../../data/classes/screen_share_settings.dart';
 import '../../../../../data/classes/server_limits.dart';
+import '../../../../../data/enums/server_permission.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/screenshare/screenshare_cubit.dart';
+import '../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../logic/helper_methods.dart';
 import '../../../../../logic/services/host_platform.dart';
 import '../../../../../logic/services/phone_encoders.dart';
 import '../../../../../logic/services/phone_screen.dart';
@@ -167,10 +171,29 @@ class _ScreenShareControlState extends State<ScreenShareControl> {
       buildWhen: (prev, curr) => prev.isSharing != curr.isSharing,
       builder: (context, state) {
         if (!state.isSharing) {
+          // The call's channel can take sharing from a role
+          // (`channel_overrides`), and the token would be refused there.
+          final call = context.select<LiveKitCubit, (String?, String?)>(
+            (c) => (c.state.currentServerId, c.state.currentChannelId),
+          );
+          final mayShare = context.select<ServerCubit, bool>(
+            (c) =>
+                c.state
+                    .permissionsIn(call.$1, call.$2)
+                    ?.can(ServerPermission.screenShare) ??
+                true,
+          );
           return ControlButton(
             icon: Icons.present_to_all,
-            tooltip: 'Share screen',
-            onTap: _start,
+            tooltip: mayShare ? 'Share screen' : 'You can\'t share here',
+            onTap: mayShare
+                ? _start
+                : () => HelperMethods.showToast(
+                    title: 'Sharing is off here',
+                    description:
+                        'This channel doesn\'t let you share your screen.',
+                    type: ToastificationType.info,
+                  ),
             dense: widget.dense,
           );
         }

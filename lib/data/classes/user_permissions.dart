@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 import '../enums/server_permission.dart';
+import 'channel.dart';
 
 /// What a member may do on a server. The UI reads it only to hide what would be
 /// refused; the server enforces every one of these itself.
@@ -44,6 +45,14 @@ class UserPermissions extends Equatable {
       ServerPermission.createInvite => isServerAdmin || canCreateTokens,
       _ => isServerAdmin,
     };
+  }
+
+  /// These permissions as [channel] has them: its overrides applied, as
+  /// the server worked them out (`Channel.myPermissions`). The server's own
+  /// for no channel, or one from a server without overrides.
+  UserPermissions inChannel(Channel? channel) {
+    final bits = channel?.myPermissions;
+    return bits == null ? this : copyWith(bits: bits);
   }
 
   factory UserPermissions.fromJson(Map<String, dynamic> json) {

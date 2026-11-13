@@ -138,6 +138,49 @@ mixin _ChannelApiMixin {
     });
   }
 
+  /// Every role's override in one channel (`channel_overrides`), readable by
+  /// whoever can see the channel.
+  Future<APIResponse> listChannelOverrides(
+    String supabaseUrl,
+    String channelId, {
+    required String anonKey,
+    String? bearerToken,
+  }) {
+    return ServerDb.run(() async {
+      final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      final rows = await db
+          .from('channel_overrides')
+          .select('role_id, allow, deny')
+          .eq('channel_id', channelId);
+      return {'overrides': rows};
+    });
+  }
+
+  /// One role's whole row in one channel (`set_channel_override`); both zero
+  /// removes it. Answers `{reason}`.
+  Future<APIResponse> setChannelOverride(
+    String supabaseUrl,
+    String channelId, {
+    required String anonKey,
+    String? bearerToken,
+    required String roleId,
+    required int allow,
+    required int deny,
+  }) {
+    return ServerDb.run(() async {
+      final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      return db.rpc(
+        'set_channel_override',
+        params: {
+          'p_channel': channelId,
+          'p_role': roleId,
+          'p_allow': allow,
+          'p_deny': deny,
+        },
+      );
+    });
+  }
+
   /// Remove yourself from a private channel.
   ///
   /// Its own function rather than a `set_channel_members` with one name

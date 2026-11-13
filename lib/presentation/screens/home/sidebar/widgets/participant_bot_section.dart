@@ -76,8 +76,10 @@ class ParticipantBotSection extends StatelessWidget {
         false;
     if (!isBot) return const SizedBox.shrink();
 
-    final permissions = context.watch<ServerCubit>().state.permissionsOn(
+    // The call's channel can override it (`channel_overrides`).
+    final permissions = context.watch<ServerCubit>().state.permissionsIn(
       ServerScope.of(context).serverId,
+      voiceChannelId,
     );
     if (!(permissions?.can(ServerPermission.summonBots) ?? false)) {
       return const SizedBox.shrink();

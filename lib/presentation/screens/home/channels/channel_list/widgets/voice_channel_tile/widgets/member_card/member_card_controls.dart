@@ -63,8 +63,8 @@ class _OwnControls extends StatelessWidget {
           child: ControlButton(
             dense: true,
             icon: micOn ? Icons.mic_rounded : Icons.mic_off_rounded,
-            tooltip: lk.isModerated
-                ? 'Muted by a moderator'
+            tooltip: lk.isMicHeld
+                ? lk.micHeldLabel
                 : (micOn ? 'Mute' : 'Unmute'),
             isError: !micOn,
             onTap: () => context.read<LiveKitCubit>().toggleMicrophone(),

@@ -6,12 +6,20 @@ import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/server_scope.dart';
 
 /// The pages of a channel's settings, in nav order.
-enum ChannelSettingsTab { overview, access, bots, webhooks, delete }
+enum ChannelSettingsTab {
+  overview,
+  access,
+  permissions,
+  bots,
+  webhooks,
+  delete,
+}
 
 extension ChannelSettingsTabLabel on ChannelSettingsTab {
   String get label => switch (this) {
     ChannelSettingsTab.overview => 'Overview',
     ChannelSettingsTab.access => 'Access',
+    ChannelSettingsTab.permissions => 'Permissions',
     ChannelSettingsTab.bots => 'Bots',
     ChannelSettingsTab.webhooks => 'Webhooks',
     ChannelSettingsTab.delete => 'Delete',
@@ -20,6 +28,7 @@ extension ChannelSettingsTabLabel on ChannelSettingsTab {
   IconData get icon => switch (this) {
     ChannelSettingsTab.overview => Icons.tune_rounded,
     ChannelSettingsTab.access => Icons.lock_outline_rounded,
+    ChannelSettingsTab.permissions => Icons.shield_outlined,
     ChannelSettingsTab.bots => Icons.smart_toy_outlined,
     ChannelSettingsTab.webhooks => Icons.webhook_rounded,
     ChannelSettingsTab.delete => Icons.delete_outline_rounded,
@@ -57,6 +66,7 @@ List<ChannelSettingsTab> visibleChannelSettingsTabs(
   return [
     ChannelSettingsTab.overview,
     ChannelSettingsTab.access,
+    ChannelSettingsTab.permissions,
     ChannelSettingsTab.bots,
     if (channel.hasMessages) ChannelSettingsTab.webhooks,
     ChannelSettingsTab.delete,

@@ -66,6 +66,12 @@ class Channel extends Equatable {
   /// in it. Decided by whoever opened the call; see [LiveKitNode].
   final String? voiceNodeId;
 
+  /// What we may do in this channel (`my_permissions`): the server's bits with
+  /// the channel's overrides applied (`channel_overrides`). Null from a server
+  /// that predates them, where the server's bits are the answer. Read through
+  /// `UserPermissions.inChannel`, never on its own.
+  final int? myPermissions;
+
   const Channel({
     required this.id,
     required this.name,
@@ -77,6 +83,7 @@ class Channel extends Equatable {
     this.canManage = false,
     this.livekitNodeId,
     this.voiceNodeId,
+    this.myPermissions,
   }) : isEncrypted =
            isEncrypted || isPrivate || channelType != ChannelType.text;
 
@@ -98,6 +105,7 @@ class Channel extends Equatable {
       canManage: json['can_manage'] == true,
       livekitNodeId: json['livekit_node_id'] as String?,
       voiceNodeId: json['voice_node_id'] as String?,
+      myPermissions: (json['my_permissions'] as num?)?.toInt(),
     );
   }
 
@@ -112,6 +120,7 @@ class Channel extends Equatable {
     'can_manage': canManage,
     'livekit_node_id': livekitNodeId,
     'voice_node_id': voiceNodeId,
+    'my_permissions': myPermissions,
   };
 
   @override
@@ -126,5 +135,6 @@ class Channel extends Equatable {
     canManage,
     livekitNodeId,
     voiceNodeId,
+    myPermissions,
   ];
 }

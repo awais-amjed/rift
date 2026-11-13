@@ -404,8 +404,11 @@ class LiveKitCubit extends Cubit<LiveKitState>
     }
     if (me == null) return;
 
+    final speakDenied =
+        !me.isServerMuted && !me.isServerDeafened && _micNotAllowed();
     if (me.isServerMuted == state.isServerMuted &&
-        me.isServerDeafened == state.isServerDeafened) {
+        me.isServerDeafened == state.isServerDeafened &&
+        speakDenied == state.isSpeakDenied) {
       return;
     }
 
@@ -414,9 +417,20 @@ class LiveKitCubit extends Cubit<LiveKitState>
       state.copyWith(
         isServerMuted: me.isServerMuted,
         isServerDeafened: me.isServerDeafened,
+        isSpeakDenied: speakDenied,
       ),
     );
     unawaited(_reactToSelfModeration(wasDeafened: wasDeafened));
+  }
+
+  /// Whether our connection may not publish a microphone. An empty list is
+  /// every source; a list without the microphone is a token minted without
+  /// `SPEAK` in this channel (`get_channel_token`), or a moderator's mute,
+  /// which the metadata says apart.
+  bool _micNotAllowed() {
+    final sources = state.room?.localParticipant?.permissions.canPublishSources;
+    if (sources == null || sources.isEmpty) return false;
+    return !sources.any((s) => s.name == 'MICROPHONE');
   }
 
   /// Brings the local media back in line after our moderation state moved. The
@@ -503,7 +517,11 @@ class LiveKitCubit extends Cubit<LiveKitState>
     // where the stored preference is passed in before it reaches state. Their
     // own deafen and any moderation always come from state.
     if (!(micEnabled ?? state.isMicEnabled)) return false;
-    if (state.isDeafenedEffective || state.isServerMuted) return false;
+    if (state.isDeafenedEffective ||
+        state.isServerMuted ||
+        state.isSpeakDenied) {
+      return false;
+    }
     final settings = _appCubit.state;
     return !settings.pushToTalkEnabled || settings.pushToTalkKeyId != null;
   }

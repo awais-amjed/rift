@@ -53,6 +53,16 @@ class ServerState extends Equatable {
   UserPermissions? permissionsOn(String? serverId) =>
       meOn(serverId)?.permissions;
 
+  /// What this member may do in [channelId] on [serverId]: the server's
+  /// permissions with that channel's overrides applied. The server's alone
+  /// when the channel is not listed.
+  UserPermissions? permissionsIn(String? serverId, String? channelId) {
+    final server = serverOn(serverId);
+    return server?.user?.permissions.inChannel(
+      server.channels.where((c) => c.id == channelId).firstOrNull,
+    );
+  }
+
   /// The server that lists [channelId], the selected one first — where a
   /// call is, which need not be the server on screen.
   Server? serverWithChannel(String channelId) {

@@ -164,8 +164,8 @@ class UserDock extends StatelessWidget {
           children: [
             DockIconButton(
               icon: micOn ? Icons.mic_rounded : Icons.mic_off_rounded,
-              tooltip: lkState.isModerated
-                  ? 'Muted by a moderator'
+              tooltip: lkState.isMicHeld
+                  ? lkState.micHeldLabel
                   : (micOn ? 'Mute' : 'Unmute'),
               isError: !micOn,
               onTap: () => context.read<LiveKitCubit>().toggleMicrophone(),

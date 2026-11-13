@@ -795,6 +795,20 @@ the calls it could hear; only a new bot invite brings it back (`BOTS.md`). It is
 offered wherever a ban is, a voice participant's menu and an
 open report included, and a report closed by one is recorded as `kicked`.
 
+**Permissions per channel** [Implemented November 2026]. A role's bits are the
+server's, and a channel can allow or deny a role (`@everyone` included) any bit
+that means something inside it — posting, files, reactions, `@all`, polls, pins and
+deleting others' messages in a text channel; joining, speaking, sharing, the
+soundboard and summoning a bot in a voice one (`channel_overrides`). The
+`@everyone` row applies first, then all the member's roles together, allow winning
+between them, and an administrator holds everything. Never who can *see* a channel:
+that is a private channel's member list, because it decides who holds the key. The
+server works the answer out where it is asked (`app.channel_permissions_of`) and
+enforces it, the call's microphone included (`get_channel_token`); the app is told
+its own bits per channel (`my_permissions`) only to hide what would be refused.
+Whoever manages a channel edits it, and only with bits they hold, on roles below
+their own. Verified Nov 13 2026 by the policy suite; not yet driven through the app.
+
 **Leaving** a server is a kick by your own hand (`leave_server`), so it is enforced
 the same way and lifted the same way: you drop off the member list and out of the
 member cap, lose your roles and private seats, and any new invite brings you back
