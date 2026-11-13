@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../../../../data/classes/public_server.dart';
 import '../../../../../../logic/cubits/public_servers/public_servers_cubit.dart';

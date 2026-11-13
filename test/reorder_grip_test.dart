@@ -1,6 +1,6 @@
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:rift/presentation/common/reorder_grip.dart';
 
 /// Three rows that a finger may carry after a hold, as the server rail's are.

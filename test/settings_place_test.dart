@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:rift/presentation/screens/settings/widgets/settings_content_scroll.dart';
 
 /// A tab whose height can change after it opens, as a device list does.

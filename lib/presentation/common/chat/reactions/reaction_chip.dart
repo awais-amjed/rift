@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../../data/classes/message_reaction.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';

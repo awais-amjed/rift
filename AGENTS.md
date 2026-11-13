@@ -383,7 +383,10 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   code visibly does.
 - Files snake_case; classes UpperCamelCase; private mixins/widgets `_`-prefixed.
 - Relative imports inside `lib/` (`../../../data/...`), ordered: `dart:` → `package:flutter` →
-  other packages → relative. No `package:rift/...` self-imports.
+  other packages → relative. No `package:rift/...` self-imports. Material's widgets come from
+  `package:material_ui/material_ui.dart` (they left the SDK in Flutter 3.50, and its
+  `package:flutter/material.dart` is deprecated), sorted with the other packages; `dart fix`
+  moves a stray old import.
 - Lints: `flutter_lints` defaults (`analysis_options.yaml`). `flutter analyze` must be clean
   before committing.
 

@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../common/chat/composer_notice.dart';

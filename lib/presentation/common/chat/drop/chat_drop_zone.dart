@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:desktop_drop/desktop_drop.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../../logic/helper_methods.dart';
 import '../../../../logic/services/dropped_files.dart';

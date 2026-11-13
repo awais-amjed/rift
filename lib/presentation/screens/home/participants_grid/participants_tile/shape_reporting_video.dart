@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:livekit_client/livekit_client.dart' hide ConnectionState;
+import 'package:material_ui/material_ui.dart';
 
 /// A video that says what shape its frames are.
 ///

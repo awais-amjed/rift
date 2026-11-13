@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../responsive/compact_only.dart';
 import '../theme/theme_context.dart';

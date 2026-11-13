@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../../../logic/ptt/desktop_shortcut_settings.dart';
 import '../../../../common/app_button.dart';

@@ -74,7 +74,7 @@ dependencies:
   # Already connectivity_plus's own on Linux; read directly because it counts
   # NetworkManager's "limited" as online (see LinuxConnectivity).
   nm: ^0.5.0
-  tray_manager: ^0.8.0
+  tray_manager: ^0.9.0
   flutter_rust_bridge: 2.13.0
   audioplayers: ^6.4.0
   dbus: ^0.7.15
@@ -123,6 +123,8 @@ dependencies:
   # The app's own version, for its log and a bug report.
   package_info_plus: ^10.2.2
   crop_your_image: ^2.0.1
+  # Material's widgets, which left the Flutter SDK for this package in 3.50.
+  material_ui: ^1.6.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// A gradient standing in for one identity — a person or a server.
 class IdentityGradient {

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../../../data/classes/soundboard_sound.dart';
 import '../../../../../data/constants.dart';

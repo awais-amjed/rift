@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:math' show min;
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../../data/classes/screen_share_settings.dart';
 import '../../../../data/classes/server_limits.dart';

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Semantic status colors — shared across every [AppPalette] and identical in
 /// both brightness modes. These must never be repurposed as accents; all

@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:toastification/toastification.dart';
 
 import '../presentation/common/app_toast.dart';

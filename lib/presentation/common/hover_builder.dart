@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Rebuilds [builder] with whether the pointer is over [child]'s area.
 ///

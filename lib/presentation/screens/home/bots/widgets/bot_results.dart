@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../../../data/classes/public_bot.dart';
 import '../../../../../logic/cubits/public_bots/public_bots_cubit.dart';

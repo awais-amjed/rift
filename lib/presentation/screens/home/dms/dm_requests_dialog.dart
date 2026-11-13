@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../../data/apis/moderation_api.dart';
 import '../../../../data/classes/dm_conversation.dart';

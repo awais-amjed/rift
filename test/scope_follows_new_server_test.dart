@@ -1,7 +1,7 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:rift/data/classes/server.dart';
 import 'package:rift/data/classes/server_user.dart';
 import 'package:rift/data/classes/user_permissions.dart';

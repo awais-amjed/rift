@@ -1,6 +1,6 @@
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/logic/services/message_markup.dart';
 import 'package:rift/presentation/common/chat/message_row/command_message_span.dart';

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../chat/widgets/header_back_button.dart';
 import '../../dms/central_friends_view.dart';

@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../../../logic/services/rust_watch.dart';
 import '../../../../../logic/services/video_stats_sampler.dart';

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Content centred in the space it is given, scrolling when it does not fit.
 ///

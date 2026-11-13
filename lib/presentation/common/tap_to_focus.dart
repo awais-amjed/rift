@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Makes the whole box it wraps focus [focusNode], not just the text inside it.
 ///

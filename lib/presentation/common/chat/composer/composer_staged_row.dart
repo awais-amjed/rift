@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../../data/classes/pending_attachment.dart';
 import '../../../../data/constants.dart';

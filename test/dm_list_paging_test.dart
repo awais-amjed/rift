@@ -1,7 +1,7 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:rift/data/classes/dm_conversation.dart';
 import 'package:rift/data/enums/layout_mode.dart';
 import 'package:rift/logic/cubits/server_members/server_members_cubit.dart';

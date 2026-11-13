@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../../data/classes/api_response.dart';
 import '../../../../data/enums/report_reason.dart';

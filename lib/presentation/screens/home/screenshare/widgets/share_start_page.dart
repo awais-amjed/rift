@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../../../data/classes/screen_share_settings.dart';
 import '../../../../../logic/services/host_platform.dart';

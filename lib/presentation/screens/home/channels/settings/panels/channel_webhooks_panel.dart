@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../../../../data/classes/channel.dart';
 import '../../../servers/manage/widgets/manage_panel.dart';

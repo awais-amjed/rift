@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// The actions at the end of a panel or dialog: gathered at the trailing
 /// edge, every button the width of the widest label.

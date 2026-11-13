@@ -1,11 +1,11 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 
-import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:rift/presentation/common/unread_badge.dart';
 import 'package:rift/presentation/responsive/phone_text_scale.dart';
 import 'package:rift/presentation/screens/home/servers/server_rail/widgets/rail_unread_badge.dart';

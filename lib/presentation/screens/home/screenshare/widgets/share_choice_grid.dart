@@ -1,6 +1,6 @@
 import 'dart:math' show max, min;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// The first page's quality chips: equal columns, which go onto more rows where
 /// the window is too narrow for [columns] of them at [minWidth], rather than

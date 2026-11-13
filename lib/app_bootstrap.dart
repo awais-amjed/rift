@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:rift_crypto/rift_crypto.dart';
 import 'package:screen_retriever/screen_retriever.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';

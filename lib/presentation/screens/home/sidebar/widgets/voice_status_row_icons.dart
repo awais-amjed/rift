@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../../../data/classes/participant_info.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';

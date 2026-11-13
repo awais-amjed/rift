@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../dms/widgets/central_identity_line.dart';

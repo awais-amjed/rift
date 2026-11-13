@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Three dots that pulse in sequence — the app's one way of saying "working".
 ///

@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:rift/presentation/common/context_menu_region.dart';
 
 /// The delegate's arithmetic is tested next door; this is the part it can't

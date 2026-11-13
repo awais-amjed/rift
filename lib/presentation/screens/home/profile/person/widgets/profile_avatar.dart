@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../../../common/server_scope.dart';
 import '../../../../../common/user_avatar.dart';

@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../../../logic/services/screen_share_sources.dart';
 import '../../../../../src/rust/api/screenshare/types.dart';

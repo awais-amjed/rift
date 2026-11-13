@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:rift/data/enums/sensitive_content_mode.dart';
 import 'package:rift/presentation/common/chat/attachments/sensitive_image_cover.dart';
 

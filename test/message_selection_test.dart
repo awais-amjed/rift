@@ -1,9 +1,9 @@
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:rift/data/classes/chat_message.dart';
 import 'package:rift/logic/cubits/app/app_cubit.dart';
 import 'package:rift/logic/cubits/server_members/server_members_cubit.dart';

@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../logic/services/call_duration.dart';
 import '../../../logic/services/steady_clock.dart';

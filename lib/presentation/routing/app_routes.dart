@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../data/enums/auth_status.dart';
 import '../../logic/cubits/vault/vault_cubit.dart';

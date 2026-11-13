@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../../../data/apis/invites_api.dart';
 import '../../../../../data/apis/server_api.dart';

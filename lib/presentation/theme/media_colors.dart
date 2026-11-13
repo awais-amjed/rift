@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Colours for what is drawn over a picture — video, a photo, a blurred
 /// image — or over the whole app to push it back.

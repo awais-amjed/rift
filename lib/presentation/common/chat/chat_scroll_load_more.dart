@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Owns the message list's [ScrollController] and asks for the next history
 /// page as the user nears the oldest message.

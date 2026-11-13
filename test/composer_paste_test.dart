@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:rift/presentation/common/chat/composer/composer_paste_action.dart';
 
 /// Ctrl+V in the composer goes to the attachment side first, and the field
