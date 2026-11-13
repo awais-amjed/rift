@@ -77,7 +77,13 @@ class _ScreenShareControlState extends State<ScreenShareControl> {
           ? PhoneShare.frameRatesFor(await PhoneScreen.topRefreshRate())
           : const <int>[];
       if (!mounted) return;
-      final shortSide = PhoneShare.shortSideOf(View.of(context).display.size);
+      // Read only on a phone, the one dialog that uses it. On Linux a view
+      // can name a display the engine no longer lists once a monitor sleeps
+      // and wakes, and `display` then throws: the Share button did nothing
+      // until Rift restarted (report 5de4bfed).
+      final shortSide = HostPlatform.isAndroid
+          ? PhoneShare.shortSideOf(View.of(context).display.size)
+          : 0;
       // Told what this server allows, so it can grey out what it will not
       // carry: a control that offers a number and then quietly uses a
       // different one is the wrong control.
