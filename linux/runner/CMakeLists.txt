@@ -52,6 +52,9 @@ target_link_options(${BINARY_NAME} PRIVATE
 # and an exception it cannot carry ends the app: Intel's VAAPI driver throws
 # and catches one of its own inside vaCreateContext, and Rift died at start
 # probing the GPU encoders. Naming libgcc_s before anything else on the link
-# line makes it the first library the executable needs.
+# line makes it the first library the executable needs. A Rust panic caught
+# inside the app aborted the same way. Upstream: flutter/flutter#196402, fixed
+# by #196451 (open Nov 13 2026); drop this once a stable engine exports no
+# _Unwind_ symbols (nm -D --defined-only libflutter_linux_gtk.so).
 target_link_options(${BINARY_NAME} PRIVATE
   "LINKER:--push-state,--no-as-needed,-lgcc_s,--pop-state")
