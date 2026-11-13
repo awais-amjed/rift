@@ -4,12 +4,14 @@ import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:rift/data/classes/screen_share_settings.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
-import 'package:rift/presentation/screens/home/screenshare/widgets/phone_share_options.dart';
+import 'package:rift/logic/services/phone_share_publish.dart';
+import 'package:rift/presentation/screens/home/screenshare/widgets/sdk_share_options.dart';
 import 'package:rift/src/rust/api/screenshare/types.dart';
 
 import 'support/memory_storage.dart';
 
-/// A phone's share options fit a phone's dialog, and name what will go out.
+/// A phone's or a browser's share options fit its dialog, and name what will
+/// go out.
 void main() {
   setUp(() => HydratedBloc.storage = MemoryStorage());
 
@@ -22,6 +24,7 @@ void main() {
       VideoCodec.h264,
       VideoCodec.vp9,
     ],
+    bool offersSound = false,
   }) => tester.pumpWidget(
     BlocProvider<ThemeCubit>(
       create: (_) => ThemeCubit(),
@@ -32,9 +35,11 @@ void main() {
             child: SizedBox(
               width: width,
               child: SingleChildScrollView(
-                child: PhoneShareOptions(
+                child: SdkShareOptions(
                   settings: settings,
                   codecs: codecs,
+                  autoCodec: PhoneShare.autoCodec(codecs),
+                  offersSound: offersSound,
                   resolutions: const [480, 720, 1080],
                   frameRates: const [15, 30, 60],
                   onChanged: (_) {},
@@ -84,5 +89,20 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Auto (VP8)'), findsOneWidget);
+  });
+
+  testWidgets('only a browser offers sound, and says where else to tick it', (
+    tester,
+  ) async {
+    await pump(tester, opened);
+    expect(find.text('Share sound'), findsNothing);
+
+    await pump(tester, opened.copyWith(shareAudio: true), offersSound: true);
+    expect(find.text('Share sound'), findsOneWidget);
+    expect(find.textContaining('picker'), findsOneWidget);
+
+    await pump(tester, opened.copyWith(shareAudio: false), offersSound: true);
+    expect(find.text('Share sound'), findsOneWidget);
+    expect(find.textContaining('picker'), findsNothing);
   });
 }

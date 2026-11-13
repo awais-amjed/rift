@@ -13,11 +13,12 @@ import '../../../../../logic/services/host_platform.dart';
 import '../../../../../logic/services/phone_encoders.dart';
 import '../../../../../logic/services/phone_screen.dart';
 import '../../../../../logic/services/phone_share_publish.dart';
+import '../../../../../logic/services/web_share_publish.dart';
 import '../../../../../logic/services/window_share_portal.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/context_menu/context_menu_overlay.dart';
-import '../../screenshare/phone_share_dialog.dart';
 import '../../screenshare/screen_share_settings_dialog.dart';
+import '../../screenshare/sdk_share_dialog.dart';
 import '../widgets/control_button.dart';
 import 'widgets/screen_share_menu.dart';
 import 'widgets/sharing_button.dart';
@@ -61,33 +62,50 @@ class _ScreenShareControlState extends State<ScreenShareControl> {
 
     // The desktop's dialog also picks what to share. Where the SDK captures,
     // the system asks that: a browser shows its own picker, and Android the
-    // MediaProjection consent sheet. A browser's share takes no settings, so
-    // it opens no dialog; a phone's dialog asks only how the share goes out.
+    // MediaProjection consent sheet; their dialog asks only how the share
+    // goes out. An iPhone's share takes no settings, so it opens no dialog.
     ScreenShareSettings settings;
-    if (kIsWeb || (HostPlatform.isMobile && !HostPlatform.isAndroid)) {
+    if (HostPlatform.isMobile && !HostPlatform.isAndroid) {
       settings = const ScreenShareSettings();
     } else {
-      final codecs = HostPlatform.isAndroid
-          ? await PhoneEncoders.codecs()
-          : null;
-      final frameRates = HostPlatform.isAndroid
+      final sdk = kIsWeb || HostPlatform.isAndroid;
+      final codecs = sdk ? await PhoneEncoders.codecs() : null;
+      final frameRates = kIsWeb
+          ? WebShare.frameRates
+          : HostPlatform.isAndroid
           ? PhoneShare.frameRatesFor(await PhoneScreen.topRefreshRate())
           : const <int>[];
       if (!mounted) return;
-      final screen = View.of(context).display.size;
+      final shortSide = PhoneShare.shortSideOf(View.of(context).display.size);
       // Told what this server allows, so it can grey out what it will not
       // carry: a control that offers a number and then quietly uses a
       // different one is the wrong control.
       final dialogSettings = await showCustomDialog<ScreenShareSettings>(
         context: context,
-        build: (_) => codecs != null
-            ? PhoneShareDialog(
-                codecs: codecs,
-                shortSide: PhoneShare.shortSideOf(screen),
-                frameRates: frameRates,
-                maxShareMbps: maxShareMbps,
-              )
-            : ScreenShareSettingsDialog(maxShareMbps: maxShareMbps),
+        build: (_) => switch (codecs) {
+          null => ScreenShareSettingsDialog(maxShareMbps: maxShareMbps),
+          _ when kIsWeb => SdkShareDialog(
+            codecs: codecs,
+            autoCodec: WebShare.autoCodec,
+            resolutions: WebShare.resolutions,
+            frameRates: frameRates,
+            opening: WebShare.opening,
+            offersSound: true,
+            maxShareMbps: maxShareMbps,
+          ),
+          _ => SdkShareDialog(
+            codecs: codecs,
+            autoCodec: PhoneShare.autoCodec(codecs),
+            resolutions: PhoneShare.resolutionsFor(shortSide),
+            frameRates: frameRates,
+            opening: (saved) => PhoneShare.opening(
+              saved,
+              shortSide: shortSide,
+              frameRates: frameRates,
+            ),
+            maxShareMbps: maxShareMbps,
+          ),
+        },
       );
       if (dialogSettings == null) return;
       settings = dialogSettings;

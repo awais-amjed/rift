@@ -158,7 +158,7 @@ the GPU's H264 goes through carries one picture.
 
 An Android phone's share goes through LiveKit's SDK, on MediaProjection, not
 through Rust. Since Nov 6 2026 it opens with a dialog of its own
-(`PhoneShareDialog`), made from the desktop dialog's sections and followed by
+(`SdkShareDialog`, which a browser's share has too), made from the desktop dialog's sections and followed by
 Android's sheet, which asks what to share. What the phone can send is offered
 whatever it does to the phone (`PhoneShare`): how warm it gets is the person's
 call, and a better phone may not mind.
@@ -189,8 +189,8 @@ call, and a better phone may not mind.
 
 A phone opens on its whole screen at 30 fps until its dialog has been confirmed
 once (`ScreenShareSettings.phoneSetUp`), since the saved settings before that are a
-desktop's defaults. Nothing can be changed during a share. Cameras, web shares and
-iOS are untouched. The options are passed when the track is published, since
+desktop's defaults. Nothing can be changed during a share. Cameras and iOS are
+untouched. The options are passed when the track is published, since
 `setScreenShareEnabled` takes none and the room's default would move the camera too.
 
 The cap has to be `screenShareEncoding`. The SDK picks an encoding by the
@@ -269,6 +269,39 @@ until another arrives. Rust rewrites such a header on a desktop
 phone's encoder writes type 2, with 5 bits used of the 8: read Nov 6 from a short
 `screenrecord` through the same encoder, not from the share itself. Qualcomm and
 MediaTek encoders have not been read.
+
+## A browser's share — [Built November 2026]
+
+A browser's share goes through LiveKit's SDK too, on `getDisplayMedia`. Until Nov 13
+2026 it opened no dialog and took the SDK's defaults: a capture asked for 1080p at 15
+fps, a VP8 picture with the SDK's half-size second one, and no sound. The owner watched
+one at 720p and 15 fps. Since then it opens the phone's dialog (`SdkShareDialog`), with
+the browser's own choices (`WebShare`), and is published the way a phone's is, with
+the options on the track.
+
+- **Resolution:** 480p to 4K, as a maximum height (`WebShareCapture`). The browser
+  scales a larger screen down, keeping its shape, and does not blow a smaller one up.
+  The SDK's constraints asked for a 16:9 size, which an ultrawide screen is not.
+- **Frame rate:** 15, 30 or 60, asked of the capture as well as the encoder.
+- **Prioritise, Bitrate:** the phone's (*A phone's share*), held to the server's
+  share limit, one picture with a VP8 backup.
+- **Codec:** whichever of VP8, H264 and VP9 the browser lists, with Auto on VP8,
+  which every browser share went out in before and every viewer plays. A browser's
+  H264 is the open risk a phone's is (below): its encoder has not been read.
+- **Sound:** on by default. It asks the browser for the picture's sound; the person
+  must also tick the picker's own sound box, and Chrome offers one only for a tab, or
+  for the whole screen on Windows and ChromeOS. It goes out as music (no DTX, 96 kbps)
+  and mono: the SDK sends no stereo flag for it. Firefox and Safari capture none.
+
+A browser that never confirmed the dialog opens on 1080p at 30 fps with sound
+(`WebShare.opening`, the phone's flag). If the sound cannot be published the share ends
+whole, since it was asked for with sound. The SDK asks for sound on a copy of the capture
+options, made as its own class, so `WebShareCapture` copies itself: the plain copy dropped the
+size and rate, and every share with sound went out at 30 fps.
+
+Tried by the owner on Nov 13 2026 in Chrome on Linux: H264 and VP9 picked by hand reached a
+phone and a Linux desktop. 60 picked gave 40 to 50 fps on the viewer;
+what holds it there has not been looked into.
 
 ## Rift's sounds beside other apps — [Implemented November 2026]
 

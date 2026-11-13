@@ -7,8 +7,9 @@ import '../../data/classes/screen_share_settings.dart';
 import '../../data/classes/server_limits.dart';
 import '../../src/rust/api/screenshare/types.dart';
 
-/// How an Android phone's share is captured and published.
-typedef PhoneShareRequest = ({
+/// How a share the SDK captures, an Android phone's or a browser's, is captured
+/// and published.
+typedef SdkShareRequest = ({
   VideoPublishOptions publish,
   ScreenShareCaptureOptions capture,
 });
@@ -135,34 +136,45 @@ class PhoneShare {
   /// The encoding has to be set here. The capture options' parameters do not
   /// reach the encoder: the SDK picks a preset by the capture's width, and for
   /// 1920 that is the 15 fps one.
+  static SdkShareRequest request(
+    ScreenShareSettings settings, {
+    required List<VideoCodec> codecs,
+    required ServerLimits limits,
+  }) => (
+    publish: publishOptions(
+      settings,
+      codec: codecToSend(settings, codecs),
+      limits: limits,
+    ),
+    capture: PhoneShareCapture(shortSide: settings.resolution),
+  );
+
+  /// How a picture the SDK captures goes out in [codec], a phone's or a
+  /// browser's.
   ///
   /// One picture, as a desktop's share sends: the SDK's half-size second one
   /// is a second encoder on a phone, for a viewer the first would be too much
   /// for. A backup in another codec, should a viewer need one, sends one too.
-  static PhoneShareRequest request(
+  static VideoPublishOptions publishOptions(
     ScreenShareSettings settings, {
-    required List<VideoCodec> codecs,
+    required VideoCodec codec,
     required ServerLimits limits,
   }) {
-    final codec = codecToSend(settings, codecs);
     final bps =
         settings.bitrateToSend(codec: codec, limits: limits) * 1000 * 1000;
-    return (
-      publish: VideoPublishOptions(
-        videoCodec: codec.name,
-        simulcast: false,
-        backupVideoCodec: const BackupVideoCodec(simulcast: false),
-        screenShareEncoding: VideoEncoding(
-          maxBitrate: bps,
-          maxFramerate: settings.fps,
-        ),
-        degradationPreference: switch (settings.priority) {
-          SharePriority.smoothness => DegradationPreference.maintainFramerate,
-          SharePriority.balanced => DegradationPreference.balanced,
-          SharePriority.sharpness => DegradationPreference.maintainResolution,
-        },
+    return VideoPublishOptions(
+      videoCodec: codec.name,
+      simulcast: false,
+      backupVideoCodec: const BackupVideoCodec(simulcast: false),
+      screenShareEncoding: VideoEncoding(
+        maxBitrate: bps,
+        maxFramerate: settings.fps,
       ),
-      capture: PhoneShareCapture(shortSide: settings.resolution),
+      degradationPreference: switch (settings.priority) {
+        SharePriority.smoothness => DegradationPreference.maintainFramerate,
+        SharePriority.balanced => DegradationPreference.balanced,
+        SharePriority.sharpness => DegradationPreference.maintainResolution,
+      },
     );
   }
 }

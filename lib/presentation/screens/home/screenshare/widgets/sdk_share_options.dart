@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../../../data/classes/screen_share_settings.dart';
 import '../../../../../data/classes/server_limits.dart';
 import '../../../../../logic/services/phone_share_publish.dart';
+import '../../../../../logic/services/web_share_publish.dart';
 import '../../../../../src/rust/api/screenshare/types.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
@@ -13,15 +14,23 @@ import '../sections/priority_section.dart';
 import '../sections/resolution_section.dart';
 import 'advanced_settings.dart';
 import 'settings_summary.dart';
+import 'share_sound_switch.dart';
 
-/// The options of a phone's share: the desktop form's sections, stacked for a
-/// narrow screen, offering what this phone can send ([PhoneShare]). What to
-/// share is Android's to ask, and a phone's share has no sound yet.
+/// The options of a share the SDK captures, a phone's or a browser's: the
+/// desktop form's sections, stacked for a narrow screen, offering what this
+/// device can send ([PhoneShare], [WebShare]). What to share is the system's
+/// to ask, and only a browser's share has sound.
 ///
 /// Purely presentational: edits come back through [onChanged].
-class PhoneShareOptions extends StatelessWidget {
+class SdkShareOptions extends StatelessWidget {
   final ScreenShareSettings settings;
   final List<VideoCodec> codecs;
+
+  /// What Auto sends here: [PhoneShare.autoCodec] or [WebShare.autoCodec].
+  final VideoCodec autoCodec;
+
+  /// Whether the share can carry sound: a browser's.
+  final bool offersSound;
   final List<int> resolutions;
   final List<int> frameRates;
   final int maxShareMbps;
@@ -30,10 +39,12 @@ class PhoneShareOptions extends StatelessWidget {
   /// The advanced settings were opened or closed.
   final ValueChanged<bool> onAdvancedToggled;
 
-  const PhoneShareOptions({
+  const SdkShareOptions({
     super.key,
     required this.settings,
     required this.codecs,
+    required this.autoCodec,
+    this.offersSound = false,
     required this.resolutions,
     required this.frameRates,
     required this.onChanged,
@@ -43,15 +54,20 @@ class PhoneShareOptions extends StatelessWidget {
 
   ServerLimits get _limits => ServerLimits(maxShareMbps: maxShareMbps);
 
-  int _mbpsOf(ScreenShareSettings of) => of.bitrateToSend(
-    codec: PhoneShare.codecToSend(of, codecs),
-    limits: _limits,
-  );
+  /// The codec [of] goes out in. One picked and missing here goes back to
+  /// Auto.
+  VideoCodec _codecOf(ScreenShareSettings of) =>
+      of.codecChosen && codecs.contains(of.videoCodec)
+      ? of.videoCodec
+      : autoCodec;
+
+  int _mbpsOf(ScreenShareSettings of) =>
+      of.bitrateToSend(codec: _codecOf(of), limits: _limits);
 
   @override
   Widget build(BuildContext context) {
     final hint = AppText.secondary.copyWith(color: context.theme.textTertiary);
-    final codec = PhoneShare.codecToSend(settings, codecs);
+    final codec = _codecOf(settings);
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -83,6 +99,16 @@ class PhoneShareOptions extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(PrioritySection.explain(settings.priority), style: hint),
+        if (offersSound) ...[
+          const SizedBox(height: 8),
+          ShareSoundSwitch(
+            on: settings.shareAudio,
+            onTap: () =>
+                onChanged(settings.copyWith(shareAudio: !settings.shareAudio)),
+          ),
+          if (settings.shareAudio)
+            Text('Tick Share audio in the browser\'s picker too.', style: hint),
+        ],
         const SizedBox(height: 12),
         AdvancedSettings(
           open: settings.showsAdvanced,
@@ -91,10 +117,8 @@ class PhoneShareOptions extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               CodecSection(
-                chosen: settings.codecChosen
-                    ? PhoneShare.codecToSend(settings, codecs)
-                    : null,
-                auto: PhoneShare.autoCodec(codecs),
+                chosen: settings.codecChosen ? codec : null,
+                auto: autoCodec,
                 offered: codecs,
                 onChanged: (value) => onChanged(
                   value == null
@@ -135,7 +159,7 @@ class PhoneShareOptions extends StatelessWidget {
           resolution: ScreenShareSettings.labelFor(settings.resolution),
           fps: settings.fps,
           bitrate: _mbpsOf(settings),
-          shareAudio: false,
+          shareAudio: offersSound && settings.shareAudio,
           codec: ScreenShareSettings.nameOf(codec),
         ),
       ],

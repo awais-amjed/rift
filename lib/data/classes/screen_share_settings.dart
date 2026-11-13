@@ -48,9 +48,10 @@ class ScreenShareSettings extends Equatable {
   final SharePriority priority;
   final AudioSource? selectedAudioSource; // Linux PulseAudio source
 
-  /// Whether a phone's dialog has confirmed these. Until then they are the
-  /// defaults above, written for a desktop, which a phone does not open on
-  /// (`PhoneShare.opening`).
+  /// Whether a phone's or a browser's dialog has confirmed these. Until then
+  /// they are the defaults above, written for a desktop, which neither opens
+  /// on (`PhoneShare.opening`, `WebShare.opening`). The name is from before a
+  /// browser had a dialog, kept so saved settings keep it.
   final bool phoneSetUp;
 
   /// Linux: the sound a window of each app is shared with, by the app's id,

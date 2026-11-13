@@ -5,56 +5,64 @@ import '../../../../data/classes/screen_share_settings.dart';
 import '../../../../data/classes/server_limits.dart';
 import '../../../../data/constants.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
-import '../../../../logic/services/phone_share_publish.dart';
+import '../../../../logic/services/web_share_publish.dart';
 import '../../../../src/rust/api/screenshare/types.dart';
 import '../../../common/app_button.dart';
 import '../../../theme/theme_context.dart';
-import 'widgets/phone_share_options.dart';
+import 'widgets/sdk_share_options.dart';
 import 'widgets/settings_dialog_header.dart';
 
-/// How an Android phone's share goes out, asked before Android's own sheet asks
-/// what to share.
+/// How a share the SDK captures goes out, an Android phone's or a browser's,
+/// asked before the system's own sheet or picker asks what to share.
 ///
 /// Holds a draft that only reaches [AppCubit] when confirmed, like the desktop's
 /// dialog, whose parts it is built from.
-class PhoneShareDialog extends StatefulWidget {
-  /// What this phone can encode (`PhoneEncoders.codecs`).
+class SdkShareDialog extends StatefulWidget {
+  /// What this device can encode (`PhoneEncoders.codecs`).
   final List<VideoCodec> codecs;
 
-  /// The screen's short side in pixels: the most it can send.
-  final int shortSide;
+  /// What Auto sends here.
+  final VideoCodec autoCodec;
 
-  /// The rates this phone's screen can be shared at
-  /// (`PhoneShare.frameRatesFor`).
+  /// The picture heights offered.
+  final List<int> resolutions;
+
+  /// The rates offered (`PhoneShare.frameRatesFor`, [WebShare.frameRates]).
   final List<int> frameRates;
+
+  /// The saved settings as this device opens them (`PhoneShare.opening`,
+  /// [WebShare.opening]).
+  final ScreenShareSettings Function(ScreenShareSettings saved) opening;
+
+  /// Whether the share can carry sound: a browser's.
+  final bool offersSound;
 
   /// What the call's server allows a share to use, or
   /// [ServerLimits.unlimited].
   final int maxShareMbps;
 
-  const PhoneShareDialog({
+  const SdkShareDialog({
     super.key,
     required this.codecs,
-    required this.shortSide,
+    required this.autoCodec,
+    required this.resolutions,
     required this.frameRates,
+    required this.opening,
+    this.offersSound = false,
     this.maxShareMbps = ServerLimits.unlimited,
   });
 
   @override
-  State<PhoneShareDialog> createState() => _PhoneShareDialogState();
+  State<SdkShareDialog> createState() => _SdkShareDialogState();
 }
 
-class _PhoneShareDialogState extends State<PhoneShareDialog> {
+class _SdkShareDialogState extends State<SdkShareDialog> {
   late ScreenShareSettings _draft;
 
   @override
   void initState() {
     super.initState();
-    _draft = PhoneShare.opening(
-      context.read<AppCubit>().state.screenShareSettings,
-      shortSide: widget.shortSide,
-      frameRates: widget.frameRates,
-    );
+    _draft = widget.opening(context.read<AppCubit>().state.screenShareSettings);
   }
 
   /// Remembered at once, even if this share is then cancelled: it is how the
@@ -95,10 +103,12 @@ class _PhoneShareDialogState extends State<PhoneShareDialog> {
               Divider(height: 24, color: theme.borderPrimary),
               Flexible(
                 child: SingleChildScrollView(
-                  child: PhoneShareOptions(
+                  child: SdkShareOptions(
                     settings: _draft,
                     codecs: widget.codecs,
-                    resolutions: PhoneShare.resolutionsFor(widget.shortSide),
+                    autoCodec: widget.autoCodec,
+                    offersSound: widget.offersSound,
+                    resolutions: widget.resolutions,
                     frameRates: widget.frameRates,
                     maxShareMbps: widget.maxShareMbps,
                     onChanged: (settings) => setState(() => _draft = settings),

@@ -23,8 +23,8 @@ enum _Page { start, choose, advanced }
 /// Over the widget budget and one job: a share's settings, held as a draft, the
 /// source lists they need, and which page of them is showing.
 ///
-/// Dialog for picking what to share and how, before a share starts: a desktop
-/// and a browser's (a phone has `PhoneShareDialog`).
+/// Dialog for picking what to share and how, before a share starts: a
+/// desktop's (a phone and a browser have `SdkShareDialog`).
 ///
 /// It opens on what to share ([ShareStartPage]), and pressing one is the action:
 /// where the app lists the windows itself it moves on to the list

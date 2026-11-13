@@ -190,13 +190,13 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
     unawaited(_publishSelfState());
   }
 
-  /// Toggle screen sharing on/off. [phone] is how an Android phone's share
-  /// goes out; everywhere else the SDK decides. Answers whether it did: a
-  /// share cancelled in the browser's picker never started, and the share
-  /// button must not say it did.
+  /// Toggle screen sharing on/off. [share] is how a browser's or an Android
+  /// phone's share goes out; without one the SDK decides. Answers whether it
+  /// did: a share cancelled in the browser's picker never started, and the
+  /// share button must not say it did.
   Future<bool> toggleScreenShare({
     ScreenShareCaptureOptions? captureOptions,
-    PhoneShareRequest? phone,
+    SdkShareRequest? share,
   }) async {
     final room = state.room;
     if (room == null) return false;
@@ -204,8 +204,8 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
     final next = !state.isScreenSharing;
     const fallback = ScreenShareCaptureOptions(useiOSBroadcastExtension: false);
     try {
-      if (next && phone != null) {
-        await _publishAndroidShare(room, phone);
+      if (next && share != null) {
+        await _publishShare(room.localParticipant!, share);
       } else {
         await room.localParticipant?.setScreenShareEnabled(
           next,
@@ -230,18 +230,43 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
   /// [LocalParticipant.setScreenShareEnabled] takes no publish options, and
   /// [RoomOptions.defaultVideoPublishOptions] would move the camera too. The
   /// options stay on the track, so a reconnect publishes it the same way.
-  Future<void> _publishAndroidShare(Room room, PhoneShareRequest phone) async {
-    final track = await LocalVideoTrack.createScreenShareTrack(phone.capture);
+  ///
+  /// The sound comes only from a browser, and only when the person also chose
+  /// it in the browser's picker. A share whose sound cannot go out is ended
+  /// whole: it was asked for with sound.
+  Future<void> _publishShare(
+    LocalParticipant participant,
+    SdkShareRequest share,
+  ) async {
+    final tracks = share.capture.captureScreenAudio
+        ? await LocalVideoTrack.createScreenShareTracksWithAudio(share.capture)
+        : [await LocalVideoTrack.createScreenShareTrack(share.capture)];
     try {
-      await room.localParticipant!.publishVideoTrack(
-        track,
-        publishOptions: phone.publish,
-      );
+      for (final track in tracks.whereType<LocalVideoTrack>()) {
+        await participant.publishVideoTrack(
+          track,
+          publishOptions: share.publish,
+        );
+      }
+      for (final track in tracks.whereType<LocalAudioTrack>()) {
+        await participant.publishAudioTrack(track, publishOptions: _shareSound);
+      }
     } catch (_) {
-      await track.stop();
+      await participant.setScreenShareEnabled(false);
+      for (final track in tracks) {
+        await track.stop();
+      }
       rethrow;
     }
   }
+
+  /// A share's sound is music, not a voice: no pauses cut out of it, and
+  /// the bitrate Opus needs for music. Mono: the browser's SDK has no way to
+  /// publish it in stereo.
+  static const _shareSound = AudioPublishOptions(
+    dtx: false,
+    encoding: AudioEncoding.presetMusicHighQuality,
+  );
 
   /// Whether this phone's share has left the codec it was published in
   /// ([PhoneEncoderWatch]). The publication's own type is no use: a local

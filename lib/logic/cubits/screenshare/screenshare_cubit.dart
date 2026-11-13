@@ -20,6 +20,7 @@ import '../../services/phone_encoder_watch.dart';
 import '../../services/phone_encoders.dart';
 import '../../services/phone_share_publish.dart';
 import '../../services/share_rung_follow.dart';
+import '../../services/web_share_publish.dart';
 import '../livekit/livekit_cubit.dart';
 import 'share_attempt.dart';
 import 'stream_change_notice.dart';
@@ -207,12 +208,19 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
       }
     }
 
+    final limits = _livekitCubit.callServer?.limits ?? const ServerLimits();
     final started = await _livekitCubit.toggleScreenShare(
-      phone: HostPlatform.isAndroid
+      share: kIsWeb
+          ? WebShare.request(
+              settings,
+              codecs: await PhoneEncoders.codecs(),
+              limits: limits,
+            )
+          : HostPlatform.isAndroid
           ? PhoneShare.request(
               settings,
               codecs: await PhoneEncoders.codecs(),
-              limits: _livekitCubit.callServer?.limits ?? const ServerLimits(),
+              limits: limits,
             )
           : null,
     );
