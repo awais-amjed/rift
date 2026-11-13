@@ -1,28 +1,23 @@
 # flutter_webrtc, kept here and patched
 
-The Flutter WebRTC plugin, `flutter_webrtc` 1.6.2+hotfix.4, as published on
-pub.dev (MIT — see `LICENSE`). The example, tests and upstream's docs are left
-out. The app uses this copy through `dependency_overrides` in its own
+The Flutter WebRTC plugin, `flutter_webrtc` 1.6.3, as published on pub.dev
+(MIT — see `LICENSE`). The example, tests and upstream's docs are left out. The app uses this copy through `dependency_overrides` in its own
 `pubspec.yaml`, so `livekit_client` and `dart_webrtc` stay as they are.
 
 ## The patches
 
-1. **`third_party/libwebrtc_version.ini` downloads libwebrtc `m150.7871.04`**
-   instead of `m150.7871.03`; `.04` is `.03` plus one change,
-   webrtc-sdk/libwebrtc#153. See *Why the libwebrtc version* below.
-
-2. **WebRTC's `WebRTC-MediaTaskQueuePriorities` is always on**
+1. **WebRTC's `WebRTC-MediaTaskQueuePriorities` is always on**
    (`common/cpp/src/flutter_webrtc_base.cc`, marked `RIFT PATCH`). See
    *Thread priorities* below.
 
-3. **Android's screen capture takes a size** (`GetUserMediaImpl.captureSize`,
+2. **Android's screen capture takes a size** (`GetUserMediaImpl.captureSize`,
    marked `RIFT PATCH`). Upstream always captures the whole screen and ignores
    the constraints, so a phone's share could not go out smaller. A constraint
    of Rift's own, `riftShortSide`, sets the short side, and the screen's shape
    is kept. Without it the capture is what it always was (`CALLS.md`, *A
    phone's share*).
 
-4. **Android's screen capture repeats its last frame on a still screen**
+3. **Android's screen capture repeats its last frame on a still screen**
    (`OrientationAwareScreenCapturer`, marked `RIFT PATCH`). Android delivers a
    frame only when the screen changes, so a viewer arriving at a still screen
    left the encoder nothing to start on and saw black until something moved.
@@ -30,19 +25,20 @@ out. The app uses this copy through `dependency_overrides` in its own
    `SurfaceTextureHelper.forceFrame`, once a second, and gives the repeat a new
    time (`CALLS.md`, *A phone's share*).
 
-Nothing else differs. The desktop builds take their libwebrtc from that file
-and build the plugin's C++ from `common/cpp`. Android and iOS take theirs from
-their own package managers, and the web uses the browser's, so the first two
-patches change Linux and Windows only.
-
-5. **`getStats` refuses a disposed connection** (`common/cpp/src/flutter_webrtc.cc`,
+4. **`getStats` refuses a disposed connection** (`common/cpp/src/flutter_webrtc.cc`,
    marked `RIFT PATCH`). Disposing closes the connection and leaves it in the
    map for a later close, and a track's stats read its receivers through a
    pointer the close emptied. So a stats poll landing as a call ended took the
    whole app down with a segfault (seen Nov 6, Linux, leaving a call). It now
    answers with the error a missing connection gets, which the pollers ignore.
 
-## Why the libwebrtc version
+Nothing else differs. The desktop builds take their libwebrtc from
+`third_party/libwebrtc_version.ini`, upstream's, and build the plugin's C++
+from `common/cpp`. Android and iOS take theirs from their own package managers,
+and the web uses the browser's, so patches 1 and 4 change Linux and Windows
+only, and 2 and 3 Android only.
+
+## libwebrtc and call keys
 
 From m150, WebRTC prints its INFO lines to stderr in every build type unless
 told otherwise, and `LibWebRTCLogging::setMinDebugLogLevel` no longer reaches
@@ -60,6 +56,11 @@ The Windows build on `.04` joined an encrypted call in the VM the same day;
 its stderr shows no libwebrtc lines on either version, so there is nothing to
 count there.
 
+Until 1.6.3 a patch here pinned `.04`. 1.6.3 downloads `m150.7871.07`, which
+has #153 and three later changes (desktop capturer options, video frame
+processors, a missing include), and drops a compromised eMudhra root from the
+TURN/TLS roots, so the pin went (Nov 13 2026).
+
 ## Thread priorities
 
 libwebrtc starts the queues that decode and render a received video at
@@ -76,9 +77,10 @@ it, `AudioEncoderQueue` 0 and 2.
 
 ## When this can go
 
-Patch 1 goes when a `flutter_webrtc` release on pub.dev downloads
-`m150.7871.04` or later (upstream's main branch already pins `.05`); check a
-call's stderr for `raw_key` once more. Patch 2 goes when libwebrtc gives media
+Patch 1 goes when libwebrtc gives media
 queues these priorities by default (the trial is due to end by April 2027), or
-when the plugin lets an app pass its own field trials. With both gone, drop the
-override and this folder.
+when the plugin lets an app pass its own field trials. Patches 2 to 4 go when
+upstream does the same: a sized and a repeated screen capture on Android, and
+a `getStats` that checks for a closed connection. With all four gone, drop the
+override and this folder. Whatever libwebrtc a new release brings, check a
+call's stderr for `raw_key` once more.

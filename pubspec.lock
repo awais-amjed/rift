@@ -795,7 +795,7 @@ packages:
       path: "third_party/flutter_webrtc"
       relative: true
     source: path
-    version: "1.6.2+hotfix.4"
+    version: "1.6.3"
   functions_client:
     dependency: transitive
     description:
@@ -1018,7 +1018,7 @@ packages:
       path: "third_party/livekit_client"
       relative: true
     source: path
-    version: "2.13.1"
+    version: "2.13.2"
   loading_animation_widget:
     dependency: "direct main"
     description:

@@ -946,11 +946,12 @@ keys there.** On Linux an app started from the desktop has its stderr in the
 journal. The libwebrtc flutter_webrtc 1.6.2 downloads (`m150.7871.03`) printed
 the frame cryptor's `raw_key` and `derived_key` there in every build, so each
 call left its key behind, and nothing outside the library turns that off since
-m150. The desktop builds take the silent `.04` instead, through
-`third_party/flutter_webrtc` (verified Oct 21 2026); the web logs none.
-**Android still prints them to logcat**: its libwebrtc is a separate build
-(`io.github.webrtc-sdk:android` `150.7871.01`, the newest there is) with the same
-default and no way to change it from outside. Logcat is readable only by the
+m150. libwebrtc `.04` made release builds silent again, and the desktop builds
+take `.07`, which has that change, through flutter_webrtc 1.6.3 (verified with
+`.04` Oct 21 2026 and with `.07` Nov 13 2026); the web logs none.
+**Android printed them to logcat** on its separate build
+(`io.github.webrtc-sdk:android` `150.7871.01`) with the same default and no way
+to change it from outside; 1.6.3 moves it to `150.7871.04`, not yet checked. Logcat is readable only by the
 app, the system and a computer with USB debugging, and is not kept across a
 restart, so this is far narrower than the journal, but it waits on a fixed
 Android build. iOS and macOS are not checked.

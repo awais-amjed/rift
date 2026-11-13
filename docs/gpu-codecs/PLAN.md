@@ -241,5 +241,5 @@ hardware encoding and decoding, so they wait.
   browser's `<video>` directly instead of a Flutter frame per video frame. Check
   the stage's blurred overlays before using it.
 - **flutter_webrtc 1.6.3** moved Windows and Linux to libwebrtc m150.7871.07 to drop
-  a compromised eMudhra root certificate. Rift pins .04 for the logging fix
-  (`third_party/flutter_webrtc/RIFT_PATCHES.md`); worth a look.
+  a compromised eMudhra root certificate. Rift took it Nov 13 2026 and dropped
+  its `.04` pin (`third_party/flutter_webrtc/RIFT_PATCHES.md`).
