@@ -70,6 +70,22 @@ mixin _LiveKitLeaveMixin on Cubit<LiveKitState>, _E2EEMixin {
         ),
       );
 
+      // A phone's call page is sliding away now, and the room is taken down
+      // once it has gone. Closing it is native work on the phone's main
+      // thread, which is the UI's: it waited 116 ms on libwebrtc in the middle
+      // of the slide, which stuttered. The call is heard for that half second
+      // more, under the leave cue.
+      if (HostPlatform.isMobile) {
+        final room = state.room;
+        await Future<void>.delayed(_pageSlide);
+        // Joined somewhere else meanwhile: the join took this room down
+        // itself, and what is there now is the new call's.
+        if (!identical(state.room, room)) {
+          forgetChannelToken(leaving);
+          return;
+        }
+      }
+
       await _cleanupRoom();
       // The call's key ring goes with the call. Holding it would leave the
       // last channel's key in memory long after leaving, and would key the
@@ -82,6 +98,11 @@ mixin _LiveKitLeaveMixin on Cubit<LiveKitState>, _E2EEMixin {
       _disconnecting = false;
     }
   }
+
+  /// How long a phone's page takes to slide away: Flutter's Android page
+  /// transition (`FadeForwardsPageTransitionsBuilder`), which the shell's
+  /// pages use. See [disconnect].
+  static const _pageSlide = Duration(milliseconds: 450);
 
   /// Drops the cached token for a channel this device has just left.
   ///

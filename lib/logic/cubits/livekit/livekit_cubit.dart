@@ -270,7 +270,9 @@ class LiveKitCubit extends Cubit<LiveKitState>
   @override
   void _syncParticipants({bool speakingOnly = false}) {
     final room = state.room;
-    if (room == null) return;
+    // Left already, with the room still open while a phone's page slides
+    // away ([disconnect]): who is talking there is nobody's business now.
+    if (room == null || _disconnecting) return;
 
     final inRoom = <Participant>[
       if (room.localParticipant != null) room.localParticipant!,

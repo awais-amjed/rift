@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
@@ -32,6 +33,16 @@ class ViewerCodecs {
   static Future<Set<VideoCodec>> forCall({
     required bool rustWatchGaveOut,
   }) async => withoutGpu(await _plays, rustWatchGaveOut: rustWatchGaveOut);
+
+  /// Starts asking, at the start of a join, so the answer is in before the
+  /// call opens its audio.
+  ///
+  /// WebRTC answers on the thread that opens the call's output, and a phone
+  /// asks from its main thread, which is the UI's. Asked once the room was
+  /// up, the question waited behind the output opening (~100 ms on a
+  /// Samsung) and the Connecting screen stood still for 160. Asked once per
+  /// run and kept, so a later call does not ask again.
+  static void askEarly() => unawaited(_plays);
 
   /// [plays] once the watch connection may have given out. Only Linux and Windows
   /// have one to give out.

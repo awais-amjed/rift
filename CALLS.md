@@ -334,6 +334,38 @@ Joining a call is separate and still takes the focus once, through LiveKit's
 call audio. On Nov 6 2026 YouTube lost it at the join and took it back when
 played again 3.5 s later, and the call's audio mode held until the phone left.
 
+## A phone's main thread while a call starts and ends — [Implemented November 2026]
+
+On Android the UI runs on the main thread, and flutter_webrtc and audioplayers
+answer Dart there too. Most of their calls hand the work to libwebrtc's own
+threads and wait. Joining a call opens the phone's call output and its mic, and
+a Samsung's audio server takes 100–350 ms to answer (`getOutput`). Any call
+that waits on that thread in the meantime holds the screen still. Traced on Nov
+13 2026 with Perfetto on the owner's SM-A566B: the Connecting screen stood still
+for about 0.75 s, and leaving stuttered halfway through the page's slide.
+
+So Rift keeps its own calls out of that moment:
+
+- A remote track's volume is set only when it changes (`_applyAudioSetting`).
+  A new track already plays at 100%, and setting it again waited 361 ms.
+- Cues play through Android's SoundPool (`PlayerMode.lowLatency`), which opens
+  its output on its own thread. A MediaPlayer opened on the main thread waited
+  350 ms. The pool itself is opened at startup (`openCuePoolOnAndroid`),
+  because opening it also waits on the audio server, 260 ms when the join cue
+  was the first sound.
+- What this device can watch (`ViewerCodecs`) is asked as the join starts, not
+  once the room is up: 158 ms, asked behind the opening output.
+- Leaving, the page slides away first and the room is closed after it
+  (`disconnect`, 450 ms on a phone). Closing it waited 116 ms in the middle of
+  the slide. The call is heard for that half second more, under the leave cue,
+  and a join made in the meantime takes the room down itself.
+
+What is left is LiveKit's own: setting the call's keys and the subscriber's
+session description still wait on the opening output, 80–400 ms on the same
+phone, now after the Connecting screen has gone. Ending that would mean
+flutter_webrtc answering off the main thread. flutter_webrtc also lists the
+phone's hardware codecs on the first call of a run (89 ms).
+
 ## Watching while Rift cannot be seen — [Implemented October 2026]
 
 A watched stream's picture is turned off while nobody can see Rift: minimised,

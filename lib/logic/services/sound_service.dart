@@ -69,6 +69,24 @@ class SoundService {
     }
   }
 
+  /// Opens Android's SoundPool, which every cue plays through ([_play]),
+  /// once at startup while the phone's audio is idle.
+  ///
+  /// The player opens it on its first use, on the main thread, and keeps it
+  /// for the life of the app. That first use was the join cue, made while
+  /// the call's own output was opening, and the audio server answered it
+  /// 260 ms later: the Connecting screen stood still that long.
+  Future<void> openCuePoolOnAndroid() async {
+    if (!HostPlatform.isAndroid) return;
+    final player = AudioPlayer();
+    try {
+      await player.setPlayerMode(PlayerMode.lowLatency);
+    } catch (e) {
+      HelperMethods.printDebug('SoundService: cue pool failed – $e');
+    }
+    await _dispose(player);
+  }
+
   /// Where [play] reads each sound's mute and volume — `AppState.appSounds`,
   /// connected once at startup by [readSettingsFrom].
   ///
@@ -294,6 +312,16 @@ class SoundService {
     // means every one of them has to be handed back, see [_recycle].
     final player = AudioPlayer();
     try {
+      // Android's SoundPool rather than a MediaPlayer. A MediaPlayer is
+      // opened on the main thread, which is the UI's there, and it waits on
+      // the phone's audio server: the join cue, opened while the call's own
+      // output was opening, froze the Connecting screen for 350 ms. SoundPool
+      // opens its output on a thread of its own, and the pool itself is opened
+      // at startup ([openCuePoolOnAndroid]). It never says when a sound ends,
+      // so [_recycle] reclaims the player on its timer instead.
+      if (HostPlatform.isAndroid) {
+        await player.setPlayerMode(PlayerMode.lowLatency);
+      }
       await player.setVolume(volume);
       await player.play(await _sourceOf(asset));
     } catch (e) {

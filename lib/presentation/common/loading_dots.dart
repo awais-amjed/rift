@@ -37,33 +37,39 @@ class _LoadingDotsState extends State<LoadingDots>
   @override
   Widget build(BuildContext context) {
     final gap = widget.dotSize * 0.75;
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, _) {
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: List.generate(3, (i) {
-            // Each dot lags the previous by a fifth of the cycle.
-            final phase = (_controller.value - i * 0.2) % 1.0;
-            // Ease up then back down over the phase for a gentle pulse.
-            final t = phase < 0.5 ? phase * 2 : (1 - phase) * 2;
-            return Padding(
-              padding: EdgeInsets.only(right: i < 2 ? gap : 0),
-              child: Opacity(
-                opacity: 0.3 + 0.7 * t,
+    final alpha = widget.color.a;
+    // Its own layer, so a pulse repaints three dots and not the page round
+    // them; and each dot fades its colour rather than sitting in an Opacity,
+    // which drew it off screen and back every frame. The Connecting screen
+    // took 13 ms a frame to draw on a phone, over the 8 a 120 Hz screen has.
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(3, (i) {
+              // Each dot lags the previous by a fifth of the cycle.
+              final phase = (_controller.value - i * 0.2) % 1.0;
+              // Ease up then back down over the phase for a gentle pulse.
+              final t = phase < 0.5 ? phase * 2 : (1 - phase) * 2;
+              return Padding(
+                padding: EdgeInsets.only(right: i < 2 ? gap : 0),
                 child: Container(
                   width: widget.dotSize,
                   height: widget.dotSize,
                   decoration: BoxDecoration(
-                    color: widget.color,
+                    color: widget.color.withValues(
+                      alpha: alpha * (0.3 + 0.7 * t),
+                    ),
                     shape: BoxShape.circle,
                   ),
                 ),
-              ),
-            );
-          }),
-        );
-      },
+              );
+            }),
+          );
+        },
+      ),
     );
   }
 }

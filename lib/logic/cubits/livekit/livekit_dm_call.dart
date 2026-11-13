@@ -47,6 +47,7 @@ mixin _DmCallConnectMixin on Cubit<LiveKitState>, _E2EEMixin {
     bool? micEnabled,
     bool? cameraEnabled,
   }) async {
+    ViewerCodecs.askEarly();
     final hadRoom = state.room != null;
     final wasConnecting =
         state.connectionState == LiveKitConnectionState.connecting;

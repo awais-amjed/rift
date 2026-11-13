@@ -97,6 +97,8 @@ class AppBootstrap {
     SoundService.instance.readSettingsFrom(() => appCubit.state.appSounds);
     SoundService.instance.readOutputFrom(() => appCubit.state.outputDeviceId);
     await SoundService.instance.playBesideOtherAppsOnAndroid();
+    // After the context above, which the pool is opened with.
+    unawaited(SoundService.instance.openCuePoolOnAndroid());
     // Desktop, not "not web". window_manager ships no Android or iOS
     // implementation at all, so calling it there is a method channel with
     // nothing on the other end — a MissingPluginException thrown before the

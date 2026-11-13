@@ -244,14 +244,28 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
 /// as it starts it, just *after* telling us it subscribed, so a mute made of
 /// `enabled` alone was undone the moment it was applied: a stored mute did not
 /// hold, and your own stream's sound came back on and echoed.
+///
+/// The volume is set only when it changes ([_volumeSet]). On a phone the call
+/// runs on the main thread and waits on libwebrtc's audio thread, which on
+/// joining is opening the phone's call output (~300 ms on a Samsung); a new
+/// track already plays at 100%, and setting it again froze the Connecting
+/// screen for a third of a second.
 void _applyAudioSetting(
   rtc.MediaStreamTrack track,
   ParticipantSetting setting,
   double output,
 ) {
   track.enabled = !setting.muted;
-  rtc.Helper.setVolume(
-    CallVolume.of(setting, output),
-    track,
-  ).catchError((Object e) => HelperMethods.printDebug('setVolume error: $e'));
+  final volume = CallVolume.of(setting, output);
+  if ((_volumeSet[track] ?? 1.0) == volume) return;
+  _volumeSet[track] = volume;
+  rtc.Helper.setVolume(volume, track).catchError((Object e) {
+    _volumeSet[track] = null;
+    HelperMethods.printDebug('setVolume error: $e');
+  });
 }
+
+/// The volume last given to each remote track; none yet is libwebrtc's own,
+/// 100%. Kept on the track object, so a track subscribed again starts over,
+/// as its new receiver does.
+final _volumeSet = Expando<double>('volume set');
