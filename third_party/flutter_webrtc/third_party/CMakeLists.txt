@@ -79,7 +79,12 @@ else()
 endif()
 
 set(LIBWEBRTC_ASSET "libwebrtc-${LIBWEBRTC_OS}-${LIBWEBRTC_ARCH}-release")
-set(ZIPFILE "${LIBWEBRTC_THIRD_PARTY_DIR}/downloads/${LIBWEBRTC_ASSET}.zip")
+# RIFT PATCH: the cached zip carries its version, and libwebrtc/ records the
+# version it was extracted from. Upstream caches by asset name alone, so a bump
+# in libwebrtc_version.ini was ignored on any machine that had built before: it
+# kept the old headers and DLL, and a new header the plugin includes was missing.
+set(ZIPFILE "${LIBWEBRTC_THIRD_PARTY_DIR}/downloads/${LIBWEBRTC_ASSET}-${LIBWEBRTC_BINARY_VERSION}.zip")
+set(LIBWEBRTC_STAMP "${LIBWEBRTC_THIRD_PARTY_DIR}/libwebrtc/.rift_binary_version")
 
 # Final URL = <base>/<binary_version>/<asset>.zip
 set(DOWNLOAD_URL "${LIBWEBRTC_DOWNLOAD_URL_BASE}/${LIBWEBRTC_BINARY_VERSION}/${LIBWEBRTC_ASSET}.zip")
@@ -117,6 +122,8 @@ function(_libwebrtc_extract_and_normalize zip_path dest_dir)
   endif()
 
   file(REMOVE_RECURSE "${_staging}")
+  # RIFT PATCH: see ZIPFILE above.
+  file(WRITE "${dest_dir}/libwebrtc/.rift_binary_version" "${LIBWEBRTC_BINARY_VERSION}")
 endfunction()
 
 if(NOT EXISTS "${ZIPFILE}")
@@ -133,8 +140,14 @@ if(NOT EXISTS "${ZIPFILE}")
 
   _libwebrtc_extract_and_normalize("${ZIPFILE}" "${LIBWEBRTC_THIRD_PARTY_DIR}")
 else()
-  if(NOT EXISTS "${LIBWEBRTC_THIRD_PARTY_DIR}/libwebrtc")
-    message(NOTICE "libwebrtc directory does not exist after extraction.")
+  # RIFT PATCH: extract again when libwebrtc/ holds another version.
+  set(_extracted_version "")
+  if(EXISTS "${LIBWEBRTC_STAMP}")
+    file(READ "${LIBWEBRTC_STAMP}" _extracted_version)
+    string(STRIP "${_extracted_version}" _extracted_version)
+  endif()
+  if(NOT _extracted_version STREQUAL LIBWEBRTC_BINARY_VERSION)
+    message(NOTICE "libwebrtc: extracting ${LIBWEBRTC_BINARY_VERSION} (found '${_extracted_version}').")
     _libwebrtc_extract_and_normalize("${ZIPFILE}" "${LIBWEBRTC_THIRD_PARTY_DIR}")
   endif()
   message(TRACE "libwebrtc already downloaded.")

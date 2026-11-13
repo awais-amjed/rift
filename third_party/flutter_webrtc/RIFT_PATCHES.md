@@ -32,10 +32,20 @@ The Flutter WebRTC plugin, `flutter_webrtc` 1.6.3, as published on pub.dev
    whole app down with a segfault (seen Nov 6, Linux, leaving a call). It now
    answers with the error a missing connection gets, which the pollers ignore.
 
+5. **A new libwebrtc in `libwebrtc_version.ini` is downloaded**
+   (`third_party/CMakeLists.txt`, marked `RIFT PATCH`). Upstream caches the zip
+   by its asset name and skips the download when that file exists, so a machine
+   that had built before kept the old headers and DLL. Moving to `.07`, the
+   Windows build failed on a header `.04` lacks (Nov 13 2026). The zip's name
+   now carries the version, and `libwebrtc/.rift_binary_version` records what
+   was extracted, so a change downloads and extracts again. Verified the same
+   day on Linux: a fresh build downloaded `.07`, and a wrong stamp made the next
+   build extract again.
+
 Nothing else differs. The desktop builds take their libwebrtc from
 `third_party/libwebrtc_version.ini`, upstream's, and build the plugin's C++
 from `common/cpp`. Android and iOS take theirs from their own package managers,
-and the web uses the browser's, so patches 1 and 4 change Linux and Windows
+and the web uses the browser's, so patches 1, 4 and 5 change Linux and Windows
 only, and 2 and 3 Android only.
 
 ## libwebrtc and call keys
@@ -83,6 +93,7 @@ Patch 1 goes when libwebrtc gives media
 queues these priorities by default (the trial is due to end by April 2027), or
 when the plugin lets an app pass its own field trials. Patches 2 to 4 go when
 upstream does the same: a sized and a repeated screen capture on Android, and
-a `getStats` that checks for a closed connection. With all four gone, drop the
+a `getStats` that checks for a closed connection; patch 5 when upstream caches
+libwebrtc by version. With all five gone, drop the
 override and this folder. Whatever libwebrtc a new release brings, check a
 call's stderr for `raw_key` once more.
