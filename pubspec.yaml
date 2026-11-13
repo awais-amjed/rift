@@ -24,7 +24,7 @@ dependencies:
   hydrated_bloc: ^11.0.0
   # Value equality for states and models: emit, buildWhen and BlocSelector
   # decide with ==. Already in the build through toastification.
-  equatable: ^2.1.0
+  equatable: ^3.0.0
   # hydrated_bloc's own store, opened here rather than by it so the keys an
   # earlier build left can be read once (`HydratedKeyRecovery`).
   hive_ce: ^2.20.0
@@ -64,6 +64,11 @@ dependencies:
   dart_webrtc: ^1.8.2
   http: ^1.6.0
   http_parser: ^4.1.2
+  # Held at 0.5 with screen_retriever 0.2 (Nov 13 2026). From 0.6 both are
+  # built on nativeapi, which calls the window from Dart's thread over FFI,
+  # and on Windows Dart has a thread of its own (windows/runner/main.cpp): the
+  # same mismatch that left tray_manager's icon deaf to clicks. Move both
+  # together, with a Windows test of the window, close-to-tray and displays.
   window_manager: ^0.5.1
   # Already window_manager's own; named here because the window is fitted to
   # the displays before it shows (see fitWindowToScreens).
@@ -89,7 +94,7 @@ dependencies:
   ffi: ^2.2.0
   win32: ^6.4.0
   file_selector: ^1.0.3
-  flutter_local_notifications: ^22.1.0
+  flutter_local_notifications: ^23.0.2
   record: ^7.1.1
   # Android's foreground service, for calls and for screen sharing. Both need
   # one — a call to survive the app going to the background at all, a capture
@@ -104,15 +109,15 @@ dependencies:
   # through the `browser_apis_web.dart` half of a conditional export, so it is
   # never reached on native.
   web: ^1.1.1
-  firebase_core: ^4.13.0
-  firebase_messaging: ^16.5.0
-  flutter_litert: ^3.8.0
+  firebase_core: ^5.1.0
+  firebase_messaging: ^17.0.1
+  flutter_litert: ^4.1.1
   html: ^0.15.7
   url_launcher: ^6.3.2
   desktop_drop: ^0.8.4
   # Ctrl+V of a picture or of files copied in a file manager: Flutter's own
   # clipboard reads text only (see ClipboardFiles).
-  pasteboard: ^0.5.0
+  pasteboard: ^0.6.0
   # Picking and saving files on a phone without holding them in memory:
   # file_selector's Android side reads a picked file whole and has no save
   # dialog at all. file_picker copies a pick to a cache file natively;

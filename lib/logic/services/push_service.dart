@@ -63,7 +63,13 @@ class PushService {
       final messaging = FirebaseMessaging.instance;
       await messaging.requestPermission();
 
+      // The FCM token, which central's push relay sends to. firebase_messaging
+      // 17 deprecates it for register(), whose onRegistered hands back an
+      // installation ID instead: another kind of address, which the relay
+      // would have to learn first.
+      // ignore: deprecated_member_use
       token.value = await messaging.getToken();
+      // ignore: deprecated_member_use
       messaging.onTokenRefresh.listen((next) => token.value = next);
 
       // A push that lands while the app is up needs no notification of its
