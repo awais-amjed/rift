@@ -45,3 +45,13 @@ target_link_libraries(${BINARY_NAME} PRIVATE rift_noise_filter)
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}/../native")
 target_link_options(${BINARY_NAME} PRIVATE
   "LINKER:--export-dynamic-symbol=rift_noise_filter_*")
+
+# The system's C++ unwinder goes ahead of Flutter's. Flutter 3.50's engine
+# exports a copy of LLVM's (_Unwind_RaiseException and the rest) and comes
+# first in the load order, so every C++ library in the process threw through it,
+# and an exception it cannot carry ends the app: Intel's VAAPI driver throws
+# and catches one of its own inside vaCreateContext, and Rift died at start
+# probing the GPU encoders. Naming libgcc_s before anything else on the link
+# line makes it the first library the executable needs.
+target_link_options(${BINARY_NAME} PRIVATE
+  "LINKER:--push-state,--no-as-needed,-lgcc_s,--pop-state")
