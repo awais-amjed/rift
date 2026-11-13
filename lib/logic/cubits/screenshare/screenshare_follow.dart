@@ -96,6 +96,18 @@ mixin _ScreenshareFollowMixin on Cubit<ScreenshareState> {
     );
   }
 
+  /// The SDK's share ended without Rift asking: the browser's own Stop
+  /// sharing button, or Android taking the capture back. Nothing is left to
+  /// stop, so only the state is put back. A stop of Rift's own has the share
+  /// `stopping` already, and is left to finish.
+  Future<void> sdkShareEnded() async {
+    if (!ScreenshareCubit._sdkCapturesScreen ||
+        state.status != ScreenshareStatus.sharing) {
+      return;
+    }
+    await _forgetSdkShare(tell: false);
+  }
+
   /// The SDK's share went with the room it was published in, so there is
   /// nothing to stop — [stopScreenShare] would toggle the new room's share
   /// *on*. Only the state and the foreground service are put back.

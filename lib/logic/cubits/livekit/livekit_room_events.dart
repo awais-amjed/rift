@@ -8,6 +8,7 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
   WatchResume get _watchResume;
   SoundboardCubit? get _soundboardCubit;
   TokenCubit get _tokenCubit;
+  ScreenshareCubit? get _screenshareCubit;
   void _syncParticipants({bool speakingOnly});
   Future<void> _publishSelfState();
 
@@ -206,6 +207,16 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
         if (e.publication.source == TrackSource.screenShareVideo) {
           SoundService.instance.play(AppSound.stream, ending: true);
           _forgetStream(e.participant.identity);
+          // Ended by the browser's own Stop sharing button, or by Android
+          // taking the capture back, the share cubit heard nothing: the
+          // button stayed lit, and pressing it toggled a new share on. Only
+          // in the live room: a room being left takes its tracks with it, and
+          // following the call says so itself.
+          if (identical(room, state.room) &&
+              room.connectionState == ConnectionState.connected) {
+            _syncParticipants();
+            unawaited(_screenshareCubit?.sdkShareEnded());
+          }
         }
       })
       ..on<ActiveSpeakersChangedEvent>(
