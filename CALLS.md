@@ -823,7 +823,7 @@ what was driven are in `TESTING.md`).
   tried, and neither does an old Rift, which says nothing and counts as everything but H265. A watch connection
   that gives out in a call takes H264 and H265 off the list until the next room, since
   the call's own connection has no H265 and decodes H264 on the CPU. Two cases still
-  decode H264 on the CPU: a phone's share, which does not step down, and an old
+  decode H264 on the CPU: a phone's or a browser's share, which does not step down, and an old
   sharer, which does not read `plays`. Only those watching
   count, connection by connection: somebody in the call who has not opened the
   stream changes nothing. The share goes down at once and climbs back 30 s after
