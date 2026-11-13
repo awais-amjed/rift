@@ -38,14 +38,15 @@ mkdir -p build/release
 apk=build/app/outputs/flutter-apk/app-release.apk
 
 # Each names its ABIs twice: --target-platform for Flutter's and Rust's
-# libraries, riftAbis (android/app/build.gradle.kts) for every plugin's.
+# libraries, riftAbis (android/app/build.gradle.kts) for every plugin's,
+# joined with "+": Flutter splits a -P value at its commas.
 for abi in arm64-v8a:android-arm64 armeabi-v7a:android-arm x86_64:android-x64; do
   flutter build apk --release --target-platform "${abi#*:}" -P "riftAbis=${abi%%:*}"
   cp -f "$apk" "build/release/rift-$version-android-${abi%%:*}.apk"
 done
 
 flutter build apk --release --target-platform android-arm,android-arm64 \
-  -P riftAbis=arm64-v8a,armeabi-v7a
+  -P riftAbis=arm64-v8a+armeabi-v7a
 cp -f "$apk" "build/release/rift-$version-android.apk"
 
 flutter build appbundle --release

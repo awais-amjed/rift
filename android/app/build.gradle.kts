@@ -62,9 +62,11 @@ android {
     // all three ABIs, so an APK "for" two still held x86_64 libraries, and a
     // device that chose x86_64 for them found no Flutter there. Excluded at
     // packaging rather than with ndk.abiFilters, which the Flutter plugin
-    // clears and fills with every ABI it supports.
+    // clears and fills with every ABI it supports. Several are joined with
+    // "+": since Flutter 3.50 the tool splits a -P value at its commas, and
+    // "riftAbis=arm64-v8a,armeabi-v7a" arrived as arm64-v8a alone.
     (project.findProperty("riftAbis") as String?)?.let { abis ->
-        val keep = abis.split(",")
+        val keep = abis.split("+")
         packaging {
             jniLibs {
                 listOf("arm64-v8a", "armeabi-v7a", "x86_64", "x86")
