@@ -28,8 +28,9 @@ a weak PC cannot afford a second encode.
   back then.
 - Dart decides, Rust moves. The move is the existing `updateScreenshare` with another
   codec, no new bridge call.
-- The ladder is for desktop shares. Web sends VP8, which every viewer plays. Android
-  sends what its dialog chose, relying on the SDK's VP8 backup (not tried).
+- The ladder is for desktop shares. A browser and an Android phone send what their
+  dialog chose (a browser's Auto is H264 on its hardware, or else VP9, since Nov 13),
+  relying on the SDK's VP8 backup (not tried).
 
 ## Calls made without the owner
 
