@@ -81,6 +81,9 @@ class ExpandedParticipantTile extends StatelessWidget {
   /// See [StreamViewButtons.soundKey].
   final String? soundKey;
 
+  /// See [StreamViewButtons.onBack].
+  final VoidCallback? onBack;
+
   /// The sharer's camera, floated over the stream they are sharing
   /// ([StreamCameraPip]). Null on anything else, or with their camera off.
   final VideoTrack? ownerCamera;
@@ -130,6 +133,7 @@ class ExpandedParticipantTile extends StatelessWidget {
     this.view = StreamView.inCall,
     this.onView,
     this.soundKey,
+    this.onBack,
     this.ownerCamera,
     required this.showOverlays,
     required this.statsPinned,
@@ -323,6 +327,7 @@ class ExpandedParticipantTile extends StatelessWidget {
                 view: view,
                 onView: onView!,
                 soundKey: soundKey,
+                onBack: onBack,
                 cameraShown: pip != null,
                 onCamera: camera == null
                     ? null

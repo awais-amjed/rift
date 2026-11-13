@@ -68,6 +68,16 @@ class ParticipantTileWidget extends StatefulWidget {
   /// See [ExpandedParticipantTile.bottomInset].
   final double bottomInset;
 
+  /// Back from this focused stream to the grid, from a button in its corner
+  /// where a tap on it only shows or hides the controls (a phone's). Null
+  /// where the tap itself goes back.
+  final VoidCallback? onBack;
+
+  /// Whether the focused stream's overlays show, where they follow the
+  /// call's controls rather than their own countdown: shown and hidden by
+  /// the same tap, they would otherwise each answer it differently.
+  final bool? overlaysShown;
+
   const ParticipantTileWidget({
     super.key,
     required this.participant,
@@ -81,6 +91,8 @@ class ParticipantTileWidget extends StatefulWidget {
     this.onAspectRatio,
     this.topInset = 0,
     this.bottomInset = 0,
+    this.onBack,
+    this.overlaysShown,
   });
 
   @override
@@ -360,7 +372,8 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                       onView: onView,
                       soundKey: soundKey,
                       ownerCamera: ownerCamera,
-                      showOverlays: _showOverlays,
+                      showOverlays: widget.overlaysShown ?? _showOverlays,
+                      onBack: widget.onBack,
                       statsPinned: _statsPinned,
                       onActivity: _onActivity,
                       onWatch: _subscribeToScreenshare,

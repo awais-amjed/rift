@@ -38,6 +38,7 @@ void main() {
     ValueChanged<StreamView>? onView,
     StreamView view = StreamView.inCall,
     String? soundKey,
+    VoidCallback? onBack,
   }) {
     return tester.pumpWidget(
       MultiBlocProvider(
@@ -61,6 +62,7 @@ void main() {
               view: view,
               onView: onView,
               soundKey: soundKey,
+              onBack: onBack,
               showOverlays: true,
               statsPinned: false,
               onActivity: () {},
@@ -99,6 +101,17 @@ void main() {
     await pump(tester, onView: (_) {}, view: StreamView.edgeToEdge);
     expect(find.byTooltip('Exit edge to edge'), findsOneWidget);
     expect(find.byTooltip('Full screen'), findsOneWidget);
+  });
+
+  testWidgets('a phone\'s way back to everyone takes edge to edge\'s place', (
+    tester,
+  ) async {
+    var backs = 0;
+    await pump(tester, onView: (_) {}, onBack: () => backs++);
+    expect(find.byTooltip('Edge to edge'), findsNothing);
+    expect(find.byTooltip('Full screen'), findsOneWidget);
+    await tester.tap(find.byTooltip('Show everyone'));
+    expect(backs, 1);
   });
 
   testWidgets('nothing to watch alone, no buttons', (tester) async {

@@ -45,6 +45,17 @@ class ParticipantGridLayout extends StatefulWidget {
   /// time the pointer moved.
   final double stageInset;
 
+  /// A tap on a focused stream, where that only shows or hides the call's
+  /// controls: on a phone, whose tap also brings them back, and so used to
+  /// both bring them back and drop the stream to the grid. The stream's
+  /// corner then has a button back to the grid instead. Null elsewhere,
+  /// where a click on the focused stream goes back to the grid.
+  final VoidCallback? onFocusedStreamTap;
+
+  /// Whether the call's controls show, for a focused stream whose overlays
+  /// follow them ([onFocusedStreamTap]).
+  final bool controlsShown;
+
   const ParticipantGridLayout({
     super.key,
     required this.participants,
@@ -53,6 +64,8 @@ class ParticipantGridLayout extends StatefulWidget {
     this.focusTopInset = 0,
     this.controlsInset = 0,
     this.stageInset = 0,
+    this.onFocusedStreamTap,
+    this.controlsShown = true,
   });
 
   /// Whether the stage shows the streams being watched with a row of everyone
@@ -216,11 +229,18 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
           if (mounted) _setExpanded(null);
         });
       } else {
+        final key = _keyOf(expanded);
+        final tapShowsControls =
+            widget.onFocusedStreamTap != null && expanded.isScreenshare;
         return ParticipantTileWidget(
           participant: expanded.participant,
           isScreenshare: expanded.isScreenshare,
           isMuted: _mutedFor(expanded.participant.identity),
-          onTap: () => _onTileTapped(_keyOf(expanded)),
+          onTap: tapShowsControls
+              ? widget.onFocusedStreamTap
+              : () => _onTileTapped(key),
+          onBack: tapShowsControls ? () => _setExpanded(null) : null,
+          overlaysShown: tapShowsControls ? widget.controlsShown : null,
           isExpanded: true,
           topInset: widget.focusTopInset,
           bottomInset: widget.controlsInset,

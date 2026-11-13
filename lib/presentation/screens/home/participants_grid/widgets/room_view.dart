@@ -62,9 +62,10 @@ class _RoomViewState extends State<RoomView> {
   bool _chromeVisible = true;
   Timer? _hideTimer;
 
-  /// A menu opened from the bar is up. It sits in the overlay, so the pointer
-  /// on it reads as the pointer gone idle, and the bar it hangs from would
-  /// fade out from under it.
+  /// A menu opened from the stage is up, or a phone's stream volume stands
+  /// open. A menu sits in the overlay, so the pointer on it reads as the
+  /// pointer gone idle, and the bar it hangs from would fade out from under
+  /// it.
   bool _menuOpen = false;
 
   /// Whether one tile fills the stage. The context strip then floats over it
@@ -116,6 +117,19 @@ class _RoomViewState extends State<RoomView> {
       _reportStage();
     }
     _scheduleHide();
+  }
+
+  /// Whether the chrome was up when the latest touch came down, before that
+  /// touch brought it back: what a tap on a focused stream toggles from.
+  bool _shownAtDown = true;
+
+  /// A phone's tap on a focused stream: hides the chrome it found up, and
+  /// leaves up the chrome the same touch has just brought back.
+  void _toggleChrome() {
+    if (!_shownAtDown) return;
+    _hideTimer?.cancel();
+    setState(() => _chromeVisible = false);
+    _reportStage();
   }
 
   /// Tells the shell whether a focused stream is sitting idle, which is when
@@ -172,91 +186,101 @@ class _RoomViewState extends State<RoomView> {
               // A Listener rather than a tap recognizer on purpose: it does
               // not enter the gesture arena, so revealing the controls cannot
               // steal the press that was aimed at one of them.
-              onPointerDown: (_) => _showChrome(),
-              child: Stack(
-                children: [
-                  Column(
-                    children: [
-                      // The strip fades with the control pill. Over the grid it
-                      // keeps its row, so the tiles stay put; over streams
-                      // with the row it collapses too, and they grow into
-                      // it. In focus it is drawn over the stage, below.
-                      if (!_focused && streamRow)
-                        ClipRect(
-                          child: AnimatedAlign(
-                            alignment: Alignment.topCenter,
-                            heightFactor: _chromeVisible ? 1.0 : 0.0,
-                            duration: AppMotion.enter,
-                            curve: Curves.easeInOut,
+              onPointerDown: (_) {
+                _shownAtDown = _chromeVisible;
+                _showChrome();
+              },
+              // Round the whole stage, not only the bar: a phone's stream
+              // volume stands open over the stream like a menu, and the
+              // chrome fading took it away between touches.
+              child: ContextMenuWatcher(
+                onOpened: () {
+                  _menuOpen = true;
+                  _showChrome();
+                },
+                onClosed: () {
+                  _menuOpen = false;
+                  _scheduleHide();
+                },
+                child: Stack(
+                  children: [
+                    Column(
+                      children: [
+                        // The strip fades with the control pill. Over the grid it
+                        // keeps its row, so the tiles stay put; over streams
+                        // with the row it collapses too, and they grow into
+                        // it. In focus it is drawn over the stage, below.
+                        if (!_focused && streamRow)
+                          ClipRect(
+                            child: AnimatedAlign(
+                              alignment: Alignment.topCenter,
+                              heightFactor: _chromeVisible ? 1.0 : 0.0,
+                              duration: AppMotion.enter,
+                              curve: Curves.easeInOut,
+                              child: _fadingStrip(),
+                            ),
+                          )
+                        else if (!_focused)
+                          IgnorePointer(
+                            ignoring: !_chromeVisible,
                             child: _fadingStrip(),
                           ),
-                        )
-                      else if (!_focused)
-                        IgnorePointer(
-                          ignoring: !_chromeVisible,
-                          child: _fadingStrip(),
+                        Expanded(
+                          child: participants.isEmpty
+                              ? const WaitingView()
+                              : ParticipantGridLayout(
+                                  participants: participants,
+                                  participantSettings:
+                                      appState.participantSettings,
+                                  // The strip floats over a focused tile.
+                                  focusTopInset: _chromeVisible
+                                      ? ContextStrip.heightFor(
+                                          compact: context.layoutMode.isCompact,
+                                        )
+                                      : 0,
+                                  // A phone keeps a pill up when the bar goes.
+                                  controlsInset: _chromeVisible
+                                      ? K.callBarClearance
+                                      : context.layoutMode.isCompact
+                                      ? K.callPillClearance
+                                      : 0,
+                                  stageInset: K.callBarClearance,
+                                  onFocusedStreamTap: HostPlatform.isMobile
+                                      ? _toggleChrome
+                                      : null,
+                                  controlsShown: _chromeVisible,
+                                  onFocusChanged: (focused) {
+                                    setState(() => _focused = focused);
+                                    _reportStage();
+                                  },
+                                ),
                         ),
-                      Expanded(
-                        child: participants.isEmpty
-                            ? const WaitingView()
-                            : ParticipantGridLayout(
-                                participants: participants,
-                                participantSettings:
-                                    appState.participantSettings,
-                                // The strip floats over a focused tile.
-                                focusTopInset: _chromeVisible
-                                    ? ContextStrip.heightFor(
-                                        compact: context.layoutMode.isCompact,
-                                      )
-                                    : 0,
-                                // A phone keeps a pill up when the bar goes.
-                                controlsInset: _chromeVisible
-                                    ? K.callBarClearance
-                                    : context.layoutMode.isCompact
-                                    ? K.callPillClearance
-                                    : 0,
-                                stageInset: K.callBarClearance,
-                                onFocusChanged: (focused) {
-                                  setState(() => _focused = focused);
-                                  _reportStage();
-                                },
-                              ),
-                      ),
-                    ],
-                  ),
-                  if (_focused)
-                    Positioned(
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      child: IgnorePointer(
-                        ignoring: !_chromeVisible,
-                        child: _fadingStrip(
-                          background: context.theme.bgContent,
-                        ),
-                      ),
+                      ],
                     ),
-                  ContextMenuWatcher(
-                    onOpened: () {
-                      _menuOpen = true;
-                      _showChrome();
-                    },
-                    onClosed: () {
-                      _menuOpen = false;
-                      _scheduleHide();
-                    },
-                    child: ControlBar(visible: _chromeVisible),
-                  ),
-                  // Above the bar, and outside its IgnorePointer: a clip
-                  // that arrives while the chrome has faded is the one
-                  // thing on this screen still worth being able to press.
-                  SoundboardActivity(visible: _chromeVisible),
-                  // A phone hides the bar under a thumb's worth of video, so
-                  // the two facts you cannot afford to lose stay behind in a
-                  // pill: how long, and whether you are muted.
-                  if (context.layoutMode.isCompact)
-                    CallIdlePill(visible: !_chromeVisible),
-                ],
+                    if (_focused)
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        child: IgnorePointer(
+                          ignoring: !_chromeVisible,
+                          child: _fadingStrip(
+                            background: context.theme.bgContent,
+                          ),
+                        ),
+                      ),
+                    ControlBar(visible: _chromeVisible),
+                    // Above the bar, and outside its IgnorePointer: a clip
+                    // that arrives while the chrome has faded is the one
+                    // thing on this screen still worth being able to press.
+                    SoundboardActivity(visible: _chromeVisible),
+                    // A phone hides the bar under a thumb's worth of video, so
+                    // the two facts you cannot afford to lose stay behind in a
+                    // pill: how long, and whether you are muted.
+                    if (context.layoutMode.isCompact)
+                      CallIdlePill(visible: !_chromeVisible),
+                  ],
+                ),
               ),
             );
           },
