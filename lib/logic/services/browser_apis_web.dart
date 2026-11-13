@@ -4,6 +4,7 @@ library;
 import 'dart:js_interop';
 
 import 'package:web/web.dart' as web;
+
 import '../helper_methods.dart';
 
 /// Asks the browser for notification permission, returning whether it was
@@ -80,5 +81,38 @@ Future<void> setBrowserFullscreen(bool on) async {
     }
   } catch (e) {
     HelperMethods.printDebug('browser full screen unavailable – $e');
+  }
+}
+
+/// Whether the browser encodes H264 for a call in hardware, as its media
+/// capabilities say (`powerEfficient`) for a 1080p30 picture.
+///
+/// No answer is no: headless Chrome, with no GPU, never answers at all, and a
+/// browser without the API is one this cannot tell about.
+Future<bool> browserEncodesH264InHardware() async {
+  try {
+    final info = await web.window.navigator.mediaCapabilities
+        .encodingInfo(
+          web.MediaEncodingConfiguration(
+            type: 'webrtc',
+            video: web.VideoConfiguration(
+              contentType: 'video/H264',
+              width: 1920,
+              height: 1080,
+              bitrate: 6000000,
+              framerate: 30,
+            ),
+          ),
+        )
+        .toDart
+        .timeout(const Duration(seconds: 1));
+    HelperMethods.printDebug(
+      '[LiveKit] Browser H264: supported ${info.supported}, '
+      'hardware ${info.powerEfficient}',
+    );
+    return info.supported && info.powerEfficient;
+  } catch (e) {
+    HelperMethods.printDebug('[LiveKit] Browser H264 hardware unknown: $e');
+    return false;
   }
 }

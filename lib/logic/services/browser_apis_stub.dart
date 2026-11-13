@@ -19,3 +19,6 @@ void startBrowserFocusTracking(void Function(bool focused) onChanged) {}
 
 /// Puts the page in full screen, or takes it out. Does nothing off the web.
 Future<void> setBrowserFullscreen(bool on) async {}
+
+/// Whether the browser encodes H264 in hardware. Never off the web.
+Future<bool> browserEncodesH264InHardware() async => false;

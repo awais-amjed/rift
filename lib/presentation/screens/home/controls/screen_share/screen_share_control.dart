@@ -70,6 +70,7 @@ class _ScreenShareControlState extends State<ScreenShareControl> {
     } else {
       final sdk = kIsWeb || HostPlatform.isAndroid;
       final codecs = sdk ? await PhoneEncoders.codecs() : null;
+      final hardwareH264 = kIsWeb && await WebShare.hardwareH264();
       final frameRates = kIsWeb
           ? WebShare.frameRates
           : HostPlatform.isAndroid
@@ -86,7 +87,7 @@ class _ScreenShareControlState extends State<ScreenShareControl> {
           null => ScreenShareSettingsDialog(maxShareMbps: maxShareMbps),
           _ when kIsWeb => SdkShareDialog(
             codecs: codecs,
-            autoCodec: WebShare.autoCodec,
+            autoCodec: WebShare.autoCodec(codecs, hardwareH264: hardwareH264),
             resolutions: WebShare.resolutions,
             frameRates: frameRates,
             opening: WebShare.opening,

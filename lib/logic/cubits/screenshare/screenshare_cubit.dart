@@ -214,6 +214,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
           ? WebShare.request(
               settings,
               codecs: await PhoneEncoders.codecs(),
+              hardwareH264: await WebShare.hardwareH264(),
               limits: limits,
             )
           : HostPlatform.isAndroid

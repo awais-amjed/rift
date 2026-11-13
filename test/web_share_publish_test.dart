@@ -43,17 +43,53 @@ void main() {
   });
 
   group('the codec', () {
-    test('Auto is VP8, whatever the browser has', () {
+    test('Auto is H264 where the browser encodes it in hardware', () {
       expect(
-        WebShare.codecToSend(const ScreenShareSettings(), all),
+        WebShare.codecToSend(
+          const ScreenShareSettings(),
+          all,
+          hardwareH264: true,
+        ),
+        VideoCodec.h264,
+      );
+    });
+
+    test('Auto is VP9 where H264 would be software', () {
+      expect(
+        WebShare.codecToSend(
+          const ScreenShareSettings(),
+          all,
+          hardwareH264: false,
+        ),
+        VideoCodec.vp9,
+      );
+    });
+
+    test('Auto is VP8 where the browser has nothing else', () {
+      expect(
+        WebShare.autoCodec(const [VideoCodec.vp8], hardwareH264: true),
+        VideoCodec.vp8,
+      );
+      expect(
+        WebShare.autoCodec(const [
+          VideoCodec.vp8,
+          VideoCodec.h264,
+        ], hardwareH264: false),
         VideoCodec.vp8,
       );
     });
 
     test('one picked by hand goes out, unless the browser lacks it', () {
+      const vp8 = ScreenShareSettings(codec: 'VP8', codecChosen: true);
+      expect(
+        WebShare.codecToSend(vp8, all, hardwareH264: true),
+        VideoCodec.vp8,
+      );
       const vp9 = ScreenShareSettings(codec: 'VP9', codecChosen: true);
-      expect(WebShare.codecToSend(vp9, all), VideoCodec.vp9);
-      expect(WebShare.codecToSend(vp9, const [VideoCodec.vp8]), VideoCodec.vp8);
+      expect(
+        WebShare.codecToSend(vp9, const [VideoCodec.vp8], hardwareH264: false),
+        VideoCodec.vp8,
+      );
     });
   });
 
@@ -62,6 +98,7 @@ void main() {
       final request = WebShare.request(
         const ScreenShareSettings(resolution: 720, fps: 60, shareAudio: true),
         codecs: all,
+        hardwareH264: false,
         limits: unlimited,
       );
       final capture = request.capture;
@@ -71,13 +108,14 @@ void main() {
         'frameRate': {'ideal': 60, 'max': 60},
       });
       expect(request.publish.screenShareEncoding!.maxFramerate, 60);
-      expect(request.publish.videoCodec, 'vp8');
+      expect(request.publish.videoCodec, 'vp9');
     });
 
     test('asking for sound keeps the size and rate', () {
       final capture = WebShare.request(
         const ScreenShareSettings(resolution: 1440, fps: 60, shareAudio: false),
         codecs: all,
+        hardwareH264: false,
         limits: unlimited,
       ).capture.copyWith(captureScreenAudio: true);
       expect(capture.captureScreenAudio, isTrue);
@@ -91,6 +129,7 @@ void main() {
       final request = WebShare.request(
         const ScreenShareSettings(shareAudio: false),
         codecs: all,
+        hardwareH264: false,
         limits: unlimited,
       );
       expect(request.capture.captureScreenAudio, isFalse);
@@ -100,6 +139,7 @@ void main() {
       final publish = WebShare.request(
         const ScreenShareSettings(resolution: 1080, fps: 30),
         codecs: all,
+        hardwareH264: false,
         limits: const ServerLimits(maxShareMbps: 3),
       ).publish;
       expect(publish.simulcast, isFalse);

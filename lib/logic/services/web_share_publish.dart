@@ -3,6 +3,7 @@ import 'package:livekit_client/livekit_client.dart';
 import '../../data/classes/screen_share_settings.dart';
 import '../../data/classes/server_limits.dart';
 import '../../src/rust/api/screenshare/types.dart';
+import 'browser_apis.dart';
 import 'phone_share_publish.dart';
 
 /// A browser's capture, asked for at most [height] pixels tall and [fps]
@@ -88,28 +89,43 @@ class WebShare {
     );
   }
 
-  /// VP8: what a browser's share always went out in, which every viewer
-  /// decodes. The others are there to pick.
-  static const autoCodec = VideoCodec.vp8;
+  /// Whether this browser encodes H264 in hardware, which [autoCodec] needs
+  /// to know.
+  static Future<bool> hardwareH264() => browserEncodesH264InHardware();
+
+  /// H264 where the browser encodes it in hardware. Otherwise VP9, which
+  /// every Rift viewer decodes and which carries a screen in less than VP8:
+  /// a browser's H264 without a GPU is OpenH264, in software, and VP9 is no
+  /// slower there. VP8 only where the browser has neither.
+  static VideoCodec autoCodec(
+    List<VideoCodec> codecs, {
+    required bool hardwareH264,
+  }) => hardwareH264 && codecs.contains(VideoCodec.h264)
+      ? VideoCodec.h264
+      : codecs.contains(VideoCodec.vp9)
+      ? VideoCodec.vp9
+      : VideoCodec.vp8;
 
   /// The codec a share goes out in. One picked here and missing in this
   /// browser goes back to Auto.
   static VideoCodec codecToSend(
     ScreenShareSettings settings,
-    List<VideoCodec> codecs,
-  ) => settings.codecChosen && codecs.contains(settings.videoCodec)
+    List<VideoCodec> codecs, {
+    required bool hardwareH264,
+  }) => settings.codecChosen && codecs.contains(settings.videoCodec)
       ? settings.videoCodec
-      : autoCodec;
+      : autoCodec(codecs, hardwareH264: hardwareH264);
 
   /// How [settings] go out.
   static SdkShareRequest request(
     ScreenShareSettings settings, {
     required List<VideoCodec> codecs,
+    required bool hardwareH264,
     required ServerLimits limits,
   }) => (
     publish: PhoneShare.publishOptions(
       settings,
-      codec: codecToSend(settings, codecs),
+      codec: codecToSend(settings, codecs, hardwareH264: hardwareH264),
       limits: limits,
     ),
     capture: WebShareCapture(

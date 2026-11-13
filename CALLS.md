@@ -285,9 +285,14 @@ the options on the track.
 - **Frame rate:** 15, 30 or 60, asked of the capture as well as the encoder.
 - **Prioritise, Bitrate:** the phone's (*A phone's share*), held to the server's
   share limit, one picture with a VP8 backup.
-- **Codec:** whichever of VP8, H264 and VP9 the browser lists, with Auto on VP8,
-  which every browser share went out in before and every viewer plays. A browser's
-  H264 is the open risk a phone's is (below): its encoder has not been read.
+- **Codec:** whichever of VP8, H264 and VP9 the browser lists. Auto
+  (`WebShare.autoCodec`) is H264 where the browser says it encodes it in hardware
+  (`encodingInfo` for a WebRTC 1080p30 picture, `powerEfficient`), and otherwise VP9,
+  one layer as the SDK sends any VP9 share (`L1T3`), with VP8 only where the browser
+  has neither. Without a GPU, Chrome's H264 is OpenH264, in software. The question gets a
+  second to answer, and no answer counts as no hardware: headless Chrome never
+  answers. A browser's hardware H264 is the open risk a phone's is (below): its
+  encoder has not been read.
 - **Sound:** on by default. It asks the browser for the picture's sound; the person
   must also tick the picker's own sound box, and Chrome offers one only for a tab, or
   for the whole screen on Windows and ChromeOS. It goes out as music (no DTX, 96 kbps)
