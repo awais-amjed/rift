@@ -713,8 +713,12 @@ what was driven are in `TESTING.md`).
 
 - **H264 and AV1 are only ever encoded by the GPU or the OS, never by Rift.**
   The reason is patents: H264 is licensed through a pool the GPU makers belong
-  to, so Rift ships no H264 encoder of its own (the FFmpeg it builds has only
-  the encoders that drive a GPU's). VP8 and VP9 are royalty-free
+  to, so Rift never encodes H264 on the CPU (the FFmpeg it builds has only
+  the encoders that drive a GPU's). The code is still shipped: both libwebrtc
+  builds in a desktop app, Flutter's and the Rust SDK's, contain OpenH264's
+  encoder and FFmpeg's H264 decoder (found Nov 13 in the Linux bundle; Windows
+  not checked). Only a libwebrtc built without H264 would leave them out.
+  VP8 and VP9 are royalty-free
   and stay as CPU codecs. Without a hardware encoder, or if one fails mid-share,
   the share goes out as VP9 and the user is told.
 - **Auto, the default, picks the codec and the bitrate** (`ShareEncoding`):
