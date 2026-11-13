@@ -146,6 +146,7 @@ mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
             reactions: ReactionOps.fromRow(row),
             poll: PollOps.fromRow(row, body.poll),
             pinnedAt: PinOps.pinnedAtOf(row),
+            mentionsAll: row['mentions_all'] == true,
           ),
         );
       } catch (e) {

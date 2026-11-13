@@ -38,7 +38,6 @@ mixin _ChatNotifyMixin on Cubit<ChannelChatState> {
 
     final server = _server;
     final channelName = _openChannelName(server);
-    final mentionable = Mentions.mentionableFor(server?.user?.username);
 
     for (final message in incoming) {
       // The wording is [ChatNotice]'s rather than this file's, because the
@@ -49,7 +48,10 @@ mixin _ChatNotifyMixin on Cubit<ChannelChatState> {
         author: message.authorName,
         channel: channelName,
         text: message.text,
-        mentionable: mentionable,
+        mentionable: Mentions.mentionableFor(
+          server?.user?.username,
+          all: message.mentionsAll,
+        ),
       );
       if (!level.announces(mentioned: notice.mentioned)) continue;
       NotificationService.instance.showMessage(

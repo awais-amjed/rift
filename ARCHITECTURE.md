@@ -809,6 +809,9 @@ channel's rules are saved through an edge function (`set_channel_override`) that
 gives or takes the microphone of whoever is in the call at once; the rest is asked
 at the next join, share or press. The app is told its own bits per channel
 (`my_permissions`) only to hide what would be refused.
+An `@all` is the row's flag, not the words: the body is sealed, so the server can
+only drop `mentions_all`, and the app highlights and announces `@all` where the row
+kept it (`ChatMessage.mentionsAll`, `Mentions.mentionableFor`).
 Whoever manages a channel edits it, and only with bits they hold, on roles below
 their own. Verified Nov 13 2026 by the policy suite; not yet driven through the app.
 

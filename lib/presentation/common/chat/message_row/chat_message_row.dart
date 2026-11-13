@@ -12,6 +12,7 @@ import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/helper_methods.dart';
 import '../../../../logic/services/forwarding/forward_payload.dart';
 import '../../../../logic/services/host_platform.dart';
+import '../../../../logic/services/mentions.dart';
 import '../../../../logic/services/message_permissions.dart';
 import '../../../responsive/shell_scope.dart';
 import '../../../theme/app_motion.dart';
@@ -472,7 +473,12 @@ class _ChatMessageRowState extends State<ChatMessageRow>
                           color: themeState.textSecondary,
                         ),
                         theme: themeState,
-                        mentionable: widget.mentionable,
+                        // `@all` lights up only where the server kept it.
+                        mentionable: message.mentionsAll
+                            ? widget.mentionable
+                            : widget.mentionable.difference(const {
+                                Mentions.everyone,
+                              }),
                         displayNames: widget.mentionNames,
                         onLink: _links.forUrl,
                       ),

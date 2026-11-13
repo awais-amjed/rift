@@ -61,6 +61,7 @@ class PlainRows {
         origin: MessageOrigin.fromRow(row),
         isEncrypted: false,
         pinnedAt: PinOps.pinnedAtOf(row),
+        mentionsAll: row['mentions_all'] == true,
       );
     }
 
@@ -111,6 +112,7 @@ class PlainRows {
       // is an interface anybody could have sent.
       panel: Panel.tryParse(row['blocks'], channelId: channelId),
       pinnedAt: PinOps.pinnedAtOf(row),
+      mentionsAll: row['mentions_all'] == true,
     );
   }
 }

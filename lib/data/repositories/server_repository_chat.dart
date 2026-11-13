@@ -110,7 +110,7 @@ mixin _ChatApiMixin {
             // so the row that comes back is the one to read it from.
             'poll': ?poll,
           })
-          .select('id, created_at, channel_id, sender_id, poll')
+          .select('id, created_at, channel_id, sender_id, poll, mentions_all')
           .single();
     });
   }

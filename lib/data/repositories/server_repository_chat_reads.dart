@@ -23,7 +23,7 @@ mixin _ChatReadApiMixin {
       'id, created_at, channel_id, sender_id, ciphertext, nonce, signature, '
       'key_version, edited_at, webhook_id, origin_name, is_system, to_bot, '
       'blocks, is_interaction, '
-      'reply_to, ephemeral_for, poll, '
+      'reply_to, ephemeral_for, poll, mentions_all, '
       'sender:users!messages_sender_id_fkey(display_name, public_key, avatar_path), '
       'message_reactions(user_id, emoji), '
       'message_pins(pinned_at)';

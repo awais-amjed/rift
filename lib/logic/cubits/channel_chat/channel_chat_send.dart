@@ -335,6 +335,9 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
               isEncrypted: command == null && !plain,
               inPlainChannel: plain,
               isCommand: command != null,
+              // The server's answer, not [named]: a channel that does not
+              // give this sender `@all` drops it on the way in.
+              mentionsAll: data['mentions_all'] == true,
             ),
           ),
         ),

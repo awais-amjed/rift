@@ -96,32 +96,60 @@ void main() {
   });
 
   group('mentionableFor', () {
-    test('always includes @all — being in the room is being named', () {
-      expect(Mentions.mentionableFor('alice'), {'all', 'alice'});
+    test(
+      'includes @all where the row kept it — being in the room is being named',
+      () {
+        expect(Mentions.mentionableFor('alice', all: true), {'all', 'alice'});
+      },
+    );
+
+    test('leaves @all out where the server dropped it', () {
+      // A sender the channel does not give MENTION_ALL can still type it; the
+      // sealed words stay, only `mentions_all` goes.
+      expect(Mentions.mentionableFor('alice', all: false), {'alice'});
     });
 
     test('lower-cases the name, so the roster spelling does not matter', () {
-      expect(Mentions.mentionableFor('Alice'), contains('alice'));
+      expect(Mentions.mentionableFor('Alice', all: true), contains('alice'));
     });
 
     test('an anonymous reader is still reached by @all', () {
-      expect(Mentions.mentionableFor(null), {'all'});
-      expect(Mentions.mentionableFor('  '), {'all'});
+      expect(Mentions.mentionableFor(null, all: true), {'all'});
+      expect(Mentions.mentionableFor('  ', all: true), {'all'});
     });
   });
 
   group('namesMe', () {
     test('by username', () {
-      expect(Mentions.namesMe('ping @bob', username: 'bob'), isTrue);
-      expect(Mentions.namesMe('ping @bob', username: 'alice'), isFalse);
+      expect(
+        Mentions.namesMe('ping @bob', username: 'bob', all: false),
+        isTrue,
+      );
+      expect(
+        Mentions.namesMe('ping @bob', username: 'alice', all: false),
+        isFalse,
+      );
     });
 
     test('by @all, for everybody in the room', () {
-      expect(Mentions.namesMe('@all please read', username: 'alice'), isTrue);
+      expect(
+        Mentions.namesMe('@all please read', username: 'alice', all: true),
+        isTrue,
+      );
+    });
+
+    test('not by an @all the server dropped', () {
+      expect(
+        Mentions.namesMe('@all please read', username: 'alice', all: false),
+        isFalse,
+      );
     });
 
     test('not by an ordinary line', () {
-      expect(Mentions.namesMe('morning everyone', username: 'alice'), isFalse);
+      expect(
+        Mentions.namesMe('morning everyone', username: 'alice', all: true),
+        isFalse,
+      );
     });
   });
 

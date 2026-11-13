@@ -30,14 +30,18 @@ class Mentions {
   /// quietly disagrees with what was sent.
   static const maxTargets = 50;
 
-  /// The set of names that count as "you" for [username].
+  /// The set of names that count as "you" for [username] in one message.
   ///
-  /// Always includes [everyone]: being in the room when somebody says `@all`
-  /// is being named, and every path that highlights or announces a mention has
-  /// to think so or they will contradict each other.
-  static Set<String> mentionableFor(String? username) {
+  /// [everyone] is in it when the message's row kept its `@all`
+  /// ([all], `messages.mentions_all`): being in the room when somebody says
+  /// `@all` is being named. The words alone are not enough — a sender the
+  /// channel does not give `MENTION_ALL` can still type them, the server
+  /// cannot take them out of a sealed body, and only drops the flag. Required,
+  /// so every path that highlights or announces a mention asks the row and
+  /// none of them contradicts the others.
+  static Set<String> mentionableFor(String? username, {required bool all}) {
     final name = username?.trim().toLowerCase();
-    return {everyone, if (name != null && name.isNotEmpty) name};
+    return {if (all) everyone, if (name != null && name.isNotEmpty) name};
   }
 
   /// Everybody a message here can actually name.
@@ -96,9 +100,10 @@ class Mentions {
     for (final member in among(members)) member.username: member.id,
   };
 
-  /// Whether [text] names the person called [username].
-  static bool namesMe(String text, {String? username}) =>
-      mentionsAnyOf(text, mentionableFor(username));
+  /// Whether [text] names the person called [username]; [all] as in
+  /// [mentionableFor].
+  static bool namesMe(String text, {String? username, required bool all}) =>
+      mentionsAnyOf(text, mentionableFor(username, all: all));
 
   /// Who [text] names, resolved against a roster.
   ///

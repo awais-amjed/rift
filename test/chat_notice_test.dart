@@ -98,13 +98,13 @@ void main() {
           author: 'Alice',
           channel: 'general',
           text: 'morning',
-          mentionable: Mentions.mentionableFor('bob'),
+          mentionable: Mentions.mentionableFor('bob', all: true),
         );
         final named = ChatNotice.channel(
           author: 'Alice',
           channel: 'general',
           text: 'morning @bob',
-          mentionable: Mentions.mentionableFor('bob'),
+          mentionable: Mentions.mentionableFor('bob', all: true),
         );
         expect(plain.mentioned, isFalse);
         expect(named.mentioned, isTrue);
@@ -116,10 +116,20 @@ void main() {
         author: 'Alice',
         channel: 'general',
         text: '@all standup',
-        mentionable: Mentions.mentionableFor('bob'),
+        mentionable: Mentions.mentionableFor('bob', all: true),
       );
       expect(notice.mentioned, isTrue);
       expect(notice.title, 'Alice mentioned you in #general');
+    });
+
+    test('an @all the server dropped names nobody', () {
+      final notice = ChatNotice.channel(
+        author: 'Alice',
+        channel: 'general',
+        text: '@all standup',
+        mentionable: Mentions.mentionableFor('bob', all: false),
+      );
+      expect(notice.mentioned, isFalse);
     });
 
     test('a DM has nobody to be named among', () {

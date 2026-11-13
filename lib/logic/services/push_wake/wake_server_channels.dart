@@ -89,7 +89,6 @@ mixin _WakeChannelsMixin on _WakeChannelKeysMixin {
       limit: level == NotificationLevel.mentions ? mentionScanDepth : 1,
     );
     final rows = WakeServerReader.messagesOf(response);
-    final mentionable = Mentions.mentionableFor(server.username);
     final keys = <int, Uint8List>{};
 
     // Newest first. A row already announced ends the scan rather than skipping
@@ -152,7 +151,10 @@ mixin _WakeChannelsMixin on _WakeChannelKeysMixin {
         author: row['sender_name'] as String? ?? 'Someone',
         channel: server.channels[channelId] ?? 'channel',
         text: text,
-        mentionable: mentionable,
+        mentionable: Mentions.mentionableFor(
+          server.username,
+          all: row['mentions_all'] == true,
+        ),
         unread: unread,
       );
       if (!level.announces(mentioned: notice.mentioned)) continue;
@@ -207,7 +209,10 @@ mixin _WakeChannelsMixin on _WakeChannelKeysMixin {
       author: author,
       channel: server.channels[channelId] ?? 'channel',
       text: text,
-      mentionable: Mentions.mentionableFor(server.username),
+      mentionable: Mentions.mentionableFor(
+        server.username,
+        all: row['mentions_all'] == true,
+      ),
       unread: unread,
     );
     if (!level.announces(mentioned: notice.mentioned)) return null;

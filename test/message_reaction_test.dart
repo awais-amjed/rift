@@ -53,5 +53,20 @@ void main() {
       expect(again.reactions, hasLength(1));
       expect(again.reactions.single.emoji, '❤️');
     });
+
+    test('keeps whether the server kept the @all', () {
+      // A reaction or a pin landing must not light up, or put out, an @all.
+      final kept = ChatMessage(
+        id: '8',
+        authorId: 'u1',
+        authorName: 'Ada',
+        text: '@all hi',
+        sentAt: DateTime.utc(2026),
+        isMine: false,
+        mentionsAll: true,
+      );
+      expect(kept.copyWith(text: 'edited').mentionsAll, isTrue);
+      expect(base.copyWith(text: '@all').mentionsAll, isFalse);
+    });
   });
 }

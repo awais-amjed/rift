@@ -199,6 +199,15 @@ class ChatMessage extends Equatable {
 
   bool get isPinned => pinnedAt != null;
 
+  /// Whether the server kept this message's `@all` (`messages.mentions_all`).
+  ///
+  /// The text saying `@all` is not enough: the body is sealed, so the server
+  /// cannot take the words out, only drop the flag for a sender the channel
+  /// does not give `MENTION_ALL` (`validate_message_mentions`). Drawing or
+  /// announcing `@all` from the text would ring a room the server refused
+  /// to. So the highlight and every notifier ask this, not the words.
+  final bool mentionsAll;
+
   const ChatMessage({
     required this.id,
     required this.authorId,
@@ -226,6 +235,7 @@ class ChatMessage extends Equatable {
     this.forwarded,
     this.poll,
     this.pinnedAt,
+    this.mentionsAll = false,
   });
 
   /// [clearPinned] unpins; a null [pinnedAt] leaves the pin as it is.
@@ -269,6 +279,7 @@ class ChatMessage extends Equatable {
     forwarded: forwarded,
     poll: poll,
     pinnedAt: clearPinned ? null : pinnedAt ?? this.pinnedAt,
+    mentionsAll: mentionsAll,
   );
 
   @override
@@ -299,5 +310,6 @@ class ChatMessage extends Equatable {
     isLocked,
     poll,
     pinnedAt,
+    mentionsAll,
   ];
 }
