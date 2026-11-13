@@ -207,7 +207,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
       }
     }
 
-    await _livekitCubit.toggleScreenShare(
+    final started = await _livekitCubit.toggleScreenShare(
       phone: HostPlatform.isAndroid
           ? PhoneShare.request(
               settings,
@@ -216,6 +216,16 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
             )
           : null,
     );
+    // Cancelled in the browser's picker, or refused on the way out (logged
+    // there): nothing is going out. Marked as sharing anyway, the button
+    // stayed lit, and pressing it again opened the picker.
+    if (!started) {
+      if (HostPlatform.isMobile) {
+        await CallForegroundService.screenShareStopped();
+      }
+      emit(state.copyWith(status: ScreenshareStatus.idle));
+      return;
+    }
 
     emit(
       state.copyWith(

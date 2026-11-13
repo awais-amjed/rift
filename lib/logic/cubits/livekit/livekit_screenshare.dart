@@ -191,13 +191,15 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
   }
 
   /// Toggle screen sharing on/off. [phone] is how an Android phone's share
-  /// goes out; everywhere else the SDK decides.
-  Future<void> toggleScreenShare({
+  /// goes out; everywhere else the SDK decides. Answers whether it did: a
+  /// share cancelled in the browser's picker never started, and the share
+  /// button must not say it did.
+  Future<bool> toggleScreenShare({
     ScreenShareCaptureOptions? captureOptions,
     PhoneShareRequest? phone,
   }) async {
     final room = state.room;
-    if (room == null) return;
+    if (room == null) return false;
 
     final next = !state.isScreenSharing;
     const fallback = ScreenShareCaptureOptions(useiOSBroadcastExtension: false);
@@ -212,6 +214,7 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
       }
       emit(state.copyWith(isScreenSharing: next));
       _syncParticipants();
+      return true;
     } catch (e) {
       // Logged rather than stored. This wrote to the state's error field
       // without moving the connection out of `connected`, and the error screen
@@ -220,6 +223,7 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
       // pretending it is a connection failure would replace a live call with an
       // error page.
       HelperMethods.printDebug('[LiveKit] Screen share failed: $e');
+      return false;
     }
   }
 
