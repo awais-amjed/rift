@@ -81,6 +81,10 @@ class WebChatClip implements ChatClip {
   @override
   Stream<ClipEvent> get events => _events.stream;
 
+  /// The card watches the clock here too.
+  @override
+  ValueListenable<bool>? get waiting => null;
+
   /// Installs the worker that streams a big video, so it is in control by
   /// the first one played.
   static Future<void> prepare() => WebClipStream.start();

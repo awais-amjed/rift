@@ -6,9 +6,10 @@ import '../../../../../theme/media_colors.dart';
 import '../../../../loading_dots.dart';
 
 /// What sits in the middle of a video card that is not playing: the play
-/// disc, the dots while it opens, or why it cannot play.
+/// disc, the dots while it opens or waits for the file, or why it cannot
+/// play.
 class VideoMiddle extends StatelessWidget {
-  final bool opening;
+  final bool loading;
   final bool ended;
 
   /// Why it cannot play here, in words; null when it can.
@@ -16,7 +17,7 @@ class VideoMiddle extends StatelessWidget {
 
   const VideoMiddle({
     super.key,
-    required this.opening,
+    required this.loading,
     required this.ended,
     this.problem,
   });
@@ -54,7 +55,7 @@ class VideoMiddle extends StatelessWidget {
         color: MediaColors.panel,
         shape: BoxShape.circle,
       ),
-      child: opening
+      child: loading
           ? const Center(
               child: LoadingDots(color: MediaColors.onMedia, dotSize: 5),
             )

@@ -114,6 +114,11 @@ abstract class ChatClip {
   /// failure. Said before anyone listens, it waits.
   Stream<ClipEvent> get events;
 
+  /// Whether it is waiting for the file to go on, where the player says so
+  /// as it happens (ExoPlayer). Null where it does not, and the card judges
+  /// by its clock standing still.
+  ValueListenable<bool>? get waiting;
+
   /// The playing picture, to fill the card's box. Drawn only once a
   /// [ClipEventKind.pictureSize] has come.
   Widget picture();

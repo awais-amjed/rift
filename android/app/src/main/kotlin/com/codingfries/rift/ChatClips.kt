@@ -244,6 +244,10 @@ class ChatClips private constructor(
         override fun onVideoSizeChanged(videoSize: VideoSize) = sendSize()
 
         override fun onPlaybackStateChanged(playbackState: Int) {
+            // Waiting for the file, the card shows it is loading: a seek past
+            // what has been fetched otherwise looks like a frozen video.
+            if (playbackState == Player.STATE_BUFFERING) event(id, "waiting")
+            else event(id, "loaded")
             when (playbackState) {
                 Player.STATE_READY -> sendSize()
                 Player.STATE_ENDED -> event(id, "ended")

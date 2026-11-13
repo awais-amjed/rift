@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
@@ -19,6 +20,8 @@ class AndroidChatClip implements ChatClip {
   final int textureId;
 
   final StreamController<ClipEvent> _events;
+
+  final ValueNotifier<bool> _waiting = ValueNotifier(false);
   final BlobReader _file;
 
   /// Quarter turns the card gives the picture, where the texture does not
@@ -72,6 +75,10 @@ class AndroidChatClip implements ChatClip {
   }
 
   void _event(Map<String, Object?> args) {
+    if (args['kind'] case 'waiting' || 'loaded') {
+      _waiting.value = args['kind'] == 'waiting';
+      return;
+    }
     final kind = switch (args['kind']) {
       'pictureSize' => ClipEventKind.pictureSize,
       'ended' => ClipEventKind.ended,
@@ -103,6 +110,9 @@ class AndroidChatClip implements ChatClip {
 
   @override
   Stream<ClipEvent> get events => _events.stream;
+
+  @override
+  ValueListenable<bool> get waiting => _waiting;
 
   /// [ChatClip.open], on Android.
   static Future<({ChatClip? clip, String? error})> open(BlobReader file) async {
@@ -219,6 +229,7 @@ class AndroidChatClip implements ChatClip {
     _open.remove(textureId);
     await _file.close();
     await _events.close();
+    _waiting.dispose();
   }
 
   /// Whether [method] went through; a failure is logged, not thrown.

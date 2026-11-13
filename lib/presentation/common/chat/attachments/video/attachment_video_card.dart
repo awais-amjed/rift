@@ -59,6 +59,18 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
   String? _problem;
   Size? _picture;
   Duration _position = Duration.zero;
+
+  /// Reads in a row, while playing, where the player said the same place:
+  /// it is waiting for the file, most often after a seek past what has been
+  /// fetched. No player says so in the same words, but each one's clock
+  /// stops while it waits.
+  int _stillReads = 0;
+  Duration? _lastRead;
+
+  /// Where the player says it is waiting (ExoPlayer): said for long enough
+  /// to show. It waits a moment even for a seek into what is already here.
+  bool _toldWaiting = false;
+  Timer? _waitingShows;
   late Duration _length = Duration(
     milliseconds: widget.attachment.durationMs ?? 0,
   );
@@ -99,6 +111,8 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
   void dispose() {
     _away?.dispose();
     _ticker?.cancel();
+    _waitingShows?.cancel();
+    _clip?.waiting?.removeListener(_waitingChanged);
     _events?.cancel();
     _clip?.close();
     super.dispose();
@@ -157,11 +171,24 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
       return;
     }
     _events = clip.events.listen(_heard);
+    clip.waiting?.addListener(_waitingChanged);
     setState(() {
       _clip = clip;
       _opening = false;
     });
     _setPlaying(await clip.play());
+  }
+
+  void _waitingChanged() {
+    final waiting = _clip?.waiting?.value ?? false;
+    _waitingShows?.cancel();
+    if (!waiting) {
+      if (_toldWaiting && mounted) setState(() => _toldWaiting = false);
+      return;
+    }
+    _waitingShows = Timer(const Duration(milliseconds: 150), () {
+      if (mounted) setState(() => _toldWaiting = true);
+    });
   }
 
   /// What the player reads: the file fetched as it plays where it can be,
@@ -218,6 +245,9 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
 
   void _fail(String why) {
     _setPlaying(false);
+    _waitingShows?.cancel();
+    _clip?.waiting?.removeListener(_waitingChanged);
+    _toldWaiting = false;
     _events?.cancel();
     _clip?.close();
     setState(() {
@@ -230,7 +260,11 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
   /// its own to send.
   void _setPlaying(bool playing) {
     if (!mounted) return;
-    setState(() => _playing = playing);
+    setState(() {
+      _playing = playing;
+      _stillReads = 0;
+      _lastRead = null;
+    });
     _ticker?.cancel();
     if (!playing) return;
     _ticker = Timer.periodic(const Duration(milliseconds: 250), (_) => _read());
@@ -240,6 +274,8 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
     final time = _clip?.time();
     if (time == null || !mounted) return;
     setState(() {
+      _stillReads = time.position == _lastRead ? _stillReads + 1 : 0;
+      _lastRead = time.position;
       if (time.position != null) _position = time.position!;
       if (time.length != null && time.length! > Duration.zero) {
         _length = time.length!;
@@ -253,8 +289,22 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
     setState(() {
       _position = to;
       _ended = false;
+      _stillReads = 0;
+      _lastRead = null;
     });
     await clip.seek(to);
+  }
+
+  /// Playing, but waiting for the file: the dots, so a seek past what has
+  /// been fetched does not look like a frozen video. Where the player does
+  /// not say so, stuck where it is for half a second, but not in the last
+  /// moment before the end, which the end's own event follows.
+  bool get _waiting {
+    if (!_playing) return false;
+    if (_clip?.waiting != null) return _toldWaiting;
+    return _stillReads >= 2 &&
+        (_length <= Duration.zero ||
+            _position < _length - const Duration(milliseconds: 500));
   }
 
   @override
@@ -288,7 +338,8 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
 
   Widget _card(Uint8List? poster) {
     final clip = _clip;
-    final showsMiddle = !_playing || _opening || _problem != null;
+    final waiting = _waiting;
+    final showsMiddle = !_playing || _opening || waiting || _problem != null;
     return ClipRRect(
       borderRadius: BorderRadius.circular(K.radiusCard),
       child: ColoredBox(
@@ -310,7 +361,7 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
                 child: showsMiddle
                     ? Center(
                         child: VideoMiddle(
-                          opening: _opening,
+                          loading: _opening || waiting,
                           ended: _ended,
                           problem: _problem,
                         ),

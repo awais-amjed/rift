@@ -76,6 +76,10 @@ class RustChatClip implements ChatClip {
   @override
   Stream<ClipEvent> get events => _events.stream;
 
+  /// GStreamer and Media Foundation wait inside a read without a word, so the card watches the clock.
+  @override
+  ValueListenable<bool>? get waiting => null;
+
   /// [ChatClip.open], in a runner texture. [output] is WebRTC's id for the
   /// output.
   static Future<({ChatClip? clip, String? error})> open(
