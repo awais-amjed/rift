@@ -78,6 +78,7 @@ class ModelRepository {
   final _progress = StreamController<ModelProgress>.broadcast();
   final Map<String, Future<File>> _fetching = {};
   final Map<String, (DateTime, ModelUnavailable)> _failed = {};
+  final Map<String, ModelProgress> _latest = {};
   Future<Directory>? _directory;
 
   /// One download at a time, in the order asked: the classifier first at a
@@ -87,6 +88,14 @@ class ModelRepository {
   /// Every download's progress as it runs and how it ended, for the bar that
   /// shows it (`ModelsCubit`).
   Stream<ModelProgress> get progress => _progress.stream;
+
+  /// Where each download that has not finished well stands: running, or
+  /// failed. The first start's download begins before anything listens to
+  /// [progress], so whatever shows it starts from this.
+  List<ModelProgress> get unfinished => [
+    for (final p in _latest.values)
+      if (p.status != ModelStatus.success) p,
+  ];
 
   /// `RIFT_MODEL_SOURCE`: a URL to fetch the files from instead of the
   /// release, for trying a model out before publishing it. A file from
@@ -158,7 +167,9 @@ class ModelRepository {
     var received = 0;
     void report(int bytes, ModelStatus status) {
       received = bytes;
-      _progress.add(ModelProgress(file, bytes, status));
+      final progress = ModelProgress(file, bytes, status);
+      _latest[file.localName] = progress;
+      _progress.add(progress);
     }
 
     try {

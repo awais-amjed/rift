@@ -15,8 +15,12 @@ class ModelFile extends Equatable {
   static const String releaseBase =
       'https://github.com/awais-amjed/rift/releases/download/models/';
 
-  /// What the model is, for logs and the progress the app shows.
+  /// What the model is, for logs.
   final String id;
+
+  /// What the model is called where the app shows its progress: what it
+  /// does, in the person's words ("picture safety model").
+  final String name;
 
   /// Its name in the release, with its version in it (`image_safety.v1.tflite`).
   final String published;
@@ -29,6 +33,7 @@ class ModelFile extends Equatable {
 
   const ModelFile({
     required this.id,
+    required this.name,
     required this.published,
     required this.size,
     required this.sha256,
@@ -48,5 +53,5 @@ class ModelFile extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, published, size, sha256];
+  List<Object?> get props => [id, name, published, size, sha256];
 }

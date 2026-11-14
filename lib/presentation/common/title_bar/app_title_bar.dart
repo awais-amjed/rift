@@ -15,6 +15,7 @@ import '../../theme/theme_context.dart';
 import '../app_mark.dart';
 import '../status_chip.dart';
 import 'ducking_chip.dart';
+import 'model_download_chip.dart';
 import 'update_chip.dart';
 import 'window_button.dart';
 
@@ -161,6 +162,7 @@ class _AppTitleBarState extends State<AppTitleBar> with WindowListener {
       spacing: 2,
       children: [
         const DuckingChip(),
+        const ModelDownloadChip(),
         const UpdateChip(),
         const _ConnectionChip(),
         WindowButton(

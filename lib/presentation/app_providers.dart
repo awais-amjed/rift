@@ -14,6 +14,7 @@ import '../logic/cubits/dm_call/dm_call_cubit.dart';
 import '../logic/cubits/ducking/ducking_cubit.dart';
 import '../logic/cubits/livekit/livekit_cubit.dart';
 import '../logic/cubits/media/media_cubit.dart';
+import '../logic/cubits/models/models_cubit.dart';
 import '../logic/cubits/network/network_cubit.dart';
 import '../logic/cubits/notifications/server_notifications_cubit.dart';
 import '../logic/cubits/public_servers/public_servers_cubit.dart';
@@ -155,6 +156,9 @@ class AppProviders extends StatelessWidget {
           lazy: false,
           create: (_) => UpdateCubit(appCubit: appCubit),
         ),
+        // Not lazy: it hears the models the first start fetches before the
+        // title bar is drawn.
+        BlocProvider(lazy: false, create: (_) => ModelsCubit()),
       ],
       child: RepositoryProvider(
         // Not lazy: it holds every server's context — who is online and in

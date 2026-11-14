@@ -48,6 +48,11 @@ class StatusChip extends StatelessWidget {
       'them but cannot read them.';
 
   final IconData icon;
+
+  /// Drawn in place of [icon], in the chip's ink, for a glyph that moves:
+  /// the ring a download fills.
+  final Widget Function(Color ink)? leading;
+
   final String label;
   final Color color;
 
@@ -67,6 +72,7 @@ class StatusChip extends StatelessWidget {
     required this.color,
     this.tooltip,
     this.onTap,
+    this.leading,
   });
 
   /// The encryption chip's tooltip once it can be pressed: same claim, plus
@@ -120,7 +126,7 @@ class StatusChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         spacing: 5,
         children: [
-          Icon(icon, size: K.iconTiny, color: ink),
+          leading?.call(ink) ?? Icon(icon, size: K.iconTiny, color: ink),
           // Flexible: a chip states a fact about the surface it sits on, and
           // that surface can be narrow. Better a clipped word than a pill with
           // a striped bar out of its side.

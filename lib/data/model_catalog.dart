@@ -14,6 +14,7 @@ abstract final class ModelCatalog {
   /// web serves its own copy beside the app (`scripts/build_web.sh`).
   static const imageSafety = ModelFile(
     id: 'image_safety',
+    name: 'picture safety model',
     published: 'image_safety.v1.tflite',
     size: 12265328,
     sha256: '82900132da38c1f30ee65d2d7908a00b78df9f96fba66ce69b0aea909f01d559',

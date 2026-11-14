@@ -26,6 +26,7 @@ void main() {
     final source = File('${dir.path}/source')..writeAsBytesSync(body);
     file = ModelFile(
       id: 'test',
+      name: 'test model',
       published: 'test.v1.bin',
       size: body.length,
       sha256: await sha256Of(source),

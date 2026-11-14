@@ -167,9 +167,12 @@ class AppText {
   );
 
   /// Small emphasis at label size: a date divider, a reaction count.
+  /// Tabular figures, so a count or a download's percent ticking over does
+  /// not change the chip's width.
   static const TextStyle chip = TextStyle(
     fontSize: 11,
     fontWeight: FontWeight.w600,
+    fontFeatures: [FontFeature.tabularFigures()],
   );
 
   /// Unread counts and other numeric badges.

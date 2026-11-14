@@ -915,6 +915,9 @@ device and left in place by an update (`ModelRepository`). `ModelCatalog`
 lists them, and `ModelDownloads` says which a start fetches unasked; so far
 that is the picture classifier, at the first start, while the person is still
 signing in. Until it is on the device, pictures are shown without a check.
+While a model downloads, a chip beside the window controls counts it up
+(`ModelDownloadChip`, from `ModelsCubit`), and one that failed says so there
+and tries again when pressed. Phones have no title bar, so there it is quiet.
 The web keeps fetching its copy from beside the app (`scripts/build_web.sh`).
 
 This is the one request a start makes that is not to a server the person
