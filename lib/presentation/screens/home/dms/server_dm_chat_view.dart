@@ -21,6 +21,7 @@ import '../../../common/chat/chat_reply_draft.dart';
 import '../../../common/chat/chat_scroll_load_more.dart';
 import '../../../common/chat/composer/chat_composer.dart';
 import '../../../common/chat/drop/chat_drop_zone.dart';
+import '../../../common/chat/fetching_latest_overlay.dart';
 import '../../../common/chat/forward/show_forward_dialog.dart';
 import '../../../common/chat/key_change_row.dart';
 import '../../../common/chat/pins/show_pinned_messages.dart';
@@ -347,7 +348,11 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
       Expanded(
         child: BlocBuilder<DmCubit, DmState>(
           buildWhen: (a, b) => _listOf(a) != _listOf(b),
-          builder: (context, state) => _buildBody(context, state, themeState),
+          builder: (context, state) => FetchingLatestOverlay(
+            fetching:
+                state.showingSaved && state.chatStatus == DmChatStatus.loading,
+            child: _buildBody(context, state, themeState),
+          ),
         ),
       ),
       if (!composing) const MiniCallBar(),

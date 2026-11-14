@@ -476,7 +476,11 @@ replaces the drawn copy outright, never merges into it. A saved copy cannot know
 what was deleted, edited or reacted to since, and merging would keep a message a
 moderator removed. The cost is that a deleted message can show for the moment
 the fetch takes. While the copy is on screen nothing on it can be acted on, and
-the composer takes typing but holds the send until the fetch lands. When the
+the composer takes typing but holds the send until the fetch lands. A fetch
+that takes longer than a quarter of a second puts a "Loading new messages" pill
+over the top of the list (`FetchingLatestOverlay`): the copy looks just like
+the conversation as it stands, and on a distant server people read it as the
+latest for the second it took. When the
 fetch fails, the copy stays up and a notice above the composer says what it is.
 The composer is kept, still holding the send, so whatever was typed survives the
 retry.

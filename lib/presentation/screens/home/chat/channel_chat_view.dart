@@ -27,6 +27,7 @@ import '../../../common/chat/chat_scroll_load_more.dart';
 import '../../../common/chat/composer/chat_composer.dart';
 import '../../../common/chat/composer_notice.dart';
 import '../../../common/chat/drop/chat_drop_zone.dart';
+import '../../../common/chat/fetching_latest_overlay.dart';
 import '../../../common/chat/forward/show_forward_dialog.dart';
 import '../../../common/chat/live_bar/live_bar_escape.dart';
 import '../../../common/chat/pins/show_pinned_messages.dart';
@@ -136,7 +137,15 @@ class _ChannelChatViewState extends State<ChannelChatView>
                           ? null
                           : (anchor) => _showPins(context, anchor),
                     ),
-                    Expanded(child: _buildBody(context, chatState)),
+                    Expanded(
+                      child: FetchingLatestOverlay(
+                        fetching:
+                            chatState.showingSaved &&
+                            (status == ChannelChatStatus.loading ||
+                                status == ChannelChatStatus.healingKey),
+                        child: _buildBody(context, chatState),
+                      ),
+                    ),
                     // A phone's way back into the call, just above whatever
                     // holds the composer's slot. Nothing on a desktop.
                     if (!composing) ...[
