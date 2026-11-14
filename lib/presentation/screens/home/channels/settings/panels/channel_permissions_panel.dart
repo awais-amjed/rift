@@ -24,7 +24,7 @@ import 'permissions/override_list.dart';
 /// A switch at the top for the usual case — a channel only some can post in,
 /// or a call only some can speak in — which is the `@everyone` row's one bit;
 /// then a role at a time, every bit the channel's kind can override, each
-/// denied, the server's, or allowed. Saved together, like Access.
+/// blocked, left at its default, or allowed. Saved together, like Access.
 ///
 /// Admin roles are left out: an administrator holds every bit in every
 /// channel, so nothing set on one would change anything.
@@ -194,7 +194,10 @@ class _ChannelPermissionsPanelState extends State<ChannelPermissionsPanel> {
             if (selected != null)
               OverrideList(
                 type: _channel.channelType,
+                role: selected,
                 row: _rowFor(selected.id),
+                everyone: everyone,
+                everyoneRow: _rowFor(everyone.id),
                 viewerBits: viewerBits,
                 onChanged: _isSaving ? null : _edit,
               ),

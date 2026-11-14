@@ -47,6 +47,93 @@ void main() {
         expect(p.group, isNot(PermissionGroup.server), reason: p.name);
       }
     });
+
+    test('Default is the server\'s bit, after the @everyone row here', () {
+      const send = ServerPermission.sendMessages;
+      final everyone = send.mask;
+      // @everyone's own row: just the server role.
+      expect(ChannelOverride.defaultFor(send, serverBits: everyone), isTrue);
+      expect(ChannelOverride.defaultFor(send, serverBits: 0), isFalse);
+
+      // Another role's row: @everyone's row here applies first.
+      final readOnly = const ChannelOverride(
+        roleId: 'ev',
+      ).withState(send, OverrideState.deny);
+      expect(
+        ChannelOverride.defaultFor(
+          send,
+          serverBits: everyone,
+          everyoneRow: readOnly,
+        ),
+        isFalse,
+      );
+      final opened = const ChannelOverride(
+        roleId: 'ev',
+      ).withState(send, OverrideState.allow);
+      expect(
+        ChannelOverride.defaultFor(send, serverBits: 0, everyoneRow: opened),
+        isTrue,
+      );
+      expect(
+        ChannelOverride.defaultFor(
+          send,
+          serverBits: ServerPermission.administrator.mask,
+          everyoneRow: readOnly,
+        ),
+        isTrue,
+      );
+
+      // A role's own answer beats the default; leaving it alone is the default.
+      final djs = const ChannelOverride(
+        roleId: 'dj',
+      ).withState(send, OverrideState.allow);
+      expect(
+        ChannelOverride.resultFor(
+          send,
+          row: djs,
+          serverBits: everyone,
+          everyoneRow: readOnly,
+        ),
+        isTrue,
+      );
+      expect(
+        ChannelOverride.resultFor(
+          send,
+          row: const ChannelOverride(roleId: 'dj'),
+          serverBits: everyone,
+          everyoneRow: readOnly,
+        ),
+        isFalse,
+      );
+    });
+
+    test('what goes out in a message needs Send; what happens in a call, '
+        'Join', () {
+      for (final p in [
+        ServerPermission.attachFiles,
+        ServerPermission.createPolls,
+        ServerPermission.mentionAll,
+      ]) {
+        expect(ChannelOverride.needs(p), ServerPermission.sendMessages);
+      }
+      for (final p in [
+        ServerPermission.speak,
+        ServerPermission.screenShare,
+        ServerPermission.useSoundboard,
+      ]) {
+        expect(ChannelOverride.needs(p), ServerPermission.connect);
+      }
+      for (final p in [
+        ServerPermission.addReactions,
+        ServerPermission.pinMessages,
+        ServerPermission.manageMessages,
+        ServerPermission.summonBots,
+        ServerPermission.sendMessages,
+        ServerPermission.connect,
+      ]) {
+        expect(ChannelOverride.needs(p), isNull, reason: p.name);
+      }
+    });
   });
 
   group('UserPermissions.inChannel', () {

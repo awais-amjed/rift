@@ -38,6 +38,64 @@ class ChannelOverride extends Equatable {
 
   bool get isEmpty => allow == 0 && deny == 0;
 
+  /// What "Default" comes to for [permission] in the editor: whether someone
+  /// holding [serverBits] gets it here when their role's own row leaves it
+  /// alone. For the `@everyone` row, [serverBits] is that role's and
+  /// [everyoneRow] is null; for another role, it is both roles' bits and the
+  /// channel's `@everyone` row, which applies first.
+  ///
+  /// Display only, like [resultFor].
+  ///
+  /// `app.apply_channel_overrides`' steps for someone with
+  /// just those roles, so the editor can say what leaving a bit alone means.
+  /// What a member can actually do is still the server's answer.
+  static bool defaultFor(
+    ServerPermission permission, {
+    required int serverBits,
+    ChannelOverride? everyoneRow,
+  }) {
+    if (serverBits.carries(ServerPermission.administrator)) return true;
+    return switch (everyoneRow?.stateOf(permission) ?? OverrideState.inherit) {
+      OverrideState.allow => true,
+      OverrideState.deny => false,
+      OverrideState.inherit => serverBits.carries(permission),
+    };
+  }
+
+  /// What [row] comes to for [permission]: its own answer, or [defaultFor]
+  /// where it leaves the bit alone. Arguments as there; for the `@everyone`
+  /// role, [row] is its row and [everyoneRow] null.
+  static bool resultFor(
+    ServerPermission permission, {
+    required ChannelOverride row,
+    required int serverBits,
+    ChannelOverride? everyoneRow,
+  }) => switch (row.stateOf(permission)) {
+    OverrideState.allow => true,
+    OverrideState.deny => false,
+    OverrideState.inherit => defaultFor(
+      permission,
+      serverBits: serverBits,
+      everyoneRow: everyoneRow,
+    ),
+  };
+
+  /// The bit [permission] cannot be used without in a channel, if any: a
+  /// file, a poll and `@all` all go out inside a message, and speaking,
+  /// sharing and the soundboard all happen inside the call. The editor shows
+  /// such a bit blocked while its prerequisite is, without storing it.
+  /// Summoning a bot is not here: `summon_bot_to_voice` asks only for itself.
+  static ServerPermission? needs(ServerPermission permission) =>
+      switch (permission) {
+        ServerPermission.attachFiles ||
+        ServerPermission.createPolls ||
+        ServerPermission.mentionAll => ServerPermission.sendMessages,
+        ServerPermission.speak ||
+        ServerPermission.screenShare ||
+        ServerPermission.useSoundboard => ServerPermission.connect,
+        _ => null,
+      };
+
   factory ChannelOverride.fromJson(Map<String, dynamic> json) =>
       ChannelOverride(
         roleId: json['role_id'] as String,
