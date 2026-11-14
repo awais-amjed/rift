@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../../../data/classes/watched_picture.dart';
 import '../../../../../data/constants.dart';
+import '../../../../common/shared_backdrop.dart';
 import '../../../../common/speaking_ring.dart';
 import '../../../../theme/app_motion.dart';
 import '../../../../theme/theme_context.dart';
@@ -115,87 +116,91 @@ class CollapsedParticipantTile extends StatelessWidget {
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(K.radiusCard - 1),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              if (picture case final picture?)
-                StreamTextureView(
-                  picture: picture,
-                  onAspectRatio: onAspectRatio,
-                )
-              else if (videoTrack != null && onAspectRatio != null)
-                DecryptedVideo(
-                  track: videoTrack!,
-                  child: ShapeReportingVideo(
-                    key: ObjectKey(videoTrack),
+          // The badges and buttons are all painted after the picture, with
+          // nothing between them, so they blur one copy of it.
+          child: SharedBackdrop(
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (picture case final picture?)
+                  StreamTextureView(
+                    picture: picture,
+                    onAspectRatio: onAspectRatio,
+                  )
+                else if (videoTrack != null && onAspectRatio != null)
+                  DecryptedVideo(
                     track: videoTrack!,
-                    onAspectRatio: onAspectRatio!,
+                    child: ShapeReportingVideo(
+                      key: ObjectKey(videoTrack),
+                      track: videoTrack!,
+                      onAspectRatio: onAspectRatio!,
+                    ),
+                  )
+                else if (videoTrack != null)
+                  DecryptedVideo(
+                    track: videoTrack!,
+                    child: VideoTrackRenderer(
+                      videoTrack!,
+                      fit: VideoViewFit.contain,
+                    ),
+                  )
+                else if (!showWatchButton && !isPaused)
+                  AvatarPlaceholder(name: name, userId: userId),
+                // Over the last frame, or in place of a first one: a share started
+                // on a minimised window has no picture until the window is opened.
+                if (isPaused && !showWatchButton) const SharePausedNotice(),
+                if (showWatchButton) WatchStreamButton(onTap: onWatch),
+                if (shareIdentity case final share?)
+                  Positioned(
+                    top: 12,
+                    right: 12,
+                    child: StreamWatchers(shareIdentity: share),
                   ),
-                )
-              else if (videoTrack != null)
-                DecryptedVideo(
-                  track: videoTrack!,
-                  child: VideoTrackRenderer(
-                    videoTrack!,
-                    fit: VideoViewFit.contain,
+                if (onView != null)
+                  Positioned(
+                    bottom: 12,
+                    right: 12,
+                    child: StreamViewButtons(
+                      view: StreamView.inCall,
+                      onView: onView!,
+                      soundKey: soundKey,
+                    ),
                   ),
-                )
-              else if (!showWatchButton && !isPaused)
-                AvatarPlaceholder(name: name, userId: userId),
-              // Over the last frame, or in place of a first one: a share started
-              // on a minimised window has no picture until the window is opened.
-              if (isPaused && !showWatchButton) const SharePausedNotice(),
-              if (showWatchButton) WatchStreamButton(onTap: onWatch),
-              if (shareIdentity case final share?)
-                Positioned(
-                  top: 12,
-                  right: 12,
-                  child: StreamWatchers(shareIdentity: share),
-                ),
-              if (onView != null)
                 Positioned(
                   bottom: 12,
+                  left: 12,
                   right: 12,
-                  child: StreamViewButtons(
-                    view: StreamView.inCall,
-                    onView: onView!,
-                    soundKey: soundKey,
-                  ),
-                ),
-              Positioned(
-                bottom: 12,
-                left: 12,
-                right: 12,
-                // Only someone else's share you are watching has receive
-                // stats; the poller does nothing for anything else.
-                child: Align(
-                  alignment: Alignment.bottomLeft,
-                  child: StreamStatsPoller(
-                    track: isWatching ? videoTrack : null,
-                    rustShare: isWatching && picture != null
-                        ? shareIdentity
-                        : null,
-                    builder: (context, stats) => Row(
-                      mainAxisSize: MainAxisSize.min,
-                      spacing: 6,
-                      children: [
-                        Flexible(
-                          child: ParticipantNameBadge(
-                            name: name,
-                            isMicEnabled: isMicEnabled,
-                            isMuted: isMuted,
-                            isPushToTalkIdle: isPushToTalkIdle,
-                            isDeafened: isDeafened,
-                            isScreenshare: isScreenshare,
+                  // Only someone else's share you are watching has receive
+                  // stats; the poller does nothing for anything else.
+                  child: Align(
+                    alignment: Alignment.bottomLeft,
+                    child: StreamStatsPoller(
+                      track: isWatching ? videoTrack : null,
+                      rustShare: isWatching && picture != null
+                          ? shareIdentity
+                          : null,
+                      builder: (context, stats) => Row(
+                        mainAxisSize: MainAxisSize.min,
+                        spacing: 6,
+                        children: [
+                          Flexible(
+                            child: ParticipantNameBadge(
+                              name: name,
+                              isMicEnabled: isMicEnabled,
+                              isMuted: isMuted,
+                              isPushToTalkIdle: isPushToTalkIdle,
+                              isDeafened: isDeafened,
+                              isScreenshare: isScreenshare,
+                            ),
                           ),
-                        ),
-                        StreamQualityBadge(stats: stats, sent: sentQuality),
-                      ],
+                          StreamQualityBadge(stats: stats, sent: sentQuality),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

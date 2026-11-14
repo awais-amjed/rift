@@ -19,7 +19,7 @@ class StreamGlass extends StatelessWidget {
     final radius = BorderRadius.circular(K.radiusRow);
     return ClipRRect(
       borderRadius: radius,
-      child: BackdropFilter(
+      child: BackdropFilter.grouped(
         filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
         child: DecoratedBox(
           decoration: BoxDecoration(

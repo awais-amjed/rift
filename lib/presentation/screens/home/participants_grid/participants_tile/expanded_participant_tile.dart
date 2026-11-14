@@ -6,6 +6,7 @@ import '../../../../../data/classes/watched_picture.dart';
 import '../../../../../data/enums/stream_pip_corner.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/services/video_stream_stats.dart';
+import '../../../../common/shared_backdrop.dart';
 import '../../../../theme/app_motion.dart';
 import 'avatar_placeholder.dart';
 import 'decrypted_video.dart';
@@ -220,122 +221,132 @@ class ExpandedParticipantTile extends StatelessWidget {
     // stats: the stats make way for it below the watchers.
     final pipTopRight = pip != null && pipCorner == StreamPipCorner.topRight;
     final app = context.read<AppCubit>();
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        if (picture case final picture?)
-          StreamTextureView(picture: picture)
-        else if (videoTrack != null)
-          DecryptedVideo(
-            track: videoTrack!,
-            child: VideoTrackRenderer(videoTrack!, fit: VideoViewFit.contain),
-          )
-        else if (!showWatchButton && !isPaused)
-          AvatarPlaceholder(name: name, userId: userId),
-        // Over the last frame, or in place of a first one: a share started
-        // on a minimised window has no picture until the window is opened.
-        if (isPaused && !showWatchButton) const SharePausedNotice(),
-        AnimatedPositioned(
-          duration: _fade,
-          curve: Curves.easeInOut,
-          top: 12 + topInset,
-          right: 12,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            spacing: 8,
-            children: [
-              if (shareIdentity case final share?)
-                _fading(
-                  visible: showOverlays,
-                  child: StreamWatchers(shareIdentity: share),
-                ),
-              if (pipTopRight)
-                SizedBox(
-                  height: StreamCameraPip.sizeFor(stage, pipScale).height,
-                ),
-              if (showStats && stats != null)
-                // Pinned stats stay put even after the other overlays fade.
-                _fading(
-                  visible: showOverlays || statsPinned,
-                  child: StreamStatsOverlay(
-                    stats: stats,
-                    onPinnedChanged: onStatsPinnedChanged,
-                  ),
-                ),
-            ],
-          ),
-        ),
-        if (showWatchButton) WatchStreamButton(onTap: onWatch),
-        if (pip != null)
-          StreamCameraPip(
-            track: pip,
-            corner: pipCorner,
-            scale: pipScale,
-            stage: stage,
-            margin: EdgeInsets.fromLTRB(
-              12,
-              // Below who is watching while they show, in the top right.
-              12 + topInset + (pipTopRight && showOverlays ? _headRoom : 0),
-              12,
-              // Above the badges and buttons while they show; into the
-              // corner itself once they fade.
-              bottom + (showOverlays ? _footRoom : 0),
-            ),
-            onCorner: app.setStreamPipCorner,
-            onScale: app.setStreamPipScale,
-            showGrip: showOverlays,
-          ),
-        AnimatedPositioned(
-          duration: _fade,
-          curve: Curves.easeInOut,
-          bottom: bottom,
-          left: 12,
-          right: 12,
-          child: Align(
-            alignment: Alignment.bottomLeft,
-            child: _fading(
-              visible: showOverlays,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                spacing: 6,
+    // The badges and buttons along the bottom blur one copy of what is under
+    // them. Who is watching is painted before the camera, and the camera's
+    // grip over the camera, so each keeps its own: a copy taken at the
+    // watchers would show the stream where the camera is.
+    return SharedBackdrop(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (picture case final picture?)
+            StreamTextureView(picture: picture)
+          else if (videoTrack != null)
+            DecryptedVideo(
+              track: videoTrack!,
+              child: VideoTrackRenderer(videoTrack!, fit: VideoViewFit.contain),
+            )
+          else if (!showWatchButton && !isPaused)
+            AvatarPlaceholder(name: name, userId: userId),
+          // Over the last frame, or in place of a first one: a share started
+          // on a minimised window has no picture until the window is opened.
+          if (isPaused && !showWatchButton) const SharePausedNotice(),
+          AnimatedPositioned(
+            duration: _fade,
+            curve: Curves.easeInOut,
+            top: 12 + topInset,
+            right: 12,
+            child: SharedBackdrop(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                spacing: 8,
                 children: [
-                  Flexible(
-                    child: ParticipantNameBadge(
-                      name: name,
-                      isMicEnabled: isMicEnabled,
-                      isMuted: isMuted,
-                      isPushToTalkIdle: isPushToTalkIdle,
-                      isDeafened: isDeafened,
-                      isScreenshare: isScreenshare,
+                  if (shareIdentity case final share?)
+                    _fading(
+                      visible: showOverlays,
+                      child: StreamWatchers(shareIdentity: share),
                     ),
-                  ),
-                  StreamQualityBadge(stats: stats, sent: sentQuality),
+                  if (pipTopRight)
+                    SizedBox(
+                      height: StreamCameraPip.sizeFor(stage, pipScale).height,
+                    ),
+                  if (showStats && stats != null)
+                    // Pinned stats stay put even after the other overlays fade.
+                    _fading(
+                      visible: showOverlays || statsPinned,
+                      child: StreamStatsOverlay(
+                        stats: stats,
+                        onPinnedChanged: onStatsPinnedChanged,
+                      ),
+                    ),
                 ],
               ),
             ),
           ),
-        ),
-        if (onView != null)
+          if (showWatchButton) WatchStreamButton(onTap: onWatch),
+          if (pip != null)
+            SharedBackdrop(
+              child: StreamCameraPip(
+                track: pip,
+                corner: pipCorner,
+                scale: pipScale,
+                stage: stage,
+                margin: EdgeInsets.fromLTRB(
+                  12,
+                  // Below who is watching while they show, in the top right.
+                  12 + topInset + (pipTopRight && showOverlays ? _headRoom : 0),
+                  12,
+                  // Above the badges and buttons while they show; into the
+                  // corner itself once they fade.
+                  bottom + (showOverlays ? _footRoom : 0),
+                ),
+                onCorner: app.setStreamPipCorner,
+                onScale: app.setStreamPipScale,
+                showGrip: showOverlays,
+              ),
+            ),
           AnimatedPositioned(
             duration: _fade,
             curve: Curves.easeInOut,
             bottom: bottom,
+            left: 12,
             right: 12,
-            child: _fading(
-              visible: showOverlays,
-              child: StreamViewButtons(
-                view: view,
-                onView: onView!,
-                soundKey: soundKey,
-                onBack: onBack,
-                cameraShown: pip != null,
-                onCamera: camera == null
-                    ? null
-                    : () => app.setStreamPipHidden(!pipHidden),
+            child: Align(
+              alignment: Alignment.bottomLeft,
+              child: _fading(
+                visible: showOverlays,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  spacing: 6,
+                  children: [
+                    Flexible(
+                      child: ParticipantNameBadge(
+                        name: name,
+                        isMicEnabled: isMicEnabled,
+                        isMuted: isMuted,
+                        isPushToTalkIdle: isPushToTalkIdle,
+                        isDeafened: isDeafened,
+                        isScreenshare: isScreenshare,
+                      ),
+                    ),
+                    StreamQualityBadge(stats: stats, sent: sentQuality),
+                  ],
+                ),
               ),
             ),
           ),
-      ],
+          if (onView != null)
+            AnimatedPositioned(
+              duration: _fade,
+              curve: Curves.easeInOut,
+              bottom: bottom,
+              right: 12,
+              child: _fading(
+                visible: showOverlays,
+                child: StreamViewButtons(
+                  view: view,
+                  onView: onView!,
+                  soundKey: soundKey,
+                  onBack: onBack,
+                  cameraShown: pip != null,
+                  onCamera: camera == null
+                      ? null
+                      : () => app.setStreamPipHidden(!pipHidden),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

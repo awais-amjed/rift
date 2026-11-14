@@ -46,7 +46,7 @@ class ParticipantNameBadge extends StatelessWidget {
     // name stays readable over a bright frame without blacking it out.
     return ClipRRect(
       borderRadius: BorderRadius.circular(K.radiusRow),
-      child: BackdropFilter(
+      child: BackdropFilter.grouped(
         filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),

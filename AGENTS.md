@@ -284,6 +284,8 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   `pickPicture` alone, which only shrinks and checks it),
   `ViewablePicture` (a profile's picture that opens full size in `showImageViewer`),
   `SpeakingRing`, `StatusChip`, `ContextMenuPanel` + `ContextMenuItem`, `TapToFocus`,
+  `SharedBackdrop` (round the frosted glass over one picture, each piece a
+  `BackdropFilter.grouped`, so they blur one copy of it; what paints later gets its own),
   `AppDropdown` (a choice from a list — never Material's `DropdownButton`),
   `RisingPanel` (a volume's track standing up over its speaker on hover, drawn in the overlay —
   never a track sliding out sideways, which pushes the controls beside it), `ViewerActions` (Save

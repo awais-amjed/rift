@@ -59,7 +59,7 @@ class StreamWatchers extends StatelessWidget {
       waitDuration: K.tooltipDelay,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(K.radiusRow),
-        child: BackdropFilter(
+        child: BackdropFilter.grouped(
           filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
           child: Container(
             padding: const EdgeInsets.fromLTRB(9, 4, 5, 4),

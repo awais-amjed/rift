@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../data/enums/stream_pip_corner.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../common/shared_backdrop.dart';
 import '../../../../theme/app_motion.dart';
 import '../../../../theme/app_shadows.dart';
 import '../../../../theme/media_colors.dart';
@@ -63,9 +64,7 @@ class _CallPipCardState extends State<CallPipCard> {
     final radius = BorderRadius.circular(K.radiusCard);
     final controls = _hovered || widget.held;
     return MouseRegion(
-      cursor: _dragging
-          ? SystemMouseCursors.grabbing
-          : SystemMouseCursors.grab,
+      cursor: _dragging ? SystemMouseCursors.grabbing : SystemMouseCursors.grab,
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
@@ -105,7 +104,12 @@ class _CallPipCardState extends State<CallPipCard> {
                     alignment: widget.corner.isTop
                         ? Alignment.topCenter
                         : Alignment.bottomCenter,
-                    child: _fading(controls, _controls()),
+                    // The name and the close button blur one copy of the
+                    // picture; the grip, in a fade of its own, keeps its own.
+                    child: _fading(
+                      controls,
+                      SharedBackdrop(child: _controls()),
+                    ),
                   ),
                   PipResizeGrip(
                     corner: widget.corner,

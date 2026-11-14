@@ -27,7 +27,7 @@ class StreamQualityBadge extends StatelessWidget {
     final theme = context.theme;
     return ClipRRect(
       borderRadius: BorderRadius.circular(K.radiusRow),
-      child: BackdropFilter(
+      child: BackdropFilter.grouped(
         filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),

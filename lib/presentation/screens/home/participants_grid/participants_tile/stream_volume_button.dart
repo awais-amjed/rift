@@ -9,6 +9,7 @@ import '../../../../../logic/services/call_volume.dart';
 import '../../../../../logic/services/host_platform.dart';
 import '../../../../common/context_menu/context_menu_watcher.dart';
 import '../../../../common/rising_panel.dart';
+import '../../../../common/shared_backdrop.dart';
 import '../../../../common/volume_readout.dart';
 import '../../../../common/volume_slider.dart';
 import '../../../../theme/app_motion.dart';
@@ -101,8 +102,12 @@ class _StreamVolumeButtonState extends State<StreamVolumeButton> {
 
     return RisingPanel(
       key: _rising,
-      panel: (_) => StreamGlass(
-        child: _standing(setting, livekit, track: _deskTrack, mute: false),
+      // Its own backdrop: it opens in the overlay, painted after the whole
+      // call, so the tile's copy of what is under it would be out of date.
+      panel: (_) => SharedBackdrop(
+        child: StreamGlass(
+          child: _standing(setting, livekit, track: _deskTrack, mute: false),
+        ),
       ),
       anchor: StreamGlass(
         child: Tooltip(
@@ -157,12 +162,16 @@ class _StreamVolumeButtonState extends State<StreamVolumeButton> {
                         child: OverflowBox(
                           minWidth: _panelWidth,
                           maxWidth: _panelWidth,
-                          child: StreamGlass(
-                            child: _standing(
-                              setting,
-                              livekit,
-                              track: _standingTrack,
-                              mute: true,
+                          // Its own backdrop: it can open over other glass,
+                          // which the tile's shared copy does not hold.
+                          child: SharedBackdrop(
+                            child: StreamGlass(
+                              child: _standing(
+                                setting,
+                                livekit,
+                                track: _standingTrack,
+                                mute: true,
+                              ),
                             ),
                           ),
                         ),
