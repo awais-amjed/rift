@@ -104,8 +104,8 @@ class _EmojiPickerPanelState extends State<EmojiPickerPanel> {
 
   /// Jumps the grid to a category's heading.
   ///
-  /// The offset is summed rather than found via `ensureVisible`: the list is
-  /// lazy, so a section further down has no context to scroll to yet. That
+  /// The offset is summed rather than found via `ensureVisible`: the grids
+  /// are lazy, so a section further down has no context to scroll to yet. That
   /// only works because [_cellExtent] is pinned — left to its aspect ratio,
   /// each row would be a fraction taller than assumed and every category
   /// would land further off than the last.
@@ -259,42 +259,54 @@ class _EmojiPickerPanelState extends State<EmojiPickerPanel> {
       return _buildGrid(_results);
     }
 
+    // One scroll view with a grid per category, so only the rows on screen
+    // are built. A shrink-wrapped grid per category built every emoji in it,
+    // all of them as soon as the panel opened.
     final sections = _sections;
-    return ListView.builder(
+    return CustomScrollView(
       controller: _scrollController,
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-      itemCount: sections.length,
-      itemBuilder: (context, index) {
-        final section = sections[index];
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              height: _headingHeight,
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  _label(section.category),
-                  style: AppText.sectionLabel.copyWith(
-                    color: themeState.textTertiary,
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+          sliver: SliverMainAxisGroup(
+            slivers: [
+              for (final section in sections) ...[
+                SliverToBoxAdapter(
+                  child: SizedBox(
+                    height: _headingHeight,
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        _label(section.category),
+                        style: AppText.sectionLabel.copyWith(
+                          color: themeState.textTertiary,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-            _buildGrid(section.emoji, shrinkWrap: true),
-          ],
-        );
-      },
+                _sliverGrid(section.emoji),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildGrid(List<Emoji> emoji, {bool shrinkWrap = false}) {
-    return GridView.builder(
-      shrinkWrap: shrinkWrap,
-      physics: shrinkWrap ? const NeverScrollableScrollPhysics() : null,
-      padding: shrinkWrap
-          ? EdgeInsets.zero
-          : const EdgeInsets.fromLTRB(12, 10, 12, 12),
+  Widget _buildGrid(List<Emoji> emoji) {
+    return CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+          sliver: _sliverGrid(emoji),
+        ),
+      ],
+    );
+  }
+
+  Widget _sliverGrid(List<Emoji> emoji) {
+    return SliverGrid.builder(
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: _columns,
         // Fixed rather than derived from the aspect ratio, so [_scrollTo] can
