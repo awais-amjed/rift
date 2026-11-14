@@ -172,6 +172,90 @@ void main() {
     });
   });
 
+  group('a send still on its way', () {
+    // Leaving a conversation mid-upload once lost the message outright, and
+    // even before that, coming back showed nothing until it landed.
+    ChatMessage sendingRow(String id, {DateTime? at}) =>
+        row(id, at: at).copyWith(sendFailed: false);
+
+    test('comes back with how far its files have got', () {
+      final outbox = Outbox()..sending('chan', sendingRow('pending-0'));
+      outbox.progress('pending-0', 0.4);
+
+      final restored = outbox.restoreInto(const [], 'chan');
+      expect(restored.single.id, 'pending-0');
+      expect(restored.single.uploadProgress, 0.4);
+      expect(restored.single.sendFailed, isFalse);
+    });
+
+    test('is gone once it is over', () {
+      final outbox = Outbox()..sending('chan', sendingRow('pending-0'));
+      outbox.finished('pending-0');
+      expect(outbox.restoreInto(const [], 'chan'), isEmpty);
+    });
+
+    test('failing turns it into one held row, not two', () {
+      final outbox = Outbox()..sending('chan', sendingRow('pending-0'));
+      outbox.hold(entry('pending-0'));
+      outbox.finished('pending-0');
+
+      final restored = outbox.restoreInto(const [], 'chan');
+      expect(restored.single.sendFailed, isTrue);
+      expect(outbox.holds('pending-0'), isTrue);
+    });
+
+    test('a merge that found its message stops drawing it', () {
+      final outbox = Outbox()..sending('chan', sendingRow('pending-0'));
+      outbox.dropRetired(['pending-0']);
+      expect(outbox.restoreInto(const [], 'chan'), isEmpty);
+    });
+
+    test('sits among the held rows by when it was written', () {
+      final outbox = Outbox()
+        ..hold(entry('pending-1', at: DateTime(2026, 9, 4, 13)))
+        ..sending(
+          'chan',
+          sendingRow('pending-0', at: DateTime(2026, 9, 4, 12)),
+        );
+      expect(outbox.restoreInto(const [], 'chan').map((m) => m.id), [
+        'pending-0',
+        'pending-1',
+      ]);
+    });
+  });
+
+  group('a send that landed while its page was on the way', () {
+    ChatMessage acked(String id) => ChatMessage(
+      id: id,
+      authorId: 'me',
+      authorName: 'Me',
+      text: 'hello',
+      sentAt: DateTime(2026, 9, 4, 12),
+      isMine: true,
+    );
+
+    test('is added to a fresh page that missed it, once', () {
+      final outbox = Outbox()..landed('chan', acked('7'));
+      final first = outbox.restoreInto(const [], 'chan', fresh: true);
+      expect(first.single.id, '7');
+      expect(outbox.restoreInto(const [], 'chan', fresh: true), isEmpty);
+    });
+
+    test('is not added twice to a page that has it', () {
+      final outbox = Outbox()..landed('chan', acked('7'));
+      expect(
+        outbox.restoreInto([acked('7')], 'chan', fresh: true),
+        hasLength(1),
+      );
+    });
+
+    test('waits out the saved copy, which a later page may predate', () {
+      final outbox = Outbox()..landed('chan', acked('7'));
+      expect(outbox.restoreInto(const [], 'chan'), isEmpty);
+      expect(outbox.restoreInto(const [], 'chan', fresh: true), hasLength(1));
+    });
+  });
+
   group('markFailed', () {
     test('leaves the row where it is and flips the flag', () {
       final messages = [

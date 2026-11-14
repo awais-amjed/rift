@@ -17,6 +17,7 @@ mixin _ChannelChatHistoryMixin
 
   /// See the send mixin. Read here to put failed sends back under a freshly
   /// fetched page, and to forget one the server turns out to have stored.
+  @override
   Outbox get _outbox;
 
   /// A re-read row reaching the bar's copy — see [_ChannelChatLiveMixin].
@@ -45,7 +46,12 @@ mixin _ChannelChatHistoryMixin
         // Anything that failed to send in this channel goes back on the end.
         // Without this a "Not sent" row lasts exactly until the first click
         // elsewhere, which is the loss the outbox exists to stop.
-        messages: _outbox.restoreInto(decrypted.reversed.toList(), channelId),
+        // And so does anything still sending, with how far it has got.
+        messages: _outbox.restoreInto(
+          decrypted.reversed.toList(),
+          channelId,
+          fresh: true,
+        ),
         hasMoreHistory: data['has_more'] as bool? ?? false,
         // What the server just said replaces the saved copy outright, so a
         // message deleted since it was saved is gone rather than merged back.

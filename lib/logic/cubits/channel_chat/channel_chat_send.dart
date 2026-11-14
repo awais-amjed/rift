@@ -40,6 +40,12 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
   /// optimistic pending message until the server acknowledges. Attachments are
   /// encrypted + uploaded first.
   ///
+  /// Leaving the channel does not stop it. It once did, right after the
+  /// files went up: the message was never posted, and its files were left
+  /// in storage with nothing pointing at them. Now the send finishes
+  /// wherever the reader went, and coming back draws its row with its bar
+  /// from the outbox until it lands.
+  ///
   /// A failure takes one of two paths, and which one is the whole of
   /// [_failSend]: a server that answered "no" removes the row and says why, a
   /// server that did not answer at all keeps it for a retry.
@@ -96,10 +102,20 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
     final channelId = state.channelId;
     final server = _server;
     final user = server?.user;
-    final key = _keys[_currentKeyVersion];
+    // Everything about the channel is read now, before anything is awaited:
+    // the send goes on if the reader walks away mid-upload, and these all
+    // follow whatever is open. Read later, a message sent from one channel
+    // was sealed under another's key version, or posted to another server.
+    final keyVersion = _currentKeyVersion;
+    final key = _keys[keyVersion];
     // Decided once: a switch landing halfway through a send must not leave
     // the text sealed and its files in the clear, or the other way round.
     final plain = _plainChannel;
+    final mayGoPlain = _publicChannel;
+    final attachmentsApi = _attachments;
+    final messagesApi = _channelMessages;
+    final membersApi = _members;
+    final voiceBots = _voiceBots;
     if (channelId == null ||
         server == null ||
         user == null ||
@@ -155,8 +171,12 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
       isCommand: command != null,
       replyToId: replyId,
     );
-    // Show the text immediately; attachments appear once uploaded.
+    // Show the text immediately; attachments appear once uploaded. Kept in
+    // the outbox while it goes, so leaving the channel and coming back finds
+    // the row, and how far its files have got.
     emit(state.copyWith(messages: [...state.messages, pending]));
+    _outbox.sending(channelId, pending);
+    bool open() => state.channelId == channelId;
     // And resolve the names it says, the same way an arriving row does. Not
     // awaited, for the same reason: the message renders now, and a mention
     // nobody has resolved yet draws as the text that was typed.
@@ -166,20 +186,21 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
       Future<APIResponse> uploadOne(
         PendingAttachment file, {
         TransferProgress? onProgress,
-      }) => _attachments.uploadStaged(
+      }) => attachmentsApi.uploadStaged(
         file,
         scopePrefix: channelId,
         onProgress: onProgress,
         // A file sealed beside a message anybody can read would protect
         // nothing the message does not already give away.
         plain: plain,
-        mayGoPlain: _publicChannel,
+        mayGoPlain: mayGoPlain,
       );
       final uploaded = await ChatAttachmentUploader.uploadAll(
         pending: attachments,
         uploadOne: uploadOne,
         onProgress: (progress) {
-          if (state.channelId != channelId) return;
+          _outbox.progress(pendingId, progress);
+          if (!open()) return;
           emit(
             state.copyWith(
               messages: ChatMessageOps.setUploadProgress(
@@ -195,7 +216,6 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
         preview: preview,
         uploadOne: uploadOne,
       );
-      if (state.channelId != channelId) return false;
 
       final host = Uri.parse(server.supabaseUrl).host;
       final identity = await _vaultCubit.getIdentityForHost(
@@ -227,7 +247,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
               messageKey: key!,
               signingKeyPair: identity.keyPair,
               contextId: channelId,
-              keyVersion: _currentKeyVersion,
+              keyVersion: keyVersion,
             );
 
       // The one part of a message that travels in the clear. See
@@ -246,7 +266,10 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
         idsByUsername: Mentions.rosterOf(
           spoken.isEmpty
               ? const []
-              : await _members.membersByUsernames(spoken, channelId: channelId),
+              : await membersApi.membersByUsernames(
+                  spoken,
+                  channelId: channelId,
+                ),
         ),
         excludeUserId: user.id,
       );
@@ -270,7 +293,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
       // does not turn up, which somebody can see and ask again, and is not a
       // reason to lose the message that carried it.
       if (command != null && command.summonsBot && inVoiceChannel != null) {
-        final summoned = await _voiceBots.setBotVoiceSummon(
+        final summoned = await voiceBots.setBotVoiceSummon(
           channelId: inVoiceChannel,
           botId: command.bot.id,
           summon: true,
@@ -280,10 +303,11 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
         // already running, and every other path that seals runs on somebody
         // joining — so without this the bot waits for a member to rejoin a call
         // they are already sitting in.
-        if (summoned.success) _ringKeySweepDoorbell();
+        // The doorbell is the open server's, so only while still here.
+        if (summoned.success && open()) _ringKeySweepDoorbell();
       }
 
-      final response = await _channelMessages.sendChatMessage(
+      final response = await messagesApi.sendChatMessage(
         channelId: channelId,
         envelope: envelope.toJson(),
         mentions: mentioned,
@@ -297,13 +321,12 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
       // taking away, which is the point: leaving does not depend on the bot
       // acting on a verb it advertised.
       if (command != null && command.dismissesBot && inVoiceChannel != null) {
-        await _voiceBots.setBotVoiceSummon(
+        await voiceBots.setBotVoiceSummon(
           channelId: inVoiceChannel,
           botId: command.bot.id,
           summon: false,
         );
       }
-      if (state.channelId != channelId) return false;
 
       if (!response.success) {
         return _failSend(
@@ -317,31 +340,39 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
       }
 
       final data = response.data as Map<String, dynamic>;
+      final acked = ChatMessage(
+        id: '${data['id']}',
+        authorId: user.id,
+        authorName: user.displayName,
+        text: trimmed,
+        attachments: uploaded,
+        preview: sentPreview,
+        replyToId: replyId,
+        sentAt: DateTime.parse(data['created_at'] as String),
+        isMine: true,
+        isEncrypted: command == null && !plain,
+        inPlainChannel: plain,
+        isCommand: command != null,
+        // The server's answer, not [named]: a channel that does not
+        // give this sender `@all` drops it on the way in.
+        mentionsAll: data['mentions_all'] == true,
+      );
+      // Away, there is nothing to swap: the next open's page has it.
+      if (!open()) return false;
       emit(
         state.copyWith(
           messages: ChatMessageOps.replacePending(
             state.messages,
             pendingId: pendingId,
-            acked: ChatMessage(
-              id: '${data['id']}',
-              authorId: user.id,
-              authorName: user.displayName,
-              text: trimmed,
-              attachments: uploaded,
-              preview: sentPreview,
-              replyToId: replyId,
-              sentAt: DateTime.parse(data['created_at'] as String),
-              isMine: true,
-              isEncrypted: command == null && !plain,
-              inPlainChannel: plain,
-              isCommand: command != null,
-              // The server's answer, not [named]: a channel that does not
-              // give this sender `@all` drops it on the way in.
-              mentionsAll: data['mentions_all'] == true,
-            ),
+            acked: acked,
           ),
         ),
       );
+      // Back, but with the page still on its way, which may have been asked
+      // for before the server stored this.
+      if (state.status == ChannelChatStatus.loading) {
+        _outbox.landed(channelId, acked);
+      }
       _saved.noteSent();
       return false;
     } on AttachmentUploadException catch (e) {
@@ -367,6 +398,8 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
         errorCode: null,
         error: 'Failed to send message',
       );
+    } finally {
+      _outbox.finished(pendingId);
     }
   }
 
@@ -382,9 +415,11 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
   /// sent", right where the reader is already looking, and a toast on top of it
   /// is the same news twice.
   ///
-  /// Emits only while this is still the open channel, but holds either way —
-  /// somebody who clicked elsewhere while a send was failing should still find
-  /// it waiting when they come back (`Outbox.restoreInto`).
+  /// Touches the list only while this is still the open channel, but holds
+  /// either way — somebody who clicked elsewhere while a send was failing
+  /// should still find it waiting when they come back (`Outbox.restoreInto`).
+  /// A refusal is said wherever they are: it is the only news of a message
+  /// that will not arrive.
   ///
   /// Returns whether it was a refusal seen with the channel still open, which
   /// is when the words go back to the composer.
@@ -398,10 +433,8 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
   }) {
     final open = state.channelId == channelId;
     if (!Outbox.canRetry(errorCode)) {
-      if (open) {
-        _removePending(pending.id);
-        emit(state.copyWith(notice: Notice.error(error)));
-      }
+      if (open) _removePending(pending.id);
+      emit(state.copyWith(notice: Notice.error(error)));
       return open;
     }
     _outbox.hold(

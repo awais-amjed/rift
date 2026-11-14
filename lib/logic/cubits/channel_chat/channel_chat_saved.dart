@@ -15,6 +15,7 @@ mixin _ChannelChatSavedMixin on Cubit<ChannelChatState>, _ChannelChatRowsMixin {
   MessageCache get _messageCache;
   SavedConversation get _saved;
   SessionRepository get _session;
+  Outbox get _outbox;
 
   /// Draw the saved copy of [channelId], if there is one. Returns before any
   /// network is touched; what the server says replaces it moments later.
@@ -62,7 +63,9 @@ mixin _ChannelChatSavedMixin on Cubit<ChannelChatState>, _ChannelChatRowsMixin {
       }
       emit(
         state.copyWith(
-          messages: messages.reversed.toList(),
+          // With what is still sending, or failed to, on the end: a send
+          // left mid-upload is drawn with its bar from the first frame.
+          messages: _outbox.restoreInto(messages.reversed.toList(), channelId),
           mentionNames: _mentionCache.names,
           botListeners: (saved['bot_listeners'] as List? ?? const [])
               .cast<String>(),

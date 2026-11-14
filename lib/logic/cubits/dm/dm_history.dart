@@ -148,7 +148,11 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
       return;
     }
     emit(
-      state.copyWith(messages: messages.reversed.toList(), showingSaved: true),
+      state.copyWith(
+        // With what is still sending, or failed to, on the end.
+        messages: _outbox.restoreInto(messages.reversed.toList(), peerId),
+        showingSaved: true,
+      ),
     );
   }
 
@@ -167,7 +171,12 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
     emit(
       state.copyWith(
         // Anything that failed to send to this peer goes back on the end.
-        messages: _outbox.restoreInto(decrypted.reversed.toList(), peerId),
+        // And anything still sending, with how far it has got.
+        messages: _outbox.restoreInto(
+          decrypted.reversed.toList(),
+          peerId,
+          fresh: true,
+        ),
         hasMoreHistory: data['has_more'] as bool? ?? false,
         // Replaced outright, so what was deleted since the copy was saved is
         // gone rather than merged back.

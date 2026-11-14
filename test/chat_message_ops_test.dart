@@ -140,6 +140,21 @@ void main() {
       expect(result.last.isPending, isFalse);
     });
 
+    test('replacePending drops the bubble when the row is already there', () {
+      // A conversation reopened between the server storing a send and
+      // answering it draws the stored row and the still-sending one together.
+      final messages = [
+        msg('2', mine: true),
+        msg('pending-0', mine: true, pending: true),
+      ];
+      final result = ChatMessageOps.replacePending(
+        messages,
+        pendingId: 'pending-0',
+        acked: msg('2', mine: true),
+      );
+      expect(result.map((m) => m.id), ['2']);
+    });
+
     test('removePending drops only that bubble', () {
       final messages = [msg('1'), msg('pending-0', pending: true)];
       expect(

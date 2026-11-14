@@ -100,7 +100,11 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
       isPending: true,
       replyToId: replyId,
     );
+    // Kept in the outbox while it goes, so coming back finds it with its bar
+    // (see the channel's send). The send goes on if the reader walks away.
     emit(state.copyWith(messages: [...state.messages, pending]));
+    _outbox.sending(peerId, pending);
+    bool open() => state.openPeerId == peerId;
 
     try {
       // Always encrypted and always in one request: the composer offers no
@@ -116,12 +120,25 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
       final uploaded = await ChatAttachmentUploader.uploadAll(
         pending: attachments,
         uploadOne: uploadOne,
+        // One request a file, so the bar moves a file at a time.
+        onProgress: (progress) {
+          _outbox.progress(pendingId, progress);
+          if (!open()) return;
+          emit(
+            state.copyWith(
+              messages: ChatMessageOps.setUploadProgress(
+                state.messages,
+                pendingId,
+                progress,
+              ),
+            ),
+          );
+        },
       );
       final sentPreview = await ChatAttachmentUploader.uploadPreview(
         preview: preview,
         uploadOne: uploadOne,
       );
-      if (state.openPeerId != peerId) return false;
 
       final identity = await _signingIdentity();
       final envelope = await _crypto.sealMessage(
@@ -141,7 +158,6 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
         recipientId: peerId,
         envelope: envelope.toJson(),
       );
-      if (state.openPeerId != peerId) return false;
 
       if (!response.success) {
         // The quota and the friendship walls are refusals with something to
@@ -150,37 +166,47 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
         // arrived has no code, and nothing about the account to report.
         if (Outbox.canRetry(response.errorCode)) {
           _failSend(pending: pending, peerId: peerId, attachments: attachments);
-        } else if (state.openPeerId == peerId) {
-          _removePending(pendingId);
-          _reportSendFailure(response);
-          return true;
+          return false;
         }
-        return false;
+        // Said wherever the reader is: the only news of a message that
+        // will not arrive.
+        if (open()) _removePending(pendingId);
+        _reportSendFailure(response);
+        return open();
       }
 
       final data = response.data as Map<String, dynamic>;
+      final acked = ChatMessage(
+        id: '${data['id']}',
+        authorId: myId,
+        authorName: state.myHandle ?? 'me',
+        text: trimmed,
+        attachments: uploaded,
+        preview: sentPreview,
+        replyToId: replyId,
+        sentAt: DateTime.parse(data['created_at'] as String),
+        isMine: true,
+      );
+      final here = open();
       emit(
         state.copyWith(
-          messages: ChatMessageOps.replacePending(
-            state.messages,
-            pendingId: pendingId,
-            acked: ChatMessage(
-              id: '${data['id']}',
-              authorId: myId,
-              authorName: state.myHandle ?? 'me',
-              text: trimmed,
-              attachments: uploaded,
-              preview: sentPreview,
-              replyToId: replyId,
-              sentAt: DateTime.parse(data['created_at'] as String),
-              isMine: true,
-            ),
-          ),
+          // Away, there is nothing to swap: the next open's page has it.
+          messages: here
+              ? ChatMessageOps.replacePending(
+                  state.messages,
+                  pendingId: pendingId,
+                  acked: acked,
+                )
+              : null,
           quota: data['quota'] as int?,
           remaining: data['remaining'] as int?,
         ),
       );
-      _saved.noteSent();
+      // Back, but with the page still on its way (see the channel's send).
+      if (here && state.chatStatus == DmChatStatus.loading) {
+        _outbox.landed(peerId, acked);
+      }
+      if (here) _saved.noteSent();
       // A send cannot move the relationship any more — being friends is what
       // made it possible — but it can *reveal* that this device was wrong
       // about it. The server always answers `friends`, so a disagreement here
@@ -195,23 +221,19 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
       HelperMethods.printDebug('[CentralDM] attachment upload failed: $e');
       if (Outbox.canRetry(e.errorCode)) {
         _failSend(pending: pending, peerId: peerId, attachments: attachments);
-      } else if (state.openPeerId == peerId) {
-        _removePending(pendingId);
-        emit(
-          state.copyWith(notice: Notice.error('Failed to upload attachment')),
-        );
-        return true;
+        return false;
       }
-      return false;
+      if (open()) _removePending(pendingId);
+      emit(state.copyWith(notice: Notice.error('Failed to upload attachment')));
+      return open();
     } catch (e) {
       HelperMethods.printDebug('[CentralDM] send failed: $e');
       // No code to read, so no claim that a retry would help.
-      if (state.openPeerId == peerId) {
-        _removePending(pendingId);
-        emit(state.copyWith(notice: Notice.error('Failed to send message')));
-        return true;
-      }
-      return false;
+      if (open()) _removePending(pendingId);
+      emit(state.copyWith(notice: Notice.error('Failed to send message')));
+      return open();
+    } finally {
+      _outbox.finished(pendingId);
     }
   }
 

@@ -66,6 +66,11 @@ mixin _DmSendMixin on Cubit<DmState> {
     }
     final key = _dmKeys[peerId];
     if (key == null) return false;
+    // Bound now: the send goes on if the reader walks away, even to another
+    // server, and these follow the server this cubit is on.
+    final dmsApi = _dms;
+    final attachmentsApi = _attachments;
+    final peerName = state.openPeerName;
     final trimmed = text.trim();
     if (trimmed.isEmpty && attachments.isEmpty) return false;
 
@@ -89,7 +94,11 @@ mixin _DmSendMixin on Cubit<DmState> {
       isPending: true,
       replyToId: replyId,
     );
+    // Kept in the outbox while it goes, so coming back finds it with its bar
+    // (see the channel's send).
     emit(state.copyWith(messages: [...state.messages, pending]));
+    _outbox.sending(peerId, pending);
+    bool open() => state.openPeerId == peerId;
 
     try {
       final scope = DmCubit.conversationContext(
@@ -99,7 +108,7 @@ mixin _DmSendMixin on Cubit<DmState> {
       Future<APIResponse> uploadOne(
         PendingAttachment file, {
         TransferProgress? onProgress,
-      }) => _attachments.uploadStaged(
+      }) => attachmentsApi.uploadStaged(
         file,
         scopePrefix: scope,
         onProgress: onProgress,
@@ -108,7 +117,8 @@ mixin _DmSendMixin on Cubit<DmState> {
         pending: attachments,
         uploadOne: uploadOne,
         onProgress: (progress) {
-          if (state.openPeerId != peerId) return;
+          _outbox.progress(pendingId, progress);
+          if (!open()) return;
           emit(
             state.copyWith(
               messages: ChatMessageOps.setUploadProgress(
@@ -124,7 +134,6 @@ mixin _DmSendMixin on Cubit<DmState> {
         preview: preview,
         uploadOne: uploadOne,
       );
-      if (state.openPeerId != peerId) return false;
 
       final identity = await _vaultIdentityFor(server);
       final envelope = await _crypto.sealMessage(
@@ -140,11 +149,10 @@ mixin _DmSendMixin on Cubit<DmState> {
         keyVersion: 1,
       );
 
-      final response = await _dms.sendDm(
+      final response = await dmsApi.sendDm(
         recipientId: peerId,
         envelope: envelope.toJson(),
       );
-      if (state.openPeerId != peerId) return false;
 
       if (!response.success) {
         final refused = _failSend(
@@ -155,38 +163,45 @@ mixin _DmSendMixin on Cubit<DmState> {
           error:
               DmRefusal.describe(
                 response.errorCode,
-                peerName: state.openPeerName ?? 'They',
+                peerName: peerName ?? 'They',
               ) ??
               response.error ??
               'Failed to send message',
         );
         // A refusal about the request says where things stand now.
-        unawaited(refreshOpenLinkState());
+        if (open()) unawaited(refreshOpenLinkState());
         return refused;
       }
 
       final data = response.data as Map<String, dynamic>;
+      final acked = ChatMessage(
+        id: '${data['id']}',
+        authorId: user.id,
+        authorName: user.displayName,
+        text: trimmed,
+        attachments: uploaded,
+        preview: sentPreview,
+        replyToId: replyId,
+        sentAt: DateTime.parse(data['created_at'] as String),
+        isMine: true,
+      );
+      unawaited(refreshConversations());
+      // Away, there is nothing to swap: the next open's page has it.
+      if (!open()) return false;
       emit(
         state.copyWith(
           messages: ChatMessageOps.replacePending(
             state.messages,
             pendingId: pendingId,
-            acked: ChatMessage(
-              id: '${data['id']}',
-              authorId: user.id,
-              authorName: user.displayName,
-              text: trimmed,
-              attachments: uploaded,
-              preview: sentPreview,
-              replyToId: replyId,
-              sentAt: DateTime.parse(data['created_at'] as String),
-              isMine: true,
-            ),
+            acked: acked,
           ),
         ),
       );
+      // Back, but with the page still on its way (see the channel's send).
+      if (state.chatStatus == DmChatStatus.loading) {
+        _outbox.landed(peerId, acked);
+      }
       _saved.noteSent();
-      unawaited(refreshConversations());
       // A first message may have become a request, and a reply to one is its
       // acceptance. Anything later in an open conversation changes nothing.
       if (state.openLinkState != DmLinkState.open ||
@@ -212,6 +227,8 @@ mixin _DmSendMixin on Cubit<DmState> {
         errorCode: null,
         error: 'Failed to send message',
       );
+    } finally {
+      _outbox.finished(pendingId);
     }
   }
 
@@ -231,10 +248,10 @@ mixin _DmSendMixin on Cubit<DmState> {
   }) {
     final open = state.openPeerId == peerId;
     if (!Outbox.canRetry(errorCode)) {
-      if (open) {
-        _removePending(pending.id);
-        emit(state.copyWith(notice: Notice.error(error)));
-      }
+      // Said wherever the reader is: the only news of a message that will
+      // not arrive.
+      if (open) _removePending(pending.id);
+      emit(state.copyWith(notice: Notice.error(error)));
       return open;
     }
     _outbox.hold(

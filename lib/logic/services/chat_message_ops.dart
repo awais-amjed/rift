@@ -104,17 +104,27 @@ class ChatMessageOps {
   ];
 
   /// Swap an optimistic bubble for the row the server acknowledged.
+  ///
+  /// When the server's row is already listed — a conversation reopened in
+  /// the moment between the server storing a send and answering it, which
+  /// draws the stored row and the still-sending one together — the bubble
+  /// just goes, rather than leaving the message there twice.
   static List<ChatMessage> replacePending(
     List<ChatMessage> messages, {
     required String pendingId,
     required ChatMessage acked,
-  }) => [
-    for (final m in messages)
-      // The acked row remembers the id it was drawn under, so the swap is a
-      // row changing rather than one row leaving and another arriving. See
-      // [ChatMessage.sentAsId].
-      if (m.id != pendingId) m else acked.copyWith(sentAsId: pendingId),
-  ];
+  }) {
+    if (messages.any((m) => m.id == acked.id)) {
+      return removePending(messages, pendingId);
+    }
+    return [
+      for (final m in messages)
+        // The acked row remembers the id it was drawn under, so the swap is a
+        // row changing rather than one row leaving and another arriving. See
+        // [ChatMessage.sentAsId].
+        if (m.id != pendingId) m else acked.copyWith(sentAsId: pendingId),
+    ];
+  }
 
   /// Apply an edit locally: swap [text] in and stamp [editedAt] on one row.
   /// Attachments and reactions ride along untouched.

@@ -58,6 +58,20 @@ class OutboxEntry {
 class Outbox {
   final Map<String, OutboxEntry> _held = {};
 
+  /// Sends still on their way, by pending id: the row as drawn, with how far
+  /// its files have got. Kept so that leaving a conversation mid-upload and
+  /// coming back finds the row, and its bar, where it was — the send itself
+  /// goes on either way, so without this the message was out of sight until
+  /// it landed.
+  final Map<String, OutboxEntry> _sending = {};
+
+  /// Rows that landed while their conversation was being opened, by
+  /// destination. The page being fetched may have been asked for before the
+  /// server stored them, and our own sends ring no doorbell, so without
+  /// these such a message was missing until the conversation was opened
+  /// again. [restoreInto] hands them over once, with a fresh page.
+  final Map<String, List<ChatMessage>> _landed = {};
+
   /// Whether a failed send is worth keeping at all.
   ///
   /// Only a connection failure. Everything else is the server having answered
@@ -66,7 +80,36 @@ class Outbox {
   static bool canRetry(String? errorCode) => ErrorCode.isRetryable(errorCode);
 
   /// Keep a failed send. Replaces any entry under the same pending id.
-  void hold(OutboxEntry entry) => _held[entry.pendingId] = entry;
+  void hold(OutboxEntry entry) {
+    _sending.remove(entry.pendingId);
+    _held[entry.pendingId] = entry;
+  }
+
+  // ── In flight ──────────────────────────────────────────
+
+  /// A send has begun: its row is drawn in [destination] until [finished].
+  /// The files are not held here — the send owns them, and settles them
+  /// (`settle`) when it ends.
+  void sending(String destination, ChatMessage row) =>
+      _sending[row.id] = OutboxEntry(destination: destination, row: row);
+
+  /// How far a send's files have got, for the row drawn on coming back.
+  void progress(String pendingId, double progress) {
+    final entry = _sending[pendingId];
+    if (entry == null) return;
+    _sending[pendingId] = OutboxEntry(
+      destination: entry.destination,
+      row: entry.row.copyWith(uploadProgress: progress),
+    );
+  }
+
+  /// A send is over, however it ended.
+  void finished(String pendingId) => _sending.remove(pendingId);
+
+  /// [row], the server's, landed while [destination] was being opened: see
+  /// [_landed].
+  void landed(String destination, ChatMessage row) =>
+      (_landed[destination] ??= []).add(row);
 
   /// Hand an entry back and stop holding it — the retry primitive.
   ///
@@ -75,8 +118,13 @@ class Outbox {
   /// remove" would send twice.
   OutboxEntry? take(String pendingId) => _held.remove(pendingId);
 
-  /// Forget one entry without retrying it — the row is going away.
-  void drop(String pendingId) => _forget(_held.remove(pendingId));
+  /// Forget one entry without retrying it — the row is going away. A send
+  /// still on its way stops being drawn on return (its message is already
+  /// in the conversation); its files are its own, so they are left alone.
+  void drop(String pendingId) {
+    _sending.remove(pendingId);
+    _forget(_held.remove(pendingId));
+  }
 
   /// Forget the entries behind rows a merge has just retired.
   ///
@@ -96,6 +144,8 @@ class Outbox {
   void clear() {
     _held.values.forEach(_forget);
     _held.clear();
+    _sending.clear();
+    _landed.clear();
   }
 
   /// Called when a send is over, however it ended. Deletes the copies among
@@ -118,30 +168,44 @@ class Outbox {
 
   int get length => _held.length;
 
-  /// The held rows for one conversation, oldest first.
+  /// The held rows for one conversation, and the ones still sending, oldest
+  /// first.
   ///
   /// Ordered by when they were written rather than by when they failed: they
   /// are drawn among real messages, and a list that is chronological except for
   /// the failures reads as though the failures happened to somebody else.
   List<ChatMessage> rowsFor(String destination) =>
-      (_held.values.where((e) => e.destination == destination).toList()
+      ({
+              ..._sending,
+              ..._held,
+            }.values.where((e) => e.destination == destination).toList()
             ..sort((a, b) => a.row.sentAt.compareTo(b.row.sentAt)))
           .map((e) => e.row)
           .toList();
 
-  /// Put the held rows for [destination] back at the end of a freshly fetched
-  /// list — what a conversation calls after loading its history.
+  /// Put the rows for [destination] that the server's list cannot hold —
+  /// failed sends and sends still going — back at the end of [messages]:
+  /// what a conversation calls when it draws its history.
   ///
   /// At the end rather than in date order, because that is where an unsent
   /// message belongs: below everything that did send, where the composer is,
   /// and where it was when it failed.
+  ///
+  /// [fresh] says [messages] is a page the server just sent, which is when
+  /// the sends that landed while it was on its way ([landed]) are added too,
+  /// if it missed them, and forgotten. The saved copy is not fresh: a page
+  /// may still be coming that predates them.
   List<ChatMessage> restoreInto(
     List<ChatMessage> messages,
-    String destination,
-  ) {
-    final rows = rowsFor(destination);
+    String destination, {
+    bool fresh = false,
+  }) {
+    final landed = fresh
+        ? _landed.remove(destination) ?? const <ChatMessage>[]
+        : const <ChatMessage>[];
+    final rows = [...landed, ...rowsFor(destination)];
     if (rows.isEmpty) return messages;
     final known = messages.map((m) => m.id).toSet();
-    return [...messages, ...rows.where((r) => !known.contains(r.id))];
+    return [...messages, ...rows.where((r) => known.add(r.id))];
   }
 }
