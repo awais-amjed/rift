@@ -924,12 +924,19 @@ ONNX files in their place, which the Rust library opens from where they
 landed; nothing of ONNX Runtime is in the app. RNNoise's weights are not in
 the runner either: they are fetched the first time RNNoise is put on, or when
 it stands in for a DPDFNet that cannot load, and handed to the runner
-(`rift_noise_filter_set_rnnoise`). While a model's files download no model
-runs, except RNNoise during DPDFNet's when its weights are on the device
-already; RNNoise is never fetched just for that.
+(`rift_noise_filter_set_rnnoise`). While a model's files download, or after
+they failed to, Standard stands in: libwebrtc's own suppressor, which a call
+gets by rebuilding its microphone track (`NoiseFilter.inEffect`,
+`AppState.noiseInEffect`). For DPDFNet, RNNoise stands in instead when its
+weights are on the device already; RNNoise is never fetched just for that.
+Once the model is on, the call rebuilds the track again without the built-in
+suppressor, by itself. Switching between models rebuilds nothing: they run in
+the runner, under every track at once.
 While a model downloads, a chip beside the window controls counts it up
 (`ModelDownloadChip`, from `ModelsCubit`), and one that failed says so there
-and tries again when pressed. Phones have no title bar, so there it is quiet.
+and tries again when pressed; the noise setting says the same of its own
+model, with what stands in meanwhile. Phones have no title bar, so their
+list's top bar carries a ring instead (`ModelDownloadMark`).
 The web keeps fetching its copy from beside the app (`scripts/build_web.sh`).
 
 This is the one request a start makes that is not to a server the person

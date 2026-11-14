@@ -37,10 +37,15 @@ class ModelsState extends Equatable {
 
   /// How far the downloads running now have come together, 0 to 1, by bytes:
   /// a large model weighs more than a small one.
-  double get fraction {
+  double get fraction => fractionOf(null);
+
+  /// [fraction], of [files] alone: one model's files, beside another's
+  /// downloading at the same time.
+  double fractionOf(Set<ModelFile>? files) {
     var size = 0, received = 0;
     for (final p in unfinished.values) {
       if (p.status != ModelStatus.loading) continue;
+      if (files != null && !files.contains(p.file)) continue;
       size += p.file.size;
       received += p.received.clamp(0, p.file.size);
     }

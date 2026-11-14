@@ -4,9 +4,9 @@ import 'package:material_ui/material_ui.dart';
 import '../../../data/classes/model_file.dart';
 import '../../../data/constants.dart';
 import '../../../logic/cubits/models/models_cubit.dart';
-import '../../theme/app_motion.dart';
 import '../../theme/custom_colors.dart';
 import '../../theme/theme_context.dart';
+import '../download_ring.dart';
 import '../status_chip.dart';
 
 /// A model downloading beside the window controls, with how far it has come,
@@ -29,15 +29,15 @@ class ModelDownloadChip extends StatelessWidget {
       final fraction = state.fraction;
       chip = StatusChip(
         icon: Icons.downloading_rounded,
-        leading: (ink) => _Ring(fraction: fraction, ink: ink),
+        leading: (ink) => DownloadRing(fraction: fraction, color: ink),
         label: loading.length == 1
             ? 'Downloading model ${(fraction * 100).floor()}%'
             : 'Downloading ${loading.length} models '
                   '${(fraction * 100).floor()}%',
         color: context.theme.primary,
         tooltip:
-            'Rift is downloading its ${_names(loading)} '
-            '(${_megabytes(loading)}). It is fetched once and kept.',
+            'Rift is downloading its ${names(loading)} '
+            '(${megabytes(loading)}). It is fetched once and kept.',
       );
     } else if (failed.isNotEmpty) {
       chip = StatusChip(
@@ -47,7 +47,7 @@ class ModelDownloadChip extends StatelessWidget {
             : "${failed.length} models didn't download",
         color: CustomColors.warning,
         tooltip:
-            "Rift couldn't download its ${_names(failed)}. "
+            "Rift couldn't download its ${names(failed)}. "
             'Click to try again.',
         onTap: () => context.read<ModelsCubit>().retryFailed(),
       );
@@ -63,45 +63,17 @@ class ModelDownloadChip extends StatelessWidget {
     );
   }
 
-  static String _names(List<ModelFile> files) {
+  /// The models' names in a sentence, for the phone's mark too.
+  static String names(List<ModelFile> files) {
     final names = [for (final f in files) f.name];
     return names.length == 1
         ? names.single
         : '${names.sublist(0, names.length - 1).join(', ')} and ${names.last}';
   }
 
-  static String _megabytes(List<ModelFile> files) {
+  /// The models' size together, for the phone's mark too.
+  static String megabytes(List<ModelFile> files) {
     final bytes = files.fold<int>(0, (sum, f) => sum + f.size);
     return '${(bytes / (1024 * 1024)).toStringAsFixed(0)} MB';
-  }
-}
-
-/// The share of the download that is down, as a ring the size of the icon
-/// it replaces.
-class _Ring extends StatelessWidget {
-  final double fraction;
-  final Color ink;
-
-  const _Ring({required this.fraction, required this.ink});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox.square(
-      dimension: K.iconTiny,
-      child: Padding(
-        padding: const EdgeInsets.all(1),
-        child: TweenAnimationBuilder<double>(
-          tween: Tween(end: fraction),
-          duration: AppMotion.state,
-          curve: AppMotion.settle,
-          builder: (context, value, _) => CircularProgressIndicator(
-            value: value,
-            strokeWidth: 1.6,
-            color: ink,
-            backgroundColor: ink.withValues(alpha: 0.25),
-          ),
-        ),
-      ),
-    );
   }
 }

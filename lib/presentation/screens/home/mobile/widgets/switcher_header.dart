@@ -17,6 +17,7 @@ import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 import '../../servers/server_rail/widgets/server_chip_menu.dart';
 import '../../sidebar/widgets/sidebar_header.dart';
+import 'model_download_mark.dart';
 import 'switcher_home_line.dart';
 import 'switcher_home_mark.dart';
 import 'switcher_server_line.dart';
@@ -160,6 +161,7 @@ class SwitcherHeader extends StatelessWidget {
               ),
             ),
           ),
+          const ModelDownloadMark(),
           // With no server and Home not picked there is nothing to jump to,
           // and a search over nothing is a button that only disappoints.
           if (onHome || server != null)

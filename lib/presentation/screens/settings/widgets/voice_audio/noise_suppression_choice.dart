@@ -17,12 +17,17 @@ import 'noise_filter_work_line.dart';
 class NoiseSuppressionChoice extends StatelessWidget {
   final NoiseSuppression value;
   final NoiseFilterWork work;
+
+  /// What the microphone gets now, which differs from [value] while a model
+  /// downloads ([NoiseFilter.inEffect]).
+  final NoiseSuppression inEffect;
   final ValueChanged<NoiseSuppression> onChanged;
 
   const NoiseSuppressionChoice({
     super.key,
     required this.value,
     required this.work,
+    required this.inEffect,
     required this.onChanged,
   });
 
@@ -78,7 +83,12 @@ class NoiseSuppressionChoice extends StatelessWidget {
                   key: ValueKey(shown),
                   style: AppText.secondary.copyWith(color: theme.textTertiary),
                 )
-              : NoiseFilterWorkLine(key: ValueKey(work), work: work),
+              : NoiseFilterWorkLine(
+                  key: ValueKey(work),
+                  work: work,
+                  mode: value,
+                  inEffect: inEffect,
+                ),
         ),
       ],
     );

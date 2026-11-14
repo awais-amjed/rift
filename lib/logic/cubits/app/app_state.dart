@@ -268,6 +268,13 @@ class AppState extends Equatable {
   @JsonKey(includeFromJson: false, includeToJson: false)
   final NoiseFilterWork noiseFilterWork;
 
+  /// What the microphone gets now under [noiseSuppression]: the model chosen
+  /// once it runs, and until then what stands in for it, Standard while its
+  /// files download ([NoiseFilter.inEffect]). A call sets its microphone up
+  /// again when this moves to or from Standard.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  final NoiseSuppression noiseInEffect;
+
   const AppState({
     this.sidebarOpen = true,
     this.audioEnabled = true,
@@ -334,6 +341,7 @@ class AppState extends Equatable {
     this.desktopPushToTalkKey,
     this.desktopPushToTalkPending = false,
     this.noiseFilterWork = NoiseFilterWork.none,
+    this.noiseInEffect = NoiseSuppression.standard,
   });
 
   /// Somebody you verified now has a key you have not checked. Sending is
@@ -429,6 +437,7 @@ class AppState extends Equatable {
     bool clearDesktopPushToTalkKey = false,
     bool? desktopPushToTalkPending,
     NoiseFilterWork? noiseFilterWork,
+    NoiseSuppression? noiseInEffect,
   }) {
     return AppState(
       sidebarOpen: sidebarOpen ?? this.sidebarOpen,
@@ -512,6 +521,7 @@ class AppState extends Equatable {
       desktopPushToTalkPending:
           desktopPushToTalkPending ?? this.desktopPushToTalkPending,
       noiseFilterWork: noiseFilterWork ?? this.noiseFilterWork,
+      noiseInEffect: noiseInEffect ?? this.noiseInEffect,
     );
   }
 
@@ -615,5 +625,6 @@ class AppState extends Equatable {
     desktopPushToTalkKey,
     desktopPushToTalkPending,
     noiseFilterWork,
+    noiseInEffect,
   ];
 }

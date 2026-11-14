@@ -1,3 +1,4 @@
+import '../../data/classes/model_file.dart';
 import '../../data/enums/noise_filter_work.dart';
 import '../../data/enums/noise_suppression.dart';
 
@@ -12,7 +13,14 @@ abstract final class NoiseFilter {
   static bool usesBuiltIn(NoiseSuppression mode) =>
       mode != NoiseSuppression.off;
 
+  static NoiseSuppression inEffect(NoiseSuppression mode) =>
+      mode == NoiseSuppression.off ? mode : NoiseSuppression.standard;
+
   static NoiseFilterWork get work => NoiseFilterWork.none;
+
+  static Stream<void> get changes => const Stream.empty();
+
+  static Set<ModelFile> get awaitedFiles => const {};
 
   static Future<void> use(NoiseSuppression mode) async {}
 

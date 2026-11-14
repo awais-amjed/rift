@@ -21,6 +21,7 @@ import '../../../data/classes/server.dart';
 import '../../../data/classes/watched_picture.dart';
 import '../../../data/constants.dart';
 import '../../../data/enums/app_sound.dart';
+import '../../../data/enums/noise_suppression.dart';
 import '../../../data/participant_identity.dart';
 import '../../../data/repositories/session_repository.dart';
 import '../../../src/rust/api/watching.dart' show WatchEvent, WatchEventKind;
@@ -454,13 +455,16 @@ class LiveKitCubit extends Cubit<LiveKitState>
     _lastAppState = appState;
 
     // Audio-processing toggles: recreate the mic track so the new capture
-    // constraints apply mid-call. So does the runner's filter turning up
-    // ([NoiseFilterWork.starting]), which takes over from libwebrtc's own.
+    // constraints apply mid-call. Of the noise choice, only whether
+    // libwebrtc's own suppressor runs is the track's: it does for Standard,
+    // and for a model until it can run — the runner's filter still on its
+    // way at start, or the model's files downloading. The models themselves
+    // switch in the runner, under every track at once.
     final audioProcessingChanged =
-        previous.noiseSuppression != appState.noiseSuppression ||
+        (previous.noiseInEffect == NoiseSuppression.standard) !=
+            (appState.noiseInEffect == NoiseSuppression.standard) ||
         previous.echoCancellation != appState.echoCancellation ||
-        previous.autoGainControl != appState.autoGainControl ||
-        previous.noiseFilterWork.startedSince(appState.noiseFilterWork);
+        previous.autoGainControl != appState.autoGainControl;
     if (audioProcessingChanged) {
       unawaited(_refreshMicrophoneCapture());
     }
@@ -750,7 +754,12 @@ class LiveKitCubit extends Cubit<LiveKitState>
         ?.getTrackPublicationBySource(TrackSource.microphone)
         ?.track;
     if (track is LocalAudioTrack) {
-      track.currentOptions = _buildAudioCaptureOptions();
+      final options = _buildAudioCaptureOptions();
+      track.currentOptions = options;
+      HelperMethods.printDebug(
+        '[LiveKit] microphone set up again, built-in noise suppression '
+        '${options.noiseSuppression ? 'on' : 'off'}',
+      );
     }
     await local?.setMicrophoneEnabled(false);
     // A track kept running for push-to-talk was already muted, so the line

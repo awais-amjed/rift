@@ -29,6 +29,7 @@ class AudioProcessingSection extends StatelessWidget {
         NoiseSuppressionChoice(
           value: appState.noiseSuppression,
           work: appState.noiseFilterWork,
+          inEffect: appState.noiseInEffect,
           onChanged: cubit.setNoiseSuppression,
         ),
         if (appState.noiseSuppression == NoiseSuppression.dpdfnet &&

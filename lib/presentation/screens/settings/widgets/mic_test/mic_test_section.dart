@@ -242,9 +242,8 @@ class _MicTestSectionState extends State<MicTestSection> {
         if (HostPlatform.micTestReadsDevice)
           BlocListener<AppCubit, AppState>(
             listenWhen: (a, b) =>
-                a.noiseSuppression != b.noiseSuppression ||
-                a.autoGainControl != b.autoGainControl ||
-                a.noiseFilterWork.startedSince(b.noiseFilterWork),
+                a.noiseInEffect != b.noiseInEffect ||
+                a.autoGainControl != b.autoGainControl,
             listener: (_, settings) => _processLikeTheCall(settings),
           ),
         BlocListener<LiveKitCubit, LiveKitState>(

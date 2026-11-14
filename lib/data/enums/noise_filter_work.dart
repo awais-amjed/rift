@@ -1,6 +1,5 @@
 /// What the noise filter is busy with, for settings to say so while a choice
-/// takes effect. Neither lasts long, but a choice that seems to do nothing
-/// gets picked again.
+/// takes effect. A choice that seems to do nothing gets picked again.
 enum NoiseFilterWork {
   none,
 
@@ -8,11 +7,14 @@ enum NoiseFilterWork {
   /// On Windows Dart starts first, so the filter turns up a moment later.
   starting,
 
-  /// DPDFNet loading, the first time it is picked.
-  loadingModel;
+  /// The chosen model's files coming down, the first time it is picked.
+  /// Standard stands in meanwhile, or RNNoise for DPDFNet when it is here.
+  downloadingModel,
 
-  /// Whether the wait for the runner's filter ended between this and [now]:
-  /// what was set up without it, with libwebrtc's suppressor standing in, is
-  /// set up again.
-  bool startedSince(NoiseFilterWork now) => this == starting && now != starting;
+  /// The chosen model's files did not come down. What stands in meanwhile
+  /// stays on until they do.
+  modelUnavailable,
+
+  /// The chosen model loading from files already here.
+  loadingModel,
 }

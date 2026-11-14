@@ -20,6 +20,7 @@ import '../../../data/enums/noise_suppression.dart';
 import '../../../data/enums/sensitive_content_mode.dart';
 import '../../../data/enums/stream_pip_corner.dart';
 import '../../../data/participant_identity.dart';
+import '../../helper_methods.dart';
 import '../../services/call_volume.dart';
 import '../../services/hydrated_keys.dart';
 import '../../services/login_launch/login_launch.dart';
@@ -40,7 +41,19 @@ class AppCubit extends HydratedCubit<AppState> {
     // The filter lives in the native audio pipeline, which starts with none.
     NoiseFilter.useSmallDpdfnet(state.dpdfnetSmall);
     MicVolume.apply(state.inputVolume);
-    unawaited(_useNoiseFilter(state.noiseSuppression));
+    _noiseFilterChanges = NoiseFilter.changes.listen((_) => _noteNoiseFilter());
+    unawaited(NoiseFilter.use(state.noiseSuppression));
+    _noteNoiseFilter();
+  }
+
+  /// [NoiseFilter.changes], for [AppState.noiseFilterWork] and
+  /// [AppState.noiseInEffect].
+  late final StreamSubscription<void> _noiseFilterChanges;
+
+  @override
+  Future<void> close() async {
+    await _noiseFilterChanges.cancel();
+    return super.close();
   }
 
   /// A fixed name, not the class's: see [HydratedKeys].
@@ -177,22 +190,27 @@ class AppCubit extends HydratedCubit<AppState> {
 
   void setNoiseSuppression(NoiseSuppression value) {
     emit(state.copyWith(noiseSuppression: value));
-    unawaited(_useNoiseFilter(value));
+    unawaited(NoiseFilter.use(value));
+    _noteNoiseFilter();
   }
 
-  /// Puts [mode] on, and says in [AppState.noiseFilterWork] what is being
-  /// waited for meanwhile. Each switch reads [NoiseFilter.work] when its own
-  /// finishes, so an earlier one finishing late does not clear a later one.
-  Future<void> _useNoiseFilter(NoiseSuppression mode) async {
-    final putOn = NoiseFilter.use(mode);
-    final work = NoiseFilter.work;
-    if (work != state.noiseFilterWork) {
-      emit(state.copyWith(noiseFilterWork: work));
-    }
-    if (work == NoiseFilterWork.none) return;
-    await putOn;
+  /// What the noise filter is busy with and what the microphone gets
+  /// meanwhile, as it says now: settings show the one, and a call and the
+  /// mic test follow the other.
+  void _noteNoiseFilter() {
     if (isClosed) return;
-    emit(state.copyWith(noiseFilterWork: NoiseFilter.work));
+    final inEffect = NoiseFilter.inEffect(state.noiseSuppression);
+    if (inEffect != state.noiseInEffect) {
+      HelperMethods.printDebug(
+        'Noise suppression in effect: ${inEffect.label}',
+      );
+    }
+    emit(
+      state.copyWith(
+        noiseFilterWork: NoiseFilter.work,
+        noiseInEffect: inEffect,
+      ),
+    );
   }
 
   void setDpdfnetSmall(bool value) {
