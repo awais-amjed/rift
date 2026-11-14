@@ -921,7 +921,9 @@ DPDFNet on, and hands them to the Rust library, which hands them to Ceva's
 (`native/dpdfnet`). A computer where Ceva's
 runtime cannot run (no AVX2 and FMA) fetches ONNX Runtime and the models as
 ONNX files in their place, which the Rust library opens from where they
-landed; nothing of ONNX Runtime is in the app. RNNoise's weights are not in
+landed; nothing of ONNX Runtime is in the app. It is the one file fetched that
+is code, so it is fetched on Linux and Windows alone (`ModelCatalog.onnxRuntime`):
+a phone downloads only data, as Google Play requires. RNNoise's weights are not in
 the runner either: they are fetched the first time RNNoise is put on, or when
 it stands in for a DPDFNet that cannot load, and handed to the runner
 (`rift_noise_filter_set_rnnoise`). While a model's files download, or after
@@ -963,7 +965,12 @@ nothing. Not yet seen: the classifier scoring a picture from the downloaded file
 DPDFNet's weights the same way on Nov 15, from a local server and then the
 real release: the first start fetched both and loaded the models on Ceva's
 runtime, the second fetched nothing. ONNX Runtime and the ONNX models the
-same way, from the real release on Nov 15, with Ceva's runtime refused.
+same way, from the real release on Nov 15, with Ceva's runtime refused, and
+RNNoise's weights too, picked in settings: "Loading RNNoise…", the download,
+RNNoise in effect, and nothing fetched at the next start.
+`test/model_catalog_test.dart` holds the catalog against the upload script, so
+the app never pins a file the release does not get, and the models kept in
+this repository against their pins.
 
 ## 9. The app's log and bug reports — [Implemented October 2026]
 
