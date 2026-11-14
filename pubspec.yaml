@@ -160,6 +160,12 @@ dependency_overrides:
   # can go.
   flutter_webrtc:
     path: third_party/flutter_webrtc
+  # The Linux side of audioplayers, kept here so quitting does not wait on a
+  # chat video's GStreamer threads forever.
+  # third_party/audioplayers_linux/RIFT_PATCHES.md says what differs and when
+  # this can go.
+  audioplayers_linux:
+    path: third_party/audioplayers_linux
 
 flutter:
 

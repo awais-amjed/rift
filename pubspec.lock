@@ -122,12 +122,11 @@ packages:
     source: hosted
     version: "6.5.0"
   audioplayers_linux:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      name: audioplayers_linux
-      sha256: "15178b726b7cdee5364d0463c8d445630c4e0fb7d26612b73c767e7d25de9417"
-      url: "https://pub.dev"
-    source: hosted
+      path: "third_party/audioplayers_linux"
+      relative: true
+    source: path
     version: "4.3.0"
   audioplayers_platform_interface:
     dependency: transitive
