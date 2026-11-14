@@ -10,6 +10,7 @@ import '../../../common/server_scope.dart';
 import '../../../responsive/shell_scope.dart';
 import '../../../theme/app_motion.dart';
 import '../../../theme/theme_context.dart';
+import '../call_pip/call_stream_pip.dart';
 import '../chat/channel_chat_view.dart';
 import '../dms/central_dm_view.dart';
 import '../dms/server_dm_view.dart';
@@ -84,9 +85,9 @@ class MainContent extends StatelessWidget {
         // has nothing to say on either.
         switch (appState.surface) {
           case HomeSurface.serverDms:
-            return const _ContentPanel(child: ServerDmView());
+            return _withCallPip(const _ContentPanel(child: ServerDmView()));
           case HomeSurface.centralDms:
-            return const _ContentPanel(child: CentralDmView());
+            return _withCallPip(const _ContentPanel(child: CentralDmView()));
           case HomeSurface.server:
             break;
         }
@@ -102,14 +103,17 @@ class MainContent extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: _ContentPanel(
-                    child: BlocBuilder<ChannelChatCubit, ChannelChatState>(
-                      buildWhen: (prev, curr) =>
-                          (prev.channelId == null) != (curr.channelId == null),
-                      builder: (context, chatState) =>
-                          chatState.channelId != null
-                          ? const ChannelChatView()
-                          : const ParticipantsGrid(),
+                  child: _withCallPip(
+                    _ContentPanel(
+                      child: BlocBuilder<ChannelChatCubit, ChannelChatState>(
+                        buildWhen: (prev, curr) =>
+                            (prev.channelId == null) !=
+                            (curr.channelId == null),
+                        builder: (context, chatState) =>
+                            chatState.channelId != null
+                            ? const ChannelChatView()
+                            : const ParticipantsGrid(),
+                      ),
                     ),
                   ),
                 ),
@@ -123,4 +127,12 @@ class MainContent extends StatelessWidget {
       },
     );
   }
+
+  /// A watched stream floats over the pane while the call is not in it.
+  static Widget _withCallPip(Widget panel) => Stack(
+    children: [
+      Positioned.fill(child: panel),
+      const Positioned.fill(child: CallStreamPip()),
+    ],
+  );
 }

@@ -8,7 +8,7 @@ import '../../../../theme/app_motion.dart';
 import '../../../../theme/app_shadows.dart';
 import '../../../../theme/theme_context.dart';
 import 'decrypted_video.dart';
-import 'stream_glass.dart';
+import 'pip_resize_grip.dart';
 
 /// The sharer's camera, floating in a corner of the stream it is watched
 /// over: with the stream filling the stage, nothing else shows their face.
@@ -202,47 +202,10 @@ class _StreamCameraPipState extends State<StreamCameraPip> {
   );
 
   /// On the corner facing into the stream, the one that moves.
-  Widget _grip() {
-    final corner = widget.corner;
-    final visible = widget.showGrip || _resizing != null;
-    // The arrow runs from the grip to the corner that stays put.
-    final diagonal = corner.isTop == corner.isLeft;
-    return Align(
-      alignment: Alignment(corner.isLeft ? 1 : -1, corner.isTop ? 1 : -1),
-      child: AnimatedOpacity(
-        opacity: visible ? 1 : 0,
-        duration: AppMotion.enter,
-        child: IgnorePointer(
-          ignoring: !visible,
-          child: MouseRegion(
-            cursor: diagonal
-                ? SystemMouseCursors.resizeUpLeftDownRight
-                : SystemMouseCursors.resizeUpRightDownLeft,
-            child: GestureDetector(
-              onPanUpdate: _resize,
-              onPanEnd: (_) => _endResize(),
-              onPanCancel: _endResize,
-              child: Padding(
-                padding: const EdgeInsets.all(4),
-                child: StreamGlass(
-                  child: Padding(
-                    padding: const EdgeInsets.all(3),
-                    child: RotatedBox(
-                      // open_in_full points up right and down left.
-                      quarterTurns: diagonal ? 1 : 0,
-                      child: Icon(
-                        Icons.open_in_full_rounded,
-                        size: K.iconInline,
-                        color: context.theme.textSecondary,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  Widget _grip() => PipResizeGrip(
+    corner: widget.corner,
+    visible: widget.showGrip || _resizing != null,
+    onResize: _resize,
+    onEnd: _endResize,
+  );
 }

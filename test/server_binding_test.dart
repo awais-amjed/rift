@@ -107,7 +107,7 @@ void main() {
       'lib/presentation/screens/home/dms/open_server_dm.dart',
       'lib/presentation/screens/home/calls/open_call_conversation.dart',
       'lib/presentation/screens/home/main_content/widgets/call_resumer.dart',
-      'lib/presentation/screens/home/profile/user_dock/widgets/dock_call_panel.dart',
+      'lib/presentation/screens/home/calls/show_the_call.dart',
     };
     // The getter with its fall back to the first server: nowhere at all.
     final fallback = RegExp(r'\bselectedServer\b');

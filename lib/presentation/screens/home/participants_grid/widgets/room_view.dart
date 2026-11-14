@@ -79,6 +79,8 @@ class _RoomViewState extends State<RoomView> {
   void initState() {
     super.initState();
     _appCubit = context.read<AppCubit>();
+    // On screen, so a watched stream need not float over anything.
+    _appCubit.noteCallStage(shown: true);
     // A phone's chrome fades on its own: there is no pointer to wait for, and
     // a thumb that wants it back only has to touch the stage.
     //
@@ -97,6 +99,7 @@ class _RoomViewState extends State<RoomView> {
     // Leaving the call, or opening a chat over it, must not leave the shell
     // full-bleed around something that is no longer a stream.
     _appCubit.setStageChromeHidden(false);
+    _appCubit.noteCallStage(shown: false);
     super.dispose();
   }
 

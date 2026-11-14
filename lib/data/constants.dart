@@ -353,6 +353,19 @@ class K {
   /// the call's length and the mic, in a 40px capsule.
   static const double callPillClearance = callBarOffset + 40;
 
+  // ── A stream floating over a chat ────────────────────────
+  /// The least width a watched stream floating while its call is off screen
+  /// takes (`CallStreamPip`): smaller and a shared screen is unreadable.
+  static const double callPipMinWidth = 200;
+
+  /// Kept between it and the pane's sides.
+  static const double callPipSideMargin = 12;
+
+  /// Kept clear of the pane's header in a top corner, and of the composer in
+  /// a bottom one.
+  static const double callPipTopClearance = paneHeaderHeight + 8;
+  static const double callPipBottomClearance = 92;
+
   /// The least width a stream nobody has opened takes on the stage, room
   /// enough for its Watch button above its name and quality. At a person's
   /// width on a phone the three ran into each other.

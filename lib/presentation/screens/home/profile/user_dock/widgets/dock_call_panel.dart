@@ -4,9 +4,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../../../data/constants.dart';
-import '../../../../../../data/enums/home_surface.dart';
-import '../../../../../../logic/cubits/app/app_cubit.dart';
-import '../../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../../../../logic/cubits/dm_call/dm_call_cubit.dart';
 import '../../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
@@ -15,8 +12,7 @@ import '../../../../../theme/app_motion.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/custom_colors.dart';
 import '../../../../../theme/theme_context.dart';
-import '../../../calls/open_call_conversation.dart';
-import '../../../mobile/mobile_shell_scope.dart';
+import '../../../calls/show_the_call.dart';
 import 'dock_call_controls.dart';
 
 /// Over the widget budget and one job: the call in the dock; its section and
@@ -92,35 +88,7 @@ class _CallSection extends StatefulWidget {
 }
 
 class _CallSectionState extends State<_CallSection> {
-  /// Puts the call in the centre: a DM call's conversation, or a channel's
-  /// stage on its own server, with any chat over it closed. On a phone, the
-  /// call's page, as the call bar does.
-  void _open() {
-    final shell = MobileShellScope.maybeOf(context);
-    if (shell != null) {
-      shell.openCall();
-      return;
-    }
-    final dm = widget.call.dmCall;
-    if (dm != null) {
-      final row = context.read<DmCallCubit>().state.active?.call;
-      if (row == null) return;
-      unawaited(
-        openCallConversation(context, serverId: dm.serverId, call: row),
-      );
-      return;
-    }
-    final channelId = widget.call.currentChannelId;
-    final servers = context.read<ServerCubit>();
-    final home = servers.state.servers
-        .where((s) => s.channels.any((c) => c.id == channelId))
-        .firstOrNull;
-    if (home != null && servers.state.selectedServerId != home.id) {
-      servers.selectServer(home);
-    }
-    context.read<AppCubit>().setSurface(HomeSurface.server);
-    unawaited(context.read<ChannelChatCubit>().closeChannel());
-  }
+  void _open() => showTheCall(context, widget.call);
 
   void _leave() {
     if (widget.call.dmCall != null) {

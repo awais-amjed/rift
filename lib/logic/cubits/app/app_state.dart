@@ -51,6 +51,13 @@ class AppState extends Equatable {
   /// proportion between the stage and edge to edge.
   final double streamPipScale;
 
+  /// Which corner of the centre pane a watched stream floats in while the
+  /// call is not on screen (`CallStreamPip`).
+  final StreamPipCorner callPipCorner;
+
+  /// Its width, as last resized: a pane only ever narrows it for a while.
+  final double callPipWidth;
+
   /// What to do with an image the on-device classifier flags. Per device,
   /// because the verdict is: the model runs on bytes only this device holds.
   final SensitiveContentMode sensitiveContentMode;
@@ -226,6 +233,11 @@ class AppState extends Equatable {
   @JsonKey(includeFromJson: false, includeToJson: false)
   final bool stageChromeHidden;
 
+  /// Whether the call's stage is on screen (`RoomView` is mounted). While it
+  /// is not, a watched stream floats over whatever is (`CallStreamPip`).
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  final bool callStageShown;
+
   /// A DM call has been given the whole conversation pane: the conversation
   /// list folds away and the messages move to a side panel. For one call
   /// only — hanging up puts the split back.
@@ -281,6 +293,8 @@ class AppState extends Equatable {
     this.streamPipCorner = StreamPipCorner.bottomRight,
     this.streamPipHidden = false,
     this.streamPipScale = 0.2,
+    this.callPipCorner = StreamPipCorner.bottomRight,
+    this.callPipWidth = 320,
     this.sensitiveContentMode = SensitiveContentMode.blur,
     this.linkPreviewsEnabled = true,
     this.showOfflineChip = true,
@@ -314,6 +328,7 @@ class AppState extends Equatable {
     this.surface = HomeSurface.server,
     this.membersHiddenForFocus = false,
     this.stageChromeHidden = false,
+    this.callStageShown = false,
     this.dmCallExpanded = false,
     this.dmCallChatOpen = true,
     this.desktopPushToTalkKey,
@@ -368,6 +383,8 @@ class AppState extends Equatable {
     StreamPipCorner? streamPipCorner,
     bool? streamPipHidden,
     double? streamPipScale,
+    StreamPipCorner? callPipCorner,
+    double? callPipWidth,
     SensitiveContentMode? sensitiveContentMode,
     bool? linkPreviewsEnabled,
     bool? showOfflineChip,
@@ -405,6 +422,7 @@ class AppState extends Equatable {
     HomeSurface? surface,
     bool? membersHiddenForFocus,
     bool? stageChromeHidden,
+    bool? callStageShown,
     bool? dmCallExpanded,
     bool? dmCallChatOpen,
     String? desktopPushToTalkKey,
@@ -441,6 +459,8 @@ class AppState extends Equatable {
       streamPipCorner: streamPipCorner ?? this.streamPipCorner,
       streamPipHidden: streamPipHidden ?? this.streamPipHidden,
       streamPipScale: streamPipScale ?? this.streamPipScale,
+      callPipCorner: callPipCorner ?? this.callPipCorner,
+      callPipWidth: callPipWidth ?? this.callPipWidth,
       sensitiveContentMode: sensitiveContentMode ?? this.sensitiveContentMode,
       linkPreviewsEnabled: linkPreviewsEnabled ?? this.linkPreviewsEnabled,
       showOfflineChip: showOfflineChip ?? this.showOfflineChip,
@@ -483,6 +503,7 @@ class AppState extends Equatable {
       membersHiddenForFocus:
           membersHiddenForFocus ?? this.membersHiddenForFocus,
       stageChromeHidden: stageChromeHidden ?? this.stageChromeHidden,
+      callStageShown: callStageShown ?? this.callStageShown,
       dmCallExpanded: dmCallExpanded ?? this.dmCallExpanded,
       dmCallChatOpen: dmCallChatOpen ?? this.dmCallChatOpen,
       desktopPushToTalkKey: clearDesktopPushToTalkKey
@@ -551,6 +572,8 @@ class AppState extends Equatable {
     streamPipCorner,
     streamPipHidden,
     streamPipScale,
+    callPipCorner,
+    callPipWidth,
     sensitiveContentMode,
     linkPreviewsEnabled,
     showOfflineChip,
@@ -586,6 +609,7 @@ class AppState extends Equatable {
     surface,
     membersHiddenForFocus,
     stageChromeHidden,
+    callStageShown,
     dmCallExpanded,
     dmCallChatOpen,
     desktopPushToTalkKey,

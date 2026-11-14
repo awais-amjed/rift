@@ -56,6 +56,10 @@ AppState _$AppStateFromJson(Map<String, dynamic> json) => AppState(
       StreamPipCorner.bottomRight,
   streamPipHidden: json['streamPipHidden'] as bool? ?? false,
   streamPipScale: (json['streamPipScale'] as num?)?.toDouble() ?? 0.2,
+  callPipCorner:
+      $enumDecodeNullable(_$StreamPipCornerEnumMap, json['callPipCorner']) ??
+      StreamPipCorner.bottomRight,
+  callPipWidth: (json['callPipWidth'] as num?)?.toDouble() ?? 320,
   sensitiveContentMode:
       $enumDecodeNullable(
         _$SensitiveContentModeEnumMap,
@@ -130,6 +134,8 @@ Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
   'streamPipCorner': _$StreamPipCornerEnumMap[instance.streamPipCorner]!,
   'streamPipHidden': instance.streamPipHidden,
   'streamPipScale': instance.streamPipScale,
+  'callPipCorner': _$StreamPipCornerEnumMap[instance.callPipCorner]!,
+  'callPipWidth': instance.callPipWidth,
   'sensitiveContentMode':
       _$SensitiveContentModeEnumMap[instance.sensitiveContentMode]!,
   'linkPreviewsEnabled': instance.linkPreviewsEnabled,

@@ -240,6 +240,26 @@ class AppCubit extends HydratedCubit<AppState> {
   void setStreamPipScale(double scale) =>
       emit(state.copyWith(streamPipScale: scale));
 
+  void setCallPipCorner(StreamPipCorner corner) =>
+      emit(state.copyWith(callPipCorner: corner));
+
+  void setCallPipWidth(double width) =>
+      emit(state.copyWith(callPipWidth: width));
+
+  /// How many call stages are mounted. Counted rather than set, so one going
+  /// as another comes (a DM call moving between panes) cannot leave it off.
+  int _callStages = 0;
+
+  /// A call's stage came on screen, or went.
+  void noteCallStage({required bool shown}) {
+    if (isClosed) return;
+    _callStages = (_callStages + (shown ? 1 : -1)).clamp(0, 1 << 20);
+    final now = _callStages > 0;
+    if (now != state.callStageShown) {
+      emit(state.copyWith(callStageShown: now));
+    }
+  }
+
   /// Stores the dragged sidebar width. Deliberately unclamped here: the bounds
   /// depend on the window, and [SidebarSizing.clamp] applies them on the way
   /// out. Storing a clamped value would make a width chosen on a small window
