@@ -946,7 +946,8 @@ first start fetched the file and it matched its hash, the second fetched
 nothing. Not yet seen: the classifier scoring a picture from the downloaded file.
 DPDFNet's weights the same way on Nov 15, from a local server and then the
 real release: the first start fetched both and loaded the models on Ceva's
-runtime, the second fetched nothing.
+runtime, the second fetched nothing. ONNX Runtime and the ONNX models the
+same way, from the real release on Nov 15, with Ceva's runtime refused.
 
 ## 9. The app's log and bug reports — [Implemented October 2026]
 
