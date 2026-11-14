@@ -13,7 +13,7 @@ import '../attachment_loader.dart';
 /// One chat video's playing: the [ChatClip] once it is open, and what the
 /// controls draw from it.
 ///
-/// Held by the card, and shared with the full-screen page while that is
+/// Held by the card, and shared with the viewer page while that is
 /// open, so the video goes on where it was when it is made bigger or
 /// smaller. Only one of the two draws the picture at a time ([fullscreen]):
 /// on the web a clip is one `<video>`, which can sit in one place only.
@@ -41,7 +41,8 @@ class ClipPlayback extends ChangeNotifier {
   Duration position = Duration.zero;
   Duration length;
 
-  /// Whether the full-screen page has it, and draws the picture.
+  /// Whether the viewer page has it (in the window or on the whole screen),
+  /// and draws the picture.
   bool fullscreen = false;
 
   /// The card went while the page had it: the list let it go, scrolled out

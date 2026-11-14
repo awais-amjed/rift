@@ -59,8 +59,10 @@ void main() {
                         child: VideoControls(
                           playback: playback(),
                           onToggle: () {},
+                          big: fullscreen,
                           fullscreen: fullscreen,
                           onFullscreen: () {},
+                          onExpand: fullscreen ? null : () {},
                         ),
                       ),
                     ],
@@ -77,6 +79,10 @@ void main() {
         expect(
           find.byIcon(Icons.fullscreen_rounded),
           findsNWidgets(fullscreen ? 0 : 1),
+        );
+        expect(
+          find.byIcon(Icons.open_in_full_rounded),
+          findsNWidgets(!fullscreen && width >= 200 ? 1 : 0),
         );
         if (width >= 340) expect(find.textContaining('1:00'), findsOneWidget);
         final speaker = find.byIcon(Icons.volume_up_rounded);

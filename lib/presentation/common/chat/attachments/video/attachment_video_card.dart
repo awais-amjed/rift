@@ -15,14 +15,14 @@ import '../attachment_image_thumb.dart';
 import '../attachment_loader.dart';
 import '../attachment_saving.dart';
 import 'clip_playback.dart';
-import 'video_fullscreen_page.dart';
+import 'video_viewer_page.dart';
 import 'widgets/video_controls.dart';
 import 'widgets/video_middle.dart';
 
 /// A video attachment, played in the message list: a box the shape of the
 /// video with its poster and a play disc, which downloads and plays it in
-/// place, with a strip to pause, seek, set the volume and open it full
-/// screen ([VideoFullscreenPage]).
+/// place, with a strip to pause, seek, set the volume and make it bigger:
+/// in the window or on the whole screen ([VideoViewerPage]).
 ///
 /// The file is played from memory by [ChatClip], with the system's own
 /// decoders: a big one fetched as it plays, a small one whole. Where this
@@ -105,12 +105,19 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
   void _toggle() =>
       _playback.toggle(output: context.read<AppCubit>().state.outputDeviceId);
 
-  /// Full screen, playing: a press on the button of a video not yet started
+  /// Bigger, playing: a press on the button of a video not yet started
   /// starts it too.
-  void _fullscreen() {
+  void _open({required bool whole}) {
     if (_playback.clip == null) _toggle();
-    VideoFullscreenPage.open(context, _playback);
+    VideoViewerPage.open(context, _playback, whole: whole);
   }
+
+  void _fullscreen() => _open(whole: true);
+
+  /// In the window, as a picture opens. A phone's window is its screen, so
+  /// there full screen is the one way.
+  VoidCallback? get _expand =>
+      HostPlatform.isMobile ? null : () => _open(whole: false);
 
   @override
   Widget build(BuildContext context) {
@@ -192,8 +199,10 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
                 child: VideoControls(
                   playback: p,
                   onToggle: _toggle,
+                  big: false,
                   fullscreen: false,
                   onFullscreen: _fullscreen,
+                  onExpand: _expand,
                 ),
               )
             else if (p.length > Duration.zero && p.problem == null && !away)
@@ -204,7 +213,17 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
               child: Row(
                 spacing: 6,
                 children: [
-                  if (p.problem == null && clip == null && !p.opening)
+                  if (p.problem == null && clip == null && !p.opening) ...[
+                    if (_expand case final expand?)
+                      _roundButton(
+                        tooltip: 'Expand',
+                        onTap: expand,
+                        child: const Icon(
+                          Icons.open_in_full_rounded,
+                          size: K.iconRow,
+                          color: MediaColors.onMedia,
+                        ),
+                      ),
                     _roundButton(
                       tooltip: 'Full screen',
                       onTap: _fullscreen,
@@ -214,6 +233,7 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
                         color: MediaColors.onMedia,
                       ),
                     ),
+                  ],
                   _roundButton(
                     tooltip: 'Save',
                     onTap: () => saveFile(widget.loader, widget.attachment),

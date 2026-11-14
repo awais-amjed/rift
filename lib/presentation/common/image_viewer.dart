@@ -2,9 +2,9 @@ import 'dart:typed_data';
 
 import 'package:material_ui/material_ui.dart';
 
-import '../../data/constants.dart';
 import '../theme/media_colors.dart';
 import 'chat/attachments/attachment_download.dart';
+import 'viewer_actions.dart';
 
 /// Opens a picture full-screen, pannable and zoomable, with a save button:
 /// a decrypted image from a chat, or a person's or server's picture opened
@@ -55,7 +55,7 @@ Future<void> showImageViewer(
           Positioned(
             top: 8,
             right: 8,
-            child: _ViewerActions(
+            child: ViewerActions(
               onSave: () => saveToDisk(context, name, bytes),
               onClose: () => Navigator.of(context).pop(),
             ),
@@ -64,48 +64,4 @@ Future<void> showImageViewer(
       ),
     ),
   );
-}
-
-/// Save and close, on a dark pill of their own.
-///
-/// White glyphs straight on the picture vanished on a white picture — a
-/// screenshot, a chart, a page — which is most of what gets shared. The
-/// pill is the same darkness whatever is underneath, so the two buttons
-/// read on any image and cost nothing on a dark one.
-class _ViewerActions extends StatelessWidget {
-  final VoidCallback onSave;
-  final VoidCallback onClose;
-
-  const _ViewerActions({required this.onSave, required this.onClose});
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: MediaColors.toolbar,
-        borderRadius: BorderRadius.circular(K.radiusPill),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: const Icon(
-                Icons.download_rounded,
-                color: MediaColors.onMedia,
-              ),
-              tooltip: 'Save',
-              onPressed: onSave,
-            ),
-            IconButton(
-              icon: const Icon(Icons.close_rounded, color: MediaColors.onMedia),
-              tooltip: 'Close',
-              onPressed: onClose,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }

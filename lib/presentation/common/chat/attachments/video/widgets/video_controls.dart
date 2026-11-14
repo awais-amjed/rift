@@ -8,21 +8,33 @@ import 'video_icon_button.dart';
 import 'video_volume.dart';
 
 /// The strip along a playing video's foot: play and pause, where it is as a
-/// bar to press or drag, the time, the speaker, and full screen.
+/// bar to press or drag, the time, the speaker, and the ways to make it
+/// bigger.
 class VideoControls extends StatefulWidget {
   final ClipPlayback playback;
   final VoidCallback onToggle;
 
-  /// Whether this strip is on the full-screen page, where the button leaves.
+  /// On the viewer page rather than the card: larger, the bar above the
+  /// buttons, and the keys named, since they work only there.
+  final bool big;
+
+  /// Whether it is on the whole screen, where the button comes out of it.
   final bool fullscreen;
   final VoidCallback onFullscreen;
+
+  /// Opens it in the window, as a picture opens; null where that is not
+  /// offered (on the page already, or on a phone, whose window is the
+  /// screen).
+  final VoidCallback? onExpand;
 
   const VideoControls({
     super.key,
     required this.playback,
     required this.onToggle,
+    required this.big,
     required this.fullscreen,
     required this.onFullscreen,
+    this.onExpand,
   });
 
   static String clock(Duration d) {
@@ -51,7 +63,8 @@ class _VideoControlsState extends State<VideoControls> {
         (total == 0 ? 0.0 : (p.position.inMilliseconds / total).clamp(0, 1))
             .toDouble();
     final shown = _dragged == null ? p.position : p.length * done;
-    final big = widget.fullscreen;
+    final big = widget.big;
+    final whole = widget.fullscreen;
     return LayoutBuilder(
       builder: (context, constraints) {
         // A portrait video's card is narrow, so the strip lets go of what
@@ -100,12 +113,19 @@ class _VideoControlsState extends State<VideoControls> {
                       ),
                     ),
                   if (big) const Spacer(),
+                  if (widget.onExpand case final expand? when width >= 200)
+                    VideoIconButton(
+                      icon: Icons.open_in_full_rounded,
+                      tooltip: 'Expand',
+                      size: 18,
+                      onPressed: expand,
+                    ),
                   VideoIconButton(
-                    icon: big
+                    icon: whole
                         ? Icons.fullscreen_exit_rounded
                         : Icons.fullscreen_rounded,
                     tooltip: _key(
-                      big ? 'Exit full screen' : 'Full screen',
+                      whole ? 'Exit full screen' : 'Full screen',
                       'f',
                     ),
                     size: big ? 28 : 22,
@@ -121,8 +141,7 @@ class _VideoControlsState extends State<VideoControls> {
   }
 
   /// The page's keys work only there, so only there are they named.
-  String _key(String what, String key) =>
-      widget.fullscreen ? '$what ($key)' : what;
+  String _key(String what, String key) => widget.big ? '$what ($key)' : what;
 
   Widget _track(double done) => MediaTrack(
     value: done,
