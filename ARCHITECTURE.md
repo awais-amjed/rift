@@ -806,13 +806,15 @@ that is a private channel's member list, because it decides who holds the key. T
 server works the answer out where it is asked (`app.channel_permissions_of`) and
 enforces it, the call's microphone included (`get_channel_token`). A voice
 channel's rules are saved through an edge function (`set_channel_override`) that
-gives or takes the microphone of whoever is in the call at once; the rest is asked
-at the next join, share or press. The app is told its own bits per channel
+gives or takes the microphone and the soundboard of whoever is in the call at once; the rest is asked
+at the next join or share. The app is told its own bits per channel
 (`my_permissions`) only to hide what would be refused.
 Where a member can't post they can't edit either (`messages_update_own`; a bot
 still redraws its own panel), and a clip is sound in the call, so the soundboard
-needs Speak as well as its own bit and Listen-only takes it. That one is the
-presser's app's to check: a press is a data packet the server never sees. The
+needs Speak as well as its own bit and Listen-only takes it. A press is a data
+packet the server never sees, so the server holds it back at LiveKit instead: only a
+connection with both bits may send data (`canPublishData`), and a press is the only
+packet a member sends. The
 editor shows a file, a poll, `@all`, sharing or the soundboard blocked while what it
 needs is, without storing it (`ChannelOverride.needs`).
 An `@all` is the row's flag, not the words: the body is sealed, so the server can
