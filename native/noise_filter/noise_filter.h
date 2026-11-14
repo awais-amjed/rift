@@ -31,7 +31,8 @@ RIFT_NOISE_FILTER_EXPORT int32_t rift_noise_filter_available(void);
 
 // Which model filters every capture track, from the next 10 ms: 0 for none,
 // 1 for RNNoise, 3 for DPDFNet (2 was DeepFilterNet). Anything else is
-// treated as none, and DPDFNet as none until rift_noise_filter_set_dpdfnet
+// treated as none, RNNoise as none until rift_noise_filter_set_rnnoise has
+// loaded its weights, and DPDFNet as none until rift_noise_filter_set_dpdfnet
 // has been called.
 RIFT_NOISE_FILTER_EXPORT void rift_noise_filter_set_model(int32_t model);
 
@@ -43,6 +44,15 @@ RIFT_NOISE_FILTER_EXPORT void rift_noise_filter_set_gain(float gain);
 // Push-to-talk with the key up: 1 sends silence from the next 10 ms while the
 // microphone keeps running, 0 sends it again. Faded over one frame.
 RIFT_NOISE_FILTER_EXPORT void rift_noise_filter_set_silenced(int32_t silenced);
+
+// RNNoise's weights, the file the app downloads (ModelCatalog.rnnoise) as
+// RNNoise's write_weights.c writes it: the runner carries none of its own.
+// Copied, and kept for the life of the process, since every state reads them
+// in place. Returns 1 once weights are loaded, these or earlier ones, and 0
+// when these do not load.
+RIFT_NOISE_FILTER_EXPORT int32_t rift_noise_filter_set_rnnoise(
+    const void* data,
+    int32_t size);
 
 // Where DPDFNet is, once the Rust library has loaded it: its
 // rift_dpdfnet_process and rift_dpdfnet_reset (rust/src/dpdfnet). The
@@ -59,10 +69,10 @@ RIFT_NOISE_FILTER_EXPORT void rift_noise_filter_take_timings(int64_t* out);
 // RNNoise for the settings mic test, which reads the microphone in the Rust
 // library rather than through libwebrtc (rust/src/mic_test). Its own state,
 // apart from the call's, so a test and a call never share what the model has
-// heard. The model is built into the runner, so Dart passes these addresses on
-// rather than the library carrying a second copy of its weights.
+// heard. The runner holds the weights (rift_noise_filter_set_rnnoise), so Dart
+// passes these addresses on rather than the library loading a second copy.
 
-// A fresh RNNoise state, or null.
+// A fresh RNNoise state, or null before its weights are loaded.
 RIFT_NOISE_FILTER_EXPORT void* rift_noise_filter_rnnoise_create(void);
 
 // Filters 10 ms at 48 kHz in place, on the 16-bit scale as floats.

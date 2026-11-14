@@ -88,6 +88,18 @@ abstract final class ModelCatalog {
     return null;
   }
 
+  /// RNNoise's weights, which the runner leaves out (`native/noise_filter`),
+  /// as RNNoise's own `write_weights.c` writes them from the model in
+  /// `third_party/rnnoise` (`scripts/upload_models.sh`). Fetched on a desktop
+  /// the first time RNNoise is put on (`NoiseFilter`).
+  static const rnnoise = ModelFile(
+    id: 'rnnoise',
+    name: 'RNNoise model',
+    published: 'rnnoise.v1.bin',
+    size: 3544320,
+    sha256: '1ad07b428be34c74d9678d05b3c387b73ccf0e6203a1a5f9ce58689b30b303c8',
+  );
+
   /// Every file DPDFNet may be loaded from, on either runtime.
   static const dpdfnet = [
     dpdfnetLarge,
@@ -101,5 +113,5 @@ abstract final class ModelCatalog {
   /// Every file this version of the app may use. What else is in the
   /// folder belongs to another version, and is swept once nothing has used it
   /// for a while.
-  static const all = [imageSafety, ...dpdfnet];
+  static const all = [imageSafety, rnnoise, ...dpdfnet];
 }

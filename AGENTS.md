@@ -47,7 +47,8 @@ rust/src/screenshare/  # What those functions call: session, capture, audio/ per
 third_party/      # Code kept here: packages to patch, and RNNoise — each says why in its RIFT_PATCHES.md
                   # (LiveKit's Rust SDKs are patched in a fork instead, pinned in rust/Cargo.toml)
 native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model inside
-                      # libwebrtc's processing of the mic — RNNoise, or DPDFNet
+                      # libwebrtc's processing of the mic — RNNoise (its weights
+                      # downloaded the first time it is put on), or DPDFNet
                       # (rust/src/dpdfnet, on Ceva's own runtime for it, which
                       # native/dpdfnet builds for Linux and Windows, or on ONNX Runtime,
                       # which a computer Ceva's cannot run on downloads) from the Rust

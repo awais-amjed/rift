@@ -918,10 +918,15 @@ signing in. Until it is on the device, pictures are shown without a check.
 DPDFNet's weights for Ceva's runtime come next on a desktop, since DPDFNet is
 the default noise model: `NoiseFilter` asks for them the first time it puts
 DPDFNet on, and hands them to the Rust library, which hands them to Ceva's
-(`native/dpdfnet`); RNNoise filters the mic meanwhile. A computer where Ceva's
+(`native/dpdfnet`). A computer where Ceva's
 runtime cannot run (no AVX2 and FMA) fetches ONNX Runtime and the models as
 ONNX files in their place, which the Rust library opens from where they
-landed; nothing of ONNX Runtime is in the app.
+landed; nothing of ONNX Runtime is in the app. RNNoise's weights are not in
+the runner either: they are fetched the first time RNNoise is put on, or when
+it stands in for a DPDFNet that cannot load, and handed to the runner
+(`rift_noise_filter_set_rnnoise`). While a model's files download no model
+runs, except RNNoise during DPDFNet's when its weights are on the device
+already; RNNoise is never fetched just for that.
 While a model downloads, a chip beside the window controls counts it up
 (`ModelDownloadChip`, from `ModelsCubit`), and one that failed says so there
 and tries again when pressed. Phones have no title bar, so there it is quiet.

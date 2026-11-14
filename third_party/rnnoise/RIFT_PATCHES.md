@@ -14,7 +14,10 @@ The repository leaves the trained model out and downloads it at build time
 on media.xiph.org (named for its sha256, which was checked). That is the
 default model, not the "little" one in the same archive.
 
-**One change:** `rnnoise_data.c` has its `#ifndef DISABLE_DEBUG_FLOAT` blocks
+**Two changes.** `rnnoise_model_from_buffer` in `denoise.c` sets the model's
+`file` to null, which upstream leaves unset: `rnnoise_model_free` closes it,
+so freeing a model whose weights were refused crashed (found by the runner's
+code under AddressSanitizer, Nov 15 2026). And `rnnoise_data.c` has its `#ifndef DISABLE_DEBUG_FLOAT` blocks
 removed. They hold float copies of the weights for debugging, which a build with
 `DISABLE_DEBUG_FLOAT` leaves out anyway, and which made the file 78 MB instead
 of 16. The library built from this file and from the original with
@@ -25,7 +28,17 @@ It is here, rather than fetched, so a build needs no network and the model is
 the one that was measured. Only the library is kept: the demo, the training
 tools and the x86 run-time dispatch are left out, apart from
 `src/x86/x86_arch_macros.h` and `src/x86/x86cpu.h`, which the SSE2 path
-includes.
+includes, and `src/write_weights.c`, unchanged.
+
+**The weights are not built into the app** (since Nov 15 2026). The runner
+compiles RNNoise with `USE_WEIGHTS_FILE`, which leaves `rnnoise_data.c` with
+only the code that finds each array in a weights file: 3.5 MB smaller. The app
+downloads the file the first time RNNoise is put on (`ModelCatalog.rnnoise`)
+and the runner reads it with `rnnoise_model_from_buffer`.
+`scripts/upload_models.sh` writes the file with `write_weights.c`, RNNoise's
+own `dump_weights_blob`, from `rnnoise_data.c`. Run on 1.44 million samples
+of a tone over noise, the weights from the file and the ones built in gave
+identical output, and a file cut short was refused.
 
 `native/noise_filter/CMakeLists.txt` builds it as plain C with no SIMD flags,
 so it takes the SSE2 path, which every x64 compiler but MSVC turns on by
@@ -44,4 +57,6 @@ Measured against 0.2 before the update (Oct 5 2026, offline, 48 kHz, noise at
 To update: replace these files from the repository at a newer commit and its
 `model_version`'s model, strip the debug floats again, keep the list above
 true, and replace `assets/licenses/rnnoise.txt` with its `COPYING` if that
-changed.
+changed. A new model goes up as a new file (`rnnoise.v2.bin`), with its
+`ModelCatalog` entry changed to match, since an older Rift keeps reading the
+one it pinned.

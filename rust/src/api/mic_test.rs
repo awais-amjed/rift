@@ -102,8 +102,9 @@ pub fn set_mic_test_processing(noise: MicTestNoise, auto_gain: bool) {
 
 /// Where the runner's RNNoise is: the addresses of its
 /// `rift_noise_filter_rnnoise_create`, `_process` and `_destroy`, which Dart
-/// looks up in the executable. The model is built into the runner, so the test borrows it
-/// rather than the library carrying a second copy.
+/// looks up in the executable. The runner holds the weights, which Dart downloads and
+/// hands it, so the test borrows its model rather than loading a second copy. Before the
+/// weights are there, its `create` makes nothing and the test runs without a model.
 pub fn set_mic_test_rnnoise(create: usize, process: usize, destroy: usize) {
     #[cfg(any(target_os = "windows", target_os = "linux"))]
     mic_test::set_rnnoise(create, process, destroy);

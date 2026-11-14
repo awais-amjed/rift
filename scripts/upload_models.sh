@@ -31,10 +31,12 @@ ort_windows=onnxruntime-win-x64-$ort_version.zip
 ort_windows_sha256=c4eedd29489d5feca21866d054638416f3655bf6b18851b3b6b85c8313e95c35
 
 # published name → file in this repository, ceva:<path> for a file in
-# Ceva's DPDFNet download at the commit native/dpdfnet/build.sh pins, or
-# ort:<archive>:<path> for one in an ONNX Runtime archive
+# Ceva's DPDFNet download at the commit native/dpdfnet/build.sh pins,
+# ort:<archive>:<path> for one in an ONNX Runtime archive, or rnnoise: for
+# RNNoise's weights, written from third_party/rnnoise
 models=(
   "image_safety.v1.tflite=assets/models/image_safety.tflite"
+  "rnnoise.v1.bin=rnnoise:"
   "dpdfnet8.ceva.v1.f32=ceva:models/dpdfnet8_48khz_hr/weights.f32"
   "dpdfnet2.ceva.v1.f32=ceva:models/dpdfnet2_48khz_hr/weights.f32"
   "dpdfnet8_48khz_hr.v1.onnx=rust/models/dpdfnet8_48khz_hr.onnx"
@@ -94,12 +96,29 @@ ort_file() {
   echo "$out"
 }
 
+# RNNoise's weights as RNNoise's own write_weights.c writes them from
+# rnnoise_data.c, the form rnnoise_model_from_buffer reads: the runner is built
+# without them (native/noise_filter/CMakeLists.txt). The same every time.
+rnnoise_file() {
+  local dir=$stage/rnnoise src=third_party/rnnoise
+  if [[ ! -f $dir/weights_blob.bin ]]; then
+    mkdir -p "$dir"
+    cc -O2 -w -DDISABLE_DEBUG_FLOAT -DDUMP_BINARY_WEIGHTS \
+      -I"$src/include" -I"$src/src" "$src/src/write_weights.c" \
+      -o "$dir/write_weights" -lm
+    (cd "$dir" && ./write_weights)
+  fi
+  echo "$dir/weights_blob.bin"
+}
+
 for entry in "${models[@]}"; do
   published=${entry%%=*}
   source=${entry#*=}
   if [[ $source == ceva:* ]]; then
     ceva_file "${source#ceva:}" >/dev/null
     source=$ceva/${source#ceva:}
+  elif [[ $source == rnnoise: ]]; then
+    source=$(rnnoise_file)
   elif [[ $source == ort:* ]]; then
     source=${source#ort:}
     source=$(ort_file "${source%%:*}" "${source#*:}")

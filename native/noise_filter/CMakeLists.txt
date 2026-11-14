@@ -25,8 +25,10 @@ target_include_directories(rnnoise
 )
 set_target_properties(rnnoise PROPERTIES POSITION_INDEPENDENT_CODE ON)
 # The model's float copies of its weights are for debugging, and are already
-# cut from rnnoise_data.c (third_party/rnnoise/RIFT_PATCHES.md).
-target_compile_definitions(rnnoise PRIVATE DISABLE_DEBUG_FLOAT)
+# cut from rnnoise_data.c (third_party/rnnoise/RIFT_PATCHES.md). Its weights
+# are not built in either (USE_WEIGHTS_FILE): the app downloads them the first
+# time RNNoise is put on, and hands them over (rift_noise_filter_set_rnnoise).
+target_compile_definitions(rnnoise PRIVATE DISABLE_DEBUG_FLOAT USE_WEIGHTS_FILE)
 if(MSVC)
   target_compile_options(rnnoise PRIVATE /W0)
   # MSVC never defines __SSE2__, so it would take the slower plain-C path

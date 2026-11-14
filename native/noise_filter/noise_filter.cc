@@ -4,6 +4,9 @@
 #include <atomic>
 #include <chrono>
 #include <cmath>
+#include <cstdlib>
+#include <cstring>
+#include <mutex>
 
 #include <flutter_webrtc.h>
 #include <flutter_webrtc/flutter_web_r_t_c_plugin.h>
@@ -81,21 +84,26 @@ class Timings {
   std::atomic<int64_t> worst_micros_{0};
 };
 
+// RNNoise's weights, once Dart has handed them over
+// (rift_noise_filter_set_rnnoise). Never freed: every state reads them in
+// place.
+std::atomic<RNNModel*> g_rnnoise_model{nullptr};
+
+// Held while weights are loaded, so two calls cannot both load them.
+std::mutex g_rnnoise_lock;
+
 // Called by libwebrtc on its capture thread, under a lock it holds for
 // Initialize, Reset and Process alike. What Dart sets is atomic.
 class NoiseProcessing final
     : public libwebrtc::RTCAudioProcessing::CustomProcessing {
  public:
   NoiseProcessing()
-      : rnnoise_(rnnoise_create(nullptr)),
-        paths_{{80, {6, 1}, {1, 6}},
+      : paths_{{80, {6, 1}, {1, 6}},
                {160, {3, 1}, {1, 3}},
                {320, {3, 2}, {2, 3}}} {}
 
   // Kept for the life of the process, as libwebrtc holds a raw pointer.
   ~NoiseProcessing() override = default;
-
-  bool ok() const { return rnnoise_ != nullptr; }
 
   void SetModel(int32_t model) {
     model_.store(model == kRnnoise || model == kDpdfnet ? model : kNone,
@@ -104,6 +112,16 @@ class NoiseProcessing final
 
   void SetDpdfnet(LibraryProcess process, LibraryReset reset) {
     dpdfnet_.Set(process, reset);
+  }
+
+  // RNNoise's state, made once its weights are loaded. The first one kept
+  // stays; another is freed.
+  void SetRnnoise(DenoiseState* state) {
+    DenoiseState* none = nullptr;
+    if (!rnnoise_.compare_exchange_strong(none, state,
+                                          std::memory_order_acq_rel)) {
+      rnnoise_destroy(state);
+    }
   }
 
   // The mic volume, as a gain: 1 leaves the voice as it is, and 0, the
@@ -152,7 +170,11 @@ class NoiseProcessing final
     const LibraryProcess process =
         library != nullptr ? library->process.load(std::memory_order_acquire)
                            : nullptr;
-    if (model == kNone || (library != nullptr && process == nullptr)) {
+    const bool missing =
+        (library != nullptr && process == nullptr) ||
+        (model == kRnnoise &&
+         rnnoise_.load(std::memory_order_acquire) == nullptr);
+    if (model == kNone || missing) {
       // Started afresh when one comes back on, rather than carrying on from
       // whatever it last heard.
       restart_ = true;
@@ -211,7 +233,8 @@ class NoiseProcessing final
 
   void RunModel(float* frame, LibraryProcess library) {
     if (running_ == kRnnoise) {
-      rnnoise_process_frame(rnnoise_, frame, frame);
+      rnnoise_process_frame(rnnoise_.load(std::memory_order_relaxed), frame,
+                            frame);
     } else {
       library(frame, kFrameSize);
     }
@@ -219,7 +242,9 @@ class NoiseProcessing final
 
   void Restart(int32_t model, int num_frames) {
     if (model == kRnnoise) {
-      rnnoise_init(rnnoise_, nullptr);
+      // Set before the state was (rift_noise_filter_set_rnnoise).
+      rnnoise_init(rnnoise_.load(std::memory_order_relaxed),
+                   g_rnnoise_model.load(std::memory_order_acquire));
     } else if (LibraryModel* library = Library(model)) {
       if (LibraryReset reset = library->reset.load(std::memory_order_relaxed)) {
         reset();
@@ -237,7 +262,8 @@ class NoiseProcessing final
     restart_ = false;
   }
 
-  DenoiseState* rnnoise_;
+  // Null until RNNoise's weights are loaded; never changed after.
+  std::atomic<DenoiseState*> rnnoise_{nullptr};
   RatePath paths_[3];
   RatePath* path_ = nullptr;
   float frame_[kFrameSize] = {};
@@ -280,12 +306,14 @@ bool InstallNoiseFilter() {
   // Never freed: libwebrtc keeps the pointer for as long as the factory lives,
   // and calls it from the capture thread until the process ends.
   auto* filter = new NoiseProcessing();
-  if (!filter->ok()) {
-    delete filter;
-    return false;
-  }
   processing->SetCapturePostProcessing(filter);
   g_processing.store(filter);
+  // Weights loaded before the filter was here, as they may be on Windows,
+  // where Dart starts first. Read after the store, so that weights loaded
+  // meanwhile reach the filter one way or the other (SetRnnoise keeps one).
+  if (RNNModel* model = g_rnnoise_model.load()) {
+    if (DenoiseState* state = rnnoise_create(model)) filter->SetRnnoise(state);
+  }
   return true;
 }
 
@@ -309,6 +337,31 @@ void rift_noise_filter_set_silenced(int32_t silenced) {
   }
 }
 
+int32_t rift_noise_filter_set_rnnoise(const void* data, int32_t size) {
+  std::lock_guard<std::mutex> lock(rift::g_rnnoise_lock);
+  if (rift::g_rnnoise_model.load() != nullptr) return 1;
+  if (data == nullptr || size <= 0) return 0;
+  void* blob = std::malloc(size);
+  if (blob == nullptr) return 0;
+  std::memcpy(blob, data, size);
+  RNNModel* model = rnnoise_model_from_buffer(blob, size);
+  // Loading a state is what checks the weights: it fails on a file that is
+  // not RNNoise's.
+  DenoiseState* state = model != nullptr ? rnnoise_create(model) : nullptr;
+  if (state == nullptr) {
+    if (model != nullptr) rnnoise_model_free(model);
+    std::free(blob);
+    return 0;
+  }
+  rift::g_rnnoise_model.store(model);
+  if (auto* filter = rift::g_processing.load()) {
+    filter->SetRnnoise(state);
+  } else {
+    rnnoise_destroy(state);
+  }
+  return 1;
+}
+
 void rift_noise_filter_set_dpdfnet(void* process, void* reset) {
   auto* filter = rift::g_processing.load();
   if (filter == nullptr) return;
@@ -327,7 +380,10 @@ void rift_noise_filter_take_timings(int64_t* out) {
   filter->TakeTimings(out);
 }
 
-void* rift_noise_filter_rnnoise_create(void) { return rnnoise_create(nullptr); }
+void* rift_noise_filter_rnnoise_create(void) {
+  RNNModel* model = rift::g_rnnoise_model.load();
+  return model != nullptr ? rnnoise_create(model) : nullptr;
+}
 
 void rift_noise_filter_rnnoise_process(void* state, float* frame) {
   if (state == nullptr || frame == nullptr) return;

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ffi';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 
@@ -13,16 +14,18 @@ import '../../src/rust/api/mic_test.dart';
 import '../../src/rust/api/noise_filter.dart';
 import '../helper_methods.dart';
 
+part 'noise_filter_native.dart';
+
 /// Over the helper budget and one job: switching the runner's noise models and
 /// mic volume over FFI.
 ///
 /// The noise models run inside libwebrtc's processing of the microphone, on
-/// Linux and Windows (`native/noise_filter` in the runner): RNNoise built into
-/// the runner, and DPDFNet from the Rust library, loaded the first time it is
-/// picked. One switch for the whole process: every capture track, the
-/// call's capture track goes through the same processing. The settings mic
-/// test reads the device itself, outside libwebrtc, and is handed the same
-/// choice to run there ([forMicTest]).
+/// Linux and Windows (`native/noise_filter` in the runner): RNNoise in the
+/// runner, and DPDFNet from the Rust library. Each one's files are downloaded
+/// the first time it is picked. One switch for the whole process: every
+/// capture track, the call's included, goes through the same processing. The
+/// settings mic test reads the device itself, outside libwebrtc, and is
+/// handed the same choice to run there ([forMicTest]).
 ///
 /// The mic volume runs there too, after the model ([MicVolume]).
 ///
@@ -64,8 +67,17 @@ abstract final class NoiseFilter {
   /// What DPDFNet runs from fetched and named to the Rust library, once.
   static Future<void>? _dpdfnetFiles;
 
-  /// Listening for DPDFNet's files to land, after they failed to.
+  /// Listening for a model's files to land, after they failed to.
   static StreamSubscription<ModelProgress>? _awaitingFiles;
+
+  /// Whether the runner has RNNoise's weights.
+  static bool _rnnoiseLoaded = false;
+
+  /// Whether RNNoise's weights are loading, their download included.
+  static bool _rnnoiseLoading = false;
+
+  /// RNNoise's weights being fetched and handed to the runner.
+  static Future<bool>? _rnnoiseWeights;
 
   /// Whether the mic test has been told where the runner's RNNoise is.
   static bool _rnnoiseHanded = false;
@@ -98,6 +110,11 @@ abstract final class NoiseFilter {
   static NoiseFilterWork get work {
     if (!_settled && _exports != null) return NoiseFilterWork.starting;
     if (_dpdfnetLoading && _wanted == NoiseSuppression.dpdfnet) {
+      return NoiseFilterWork.loadingModel;
+    }
+    if (_rnnoiseLoading &&
+        (_wanted == NoiseSuppression.rnnoise ||
+            _wanted == NoiseSuppression.dpdfnet)) {
       return NoiseFilterWork.loadingModel;
     }
     return NoiseFilterWork.none;
@@ -148,11 +165,13 @@ abstract final class NoiseFilter {
   static void setSilenced(bool silenced) =>
       _native?.setSilenced?.call(silenced ? 1 : 0);
 
-  /// Puts [mode]'s model on the microphone, or takes it off. DPDFNet loads
-  /// first: its files download the first time ([_fetchDpdfnetFiles]),
-  /// with RNNoise on meanwhile, then it takes about a tenth of a second, with
-  /// no model on. If it cannot load, RNNoise stands in. Before the runner's filter is there, it
-  /// waits for it ([ready]).
+  /// Puts [mode]'s model on the microphone, or takes it off. A model's files
+  /// download the first time it is put on, with no model on meanwhile
+  /// ([_loadRnnoise], [_fetchDpdfnetFiles]); while DPDFNet's do, RNNoise is
+  /// on if its weights are on the device already. DPDFNet then takes about a
+  /// tenth of a second to load, with no model on. If it cannot load, RNNoise
+  /// stands in. Before the runner's filter is there, it waits for it
+  /// ([ready]).
   static Future<void> use(NoiseSuppression mode) async {
     _wanted = mode;
     if (!_settled) {
@@ -165,7 +184,7 @@ abstract final class NoiseFilter {
       case NoiseSuppression.off || NoiseSuppression.standard:
         native.setModel(_Model.none);
       case NoiseSuppression.rnnoise:
-        native.setModel(_Model.rnnoise);
+        await _useRnnoise(native, NoiseSuppression.rnnoise);
       case NoiseSuppression.dpdfnet:
         await _useDpdfnet(native);
     }
@@ -177,18 +196,19 @@ abstract final class NoiseFilter {
       try {
         final files = _fetchDpdfnetFiles();
         // A download can take a while, a call's whole start; the load
-        // alone does not.
-        native.setModel(_Model.rnnoise);
+        // alone does not. RNNoise is not fetched for it.
+        final standIn = await _rnnoiseHere(native)
+            ? _Model.rnnoise
+            : _Model.none;
+        if (_wanted == NoiseSuppression.dpdfnet) native.setModel(standIn);
         await files;
         if (_wanted == NoiseSuppression.dpdfnet) native.setModel(_Model.none);
         final entry = await loadDpdfnet();
         native.setDpdfnet(entry.process.toInt(), entry.reset.toInt());
         _dpdfnetHanded = true;
-        await _awaitingFiles?.cancel();
-        _awaitingFiles = null;
       } on ModelUnavailable catch (e) {
         HelperMethods.printDebug('DPDFNet unavailable: $e');
-        _useDpdfnetOnceFetched();
+        _useOnceFetched();
       } catch (e) {
         HelperMethods.printDebug('DPDFNet unavailable: $e');
       } finally {
@@ -196,7 +216,69 @@ abstract final class NoiseFilter {
       }
       if (_wanted != NoiseSuppression.dpdfnet) return;
     }
-    native.setModel(_dpdfnetHanded ? _Model.dpdfnet : _Model.rnnoise);
+    if (_dpdfnetHanded) {
+      native.setModel(_Model.dpdfnet);
+    } else {
+      await _useRnnoise(native, NoiseSuppression.dpdfnet);
+    }
+  }
+
+  /// Puts RNNoise on for [mode], chosen or standing in for DPDFNet, once its
+  /// weights are loaded, with no model on while they download.
+  static Future<void> _useRnnoise(
+    _NativeFilter native,
+    NoiseSuppression mode,
+  ) async {
+    if (!_rnnoiseLoaded) {
+      native.setModel(_Model.none);
+      _rnnoiseLoading = true;
+      final bool loaded;
+      try {
+        loaded = await _loadRnnoise(native);
+      } finally {
+        _rnnoiseLoading = false;
+      }
+      if (!loaded) _useOnceFetched();
+      if (!loaded || _wanted != mode) return;
+      if (mode == NoiseSuppression.dpdfnet && _dpdfnetHanded) return;
+    }
+    native.setModel(_Model.rnnoise);
+  }
+
+  /// Whether RNNoise can go on without a download: loaded, or its weights on
+  /// the device from an earlier run, which are loaded now.
+  static Future<bool> _rnnoiseHere(_NativeFilter native) async {
+    if (_rnnoiseLoaded) return true;
+    if (await ModelRepository.instance.present(ModelCatalog.rnnoise) == null) {
+      return false;
+    }
+    return _loadRnnoise(native);
+  }
+
+  /// Fetches RNNoise's weights and hands them to the runner, which carries
+  /// none of its own, for the call's model and the mic test's alike. Once;
+  /// a failure is tried again on the next ask. True once the runner has them.
+  static Future<bool> _loadRnnoise(_NativeFilter native) async {
+    if (_rnnoiseLoaded) return true;
+    final loading = _rnnoiseWeights ??= _loadRnnoiseOnce(native);
+    final loaded = await loading;
+    if (!loaded && identical(_rnnoiseWeights, loading)) _rnnoiseWeights = null;
+    return loaded;
+  }
+
+  static Future<bool> _loadRnnoiseOnce(_NativeFilter native) async {
+    try {
+      final file = await ModelRepository.instance.fetch(ModelCatalog.rnnoise);
+      if (!native.setRnnoise(await file.readAsBytes())) {
+        HelperMethods.printDebug('RNNoise: the runner refused its weights');
+        return false;
+      }
+      HelperMethods.printDebug('RNNoise loaded');
+      return _rnnoiseLoaded = true;
+    } catch (e) {
+      HelperMethods.printDebug('RNNoise unavailable: $e');
+      return false;
+    }
   }
 
   /// Fetches what DPDFNet runs from here and names it to the Rust library,
@@ -241,18 +323,32 @@ abstract final class NoiseFilter {
     }
   }
 
-  /// After DPDFNet's files failed to download, puts DPDFNet on once they
-  /// land, which they do when the person presses retry in the title bar.
-  static void _useDpdfnetOnceFetched() {
+  /// After a model's files failed to download, puts the chosen model on
+  /// once they land, which they do when the person presses retry in the
+  /// title bar. Kept until the chosen model is on.
+  static void _useOnceFetched() {
     _awaitingFiles ??= ModelRepository.instance.progress
         .where(
           (p) =>
               p.status == ModelStatus.success &&
-              ModelCatalog.dpdfnet.contains(p.file),
+              (p.file == ModelCatalog.rnnoise ||
+                  ModelCatalog.dpdfnet.contains(p.file)),
         )
-        .listen((_) {
-          if (_wanted == NoiseSuppression.dpdfnet && !_dpdfnetLoading) {
-            unawaited(use(NoiseSuppression.dpdfnet));
+        .listen((_) async {
+          final wanted = _wanted;
+          if ((wanted != NoiseSuppression.rnnoise &&
+                  wanted != NoiseSuppression.dpdfnet) ||
+              _dpdfnetLoading ||
+              _rnnoiseLoading) {
+            return;
+          }
+          await use(wanted!);
+          final on = wanted == NoiseSuppression.dpdfnet
+              ? _dpdfnetHanded
+              : _rnnoiseLoaded;
+          if (on && _wanted == wanted) {
+            await _awaitingFiles?.cancel();
+            _awaitingFiles = null;
           }
         });
   }
@@ -322,163 +418,32 @@ abstract final class NoiseFilter {
       _rnnoiseHanded = true;
     }
     final hasModels = native?.rnnoise != null;
-    var dpdfnet = hasModels;
-    if (dpdfnet && mode == NoiseSuppression.dpdfnet) {
+    // Without its weights the call has no model on, and nor does the test.
+    Future<MicTestNoise> rnnoise() async =>
+        await _loadRnnoise(native!) ? MicTestNoise.rnnoise : MicTestNoise.off;
+    Future<bool> dpdfnet() async {
       try {
         await _fetchDpdfnetFiles();
+        return true;
       } catch (e) {
-        // The call has RNNoise stand in, and so does the test.
-        dpdfnet = false;
+        return false;
       }
     }
+
     await setMicTestProcessing(
       noise: switch (mode) {
         NoiseSuppression.off => MicTestNoise.off,
         NoiseSuppression.standard => MicTestNoise.standard,
         // Where the runner has no models the call falls back to the built-in
         // suppressor, and so does the test.
-        NoiseSuppression.rnnoise =>
-          hasModels ? MicTestNoise.rnnoise : MicTestNoise.standard,
+        NoiseSuppression.rnnoise ||
+        NoiseSuppression.dpdfnet when !hasModels => MicTestNoise.standard,
+        NoiseSuppression.rnnoise => await rnnoise(),
+        // The call has RNNoise stand in, and so does the test.
         NoiseSuppression.dpdfnet =>
-          dpdfnet
-              ? MicTestNoise.dpdfnet
-              : hasModels
-              ? MicTestNoise.rnnoise
-              : MicTestNoise.standard,
+          await dpdfnet() ? MicTestNoise.dpdfnet : await rnnoise(),
       },
       autoGain: autoGain,
-    );
-  }
-}
-
-/// The values `rift_noise_filter_set_model` takes.
-abstract final class _Model {
-  static const none = 0;
-  static const rnnoise = 1;
-  // 2 was DeepFilterNet.
-  static const dpdfnet = 3;
-}
-
-class _NativeFilter {
-  /// Whether the runner has put its filter on the microphone.
-  final bool Function() available;
-
-  final void Function(int) setModel;
-  final void Function(double) setGain;
-
-  /// `rift_noise_filter_set_dpdfnet`; null from a runner built before it.
-  final void Function(Pointer<Void>, Pointer<Void>)? _setDpdfnet;
-
-  /// `rift_noise_filter_take_timings`; null from a runner built before it.
-  final void Function(Pointer<Int64>)? _takeTimings;
-
-  /// Null from a runner built before it exported one.
-  final void Function(int)? setSilenced;
-
-  /// The runner's RNNoise for the mic test, by address; null from a runner
-  /// built before it exported them.
-  final ({int create, int process, int destroy})? rnnoise;
-
-  const _NativeFilter(
-    this.available,
-    this.setModel,
-    this.setGain,
-    this._setDpdfnet,
-    this._takeTimings,
-    this.setSilenced,
-    this.rnnoise,
-  );
-
-  bool get canDpdfnet => _setDpdfnet != null;
-
-  /// Hands the runner DPDFNet's frame and reset functions.
-  void setDpdfnet(int process, int reset) {
-    final set = _setDpdfnet;
-    if (set == null) throw StateError('this runner cannot take DPDFNet');
-    set(Pointer.fromAddress(process), Pointer.fromAddress(reset));
-  }
-
-  ({int frames, int over5ms, int over10ms, int worstMicros})? takeTimings() {
-    final take = _takeTimings;
-    if (take == null) return null;
-    final out = calloc<Int64>(4);
-    try {
-      take(out);
-      return (
-        frames: out[0],
-        over5ms: out[1],
-        over10ms: out[2],
-        worstMicros: out[3],
-      );
-    } finally {
-      calloc.free(out);
-    }
-  }
-
-  static _NativeFilter? load() {
-    if (!Platform.isLinux && !Platform.isWindows) return null;
-    try {
-      final exe = DynamicLibrary.executable();
-      if (!exe.providesSymbol('rift_noise_filter_available')) return null;
-      final available = exe.lookupFunction<Int32 Function(), int Function()>(
-        'rift_noise_filter_available',
-      );
-      return _NativeFilter(
-        () => available() == 1,
-        exe.lookupFunction<Void Function(Int32), void Function(int)>(
-          'rift_noise_filter_set_model',
-        ),
-        exe.lookupFunction<Void Function(Float), void Function(double)>(
-          'rift_noise_filter_set_gain',
-        ),
-        exe.providesSymbol(_setDpdfnetName)
-            ? exe.lookupFunction<
-                Void Function(Pointer<Void>, Pointer<Void>),
-                void Function(Pointer<Void>, Pointer<Void>)
-              >(_setDpdfnetName)
-            : null,
-        exe.providesSymbol(_takeTimingsName)
-            ? exe.lookupFunction<
-                Void Function(Pointer<Int64>),
-                void Function(Pointer<Int64>)
-              >(_takeTimingsName)
-            : null,
-        exe.providesSymbol(_setSilencedName)
-            ? exe.lookupFunction<Void Function(Int32), void Function(int)>(
-                _setSilencedName,
-              )
-            : null,
-        _rnnoiseIn(exe),
-      );
-    } catch (e) {
-      HelperMethods.printDebug('Noise filter unavailable: $e');
-      return null;
-    }
-  }
-
-  static const _takeTimingsName = 'rift_noise_filter_take_timings';
-  static const _setDpdfnetName = 'rift_noise_filter_set_dpdfnet';
-  static const _setSilencedName = 'rift_noise_filter_set_silenced';
-
-  static ({int create, int process, int destroy})? _rnnoiseIn(
-    DynamicLibrary exe,
-  ) {
-    const names = (
-      create: 'rift_noise_filter_rnnoise_create',
-      process: 'rift_noise_filter_rnnoise_process',
-      destroy: 'rift_noise_filter_rnnoise_destroy',
-    );
-    if (![
-      names.create,
-      names.process,
-      names.destroy,
-    ].every(exe.providesSymbol)) {
-      return null;
-    }
-    return (
-      create: exe.lookup<Void>(names.create).address,
-      process: exe.lookup<Void>(names.process).address,
-      destroy: exe.lookup<Void>(names.destroy).address,
     );
   }
 }
