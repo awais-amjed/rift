@@ -133,10 +133,24 @@ done
 
 [[ ${1:-} == --upload ]] || exit 0
 
+# The GitHub mirror is pushed from Forgejo (origin) and drops a tag origin
+# lacks; GitHub then turns the release back into a draft, which the app
+# cannot download from. So the tag has to be on origin, and the release public.
+if ! git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
+  echo "the tag $tag is not on origin: the next mirror push would delete it on GitHub." >&2
+  echo "push it first: git tag $tag origin/dev && git push origin refs/tags/$tag" >&2
+  exit 1
+fi
 if ! gh release view "$tag" --repo "$repo" >/dev/null 2>&1; then
   gh release create "$tag" --repo "$repo" --prerelease --latest=false \
     --title "Models" \
     --notes "Files Rift downloads instead of shipping. Each is pinned by its SHA-256 in the app (lib/data/model_catalog.dart); files are only ever added here, never replaced."
+fi
+
+if [[ $(gh release view "$tag" --repo "$repo" --json isDraft --jq .isDraft) == true ]]; then
+  echo "the release $tag is a draft, so nothing in it can be downloaded." >&2
+  echo "publish it: gh release edit $tag --repo $repo --draft=false --prerelease --latest=false" >&2
+  exit 1
 fi
 
 have=$(gh release view "$tag" --repo "$repo" --json assets --jq '.assets[].name')

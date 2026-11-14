@@ -949,7 +949,11 @@ from there with a `Range` request; one that fails is asked for again when the
 model is next needed, at most once a minute. The release only gains files
 (`scripts/upload_models.sh` adds them and prints the pinned entry): a new
 version is a new name and hash, so an update fetches it and an older copy
-keeps finding its own. The version an update no longer uses is deleted once
+keeps finding its own. The release's tag, `models`, is in the Forgejo
+repository too: the GitHub mirror is pushed from there and loses any tag
+Forgejo lacks, and GitHub turns a release whose tag is gone back into a draft
+that nobody signed out can download. That happened on Nov 15 2026, and the
+script now refuses to upload while either is so. The version an update no longer uses is deleted once
 nothing has touched it for two weeks, since another build on the same device
 may still be using it. Verified Nov 15 2026 against a stand-in server in the
 tests (resume, a server that ignores the range, a dropped connection, a bad
