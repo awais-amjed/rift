@@ -814,7 +814,13 @@ still redraws its own panel), and a clip is sound in the call, so the soundboard
 needs Speak as well as its own bit and Listen-only takes it. A press is a data
 packet the server never sees, so the server holds it back at LiveKit instead: only a
 connection with both bits may send data (`canPublishData`), and a press is the only
-packet a member sends. The
+packet a member sends. A call token is good for an hour and says what was true when it
+was minted, so every join is checked again against the rules as they are now
+(`livekit_webhook`): an app that kept an old token and rejoined with it is pushed back
+to muted, Listen-only or without the soundboard, or removed if the server would no
+longer let it in at all. Blocking files is only as strong as the file's name: the
+server checks the channel an upload is named for, but the message linking it is
+sealed, so a file uploaded under another channel can still be linked here. The
 editor shows a file, a poll, `@all`, sharing or the soundboard blocked while what it
 needs is, without storing it (`ChannelOverride.needs`).
 An `@all` is the row's flag, not the words: the body is sealed, so the server can
