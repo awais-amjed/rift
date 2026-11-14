@@ -29,6 +29,9 @@ models=(
 
 stage=$(mktemp -d)
 trap 'rm -rf "$stage"' EXIT
+# what goes up, apart from Ceva's download, which is unpacked beside it
+upload=$stage/upload
+mkdir "$upload"
 
 # Ceva's download, fetched once and checked against build.sh's hash, as the
 # build checks it; RIFT_DPDFNET_TARBALL names one already here.
@@ -63,7 +66,7 @@ for entry in "${models[@]}"; do
   hash=$(sha256sum "$source" | cut -d' ' -f1)
   printf "%s\n  published: '%s',\n  size: %s,\n  sha256: '%s',\n\n" \
     "$source" "$published" "$size" "$hash"
-  cp "$source" "$stage/$published"
+  cp "$source" "$upload/$published"
 done
 
 [[ ${1:-} == --upload ]] || exit 0
@@ -75,7 +78,7 @@ if ! gh release view "$tag" --repo "$repo" >/dev/null 2>&1; then
 fi
 
 have=$(gh release view "$tag" --repo "$repo" --json assets --jq '.assets[].name')
-for file in "$stage"/*; do
+for file in "$upload"/*; do
   name=$(basename "$file")
   if grep -qxF "$name" <<<"$have"; then
     echo "already there: $name"

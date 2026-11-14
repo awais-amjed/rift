@@ -942,9 +942,9 @@ tests (resume, a server that ignores the range, a dropped connection, a bad
 hash, cleanup), and against the real release with a Linux debug build: the
 first start fetched the file and it matched its hash, the second fetched
 nothing. Not yet seen: the classifier scoring a picture from the downloaded file.
-DPDFNet's weights the same way on Nov 15, from a local server: the first start
-fetched both and loaded the models on Ceva's runtime, the second fetched
-nothing.
+DPDFNet's weights the same way on Nov 15, from a local server and then the
+real release: the first start fetched both and loaded the models on Ceva's
+runtime, the second fetched nothing.
 
 ## 9. The app's log and bug reports — [Implemented October 2026]
 
