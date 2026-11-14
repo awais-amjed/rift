@@ -32,7 +32,15 @@ class RoleChip extends StatelessWidget {
   /// How much of the name fits here.
   final int maxChars;
 
-  const RoleChip({super.key, required this.role, this.maxChars = 8});
+  /// How strongly it is drawn ([LabelPill.opacity]).
+  final double opacity;
+
+  const RoleChip({
+    super.key,
+    required this.role,
+    this.maxChars = 8,
+    this.opacity = 1,
+  });
 
   String get _label {
     final name = role.name.trim().toUpperCase();
@@ -46,6 +54,6 @@ class RoleChip extends StatelessWidget {
     // A role that was given no colour is drawn in the neutral fill, rather
     // than being invented one: leaving it uncoloured is a choice somebody made
     // in the editor.
-    return LabelPill(label: _label, color: role.displayColor);
+    return LabelPill(label: _label, color: role.displayColor, opacity: opacity);
   }
 }

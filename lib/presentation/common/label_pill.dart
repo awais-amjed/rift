@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../data/constants.dart';
 import '../theme/app_text.dart';
+import '../theme/faded.dart';
 import '../theme/theme_context.dart';
 
 /// A short word in a tinted pill: a role beside a name, a Bot tag, a Banned
@@ -17,7 +18,17 @@ import '../theme/theme_context.dart';
 class LabelPill extends StatelessWidget {
   final String label;
   final Color? color;
-  const LabelPill({super.key, required this.label, this.color});
+
+  /// How strongly it is drawn, 1 for full strength: its colours fade rather
+  /// than the pill going into a layer of its own.
+  final double opacity;
+
+  const LabelPill({
+    super.key,
+    required this.label,
+    this.color,
+    this.opacity = 1,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -26,15 +37,17 @@ class LabelPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
       decoration: BoxDecoration(
-        color: colour == null
-            ? themeState.bgHover
-            : colour.withValues(alpha: 0.16),
+        color:
+            (colour == null
+                    ? themeState.bgHover
+                    : colour.withValues(alpha: 0.16))
+                .faded(opacity),
         borderRadius: BorderRadius.circular(K.radiusPill),
       ),
       child: Text(
         label.toUpperCase(),
         style: AppText.roleChip.copyWith(
-          color: colour ?? themeState.textTertiary,
+          color: (colour ?? themeState.textTertiary).faded(opacity),
         ),
       ),
     );

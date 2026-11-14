@@ -32,12 +32,17 @@ class RoundedPicture extends StatefulWidget {
   /// Drawn until the picture is ready, and instead of it if it fails.
   final Widget? fallback;
 
+  /// How strongly it is drawn, 1 for full strength: the paint's own alpha,
+  /// so no layer is needed to fade it.
+  final double opacity;
+
   const RoundedPicture({
     super.key,
     required this.image,
     required this.size,
     required this.radius,
     this.fallback,
+    this.opacity = 1,
   });
 
   @override
@@ -110,7 +115,7 @@ class _RoundedPictureState extends State<RoundedPicture> {
     }
     return CustomPaint(
       size: Size.square(widget.size),
-      painter: _SquarePainter(info.image),
+      painter: _SquarePainter(info.image, widget.opacity),
     );
   }
 }
@@ -118,8 +123,9 @@ class _RoundedPictureState extends State<RoundedPicture> {
 /// The picture, corners already cut, over the whole box.
 class _SquarePainter extends CustomPainter {
   final ui.Image image;
+  final double opacity;
 
-  const _SquarePainter(this.image);
+  const _SquarePainter(this.image, this.opacity);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -127,10 +133,13 @@ class _SquarePainter extends CustomPainter {
       image,
       Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
       Offset.zero & size,
-      Paint()..filterQuality = FilterQuality.medium,
+      Paint()
+        ..filterQuality = FilterQuality.medium
+        ..color = Color.fromRGBO(0, 0, 0, opacity),
     );
   }
 
   @override
-  bool shouldRepaint(_SquarePainter old) => !identical(old.image, image);
+  bool shouldRepaint(_SquarePainter old) =>
+      !identical(old.image, image) || old.opacity != opacity;
 }

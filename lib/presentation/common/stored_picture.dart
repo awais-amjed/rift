@@ -32,6 +32,9 @@ class StoredPicture extends StatelessWidget {
   /// Corner radius; defaults to the avatar's, size/3.
   final double? radius;
 
+  /// How strongly it is drawn, 1 for full strength ([SquircleAvatar.opacity]).
+  final double opacity;
+
   const StoredPicture({
     super.key,
     required this.origin,
@@ -40,6 +43,7 @@ class StoredPicture extends StatelessWidget {
     required this.size,
     this.seed,
     this.radius,
+    this.opacity = 1,
   });
 
   @override
@@ -59,11 +63,17 @@ class StoredPicture extends StatelessWidget {
           image: MemoryImage(bytes),
           size: size,
           radius: radius ?? size * K.avatarRadiusRatio,
+          opacity: opacity,
         );
       },
     );
   }
 
-  Widget _fallback() =>
-      SquircleAvatar(name: name, seed: seed, size: size, radius: radius);
+  Widget _fallback() => SquircleAvatar(
+    name: name,
+    seed: seed,
+    size: size,
+    radius: radius,
+    opacity: opacity,
+  );
 }

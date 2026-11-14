@@ -13,6 +13,7 @@ import '../../../../common/server_scope.dart';
 import '../../../../common/user_avatar.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
+import '../../../../theme/faded.dart';
 import '../../../../theme/theme_context.dart';
 import '../../channels/channel_list/widgets/voice_channel_tile/widgets/member_card/member_card_anchor.dart';
 import '../../channels/channel_list/widgets/voice_channel_tile/widgets/member_card/member_card_layout.dart';
@@ -94,53 +95,57 @@ class MemberRow extends StatelessWidget {
   Widget _buildRow(BuildContext context, VoidCallback openCard) {
     final themeState = context.theme;
     final locallyMuted = setting?.muted ?? false;
-    // Offline members stay on the list but recede — the roster should be a
-    // stable thing you can right-click, not a list that reshuffles as people
-    // come and go.
-    final dim = isOnline == false ? 0.4 : 1.0;
+    final dim = _dim;
 
-    return Opacity(
-      opacity: dim,
-      // A well, because clicking a person opens their card — their profile
-      // is a click on its avatar. It used to do nothing at all: the profile
-      // was in the right-click menu and the row did not even change the
-      // cursor, so there was nothing to say the row was live.
-      child: Material(
-        color: Colors.transparent,
+    // A well, because clicking a person opens their card — their profile
+    // is a click on its avatar. It used to do nothing at all: the profile
+    // was in the right-click menu and the row did not even change the
+    // cursor, so there was nothing to say the row was live.
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(K.radiusRow),
+      child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         borderRadius: BorderRadius.circular(K.radiusRow),
-        child: InkWell(
-          mouseCursor: WidgetStateMouseCursor.clickable,
-          borderRadius: BorderRadius.circular(K.radiusRow),
-          hoverColor: themeState.bgHover,
-          onTap: openCard,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            child: Row(
-              spacing: 9,
-              children: [
-                _avatar(context),
-                Expanded(
-                  child: Text(
-                    member.displayName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.rowQuiet.copyWith(
-                      // A role's colour is the point of giving it one, and the
-                      // name is the only thing on this row long enough to
-                      // carry it. Uncoloured roles leave the name alone.
-                      color:
-                          colourRole?.displayColor ?? themeState.textSecondary,
-                    ),
+        hoverColor: themeState.bgHover,
+        onTap: openCard,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: Row(
+            spacing: 9,
+            children: [
+              _avatar(context),
+              Expanded(
+                child: Text(
+                  member.displayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.rowQuiet.copyWith(
+                    // A role's colour is the point of giving it one, and the
+                    // name is the only thing on this row long enough to
+                    // carry it. Uncoloured roles leave the name alone.
+                    color:
+                        (colourRole?.displayColor ?? themeState.textSecondary)
+                            .faded(dim),
                   ),
                 ),
-                ..._badges(locallyMuted),
-              ],
-            ),
+              ),
+              ..._badges(locallyMuted, dim),
+            ],
           ),
         ),
       ),
     );
   }
+
+  /// Offline members stay on the list but recede — the roster should be a
+  /// stable thing you can right-click, not a list that reshuffles as people
+  /// come and go.
+  ///
+  /// Each part fades in its own colours. An `Opacity` round the row drew
+  /// every offline row into a layer of its own, every frame the window drew,
+  /// and a server's list is mostly people offline.
+  double get _dim => isOnline == false ? 0.4 : 1.0;
 
   Widget _avatar(BuildContext context) {
     final themeState = context.theme;
@@ -152,6 +157,7 @@ class MemberRow extends StatelessWidget {
           name: member.displayName,
           seed: member.id,
           size: 28,
+          opacity: _dim,
         ),
         // Presence dot, ringed in the panel colour so it reads as a cut-out.
         if (isOnline != null)
@@ -164,7 +170,7 @@ class MemberRow extends StatelessWidget {
               decoration: BoxDecoration(
                 color: isOnline!
                     ? CustomColors.userStatusOnline
-                    : themeState.textQuaternary,
+                    : themeState.textQuaternary.faded(_dim),
                 shape: BoxShape.circle,
                 border: Border.all(color: themeState.bgSecondary, width: 2),
               ),
@@ -174,30 +180,30 @@ class MemberRow extends StatelessWidget {
     );
   }
 
-  List<Widget> _badges(bool locallyMuted) {
+  List<Widget> _badges(bool locallyMuted, double dim) {
     final badges = <Widget>[];
     // One chip, not all of them. The row is already carrying a name, a
     // presence dot and up to two moderation icons; every role somebody holds
     // belongs in the members dialog, where there is room and where somebody
     // has gone looking.
     if (role case final role?) {
-      badges.add(RoleChip(role: role));
+      badges.add(RoleChip(role: role, opacity: dim));
     }
     if (member.isMuted) {
       badges.add(
-        const Icon(
+        Icon(
           Icons.mic_off_rounded,
           size: K.iconInline,
-          color: CustomColors.error,
+          color: CustomColors.error.faded(dim),
         ),
       );
     }
     if (locallyMuted) {
       badges.add(
-        const Icon(
+        Icon(
           Icons.volume_off_rounded,
           size: K.iconInline,
-          color: CustomColors.error,
+          color: CustomColors.error.faded(dim),
         ),
       );
     }

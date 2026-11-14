@@ -76,6 +76,25 @@ void main() {
     expect(find.text('ONLINE — 3'), findsOneWidget);
   });
 
+  testWidgets('offline rows fade by colour, not in a layer each', (
+    tester,
+  ) async {
+    await pump(tester, {'m0', 'm1'});
+    // An Opacity round each offline row drew it into a layer of its own on
+    // every frame the window drew.
+    expect(
+      find.descendant(
+        of: find.byType(MemberRow),
+        matching: find.byType(Opacity),
+      ),
+      findsNothing,
+    );
+    double alphaOf(String name) =>
+        tester.widget<Text>(find.text(name)).style!.color!.a;
+    final online = alphaOf('Member 01');
+    expect(alphaOf('Member 07'), closeTo(online * 0.4, 0.01));
+  });
+
   testWidgets('nothing changing redraws no row', (tester) async {
     await pump(tester, {'m0', 'm1'});
     final counts = await countRebuilds(() => pump(tester, {'m0', 'm1'}));

@@ -22,12 +22,16 @@ class UserAvatar extends StatefulWidget {
   /// the name means a rename changes someone's colour.
   final String? seed;
 
+  /// How strongly it is drawn, 1 for full strength ([SquircleAvatar.opacity]).
+  final double opacity;
+
   const UserAvatar({
     super.key,
     required this.avatarPath,
     required this.name,
     required this.size,
     this.seed,
+    this.opacity = 1,
   });
 
   @override
@@ -71,5 +75,6 @@ class _UserAvatarState extends State<UserAvatar> {
     name: widget.name,
     seed: widget.seed,
     size: widget.size,
+    opacity: widget.opacity,
   );
 }

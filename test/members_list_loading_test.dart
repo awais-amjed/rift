@@ -9,6 +9,7 @@ import 'package:rift/logic/cubits/app/app_cubit.dart';
 import 'package:rift/logic/cubits/server_members/server_members_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/presentation/common/loading_dots.dart';
+import 'package:rift/presentation/common/user_avatar.dart';
 import 'package:rift/presentation/screens/home/members_sidebar/widgets/member_row.dart';
 import 'package:rift/presentation/screens/home/members_sidebar/widgets/members_sidebar_list.dart';
 
@@ -70,17 +71,15 @@ void main() {
     );
   }
 
-  /// The opacity each row is drawn at.
+  /// The strength each row is drawn at, which its avatar is faded to.
   List<double> rowOpacities(WidgetTester tester) => [
     for (final row in find.byType(MemberRow).evaluate())
       tester
-          .widget<Opacity>(
-            find
-                .descendant(
-                  of: find.byWidget(row.widget),
-                  matching: find.byType(Opacity),
-                )
-                .first,
+          .widget<UserAvatar>(
+            find.descendant(
+              of: find.byWidget(row.widget),
+              matching: find.byType(UserAvatar),
+            ),
           )
           .opacity,
   ];

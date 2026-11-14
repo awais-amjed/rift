@@ -46,12 +46,18 @@ class SquircleAvatar extends StatelessWidget {
   /// takes a softer corner, since size/3 on a 96px square reads as a circle.
   final double? radius;
 
+  /// How strongly it is drawn, 1 for full strength. Faded in its own colours
+  /// rather than under an `Opacity`, which draws it into a layer of its own
+  /// every frame (the members list dims everybody offline).
+  final double opacity;
+
   const SquircleAvatar({
     super.key,
     required this.name,
     this.seed,
     this.size = 40,
     this.radius,
+    this.opacity = 1,
   });
 
   @override
@@ -66,14 +72,16 @@ class SquircleAvatar extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        gradient: identity.gradient,
+        gradient: opacity < 1
+            ? identity.gradient.withOpacity(opacity)
+            : identity.gradient,
         borderRadius: radius,
       ),
       alignment: Alignment.center,
       child: Text(
         initialOf(name),
         style: TextStyle(
-          color: identity.onColor,
+          color: identity.onColor.withValues(alpha: opacity),
           fontWeight: FontWeight.w700,
           // Tracks the box so one avatar widget covers 22px sidebar rows and
           // 40px rail chips without a second size scale.
