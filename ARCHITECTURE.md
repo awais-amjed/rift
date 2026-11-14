@@ -809,6 +809,12 @@ channel's rules are saved through an edge function (`set_channel_override`) that
 gives or takes the microphone of whoever is in the call at once; the rest is asked
 at the next join, share or press. The app is told its own bits per channel
 (`my_permissions`) only to hide what would be refused.
+Where a member can't post they can't edit either (`messages_update_own`; a bot
+still redraws its own panel), and a clip is sound in the call, so the soundboard
+needs Speak as well as its own bit and Listen-only takes it. That one is the
+presser's app's to check: a press is a data packet the server never sees. The
+editor shows a file, a poll, `@all`, sharing or the soundboard blocked while what it
+needs is, without storing it (`ChannelOverride.needs`).
 An `@all` is the row's flag, not the words: the body is sealed, so the server can
 only drop `mentions_all`, and the app highlights and announces `@all` where the row
 kept it (`ChatMessage.mentionsAll`, `Mentions.mentionableFor`).

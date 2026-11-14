@@ -4,6 +4,7 @@ import 'package:rift/data/classes/channel_override.dart';
 import 'package:rift/data/classes/user_permissions.dart';
 import 'package:rift/data/enums/channel_type.dart';
 import 'package:rift/data/enums/server_permission.dart';
+import 'package:rift/logic/cubits/soundboard/soundboard_cubit.dart';
 
 void main() {
   group('ChannelOverride', () {
@@ -108,7 +109,7 @@ void main() {
     });
 
     test('what goes out in a message needs Send; what happens in a call, '
-        'Join', () {
+        'Connect', () {
       for (final p in [
         ServerPermission.attachFiles,
         ServerPermission.createPolls,
@@ -116,13 +117,14 @@ void main() {
       ]) {
         expect(ChannelOverride.needs(p), ServerPermission.sendMessages);
       }
-      for (final p in [
-        ServerPermission.speak,
-        ServerPermission.screenShare,
-        ServerPermission.useSoundboard,
-      ]) {
+      for (final p in [ServerPermission.speak, ServerPermission.screenShare]) {
         expect(ChannelOverride.needs(p), ServerPermission.connect);
       }
+      // A clip is sound in the call: Listen-only takes it.
+      expect(
+        ChannelOverride.needs(ServerPermission.useSoundboard),
+        ServerPermission.speak,
+      );
       for (final p in [
         ServerPermission.addReactions,
         ServerPermission.pinMessages,
@@ -169,6 +171,26 @@ void main() {
         myPermissions: 5,
       );
       expect(Channel.fromJson(news.toJson()), news);
+    });
+
+    test('Listen-only takes the soundboard too', () {
+      final both = UserPermissions(
+        bits:
+            ServerPermission.useSoundboard.mask | ServerPermission.speak.mask,
+      );
+      expect(SoundboardCubit.mayPlay(both), isTrue);
+      expect(
+        SoundboardCubit.mayPlay(
+          UserPermissions(bits: ServerPermission.useSoundboard.mask),
+        ),
+        isFalse,
+      );
+      expect(
+        SoundboardCubit.mayPlay(
+          UserPermissions(bits: ServerPermission.speak.mask),
+        ),
+        isFalse,
+      );
     });
   });
 }

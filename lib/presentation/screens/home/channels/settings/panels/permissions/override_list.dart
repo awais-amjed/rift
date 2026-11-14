@@ -45,6 +45,26 @@ class OverrideList extends StatelessWidget {
   /// `@everyone`'s own row is applied as the role's row, not before it.
   ChannelOverride? get _before => role.isEveryone ? null : everyoneRow;
 
+  /// The first bit up [permission]'s chain (`ChannelOverride.needs`) that
+  /// this role doesn't get here, if any.
+  ServerPermission? _blockedBy(ServerPermission permission) {
+    for (
+      var needed = ChannelOverride.needs(permission);
+      needed != null;
+      needed = ChannelOverride.needs(needed)
+    ) {
+      if (!ChannelOverride.resultFor(
+        needed,
+        row: row,
+        serverBits: _serverBits,
+        everyoneRow: _before,
+      )) {
+        return needed;
+      }
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final who = role.isEveryone ? 'everyone' : role.name;
@@ -63,17 +83,7 @@ class OverrideList extends StatelessWidget {
     // A file, a poll or @all where they can't post — shown blocked, and not
     // offered, while the bit they need is. Nothing is stored for it, so
     // lifting Read-only brings back whatever was chosen.
-    final needed = ChannelOverride.needs(permission);
-    final blockedBy =
-        needed != null &&
-            !ChannelOverride.resultFor(
-              needed,
-              row: row,
-              serverBits: _serverBits,
-              everyoneRow: _before,
-            )
-        ? needed
-        : null;
+    final blockedBy = _blockedBy(permission);
     if (blockedBy != null) {
       return OverrideRow(
         permission: permission,

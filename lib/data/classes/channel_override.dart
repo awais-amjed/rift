@@ -81,18 +81,20 @@ class ChannelOverride extends Equatable {
   };
 
   /// The bit [permission] cannot be used without in a channel, if any: a
-  /// file, a poll and `@all` all go out inside a message, and speaking,
-  /// sharing and the soundboard all happen inside the call. The editor shows
-  /// such a bit blocked while its prerequisite is, without storing it.
-  /// Summoning a bot is not here: `summon_bot_to_voice` asks only for itself.
+  /// file, a poll and `@all` all go out inside a message, speaking and
+  /// sharing happen inside the call, and a clip is sound in it, so Listen-only
+  /// takes the soundboard too (`SoundboardCubit`). A chain: the soundboard
+  /// needs Speak, which needs Connect. The editor shows such a bit blocked
+  /// while what it needs is, without storing it. Summoning a bot is not
+  /// here: `summon_bot_to_voice` asks only for itself.
   static ServerPermission? needs(ServerPermission permission) =>
       switch (permission) {
         ServerPermission.attachFiles ||
         ServerPermission.createPolls ||
         ServerPermission.mentionAll => ServerPermission.sendMessages,
         ServerPermission.speak ||
-        ServerPermission.screenShare ||
-        ServerPermission.useSoundboard => ServerPermission.connect,
+        ServerPermission.screenShare => ServerPermission.connect,
+        ServerPermission.useSoundboard => ServerPermission.speak,
         _ => null,
       };
 

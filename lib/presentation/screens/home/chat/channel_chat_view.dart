@@ -600,6 +600,10 @@ class _ChannelChatViewState extends State<ChannelChatView>
       ),
       builder: (context, timedOut) {
         final acting = live && !timedOut;
+        // Where the channel takes posting away (Read-only), an edit is
+        // refused as a post is (`messages_update_own`), and Reply leads to
+        // the composer the notice has replaced.
+        final posting = acting && _canPost(context);
         return ChatMessageList(
           // A list of its own for the saved copy. The fresh page then starts
           // a new one, primed afresh, rather than animating everything sent
@@ -621,11 +625,11 @@ class _ChannelChatViewState extends State<ChannelChatView>
           onReturnToPresent: cubit.returnToPresent,
           onOpenProfile: (userId, name) =>
               unawaited(showMemberProfile(context, userId: userId, name: name)),
-          onReply: acting ? startReply : null,
+          onReply: posting ? startReply : null,
           onForward: acting
               ? (message) => _forward(context, message, chatState)
               : null,
-          onEdit: acting ? cubit.editMessage : null,
+          onEdit: posting ? cubit.editMessage : null,
           onDelete: live ? cubit.deleteMessage : null,
           onRetry: live ? cubit.retrySend : null,
           onPanelAction: live ? cubit.pressPanelAction : null,

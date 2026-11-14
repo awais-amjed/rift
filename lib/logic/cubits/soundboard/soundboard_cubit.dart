@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../data/apis/soundboard_api.dart';
 import '../../../data/classes/equality_props.dart';
 import '../../../data/classes/soundboard_sound.dart';
+import '../../../data/classes/user_permissions.dart';
 import '../../../data/enums/server_permission.dart';
 import '../../../data/participant_identity.dart';
 import '../../../data/repositories/server_session.dart';
@@ -106,14 +107,23 @@ class SoundboardCubit extends Cubit<SoundboardState>
   bool get _canPlay {
     final serverId = _watcher.serverId;
     if (serverId == null) return false;
-    // The call's channel can override it (`channel_overrides`).
+    // The call's channel can override it (`channel_overrides`), and a clip
+    // is sound in the call, so where you may not speak (Listen-only) you may
+    // not play one either.
     final server = _session.serverById(serverId);
     final callId = _livekitCubit?.state.currentChannelId;
-    return server?.user?.permissions
-            .inChannel(server.channels.where((c) => c.id == callId).firstOrNull)
-            .can(ServerPermission.useSoundboard) ??
-        false;
+    final here = server?.user?.permissions.inChannel(
+      server.channels.where((c) => c.id == callId).firstOrNull,
+    );
+    return here != null && SoundboardCubit.mayPlay(here);
   }
+
+  /// Whether [permissions] — someone's, in the call's channel — let them
+  /// fire a clip: the soundboard's own bit and Speak, since a clip is sound
+  /// in the call (`ChannelOverride.needs`). The popover asks the same.
+  static bool mayPlay(UserPermissions permissions) =>
+      permissions.can(ServerPermission.useSoundboard) &&
+      permissions.can(ServerPermission.speak);
 
   // ── Pressing one ────────────────────────────────────────
 

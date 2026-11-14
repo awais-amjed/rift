@@ -101,23 +101,21 @@ class SoundboardPopover extends StatelessWidget {
     final permissions = context.select<ServerCubit, UserPermissions?>(
       (cubit) => cubit.state.permissionsOn(serverId),
     );
-    // Playing is the call's channel's to allow (`channel_overrides`);
-    // managing the library is the server's.
+    // Playing is the call's channel's to allow (`channel_overrides`), and
+    // needs Speak there too (`SoundboardCubit.mayPlay`); managing the library
+    // is the server's.
     final callId = context.select<LiveKitCubit, String?>(
       (c) => c.state.currentChannelId,
     );
-    final canPlay =
-        context
-            .select<ServerCubit, UserPermissions?>(
-              (cubit) => cubit.state.permissionsIn(serverId, callId),
-            )
-            ?.can(ServerPermission.useSoundboard) ??
-        false;
+    final here = context.select<ServerCubit, UserPermissions?>(
+      (cubit) => cubit.state.permissionsIn(serverId, callId),
+    );
+    final canPlay = here != null && SoundboardCubit.mayPlay(here);
     final canManage =
         permissions?.can(ServerPermission.manageSoundboard) ?? false;
     // Say which one took it: the call's channel can deny what the server gives.
     final channelTookIt =
-        !canPlay && (permissions?.can(ServerPermission.useSoundboard) ?? false);
+        !canPlay && permissions != null && SoundboardCubit.mayPlay(permissions);
 
     return BlocBuilder<SoundboardCubit, SoundboardState>(
       builder: (context, state) {
