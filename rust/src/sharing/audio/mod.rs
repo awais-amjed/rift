@@ -226,6 +226,13 @@ pub(crate) async fn publish_and_feed(
                 source: TrackSource::ScreenshareAudio,
                 // The default is a mono rate; two channels need twice it.
                 audio_encoding: Some(audio::MUSIC_HIGH_QUALITY_STEREO.encoding),
+                // On by default, and made for a voice: Opus takes quiet sound
+                // for silence, stops sending it and has the far end play
+                // a flat hiss instead. A game's quiet ambience or the tail of
+                // a note is not silence, and came through chopped (Nov 14).
+                // RED is off already: the SDK leaves it out of an encrypted
+                // call, as every call is.
+                dtx: false,
                 ..Default::default()
             },
         )

@@ -154,6 +154,17 @@ holds it to its camera bitrates: a share set to 6 Mbps sent 2. Real VP9
 simulcast needs a setting LiveKit's Rust SDK does not expose. And the path
 the GPU's H264 goes through carries one picture.
 
+A share's **sound goes out as music**: stereo Opus at 128 kbps, with no DTX
+and none of the mic's processing. DTX is made for a voice. Opus takes quiet
+sound for silence, stops sending, and the far end plays a flat hiss in its
+place. The Rust SDK turns it on by default, and a desktop share had it until
+Nov 14 2026. A quiet stretch of a game came through chopped then, while its
+loud parts were fine. `live_share_sound_reaches_a_listener_in_stereo` now
+fails on `usedtx=1` in the Opus line the sender negotiates. A browser's
+share and both bot SDKs had it off already. RED, Opus's spare copy of each
+packet, is off as well. Both SDKs leave it out of an encrypted call, and
+every call is encrypted.
+
 ## A phone's share — [Implemented November 2026]
 
 An Android phone's share goes through LiveKit's SDK, on MediaProjection, not

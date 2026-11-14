@@ -6,7 +6,8 @@
 //! What it proves: the two channels a share captures reach a listener as two.
 //! A tone fed into only the left ear has to come out of only the left ear.
 //! LiveKit encodes a track in mono unless the publisher says it is stereo,
-//! and our fork of the SDK is what says so (`rust/Cargo.toml`).
+//! and our fork of the SDK is what says so (`rust/Cargo.toml`). And it goes
+//! out without DTX, which cuts quiet sound out as if it were silence.
 use super::{publish_and_feed, Command, Pcm, NUM_CHANNELS, SAMPLE_RATE};
 use crate::screenshare::live_test::{fresh_room, shared_key, viewer_as, Server, KEY_INDEX};
 use futures_util::StreamExt;
@@ -155,5 +156,9 @@ async fn live_share_sound_reaches_a_listener_in_stereo() {
         left_only > loud / 4 && right_only > loud / 4,
         "each ear should have the tone alone a good part of the time: \
          {left_only} left only, {right_only} right only, of {loud}"
+    );
+    assert!(
+        !fmtp.is_empty() && fmtp.iter().all(|line| !line.contains("usedtx=1")),
+        "the sound should go out without DTX: {fmtp:?}"
     );
 }
