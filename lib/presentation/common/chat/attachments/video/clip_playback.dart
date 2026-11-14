@@ -65,7 +65,6 @@ class ClipPlayback extends ChangeNotifier {
   bool _toldWaiting = false;
   Timer? _waitingShows;
 
-
   void _changed() {
     if (!_disposed) notifyListeners();
   }

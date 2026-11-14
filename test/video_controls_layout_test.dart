@@ -41,7 +41,7 @@ void main() {
   for (final fullscreen in [false, true]) {
     for (final width in [120.0, 180.0, 260.0, 360.0, 480.0, 1280.0]) {
       testWidgets('lays out at ${width.toInt()} px'
-          '${fullscreen ? ', full screen' : ''}, slider open', (tester) async {
+          '${fullscreen ? ', full screen' : ''}, volume open', (tester) async {
         await tester.pumpWidget(
           BlocProvider<AppCubit>(
             create: (_) => _StubAppCubit(),
@@ -82,12 +82,23 @@ void main() {
         final speaker = find.byIcon(Icons.volume_up_rounded);
         if (width < 140) return expect(speaker, findsNothing);
 
-        // Over the speaker, the slider slides out where there is room.
+        // Over the speaker, the volume stands up above it, over the
+        // picture rather than in the strip, which keeps its height.
         final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
         await mouse.addPointer(location: Offset.zero);
         await mouse.moveTo(tester.getCenter(speaker));
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
+        expect(find.text('100%'), findsOneWidget);
+        expect(tester.getSize(find.byType(VideoControls)), strip);
+        final figure = tester.getCenter(find.text('100%'));
+        expect(figure.dy, lessThan(tester.getTopLeft(speaker).dy));
+
+        // And goes a moment after the pointer leaves.
+        await mouse.moveTo(Offset.zero);
+        await tester.pump(const Duration(seconds: 1));
+        await tester.pumpAndSettle();
+        expect(find.text('100%'), findsNothing);
         await mouse.removePointer();
       });
     }

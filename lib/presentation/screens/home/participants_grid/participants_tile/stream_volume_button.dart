@@ -8,6 +8,7 @@ import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/services/call_volume.dart';
 import '../../../../../logic/services/host_platform.dart';
 import '../../../../common/context_menu/context_menu_watcher.dart';
+import '../../../../common/rising_panel.dart';
 import '../../../../common/volume_readout.dart';
 import '../../../../common/volume_slider.dart';
 import '../../../../theme/app_motion.dart';
@@ -17,19 +18,19 @@ import 'stream_corner_button.dart';
 import 'stream_glass.dart';
 
 /// A watched stream's sound, beside its view buttons: the speaker mutes it,
-/// and pointing at it slides out the volume.
+/// and pointing at it stands the volume up above it ([RisingPanel]), so the
+/// buttons beside it keep their places.
 ///
 /// The same setting as the stream's menu ([StreamContextMenu]), stored under
 /// [settingsKey], so either one moves the other. The menu was the only way
 /// in, and a game too loud to talk over took a right-click and a hunt to
 /// turn down.
 ///
-/// The track opens to the speaker's left, so the speaker stays under the
-/// pointer that opened it. A finger has no hover: its first tap opens the
-/// track, and the speaker mutes from then on.
+/// A finger on a desktop has no hover: its first tap opens the track, and
+/// the speaker mutes from then on, until a tap elsewhere closes it.
 ///
-/// A phone's track stands up above the speaker instead, the way a phone's
-/// own volume does, with the mute at its foot: the speaker opens and closes
+/// A phone's track stands up above the speaker too, the way a phone's own
+/// volume does, but with the mute at its foot: the speaker opens and closes
 /// it, and so does a tap anywhere else. Opened sideways by the first tap, it
 /// had no way to close.
 class StreamVolumeButton extends StatefulWidget {
@@ -42,10 +43,8 @@ class StreamVolumeButton extends StatefulWidget {
 }
 
 class _StreamVolumeButtonState extends State<StreamVolumeButton> {
-  static const double _trackWidth = 96;
-
-  /// Wide enough for "400%", so the track does not shift while dragged.
-  static const double _figureWidth = 34;
+  /// A desktop's standing track: as long as the sideways one was.
+  static const double _deskTrack = 110;
 
   /// A phone's standing track: long enough for a thumb to set it finely.
   static const double _standingTrack = 140;
@@ -58,7 +57,11 @@ class _StreamVolumeButtonState extends State<StreamVolumeButton> {
   /// The standing panel's width: room for "400%" at a phone's text size.
   static const double _panelWidth = 48;
 
+  /// A phone's standing track is open.
   bool _open = false;
+
+  /// A desktop's, which opens with the pointer over the speaker.
+  final GlobalKey<RisingPanelState> _rising = GlobalKey();
 
   /// The call's controls, told while a phone's track stands open, as they
   /// are told of a menu: left to fade, they took the track with them
@@ -96,65 +99,27 @@ class _StreamVolumeButtonState extends State<StreamVolumeButton> {
     final livekit = context.read<LiveKitCubit>();
     if (HostPlatform.isMobile) return _phone(setting, livekit);
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _open = true),
-      onExit: (_) => setState(() => _open = false),
-      child: StreamGlass(
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AnimatedSize(
-              duration: AppMotion.state,
-              curve: AppMotion.settle,
-              alignment: Alignment.centerRight,
-              child: _open
-                  ? Padding(
-                      padding: const EdgeInsets.only(left: 8),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        spacing: 4,
-                        children: [
-                          SizedBox(
-                            width: _trackWidth,
-                            child: VolumeSlider(
-                              value: setting.muted ? 0 : setting.volume,
-                              max: CallVolume.max,
-                              onChanged: setting.muted
-                                  ? null
-                                  : (value) => livekit.setVolumeFor(
-                                      widget.settingsKey,
-                                      value,
-                                    ),
-                            ),
-                          ),
-                          VolumeReadout(
-                            value: setting.volume,
-                            muted: setting.muted,
-                            style: AppText.chip,
-                            width: _figureWidth,
-                            onChanged: (value) =>
-                                livekit.setVolumeFor(widget.settingsKey, value),
-                          ),
-                        ],
-                      ),
-                    )
-                  : const SizedBox.shrink(),
-            ),
-            Tooltip(
-              message: setting.muted ? 'Unmute stream' : 'Mute stream',
-              child: StreamCornerIcon(
-                icon: _icon(setting.muted, setting.volume),
-                onTapDown: (details) => _pressedWith = details.kind,
-                onTap: () {
-                  if (_pressedWith == PointerDeviceKind.touch && !_open) {
-                    setState(() => _open = true);
-                    return;
-                  }
-                  livekit.setMuteFor(widget.settingsKey, !setting.muted);
-                },
-              ),
-            ),
-          ],
+    return RisingPanel(
+      key: _rising,
+      panel: (_) => StreamGlass(
+        child: _standing(setting, livekit, track: _deskTrack, mute: false),
+      ),
+      anchor: StreamGlass(
+        child: Tooltip(
+          message: setting.muted ? 'Unmute stream' : 'Mute stream',
+          child: StreamCornerIcon(
+            icon: _icon(setting.muted, setting.volume),
+            onTapDown: (details) => _pressedWith = details.kind,
+            onTap: () {
+              final rising = _rising.currentState;
+              if (_pressedWith == PointerDeviceKind.touch &&
+                  rising != null &&
+                  !rising.isOpen) {
+                return rising.pin();
+              }
+              livekit.setMuteFor(widget.settingsKey, !setting.muted);
+            },
+          ),
         ),
       ),
     );
@@ -170,8 +135,9 @@ class _StreamVolumeButtonState extends State<StreamVolumeButton> {
         children: [
           // Clipped top and bottom only: AnimatedSize clips to its own box
           // while it moves, which is the column's width, and the panel is
-          // wider than that. It narrowed each time it grew, opening or
-          // making room for the reset, and widened again once it stopped.
+          // wider than that. It narrowed each time it grew, opening (or,
+          // before it was always there, making room for the reset) and
+          // widened again once it stopped.
           ClipRect(
             clipper: const _UpAndDown(),
             child: AnimatedSize(
@@ -192,74 +158,11 @@ class _StreamVolumeButtonState extends State<StreamVolumeButton> {
                           minWidth: _panelWidth,
                           maxWidth: _panelWidth,
                           child: StreamGlass(
-                            child: Container(
-                              width: _panelWidth,
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                spacing: 6,
-                                children: [
-                                  // The figure alone: the readout's reset button
-                                  // kept its room while hidden, and pushed the
-                                  // figure to one side of a column this narrow.
-                                  Text(
-                                    VolumeReadout.figure(
-                                      muted: setting.muted,
-                                      value: setting.volume,
-                                    ),
-                                    style: AppText.chip.copyWith(
-                                      color: context.theme.textSecondary,
-                                    ),
-                                  ),
-                                  // Away from 100%, the way back to it, which
-                                  // the panel grows to hold.
-                                  if (!setting.muted &&
-                                      (setting.volume * 100).round() != 100)
-                                    Tooltip(
-                                      message: 'Reset to 100%',
-                                      child: StreamCornerIcon(
-                                        icon: Icons.restart_alt_rounded,
-                                        onTap: () => livekit.setVolumeFor(
-                                          widget.settingsKey,
-                                          1.0,
-                                        ),
-                                      ),
-                                    ),
-                                  RotatedBox(
-                                    quarterTurns: 3,
-                                    child: SizedBox(
-                                      width: _standingTrack,
-                                      height: _panelWidth,
-                                      child: VolumeSlider(
-                                        value: setting.muted
-                                            ? 0
-                                            : setting.volume,
-                                        max: CallVolume.max,
-                                        onChanged: setting.muted
-                                            ? null
-                                            : (value) => livekit.setVolumeFor(
-                                                widget.settingsKey,
-                                                value,
-                                              ),
-                                      ),
-                                    ),
-                                  ),
-                                  Tooltip(
-                                    message: setting.muted
-                                        ? 'Unmute stream'
-                                        : 'Mute stream',
-                                    child: StreamCornerIcon(
-                                      icon: setting.muted
-                                          ? Icons.volume_off_rounded
-                                          : Icons.volume_mute_rounded,
-                                      onTap: () => livekit.setMuteFor(
-                                        widget.settingsKey,
-                                        !setting.muted,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
+                            child: _standing(
+                              setting,
+                              livekit,
+                              track: _standingTrack,
+                              mute: true,
                             ),
                           ),
                         ),
@@ -281,6 +184,64 @@ class _StreamVolumeButtonState extends State<StreamVolumeButton> {
       ),
     );
   }
+
+  /// The standing track, its figure above it and the way back to 100%. A phone's has the mute at its foot, since its speaker opens
+  /// and closes the track; a desktop's speaker mutes, under the pointer.
+  Widget _standing(
+    ({bool muted, double volume}) setting,
+    LiveKitCubit livekit, {
+    required double track,
+    required bool mute,
+  }) => Container(
+    width: _panelWidth,
+    padding: const EdgeInsets.symmetric(vertical: 10),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      spacing: 6,
+      children: [
+        // The figure alone: the readout's reset button kept its room while
+        // hidden, and pushed the figure to one side of a column this narrow.
+        Text(
+          VolumeReadout.figure(muted: setting.muted, value: setting.volume),
+          style: AppText.chip.copyWith(color: context.theme.textSecondary),
+        ),
+        // The way back to 100%, always there: it came and went as a drag
+        // crossed 100%, and the panel moved with it.
+        Tooltip(
+          message: 'Reset to 100%',
+          child: StreamCornerIcon(
+            icon: Icons.restart_alt_rounded,
+            onTap: () => livekit.setVolumeFor(widget.settingsKey, 1.0),
+          ),
+        ),
+        RotatedBox(
+          quarterTurns: 3,
+          child: SizedBox(
+            width: track,
+            height: _panelWidth,
+            child: VolumeSlider(
+              value: setting.muted ? 0 : setting.volume,
+              max: CallVolume.max,
+              onChanged: setting.muted
+                  ? null
+                  : (value) => livekit.setVolumeFor(widget.settingsKey, value),
+            ),
+          ),
+        ),
+        if (mute)
+          Tooltip(
+            message: setting.muted ? 'Unmute stream' : 'Mute stream',
+            child: StreamCornerIcon(
+              icon: setting.muted
+                  ? Icons.volume_off_rounded
+                  : Icons.volume_mute_rounded,
+              onTap: () =>
+                  livekit.setMuteFor(widget.settingsKey, !setting.muted),
+            ),
+          ),
+      ],
+    ),
+  );
 
   static IconData _icon(bool muted, double volume) {
     if (muted || volume == 0) return Icons.volume_off_rounded;

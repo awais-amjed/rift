@@ -282,7 +282,9 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   `pickPicture` alone, which only shrinks and checks it),
   `ViewablePicture` (a profile's picture that opens full size in `showImageViewer`),
   `SpeakingRing`, `StatusChip`, `ContextMenuPanel` + `ContextMenuItem`, `TapToFocus`,
-  `AppDropdown` (a choice from a list — never Material's `DropdownButton`). Avatar gradients come
+  `AppDropdown` (a choice from a list — never Material's `DropdownButton`),
+  `RisingPanel` (a volume's track standing up over its speaker on hover, drawn in the overlay —
+  never a track sliding out sideways, which pushes the controls beside it). Avatar gradients come
   from `IdentityGradients` and are deliberately *not* palette-derived, so a person looks the
   same to everyone in a channel whatever theme each is running.
 - Layout constants (widths, heights, paddings, radii reused across files) go in `K`

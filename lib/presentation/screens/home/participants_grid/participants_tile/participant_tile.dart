@@ -13,6 +13,7 @@ import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/services/participant_roster.dart';
 import '../../../../../logic/services/participant_video.dart';
 import '../../../../../logic/services/voice_attributes.dart';
+import '../../../../common/context_menu/context_menu_watcher.dart';
 import '../../../../common/context_menu_region.dart';
 import '../../../../theme/theme_context.dart';
 import '../../sidebar/widgets/participant_context_menu.dart';
@@ -112,6 +113,12 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
   late bool _statsPinned;
   Timer? _hideTimer;
 
+  /// Something opened from the stage is up over it, drawn in the overlay —
+  /// the volume's standing track, a menu — so the pointer on it is off the
+  /// stage as far as [_onActivity] can tell. The overlays stay until it goes:
+  /// they faded mid-drag, and took the speaker the track rises from.
+  bool _held = false;
+
   bool get _isScreenshare => widget.isScreenshare;
 
   @override
@@ -189,7 +196,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
 
   void _scheduleHide() {
     _hideTimer?.cancel();
-    if (_statsPinned) return;
+    if (_statsPinned || _held) return;
     _hideTimer = Timer(_hideDelay, () {
       if (mounted && widget.isExpanded) {
         setState(() => _showOverlays = false);
@@ -328,78 +335,100 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
                 localIdentity: livekitState.room?.localParticipant?.identity,
               )
             : null;
-        return ContextMenuRegion(
-          contextMenu: _isScreenshare && !isPhoneOwnStream
-              ? StreamContextMenu(
-                  identity: widget.participant.identity,
-                  ownerName: name,
-                )
-              : ParticipantContextMenu(
-                  identity: widget.participant.identity,
-                  name: name,
-                  isLocal: widget.participant is LocalParticipant,
-                ),
-          child: MouseRegion(
-            cursor: onTap != null
-                ? SystemMouseCursors.click
-                : MouseCursor.defer,
-            child: GestureDetector(
-              onTap: onTap,
-              behavior: HitTestBehavior.opaque,
-              child: widget.isExpanded
-                  ? ExpandedParticipantTile(
-                      videoTrack: videoTrack,
-                      picture: picture,
-                      name: name,
-                      userId: userId,
-                      isMicEnabled: VoiceAttributes.isMicOpen(
-                        widget.participant,
+        return ContextMenuWatcher(
+          onOpened: _heldOpen,
+          onClosed: _heldClosed,
+          child: ContextMenuRegion(
+            contextMenu: _isScreenshare && !isPhoneOwnStream
+                ? StreamContextMenu(
+                    identity: widget.participant.identity,
+                    ownerName: name,
+                  )
+                : ParticipantContextMenu(
+                    identity: widget.participant.identity,
+                    name: name,
+                    isLocal: widget.participant is LocalParticipant,
+                  ),
+            child: MouseRegion(
+              cursor: onTap != null
+                  ? SystemMouseCursors.click
+                  : MouseCursor.defer,
+              child: GestureDetector(
+                onTap: onTap,
+                behavior: HitTestBehavior.opaque,
+                child: widget.isExpanded
+                    ? ExpandedParticipantTile(
+                        videoTrack: videoTrack,
+                        picture: picture,
+                        name: name,
+                        userId: userId,
+                        isMicEnabled: VoiceAttributes.isMicOpen(
+                          widget.participant,
+                        ),
+                        isMuted: widget.isMuted,
+                        isPushToTalkIdle: VoiceAttributes.isPushToTalkIdle(
+                          widget.participant.attributes,
+                        ),
+                        isDeafened: isDeafened,
+                        isScreenshare: _isScreenshare,
+                        shareIdentity: _isScreenshare
+                            ? widget.participant.identity
+                            : null,
+                        isPaused: isPaused,
+                        sentQuality: sentQuality,
+                        showWatchButton: _isScreenshare && !isSubscribed,
+                        isWatching: isWatching,
+                        view: widget.view,
+                        onView: onView,
+                        soundKey: soundKey,
+                        ownerCamera: ownerCamera,
+                        showOverlays: widget.overlaysShown ?? _showOverlays,
+                        onBack: widget.onBack,
+                        statsPinned: _statsPinned,
+                        onActivity: _onActivity,
+                        onWatch: _subscribeToScreenshare,
+                        onStatsPinnedChanged: _onStatsPinnedChanged,
+                        topInset: widget.topInset,
+                        bottomInset: widget.bottomInset,
+                      )
+                    : _buildCollapsed(
+                        themeState: themeState,
+                        videoTrack: videoTrack,
+                        picture: picture,
+                        name: name,
+                        userId: userId,
+                        isDeafened: isDeafened,
+                        isPaused: isPaused,
+                        sentQuality: sentQuality,
+                        isSubscribed: isSubscribed,
+                        isWatching: isWatching,
+                        onView: onView,
+                        soundKey: soundKey,
                       ),
-                      isMuted: widget.isMuted,
-                      isPushToTalkIdle: VoiceAttributes.isPushToTalkIdle(
-                        widget.participant.attributes,
-                      ),
-                      isDeafened: isDeafened,
-                      isScreenshare: _isScreenshare,
-                      shareIdentity: _isScreenshare
-                          ? widget.participant.identity
-                          : null,
-                      isPaused: isPaused,
-                      sentQuality: sentQuality,
-                      showWatchButton: _isScreenshare && !isSubscribed,
-                      isWatching: isWatching,
-                      view: widget.view,
-                      onView: onView,
-                      soundKey: soundKey,
-                      ownerCamera: ownerCamera,
-                      showOverlays: widget.overlaysShown ?? _showOverlays,
-                      onBack: widget.onBack,
-                      statsPinned: _statsPinned,
-                      onActivity: _onActivity,
-                      onWatch: _subscribeToScreenshare,
-                      onStatsPinnedChanged: _onStatsPinnedChanged,
-                      topInset: widget.topInset,
-                      bottomInset: widget.bottomInset,
-                    )
-                  : _buildCollapsed(
-                      themeState: themeState,
-                      videoTrack: videoTrack,
-                      picture: picture,
-                      name: name,
-                      userId: userId,
-                      isDeafened: isDeafened,
-                      isPaused: isPaused,
-                      sentQuality: sentQuality,
-                      isSubscribed: isSubscribed,
-                      isWatching: isWatching,
-                      onView: onView,
-                      soundKey: soundKey,
-                    ),
+              ),
             ),
           ),
         );
       },
     );
+  }
+
+  /// Passed on to the watcher above, the room's, which keeps the call's own
+  /// controls up for the same reason.
+  ContextMenuWatcher? get _outer => ContextMenuWatcher.maybeOf(context);
+
+  void _heldOpen() {
+    _held = true;
+    _hideTimer?.cancel();
+    if (mounted && !_showOverlays) setState(() => _showOverlays = true);
+    if (mounted) _outer?.onOpened();
+  }
+
+  void _heldClosed() {
+    _held = false;
+    if (!mounted) return;
+    _scheduleHide();
+    _outer?.onClosed();
   }
 
   /// The grid tile, which is the only layout that glows while its owner talks.

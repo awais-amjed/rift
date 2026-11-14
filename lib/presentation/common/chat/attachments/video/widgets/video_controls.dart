@@ -55,8 +55,8 @@ class _VideoControlsState extends State<VideoControls> {
     return LayoutBuilder(
       builder: (context, constraints) {
         // A portrait video's card is narrow, so the strip lets go of what
-        // it can do without as it narrows: the slider first (the speaker
-        // still mutes), then the length, then the time.
+        // it can do without as it narrows: the length, then the time, then
+        // the speaker. Its volume stands up above it, taking no room here.
         final width = constraints.maxWidth;
         final time = width < 220
             ? null
@@ -86,12 +86,7 @@ class _VideoControlsState extends State<VideoControls> {
                     size: big ? 28 : 22,
                     onPressed: widget.onToggle,
                   ),
-                  if (width >= 140)
-                    VideoVolume(
-                      showsKeys: big,
-                      // The page has more around its row to fit.
-                      slider: width >= (big ? 400 : 340),
-                    ),
+                  if (width >= 140) VideoVolume(showsKeys: big),
                   if (!big) Expanded(child: _track(done)),
                   if (time != null)
                     Padding(

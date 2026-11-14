@@ -12,6 +12,7 @@ import '../../../../../logic/services/window_fullscreen.dart';
 import '../../../../theme/app_motion.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/media_colors.dart';
+import '../../../context_menu/context_menu_watcher.dart';
 import 'clip_playback.dart';
 import 'widgets/video_controls.dart';
 import 'widgets/video_icon_button.dart';
@@ -53,6 +54,9 @@ class _VideoFullscreenPageState extends State<VideoFullscreenPage> {
 
   bool _shown = true;
   bool _leaving = false;
+
+  /// The volume's panel is up over the strip: the strip stays while it is.
+  bool _held = false;
   Timer? _hide;
   AppLifecycleListener? _away;
 
@@ -101,7 +105,7 @@ class _VideoFullscreenPageState extends State<VideoFullscreenPage> {
     _hide?.cancel();
     if (!_shown) setState(() => _shown = true);
     _hide = Timer(_idle, () {
-      if (mounted && _p.playing) setState(() => _shown = false);
+      if (mounted && _p.playing && !_held) setState(() => _shown = false);
     });
   }
 
@@ -203,78 +207,91 @@ class _VideoFullscreenPageState extends State<VideoFullscreenPage> {
         child: MouseRegion(
           cursor: _shown ? MouseCursor.defer : SystemMouseCursors.none,
           onHover: (_) => _poke(),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                // A click plays and pauses; a tap on a touch screen shows or
-                // hides the strip, as phone players do.
-                onTapUp: (d) {
-                  if (d.kind == PointerDeviceKind.touch) {
-                    if (_shown) {
-                      _hide?.cancel();
-                      setState(() => _shown = false);
+          // The volume's panel is drawn over the page, so the pointer on it
+          // is off the page as far as the hover above can tell.
+          child: ContextMenuWatcher(
+            onOpened: () {
+              _held = true;
+              _poke();
+            },
+            onClosed: () {
+              _held = false;
+              if (mounted) _poke();
+            },
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  // A click plays and pauses; a tap on a touch screen shows or
+                  // hides the strip, as phone players do.
+                  onTapUp: (d) {
+                    if (d.kind == PointerDeviceKind.touch) {
+                      if (_shown) {
+                        _hide?.cancel();
+                        setState(() => _shown = false);
+                      } else {
+                        _poke();
+                      }
                     } else {
-                      _poke();
+                      _toggle();
                     }
-                  } else {
-                    _toggle();
-                  }
-                },
-                child: Center(
-                  child: AspectRatio(
-                    aspectRatio: _ratio,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        if (poster != null)
-                          Image.memory(
-                            poster,
-                            fit: BoxFit.contain,
-                            gaplessPlayback: true,
-                          ),
-                        if (clip != null && _p.picture != null) clip.picture(),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              if (showsMiddle)
-                Center(
-                  child: GestureDetector(
-                    onTap: _toggle,
-                    child: MouseRegion(
-                      cursor: SystemMouseCursors.click,
-                      child: VideoMiddle(
-                        loading: _p.opening || _p.waiting,
-                        ended: _p.ended,
-                        problem: _p.problem,
+                  },
+                  child: Center(
+                    child: AspectRatio(
+                      aspectRatio: _ratio,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          if (poster != null)
+                            Image.memory(
+                              poster,
+                              fit: BoxFit.contain,
+                              gaplessPlayback: true,
+                            ),
+                          if (clip != null && _p.picture != null)
+                            clip.picture(),
+                        ],
                       ),
                     ),
                   ),
                 ),
-              Positioned(left: 0, right: 0, top: 0, child: _fading(_top())),
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: _fading(
-                  _shade(
-                    up: true,
-                    child: SafeArea(
-                      top: false,
-                      child: VideoControls(
-                        playback: _p,
-                        onToggle: _toggle,
-                        fullscreen: true,
-                        onFullscreen: _leave,
+                if (showsMiddle)
+                  Center(
+                    child: GestureDetector(
+                      onTap: _toggle,
+                      child: MouseRegion(
+                        cursor: SystemMouseCursors.click,
+                        child: VideoMiddle(
+                          loading: _p.opening || _p.waiting,
+                          ended: _p.ended,
+                          problem: _p.problem,
+                        ),
+                      ),
+                    ),
+                  ),
+                Positioned(left: 0, right: 0, top: 0, child: _fading(_top())),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: _fading(
+                    _shade(
+                      up: true,
+                      child: SafeArea(
+                        top: false,
+                        child: VideoControls(
+                          playback: _p,
+                          onToggle: _toggle,
+                          fullscreen: true,
+                          onFullscreen: _leave,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
