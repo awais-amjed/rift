@@ -34,6 +34,30 @@ static void first_frame_cb(MyApplication* self, FlView* view) {
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
 }
 
+// Asks the view and everything in it to lay out again, at the size it has.
+static void queue_resize_all(GtkWidget* widget, gpointer) {
+  gtk_widget_queue_resize(widget);
+  if (GTK_IS_CONTAINER(widget)) {
+    gtk_container_forall(GTK_CONTAINER(widget), queue_resize_all, nullptr);
+  }
+}
+
+// Brings the picture back when the window is shown from the tray.
+//
+// Flutter 3.50 draws on Wayland into a subsurface of the window's surface
+// (fl_view_renderer_subsurface.cc). Hiding the window destroys that surface,
+// and Flutter moves to the new one when its widget is mapped or resized. GTK
+// maps the view before the window has its new surface, though, so Flutter
+// finds none, and nothing looks again until the next resize: the window came
+// back black until it was dragged to a new size (Nov 14 2026, GNOME on
+// Wayland). By map-event the surface exists, and a layout at the same size is
+// the resize Flutter needs. Harmless anywhere else; drop it once Flutter
+// rechecks the surface itself.
+static gboolean window_mapped_cb(GtkWidget* window, GdkEvent*, FlView* view) {
+  queue_resize_all(GTK_WIDGET(view), nullptr);
+  return FALSE;
+}
+
 // Implements GApplication::activate.
 static void my_application_activate(GApplication* application) {
   MyApplication* self = MY_APPLICATION(application);
@@ -93,6 +117,7 @@ static void my_application_activate(GApplication* application) {
   // Requires the view to be realized so we can start rendering.
   g_signal_connect_swapped(view, "first-frame", G_CALLBACK(first_frame_cb),
                            self);
+  g_signal_connect(window, "map-event", G_CALLBACK(window_mapped_cb), view);
   gtk_widget_realize(GTK_WIDGET(view));
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
