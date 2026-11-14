@@ -46,6 +46,9 @@ class ScreenShareSettings extends Equatable {
 
   /// What the share gives up when it cannot keep up: frames or sharpness.
   final SharePriority priority;
+
+  /// Whether the mouse cursor is in the picture.
+  final ShareCursor cursor;
   final AudioSource? selectedAudioSource; // Linux PulseAudio source
 
   /// Whether a phone's or a browser's dialog has confirmed these. Until then
@@ -74,6 +77,7 @@ class ScreenShareSettings extends Equatable {
     this.codecChosen = false,
     this.showsAdvanced = false,
     this.priority = defaultPriority,
+    this.cursor = ShareCursor.auto,
     this.selectedAudioSource,
     this.phoneSetUp = false,
     this.soundForApps = const {},
@@ -104,6 +108,9 @@ class ScreenShareSettings extends Equatable {
           json['codecChosen'] as bool? ?? codecFromName(codec) != defaultCodec,
       showsAdvanced: json['showsAdvanced'] as bool? ?? false,
       priority: priorityFromName(json['priority'] as String?),
+      cursor:
+          ShareCursor.values.asNameMap()[json['cursor'] as String?] ??
+          ShareCursor.auto,
       phoneSetUp: json['phoneSetUp'] as bool? ?? false,
       // selectedAudioSource is not persisted in JSON (runtime only)
       soundForApps: {
@@ -131,6 +138,7 @@ class ScreenShareSettings extends Equatable {
     'codecChosen': codecChosen,
     'showsAdvanced': showsAdvanced,
     'priority': priority.name,
+    'cursor': cursor.name,
     'phoneSetUp': phoneSetUp,
     'soundForApps': {
       for (final entry in soundForApps.entries) entry.key: entry.value.toJson(),
@@ -282,6 +290,7 @@ class ScreenShareSettings extends Equatable {
         codecChosen: codecChosen,
         showsAdvanced: showsAdvanced,
         priority: priority,
+        cursor: cursor,
         selectedAudioSource: selectedAudioSource,
         phoneSetUp: phoneSetUp,
         soundForApps: soundForApps,
@@ -305,6 +314,7 @@ class ScreenShareSettings extends Equatable {
     bool? codecChosen,
     bool? showsAdvanced,
     SharePriority? priority,
+    ShareCursor? cursor,
     AudioSource? selectedAudioSource,
     bool? phoneSetUp,
     Map<String, ShareSoundChoice>? soundForApps,
@@ -334,6 +344,7 @@ class ScreenShareSettings extends Equatable {
       codecChosen: codecChosen ?? this.codecChosen,
       showsAdvanced: showsAdvanced ?? this.showsAdvanced,
       priority: priority ?? this.priority,
+      cursor: cursor ?? this.cursor,
       selectedAudioSource: clearAudioSource
           ? null
           : selectedAudioSource ?? this.selectedAudioSource,
@@ -358,6 +369,7 @@ class ScreenShareSettings extends Equatable {
     codecChosen,
     showsAdvanced,
     priority,
+    cursor,
     selectedAudioSource,
     phoneSetUp,
     soundForApps,

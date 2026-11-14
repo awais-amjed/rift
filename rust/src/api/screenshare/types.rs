@@ -27,6 +27,17 @@ pub enum SharePriority {
     Sharpness,
 }
 
+/// Whether a share draws the mouse cursor into its picture.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ShareCursor {
+    /// Drawn, except in a Windows share of a whole screen while a game has
+    /// locked the mouse. Such a game hides the cursor in its own window, but
+    /// a capture of the screen draws it anyway, wherever the game holds it.
+    Auto,
+    Always,
+    Never,
+}
+
 pub struct ScreenShareConfig {
     pub livekit_url: String,
     pub livekit_token: String,
@@ -48,6 +59,7 @@ pub struct ScreenShareConfig {
     pub gpu_capture: bool,
     pub codec: VideoCodec,
     pub priority: SharePriority,
+    pub cursor: ShareCursor,
     /// Linux: the PulseAudio sink-input to capture, and the sink it plays to;
     /// none means everything but Rift.
     pub selected_audio_source_index: Option<u32>,
@@ -196,6 +208,7 @@ mod tests {
             portal_choice: None,
             codec: VideoCodec::VP9,
             priority: SharePriority::Smoothness,
+            cursor: ShareCursor::Always,
             selected_audio_source_index: None,
             selected_audio_source_sink: None,
             selected_audio_source_pid: None,

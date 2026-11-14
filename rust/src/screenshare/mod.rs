@@ -13,6 +13,8 @@ mod capture_wgc;
 pub(crate) mod encoder;
 #[cfg(desktop)]
 mod frames;
+#[cfg(any(target_os = "windows", test))]
+mod game_mouse;
 #[cfg(gpu_encoder)]
 mod gpu_feed;
 #[cfg_attr(not(desktop), allow(dead_code))]

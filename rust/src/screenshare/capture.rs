@@ -6,6 +6,8 @@ use super::capture_pw;
 #[cfg(target_os = "windows")]
 use super::capture_wgc;
 use super::frames::{self, SendableFrame};
+#[cfg(target_os = "windows")]
+use super::game_mouse::{self, CursorGate};
 #[cfg(gpu_encoder)]
 use super::gpu_feed::GpuFeed;
 use super::latest::{self, Putter};
@@ -57,6 +59,10 @@ pub(crate) struct CaptureRequest {
     pub codec: VideoCodec,
     pub fps: u32,
     pub capture_cursor: bool,
+    /// Windows, a whole screen: leave the cursor out while a game has locked
+    /// the mouse (`game_mouse.rs`).
+    #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
+    pub cursor_off_in_games: bool,
     /// Told `true` when the shared window is minimised or has gone away, and
     /// `false` when it is back. Windows, and Wayland on Rift's own stream
     /// (`capture_pw.rs`): either way the capturer has nothing new, so
@@ -385,8 +391,15 @@ fn run(
     #[cfg(target_os = "windows")]
     let _timer = TimerResolutionGuard::new();
 
+    #[cfg(target_os = "windows")]
+    let mut gate = (request.capture_cursor && request.cursor_off_in_games)
+        .then(|| CursorGate::new(game_mouse::game_holds_mouse(), Instant::now()));
+    #[cfg(target_os = "windows")]
+    let cursor = request.capture_cursor && gate.as_ref().is_none_or(CursorGate::shown);
+    #[cfg(not(target_os = "windows"))]
+    let cursor = request.capture_cursor;
     let mut options = sources::options(request.source_type);
-    options.set_include_cursor(request.capture_cursor);
+    options.set_include_cursor(cursor);
     let Some(mut capturer) = DesktopCapturer::new(options) else {
         fail(progress, "Could not create a desktop capturer".to_string());
         return None;
@@ -435,7 +448,8 @@ fn run(
         title: source.title(),
         minimised: false,
     });
-    capturer.start_capture(source, signals.callback(Some(progress.clone())));
+    // Kept: on Windows a capturer opens on it again for the cursor.
+    capturer.start_capture(source.clone(), signals.callback(Some(progress.clone())));
 
     let interval = |fps: u32| Duration::from_secs_f64(1.0 / f64::from(fps.max(1)));
     let mut rate = fps.load(Ordering::Relaxed);
@@ -446,6 +460,24 @@ fn run(
         match command_rx.recv_timeout(timeout) {
             Ok(Command::Terminate) | Err(RecvTimeoutError::Disconnected) => break false,
             Err(RecvTimeoutError::Timeout) => {
+                // Libwebrtc's capturer takes the cursor once, as it opens,
+                // so another opens on the same screen. A game takes and lets
+                // go of the mouse only now and then: as it starts, at Alt+Tab.
+                #[cfg(target_os = "windows")]
+                if let Some(shown) = gate
+                    .as_mut()
+                    .and_then(|gate| gate.step(Instant::now(), game_mouse::game_holds_mouse))
+                {
+                    let mut options = sources::options(request.source_type);
+                    options.set_include_cursor(shown);
+                    match DesktopCapturer::new(options) {
+                        Some(mut again) => {
+                            again.start_capture(source.clone(), signals.callback(None));
+                            capturer = again;
+                        }
+                        None => log::warn!("capture: no capturer to change the cursor with"),
+                    }
+                }
                 capturer.capture_frame();
                 #[cfg(target_os = "windows")]
                 let ended = match window.as_mut() {
@@ -937,6 +969,7 @@ mod tests {
             codec: VideoCodec::VP9,
             fps: 30,
             capture_cursor: false,
+            cursor_off_in_games: false,
             on_paused: Some(Box::new(move |now| {
                 heard.lock().unwrap().push((now, Instant::now()))
             })),

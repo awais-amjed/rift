@@ -377,6 +377,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
       gpuCapture: gpuCapture,
       codec: codec,
       priority: settings.priority,
+      cursor: settings.cursor,
       selectedAudioSourceIndex: settings.selectedAudioSource?.index,
       selectedAudioSourceSink: settings.selectedAudioSource?.sink,
       selectedAudioSourcePid: settings.selectedVideoSourcePid,

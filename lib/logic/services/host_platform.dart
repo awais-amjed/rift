@@ -198,6 +198,11 @@ class HostPlatform {
   static bool get hasShareThumbnails =>
       !kIsWeb && (Platform.isWindows || (Platform.isLinux && !_underWayland));
 
+  /// Whether a share of a whole screen can leave the cursor out while a game
+  /// has locked the mouse (`ShareCursor.auto`): Windows, where such a game
+  /// hides it only in its own window. Elsewhere Auto draws it.
+  static bool get hidesShareCursorInGames => !kIsWeb && Platform.isWindows;
+
   /// Whether a screen share's sound is picked by hand: every app but Rift,
   /// or one PulseAudio stream. Linux cannot tell which app a window's sound
   /// comes from; Windows finds it by the window's process, and takes every

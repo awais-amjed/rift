@@ -535,6 +535,22 @@ A **window** keeps Windows Graphics Capture, and on Windows 10 its border.
 The only borderless way to capture one there is GDI, which is slow and shows
 most games black.
 
+**The cursor in a game.** A game steered by the mouse locks it inside its own
+window (`ClipCursor`) and hides it there. Nobody sees it on the screen, but a
+capture of the whole screen draws the cursor anyway, wherever the game holds
+it: a friend's stream of a shooter showed a still arrow in the middle of the
+picture (Nov 14 2026). A share of the game's window did not. The share
+dialog's *Cursor* row (Advanced) is Auto, Show or Hide, and Auto, the default,
+leaves the cursor out of a Windows whole-screen share while the mouse is
+clipped to inside the window in front (`game_mouse.rs`, looked at four times
+a second). It comes back once the game lets go: Alt+Tab, or a menu that frees
+the mouse. Rift's own session turns `IsCursorCaptureEnabled` off and on as it
+runs; libwebrtc's capturer takes the cursor only as it opens, so another opens
+on the same screen at each change. Elsewhere Auto shows the cursor. A game that hides
+the mouse without clipping it is not caught. **Not yet proved:** written Nov
+14 2026 and tested only as a unit test and a Windows compile, not on Windows
+with a game, so it is not yet known whether that friend's game clips the mouse.
+
 ## Which sound goes with a shared window — [Implemented October 2026]
 
 Windows records a window's sound by its process. Linux has no such tie: a

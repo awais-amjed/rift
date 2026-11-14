@@ -33,7 +33,7 @@
 //! already watching.
 use super::live_test::Server;
 use super::session;
-use crate::api::screenshare::types::{ScreenShareConfig, SharePriority, VideoCodec};
+use crate::api::screenshare::types::{ScreenShareConfig, ShareCursor, SharePriority, VideoCodec};
 use futures_util::StreamExt;
 use livekit::prelude::*;
 use livekit::webrtc::stats::RtcStats;
@@ -215,6 +215,7 @@ async fn bench_share() {
         portal_choice: None,
         codec: codec(),
         priority: SharePriority::Smoothness,
+        cursor: ShareCursor::Always,
         selected_audio_source_index: None,
         selected_audio_source_sink: None,
         selected_audio_source_pid: None,

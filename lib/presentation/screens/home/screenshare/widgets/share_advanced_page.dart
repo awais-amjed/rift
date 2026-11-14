@@ -13,6 +13,7 @@ import '../sections/priority_section.dart';
 import 'settings_chip.dart';
 import 'settings_section.dart';
 import 'share_bitrate_choices.dart';
+import 'share_cursor_choices.dart';
 import 'share_dialog_header.dart';
 import 'share_summary.dart';
 
@@ -71,6 +72,11 @@ class ShareAdvancedPage extends StatelessWidget {
                 _frameRate(),
                 _codec(),
                 _bitrate(context),
+                ShareCursorChoices(
+                  selected: settings.cursor,
+                  onChanged: (cursor) =>
+                      onChanged(settings.copyWith(cursor: cursor)),
+                ),
                 if (HostPlatform.picksShareAudioSource && settings.shareAudio)
                   AudioSourceSection(
                     label: _soundLabel,

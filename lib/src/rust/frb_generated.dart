@@ -3319,8 +3319,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ScreenShareConfig dco_decode_screen_share_config(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 17)
-      throw Exception('unexpected arr length: expect 17 but see ${arr.length}');
+    if (arr.length != 18)
+      throw Exception('unexpected arr length: expect 18 but see ${arr.length}');
     return ScreenShareConfig(
       livekitUrl: dco_decode_String(arr[0]),
       livekitToken: dco_decode_String(arr[1]),
@@ -3334,11 +3334,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       gpuCapture: dco_decode_bool(arr[9]),
       codec: dco_decode_video_codec(arr[10]),
       priority: dco_decode_share_priority(arr[11]),
-      selectedAudioSourceIndex: dco_decode_opt_box_autoadd_u_32(arr[12]),
-      selectedAudioSourceSink: dco_decode_opt_box_autoadd_u_32(arr[13]),
-      selectedAudioSourcePid: dco_decode_opt_box_autoadd_u_32(arr[14]),
-      e2EeKey: dco_decode_list_prim_u_8_strict(arr[15]),
-      e2EeKeyIndex: dco_decode_i_32(arr[16]),
+      cursor: dco_decode_share_cursor(arr[12]),
+      selectedAudioSourceIndex: dco_decode_opt_box_autoadd_u_32(arr[13]),
+      selectedAudioSourceSink: dco_decode_opt_box_autoadd_u_32(arr[14]),
+      selectedAudioSourcePid: dco_decode_opt_box_autoadd_u_32(arr[15]),
+      e2EeKey: dco_decode_list_prim_u_8_strict(arr[16]),
+      e2EeKeyIndex: dco_decode_i_32(arr[17]),
     );
   }
 
@@ -3346,6 +3347,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ScreenshareEvent dco_decode_screenshare_event(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return ScreenshareEvent.values[raw as int];
+  }
+
+  @protected
+  ShareCursor dco_decode_share_cursor(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return ShareCursor.values[raw as int];
   }
 
   @protected
@@ -4101,6 +4108,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_gpuCapture = sse_decode_bool(deserializer);
     var var_codec = sse_decode_video_codec(deserializer);
     var var_priority = sse_decode_share_priority(deserializer);
+    var var_cursor = sse_decode_share_cursor(deserializer);
     var var_selectedAudioSourceIndex = sse_decode_opt_box_autoadd_u_32(
       deserializer,
     );
@@ -4125,6 +4133,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       gpuCapture: var_gpuCapture,
       codec: var_codec,
       priority: var_priority,
+      cursor: var_cursor,
       selectedAudioSourceIndex: var_selectedAudioSourceIndex,
       selectedAudioSourceSink: var_selectedAudioSourceSink,
       selectedAudioSourcePid: var_selectedAudioSourcePid,
@@ -4138,6 +4147,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_i_32(deserializer);
     return ScreenshareEvent.values[inner];
+  }
+
+  @protected
+  ShareCursor sse_decode_share_cursor(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return ShareCursor.values[inner];
   }
 
   @protected
@@ -4986,6 +5002,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self.gpuCapture, serializer);
     sse_encode_video_codec(self.codec, serializer);
     sse_encode_share_priority(self.priority, serializer);
+    sse_encode_share_cursor(self.cursor, serializer);
     sse_encode_opt_box_autoadd_u_32(self.selectedAudioSourceIndex, serializer);
     sse_encode_opt_box_autoadd_u_32(self.selectedAudioSourceSink, serializer);
     sse_encode_opt_box_autoadd_u_32(self.selectedAudioSourcePid, serializer);
@@ -4998,6 +5015,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     ScreenshareEvent self,
     SseSerializer serializer,
   ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_share_cursor(ShareCursor self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.index, serializer);
   }

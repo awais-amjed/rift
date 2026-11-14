@@ -12,6 +12,7 @@
 use super::capture::{self, CaptureRequest, Command, Feed, Progress, Recapture, SharedWindow};
 use super::encoder::{self, GpuCodec};
 use super::frames::now_us;
+use super::game_mouse::{self, CursorGate};
 use super::gpu_feed::{GpuFeed, Picture};
 use super::latest::{self, Putter, Taker};
 use super::pacer::{self, Pacer};
@@ -860,7 +861,10 @@ pub(super) fn run(
         last: Mutex::new(Instant::now()),
         fps: fps.clone(),
     });
-    let session = match open_session(&winrt_device, target, request.capture_cursor, &flow) {
+    let mut gate = (request.capture_cursor && request.cursor_off_in_games && !is_window)
+        .then(|| CursorGate::new(game_mouse::game_holds_mouse(), Instant::now()));
+    let cursor = request.capture_cursor && gate.as_ref().is_none_or(CursorGate::shown);
+    let session = match open_session(&winrt_device, target, cursor, &flow) {
         Ok(session) => session,
         Err(e) => {
             log::warn!("capture: Rift's capture did not open ({e}); libwebrtc's capturer");
@@ -884,7 +888,7 @@ pub(super) fn run(
     let mut running = Running {
         capturer: &capturer,
         device: &winrt_device,
-        cursor: request.capture_cursor,
+        cursor,
         flow: &flow,
         target,
         session: Some(session),
@@ -923,6 +927,16 @@ pub(super) fn run(
             counts::CLOSED.fetch_add(1, Ordering::Relaxed);
             crate::api::screenshare::emit_screenshare_event(ScreenshareEvent::SourceClosed);
             break Ending::Done;
+        }
+        // A running session takes the cursor in or out as it goes.
+        if let Some(shown) = gate
+            .as_mut()
+            .and_then(|gate| gate.step(Instant::now(), game_mouse::game_holds_mouse))
+        {
+            running.cursor = shown;
+            if let Some(session) = &running.session {
+                let _ = session.session.SetIsCursorCaptureEnabled(shown);
+            }
         }
         let now = fps.load(Ordering::Relaxed);
         if now != rate {

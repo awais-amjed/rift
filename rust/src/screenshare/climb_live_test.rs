@@ -13,7 +13,7 @@ use super::encoder::{EncoderSettings, GpuCodec, GpuEncoder, Nv12Frame};
 use super::gpu_live_test::{H265ToSource, ToSource};
 use super::live_test::{shared_key, Server, KEY_INDEX};
 use super::track::{publish_video_track, TrackSettings};
-use crate::api::screenshare::types::{SharePriority, VideoCodec};
+use crate::api::screenshare::types::{ShareCursor, SharePriority, VideoCodec};
 use crate::sharing::room;
 use livekit::track::LocalTrack;
 use livekit::webrtc::stats::RtcStats;
@@ -287,6 +287,7 @@ async fn live_gpu_screen_share_rate_climb() {
         portal_choice: None,
         codec,
         priority: SharePriority::Smoothness,
+        cursor: ShareCursor::Always,
         selected_audio_source_index: None,
         selected_audio_source_sink: None,
         selected_audio_source_pid: None,

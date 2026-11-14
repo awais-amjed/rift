@@ -10,7 +10,7 @@ use super::encoder::{
 use super::live_test::{shared_key, viewer_as, Server, KEY_INDEX};
 use super::session;
 use crate::api::screenshare::types::{
-    self as share, ScreenShareConfig, SharePriority, ShareQuality,
+    self as share, ScreenShareConfig, ShareCursor, SharePriority, ShareQuality,
 };
 use futures_util::StreamExt;
 use livekit::e2ee::key_provider::{KeyProvider, KeyProviderOptions};
@@ -540,6 +540,7 @@ fn h264_share(server: &Server, room: &str) -> ScreenShareConfig {
         portal_choice: None,
         codec: share::VideoCodec::H264,
         priority: SharePriority::Smoothness,
+        cursor: ShareCursor::Always,
         selected_audio_source_index: None,
         selected_audio_source_sink: None,
         selected_audio_source_pid: None,

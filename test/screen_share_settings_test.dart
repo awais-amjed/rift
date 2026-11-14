@@ -240,6 +240,37 @@ void main() {
     });
   });
 
+  group('cursor', () {
+    test('starts on Auto, and settings from before it get Auto', () {
+      expect(const ScreenShareSettings().cursor, ShareCursor.auto);
+      expect(
+        ScreenShareSettings.fromJson(const {'fps': 30}).cursor,
+        ShareCursor.auto,
+      );
+      expect(
+        ScreenShareSettings.fromJson(const {'cursor': 'sometimes'}).cursor,
+        ShareCursor.auto,
+      );
+    });
+
+    test('is remembered across a restart and survives picking a window', () {
+      const settings = ScreenShareSettings(cursor: ShareCursor.never);
+      expect(
+        ScreenShareSettings.fromJson(settings.toJson()).cursor,
+        ShareCursor.never,
+      );
+      final picked = settings.withVideoSource(
+        const CaptureSource(
+          index: 0,
+          title: 'Game',
+          appId: '',
+          minimised: false,
+        ),
+      );
+      expect(picked.cursor, ShareCursor.never);
+    });
+  });
+
   group('priority', () {
     test('starts on smoothness', () {
       expect(const ScreenShareSettings().priority, SharePriority.smoothness);

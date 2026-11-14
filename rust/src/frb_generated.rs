@@ -3518,6 +3518,8 @@ impl SseDecode for crate::api::screenshare::types::ScreenShareConfig {
         let mut var_codec = <crate::api::screenshare::types::VideoCodec>::sse_decode(deserializer);
         let mut var_priority =
             <crate::api::screenshare::types::SharePriority>::sse_decode(deserializer);
+        let mut var_cursor =
+            <crate::api::screenshare::types::ShareCursor>::sse_decode(deserializer);
         let mut var_selectedAudioSourceIndex = <Option<u32>>::sse_decode(deserializer);
         let mut var_selectedAudioSourceSink = <Option<u32>>::sse_decode(deserializer);
         let mut var_selectedAudioSourcePid = <Option<u32>>::sse_decode(deserializer);
@@ -3536,6 +3538,7 @@ impl SseDecode for crate::api::screenshare::types::ScreenShareConfig {
             gpu_capture: var_gpuCapture,
             codec: var_codec,
             priority: var_priority,
+            cursor: var_cursor,
             selected_audio_source_index: var_selectedAudioSourceIndex,
             selected_audio_source_sink: var_selectedAudioSourceSink,
             selected_audio_source_pid: var_selectedAudioSourcePid,
@@ -3554,6 +3557,19 @@ impl SseDecode for crate::api::screenshare::types::ScreenshareEvent {
             1 => crate::api::screenshare::types::ScreenshareEvent::EncoderFellBack,
             2 => crate::api::screenshare::types::ScreenshareEvent::H265FellBack,
             _ => unreachable!("Invalid variant for ScreenshareEvent: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::screenshare::types::ShareCursor {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::screenshare::types::ShareCursor::Auto,
+            1 => crate::api::screenshare::types::ShareCursor::Always,
+            2 => crate::api::screenshare::types::ShareCursor::Never,
+            _ => unreachable!("Invalid variant for ShareCursor: {}", inner),
         };
     }
 }
@@ -4319,6 +4335,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::screenshare::types::ScreenSha
             self.gpu_capture.into_into_dart().into_dart(),
             self.codec.into_into_dart().into_dart(),
             self.priority.into_into_dart().into_dart(),
+            self.cursor.into_into_dart().into_dart(),
             self.selected_audio_source_index
                 .into_into_dart()
                 .into_dart(),
@@ -4360,6 +4377,28 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::screenshare::types::Screensha
     for crate::api::screenshare::types::ScreenshareEvent
 {
     fn into_into_dart(self) -> crate::api::screenshare::types::ScreenshareEvent {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::screenshare::types::ShareCursor {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Auto => 0.into_dart(),
+            Self::Always => 1.into_dart(),
+            Self::Never => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::screenshare::types::ShareCursor
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::screenshare::types::ShareCursor>
+    for crate::api::screenshare::types::ShareCursor
+{
+    fn into_into_dart(self) -> crate::api::screenshare::types::ShareCursor {
         self
     }
 }
@@ -5104,6 +5143,7 @@ impl SseEncode for crate::api::screenshare::types::ScreenShareConfig {
         <bool>::sse_encode(self.gpu_capture, serializer);
         <crate::api::screenshare::types::VideoCodec>::sse_encode(self.codec, serializer);
         <crate::api::screenshare::types::SharePriority>::sse_encode(self.priority, serializer);
+        <crate::api::screenshare::types::ShareCursor>::sse_encode(self.cursor, serializer);
         <Option<u32>>::sse_encode(self.selected_audio_source_index, serializer);
         <Option<u32>>::sse_encode(self.selected_audio_source_sink, serializer);
         <Option<u32>>::sse_encode(self.selected_audio_source_pid, serializer);
@@ -5120,6 +5160,23 @@ impl SseEncode for crate::api::screenshare::types::ScreenshareEvent {
                 crate::api::screenshare::types::ScreenshareEvent::SourceClosed => 0,
                 crate::api::screenshare::types::ScreenshareEvent::EncoderFellBack => 1,
                 crate::api::screenshare::types::ScreenshareEvent::H265FellBack => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::screenshare::types::ShareCursor {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::screenshare::types::ShareCursor::Auto => 0,
+                crate::api::screenshare::types::ShareCursor::Always => 1,
+                crate::api::screenshare::types::ShareCursor::Never => 2,
                 _ => {
                     unimplemented!("");
                 }

@@ -8,7 +8,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import '../../frb_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `check_picture`, `check_quality`, `check_room`, `check`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// A PulseAudio sink-input: one application's playback stream. Linux only;
 /// Windows picks audio by process id from [`CaptureSource`] instead.
@@ -132,6 +132,7 @@ class ScreenShareConfig {
   final bool gpuCapture;
   final VideoCodec codec;
   final SharePriority priority;
+  final ShareCursor cursor;
 
   /// Linux: the PulseAudio sink-input to capture, and the sink it plays to;
   /// none means everything but Rift.
@@ -165,6 +166,7 @@ class ScreenShareConfig {
     required this.gpuCapture,
     required this.codec,
     required this.priority,
+    required this.cursor,
     this.selectedAudioSourceIndex,
     this.selectedAudioSourceSink,
     this.selectedAudioSourcePid,
@@ -186,6 +188,7 @@ class ScreenShareConfig {
       gpuCapture.hashCode ^
       codec.hashCode ^
       priority.hashCode ^
+      cursor.hashCode ^
       selectedAudioSourceIndex.hashCode ^
       selectedAudioSourceSink.hashCode ^
       selectedAudioSourcePid.hashCode ^
@@ -209,6 +212,7 @@ class ScreenShareConfig {
           gpuCapture == other.gpuCapture &&
           codec == other.codec &&
           priority == other.priority &&
+          cursor == other.cursor &&
           selectedAudioSourceIndex == other.selectedAudioSourceIndex &&
           selectedAudioSourceSink == other.selectedAudioSourceSink &&
           selectedAudioSourcePid == other.selectedAudioSourcePid &&
@@ -229,6 +233,16 @@ enum ScreenshareEvent {
   /// H265 was asked for and could not go out, at the start or part way
   /// through, so the share went out as H264 from the same GPU instead.
   h265FellBack,
+}
+
+/// Whether a share draws the mouse cursor into its picture.
+enum ShareCursor {
+  /// Drawn, except in a Windows share of a whole screen while a game has
+  /// locked the mouse. Such a game hides the cursor in its own window, but
+  /// a capture of the screen draws it anyway, wherever the game holds it.
+  auto,
+  always,
+  never,
 }
 
 /// What a share gives up when the computer or the connection cannot keep up:

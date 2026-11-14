@@ -242,6 +242,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ScreenshareEvent dco_decode_screenshare_event(dynamic raw);
 
   @protected
+  ShareCursor dco_decode_share_cursor(dynamic raw);
+
+  @protected
   SharePriority dco_decode_share_priority(dynamic raw);
 
   @protected
@@ -524,6 +527,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ScreenshareEvent sse_decode_screenshare_event(SseDeserializer deserializer);
+
+  @protected
+  ShareCursor sse_decode_share_cursor(SseDeserializer deserializer);
 
   @protected
   SharePriority sse_decode_share_priority(SseDeserializer deserializer);
@@ -871,6 +877,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     ScreenshareEvent self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_share_cursor(ShareCursor self, SseSerializer serializer);
 
   @protected
   void sse_encode_share_priority(SharePriority self, SseSerializer serializer);

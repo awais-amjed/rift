@@ -8,7 +8,9 @@ use super::gpu_feed::GpuFeed;
 use super::resolution::fit_within;
 use super::resolution::{target_size, Size};
 use super::track::{publish_video_track, TrackSettings};
-use crate::api::screenshare::types::{self, ScreenShareConfig, ShareQuality, ShareRoom};
+use crate::api::screenshare::types::{
+    self, ScreenShareConfig, ShareCursor, ShareQuality, ShareRoom,
+};
 #[cfg(gpu_encoder)]
 use crate::api::screenshare::types::{ScreenshareEvent, VideoCodec};
 use crate::sharing::audio::{self, AudioCapture, AudioCaptureHandle, AudioSelection};
@@ -395,7 +397,8 @@ async fn bring_up(
         gpu_capture: config.gpu_capture,
         codec: config.codec,
         fps: config.fps,
-        capture_cursor: true,
+        capture_cursor: config.cursor != ShareCursor::Never,
+        cursor_off_in_games: config.cursor == ShareCursor::Auto && config.capture_full_screen,
         on_paused: Some(announce_paused(participant.clone())),
         following: None,
     });
