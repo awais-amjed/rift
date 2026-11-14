@@ -931,7 +931,9 @@ keeps finding its own. The version an update no longer uses is deleted once
 nothing has touched it for two weeks, since another build on the same device
 may still be using it. Verified Nov 15 2026 against a stand-in server in the
 tests (resume, a server that ignores the range, a dropped connection, a bad
-hash, cleanup); not yet against the real release.
+hash, cleanup), and against the real release with a Linux debug build: the
+first start fetched the file and it matched its hash, the second fetched
+nothing. Not yet seen: the classifier scoring a picture from the downloaded file.
 
 ## 9. The app's log and bug reports — [Implemented October 2026]
 
