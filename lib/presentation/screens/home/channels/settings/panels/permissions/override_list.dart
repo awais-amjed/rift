@@ -87,8 +87,7 @@ class OverrideList extends StatelessWidget {
     if (blockedBy != null) {
       return OverrideRow(
         permission: permission,
-        note:
-            'Blocked while $who can\'t ${blockedBy.label.toLowerCase()} here',
+        note: 'Blocked while $who can\'t ${blockedBy.label.toLowerCase()} here',
         control: const OverrideSwitch(value: OverrideState.deny),
       );
     }
