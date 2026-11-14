@@ -40,6 +40,12 @@ class _FetchingLatestOverlayState extends State<FetchingLatestOverlay> {
   Timer? _timer;
   bool _shown = false;
 
+  /// On screen, or fading out: the dots pulse only then. Built hidden at
+  /// nothing's opacity, they asked for a frame whenever the screen could
+  /// take one, and the page round them was drawn again each time: most of a
+  /// phone's core on a chat nobody was touching (Nov 14).
+  bool _ticking = false;
+
   @override
   void initState() {
     super.initState();
@@ -55,13 +61,25 @@ class _FetchingLatestOverlayState extends State<FetchingLatestOverlay> {
     } else {
       _timer?.cancel();
       _shown = false;
+      // After the fade, by the clock: a pill hidden in the frame it was due
+      // to show never fades, so no end of one would come to stop the dots.
+      if (_ticking) {
+        _timer = Timer(AppMotion.state, () {
+          if (mounted) setState(() => _ticking = false);
+        });
+      }
     }
   }
 
   void _arm() {
     _timer?.cancel();
     _timer = Timer(_delay, () {
-      if (mounted) setState(() => _shown = true);
+      if (mounted) {
+        setState(() {
+          _shown = true;
+          _ticking = true;
+        });
+      }
     });
   }
 
@@ -90,7 +108,7 @@ class _FetchingLatestOverlayState extends State<FetchingLatestOverlay> {
                   opacity: _shown ? 1 : 0,
                   duration: _shown ? AppMotion.enter : AppMotion.state,
                   curve: AppMotion.settle,
-                  child: const _Pill(),
+                  child: TickerMode(enabled: _ticking, child: const _Pill()),
                 ),
               ),
             ),
