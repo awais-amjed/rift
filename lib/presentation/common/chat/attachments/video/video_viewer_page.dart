@@ -16,6 +16,7 @@ import '../../../../theme/media_colors.dart';
 import '../../../context_menu/context_menu_watcher.dart';
 import '../../../viewer_actions.dart';
 import '../attachment_saving.dart';
+import '../sensitive_image_cover.dart';
 import 'clip_playback.dart';
 import 'widgets/video_controls.dart';
 import 'widgets/video_icon_button.dart';
@@ -225,8 +226,12 @@ class _VideoViewerPageState extends State<VideoViewerPage>
     );
   }
 
+  /// Behind its cover, nothing to play with: only the way out is left.
+  bool get _covered => _p.safety.covered;
+
   bool get _showsMiddle =>
-      !_p.playing || _p.opening || _p.waiting || _p.problem != null;
+      !_covered &&
+      (!_p.playing || _p.opening || _p.waiting || _p.problem != null);
 
   Widget _wholeScreen() => Stack(
     fit: StackFit.expand,
@@ -234,14 +239,15 @@ class _VideoViewerPageState extends State<VideoViewerPage>
       _surface(Center(child: _video())),
       if (_showsMiddle) _middle(),
       Positioned(left: 0, right: 0, top: 0, child: _fading(_top())),
-      Positioned(
-        left: 0,
-        right: 0,
-        bottom: 0,
-        child: _fading(
-          _shade(up: true, child: SafeArea(top: false, child: _strip())),
+      if (!_covered)
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: _fading(
+            _shade(up: true, child: SafeArea(top: false, child: _strip())),
+          ),
         ),
-      ),
     ],
   );
 
@@ -266,12 +272,13 @@ class _VideoViewerPageState extends State<VideoViewerPage>
                 children: [
                   _surface(_video()),
                   if (_showsMiddle) _middle(),
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: _fading(_shade(up: true, child: _strip())),
-                  ),
+                  if (!_covered)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: _fading(_shade(up: true, child: _strip())),
+                    ),
                 ],
               ),
             ),
@@ -320,17 +327,31 @@ class _VideoViewerPageState extends State<VideoViewerPage>
           : c.state.entry(MediaKind.attachment, posterPath)?.bytes,
     );
     final clip = _p.clip;
+    final safety = _p.safety;
+    if (poster != null) safety.lookAtPoster(poster);
+    final posterImage = poster != null && safety.posterChecked
+        ? Image.memory(poster, fit: BoxFit.contain, gaplessPlayback: true)
+        : null;
     return AspectRatio(
       key: _picture,
       aspectRatio: _ratio,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          if (poster != null)
-            Image.memory(poster, fit: BoxFit.contain, gaplessPlayback: true),
-          if (clip != null && _p.picture != null) clip.picture(),
-        ],
-      ),
+      // Flagged while it played here: the card's cover, over the poster
+      // alone (see AttachmentVideoCard).
+      child: safety.covered
+          ? SensitiveImageCover(
+              attachmentId: _p.attachment.id,
+              mode: safety.mode,
+              label: 'Sensitive video',
+              onReveal: _changed,
+              child: posterImage ?? const SizedBox.expand(),
+            )
+          : Stack(
+              fit: StackFit.expand,
+              children: [
+                ?posterImage,
+                if (clip != null && _p.picture != null) clip.picture(),
+              ],
+            ),
     );
   }
 

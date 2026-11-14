@@ -26,7 +26,7 @@ built.
 | Central Supabase | Optional convenience service run by the project: account (email+password) + encrypted vault backups. Never required — privacy mode works without it | `rift-central` |
 | Bot SDKs | TypeScript and Rust. Each a second implementation of the wire format, not a binding | `rift-bot-sdk-node`, `rift-bot-sdk-rust` |
 | Directory moderation | A separate site with its own accounts for reviewing reports against central's public directory. Never part of the app | `rift-admin` |
-| On-device models | The image classifier each device runs on pictures it has decrypted, to decide whether to show them plainly — the server never sees a picture, so this is the only place one can be judged | `rift-models` |
+| On-device models | The image classifier each device runs on pictures it has decrypted, to decide whether to show them plainly — the server never sees a picture, so this is the only place one can be judged. A chat video is judged by its poster before it is drawn and by a picture every second (two on a phone) while it plays (`ClipSafety`) | `rift-models` |
 
 The schema and the endpoints for both servers are in their own repositories, so a
 migration named here is a file there. They are the source of truth; this document

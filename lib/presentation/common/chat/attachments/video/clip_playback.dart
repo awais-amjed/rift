@@ -5,10 +5,12 @@ import 'package:flutter/scheduler.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../../data/classes/attachment.dart';
+import '../../../../../data/enums/sensitive_content_mode.dart';
 import '../../../../../data/repositories/blob/blob_reader.dart';
 import '../../../../../logic/services/chat_clip/chat_clip.dart';
 import '../../../../../src/rust/api/clips.dart';
 import '../attachment_loader.dart';
+import 'clip_safety.dart';
 
 /// One chat video's playing: the [ChatClip] once it is open, and what the
 /// controls draw from it.
@@ -21,8 +23,21 @@ class ClipPlayback extends ChangeNotifier {
   final Attachment attachment;
   final AttachmentLoader loader;
 
-  ClipPlayback({required this.attachment, required this.loader})
-    : length = Duration(milliseconds: attachment.durationMs ?? 0);
+  ClipPlayback({
+    required this.attachment,
+    required this.loader,
+    required SensitiveContentMode mode,
+  }) : length = Duration(milliseconds: attachment.durationMs ?? 0) {
+    safety = ClipSafety(
+      attachment: attachment,
+      mode: mode,
+      changed: _changed,
+      flagged: pause,
+    );
+  }
+
+  /// Whether it may be shown: its poster and its pictures, looked at.
+  late final ClipSafety safety;
 
   ChatClip? clip;
   StreamSubscription<ClipEvent>? _events;
@@ -73,7 +88,7 @@ class ClipPlayback extends ChangeNotifier {
   /// Play or pause, opening it first if it is not open yet. [output] is the
   /// device its sound goes to, read when it opens.
   Future<void> toggle({String? output}) async {
-    if (opening || problem != null) return;
+    if (opening || problem != null || safety.covered) return;
     final clip = this.clip;
     if (clip == null) return _open(output);
     if (playing) {
@@ -218,7 +233,8 @@ class ClipPlayback extends ChangeNotifier {
     _lastRead = null;
     _changed();
     _ticker?.cancel();
-    if (!now) return;
+    if (!now) return safety.stop();
+    if (clip case final clip?) safety.watch(clip);
     _ticker = Timer.periodic(const Duration(milliseconds: 250), (_) => _read());
   }
 
@@ -281,6 +297,7 @@ class ClipPlayback extends ChangeNotifier {
 
   void _letGo() {
     _ticker?.cancel();
+    safety.stop();
     _waitingShows?.cancel();
     clip?.waiting?.removeListener(_waitingChanged);
     _toldWaiting = false;
@@ -294,6 +311,7 @@ class ClipPlayback extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    safety.dispose();
     _letGo();
     super.dispose();
   }

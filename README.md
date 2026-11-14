@@ -185,7 +185,7 @@ local-testing mode for trying Rift on your own network first.
   </tr>
   <tr>
     <td valign="top">
-      <b>Sensitive images, blurred for you</b><br>
+      <b>Sensitive images and videos, blurred for you</b><br>
       A classifier that runs on your device, since a server can't scan what it
       can't read.
     </td>

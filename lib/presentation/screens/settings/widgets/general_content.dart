@@ -123,7 +123,7 @@ class GeneralContent extends StatelessWidget {
   );
 }
 
-/// What a flagged picture or message does: shown, blurred, or hidden.
+/// What a flagged picture, video or message does: shown, blurred, or hidden.
 class _SensitiveContent extends StatelessWidget {
   const _SensitiveContent();
 
@@ -135,7 +135,7 @@ class _SensitiveContent extends StatelessWidget {
         const SectionTitle(label: 'Sensitive content'),
         const SizedBox(height: 4),
         Text(
-          'Pictures and messages are checked on this device after they are '
+          'Pictures, videos and messages are checked on this device after they are '
           'decrypted — nothing leaves it. Blur covers what is flagged until '
           'you press it; Hide keeps it covered.',
           style: AppText.secondary.copyWith(color: context.theme.textTertiary),

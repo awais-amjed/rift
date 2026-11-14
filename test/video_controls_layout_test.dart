@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:rift/data/classes/attachment.dart';
+import 'package:rift/data/enums/sensitive_content_mode.dart';
 import 'package:rift/logic/cubits/app/app_cubit.dart';
 import 'package:rift/logic/services/attachment_loader.dart';
 import 'package:rift/presentation/common/chat/attachments/video/clip_playback.dart';
@@ -36,6 +37,7 @@ void main() {
       load: (_) async => null,
       save: (_, _, {onProgress}) => throw UnimplementedError(),
     ),
+    mode: SensitiveContentMode.blur,
   );
 
   for (final fullscreen in [false, true]) {

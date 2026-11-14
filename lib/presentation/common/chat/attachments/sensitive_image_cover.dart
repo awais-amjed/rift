@@ -21,11 +21,20 @@ class SensitiveImageCover extends StatefulWidget {
   final SensitiveContentMode mode;
   final Widget child;
 
+  /// What is covered, in words: a picture, or a video.
+  final String label;
+
+  /// Told after a press lifts it, for an owner that draws something else
+  /// once it is: a video card brings back its controls.
+  final VoidCallback? onReveal;
+
   const SensitiveImageCover({
     super.key,
     required this.attachmentId,
     required this.mode,
     required this.child,
+    this.label = 'Sensitive image',
+    this.onReveal,
   });
 
   /// Attachments revealed this session. Static on purpose: a thumbnail's
@@ -34,6 +43,10 @@ class SensitiveImageCover extends StatefulWidget {
   static final Set<String> _revealed = {};
 
   static const double _sigma = 24;
+
+  /// Whether [attachmentId] was lifted this session.
+  static bool isRevealed(String attachmentId) =>
+      _revealed.contains(attachmentId);
 
   /// For tests: forget every reveal.
   @visibleForTesting
@@ -52,6 +65,7 @@ class _SensitiveImageCoverState extends State<SensitiveImageCover> {
   void _reveal() {
     if (!_canReveal) return;
     setState(() => SensitiveImageCover._revealed.add(widget.attachmentId));
+    widget.onReveal?.call();
   }
 
   @override
@@ -90,7 +104,7 @@ class _SensitiveImageCoverState extends State<SensitiveImageCover> {
                           color: MediaColors.onMedia,
                         ),
                         Text(
-                          'Sensitive image',
+                          widget.label,
                           style: AppText.secondaryStrong.copyWith(
                             color: MediaColors.onMedia,
                           ),

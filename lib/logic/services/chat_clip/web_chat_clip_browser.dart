@@ -197,6 +197,28 @@ class WebChatClip implements ChatClip {
   @override
   Widget picture() => HtmlElementView(viewType: _viewType, creationParams: _id);
 
+  /// Drawn onto a canvas of its own. The `<video>` plays from a `blob:` URL
+  /// or the page's own worker, so the canvas is never tainted.
+  @override
+  Future<ByteData?> frame(int side) async {
+    if (_closed || _video.videoWidth == 0) return null;
+    try {
+      final canvas = web.HTMLCanvasElement()
+        ..width = side
+        ..height = side;
+      final context =
+          canvas.getContext('2d', {'willReadFrequently': true}.jsify())
+              as web.CanvasRenderingContext2D?;
+      if (context == null) return null;
+      context.drawImage(_video, 0, 0, side, side);
+      final data = context.getImageData(0, 0, side, side).data.toDart;
+      return ByteData.sublistView(data);
+    } catch (e) {
+      HelperMethods.printDebug('[ChatClip] frame: ${e.runtimeType}');
+      return null;
+    }
+  }
+
   @override
   Future<bool> play() async {
     try {

@@ -52,4 +52,30 @@ void main() {
     await tester.pump();
     expect(find.text('Sensitive image'), findsOneWidget);
   });
+
+  testWidgets('a video names itself and tells its card when lifted', (
+    tester,
+  ) async {
+    var told = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SensitiveImageCover(
+            attachmentId: 'v1',
+            mode: SensitiveContentMode.blur,
+            label: 'Sensitive video',
+            onReveal: () => told++,
+            child: const SizedBox(width: 120, height: 80),
+          ),
+        ),
+      ),
+    );
+    expect(find.text('Sensitive video'), findsOneWidget);
+    expect(SensitiveImageCover.isRevealed('v1'), isFalse);
+
+    await tester.tap(find.text('Sensitive video'));
+    await tester.pump();
+    expect(told, 1);
+    expect(SensitiveImageCover.isRevealed('v1'), isTrue);
+  });
 }

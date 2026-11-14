@@ -1,4 +1,4 @@
-/// What the app does with an image the on-device classifier flags.
+/// What the app does with an image or video the on-device classifier flags.
 ///
 /// A per-device choice, not a server rule: the classifier runs on the bytes
 /// this device decrypted, and nobody else ever sees its verdict. Blur is the

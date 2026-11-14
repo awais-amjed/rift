@@ -8,6 +8,7 @@ import '../../../data/repositories/blob/blob_reader.dart';
 import '../../../src/rust/api/clips.dart';
 import '../../helper_methods.dart';
 import 'chat_clip.dart';
+import 'texture_frame.dart';
 
 /// A chat video played by ExoPlayer, with the phone's own decoders, into a
 /// Flutter texture (`ChatClips.kt` in the Android app). The player asks for
@@ -160,6 +161,10 @@ class AndroidChatClip implements ChatClip {
           quarterTurns: _turns,
           child: Texture(textureId: textureId),
         );
+
+  @override
+  Future<ByteData?> frame(int side) =>
+      textureFrame(textureId, side, quarterTurns: _turns);
 
   @override
   Future<bool> play() async {

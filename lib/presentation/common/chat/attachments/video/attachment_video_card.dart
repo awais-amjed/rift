@@ -14,6 +14,7 @@ import '../attachment_file_card.dart';
 import '../attachment_image_thumb.dart';
 import '../attachment_loader.dart';
 import '../attachment_saving.dart';
+import '../sensitive_image_cover.dart';
 import 'clip_playback.dart';
 import 'video_viewer_page.dart';
 import 'widgets/video_controls.dart';
@@ -51,6 +52,7 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
   late final ClipPlayback _playback = ClipPlayback(
     attachment: widget.attachment,
     loader: widget.loader,
+    mode: context.read<AppCubit>().state.sensitiveContentMode,
   )..addListener(_changed);
   AppLifecycleListener? _away;
 
@@ -148,7 +150,11 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
                 within: constraints.maxWidth,
               ) ??
               _fallback;
-          return SizedBox.fromSize(size: box, child: _card(poster));
+          if (poster != null) _playback.safety.lookAtPoster(poster);
+          return SizedBox.fromSize(
+            size: box,
+            child: _playback.safety.covered ? _covered(poster) : _card(poster),
+          );
         },
       ),
     );
@@ -170,7 +176,7 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
           fit: StackFit.expand,
           children: [
             // Under the picture, so it shows until the first one lands.
-            if (poster != null)
+            if (poster != null && p.safety.posterChecked)
               Image.memory(poster, fit: BoxFit.contain, gaplessPlayback: true),
             if (clip != null && p.picture != null && !away) clip.picture(),
             Material(
@@ -251,6 +257,25 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
       ),
     );
   }
+
+  /// Flagged: the poster behind the cover, and nothing to play until it is
+  /// lifted. The live picture is left out rather than blurred, since a
+  /// browser draws its `<video>` above anything Flutter puts over it.
+  Widget _covered(Uint8List? poster) => ClipRRect(
+    borderRadius: BorderRadius.circular(K.radiusCard),
+    child: SensitiveImageCover(
+      attachmentId: widget.attachment.id,
+      mode: _playback.safety.mode,
+      label: 'Sensitive video',
+      onReveal: _changed,
+      child: ColoredBox(
+        color: MediaColors.videoGround,
+        child: poster == null
+            ? const SizedBox.expand()
+            : Image.memory(poster, fit: BoxFit.contain, gaplessPlayback: true),
+      ),
+    ),
+  );
 
   Widget _lengthChip() => Container(
     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),

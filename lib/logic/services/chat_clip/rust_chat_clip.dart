@@ -8,6 +8,7 @@ import '../../../src/rust/api/clips.dart';
 import '../../helper_methods.dart';
 import '../runner_textures.dart';
 import 'chat_clip.dart';
+import 'texture_frame.dart';
 
 /// A chat video played by Rust into a runner texture (`rust/src/clips`):
 /// GStreamer on Linux, the Media Engine on Windows. The player asks for the
@@ -145,6 +146,9 @@ class RustChatClip implements ChatClip {
 
   @override
   Widget picture() => Texture(textureId: textureId);
+
+  @override
+  Future<ByteData?> frame(int side) => textureFrame(textureId, side);
 
   @override
   Future<bool> play() => _quietly('play', () => clipPlay(texture: _texture));

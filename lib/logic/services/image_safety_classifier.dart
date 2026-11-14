@@ -44,6 +44,11 @@ class ImageSafetyClassifier {
 
   ImageSafetyVerdict? cached(String id) => _verdicts[id];
 
+  /// Keeps [verdict] for [id]: a video's, reached from its poster or a
+  /// picture while it played, so the card is covered at once next time.
+  void remember(String id, ImageSafetyVerdict verdict) =>
+      _verdicts[id] = verdict;
+
   /// The verdict for [bytes], or null when the model could not be loaded or
   /// the bytes are not an image this platform decodes. Null means "show it":
   /// a broken classifier must not hide every picture on the server.
@@ -60,6 +65,22 @@ class ImageSafetyClassifier {
       return null;
     }
 
+    final verdict = await _score(pixels);
+    if (verdict != null) _verdicts[id] = verdict;
+    return verdict;
+  }
+
+  /// The verdict for one picture already [side] × [side], as RGBA: a frame
+  /// of a playing video (`ChatClip.frame`). Not kept, since a video is
+  /// many of them; the caller keeps the one that matters ([remember]).
+  Future<ImageSafetyVerdict?> classifyFrame(ByteData rgba) async {
+    if (!await _load()) return null;
+    if (rgba.lengthInBytes != side * side * 4) return null;
+    return _score(packPixels(rgba, side, channelsFirst: _channelsFirst));
+  }
+
+  /// The model run on [pixels]; null when it failed.
+  Future<ImageSafetyVerdict?> _score(Float32List pixels) async {
     final List<double> scores;
     try {
       final worker = _worker;
@@ -78,9 +99,7 @@ class ImageSafetyClassifier {
       return null;
     }
 
-    final verdict = ImageSafetyVerdict.fromScores(scores);
-    _verdicts[id] = verdict;
-    return verdict;
+    return ImageSafetyVerdict.fromScores(scores);
   }
 
   Future<bool> _load() => _loading ??= _loadOnce();

@@ -123,6 +123,11 @@ abstract class ChatClip {
   /// [ClipEventKind.pictureSize] has come.
   Widget picture();
 
+  /// The picture showing now, stretched to [side] × [side], as RGBA: what
+  /// the image-safety model looks at while it plays. Null where it cannot
+  /// be read.
+  Future<ByteData?> frame(int side);
+
   /// Whether it started. A browser may refuse sound that no click asked
   /// for just then, and the card then stays paused for the next one.
   Future<bool> play();
