@@ -174,7 +174,8 @@ flutter:
   assets:
     - assets/images/
     - assets/audio/
-    - assets/models/
+    # Only the word list: the picture model is downloaded (ModelCatalog).
+    - assets/models/profanity_en.json
     - assets/licenses/
 
   # Bundled rather than fetched at runtime: without this the app inherits

@@ -767,7 +767,9 @@ turning other apps down, and the speaking indicator.
 
 An update is code that runs with everything above, so it has its own guard
 (§8): the GitHub releases it comes from are not trusted, only the release
-key's signature.
+key's signature. A downloaded model is pinned by its SHA-256 in
+the app instead (§8, *Downloaded models*), so it is exactly as trusted as the
+app that asked for it.
 
 ---
 
@@ -903,6 +905,33 @@ A copy not installed by Velopack — a build run from its folder, the
 update itself and says so in Settings. On Windows the first start of a
 Velopack copy offers to remove that old copy, behind one administrator
 prompt (`windows/runner/velopack_hooks.cpp`).
+
+### Downloaded models — [Implemented November 2026]
+
+The models are not in the installers: they were most of the download, for
+features only some people use. Each is fetched the first time something needs
+it and kept in `models/` beside the profiles, shared by every profile on the
+device and left in place by an update (`ModelRepository`). `ModelCatalog`
+lists them, and `ModelDownloads` says which a start fetches unasked; so far
+that is the picture classifier, at the first start, while the person is still
+signing in. Until it is on the device, pictures are shown without a check.
+The web keeps fetching its copy from beside the app (`scripts/build_web.sh`).
+
+This is the one request a start makes that is not to a server the person
+chose or to central: a plain `GET` to the GitHub release `models` (none once
+the files are here), carrying nothing about the person or the device.
+GitHub, or anyone in the account, can serve any bytes there, so it is not
+trusted: the app pins each file's SHA-256, and a file is renamed into place
+only after it matches. A broken download keeps what arrived and carries on
+from there with a `Range` request; one that fails is asked for again when the
+model is next needed, at most once a minute. The release only gains files
+(`scripts/upload_models.sh` adds them and prints the pinned entry): a new
+version is a new name and hash, so an update fetches it and an older copy
+keeps finding its own. The version an update no longer uses is deleted once
+nothing has touched it for two weeks, since another build on the same device
+may still be using it. Verified Nov 15 2026 against a stand-in server in the
+tests (resume, a server that ignores the range, a dropped connection, a bad
+hash, cleanup); not yet against the real release.
 
 ## 9. The app's log and bug reports — [Implemented October 2026]
 

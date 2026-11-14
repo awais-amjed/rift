@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_litert/flutter_litert.dart';
 
+import '../../data/model_catalog.dart';
+import '../../data/repositories/model_repository.dart';
 import '../helper_methods.dart';
 import 'image_safety.dart';
 import 'image_safety_worker.dart';
@@ -22,12 +24,19 @@ import 'image_safety_worker.dart';
 /// ([ImageSafetyWorker]) — four times faster than the classic interpreter
 /// here, and off the UI thread so a burst of thumbnails cannot stall a
 /// frame. The web has no isolates and keeps the classic interpreter inline.
+///
+/// The model is downloaded, not shipped (`ModelCatalog.imageSafety`). Until
+/// it is on the device every verdict is null, so pictures are shown as they
+/// were before the classifier existed; the first start fetches it before
+/// anything else, while the person is still signing in.
 class ImageSafetyClassifier {
   ImageSafetyClassifier._();
 
   static final ImageSafetyClassifier instance = ImageSafetyClassifier._();
 
-  static const String asset = 'assets/models/image_safety.tflite';
+  /// The model in the source tree, which the release and the web build are
+  /// given and the tests run.
+  static const String sourceFile = 'assets/models/image_safety.tflite';
 
   /// The model's fixed input edge. Images are resized straight to this, not
   /// letterboxed — the same stretch the model card's own example uses.
@@ -106,7 +115,12 @@ class ImageSafetyClassifier {
 
   Future<bool> _loadOnce() async {
     try {
-      final bytes = (await rootBundle.load(asset)).buffer.asUint8List();
+      final bytes = await _modelBytes();
+      if (bytes == null) {
+        // Not here yet: asked again by the next picture.
+        _loading = null;
+        return false;
+      }
       // The converter is asked for NHWC, but a model that kept the ONNX
       // layout is still usable — the pixels are just packed the other way.
       // The classic interpreter is opened either way: it is what reads the
@@ -132,6 +146,19 @@ class ImageSafetyClassifier {
       HelperMethods.printDebug('ImageSafetyClassifier: model unavailable – $e');
       return false;
     }
+  }
+
+  /// The model, or null while it is still being downloaded. A picture
+  /// does not wait for it: what arrives before the model is shown unchecked.
+  static Future<Uint8List?> _modelBytes() async {
+    const model = ModelCatalog.imageSafety;
+    final models = ModelRepository.instance;
+    if (kIsWeb) return models.servedBeside(model);
+    final file = await models.present(model);
+    if (file != null) return file.readAsBytes();
+    // Usually already under way since the start; a failure is logged there.
+    unawaited(models.fetch(model).then<void>((_) {}, onError: (Object _) {}));
+    return null;
   }
 
   /// Decode and resize on the engine's own thread, then hand back the pixels

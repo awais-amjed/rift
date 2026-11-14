@@ -82,6 +82,11 @@ class StorageNamespace {
     return suffix.isEmpty ? base : '$base/rift_$suffix';
   }
 
+  /// Where files every profile on this device shares go — the downloaded
+  /// models (`ModelRepository`). Nothing personal belongs here. Not for web.
+  static Future<String> sharedDirectory() async =>
+      (await _baseDirectory()).path;
+
   /// The app's own documents folder on mobile and macOS, which are the
   /// app's by construction (sandboxed). On Windows and Linux, "documents" is
   /// the person's own Documents folder. That is somewhere a release build would

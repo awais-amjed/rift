@@ -29,6 +29,7 @@ import 'logic/services/hydrated_store.dart';
 import 'logic/services/invite_scheme.dart';
 import 'logic/services/linux_desktop_entry.dart';
 import 'logic/services/login_launch/login_launch.dart';
+import 'logic/services/model_downloads.dart';
 import 'logic/services/notification_service.dart';
 import 'logic/services/preferences_file.dart';
 import 'logic/services/profile_auth_storage.dart';
@@ -139,6 +140,10 @@ class AppBootstrap {
     // The profanity list, for covering flagged messages. Not awaited: until
     // it lands every message is shown, and 60 KB lands before the first one.
     unawaited(TextSafety.instance.load());
+    // The models this device has not downloaded yet, the picture classifier
+    // first; then the old versions an update left behind. Not awaited: a
+    // first start is signing in meanwhile, and nothing waits on them.
+    if (!kIsWeb) unawaited(ModelDownloads.start());
     // The web's stand-in for the WindowListener callbacks in main.dart, which
     // window_manager supplies everywhere else. Without it the tab is focused
     // forever and nothing ever notifies, because every trigger site gates on

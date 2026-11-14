@@ -6,7 +6,8 @@
 # that file, and without it a call sits on "Connecting…" forever. The worker
 # is compiled from the livekit_client this project resolves, so it cannot
 # drift from the package it has to talk to; it is not committed for the same
-# reason.
+# reason. The same goes for the picture classifier's model, copied in beside
+# it.
 #
 #   scripts/build_web.sh           # worker, then `flutter build web --release`
 #   scripts/build_web.sh --worker  # worker only, before `flutter run -d chrome`
@@ -32,6 +33,14 @@ dart compile js "$livekit/web/e2ee.worker.dart" \
   --packages=.dart_tool/package_config.json \
   -o web/e2ee.worker.dart.js -m
 rm -f web/e2ee.worker.dart.js.deps web/e2ee.worker.dart.js.map
+
+# The picture classifier, which the other builds download (ModelCatalog) and
+# the web fetches from beside the app (ModelRepository.servedBeside). Named
+# as it is published, so the version the code pins is the one it finds.
+published=$(sed -n "s/^ *published: '\(image_safety[^']*\)',/\1/p" lib/data/model_catalog.dart)
+mkdir -p web/models
+rm -f web/models/*
+cp assets/models/image_safety.tflite "web/models/$published"
 
 [[ ${1:-} == --worker ]] && exit 0
 flutter build web --release "$@"

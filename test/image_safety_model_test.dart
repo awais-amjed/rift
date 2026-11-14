@@ -17,7 +17,9 @@ void main() {
   test('the bundled model answers like the original', () async {
     final Interpreter interpreter;
     try {
-      interpreter = Interpreter.fromFile(File(ImageSafetyClassifier.asset));
+      interpreter = Interpreter.fromFile(
+        File(ImageSafetyClassifier.sourceFile),
+      );
     } catch (e) {
       // No native LiteRT on this test host; the packing is covered elsewhere.
       markTestSkipped('LiteRT unavailable here: $e');
@@ -55,7 +57,7 @@ void main() {
     // must say the same thing — LiteRT Next is documented to miscompute
     // some models, and this is the check that it is not one of them.
     final worker = await ImageSafetyWorker.start(
-      File(ImageSafetyClassifier.asset).readAsBytesSync(),
+      File(ImageSafetyClassifier.sourceFile).readAsBytesSync(),
     );
     final scores = await worker.run(pixels);
     worker.close();
