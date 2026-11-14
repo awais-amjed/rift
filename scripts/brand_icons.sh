@@ -47,9 +47,11 @@ rm -rf "$tmp"
 
 # Tray and notifications (Linux, Windows), the installer, the web app.
 render "$tile" 72 assets/images/tray_icon.png
+# The Windows tray's .ico is built into the exe by the runner, so it sits
+# beside app_icon.ico: under assets/ every platform's bundle carried it.
 tmp=$(mktemp -d)
 render "$tile" 256 "$tmp/256.png"
-magick "$tmp/256.png" assets/images/tray_icon.ico
+magick "$tmp/256.png" windows/runner/resources/tray_icon.ico
 rm -rf "$tmp"
 render "$tile" 72 web/favicon.png
 render "$tile" 192 web/icons/icon.png
