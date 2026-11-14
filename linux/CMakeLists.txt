@@ -191,3 +191,37 @@ if(NOT CMAKE_BUILD_TYPE MATCHES "Debug")
   install(FILES "${AOT_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
     COMPONENT Runtime)
 endif()
+
+# Leave out what nothing runs, and on non-Debug builds the symbol tables
+# nothing reads.
+#
+# flutter_litert's WebGPU accelerator (18 MB): the image-safety model runs on
+# LiteRT's CPU accelerator (ImageSafetyWorker), and LiteRT carries on without
+# the GPU one; test/image_safety_model_test.dart passed with libLiteRt.so
+# alone on Nov 14. The plugin's own switch, FLUTTER_LITERT_BUNDLE_DESKTOP_RUNTIME,
+# would take libLiteRt.so too, which that CPU path needs.
+#
+# The symbol tables (the Rust crate's, libwebrtc's and others', about 20 MB):
+# the app log writes a Rust panic's message and place, never a backtrace, and
+# unwinding reads .eh_frame, which stripping keeps. The Dart library is left
+# alone; Flutter builds it stripped.
+install(CODE "
+  set(RIFT_BUNDLE \"${CMAKE_INSTALL_PREFIX}\")
+  set(RIFT_BINARY \"${BINARY_NAME}\")
+  set(RIFT_STRIP \"${CMAKE_STRIP}\")
+  set(RIFT_BUILD_TYPE \"${CMAKE_BUILD_TYPE}\")
+  " COMPONENT Runtime)
+install(CODE [[
+  file(REMOVE "${RIFT_BUNDLE}/lib/libLiteRtWebGpuAccelerator.so")
+  if(NOT RIFT_BUILD_TYPE MATCHES "Debug")
+    file(GLOB rift_libs "${RIFT_BUNDLE}/lib/*.so")
+    list(FILTER rift_libs EXCLUDE REGEX "/libapp\\.so$")
+    foreach(rift_file IN LISTS rift_libs ITEMS "${RIFT_BUNDLE}/${RIFT_BINARY}")
+      execute_process(COMMAND "${RIFT_STRIP}" --strip-unneeded "${rift_file}"
+        RESULT_VARIABLE rift_status)
+      if(NOT rift_status EQUAL 0)
+        message(FATAL_ERROR "Could not strip ${rift_file}")
+      endif()
+    endforeach()
+  endif()
+  ]] COMPONENT Runtime)

@@ -175,3 +175,17 @@ install(DIRECTORY "${PROJECT_BUILD_DIR}/${FLUTTER_ASSET_DIR_NAME}"
 install(FILES "${AOT_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
   CONFIGURATIONS Profile;Release
   COMPONENT Runtime)
+
+# flutter_litert's WebGPU accelerator and the DirectX shader compiler that only
+# it uses (about 50 MB): the image-safety model runs on LiteRT's CPU
+# accelerator (ImageSafetyWorker), and LiteRT carries on without the GPU one
+# (test/image_safety_model_test.dart passed with libLiteRt alone on Linux,
+# Nov 14). The plugin's own switch, FLUTTER_LITERT_BUNDLE_DESKTOP_RUNTIME,
+# would take libLiteRt.dll too, which that CPU path needs. Removed after
+# install rather than kept out of it, since this folder is not emptied between
+# builds and one made before still holds them.
+install(CODE "
+  foreach(dll libLiteRtWebGpuAccelerator.dll dxcompiler.dll dxil.dll)
+    file(REMOVE \"${INSTALL_BUNDLE_LIB_DIR}/\${dll}\")
+  endforeach()
+  " COMPONENT Runtime)
