@@ -164,6 +164,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CueStarted dco_decode_cue_started(dynamic raw);
 
   @protected
+  DpdfnetRuntime dco_decode_dpdfnet_runtime(dynamic raw);
+
+  @protected
   DuckingEvent dco_decode_ducking_event(dynamic raw);
 
   @protected
@@ -437,6 +440,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   CueStarted sse_decode_cue_started(SseDeserializer deserializer);
+
+  @protected
+  DpdfnetRuntime sse_decode_dpdfnet_runtime(SseDeserializer deserializer);
 
   @protected
   DuckingEvent sse_decode_ducking_event(SseDeserializer deserializer);
@@ -757,6 +763,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_cue_started(CueStarted self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_dpdfnet_runtime(
+    DpdfnetRuntime self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_ducking_event(DuckingEvent self, SseSerializer serializer);

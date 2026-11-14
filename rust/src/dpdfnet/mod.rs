@@ -305,14 +305,25 @@ impl Model {
 }
 
 /// Whether the models run on Ceva's runtime here, which loads them from
-/// downloaded weights ([`set_weights`]); ONNX Runtime runs them where not.
-pub(crate) fn wants_weights() -> bool {
+/// downloaded weights ([`set_weights`]), or where it cannot run, on ONNX
+/// Runtime, which is downloaded with its own copy of them ([`set_onnx`]).
+pub(crate) fn on_ceva() -> bool {
     ceva::available()
 }
 
 /// Names the two models' downloaded weights, for every model loaded after.
 pub(crate) fn set_weights(large: std::path::PathBuf, small: std::path::PathBuf) {
     ceva::set_weights(large, small);
+}
+
+/// Names the two downloaded ONNX models and ONNX Runtime, for every model
+/// loaded after.
+pub(crate) fn set_onnx(
+    large: std::path::PathBuf,
+    small: std::path::PathBuf,
+    runtime: std::path::PathBuf,
+) {
+    onnx::set_files(large, small, runtime);
 }
 
 /// Runs DPDFNet-2 alone when `small`, as the person chose in settings, or
@@ -516,7 +527,8 @@ mod tests {
     // They run on Ceva's with RIFT_DPDFNET_LIB=<path to librift_dpdfnet.so>
     // and RIFT_DPDFNET_WEIGHTS=<Ceva's models folder: source/models beside
     // the library after a build>, or without them on ONNX Runtime with RIFT_ONNXRUNTIME=<path to
-    // libonnxruntime.so>: cargo test --release dpdfnet -- --ignored
+    // libonnxruntime.so> (the models are in this repository's models/):
+    // cargo test --release dpdfnet -- --ignored
     #[test]
     #[ignore = "needs a runtime: RIFT_DPDFNET_LIB and RIFT_DPDFNET_WEIGHTS, or RIFT_ONNXRUNTIME"]
     fn loaded_it_quietens_noise() {

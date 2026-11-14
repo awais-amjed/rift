@@ -64,9 +64,9 @@ deep_filter = { git = "https://github.com/Rikorose/DeepFilterNet", rev = "d375b2
 # ONNX Runtime, for DPDFNet, the noise model in this library, on a computer
 # Ceva's own runtime for it cannot run on (src/dpdfnet): tract runs its GRU
 # layers too slowly to keep up. Opened at run time from
-# Microsoft's own build, which the runner's CMake downloads and bundles beside
-# the app's other libraries. Linked in, it would bring a second protobuf and
-# abseil, and clash with libwebrtc's.
+# Microsoft's own build, which the app downloads on such a computer only
+# (ModelCatalog). Linked in, it would bring a second protobuf and abseil, and
+# clash with libwebrtc's.
 ort = { version = "=2.0.0-rc.13", default-features = false, features = ["std", "load-dynamic"] }
 # Velopack installs Rift and replaces it with a newer release (src/updater);
 # `public-utils` opens its modules, `bundle`'s manifest among them, to the

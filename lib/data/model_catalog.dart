@@ -1,3 +1,7 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
+
 import 'classes/model_file.dart';
 
 /// Every file Rift downloads instead of shipping, each pinned to its hash.
@@ -24,7 +28,7 @@ abstract final class ModelCatalog {
   /// each `weights.f32` as Ceva ships it (`native/dpdfnet`). Fetched on a
   /// desktop the first time DPDFNet is put on, which is at the first start,
   /// since it is the default (`NoiseFilter`); not where ONNX Runtime runs the
-  /// models instead.
+  /// models instead ([dpdfnetOnnxLarge]).
   static const dpdfnetLarge = ModelFile(
     id: 'dpdfnet8',
     name: 'noise model',
@@ -40,8 +44,62 @@ abstract final class ModelCatalog {
     sha256: 'cb7248b8fccbff7b32f254ec2ed0061e604514b2ccd98d997cd081a876424e7b',
   );
 
+  /// DPDFNet for ONNX Runtime, on a desktop where Ceva's runtime cannot run
+  /// (no AVX2 and FMA): DPDFNet-8 and DPDFNet-2 as Ceva publishes them
+  /// (huggingface.co/Ceva-IP/DPDFNet, `onnx/`), fetched with
+  /// [onnxRuntime] in place of the weights above.
+  static const dpdfnetOnnxLarge = ModelFile(
+    id: 'dpdfnet8_onnx',
+    name: 'noise model',
+    published: 'dpdfnet8_48khz_hr.v1.onnx',
+    size: 14857107,
+    sha256: '7b3afbb260a08fe9af3d16e3bda992971be1e7e951d1dee7c2d235f5c43f5631',
+  );
+  static const dpdfnetOnnxSmall = ModelFile(
+    id: 'dpdfnet2_onnx',
+    name: 'small noise model',
+    published: 'dpdfnet2_48khz_hr.v1.onnx',
+    size: 10493337,
+    sha256: '7f0575a5cec0ba4ffd8f8bd657e06d007e4ccdd955d76faab922b9d3291dc14b',
+  );
+
+  /// ONNX Runtime 1.28.2, Microsoft's CPU build, the library alone from its
+  /// release archive; its licences are in `assets/licenses/onnxruntime.txt`.
+  static const onnxRuntimeLinux = ModelFile(
+    id: 'onnxruntime',
+    name: 'noise model runtime',
+    published: 'libonnxruntime.linux-x64.1.28.2.so',
+    size: 24277040,
+    sha256: '088f24b1fc56714d3efaaeb3ac2ee486a5d7b50ccfbb3dd26fd1a612534a05fb',
+  );
+  static const onnxRuntimeWindows = ModelFile(
+    id: 'onnxruntime',
+    name: 'noise model runtime',
+    published: 'onnxruntime.win-x64.1.28.2.dll',
+    size: 15818040,
+    sha256: '1becbd71adbf49609d33195e29c9214969db3c3de69c81425bebe5a4b69aef97',
+  );
+
+  /// This computer's ONNX Runtime, or null where DPDFNet does not run.
+  static ModelFile? get onnxRuntime {
+    if (kIsWeb) return null;
+    if (Platform.isLinux) return onnxRuntimeLinux;
+    if (Platform.isWindows) return onnxRuntimeWindows;
+    return null;
+  }
+
+  /// Every file DPDFNet may be loaded from, on either runtime.
+  static const dpdfnet = [
+    dpdfnetLarge,
+    dpdfnetSmall,
+    dpdfnetOnnxLarge,
+    dpdfnetOnnxSmall,
+    onnxRuntimeLinux,
+    onnxRuntimeWindows,
+  ];
+
   /// Every file this version of the app may use. What else is in the
   /// folder belongs to another version, and is swept once nothing has used it
   /// for a while.
-  static const all = [imageSafety, dpdfnetLarge, dpdfnetSmall];
+  static const all = [imageSafety, ...dpdfnet];
 }

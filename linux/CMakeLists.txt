@@ -143,8 +143,8 @@ install(FILES "${FFENC_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
 # Ceva's own runtime for DPDFNet, the noise model on the microphone, in a
 # library of its own (native/dpdfnet), which the Rust crate opens at run time
 # and which runs the model in a quarter of ONNX Runtime's time. Built with
-# gcc, as Ceva build it; a CPU it cannot run on uses ONNX Runtime, bundled
-# below.
+# gcc, as Ceva build it; a CPU it cannot run on uses ONNX Runtime, which the
+# app downloads there (ModelCatalog).
 set(DPDFNET_SOURCE_DIR "${CMAKE_SOURCE_DIR}/../native/dpdfnet")
 set(DPDFNET_LIBRARY "${PROJECT_BINARY_DIR}/dpdfnet/librift_dpdfnet.so")
 file(GLOB DPDFNET_PATCHES "${CMAKE_SOURCE_DIR}/../third_party/dpdfnet/*.patch")
@@ -159,11 +159,6 @@ add_custom_command(
 add_custom_target(rift_dpdfnet ALL DEPENDS "${DPDFNET_LIBRARY}")
 install(FILES "${DPDFNET_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
   COMPONENT Runtime)
-
-include("${CMAKE_SOURCE_DIR}/../native/onnxruntime/onnxruntime.cmake")
-rift_bundle_onnxruntime("onnxruntime-linux-x64-${ONNXRUNTIME_VERSION}.tgz"
-  d7209b8751b27b862b0c76332c2e20e203396edb5dab700ecf4bb485cf147415
-  "lib/libonnxruntime.so.${ONNXRUNTIME_VERSION}" "libonnxruntime.so")
 
 foreach(bundled_library ${PLUGIN_BUNDLED_LIBRARIES})
   install(FILES "${bundled_library}"

@@ -127,7 +127,8 @@ if(EXISTS "${RIFT_MSYS2}/usr/bin/bash.exe")
   # library of its own (native/dpdfnet), which the Rust crate opens at run
   # time and which runs the model in a quarter of ONNX Runtime's time.
   # native/dpdfnet/build.sh makes it with the same MinGW. Without MSYS2 the
-  # app is built without it and the model runs on ONNX Runtime;
+  # app is built without it and the model runs on ONNX Runtime, which the app
+  # downloads (ModelCatalog);
   # scripts/build_windows.ps1 refuses to make a release that way too.
   set(DPDFNET_SOURCE_DIR "${CMAKE_SOURCE_DIR}/../native/dpdfnet")
   set(DPDFNET_LIBRARY "${PROJECT_BINARY_DIR}/dpdfnet/rift_dpdfnet.dll")
@@ -150,11 +151,6 @@ else()
     "so shares go out as VP9 on the CPU (native/ffenc/build.sh), and without "
     "rift_dpdfnet.dll, so DPDFNet runs on ONNX Runtime (native/dpdfnet/build.sh)")
 endif()
-
-include("${CMAKE_SOURCE_DIR}/../native/onnxruntime/onnxruntime.cmake")
-rift_bundle_onnxruntime("onnxruntime-win-x64-${ONNXRUNTIME_VERSION}.zip"
-  c4eedd29489d5feca21866d054638416f3655bf6b18851b3b6b85c8313e95c35
-  "lib/onnxruntime.dll" "onnxruntime.dll")
 
 # Copy the native assets provided by the build.dart from all packages.
 set(NATIVE_ASSETS_DIR "${PROJECT_BUILD_DIR}native_assets/windows/")

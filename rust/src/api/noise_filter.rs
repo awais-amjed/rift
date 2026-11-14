@@ -8,20 +8,32 @@ pub struct NoiseModelEntry {
     pub reset: usize,
 }
 
-/// Whether DPDFNet runs on Ceva's runtime here, and so needs its weights
-/// downloaded before [`load_dpdfnet`] ([`set_dpdfnet_weights`]). False where
-/// ONNX Runtime runs it instead: a CPU without AVX2 and FMA, or a bundle
-/// without the library. On a blocking thread: the first ask opens the library.
-pub async fn dpdfnet_wants_weights() -> bool {
+/// What runs DPDFNet here, which says what to download before
+/// [`load_dpdfnet`].
+pub enum DpdfnetRuntime {
+    /// Not on this platform: DPDFNet runs only on Windows and Linux.
+    None,
+    /// Ceva's own runtime, in the app: it needs the models' weights
+    /// ([`set_dpdfnet_weights`]).
+    Ceva,
+    /// ONNX Runtime, where Ceva's cannot run (a CPU without AVX2 and FMA, or
+    /// a build without its library): it needs the runtime and the models as
+    /// ONNX files ([`set_dpdfnet_onnx`]).
+    Onnx,
+}
+
+/// On a blocking thread: the first ask opens Ceva's library.
+pub async fn dpdfnet_runtime() -> DpdfnetRuntime {
     #[cfg(any(target_os = "windows", target_os = "linux"))]
     {
-        tokio::task::spawn_blocking(crate::dpdfnet::wants_weights)
-            .await
-            .unwrap_or(false)
+        match tokio::task::spawn_blocking(crate::dpdfnet::on_ceva).await {
+            Ok(true) => DpdfnetRuntime::Ceva,
+            _ => DpdfnetRuntime::Onnx,
+        }
     }
     #[cfg(not(any(target_os = "windows", target_os = "linux")))]
     {
-        false
+        DpdfnetRuntime::None
     }
 }
 
@@ -34,6 +46,17 @@ pub fn set_dpdfnet_weights(large: String, small: String) {
     crate::dpdfnet::set_weights(large.into(), small.into());
     #[cfg(not(any(target_os = "windows", target_os = "linux")))]
     let _ = (large, small);
+}
+
+/// Names the downloaded ONNX files of DPDFNet-8 (`large`) and DPDFNet-2
+/// (`small`) and ONNX Runtime's library (`runtime`), each checked by Dart
+/// against its hash, for every model loaded after.
+#[flutter_rust_bridge::frb(sync)]
+pub fn set_dpdfnet_onnx(large: String, small: String, runtime: String) {
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    crate::dpdfnet::set_onnx(large.into(), small.into(), runtime.into());
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
+    let _ = (large, small, runtime);
 }
 
 /// Loads DPDFNet's models, if they are not loaded already, and says where to

@@ -58,14 +58,14 @@ abstract final class NoiseFilter {
   /// Whether the runner has been handed DPDFNet.
   static bool _dpdfnetHanded = false;
 
-  /// Whether DPDFNet is loading, its weights downloading included.
+  /// Whether DPDFNet is loading, its files downloading included.
   static bool _dpdfnetLoading = false;
 
-  /// DPDFNet's weights fetched and named to the Rust library, once.
-  static Future<void>? _dpdfnetWeights;
+  /// What DPDFNet runs from fetched and named to the Rust library, once.
+  static Future<void>? _dpdfnetFiles;
 
-  /// Listening for DPDFNet's weights to land, after they failed to.
-  static StreamSubscription<ModelProgress>? _awaitingWeights;
+  /// Listening for DPDFNet's files to land, after they failed to.
+  static StreamSubscription<ModelProgress>? _awaitingFiles;
 
   /// Whether the mic test has been told where the runner's RNNoise is.
   static bool _rnnoiseHanded = false;
@@ -149,7 +149,7 @@ abstract final class NoiseFilter {
       _native?.setSilenced?.call(silenced ? 1 : 0);
 
   /// Puts [mode]'s model on the microphone, or takes it off. DPDFNet loads
-  /// first: its weights download the first time ([_fetchDpdfnetWeights]),
+  /// first: its files download the first time ([_fetchDpdfnetFiles]),
   /// with RNNoise on meanwhile, then it takes about a tenth of a second, with
   /// no model on. If it cannot load, RNNoise stands in. Before the runner's filter is there, it
   /// waits for it ([ready]).
@@ -175,17 +175,17 @@ abstract final class NoiseFilter {
     if (!_dpdfnetHanded) {
       _dpdfnetLoading = true;
       try {
-        final weights = _fetchDpdfnetWeights();
+        final files = _fetchDpdfnetFiles();
         // A download can take a while, a call's whole start; the load
         // alone does not.
         native.setModel(_Model.rnnoise);
-        await weights;
+        await files;
         if (_wanted == NoiseSuppression.dpdfnet) native.setModel(_Model.none);
         final entry = await loadDpdfnet();
         native.setDpdfnet(entry.process.toInt(), entry.reset.toInt());
         _dpdfnetHanded = true;
-        await _awaitingWeights?.cancel();
-        _awaitingWeights = null;
+        await _awaitingFiles?.cancel();
+        _awaitingFiles = null;
       } on ModelUnavailable catch (e) {
         HelperMethods.printDebug('DPDFNet unavailable: $e');
         _useDpdfnetOnceFetched();
@@ -199,40 +199,56 @@ abstract final class NoiseFilter {
     native.setModel(_dpdfnetHanded ? _Model.dpdfnet : _Model.rnnoise);
   }
 
-  /// Where Ceva's runtime runs DPDFNet, fetches its weights and names them
-  /// to the Rust library, for the call's model and the mic test's. Once; a
-  /// failure is tried again on the next ask. Where ONNX Runtime runs it,
-  /// nothing: those models are in the bundle.
-  static Future<void> _fetchDpdfnetWeights() async {
-    final fetching = _dpdfnetWeights ??= _fetchDpdfnetWeightsOnce();
+  /// Fetches what DPDFNet runs from here and names it to the Rust library,
+  /// for the call's model and the mic test's: the weights for Ceva's runtime,
+  /// or where that cannot run, ONNX Runtime and its own copy of the models.
+  /// Once; a failure is tried again on the next ask.
+  static Future<void> _fetchDpdfnetFiles() async {
+    final fetching = _dpdfnetFiles ??= _fetchDpdfnetFilesOnce();
     try {
       await fetching;
     } catch (_) {
-      if (identical(_dpdfnetWeights, fetching)) _dpdfnetWeights = null;
+      if (identical(_dpdfnetFiles, fetching)) _dpdfnetFiles = null;
       rethrow;
     }
   }
 
-  static Future<void> _fetchDpdfnetWeightsOnce() async {
-    if (!await dpdfnetWantsWeights()) return;
+  static Future<void> _fetchDpdfnetFilesOnce() async {
     final models = ModelRepository.instance;
-    // Asked together, so the title bar shows them as one download.
-    final files = await Future.wait([
-      models.fetch(ModelCatalog.dpdfnetLarge),
-      models.fetch(ModelCatalog.dpdfnetSmall),
-    ]);
-    setDpdfnetWeights(large: files[0].path, small: files[1].path);
+    // Each set asked together, so the title bar shows it as one download.
+    switch (await dpdfnetRuntime()) {
+      case DpdfnetRuntime.none:
+        return;
+      case DpdfnetRuntime.ceva:
+        final files = await Future.wait([
+          models.fetch(ModelCatalog.dpdfnetLarge),
+          models.fetch(ModelCatalog.dpdfnetSmall),
+        ]);
+        setDpdfnetWeights(large: files[0].path, small: files[1].path);
+      case DpdfnetRuntime.onnx:
+        final runtime = ModelCatalog.onnxRuntime;
+        if (runtime == null) return;
+        final files = await Future.wait([
+          models.fetch(ModelCatalog.dpdfnetOnnxLarge),
+          models.fetch(ModelCatalog.dpdfnetOnnxSmall),
+          models.fetch(runtime),
+        ]);
+        setDpdfnetOnnx(
+          large: files[0].path,
+          small: files[1].path,
+          runtime: files[2].path,
+        );
+    }
   }
 
-  /// After DPDFNet's weights failed to download, puts DPDFNet on once they
+  /// After DPDFNet's files failed to download, puts DPDFNet on once they
   /// land, which they do when the person presses retry in the title bar.
   static void _useDpdfnetOnceFetched() {
-    _awaitingWeights ??= ModelRepository.instance.progress
+    _awaitingFiles ??= ModelRepository.instance.progress
         .where(
           (p) =>
               p.status == ModelStatus.success &&
-              (p.file == ModelCatalog.dpdfnetLarge ||
-                  p.file == ModelCatalog.dpdfnetSmall),
+              ModelCatalog.dpdfnet.contains(p.file),
         )
         .listen((_) {
           if (_wanted == NoiseSuppression.dpdfnet && !_dpdfnetLoading) {
@@ -309,7 +325,7 @@ abstract final class NoiseFilter {
     var dpdfnet = hasModels;
     if (dpdfnet && mode == NoiseSuppression.dpdfnet) {
       try {
-        await _fetchDpdfnetWeights();
+        await _fetchDpdfnetFiles();
       } catch (e) {
         // The call has RNNoise stand in, and so does the test.
         dpdfnet = false;

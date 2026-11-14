@@ -919,7 +919,9 @@ DPDFNet's weights for Ceva's runtime come next on a desktop, since DPDFNet is
 the default noise model: `NoiseFilter` asks for them the first time it puts
 DPDFNet on, and hands them to the Rust library, which hands them to Ceva's
 (`native/dpdfnet`); RNNoise filters the mic meanwhile. A computer where Ceva's
-runtime cannot run fetches none of it, and runs the models on ONNX Runtime.
+runtime cannot run (no AVX2 and FMA) fetches ONNX Runtime and the models as
+ONNX files in their place, which the Rust library opens from where they
+landed; nothing of ONNX Runtime is in the app.
 While a model downloads, a chip beside the window controls counts it up
 (`ModelDownloadChip`, from `ModelsCubit`), and one that failed says so there
 and tries again when pressed. Phones have no title bar, so there it is quiet.

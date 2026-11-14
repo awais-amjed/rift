@@ -7,12 +7,9 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 import '../frb_generated.dart';
 
-/// Whether DPDFNet runs on Ceva's runtime here, and so needs its weights
-/// downloaded before [`load_dpdfnet`] ([`set_dpdfnet_weights`]). False where
-/// ONNX Runtime runs it instead: a CPU without AVX2 and FMA, or a bundle
-/// without the library. On a blocking thread: the first ask opens the library.
-Future<bool> dpdfnetWantsWeights() =>
-    RustLib.instance.api.crateApiNoiseFilterDpdfnetWantsWeights();
+/// On a blocking thread: the first ask opens Ceva's library.
+Future<DpdfnetRuntime> dpdfnetRuntime() =>
+    RustLib.instance.api.crateApiNoiseFilterDpdfnetRuntime();
 
 /// Names the downloaded weights of DPDFNet-8 (`large`) and DPDFNet-2
 /// (`small`), each a `weights.f32` whose hash Dart checked, for every model
@@ -22,6 +19,19 @@ void setDpdfnetWeights({required String large, required String small}) =>
       large: large,
       small: small,
     );
+
+/// Names the downloaded ONNX files of DPDFNet-8 (`large`) and DPDFNet-2
+/// (`small`) and ONNX Runtime's library (`runtime`), each checked by Dart
+/// against its hash, for every model loaded after.
+void setDpdfnetOnnx({
+  required String large,
+  required String small,
+  required String runtime,
+}) => RustLib.instance.api.crateApiNoiseFilterSetDpdfnetOnnx(
+  large: large,
+  small: small,
+  runtime: runtime,
+);
 
 /// Loads DPDFNet's models, if they are not loaded already, and says where to
 /// call them. On a blocking thread, since loading takes about a tenth of a
@@ -50,6 +60,22 @@ void retryLargeDpdfnet() =>
 /// mic test; otherwise DPDFNet-8, until this computer proves too slow for it.
 void setDpdfnetSmall({required bool small}) =>
     RustLib.instance.api.crateApiNoiseFilterSetDpdfnetSmall(small: small);
+
+/// What runs DPDFNet here, which says what to download before
+/// [`load_dpdfnet`].
+enum DpdfnetRuntime {
+  /// Not on this platform: DPDFNet runs only on Windows and Linux.
+  none,
+
+  /// Ceva's own runtime, in the app: it needs the models' weights
+  /// ([`set_dpdfnet_weights`]).
+  ceva,
+
+  /// ONNX Runtime, where Ceva's cannot run (a CPU without AVX2 and FMA, or
+  /// a build without its library): it needs the runtime and the models as
+  /// ONNX files ([`set_dpdfnet_onnx`]).
+  onnx,
+}
 
 /// Where the runner's filter calls a model: the addresses of the frame
 /// function and the reset function, for Dart to pass on.
