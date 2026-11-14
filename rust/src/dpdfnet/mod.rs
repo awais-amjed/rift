@@ -304,6 +304,17 @@ impl Model {
     }
 }
 
+/// Whether the models run on Ceva's runtime here, which loads them from
+/// downloaded weights ([`set_weights`]); ONNX Runtime runs them where not.
+pub(crate) fn wants_weights() -> bool {
+    ceva::available()
+}
+
+/// Names the two models' downloaded weights, for every model loaded after.
+pub(crate) fn set_weights(large: std::path::PathBuf, small: std::path::PathBuf) {
+    ceva::set_weights(large, small);
+}
+
 /// Runs DPDFNet-2 alone when `small`, as the person chose in settings, or
 /// DPDFNet-8 until the computer proves too slow for it.
 pub(crate) fn choose_small(small: bool) {
@@ -502,11 +513,12 @@ mod tests {
     }
 
     // The model's tests need a runtime, and neither is part of the crate.
-    // They run on Ceva's with RIFT_DPDFNET_LIB=<path to librift_dpdfnet.so>,
-    // or without it on ONNX Runtime with RIFT_ONNXRUNTIME=<path to
+    // They run on Ceva's with RIFT_DPDFNET_LIB=<path to librift_dpdfnet.so>
+    // and RIFT_DPDFNET_WEIGHTS=<Ceva's models folder: source/models beside
+    // the library after a build>, or without them on ONNX Runtime with RIFT_ONNXRUNTIME=<path to
     // libonnxruntime.so>: cargo test --release dpdfnet -- --ignored
     #[test]
-    #[ignore = "needs a runtime, at RIFT_DPDFNET_LIB or RIFT_ONNXRUNTIME"]
+    #[ignore = "needs a runtime: RIFT_DPDFNET_LIB and RIFT_DPDFNET_WEIGHTS, or RIFT_ONNXRUNTIME"]
     fn loaded_it_quietens_noise() {
         load().unwrap();
         let mut seed = 1u32;
@@ -586,7 +598,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "needs both runtimes, at RIFT_DPDFNET_LIB and RIFT_ONNXRUNTIME"]
+    #[ignore = "needs both runtimes: RIFT_DPDFNET_LIB and RIFT_DPDFNET_WEIGHTS, and RIFT_ONNXRUNTIME"]
     fn both_runtimes_give_the_same_sound() {
         // Ceva's runtime rounds the models' weights to 7 bits and what flows
         // between their layers to 8. What comes out has to stay what the
@@ -621,7 +633,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "needs a runtime, at RIFT_DPDFNET_LIB or RIFT_ONNXRUNTIME"]
+    #[ignore = "needs a runtime: RIFT_DPDFNET_LIB and RIFT_DPDFNET_WEIGHTS, or RIFT_ONNXRUNTIME"]
     fn choosing_dpdfnet_2_runs_it_from_the_start() {
         let mut seed = 1u32;
         let before = noise(50, &mut seed);
@@ -644,7 +656,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "needs a runtime, at RIFT_DPDFNET_LIB or RIFT_ONNXRUNTIME"]
+    #[ignore = "needs a runtime: RIFT_DPDFNET_LIB and RIFT_DPDFNET_WEIGHTS, or RIFT_ONNXRUNTIME"]
     fn the_large_model_comes_back_with_the_next_call_only() {
         let mut model = Model::new().unwrap();
         let mut seed = 1u32;
@@ -666,7 +678,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "needs a runtime, at RIFT_DPDFNET_LIB or RIFT_ONNXRUNTIME"]
+    #[ignore = "needs a runtime: RIFT_DPDFNET_LIB and RIFT_DPDFNET_WEIGHTS, or RIFT_ONNXRUNTIME"]
     fn the_calls_model_filters_every_frame_where_it_is_called() {
         let mut call = CallModel::new(Model::new().unwrap());
         let mut alone = Model::new().unwrap();
@@ -681,7 +693,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "needs a runtime, at RIFT_DPDFNET_LIB or RIFT_ONNXRUNTIME"]
+    #[ignore = "needs a runtime: RIFT_DPDFNET_LIB and RIFT_DPDFNET_WEIGHTS, or RIFT_ONNXRUNTIME"]
     fn a_reset_starts_the_model_over() {
         let mut used = Model::new().unwrap();
         let mut seed = 1u32;

@@ -138,7 +138,7 @@ if(EXISTS "${RIFT_MSYS2}/usr/bin/bash.exe")
       "${RIFT_MSYS2}/usr/bin/bash.exe" -lc "exec \"$0\" \"$1\""
       "${DPDFNET_SOURCE_DIR}/build.sh" "${PROJECT_BINARY_DIR}/dpdfnet"
     DEPENDS "${DPDFNET_SOURCE_DIR}/build.sh" "${DPDFNET_SOURCE_DIR}/rift_dpdfnet.c"
-      "${DPDFNET_SOURCE_DIR}/rift_dpdfnet.h" "${DPDFNET_SOURCE_DIR}/weights.S"
+      "${DPDFNET_SOURCE_DIR}/rift_dpdfnet.h"
       "${DPDFNET_SOURCE_DIR}/exports.map" ${DPDFNET_PATCHES}
     COMMENT "Building Ceva's runtime for DPDFNet (native/dpdfnet)"
     VERBATIM)

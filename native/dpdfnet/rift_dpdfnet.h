@@ -14,8 +14,10 @@
 // one without, or where the library is missing, the crate runs the same
 // models on ONNX Runtime as before.
 //
-// The weights are inside the library (weights.S), so there is nothing to find
-// at run time, and what was checked when it was built is what runs.
+// The weights are not inside it: each model's weights.f32, as Ceva ships it,
+// is downloaded the first time DPDFNet is chosen (ModelCatalog in the app,
+// which holds its hash), and the Rust crate reads it and hands it over. They
+// were inside it until Nov 2026, 25 MB of every download.
 #ifndef RIFT_DPDFNET_H_
 #define RIFT_DPDFNET_H_
 
@@ -25,13 +27,15 @@
 #define RIFT_DPDFNET_EXPORT __attribute__((visibility("default")))
 #endif
 
+#include <stddef.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 // Raised whenever a function here changes, so the Rust crate refuses a
 // library built for another version of it (ABI in rust/src/dpdfnet/ceva.rs).
-#define RIFT_DPDFNET_ABI 1
+#define RIFT_DPDFNET_ABI 2
 RIFT_DPDFNET_EXPORT int rift_dpdfnet_abi(void);
 
 // One model, and what it carries from one frame to the next.
@@ -44,10 +48,14 @@ typedef struct rift_dpdfnet_model rift_dpdfnet_model;
 // keeps their registers.
 RIFT_DPDFNET_EXPORT int rift_dpdfnet_model_supported(void);
 
-// DPDFNet-2 for `size` 2, DPDFNet-8 for 8, ready for its first frame. NULL
-// for any other size, a CPU that cannot run it, or no memory. Not for the
-// thread the sound is on: it packs ten megabytes of weights.
-RIFT_DPDFNET_EXPORT rift_dpdfnet_model *rift_dpdfnet_model_open(int size);
+// DPDFNet-2 for `size` 2, DPDFNet-8 for 8, ready for its first frame, on
+// `count` floats of that model's weights.f32 (little-endian, as this CPU
+// reads them), which are copied: the caller may free them once this returns.
+// NULL for any other size, weights of another length, a CPU that cannot run
+// it, or no memory. Not for the thread the sound is on: it packs ten
+// megabytes of weights.
+RIFT_DPDFNET_EXPORT rift_dpdfnet_model *rift_dpdfnet_model_open(
+    int size, const float *weights, size_t count);
 
 // One 10 ms step, in place: the spectrum of a 960-sample window as a plain
 // FFT gives it, RIFT_DPDFNET_SPECTRUM floats, in, the cleaned one out.

@@ -14,8 +14,11 @@ commit's archive and checks its sha256 before every build, and the weights'
 against Ceva's `models/SHA256SUMS`.
 
 It is built into a library of its own, `rift_dpdfnet.dll` on Windows
-(`native/dpdfnet`, which says why and what it measures), with the weights
-inside and only Rift's few functions leaving it. The build compiles the files
+(`native/dpdfnet`, which says why and what it measures), with only Rift's few
+functions leaving it. The weights are not in it: since Nov 2026 the app
+downloads each `weights.f32` the first time DPDFNet is put on, pinned by the
+same sha256 (`ModelCatalog`; `scripts/upload_models.sh` publishes them from
+this commit's archive), and hands it to the library. The build compiles the files
 Ceva's `CMakeLists.txt` does with the flags it gives each, rather than running
 that CMake, which refuses anything but Linux. Not taken: the compiler profile
 Ceva's release build trains for DPDFNet-8, so every build of one compiler

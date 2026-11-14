@@ -915,6 +915,11 @@ device and left in place by an update (`ModelRepository`). `ModelCatalog`
 lists them, and `ModelDownloads` says which a start fetches unasked; so far
 that is the picture classifier, at the first start, while the person is still
 signing in. Until it is on the device, pictures are shown without a check.
+DPDFNet's weights for Ceva's runtime come next on a desktop, since DPDFNet is
+the default noise model: `NoiseFilter` asks for them the first time it puts
+DPDFNet on, and hands them to the Rust library, which hands them to Ceva's
+(`native/dpdfnet`); RNNoise filters the mic meanwhile. A computer where Ceva's
+runtime cannot run fetches none of it, and runs the models on ONNX Runtime.
 While a model downloads, a chip beside the window controls counts it up
 (`ModelDownloadChip`, from `ModelsCubit`), and one that failed says so there
 and tries again when pressed. Phones have no title bar, so there it is quiet.
@@ -937,6 +942,9 @@ tests (resume, a server that ignores the range, a dropped connection, a bad
 hash, cleanup), and against the real release with a Linux debug build: the
 first start fetched the file and it matched its hash, the second fetched
 nothing. Not yet seen: the classifier scoring a picture from the downloaded file.
+DPDFNet's weights the same way on Nov 15, from a local server: the first start
+fetched both and loaded the models on Ceva's runtime, the second fetched
+nothing.
 
 ## 9. The app's log and bug reports — [Implemented October 2026]
 

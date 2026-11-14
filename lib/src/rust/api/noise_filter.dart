@@ -7,6 +7,22 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 import '../frb_generated.dart';
 
+/// Whether DPDFNet runs on Ceva's runtime here, and so needs its weights
+/// downloaded before [`load_dpdfnet`] ([`set_dpdfnet_weights`]). False where
+/// ONNX Runtime runs it instead: a CPU without AVX2 and FMA, or a bundle
+/// without the library. On a blocking thread: the first ask opens the library.
+Future<bool> dpdfnetWantsWeights() =>
+    RustLib.instance.api.crateApiNoiseFilterDpdfnetWantsWeights();
+
+/// Names the downloaded weights of DPDFNet-8 (`large`) and DPDFNet-2
+/// (`small`), each a `weights.f32` whose hash Dart checked, for every model
+/// loaded after: the call's and the mic test's.
+void setDpdfnetWeights({required String large, required String small}) =>
+    RustLib.instance.api.crateApiNoiseFilterSetDpdfnetWeights(
+      large: large,
+      small: small,
+    );
+
 /// Loads DPDFNet's models, if they are not loaded already, and says where to
 /// call them. On a blocking thread, since loading takes about a tenth of a
 /// second. Off Windows and Linux there is no model, and this says so.

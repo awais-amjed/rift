@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Builds Ceva's own runtime for DPDFNet into OUT_DIR, with the two models'
-# weights inside it (rift_dpdfnet.h says why it is a library of its own). The
+# Builds Ceva's own runtime for DPDFNet into OUT_DIR (rift_dpdfnet.h says why
+# it is a library of its own, and where its weights come from). The
 # Linux and Windows runners' CMake run it; it can also run by hand.
 #
 #   native/dpdfnet/build.sh OUT_DIR
@@ -8,9 +8,9 @@
 # On Windows it makes rift_dpdfnet.dll, in MSYS2's UCRT64 shell with MinGW's
 # gcc and patch, as native/ffenc/build.sh does. On Linux it makes
 # librift_dpdfnet.so and needs gcc, which is what Ceva builds with: their
-# build refuses any other compiler. The source and the weights come in one
-# download, taken once into OUT_DIR, or from RIFT_DPDFNET_TARBALL, and its
-# sha256 checked either way. Nothing is rebuilt while the inputs are the same.
+# build refuses any other compiler. The source comes in one download, with
+# the weights, which the tests use; taken once into OUT_DIR, or from
+# RIFT_DPDFNET_TARBALL, and its sha256 checked either way. Nothing is rebuilt while the inputs are the same.
 # The source and the objects stay in OUT_DIR, for test.sh.
 set -euo pipefail
 
@@ -133,8 +133,6 @@ for size in 2 8; do
 done
 quietly "$cc" "${flags[@]}" -c "$src/src/runtime.c" -o "$out/obj/runtime.o"
 quietly "$cc" "${flags[@]}" -I"$here" -c "$here/rift_dpdfnet.c" -o "$out/obj/rift_dpdfnet.o"
-# The weights: .incbin looks for them under -I.
-quietly "$cc" -I"$src/models" -c "$here/weights.S" -o "$out/obj/weights.o"
 
 # Only Rift's own functions leave the library (rift_dpdfnet.h). The linker's
 # map, beside it, names the function at each offset, for a crash's log.

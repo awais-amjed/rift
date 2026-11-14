@@ -1,11 +1,12 @@
 // The library as the Rust crate uses it (rift_dpdfnet.h), for test.sh: both
-// models open on the weights inside it, run, start over on a reset, and on
+// models open on the weights files given, run, start over on a reset, and on
 // Windows hand back the registers a Windows function must keep
 // (test_registers.S). On a CPU without AVX2 and FMA it checks only that
 // nothing opens, and returns 77.
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "rift_dpdfnet.h"
@@ -40,9 +41,43 @@ static int run_for_call(void *model, void *frame) {
 }
 #endif
 
-static int test(int size) {
-  rift_dpdfnet_model *model = rift_dpdfnet_model_open(size);
-  rift_dpdfnet_model *other = rift_dpdfnet_model_open(size);
+// A weights.f32, whole, as the Rust crate reads it; NULL if it cannot be.
+static float *read_weights(const char *path, size_t *count) {
+  FILE *file = fopen(path, "rb");
+  if (!file) return NULL;
+  float *weights = NULL;
+  if (fseek(file, 0, SEEK_END) == 0) {
+    long bytes = ftell(file);
+    *count = bytes > 0 ? (size_t)bytes / sizeof(float) : 0;
+    weights = *count ? malloc(*count * sizeof(float)) : NULL;
+    if (weights && (fseek(file, 0, SEEK_SET) != 0 ||
+                    fread(weights, sizeof(float), *count, file) != *count)) {
+      free(weights);
+      weights = NULL;
+    }
+  }
+  fclose(file);
+  return weights;
+}
+
+static int test(int size, const char *path) {
+  size_t count = 0;
+  float *weights = read_weights(path, &count);
+  CHECK(weights);
+  // Weights one float short are not the model's.
+  CHECK(!rift_dpdfnet_model_open(size, weights, count - 1));
+  CHECK(!rift_dpdfnet_model_open(size, NULL, count));
+  rift_dpdfnet_model *model = rift_dpdfnet_model_open(size, weights, count);
+  // The library keeps a copy of its own: the caller's may go at once.
+  memset(weights, 0, count * sizeof(float));
+  rift_dpdfnet_model *other = NULL;
+  if (model) {
+    free(weights);
+    weights = read_weights(path, &count);
+    CHECK(weights);
+    other = rift_dpdfnet_model_open(size, weights, count);
+  }
+  free(weights);
   CHECK(model && other);
   static float first[kFrames][RIFT_DPDFNET_SPECTRUM];
   float frame[RIFT_DPDFNET_SPECTRUM], raw[RIFT_DPDFNET_SPECTRUM];
@@ -89,13 +124,20 @@ static int test(int size) {
   return 0;
 }
 
-int main(void) {
+// test_model WEIGHTS_2 WEIGHTS_8: each model's weights.f32.
+int main(int argc, char **argv) {
+  CHECK(argc == 3);
   CHECK(rift_dpdfnet_abi() == RIFT_DPDFNET_ABI);
-  CHECK(!rift_dpdfnet_model_open(3));
+  float one = 0;
+  CHECK(!rift_dpdfnet_model_open(3, &one, 1));
   rift_dpdfnet_model_reset(NULL);
   rift_dpdfnet_model_close(NULL);
   if (!rift_dpdfnet_model_supported()) {
-    CHECK(!rift_dpdfnet_model_open(2) && !rift_dpdfnet_model_open(8));
+    size_t count = 0;
+    float *weights = read_weights(argv[1], &count);
+    CHECK(weights);
+    CHECK(!rift_dpdfnet_model_open(2, weights, count));
+    free(weights);
     fprintf(stderr, "no AVX2 and FMA here: the models were not run\n");
     return 77;
   }
@@ -106,7 +148,7 @@ int main(void) {
         (1u << 2 | 1u << 3 | 1u << 8 | 1u << 17));
   CHECK(result == 0);
 #endif
-  if (test(2) || test(8)) return 1;
+  if (test(2, argv[1]) || test(8, argv[2])) return 1;
   printf("both models ran\n");
   return 0;
 }

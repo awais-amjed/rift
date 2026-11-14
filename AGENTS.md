@@ -412,7 +412,8 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   tests; `cargo test --release` runs them anywhere. `cargo test live_ -- --ignored --test-threads=1` runs a real share
   against a LiveKit server (see `rust/src/screenshare/live_test.rs`). DPDFNet's tests need
   a runtime, and neither is part of the crate: `RIFT_DPDFNET_LIB=<rift_dpdfnet.dll>` for
-  Ceva's (`native/dpdfnet/test.sh OUT_DIR` builds one, and runs Ceva's own tests on it),
+  Ceva's, with `RIFT_DPDFNET_WEIGHTS=<OUT_DIR/source/models>` for its weights
+  (`native/dpdfnet/test.sh OUT_DIR` builds one, and runs Ceva's own tests on it),
   `RIFT_ONNXRUNTIME=<libonnxruntime.so>` for ONNX Runtime (the bundle's `lib/` has one after
   a build), and both for the test that holds one against the other:
   `cargo test --release dpdfnet -- --ignored`.

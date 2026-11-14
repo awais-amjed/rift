@@ -116,6 +116,6 @@ else
     -o "$tests/test_model.exe" -L"$out" -lrift_dpdfnet
   export PATH="$out:$PATH"
 fi
-run test_model
+run test_model "$weights2" "$weights8"
 
 echo "native/dpdfnet: $ran tests passed, $skipped skipped"
