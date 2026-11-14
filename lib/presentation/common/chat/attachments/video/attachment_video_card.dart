@@ -1,29 +1,28 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../../data/classes/attachment.dart';
 import '../../../../../data/constants.dart';
-import '../../../../../data/repositories/blob/blob_reader.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/media/media_cubit.dart';
 import '../../../../../logic/services/chat_clip/chat_clip.dart';
 import '../../../../../logic/services/host_platform.dart';
-import '../../../../../src/rust/api/clips.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/media_colors.dart';
 import '../attachment_file_card.dart';
 import '../attachment_image_thumb.dart';
 import '../attachment_loader.dart';
 import '../attachment_saving.dart';
+import 'clip_playback.dart';
+import 'video_fullscreen_page.dart';
+import 'widgets/video_controls.dart';
 import 'widgets/video_middle.dart';
-import 'widgets/video_seek_bar.dart';
 
 /// A video attachment, played in the message list: a box the shape of the
 /// video with its poster and a play disc, which downloads and plays it in
-/// place.
+/// place, with a strip to pause, seek, set the volume and open it full
+/// screen ([VideoFullscreenPage]).
 ///
 /// The file is played from memory by [ChatClip], with the system's own
 /// decoders: a big one fetched as it plays, a small one whole. Where this
@@ -49,48 +48,31 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
   /// The box when neither the sender nor the player has said a shape.
   static const Size _fallback = Size(320, 180);
 
-  ChatClip? _clip;
-  StreamSubscription<ClipEvent>? _events;
+  late final ClipPlayback _playback = ClipPlayback(
+    attachment: widget.attachment,
+    loader: widget.loader,
+  )..addListener(_changed);
   AppLifecycleListener? _away;
-  Timer? _ticker;
-  bool _opening = false;
-  bool _playing = false;
-  bool _ended = false;
-  String? _problem;
-  Size? _picture;
-  Duration _position = Duration.zero;
-
-  /// Reads in a row, while playing, where the player said the same place:
-  /// it is waiting for the file, most often after a seek past what has been
-  /// fetched. No player says so in the same words, but each one's clock
-  /// stops while it waits.
-  int _stillReads = 0;
-  Duration? _lastRead;
-
-  /// Where the player says it is waiting (ExoPlayer): said for long enough
-  /// to show. It waits a moment even for a seek into what is already here.
-  bool _toldWaiting = false;
-  Timer? _waitingShows;
-  late Duration _length = Duration(
-    milliseconds: widget.attachment.durationMs ?? 0,
-  );
 
   @override
   void initState() {
     super.initState();
     _wantPoster();
+    _volumeFrom(context.read<AppCubit>().state);
     // On a phone a video stops when Rift goes out of sight (Home, another
     // app, the screen off) and waits there, as other chat apps do; on a
     // desktop or in a browser it plays on behind other windows.
-    if (HostPlatform.isMobile) _away = AppLifecycleListener(onHide: _hidden);
+    if (HostPlatform.isMobile) {
+      _away = AppLifecycleListener(onHide: _playback.pause);
+    }
   }
 
-  void _hidden() {
-    final clip = _clip;
-    if (clip == null || !_playing) return;
-    unawaited(clip.pause());
-    _setPlaying(false);
+  void _changed() {
+    if (mounted) setState(() {});
   }
+
+  void _volumeFrom(AppState app) =>
+      _playback.setVolume(app.chatVideoMuted ? 0 : app.chatVideoVolume);
 
   /// The first picture, to show until it plays: the poster the sender made
   /// and sealed beside the video, fetched as a picture attachment is. Not a
@@ -110,201 +92,24 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
   @override
   void dispose() {
     _away?.dispose();
-    _ticker?.cancel();
-    _waitingShows?.cancel();
-    _clip?.waiting?.removeListener(_waitingChanged);
-    _events?.cancel();
-    _clip?.close();
+    _playback.removeListener(_changed);
+    // On the full-screen page, it plays on there, and the page closes it.
+    if (_playback.fullscreen) {
+      _playback.cardGone = true;
+    } else {
+      _playback.dispose();
+    }
     super.dispose();
   }
 
-  Future<void> _toggle() async {
-    if (_opening || _problem != null) return;
-    final clip = _clip;
-    if (clip == null) return _open();
-    if (_playing) {
-      await clip.pause();
-      _setPlaying(false);
-      return;
-    }
-    if (_ended) {
-      await clip.seek(Duration.zero);
-      setState(() {
-        _ended = false;
-        _position = Duration.zero;
-      });
-    }
-    _setPlaying(await clip.play());
-  }
+  void _toggle() =>
+      _playback.toggle(output: context.read<AppCubit>().state.outputDeviceId);
 
-  Future<void> _open() async {
-    setState(() => _opening = true);
-    final output = context.read<AppCubit>().state.outputDeviceId;
-    final file = await _file();
-    final reader = file.reader;
-    if (!mounted) {
-      await reader?.close();
-      return;
-    }
-    if (reader == null) {
-      setState(() {
-        _opening = false;
-        _problem = file.problem;
-      });
-      return;
-    }
-    final opened = await ChatClip.open(
-      reader,
-      output: output,
-      type: widget.attachment.mime,
-    );
-    final clip = opened.clip;
-    if (!mounted) {
-      await clip?.close();
-      return;
-    }
-    if (clip == null) {
-      setState(() {
-        _opening = false;
-        _problem = 'This video could not be played.';
-      });
-      return;
-    }
-    _events = clip.events.listen(_heard);
-    clip.waiting?.addListener(_waitingChanged);
-    setState(() {
-      _clip = clip;
-      _opening = false;
-    });
-    _setPlaying(await clip.play());
-  }
-
-  void _waitingChanged() {
-    final waiting = _clip?.waiting?.value ?? false;
-    _waitingShows?.cancel();
-    if (!waiting) {
-      if (_toldWaiting && mounted) setState(() => _toldWaiting = false);
-      return;
-    }
-    _waitingShows = Timer(const Duration(milliseconds: 150), () {
-      if (mounted) setState(() => _toldWaiting = true);
-    });
-  }
-
-  /// What the player reads: the file fetched as it plays where it can be,
-  /// or else the whole of it, when that is small enough to hold.
-  Future<({BlobReader? reader, String? problem})> _file() async {
-    final attachment = widget.attachment;
-    final streamed = widget.loader.readerFor(attachment);
-    if (streamed != null) return (reader: streamed, problem: null);
-    if (attachment.size > ChatClip.wholeMaxBytes) {
-      return (
-        reader: null,
-        problem: 'This video is too big to play here. Save it to watch it.',
-      );
-    }
-    final bytes = await widget.loader(attachment);
-    if (bytes == null) {
-      return (reader: null, problem: 'This video could not be downloaded.');
-    }
-    return (reader: MemoryBlobReader(bytes), problem: null);
-  }
-
-  void _heard(ClipEvent event) {
-    if (!mounted) return;
-    switch (event.kind) {
-      case ClipEventKind.pictureSize:
-        setState(
-          () =>
-              _picture = Size(event.width.toDouble(), event.height.toDouble()),
-        );
-      case ClipEventKind.ended:
-        // The player itself still means to play: ExoPlayer and GStreamer
-        // play on from wherever a seek after the end lands, under controls
-        // that say it stopped. Paused, a seek there shows that picture only.
-        unawaited(_clip?.pause());
-        _setPlaying(false);
-        setState(() {
-          _ended = true;
-          _position = _length;
-        });
-      case ClipEventKind.cannotDecode:
-        _fail(
-          "This video's format doesn't play ${_here()}. Save it to watch it.",
-        );
-      case ClipEventKind.failed:
-        _fail('This video could not be played.');
-    }
-  }
-
-  static String _here() => kIsWeb
-      ? 'in this browser'
-      : defaultTargetPlatform == TargetPlatform.android
-      ? 'on this phone'
-      : 'on this computer';
-
-  void _fail(String why) {
-    _setPlaying(false);
-    _waitingShows?.cancel();
-    _clip?.waiting?.removeListener(_waitingChanged);
-    _toldWaiting = false;
-    _events?.cancel();
-    _clip?.close();
-    setState(() {
-      _clip = null;
-      _problem = why;
-    });
-  }
-
-  /// Playing, and the time read while it is: the player has no clock of
-  /// its own to send.
-  void _setPlaying(bool playing) {
-    if (!mounted) return;
-    setState(() {
-      _playing = playing;
-      _stillReads = 0;
-      _lastRead = null;
-    });
-    _ticker?.cancel();
-    if (!playing) return;
-    _ticker = Timer.periodic(const Duration(milliseconds: 250), (_) => _read());
-  }
-
-  void _read() {
-    final time = _clip?.time();
-    if (time == null || !mounted) return;
-    setState(() {
-      _stillReads = time.position == _lastRead ? _stillReads + 1 : 0;
-      _lastRead = time.position;
-      if (time.position != null) _position = time.position!;
-      if (time.length != null && time.length! > Duration.zero) {
-        _length = time.length!;
-      }
-    });
-  }
-
-  Future<void> _seek(Duration to) async {
-    final clip = _clip;
-    if (clip == null) return;
-    setState(() {
-      _position = to;
-      _ended = false;
-      _stillReads = 0;
-      _lastRead = null;
-    });
-    await clip.seek(to);
-  }
-
-  /// Playing, but waiting for the file: the dots, so a seek past what has
-  /// been fetched does not look like a frozen video. Where the player does
-  /// not say so, stuck where it is for half a second, but not in the last
-  /// moment before the end, which the end's own event follows.
-  bool get _waiting {
-    if (!_playing) return false;
-    if (_clip?.waiting != null) return _toldWaiting;
-    return _stillReads >= 2 &&
-        (_length <= Duration.zero ||
-            _position < _length - const Duration(milliseconds: 500));
+  /// Full screen, playing: a press on the button of a video not yet started
+  /// starts it too.
+  void _fullscreen() {
+    if (_playback.clip == null) _toggle();
+    VideoFullscreenPage.open(context, _playback);
   }
 
   @override
@@ -321,25 +126,35 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
           ? null
           : c.state.entry(MediaKind.attachment, posterPath)?.bytes,
     );
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final shape = _picture;
-        final box =
-            AttachmentImageThumb.boxFor(
-              shape?.width.round() ?? widget.attachment.width,
-              shape?.height.round() ?? widget.attachment.height,
-              within: constraints.maxWidth,
-            ) ??
-            _fallback;
-        return SizedBox.fromSize(size: box, child: _card(poster));
-      },
+    return BlocListener<AppCubit, AppState>(
+      listenWhen: (prev, curr) =>
+          prev.chatVideoVolume != curr.chatVideoVolume ||
+          prev.chatVideoMuted != curr.chatVideoMuted,
+      listener: (_, app) => _volumeFrom(app),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final shape = _playback.picture;
+          final box =
+              AttachmentImageThumb.boxFor(
+                shape?.width.round() ?? widget.attachment.width,
+                shape?.height.round() ?? widget.attachment.height,
+                within: constraints.maxWidth,
+              ) ??
+              _fallback;
+          return SizedBox.fromSize(size: box, child: _card(poster));
+        },
+      ),
     );
   }
 
   Widget _card(Uint8List? poster) {
-    final clip = _clip;
-    final waiting = _waiting;
-    final showsMiddle = !_playing || _opening || waiting || _problem != null;
+    final p = _playback;
+    final clip = p.clip;
+    // On the full-screen page instead: a web clip is one `<video>`, which
+    // can be drawn in one place only.
+    final away = p.fullscreen;
+    final showsMiddle =
+        !away && (!p.playing || p.opening || p.waiting || p.problem != null);
     return ClipRRect(
       borderRadius: BorderRadius.circular(K.radiusCard),
       child: ColoredBox(
@@ -350,39 +165,67 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
             // Under the picture, so it shows until the first one lands.
             if (poster != null)
               Image.memory(poster, fit: BoxFit.contain, gaplessPlayback: true),
-            if (clip != null && _picture != null) clip.picture(),
+            if (clip != null && p.picture != null && !away) clip.picture(),
             Material(
               type: MaterialType.transparency,
               child: InkWell(
-                mouseCursor: _problem == null
+                mouseCursor: p.problem == null
                     ? WidgetStateMouseCursor.clickable
                     : SystemMouseCursors.basic,
                 onTap: _toggle,
                 child: showsMiddle
                     ? Center(
                         child: VideoMiddle(
-                          loading: _opening || waiting,
-                          ended: _ended,
-                          problem: _problem,
+                          loading: p.opening || p.waiting,
+                          ended: p.ended,
+                          problem: p.problem,
                         ),
                       )
                     : const SizedBox.expand(),
               ),
             ),
-            if (clip != null)
+            if (clip != null && !away)
               Positioned(
                 left: 0,
                 right: 0,
                 bottom: 0,
-                child: VideoSeekBar(
-                  position: _position,
-                  length: _length,
-                  onSeek: _seek,
+                child: VideoControls(
+                  playback: p,
+                  onToggle: _toggle,
+                  fullscreen: false,
+                  onFullscreen: _fullscreen,
                 ),
               )
-            else if (_length > Duration.zero && _problem == null)
+            else if (p.length > Duration.zero && p.problem == null && !away)
               Positioned(left: 8, bottom: 8, child: _lengthChip()),
-            Positioned(top: 6, right: 6, child: _saveButton()),
+            Positioned(
+              top: 6,
+              right: 6,
+              child: Row(
+                spacing: 6,
+                children: [
+                  if (p.problem == null && clip == null && !p.opening)
+                    _roundButton(
+                      tooltip: 'Full screen',
+                      onTap: _fullscreen,
+                      child: const Icon(
+                        Icons.fullscreen_rounded,
+                        size: K.iconRow,
+                        color: MediaColors.onMedia,
+                      ),
+                    ),
+                  _roundButton(
+                    tooltip: 'Save',
+                    onTap: () => saveFile(widget.loader, widget.attachment),
+                    child: SaveProgressGlyph(
+                      busy: savingNow,
+                      progress: saveProgress,
+                      onMedia: true,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -396,28 +239,25 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
       borderRadius: BorderRadius.circular(K.radiusPill),
     ),
     child: Text(
-      VideoSeekBar.clock(_length),
+      VideoControls.clock(_playback.length),
       style: AppText.figure.copyWith(color: MediaColors.onMedia),
     ),
   );
 
-  Widget _saveButton() => Tooltip(
-    message: 'Save',
+  Widget _roundButton({
+    required String tooltip,
+    required VoidCallback onTap,
+    required Widget child,
+  }) => Tooltip(
+    message: tooltip,
     child: Material(
       color: MediaColors.panel,
       shape: const CircleBorder(),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         mouseCursor: WidgetStateMouseCursor.clickable,
-        onTap: () => saveFile(widget.loader, widget.attachment),
-        child: Padding(
-          padding: const EdgeInsets.all(6),
-          child: SaveProgressGlyph(
-            busy: savingNow,
-            progress: saveProgress,
-            onMedia: true,
-          ),
-        ),
+        onTap: onTap,
+        child: Padding(padding: const EdgeInsets.all(6), child: child),
       ),
     ),
   );

@@ -89,6 +89,8 @@ AppState _$AppStateFromJson(Map<String, dynamic> json) => AppState(
       : CallToResume.fromJson(json['callToResume'] as Map<String, dynamic>),
   soundboardMuted: json['soundboardMuted'] as bool? ?? false,
   soundboardVolume: (json['soundboardVolume'] as num?)?.toDouble() ?? 0.6,
+  chatVideoVolume: (json['chatVideoVolume'] as num?)?.toDouble() ?? 1.0,
+  chatVideoMuted: json['chatVideoMuted'] as bool? ?? false,
   appSounds:
       (json['appSounds'] as Map<String, dynamic>?)?.map(
         (k, e) =>
@@ -151,6 +153,8 @@ Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
   'autoGainControl': instance.autoGainControl,
   'soundboardMuted': instance.soundboardMuted,
   'soundboardVolume': instance.soundboardVolume,
+  'chatVideoVolume': instance.chatVideoVolume,
+  'chatVideoMuted': instance.chatVideoMuted,
   'appSounds': instance.appSounds.map((k, e) => MapEntry(k, e.toJson())),
   'voiceHiddenFrom': instance.voiceHiddenFrom,
   'verifiedCodes': instance.verifiedCodes,

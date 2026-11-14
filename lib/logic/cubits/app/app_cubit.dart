@@ -383,6 +383,19 @@ class AppCubit extends HydratedCubit<AppState> {
   void setSoundboardVolume(double volume) =>
       emit(state.copyWith(soundboardVolume: volume.clamp(0.0, 1.0)));
 
+  // ── Persisted: chat videos ────────────────────────────────
+
+  /// Turning it up unmutes, as in every player.
+  void setChatVideoVolume(double volume) => emit(
+    state.copyWith(
+      chatVideoVolume: volume.clamp(0.0, 1.0),
+      chatVideoMuted: false,
+    ),
+  );
+
+  void setChatVideoMuted(bool muted) =>
+      emit(state.copyWith(chatVideoMuted: muted));
+
   // ── Persisted: Rift's own sounds ─────────────────────────
 
   void setSoundMuted(AppSound sound, bool muted) =>

@@ -27,6 +27,10 @@ class MediaColors {
   /// A video's own ground, so letterboxing reads as the edge of the picture.
   static const Color videoGround = Color(0xFF000000);
 
+  /// Where a shade over a picture fades out to: [panel] at the edge, this
+  /// further in.
+  static const Color clear = Color(0x00000000);
+
   // ── On media ──────────────────────────────────────────────
   static const Color onMedia = Color(0xFFFFFFFF);
   static const Color onMediaSecondary = Color(0xB3FFFFFF);

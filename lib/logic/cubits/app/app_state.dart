@@ -156,6 +156,13 @@ class AppState extends Equatable {
   /// punctuation mark and should not be louder than the person talking.
   final double soundboardVolume;
 
+  // ── Chat videos, as this device plays them ────────────────
+  /// How loud a video in a chat plays, 0–1, and whether it is muted: one
+  /// setting for every video, so the next one starts where the last was
+  /// left, as a browser's player does.
+  final double chatVideoVolume;
+  final bool chatVideoMuted;
+
   // ── Rift's own sounds, as this device hears them ──────────
   /// Mute and volume for each [AppSound], keyed by its name. Absent
   /// until somebody moves one, so [AppSound.settingIn] supplies the default.
@@ -294,6 +301,8 @@ class AppState extends Equatable {
     this.callToResume,
     this.soundboardMuted = false,
     this.soundboardVolume = 0.6,
+    this.chatVideoVolume = 1.0,
+    this.chatVideoMuted = false,
     this.appSounds = const {},
     this.membersSidebarOpen = true,
     this.sidebarWidth = K.sidebarWidth,
@@ -382,6 +391,8 @@ class AppState extends Equatable {
     bool clearCallToResume = false,
     bool? soundboardMuted,
     double? soundboardVolume,
+    double? chatVideoVolume,
+    bool? chatVideoMuted,
     Map<String, ParticipantSetting>? appSounds,
     bool? membersSidebarOpen,
     double? sidebarWidth,
@@ -456,6 +467,8 @@ class AppState extends Equatable {
           : (callToResume ?? this.callToResume),
       soundboardMuted: soundboardMuted ?? this.soundboardMuted,
       soundboardVolume: soundboardVolume ?? this.soundboardVolume,
+      chatVideoVolume: chatVideoVolume ?? this.chatVideoVolume,
+      chatVideoMuted: chatVideoMuted ?? this.chatVideoMuted,
       appSounds: appSounds ?? this.appSounds,
       membersSidebarOpen: membersSidebarOpen ?? this.membersSidebarOpen,
       sidebarWidth: sidebarWidth ?? this.sidebarWidth,
@@ -560,6 +573,8 @@ class AppState extends Equatable {
     autoGainControl,
     soundboardMuted,
     soundboardVolume,
+    chatVideoVolume,
+    chatVideoMuted,
     appSounds,
     verifiedCodes,
     seenKeys,
