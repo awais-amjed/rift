@@ -34,6 +34,7 @@ class _DockAvatarButtonState extends State<DockAvatarButton> {
   static const double _size = 34;
 
   bool _hovering = false;
+  final GlobalKey _avatarKey = GlobalKey();
 
   @override
   Widget build(BuildContext context) {
@@ -85,18 +86,25 @@ class _DockAvatarButtonState extends State<DockAvatarButton> {
   /// Darkens the avatar's own pixels rather than laying a box over them. A
   /// box has an edge of its own, and the avatar's bright edge showed round it
   /// as a coloured rim along the bottom.
+  ///
+  /// Only while there is something to darken: a filter draws what it holds
+  /// into a layer of its own every frame, and the dock is on screen all the
+  /// time. The key carries the avatar in and out of the filter without
+  /// building it again, which would flash its initial on every hover.
   Widget _dimmed(ThemeState themeState, Widget avatar) {
     return TweenAnimationBuilder<double>(
       tween: Tween(end: _hovering ? 1 : 0),
       duration: AppMotion.react,
-      child: avatar,
-      builder: (context, t, child) => ColorFiltered(
-        colorFilter: ColorFilter.mode(
-          themeState.bgPrimary.withValues(alpha: 0.62 * t),
-          BlendMode.srcATop,
-        ),
-        child: child,
-      ),
+      child: KeyedSubtree(key: _avatarKey, child: avatar),
+      builder: (context, t, child) => t == 0
+          ? child!
+          : ColorFiltered(
+              colorFilter: ColorFilter.mode(
+                themeState.bgPrimary.withValues(alpha: 0.62 * t),
+                BlendMode.srcATop,
+              ),
+              child: child,
+            ),
     );
   }
 
