@@ -277,7 +277,8 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   (the lit ground), `NavRow` (any navigable sidebar row), `SquircleAvatar` (the
   initial alone: it takes no picture) / `UserAvatar` (a person's picture, by its storage path)
   / `ServerIcon` (a server's picture),
-  `RoundedPicture` (an avatar or icon picture, an `Image` in a `ClipRRect`),
+  `RoundedPicture` (an avatar or icon picture, a rounded `DecorationImage`, not a clip:
+  a clipped avatar flickered square on an AMD PC under Linux),
   `choosePicture` (pick a picture and crop it square for an avatar or icon — never
   `pickPicture` alone, which only shrinks and checks it),
   `ViewablePicture` (a profile's picture that opens full size in `showImageViewer`),
