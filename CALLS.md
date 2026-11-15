@@ -470,6 +470,17 @@ button, 15% wholly covered by a maximised window and 8% in the tray, with the
 decoder stopped in each; the picture was back on every restore. Other
 compositors, another workspace and GNOME's own minimise keys were not tried.
 
+**Animations stop too.** `AppSeenListener` puts the app under a `TickerMode`
+that is off while nobody can see Rift, so nothing animates for nobody: a frame
+of any animation redraws the whole window, and while minimised or covered on
+Windows, or in the tray on Linux, those frames go on. The loops step on a
+`Timer` instead of animating (`LoadingDots`, the sound share's bars), and stop
+under the same `TickerMode`. Measured Nov 15 2026 on the laptop's Linux release
+build, Wayland, started in the tray with dots of the old, animated kind on
+screen: 6.5% of a core before, 0.1% with `TickerMode`. Minimised under X11 it
+was 0% either way, since GTK stops drawing a minimised X11 window. On screen
+the dots cost 16.9% animated and 4.2% stepped. Not yet measured on Windows.
+
 ## How Windows captures a screen — [Implemented October 2026]
 
 An H264 share with the GPU capture switch on, to NVENC or Quick Sync, now captures with

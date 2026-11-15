@@ -33,6 +33,7 @@ lib/
     services/     # Platform services (sound, Windows sound settings)
     ptt/          # Push-to-talk key and mouse button listener
     visibility/   # Whether anybody can see Rift (AppSeenListener), which pauses watched pictures
+                  # and stops animations (TickerMode)
     shortcuts/    # In-window keys for mute and deafen (CallShortcutListener)
     helper_methods.dart  # HelperMethods: toasts, navigation, printDebug
   presentation/
@@ -240,6 +241,16 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   moving over the same duration on different curves still read as two animations, so take
   the curve from there too (`settle`, `arrive`, `pop`, `panel`). Panel travel times stay in
   `K`, beside the geometry they move.
+- **Anything that loops, or follows a stream of reports, steps rather than animates.** An
+  animation draws a frame on every vsync, 165 a second on a 165 Hz laptop, and each frame
+  redraws the whole window. That is fine for a 140ms answer to a click and costly for
+  anything that runs for minutes. So `LoadingDots` and the sound share's bars step about
+  fifteen times a second on a `Timer`, painted from a `ValueNotifier` inside a
+  `RepaintBoundary`, as `SpeakingRing` steps its fade. They stop when `TickerMode` is off,
+  since a `Timer` does not hear it by itself. `ProgressTrack` and `DownloadRing` jump to each
+  report: a slide toward every report kept one animation running for a whole download. On
+  screen the dots cost 16.9% of a core animated and 4.2% stepped (Nov 15, Linux). While
+  nobody can see Rift, `AppSeenListener`'s `TickerMode` stops every animation.
 - **An arrival animates once, and only for what actually arrived.** Anything that animates
   on first build animates a whole backlog the moment a list is reopened — so the list primes
   (`ChatMessageList._seen`, `MessageReactionsBar._shown`) and only what turns up afterwards

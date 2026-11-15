@@ -10,7 +10,8 @@ import '../cubits/livekit/livekit_cubit.dart';
 import '../services/pip_service.dart';
 
 /// Tells the call whether anybody can see Rift, so a watched stream's
-/// picture is turned off while nobody can ([LiveKitCubit.setAppSeen]).
+/// picture is turned off while nobody can ([LiveKitCubit.setAppSeen]), and
+/// stops the animations below it meanwhile ([TickerMode]).
 ///
 /// Minimised, or hidden to the tray, comes from the app lifecycle. On Windows
 /// the lifecycle never says so, and the runner tells it instead
@@ -38,6 +39,9 @@ class _AppSeenListenerState extends State<AppSeenListener>
   bool _hidden = false;
   bool _windowSeen = true;
 
+  /// What [_tell] last said, which also switches the animations below.
+  bool _seen = true;
+
   @override
   void initState() {
     super.initState();
@@ -50,7 +54,8 @@ class _AppSeenListenerState extends State<AppSeenListener>
         _tell();
       });
     }
-    _tell();
+    _seen = _seenNow();
+    context.read<LiveKitCubit>().setAppSeen(_seen);
   }
 
   @override
@@ -77,10 +82,22 @@ class _AppSeenListenerState extends State<AppSeenListener>
   };
 
   /// A phone's floating window shows the stream with the app put away.
-  void _tell() => context.read<LiveKitCubit>().setAppSeen(
-    PipService.instance.isInPip.value || (!_hidden && _windowSeen),
-  );
+  bool _seenNow() =>
+      PipService.instance.isInPip.value || (!_hidden && _windowSeen);
 
+  void _tell() {
+    final seen = _seenNow();
+    context.read<LiveKitCubit>().setAppSeen(seen);
+    if (seen != _seen && mounted) setState(() => _seen = seen);
+  }
+
+  /// Animations stop while nobody can see Rift. Each frame of one redraws
+  /// the whole window, and on Windows that goes on minimised or covered by a
+  /// game, as it does on Linux in the tray: there the old loading dots,
+  /// which animated, cost 6.5% of a core for nobody, and 0.1% once stopped
+  /// (Nov 15). A stopped animation picks up where its clock says when Rift
+  /// is seen again, so whatever waits on one finishing waits until then.
   @override
-  Widget build(BuildContext context) => widget.child;
+  Widget build(BuildContext context) =>
+      TickerMode(enabled: _seen, child: widget.child);
 }
