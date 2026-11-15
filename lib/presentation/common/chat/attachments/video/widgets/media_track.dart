@@ -77,13 +77,18 @@ class _MediaTrackState extends State<MediaTrack> {
                       borderRadius: BorderRadius.circular(K.radiusPill),
                     ),
                   ),
-                  AnimatedContainer(
-                    duration: AppMotion.react,
-                    height: lit ? 6 : 4,
+                  // The width outside the animation: moved four times a
+                  // second while it plays, an animated one drew the window
+                  // at the screen's rate for most of every second.
+                  SizedBox(
                     width: width * done,
-                    decoration: BoxDecoration(
-                      color: MediaColors.onMedia,
-                      borderRadius: BorderRadius.circular(K.radiusPill),
+                    child: AnimatedContainer(
+                      duration: AppMotion.react,
+                      height: lit ? 6 : 4,
+                      decoration: BoxDecoration(
+                        color: MediaColors.onMedia,
+                        borderRadius: BorderRadius.circular(K.radiusPill),
+                      ),
                     ),
                   ),
                   Positioned(
