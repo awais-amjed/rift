@@ -9,6 +9,10 @@ mixin _ServerCrudMixin on Cubit<ServerState> {
   PushApi _pushOn(String serverId);
   OwnershipApi _ownershipOn(String serverId);
 
+  Future<({bool success, String? error})> refreshServerDetails({
+    required String serverId,
+  });
+
   // ── CRUD ──────────────────────────────────────────────────
 
   Server addServer(
@@ -32,6 +36,7 @@ mixin _ServerCrudMixin on Cubit<ServerState> {
     // not that — so a server joined mid-session would otherwise go unregistered
     // until the next launch.
     unawaited(_pushOn(newServer.id).registerDevice());
+    _readJoinedServer(newServer.id);
     return newServer;
   }
 
@@ -47,6 +52,19 @@ mixin _ServerCrudMixin on Cubit<ServerState> {
     unawaited(_pushOn(newServer.id).registerDevice());
     return newServer;
   }
+
+  /// Read a server just joined through `get_server_details`.
+  ///
+  /// `register`'s reply is built on the service role, which knows the three
+  /// cached booleans but not the permission bits (`my_permissions()`
+  /// describes the caller, and the caller there is the service role) nor
+  /// each channel's own. Kept as it came, a new admin's bits read as zero,
+  /// and every page that asks them — a channel's Permissions, roles,
+  /// invites — drew its controls disabled until something read the server
+  /// again: a switch away and back, or a restart. Found Nov 15 after a
+  /// console update, which it had nothing to do with.
+  void _readJoinedServer(String serverId) =>
+      unawaited(refreshServerDetails(serverId: serverId));
 
   /// Move the server at [from] so that it ends up at [to].
   ///
