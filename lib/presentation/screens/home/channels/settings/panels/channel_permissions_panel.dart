@@ -85,6 +85,14 @@ class _ChannelPermissionsPanelState extends State<ChannelPermissionsPanel> {
     if (!mounted) return;
     final roles = results[0] as List<Role>;
     final overrides = results[1] as Map<String, ChannelOverride>?;
+    if (overrides == null || roles.isEmpty) {
+      // A server before permissions per channel answers the read with a 404.
+      HelperMethods.printDebug(
+        'channel permissions: could not load '
+        '(${overrides == null ? 'overrides' : 'roles'}); the server may '
+        'predate them',
+      );
+    }
     setState(() {
       _isLoading = false;
       _failedToLoad = overrides == null || roles.isEmpty;
