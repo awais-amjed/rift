@@ -39,6 +39,7 @@ import 'logic/services/sound_service.dart';
 import 'logic/services/storage_namespace.dart';
 import 'logic/services/text_safety.dart';
 import 'logic/services/tray_service/tray_service.dart';
+import 'logic/services/trusted_roots.dart';
 import 'logic/services/window_focus_service.dart';
 import 'logic/services/window_placement.dart';
 import 'src/rust/frb_generated.dart';
@@ -72,6 +73,9 @@ class AppBootstrap {
       );
       await RustLib.init();
       await AppLog.start(storageSuffix);
+      // Before anything connects anywhere: Windows may not have fetched
+      // the root a server's certificate needs, and Dart never makes it.
+      await TrustedRoots.addOnWindows();
       // Android's record of how the runs before this one ended.
       unawaited(AppExitReasons.log());
       CryptoRepository.blobCipher = const NativeBlobCipher();

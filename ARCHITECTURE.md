@@ -771,6 +771,14 @@ key's signature. A downloaded model is pinned by its SHA-256 in
 the app instead (§8, *Downloaded models*), so it is exactly as trusted as the
 app that asked for it.
 
+TLS on Windows trusts Mozilla's roots as well as Windows' own
+(`TrustedRoots`, `assets/certificates/mozilla_roots.pem`). Windows fetches
+many of its roots only when its own TLS first needs one, which Dart's never
+sets off, so a site whose root had not been fetched failed to connect: on
+Nov 15 2026 every model download on a Windows 10 PC, against github.com's
+Sectigo root. The list is the one browsers and the Rust updater already trust,
+and a root a company put into Windows still counts.
+
 ---
 
 ## 7. Moderation — [Implemented September 2026]
