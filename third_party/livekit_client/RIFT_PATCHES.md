@@ -237,6 +237,20 @@ uncorrelated.
    desktop clients and the share, with no uncaught error, and the app's own
    later attempt at the mic logged the refusal as before.
 
+
+14. **An audio track's capture stops without walking a map that changes**
+   (`AudioTrack.stopCapture` in `lib/src/track/local/local.dart`). It awaited
+   each capture group's stop inside a loop over the map of groups, and a
+   renderer removed during that await took its group out of the same map, so
+   the loop threw `Concurrent modification during iteration`, uncaught, out of
+   `Track.stop` and `removePublishedTrack`. The groups are now taken out of the
+   map before the first await.
+
+   Found Nov 15 2026 on Linux, on a server just updated to console 1.6.0: the
+   moment a voice channel was made Listen-only mid-call, the server took the
+   member's microphone and the member's app logged the uncaught error from
+   `removePublishedTrack`. The call went on.
+
 ## When to remove it
 
 Patch 1 goes when a `livekit_client` release answers a stereo track with
@@ -246,6 +260,6 @@ unsubscribe without holding the track, patch 4 when a release can go back
 to letting visibility decide, patch 5 when a release keeps a disable
 through the server's bind, patch 6 when a release's web worker leaves no
 VP9 bytes in the clear, patch 7 when it passes H264 through the RBSP functions, patch 8 when a release subscribes
-whatever it holds, patch 9 when a release starts a track before announcing it, patch 10 when a release lets an app keep a remote track off from its arrival, patch 11 when Chrome stops playing a track that is off or a release handles it, patch 12 when a release stops a section as it unpublishes, patch 13 when a release goes on joining past a track it could not publish. With all thirteen gone, bump, delete this
+whatever it holds, patch 9 when a release starts a track before announcing it, patch 10 when a release lets an app keep a remote track off from its arrival, patch 11 when Chrome stops playing a track that is off or a release handles it, patch 12 when a release stops a section as it unpublishes, patch 13 when a release goes on joining past a track it could not publish, patch 14 when a release stops capture groups without iterating the live map. With all fourteen gone, bump, delete this
 folder and its `dependency_overrides` entry. Until then, a `livekit_client` upgrade needs this copy replaced with the
 new version and the changes put back.

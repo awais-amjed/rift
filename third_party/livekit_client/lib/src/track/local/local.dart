@@ -106,10 +106,14 @@ mixin AudioTrack on Track {
   @override
   Future<void> stopCapture() async {
     logger.fine('AudioTrack.stopCapture()');
-    for (final group in _captureGroups.values) {
+    // RIFT PATCH: taken out of the map before the first await. A renderer
+    // removed while a group stops took its group out of the map mid-loop, and
+    // the loop threw (RIFT_PATCHES.md, patch 14).
+    final groups = _captureGroups.values.toList();
+    _captureGroups.clear();
+    for (final group in groups) {
       await group.stop();
     }
-    _captureGroups.clear();
   }
 }
 
