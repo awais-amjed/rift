@@ -1739,6 +1739,14 @@ extension EngineInternalMethods on Engine {
     final List<rtc.RTCRtpCodecCapability> matched = [];
     final List<rtc.RTCRtpCodecCapability> partialMatched = [];
     final List<rtc.RTCRtpCodecCapability> unmatched = [];
+    // RIFT PATCH: a browser sends H264 in High, and offers no other H264, as
+    // the server answers in its own order, constrained baseline first. Chrome
+    // on Windows never encoded constrained baseline on the GPU (Nov 15 2026,
+    // OpenH264 every time), and High, baseline and Main on D3D12. A browser
+    // without High keeps the SDK's order.
+    final highH264 = lkPlatformIs(PlatformType.web) && videoCodec.toLowerCase() == 'h264'
+        ? caps.codecs!.where(_isHighH264).toList()
+        : const <rtc.RTCRtpCodecCapability>[];
     for (var c in caps.codecs!) {
       final codec = c.mimeType.toLowerCase();
       if (codec == 'audio/opus') {
@@ -1761,6 +1769,10 @@ extension EngineInternalMethods on Engine {
       // for h264 codecs that have sdpFmtpLine available, use only if the
       // profile-level-id is 42e01f for cross-browser compatibility
       if (videoCodec.toLowerCase() == 'h264') {
+        if (highH264.isNotEmpty) {
+          if (highH264.contains(c)) matched.add(c);
+          continue;
+        }
         if (c.sdpFmtpLine != null && c.sdpFmtpLine!.contains('profile-level-id=42e01f')) {
           matched.add(c);
         } else {
@@ -1783,6 +1795,15 @@ extension EngineInternalMethods on Engine {
     } catch (e) {
       logger.warning('setCodecPreferences failed: $e');
     }
+  }
+
+  /// RIFT PATCH: H264 High (`profile-level-id=64…`) with packetization mode 1.
+  static bool _isHighH264(rtc.RTCRtpCodecCapability c) {
+    final fmtp = c.sdpFmtpLine;
+    return c.mimeType.toLowerCase() == 'video/h264' &&
+        fmtp != null &&
+        RegExp(r'profile-level-id=64[0-9a-f]{4}', caseSensitive: false).hasMatch(fmtp) &&
+        fmtp.contains('packetization-mode=1');
   }
 }
 

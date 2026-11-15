@@ -139,9 +139,10 @@ Future<bool> _webCodecsSayHardwareH264() async {
   try {
     final support = await web.VideoEncoder.isConfigSupported(
       web.VideoEncoderConfig(
-        // Baseline at level 4.2, which a 1080p picture needs: at the 3.1 of
-        // WebRTC's usual profile Chrome says no in software too.
-        codec: 'avc1.42002a',
+        // High, which a browser's share sends (`RIFT_PATCHES.md` in
+        // livekit_client), at level 4.2, which a 1080p picture needs: at the
+        // 3.1 of WebRTC's usual profile Chrome says no in software too.
+        codec: 'avc1.64002a',
         width: 1920,
         height: 1080,
         bitrate: 6000000,

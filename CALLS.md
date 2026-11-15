@@ -306,7 +306,7 @@ the options on the track.
   shares in it on Nov 13 kept up, but it is not offered since. The question gets a
   second to answer, and no answer counts as no hardware: headless Chrome never
   answers. A browser's hardware H264 is the open risk a phone's is (*A phone's share*): its
-  encoder has not been read in a share.
+  encoder has been read in a share only on Linux (below).
 - **Asking for hardware H264.** Two questions, either of which saying yes is yes
   (`browserEncodesH264InHardware`): WebCodecs' `VideoEncoder.isConfigSupported` with
   `prefer-hardware`, and media capabilities' `encodingInfo` for a WebRTC picture
@@ -319,7 +319,19 @@ the options on the track.
   With Chrome's GPU encoder turned on (`--enable-features=AcceleratedVideoEncoder,VaapiVideoEncoder`)
   the call encoded on `VaapiVideoEncodeAccelerator`, WebCodecs said yes, and
   `encodingInfo` still said no. WebCodecs needs a level that fits 1080p: at 3.1
-  (`avc1.42001f`) Chrome says no in software too.
+  (`avc1.42001f`) Chrome says no in software too. WebCodecs is asked about High
+  (`avc1.64002a`), the profile the share sends.
+- **H264 goes out in High.** LiveKit's SDK offers constrained baseline first, and the
+  server answers in its own order, constrained baseline first; Chrome on Windows never
+  encodes that profile on the GPU. So a browser offers High alone (patch 14 in
+  `third_party/livekit_client/RIFT_PATCHES.md`), which every Rift viewer decodes, as a
+  desktop's GPU share sends it. Measured Nov 15 2026: on Windows (Chrome 157) a share in
+  H264 went out on OpenH264, and a call to itself in the same tab encoded constrained
+  baseline on OpenH264 at every size and content hint, and baseline, Main and High on
+  `D3D12VideoEncodeAccelerator`. With High alone, the same day on Linux (Chrome with its
+  VAAPI encoder on): `profile-level-id=64001f` on `VaapiVideoEncodeAccelerator`, seen
+  by a browser and a Linux desktop viewer. Chrome's VAAPI encoder answered only under
+  native Wayland (`--ozone-platform=wayland`), not X11. Not yet run on Windows.
 - **Sound:** on by default. It asks the browser for the picture's sound; the person
   must also tick the picker's own sound box, and Chrome offers one only for a tab, or
   for the whole screen on Windows and ChromeOS. It goes out as music (no DTX, 96 kbps)

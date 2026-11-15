@@ -237,6 +237,27 @@ uncorrelated.
    desktop clients and the share, with no uncaught error, and the app's own
    later attempt at the mic logged the refusal as before.
 
+14. **In a browser, an H264 picture goes out in High alone** (`setPreferredCodec`
+   in `lib/src/core/engine.dart`). The SDK puts constrained baseline
+   (`profile-level-id=42e01f`) first and the other H264 profiles after it, and
+   the server answers in its own order, constrained baseline first, whatever
+   the offer's order. Chrome on Windows never encodes constrained baseline on
+   the GPU, so a browser's H264 share went out on OpenH264, on the CPU. Now a
+   browser whose list has High with packetization mode 1 offers that and no
+   other H264. Every Rift viewer already decodes High: a desktop's GPU share
+   sends it (`CALLS.md`, *H264 in High profile*). A browser without High, and
+   every other platform, keeps the SDK's order.
+
+   Found Nov 15 2026 on Windows, Chrome 157, Iris Xe and RTX 3070 Ti Laptop: a
+   share in H264 said `encoderImplementation` OpenH264. A call to itself in the
+   same tab, 1280x720, each profile forced in turn: constrained baseline was
+   OpenH264 every time, at every size and content hint; baseline, Main and High
+   with packetization mode 1 were `D3D12VideoEncodeAccelerator`. After, the same
+   day on Linux, Chrome with its VAAPI encoder on (Iris Xe), the local stack: the
+   share went out as `profile-level-id=64001f`, `packetization-mode=1`, on
+   `VaapiVideoEncodeAccelerator`, and a browser viewer and a Linux desktop viewer
+   both showed the moving picture. Not yet run on Windows.
+
 ## When to remove it
 
 Patch 1 goes when a `livekit_client` release answers a stereo track with
@@ -246,6 +267,6 @@ unsubscribe without holding the track, patch 4 when a release can go back
 to letting visibility decide, patch 5 when a release keeps a disable
 through the server's bind, patch 6 when a release's web worker leaves no
 VP9 bytes in the clear, patch 7 when it passes H264 through the RBSP functions, patch 8 when a release subscribes
-whatever it holds, patch 9 when a release starts a track before announcing it, patch 10 when a release lets an app keep a remote track off from its arrival, patch 11 when Chrome stops playing a track that is off or a release handles it, patch 12 when a release stops a section as it unpublishes, patch 13 when a release goes on joining past a track it could not publish. With all thirteen gone, bump, delete this
+whatever it holds, patch 9 when a release starts a track before announcing it, patch 10 when a release lets an app keep a remote track off from its arrival, patch 11 when Chrome stops playing a track that is off or a release handles it, patch 12 when a release stops a section as it unpublishes, patch 13 when a release goes on joining past a track it could not publish, patch 14 when a release prefers a profile the browser encodes on the GPU. With all fourteen gone, bump, delete this
 folder and its `dependency_overrides` entry. Until then, a `livekit_client` upgrade needs this copy replaced with the
 new version and the changes put back.
