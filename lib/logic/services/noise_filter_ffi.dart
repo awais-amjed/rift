@@ -283,8 +283,7 @@ abstract final class NoiseFilter {
   /// waits for it ([ready]).
   static Future<void> use(NoiseSuppression mode) async {
     final before = _wanted == null ? null : inEffect(_wanted!);
-    if (before == NoiseSuppression.off ||
-        before == NoiseSuppression.standard) {
+    if (before == NoiseSuppression.off || before == NoiseSuppression.standard) {
       _meanwhile = before!;
     }
     _wanted = mode;
@@ -306,6 +305,7 @@ abstract final class NoiseFilter {
   }
 
   static Future<void> _useDpdfnet(_NativeFilter native) async {
+    var downloaded = true;
     if (!_dpdfnetHanded) {
       _dpdfnetLoading = true;
       _tell();
@@ -332,6 +332,7 @@ abstract final class NoiseFilter {
         _dpdfnetHanded = true;
       } on ModelUnavailable catch (e) {
         HelperMethods.printDebug('DPDFNet unavailable: $e');
+        downloaded = false;
         _useOnceFetched();
       } catch (e) {
         HelperMethods.printDebug('DPDFNet unavailable: $e');
@@ -344,7 +345,13 @@ abstract final class NoiseFilter {
     }
     if (_dpdfnetHanded) {
       _put(native, _Model.dpdfnet);
+    } else if (!downloaded) {
+      // The download's stand-in stays until Try again: RNNoise if its
+      // weights are here, else Standard. Not fetched for it, which over the
+      // link that just failed would fail too, and is a download nobody chose.
+      _put(native, await _rnnoiseHere(native) ? _Model.rnnoise : _Model.none);
     } else {
+      // DPDFNet cannot run here: RNNoise for good, fetched if need be.
       await _useRnnoise(native, NoiseSuppression.dpdfnet);
     }
   }

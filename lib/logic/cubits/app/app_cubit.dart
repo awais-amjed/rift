@@ -50,6 +50,9 @@ class AppCubit extends HydratedCubit<AppState> {
   /// [AppState.noiseInEffect].
   late final StreamSubscription<void> _noiseFilterChanges;
 
+  /// Whether the noise in effect has been written to the log yet.
+  bool _noiseInEffectLogged = false;
+
   @override
   Future<void> close() async {
     await _noiseFilterChanges.cancel();
@@ -200,7 +203,10 @@ class AppCubit extends HydratedCubit<AppState> {
   void _noteNoiseFilter() {
     if (isClosed) return;
     final inEffect = NoiseFilter.inEffect(state.noiseSuppression);
-    if (inEffect != state.noiseInEffect) {
+    // The first too: the state starts at Standard, so a stand-in Standard
+    // was never written down, and a log showed only the load's brief Off.
+    if (!_noiseInEffectLogged || inEffect != state.noiseInEffect) {
+      _noiseInEffectLogged = true;
       HelperMethods.printDebug(
         'Noise suppression in effect: ${inEffect.label}',
       );
