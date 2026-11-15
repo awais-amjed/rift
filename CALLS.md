@@ -299,39 +299,21 @@ the options on the track.
 - **Codec:** whichever of VP8, H264 and VP9 the browser lists, with H264 only where
   the browser encodes it in hardware, as on a desktop (`WebShare.codecsOffered`); a
   saved H264 without it goes out as Auto. Auto
-  (`WebShare.autoCodec`) is H264 where the browser says it encodes it in hardware,
-  and otherwise VP9,
+  (`WebShare.autoCodec`) is H264 where the browser says it encodes it in hardware
+  (`encodingInfo` for a WebRTC 1080p30 picture, `powerEfficient`), and otherwise VP9,
   one layer as the SDK sends any VP9 share (`L1T3`), with VP8 only where the browser
   has neither. Without a GPU, Chrome's H264 is OpenH264, in software: the owner's
   shares in it on Nov 13 kept up, but it is not offered since. The question gets a
   second to answer, and no answer counts as no hardware: headless Chrome never
-  answers. A browser's hardware H264 is the open risk a phone's is (*A phone's share*): its
-  encoder has been read in a share only on Linux (below).
-- **Asking for hardware H264.** Two questions, either of which saying yes is yes
-  (`browserEncodesH264InHardware`): WebCodecs' `VideoEncoder.isConfigSupported` with
-  `prefer-hardware`, and media capabilities' `encodingInfo` for a WebRTC picture
-  (`powerEfficient`), kept for a browser without WebCodecs. Both ask about 1080p30. The
-  second alone was wrong in Chrome: it answers no while Chrome's calls encode on the GPU.
-  Measured Nov 15 2026 with a test page whose call to itself had only H264 to send. On
-  Windows (Chrome 157) that call encoded on `D3D12VideoEncodeAccelerator` while
-  `encodingInfo` said no, and Auto went out in VP9; WebCodecs said yes. On Linux (Chrome
-  156, Intel Iris Xe) as installed, all agreed: no hardware, and the call was OpenH264.
-  With Chrome's GPU encoder turned on (`--enable-features=AcceleratedVideoEncoder,VaapiVideoEncoder`)
-  the call encoded on `VaapiVideoEncodeAccelerator`, WebCodecs said yes, and
-  `encodingInfo` still said no. WebCodecs needs a level that fits 1080p: at 3.1
-  (`avc1.42001f`) Chrome says no in software too. WebCodecs is asked about High
-  (`avc1.64002a`), the profile the share sends.
-- **H264 goes out in High.** LiveKit's SDK offers constrained baseline first, and the
-  server answers in its own order, constrained baseline first; Chrome on Windows never
-  encodes that profile on the GPU. So a browser offers High alone (patch 14 in
-  `third_party/livekit_client/RIFT_PATCHES.md`), which every Rift viewer decodes, as a
-  desktop's GPU share sends it. Measured Nov 15 2026: on Windows (Chrome 157) a share in
-  H264 went out on OpenH264, and a call to itself in the same tab encoded constrained
-  baseline on OpenH264 at every size and content hint, and baseline, Main and High on
-  `D3D12VideoEncodeAccelerator`. With High alone, the same day on Linux (Chrome with its
-  VAAPI encoder on): `profile-level-id=64001f` on `VaapiVideoEncodeAccelerator`, seen
-  by a browser and a Linux desktop viewer. Chrome's VAAPI encoder answered only under
-  native Wayland (`--ozone-platform=wayland`), not X11. Not yet run on Windows.
+  answers. A browser's hardware H264 is the open risk a phone's is (*A phone's share*).
+- **Chrome's GPU H264, tried and left.** `encodingInfo` says no in Chrome even where
+  its calls encode H264 on the GPU, so Auto there is VP9. Measured Nov 15 2026 on
+  Windows (Chrome 157): WebCodecs' `prefer-hardware` said yes, but LiveKit's offer and
+  the server's answer put constrained baseline (`42e01f`) first, which Chrome encodes only
+  on OpenH264; baseline, Main and High went to `D3D12VideoEncodeAccelerator`. Offering
+  High alone encoded on the GPU there, and on Linux (VAAPI) played to a browser and a
+  desktop viewer, but on Windows the viewers saw no picture. Both changes were taken
+  back the same day: the desktop is where shares matter, and VP9 serves a browser.
 - **Sound:** on by default. It asks the browser for the picture's sound; the person
   must also tick the picker's own sound box, and Chrome offers one only for a tab, or
   for the whole screen on Windows and ChromeOS. It goes out as music (no DTX, 96 kbps)

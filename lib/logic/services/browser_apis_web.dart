@@ -84,28 +84,12 @@ Future<void> setBrowserFullscreen(bool on) async {
   }
 }
 
-/// Whether the browser encodes H264 for a call in hardware, for a 1080p30
-/// picture: yes if either of two questions says so.
-///
-/// Media capabilities (`powerEfficient`) were the only question until Nov 15
-/// 2026, and Chrome answers it wrongly: no, while its calls encode on the GPU
-/// (`D3D12VideoEncodeAccelerator` on Windows, `VaapiVideoEncodeAccelerator` on
-/// Linux with Chrome's GPU encoder turned on). WebCodecs (`prefer-hardware`)
-/// answered yes on both, and no in the Linux Chrome without the GPU encoder,
-/// where the call was OpenH264 (`CALLS.md`, *A browser's share*). Media
-/// capabilities stay for a browser without WebCodecs.
+/// Whether the browser encodes H264 for a call in hardware, as its media
+/// capabilities say (`powerEfficient`) for a 1080p30 picture.
 ///
 /// No answer is no: headless Chrome, with no GPU, never answers at all, and a
-/// browser without either API is one this cannot tell about.
+/// browser without the API is one this cannot tell about.
 Future<bool> browserEncodesH264InHardware() async {
-  final answers = await Future.wait([
-    _capabilitiesSayHardwareH264(),
-    _webCodecsSayHardwareH264(),
-  ]);
-  return answers.any((yes) => yes);
-}
-
-Future<bool> _capabilitiesSayHardwareH264() async {
   try {
     final info = await web.window.navigator.mediaCapabilities
         .encodingInfo(
@@ -123,39 +107,12 @@ Future<bool> _capabilitiesSayHardwareH264() async {
         .toDart
         .timeout(const Duration(seconds: 1));
     HelperMethods.printDebug(
-      '[LiveKit] Browser H264 (media capabilities): supported '
-      '${info.supported}, hardware ${info.powerEfficient}',
+      '[LiveKit] Browser H264: supported ${info.supported}, '
+      'hardware ${info.powerEfficient}',
     );
     return info.supported && info.powerEfficient;
   } catch (e) {
-    HelperMethods.printDebug(
-      '[LiveKit] Browser H264 (media capabilities) unknown: $e',
-    );
-    return false;
-  }
-}
-
-Future<bool> _webCodecsSayHardwareH264() async {
-  try {
-    final support = await web.VideoEncoder.isConfigSupported(
-      web.VideoEncoderConfig(
-        // High, which a browser's share sends (`RIFT_PATCHES.md` in
-        // livekit_client), at level 4.2, which a 1080p picture needs: at the
-        // 3.1 of WebRTC's usual profile Chrome says no in software too.
-        codec: 'avc1.64002a',
-        width: 1920,
-        height: 1080,
-        bitrate: 6000000,
-        framerate: 30,
-        hardwareAcceleration: 'prefer-hardware',
-      ),
-    ).toDart.timeout(const Duration(seconds: 1));
-    HelperMethods.printDebug(
-      '[LiveKit] Browser H264 (WebCodecs): hardware ${support.supported}',
-    );
-    return support.supported;
-  } catch (e) {
-    HelperMethods.printDebug('[LiveKit] Browser H264 (WebCodecs) unknown: $e');
+    HelperMethods.printDebug('[LiveKit] Browser H264 hardware unknown: $e');
     return false;
   }
 }
