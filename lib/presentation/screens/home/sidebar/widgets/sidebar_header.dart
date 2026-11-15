@@ -13,6 +13,7 @@ import '../../servers/add_server/show_add_server_dialog.dart';
 import '../../servers/profile/show_server_profile.dart';
 import '../../servers/widgets/no_server_button.dart';
 import '../quick_switcher/quick_switcher_dialog.dart';
+import 'console_update_row.dart';
 import 'jump_field.dart';
 import 'server_header.dart';
 
@@ -49,6 +50,7 @@ class SidebarHeader extends StatelessWidget {
               : null,
           onShowProfile: () => showServerProfile(context, server: server),
         ),
+        ConsoleUpdateRow(server: server),
         JumpField(onTap: () => openQuickSwitcher(context)),
       ],
     );

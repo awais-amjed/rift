@@ -92,6 +92,9 @@ void main() {
       ServerDetails.fromJson({'console_update': _update}),
     );
     final json = cubit.state.servers.single.toJson();
-    expect(json.keys.where((k) => k.toLowerCase().contains('console')), isEmpty);
+    expect(
+      json.keys.where((k) => k.toLowerCase().contains('console')),
+      isEmpty,
+    );
   });
 }
