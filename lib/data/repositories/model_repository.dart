@@ -153,6 +153,17 @@ class ModelRepository {
     });
   }
 
+  /// [file] at the head of the queue: whatever is asked for after this call
+  /// downloads after it, even a [fetch] begun just before, which looks for
+  /// its file on disk before it queues. The first start calls it before
+  /// anything else can ask, since the saved noise model is turned on as the
+  /// settings are read and would otherwise put DPDFNet ahead of the picture
+  /// classifier. A file already here is found under the lock, unfetched.
+  Future<File> fetchFirst(ModelFile file) =>
+      _fetching[file.localName] ??= _enqueue(file).whenComplete(() {
+        _fetching.remove(file.localName);
+      });
+
   Future<File> _enqueue(ModelFile file) {
     final run = _queue.then((_) => _download(file));
     _queue = run.then<void>((_) {}, onError: (Object _) {});

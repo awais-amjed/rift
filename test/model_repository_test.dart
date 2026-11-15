@@ -84,6 +84,29 @@ void main() {
     expect(requests, hasLength(1));
   });
 
+  test('what is put first downloads first, even if asked for later', () async {
+    // At a first start the saved noise model asked for DPDFNet before the
+    // classifier was queued, and pictures waited on 25 MB of it.
+    final other = ModelFile(
+      id: 'other',
+      name: 'other model',
+      published: 'other.v1.bin',
+      size: file.size,
+      sha256: file.sha256,
+    );
+    final models = repo(serve);
+    final later = models.fetch(other);
+    final first = models.fetchFirst(file);
+    await Future.wait([later, first]);
+    expect(requests.map((r) => r.url.pathSegments.last), [
+      'test.v1.bin',
+      'other.v1.bin',
+    ]);
+    // Already here, it is found without going out.
+    await models.fetchFirst(file);
+    expect(requests, hasLength(2));
+  });
+
   test('carries on from what a broken try kept', () async {
     part().writeAsBytesSync(body.sublist(0, 20000));
     final got = await repo(serve).fetch(file);

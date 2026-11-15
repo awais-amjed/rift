@@ -12,11 +12,12 @@ import '../helper_methods.dart';
 abstract final class ModelDownloads {
   /// Fetches what is missing, then sweeps away what this version no longer
   /// uses. Never throws: a failure is retried when the model is next asked
-  /// for, and shown where the progress is.
+  /// for, and shown where the progress is. Called before the settings are
+  /// read, so the classifier is queued ahead of anything they turn on.
   static Future<void> start() async {
     final models = ModelRepository.instance;
     try {
-      await models.fetch(ModelCatalog.imageSafety);
+      await models.fetchFirst(ModelCatalog.imageSafety);
     } on ModelUnavailable {
       // Logged by the repository.
     }

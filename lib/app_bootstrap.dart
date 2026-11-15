@@ -92,6 +92,12 @@ class AppBootstrap {
     await _initSupabase(storageSuffix);
     await _initHydratedStorage(storageSuffix);
 
+    // The models this device has not downloaded yet, the picture classifier
+    // first; then the old versions an update left behind. Before AppCubit,
+    // which turns the saved noise model on and so asks for its files: asked
+    // first, they came down first, and pictures waited on DPDFNet. Not
+    // awaited: a first start is signing in meanwhile.
+    if (!kIsWeb) unawaited(ModelDownloads.start());
     final appCubit = AppCubit();
     // Every sound reads its mute and volume from here, including the ones
     // raised by services that hold no cubit of their own.
@@ -140,10 +146,6 @@ class AppBootstrap {
     // The profanity list, for covering flagged messages. Not awaited: until
     // it lands every message is shown, and 60 KB lands before the first one.
     unawaited(TextSafety.instance.load());
-    // The models this device has not downloaded yet, the picture classifier
-    // first; then the old versions an update left behind. Not awaited: a
-    // first start is signing in meanwhile, and nothing waits on them.
-    if (!kIsWeb) unawaited(ModelDownloads.start());
     // The web's stand-in for the WindowListener callbacks in main.dart, which
     // window_manager supplies everywhere else. Without it the tab is focused
     // forever and nothing ever notifies, because every trigger site gates on

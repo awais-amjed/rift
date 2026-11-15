@@ -915,6 +915,10 @@ device and left in place by an update (`ModelRepository`). `ModelCatalog`
 lists them, and `ModelDownloads` says which a start fetches unasked; so far
 that is the picture classifier, at the first start, while the person is still
 signing in. Until it is on the device, pictures are shown without a check.
+Downloads run one at a time in the order asked for, so it is queued before the
+settings are read (`ModelRepository.fetchFirst`): reading them turns the saved
+noise model on, which asks for its own files, and on Nov 15 that put DPDFNet's
+25 MB ahead of it at a real first start.
 DPDFNet's weights for Ceva's runtime come next on a desktop, since DPDFNet is
 the default noise model: `NoiseFilter` asks for them the first time it puts
 DPDFNet on, and hands them to the Rust library, which hands them to Ceva's
