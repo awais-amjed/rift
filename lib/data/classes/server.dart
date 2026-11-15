@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 import 'channel.dart';
+import 'console_update.dart';
 import 'livekit_node.dart';
 import 'server_limits.dart';
 import 'server_user.dart';
@@ -51,6 +52,11 @@ class Server extends Equatable {
   /// another name, so a one-node server and an unaware one behave alike.
   final List<LiveKitNode> livekitNodes;
 
+  /// A newer release of this server's console, when we are an admin and its
+  /// console says so. Not saved: the next details read brings it again, and
+  /// release notes have no place in the saved server list.
+  final ConsoleUpdate? consoleUpdate;
+
   /// The Ed25519 key derivation version for this server (e.g. 'v1', 'v2').
   /// Incremented on key rotation.
   final String keyVersion;
@@ -88,6 +94,7 @@ class Server extends Equatable {
     this.storageUsed = 0,
     this.maxFileBytes = ServerLimits.legacyFileCeiling,
     this.livekitNodes = const [],
+    this.consoleUpdate,
     DateTime? tokenIssuedAt,
   }) : tokenIssuedAt = tokenIssuedAt ?? DateTime.now();
 
@@ -228,8 +235,10 @@ class Server extends Equatable {
     int? storageUsed,
     int? maxFileBytes,
     List<LiveKitNode>? livekitNodes,
+    ConsoleUpdate? consoleUpdate,
     bool clearUser = false,
     bool clearIcon = false,
+    bool clearConsoleUpdate = false,
   }) {
     return Server(
       id: id ?? this.id,
@@ -250,6 +259,9 @@ class Server extends Equatable {
       user: clearUser ? null : (user ?? this.user),
       channels: channels ?? this.channels,
       livekitNodes: livekitNodes ?? this.livekitNodes,
+      consoleUpdate: clearConsoleUpdate
+          ? null
+          : (consoleUpdate ?? this.consoleUpdate),
     );
   }
 
@@ -268,6 +280,7 @@ class Server extends Equatable {
     storageUsed,
     maxFileBytes,
     livekitNodes,
+    consoleUpdate,
     keyVersion,
     tokenIssuedAt,
   ];

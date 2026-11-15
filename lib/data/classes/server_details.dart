@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 import 'channel.dart';
+import 'console_update.dart';
 import 'livekit_node.dart';
 import 'server_limits.dart';
 import 'server_user.dart';
@@ -45,6 +46,12 @@ class ServerDetails extends Equatable {
   /// at [livekitUrl]".
   final List<LiveKitNode>? livekitNodes;
 
+  /// A newer console release, told to admins only. Like the icon, null is an
+  /// answer as well ("nothing to tell", from a server that knows how to say
+  /// so); [consoleUpdateStated] tells it from an older server's silence.
+  final ConsoleUpdate? consoleUpdate;
+  final bool consoleUpdateStated;
+
   const ServerDetails({
     this.name,
     this.iconPath,
@@ -57,6 +64,8 @@ class ServerDetails extends Equatable {
     this.storageUsed,
     this.maxFileBytes,
     this.livekitNodes,
+    this.consoleUpdate,
+    this.consoleUpdateStated = false,
   });
 
   /// `max_attachment_bytes` is the marker for "this reply carries limits".
@@ -86,6 +95,8 @@ class ServerDetails extends Equatable {
       livekitNodes: (json['livekit_nodes'] as List<dynamic>?)
           ?.map((n) => LiveKitNode.fromJson(n as Map<String, dynamic>))
           .toList(),
+      consoleUpdate: ConsoleUpdate.tryParse(json['console_update']),
+      consoleUpdateStated: json.containsKey('console_update'),
     );
   }
 
@@ -102,5 +113,7 @@ class ServerDetails extends Equatable {
     storageUsed,
     maxFileBytes,
     livekitNodes,
+    consoleUpdate,
+    consoleUpdateStated,
   ];
 }

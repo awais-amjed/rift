@@ -7,6 +7,7 @@ import 'package:json_annotation/json_annotation.dart';
 import '../../../data/apis/ownership_api.dart';
 import '../../../data/apis/push_api.dart';
 import '../../../data/classes/channel.dart';
+import '../../../data/classes/console_update.dart';
 import '../../../data/classes/livekit_node.dart';
 import '../../../data/classes/message_cache_slot.dart';
 import '../../../data/classes/notice.dart';
@@ -219,8 +220,10 @@ class ServerCubit extends HydratedCubit<ServerState>
     int? storageUsed,
     int? maxFileBytes,
     List<LiveKitNode>? livekitNodes,
+    ConsoleUpdate? consoleUpdate,
     bool clearUser = false,
     bool clearIcon = false,
+    bool clearConsoleUpdate = false,
   }) {
     final updated = state.servers.map((s) {
       if (s.id != serverId) return s;
@@ -237,8 +240,10 @@ class ServerCubit extends HydratedCubit<ServerState>
         storageUsed: storageUsed,
         maxFileBytes: maxFileBytes,
         livekitNodes: livekitNodes,
+        consoleUpdate: consoleUpdate,
         clearUser: clearUser,
         clearIcon: clearIcon,
+        clearConsoleUpdate: clearConsoleUpdate,
       );
     }).toList();
     emit(state.copyWith(servers: updated));
@@ -279,6 +284,9 @@ class ServerCubit extends HydratedCubit<ServerState>
       storageUsed: details.storageUsed,
       maxFileBytes: details.maxFileBytes,
       livekitNodes: details.livekitNodes,
+      consoleUpdate: details.consoleUpdate,
+      clearConsoleUpdate:
+          details.consoleUpdateStated && details.consoleUpdate == null,
     );
   }
 
