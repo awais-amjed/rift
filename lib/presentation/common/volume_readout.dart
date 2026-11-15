@@ -14,7 +14,7 @@ class VolumeReadout extends StatelessWidget {
   final double value;
 
   /// Muted reads an em dash rather than 0%, which would look like a volume
-  /// you'd chosen, and offers no reset: the slider is off.
+  /// you'd chosen, and offers no reset: there is no volume playing to reset.
   final bool muted;
 
   /// Where the reset sends 100%. Null offers no reset.

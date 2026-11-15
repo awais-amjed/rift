@@ -307,9 +307,10 @@ mixin _RustWatchMixin
   /// heard ([_syncAudioReception]) and to a volume or mute.
   @override
   void _syncRustSound() {
-    if (!RustWatch.playsSound) return;
+    // The call first: asking whether Rust plays sound reaches into Rust.
     final room = state.room;
     if (room == null || state.watchedPictures.isEmpty) return;
+    if (!RustWatch.playsSound) return;
     final app = _appCubit.state;
     if (app.outputDeviceId != _rustOutput) {
       _rustOutput = app.outputDeviceId;

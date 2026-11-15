@@ -73,10 +73,12 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
   }
 
   /// Sets the local volume of whatever is stored under [key] — see
-  /// [setMuteFor]. Still silent while it is muted.
+  /// [setMuteFor]. Turning it up or down unmutes it, as in every player: a
+  /// slider that stayed dead while muted read as broken.
   Future<void> setVolumeFor(String key, double volume) async {
     _appCubit.setParticipantSetting(
       key,
+      muted: false,
       volume: volume.clamp(0.0, CallVolume.max),
     );
     _applySettingFor(key);
@@ -107,19 +109,27 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
   /// as well, so they are heard beside the ones already let through.
   Future<void> setParticipantMute(String target, bool muted) async {
     final userId = ParticipantIdentity.userIdOf(target);
-    if (!muted && state.holdsVoiceOf(userId)) {
-      emit(
-        state.copyWith(listeningOnlyTo: {...?state.listeningOnlyTo, userId}),
-      );
-      _syncAudioReception();
-    }
+    if (!muted) _letThrough(userId);
     setMuteFor(userId, muted);
   }
 
   /// Sets the local volume of a remote participant's voice — see
-  /// [setParticipantMute] for why [target] may be a bare user id.
-  Future<void> setParticipantVolume(String target, double volume) =>
-      setVolumeFor(ParticipantIdentity.userIdOf(target), volume);
+  /// [setParticipantMute] for why [target] may be a bare user id. Unmutes
+  /// them as [setVolumeFor] does, and lets them through "Mute everyone else
+  /// for me" as Unmute does, since menus show a held person as muted.
+  Future<void> setParticipantVolume(String target, double volume) {
+    final userId = ParticipantIdentity.userIdOf(target);
+    _letThrough(userId);
+    return setVolumeFor(userId, volume);
+  }
+
+  /// Lets [userId] through "Mute everyone else for me", beside the ones
+  /// already let through, when it holds them.
+  void _letThrough(String userId) {
+    if (!state.holdsVoiceOf(userId)) return;
+    emit(state.copyWith(listeningOnlyTo: {...?state.listeningOnlyTo, userId}));
+    _syncAudioReception();
+  }
 
   /// Hides your voice from [target] in every call, or lets them hear you
   /// again. Saved, and put on the call you are in at once.

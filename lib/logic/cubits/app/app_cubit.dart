@@ -418,9 +418,11 @@ class AppCubit extends HydratedCubit<AppState> {
       );
 
   /// How loud one person's soundboard is here — see [setSoundboardMutedFor].
+  /// Turning it up or down unmutes it, as a person's own volume does.
   void setSoundboardVolumeFor(String userId, double volume) =>
       setParticipantSetting(
         ParticipantIdentity.soundboardSettingsKey(userId),
+        muted: false,
         volume: volume.clamp(0.0, 1.0),
       );
 

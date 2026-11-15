@@ -5,9 +5,10 @@ import '../theme/theme_context.dart';
 /// The thin accent track every volume in the app is set with — a person, a
 /// shared sound, the soundboard, a call cue.
 ///
-/// A null [onChanged] disables it, which is how a muted volume reads: the
-/// thumb sits at zero and cannot be dragged, rather than showing a level
-/// that has no effect.
+/// A null [onChanged] disables it. A muted volume is drawn at zero by its
+/// caller; whether it can still be moved is the caller's call (a person's or
+/// a share's unmutes when moved, a call cue in settings stays off until its
+/// switch is on).
 class VolumeSlider extends StatelessWidget {
   final double value;
   final ValueChanged<double>? onChanged;

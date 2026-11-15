@@ -231,9 +231,9 @@ class _StreamVolumeButtonState extends State<StreamVolumeButton> {
             child: VolumeSlider(
               value: setting.muted ? 0 : setting.volume,
               max: CallVolume.max,
-              onChanged: setting.muted
-                  ? null
-                  : (value) => livekit.setVolumeFor(widget.settingsKey, value),
+              // Live while muted: moving it unmutes ([setVolumeFor]).
+              onChanged: (value) =>
+                  livekit.setVolumeFor(widget.settingsKey, value),
             ),
           ),
         ),

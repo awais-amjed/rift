@@ -9,8 +9,9 @@ import '../../../../common/volume_slider.dart';
 /// readout — so the menu can stack it under its heading and a profile can
 /// sit it at the end of a row.
 ///
-/// Disabled while they're locally muted, where a position would be a volume
-/// with no effect.
+/// Sits at zero while they're locally muted, and moving it unmutes them at
+/// the new volume (the setters do that, so the reset beside it does too).
+/// It used to be disabled instead, which read as a broken slider.
 class ParticipantVolumeSlider extends StatelessWidget {
   /// A live LiveKit identity, or a bare user id when they aren't connected —
   /// [LiveKitCubit.setParticipantVolume] accepts either and stores the setting
@@ -43,9 +44,7 @@ class ParticipantVolumeSlider extends StatelessWidget {
     return VolumeSlider(
       value: isMuted ? 0 : volume,
       max: max ?? CallVolume.max,
-      onChanged: isMuted
-          ? null
-          : (value) => apply(context, target, onChanged, value),
+      onChanged: (value) => apply(context, target, onChanged, value),
     );
   }
 
