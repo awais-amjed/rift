@@ -7,6 +7,7 @@ import 'package:rift/data/classes/call_shortcuts.dart';
 import 'package:rift/data/classes/key_shortcut.dart';
 import 'package:rift/logic/cubits/app/app_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
+import 'package:rift/logic/ptt/desktop_shortcut_settings.dart';
 import 'package:rift/logic/shortcuts/call_shortcut_listener.dart';
 import 'package:rift/presentation/screens/settings/widgets/keybinds/call_shortcuts_section.dart';
 
@@ -173,8 +174,10 @@ void main() {
           child: MaterialApp(
             home: Scaffold(
               body: BlocBuilder<AppCubit, AppState>(
-                builder: (_, state) =>
-                    CallShortcutsSection(shortcuts: state.callShortcuts),
+                builder: (_, state) => CallShortcutsSection(
+                  shortcuts: state.callShortcuts,
+                  desktopActions: state.desktopCallShortcuts,
+                ),
               ),
             ),
           ),
@@ -253,5 +256,40 @@ void main() {
       await pump(tester);
       expect(find.text('Leave call'), findsOneWidget);
     });
+
+    testWidgets('they work from anywhere', (tester) async {
+      await pump(tester);
+      expect(
+        find.text(
+          'These work from anywhere, even with Rift in the background.',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets(
+      "a key the desktop holds is changed in the desktop's settings",
+      (tester) async {
+        final app = await pump(tester);
+        app.setCallShortcut(CallShortcut.mute, ctrlShiftM);
+        app.setDesktopCallShortcuts({CallShortcut.mute});
+        await tester.pump();
+
+        expect(find.text('Ctrl+Shift+M'), findsOneWidget);
+        expect(find.text('Set keys'), findsNWidgets(2), reason: 'not for Mute');
+        expect(find.text('Clear'), findsOneWidget);
+        if (DesktopShortcutSettings.canOpen) {
+          expect(find.text('Change key'), findsOneWidget);
+        } else {
+          expect(
+            find.text(
+              "To change it, open your computer's settings and look for "
+              "Rift's keyboard shortcuts.",
+            ),
+            findsOneWidget,
+          );
+        }
+      },
+    );
   });
 }

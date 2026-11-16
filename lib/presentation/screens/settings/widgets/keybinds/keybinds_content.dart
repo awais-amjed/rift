@@ -25,7 +25,10 @@ class KeybindsContent extends StatelessWidget {
               PushToTalkSection(appState: appState),
               const SectionDivider(),
             ],
-            CallShortcutsSection(shortcuts: appState.callShortcuts),
+            CallShortcutsSection(
+              shortcuts: appState.callShortcuts,
+              desktopActions: appState.desktopCallShortcuts,
+            ),
           ],
         );
       },

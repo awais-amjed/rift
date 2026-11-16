@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../../../data/classes/call_shortcuts.dart';
 import '../../../../../data/classes/key_shortcut.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../../logic/ptt/desktop_shortcut_settings.dart';
 import '../../../../../logic/shortcuts/call_shortcut_actions.dart';
 import '../../../../../logic/shortcuts/call_shortcut_listener.dart';
 import '../../../../common/app_button.dart';
@@ -20,7 +21,17 @@ class CallShortcutRow extends StatefulWidget {
   final CallShortcut action;
   final KeyShortcut? keys;
 
-  const CallShortcutRow({super.key, required this.action, required this.keys});
+  /// The Linux desktop holds this key: it keeps the one it granted whatever
+  /// Rift picks, so the key changes on the desktop's own page, as
+  /// push-to-talk's does.
+  final bool desktopHolds;
+
+  const CallShortcutRow({
+    super.key,
+    required this.action,
+    required this.keys,
+    this.desktopHolds = false,
+  });
 
   @override
   State<CallShortcutRow> createState() => _CallShortcutRowState();
@@ -111,12 +122,18 @@ class _CallShortcutRowState extends State<CallShortcutRow> {
                         : 'Press the keys together, like Ctrl+Shift+M.',
                     style: hint,
                   )
-                else if (keys != null)
+                else if (keys != null) ...[
                   Text(
                     keys.label,
                     style: AppText.kbd.copyWith(color: theme.textSecondary),
-                  )
-                else
+                  ),
+                  if (widget.desktopHolds && !DesktopShortcutSettings.canOpen)
+                    Text(
+                      "To change it, open your computer's settings and look "
+                      "for Rift's keyboard shortcuts.",
+                      style: hint,
+                    ),
+                ] else
                   Text('Not set', style: hint),
               ],
             ),
@@ -128,13 +145,22 @@ class _CallShortcutRowState extends State<CallShortcutRow> {
               onPressed: () =>
                   context.read<AppCubit>().setCallShortcut(widget.action, null),
             ),
-          AppButton(
-            label: _capturing ? 'Cancel' : 'Set keys',
-            variant: _capturing
-                ? AppButtonVariant.secondary
-                : AppButtonVariant.primary,
-            onPressed: () => _setCapturing(!_capturing),
-          ),
+          if (widget.desktopHolds && keys != null)
+            DesktopShortcutSettings.canOpen
+                ? const AppButton(
+                    label: 'Change key',
+                    variant: AppButtonVariant.secondary,
+                    onPressed: DesktopShortcutSettings.open,
+                  )
+                : const SizedBox.shrink()
+          else
+            AppButton(
+              label: _capturing ? 'Cancel' : 'Set keys',
+              variant: _capturing
+                  ? AppButtonVariant.secondary
+                  : AppButtonVariant.primary,
+              onPressed: () => _setCapturing(!_capturing),
+            ),
         ],
       ),
     );
