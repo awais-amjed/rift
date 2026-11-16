@@ -374,8 +374,15 @@ opens its device as it plays. The fold is not offered on a phone or in a
 browser, where a share's sound comes through the call and the cues play on the
 system's choice.
 
-The soundboard still plays through `audioplayers`, which cannot pick a device
-on the desktop, so on the system default whatever is chosen.
+The soundboard plays with the call. `audioplayers` cannot pick a device on
+the desktop, so with one chosen a clip is decoded whole by the system's own
+decoders, as a chat video is (GStreamer on Linux, Media Foundation's Source
+Reader on Windows; `clips::decode_sound`), and played by the cue player
+(`play_sound`); the player stays for the system default and for a clip that
+will not decode or a device that will not open. Before this, clips played on
+the system default whatever was chosen. Decoding a two-second clip took
+23–57 ms on Linux in each format uploads allow (mp3, m4a, wav, ogg, opus;
+Nov 16, `live_sound_decodes_to_stereo`).
 
 ## A phone's main thread while a call starts and ends — [Implemented November 2026]
 

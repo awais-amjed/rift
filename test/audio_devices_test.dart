@@ -84,6 +84,24 @@ void main() {
     });
   });
 
+  // A kind of sound following the main output follows whatever it names,
+  // and a saved output can be a headset not plugged in. Moving the call to
+  // that refused, so "Same as output device" could not be picked back.
+  group('playableOutput', () {
+    const devices = <MediaDevice>[
+      MediaDevice('id-a', 'Headset', 'audiooutput', null),
+    ];
+
+    test('a present device is kept', () {
+      expect(AudioDevices.playableOutput(devices, 'id-a'), 'id-a');
+    });
+
+    test('a missing device is the system default, as on joining', () {
+      expect(AudioDevices.playableOutput(devices, 'id-gone'), isNull);
+      expect(AudioDevices.playableOutput(devices, null), isNull);
+    });
+  });
+
   group('labelOf', () {
     test('stands in for the empty label the platform gives before '
         'permission', () {

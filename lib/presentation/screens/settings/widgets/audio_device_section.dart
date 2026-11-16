@@ -90,11 +90,25 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
 
   /// Moves the call to [deviceId] (null for the system default) if that is
   /// not where it already plays, then records the pick.
-  Future<void> _applyCall(String? deviceId, {required VoidCallback record}) {
-    if (deviceId == context.read<AppCubit>().state.callOutputId) {
-      return Future.sync(() => _recorded(record));
-    }
-    return _apply(deviceId, isInput: false, record: record);
+  ///
+  /// [deviceId] can name a device that is not plugged in: a kind following
+  /// the main output follows whatever it names. That plays on the system
+  /// default ([AudioDevices.playableOutput]); refusing it left "Same as
+  /// output device" impossible to pick back.
+  Future<void> _applyCall(
+    String? deviceId, {
+    required VoidCallback record,
+  }) async {
+    await _fresh;
+    if (!mounted) return;
+    final outputs = _lists.state.outputs;
+    final target = AudioDevices.playableOutput(outputs, deviceId);
+    final now = AudioDevices.playableOutput(
+      outputs,
+      context.read<AppCubit>().state.callOutputId,
+    );
+    if (target == now) return _recorded(record);
+    return _apply(target, isInput: false, record: record);
   }
 
   /// Applies [deviceId] to the call — the microphone, or with [isInput] false

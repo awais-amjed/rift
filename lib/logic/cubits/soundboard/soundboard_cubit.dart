@@ -266,10 +266,13 @@ class SoundboardCubit extends Cubit<SoundboardState>
       () => library.loadSound(sound.objectPath),
     );
     if (source == null || isClosed) return;
+    // With the call, on its device: a clip is somebody in the call pressing
+    // a button.
     await SoundboardPlayer.instance.play(
       source,
       clipId: sound.id,
       volume: volume,
+      output: _appCubit.state.callOutputId,
     );
   }
 

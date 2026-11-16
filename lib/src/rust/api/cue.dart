@@ -26,6 +26,23 @@ Future<CueStarted> playCue({
   looping: looping,
 );
 
+/// Plays `bytes`, a sound in any format the system can decode — a soundboard
+/// clip — on `device_id` as [play_cue] does, at most `max_ms` of it. The
+/// system decodes it as it does a chat video: GStreamer on Linux, Media
+/// Foundation on Windows. Fails where it cannot, or the device will not
+/// open, so the caller can play it its own way.
+Future<CueStarted> playSound({
+  String? deviceId,
+  required List<int> bytes,
+  required double volume,
+  required int maxMs,
+}) => RustLib.instance.api.crateApiCuePlaySound(
+  deviceId: deviceId,
+  bytes: bytes,
+  volume: volume,
+  maxMs: maxMs,
+);
+
 /// Turns a playing cue up or down. Nothing if it has ended.
 Future<void> setCueVolume({required int id, required double volume}) =>
     RustLib.instance.api.crateApiCueSetCueVolume(id: id, volume: volume);

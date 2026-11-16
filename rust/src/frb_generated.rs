@@ -40,7 +40,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1209993956;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -69456001;
 
 // Section: executor
 
@@ -1351,6 +1351,47 @@ fn wire__crate__api__cue__play_cue_impl(
                 transform_result_sse::<_, String>((move || {
                     let output_ok =
                         crate::api::cue::play_cue(api_device_id, api_mp3, api_volume, api_looping)?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__cue__play_sound_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "play_sound",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_device_id = <Option<String>>::sse_decode(&mut deserializer);
+            let api_bytes = <Vec<u8>>::sse_decode(&mut deserializer);
+            let api_volume = <f32>::sse_decode(&mut deserializer);
+            let api_max_ms = <u32>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::cue::play_sound(
+                        api_device_id,
+                        api_bytes,
+                        api_volume,
+                        api_max_ms,
+                    )?;
                     std::result::Result::Ok(output_ok)
                 })())
             }
@@ -4016,90 +4057,91 @@ fn pde_ffi_dispatcher_primary_impl(
             wire__crate__api__blob_cipher__open_blob_chunk_impl(port, ptr, rust_vec_len, data_len)
         }
         36 => wire__crate__api__cue__play_cue_impl(port, ptr, rust_vec_len, data_len),
-        37 => wire__crate__api__toast__remove_windows_toast_impl(port, ptr, rust_vec_len, data_len),
-        39 => wire__crate__api__screenshare__screenshare_event_stream_impl(
+        37 => wire__crate__api__cue__play_sound_impl(port, ptr, rust_vec_len, data_len),
+        38 => wire__crate__api__toast__remove_windows_toast_impl(port, ptr, rust_vec_len, data_len),
+        40 => wire__crate__api__screenshare__screenshare_event_stream_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        40 => wire__crate__api__blob_cipher__seal_blob_impl(port, ptr, rust_vec_len, data_len),
-        41 => {
+        41 => wire__crate__api__blob_cipher__seal_blob_impl(port, ptr, rust_vec_len, data_len),
+        42 => {
             wire__crate__api__blob_cipher__seal_blob_chunk_impl(port, ptr, rust_vec_len, data_len)
         }
-        42 => wire__crate__api__cue__set_cue_volume_impl(port, ptr, rust_vec_len, data_len),
-        46 => wire__crate__api__mic_test__set_mic_test_gain_impl(port, ptr, rust_vec_len, data_len),
-        47 => wire__crate__api__mic_test__set_mic_test_processing_impl(
+        43 => wire__crate__api__cue__set_cue_volume_impl(port, ptr, rust_vec_len, data_len),
+        47 => wire__crate__api__mic_test__set_mic_test_gain_impl(port, ptr, rust_vec_len, data_len),
+        48 => wire__crate__api__mic_test__set_mic_test_processing_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        48 => {
+        49 => {
             wire__crate__api__mic_test__set_mic_test_rnnoise_impl(port, ptr, rust_vec_len, data_len)
         }
-        49 => wire__crate__api__watching__set_watch_key_impl(port, ptr, rust_vec_len, data_len),
-        51 => wire__crate__api__watching__set_watch_pictures_on_impl(
+        50 => wire__crate__api__watching__set_watch_key_impl(port, ptr, rust_vec_len, data_len),
+        52 => wire__crate__api__watching__set_watch_pictures_on_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        52 => wire__crate__api__watching__set_watch_volume_impl(port, ptr, rust_vec_len, data_len),
-        53 => wire__crate__api__toast__show_windows_toast_impl(port, ptr, rust_vec_len, data_len),
-        54 => wire__crate__api__soundshare__sound_share_event_stream_impl(
+        53 => wire__crate__api__watching__set_watch_volume_impl(port, ptr, rust_vec_len, data_len),
+        54 => wire__crate__api__toast__show_windows_toast_impl(port, ptr, rust_vec_len, data_len),
+        55 => wire__crate__api__soundshare__sound_share_event_stream_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        55 => wire__crate__api__logs__start_log_file_impl(port, ptr, rust_vec_len, data_len),
-        56 => {
+        56 => wire__crate__api__logs__start_log_file_impl(port, ptr, rust_vec_len, data_len),
+        57 => {
             wire__crate__api__screenshare__start_screenshare_impl(port, ptr, rust_vec_len, data_len)
         }
-        57 => {
+        58 => {
             wire__crate__api__soundshare__start_sound_share_impl(port, ptr, rust_vec_len, data_len)
         }
-        58 => wire__crate__api__watching__start_watching_impl(port, ptr, rust_vec_len, data_len),
-        59 => wire__crate__api__cue__stop_cue_impl(port, ptr, rust_vec_len, data_len),
-        60 => wire__crate__api__mic_test__stop_mic_test_impl(port, ptr, rust_vec_len, data_len),
-        61 => {
+        59 => wire__crate__api__watching__start_watching_impl(port, ptr, rust_vec_len, data_len),
+        60 => wire__crate__api__cue__stop_cue_impl(port, ptr, rust_vec_len, data_len),
+        61 => wire__crate__api__mic_test__stop_mic_test_impl(port, ptr, rust_vec_len, data_len),
+        62 => {
             wire__crate__api__screenshare__stop_screenshare_impl(port, ptr, rust_vec_len, data_len)
         }
-        62 => {
+        63 => {
             wire__crate__api__soundshare__stop_sound_share_impl(port, ptr, rust_vec_len, data_len)
         }
-        63 => wire__crate__api__watching__stop_watching_impl(port, ptr, rust_vec_len, data_len),
-        66 => wire__crate__api__watching__unwatch_share_impl(port, ptr, rust_vec_len, data_len),
-        67 => wire__crate__api__screenshare__update_screenshare_impl(
+        64 => wire__crate__api__watching__stop_watching_impl(port, ptr, rust_vec_len, data_len),
+        67 => wire__crate__api__watching__unwatch_share_impl(port, ptr, rust_vec_len, data_len),
+        68 => wire__crate__api__screenshare__update_screenshare_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        68 => {
+        69 => {
             wire__crate__api__updater__updater_apply_on_exit_impl(port, ptr, rust_vec_len, data_len)
         }
-        69 => wire__crate__api__updater__updater_cancel_impl(port, ptr, rust_vec_len, data_len),
-        70 => wire__crate__api__updater__updater_check_impl(port, ptr, rust_vec_len, data_len),
-        71 => wire__crate__api__updater__updater_download_impl(port, ptr, rust_vec_len, data_len),
-        72 => wire__crate__api__updater__updater_pause_impl(port, ptr, rust_vec_len, data_len),
-        73 => wire__crate__api__updater__updater_pending_version_impl(
+        70 => wire__crate__api__updater__updater_cancel_impl(port, ptr, rust_vec_len, data_len),
+        71 => wire__crate__api__updater__updater_check_impl(port, ptr, rust_vec_len, data_len),
+        72 => wire__crate__api__updater__updater_download_impl(port, ptr, rust_vec_len, data_len),
+        73 => wire__crate__api__updater__updater_pause_impl(port, ptr, rust_vec_len, data_len),
+        74 => wire__crate__api__updater__updater_pending_version_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        74 => wire__crate__api__updater__updater_resume_impl(port, ptr, rust_vec_len, data_len),
-        75 => wire__crate__api__updater__updater_startup_impl(port, ptr, rust_vec_len, data_len),
-        76 => wire__crate__api__signatures__verify_ed25519_impl(port, ptr, rust_vec_len, data_len),
-        77 => {
+        75 => wire__crate__api__updater__updater_resume_impl(port, ptr, rust_vec_len, data_len),
+        76 => wire__crate__api__updater__updater_startup_impl(port, ptr, rust_vec_len, data_len),
+        77 => wire__crate__api__signatures__verify_ed25519_impl(port, ptr, rust_vec_len, data_len),
+        78 => {
             wire__crate__api__watching__watch_event_stream_impl(port, ptr, rust_vec_len, data_len)
         }
-        79 => wire__crate__api__watching__watch_plays_h264_impl(port, ptr, rust_vec_len, data_len),
-        80 => wire__crate__api__watching__watch_plays_h265_impl(port, ptr, rust_vec_len, data_len),
-        82 => wire__crate__api__watching__watch_share_impl(port, ptr, rust_vec_len, data_len),
-        83 => wire__crate__api__watching__watch_share_stats_impl(port, ptr, rust_vec_len, data_len),
+        80 => wire__crate__api__watching__watch_plays_h264_impl(port, ptr, rust_vec_len, data_len),
+        81 => wire__crate__api__watching__watch_plays_h265_impl(port, ptr, rust_vec_len, data_len),
+        83 => wire__crate__api__watching__watch_share_impl(port, ptr, rust_vec_len, data_len),
+        84 => wire__crate__api__watching__watch_share_stats_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -4116,24 +4158,24 @@ fn pde_ffi_dispatcher_sync_impl(
         16 => wire__crate__api__clips__clip_time_impl(ptr, rust_vec_len, data_len),
         17 => wire__crate__api__clips__clips_available_impl(ptr, rust_vec_len, data_len),
         23 => wire__crate__api__ducking__ducking_preference_impl(ptr, rust_vec_len, data_len),
-        38 => wire__crate__api__noise_filter__retry_large_dpdfnet_impl(ptr, rust_vec_len, data_len),
-        43 => wire__crate__api__noise_filter__set_dpdfnet_onnx_impl(ptr, rust_vec_len, data_len),
-        44 => wire__crate__api__noise_filter__set_dpdfnet_small_impl(ptr, rust_vec_len, data_len),
-        45 => wire__crate__api__noise_filter__set_dpdfnet_weights_impl(ptr, rust_vec_len, data_len),
-        50 => wire__crate__api__watching__set_watch_output_impl(ptr, rust_vec_len, data_len),
-        64 => {
+        39 => wire__crate__api__noise_filter__retry_large_dpdfnet_impl(ptr, rust_vec_len, data_len),
+        44 => wire__crate__api__noise_filter__set_dpdfnet_onnx_impl(ptr, rust_vec_len, data_len),
+        45 => wire__crate__api__noise_filter__set_dpdfnet_small_impl(ptr, rust_vec_len, data_len),
+        46 => wire__crate__api__noise_filter__set_dpdfnet_weights_impl(ptr, rust_vec_len, data_len),
+        51 => wire__crate__api__watching__set_watch_output_impl(ptr, rust_vec_len, data_len),
+        65 => {
             wire__crate__api__noise_filter__take_dpdfnet_fell_back_impl(ptr, rust_vec_len, data_len)
         }
-        65 => wire__crate__api__noise_filter__take_dpdfnet_unfiltered_impl(
+        66 => wire__crate__api__noise_filter__take_dpdfnet_unfiltered_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        78 => {
+        79 => {
             wire__crate__api__watching__watch_frame_entry_points_impl(ptr, rust_vec_len, data_len)
         }
-        81 => wire__crate__api__watching__watch_plays_sound_impl(ptr, rust_vec_len, data_len),
-        84 => wire__crate__api__logs__write_log_line_impl(ptr, rust_vec_len, data_len),
+        82 => wire__crate__api__watching__watch_plays_sound_impl(ptr, rust_vec_len, data_len),
+        85 => wire__crate__api__logs__write_log_line_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }

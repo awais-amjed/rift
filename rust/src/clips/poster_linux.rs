@@ -55,7 +55,7 @@ pub(crate) fn poster(file: Arc<Source>, longest: u32) -> Result<Vec<u8>, String>
             .map_err(|_| "The video would not open".to_string())?;
         let sample = sink
             .try_pull_preroll(PATIENCE)
-            .ok_or_else(|| first_error(&playbin))?;
+            .ok_or_else(|| first_error(&playbin, "No first picture in time"))?;
         let buffer = sample
             .buffer()
             .ok_or_else(|| "No first picture".to_string())?;
@@ -71,8 +71,8 @@ pub(crate) fn poster(file: Arc<Source>, longest: u32) -> Result<Vec<u8>, String>
     result
 }
 
-/// Why no picture came: the bus's error, where there is one.
-fn first_error(playbin: &gst::Element) -> String {
+/// Why nothing came: the bus's error, where there is one, or [otherwise].
+pub(super) fn first_error(playbin: &gst::Element, otherwise: &str) -> String {
     playbin
         .bus()
         .and_then(|bus| bus.pop_filtered(&[gst::MessageType::Error]))
@@ -80,7 +80,7 @@ fn first_error(playbin: &gst::Element) -> String {
             gst::MessageView::Error(e) => Some(e.error().message().to_string()),
             _ => None,
         })
-        .unwrap_or_else(|| "No first picture in time".to_string())
+        .unwrap_or_else(|| otherwise.to_string())
 }
 
 #[cfg(test)]

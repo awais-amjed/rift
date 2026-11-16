@@ -26,6 +26,8 @@ mod linux;
 use linux::Clip;
 #[cfg(target_os = "linux")]
 mod poster_linux;
+#[cfg(target_os = "linux")]
+mod sound_linux;
 
 #[cfg(windows)]
 mod media_engine;
@@ -33,6 +35,8 @@ mod media_engine;
 mod poster_windows;
 #[cfg(windows)]
 mod pulled_stream;
+#[cfg(windows)]
+mod sound_windows;
 #[cfg(windows)]
 mod windows;
 #[cfg(windows)]
@@ -42,6 +46,33 @@ use windows::Clip;
 mod elsewhere;
 #[cfg(not(any(target_os = "linux", windows)))]
 use elsewhere::Clip;
+
+/// A sound decoded whole: 16-bit samples, interleaved.
+pub(crate) struct Pcm {
+    pub(crate) samples: Vec<i16>,
+    pub(crate) channels: u16,
+    pub(crate) rate: u32,
+}
+
+/// [bytes]' sound, decoded by the system as a chat video's is, at most
+/// [max_ms] of it: a soundboard clip, for the cue player to play on the
+/// call's device. Fails where the system has no decoder for it.
+#[cfg_attr(not(any(target_os = "linux", windows)), allow(dead_code))]
+pub(crate) fn decode_sound(bytes: Vec<u8>, max_ms: u32) -> Result<Pcm, String> {
+    #[cfg(target_os = "linux")]
+    {
+        sound_linux::decode(Source::memory(bytes), max_ms)
+    }
+    #[cfg(windows)]
+    {
+        sound_windows::decode(Source::memory(bytes), max_ms)
+    }
+    #[cfg(not(any(target_os = "linux", windows)))]
+    {
+        let _ = (bytes, max_ms);
+        Err("No sound decoder here".to_string())
+    }
+}
 
 /// Whether this computer plays a chat video here: on Windows, one without
 /// Media Foundation (an N edition) does not.

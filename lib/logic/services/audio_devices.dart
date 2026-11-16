@@ -308,6 +308,12 @@ class AudioDevices {
     );
   }
 
+  /// Where an output named [deviceId] plays: that device while it is in
+  /// [devices], or null — the system default — when it is not, which is
+  /// where joining a call leaves it too ([applySaved] skips a missing one).
+  static String? playableOutput(List<MediaDevice> devices, String? deviceId) =>
+      byId(devices, deviceId) == null ? null : deviceId;
+
   /// A device's name, or a stand-in. Labels come back empty when the platform
   /// has not granted microphone permission yet.
   static String labelOf(MediaDevice device) =>

@@ -43,6 +43,32 @@ pub fn play_cue(
     }
 }
 
+/// Plays `bytes`, a sound in any format the system can decode — a soundboard
+/// clip — on `device_id` as [play_cue] does, at most `max_ms` of it. The
+/// system decodes it as it does a chat video: GStreamer on Linux, Media
+/// Foundation on Windows. Fails where it cannot, or the device will not
+/// open, so the caller can play it its own way.
+pub fn play_sound(
+    device_id: Option<String>,
+    bytes: Vec<u8>,
+    volume: f32,
+    max_ms: u32,
+) -> Result<CueStarted, String> {
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    {
+        let pcm = crate::clips::decode_sound(bytes, max_ms)?;
+        let cue = cue::Cue::new(pcm.samples, pcm.channels, pcm.rate, false);
+        let duration_ms = cue.duration_ms();
+        let id = cue::play(device_id, cue, volume)?;
+        Ok(CueStarted { id, duration_ms })
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
+    {
+        let _ = (device_id, bytes, volume, max_ms);
+        Err("Sounds open the device themselves only on Windows and Linux".to_string())
+    }
+}
+
 /// Turns a playing cue up or down. Nothing if it has ended.
 pub fn set_cue_volume(id: u32, volume: f32) {
     #[cfg(any(target_os = "windows", target_os = "linux"))]

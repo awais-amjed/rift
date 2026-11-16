@@ -65,7 +65,7 @@ pub(super) struct Note {
 
 /// Media Foundation up for the process, once; never shut down, since a
 /// poster or a clip may start at any time.
-fn startup() -> Result<(), String> {
+pub(super) fn startup() -> Result<(), String> {
     static DONE: OnceLock<Result<(), String>> = OnceLock::new();
     DONE.get_or_init(|| {
         // SAFETY: a plain call; balanced by nothing, on purpose (above).

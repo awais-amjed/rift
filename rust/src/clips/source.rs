@@ -72,8 +72,8 @@ struct State {
 }
 
 impl Source {
-    /// A file in memory, for tests.
-    #[cfg(test)]
+    /// A file already all in memory: a soundboard clip, and tests.
+    #[cfg_attr(not(any(target_os = "linux", windows, test)), allow(dead_code))]
     pub(crate) fn memory(bytes: Vec<u8>) -> Arc<Source> {
         let length = bytes.len() as u64;
         let state = State {
