@@ -1,4 +1,5 @@
 import '../../data/classes/call_shortcuts.dart';
+import '../../data/classes/key_shortcut.dart';
 import '../ptt/win32_key_codes.dart';
 import '../ptt/windows_key_hook.dart';
 
@@ -35,6 +36,12 @@ class HookKeyState {
     }
     return null;
   }
+
+  /// Whether the hook can report [keys] at all. A key whose character comes
+  /// from the layout (ü on a German keyboard) has no virtual-key code Flutter
+  /// maps back, so only the window hears it.
+  static bool hears(KeyShortcut keys) =>
+      win32VkForLogicalKey(keys.keyId) != null;
 
   bool _any(Set<int> vks) => vks.any(_down.contains);
 

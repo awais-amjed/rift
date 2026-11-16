@@ -64,4 +64,11 @@ void main() {
     expect(down(0x41), isNull);
     expect(down(f9), CallShortcut.deafen);
   });
+
+  test('a key the hook cannot report is left to the window', () {
+    // A layout's own letter, like ü on a German keyboard, has no virtual-key
+    // code Flutter maps back, so the hook never matches it.
+    expect(HookKeyState.hears(KeyShortcut(keyId: 0xfc, ctrl: true)), isFalse);
+    expect(HookKeyState.hears(shortcuts.mute!), isTrue);
+  });
 }

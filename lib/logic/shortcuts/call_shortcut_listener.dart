@@ -9,6 +9,7 @@ import '../cubits/app/app_cubit.dart';
 import '../cubits/livekit/livekit_cubit.dart';
 import '../services/host_platform.dart';
 import 'call_shortcut_actions.dart';
+import 'hook_key_state.dart';
 import 'windows_call_shortcuts.dart';
 
 /// Hears the call shortcuts picked in Settings and presses the
@@ -61,8 +62,6 @@ class _CallShortcutListenerState extends State<CallShortcutListener> {
   }
 
   bool _onKey(KeyEvent event) {
-    // The hook has it, Rift in front or not.
-    if (_windows != null) return false;
     // Down only: holding the keys must not flip mute on every repeat.
     if (event is! KeyDownEvent || CallShortcutListener.capturing) return false;
     final state = context.read<AppCubit>().state;
@@ -71,6 +70,10 @@ class _CallShortcutListenerState extends State<CallShortcutListener> {
       HardwareKeyboard.instance,
     );
     if (action == null) return false;
+    // The hook has it, Rift in front or not, unless it cannot report the key.
+    if (_windows != null && HookKeyState.hears(state.callShortcuts[action]!)) {
+      return false;
+    }
     // The desktop has it; it should never reach here, but if it does, once.
     if (state.desktopCallShortcuts.contains(action)) return false;
     runCallShortcut(action, context.read<LiveKitCubit>());
