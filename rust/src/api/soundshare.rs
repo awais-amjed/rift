@@ -11,8 +11,8 @@
 //! because the bindings are generated once; behind them is `cfg(desktop)`,
 //! since capturing another application's output is something only a desktop
 //! can do.
-#[cfg(desktop)]
 use crate::api::screenshare::types::AudioSource;
+#[cfg(desktop)]
 use crate::sharing::sound;
 
 use crate::frb_generated::StreamSink;
