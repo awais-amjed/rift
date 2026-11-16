@@ -13,10 +13,15 @@ import '../../../../theme/theme_context.dart';
 /// desktop answers with the key it keeps, so a key picked in the meantime
 /// would be quietly swapped out — better not to offer the choice at all.
 /// A mouse button is the exception: the desktop never sees one, so switching
-/// to a button stays Rift's to offer ([onUseMouse]).
+/// to a button stays Rift's to offer ([onUseMouse]). So is [onClear], as on
+/// the call shortcuts: it hands the key back to the desktop, and Rift's own
+/// key controls return to pick another, which the desktop is asked for.
 class DesktopKeyNotice extends StatelessWidget {
   /// True while the desktop has not answered yet.
   final bool pending;
+
+  /// Drops the key, which the desktop then lets go of.
+  final VoidCallback onClear;
 
   /// Starts or stops listening for a mouse button to use instead.
   final VoidCallback onUseMouse;
@@ -27,6 +32,7 @@ class DesktopKeyNotice extends StatelessWidget {
   const DesktopKeyNotice({
     super.key,
     required this.pending,
+    required this.onClear,
     required this.onUseMouse,
     required this.capturingMouse,
   });
@@ -68,6 +74,12 @@ class DesktopKeyNotice extends StatelessWidget {
                 label: 'Change key',
                 isLoading: pending,
                 onPressed: pending ? null : DesktopShortcutSettings.open,
+                variant: AppButtonVariant.secondary,
+              ),
+            if (!pending)
+              AppButton(
+                label: 'Clear',
+                onPressed: onClear,
                 variant: AppButtonVariant.secondary,
               ),
             if (!pending)

@@ -96,6 +96,31 @@ void main() {
     expect(app.state.pushToTalkKeyId, isNull);
   });
 
+  // Nov 16: with the desktop holding the key there was no Clear, unlike the
+  // call shortcuts, and no way to change the key from Rift.
+  testWidgets("the desktop's key can be cleared here", (tester) async {
+    final app = await pump(tester);
+    app
+      ..setPushToTalkKeybind(keyId: LogicalKeyboardKey.f8.keyId, label: 'F8')
+      ..setDesktopPushToTalkKey('Press F8');
+    await tester.pump();
+
+    await tester.tap(find.text('Clear'));
+    await tester.pump();
+
+    expect(app.state.pushToTalkKeyId, isNull);
+  });
+
+  testWidgets('no Clear while the desktop is being asked', (tester) async {
+    final app = await pump(tester);
+    app
+      ..setPushToTalkKeybind(keyId: LogicalKeyboardKey.f8.keyId, label: 'F8')
+      ..setDesktopPushToTalkPending(true);
+    await tester.pump();
+
+    expect(find.text('Clear'), findsNothing);
+  });
+
   testWidgets('Esc is a key like any other', (tester) async {
     final app = await pump(tester);
     await tester.tap(find.text('Set key'));

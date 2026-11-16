@@ -178,6 +178,7 @@ class _PushToTalkSectionState extends State<PushToTalkSection> {
           if (_desktopOwnsKey)
             DesktopKeyNotice(
               pending: appState.desktopPushToTalkPending,
+              onClear: context.read<AppCubit>().clearPushToTalkKeybind,
               capturingMouse: _isCapturing,
               onUseMouse: () => _toggleCapture(!_isCapturing, mouseOnly: true),
             )
