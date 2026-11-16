@@ -83,6 +83,7 @@ class JoiningApi {
         serverId: resolved.serverId!,
         serverName: resolved.serverName ?? link.serverUrl,
         iconPath: resolved.iconPath,
+        needsAccount: resolved.needsAccount,
       ),
       error: null,
     );

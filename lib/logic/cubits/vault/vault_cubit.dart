@@ -10,6 +10,7 @@ import '../../../data/classes/encrypted_seed.dart';
 import '../../../data/classes/encrypted_vault.dart';
 import '../../../data/enums/auth_status.dart';
 import '../../../data/repositories/secure_storage_repository.dart';
+import '../../../data/repositories/server_pass_repository.dart';
 import '../../../data/repositories/server_repository.dart';
 import '../../../data/repositories/session_repository.dart';
 import '../../../logic/helper_methods.dart';
@@ -41,6 +42,8 @@ class VaultCubit extends Cubit<VaultState>
   final ServerRepository _serverRepo;
   @override
   final SessionRepository _session;
+  @override
+  final ServerPassRepository _passRepo;
 
   /// In-memory cache of derived keypairs per host to avoid redundant derivation.
   @override
@@ -80,10 +83,12 @@ class VaultCubit extends Cubit<VaultState>
     SecureStorageRepository? storage,
     ServerRepository? serverRepo,
     SessionRepository? session,
+    ServerPassRepository? passRepo,
   }) : _crypto = crypto ?? CryptoRepository(),
        _storage = storage ?? SecureStorageRepository(),
        _serverRepo = serverRepo ?? ServerRepository(),
        _session = session ?? SessionRepository(storage: storage),
+       _passRepo = passRepo ?? ServerPassRepository(),
        super(const VaultState());
 
   // ── Vault persistence helpers ─────────────────────────────

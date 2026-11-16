@@ -10,6 +10,7 @@ import '../../logic/services/paging.dart';
 import '../../logic/services/reaction_ops.dart';
 import '../classes/api_response.dart';
 import '../classes/member_page.dart';
+import '../classes/resolved_invite.dart' show needsAccountIn;
 import '../classes/server_limits.dart';
 import '../device_id.dart';
 import '../enums/error_code.dart';

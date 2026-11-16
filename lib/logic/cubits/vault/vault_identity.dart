@@ -3,6 +3,7 @@ part of 'vault_cubit.dart';
 mixin _VaultIdentityMixin on Cubit<VaultState> {
   CryptoRepository get _crypto;
   ServerRepository get _serverRepo;
+  ServerPassRepository get _passRepo;
   Map<String, ServerIdentity> get _identityCache;
   Map<String, ChatIdentity> get _chatIdentityCache;
   Future<void> _addServerToVault(String host, {String version = 'v1'});
@@ -98,6 +99,17 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
         );
       }
       final serverId = resolved.serverId!;
+
+      // A link an admin marked as needing a Rift account. Without one there
+      // is no point signing in to the server at all, so it is said here.
+      final refusal = joinNeedsAccountError(
+        needsAccount: resolved.needsAccount,
+        hasAccount: _passRepo.hasAccount,
+      );
+      if (refusal != null) {
+        return (success: false, error: refusal, data: null);
+      }
+
       final identity = await getIdentityForHost(host, serverId: serverId);
 
       // 2. SIWS login — creates the per-(host, serverId) GoTrue identity (signup)
@@ -108,6 +120,21 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
         return (success: false, error: login.error, data: null);
       }
       final token = login.accessToken!;
+
+      // Central vouches for the account to this server and this identity.
+      // Asked last, just before register, since a pass lives five minutes.
+      String? pass;
+      if (resolved.needsAccount) {
+        final vouched = await _passRepo.passFor(
+          supabaseUrl: supabaseUrl,
+          serverId: serverId,
+          publicKey: identity.publicKeyBase64,
+        );
+        if (vouched.pass == null) {
+          return (success: false, error: vouched.error, data: null);
+        }
+        pass = vouched.pass;
+      }
 
       // 3. Create the server profile row — or, for somebody who left and is
       //    coming back, sign in to the one they already have (the response
@@ -120,6 +147,7 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
         stableId: identity.stableId,
         username: username,
         displayName: displayName,
+        pass: pass,
       );
 
       if (!response.success) {

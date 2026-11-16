@@ -20,6 +20,7 @@ class InvitesApi {
     int? expiresInSeconds,
     bool isBot = false,
     String? roleId,
+    bool needsAccount = false,
   }) async {
     final server = _target.server;
     if (server == null) {
@@ -38,6 +39,7 @@ class InvitesApi {
         expiresInSeconds: expiresInSeconds,
         isBot: isBot,
         roleId: roleId,
+        needsAccount: needsAccount,
       ),
     );
 
@@ -50,6 +52,36 @@ class InvitesApi {
     }
     final inviteCode = response.data['invite_code'] as String;
     return (success: true, inviteCode: inviteCode, error: null);
+  }
+
+  /// Mark or unmark one of this server's links as needing a Rift account.
+  /// Admins only; the server refuses anybody else.
+  Future<({bool success, String? error})> setNeedsAccount({
+    required String inviteCode,
+    required bool needsAccount,
+  }) async {
+    final server = _target.server;
+    if (server == null) return (success: false, error: ServerSession.gone);
+    final response = await _session.callFor(
+      server,
+      (token) => _repository.setInviteNeedsAccount(
+        server.supabaseUrl,
+        anonKey: server.supabaseKey ?? '',
+        inviteCode: inviteCode,
+        needsAccount: needsAccount,
+        bearerToken: token,
+      ),
+    );
+    final reason = response.success && response.data is Map
+        ? (response.data as Map)['reason']
+        : null;
+    if (reason == 'ok') return (success: true, error: null);
+    return (
+      success: false,
+      error: reason == 'not_admin'
+          ? 'Only an admin can change this.'
+          : response.error ?? "Couldn't change the link.",
+    );
   }
 
   /// Throw away an invite this account minted.

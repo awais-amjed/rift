@@ -19,12 +19,18 @@ class ResolvedInvite extends Equatable {
   /// Null from a listing, whose picture is central's copy, not the server's.
   final String? iconPath;
 
+  /// Joining needs a Rift account: an admin marked this link, and the server
+  /// wants central to vouch for whoever comes through it. Unknown (false)
+  /// from a listing until its invite has been read.
+  final bool needsAccount;
+
   const ResolvedInvite({
     required this.serverUrl,
     required this.inviteCode,
     required this.serverId,
     required this.serverName,
     this.iconPath,
+    this.needsAccount = false,
   });
 
   /// A listing already names its server and carries a working invite, so
@@ -46,5 +52,10 @@ class ResolvedInvite extends Equatable {
     serverId,
     serverName,
     iconPath,
+    needsAccount,
   ];
 }
+
+/// Whether a server's `resolve_invite` answer says the link needs a Rift
+/// account. A server from before the switch does not say, which is no.
+bool needsAccountIn(Map<dynamic, dynamic> data) => data['needs_account'] == true;

@@ -40,6 +40,7 @@ mixin _AuthApiMixin {
       String? serverId,
       String? serverName,
       String? iconPath,
+      bool needsAccount,
       String? error,
     })
   >
@@ -53,6 +54,7 @@ mixin _AuthApiMixin {
         serverId: null,
         serverName: null,
         iconPath: null,
+        needsAccount: false,
         error: response.error,
       );
     }
@@ -62,6 +64,7 @@ mixin _AuthApiMixin {
       serverId: data['server_id'] as String?,
       serverName: data['server_name'] as String?,
       iconPath: data['server_icon'] as String?,
+      needsAccount: needsAccountIn(data),
       error: null,
     );
   }
@@ -77,6 +80,7 @@ mixin _AuthApiMixin {
     required String stableId,
     required String username,
     required String displayName,
+    String? pass,
   }) {
     return _post(supabaseUrl, 'register', {
       'invite_code': inviteCode,
@@ -84,6 +88,8 @@ mixin _AuthApiMixin {
       'stable_id': stableId,
       'username': username,
       'display_name': displayName,
+      // Central's pass, for a link that needs a Rift account.
+      'pass': ?pass,
     }, bearerToken: bearerToken);
   }
 
@@ -104,6 +110,7 @@ mixin _AuthApiMixin {
     int? expiresInSeconds,
     bool isBot = false,
     String? roleId,
+    bool needsAccount = false,
   }) {
     return ServerDb.run(() async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
@@ -121,6 +128,8 @@ mixin _AuthApiMixin {
             // policy refuses a role the minter does not outrank, so a link can
             // still never carry more than its maker holds.
             'role_id': ?roleId,
+            // Only an admin may mark a link; the policy refuses anybody else.
+            if (needsAccount) 'needs_account': true,
             if (expiresInSeconds != null)
               'expires_at': DateTime.now()
                   .toUtc()
@@ -130,6 +139,25 @@ mixin _AuthApiMixin {
           .select('code')
           .single();
       return {'invite_code': row['code']};
+    });
+  }
+
+  /// Mark or unmark one of this server's links as needing a Rift account.
+  /// Admins only (`set_invite_needs_account`), which answers `not_admin` or
+  /// `not_found` otherwise.
+  Future<APIResponse> setInviteNeedsAccount(
+    String supabaseUrl, {
+    required String anonKey,
+    required String inviteCode,
+    required bool needsAccount,
+    String? bearerToken,
+  }) {
+    return ServerDb.run(() async {
+      final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      return db.rpc(
+        'set_invite_needs_account',
+        params: {'p_code': inviteCode, 'p_on': needsAccount},
+      );
     });
   }
 
