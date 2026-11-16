@@ -763,6 +763,8 @@ turning other apps down, and the speaking indicator.
 | Self-hosted server's hosting provider | safe | n/a | safe (E2E) | safe | safe (E2E) |
 | Self-hosted server admin | safe | n/a | readable (they're a member anyway); in a channel with encryption off, readable without joining, which every member is shown | **safe** | channel calls: accessible · DM calls: **safe** |
 | A member, later banned | safe | n/a | what they read while a member; nothing the server sends after the ban, and nothing under the next key, which a ban brings within the hour (§4, *The key chain*). A bad key link they mint costs newcomers the history below it (§4, *The key chain*) | safe | ends at the ban |
+| Central server / its host, for a link that needs a Rift account | — | — | sees that an account asked to join that server (the request; nothing kept) | n/a | n/a |
+| Two self-hosted servers comparing members | each identity is per server | n/a | an account's tag differs on every server, so tags cannot be matched | n/a | n/a |
 | Device thief (no password) | Argon2id + secure storage | — | newest page of each channel opened, sealed under the seed (§4, *Saved on the device*); the avatars and icons drawn in the last month, in the clear | same | — |
 
 An update is code that runs with everything above, so it has its own guard
@@ -851,6 +853,28 @@ as yourself. `users.left_at` marks it yours, which keeps you off the banned list
 moderator reads and tells your other devices to drop the server rather than show it
 shut. The owner cannot leave without handing the server on; for them, and on a
 server too old to ask, leaving only forgets the server on the device.
+
+**A link that needs a Rift account** [Built November 2026, not yet driven live].
+A privacy-mode identity is a fresh seed, which costs nothing, so a ban alone stops
+one identity and none of the next. An admin can mark a link — the directory
+listing's, or one they mean to post — as needing a Rift account
+(`invites.needs_account`; only an admin, and the database enforces it). Joining
+through it, the app asks central for a **pass** (`server_pass` on central): five
+minutes long, signed by central's Ed25519 key, naming the server and the identity
+joining, and carrying a **tag**, a keyed hash of the account's email (Gmail-style
+aliases merged) and the server. `register` checks the signature with central's
+public key, built into the server's functions. So the server never sees the
+email, the tag differs on every server so no two can match their members, and a
+copied pass is useless, because it names an identity only its owner can sign in
+as. The server keeps the tag where no member can read it; a ban keeps it too
+(`banned_tags`, which outlives the member row), so the account stays out whatever
+identity it comes back as. A kick does not keep it. The same account arriving with
+a new identity (its seed lost and made again) takes its old membership over, the
+old identity leaving as `leave_server` does; the owner's is never taken over.
+This is the one place central and a self-hosted server meet over a person, and only
+where an admin asked for it: central sees which server an account asked a pass for,
+keeps no record of it, and the join screen says so. Links made by members still let
+privacy-mode identities in.
 
 **DM spam** is the member's own call. Each member chooses, per server, who may
 start a conversation with them: everyone, *ask me first* (a first message waits as
