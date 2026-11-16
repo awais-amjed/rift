@@ -26,6 +26,8 @@ mod catch_up;
 mod linux;
 #[cfg(target_os = "linux")]
 mod linux_all;
+#[cfg(target_os = "linux")]
+mod linux_app;
 #[cfg(test)]
 mod live_test;
 #[cfg(any(target_os = "linux", test))]
@@ -79,10 +81,9 @@ impl Pcm {
 #[allow(dead_code)]
 #[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct AudioSelection {
-    /// Linux: the PulseAudio sink-input to capture, and the sink it plays to;
-    /// none means everything but Rift.
+    /// Linux: the PulseAudio sink-input picked, which names the program whose
+    /// streams to capture (`linux_app`); none means everything but Rift.
     pub sink_input: Option<u32>,
-    pub sink: Option<u32>,
     /// Windows: the process whose audio to capture; none means everything but Rift.
     pub pid: Option<u32>,
 }
@@ -91,7 +92,6 @@ impl From<&ScreenShareConfig> for AudioSelection {
     fn from(config: &ScreenShareConfig) -> Self {
         Self {
             sink_input: config.selected_audio_source_index,
-            sink: config.selected_audio_source_sink,
             pid: config.selected_audio_source_pid,
         }
     }
@@ -101,7 +101,6 @@ impl From<&SoundShareConfig> for AudioSelection {
     fn from(config: &SoundShareConfig) -> Self {
         Self {
             sink_input: config.selected_audio_source_index,
-            sink: config.selected_audio_source_sink,
             pid: config.selected_audio_source_pid,
         }
     }
@@ -186,7 +185,9 @@ pub(crate) async fn start(room: &Room, request: AudioCapture) -> Option<AudioCap
 pub(crate) fn list_sources() -> Vec<AudioSource> {
     #[cfg(target_os = "linux")]
     {
-        pulse::list_sink_inputs()
+        let listed = pulse::list_sink_inputs();
+        linux_app::remember(&listed);
+        listed
     }
     #[cfg(target_os = "windows")]
     {

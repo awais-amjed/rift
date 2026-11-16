@@ -615,6 +615,20 @@ remembered sound went out without asking, and choosing again took a box in the
 share dialog. No good guess means every app but Rift, which still carries the
 window's sound.
 
+The stream picked stands for its app. An app plays in as many streams as it
+likes — a player may open one per track, a loop of `paplay` a new process per
+sound — so the share records every stream of the picked one's program (its
+binary and app name), as they come and go (`linux_app.rs`, on the same follower
+as every app but Rift). The program is read from what the dialog was shown,
+since the stream picked may have ended before the share begins — the desktop's
+own picker alone outlasts a short sound. Two copies of one program playing are
+both heard. A
+sound share ends once the program has played nothing for 10 s and the process
+picked is gone; a paused player whose process runs keeps it up (a pid that is
+not this machine's, as a sandbox may report, counts as gone). Before Nov 16
+2026 the share recorded the one stream picked and went silent at the app's
+next.
+
 Finding the app is where the platforms differ. X11 says it outright
 (`_NET_WM_PID`, `WM_CLASS`), so the window is picked in Rift's own dialog.
 Under Wayland the ScreenCast portal tells an app nothing about the window

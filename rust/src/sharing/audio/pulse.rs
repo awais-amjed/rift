@@ -31,28 +31,6 @@ pub(crate) fn list_sink_inputs() -> Vec<AudioSource> {
     list
 }
 
-/// The monitor source that carries what `sink_index` plays.
-pub(crate) fn monitor_source_name(sink_index: u32) -> Option<String> {
-    let mut connection = Connection::open("rift-audio-monitor")?;
-    let name: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
-    let done = Arc::new(Mutex::new(false));
-    let (out, finished) = (Arc::clone(&name), Arc::clone(&done));
-    let _op = connection
-        .context
-        .introspect()
-        .get_sink_info_by_index(sink_index, move |result| match result {
-            ListResult::Item(info) => {
-                if let Some(monitor) = &info.monitor_source_name {
-                    *out.lock().unwrap() = Some(monitor.to_string());
-                }
-            }
-            ListResult::End | ListResult::Error => *finished.lock().unwrap() = true,
-        });
-    connection.run_until(&done);
-    let found = name.lock().unwrap().clone();
-    found
-}
-
 pub(crate) fn sink_input(info: &SinkInputInfo) -> AudioSource {
     let get = |key: &str| info.proplist.get_str(key).unwrap_or_default();
     let app_id = Some(get("application.id"))

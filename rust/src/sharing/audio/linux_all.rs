@@ -1,5 +1,5 @@
 //! Linux: every application's sound but Rift's, the way a whole-screen share
-//! takes it on Windows.
+//! takes it on Windows — or every stream of one application ([`App`]).
 //!
 //! PulseAudio has no "everything but this process". A sink's monitor carries
 //! what the sink plays, Rift's call included, and a call that hears itself
@@ -13,6 +13,7 @@
 //! click in all the others — heard Oct 14 2026 as a 20 ms dip when a second
 //! app started.
 use super::linux::connect_stream;
+use super::linux_app::App;
 use super::mixer::Mixer;
 use super::pulse;
 use super::{samples_from_le_bytes, Command, Pcm};
@@ -35,6 +36,18 @@ use tokio::sync::mpsc::Sender as FrameSender;
 /// needs to be looked at once.
 const RELIST_EVERY: Duration = Duration::from_millis(250);
 
+/// How often a picked application is looked for: whether its process still
+/// runs.
+const CHECK_APP_EVERY: Duration = Duration::from_secs(1);
+
+/// Whose streams a capture follows.
+pub(super) enum Wanted {
+    /// Everything but Rift's own.
+    AllButRift,
+    /// One application's, until it is gone.
+    App(App),
+}
+
 /// One application's stream being recorded.
 struct Followed {
     /// The sink it played to when it was opened. A stream moved to another
@@ -44,6 +57,7 @@ struct Followed {
 }
 
 pub(super) fn spawn_capture_thread(
+    wanted: Wanted,
     commands: Receiver<Command>,
     frames: FrameSender<Pcm>,
 ) -> JoinHandle<()> {
@@ -57,7 +71,14 @@ pub(super) fn spawn_capture_thread(
         let mut mixer = Mixer::default();
         let mut listing: Option<Arc<Mutex<Listing>>> = None;
         let mut listed_at: Option<Instant> = None;
-        log::info!("audio: capturing everything but Rift");
+        // When the picked application last had a stream, and was last
+        // looked for.
+        let mut heard_at = Instant::now();
+        let mut checked_at = Instant::now();
+        match &wanted {
+            Wanted::AllButRift => log::info!("audio: capturing everything but Rift"),
+            Wanted::App(app) => log::info!("audio: capturing {}", app.describe()),
+        }
         'capture: loop {
             match commands.try_recv() {
                 Ok(Command::Terminate) | Err(TryRecvError::Disconnected) => break,
@@ -77,7 +98,10 @@ pub(super) fn spawn_capture_thread(
                 listing = None;
                 match answer {
                     Some((playing, monitors)) => {
-                        let playing = playing.into_iter().filter(|input| !rift.plays(input));
+                        let playing = playing.into_iter().filter(|input| match &wanted {
+                            Wanted::AllButRift => !rift.plays(input),
+                            Wanted::App(app) => app.plays(input),
+                        });
                         follow(
                             &mut connection,
                             &mut followed,
@@ -99,6 +123,20 @@ pub(super) fn spawn_capture_thread(
                 }
                 open
             });
+            if let Wanted::App(app) = &wanted {
+                if !followed.is_empty() {
+                    heard_at = Instant::now();
+                }
+                if checked_at.elapsed() >= CHECK_APP_EVERY {
+                    checked_at = Instant::now();
+                    // A sound share reports this upwards and ends; a screen
+                    // share carries on in silence.
+                    if app.ended(heard_at.elapsed()) {
+                        log::info!("audio: the application is gone");
+                        break;
+                    }
+                }
+            }
             while let Some(frame) = mixer.next_frame() {
                 if frames.blocking_send(Pcm::read_now(frame)).is_err() {
                     break 'capture;
