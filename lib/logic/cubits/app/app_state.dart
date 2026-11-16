@@ -26,9 +26,10 @@ class AppState extends Equatable {
   /// every key until the next change.
   final List<String> desktopShortcutsGranted;
 
-  /// Shortcuts the person said no to in the desktop's dialog, as
-  /// `<id>=<suggested key>` (`refusalKey`), one per id. Not asked for again
-  /// until that key changes — without it the dialog came back every launch.
+  /// Push-to-talk said no to in the desktop's dialog, as
+  /// `<id>=<suggested key>` (`refusalKey`), one per id. Not asked for again until that key
+  /// changes — without it the dialog came back every launch. A call shortcut
+  /// said no to loses its keys instead (`afterDecline`).
   final List<String> desktopShortcutsRefused;
   final bool titleBarVisible;
   final ScreenShareSettings screenShareSettings;

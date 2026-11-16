@@ -63,8 +63,9 @@ class LinuxGlobalShortcuts {
 
   /// Shortcuts ([refusalKey]) the desktop failed to bind this run, without a
   /// person saying no: not asked for again until their key changes, or every
-  /// change would ask again. What a person refuses is kept between runs
-  /// instead ([AppState.desktopShortcutsRefused]), and what the desktop
+  /// change would ask again. Push-to-talk refused by a person is kept between
+  /// runs instead ([AppState.desktopShortcutsRefused]; a refused call
+  /// shortcut loses its keys, [afterDecline]), and what the desktop
   /// granted too ([AppState.desktopShortcutsGranted]): GNOME's dialog is all
   /// or nothing, and saying no to a new call shortcut must not cost
   /// push-to-talk the key it already had.
@@ -134,12 +135,14 @@ class LinuxGlobalShortcuts {
       );
       _applied = next.retry;
       if (bound.declined) {
-        _app.setDesktopShortcutAnswers(
-          refused: rememberRefused(
-            _app.state.desktopShortcutsRefused,
-            next.refused,
-          ),
+        final after = afterDecline(
+          calls: _app.state.callShortcuts,
+          refused: _app.state.desktopShortcutsRefused,
+          declined: next.refused,
         );
+        _app.setDesktopShortcutAnswers(refused: after.refused);
+        // Leaves the wanted list equal to the retry, so this is no new bind.
+        _app.setCallShortcuts(after.calls);
       } else {
         _failed.addAll(next.refused.map(refusalKey));
       }
@@ -225,9 +228,13 @@ class LinuxGlobalShortcuts {
   }
 
   /// Everything not to ask for: refused by a person, before or now, or failed
-  /// this run.
+  /// this run. A call shortcut a person refuses loses its keys instead
+  /// ([afterDecline]); one saved as refused by a build before that is let
+  /// through, or setting the same keys again would never ask.
   Set<String> get _refused => {
-    ..._app.state.desktopShortcutsRefused,
+    ..._app.state.desktopShortcutsRefused.where(
+      (key) => callShortcutForPortalId(_idOf(key)) == null,
+    ),
     ..._failed,
   };
 
@@ -271,6 +278,38 @@ List<PortalShortcut> desktopShortcutsFor({
       if (!granted.contains(shortcut.id)) shortcut,
   },
 );
+
+/// What a person saying no to [declined] in the desktop's dialog leaves: the
+/// call shortcuts among them lose their keys, since Settings says those work
+/// from anywhere and a key that only works in Rift's window is not that one
+/// (Nov 16). Setting keys again is a new question. Push-to-talk keeps its key,
+/// which works in the window on its own, and is remembered as [refused] so the
+/// dialog does not come back each launch.
+({CallShortcuts calls, List<String> refused}) afterDecline({
+  required CallShortcuts calls,
+  required List<String> refused,
+  required Iterable<PortalShortcut> declined,
+}) {
+  var cleared = calls;
+  for (final shortcut in declined) {
+    if (callShortcutForPortalId(shortcut.id) case final action?) {
+      cleared = cleared.withKeys(action, null);
+    }
+  }
+  return (
+    calls: cleared,
+    refused: rememberRefused(
+      forgetRefused(refused, [
+        for (final shortcut in declined)
+          if (callShortcutForPortalId(shortcut.id) != null) shortcut.id,
+      ]),
+      [
+        for (final shortcut in declined)
+          if (callShortcutForPortalId(shortcut.id) == null) shortcut,
+      ],
+    ),
+  );
+}
 
 /// [wanted] less what was refused ([refusalKey]s). A shortcut whose key has
 /// changed since is a new question, so it stays.

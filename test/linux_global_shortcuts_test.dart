@@ -167,6 +167,33 @@ void main() {
       );
     });
 
+    // Nov 16: a cancelled Mute kept its keys, working only in Rift's window
+    // under a heading that says they work from anywhere.
+    test('a cancelled call shortcut loses its keys, and is not remembered', () {
+      final ctrlShiftD = KeyShortcut(
+        keyId: LogicalKeyboardKey.keyD.keyId,
+        ctrl: true,
+        shift: true,
+      );
+      final next = afterDecline(
+        calls: CallShortcuts(mute: ctrlShiftM, deafen: ctrlShiftD),
+        refused: const [],
+        declined: [mute],
+      );
+      expect(next.calls, CallShortcuts(deafen: ctrlShiftD));
+      expect(next.refused, isEmpty);
+    });
+
+    test('a cancelled push-to-talk keeps its key and is remembered', () {
+      final next = afterDecline(
+        calls: CallShortcuts(mute: ctrlShiftM),
+        refused: [refusalKey(mute)],
+        declined: [pushToTalk, mute],
+      );
+      expect(next.calls, const CallShortcuts());
+      expect(next.refused, [refusalKey(pushToTalk)]);
+    });
+
     test('what was granted and refused survives a save in AppState', () {
       final saved = AppState(
         desktopShortcutsGranted: const ['push-to-talk', 'call-deafen'],
