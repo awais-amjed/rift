@@ -49,6 +49,10 @@ class _InviteModalState extends State<InviteModal> with _InviteRolesMixin {
   /// case is inviting a person, and a bot invite is the deliberate one.
   bool _isBot = false;
 
+  /// Whether the link needs a Rift account. Off by default; an admin's
+  /// choice for a link they mean to post publicly.
+  bool _needsAccount = false;
+
   @override
   void initState() {
     super.initState();
@@ -76,6 +80,7 @@ class _InviteModalState extends State<InviteModal> with _InviteRolesMixin {
           expiresInSeconds: inviteExpiryOptions[_expiryIndex].seconds,
           isBot: _isBot,
           roleId: roleId,
+          needsAccount: _needsAccount && !_isBot,
         );
 
     if (!mounted) return;
@@ -102,6 +107,13 @@ class _InviteModalState extends State<InviteModal> with _InviteRolesMixin {
     final inviteLink = _inviteToken == null
         ? null
         : InviteLink.build(widget.server.supabaseUrl, _inviteToken!);
+
+    final serverId = widget.server.id;
+    final isAdmin = context.select(
+      (ServerCubit c) => (c.state.permissionsOn(serverId)?.bits ?? 0).has(
+        ServerPermission.administrator,
+      ),
+    );
 
     return AppModal(
       title: 'Invite to ${widget.server.name}',
@@ -134,6 +146,11 @@ class _InviteModalState extends State<InviteModal> with _InviteRolesMixin {
           _isBot = value;
           // A link already on screen was minted as the other kind, so it
           // no longer matches what the switch says.
+          _resetToken();
+        }),
+        needsAccount: isAdmin && !_isBot ? _needsAccount : null,
+        onNeedsAccountChanged: (value) => setState(() {
+          _needsAccount = value;
           _resetToken();
         }),
         inviteLink: inviteLink,

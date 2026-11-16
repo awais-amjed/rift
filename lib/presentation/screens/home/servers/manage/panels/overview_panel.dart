@@ -4,10 +4,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../../../data/apis/invites_api.dart';
+import '../../../../../../data/apis/joining_api.dart';
 import '../../../../../../data/apis/members_api.dart';
 import '../../../../../../data/apis/push_api.dart';
 import '../../../../../../data/apis/server_api.dart';
 import '../../../../../../data/classes/server.dart';
+import '../../../../../../data/repositories/session_repository.dart';
 import '../../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
 import '../../../../../../logic/cubits/server_events/server_events_cubit.dart';
 import '../../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
@@ -102,6 +104,17 @@ class _OverviewPanelState extends State<OverviewPanel> {
     setState(
       () => _listing.seed(cubit.listingFor(server.supabaseUrl, server.id)),
     );
+
+    // Whether the listing's link needs a Rift account: the server says, for
+    // whoever asks, whichever admin made the link.
+    final link = _listing.listing?.inviteLink;
+    if (link == null) return;
+    final resolved = await JoiningApi(
+      context.read<SessionRepository>(),
+    ).resolveInvite(link);
+    final invite = resolved.invite;
+    if (!mounted || invite == null) return;
+    setState(() => _listing.seedNeedsAccount(invite.needsAccount));
   }
 
   /// Also non-blocking, and allowed to fail: the count is a sentence in the

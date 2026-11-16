@@ -2,10 +2,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../../../data/apis/joining_api.dart';
 import '../../../../../data/classes/resolved_invite.dart';
 import '../../../../../data/constants.dart';
+import '../../../../../data/invite_link.dart';
+import '../../../../../data/repositories/session_repository.dart';
 import '../../../../../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
 import '../../../../../logic/services/join_defaults.dart';
@@ -13,7 +17,9 @@ import '../../../../../logic/services/server_username.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/app_text_field.dart';
+import '../../../../common/hint_card.dart';
 import '../../../../common/message_banner.dart';
+import '../../../../common/no_central_account.dart';
 import '../../../../common/server_icon.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
@@ -66,6 +72,10 @@ class _JoinServerModalState extends State<JoinServerModal> {
   bool _isLoading = false;
   String? _error;
 
+  /// Whether this link needs a Rift account. A link typed in has said so
+  /// already; a listing has not, so it is asked once the form is open.
+  late bool _needsAccount = widget.invite.needsAccount;
+
   bool get _canSubmit =>
       ServerUsername.isValid(_usernameCtrl.text) &&
       _displayNameCtrl.text.trim().isNotEmpty;
@@ -79,6 +89,16 @@ class _JoinServerModalState extends State<JoinServerModal> {
     );
     _usernameCtrl.text = defaults.username;
     _displayNameCtrl.text = defaults.displayName;
+    if (!_needsAccount) _askNeedsAccount();
+  }
+
+  Future<void> _askNeedsAccount() async {
+    final invite = widget.invite;
+    final resolved = await JoiningApi(
+      context.read<SessionRepository>(),
+    ).resolveInvite(InviteLink.build(invite.serverUrl, invite.inviteCode));
+    if (!mounted || resolved.invite?.needsAccount != true) return;
+    setState(() => _needsAccount = true);
   }
 
   @override
@@ -142,6 +162,10 @@ class _JoinServerModalState extends State<JoinServerModal> {
   @override
   Widget build(BuildContext context) {
     final invite = widget.invite;
+    final signedIn = context.select<SupabaseBackupCubit, bool>(
+      (c) => c.state.isSignedIn,
+    );
+    final blocked = _needsAccount && !signedIn;
     return AppModal(
       pageOnPhone: true,
       onBack: _isLoading ? null : widget.onCancel,
@@ -167,6 +191,23 @@ class _JoinServerModalState extends State<JoinServerModal> {
                 kind: MessageBannerKind.error,
               ),
             ),
+          if (blocked) ...[
+            const NoCentralAccount(
+              need:
+                  'This link needs a Rift account, so the server can ask '
+                  'Rift to vouch for whoever joins through it.',
+            ),
+            const SizedBox(height: 12),
+          ] else if (_needsAccount) ...[
+            const HintCard(
+              icon: Icons.verified_user_outlined,
+              text:
+                  'Rift will tell its own server you joined this server, so '
+                  'it can vouch for your account. This server never sees your '
+                  'email.',
+            ),
+            const SizedBox(height: 12),
+          ],
           AppTextField(
             controller: _usernameCtrl,
             label: 'Username',
@@ -212,7 +253,7 @@ class _JoinServerModalState extends State<JoinServerModal> {
         ),
         AppButton(
           label: _isLoading ? 'Joining…' : 'Join server',
-          onPressed: _canSubmit && !_isLoading ? _submit : null,
+          onPressed: _canSubmit && !_isLoading && !blocked ? _submit : null,
           isLoading: _isLoading,
         ),
       ],

@@ -58,4 +58,5 @@ class ResolvedInvite extends Equatable {
 
 /// Whether a server's `resolve_invite` answer says the link needs a Rift
 /// account. A server from before the switch does not say, which is no.
-bool needsAccountIn(Map<dynamic, dynamic> data) => data['needs_account'] == true;
+bool needsAccountIn(Map<dynamic, dynamic> data) =>
+    data['needs_account'] == true;

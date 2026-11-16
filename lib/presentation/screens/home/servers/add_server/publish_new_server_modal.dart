@@ -15,6 +15,7 @@ import '../../../../../logic/helper_methods.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/app_text_field.dart';
+import '../../../../common/checkbox_row.dart';
 import '../../../../common/hint_card.dart';
 import '../../../../common/message_banner.dart';
 import '../../../../common/no_central_account.dart';
@@ -82,6 +83,10 @@ class _PublishNewServerModalState extends State<PublishNewServerModal> {
   List<String> _tags = const [];
 
   bool _publishing = false;
+
+  /// Whether the listing's join link needs a Rift account. Off by default;
+  /// changed later under Discovery.
+  bool _needsAccount = false;
   String? _error;
 
   @override
@@ -128,6 +133,7 @@ class _PublishNewServerModalState extends State<PublishNewServerModal> {
     final invite = await invites.createInvite(
       maxUses: null,
       expiresInSeconds: null,
+      needsAccount: _needsAccount,
     );
     if (!mounted) return;
     if (!invite.success || invite.inviteCode == null) {
@@ -252,6 +258,14 @@ class _PublishNewServerModalState extends State<PublishNewServerModal> {
           onChanged: (tags) => setState(() => _tags = tags),
 
           enabled: !_publishing,
+        ),
+        const SizedBox(height: 12),
+        CheckboxRow(
+          label: 'People joining from the directory need a Rift account',
+          value: _needsAccount,
+          onChanged: (value) {
+            if (!_publishing) setState(() => _needsAccount = value);
+          },
         ),
         const SizedBox(height: 16),
         const HintCard(

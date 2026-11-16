@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../../data/classes/role.dart';
+import '../../../../common/checkbox_row.dart';
 import '../../../../common/chip_selector.dart';
 import '../../../../common/field_label.dart';
 import '../../../../common/message_banner.dart';
@@ -30,6 +31,11 @@ class InviteForm extends StatelessWidget {
   final ValueChanged<String?> onRoleSelected;
   final ValueChanged<bool> onIsBotChanged;
 
+  /// Whether joining through this link needs a Rift account. Null hides the
+  /// choice: only an admin may make such a link, and a bot has no account.
+  final bool? needsAccount;
+  final ValueChanged<bool> onNeedsAccountChanged;
+
   final String? inviteLink;
   final bool isGenerating;
   final bool copied;
@@ -47,6 +53,8 @@ class InviteForm extends StatelessWidget {
     required this.roleId,
     required this.onRoleSelected,
     required this.onIsBotChanged,
+    required this.needsAccount,
+    required this.onNeedsAccountChanged,
     required this.inviteLink,
     required this.isGenerating,
     required this.copied,
@@ -118,6 +126,23 @@ class InviteForm extends StatelessWidget {
           onSelected: onRoleSelected,
         ),
         if (roles.isNotEmpty) const SizedBox(height: 16),
+
+        // For a link posted where strangers find it: a ban then holds
+        // against the account, not one identity that costs nothing to make
+        // again. Links made for people you know can stay open to privacy mode.
+        if (needsAccount case final on?) ...[
+          CheckboxRow(
+            label: 'Needs a Rift account',
+            value: on,
+            onChanged: onNeedsAccountChanged,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'For links you post publicly',
+            style: AppText.secondary.copyWith(color: themeState.textTertiary),
+          ),
+          const SizedBox(height: 16),
+        ],
 
         // One field, server URL and code combined, so the invitee pastes a
         // single thing.

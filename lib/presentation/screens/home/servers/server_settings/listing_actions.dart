@@ -49,8 +49,9 @@ class ListingActions {
     final minted = await _inviteCode(draft, invites);
     final code = minted.code;
     if (code == null) {
-      return 'Server settings saved, but the listing needs a join link and '
-          'one could not be created. Try Save again.';
+      return minted.error ??
+          'Server settings saved, but the listing needs a join link and '
+              'one could not be created. Try Save again.';
     }
 
     final saved = await publicServers.publish(
@@ -82,6 +83,7 @@ class ListingActions {
           '${publicServers.state.error ?? 'central could not be reached.'}';
     }
     draft.listing = saved;
+    draft.savedNeedsAccount = draft.needsAccount;
     return null;
   }
 
@@ -124,19 +126,39 @@ class ListingActions {
   ///
   /// [isNew] says which, because only a link minted here may be taken back
   /// when the publish fails.
-  static Future<({String? code, bool isNew})> _inviteCode(
+  static Future<({String? code, bool isNew, String? error})> _inviteCode(
     ListingDraft draft,
     InvitesApi invites,
   ) async {
     final existing = draft.listing?.inviteCode;
     if (existing != null && !draft.resetLink) {
-      return (code: existing, isNew: false);
+      if (draft.needsAccount != draft.savedNeedsAccount) {
+        final marked = await invites.setNeedsAccount(
+          inviteCode: existing,
+          needsAccount: draft.needsAccount,
+        );
+        if (!marked.success) {
+          return (
+            code: null,
+            isNew: false,
+            error:
+                'Server settings saved, but whether the join link needs a '
+                'Rift account did not: ${marked.error}',
+          );
+        }
+      }
+      return (code: existing, isNew: false, error: null);
     }
 
     final result = await invites.createInvite(
       maxUses: null,
       expiresInSeconds: null,
+      needsAccount: draft.needsAccount,
     );
-    return (code: result.success ? result.inviteCode : null, isNew: true);
+    return (
+      code: result.success ? result.inviteCode : null,
+      isNew: true,
+      error: null,
+    );
   }
 }

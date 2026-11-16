@@ -16,8 +16,14 @@ void main() {
     });
 
     test('with an account, or on an ordinary link, nothing is refused', () {
-      expect(joinNeedsAccountError(needsAccount: true, hasAccount: true), isNull);
-      expect(joinNeedsAccountError(needsAccount: false, hasAccount: false), isNull);
+      expect(
+        joinNeedsAccountError(needsAccount: true, hasAccount: true),
+        isNull,
+      );
+      expect(
+        joinNeedsAccountError(needsAccount: false, hasAccount: false),
+        isNull,
+      );
     });
   });
 
@@ -28,7 +34,10 @@ void main() {
 
     test('a server from before the switch says nothing, which is no', () {
       expect(needsAccountIn({'server_id': 's'}), isFalse);
-      expect(needsAccountIn({'server_id': 's', 'needs_account': 'yes'}), isFalse);
+      expect(
+        needsAccountIn({'server_id': 's', 'needs_account': 'yes'}),
+        isFalse,
+      );
     });
 
     test('whether a link needs an account is part of the invite', () {
@@ -56,19 +65,26 @@ void main() {
     });
 
     test('an unconfirmed email says what to do', () {
-      expect(passFromResponse({'error': 'email_unconfirmed'}).error,
-          "Confirm your Rift account's email first, then join again.");
+      expect(
+        passFromResponse({'error': 'email_unconfirmed'}).error,
+        "Confirm your Rift account's email first, then join again.",
+      );
     });
 
     test('a lost sign-in says what to do', () {
-      expect(passFromResponse({'error': 'not_authenticated'}).error,
-          'Sign in to Rift again, then join again.');
+      expect(
+        passFromResponse({'error': 'not_authenticated'}).error,
+        'Sign in to Rift again, then join again.',
+      );
     });
 
     test('anything else is a plain failure, never a pass', () {
       final answer = passFromResponse({'error': 'bad_fields'});
       expect(answer.pass, isNull);
-      expect(answer.error, "Rift couldn't vouch for your account. Try joining again.");
+      expect(
+        answer.error,
+        "Rift couldn't vouch for your account. Try joining again.",
+      );
       expect(passFromResponse('nonsense').pass, isNull);
     });
   });

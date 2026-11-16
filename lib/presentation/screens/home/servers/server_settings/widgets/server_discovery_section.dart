@@ -112,6 +112,31 @@ class ServerDiscoverySection extends StatelessWidget {
               enabled: enabled,
             ),
             const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'People joining from the directory need a Rift account',
+                    style: AppText.row.copyWith(color: themeState.textPrimary),
+                  ),
+                ),
+                AppSwitch(
+                  value: draft.needsAccount,
+                  onChanged: enabled
+                      ? (value) {
+                          draft.needsAccount = value;
+                          onChanged();
+                        }
+                      : null,
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'A ban then holds against the account, not one identity',
+              style: AppText.secondary.copyWith(color: themeState.textTertiary),
+            ),
+            const SizedBox(height: 14),
             HintCard(
               icon: Icons.public_outlined,
               text:

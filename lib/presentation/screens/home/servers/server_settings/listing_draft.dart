@@ -31,6 +31,19 @@ class ListingDraft {
   /// cancelling the dialog must leave it working.
   bool resetLink = false;
 
+  /// Whether the listing's join link needs a Rift account, as this dialog
+  /// will save it, and as the server last said it was ([savedNeedsAccount]).
+  /// The server is asked when the dialog opens (`resolve_invite`), since the
+  /// link may have been made by another admin and only its maker can read it.
+  bool needsAccount = false;
+  bool savedNeedsAccount = false;
+
+  /// The server has said, so the switch shows what is true.
+  void seedNeedsAccount(bool value) {
+    needsAccount = value;
+    savedNeedsAccount = value;
+  }
+
   /// What central already holds for this server, or null when it has never
   /// been published. Also the source of the invite code a save reuses.
   PublicServer? listing;
@@ -44,6 +57,8 @@ class ListingDraft {
     committedTags = listing?.tags ?? const [];
     isListed = listing?.isListed ?? false;
     resetLink = false;
+    needsAccount = false;
+    savedNeedsAccount = false;
   }
 
   /// What to publish: the chips, plus anything still in the tag box.
