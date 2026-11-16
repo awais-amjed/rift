@@ -14,12 +14,12 @@ import '../../participants_grid/participants_tile/pip_resize_grip.dart';
 import '../../participants_grid/participants_tile/stream_corner_button.dart';
 import '../../participants_grid/participants_tile/watched_stream_picture.dart';
 
-/// The floating stream itself: the picture, and on hover whose it is, which
-/// is pressed to go back to the call, a button to put it away, and the resize
-/// grip.
+/// The floating stream itself: the picture, whose it is along its top, which
+/// is pressed to go back to the call, and on hover a button to put it away.
 ///
-/// The name and buttons run along the edge by its corner, the grip sits on
-/// the edge facing into the pane, so the two never meet.
+/// Whose it is always shows, so a glance says which stream this is. The two
+/// edges facing into the pane, and the corner between them, resize it
+/// (`PipResizeGrip`), with nothing drawn on them.
 class CallPipCard extends StatefulWidget {
   final String identity;
 
@@ -100,20 +100,13 @@ class _CallPipCardState extends State<CallPipCard> {
                       frame: (picture) => picture,
                     ),
                   ),
+                  // Whose stream it is, always; its ✕ with the pointer.
                   Align(
-                    alignment: widget.corner.isTop
-                        ? Alignment.topCenter
-                        : Alignment.bottomCenter,
-                    // The name and the close button blur one copy of the
-                    // picture; the grip, in a fade of its own, keeps its own.
-                    child: _fading(
-                      controls,
-                      SharedBackdrop(child: _controls()),
-                    ),
+                    alignment: Alignment.topCenter,
+                    child: SharedBackdrop(child: _controls(controls)),
                   ),
                   PipResizeGrip(
                     corner: widget.corner,
-                    visible: controls,
                     onResize: widget.onResize,
                     onEnd: widget.onResizeEnd,
                   ),
@@ -138,7 +131,7 @@ class _CallPipCardState extends State<CallPipCard> {
     child: IgnorePointer(ignoring: !visible, child: child),
   );
 
-  Widget _controls() {
+  Widget _controls(bool hovered) {
     final name = context.select<AppCubit, String>(
       (c) =>
           c.state.participants
@@ -177,10 +170,13 @@ class _CallPipCardState extends State<CallPipCard> {
               ),
             ),
           ),
-          StreamCornerButton(
-            icon: Icons.close_rounded,
-            tooltip: 'Hide',
-            onTap: widget.onDismiss,
+          _fading(
+            hovered,
+            StreamCornerButton(
+              icon: Icons.close_rounded,
+              tooltip: 'Hide',
+              onTap: widget.onDismiss,
+            ),
           ),
         ],
       ),

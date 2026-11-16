@@ -222,9 +222,9 @@ class ExpandedParticipantTile extends StatelessWidget {
     final pipTopRight = pip != null && pipCorner == StreamPipCorner.topRight;
     final app = context.read<AppCubit>();
     // The badges and buttons along the bottom blur one copy of what is under
-    // them. Who is watching is painted before the camera, and the camera's
-    // grip over the camera, so each keeps its own: a copy taken at the
-    // watchers would show the stream where the camera is.
+    // them. Who is watching is painted before the camera, so it keeps its
+    // own: a copy taken at the watchers would show the stream where the
+    // camera is.
     return SharedBackdrop(
       child: Stack(
         fit: StackFit.expand,
@@ -292,7 +292,6 @@ class ExpandedParticipantTile extends StatelessWidget {
                 ),
                 onCorner: app.setStreamPipCorner,
                 onScale: app.setStreamPipScale,
-                showGrip: showOverlays,
               ),
             ),
           AnimatedPositioned(

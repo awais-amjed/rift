@@ -9,6 +9,7 @@ import 'package:rift/logic/cubits/livekit/livekit_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/presentation/screens/home/call_pip/call_stream_pip.dart';
 import 'package:rift/presentation/screens/home/call_pip/widgets/call_pip_card.dart';
+import 'package:rift/presentation/screens/home/participants_grid/participants_tile/participant_name_badge.dart';
 
 import 'support/memory_storage.dart';
 
@@ -76,11 +77,11 @@ void main() {
     }
   }
 
-  /// The corner grip, of a card resting bottom right: its top left, and left
-  /// is bigger.
+  /// The corner that moves, of a card resting bottom right: its top left,
+  /// and left is bigger.
   Future<TestGesture> grab(WidgetTester tester) async {
     await pumpPip(tester);
-    final grip = tester.getCenter(find.byIcon(Icons.open_in_full_rounded));
+    final grip = card(tester).topLeft + const Offset(2, 2);
     final mouse = await hover(tester, grip);
     await pull(tester, mouse, grip);
     return mouse;
@@ -158,5 +159,27 @@ void main() {
     );
     expect(cursor(), SystemMouseCursors.grab);
     await mouse.removePointer();
+  });
+
+  testWidgets('its corner resizes it, with no grip drawn on it', (
+    tester,
+  ) async {
+    await pumpPip(tester);
+    await hover(tester, card(tester).topLeft + const Offset(2, 2));
+    expect(cursor(), SystemMouseCursors.resizeUpLeftDownRight);
+    expect(find.byIcon(Icons.open_in_full_rounded), findsNothing);
+  });
+
+  testWidgets('whose stream it is shows along its top, hovered or not', (
+    tester,
+  ) async {
+    await pumpPip(tester);
+    final badge = find.byType(ParticipantNameBadge);
+    expect(badge, findsOneWidget);
+    expect(tester.getRect(badge).top, lessThan(card(tester).center.dy));
+    final fades = tester.widgetList<AnimatedOpacity>(
+      find.ancestor(of: badge, matching: find.byType(AnimatedOpacity)),
+    );
+    expect(fades.every((f) => f.opacity == 1), isTrue);
   });
 }

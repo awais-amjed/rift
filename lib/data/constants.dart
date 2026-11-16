@@ -370,6 +370,10 @@ class K {
   /// edges that move (`PipResizeGrip`): a window's border, about.
   static const double pipResizeEdge = 6;
 
+  /// The square at the corner between those two edges that resizes it both
+  /// ways at once.
+  static const double pipResizeCorner = 16;
+
   /// The least width a stream nobody has opened takes on the stage, room
   /// enough for its Watch button above its name and quality. At a person's
   /// width on a phone the three ran into each other.

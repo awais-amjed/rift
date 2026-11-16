@@ -2,43 +2,34 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../../../data/constants.dart';
 import '../../../../../data/enums/stream_pip_corner.dart';
-import '../../../../theme/app_motion.dart';
-import '../../../../theme/theme_context.dart';
-import 'stream_glass.dart';
 
 /// What resizes a floating picture: the two edges facing away from the corner
 /// it rests in, which are the ones that move, and the corner between them.
 /// Goes in the picture's [Stack], filling it.
 ///
-/// Like a window's border: the edges are there whether or not the picture's
-/// controls are showing, and the pointer turns to the resize arrows over
-/// them. The grip on the corner shows with the controls, to say it can be
-/// done at all. An edge passes on only its own direction, so a side resizes
-/// by the pointer going across and a top or bottom by it going up or down.
+/// Like a window's border: nothing is drawn, the edges are there whether or
+/// not the picture's controls are showing, and the pointer turns to the
+/// resize arrows over them. An edge passes on only its own direction, so a
+/// side resizes by the pointer going across and a top or bottom by it going
+/// up or down; the corner passes on both.
 ///
 /// Shared by the sharer's camera over a stream and a stream floating over a
 /// chat, so the two resize alike.
 class PipResizeGrip extends StatelessWidget {
   /// The corner the picture rests in, which stays put.
   final StreamPipCorner corner;
-
-  /// Whether the corner grip shows.
-  final bool visible;
   final GestureDragUpdateCallback onResize;
   final VoidCallback onEnd;
 
   const PipResizeGrip({
     super.key,
     required this.corner,
-    required this.visible,
     required this.onResize,
     required this.onEnd,
   });
 
   @override
   Widget build(BuildContext context) {
-    // The arrow runs from the grip to the corner that stays put.
-    final diagonal = corner.isTop == corner.isLeft;
     const edge = K.pipResizeEdge;
     return Stack(
       fit: StackFit.expand,
@@ -67,33 +58,18 @@ class PipResizeGrip extends StatelessWidget {
             only: (d) => Offset(0, d.dy),
           ),
         ),
-        Align(
-          alignment: Alignment(corner.isLeft ? 1 : -1, corner.isTop ? 1 : -1),
+        // The corner between them, over both.
+        Positioned(
+          left: corner.isLeft ? null : 0,
+          right: corner.isLeft ? 0 : null,
+          top: corner.isTop ? null : 0,
+          bottom: corner.isTop ? 0 : null,
+          width: K.pipResizeCorner,
+          height: K.pipResizeCorner,
           child: _handle(
-            diagonal
+            corner.isTop == corner.isLeft
                 ? SystemMouseCursors.resizeUpLeftDownRight
                 : SystemMouseCursors.resizeUpRightDownLeft,
-            child: Padding(
-              padding: const EdgeInsets.all(4),
-              child: AnimatedOpacity(
-                opacity: visible ? 1 : 0,
-                duration: AppMotion.enter,
-                child: StreamGlass(
-                  child: Padding(
-                    padding: const EdgeInsets.all(3),
-                    child: RotatedBox(
-                      // open_in_full points up right and down left.
-                      quarterTurns: diagonal ? 1 : 0,
-                      child: Icon(
-                        Icons.open_in_full_rounded,
-                        size: K.iconInline,
-                        color: context.theme.textSecondary,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
           ),
         ),
       ],
@@ -102,28 +78,24 @@ class PipResizeGrip extends StatelessWidget {
 
   /// A place to press that resizes, passing on the part of each move [only]
   /// keeps (all of it when absent).
-  Widget _handle(
-    MouseCursor cursor, {
-    Offset Function(Offset delta)? only,
-    Widget? child,
-  }) => MouseRegion(
-    cursor: cursor,
-    child: GestureDetector(
-      // Taken over the whole strip, with nothing painted on it.
-      behavior: HitTestBehavior.opaque,
-      onPanUpdate: (d) => onResize(
-        only == null
-            ? d
-            : DragUpdateDetails(
-                sourceTimeStamp: d.sourceTimeStamp,
-                delta: only(d.delta),
-                globalPosition: d.globalPosition,
-                localPosition: d.localPosition,
-              ),
-      ),
-      onPanEnd: (_) => onEnd(),
-      onPanCancel: onEnd,
-      child: child,
-    ),
-  );
+  Widget _handle(MouseCursor cursor, {Offset Function(Offset delta)? only}) =>
+      MouseRegion(
+        cursor: cursor,
+        child: GestureDetector(
+          // Taken over the whole strip, with nothing painted on it.
+          behavior: HitTestBehavior.opaque,
+          onPanUpdate: (d) => onResize(
+            only == null
+                ? d
+                : DragUpdateDetails(
+                    sourceTimeStamp: d.sourceTimeStamp,
+                    delta: only(d.delta),
+                    globalPosition: d.globalPosition,
+                    localPosition: d.localPosition,
+                  ),
+          ),
+          onPanEnd: (_) => onEnd(),
+          onPanCancel: onEnd,
+        ),
+      );
 }

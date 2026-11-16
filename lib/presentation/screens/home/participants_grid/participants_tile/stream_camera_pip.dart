@@ -38,10 +38,6 @@ class StreamCameraPip extends StatefulWidget {
   /// Told the new [scale] once a resize is let go.
   final ValueChanged<double> onScale;
 
-  /// Whether the resize grip shows: with the stream's other overlays, which
-  /// pointer movement brings back.
-  final bool showGrip;
-
   const StreamCameraPip({
     super.key,
     required this.track,
@@ -51,7 +47,6 @@ class StreamCameraPip extends StatefulWidget {
     required this.margin,
     required this.onCorner,
     required this.onScale,
-    required this.showGrip,
   });
 
   static const _aspect = 16 / 9;
@@ -205,10 +200,9 @@ class _StreamCameraPipState extends State<StreamCameraPip> {
     ),
   );
 
-  /// On the corner facing into the stream, the one that moves.
+  /// The edges and corner facing into the stream, the ones that move.
   Widget _grip() => PipResizeGrip(
     corner: widget.corner,
-    visible: widget.showGrip || _resizing != null,
     onResize: _resize,
     onEnd: _endResize,
   );
