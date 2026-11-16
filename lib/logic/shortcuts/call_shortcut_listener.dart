@@ -75,7 +75,7 @@ class _CallShortcutListenerState extends State<CallShortcutListener> {
       return false;
     }
     // The desktop has it; it should never reach here, but if it does, once.
-    if (state.desktopCallShortcuts.contains(action)) return false;
+    if (state.desktopCallShortcuts.containsKey(action)) return false;
     runCallShortcut(action, context.read<LiveKitCubit>());
     return true;
   }

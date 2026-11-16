@@ -162,7 +162,7 @@ class LinuxGlobalShortcuts {
         label: pushToTalkKey.label,
       );
     }
-    _app.setDesktopCallShortcuts(deliveredActions(triggers));
+    _app.setDesktopCallShortcuts(deliveredKeys(triggers));
     _app.setCallShortcuts(calls);
   }
 

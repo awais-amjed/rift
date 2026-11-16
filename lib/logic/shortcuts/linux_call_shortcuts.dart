@@ -28,10 +28,11 @@ List<PortalShortcut> portalShortcutsFor(CallShortcuts shortcuts) => [
       ),
 ];
 
-/// The actions the desktop reported a key for.
-Set<CallShortcut> deliveredActions(Map<String, String> triggers) => {
+/// The actions the desktop reported a key for, with the key as it describes
+/// it.
+Map<CallShortcut, String> deliveredKeys(Map<String, String> triggers) => {
   for (final MapEntry(key: id, value: trigger) in triggers.entries)
-    if (trigger.isNotEmpty) ?callShortcutForPortalId(id),
+    if (trigger.isNotEmpty) ?callShortcutForPortalId(id): trigger,
 };
 
 /// [stored] with each key the desktop reported in its place. A key Rift

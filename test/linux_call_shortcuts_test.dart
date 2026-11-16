@@ -81,9 +81,14 @@ void main() {
     });
   });
 
-  test('which actions the desktop delivers', () {
-    expect(deliveredActions({'call-mute': 'Press F9', 'call-deafen': ''}), {
-      CallShortcut.mute,
-    });
+  test('which actions the desktop delivers, on which keys', () {
+    expect(
+      deliveredKeys({
+        'call-mute': 'Press F9',
+        'call-deafen': '',
+        'push-to-talk': 'Press F8',
+      }),
+      {CallShortcut.mute: 'Press F9'},
+    );
   });
 }

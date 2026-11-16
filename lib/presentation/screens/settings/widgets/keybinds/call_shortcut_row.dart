@@ -6,6 +6,7 @@ import '../../../../../data/classes/call_shortcuts.dart';
 import '../../../../../data/classes/key_shortcut.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/ptt/desktop_shortcut_settings.dart';
+import '../../../../../logic/ptt/xdg_trigger.dart';
 import '../../../../../logic/shortcuts/call_shortcut_actions.dart';
 import '../../../../../logic/shortcuts/call_shortcut_listener.dart';
 import '../../../../common/app_button.dart';
@@ -21,16 +22,16 @@ class CallShortcutRow extends StatefulWidget {
   final CallShortcut action;
   final KeyShortcut? keys;
 
-  /// The Linux desktop holds this key: it keeps the one it granted whatever
-  /// Rift picks, so the key changes on the desktop's own page, as
-  /// push-to-talk's does.
-  final bool desktopHolds;
+  /// The key as the Linux desktop describes it, when the desktop holds it: it
+  /// keeps the one it granted whatever Rift picks, so the key changes on the
+  /// desktop's own page, as push-to-talk's does.
+  final String? desktopKey;
 
   const CallShortcutRow({
     super.key,
     required this.action,
     required this.keys,
-    this.desktopHolds = false,
+    this.desktopKey,
   });
 
   @override
@@ -91,6 +92,19 @@ class _CallShortcutRowState extends State<CallShortcutRow> {
 
   String get _title => callShortcutTitle(widget.action);
 
+  bool get _desktopHolds => widget.desktopKey != null;
+
+  /// The keys as Rift writes them, unless the desktop holds a key Rift cannot
+  /// read: then the desktop's own words, since the stored keys are not the
+  /// ones that work.
+  String _shownKeys(KeyShortcut keys) {
+    final desktop = widget.desktopKey;
+    if (desktop == null || shortcutForTriggerDescription(desktop) != null) {
+      return keys.label;
+    }
+    return desktop.replaceFirst(RegExp('^Press ', caseSensitive: false), '');
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
@@ -124,10 +138,10 @@ class _CallShortcutRowState extends State<CallShortcutRow> {
                   )
                 else if (keys != null) ...[
                   Text(
-                    keys.label,
+                    _shownKeys(keys),
                     style: AppText.kbd.copyWith(color: theme.textSecondary),
                   ),
-                  if (widget.desktopHolds && !DesktopShortcutSettings.canOpen)
+                  if (_desktopHolds && !DesktopShortcutSettings.canOpen)
                     Text(
                       "To change it, open your computer's settings and look "
                       "for Rift's keyboard shortcuts.",
@@ -145,7 +159,7 @@ class _CallShortcutRowState extends State<CallShortcutRow> {
               onPressed: () =>
                   context.read<AppCubit>().setCallShortcut(widget.action, null),
             ),
-          if (widget.desktopHolds && keys != null)
+          if (_desktopHolds && keys != null)
             DesktopShortcutSettings.canOpen
                 ? const AppButton(
                     label: 'Change key',

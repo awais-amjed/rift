@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:ui' show Offset, Size;
 
 import 'package:equatable/equatable.dart';
-import 'package:flutter/foundation.dart' show setEquals;
+import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:json_annotation/json_annotation.dart';
 
@@ -136,9 +136,9 @@ class AppCubit extends HydratedCubit<AppState> {
     emit(state.copyWith(callShortcuts: shortcuts));
   }
 
-  void setDesktopCallShortcuts(Set<CallShortcut> actions) {
-    if (setEquals(actions, state.desktopCallShortcuts)) return;
-    emit(state.copyWith(desktopCallShortcuts: Set.unmodifiable(actions)));
+  void setDesktopCallShortcuts(Map<CallShortcut, String> keys) {
+    if (mapEquals(keys, state.desktopCallShortcuts)) return;
+    emit(state.copyWith(desktopCallShortcuts: Map.unmodifiable(keys)));
   }
 
   void setDesktopPushToTalkKey(String? key) {

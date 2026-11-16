@@ -252,6 +252,18 @@ void main() {
       expect(find.text('Not set'), findsNWidgets(3));
     });
 
+    testWidgets("a desktop key Rift cannot read is shown as the desktop's", (
+      tester,
+    ) async {
+      final app = await pump(tester);
+      app.setCallShortcut(CallShortcut.mute, ctrlShiftM);
+      app.setDesktopCallShortcuts({CallShortcut.mute: 'Press <Super>Print'});
+      await tester.pump();
+
+      expect(find.text('<Super>Print'), findsOneWidget);
+      expect(find.text('Ctrl+Shift+M'), findsNothing);
+    });
+
     testWidgets('Leave call has a row of its own', (tester) async {
       await pump(tester);
       expect(find.text('Leave call'), findsOneWidget);
@@ -272,7 +284,9 @@ void main() {
       (tester) async {
         final app = await pump(tester);
         app.setCallShortcut(CallShortcut.mute, ctrlShiftM);
-        app.setDesktopCallShortcuts({CallShortcut.mute});
+        app.setDesktopCallShortcuts({
+          CallShortcut.mute: 'Press <Shift><Control>m',
+        });
         await tester.pump();
 
         expect(find.text('Ctrl+Shift+M'), findsOneWidget);

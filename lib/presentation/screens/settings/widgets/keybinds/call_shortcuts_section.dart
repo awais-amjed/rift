@@ -14,9 +14,9 @@ import 'call_shortcut_row.dart';
 class CallShortcutsSection extends StatelessWidget {
   final CallShortcuts shortcuts;
 
-  /// The actions whose keys the Linux desktop holds
+  /// The actions whose keys the Linux desktop holds, as it describes them
   /// (`AppState.desktopCallShortcuts`).
-  final Set<CallShortcut> desktopActions;
+  final Map<CallShortcut, String> desktopActions;
 
   const CallShortcutsSection({
     super.key,
@@ -46,7 +46,7 @@ class CallShortcutsSection extends StatelessWidget {
           CallShortcutRow(
             action: action,
             keys: shortcuts[action],
-            desktopHolds: desktopActions.contains(action),
+            desktopKey: desktopActions[action],
           ),
         ],
       ],
