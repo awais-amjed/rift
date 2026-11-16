@@ -115,6 +115,11 @@ void main() {
       expect(shortcutForTriggerDescription('Press Ctrl+Shift+M'), ctrlShiftM);
       expect(shortcutForTriggerDescription('Shift+Ctrl+M'), ctrlShiftM);
       expect(shortcutForTriggerDescription('<Control><Shift>m'), ctrlShiftM);
+      // GNOME 50's words for it (verified Nov 16 with the portal).
+      expect(
+        shortcutForTriggerDescription('Press <Shift><Control>m'),
+        ctrlShiftM,
+      );
       expect(shortcutForTriggerDescription('Super+K'), superK);
       expect(shortcutForTriggerDescription('Logo+K'), superK);
       expect(shortcutForTriggerDescription('Press F8'), f8);
