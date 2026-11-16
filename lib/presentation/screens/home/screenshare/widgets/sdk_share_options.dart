@@ -5,6 +5,7 @@ import '../../../../../data/classes/server_limits.dart';
 import '../../../../../logic/services/phone_share_publish.dart';
 import '../../../../../logic/services/web_share_publish.dart';
 import '../../../../../src/rust/api/screenshare/types.dart';
+import '../../../../common/advanced_settings.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 import '../sections/bitrate_section.dart';
@@ -12,7 +13,6 @@ import '../sections/codec_section.dart';
 import '../sections/frame_rate_section.dart';
 import '../sections/priority_section.dart';
 import '../sections/resolution_section.dart';
-import 'advanced_settings.dart';
 import 'settings_summary.dart';
 import 'share_sound_switch.dart';
 

@@ -135,8 +135,29 @@ class AppState extends Equatable {
   /// dragged it. Stored raw and clamped on read (`DmCallStage`), like the
   /// widths above.
   final double dmCallStageShare;
+
+  /// The main output: everything plays here unless [soundOutputs] gives a
+  /// kind of sound its own. Read [callOutputId], [streamOutputId] or
+  /// [dingOutputId] to know where something actually plays.
   final String? outputDeviceId;
   final String? inputDeviceId;
+
+  /// The devices calls, streams and dings play on when split off the main
+  /// output (Voice & audio → Advanced, Windows and Linux).
+  final SoundOutputs soundOutputs;
+
+  /// Where the call plays: voices, sound shares and the soundboard. Null is
+  /// the system default.
+  String? get callOutputId =>
+      soundOutputs.deviceFor(SoundKind.calls, outputDeviceId);
+
+  /// Where a share Rift plays itself plays (`RustWatch.playsSound`).
+  String? get streamOutputId =>
+      soundOutputs.deviceFor(SoundKind.streams, outputDeviceId);
+
+  /// Where Rift's own cues play (`SoundService`).
+  String? get dingOutputId =>
+      soundOutputs.deviceFor(SoundKind.dings, outputDeviceId);
 
   /// How loud every call is here, on top of each person's own volume: 1 is
   /// as sent, and up to [CallVolume.max].
@@ -333,6 +354,7 @@ class AppState extends Equatable {
     this.startMinimized = false,
     this.outputDeviceId,
     this.inputDeviceId,
+    this.soundOutputs = const SoundOutputs(),
     this.outputVolume = 1.0,
     this.inputVolume = 1.0,
     this.noiseSuppression = NoiseSuppression.dpdfnet,
@@ -428,6 +450,7 @@ class AppState extends Equatable {
     String? outputDeviceId,
     bool clearOutputDeviceId = false,
     String? inputDeviceId,
+    SoundOutputs? soundOutputs,
     double? outputVolume,
     double? inputVolume,
     bool clearInputDeviceId = false,
@@ -513,6 +536,7 @@ class AppState extends Equatable {
       inputDeviceId: clearInputDeviceId
           ? null
           : (inputDeviceId ?? this.inputDeviceId),
+      soundOutputs: soundOutputs ?? this.soundOutputs,
       outputVolume: outputVolume ?? this.outputVolume,
       inputVolume: inputVolume ?? this.inputVolume,
       noiseSuppression: noiseSuppression ?? this.noiseSuppression,
@@ -630,6 +654,7 @@ class AppState extends Equatable {
     dmCallStageShare,
     outputDeviceId,
     inputDeviceId,
+    soundOutputs,
     outputVolume,
     inputVolume,
     noiseSuppression,

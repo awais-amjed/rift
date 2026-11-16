@@ -4,12 +4,15 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:livekit_client/livekit_client.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../../data/classes/sound_outputs.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/audio_device_list/audio_device_list_cubit.dart';
 import '../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../logic/services/audio_devices.dart';
+import '../../../../logic/services/host_platform.dart';
 import '../../../common/message_banner.dart';
 import 'audio_device_picker.dart';
+import 'sound_output_pickers.dart';
 
 /// Over the widget budget and one job: picking the input and output devices,
 /// which load and change together.
@@ -33,6 +36,7 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
 
   String? _selectionError;
 
+
   StreamSubscription<void>? _deviceChangeSub;
 
   @override
@@ -52,7 +56,49 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
 
   void _reload() => _fresh = _lists.load();
 
-  /// Applies a picked device, then records it.
+  /// Picks the microphone.
+  Future<void> _selectInput(String? deviceId) => _apply(
+    deviceId,
+    isInput: true,
+    record: () => context.read<AppCubit>().setInputDeviceId(deviceId),
+  );
+
+  /// Picks the main output. The call moves with it only while it follows it
+  /// ([SoundOutputs]); streams and sounds read where to play as they play.
+  Future<void> _selectOutput(String? deviceId) {
+    final app = context.read<AppCubit>();
+    return _applyCall(
+      app.state.soundOutputs.deviceFor(SoundKind.calls, deviceId),
+      record: () => app.setOutputDeviceId(deviceId),
+    );
+  }
+
+  /// Gives [kind] a device of its own, or with null puts it back on the
+  /// output. Only the call's needs applying: the stream player is told by the
+  /// LiveKitCubit, and each sound opens its device as it plays.
+  Future<void> _selectKind(SoundKind kind, String? choice) async {
+    final app = context.read<AppCubit>();
+    void record() => app.setSoundOutput(kind, choice);
+    if (kind != SoundKind.calls) return _recorded(record);
+    return _applyCall(
+      app.state.soundOutputs
+          .withChoice(kind, choice)
+          .deviceFor(kind, app.state.outputDeviceId),
+      record: record,
+    );
+  }
+
+  /// Moves the call to [deviceId] (null for the system default) if that is
+  /// not where it already plays, then records the pick.
+  Future<void> _applyCall(String? deviceId, {required VoidCallback record}) {
+    if (deviceId == context.read<AppCubit>().state.callOutputId) {
+      return Future.sync(() => _recorded(record));
+    }
+    return _apply(deviceId, isInput: false, record: record);
+  }
+
+  /// Applies [deviceId] to the call — the microphone, or with [isInput] false
+  /// the call's playout — then [record]s the pick.
   ///
   /// That order matters: recording the choice first meant a device the
   /// platform went on to refuse stayed saved and came back next launch.
@@ -61,11 +107,15 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
   /// ([AudioDevices.systemDefault]): WebRTC keeps the last device it was given
   /// for the life of the process, so merely forgetting the choice left the
   /// call where it was.
-  Future<void> _select(String? deviceId, {required bool isInput}) async {
+  Future<void> _apply(
+    String? deviceId, {
+    required bool isInput,
+    required VoidCallback record,
+  }) async {
     await _fresh;
     if (!mounted) return;
     final lists = _lists.state;
-    if (!lists.live) return _save(deviceId, isInput: isInput);
+    if (!lists.live) return _save(deviceId, isInput: isInput, record: record);
     final device = deviceId == null
         ? await AudioDevices.systemDefault(isInput: isInput)
         : AudioDevices.byId(isInput ? lists.inputs : lists.outputs, deviceId);
@@ -75,7 +125,7 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
       // choice. The call's mic must still stop naming the device just
       // un-picked, or every track it makes goes on recording from it.
       if (deviceId == null) {
-        _clearSelection(isInput: isInput);
+        _recorded(record);
         if (isInput) {
           await context.read<LiveKitCubit>().refreshAudioInput(null);
         }
@@ -87,7 +137,7 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
       // The default is still recorded as the choice, with the reason it
       // cannot play shown beside it. Refusing it outright kept the old device
       // saved, with no way back to the default at all.
-      if (deviceId == null) _clearSelection(isInput: isInput, keepError: true);
+      if (deviceId == null) record();
       return;
     }
 
@@ -104,27 +154,26 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
       return;
     }
     if (!mounted) return;
-    setState(() => _selectionError = null);
-
-    final app = context.read<AppCubit>();
+    _recorded(record);
     if (isInput) {
-      app.setInputDeviceId(deviceId);
       // The mic track has to be remade naming the device, or the plugin puts
       // it back on the first input as it is made.
       await context.read<LiveKitCubit>().refreshAudioInput(device.deviceId);
-    } else {
-      // Nothing to rebuild for playout: the call above reaches libwebrtc's
-      // SetPlayoutDevice, which restarts it on the new device by itself when
-      // something is playing.
-      app.setOutputDeviceId(deviceId);
     }
+    // Nothing to rebuild for playout: the call above reaches libwebrtc's
+    // SetPlayoutDevice, which restarts it on the new device by itself when
+    // something is playing.
   }
 
   /// Records a pick made outside a call, where there is nothing to apply it
   /// to: the next join puts it in force. A device that could not be opened is
   /// still refused here, since that join would only skip it.
-  void _save(String? deviceId, {required bool isInput}) {
-    if (deviceId == null) return _clearSelection(isInput: isInput);
+  void _save(
+    String? deviceId, {
+    required bool isInput,
+    required VoidCallback record,
+  }) {
+    if (deviceId == null) return _recorded(record);
     final lists = _lists.state;
     final device = AudioDevices.byId(
       isInput ? lists.inputs : lists.outputs,
@@ -133,13 +182,13 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
     if (device == null) return;
     final formats = isInput ? lists.inputFormats : lists.outputFormats;
     if (_refuseUnusable(device, formats)) return;
+    _recorded(record);
+  }
+
+  /// Records a pick that went through, and clears what an earlier one said.
+  void _recorded(VoidCallback record) {
+    record();
     setState(() => _selectionError = null);
-    final app = context.read<AppCubit>();
-    if (isInput) {
-      app.setInputDeviceId(deviceId);
-    } else {
-      app.setOutputDeviceId(deviceId);
-    }
   }
 
   /// Refuses a device whose format WebRTC cannot open, and says why.
@@ -164,17 +213,6 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
           'that provides it.';
     });
     return true;
-  }
-
-  /// Forgets the saved device, so the next join uses the system default.
-  void _clearSelection({required bool isInput, bool keepError = false}) {
-    final cubit = context.read<AppCubit>();
-    if (isInput) {
-      cubit.setInputDeviceId(null);
-    } else {
-      cubit.setOutputDeviceId(null);
-    }
-    if (!keepError) setState(() => _selectionError = null);
   }
 
   @override
@@ -204,7 +242,7 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
               formats: lists.inputFormats,
               selectedDeviceId: appState.inputDeviceId,
               loading: !lists.loaded,
-              onChanged: (id) => _select(id, isInput: true),
+              onChanged: _selectInput,
             ),
             const SizedBox(height: 22),
             AudioDevicePicker(
@@ -214,8 +252,18 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
               formats: lists.outputFormats,
               selectedDeviceId: appState.outputDeviceId,
               loading: !lists.loaded,
-              onChanged: (id) => _select(id, isInput: false),
+              onChanged: _selectOutput,
             ),
+            if (HostPlatform.splitsSoundOutputs) ...[
+              const SizedBox(height: 14),
+              SoundOutputPickers(
+                devices: lists.outputs,
+                formats: lists.outputFormats,
+                choices: appState.soundOutputs,
+                loading: !lists.loaded,
+                onChanged: _selectKind,
+              ),
+            ],
             // A device switch that fails used to do so silently, which is
             // indistinguishable from one that worked and killed the audio.
             if (error != null) ...[

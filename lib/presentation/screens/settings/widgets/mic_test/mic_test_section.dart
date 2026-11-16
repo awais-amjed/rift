@@ -144,11 +144,11 @@ class _MicTestSectionState extends State<MicTestSection> {
           echoCancellation: settings.echoCancellation,
           autoGainControl: settings.autoGainControl,
         ),
-        // At the call's own volume, short of boosting it: past full scale is
-        // clipping, and this is your own voice in your ears.
+        // On the call's output and at its volume, short of boosting it: past
+        // full scale is clipping, and this is your own voice in your ears.
         playback: _hearsYourself
             ? MicTestPlayback(
-                deviceId: settings.outputDeviceId,
+                deviceId: settings.callOutputId,
                 volume: settings.outputVolume.clamp(0, 1).toDouble(),
               )
             : null,
@@ -236,7 +236,7 @@ class _MicTestSectionState extends State<MicTestSection> {
         BlocListener<AppCubit, AppState>(
           listenWhen: (a, b) =>
               a.inputDeviceId != b.inputDeviceId ||
-              a.outputDeviceId != b.outputDeviceId,
+              a.callOutputId != b.callOutputId,
           listener: (_, _) => _onDeviceChanged(),
         ),
         if (HostPlatform.micTestReadsDevice)

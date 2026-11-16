@@ -1,6 +1,7 @@
 import 'package:livekit_client/livekit_client.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../../data/classes/sound_outputs.dart';
 import '../../../../logic/services/audio_devices.dart';
 import '../../../common/app_dropdown.dart';
 import '../../../theme/app_text.dart';
@@ -26,6 +27,13 @@ class AudioDevicePicker extends StatelessWidget {
   final bool loading;
   final ValueChanged<String?> onChanged;
 
+  /// For a kind of sound that can follow the main output: the first entry,
+  /// whose value is null. "System default" is then
+  /// [SoundOutputs.systemDefault] rather than null, since following the
+  /// output and the system's default are different choices once the output
+  /// names a device.
+  final String? followLabel;
+
   const AudioDevicePicker({
     super.key,
     required this.label,
@@ -35,7 +43,11 @@ class AudioDevicePicker extends StatelessWidget {
     required this.selectedDeviceId,
     required this.loading,
     required this.onChanged,
+    this.followLabel,
   });
+
+  String? get _defaultValue =>
+      followLabel == null ? null : SoundOutputs.systemDefault;
 
   /// The id to show, or null for the system-default entry.
   ///
@@ -51,9 +63,14 @@ class AudioDevicePicker extends StatelessWidget {
   /// virtual audio devices the first output happened to be one called
   /// "SteelSeries Sonar - Microphone", so the output picker appeared to be set
   /// to a microphone while the platform was quietly using its own default.
-  String? get _displayId => AudioDevices.byId(devices, selectedDeviceId) != null
-      ? selectedDeviceId
-      : null;
+  String? get _displayId {
+    if (AudioDevices.byId(devices, selectedDeviceId) != null) {
+      return selectedDeviceId;
+    }
+    return selectedDeviceId == SoundOutputs.systemDefault
+        ? _defaultValue
+        : null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -84,12 +101,14 @@ class AudioDevicePicker extends StatelessWidget {
             icon: icon,
             value: _displayId,
             options: [
+              if (followLabel != null)
+                AppDropdownOption<String?>(value: null, label: followLabel!),
               // Naming no device is a real choice, and the one to land on
               // first. Windows already has an answer, and these lists can be
               // full of virtual endpoints whose names say nothing about where
               // the sound ends up.
-              const AppDropdownOption<String?>(
-                value: null,
+              AppDropdownOption<String?>(
+                value: _defaultValue,
                 label: 'System default',
               ),
               // Devices WebRTC cannot open stay on the list and say so, rather

@@ -472,8 +472,9 @@ class LiveKitCubit extends Cubit<LiveKitState>
     if (previous.outputVolume != appState.outputVolume) {
       _applyStoredSettings();
     }
-    // The call's playback moves by itself; a share Rust plays is told.
-    if (previous.outputDeviceId != appState.outputDeviceId) {
+    // The call's playback is moved by the picker in settings, which applies
+    // it; a share Rust plays is told here.
+    if (previous.streamOutputId != appState.streamOutputId) {
       _syncRustSound();
     }
 

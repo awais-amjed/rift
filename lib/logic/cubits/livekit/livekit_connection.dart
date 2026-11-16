@@ -79,7 +79,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
     try {
       final applied = await AudioDevices.applySaved(
         inputId: _appCubit.state.inputDeviceId,
-        outputId: _appCubit.state.outputDeviceId,
+        outputId: _appCubit.state.callOutputId,
       );
       final input = applied.input ?? _unresolvedDefault();
       if (input == _captureDeviceId) return false;

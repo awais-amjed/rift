@@ -85,6 +85,9 @@ AppState _$AppStateFromJson(Map<String, dynamic> json) => AppState(
   startMinimized: json['startMinimized'] as bool? ?? false,
   outputDeviceId: json['outputDeviceId'] as String?,
   inputDeviceId: json['inputDeviceId'] as String?,
+  soundOutputs: json['soundOutputs'] == null
+      ? const SoundOutputs()
+      : SoundOutputs.fromJson(json['soundOutputs'] as Map<String, dynamic>),
   outputVolume: (json['outputVolume'] as num?)?.toDouble() ?? 1.0,
   inputVolume: (json['inputVolume'] as num?)?.toDouble() ?? 1.0,
   noiseSuppression: json['noiseSuppression'] == null
@@ -163,6 +166,7 @@ Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
   'dmCallStageShare': instance.dmCallStageShare,
   'outputDeviceId': instance.outputDeviceId,
   'inputDeviceId': instance.inputDeviceId,
+  'soundOutputs': instance.soundOutputs.toJson(),
   'outputVolume': instance.outputVolume,
   'inputVolume': instance.inputVolume,
   'noiseSuppression': instance.noiseSuppression.toJson(),

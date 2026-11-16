@@ -13,6 +13,7 @@ import '../../../data/classes/participant_info.dart';
 import '../../../data/classes/participant_setting.dart';
 import '../../../data/classes/screen_share_settings.dart';
 import '../../../data/classes/seen_key.dart';
+import '../../../data/classes/sound_outputs.dart';
 import '../../../data/constants.dart';
 import '../../../data/enums/app_sound.dart';
 import '../../../data/enums/home_surface.dart';
@@ -380,6 +381,12 @@ class AppCubit extends HydratedCubit<AppState> {
       ),
     );
   }
+
+  /// Gives [kind] a device of its own ([SoundOutputs.choiceFor]), or with
+  /// null puts it back on the main output.
+  void setSoundOutput(SoundKind kind, String? choice) => emit(
+    state.copyWith(soundOutputs: state.soundOutputs.withChoice(kind, choice)),
+  );
 
   /// See [AppState.outputVolume]. The LiveKitCubit puts it on every track.
   void setOutputVolume(double volume) =>

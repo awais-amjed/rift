@@ -100,7 +100,7 @@ class SoundService {
   void readSettingsFrom(Map<String, ParticipantSetting> Function() settings) =>
       _settings = settings;
 
-  /// Where the sounds go — `AppState.outputDeviceId`, read the same way as
+  /// Where the sounds go — `AppState.dingOutputId`, read the same way as
   /// [_settings], so a device picked in settings is used by the next sound.
   String? Function() _outputDevice = () => null;
 

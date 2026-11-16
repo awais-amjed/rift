@@ -106,7 +106,7 @@ class AppBootstrap {
     // Every sound reads its mute and volume from here, including the ones
     // raised by services that hold no cubit of their own.
     SoundService.instance.readSettingsFrom(() => appCubit.state.appSounds);
-    SoundService.instance.readOutputFrom(() => appCubit.state.outputDeviceId);
+    SoundService.instance.readOutputFrom(() => appCubit.state.dingOutputId);
     await SoundService.instance.playBesideOtherAppsOnAndroid();
     // After the context above, which the pool is opened with.
     unawaited(SoundService.instance.openCuePoolOnAndroid());

@@ -352,6 +352,31 @@ Joining a call is separate and still takes the focus once, through LiveKit's
 call audio. On Nov 6 2026 YouTube lost it at the join and took it back when
 played again 3.5 s later, and the call's audio mode held until the phone left.
 
+## Where each sound plays — [Built November 2026, Windows and Linux]
+
+Settings has one output device, and under it a fold, **Separate devices**,
+that gives three kinds of sound a device each (`SoundKind`, `SoundOutputs`):
+
+- **Calls and soundboard:** what the call's connection plays — voices, sound
+  shares, a share watched through the call — on libwebrtc's one playout
+  device (`AppState.callOutputId`), and the mic test's playback.
+- **Streams:** a watched share's sound where Rust plays it (*Watching a share
+  through Rust*), on a stream of its own (`streamOutputId`). A share the call
+  watches instead plays with the call: libwebrtc has one playout device per
+  process, so a track of the call cannot be sent elsewhere.
+- **Sounds:** Rift's cues, through the cue player (`dingOutputId`).
+
+Each starts on "Same as output device", so the fold changes nothing until a
+choice is made in it; "System default" there is a choice of its own. Only a
+change to the call's device is applied (`Hardware.selectAudioOutput`, by the
+settings picker); the stream player is told by the LiveKitCubit and each cue
+opens its device as it plays. The fold is not offered on a phone or in a
+browser, where a share's sound comes through the call and the cues play on the
+system's choice.
+
+The soundboard still plays through `audioplayers`, which cannot pick a device
+on the desktop, so on the system default whatever is chosen.
+
 ## A phone's main thread while a call starts and ends — [Implemented November 2026]
 
 On Android the UI runs on the main thread, and flutter_webrtc and audioplayers
@@ -1191,7 +1216,8 @@ libwebrtc still decodes, on the CPU.
 - **Unseen:** its pictures are turned off and on with the call's
   (`setWatchPicturesOn`).
 - **The sound** is played by Rust itself (`rust/src/watching/sound`), on a
-  stream of its own on the output chosen in settings: PulseAudio's on Linux,
+  stream of its own on the Streams device (`AppState.streamOutputId`, the
+  main output unless split off; *Where each sound plays*): PulseAudio's on Linux,
   and on Windows a WASAPI shared-mode stream, which counts its room from what
   the device still holds, as the mic test's playback does, and puts 30 ms of
   silence ahead when it ran dry. It holds about 30 ms on both once settled.

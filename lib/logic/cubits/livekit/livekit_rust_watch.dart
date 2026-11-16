@@ -312,8 +312,8 @@ mixin _RustWatchMixin
     if (room == null || state.watchedPictures.isEmpty) return;
     if (!RustWatch.playsSound) return;
     final app = _appCubit.state;
-    if (app.outputDeviceId != _rustOutput) {
-      _rustOutput = app.outputDeviceId;
+    if (app.streamOutputId != _rustOutput) {
+      _rustOutput = app.streamOutputId;
       RustWatch.setOutput(_rustOutput);
     }
     for (final identity in state.watchedPictures.keys) {

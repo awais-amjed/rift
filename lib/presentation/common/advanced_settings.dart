@@ -1,9 +1,9 @@
 import 'package:material_ui/material_ui.dart';
 
-import '../../../../../data/constants.dart';
-import '../../../../theme/app_motion.dart';
-import '../../../../theme/app_text.dart';
-import '../../../../theme/theme_context.dart';
+import '../../data/constants.dart';
+import '../theme/app_motion.dart';
+import '../theme/app_text.dart';
+import '../theme/theme_context.dart';
 
 /// The settings most people never need, behind a row that opens them.
 ///
@@ -14,11 +14,15 @@ class AdvancedSettings extends StatelessWidget {
   final VoidCallback onToggle;
   final Widget child;
 
+  /// What the row says.
+  final String label;
+
   const AdvancedSettings({
     super.key,
     required this.open,
     required this.onToggle,
     required this.child,
+    this.label = 'Advanced settings',
   });
 
   @override
@@ -52,7 +56,7 @@ class AdvancedSettings extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'Advanced settings',
+                    label,
                     style: AppText.secondaryStrong.copyWith(
                       color: theme.textSecondary,
                     ),

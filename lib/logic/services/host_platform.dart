@@ -49,6 +49,13 @@ class HostPlatform {
       defaultTargetPlatform == TargetPlatform.android ||
       defaultTargetPlatform == TargetPlatform.iOS;
 
+  /// Whether streams and Rift's own sounds can play on a device apart from
+  /// the call's: where Rift plays both itself, on a device it opens (the watch
+  /// connection's sound player, the cue player). Elsewhere a share's sound
+  /// comes through the call, and the sounds play on the system's default.
+  static bool get splitsSoundOutputs =>
+      !kIsWeb && (Platform.isWindows || Platform.isLinux);
+
   /// Whether the call shortcuts work with Rift in the background: the
   /// Windows hook and the Linux desktop's portal. macOS has neither yet, so
   /// there they are only heard while Rift is in front.
