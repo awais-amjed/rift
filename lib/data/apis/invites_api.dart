@@ -1,3 +1,4 @@
+import '../repositories/server_pass_repository.dart';
 import '../repositories/server_repository.dart';
 import '../repositories/server_session.dart';
 import '../repositories/session_repository.dart';
@@ -47,7 +48,9 @@ class InvitesApi {
       return (
         success: false,
         inviteCode: null,
-        error: response.error ?? 'Failed to generate invite',
+        error:
+            inviteErrorText(response.error, needsAccount: needsAccount) ??
+            'Failed to generate invite',
       );
     }
     final inviteCode = response.data['invite_code'] as String;

@@ -100,16 +100,6 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
       }
       final serverId = resolved.serverId!;
 
-      // A link an admin marked as needing a Rift account. Without one there
-      // is no point signing in to the server at all, so it is said here.
-      final refusal = joinNeedsAccountError(
-        needsAccount: resolved.needsAccount,
-        hasAccount: _passRepo.hasAccount,
-      );
-      if (refusal != null) {
-        return (success: false, error: refusal, data: null);
-      }
-
       final identity = await getIdentityForHost(host, serverId: serverId);
 
       // 2. SIWS login — creates the per-(host, serverId) GoTrue identity (signup)
@@ -123,10 +113,12 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
 
       // Central vouches for the account to this server and this identity.
       // Asked last, just before register, since a pass lives five minutes.
+      // Without an account nothing is asked: the server lets somebody who
+      // is already a member back, and refuses anybody new in its own words.
       String? pass;
-      if (resolved.needsAccount) {
+      if (resolved.needsAccount && _passRepo.hasAccount) {
         final vouched = await _passRepo.passFor(
-          supabaseUrl: supabaseUrl,
+          supabaseUrl: resolved.publicUrl ?? supabaseUrl,
           serverId: serverId,
           publicKey: identity.publicKeyBase64,
         );

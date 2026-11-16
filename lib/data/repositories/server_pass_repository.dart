@@ -3,20 +3,28 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../logic/helper_methods.dart';
 import '../central_failure.dart';
 
-/// What a link that needs a Rift account says to somebody without one. The
-/// server words its own refusal the same way, for an app too old to ask.
-const accountRequiredText =
-    'This link needs a Rift account. Sign in to Rift, or ask a member for '
-    'another link.';
-
 const _passFailedText =
     "Rift couldn't vouch for your account. Try joining again.";
 
-/// The refusal to show before signing in to a server at all, or null to go on.
-String? joinNeedsAccountError({
-  required bool needsAccount,
-  required bool hasAccount,
-}) => needsAccount && !hasAccount ? accountRequiredText : null;
+/// The address a pass for this server names: the server's own public one,
+/// which `resolve_invite` hands out, or the link's on a server too old to
+/// say. Central makes the tag from it and the server accepts no other, so a
+/// link reaching the server by another address still joins.
+String passAddress({
+  required String linkUrl,
+  required Map<dynamic, dynamic> data,
+}) => switch (data['public_url']) {
+  final String url when url.isNotEmpty => url,
+  _ => linkUrl,
+};
+
+/// A failed invite, in words. A server from before links could need an
+/// account has no such column, and says so in PostgREST's terms.
+String? inviteErrorText(String? error, {required bool needsAccount}) =>
+    needsAccount && error != null && error.contains('needs_account')
+    ? 'This server needs a console update before a link can need a Rift '
+          'account.'
+    : error;
 
 /// Central's answer to `server_pass`, as a pass or a sentence.
 ({String? pass, String? error}) passFromResponse(Object? data) {

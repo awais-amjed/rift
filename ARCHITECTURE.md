@@ -863,14 +863,17 @@ through it, the app asks central for a **pass** (`server_pass` on central): five
 minutes long, signed by central's Ed25519 key, naming the server and the identity
 joining, and carrying a **tag**, a keyed hash of the account's email (Gmail-style
 aliases merged) and the server. `register` checks the signature with central's
-public key, built into the server's functions. So the server never sees the
-email, the tag differs on every server so no two can match their members, and a
-copied pass is useless, because it names an identity only its owner can sign in
-as. The server keeps the tag where no member can read it; a ban keeps it too
+public key, built into the server's functions, and that the pass names the
+server's own address (central makes the tag from the address it is given, so any
+other would be a tag nobody banned) and the key the caller signed in with. So the
+server never sees the email, the tag differs on every server so no two can match
+their members, and a copied pass is useless to anybody but the identity it names. The server keeps the tag where no member can read it; a ban keeps it too
 (`banned_tags`, which outlives the member row), so the account stays out whatever
 identity it comes back as. A kick does not keep it. The same account arriving with
 a new identity (its seed lost and made again) takes its old membership over, the
-old identity leaving as `leave_server` does; the owner's is never taken over.
+old identity leaving as `leave_server` does but keeping its tag, so banning either
+bans the account; the owner's is never taken over. Somebody already a member, who
+left on their device, comes back through the link as before, account or not.
 This is the one place central and a self-hosted server meet over a person, and only
 where an admin asked for it: central sees which server an account asked a pass for,
 keeps no record of it, and the join screen says so. Links made by members still let

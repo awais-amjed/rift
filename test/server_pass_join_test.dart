@@ -6,24 +6,44 @@ import 'package:rift/data/repositories/server_pass_repository.dart';
 /// says so before signing in when there is no account, and otherwise asks
 /// central for a pass that vouches for it.
 void main() {
-  group('before joining', () {
-    test('a link that needs an account, without one, is refused in words', () {
+  // Central makes the tag from the address it is given, so the pass names
+  // the server's own address, which the server hands out — never whichever
+  // one the link happened to use.
+  group('the address a pass names', () {
+    test("is the server's own when it says", () {
       expect(
-        joinNeedsAccountError(needsAccount: true, hasAccount: false),
-        'This link needs a Rift account. Sign in to Rift, or ask a member '
-        'for another link.',
+        passAddress(
+          linkUrl: 'http://192.168.1.6:8000',
+          data: {'public_url': 'https://rift.example'},
+        ),
+        'https://rift.example',
       );
     });
 
-    test('with an account, or on an ordinary link, nothing is refused', () {
+    test("is the link's on a server that does not say", () {
       expect(
-        joinNeedsAccountError(needsAccount: true, hasAccount: true),
-        isNull,
+        passAddress(linkUrl: 'https://rift.example', data: {'server_id': 's'}),
+        'https://rift.example',
       );
+    });
+  });
+
+  group('marking a link on a server too old for it', () {
+    test('says the server needs an update', () {
       expect(
-        joinNeedsAccountError(needsAccount: false, hasAccount: false),
-        isNull,
+        inviteErrorText(
+          "Could not find the 'needs_account' column of 'invites' in the "
+          'schema cache',
+          needsAccount: true,
+        ),
+        'This server needs a console update before a link can need a Rift '
+        'account.',
       );
+    });
+
+    test('leaves every other failure as it came', () {
+      expect(inviteErrorText('nope', needsAccount: true), 'nope');
+      expect(inviteErrorText(null, needsAccount: false), isNull);
     });
   });
 

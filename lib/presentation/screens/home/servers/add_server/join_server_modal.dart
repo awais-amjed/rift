@@ -165,6 +165,8 @@ class _JoinServerModalState extends State<JoinServerModal> {
     final signedIn = context.select<SupabaseBackupCubit, bool>(
       (c) => c.state.isSignedIn,
     );
+    // Shown, not enforced: somebody who left this server in privacy mode is
+    // still a member and gets back in; anybody new hears the server say no.
     final blocked = _needsAccount && !signedIn;
     return AppModal(
       pageOnPhone: true,
@@ -253,7 +255,7 @@ class _JoinServerModalState extends State<JoinServerModal> {
         ),
         AppButton(
           label: _isLoading ? 'Joining…' : 'Join server',
-          onPressed: _canSubmit && !_isLoading && !blocked ? _submit : null,
+          onPressed: _canSubmit && !_isLoading ? _submit : null,
           isLoading: _isLoading,
         ),
       ],

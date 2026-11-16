@@ -15,6 +15,7 @@ import '../classes/server_limits.dart';
 import '../device_id.dart';
 import '../enums/error_code.dart';
 import 'server_db.dart';
+import 'server_pass_repository.dart' show passAddress;
 import 'server_user_row.dart';
 
 part 'server_repository_auth.dart';
