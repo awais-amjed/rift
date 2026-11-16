@@ -18,12 +18,14 @@ class ServerModePicker extends StatelessWidget {
   final VoidCallback onBrowse;
   final VoidCallback onJoin;
   final VoidCallback onCreate;
+  final VoidCallback onBots;
 
   const ServerModePicker({
     super.key,
     required this.onBrowse,
     required this.onJoin,
     required this.onCreate,
+    required this.onBots,
   });
 
   @override
@@ -52,6 +54,12 @@ class ServerModePicker extends StatelessWidget {
               'On a backend set up by hand. Used the console? Join with '
               'its invite',
           onTap: onCreate,
+        ),
+        _ModeCard(
+          icon: Icons.smart_toy_outlined,
+          title: 'Bots',
+          subtitle: 'Find a bot for your server, or list one you made',
+          onTap: onBots,
         ),
       ],
     );

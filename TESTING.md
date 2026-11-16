@@ -315,7 +315,7 @@ instances with separate identities; the Android client is the emulator.
 | Soundboard | Sep 20–21 2026, Oct 8 2026 | two clients in a call. Oct 8, after its calls moved into `SoundboardApi`: Linux release, Lana on Mapmakers opened Manage server for Rift Test from the rail; its two clips listed, and a rename reached the database and was put back. Not driven since the move: adding or removing a clip, and a press or preview fetching a clip this device had not stored |
 | Replies, forwarding, jumping to a message | Sep 20 2026 | two clients, channel to channel |
 | People profiles | Sep 20 2026 | both tiers |
-| Bot directory | Sep 20 2026 | publish, browse, like, add |
+| Bot directory | Sep 20 2026 | publish, browse, like, add. Nov 16 2026, Linux debug build, a privacy-mode profile with no server: the rail's + → Bots opened the directory (its "needs a Rift account" note) and Back returned to the Add menu. **Not driven:** the signed-in list or List a bot from there (the same pages as from Manage server), the phone switcher's + |
 | Operator limits | Sep 19 2026 | two clients; each cap refuses and says why |
 | A server built from nothing, with a bot | Sep 6 2026 | the console's stack, two clients, a bot through the SDK |
 | Encrypted voice, audio both directions | Sep 2 2026; Sep 30, Oct 2 2026 | two clients on virtual microphones, a key rotation mid-call; on Sep 30 (Windows) one minted by a client in the call, which has to move its own call too. On Oct 2 (Linux) a ban rotated the key from a client in the call and both calls logged the move to the new version; audio not measured that time |

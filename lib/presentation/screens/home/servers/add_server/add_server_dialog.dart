@@ -3,9 +3,11 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../../../data/classes/resolved_invite.dart';
 import '../../../../../data/constants.dart';
+import '../../../../../logic/cubits/public_bots/public_bots_cubit.dart';
 import '../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../../common/app_modal.dart';
+import '../../bots/bot_directory_dialog.dart';
 import 'browse_servers_modal.dart';
 import 'create_server_modal.dart';
 import 'invite_link_modal.dart';
@@ -13,7 +15,7 @@ import 'join_server_modal.dart';
 import 'publish_new_server_modal.dart';
 import 'widgets/server_mode_picker.dart';
 
-enum _Step { pick, browse, link, join, create, publish }
+enum _Step { pick, browse, link, join, create, publish, bots }
 
 /// Getting onto a server: pick how, then do it.
 ///
@@ -107,12 +109,14 @@ class _AddServerDialogState extends State<AddServerDialog> {
         pageOnPhone: true,
         title: 'Add server',
         subtitle:
-            'Find a server, join one you were invited to, or make your own',
+            'Find a server, join one you were invited to, make your own, or '
+            'find a bot',
         maxWidth: K.dialogWidth,
         content: ServerModePicker(
           onBrowse: () => _go(_Step.browse),
           onJoin: () => _go(_Step.link),
           onCreate: () => _go(_Step.create),
+          onBots: () => _go(_Step.bots),
         ),
       ),
       _Step.browse => BrowseServersModal(
@@ -145,6 +149,10 @@ class _AddServerDialogState extends State<AddServerDialog> {
           _step = _Step.publish;
         }),
         onCancel: () => _go(_Step.pick),
+      ),
+      _Step.bots => BlocProvider(
+        create: (_) => PublicBotsCubit(),
+        child: BotDirectoryDialog(onBack: () => _go(_Step.pick)),
       ),
       _Step.publish => PublishNewServerModal(
         onDone: _handleSuccess,

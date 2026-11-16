@@ -28,9 +28,9 @@ import '../widgets/manage_panel.dart';
 /// everything it holds ([BotAccessDialog]), and take any of it back.
 ///
 /// It is also where a bot is *found*. Browsing the central directory
-/// ([showBotDirectory]) belongs here rather than beside "Add server" on the
-/// rail: a bot is not something you join, and adding one is minting an invite
-/// on this server — which is the thing this page is already about.
+/// ([showBotDirectory]) starts here because adding one is minting an invite
+/// on this server, which is the thing this page is already about. (The
+/// rail's Add menu opens the same directory, for somebody with no server.)
 ///
 /// And it is where a bot is taken off the server: a kick, the same one the
 /// voice menu and a report offer, so a bot that is not in a call and was

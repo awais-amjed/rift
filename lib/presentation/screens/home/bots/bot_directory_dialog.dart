@@ -20,12 +20,17 @@ enum _Step { browse, add, mine, form }
 /// body swapped inside one frame, because a step's title, width and footer
 /// belong to the step.
 ///
-/// Opened from the Bots page of the manage-server dialog, which is where
-/// somebody already goes to see what a bot can reach. It does not live on the
-/// server rail beside "Add server": a bot is not something you join, and
-/// putting it there would suggest a second kind of thing to belong to.
+/// Opened from two places: the Bots page of the manage-server dialog, where
+/// an admin already goes to see what a bot can reach, and the rail's Add
+/// menu ([AddServerDialog], with [onBack]). The second is for somebody who
+/// wrote a bot and runs no server: listing one needs only a Rift account, and
+/// behind Manage server they had no way to reach it at all.
 class BotDirectoryDialog extends StatefulWidget {
-  const BotDirectoryDialog({super.key});
+  /// Where Back on the first page goes, when this opened as a step of
+  /// another dialog (the rail's Add menu); null closes it.
+  final VoidCallback? onBack;
+
+  const BotDirectoryDialog({super.key, this.onBack});
 
   @override
   State<BotDirectoryDialog> createState() => _BotDirectoryDialogState();
@@ -63,7 +68,7 @@ class _BotDirectoryDialogState extends State<BotDirectoryDialog> {
           _step = _Step.add;
         }),
         onList: () => _go(_Step.mine),
-        onCancel: _close,
+        onCancel: widget.onBack ?? _close,
       ),
       _Step.add => AddBotModal(
         bot: _adding!,
