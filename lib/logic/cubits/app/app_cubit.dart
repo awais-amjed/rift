@@ -136,6 +136,20 @@ class AppCubit extends HydratedCubit<AppState> {
     emit(state.copyWith(callShortcuts: shortcuts));
   }
 
+  /// What the desktop granted and what the person refused, kept between runs
+  /// — see [AppState.desktopShortcutsGranted].
+  void setDesktopShortcutAnswers({
+    List<String>? granted,
+    List<String>? refused,
+  }) {
+    final next = state.copyWith(
+      desktopShortcutsGranted: granted,
+      desktopShortcutsRefused: refused,
+    );
+    if (next == state) return;
+    emit(next);
+  }
+
   void setDesktopCallShortcuts(Map<CallShortcut, String> keys) {
     if (mapEquals(keys, state.desktopCallShortcuts)) return;
     emit(state.copyWith(desktopCallShortcuts: Map.unmodifiable(keys)));

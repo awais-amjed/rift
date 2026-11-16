@@ -61,14 +61,14 @@ class LinuxGlobalShortcuts {
   List<PortalShortcut>? _applied;
   bool _pushToTalkBound = false;
 
-  /// The ids the desktop answered for last, so a refused list can fall back
-  /// on them: GNOME's dialog is all or nothing, and saying no to a new call
-  /// shortcut must not cost push-to-talk the key it already had.
-  Set<String> _granted = const {};
-
-  /// Shortcuts the desktop refused this run, not asked for again until their
-  /// key changes — otherwise every change brings the dialog back.
-  final Set<PortalShortcut> _refused = {};
+  /// Shortcuts ([refusalKey]) the desktop failed to bind this run, without a
+  /// person saying no: not asked for again until their key changes, or every
+  /// change would ask again. What a person refuses is kept between runs
+  /// instead ([AppState.desktopShortcutsRefused]), and what the desktop
+  /// granted too ([AppState.desktopShortcutsGranted]): GNOME's dialog is all
+  /// or nothing, and saying no to a new call shortcut must not cost
+  /// push-to-talk the key it already had.
+  final Set<String> _failed = {};
 
   LinuxGlobalShortcuts(this._app, this._liveKit);
 
@@ -102,6 +102,7 @@ class LinuxGlobalShortcuts {
 
   Future<void> _apply() async {
     final wanted = notRefused(_wantedFor(_app.state), _refused);
+
     if (listEquals(wanted, _applied)) return;
     _applied = wanted;
     final generation = ++_generation;
@@ -123,19 +124,40 @@ class LinuxGlobalShortcuts {
 
     _app.setDesktopPushToTalkPending(asksPushToTalk);
     await LinuxDesktopEntry.ensure();
-    var triggers = await _bind(wanted, generation);
+    final bound = await _bind(wanted, generation);
     if (generation != _generation) return;
+    var triggers = bound.triggers;
     if (triggers == null) {
-      final next = afterRefusal(asked: wanted, granted: _granted);
-      _refused.addAll(next.refused);
+      final next = afterRefusal(
+        asked: wanted,
+        granted: _app.state.desktopShortcutsGranted.toSet(),
+      );
       _applied = next.retry;
+      if (bound.declined) {
+        _app.setDesktopShortcutAnswers(
+          refused: rememberRefused(
+            _app.state.desktopShortcutsRefused,
+            next.refused,
+          ),
+        );
+      } else {
+        _failed.addAll(next.refused.map(refusalKey));
+      }
       if (next.retry.isNotEmpty) {
-        triggers = await _bind(next.retry, generation);
+        triggers = (await _bind(next.retry, generation)).triggers;
         if (generation != _generation) return;
       }
     }
-    if (triggers != null) _granted = triggers.keys.toSet();
     _adopt(triggers ?? const {});
+    if (triggers != null) {
+      _app.setDesktopShortcutAnswers(
+        granted: triggers.keys.toList(),
+        refused: forgetRefused(
+          _app.state.desktopShortcutsRefused,
+          triggers.keys,
+        ),
+      );
+    }
     _app.setDesktopPushToTalkPending(false);
     HelperMethods.printDebug(
       triggers == null
@@ -144,7 +166,7 @@ class LinuxGlobalShortcuts {
     );
   }
 
-  Future<Map<String, String>?> _bind(
+  Future<({Map<String, String>? triggers, bool declined})> _bind(
     List<PortalShortcut> shortcuts,
     int generation,
   ) => _portal.bind(
@@ -202,6 +224,13 @@ class LinuxGlobalShortcuts {
     }
   }
 
+  /// Everything not to ask for: refused by a person, before or now, or failed
+  /// this run.
+  Set<String> get _refused => {
+    ..._app.state.desktopShortcutsRefused,
+    ..._failed,
+  };
+
   static List<PortalShortcut> _wantedFor(AppState state) => desktopShortcutsFor(
     pushToTalk: state.pushToTalkEnabled,
     pushToTalkKeyId: state.pushToTalkKeyId,
@@ -243,12 +272,43 @@ List<PortalShortcut> desktopShortcutsFor({
   },
 );
 
-/// [wanted] less what the desktop refused this run. A shortcut whose key has
+/// [wanted] less what was refused ([refusalKey]s). A shortcut whose key has
 /// changed since is a new question, so it stays.
 List<PortalShortcut> notRefused(
   List<PortalShortcut> wanted,
-  Set<PortalShortcut> refused,
+  Set<String> refused,
 ) => [
   for (final shortcut in wanted)
-    if (!refused.contains(shortcut)) shortcut,
+    if (!refused.contains(refusalKey(shortcut))) shortcut,
 ];
+
+/// A refused shortcut as it is kept: its id and the key Rift suggested, so a
+/// new key asks again.
+String refusalKey(PortalShortcut shortcut) =>
+    '${shortcut.id}=${shortcut.preferredTrigger ?? ''}';
+
+/// [refused] with [now] added, one entry per id: the latest key replaces an
+/// older refusal of the same shortcut, so the list never grows past one per
+/// shortcut.
+List<String> rememberRefused(
+  List<String> refused,
+  Iterable<PortalShortcut> now,
+) {
+  final ids = {for (final shortcut in now) shortcut.id};
+  return [
+    for (final key in refused)
+      if (!ids.contains(_idOf(key))) key,
+    for (final shortcut in now) refusalKey(shortcut),
+  ];
+}
+
+/// [refused] less the shortcuts the desktop has now [granted].
+List<String> forgetRefused(List<String> refused, Iterable<String> granted) {
+  final ids = granted.toSet();
+  return [
+    for (final key in refused)
+      if (!ids.contains(_idOf(key))) key,
+  ];
+}
+
+String _idOf(String refusalKey) => refusalKey.split('=').first;

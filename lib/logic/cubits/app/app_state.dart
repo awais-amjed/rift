@@ -17,8 +17,19 @@ class AppState extends Equatable {
   final int? pushToTalkKeyId;
   final String? pushToTalkKeyLabel;
 
-  /// Keys for mute and deafen, heard while Rift's window is in front.
+  /// Keys for mute, deafen and leave call, heard from anywhere.
   final CallShortcuts callShortcuts;
+
+  /// The desktop's shortcut ids (Linux portal) it answered for last, so a
+  /// refused dialog can fall back on them even straight after a launch: the
+  /// desktop keeps its grants between runs, and one Cancel used to drop
+  /// every key until the next change.
+  final List<String> desktopShortcutsGranted;
+
+  /// Shortcuts the person said no to in the desktop's dialog, as
+  /// `<id>=<suggested key>` (`refusalKey`), one per id. Not asked for again
+  /// until that key changes — without it the dialog came back every launch.
+  final List<String> desktopShortcutsRefused;
   final bool titleBarVisible;
   final ScreenShareSettings screenShareSettings;
   final Map<String, ParticipantSetting> participantSettings;
@@ -290,6 +301,8 @@ class AppState extends Equatable {
     this.pushToTalkKeyId,
     this.pushToTalkKeyLabel,
     this.callShortcuts = const CallShortcuts(),
+    this.desktopShortcutsGranted = const [],
+    this.desktopShortcutsRefused = const [],
     this.titleBarVisible = true,
     this.screenShareSettings = const ScreenShareSettings(),
     this.participantSettings = const {},
@@ -382,6 +395,8 @@ class AppState extends Equatable {
     String? pushToTalkKeyLabel,
     bool clearPushToTalkKeybind = false,
     CallShortcuts? callShortcuts,
+    List<String>? desktopShortcutsGranted,
+    List<String>? desktopShortcutsRefused,
     bool? titleBarVisible,
     ScreenShareSettings? screenShareSettings,
     Map<String, ParticipantSetting>? participantSettings,
@@ -460,6 +475,10 @@ class AppState extends Equatable {
           ? null
           : (pushToTalkKeyLabel ?? this.pushToTalkKeyLabel),
       callShortcuts: callShortcuts ?? this.callShortcuts,
+      desktopShortcutsGranted:
+          desktopShortcutsGranted ?? this.desktopShortcutsGranted,
+      desktopShortcutsRefused:
+          desktopShortcutsRefused ?? this.desktopShortcutsRefused,
       titleBarVisible: titleBarVisible ?? this.titleBarVisible,
       screenShareSettings: screenShareSettings ?? this.screenShareSettings,
       participantSettings: participantSettings ?? this.participantSettings,
@@ -577,6 +596,8 @@ class AppState extends Equatable {
     pushToTalkKeyId,
     pushToTalkKeyLabel,
     callShortcuts,
+    desktopShortcutsGranted,
+    desktopShortcutsRefused,
     titleBarVisible,
     screenShareSettings,
     participantSettings,

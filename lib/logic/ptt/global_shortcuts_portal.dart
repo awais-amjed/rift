@@ -54,7 +54,27 @@ class GlobalShortcutsPortal {
   /// (1) is never retried — that is an answer, not a failure.
   static const _attempts = 4;
   static const _retryDelay = Duration(milliseconds: 500);
+  static const _userCancelled = 1;
   static const _otherFailure = 2;
+
+  /// GNOME answers its own dialog's Cancel with 2 as well, so a failure is
+  /// retried only when it came back before anybody could have read a dialog;
+  /// retrying a Cancel brought the dialog straight back (Nov 16, three times
+  /// over). A bind that needs no dialog answers in well under a second.
+  static const _crashAnswersWithin = Duration(seconds: 2);
+
+  /// Whether a bind answered with [code] after [waited] is the desktop
+  /// failing (try again) rather than the person saying no.
+  static bool retryBind({required int code, required Duration waited}) =>
+      code == _otherFailure && waited < _crashAnswersWithin;
+
+  /// Whether a bind answered with [code] after [waited] was the person
+  /// saying no in the desktop's dialog, which Rift remembers (see
+  /// `LinuxGlobalShortcuts`) — rather than the desktop failing or answering
+  /// late, which is asked again next launch.
+  static bool declinedBy({required int code, required Duration waited}) =>
+      code == _userCancelled ||
+      (code == _otherFailure && waited >= _crashAnswersWithin);
 
   /// A portal dialog waits on a person, so this is generous.
   static const _responseTimeout = Duration(minutes: 2);
@@ -75,8 +95,9 @@ class GlobalShortcutsPortal {
   /// [appId] must name an installed `.desktop` file: since portal 1.20 an
   /// unsandboxed app has to say who it is before any call, and GNOME refuses
   /// an id it cannot find a desktop entry for. Returns what the desktop says
-  /// each key is ("Press F9"), by id, or null if there is no portal, the user
-  /// declined, or the desktop bound none of them. An *empty* string means the
+  /// each key is ("Press F9"), by id, as `triggers` — null if there is no
+  /// portal, the user declined (`declined` set: see [declinedBy]), or the
+  /// desktop bound none of them. An *empty* string means the
   /// shortcut is bound but has no key yet — Hyprland, for one, never asks,
   /// and waits for the user to bind it in its own config.
   ///
@@ -84,7 +105,7 @@ class GlobalShortcutsPortal {
   /// older one closes only its *own* session and returns null. Letting it
   /// tidy up through [close] instead is how a declined first dialog used to
   /// take the second, accepted binding down with it.
-  Future<Map<String, String>?> bind({
+  Future<({Map<String, String>? triggers, bool declined})> bind({
     required String appId,
     required List<PortalShortcut> shortcuts,
     required void Function(String id, int timestamp) onPress,
@@ -104,26 +125,27 @@ class GlobalShortcutsPortal {
           onTriggersChanged: onTriggersChanged,
         );
         if (!outcome.retry || attempt == _attempts || epoch != _epoch) {
-          return outcome.triggers;
+          return (triggers: outcome.triggers, declined: outcome.declined);
         }
         await Future<void>.delayed(_retryDelay);
       }
     } catch (e) {
       HelperMethods.printDebug('GlobalShortcutsPortal: unavailable – $e');
-      return null;
+      return (triggers: null, declined: false);
     }
   }
 
   /// One session and one bind. `retry` is set when the desktop failed rather
   /// than the user saying no — see [_attempts].
-  Future<({Map<String, String>? triggers, bool retry})> _bindOnce({
+  Future<({Map<String, String>? triggers, bool retry, bool declined})>
+  _bindOnce({
     required int epoch,
     required List<PortalShortcut> shortcuts,
     required void Function(String id, int timestamp) onPress,
     required void Function(String id, int timestamp) onRelease,
     required void Function(Map<String, String> triggers) onTriggersChanged,
   }) async {
-    const giveUp = (triggers: null, retry: false);
+    const giveUp = (triggers: null, retry: false, declined: false);
     final ids = {for (final shortcut in shortcuts) shortcut.id};
     _Session? mine;
     try {
@@ -149,6 +171,7 @@ class GlobalShortcutsPortal {
         ..add(_listen('Deactivated', mine.path, ids, onRelease))
         ..add(_listenForChanges(mine.path, onTriggersChanged));
 
+      final asked = Stopwatch()..start();
       final bound = await _requests.call(
         'BindShortcuts',
         (token) => [
@@ -176,9 +199,13 @@ class GlobalShortcutsPortal {
       }
       if (triggers == null || epoch != _epoch) {
         await _end(mine);
-        return (triggers: null, retry: bound.code == _otherFailure);
+        return (
+          triggers: null,
+          retry: retryBind(code: bound.code, waited: asked.elapsed),
+          declined: declinedBy(code: bound.code, waited: asked.elapsed),
+        );
       }
-      return (triggers: triggers, retry: false);
+      return (triggers: triggers, retry: false, declined: false);
     } catch (e) {
       if (mine != null) await _end(mine);
       rethrow;
