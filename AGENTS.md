@@ -34,7 +34,7 @@ lib/
     ptt/          # Push-to-talk key and mouse button listener
     visibility/   # Whether anybody can see Rift (AppSeenListener), which pauses watched pictures
                   # and stops animations (TickerMode)
-    shortcuts/    # In-window keys for mute and deafen (CallShortcutListener)
+    shortcuts/    # Keys for mute, deafen and leave, from anywhere (CallShortcutListener)
     helper_methods.dart  # HelperMethods: toasts, navigation, printDebug
   presentation/
     common/       # Shared widgets (AppModal, AppTitleBar, ...)

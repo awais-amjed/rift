@@ -13,11 +13,12 @@ import '../helper_methods.dart';
 import 'linux_push_to_talk.dart';
 import 'mouse_button_bind.dart';
 import 'win32_key_codes.dart';
+import 'windows_key_hook.dart';
 
 /// Global keyboard listener that maps the configured keybind to PTT pressed state.
 ///
 /// On Windows a WH_KEYBOARD_LL hook installed in the native runner sends every
-/// key event through [_kPttChannel] so PTT continues to work while the app is
+/// key event through [WindowsKeyHook] so PTT continues to work while the app is
 /// running in the background.  Flutter's [HardwareKeyboard] reports the key
 /// too while Rift has focus; the two agree, and the cubit takes a press it
 /// already holds as nothing.
@@ -41,9 +42,7 @@ class PushToTalkListener extends StatefulWidget {
 
 class _PushToTalkListenerState extends State<PushToTalkListener>
     with WidgetsBindingObserver {
-  static const EventChannel _kPttChannel = EventChannel('rift/ptt_keys');
-
-  StreamSubscription<dynamic>? _bgSub;
+  StreamSubscription<HookKey>? _bgSub;
   LinuxPushToTalk? _linux;
 
   @override
@@ -54,7 +53,7 @@ class _PushToTalkListenerState extends State<PushToTalkListener>
     GestureBinding.instance.pointerRouter.addGlobalRoute(_handlePointer);
 
     if (!kIsWeb && Platform.isWindows) {
-      _bgSub = _kPttChannel.receiveBroadcastStream().listen(_handleBgKeyEvent);
+      _bgSub = WindowsKeyHook.keys.listen(_handleBgKeyEvent);
     }
     if (!kIsWeb && Platform.isLinux) {
       _linux = LinuxPushToTalk(
@@ -144,30 +143,22 @@ class _PushToTalkListenerState extends State<PushToTalkListener>
 
   // ── Background hook handler (native EventChannel) ────────────────────────
 
-  void _handleBgKeyEvent(dynamic event) {
-    if (event is! Map) return;
-
+  void _handleBgKeyEvent(HookKey key) {
     final appState = context.read<AppCubit>().state;
     if (!appState.pushToTalkEnabled || appState.pushToTalkKeyId == null) {
       return;
     }
-
-    final vkCode = event['vk_code'] as int?;
-    final isDown = event['is_down'] as bool?;
-    if (vkCode == null || isDown == null) return;
-    // A release the hook's held-key check decided on, not a key-up it saw.
-    final byCheck = event['by_check'] == true;
 
     final expectedVk = win32VkForLogicalKey(appState.pushToTalkKeyId!);
     if (expectedVk == null) {
       _warnUnmappedKeybind(appState.pushToTalkKeyId!);
       return;
     }
-    if (vkCode != expectedVk) return;
+    if (key.vk != expectedVk) return;
 
     context.read<LiveKitCubit>().setPushToTalkPressed(
-      isDown,
-      via: byCheck ? 'hook held-key check' : 'hook',
+      key.down,
+      via: key.byCheck ? 'hook held-key check' : 'hook',
     );
   }
 
