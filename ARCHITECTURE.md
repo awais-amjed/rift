@@ -854,7 +854,7 @@ moderator reads and tells your other devices to drop the server rather than show
 shut. The owner cannot leave without handing the server on; for them, and on a
 server too old to ask, leaving only forgets the server on the device.
 
-**A link that needs a Rift account** [Built November 2026, not yet driven live].
+**A link that needs a Rift account** [Built November 2026, driven live Nov 16 2026: see `TESTING.md`].
 A privacy-mode identity is a fresh seed, which costs nothing, so a ban alone stops
 one identity and none of the next. An admin can mark a link — the directory
 listing's, or one they mean to post — as needing a Rift account
