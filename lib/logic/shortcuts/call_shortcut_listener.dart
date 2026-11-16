@@ -9,7 +9,6 @@ import '../cubits/app/app_cubit.dart';
 import '../cubits/livekit/livekit_cubit.dart';
 import '../services/host_platform.dart';
 import 'call_shortcut_actions.dart';
-import 'linux_call_shortcuts.dart';
 import 'windows_call_shortcuts.dart';
 
 /// Hears the call shortcuts picked in Settings and presses the
@@ -21,9 +20,11 @@ import 'windows_call_shortcuts.dart';
 /// anything. Flutter only gets keys while the window is in front, so the
 /// background comes from elsewhere: on Windows the runner's hook
 /// ([WindowsCallShortcuts]), which hears the window's presses as well, so the
-/// handler here stands down there; on Linux the desktop ([LinuxCallShortcuts]),
-/// which takes a key it delivers from the window too, so the handler here
-/// leaves those actions to it and keeps the rest.
+/// handler here stands down there; on Linux the desktop
+/// (`LinuxGlobalShortcuts`, started by `PushToTalkListener` with
+/// push-to-talk's key, as the desktop wants them in one list), which takes a
+/// key it delivers from the window too, so the handler here leaves those
+/// actions to it and keeps the rest.
 class CallShortcutListener extends StatefulWidget {
   final Widget child;
 
@@ -39,7 +40,6 @@ class CallShortcutListener extends StatefulWidget {
 
 class _CallShortcutListenerState extends State<CallShortcutListener> {
   WindowsCallShortcuts? _windows;
-  LinuxCallShortcuts? _linux;
 
   @override
   void initState() {
@@ -51,18 +51,11 @@ class _CallShortcutListenerState extends State<CallShortcutListener> {
         context.read<LiveKitCubit>(),
       )..start();
     }
-    if (!kIsWeb && Platform.isLinux) {
-      _linux = LinuxCallShortcuts(
-        context.read<AppCubit>(),
-        context.read<LiveKitCubit>(),
-      )..start();
-    }
   }
 
   @override
   void dispose() {
     _windows?.dispose();
-    _linux?.dispose();
     HardwareKeyboard.instance.removeHandler(_onKey);
     super.dispose();
   }

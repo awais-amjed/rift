@@ -24,7 +24,7 @@ class PortalShortcut extends Equatable {
 }
 
 /// Keys outside the window on Linux, through the desktop's GlobalShortcuts
-/// portal: push-to-talk, and the call shortcuts in a session of their own.
+/// portal: push-to-talk and the call shortcuts (`LinuxGlobalShortcuts`).
 ///
 /// Wayland will not let one app read keys meant for another, which is the
 /// point of it — so there is no hook to install the way Windows has one. The
@@ -39,7 +39,10 @@ class PortalShortcut extends Equatable {
 /// off, or a key the user bound for talking stops typing anywhere.
 class GlobalShortcutsPortal {
   static const _interface = 'org.freedesktop.portal.GlobalShortcuts';
-  static const _pushToTalkId = 'push-to-talk';
+
+  /// Push-to-talk's id, which the desktop has stored its key under since
+  /// Rift first asked for one.
+  static const pushToTalkId = 'push-to-talk';
 
   /// Tries at binding before giving up on a desktop that keeps failing.
   ///
@@ -56,12 +59,6 @@ class GlobalShortcutsPortal {
   /// A portal dialog waits on a person, so this is generous.
   static const _responseTimeout = Duration(minutes: 2);
 
-  /// Names this object's sessions, so each user of the portal has its own.
-  final String _sessionTag;
-
-  GlobalShortcutsPortal({String sessionTag = 'rift_ptt'})
-    : _sessionTag = sessionTag;
-
   final DBusClient _client = DBusClient.session();
   late final _requests = PortalRequests(
     _client,
@@ -73,52 +70,21 @@ class GlobalShortcutsPortal {
   int _epoch = 0;
   bool _registered = false;
 
-  /// Opens a session and binds the push-to-talk shortcut.
+  /// Opens a session and binds [shortcuts] in it.
   ///
   /// [appId] must name an installed `.desktop` file: since portal 1.20 an
   /// unsandboxed app has to say who it is before any call, and GNOME refuses
   /// an id it cannot find a desktop entry for. Returns what the desktop says
-  /// the key is ("Press F9"), or null if there is no portal or the user
-  /// declined. An *empty* string means the session is open but no key is
-  /// assigned yet — Hyprland, for one, never asks, and waits for the user to
-  /// bind the shortcut in its own config.
-  Future<String?> bind({
-    required String appId,
-    required String? preferredTrigger,
-    required void Function(int timestamp) onPress,
-    required void Function(int timestamp) onRelease,
-    required void Function(String trigger) onTriggerChanged,
-  }) async {
-    final triggers = await bindAll(
-      appId: appId,
-      shortcuts: [
-        PortalShortcut(
-          id: _pushToTalkId,
-          description: 'Push to talk',
-          preferredTrigger: preferredTrigger,
-        ),
-      ],
-      onPress: (_, timestamp) => onPress(timestamp),
-      onRelease: (_, timestamp) => onRelease(timestamp),
-      onTriggersChanged: (triggers) {
-        final trigger = triggers[_pushToTalkId];
-        if (trigger != null) onTriggerChanged(trigger);
-      },
-    );
-    return triggers?[_pushToTalkId];
-  }
-
-  /// Opens a session and binds [shortcuts] in it, as [bind] does for one.
-  ///
-  /// Returns what the desktop says each key is, by id ('' for one with no
-  /// key yet), or null if there is no portal, the user declined, or the
-  /// desktop bound none of them.
+  /// each key is ("Press F9"), by id, or null if there is no portal, the user
+  /// declined, or the desktop bound none of them. An *empty* string means the
+  /// shortcut is bound but has no key yet — Hyprland, for one, never asks,
+  /// and waits for the user to bind it in its own config.
   ///
   /// A newer call supersedes an older one still waiting on its dialog: the
   /// older one closes only its *own* session and returns null. Letting it
   /// tidy up through [close] instead is how a declined first dialog used to
   /// take the second, accepted binding down with it.
-  Future<Map<String, String>?> bindAll({
+  Future<Map<String, String>?> bind({
     required String appId,
     required List<PortalShortcut> shortcuts,
     required void Function(String id, int timestamp) onPress,
@@ -166,9 +132,7 @@ class GlobalShortcutsPortal {
         (token) => [
           DBusDict.stringVariant({
             'handle_token': DBusString(token),
-            'session_handle_token': DBusString(
-              _requests.nextToken(_sessionTag),
-            ),
+            'session_handle_token': DBusString(_requests.nextToken('rift_ptt')),
           }),
         ],
       );

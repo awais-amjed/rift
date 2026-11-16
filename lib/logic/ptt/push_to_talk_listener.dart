@@ -10,7 +10,7 @@ import 'package:material_ui/material_ui.dart';
 import '../cubits/app/app_cubit.dart';
 import '../cubits/livekit/livekit_cubit.dart';
 import '../helper_methods.dart';
-import 'linux_push_to_talk.dart';
+import 'linux_global_shortcuts.dart';
 import 'mouse_button_bind.dart';
 import 'win32_key_codes.dart';
 import 'windows_key_hook.dart';
@@ -24,7 +24,7 @@ import 'windows_key_hook.dart';
 /// already holds as nothing.
 ///
 /// On Linux the background half is the desktop's GlobalShortcuts portal
-/// ([LinuxPushToTalk]). Where it is missing or declined, the in-focus handler
+/// ([LinuxGlobalShortcuts]). Where it is missing or declined, the in-focus handler
 /// is all there is.
 ///
 /// A mouse button keybind ([MouseButtonBind]) is heard the same two ways: the
@@ -43,7 +43,7 @@ class PushToTalkListener extends StatefulWidget {
 class _PushToTalkListenerState extends State<PushToTalkListener>
     with WidgetsBindingObserver {
   StreamSubscription<HookKey>? _bgSub;
-  LinuxPushToTalk? _linux;
+  LinuxGlobalShortcuts? _linux;
 
   @override
   void initState() {
@@ -56,7 +56,7 @@ class _PushToTalkListenerState extends State<PushToTalkListener>
       _bgSub = WindowsKeyHook.keys.listen(_handleBgKeyEvent);
     }
     if (!kIsWeb && Platform.isLinux) {
-      _linux = LinuxPushToTalk(
+      _linux = LinuxGlobalShortcuts(
         context.read<AppCubit>(),
         context.read<LiveKitCubit>(),
       )..start();
@@ -78,7 +78,7 @@ class _PushToTalkListenerState extends State<PushToTalkListener>
     // The portal reports the key whichever window has focus, release included,
     // so losing focus is no sign the key went up — and forcing one here would
     // leave the debounce believing the key is still held.
-    if (_linux?.isBound ?? false) return;
+    if (_linux?.isPushToTalkBound ?? false) return;
     // So does the Windows hook. There a mouse button pressed over another
     // window takes the focus from Rift, and this let go of the key the moment
     // it went down: both tones at once, and the mic shut while still held.
@@ -95,7 +95,7 @@ class _PushToTalkListenerState extends State<PushToTalkListener>
 
   bool _handleKeyEvent(KeyEvent event) {
     if (kIsWeb || !(Platform.isWindows || Platform.isLinux)) return false;
-    if (_linux?.isBound ?? false) return false;
+    if (_linux?.isPushToTalkBound ?? false) return false;
 
     final appState = context.read<AppCubit>().state;
     final keyId = appState.pushToTalkKeyId;
