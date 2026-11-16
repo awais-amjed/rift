@@ -2,12 +2,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 
-import '../../data/classes/call_shortcuts.dart';
 import '../cubits/app/app_cubit.dart';
 import '../cubits/livekit/livekit_cubit.dart';
 import '../services/host_platform.dart';
+import 'call_shortcut_actions.dart';
 
-/// Hears the mute and deafen shortcuts picked in Settings and presses the
+/// Hears the call shortcuts picked in Settings and presses the
 /// matching button.
 ///
 /// A [HardwareKeyboard] handler, not a Shortcuts binding: those follow focus,
@@ -50,13 +50,7 @@ class _CallShortcutListenerState extends State<CallShortcutListener> {
       HardwareKeyboard.instance,
     );
     if (action == null) return false;
-    final livekit = context.read<LiveKitCubit>();
-    switch (action) {
-      case CallShortcut.mute:
-        livekit.toggleMicrophone();
-      case CallShortcut.deafen:
-        livekit.toggleDeafen();
-    }
+    runCallShortcut(action, context.read<LiveKitCubit>());
     return true;
   }
 

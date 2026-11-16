@@ -20,6 +20,11 @@ void main() {
     ctrl: true,
     shift: true,
   );
+  final ctrlShiftL = KeyShortcut(
+    keyId: LogicalKeyboardKey.keyL.keyId,
+    ctrl: true,
+    shift: true,
+  );
 
   group('KeyShortcut', () {
     test('reads as the desktops write it', () {
@@ -112,6 +117,46 @@ void main() {
       await simulateKeyUpEvent(LogicalKeyboardKey.shiftLeft);
       await simulateKeyUpEvent(LogicalKeyboardKey.controlLeft);
     });
+
+    test('an old save without leave reads as unset', () {
+      final old = CallShortcuts.fromJson({
+        'mute': ctrlShiftM.toJson(),
+        'deafen': null,
+      });
+      expect(old.mute, ctrlShiftM);
+      expect(old.leave, isNull);
+      final saved = CallShortcuts(leave: ctrlShiftL);
+      expect(CallShortcuts.fromJson(saved.toJson()).leave, ctrlShiftL);
+    });
+
+    test('one key belongs to one action, leave included', () {
+      final moved = CallShortcuts(
+        mute: ctrlShiftM,
+      ).withKeys(CallShortcut.leave, ctrlShiftM);
+      expect(moved.mute, isNull);
+      expect(moved.leave, ctrlShiftM);
+    });
+
+    test('held modifiers must match exactly', () {
+      final m = LogicalKeyboardKey.keyM.keyId;
+      const ctrlShift = (ctrl: true, alt: false, shift: true, meta: false);
+      expect(ctrlShiftM.matchesHeld(m, ctrlShift), isTrue);
+      expect(
+        ctrlShiftM.matchesHeld(m, (
+          ctrl: true,
+          alt: true,
+          shift: true,
+          meta: false,
+        )),
+        isFalse,
+      );
+      final shortcuts = CallShortcuts(mute: ctrlShiftM, leave: ctrlShiftL);
+      expect(
+        shortcuts.actionForKey(LogicalKeyboardKey.keyL.keyId, ctrlShift),
+        CallShortcut.leave,
+      );
+      expect(shortcuts.actionForKey(m, ctrlShift), CallShortcut.mute);
+    });
   });
 
   group('picking in Settings', () {
@@ -162,7 +207,7 @@ void main() {
 
     testWidgets('a plain key is refused and listening goes on', (tester) async {
       final app = await pump(tester);
-      await tester.tap(find.text('Set keys').last);
+      await tester.tap(find.text('Set keys').at(1));
       await tester.pump();
 
       await tester.sendKeyEvent(LogicalKeyboardKey.keyM);
@@ -188,7 +233,7 @@ void main() {
       await tester.pump();
 
       expect(app.state.callShortcuts.mute, isNull);
-      expect(find.text('Set keys'), findsNWidgets(2));
+      expect(find.text('Set keys'), findsNWidgets(3));
       expect(CallShortcutListener.capturing, isFalse);
     });
 
@@ -201,7 +246,12 @@ void main() {
       await tester.pump();
 
       expect(app.state.callShortcuts.mute, isNull);
-      expect(find.text('Not set'), findsNWidgets(2));
+      expect(find.text('Not set'), findsNWidgets(3));
+    });
+
+    testWidgets('Leave call has a row of its own', (tester) async {
+      await pump(tester);
+      expect(find.text('Leave call'), findsOneWidget);
     });
   });
 }

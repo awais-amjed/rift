@@ -3,36 +3,49 @@ import 'package:flutter/services.dart';
 
 import 'key_shortcut.dart';
 
-/// What a call shortcut does: the same as the mute and deafen buttons.
-enum CallShortcut { mute, deafen }
+/// What a call shortcut does: the same as the mute, deafen and leave buttons.
+enum CallShortcut { mute, deafen, leave }
 
-/// The keys picked for mute and deafen, each unset until chosen. Per device,
-/// in `AppState`.
+/// The keys picked for each [CallShortcut], each unset until chosen. Per
+/// device, in `AppState`.
 class CallShortcuts extends Equatable {
   final KeyShortcut? mute;
   final KeyShortcut? deafen;
+  final KeyShortcut? leave;
 
-  const CallShortcuts({this.mute, this.deafen});
+  const CallShortcuts({this.mute, this.deafen, this.leave});
 
   KeyShortcut? operator [](CallShortcut action) => switch (action) {
     CallShortcut.mute => mute,
     CallShortcut.deafen => deafen,
+    CallShortcut.leave => leave,
   };
 
-  /// [action] on [keys], or unset with null. Keys the other action had are
-  /// taken from it, so one press never does both.
+  /// [action] on [keys], or unset with null. Keys another action had are
+  /// taken from it, so one press never does two things.
   CallShortcuts withKeys(CallShortcut action, KeyShortcut? keys) {
-    KeyShortcut? keep(KeyShortcut? other) => other == keys ? null : other;
-    return switch (action) {
-      CallShortcut.mute => CallShortcuts(mute: keys, deafen: keep(deafen)),
-      CallShortcut.deafen => CallShortcuts(mute: keep(mute), deafen: keys),
-    };
+    KeyShortcut? pick(CallShortcut other) {
+      if (other == action) return keys;
+      final had = this[other];
+      return had == keys ? null : had;
+    }
+
+    return CallShortcuts(
+      mute: pick(CallShortcut.mute),
+      deafen: pick(CallShortcut.deafen),
+      leave: pick(CallShortcut.leave),
+    );
   }
 
   /// The action [key], pressed with what [keys] holds, is bound to.
-  CallShortcut? actionFor(LogicalKeyboardKey key, HardwareKeyboard keys) {
+  CallShortcut? actionFor(LogicalKeyboardKey key, HardwareKeyboard keys) =>
+      actionForKey(key.keyId, KeyShortcut.heldBy(keys));
+
+  /// The action the key [keyId], pressed with [held], is bound to: for
+  /// presses that come from outside Flutter, like the Windows hook.
+  CallShortcut? actionForKey(int keyId, HeldModifiers held) {
     for (final action in CallShortcut.values) {
-      if (this[action]?.matches(key, keys) ?? false) return action;
+      if (this[action]?.matchesHeld(keyId, held) ?? false) return action;
     }
     return null;
   }
@@ -42,14 +55,19 @@ class CallShortcuts extends Equatable {
       final Map<String, dynamic> keys => KeyShortcut.fromJson(keys),
       _ => null,
     };
-    return CallShortcuts(mute: read('mute'), deafen: read('deafen'));
+    return CallShortcuts(
+      mute: read('mute'),
+      deafen: read('deafen'),
+      leave: read('leave'),
+    );
   }
 
   Map<String, dynamic> toJson() => {
     'mute': mute?.toJson(),
     'deafen': deafen?.toJson(),
+    'leave': leave?.toJson(),
   };
 
   @override
-  List<Object?> get props => [mute, deafen];
+  List<Object?> get props => [mute, deafen, leave];
 }

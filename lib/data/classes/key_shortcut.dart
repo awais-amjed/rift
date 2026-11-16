@@ -3,11 +3,14 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+/// Which modifiers are down: from Flutter's [HardwareKeyboard] in the window,
+/// or worked out from the keys the Windows hook reported.
+typedef HeldModifiers = ({bool ctrl, bool alt, bool shift, bool meta});
+
 /// A key pressed with modifiers, as an in-app shortcut: Ctrl+Shift+M.
 ///
 /// The modifiers must match exactly, so Ctrl+M and Ctrl+Shift+M can be two
-/// different shortcuts. Only heard while Rift's window is in front — it comes
-/// from Flutter's own key events, which a window without focus does not get.
+/// different shortcuts.
 class KeyShortcut {
   /// The [LogicalKeyboardKey.keyId] of the key that is not a modifier.
   final int keyId;
@@ -55,11 +58,22 @@ class KeyShortcut {
 
   /// Whether [key], pressed with the modifiers [keys] holds, is this one.
   bool matches(LogicalKeyboardKey key, HardwareKeyboard keys) =>
-      key.keyId == keyId &&
-      keys.isControlPressed == ctrl &&
-      keys.isAltPressed == alt &&
-      keys.isShiftPressed == shift &&
-      keys.isMetaPressed == meta;
+      matchesHeld(key.keyId, heldBy(keys));
+
+  /// Whether the key [pressed], with [held] down, is this one.
+  bool matchesHeld(int pressed, HeldModifiers held) =>
+      pressed == keyId &&
+      held.ctrl == ctrl &&
+      held.alt == alt &&
+      held.shift == shift &&
+      held.meta == meta;
+
+  static HeldModifiers heldBy(HardwareKeyboard keys) => (
+    ctrl: keys.isControlPressed,
+    alt: keys.isAltPressed,
+    shift: keys.isShiftPressed,
+    meta: keys.isMetaPressed,
+  );
 
   /// "Ctrl+Shift+M", in the order the desktops write it.
   String get label => [

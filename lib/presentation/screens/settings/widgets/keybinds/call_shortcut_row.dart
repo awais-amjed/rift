@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../../../data/classes/call_shortcuts.dart';
 import '../../../../../data/classes/key_shortcut.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../../logic/shortcuts/call_shortcut_actions.dart';
 import '../../../../../logic/shortcuts/call_shortcut_listener.dart';
 import '../../../../common/app_button.dart';
 import '../../../../theme/app_text.dart';
@@ -77,10 +78,7 @@ class _CallShortcutRowState extends State<CallShortcutRow> {
     return KeyEventResult.handled;
   }
 
-  String get _title => switch (widget.action) {
-    CallShortcut.mute => 'Mute',
-    CallShortcut.deafen => 'Deafen',
-  };
+  String get _title => callShortcutTitle(widget.action);
 
   @override
   Widget build(BuildContext context) {
