@@ -77,12 +77,12 @@ class PushWakeService {
       final calls = await WakeCalls.read();
       final callChanges = <WakeCallChange>[];
 
-      final harvests = <WakeHarvest>[
-        await (central ?? WakeCentralReader()).read(
-          seed,
-          marks,
-          storageSuffix: suffix,
-        ),
+      final centralHarvest = await (central ?? WakeCentralReader()).read(
+        seed,
+        marks,
+        storageSuffix: suffix,
+      );
+      final serverHarvests = <WakeHarvest>[
         for (final server in index.servers)
           await (servers ?? WakeServerReader()).read(
             server,
@@ -101,15 +101,16 @@ class PushWakeService {
       }
       await calls.save();
 
-      final items = [for (final harvest in harvests) ...harvest.items];
+      final items = [
+        ...centralHarvest.items,
+        for (final harvest in serverHarvests) ...harvest.items,
+      ];
       if (items.isEmpty) {
-        // Nothing new is a real answer — a doorbell for a message already
-        // announced, or one read on another device. Only say something when
-        // the silence would be a guess: a source that could not be reached, or
-        // no source to reach at all.
-        final failed = harvests.any((h) => h.failed);
-        if (failed || index.servers.isEmpty) return false;
-        return true;
+        // Nothing new is a real answer: a doorbell for a message already
+        // announced, one read on another device, or one in a channel that
+        // rings only for mentions. Only say something when the silence would
+        // be a guess (see owesFallback).
+        return !owesFallback(central: centralHarvest, servers: serverHarvests);
       }
 
       for (final item in items.take(maxNotifications)) {

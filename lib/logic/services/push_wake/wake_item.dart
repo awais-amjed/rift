@@ -40,3 +40,25 @@ typedef WakeHarvest = ({List<WakeItem> items, bool failed});
 
 const WakeHarvest emptyHarvest = (items: <WakeItem>[], failed: false);
 const WakeHarvest failedHarvest = (items: <WakeItem>[], failed: true);
+
+/// Whether a wake that found nothing to say still owes the generic "You have a
+/// new message".
+///
+/// The ring carries nothing, not even which server sent it, so when one source
+/// fails the isolate cannot know whether the doorbell was about that one. It
+/// guesses from the rest. A server ring is a doorbell for every message in a
+/// channel this member was caught up in, whatever its level, so most wakes are
+/// meant to end in silence. If one server on the phone was unreachable
+/// (down, or only reachable at home), any one failure turned each of those into
+/// the generic notice. It is owed only when nothing could be read: [central]
+/// failed (the ring came through central a moment ago, so a failure there is
+/// the network), every one of [servers] failed, or there are no servers to ask.
+bool owesFallback({
+  required WakeHarvest central,
+  required List<WakeHarvest> servers,
+}) {
+  if (central.items.isNotEmpty || servers.any((s) => s.items.isNotEmpty)) {
+    return false;
+  }
+  return central.failed || servers.every((s) => s.failed);
+}

@@ -33,4 +33,58 @@ void main() {
       expect(id, lessThanOrEqualTo(0x7fffffff));
     }
   });
+
+  // The ring says nothing, not even which server sent it, so a wake that
+  // finds nothing to say must decide whether that silence is an answer.
+  group('owesFallback', () {
+    final found = (items: [item('channel:s1:c1')], failed: false);
+
+    test('one unreachable server does not speak for a quiet one', () {
+      // The bug: a message in a mentions-only channel on one server, read and
+      // rightly kept quiet, came out as "You have a new message" because
+      // another server on the phone could not be reached.
+      expect(
+        owesFallback(
+          central: emptyHarvest,
+          servers: [emptyHarvest, failedHarvest],
+        ),
+        isFalse,
+      );
+    });
+
+    test('owed when no server could be read', () {
+      expect(
+        owesFallback(
+          central: emptyHarvest,
+          servers: [failedHarvest, failedHarvest],
+        ),
+        isTrue,
+      );
+    });
+
+    test('owed when central could not be read', () {
+      expect(
+        owesFallback(central: failedHarvest, servers: [emptyHarvest]),
+        isTrue,
+      );
+    });
+
+    test('owed when there are no servers to ask', () {
+      expect(owesFallback(central: emptyHarvest, servers: const []), isTrue);
+    });
+
+    test('not owed when everything answered with nothing new', () {
+      expect(
+        owesFallback(central: emptyHarvest, servers: [emptyHarvest]),
+        isFalse,
+      );
+    });
+
+    test('never owed when something was found to say', () {
+      expect(
+        owesFallback(central: failedHarvest, servers: [failedHarvest, found]),
+        isFalse,
+      );
+    });
+  });
 }

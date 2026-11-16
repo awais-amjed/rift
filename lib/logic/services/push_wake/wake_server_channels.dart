@@ -44,9 +44,9 @@ mixin _WakeChannelsMixin on _WakeChannelKeysMixin {
         fallback: NotificationLevel.channelDefault,
       );
       // A muted channel is still unread and still badged — it just does not
-      // get to wake anybody. Skipping it here rather than at the server as
-      // well is belt and braces: the ring trigger already refuses, and a wake
-      // caused by some *other* channel must not smuggle this one in with it.
+      // get to say anything. This is the only place that decides it:
+      // `ring_channel_members` rings everyone caught up in a channel whatever
+      // its level, so the wake, which can read the message, is the filter.
       if (level == NotificationLevel.none) continue;
 
       final item = await _channelItem(
