@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../data/enums/stream_pip_corner.dart';
 import '../../../../../logic/cubits/theme/theme_cubit.dart';
+import '../../../../../logic/services/pip_resize.dart';
 import '../../../../theme/app_motion.dart';
 import '../../../../theme/app_shadows.dart';
 import '../../../../theme/theme_context.dart';
@@ -89,6 +90,10 @@ class _StreamCameraPipState extends State<StreamCameraPip> {
   /// Its width while the grip is being dragged.
   double? _resizing;
 
+  /// Its width when the grip was taken, and how far the grip has moved since.
+  double? _resizeFrom;
+  Offset _resizeMoved = Offset.zero;
+
   Size get _size => switch (_resizing) {
     final w? => Size(w, w / StreamCameraPip._aspect),
     null => StreamCameraPip.sizeFor(widget.stage, widget.scale),
@@ -122,19 +127,25 @@ class _StreamCameraPipState extends State<StreamCameraPip> {
     setState(() => _drag = null);
   }
 
-  /// The grip grows it away from its corner, which stays put: whichever way
-  /// the pointer moved further, across or down.
+  /// The grip grows it away from its corner, which stays put
+  /// ([pipResizedWidth]).
   void _resize(DragUpdateDetails details) {
-    final across = widget.corner.isLeft ? details.delta.dx : -details.delta.dx;
-    final down =
-        (widget.corner.isTop ? details.delta.dy : -details.delta.dy) *
-        StreamCameraPip._aspect;
-    final grow = across.abs() >= down.abs() ? across : down;
+    final from = _resizeFrom ??= _size.width;
+    _resizeMoved += details.delta;
     final (least, most) = StreamCameraPip._widths(widget.stage);
-    setState(() => _resizing = (_size.width + grow).clamp(least, most));
+    setState(
+      () => _resizing = pipResizedWidth(
+        from: from,
+        moved: _resizeMoved,
+        corner: widget.corner,
+        aspect: StreamCameraPip._aspect,
+      ).clamp(least, most),
+    );
   }
 
   void _endResize() {
+    _resizeFrom = null;
+    _resizeMoved = Offset.zero;
     final w = _resizing;
     if (w == null) return;
     widget.onScale(w / widget.stage.width);

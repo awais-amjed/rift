@@ -6,6 +6,7 @@ import '../../../../data/enums/stream_pip_corner.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../logic/services/call_pip_stream.dart';
+import '../../../../logic/services/pip_resize.dart';
 import '../../../theme/app_motion.dart';
 import '../calls/show_the_call.dart';
 import 'widgets/call_pip_card.dart';
@@ -40,6 +41,10 @@ class _CallStreamPipState extends State<CallStreamPip> {
 
   /// Its width while the grip is being dragged.
   double? _resizing;
+
+  /// Its width when the grip was taken, and how far the grip has moved since.
+  double? _resizeFrom;
+  Offset _resizeMoved = Offset.zero;
 
   @override
   Widget build(BuildContext context) {
@@ -165,28 +170,30 @@ class _CallStreamPipState extends State<CallStreamPip> {
     setState(() => _drag = null);
   }
 
-  /// The grip grows it away from its corner, which stays put: whichever way
-  /// the pointer moved further, across or down.
+  /// The grip grows it away from its corner, which stays put
+  /// ([pipResizedWidth]).
   void _resize(
     DragUpdateDetails details,
     StreamPipCorner corner,
     double width,
     Size area,
   ) {
-    final across = corner.isLeft ? details.delta.dx : -details.delta.dx;
-    final down =
-        (corner.isTop ? details.delta.dy : -details.delta.dy) * _aspect;
-    final grow = across.abs() >= down.abs() ? across : down;
+    final from = _resizeFrom ??= width;
+    _resizeMoved += details.delta;
     final (least, most) = _widths(area);
-    // From the width so far, not [width]: that is the one the last frame
-    // drew, and a mouse reports several moves a frame. Grown from it, each
-    // move replaced the last and only one a frame counted, so the card fell
-    // ever further behind the pointer.
-    final from = _resizing ?? width;
-    setState(() => _resizing = (from + grow).clamp(least, most));
+    setState(
+      () => _resizing = pipResizedWidth(
+        from: from,
+        moved: _resizeMoved,
+        corner: corner,
+        aspect: _aspect,
+      ).clamp(least, most),
+    );
   }
 
   void _endResize() {
+    _resizeFrom = null;
+    _resizeMoved = Offset.zero;
     final w = _resizing;
     if (w == null) return;
     context.read<AppCubit>().setCallPipWidth(w);

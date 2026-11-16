@@ -28,9 +28,7 @@ class _StubLiveKitCubit extends Cubit<LiveKitState> implements LiveKitCubit {
 void main() {
   setUp(() => HydratedBloc.storage = MemoryStorage());
 
-  testWidgets('the grip keeps up with a mouse that moves between frames', (
-    tester,
-  ) async {
+  Future<TestGesture> grab(WidgetTester tester) async {
     await tester.pumpWidget(
       MultiBlocProvider(
         providers: [
@@ -43,37 +41,61 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final card = find.byType(CallPipCard);
-    final before = tester.getSize(card).width;
-
     // Hovered, so the grip shows.
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
     await mouse.addPointer(location: Offset.zero);
     await tester.pump();
-    await mouse.moveTo(tester.getCenter(card));
+    await mouse.moveTo(tester.getCenter(find.byType(CallPipCard)));
     await tester.pump();
-    await mouse.moveTo(
-      tester.getCenter(find.byIcon(Icons.open_in_full_rounded)),
-    );
+    final grip = tester.getCenter(find.byIcon(Icons.open_in_full_rounded));
+    await mouse.moveTo(grip);
     await tester.pump();
 
-    // Resting bottom right, the grip is top left: left is bigger.
-    await mouse.down(tester.getCenter(find.byIcon(Icons.open_in_full_rounded)));
+    // Resting bottom right, the grip is top left: left is bigger. Past the
+    // drag slop, a frame at a time, so the resize is under way.
+    await mouse.down(grip);
     await tester.pump();
-    // Past the drag slop, a frame at a time, so the resize is under way.
     for (var i = 0; i < 6; i++) {
       await mouse.moveBy(const Offset(-5, 0));
       await tester.pump();
     }
-    final started = tester.getSize(card).width;
+    return mouse;
+  }
+
+  double width(WidgetTester tester) =>
+      tester.getSize(find.byType(CallPipCard)).width;
+
+  testWidgets('the grip keeps up with a mouse that moves between frames', (
+    tester,
+  ) async {
+    final mouse = await grab(tester);
+    final started = width(tester);
     // A mouse reports several moves a frame: five with no frame between.
     for (var i = 0; i < 5; i++) {
       await mouse.moveBy(const Offset(-10, 0));
     }
     await tester.pump();
 
-    expect(started, greaterThan(before));
-    expect(tester.getSize(card).width, closeTo(started + 50, 0.5));
+    expect(started, greaterThan(320));
+    expect(width(tester), closeTo(started + 50, 0.5));
+    await mouse.up();
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('a pull that wobbles back a little still grows', (tester) async {
+    final mouse = await grab(tester);
+    final started = width(tester);
+    // Out to the left, drifting a pixel down now and then: the grip follows
+    // the pull as a whole, not each step on its own, so the drift costs
+    // nothing.
+    for (var i = 0; i < 5; i++) {
+      await mouse.moveBy(const Offset(-3, 0));
+      await tester.pump();
+      await mouse.moveBy(const Offset(0, 1));
+      await tester.pump();
+    }
+
+    expect(width(tester), closeTo(started + 15, 0.5));
     await mouse.up();
     await tester.pumpAndSettle();
   });
