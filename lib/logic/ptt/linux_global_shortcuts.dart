@@ -108,22 +108,31 @@ class LinuxGlobalShortcuts {
     _applied = wanted;
     final generation = ++_generation;
 
-    _setPushToTalkKey(null);
-    _app.setDesktopCallShortcuts(const {});
+    // The session closes for the bind, so the window hears the key meanwhile.
+    final shown = pushToTalkWhileBinding(
+      wanted: wanted,
+      granted: _app.state.desktopShortcutsGranted,
+    );
+    _pushToTalkBound = false;
+    if (!shown.keepKey) _setPushToTalkKey(null);
+    _app.setDesktopCallShortcuts(
+      callKeysWhileBinding(
+        shown: _app.state.desktopCallShortcuts,
+        wanted: wanted,
+        granted: _app.state.desktopShortcutsGranted,
+      ),
+    );
     _pushToTalk.reset();
     for (final debounce in _calls.values) {
       debounce.reset();
     }
-    final asksPushToTalk = wanted.any(
-      (s) => s.id == GlobalShortcutsPortal.pushToTalkId,
-    );
     if (wanted.isEmpty) {
       _app.setDesktopPushToTalkPending(false);
       await _portal.close();
       return;
     }
 
-    _app.setDesktopPushToTalkPending(asksPushToTalk);
+    _app.setDesktopPushToTalkPending(shown.pending);
     await LinuxDesktopEntry.ensure();
     final bound = await _bind(wanted, generation);
     if (generation != _generation) return;
@@ -262,6 +271,39 @@ List<PortalShortcut> desktopShortcutsFor({
     ),
   ...portalShortcutsFor(calls),
 ];
+
+/// What Settings shows for push-to-talk while [wanted] is being bound. One
+/// the desktop [granted] before comes back without a dialog, so its key stays
+/// shown (`keepKey`) and a dialog meanwhile is for a call shortcut; one not
+/// granted yet may be what the dialog asks about (`pending`).
+({bool pending, bool keepKey}) pushToTalkWhileBinding({
+  required List<PortalShortcut> wanted,
+  required Iterable<String> granted,
+}) {
+  final asks = wanted.any((s) => s.id == GlobalShortcutsPortal.pushToTalkId);
+  final known = granted.contains(GlobalShortcutsPortal.pushToTalkId);
+  return (pending: asks && !known, keepKey: asks && known);
+}
+
+/// The call shortcuts Settings keeps showing as the desktop's while [wanted]
+/// is being bound: those it [granted] before, which come back without a
+/// dialog. Dropping them all made every row lose its desktop line and get it
+/// back a moment later (Nov 16). The window leaves these keys to the desktop
+/// meanwhile, so for the moment of a bind they do nothing.
+Map<CallShortcut, String> callKeysWhileBinding({
+  required Map<CallShortcut, String> shown,
+  required List<PortalShortcut> wanted,
+  required Iterable<String> granted,
+}) {
+  final asked = {for (final shortcut in wanted) shortcut.id};
+  final known = granted.toSet();
+  return {
+    for (final MapEntry(key: action, value: key) in shown.entries)
+      if (asked.contains(portalIdFor(action)) &&
+          known.contains(portalIdFor(action)))
+        action: key,
+  };
+}
 
 /// What to do when the desktop refuses [asked] (or never answers): ask again
 /// for what it [granted] before, and set the rest aside.

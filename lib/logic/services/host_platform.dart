@@ -49,6 +49,12 @@ class HostPlatform {
       defaultTargetPlatform == TargetPlatform.android ||
       defaultTargetPlatform == TargetPlatform.iOS;
 
+  /// Whether the call shortcuts work with Rift in the background: the
+  /// Windows hook and the Linux desktop's portal. macOS has neither yet, so
+  /// there they are only heard while Rift is in front.
+  static bool get hearsShortcutsAnywhere =>
+      !kIsWeb && (Platform.isWindows || Platform.isLinux);
+
   /// Whether a screen share can carry the computer's audio.
   ///
   /// Windows has WASAPI loopback and Linux has PulseAudio monitors; both are

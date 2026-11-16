@@ -112,6 +112,54 @@ void main() {
     });
   });
 
+  // Nov 16: push-to-talk said "Checking your push-to-talk key" while the
+  // desktop's dialog was only asking about a new call shortcut.
+  group('push-to-talk while binding', () {
+    test('a granted key stays shown, and nothing is pending', () {
+      final shown = pushToTalkWhileBinding(
+        wanted: [pushToTalk, mute],
+        granted: {'push-to-talk'},
+      );
+      expect(shown.pending, isFalse);
+      expect(shown.keepKey, isTrue);
+    });
+
+    test('a key not granted yet is pending', () {
+      final shown = pushToTalkWhileBinding(
+        wanted: [pushToTalk, mute],
+        granted: {'call-mute'},
+      );
+      expect(shown.pending, isTrue);
+      expect(shown.keepKey, isFalse);
+    });
+
+    // Nov 16: clearing one call shortcut made every row drop its desktop
+    // line and come back a moment later.
+    test('call shortcuts granted and still asked for stay shown', () {
+      expect(
+        callKeysWhileBinding(
+          shown: {
+            CallShortcut.mute: 'Press <Shift><Control>m',
+            CallShortcut.deafen: 'Press <Shift><Control>d',
+            CallShortcut.leave: 'Press <Shift><Control>l',
+          },
+          wanted: [pushToTalk, mute],
+          granted: {'push-to-talk', 'call-mute', 'call-leave'},
+        ),
+        {CallShortcut.mute: 'Press <Shift><Control>m'},
+      );
+    });
+
+    test('push-to-talk not asked for is neither', () {
+      final shown = pushToTalkWhileBinding(
+        wanted: [mute],
+        granted: {'push-to-talk'},
+      );
+      expect(shown.pending, isFalse);
+      expect(shown.keepKey, isFalse);
+    });
+  });
+
   group('a refused list', () {
     const deafen = PortalShortcut(
       id: 'call-deafen',
