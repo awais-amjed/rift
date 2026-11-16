@@ -178,7 +178,12 @@ class _CallStreamPipState extends State<CallStreamPip> {
         (corner.isTop ? details.delta.dy : -details.delta.dy) * _aspect;
     final grow = across.abs() >= down.abs() ? across : down;
     final (least, most) = _widths(area);
-    setState(() => _resizing = (width + grow).clamp(least, most));
+    // From the width so far, not [width]: that is the one the last frame
+    // drew, and a mouse reports several moves a frame. Grown from it, each
+    // move replaced the last and only one a frame counted, so the card fell
+    // ever further behind the pointer.
+    final from = _resizing ?? width;
+    setState(() => _resizing = (from + grow).clamp(least, most));
   }
 
   void _endResize() {
