@@ -61,6 +61,15 @@ class LinuxGlobalShortcuts {
   List<PortalShortcut>? _applied;
   bool _pushToTalkBound = false;
 
+  /// The ids the desktop answered for last, so a refused list can fall back
+  /// on them: GNOME's dialog is all or nothing, and saying no to a new call
+  /// shortcut must not cost push-to-talk the key it already had.
+  Set<String> _granted = const {};
+
+  /// Shortcuts the desktop refused this run, not asked for again until their
+  /// key changes — otherwise every change brings the dialog back.
+  final Set<PortalShortcut> _refused = {};
+
   LinuxGlobalShortcuts(this._app, this._liveKit);
 
   /// Whether the desktop is delivering a known push-to-talk key. While it is,
@@ -92,7 +101,7 @@ class LinuxGlobalShortcuts {
   }
 
   Future<void> _apply() async {
-    final wanted = _wantedFor(_app.state);
+    final wanted = notRefused(_wantedFor(_app.state), _refused);
     if (listEquals(wanted, _applied)) return;
     _applied = wanted;
     final generation = ++_generation;
@@ -114,16 +123,18 @@ class LinuxGlobalShortcuts {
 
     _app.setDesktopPushToTalkPending(asksPushToTalk);
     await LinuxDesktopEntry.ensure();
-    final triggers = await _portal.bind(
-      appId: LinuxDesktopEntry.appId,
-      shortcuts: wanted,
-      onPress: (id, timestamp) => _debounceFor(id)?.press(timestamp),
-      onRelease: (id, timestamp) => _debounceFor(id)?.release(timestamp),
-      onTriggersChanged: (triggers) {
-        if (generation == _generation) _adopt(triggers);
-      },
-    );
+    var triggers = await _bind(wanted, generation);
     if (generation != _generation) return;
+    if (triggers == null) {
+      final next = afterRefusal(asked: wanted, granted: _granted);
+      _refused.addAll(next.refused);
+      _applied = next.retry;
+      if (next.retry.isNotEmpty) {
+        triggers = await _bind(next.retry, generation);
+        if (generation != _generation) return;
+      }
+    }
+    if (triggers != null) _granted = triggers.keys.toSet();
     _adopt(triggers ?? const {});
     _app.setDesktopPushToTalkPending(false);
     HelperMethods.printDebug(
@@ -132,6 +143,19 @@ class LinuxGlobalShortcuts {
           : 'LinuxGlobalShortcuts: desktop shortcuts bound $triggers',
     );
   }
+
+  Future<Map<String, String>?> _bind(
+    List<PortalShortcut> shortcuts,
+    int generation,
+  ) => _portal.bind(
+    appId: LinuxDesktopEntry.appId,
+    shortcuts: shortcuts,
+    onPress: (id, timestamp) => _debounceFor(id)?.press(timestamp),
+    onRelease: (id, timestamp) => _debounceFor(id)?.release(timestamp),
+    onTriggersChanged: (triggers) {
+      if (generation == _generation) _adopt(triggers);
+    },
+  );
 
   ReleaseDebounce? _debounceFor(String id) {
     if (id == GlobalShortcutsPortal.pushToTalkId) return _pushToTalk;
@@ -149,10 +173,13 @@ class LinuxGlobalShortcuts {
         ? null
         : keybindForTriggerDescription(pushToTalk);
     final calls = adoptDesktopKeys(state.callShortcuts, triggers);
-    _applied = desktopShortcutsFor(
-      pushToTalk: state.pushToTalkEnabled,
-      pushToTalkKeyId: pushToTalkKey?.keyId ?? state.pushToTalkKeyId,
-      calls: calls,
+    _applied = notRefused(
+      desktopShortcutsFor(
+        pushToTalk: state.pushToTalkEnabled,
+        pushToTalkKeyId: pushToTalkKey?.keyId ?? state.pushToTalkKeyId,
+        calls: calls,
+      ),
+      _refused,
     );
 
     _setPushToTalkKey(pushToTalk);
@@ -198,4 +225,30 @@ List<PortalShortcut> desktopShortcutsFor({
       preferredTrigger: xdgTriggerForKeyId(pushToTalkKeyId),
     ),
   ...portalShortcutsFor(calls),
+];
+
+/// What to do when the desktop refuses [asked] (or never answers): ask again
+/// for what it [granted] before, and set the rest aside.
+({List<PortalShortcut> retry, Set<PortalShortcut> refused}) afterRefusal({
+  required List<PortalShortcut> asked,
+  required Set<String> granted,
+}) => (
+  retry: [
+    for (final shortcut in asked)
+      if (granted.contains(shortcut.id)) shortcut,
+  ],
+  refused: {
+    for (final shortcut in asked)
+      if (!granted.contains(shortcut.id)) shortcut,
+  },
+);
+
+/// [wanted] less what the desktop refused this run. A shortcut whose key has
+/// changed since is a new question, so it stays.
+List<PortalShortcut> notRefused(
+  List<PortalShortcut> wanted,
+  Set<PortalShortcut> refused,
+) => [
+  for (final shortcut in wanted)
+    if (!refused.contains(shortcut)) shortcut,
 ];

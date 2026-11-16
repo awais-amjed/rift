@@ -65,4 +65,40 @@ void main() {
       isEmpty,
     );
   });
+
+  group('a refused list', () {
+    const deafen = PortalShortcut(
+      id: 'call-deafen',
+      description: 'Deafen',
+      preferredTrigger: 'CTRL+SHIFT+d',
+    );
+
+    test('keeps what was granted before, and sets the new one aside', () {
+      final next = afterRefusal(
+        asked: [pushToTalk, mute],
+        granted: {'push-to-talk'},
+      );
+      expect(next.retry, [pushToTalk]);
+      expect(next.refused, {mute});
+    });
+
+    test('with nothing granted before, there is nothing to ask again', () {
+      final next = afterRefusal(asked: [pushToTalk, mute], granted: {});
+      expect(next.retry, isEmpty);
+      expect(next.refused, {pushToTalk, mute});
+    });
+
+    test('a refused shortcut is not asked for again until its key changes', () {
+      expect(notRefused([pushToTalk, mute, deafen], {mute}), [
+        pushToTalk,
+        deafen,
+      ]);
+      const otherMute = PortalShortcut(
+        id: 'call-mute',
+        description: 'Mute',
+        preferredTrigger: 'CTRL+SHIFT+n',
+      );
+      expect(notRefused([otherMute], {mute}), [otherMute]);
+    });
+  });
 }
