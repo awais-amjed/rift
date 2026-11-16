@@ -43,10 +43,6 @@ class _CallStreamPipState extends State<CallStreamPip> {
   /// Its width while the grip is being dragged.
   double? _resizing;
 
-  /// Its width when the grip was taken, and how far the grip has moved since.
-  double? _resizeFrom;
-  Offset _resizeMoved = Offset.zero;
-
   @override
   Widget build(BuildContext context) {
     final stageShown = context.select<AppCubit, bool>(
@@ -179,13 +175,14 @@ class _CallStreamPipState extends State<CallStreamPip> {
     double width,
     Size area,
   ) {
-    final from = _resizeFrom ??= width;
-    _resizeMoved += details.delta;
+    // From the width so far, not [width]: that is the one the last frame
+    // drew, and a mouse reports several moves a frame.
+    final from = _resizing ?? width;
     final (least, most) = _widths(area);
     setState(
       () => _resizing = pipResizedWidth(
         from: from,
-        moved: _resizeMoved,
+        moved: details.delta,
         corner: corner,
         aspect: _aspect,
       ).clamp(least, most),
@@ -193,8 +190,6 @@ class _CallStreamPipState extends State<CallStreamPip> {
   }
 
   void _endResize() {
-    _resizeFrom = null;
-    _resizeMoved = Offset.zero;
     final w = _resizing;
     if (w == null) return;
     context.read<AppCubit>().setCallPipWidth(w);

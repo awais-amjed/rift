@@ -109,24 +109,6 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('a pull that wobbles back a little still grows', (tester) async {
-    final mouse = await grab(tester);
-    final started = width(tester);
-    // Out to the left, drifting a pixel down now and then: the grip follows
-    // the pull as a whole, not each step on its own, so the drift costs
-    // nothing.
-    for (var i = 0; i < 5; i++) {
-      await mouse.moveBy(const Offset(-3, 0));
-      await tester.pump();
-      await mouse.moveBy(const Offset(0, 1));
-      await tester.pump();
-    }
-
-    expect(width(tester), closeTo(started + 15, 0.5));
-    await mouse.up();
-    await tester.pumpAndSettle();
-  });
-
   testWidgets('its side facing in resizes it, with the arrows for it', (
     tester,
   ) async {

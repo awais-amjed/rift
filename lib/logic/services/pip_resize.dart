@@ -2,14 +2,15 @@ import 'dart:ui';
 
 import '../../data/enums/stream_pip_corner.dart';
 
-/// The width a floating picture resting in [corner] takes when its grip has
-/// been pulled [moved] since the pull began at [from] wide.
+/// The width a floating picture resting in [corner], [from] wide, takes when
+/// its grip moves [moved] in one step of a pull.
 ///
-/// From the pull as a whole, never step by step: a mouse reports a pull as
-/// a run of one-pixel steps, and judged one at a time, a pixel's drift back
-/// against the pull shrank the picture in the middle of growing it. Of the
-/// two ways it could change — across, or down at its own [aspect] — it
-/// follows the one the grip has gone further in, either way.
+/// It grows away from its corner, which stays put: by whichever way the
+/// pointer moved further in this step, across or down at its own [aspect].
+/// Called once a step, from the width the last step left — never from the
+/// width the last frame drew, since a mouse reports several steps a frame.
+/// Judged over a whole pull instead, it jumped wherever the pull went out
+/// one way and in the other, from following one to following the other.
 double pipResizedWidth({
   required double from,
   required Offset moved,
