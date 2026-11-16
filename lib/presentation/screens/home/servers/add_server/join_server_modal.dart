@@ -135,7 +135,9 @@ class _JoinServerModalState extends State<JoinServerModal> {
     // register returns the full server context — add directly.
     final data = result.data!;
     final token = data['token'] as String;
-    context.read<ServerCubit>().addServer(invite.serverUrl, token, data);
+    // Kept under the address joined, which for a link that needs a Rift
+    // account is the server's own (`joinAddress`).
+    context.read<ServerCubit>().addServer(result.serverUrl!, token, data);
     if (!mounted) return;
 
     setState(() => _isLoading = false);

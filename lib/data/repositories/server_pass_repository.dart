@@ -2,21 +2,43 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../logic/helper_methods.dart';
 import '../central_failure.dart';
+import '../classes/resolved_invite.dart';
 
 const _passFailedText =
     "Rift couldn't vouch for your account. Try joining again.";
 
-/// The address a pass for this server names: the server's own public one,
-/// which `resolve_invite` hands out, or the link's on a server too old to
-/// say. Central makes the tag from it and the server accepts no other, so a
-/// link reaching the server by another address still joins.
-String passAddress({
+/// Where a join through a link goes, given the server's `resolve_invite`
+/// answer [data].
+///
+/// A link that needs a Rift account carries central's pass, which names one
+/// address, and the server accepts only its own. Whoever is handed a pass can
+/// read the tag in it, the one the server it names keeps for this account. So
+/// such a join goes whole to the address the server gives as its own, and the
+/// pass is handed to nobody else: a server naming another's address only sends
+/// the join there, where its invite has to work. Any other link, or a server
+/// too old to give an address, is joined where the link points.
+String joinAddress({
   required String linkUrl,
   required Map<dynamic, dynamic> data,
-}) => switch (data['public_url']) {
-  final String url when url.isNotEmpty => url,
-  _ => linkUrl,
-};
+}) {
+  final given = data['public_url'];
+  if (!needsAccountIn(data) || given is! String) return linkUrl;
+  final own = Uri.tryParse(given.trim());
+  final link = Uri.tryParse(linkUrl);
+  if (own == null ||
+      link == null ||
+      !const {'http', 'https'}.contains(own.scheme) ||
+      own.host.isEmpty) {
+    return linkUrl;
+  }
+  if (own.scheme == link.scheme &&
+      own.host == link.host &&
+      own.port == link.port) {
+    return linkUrl;
+  }
+  // The address is put in front of /functions/v1/..., so no slash at the end.
+  return given.trim().replaceFirst(RegExp(r'/+$'), '');
+}
 
 /// A failed invite, in words. A server from before links could need an
 /// account has no such column, and says so in PostgREST's terms.

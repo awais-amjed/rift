@@ -78,7 +78,7 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
     final data = result.data!;
     final token = data['token'] as String;
     final server = context.read<ServerCubit>().addServer(
-      widget.supabaseUrl,
+      result.serverUrl!,
       token,
       data,
     );

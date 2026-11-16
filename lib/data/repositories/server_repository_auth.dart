@@ -41,7 +41,7 @@ mixin _AuthApiMixin {
       String? serverName,
       String? iconPath,
       bool needsAccount,
-      String? publicUrl,
+      String? joinUrl,
       String? error,
     })
   >
@@ -56,7 +56,7 @@ mixin _AuthApiMixin {
         serverName: null,
         iconPath: null,
         needsAccount: false,
-        publicUrl: null,
+        joinUrl: null,
         error: response.error,
       );
     }
@@ -67,7 +67,7 @@ mixin _AuthApiMixin {
       serverName: data['server_name'] as String?,
       iconPath: data['server_icon'] as String?,
       needsAccount: needsAccountIn(data),
-      publicUrl: passAddress(linkUrl: supabaseUrl, data: data),
+      joinUrl: joinAddress(linkUrl: supabaseUrl, data: data),
       error: null,
     );
   }

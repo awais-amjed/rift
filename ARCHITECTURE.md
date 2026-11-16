@@ -867,7 +867,14 @@ public key, built into the server's functions, and that the pass names the
 server's own address (central makes the tag from the address it is given, so any
 other would be a tag nobody banned) and the key the caller signed in with. So the
 server never sees the email, the tag differs on every server so no two can match
-their members, and a copied pass is useless to anybody but the identity it names. The server keeps the tag where no member can read it; a ban keeps it too
+their members, and a copied pass is useless to anybody but the identity it names.
+Whoever holds a pass can read its tag, though, so the app hands one only to the
+address it names: a link that reaches the server another way is joined, whole, at
+the address the server's `resolve_invite` gives as its own, and only if the same
+server answers there with the same invite (`joinAddress`). Otherwise a server could
+name another's address and collect the tag that one keeps for the account, linking
+the person's identities across the two (found in the Nov 16 2026 review; pinned by
+`test/server_pass_address_test.dart`). The server keeps the tag where no member can read it; a ban keeps it too
 (`banned_tags`, which outlives the member row), so the account stays out whatever
 identity it comes back as. A kick does not keep it. The same account arriving with
 a new identity (its seed lost and made again) takes its old membership over, the

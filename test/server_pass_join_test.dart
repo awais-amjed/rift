@@ -6,25 +6,60 @@ import 'package:rift/data/repositories/server_pass_repository.dart';
 /// says so before signing in when there is no account, and otherwise asks
 /// central for a pass that vouches for it.
 void main() {
-  // Central makes the tag from the address it is given, so the pass names
-  // the server's own address, which the server hands out — never whichever
-  // one the link happened to use.
-  group('the address a pass names', () {
-    test("is the server's own when it says", () {
+  // Central makes the tag from the address it is given, and anybody handed a
+  // pass can read the tag in it. So a join through a link that needs an
+  // account goes to the server's own address, the one its pass names, and
+  // the pass is handed to nobody else (test/server_pass_address_test.dart).
+  group('where a join goes', () {
+    const marked = {'needs_account': true};
+
+    test("a marked link reaching the server another way goes to the server's "
+        'own address', () {
       expect(
-        passAddress(
+        joinAddress(
           linkUrl: 'http://192.168.1.6:8000',
-          data: {'public_url': 'https://rift.example'},
+          data: {...marked, 'public_url': 'https://rift.example/'},
         ),
         'https://rift.example',
       );
     });
 
-    test("is the link's on a server that does not say", () {
+    test('a marked link at the address the server gives stays as it is', () {
       expect(
-        passAddress(linkUrl: 'https://rift.example', data: {'server_id': 's'}),
+        joinAddress(
+          linkUrl: 'https://rift.example',
+          data: {...marked, 'public_url': 'https://rift.example/'},
+        ),
         'https://rift.example',
       );
+    });
+
+    test('a link that needs no account joins where it points', () {
+      expect(
+        joinAddress(
+          linkUrl: 'http://192.168.1.6:8000',
+          data: {'public_url': 'https://rift.example'},
+        ),
+        'http://192.168.1.6:8000',
+      );
+    });
+
+    test('a server that gives no usable address is joined where the link '
+        'points', () {
+      for (final publicUrl in [
+        null,
+        '',
+        'rift.example',
+        'ftp://rift.example',
+      ]) {
+        expect(
+          joinAddress(
+            linkUrl: 'https://rift.example',
+            data: {...marked, 'public_url': publicUrl},
+          ),
+          'https://rift.example',
+        );
+      }
     });
   });
 

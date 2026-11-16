@@ -77,38 +77,74 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
   }
 
   /// Register on a server with an invite code.
-  Future<({bool success, String? error, Map<String, dynamic>? data})>
+  ///
+  /// [serverUrl] in the answer is the address joined, for the server to be
+  /// kept under: a link that needs a Rift account is joined at the server's
+  /// own address, which may not be the link's (`joinAddress`).
+  Future<
+    ({
+      bool success,
+      String? error,
+      Map<String, dynamic>? data,
+      String? serverUrl,
+    })
+  >
   registerOnServer({
     required String supabaseUrl,
     required String inviteCode,
     required String username,
     required String displayName,
   }) async {
-    try {
-      final host = Uri.parse(supabaseUrl).host;
+    ({
+      bool success,
+      String? error,
+      Map<String, dynamic>? data,
+      String? serverUrl,
+    })
+    failed(String? error) =>
+        (success: false, error: error, data: null, serverUrl: null);
 
+    try {
       // 1. Resolve the invite to its server id BEFORE deriving the identity:
       //    with multiple servers per Supabase project the identity is scoped to
       //    (host, serverId), so we must know the server first — ARCHITECTURE.md §1.
-      final resolved = await _serverRepo.resolveInvite(supabaseUrl, inviteCode);
+      var resolved = await _serverRepo.resolveInvite(supabaseUrl, inviteCode);
       if (!resolved.success || resolved.serverId == null) {
-        return (
-          success: false,
-          error: resolved.error ?? 'Invalid invite',
-          data: null,
-        );
+        return failed(resolved.error ?? 'Invalid invite');
+      }
+
+      // A pass goes only to the address it names, so a link that needs an
+      // account and reached the server another way is joined, whole, at the
+      // address the server gives as its own. That address must be the same
+      // server knowing the same invite: a server naming another's gets no
+      // pass for it.
+      final joinUrl = resolved.joinUrl ?? supabaseUrl;
+      if (joinUrl != supabaseUrl) {
+        final ownHost = Uri.parse(joinUrl).host;
+        final there = await _serverRepo.resolveInvite(joinUrl, inviteCode);
+        if (!there.success) {
+          return failed(
+            "This server couldn't be reached at its own address, $ownHost, "
+            'which a link that needs a Rift account joins through.',
+          );
+        }
+        if (there.serverId != resolved.serverId) {
+          return failed(
+            'This link gives the address of a different server, $ownHost.',
+          );
+        }
+        resolved = there;
       }
       final serverId = resolved.serverId!;
+      final host = Uri.parse(joinUrl).host;
 
       final identity = await getIdentityForHost(host, serverId: serverId);
 
       // 2. SIWS login — creates the per-(host, serverId) GoTrue identity (signup)
       //    and yields the JWT that register binds the profile to
       //    (users.id = auth.uid()).
-      final login = await siwsLogin(supabaseUrl, serverId: serverId);
-      if (login.accessToken == null) {
-        return (success: false, error: login.error, data: null);
-      }
+      final login = await siwsLogin(joinUrl, serverId: serverId);
+      if (login.accessToken == null) return failed(login.error);
       final token = login.accessToken!;
 
       // Central vouches for the account to this server and this identity.
@@ -118,13 +154,11 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
       String? pass;
       if (resolved.needsAccount && _passRepo.hasAccount) {
         final vouched = await _passRepo.passFor(
-          supabaseUrl: resolved.publicUrl ?? supabaseUrl,
+          supabaseUrl: joinUrl,
           serverId: serverId,
           publicKey: identity.publicKeyBase64,
         );
-        if (vouched.pass == null) {
-          return (success: false, error: vouched.error, data: null);
-        }
+        if (vouched.pass == null) return failed(vouched.error);
         pass = vouched.pass;
       }
 
@@ -132,7 +166,7 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
       //    coming back, sign in to the one they already have (the response
       //    then carries `rejoined: true`; see `register` in API.md).
       final response = await _serverRepo.register(
-        supabaseUrl,
+        joinUrl,
         bearerToken: token,
         inviteCode: inviteCode,
         publicKey: identity.publicKeyBase64,
@@ -142,9 +176,7 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
         pass: pass,
       );
 
-      if (!response.success) {
-        return (success: false, error: response.error, data: null);
-      }
+      if (!response.success) return failed(response.error);
 
       await _addServerToVault(host, version: 'v1');
 
@@ -155,10 +187,11 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
           'token': token,
           ...(response.data as Map<String, dynamic>),
         },
+        serverUrl: joinUrl,
       );
     } catch (e) {
       HelperMethods.printDebug('[Vault] registerOnServer error: $e');
-      return (success: false, error: e.toString(), data: null);
+      return failed(e.toString());
     }
   }
 }
