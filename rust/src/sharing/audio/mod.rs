@@ -79,11 +79,12 @@ impl Pcm {
 // Each platform reads its own fields and ignores the others, so on any one of
 // them some of these are dead by definition.
 #[allow(dead_code)]
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub(crate) struct AudioSelection {
-    /// Linux: the PulseAudio sink-input picked, which names the program whose
-    /// streams to capture (`linux_app`); none means everything but Rift.
-    pub sink_input: Option<u32>,
+    /// Linux: the application picked, as the dialog listed it, which names
+    /// the program whose streams to capture (`linux_app`); none means
+    /// everything but Rift.
+    pub app: Option<AudioSource>,
     /// Windows: the process whose audio to capture; none means everything but Rift.
     pub pid: Option<u32>,
 }
@@ -91,7 +92,7 @@ pub(crate) struct AudioSelection {
 impl From<&ScreenShareConfig> for AudioSelection {
     fn from(config: &ScreenShareConfig) -> Self {
         Self {
-            sink_input: config.selected_audio_source_index,
+            app: config.selected_audio_source.clone(),
             pid: config.selected_audio_source_pid,
         }
     }
@@ -100,7 +101,7 @@ impl From<&ScreenShareConfig> for AudioSelection {
 impl From<&SoundShareConfig> for AudioSelection {
     fn from(config: &SoundShareConfig) -> Self {
         Self {
-            sink_input: config.selected_audio_source_index,
+            app: config.selected_audio_source.clone(),
             pid: config.selected_audio_source_pid,
         }
     }
@@ -179,22 +180,27 @@ pub(crate) async fn start(room: &Room, request: AudioCapture) -> Option<AudioCap
     }
 }
 
-/// Applications currently playing. On Linux each is a PulseAudio sink input;
-/// on Windows each is a process, with its id in `index` (see
-/// [`windows::list_sources`]).
-pub(crate) fn list_sources() -> Vec<AudioSource> {
+/// Applications currently playing. On Linux each is a PulseAudio sink input,
+/// followed by the programs in `known` that are running but playing nothing
+/// (`linux_app::quiet`); on Windows each is a process, with its id in `index`
+/// (see [`windows::list_sources`]), and `known` is not needed: any process can
+/// be picked by its id.
+pub(crate) fn list_sources(known: &[AudioSource]) -> Vec<AudioSource> {
     #[cfg(target_os = "linux")]
     {
-        let listed = pulse::list_sink_inputs();
-        linux_app::remember(&listed);
+        let mut listed = pulse::list_sink_inputs();
+        let quiet = linux_app::quiet(&listed, known, linux_app::program_runs);
+        listed.extend(quiet);
         listed
     }
     #[cfg(target_os = "windows")]
     {
+        let _ = known;
         windows::list_sources()
     }
     #[cfg(not(any(target_os = "linux", target_os = "windows")))]
     {
+        let _ = known;
         Vec::new()
     }
 }

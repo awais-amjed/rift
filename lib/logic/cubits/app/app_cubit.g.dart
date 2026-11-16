@@ -101,6 +101,11 @@ AppState _$AppStateFromJson(Map<String, dynamic> json) => AppState(
           ?.map((e) => e as String)
           .toList() ??
       const [],
+  audioAppsHeard:
+      (json['audioAppsHeard'] as List<dynamic>?)
+          ?.map((e) => AudioAppHeard.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+      const [],
   callToResume: json['callToResume'] == null
       ? null
       : CallToResume.fromJson(json['callToResume'] as Map<String, dynamic>),
@@ -182,6 +187,7 @@ Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
   'verifiedCodes': instance.verifiedCodes,
   'seenKeys': instance.seenKeys.map((k, e) => MapEntry(k, e.toJson())),
   'recentEmojis': instance.recentEmojis,
+  'audioAppsHeard': instance.audioAppsHeard.map((e) => e.toJson()).toList(),
   'callToResume': instance.callToResume?.toJson(),
 };
 

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rift/data/classes/audio_app_heard.dart';
 import 'package:rift/data/classes/screen_share_settings.dart';
 import 'package:rift/logic/services/screen_share_sources.dart';
 import 'package:rift/src/rust/api/screenshare/types.dart';
@@ -100,6 +101,7 @@ void main() {
       binary: binary,
       mediaName: title,
       appId: '',
+      playing: true,
     );
 
     test(
@@ -169,6 +171,7 @@ void main() {
       binary: binary,
       mediaName: '',
       appId: '',
+      playing: true,
     );
 
     test('drops every Rift on Windows, whatever the case', () {
@@ -193,6 +196,75 @@ void main() {
         audio('rift', 'rift-player'),
       ], ownBinary: '/opt/rift/bundle/rift');
       expect(kept, hasLength(1));
+    });
+  });
+
+  // Nov 16 2026: a paused player has no stream on Linux, so it was not
+  // listed and a share could not pick it.
+  group('ScreenShareSources.noteHeard', () {
+    AudioSource audio(String app, String binary, {bool playing = true}) =>
+        AudioSource(
+          index: app.length,
+          sink: 0,
+          appName: app,
+          binary: binary,
+          mediaName: 'a track',
+          appId: '$binary.desktop',
+          playing: playing,
+        );
+
+    test(
+      'puts what plays first, once each, and keeps no more than the limit',
+      () {
+        final known = [
+          for (var i = 0; i < ScreenShareSources.maxAppsHeard; i++)
+            AudioAppHeard(binary: 'app$i', appName: 'App $i', appId: ''),
+        ];
+        final next = ScreenShareSources.noteHeard(known, [
+          audio('Google Chrome', 'chrome'),
+          audio('App 3', 'app3'),
+        ]);
+        expect(next.length, ScreenShareSources.maxAppsHeard);
+        expect(next.take(3).map((a) => a.binary), ['chrome', 'app3', 'app0']);
+        expect(next.first.appId, 'chrome.desktop');
+        expect(next.where((a) => a.binary == 'app3').length, 1);
+      },
+    );
+
+    test('notes neither a quiet entry nor one naming no program', () {
+      final next = ScreenShareSources.noteHeard(const [], [
+        audio('Google Chrome', 'chrome', playing: false),
+        audio('', ''),
+      ]);
+      expect(next, isEmpty);
+    });
+
+    test('a quiet program is never taken for a stream with its number', () {
+      final quiet = AudioAppHeard(
+        binary: 'chrome',
+        appName: 'Google Chrome',
+        appId: 'google-chrome',
+      ).toSource();
+      final stream = AudioSource(
+        index: 0,
+        sink: 0,
+        appName: 'mpv',
+        binary: 'mpv',
+        mediaName: '',
+        appId: '',
+        playing: true,
+      );
+      expect(ScreenShareSources.keepAudioSource([stream], quiet), isNull);
+      expect(quiet.playing, isFalse);
+    });
+
+    test('a heard app keeps its names through JSON', () {
+      const heard = AudioAppHeard(
+        binary: 'chrome',
+        appName: 'Google Chrome',
+        appId: 'google-chrome',
+      );
+      expect(AudioAppHeard.fromJson(heard.toJson()), heard);
     });
   });
 }

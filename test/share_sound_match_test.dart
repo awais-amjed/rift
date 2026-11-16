@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rift/data/classes/audio_app_heard.dart';
 import 'package:rift/data/classes/screen_share_settings.dart';
 import 'package:rift/data/classes/share_sound_choice.dart';
 import 'package:rift/data/classes/shared_window.dart';
@@ -21,6 +22,7 @@ AudioSource sound(
   mediaName: media,
   appId: appId,
   pid: pid,
+  playing: true,
 );
 
 // What each played to PulseAudio on the test machine, Oct 14 2026.
@@ -203,6 +205,20 @@ void main() {
       expect(found.found, isFalse);
     });
 
+    // Nov 16 2026: a paused player is listed as running but quiet.
+    test('is found while its app runs but plays nothing', () {
+      final paused = const AudioAppHeard(
+        binary: 'spotify',
+        appName: 'spotify',
+        appId: '',
+      ).toSource();
+      final found = ShareSoundMatch.remembered(ShareSoundChoice.of(spotify), [
+        chrome,
+        paused,
+      ]);
+      expect(found, (found: true, source: paused));
+    });
+
     test('every app is always found', () {
       final found = ShareSoundMatch.remembered(
         const ShareSoundChoice.allApps(),
@@ -241,6 +257,18 @@ void main() {
           chrome,
         ]),
         chrome,
+      );
+    });
+
+    test('guesses the app of a window while it plays nothing', () {
+      final paused = const AudioAppHeard(
+        binary: 'chrome',
+        appName: 'Google Chrome',
+        appId: 'google-chrome',
+      ).toSource();
+      expect(
+        ShareSoundMatch.preselect(window, null, [firefox, paused]),
+        paused,
       );
     });
 

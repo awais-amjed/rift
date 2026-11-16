@@ -252,7 +252,7 @@ pub(crate) async fn move_to(to: ShareRoom) -> Result<(), String> {
         session.audio = audio::start(
             &session.room,
             AudioCapture {
-                selection: session.audio_selection,
+                selection: session.audio_selection.clone(),
                 track_name: AUDIO_TRACK_NAME.to_string(),
                 on_ended: None,
             },
@@ -325,7 +325,7 @@ pub(crate) async fn update(quality: ShareQuality) -> Result<ShareQuality, String
             session.audio = audio::start(
                 &session.room,
                 AudioCapture {
-                    selection: session.audio_selection,
+                    selection: session.audio_selection.clone(),
                     track_name: AUDIO_TRACK_NAME.to_string(),
                     on_ended: None,
                 },

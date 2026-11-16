@@ -378,8 +378,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
       codec: codec,
       priority: settings.priority,
       cursor: settings.cursor,
-      selectedAudioSourceIndex: settings.selectedAudioSource?.index,
-      selectedAudioSourceSink: settings.selectedAudioSource?.sink,
+      selectedAudioSource: settings.selectedAudioSource,
       selectedAudioSourcePid: settings.selectedVideoSourcePid,
       // The same key the call itself uses. Without it the Rust side refuses
       // to connect, which is the right way round: a screen share that fails

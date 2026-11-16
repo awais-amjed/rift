@@ -44,5 +44,6 @@ pub(crate) fn sink_input(info: &SinkInputInfo) -> AudioSource {
         media_name: get("media.name"),
         app_id,
         pid: get("application.process.id").parse().ok(),
+        playing: true,
     }
 }

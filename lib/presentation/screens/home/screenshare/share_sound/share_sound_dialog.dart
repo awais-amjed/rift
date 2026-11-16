@@ -1,11 +1,13 @@
 import 'dart:math' show max;
 
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../../../data/classes/share_sound_choice.dart';
 import '../../../../../data/classes/shared_window.dart';
 import '../../../../../data/constants.dart';
+import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/services/process_tree.dart';
 import '../../../../../logic/services/screen_share_sources.dart';
 import '../../../../../logic/services/share_sound_match.dart';
@@ -67,7 +69,9 @@ class _ShareSoundDialogState extends State<ShareSoundDialog> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    final sources = await ScreenShareSources.listAudio();
+    final sources = await ScreenShareSources.listAudio(
+      context.read<AppCubit>(),
+    );
     if (!mounted) return;
     final window = widget.window;
     setState(() {

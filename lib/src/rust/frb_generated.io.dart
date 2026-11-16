@@ -111,6 +111,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool dco_decode_bool(dynamic raw);
 
   @protected
+  AudioSource dco_decode_box_autoadd_audio_source(dynamic raw);
+
+  @protected
   AvailableUpdate dco_decode_box_autoadd_available_update(dynamic raw);
 
   @protected
@@ -214,6 +217,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   String? dco_decode_opt_String(dynamic raw);
+
+  @protected
+  AudioSource? dco_decode_opt_box_autoadd_audio_source(dynamic raw);
 
   @protected
   AvailableUpdate? dco_decode_opt_box_autoadd_available_update(dynamic raw);
@@ -379,6 +385,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
+  AudioSource sse_decode_box_autoadd_audio_source(SseDeserializer deserializer);
+
+  @protected
   AvailableUpdate sse_decode_box_autoadd_available_update(
     SseDeserializer deserializer,
   );
@@ -496,6 +505,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
+
+  @protected
+  AudioSource? sse_decode_opt_box_autoadd_audio_source(
+    SseDeserializer deserializer,
+  );
 
   @protected
   AvailableUpdate? sse_decode_opt_box_autoadd_available_update(
@@ -688,6 +702,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_audio_source(
+    AudioSource self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_available_update(
     AvailableUpdate self,
     SseSerializer serializer,
@@ -842,6 +862,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_audio_source(
+    AudioSource? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_available_update(

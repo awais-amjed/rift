@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:json_annotation/json_annotation.dart';
 
+import '../../../data/classes/audio_app_heard.dart';
 import '../../../data/classes/call_shortcuts.dart';
 import '../../../data/classes/call_to_resume.dart';
 import '../../../data/classes/key_shortcut.dart';
@@ -275,6 +276,11 @@ class AppCubit extends HydratedCubit<AppState> {
       ),
     );
   }
+
+  /// The programs heard playing, newest first
+  /// (`ScreenShareSources.noteHeard`).
+  void setAudioAppsHeard(List<AudioAppHeard> apps) =>
+      emit(state.copyWith(audioAppsHeard: apps));
 
   void setShowStreamStats(bool value) =>
       emit(state.copyWith(showStreamStats: value));

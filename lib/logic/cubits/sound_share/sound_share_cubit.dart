@@ -93,8 +93,8 @@ class SoundShareCubit extends Cubit<SoundShareState> {
         config: rust.SoundShareConfig(
           livekitUrl: livekitUrl,
           livekitToken: response.data['token'] as String,
-          selectedAudioSourceIndex: source.index,
-          selectedAudioSourceSink: source.sink,
+          // Linux follows the program it names, playing or not.
+          selectedAudioSource: source,
           // Windows lists a source by its process, with the process id in
           // `index`, and captures by process; without the id the capture
           // takes every app playing, not the one picked.

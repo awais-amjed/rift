@@ -27,6 +27,10 @@ class AudioSource {
   /// The process playing it.
   final int? pid;
 
+  /// False for a program listed while it plays nothing (Linux): it played
+  /// before and is running, and a share of it waits for its sound.
+  final bool playing;
+
   const AudioSource({
     required this.index,
     required this.sink,
@@ -35,6 +39,7 @@ class AudioSource {
     required this.mediaName,
     required this.appId,
     this.pid,
+    required this.playing,
   });
 
   @override
@@ -45,7 +50,8 @@ class AudioSource {
       binary.hashCode ^
       mediaName.hashCode ^
       appId.hashCode ^
-      pid.hashCode;
+      pid.hashCode ^
+      playing.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -58,7 +64,8 @@ class AudioSource {
           binary == other.binary &&
           mediaName == other.mediaName &&
           appId == other.appId &&
-          pid == other.pid;
+          pid == other.pid &&
+          playing == other.playing;
 }
 
 /// A screen or window that can be captured.
@@ -134,10 +141,9 @@ class ScreenShareConfig {
   final SharePriority priority;
   final ShareCursor cursor;
 
-  /// Linux: the PulseAudio sink-input to capture, and the sink it plays to;
-  /// none means everything but Rift.
-  final int? selectedAudioSourceIndex;
-  final int? selectedAudioSourceSink;
+  /// Linux: the application picked, as it was listed, which names the
+  /// program whose streams to capture; none means everything but Rift.
+  final AudioSource? selectedAudioSource;
 
   /// Windows: the process whose audio to capture; none means everything but Rift.
   final int? selectedAudioSourcePid;
@@ -167,8 +173,7 @@ class ScreenShareConfig {
     required this.codec,
     required this.priority,
     required this.cursor,
-    this.selectedAudioSourceIndex,
-    this.selectedAudioSourceSink,
+    this.selectedAudioSource,
     this.selectedAudioSourcePid,
     required this.e2EeKey,
     required this.e2EeKeyIndex,
@@ -189,8 +194,7 @@ class ScreenShareConfig {
       codec.hashCode ^
       priority.hashCode ^
       cursor.hashCode ^
-      selectedAudioSourceIndex.hashCode ^
-      selectedAudioSourceSink.hashCode ^
+      selectedAudioSource.hashCode ^
       selectedAudioSourcePid.hashCode ^
       e2EeKey.hashCode ^
       e2EeKeyIndex.hashCode;
@@ -213,8 +217,7 @@ class ScreenShareConfig {
           codec == other.codec &&
           priority == other.priority &&
           cursor == other.cursor &&
-          selectedAudioSourceIndex == other.selectedAudioSourceIndex &&
-          selectedAudioSourceSink == other.selectedAudioSourceSink &&
+          selectedAudioSource == other.selectedAudioSource &&
           selectedAudioSourcePid == other.selectedAudioSourcePid &&
           e2EeKey == other.e2EeKey &&
           e2EeKeyIndex == other.e2EeKeyIndex;

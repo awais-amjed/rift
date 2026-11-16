@@ -39,11 +39,15 @@ class AudioSourceSection extends StatelessWidget {
         ? source.appName
         : 'Unknown';
 
-    if (source.binary.isNotEmpty) {
-      return '$mainLabel (${source.binary})';
-    }
-    return mainLabel;
+    final label = source.binary.isNotEmpty
+        ? '$mainLabel (${source.binary})'
+        : mainLabel;
+    return source.playing ? label : '$label · $notPlaying';
   }
+
+  /// What a program running but quiet is listed with: a paused player, which
+  /// a share of it waits for.
+  static const notPlaying = 'not playing now';
 
   @override
   Widget build(BuildContext context) {

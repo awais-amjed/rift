@@ -164,7 +164,9 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
 
   Future<void> _loadAudioSources() async {
     setState(() => _loadingAudioSources = true);
-    final sources = await ScreenShareSources.listAudio();
+    final sources = await ScreenShareSources.listAudio(
+      context.read<AppCubit>(),
+    );
     if (!mounted) return;
     setState(() {
       _audioSources = sources;

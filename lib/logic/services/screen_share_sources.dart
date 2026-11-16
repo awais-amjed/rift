@@ -1,9 +1,11 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import '../../data/classes/audio_app_heard.dart';
 import '../../data/classes/screen_share_settings.dart';
 import '../../src/rust/api/screenshare.dart';
 import '../../src/rust/api/screenshare/types.dart';
+import '../cubits/app/app_cubit.dart';
 import '../helper_methods.dart';
 
 /// Enumerating what a screen share can capture — screens, windows, and (on
@@ -68,18 +70,57 @@ class ScreenShareSources {
   /// screen share of either kind, beside "All apps"), processes on Windows
   /// (for a sound share; a screen share finds a window's audio by its
   /// process, and a whole screen takes every app's but Rift's).
-  static Future<List<AudioSource>> listAudio() async {
+  ///
+  /// On Linux, then the programs [app] heard before that are running but
+  /// playing nothing (`playing` false), and what plays now is noted for next
+  /// time.
+  static Future<List<AudioSource>> listAudio(AppCubit app) async {
     try {
+      final known = Platform.isLinux
+          ? [for (final heard in app.state.audioAppsHeard) heard.toSource()]
+          : const <AudioSource>[];
       // A repeated entry would make the picker's value ambiguous, which the
       // dropdown asserts on.
-      return withoutRift(
-        (await listAudioSources()).toSet().toList(),
+      final sources = withoutRift(
+        (await listAudioSources(known: known)).toSet().toList(),
         ownBinary: Platform.resolvedExecutable,
       );
+      if (Platform.isLinux) {
+        app.setAudioAppsHeard(noteHeard(app.state.audioAppsHeard, sources));
+      }
+      return sources;
     } catch (e) {
       HelperMethods.printDebug('Failed to load audio sources: $e');
       return const [];
     }
+  }
+
+  /// How many programs heard are kept ([noteHeard]).
+  static const maxAppsHeard = 24;
+
+  /// [known] with the programs playing in [sources] in front, newest first,
+  /// each once, and no more than [maxAppsHeard].
+  static List<AudioAppHeard> noteHeard(
+    List<AudioAppHeard> known,
+    List<AudioSource> sources,
+  ) {
+    // PulseAudio numbers streams in the order they start.
+    final newestFirst = [...sources]
+      ..sort((a, b) => b.index.compareTo(a.index));
+    final heard = <AudioAppHeard>[];
+    for (final source in newestFirst) {
+      if (!source.playing || source.binary.trim().isEmpty) continue;
+      if (heard.any((h) => h.plays(source))) continue;
+      heard.add(AudioAppHeard.of(source));
+    }
+    return [
+      ...heard,
+      for (final old in known)
+        if (!heard.any(
+          (h) => h.binary == old.binary && h.appName == old.appName,
+        ))
+          old,
+    ].take(maxAppsHeard).toList(growable: false);
   }
 
   /// [sources] minus every copy of Rift, this one and any other running on
@@ -167,8 +208,12 @@ class ScreenShareSources {
 
   static AudioSource? _find(List<AudioSource> sources, AudioSource? previous) {
     if (previous == null) return null;
+    // A program playing nothing has no stream, so no number to go by.
     for (final source in sources) {
-      if (source.index == previous.index && source.sink == previous.sink) {
+      if (source.playing &&
+          previous.playing &&
+          source.index == previous.index &&
+          source.sink == previous.sink) {
         return source;
       }
     }

@@ -238,6 +238,10 @@ class AppState extends Equatable {
   /// app's own picker doesn't use.
   final List<String> recentEmojis;
 
+  /// Linux: programs heard playing sound, newest first, so a share can pick
+  /// one while it plays nothing (`ScreenShareSources.listAudio`).
+  final List<AudioAppHeard> audioAppsHeard;
+
   /// The call Restart to update left, for the next start to rejoin — see
   /// [CallToResume]. Taken, and cleared, by the first start after it.
   final CallToResume? callToResume;
@@ -362,6 +366,7 @@ class AppState extends Equatable {
     this.echoCancellation = true,
     this.autoGainControl = true,
     this.recentEmojis = const [],
+    this.audioAppsHeard = const [],
     this.callToResume,
     this.soundboardMuted = false,
     this.soundboardVolume = 0.6,
@@ -459,6 +464,7 @@ class AppState extends Equatable {
     bool? echoCancellation,
     bool? autoGainControl,
     List<String>? recentEmojis,
+    List<AudioAppHeard>? audioAppsHeard,
     CallToResume? callToResume,
     bool clearCallToResume = false,
     bool? soundboardMuted,
@@ -544,6 +550,7 @@ class AppState extends Equatable {
       echoCancellation: echoCancellation ?? this.echoCancellation,
       autoGainControl: autoGainControl ?? this.autoGainControl,
       recentEmojis: recentEmojis ?? this.recentEmojis,
+      audioAppsHeard: audioAppsHeard ?? this.audioAppsHeard,
       callToResume: clearCallToResume
           ? null
           : (callToResume ?? this.callToResume),
@@ -669,6 +676,7 @@ class AppState extends Equatable {
     verifiedCodes,
     seenKeys,
     recentEmojis,
+    audioAppsHeard,
     callToResume,
     isHovered,
     selectedChannelId,

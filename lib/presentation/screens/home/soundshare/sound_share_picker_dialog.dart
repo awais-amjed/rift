@@ -1,9 +1,11 @@
 import 'dart:math' show max;
 
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../../data/constants.dart';
+import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/services/screen_share_sources.dart';
 import '../../../../src/rust/api/screenshare/types.dart';
 import '../../../common/app_button.dart';
@@ -40,7 +42,9 @@ class _SoundSharePickerDialogState extends State<SoundSharePickerDialog> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    final sources = await ScreenShareSources.listAudio();
+    final sources = await ScreenShareSources.listAudio(
+      context.read<AppCubit>(),
+    );
     if (!mounted) return;
     setState(() {
       _sources = sources;

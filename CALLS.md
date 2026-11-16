@@ -619,15 +619,25 @@ The stream picked stands for its app. An app plays in as many streams as it
 likes — a player may open one per track, a loop of `paplay` a new process per
 sound — so the share records every stream of the picked one's program (its
 binary and app name), as they come and go (`linux_app.rs`, on the same follower
-as every app but Rift). The program is read from what the dialog was shown,
-since the stream picked may have ended before the share begins — the desktop's
-own picker alone outlasts a short sound. Two copies of one program playing are
-both heard. A
-sound share ends once the program has played nothing for 10 s and the process
-picked is gone; a paused player whose process runs keeps it up (a pid that is
-not this machine's, as a sandbox may report, counts as gone). Before Nov 16
-2026 the share recorded the one stream picked and went silent at the app's
-next.
+as every app but Rift). The share is handed the entry as the dialog showed
+it, since the stream picked may have ended before the share begins — the
+desktop's own picker alone outlasts a short sound. Two copies of one program
+playing are both heard. A sound share ends once the program has played nothing
+for 10 s and no process runs it — the one picked, or any running the same
+executable (PulseAudio names a program by its executable file, which the
+kernel's name for the process need not be: `python3` runs `python3.14`); a
+paused player keeps it up. So a program run by a common interpreter counts as
+running while anything else runs that interpreter. Before Nov 16 2026 the share recorded the one
+stream picked and went silent at the app's next.
+
+A paused player closes its stream, so a list of streams alone left it out
+until it played again. Rift keeps the programs it has listed playing (the
+newest few dozen, saved with the settings, `ScreenShareSources.noteHeard`),
+and the list adds those running but quiet, marked "not playing now"
+(`linux_app::quiet`, running as above). Picked,
+the share waits for its sound, and a window's remembered or guessed sound
+finds it too. A program never heard while Rift listed sound cannot be
+offered: nothing on Linux says which programs might play.
 
 Finding the app is where the platforms differ. X11 says it outright
 (`_NET_WM_PID`, `WM_CLASS`), so the window is picked in Rift's own dialog.

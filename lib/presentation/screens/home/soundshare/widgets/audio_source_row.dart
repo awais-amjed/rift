@@ -30,8 +30,11 @@ class AudioSourceRow extends StatelessWidget {
     return label.isEmpty ? 'Unknown application' : label;
   }
 
-  /// What it is playing right now, when it says — a track, a video, a tab.
+  /// What it is playing right now, when it says — a track, a video, a tab —
+  /// or that it is playing nothing: a paused player, which a share of it
+  /// waits for.
   static String? subtitleOf(AudioSource source) {
+    if (!source.playing) return 'Not playing now';
     final media = source.mediaName.trim();
     return media.isEmpty || media == titleOf(source) ? null : media;
   }

@@ -151,15 +151,16 @@ pub async fn gpu_video_codecs() -> Vec<VideoCodec> {
     }
 }
 
-/// Applications currently playing audio, for Linux window-capture audio.
-/// Empty elsewhere: Windows chooses by the window's process id instead.
-pub fn list_audio_sources() -> Vec<AudioSource> {
+/// Applications playing audio, to pick a share's sound from: on Linux, with
+/// the programs in `known` (heard before) that are running but quiet.
+pub fn list_audio_sources(known: Vec<AudioSource>) -> Vec<AudioSource> {
     #[cfg(desktop)]
     {
-        audio::list_sources()
+        audio::list_sources(&known)
     }
     #[cfg(not(desktop))]
     {
+        let _ = known;
         Vec::new()
     }
 }

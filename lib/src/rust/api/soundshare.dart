@@ -6,6 +6,7 @@
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 import '../frb_generated.dart';
+import 'screenshare/types.dart';
 
 // These functions are ignored because they are not marked as `pub`: `check`, `emit_event`
 
@@ -33,10 +34,9 @@ class SoundShareConfig {
   final String livekitUrl;
   final String livekitToken;
 
-  /// Linux: the PulseAudio sink-input to capture, and the sink it plays to;
-  /// none means everything but Rift.
-  final int? selectedAudioSourceIndex;
-  final int? selectedAudioSourceSink;
+  /// Linux: the application picked, as it was listed, which names the
+  /// program whose streams to capture; none means everything but Rift.
+  final AudioSource? selectedAudioSource;
 
   /// Windows: the process whose audio to capture; none means everything but Rift.
   final int? selectedAudioSourcePid;
@@ -56,8 +56,7 @@ class SoundShareConfig {
   const SoundShareConfig({
     required this.livekitUrl,
     required this.livekitToken,
-    this.selectedAudioSourceIndex,
-    this.selectedAudioSourceSink,
+    this.selectedAudioSource,
     this.selectedAudioSourcePid,
     required this.sourceLabel,
     required this.e2EeKey,
@@ -68,8 +67,7 @@ class SoundShareConfig {
   int get hashCode =>
       livekitUrl.hashCode ^
       livekitToken.hashCode ^
-      selectedAudioSourceIndex.hashCode ^
-      selectedAudioSourceSink.hashCode ^
+      selectedAudioSource.hashCode ^
       selectedAudioSourcePid.hashCode ^
       sourceLabel.hashCode ^
       e2EeKey.hashCode ^
@@ -82,8 +80,7 @@ class SoundShareConfig {
           runtimeType == other.runtimeType &&
           livekitUrl == other.livekitUrl &&
           livekitToken == other.livekitToken &&
-          selectedAudioSourceIndex == other.selectedAudioSourceIndex &&
-          selectedAudioSourceSink == other.selectedAudioSourceSink &&
+          selectedAudioSource == other.selectedAudioSource &&
           selectedAudioSourcePid == other.selectedAudioSourcePid &&
           sourceLabel == other.sourceLabel &&
           e2EeKey == other.e2EeKey &&

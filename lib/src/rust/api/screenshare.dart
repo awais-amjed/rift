@@ -70,7 +70,8 @@ Future<Uint8List?> getCaptureSourceThumbnail({
 Future<List<VideoCodec>> gpuVideoCodecs() =>
     RustLib.instance.api.crateApiScreenshareGpuVideoCodecs();
 
-/// Applications currently playing audio, for Linux window-capture audio.
-/// Empty elsewhere: Windows chooses by the window's process id instead.
-Future<List<AudioSource>> listAudioSources() =>
-    RustLib.instance.api.crateApiScreenshareListAudioSources();
+/// Applications playing audio, to pick a share's sound from: on Linux, with
+/// the programs in `known` (heard before) that are running but quiet.
+Future<List<AudioSource>> listAudioSources({
+  required List<AudioSource> known,
+}) => RustLib.instance.api.crateApiScreenshareListAudioSources(known: known);

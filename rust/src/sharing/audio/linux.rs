@@ -2,7 +2,7 @@
 //! it plays to: every stream of the application picked (`linux_app`), or
 //! with none picked every application's but Rift's (`linux_all`).
 use super::linux_all::{self, Wanted};
-use super::linux_app::{self, App};
+use super::linux_app::App;
 use super::{AudioCapture, AudioCaptureHandle, NUM_CHANNELS, SAMPLE_RATE};
 use crate::pulse::Connection;
 use libpulse_binding as pa;
@@ -15,29 +15,23 @@ use std::time::Duration;
 /// Ten milliseconds of audio, the size LiveKit likes its frames in.
 const FRAME_BYTES: usize = (SAMPLE_RATE as usize / 100) * NUM_CHANNELS as usize * 2;
 
-/// How long a sound share may hear nothing from its application, the process
-/// picked gone, before it ends: long enough for a loop or a launcher to start
-/// its next process, short enough that a share of a program that quit does
-/// not stay up for long.
+/// How long a sound share may hear nothing from its application, with no
+/// process running it, before it ends: long enough for a loop or a launcher
+/// to start its next process, short enough that a share of a program that
+/// quit does not stay up for long.
 const QUIET_LIMIT: Duration = Duration::from_secs(10);
 
 pub(crate) async fn start(room: &Room, request: AudioCapture) -> Option<AudioCaptureHandle> {
-    let wanted = match request.selection.sink_input {
+    let wanted = match &request.selection.app {
         None => Wanted::AllButRift,
-        Some(sink_input) => {
-            let Some(picked) = linux_app::picked(sink_input) else {
-                log::warn!("audio: sink-input #{sink_input} was never listed");
-                return None;
-            };
+        Some(picked) => {
             let quiet_limit = request.on_ended.is_some().then_some(QUIET_LIMIT);
-            Wanted::App(App::new(&picked, quiet_limit))
+            Wanted::App(App::new(picked, quiet_limit))
         }
     };
     super::publish_and_feed(
         room,
-        Box::new(move |commands, frames| {
-            linux_all::spawn_capture_thread(wanted, commands, frames)
-        }),
+        Box::new(move |commands, frames| linux_all::spawn_capture_thread(wanted, commands, frames)),
         &request.track_name,
         request.on_ended,
     )

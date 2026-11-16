@@ -60,10 +60,9 @@ pub struct ScreenShareConfig {
     pub codec: VideoCodec,
     pub priority: SharePriority,
     pub cursor: ShareCursor,
-    /// Linux: the PulseAudio sink-input to capture, and the sink it plays to;
-    /// none means everything but Rift.
-    pub selected_audio_source_index: Option<u32>,
-    pub selected_audio_source_sink: Option<u32>,
+    /// Linux: the application picked, as it was listed, which names the
+    /// program whose streams to capture; none means everything but Rift.
+    pub selected_audio_source: Option<AudioSource>,
     /// Windows: the process whose audio to capture; none means everything but Rift.
     pub selected_audio_source_pid: Option<u32>,
     /// The channel key this call is encrypted with, and the LiveKit key-ring
@@ -135,6 +134,9 @@ pub struct AudioSource {
     pub app_id: String,
     /// The process playing it.
     pub pid: Option<u32>,
+    /// False for a program listed while it plays nothing (Linux): it played
+    /// before and is running, and a share of it waits for its sound.
+    pub playing: bool,
 }
 
 /// Lifecycle events pushed from Rust up to Flutter.
@@ -209,8 +211,7 @@ mod tests {
             codec: VideoCodec::VP9,
             priority: SharePriority::Smoothness,
             cursor: ShareCursor::Always,
-            selected_audio_source_index: None,
-            selected_audio_source_sink: None,
+            selected_audio_source: None,
             selected_audio_source_pid: None,
             e2ee_key: vec![0; 32],
             e2ee_key_index: 0,

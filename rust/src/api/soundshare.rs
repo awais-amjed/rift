@@ -12,6 +12,7 @@
 //! since capturing another application's output is something only a desktop
 //! can do.
 #[cfg(desktop)]
+use crate::api::screenshare::types::AudioSource;
 use crate::sharing::sound;
 
 use crate::frb_generated::StreamSink;
@@ -21,10 +22,9 @@ use std::sync::Mutex;
 pub struct SoundShareConfig {
     pub livekit_url: String,
     pub livekit_token: String,
-    /// Linux: the PulseAudio sink-input to capture, and the sink it plays to;
-    /// none means everything but Rift.
-    pub selected_audio_source_index: Option<u32>,
-    pub selected_audio_source_sink: Option<u32>,
+    /// Linux: the application picked, as it was listed, which names the
+    /// program whose streams to capture; none means everything but Rift.
+    pub selected_audio_source: Option<AudioSource>,
     /// Windows: the process whose audio to capture; none means everything but Rift.
     pub selected_audio_source_pid: Option<u32>,
 
@@ -113,8 +113,7 @@ mod tests {
         SoundShareConfig {
             livekit_url: String::new(),
             livekit_token: String::new(),
-            selected_audio_source_index: Some(1),
-            selected_audio_source_sink: Some(0),
+            selected_audio_source: None,
             selected_audio_source_pid: None,
             source_label: "Spotify".to_string(),
             e2ee_key: vec![0; 32],

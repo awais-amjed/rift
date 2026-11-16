@@ -282,6 +282,7 @@ pub(crate) fn list_sources() -> Vec<AudioSource> {
                 media_name,
                 app_id: String::new(),
                 pid: Some(pid),
+                playing: true,
             }
         })
         .collect();
