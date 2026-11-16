@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rift/data/classes/key_shortcut.dart';
 import 'package:rift/logic/ptt/xdg_trigger.dart';
 
 void main() {
@@ -74,6 +75,55 @@ void main() {
       expect(keybindForTriggerDescription('Press Ctrl+G'), isNull);
       expect(keybindForTriggerDescription('Press F99'), isNull);
       expect(keybindForTriggerDescription(''), isNull);
+    });
+  });
+
+  group('combinations', () {
+    final m = LogicalKeyboardKey.keyM.keyId;
+    final ctrlShiftM = KeyShortcut(keyId: m, ctrl: true, shift: true);
+    final superK = KeyShortcut(
+      keyId: LogicalKeyboardKey.keyK.keyId,
+      meta: true,
+    );
+    final f8 = KeyShortcut(keyId: LogicalKeyboardKey.f8.keyId);
+
+    test('offered to the desktop in its own format', () {
+      expect(xdgTriggerForShortcut(ctrlShiftM), 'CTRL+SHIFT+m');
+      expect(
+        xdgTriggerForShortcut(
+          KeyShortcut(keyId: LogicalKeyboardKey.f9.keyId, alt: true),
+        ),
+        'ALT+F9',
+      );
+      expect(xdgTriggerForShortcut(superK), 'LOGO+k');
+      expect(
+        xdgTriggerForShortcut(KeyShortcut(keyId: LogicalKeyboardKey.f9.keyId)),
+        'F9',
+      );
+    });
+
+    test('a key with no name leaves the choice to the desktop', () {
+      expect(
+        xdgTriggerForShortcut(
+          KeyShortcut(keyId: LogicalKeyboardKey.semicolon.keyId, ctrl: true),
+        ),
+        isNull,
+      );
+    });
+
+    test('read back from what the desktop says', () {
+      expect(shortcutForTriggerDescription('Press Ctrl+Shift+M'), ctrlShiftM);
+      expect(shortcutForTriggerDescription('Shift+Ctrl+M'), ctrlShiftM);
+      expect(shortcutForTriggerDescription('<Control><Shift>m'), ctrlShiftM);
+      expect(shortcutForTriggerDescription('Super+K'), superK);
+      expect(shortcutForTriggerDescription('Logo+K'), superK);
+      expect(shortcutForTriggerDescription('Press F8'), f8);
+    });
+
+    test('what cannot be read is nothing', () {
+      expect(shortcutForTriggerDescription('Ctrl+Hyper+M'), isNull);
+      expect(shortcutForTriggerDescription(''), isNull);
+      expect(shortcutForTriggerDescription('Ctrl+'), isNull);
     });
   });
 }

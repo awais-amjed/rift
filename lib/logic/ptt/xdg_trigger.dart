@@ -1,5 +1,7 @@
 import 'package:flutter/services.dart';
 
+import '../../data/classes/key_shortcut.dart';
+
 /// The shortcut string the desktop portal expects for a keybind, if there is
 /// one.
 ///
@@ -58,6 +60,68 @@ String? xdgTriggerForKeyId(int keyId) {
     }
   }
   return null;
+}
+
+/// [keys] as a suggestion to the desktop, modifiers included: `CTRL+SHIFT+m`.
+///
+/// Null when the key has no name the desktop would know, which leaves the
+/// choice to its dialog, as for push-to-talk.
+String? xdgTriggerForShortcut(KeyShortcut keys) {
+  final key = xdgTriggerForKeyId(keys.keyId);
+  if (key == null) return null;
+  return [
+    if (keys.ctrl) 'CTRL',
+    if (keys.alt) 'ALT',
+    if (keys.shift) 'SHIFT',
+    if (keys.meta) 'LOGO',
+    key,
+  ].join('+');
+}
+
+/// The shortcut a desktop's description of its key names, modifiers
+/// included, or null when it names something Rift cannot store.
+///
+/// The desktop has the last word on the key, so what it reports is what Rift
+/// keeps. Desktops word it their own way: "Press Ctrl+Shift+M", "Shift+Ctrl+M"
+/// or GTK's `<Control><Shift>m`, in any order.
+KeyShortcut? shortcutForTriggerDescription(String description) {
+  var rest = description
+      .replaceFirst(RegExp('^Press ', caseSensitive: false), '')
+      .trim();
+  final names = <String>[];
+  rest = rest.replaceAllMapped(RegExp('<([^>]+)>'), (match) {
+    names.add(match.group(1)!);
+    return '';
+  });
+  final parts = rest.split('+').map((part) => part.trim()).toList();
+  final keyName = parts.removeLast();
+  names.addAll(parts);
+  if (keyName.isEmpty) return null;
+  final key = keybindForTriggerDescription(keyName);
+  if (key == null) return null;
+
+  var ctrl = false, alt = false, shift = false, meta = false;
+  for (final name in names) {
+    switch (name.toLowerCase()) {
+      case 'ctrl' || 'control' || 'primary':
+        ctrl = true;
+      case 'alt' || 'mod1':
+        alt = true;
+      case 'shift':
+        shift = true;
+      case 'super' || 'logo' || 'meta' || 'win' || 'mod4':
+        meta = true;
+      default:
+        return null;
+    }
+  }
+  return KeyShortcut(
+    keyId: key.keyId,
+    ctrl: ctrl,
+    alt: alt,
+    shift: shift,
+    meta: meta,
+  );
 }
 
 final _functionKeys = <LogicalKeyboardKey>[
