@@ -1,11 +1,30 @@
 import 'dart:async';
 
 import 'package:dbus/dbus.dart';
+import 'package:equatable/equatable.dart';
+
 import '../helper_methods.dart';
 import '../services/portal_request.dart';
 
-/// Push-to-talk outside the window on Linux, through the desktop's
-/// GlobalShortcuts portal.
+/// One shortcut to ask the desktop for: an id Rift hears it by, the name the
+/// desktop shows, and the key Rift suggests (null leaves it to the desktop).
+class PortalShortcut extends Equatable {
+  final String id;
+  final String description;
+  final String? preferredTrigger;
+
+  const PortalShortcut({
+    required this.id,
+    required this.description,
+    this.preferredTrigger,
+  });
+
+  @override
+  List<Object?> get props => [id, description, preferredTrigger];
+}
+
+/// Keys outside the window on Linux, through the desktop's GlobalShortcuts
+/// portal: push-to-talk, and the call shortcuts in a session of their own.
 ///
 /// Wayland will not let one app read keys meant for another, which is the
 /// point of it — so there is no hook to install the way Windows has one. The
@@ -20,7 +39,7 @@ import '../services/portal_request.dart';
 /// off, or a key the user bound for talking stops typing anywhere.
 class GlobalShortcutsPortal {
   static const _interface = 'org.freedesktop.portal.GlobalShortcuts';
-  static const _shortcutId = 'push-to-talk';
+  static const _pushToTalkId = 'push-to-talk';
 
   /// Tries at binding before giving up on a desktop that keeps failing.
   ///
@@ -36,6 +55,12 @@ class GlobalShortcutsPortal {
 
   /// A portal dialog waits on a person, so this is generous.
   static const _responseTimeout = Duration(minutes: 2);
+
+  /// Names this object's sessions, so each user of the portal has its own.
+  final String _sessionTag;
+
+  GlobalShortcutsPortal({String sessionTag = 'rift_ptt'})
+    : _sessionTag = sessionTag;
 
   final DBusClient _client = DBusClient.session();
   late final _requests = PortalRequests(
@@ -57,17 +82,48 @@ class GlobalShortcutsPortal {
   /// declined. An *empty* string means the session is open but no key is
   /// assigned yet — Hyprland, for one, never asks, and waits for the user to
   /// bind the shortcut in its own config.
-  ///
-  /// A newer call supersedes an older one still waiting on its dialog: the
-  /// older one closes only its *own* session and returns null. Letting it
-  /// tidy up through [close] instead is how a declined first dialog used to
-  /// take the second, accepted binding down with it.
   Future<String?> bind({
     required String appId,
     required String? preferredTrigger,
     required void Function(int timestamp) onPress,
     required void Function(int timestamp) onRelease,
     required void Function(String trigger) onTriggerChanged,
+  }) async {
+    final triggers = await bindAll(
+      appId: appId,
+      shortcuts: [
+        PortalShortcut(
+          id: _pushToTalkId,
+          description: 'Push to talk',
+          preferredTrigger: preferredTrigger,
+        ),
+      ],
+      onPress: (_, timestamp) => onPress(timestamp),
+      onRelease: (_, timestamp) => onRelease(timestamp),
+      onTriggersChanged: (triggers) {
+        final trigger = triggers[_pushToTalkId];
+        if (trigger != null) onTriggerChanged(trigger);
+      },
+    );
+    return triggers?[_pushToTalkId];
+  }
+
+  /// Opens a session and binds [shortcuts] in it, as [bind] does for one.
+  ///
+  /// Returns what the desktop says each key is, by id ('' for one with no
+  /// key yet), or null if there is no portal, the user declined, or the
+  /// desktop bound none of them.
+  ///
+  /// A newer call supersedes an older one still waiting on its dialog: the
+  /// older one closes only its *own* session and returns null. Letting it
+  /// tidy up through [close] instead is how a declined first dialog used to
+  /// take the second, accepted binding down with it.
+  Future<Map<String, String>?> bindAll({
+    required String appId,
+    required List<PortalShortcut> shortcuts,
+    required void Function(String id, int timestamp) onPress,
+    required void Function(String id, int timestamp) onRelease,
+    required void Function(Map<String, String> triggers) onTriggersChanged,
   }) async {
     final epoch = ++_epoch;
     await close();
@@ -76,13 +132,13 @@ class GlobalShortcutsPortal {
       for (var attempt = 1; ; attempt++) {
         final outcome = await _bindOnce(
           epoch: epoch,
-          preferredTrigger: preferredTrigger,
+          shortcuts: shortcuts,
           onPress: onPress,
           onRelease: onRelease,
-          onTriggerChanged: onTriggerChanged,
+          onTriggersChanged: onTriggersChanged,
         );
         if (!outcome.retry || attempt == _attempts || epoch != _epoch) {
-          return outcome.trigger;
+          return outcome.triggers;
         }
         await Future<void>.delayed(_retryDelay);
       }
@@ -94,14 +150,15 @@ class GlobalShortcutsPortal {
 
   /// One session and one bind. `retry` is set when the desktop failed rather
   /// than the user saying no — see [_attempts].
-  Future<({String? trigger, bool retry})> _bindOnce({
+  Future<({Map<String, String>? triggers, bool retry})> _bindOnce({
     required int epoch,
-    required String? preferredTrigger,
-    required void Function(int timestamp) onPress,
-    required void Function(int timestamp) onRelease,
-    required void Function(String trigger) onTriggerChanged,
+    required List<PortalShortcut> shortcuts,
+    required void Function(String id, int timestamp) onPress,
+    required void Function(String id, int timestamp) onRelease,
+    required void Function(Map<String, String> triggers) onTriggersChanged,
   }) async {
-    const giveUp = (trigger: null, retry: false);
+    const giveUp = (triggers: null, retry: false);
+    final ids = {for (final shortcut in shortcuts) shortcut.id};
     _Session? mine;
     try {
       final created = await _requests.call(
@@ -109,7 +166,9 @@ class GlobalShortcutsPortal {
         (token) => [
           DBusDict.stringVariant({
             'handle_token': DBusString(token),
-            'session_handle_token': DBusString(_requests.nextToken('rift_ptt')),
+            'session_handle_token': DBusString(
+              _requests.nextToken(_sessionTag),
+            ),
           }),
         ],
       );
@@ -122,39 +181,40 @@ class GlobalShortcutsPortal {
       }
       _current = mine;
       mine.signals
-        ..add(_listen('Activated', mine.path, onPress))
-        ..add(_listen('Deactivated', mine.path, onRelease))
-        ..add(_listenForChanges(mine.path, onTriggerChanged));
+        ..add(_listen('Activated', mine.path, ids, onPress))
+        ..add(_listen('Deactivated', mine.path, ids, onRelease))
+        ..add(_listenForChanges(mine.path, onTriggersChanged));
 
       final bound = await _requests.call(
         'BindShortcuts',
         (token) => [
           mine!.path,
           DBusArray(DBusSignature('(sa{sv})'), [
-            DBusStruct([
-              const DBusString(_shortcutId),
-              DBusDict.stringVariant({
-                'description': const DBusString('Push to talk'),
-                if (preferredTrigger != null)
-                  'preferred_trigger': DBusString(preferredTrigger),
-              }),
-            ]),
+            for (final shortcut in shortcuts)
+              DBusStruct([
+                DBusString(shortcut.id),
+                DBusDict.stringVariant({
+                  'description': DBusString(shortcut.description),
+                  if (shortcut.preferredTrigger case final trigger?)
+                    'preferred_trigger': DBusString(trigger),
+                }),
+              ]),
           ]),
           const DBusString(''),
           DBusDict.stringVariant({'handle_token': DBusString(token)}),
         ],
       );
-      final trigger = _triggerOf(bound.results);
-      if (bound.results != null && trigger == null) {
+      final triggers = _triggersOf(bound.results, ids);
+      if (bound.results != null && triggers == null) {
         HelperMethods.printDebug(
           'GlobalShortcutsPortal: bound nothing – ${bound.results}',
         );
       }
-      if (trigger == null || epoch != _epoch) {
+      if (triggers == null || epoch != _epoch) {
         await _end(mine);
-        return (trigger: null, retry: bound.code == _otherFailure);
+        return (triggers: null, retry: bound.code == _otherFailure);
       }
-      return (trigger: trigger, retry: false);
+      return (triggers: triggers, retry: false);
     } catch (e) {
       if (mine != null) await _end(mine);
       rethrow;
@@ -201,7 +261,8 @@ class GlobalShortcutsPortal {
   StreamSubscription<DBusSignal> _listen(
     String name,
     DBusObjectPath session,
-    void Function(int timestamp) handler,
+    Set<String> ids,
+    void Function(String id, int timestamp) handler,
   ) {
     return DBusSignalStream(
       _client,
@@ -210,11 +271,12 @@ class GlobalShortcutsPortal {
       name: name,
       path: PortalRequests.object,
     ).listen((signal) {
-      // One portal carries every app's sessions; only ours, and only our
-      // shortcut, is a push-to-talk key.
+      // One portal carries every app's sessions; only this session's, and
+      // only a shortcut it bound, is one of ours.
       if (signal.values[0] != session) return;
-      if (signal.values[1].asString() != _shortcutId) return;
-      handler(signal.values[2].asUint64());
+      final id = signal.values[1].asString();
+      if (!ids.contains(id)) return;
+      handler(id, signal.values[2].asUint64());
     });
   }
 
@@ -222,7 +284,7 @@ class GlobalShortcutsPortal {
   /// what Rift shows follows what actually works.
   StreamSubscription<DBusSignal> _listenForChanges(
     DBusObjectPath session,
-    void Function(String trigger) handler,
+    void Function(Map<String, String> triggers) handler,
   ) {
     return DBusSignalStream(
       _client,
@@ -232,21 +294,28 @@ class GlobalShortcutsPortal {
       path: PortalRequests.object,
     ).listen((signal) {
       if (signal.values[0] != session) return;
-      final trigger = _triggerOf({'shortcuts': signal.values[1]});
-      if (trigger != null) handler(trigger);
+      final triggers = _triggersOf({'shortcuts': signal.values[1]}, null);
+      if (triggers != null) handler(triggers);
     });
   }
 
-  static String? _triggerOf(Map<String, DBusValue>? results) {
+  /// Each shortcut's key as the desktop describes it, by id, keeping only
+  /// [ids] when given. Null when there are none.
+  static Map<String, String>? _triggersOf(
+    Map<String, DBusValue>? results,
+    Set<String>? ids,
+  ) {
     final shortcuts = results?['shortcuts']?.asArray();
     if (shortcuts == null) return null;
+    final triggers = <String, String>{};
     for (final entry in shortcuts) {
       final fields = entry.asStruct();
-      if (fields[0].asString() != _shortcutId) continue;
+      final id = fields[0].asString();
+      if (ids != null && !ids.contains(id)) continue;
       final props = fields[1].asStringVariantDict();
-      return props['trigger_description']?.asString() ?? '';
+      triggers[id] = props['trigger_description']?.asString() ?? '';
     }
-    return null;
+    return triggers.isEmpty ? null : triggers;
   }
 }
 

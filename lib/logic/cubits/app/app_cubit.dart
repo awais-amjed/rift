@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui' show Offset, Size;
 
 import 'package:equatable/equatable.dart';
+import 'package:flutter/foundation.dart' show setEquals;
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:json_annotation/json_annotation.dart';
 
@@ -126,6 +127,18 @@ class AppCubit extends HydratedCubit<AppState> {
   void setDesktopPushToTalkPending(bool pending) {
     if (pending == state.desktopPushToTalkPending) return;
     emit(state.copyWith(desktopPushToTalkPending: pending));
+  }
+
+  /// All the call shortcuts at once: the keys the desktop reports, taken in
+  /// one change so nothing sees them half applied.
+  void setCallShortcuts(CallShortcuts shortcuts) {
+    if (shortcuts == state.callShortcuts) return;
+    emit(state.copyWith(callShortcuts: shortcuts));
+  }
+
+  void setDesktopCallShortcuts(Set<CallShortcut> actions) {
+    if (setEquals(actions, state.desktopCallShortcuts)) return;
+    emit(state.copyWith(desktopCallShortcuts: Set.unmodifiable(actions)));
   }
 
   void setDesktopPushToTalkKey(String? key) {

@@ -263,6 +263,13 @@ class AppState extends Equatable {
   @JsonKey(includeFromJson: false, includeToJson: false)
   final bool desktopPushToTalkPending;
 
+  /// The call shortcuts the Linux desktop delivers from anywhere, each with a
+  /// key it reported. The window's own handler leaves these alone, since the
+  /// desktop takes their keys from the window too, and Settings says the key
+  /// is the desktop's to change.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  final Set<CallShortcut> desktopCallShortcuts;
+
   /// What the noise filter is busy with while a choice takes effect, for
   /// settings to say so ([NoiseFilter.work]).
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -340,6 +347,7 @@ class AppState extends Equatable {
     this.dmCallChatOpen = true,
     this.desktopPushToTalkKey,
     this.desktopPushToTalkPending = false,
+    this.desktopCallShortcuts = const {},
     this.noiseFilterWork = NoiseFilterWork.none,
     this.noiseInEffect = NoiseSuppression.standard,
   });
@@ -436,6 +444,7 @@ class AppState extends Equatable {
     String? desktopPushToTalkKey,
     bool clearDesktopPushToTalkKey = false,
     bool? desktopPushToTalkPending,
+    Set<CallShortcut>? desktopCallShortcuts,
     NoiseFilterWork? noiseFilterWork,
     NoiseSuppression? noiseInEffect,
   }) {
@@ -520,6 +529,7 @@ class AppState extends Equatable {
           : (desktopPushToTalkKey ?? this.desktopPushToTalkKey),
       desktopPushToTalkPending:
           desktopPushToTalkPending ?? this.desktopPushToTalkPending,
+      desktopCallShortcuts: desktopCallShortcuts ?? this.desktopCallShortcuts,
       noiseFilterWork: noiseFilterWork ?? this.noiseFilterWork,
       noiseInEffect: noiseInEffect ?? this.noiseInEffect,
     );
@@ -624,6 +634,7 @@ class AppState extends Equatable {
     dmCallChatOpen,
     desktopPushToTalkKey,
     desktopPushToTalkPending,
+    desktopCallShortcuts,
     noiseFilterWork,
     noiseInEffect,
   ];
