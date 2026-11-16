@@ -17,10 +17,11 @@ import 'widgets/call_pip_card.dart';
 /// Before this the stream simply went away with the stage, its sound playing
 /// on with nothing to look at. It behaves like the sharer's camera over a
 /// stream: dragged, it settles in the corner of the quarter it was dropped
-/// in, and the grip on its inner corner resizes it; both are kept for next
-/// time. A press on it does nothing, since it is so easily hit on the way to
-/// the chat under it: its own button goes back to the call, and its ✕ puts it
-/// away until the call is next looked at, without stopping the stream.
+/// in, and its two edges facing in, or the corner between them, resize it
+/// (`PipResizeGrip`); both are kept for next time. A press on it does
+/// nothing, since it is so easily hit on the way to the chat under it: its
+/// own button goes back to the call, and its ✕ puts it away until the call
+/// is next looked at, without stopping the stream.
 ///
 /// Fills the pane it is put over and takes no pointer outside the card.
 class CallStreamPip extends StatefulWidget {

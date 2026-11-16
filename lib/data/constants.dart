@@ -366,6 +366,10 @@ class K {
   static const double callPipTopClearance = paneHeaderHeight + 8;
   static const double callPipBottomClearance = 92;
 
+  /// How far in from a floating picture's edge a press resizes it, on the two
+  /// edges that move (`PipResizeGrip`): a window's border, about.
+  static const double pipResizeEdge = 6;
+
   /// The least width a stream nobody has opened takes on the stage, room
   /// enough for its Watch button above its name and quality. At a person's
   /// width on a phone the three ran into each other.

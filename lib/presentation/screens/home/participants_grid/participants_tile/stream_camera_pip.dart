@@ -15,8 +15,9 @@ import 'pip_resize_grip.dart';
 /// over: with the stream filling the stage, nothing else shows their face.
 ///
 /// Dragged, it follows the pointer, and let go it settles in the corner of
-/// the quarter it was dropped in. The grip on its inner corner makes it
-/// larger or smaller, from a thumbnail to under half the stream. It stays up
+/// the quarter it was dropped in. Its two edges facing in, and the corner
+/// between them, make it larger or smaller, from a thumbnail to under half
+/// the stream. It stays up
 /// while the stream's other overlays fade — it is a picture, not a control —
 /// and is put away with the camera button beside the stream's others. Goes
 /// inside the stage's [Stack].
