@@ -75,9 +75,9 @@ void main() {
     expect(result.success, isTrue, reason: result.error);
     expect(passes.askedFor, ['https://rift.example']);
     expect(vault.signedInAt, ['https://rift.example']);
-    expect(servers.registered, {
-      'https://rift.example': 'pass:https://rift.example',
-    });
+    expect(servers.registers, [
+      ('https://rift.example', 'pass:https://rift.example'),
+    ]);
     expect(result.serverUrl, 'https://rift.example');
     expect(storage.joinedHosts, ['rift.example']);
   });
@@ -94,7 +94,7 @@ void main() {
 
     expect(result.success, isFalse);
     expect(passes.askedFor, isEmpty);
-    expect(servers.registered, isEmpty);
+    expect(servers.registers, isEmpty);
   });
 
   test('a different server at the address given is not joined', () async {
@@ -113,7 +113,7 @@ void main() {
 
     expect(result.success, isFalse);
     expect(passes.askedFor, isEmpty);
-    expect(servers.registered, isEmpty);
+    expect(servers.registers, isEmpty);
   });
 
   test('a marked link at the address the server gives joins there', () async {
@@ -127,9 +127,9 @@ void main() {
 
     expect(result.success, isTrue, reason: result.error);
     expect(passes.askedFor, ['https://rift.example']);
-    expect(servers.registered, {
-      'https://rift.example': 'pass:https://rift.example',
-    });
+    expect(servers.registers, [
+      ('https://rift.example', 'pass:https://rift.example'),
+    ]);
     expect(result.serverUrl, 'https://rift.example');
   });
 
@@ -145,17 +145,82 @@ void main() {
 
       expect(result.success, isTrue, reason: result.error);
       expect(passes.askedFor, isEmpty);
-      expect(servers.registered, {'http://192.168.1.6:8000': null});
+      expect(servers.registers, [('http://192.168.1.6:8000', null)]);
       expect(result.serverUrl, 'http://192.168.1.6:8000');
     },
   );
+
+  // Somebody who joined at the link's address and left still has their
+  // profile there, and the server lets them back without a pass: joined at
+  // the server's own address, they would be a new identity and a new member.
+  group('a marked link reaching the server another way, to somebody who '
+      "joined at the link's address before", () {
+    const link = 'http://192.168.1.6:8000';
+    const own = 'https://rift.example';
+
+    setUp(() {
+      for (final origin in [link, own]) {
+        servers.invite[origin] = {
+          'server_id': serverId,
+          'needs_account': true,
+          'public_url': own,
+        };
+      }
+      storage.joinedHosts.add('192.168.1.6');
+    });
+
+    test(
+      'a former member gets their profile back there, with no pass',
+      () async {
+        servers.members.add(link);
+
+        final result = await join(link);
+
+        expect(result.success, isTrue, reason: result.error);
+        expect(passes.askedFor, isEmpty);
+        expect(vault.signedInAt, [link]);
+        expect(servers.registers, [(link, null)]);
+        expect(result.serverUrl, link);
+      },
+    );
+
+    test(
+      "somebody new to this server goes on to the server's own address",
+      () async {
+        // Joined another server on the same host, so the host is known.
+        final result = await join(link);
+
+        expect(result.success, isTrue, reason: result.error);
+        expect(passes.askedFor, [own]);
+        expect(servers.registers, [(link, null), (own, 'pass:$own')]);
+        expect(result.serverUrl, own);
+      },
+    );
+
+    test('a former member refused for anything else hears it, and nothing '
+        'moves', () async {
+      servers.members.add(link);
+      servers.banned.add(link);
+
+      final result = await join(link);
+
+      expect(result.success, isFalse);
+      expect(result.error, 'You are banned from this server');
+      expect(passes.askedFor, isEmpty);
+      expect(servers.registers, [(link, null)]);
+    });
+  });
 }
 
 /// Servers by address: what each one's `resolve_invite` answers for the
 /// invite, and the pass each one's `register` was handed.
 class _Servers {
   final Map<String, Map<String, Object?>> invite = {};
-  final Map<String, String?> registered = {};
+  final List<(String, String?)> registers = [];
+
+  /// Where this person already has a profile, and where they are banned.
+  final Set<String> members = {};
+  final Set<String> banned = {};
 
   late final http.Client client = MockClient((request) async {
     final origin = request.url.origin;
@@ -172,11 +237,32 @@ class _Servers {
                 'data': {'server_name': 'S', ...known},
               };
       case 'register':
-        registered[origin] = body['pass'] as String?;
-        answer = {
-          'success': true,
-          'data': {'user': <String, Object?>{}},
-        };
+        // As register_user answers: anybody with a profile comes back
+        // without a pass, before a link's need for an account is asked.
+        final pass = body['pass'] as String?;
+        registers.add((origin, pass));
+        final needsAccount = invite[origin]?['needs_account'] == true;
+        if (banned.contains(origin)) {
+          answer = {
+            'success': false,
+            'error': 'You are banned from this server',
+            'code': 'user_banned',
+          };
+        } else if (!members.contains(origin) && needsAccount && pass == null) {
+          answer = {
+            'success': false,
+            'error': 'This link needs a Rift account.',
+            'code': 'account_required',
+          };
+        } else {
+          answer = {
+            'success': true,
+            'data': {
+              'user': <String, Object?>{},
+              'rejoined': members.contains(origin),
+            },
+          };
+        }
       default:
         answer = {'success': false, 'error': 'unexpected $function'};
     }
@@ -213,8 +299,9 @@ class _Storage extends SecureStorageRepository {
   Future<String?> getPendingRecoveryKey() async => null;
 
   @override
-  Future<void> addJoinedServer(String host, String version) async =>
-      joinedHosts.add(host);
+  Future<void> addJoinedServer(String host, String version) async {
+    if (!joinedHosts.contains(host)) joinedHosts.add(host);
+  }
 
   @override
   Future<List<({String url, String version})>> getJoinedServers() async => [

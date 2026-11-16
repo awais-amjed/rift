@@ -9,6 +9,7 @@ import '../../../data/classes/backup_file.dart';
 import '../../../data/classes/encrypted_seed.dart';
 import '../../../data/classes/encrypted_vault.dart';
 import '../../../data/enums/auth_status.dart';
+import '../../../data/enums/error_code.dart';
 import '../../../data/repositories/secure_storage_repository.dart';
 import '../../../data/repositories/server_pass_repository.dart';
 import '../../../data/repositories/server_repository.dart';
@@ -134,6 +135,7 @@ class VaultCubit extends Cubit<VaultState>
     _onVaultChanged?.call();
   }
 
+  @override
   Future<List<({String url, String version})>> getJoinedServers() =>
       _storage.getJoinedServers();
 

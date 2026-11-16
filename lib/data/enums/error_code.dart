@@ -80,6 +80,10 @@ class ErrorCode {
   static const String identityTaken = 'identity_taken';
   static const String usernameTaken = 'username_taken';
 
+  /// The link needs a Rift account and nobody vouched for the caller, who
+  /// has no profile on the server either (a member comes back without one).
+  static const String accountRequired = 'account_required';
+
   /// Outside the alphabet `@`-mentions can express — see `ServerUsername`.
   /// The forms refuse it at the keystroke, so this is for a caller that went
   /// round them, such as a bot registering through the SDK.

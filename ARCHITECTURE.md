@@ -871,7 +871,10 @@ their members, and a copied pass is useless to anybody but the identity it names
 Whoever holds a pass can read its tag, though, so the app hands one only to the
 address it names: a link that reaches the server another way is joined, whole, at
 the address the server's `resolve_invite` gives as its own, and only if the same
-server answers there with the same invite (`joinAddress`). Otherwise a server could
+server answers there with the same invite (`joinAddress`). Somebody who joined at
+the link's address before tries there first, with no pass, since the server lets a
+member back without one and their profile is there; only a refusal for want of an
+account sends the join on. Otherwise a server could
 name another's address and collect the tag that one keeps for the account, linking
 the person's identities across the two (found in the Nov 16 2026 review; pinned by
 `test/server_pass_address_test.dart`). The server keeps the tag where no member can read it; a ban keeps it too
