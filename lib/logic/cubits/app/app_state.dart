@@ -275,6 +275,11 @@ class AppState extends Equatable {
   @JsonKey(includeFromJson: false, includeToJson: false)
   final bool callStageShown;
 
+  /// Whose stream was last opened full size on the call's stage — the one
+  /// `CallStreamPip` floats while it is still watched (`callPipStream`).
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  final String? streamLookedAt;
+
   /// A DM call has been given the whole conversation pane: the conversation
   /// list folds away and the messages move to a side panel. For one call
   /// only — hanging up puts the split back.
@@ -384,6 +389,7 @@ class AppState extends Equatable {
     this.membersHiddenForFocus = false,
     this.stageChromeHidden = false,
     this.callStageShown = false,
+    this.streamLookedAt,
     this.dmCallExpanded = false,
     this.dmCallChatOpen = true,
     this.desktopPushToTalkKey,
@@ -484,6 +490,7 @@ class AppState extends Equatable {
     bool? membersHiddenForFocus,
     bool? stageChromeHidden,
     bool? callStageShown,
+    String? streamLookedAt,
     bool? dmCallExpanded,
     bool? dmCallChatOpen,
     String? desktopPushToTalkKey,
@@ -573,6 +580,7 @@ class AppState extends Equatable {
           membersHiddenForFocus ?? this.membersHiddenForFocus,
       stageChromeHidden: stageChromeHidden ?? this.stageChromeHidden,
       callStageShown: callStageShown ?? this.callStageShown,
+      streamLookedAt: streamLookedAt ?? this.streamLookedAt,
       dmCallExpanded: dmCallExpanded ?? this.dmCallExpanded,
       dmCallChatOpen: dmCallChatOpen ?? this.dmCallChatOpen,
       desktopPushToTalkKey: clearDesktopPushToTalkKey
@@ -685,6 +693,7 @@ class AppState extends Equatable {
     membersHiddenForFocus,
     stageChromeHidden,
     callStageShown,
+    streamLookedAt,
     dmCallExpanded,
     dmCallChatOpen,
     desktopPushToTalkKey,

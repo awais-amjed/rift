@@ -353,6 +353,12 @@ class AppCubit extends HydratedCubit<AppState> {
     emit(state.copyWith(membersHiddenForFocus: focused));
   }
 
+  /// [identity]'s stream was opened full size on the call's stage.
+  void lookedAtStream(String identity) {
+    if (identity == state.streamLookedAt) return;
+    emit(state.copyWith(streamLookedAt: identity));
+  }
+
   /// Where the user left the line between a DM call and its messages.
   void setDmCallStageShare(double share) {
     if (!share.isFinite || share == state.dmCallStageShare) return;

@@ -5,6 +5,7 @@ import '../../../../data/constants.dart';
 import '../../../../data/enums/stream_pip_corner.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../logic/cubits/livekit/livekit_cubit.dart';
+import '../../../../logic/services/call_pip_stream.dart';
 import '../../../theme/app_motion.dart';
 import '../calls/show_the_call.dart';
 import 'widgets/call_pip_card.dart';
@@ -51,12 +52,14 @@ class _CallStreamPipState extends State<CallStreamPip> {
     final savedWidth = context.select<AppCubit, double>(
       (c) => c.state.callPipWidth,
     );
-    // The stream watched last, while the call is up. A set keeps the order
-    // they were added in.
+    // The stream last opened on the stage, while the call is up.
+    final lookedAt = context.select<AppCubit, String?>(
+      (c) => c.state.streamLookedAt,
+    );
     final watched = context.select<LiveKitCubit, String?>((c) {
       final lk = c.state;
       if (lk.connectionState != LiveKitConnectionState.connected) return null;
-      return lk.subscribedScreenshares.lastOrNull;
+      return callPipStream(lk.subscribedScreenshares, lookedAt: lookedAt);
     });
     // Looking at the call again is what brings a put-away card back.
     if (stageShown) _dismissed = null;

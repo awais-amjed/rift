@@ -131,6 +131,11 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
     if (key == _expandedKey) return;
     final wasFocused = _expandedKey != null;
     setState(() => _expandedKey = key);
+    if (key != null && key.endsWith(_shareSuffix)) {
+      _appCubit.lookedAtStream(
+        key.substring(0, key.length - _shareSuffix.length),
+      );
+    }
     if (wasFocused == (key != null)) return;
     _appCubit.setStageFocused(key != null);
     widget.onFocusChanged?.call(key != null);
@@ -140,6 +145,9 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
   Set<String> _watchingBefore = const {};
 
   static String _keyOf(VoiceTile<Participant> tile) => roomTileKey(tile);
+
+  /// What [roomTileKey] puts after a share's identity.
+  static const _shareSuffix = '#share';
 
   /// The cells to draw. A share is a cell, not a participant — see
   /// [voiceTilesFor].
@@ -199,7 +207,7 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
     // back with it.
     final stopped = _watchingBefore.difference(watching);
     _watchingBefore = watching;
-    if (stopped.any((identity) => _expandedKey == '$identity#share')) {
+    if (stopped.any((identity) => _expandedKey == '$identity$_shareSuffix')) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _setExpanded(null);
       });
@@ -213,7 +221,7 @@ class _ParticipantGridLayoutState extends State<ParticipantGridLayout> {
     if (toOpen != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        _setExpanded('$toOpen#share');
+        _setExpanded('$toOpen$_shareSuffix');
         context.read<LiveKitCubit>().streamOpened();
       });
     }
