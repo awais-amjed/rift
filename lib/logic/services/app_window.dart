@@ -77,7 +77,7 @@ abstract final class AppWindow {
     if (window == null) return;
     // On Linux the runner hides GTK's title bar (my_application.cc), and the
     // size is GTK's own, as [size] reads it.
-    if (!_isLinux || !setGtkWindowSize(window.nativeObject, size)) {
+    if (!_isLinux || !setGtkWindowSize(window, size)) {
       window.titleBarStyle = TitleBarStyle.hidden;
       window.contentSize = size.toNative();
     }
@@ -123,7 +123,7 @@ abstract final class AppWindow {
     final window = _target;
     if (window == null) return null;
     if (_isLinux) {
-      final gtk = gtkWindowSize(window.nativeObject);
+      final gtk = gtkWindowSize(window);
       if (gtk != null) return gtk;
     }
     return window.contentSize.toSize();

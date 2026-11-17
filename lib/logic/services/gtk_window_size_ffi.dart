@@ -2,11 +2,13 @@ import 'dart:ffi' hide Size;
 
 import 'package:ffi/ffi.dart';
 import 'package:flutter/widgets.dart';
+import 'package:window_manager/window_manager.dart' show Window;
 
-/// GTK's own size of the window behind [gtkWindow] (a `GtkWindow*`), the
+/// GTK's own size of [window] (through its `GtkWindow*`), the
 /// size `gtk_window_resize` takes, which nativeapi's content size does not
 /// match on Linux (see `AppWindow.size`). Null where GTK is not loaded.
-Size? gtkWindowSize(Pointer<Void> gtkWindow) {
+Size? gtkWindowSize(Window window) {
+  final gtkWindow = window.nativeObject;
   final get = _getSize;
   if (get == null || gtkWindow == nullptr) return null;
   return using((alloc) {
@@ -17,13 +19,14 @@ Size? gtkWindowSize(Pointer<Void> gtkWindow) {
   });
 }
 
-/// Resizes the window behind [gtkWindow] to [size], in [gtkWindowSize]'s
+/// Resizes [window] to [size], in [gtkWindowSize]'s
 /// terms. False where GTK is not loaded.
 ///
 /// The default size too: under X11 the runner has realized the window
 /// before Dart asks, and GTK maps a realized window at its default size,
 /// forgetting a resize asked for in between.
-bool setGtkWindowSize(Pointer<Void> gtkWindow, Size size) {
+bool setGtkWindowSize(Window window, Size size) {
+  final gtkWindow = window.nativeObject;
   final resize = _resize;
   final setDefault = _setDefaultSize;
   if (resize == null || setDefault == null || gtkWindow == nullptr) {
