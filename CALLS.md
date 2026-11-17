@@ -2004,3 +2004,15 @@ under 3%. Nov 13's 40.8% did not come back. So since Nov 2026 Dart runs on the
 main thread again (`UIThreadPolicy::RunOnPlatformThread`), where window_manager's
 native API, which drives the window over FFI, needs it. The runaway timer is
 the thing to watch for if a later Flutter brings it back.
+
+The same run found Rift busier after a call than before it: idle, the process
+woke about 750 times a second after leaving a call it had watched a share in,
+against 270 before. LiveKit's runtime was still running: its network,
+signaling and worker threads, a frame cryptor's, and a synthetic audio device
+ticking every 10 ms. `livekit` 0.10.1's `Room::close` never let go of a room's
+remote participants, whose publications held the room's engine, so a room
+closed while anyone else had a track published kept the runtime alive for the
+rest of the process. The fork takes LiveKit's fix from 0.11.0 (its `RIFT.md`),
+and `live_watch_leaves_nothing_running_after_the_call` checks the threads end
+(verified Nov 18 2026 against livekit-server; it failed before the fix). Run
+it on its own: the live tests before it drop rooms without closing them.

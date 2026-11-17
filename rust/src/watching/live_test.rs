@@ -1569,3 +1569,67 @@ async fn live_gpu_watch_decodes_each_codec_on_the_gpu() {
     #[cfg(windows)]
     runner.assert_all_handed_back();
 }
+
+/// The process's threads by name, as the kernel keeps them (15 characters).
+#[cfg(target_os = "linux")]
+fn thread_names() -> Vec<String> {
+    let mut names: Vec<String> = std::fs::read_dir("/proc/self/task")
+        .expect("lists threads")
+        .filter_map(|task| std::fs::read_to_string(task.ok()?.path().join("comm")).ok())
+        .map(|name| name.trim().to_string())
+        .collect();
+    names.sort();
+    names
+}
+
+/// Once the call is left, nothing of LiveKit's is left running: its runtime
+/// goes with the last connection, and with it its threads and the synthetic
+/// audio device, whose clock ticks every 10 ms for as long as it lives. A
+/// room closed while anyone else had a track published kept it all, through
+/// callbacks that held their own participant (fixed upstream in #1654); on
+/// Windows that was about 480 wake-ups a second after every call.
+///
+/// Run it on its own: a test before it in the same process that drops a room
+/// without closing it keeps the runtime up.
+#[cfg(target_os = "linux")]
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a LiveKit server; see the module doc"]
+async fn live_watch_leaves_nothing_running_after_the_call() {
+    let _ = env_logger::builder().is_test(true).try_init();
+    let server = Server::from_env();
+    let name = room_name("leave");
+    let key = shared_key();
+    let share_identity = "member~desk_share";
+    const TEXTURE: u64 = 9;
+    let before = thread_names();
+
+    let voice = start_watching(&server, &name, key.clone(), KEY_INDEX).await;
+    session::watch(share_identity.to_string(), TEXTURE, mark_address(), false)
+        .await
+        .expect("watches");
+    let share = Share::start(&server, &name, share_identity, &key, KEY_INDEX).await;
+    assert!(
+        marked(TEXTURE, 0, 30, Duration::from_secs(15)).await,
+        "pictures reach the runner's slot"
+    );
+    let during = thread_names();
+
+    session::stop().await;
+    share.end().await;
+    let _ = voice.close().await;
+    drop(voice);
+    tokio::time::sleep(Duration::from_secs(3)).await;
+    let after = thread_names();
+    log::info!("leave test: before {before:?}");
+    log::info!("leave test: during {during:?}");
+    log::info!("leave test: after {after:?}");
+    assert!(
+        during.iter().any(|n| n.starts_with("SyntheticAudio")),
+        "the runtime was up during the call"
+    );
+    assert!(
+        !after.iter().any(|n| n.starts_with("SyntheticAudio")),
+        "LiveKit's runtime is gone after the call: {after:?}"
+    );
+}
+
