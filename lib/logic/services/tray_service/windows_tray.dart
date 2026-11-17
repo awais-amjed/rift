@@ -3,9 +3,12 @@ import 'package:flutter/services.dart';
 /// The tray icon on Windows, which lives in the runner (`tray_icon.cpp`).
 ///
 /// A window belongs to the thread that made it and hears nothing unless that
-/// thread runs a message loop. Dart's thread on Windows does not (AGENTS.md,
-/// *On Windows, Dart is not on the main thread*), so an icon made from here by
-/// FFI, as tray_manager does, is drawn and never hears a click.
+/// thread runs a message loop. From Oct to Nov 2026 Dart had a thread of its
+/// own on Windows, with no loop, so tray_manager's icon, made from Dart by
+/// FFI, was drawn and never heard a click (beta.5 to beta.10). Dart is on the
+/// window's thread again (AGENTS.md, *On Windows, Dart runs on the window's
+/// thread*), but the runner's icon works whichever thread Dart is on, so it
+/// stays.
 class WindowsTray {
   WindowsTray({required this.onShow, required this.onQuit});
 

@@ -68,9 +68,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
 
   // Dart on this thread, the window's, as Flutter runs it by default
   // (CALLS.md, "Rift beside a game"). Rift ran it on a thread of its own
-  // from Oct 2026, when Dart here woke this thread 1,000 times a second;
-  // Flutter 3.50 no longer does that. Being tested Nov 2026 against the
-  // freeze after minimising (report 73381cb4).
+  // from Oct to Nov 2026, when Dart here woke this thread 1,000 times a
+  // second; Flutter 3.50 no longer does, and AppWindow drives the window
+  // over FFI, which needs Dart on the window's thread.
   project.set_ui_thread_policy(flutter::UIThreadPolicy::RunOnPlatformThread);
 
   FlutterWindow window(project);

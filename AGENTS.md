@@ -372,19 +372,24 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   on the wrong one: static until rejoin (`CALLS.md`, *Receiving a call's
   audio*). A stream's picture is held the same way (`_PicturePauseMixin`). Only your own share may be unsubscribed;
   `test/audio_reception_test.dart` fails on any other `unsubscribe()` in the call.
-- **On Windows, Dart is not on the main thread.** The runner gives it its own UI thread
-  (`windows/runner/main.cpp`; on the main thread the engine's timer woke Rift a thousand
-  times a second, `CALLS.md` *Rift beside a game*). The main thread holds the COM
-  apartment and the windows, so Dart FFI into COM sets up its own, and anything that must
-  run on the window's thread goes through a platform channel, as the push-to-talk keys do.
-  Nor does Dart's thread run a message loop, so a window made on it by FFI never hears
-  anything: that is why the tray icon is the runner's on Windows (`tray_icon.cpp`,
-  `WindowsTray`), after tray_manager's stopped answering clicks from beta.5 to beta.10.
-  Dart also starts before the window: what the runner sets up in `FlutterWindow::OnCreate`
-  is not there yet when Dart first asks. The noise filter is, a moment later, so
-  `NoiseFilter` waits for it (`ready`) and settings say so (`NoiseFilterWork`) rather than
-  reading its absence as for good, which left Windows with no models and no mic volume.
-  Nor does Dart hear the window minimised or hidden: the app lifecycle reports only the
+- **On Windows, Dart runs on the window's thread**, Flutter's default
+  (`windows/runner/main.cpp`). From Oct 2026 to Nov 2026 it had a thread of its own, when
+  the engine's timer woke the main thread a thousand times a second; Flutter 3.50 no longer
+  does, and a watched share costs the same either way (`CALLS.md` *Rift beside a game*).
+  So the desktop window is driven directly over FFI (`AppWindow`, window_manager's native
+  API), and that call is synchronous: a resize, move, show or full screen answers at once,
+  re-entering Dart with the new size and a whole frame of its own. **Never call one from
+  build, layout, `initState`, `didChangeDependencies` or `dispose`** — wait one event first,
+  as `WindowFullscreen.set` does. From inside a frame it left full screen black on Windows
+  and froze a debug build. `AppWindow.events` can fire from inside such a call too.
+  The tray icon on Windows stays the runner's (`tray_icon.cpp`, `WindowsTray`): it came in
+  when tray_manager's, made from Dart's own thread, stopped answering clicks from beta.5 to
+  beta.10, and a runner-owned icon works whichever thread Dart is on.
+  The runner sets the noise filter up in `FlutterWindow::OnCreate`, and Dart may ask before
+  it is there, so `NoiseFilter` waits for it (`ready`) and settings say so
+  (`NoiseFilterWork`) rather than reading its absence as for good, which once left Windows
+  with no models and no mic volume.
+  Dart does not hear the window minimised or hidden: the app lifecycle reports only the
   focus there, so whether anybody can see Rift comes from the runner (`rift/window_seen`,
   `AppSeenListener`; the Linux runner answers it too, under Wayland, where GTK 3 never
   hears minimised), and a watched stream's picture is off while nobody can (`CALLS.md`,

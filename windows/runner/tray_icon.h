@@ -10,8 +10,9 @@
 // Rift's icon in the notification area, with its Show Rift / Quit menu.
 //
 // Here on the main thread rather than in Dart: a window belongs to the thread
-// that made it, and Dart's thread runs no message loop (main.cpp), so an icon
-// made there never hears a click. It has a hidden window of its own to make
+// that made it, and while Dart had a thread of its own (Oct to Nov 2026), with
+// no message loop, an icon made there never heard a click. This one works
+// whichever thread Dart is on. It has a hidden window of its own to make
 // foreground for the menu: making Rift's foreground would raise Rift over
 // whatever the person was doing, just for opening a menu.
 class TrayIcon {

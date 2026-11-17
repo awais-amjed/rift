@@ -281,8 +281,8 @@ class NoiseProcessing final
   Timings timings_;
 };
 
-// Atomic: put on from the window's thread, read from Dart's, which on
-// Windows is another thread and starts first.
+// Atomic: put on from the window's thread, read from Dart's, which need not
+// be the same thread (on Windows it was not, from Oct to Nov 2026).
 std::atomic<NoiseProcessing*> g_processing{nullptr};
 
 flutter_webrtc_plugin::FlutterWebRTC* SharedWebRTC() {

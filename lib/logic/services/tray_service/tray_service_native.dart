@@ -22,8 +22,9 @@ import 'windows_tray.dart';
 /// area hands back no icon, and the app has to keep working without one — the
 /// tray is a convenience, never the only route to anything.
 ///
-/// On Windows the icon is the runner's ([WindowsTray]), because Dart's thread
-/// there runs no message loop to hear its clicks. This also owns quitting
+/// On Windows the icon is the runner's ([WindowsTray]): tray_manager's, made
+/// from Dart while Dart had a thread of its own, never heard a click. This
+/// also owns quitting
 /// there, where the icon goes first, so that none is left behind by the exit.
 class TrayService {
   TrayService._();

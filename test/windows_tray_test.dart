@@ -71,8 +71,9 @@ void main() {
     expect(asked, ['add', 'remove']);
   });
 
-  // Dart's thread runs no message loop on Windows, so a window made there by
-  // FFI never hears a click: beta.5 to beta.10 shipped an icon that did nothing.
+  // While Dart had a thread of its own on Windows, with no message loop, a
+  // window made there by FFI never heard a click: beta.5 to beta.10 shipped an
+  // icon that did nothing. The runner's icon works on any thread Dart is on.
   test('Windows does not make its tray through FFI on Dart\'s thread', () {
     final source = File(
       'lib/logic/services/tray_service/tray_service_native.dart',

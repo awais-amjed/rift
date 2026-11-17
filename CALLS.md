@@ -1969,13 +1969,13 @@ once, wakes the main thread, is handed the later time again and drops it
 again. Rift idle on a server woke its main thread and that timer 1,000 times a
 second each in the Windows 11 VM (a laptop's own Windows showed 2,500–5,500,
 not yet measured with the change); an empty Flutter app, with no timers, did
-not. The runner puts Dart back on its own UI thread
+not. The runner put Dart back on its own UI thread
 (`UIThreadPolicy::RunOnSeparateThread`, `windows/runner/main.cpp`), where
 Dart's timers never reach that thread. Found with a hook counting the main
 thread's messages (all `WM_NULL` to `FlutterTaskRunnerWindow`) and who posted
 them (the timer thread, 1,113 a second). The engine marks the policy for
-removal, so it goes when the engine schedules a later time over a passed one,
-or earlier if the policy goes first.
+removal, and it was to go when the engine scheduled a later time over a passed
+one.
 
 Measured Oct 25 2026 in the Windows 11 VM, Rift on a server with a call
 running in its sidebar: the main thread woke 759–1,113 times a second idle and
@@ -1991,4 +1991,16 @@ process used 40.8% of a core in that call against 27.1%. The runaway timer is
 gone (nowhere near 1,000, where this laptop showed 2,500–5,500 before), though
 the timer code reads the same, but Dart on the main thread still costs about a
 seventh of a core in a call, which is what a game beside Rift pays. So Dart
-stays on its own thread.
+stayed on its own thread then.
+
+Measured again Nov 17 2026, by the owner's Windows session on the same laptop,
+on three release builds: Dart on its own thread, Dart on the main thread, and
+the main thread with every package updated. Watching a 720p60 share for 60 s,
+the process used 23.7–27.7% of a core on its own thread and 25.5–28.2% on the
+main thread with the RTX drawing, and 35.1–37.9% against 32.1–33.2% with the
+Iris Xe drawing. The main thread woke about 485 times a second against 300,
+about a point of a core. Idle, in a call and minimised, every build stayed
+under 3%. Nov 13's 40.8% did not come back. So since Nov 2026 Dart runs on the
+main thread again (`UIThreadPolicy::RunOnPlatformThread`), where window_manager's
+native API, which drives the window over FFI, needs it. The runaway timer is
+the thing to watch for if a later Flutter brings it back.

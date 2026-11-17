@@ -35,8 +35,9 @@ part 'noise_filter_native.dart';
 /// was not there to attach to — a model reads as [NoiseSuppression.standard].
 abstract final class NoiseFilter {
   /// The runner's functions, found at once. They exist before the filter
-  /// does: Windows runs Dart on its own thread, which starts before the
-  /// window's thread puts the filter on (`FlutterWindow::OnCreate`).
+  /// does: Dart may ask before the runner has put the filter on
+  /// (`FlutterWindow::OnCreate` on Windows), and did every time while Dart
+  /// had a thread of its own there.
   static final _exports = _NativeFilter.load();
 
   /// The runner's filter, once it says it has one ([ready]).
