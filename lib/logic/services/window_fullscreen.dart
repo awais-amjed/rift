@@ -25,12 +25,20 @@ class WindowFullscreen {
   /// is at the top edge, so the window can still be moved and closed.
   static final ValueNotifier<bool> edgeToEdge = ValueNotifier(false);
 
+  /// Called from a page's `initState` and `dispose`, in the middle of a
+  /// frame. On the desktop the window changes in a task of its own, after
+  /// that frame: [AppWindow] calls the window directly, and the window
+  /// answers a resize at once, re-entering Dart with the new size and a whole
+  /// frame of its own while the frame that asked is still building. That
+  /// left full screen black (frozen in a debug build) on Windows, whose Dart
+  /// runs on the window's thread.
   static Future<void> set(bool on) async {
     if (on) active.value = true;
     try {
       if (kIsWeb) {
         await setBrowserFullscreen(on);
       } else if (HostPlatform.isDesktop) {
+        await Future<void>.delayed(Duration.zero);
         AppWindow.fullScreen = on;
       } else if (HostPlatform.isMobile) {
         await SystemChrome.setEnabledSystemUIMode(
