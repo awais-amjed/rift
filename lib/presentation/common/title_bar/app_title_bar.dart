@@ -1,11 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:window_manager/window_manager.dart';
+import 'package:window_manager/window_manager.dart'
+    show DragToMoveArea, WindowEvent, WindowMaximizedEvent, WindowRestoredEvent;
 
 import '../../../data/constants.dart';
 import '../../../logic/cubits/app/app_cubit.dart';
 import '../../../logic/cubits/network/network_cubit.dart';
 import '../../../logic/cubits/server_reach/server_reach_cubit.dart';
+import '../../../logic/services/app_window.dart';
 import '../../../logic/services/window_dim.dart';
 import '../../theme/app_motion.dart';
 import '../../theme/app_text.dart';
@@ -57,32 +61,33 @@ class AppTitleBar extends StatefulWidget {
   State<AppTitleBar> createState() => _AppTitleBarState();
 }
 
-class _AppTitleBarState extends State<AppTitleBar> with WindowListener {
-  bool _isMaximized = false;
+class _AppTitleBarState extends State<AppTitleBar> {
+  bool _isMaximized = AppWindow.isMaximized;
+
+  StreamSubscription<WindowEvent>? _windowEvents;
 
   @override
   void initState() {
     super.initState();
-    windowManager.addListener(this);
-    _syncMaximized();
+    // Asked again rather than tracked: one `restored` event answers both
+    // leaving maximised and leaving minimised.
+    _windowEvents = AppWindow.events
+        .where((e) => e is WindowMaximizedEvent || e is WindowRestoredEvent)
+        .listen((_) => _syncMaximized());
   }
 
   @override
   void dispose() {
-    windowManager.removeListener(this);
+    unawaited(_windowEvents?.cancel());
     super.dispose();
   }
 
-  Future<void> _syncMaximized() async {
-    final maximized = await windowManager.isMaximized();
-    if (mounted) setState(() => _isMaximized = maximized);
+  void _syncMaximized() {
+    final maximized = AppWindow.isMaximized;
+    if (mounted && maximized != _isMaximized) {
+      setState(() => _isMaximized = maximized);
+    }
   }
-
-  @override
-  void onWindowMaximize() => setState(() => _isMaximized = true);
-
-  @override
-  void onWindowUnmaximize() => setState(() => _isMaximized = false);
 
   @override
   Widget build(BuildContext context) {
@@ -178,7 +183,7 @@ class _AppTitleBarState extends State<AppTitleBar> with WindowListener {
           icon: Icons.remove_rounded,
           tooltip: 'Minimize',
           ink: ink,
-          onTap: () => windowManager.minimize(),
+          onTap: AppWindow.minimize,
         ),
         WindowButton(
           icon: _isMaximized
@@ -186,15 +191,13 @@ class _AppTitleBarState extends State<AppTitleBar> with WindowListener {
               : Icons.crop_square_rounded,
           tooltip: _isMaximized ? 'Restore' : 'Maximize',
           ink: ink,
-          onTap: () => _isMaximized
-              ? windowManager.unmaximize()
-              : windowManager.maximize(),
+          onTap: _isMaximized ? AppWindow.unmaximize : AppWindow.maximize,
         ),
         WindowButton(
           icon: Icons.close_rounded,
           tooltip: 'Minimize to tray',
           ink: ink,
-          onTap: () => windowManager.hide(),
+          onTap: AppWindow.hide,
 
           isClose: true,
         ),

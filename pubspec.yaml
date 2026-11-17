@@ -64,15 +64,12 @@ dependencies:
   dart_webrtc: ^1.8.2
   http: ^1.6.0
   http_parser: ^4.1.2
-  # Held at 0.5 with screen_retriever 0.2 (Nov 13 2026). From 0.6 both are
-  # built on nativeapi, which calls the window from Dart's thread over FFI,
-  # and on Windows Dart has a thread of its own (windows/runner/main.cpp): the
-  # same mismatch that left tray_manager's icon deaf to clicks. Move both
-  # together, with a Windows test of the window, close-to-tray and displays.
-  window_manager: ^0.5.1
-  # Already window_manager's own; named here because the window is fitted to
-  # the displays before it shows (see fitWindowToScreens).
-  screen_retriever: ^0.2.2
+  # The window, over FFI from Dart's thread (AppWindow), which on Windows
+  # needs Dart on the window's own thread (windows/runner/main.cpp).
+  window_manager: ^0.7.0
+  # Already window_manager's own; named here for the displays the window is
+  # fitted to before it shows (AppWindow.workAreas, fitWindowToScreens).
+  nativeapi: ^0.6.1
   # Already livekit_client's own; named here because the title bar says when
   # the device has no network (see NetworkCubit).
   connectivity_plus: ^7.3.1

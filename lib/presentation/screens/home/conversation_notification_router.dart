@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:window_manager/window_manager.dart';
 
 import '../../../data/enums/home_surface.dart';
 import '../../../logic/cubits/app/app_cubit.dart';
@@ -11,6 +10,7 @@ import '../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
 import '../../../logic/cubits/dm/dm_cubit.dart';
 import '../../../logic/cubits/server/server_cubit.dart';
 import '../../../logic/cubits/vault/vault_cubit.dart';
+import '../../../logic/services/app_window.dart';
 import '../../../logic/services/host_platform.dart';
 import '../../../logic/services/notification_ids.dart';
 import '../../../logic/services/notification_service.dart';
@@ -66,8 +66,7 @@ class _ConversationNotificationRouterState
 
   Future<void> _handle(ConversationNotificationPayload? target) async {
     if (HostPlatform.isDesktop) {
-      await windowManager.show();
-      await windowManager.focus();
+      AppWindow.showAndFocus();
     }
     if (target == null || !mounted) return;
     if (target.isCentralDm) {

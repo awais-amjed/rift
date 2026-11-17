@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:window_manager/window_manager.dart';
 
+import 'app_window.dart';
 import 'browser_apis.dart';
 import 'host_platform.dart';
 
@@ -31,7 +31,7 @@ class WindowFullscreen {
       if (kIsWeb) {
         await setBrowserFullscreen(on);
       } else if (HostPlatform.isDesktop) {
-        await windowManager.setFullScreen(on);
+        AppWindow.fullScreen = on;
       } else if (HostPlatform.isMobile) {
         await SystemChrome.setEnabledSystemUIMode(
           on ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge,

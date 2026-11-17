@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:go_router/go_router.dart';
@@ -15,6 +17,7 @@ import 'logic/cubits/theme/theme_cubit.dart';
 import 'logic/cubits/vault/vault_cubit.dart';
 import 'logic/helper_methods.dart';
 import 'logic/ptt/push_to_talk_listener.dart';
+import 'logic/services/app_window.dart';
 import 'logic/services/host_platform.dart';
 import 'logic/services/login_launch/login_launch.dart';
 import 'logic/services/storage_namespace.dart';
@@ -68,16 +71,17 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp>
-    with WindowListener, WidgetsBindingObserver {
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   late final GoRouter _router = AppRoutes.router(widget.vaultCubit);
+
+  StreamSubscription<WindowEvent>? _windowEvents;
 
   @override
   void initState() {
     super.initState();
     // See AppBootstrap.run: these two plugins exist on desktop only.
     if (HostPlatform.drawsOwnWindowChrome) {
-      windowManager.addListener(this);
+      _windowEvents = AppWindow.events.listen(_onWindowEvent);
     }
     // A phone has no window to lose focus, so the same question — is the user
     // looking at this? — is answered by the app lifecycle instead. Without
@@ -91,9 +95,7 @@ class _MyAppState extends State<MyApp>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    if (HostPlatform.drawsOwnWindowChrome) {
-      windowManager.removeListener(this);
-    }
+    unawaited(_windowEvents?.cancel());
     super.dispose();
   }
 
@@ -123,30 +125,20 @@ class _MyAppState extends State<MyApp>
   /// Whether the app has been hidden or paused since it was last in front.
   bool _away = false;
 
-  @override
-  void onWindowFocus() => WindowFocusService.instance.setFocused(true);
-
-  @override
-  void onWindowBlur() => WindowFocusService.instance.setFocused(false);
-
-  @override
-  void onWindowMinimize() => WindowFocusService.instance.setFocused(false);
-
-  @override
-  void onWindowRestore() => WindowFocusService.instance.setFocused(true);
-
-  @override
-  void onWindowResize() async {
-    if (WindowFullscreen.isOn) return;
-    final size = await windowManager.getSize();
-    widget.appCubit.saveWindowSize(size);
-  }
-
-  @override
-  void onWindowMove() async {
-    if (WindowFullscreen.isOn) return;
-    final position = await windowManager.getPosition();
-    widget.appCubit.saveWindowPosition(position);
+  void _onWindowEvent(WindowEvent event) {
+    switch (event) {
+      case WindowFocusedEvent() || WindowRestoredEvent():
+        WindowFocusService.instance.setFocused(true);
+      case WindowBlurredEvent() || WindowMinimizedEvent():
+        WindowFocusService.instance.setFocused(false);
+      case WindowResizedEvent() when !WindowFullscreen.isOn:
+        final size = AppWindow.size;
+        if (size != null) widget.appCubit.saveWindowSize(size);
+      case WindowMovedEvent() when !WindowFullscreen.isOn:
+        final position = AppWindow.position;
+        if (position != null) widget.appCubit.saveWindowPosition(position);
+      default:
+    }
   }
 
   @override

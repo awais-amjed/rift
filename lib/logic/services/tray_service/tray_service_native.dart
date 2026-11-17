@@ -2,8 +2,10 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:tray_manager/tray_manager.dart';
-import 'package:window_manager/window_manager.dart';
+import 'package:window_manager/window_manager.dart'
+    show WindowCloseRequestedEvent, WindowEvent;
 
+import '../app_window.dart';
 import '../before_quit.dart';
 import 'windows_tray.dart';
 
@@ -23,13 +25,16 @@ import 'windows_tray.dart';
 /// On Windows the icon is the runner's ([WindowsTray]), because Dart's thread
 /// there runs no message loop to hear its clicks. This also owns quitting
 /// there, where the icon goes first, so that none is left behind by the exit.
-class TrayService with WindowListener {
+class TrayService {
   TrayService._();
 
   static final TrayService instance = TrayService._();
 
   TrayIcon? _icon;
   WindowsTray? _windowsTray;
+
+  /// The desktop's close requests, heard once there is an icon to hide to.
+  StreamSubscription<WindowEvent>? _closeRequests;
 
   /// Everything the icon refers to by native handle.
   ///
@@ -66,8 +71,10 @@ class TrayService with WindowListener {
     // Only here, after an icon exists: without one a hidden window could
     // never come back, so the desktop's close stays a close.
     if (Platform.isWindows || Platform.isLinux) {
-      windowManager.addListener(this);
-      await windowManager.setPreventClose(true);
+      AppWindow.keepOpenOnClose = true;
+      _closeRequests = AppWindow.events
+          .where((e) => e is WindowCloseRequestedEvent)
+          .listen((_) => _onCloseRequested());
     }
   }
 
@@ -114,34 +121,32 @@ class TrayService with WindowListener {
   /// Leaves the app: out of sight at once, then [BeforeQuit]'s work, then the
   /// icon, then the window.
   ///
-  /// Windows closes rather than destroys. window_manager's `destroy` there is
-  /// a bare `PostQuitMessage`, which ends the message loop with the Flutter
-  /// window still open, so the engine is torn down after `wWinMain` has
-  /// returned and faults in flutter_windows.dll. A close goes through
-  /// WM_DESTROY, which shuts the engine down while the loop still runs.
+  /// A close, never a bare quit: on Windows that ended the message loop with
+  /// the Flutter window still open, so the engine was torn down after
+  /// `wWinMain` had returned and faulted in flutter_windows.dll. A close goes
+  /// through WM_DESTROY, which shuts the engine down while the loop still
+  /// runs ([AppWindow.close]).
   Future<void> quit() async {
     if (_quitting) return;
     _quitting = true;
-    await windowManager.hide();
+    AppWindow.hide();
     await BeforeQuit.instance.run();
-    if (!Platform.isWindows) return windowManager.destroy();
     final tray = _windowsTray;
     _windowsTray = null;
     await tray?.remove();
-    windowManager.removeListener(this);
-    await windowManager.setPreventClose(false);
-    await windowManager.close();
+    unawaited(_closeRequests?.cancel());
+    AppWindow.close();
   }
 
-  /// The desktop asked the window to close. Hidden like the title bar's
-  /// close button, while there is an icon to come back from.
-  @override
-  void onWindowClose() {
+  /// The desktop asked the window to close, and [AppWindow] kept it open.
+  /// Hidden like the title bar's close button, while there is an icon to
+  /// come back from.
+  void _onCloseRequested() {
     if (!isShowing) {
       unawaited(quit());
       return;
     }
-    unawaited(windowManager.hide());
+    AppWindow.hide();
   }
 
   /// Adds one clickable row, carrying its own action.
@@ -159,8 +164,5 @@ class TrayService with WindowListener {
     menu.addItem(item);
   }
 
-  Future<void> _show() async {
-    await windowManager.show();
-    await windowManager.focus();
-  }
+  void _show() => AppWindow.showAndFocus();
 }

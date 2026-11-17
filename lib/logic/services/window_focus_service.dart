@@ -3,7 +3,7 @@ import '../helper_methods.dart';
 
 /// Tracks whether the app window currently has OS focus.
 ///
-/// Fed by the `WindowListener` callbacks in `main.dart` (window_manager). Chat
+/// Fed by the window's events in `main.dart` (`AppWindow.events`). Chat
 /// cubits read [isFocused] to decide whether an incoming message warrants an OS
 /// notification — we never notify while the user is looking at the app.
 ///

@@ -5,9 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:rift_crypto/rift_crypto.dart';
-import 'package:screen_retriever/screen_retriever.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:window_manager/window_manager.dart';
 
 import 'data/central_http_client.dart';
 import 'data/classes/api_response.dart';
@@ -20,6 +18,7 @@ import 'logic/cubits/app/app_cubit.dart';
 import 'logic/helper_methods.dart';
 import 'logic/services/app_exit_reasons.dart';
 import 'logic/services/app_log.dart';
+import 'logic/services/app_window.dart';
 import 'logic/services/browser_apis.dart';
 import 'logic/services/chat_clip/chat_clip.dart';
 import 'logic/services/file_save/save_target.dart';
@@ -117,14 +116,12 @@ class AppBootstrap {
     // 0.7, so it fails by handing back no icon instead, but there is no tray
     // on a phone to want one from either.
     if (HostPlatform.drawsOwnWindowChrome) {
-      await windowManager.ensureInitialized();
-      await _restoreWindow(appCubit);
+      _restoreWindow(appCubit);
       await TrayService.instance.init();
       // The runner left the window hidden for a start at sign-in. With no
       // tray to come back from, it waits on the taskbar instead.
       if (LoginLaunch.startedMinimized && !TrayService.instance.isShowing) {
-        await windowManager.show();
-        await windowManager.minimize();
+        AppWindow.showMinimized();
       }
     }
     // Rewritten at every start, so the entry follows the program if it
@@ -150,10 +147,10 @@ class AppBootstrap {
     // The profanity list, for covering flagged messages. Not awaited: until
     // it lands every message is shown, and 60 KB lands before the first one.
     unawaited(TextSafety.instance.load());
-    // The web's stand-in for the WindowListener callbacks in main.dart, which
-    // window_manager supplies everywhere else. Without it the tab is focused
-    // forever and nothing ever notifies, because every trigger site gates on
-    // the window being *un*focused.
+    // The web's stand-in for the window events main.dart hears (AppWindow),
+    // which window_manager supplies everywhere else. Without it the tab is
+    // focused forever and nothing ever notifies, because every trigger site
+    // gates on the window being *un*focused.
     if (kIsWeb) {
       startBrowserFocusTracking(WindowFocusService.instance.setFocused);
       // The worker a big chat video streams through, installed now so it is
@@ -240,7 +237,7 @@ class AppBootstrap {
   /// Reopens the window where it was last left, with the title bar hidden so
   /// the app can draw its own — kept on a screen that exists now, since the
   /// display it was saved on may since have been unplugged or rescaled.
-  static Future<void> _restoreWindow(AppCubit appCubit) async {
+  static void _restoreWindow(AppCubit appCubit) {
     final state = appCubit.state;
     var size = state.windowWidth != null
         ? Size(state.windowWidth!, state.windowHeight!)
@@ -249,12 +246,14 @@ class AppBootstrap {
         ? Offset(state.windowX!, state.windowY!)
         : null;
 
-    final screens = await _workAreas();
-    if (screens != null) {
+    final screens = AppWindow.workAreas();
+    if (screens == null) {
+      HelperMethods.printDebug('[Window] no display info');
+    } else {
       // Nothing saved yet: the window is wherever the platform's runner put
       // it (10,10 on Windows, scaled), which a bigger scale can push the
       // fitted size off the edge from just as well.
-      position ??= await _currentPosition();
+      position ??= AppWindow.position;
       (:size, :position) = fitWindowToScreens(
         size: size,
         position: position,
@@ -263,40 +262,10 @@ class AppBootstrap {
       );
     }
 
-    unawaited(
-      windowManager.waitUntilReadyToShow(
-        WindowOptions(
-          titleBarStyle: TitleBarStyle.hidden,
-          size: size,
-          minimumSize: const Size(K.windowMinWidth, K.windowMinHeight),
-        ),
-        () async {
-          if (position != null) await windowManager.setPosition(position);
-        },
-      ),
+    AppWindow.setUp(
+      size: size,
+      minimumSize: const Size(K.windowMinWidth, K.windowMinHeight),
+      position: position,
     );
-  }
-
-  static Future<Offset?> _currentPosition() async {
-    try {
-      return await windowManager.getPosition();
-    } catch (_) {
-      return null;
-    }
-  }
-
-  /// The displays' usable areas and the primary one, or null when the
-  /// platform won't say — then the saved geometry is used as it is.
-  static Future<({List<Rect> all, Rect primary})?> _workAreas() async {
-    Rect workArea(Display d) =>
-        (d.visiblePosition ?? Offset.zero) & (d.visibleSize ?? d.size);
-    try {
-      final displays = await screenRetriever.getAllDisplays();
-      final primary = await screenRetriever.getPrimaryDisplay();
-      return (all: displays.map(workArea).toList(), primary: workArea(primary));
-    } catch (e) {
-      HelperMethods.printDebug('[Window] no display info: $e');
-      return null;
-    }
   }
 }
