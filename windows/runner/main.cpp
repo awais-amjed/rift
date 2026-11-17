@@ -66,15 +66,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
 
   project.set_dart_entrypoint_arguments(std::move(command_line_arguments));
 
-  // Dart on its own thread, as Flutter ran it before merging the two. On
-  // this one, every Dart timer is a delayed task for the engine's
-  // TimerThread, which keeps firing once one has fired (a later time does
-  // not replace a passed one): Rift idle on a server woke this thread 1,000
-  // times a second in a VM, against about 100 with Dart on its own thread
-  // (CALLS.md, "Rift beside a game"). On Flutter 3.50 the runaway is gone,
-  // but Dart here still cost 41% of a core in a call against 27% on its
-  // own thread (Nov 13), so it stays until the engine drops this policy.
-  project.set_ui_thread_policy(flutter::UIThreadPolicy::RunOnSeparateThread);
+  // Dart on this thread, the window's, as Flutter runs it by default
+  // (CALLS.md, "Rift beside a game"). Rift ran it on a thread of its own
+  // from Oct 2026, when Dart here woke this thread 1,000 times a second;
+  // Flutter 3.50 no longer does that. Being tested Nov 2026 against the
+  // freeze after minimising (report 73381cb4).
+  project.set_ui_thread_policy(flutter::UIThreadPolicy::RunOnPlatformThread);
 
   FlutterWindow window(project);
   Win32Window::Point origin(10, 10);
