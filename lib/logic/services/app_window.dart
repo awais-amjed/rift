@@ -1,8 +1,12 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:nativeapi/nativeapi.dart' show Application, DisplayManager;
 import 'package:window_manager/window_manager.dart';
+
+import 'gtk_window_size.dart';
 
 /// Rift's one desktop window, through window_manager's native API
 /// (nativeapi).
@@ -24,6 +28,8 @@ abstract final class AppWindow {
   );
 
   static ListenerId? _listener;
+
+  static bool get _isLinux => !kIsWeb && Platform.isLinux;
 
   static final _events = StreamController<WindowEvent>.broadcast(sync: true);
 
@@ -69,8 +75,12 @@ abstract final class AppWindow {
   }) {
     final window = _target;
     if (window == null) return;
-    window.titleBarStyle = TitleBarStyle.hidden;
-    window.setSize(size.toNative(), false);
+    // On Linux the runner hides GTK's title bar (my_application.cc), and the
+    // size is GTK's own, as [size] reads it.
+    if (!_isLinux || !setGtkWindowSize(window.nativeObject, size)) {
+      window.titleBarStyle = TitleBarStyle.hidden;
+      window.contentSize = size.toNative();
+    }
     window.minimumSize = minimumSize.toNative();
     if (position != null) window.position = position.toNative();
   }
@@ -105,8 +115,19 @@ abstract final class AppWindow {
 
   static set fullScreen(bool on) => _target?.isFullScreen = on;
 
-  /// The outer size, as [setUp] takes it.
-  static Size? get size => _target?.size.toSize();
+  /// The size [setUp] takes. On Linux GTK's own, as window_manager 0.5 read
+  /// and set it: nativeapi's content size there is read right but set off by
+  /// what it counts as decorations, so a size saved and restored through it
+  /// grew or shrank at every start. Elsewhere the size inside the frame.
+  static Size? get size {
+    final window = _target;
+    if (window == null) return null;
+    if (_isLinux) {
+      final gtk = gtkWindowSize(window.nativeObject);
+      if (gtk != null) return gtk;
+    }
+    return window.contentSize.toSize();
+  }
 
   static Offset? get position =>
       _tryNative<Offset?>(() => _target?.position.toOffset());
@@ -138,11 +159,14 @@ abstract final class AppWindow {
       });
 
   /// [body]'s answer, or null where the native library is not there to
-  /// answer (a test's Dart VM looks the symbol up and throws).
+  /// answer: a test's Dart VM looks the symbol up and throws, and the web's
+  /// stand-in throws on every call.
   static T? _tryNative<T>(T Function() body) {
     try {
       return body();
     } on ArgumentError {
+      return null;
+    } on UnsupportedError {
       return null;
     }
   }

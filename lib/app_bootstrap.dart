@@ -262,6 +262,9 @@ class AppBootstrap {
       );
     }
 
+    HelperMethods.printDebug(
+      '[Window] restoring ${size.width.round()}x${size.height.round()}',
+    );
     AppWindow.setUp(
       size: size,
       minimumSize: const Size(K.windowMinWidth, K.windowMinHeight),

@@ -81,14 +81,21 @@ static void my_application_activate(GApplication* application) {
     }
   }
 #endif
+  // Rift draws its own title bar, so GTK's is set up and kept hidden: a
+  // hidden header bar keeps GTK's own shadow and resize edges, and without
+  // one the window goes undecorated. Here rather than through window_manager:
+  // nativeapi hides a title bar by drawing a shadow margin of its own inside
+  // the window, which it then counts differently when setting the size than
+  // when reading it, so the window grew or shrank at every start.
   if (use_header_bar) {
     GtkHeaderBar* header_bar = GTK_HEADER_BAR(gtk_header_bar_new());
-    gtk_widget_show(GTK_WIDGET(header_bar));
     gtk_header_bar_set_title(header_bar, "rift");
     gtk_header_bar_set_show_close_button(header_bar, TRUE);
     gtk_window_set_titlebar(window, GTK_WIDGET(header_bar));
+    gtk_widget_hide(GTK_WIDGET(header_bar));
   } else {
     gtk_window_set_title(window, "rift");
+    gtk_window_set_decorated(window, FALSE);
   }
 
   gtk_window_set_default_size(window, 1280, 720);
