@@ -145,6 +145,10 @@ pub(crate) mod test_hooks {
     pub(crate) static IGNORE_RATE: AtomicBool = AtomicBool::new(false);
     /// The rate WebRTC last had the encoder take, in bits a second.
     pub(crate) static LAST_RATE: AtomicU32 = AtomicU32::new(0);
+    /// The rate gate leaves out every other picture, as on a link that
+    /// cannot carry the share (`gpu_feed.rs`).
+    pub(crate) static LEAVE_OUT_HALF: AtomicBool = AtomicBool::new(false);
+    pub(crate) static GATED: AtomicU32 = AtomicU32::new(0);
 }
 
 /// The largest picture a hardware H264 encoder is sure to take: H264 level

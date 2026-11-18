@@ -8,6 +8,8 @@ use super::gpu_feed::GpuFeed;
 use super::resolution::fit_within;
 use super::resolution::{target_size, Size};
 use super::send_report::{self, SendTotals};
+#[cfg(gpu_encoder)]
+use super::step_down::StepDown;
 use super::track::{publish_video_track, TrackSettings};
 use crate::api::screenshare::types::{
     self, ScreenShareConfig, ShareCursor, ShareQuality, ShareRoom,
@@ -480,6 +482,8 @@ async fn bring_up(
         track: Mutex::new(None),
         #[cfg(gpu_encoder)]
         gpu: std::sync::Mutex::new(None),
+        #[cfg(gpu_encoder)]
+        step: Arc::new(std::sync::Mutex::new(StepDown::new(config.priority))),
     });
     // A window still on the taskbar: the share is up — viewers see it, marked
     // paused — and the picture goes out once the user opens the window, which
@@ -533,6 +537,11 @@ struct Video {
     /// The picture's encoder and the source it feeds, while the GPU makes it.
     #[cfg(gpu_encoder)]
     gpu: std::sync::Mutex<Option<GpuPicture>>,
+    /// Where a GPU picture is on its way down to what the connection
+    /// carries: started again with each track, kept across the encoders
+    /// opened for one.
+    #[cfg(gpu_encoder)]
+    step: Arc<std::sync::Mutex<StepDown>>,
 }
 
 /// A published picture the GPU encodes.
@@ -545,6 +554,8 @@ struct GpuPicture {
     /// The bitrate cap it was published at, in Mbps, which WebRTC's requests
     /// never go above.
     published_bitrate: u32,
+    /// The size it is encoded at now.
+    size: Size,
 }
 
 impl Video {
@@ -625,7 +636,15 @@ impl Video {
             }
             let codec = GpuCodec::for_share(settings.codec)?;
             let native = self.slot.native()?;
-            let target = gpu_target(target_size(native, settings.max_height));
+            let target = {
+                let mut step = self.step.lock().unwrap();
+                step.fit(
+                    gpu_target(target_size(native, settings.max_height)),
+                    settings.fps,
+                    settings.bitrate.saturating_mul(1_000_000),
+                );
+                step.size()
+            };
             log::info!(
                 "screenshare: re-encoding at {}x{}, {} fps, on the same track",
                 target.width,
@@ -639,12 +658,15 @@ impl Video {
             drop(old);
             let fed = source.clone();
             let encoder = encoder_settings(codec, target, &settings, start);
+            let step = self.step.clone();
             let on_failed = self.on_gpu_failed();
-            let opened =
-                tokio::task::spawn_blocking(move || GpuFeed::open(&fed, encoder, on_failed))
-                    .await
-                    .map_err(|e| format!("The GPU encoder did not open: {e}"))
-                    .and_then(|opened| opened);
+            let on_resize = self.on_step_resized();
+            let opened = tokio::task::spawn_blocking(move || {
+                GpuFeed::open(&fed, encoder, step, on_failed, on_resize)
+            })
+            .await
+            .map_err(|e| format!("The GPU encoder did not open: {e}"))
+            .and_then(|opened| opened);
             match opened {
                 Ok(feed) => {
                     let feed = Arc::new(feed);
@@ -654,6 +676,7 @@ impl Video {
                         feed,
                         published_fps,
                         published_bitrate,
+                        size: target,
                     });
                     announce_picture(&self.participant(), target, settings.fps);
                     Ok(())
@@ -788,10 +811,24 @@ impl Video {
         });
         let fed = source.clone();
         let encoder = encoder_settings(codec, target, settings, START_BITRATE_BPS);
+        // A new track starts at the top: WebRTC's estimate starts over with it.
+        let step = {
+            let mut step = self.step.lock().unwrap();
+            *step = StepDown::new(settings.priority);
+            step.fit(
+                target,
+                settings.fps,
+                settings.bitrate.saturating_mul(1_000_000),
+            );
+            self.step.clone()
+        };
         let on_failed = self.on_gpu_failed();
-        let feed = tokio::task::spawn_blocking(move || GpuFeed::open(&fed, encoder, on_failed))
-            .await
-            .map_err(|e| format!("The GPU encoder did not open: {e}"))??;
+        let on_resize = self.on_step_resized();
+        let feed = tokio::task::spawn_blocking(move || {
+            GpuFeed::open(&fed, encoder, step, on_failed, on_resize)
+        })
+        .await
+        .map_err(|e| format!("The GPU encoder did not open: {e}"))??;
         log::info!("screenshare: encoding on {}", feed.name());
         let feed = Arc::new(feed);
         self.slot.attach(Feed::Gpu(feed.clone()), target);
@@ -807,6 +844,7 @@ impl Video {
             feed,
             published_fps: settings.fps,
             published_bitrate: settings.bitrate,
+            size: target,
         });
         Ok(sid)
     }
@@ -826,6 +864,39 @@ impl Video {
         settings.codec = next;
         crate::api::screenshare::emit_screenshare_event(event);
         *settings
+    }
+
+    /// What the processing thread calls when the share steps to another
+    /// size ([`StepDown`]): open an encoder at it on the same track.
+    #[cfg(gpu_encoder)]
+    fn on_step_resized(&self) -> Box<dyn Fn() + Send + Sync> {
+        let me = self.me.clone();
+        let runtime = tokio::runtime::Handle::current();
+        Box::new(move || {
+            let me = me.clone();
+            runtime.spawn(async move {
+                let Some(video) = me.upgrade() else {
+                    return;
+                };
+                // A republish or a move that held the track meanwhile opened
+                // its encoder at the size the step asks for, or started the
+                // ladder over: nothing to open again.
+                let encoded = video.gpu.lock().unwrap().as_ref().map(|gpu| gpu.size);
+                if encoded == Some(video.step.lock().unwrap().size()) {
+                    return;
+                }
+                match video.reopen_gpu().await {
+                    Some(Ok(())) => {}
+                    Some(Err(reason)) => {
+                        log::warn!("screenshare: {reason}");
+                        crate::api::screenshare::emit_screenshare_event(
+                            ScreenshareEvent::SourceClosed,
+                        );
+                    }
+                    None => log::info!("screenshare: the picture is no longer the GPU's to step"),
+                }
+            });
+        })
     }
 
     /// What the processing thread calls when the encoder stops working

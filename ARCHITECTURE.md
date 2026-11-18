@@ -705,7 +705,10 @@ WebRTC's target whenever the picture cost more, was dropped on Oct 28 2026.
   time somebody joined.
 - **A GPU encoder is held to WebRTC's target before it encodes** (`RateGate`),
   since WebRTC drops no pre-encoded frames: on a slow link the picture would
-  fall behind its sound. A slow link gets fewer frames, never late ones.
+  fall behind its sound. A slow link gets fewer frames, never late ones, and
+  a share that keeps losing them steps down to a smaller picture or an even
+  lower frame rate, in the priority's order (`StepDown`), as WebRTC does with
+  a picture it encodes itself.
 
 ### Regions — [Implemented September 2026]
 

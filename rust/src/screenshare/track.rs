@@ -41,8 +41,9 @@ impl From<&ScreenShareConfig> for TrackSettings {
 /// Publish `source` as the share's picture. A source with a `gpu` encoder
 /// carries H264 or H265 the GPU already made, in the profile that encoder makes, which WebRTC passes through as it is; it cannot
 /// scale or drop frames for the connection the way it does with raw ones, so
-/// whatever the priority, the encoder keeps the frame rate and lowers its
-/// bitrate to what WebRTC asks.
+/// the encoder lowers its bitrate to what WebRTC asks, and the share steps
+/// itself down in the priority's order when that is not enough
+/// ([`StepDown`](super::step_down::StepDown)).
 pub(crate) async fn publish_video_track(
     participant: &LocalParticipant,
     source: NativeVideoSource,

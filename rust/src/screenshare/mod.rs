@@ -37,6 +37,8 @@ mod send_report;
 pub(crate) mod session;
 #[cfg(desktop)]
 pub(crate) mod sources;
+#[cfg(gpu_encoder)]
+mod step_down;
 #[cfg(any(target_os = "windows", target_os = "linux"))]
 pub(crate) mod thumbnail;
 #[cfg_attr(not(desktop), allow(dead_code))]

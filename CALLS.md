@@ -1145,11 +1145,50 @@ what was driven are in `TESTING.md`).
   handed the target times the frame rate it was opened at over the rate
   pictures reached the feed in the last second, up to three times, moved in
   steps of a tenth, and kept through a still spell. The pictures are counted
-  before the gate, or each it left out would make the next ones bigger. The
+  before the gate, or each it left out would make the next ones bigger, but
+  after a step down to fewer of them (below), which they are then budgeted for. The
   gate itself still holds the encoder to the target. Proven by unit tests,
   the encoder thread fed half its rate (`half_the_pictures_get_twice_the_rate_each`)
   and a real 60 fps share that kept its scale at one (Nov 18 2026); a real
   share short of pictures has not been measured yet.
+- **A GPU share steps down to what its connection carries** (`step_down.rs`).
+  WebRTC lowers the size or frame rate of a picture it encodes itself, in the
+  Prioritise row's order, but only passes a GPU's through: below what its size
+  needs the encoder overshoots, and the gate leaves pictures out unevenly. So
+  when the gate leaves out more than a tenth of the pictures in two 2 s windows
+  back to back, the share takes a step down its ladder. Smoothness gives up size
+  (2/3, 1/2, then 1/3 of each side, never under 360 rows), Sharpness frame rate
+  (a half, then a third, never under 10 fps), and Balanced the first smaller
+  size, then half the rate (from 50 fps), then size. A smaller picture opens the
+  encoder again on the same track (`Video::reopen_gpu`), with no blink. Fewer
+  pictures are an even share of those that come, chosen before the gate, and so
+  before they are counted for the encoder's rate: each is budgeted for two.
+  Nothing is judged for 5 s after a track's first picture, while WebRTC's
+  estimate climbs from 1 Mbps, nor for 3 s after a step. A window of under
+  thirty pictures, or one stretched by a still spell, is not judged either.
+  So a still screen keeps its size at any rate, though a refused still picture
+  is offered again every 100 ms. The share climbs back once WebRTC's target
+  stays for 10 s at 0.03 bits per pixel of the step above (3.7 Mbps for
+  1080p60, about twice what left nothing out below), or at the share's cap if
+  that is lower. Going down again within 60 s of a climb doubles that wait, up
+  to 160 s. Climbing relies on WebRTC raising its estimate while the smaller
+  picture is sent, which it does because the encoder spends what it is given.
+
+  Measured Nov 18 2026 on an RTX 3070 Ti Laptop through the library. Two game
+  clips ran at a fixed rate for 20 s, with the gate deciding before each
+  picture and a keyframe every 5 s. CSGO in H264 at 0.3 Mbps left out 82% at
+  1080p60, the worst second showing 5 pictures. At 720p60 it left out 39%, at
+  540p60 5%, and at 1080p30 63%. At 0.6 Mbps it left out 44% at 1080p60 and 1%
+  at 720p60. At 1 Mbps it left out 9% at 1080p60, and at 2 Mbps nothing at any
+  size. GTAV and H265 left out less at each point: H265 at 1080p60 left out 70%
+  (CSGO) and 22% (GTAV) at 0.3 Mbps. So at a given rate a smaller size goes
+  further than half the frame rate. Keyframes at these rates were 2 to 40 KB,
+  held small by the 0.2 s buffer above. Proven live on Linux the same day
+  (`live_gpu_share_steps_down_and_back_up`), with NVENC and an X11 window of a
+  game clip. With the gate made to leave out every other picture, the share
+  stepped from 1280x720 to 852x480 on the same track and the viewer kept
+  getting pictures. It climbed back 12 s after the gate was freed, in three runs
+  of three. Not yet tried on a real slow link, nor on Windows.
 
 ### H264 in High profile — [Implemented October 2026, off Oct 29 to Nov 7 2026]
 

@@ -657,6 +657,90 @@ async fn live_gpu_share_resizes_rejoins_and_falls_back() {
     viewer.close().await.unwrap();
 }
 
+/// A share whose pictures keep being left out steps down to a smaller
+/// picture on the same track, without a gap, and climbs back once the link
+/// carries the full one (`step_down.rs`). The rate gate is made to leave out
+/// every other picture; the local server's link carries the rest. Needs an
+/// X11 window with something moving on it, titled `RIFT_TEST_WINDOW`
+/// (`rift-step-test`), such as
+/// `SDL_VIDEODRIVER=x11 ffplay -an -loop 0 -x 1280 -y 720 -window_title rift-step-test clip.mkv`.
+#[cfg(target_os = "linux")]
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a LiveKit server, an X11 window and a hardware H264 encoder"]
+async fn live_gpu_share_steps_down_and_back_up() {
+    let _ = env_logger::builder()
+        .is_test(true)
+        .filter_level(log::LevelFilter::Info)
+        .try_init();
+    let server = Server::from_env();
+    let room = format!(
+        "rift-step-{}",
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis()
+    );
+    let title = std::env::var("RIFT_TEST_WINDOW").unwrap_or_else(|_| "rift-step-test".into());
+    let (viewer, mut events) = viewer_as(&server, &room, "viewer").await;
+    let mut config = h264_share(&server, &room);
+    config.capture_full_screen = false;
+    config.selected_video_source_index = Some(
+        super::sources::list(false)
+            .into_iter()
+            .find(|source| source.title.contains(&title))
+            .unwrap_or_else(|| panic!("no window titled {title:?}"))
+            .index,
+    );
+    config.fps = 60;
+    session::start(config).await.expect("share starts");
+    let picture = next_video_track(&mut events).await;
+    let full = watch(&picture, Duration::from_secs(5)).await;
+    log::info!(
+        "step test: {}x{}, {} frames in 5 s",
+        full.size.0,
+        full.size.1,
+        full.frames
+    );
+    assert!(full.frames > 100, "{} frames", full.frames);
+    assert_eq!(share_encoder().await, "LiveKit pre-encoded passthrough");
+
+    test_hooks::LEAVE_OUT_HALF.store(true, Ordering::Relaxed);
+    let stepped = watch(&picture, Duration::from_secs(8)).await;
+    test_hooks::LEAVE_OUT_HALF.store(false, Ordering::Relaxed);
+    log::info!(
+        "step test: half left out, {}x{} with {} frames in 8 s",
+        stepped.size.0,
+        stepped.size.1,
+        stepped.frames
+    );
+    assert_eq!(stepped.size.1, (full.size.1 * 2 / 3) & !1);
+    // Half of 60 a second, less the moment the encoder was opened again.
+    assert!(stepped.frames > 150, "{} frames", stepped.frames);
+
+    let freed = Instant::now();
+    loop {
+        let seen = watch(&picture, Duration::from_secs(2)).await;
+        assert!(seen.frames > 60, "{} frames", seen.frames);
+        if seen.size == full.size {
+            break;
+        }
+        assert!(
+            freed.elapsed() < Duration::from_secs(60),
+            "still {}x{}",
+            seen.size.0,
+            seen.size.1
+        );
+    }
+    log::info!(
+        "step test: back at {}x{} after {:.1} s",
+        full.size.0,
+        full.size.1,
+        freed.elapsed().as_secs_f64()
+    );
+    assert_eq!(session::stop().await.unwrap(), "Stopped successfully");
+    viewer.close().await.unwrap();
+}
+
 /// Counts what the encoder makes.
 struct Counting(
     std::sync::Arc<std::sync::atomic::AtomicU32>,

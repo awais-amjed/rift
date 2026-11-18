@@ -1,7 +1,9 @@
 //! The GPU path of a share: pictures in NV12 to the hardware encoder, its
 //! H264 out to a pre-encoded LiveKit source, and WebRTC's keyframe and
 //! bitrate requests back the other way. Pictures the encoder would make too
-//! much of are left out on the way in ([`RateGate`]).
+//! much of are left out on the way in ([`RateGate`]), and a share that keeps
+//! leaving them out steps down to a smaller picture or fewer of them
+//! ([`StepDown`]).
 #[cfg(target_os = "windows")]
 use super::capture_wgc::WgcPicture;
 use super::encoder::{
@@ -16,6 +18,7 @@ use super::pixels::ByteOrder;
 use super::pw_stream::PwPicture;
 use super::rate_gate::RateGate;
 use super::resolution::Size;
+use super::step_down::{Change, StepDown, Stepped};
 use livekit::webrtc::native::yuv_helper;
 use livekit::webrtc::prelude::I420Buffer;
 use livekit::webrtc::video_frame::{EncodedFrameType, EncodedVideoCodec, EncodedVideoFrame};
@@ -34,15 +37,23 @@ pub(crate) struct GpuFeed {
     /// What the encoder has made against WebRTC's target, filled from the
     /// encoder's side and asked before each picture.
     gate: Arc<Mutex<RateGate>>,
+    /// Where the share is on its ladder, kept by the session across the
+    /// encoders it opens for one track.
+    step: Arc<Mutex<StepDown>>,
+    /// Called, from the processing thread, when the share steps to another
+    /// size: the session opens an encoder for it.
+    on_resize: Box<dyn Fn() + Send + Sync>,
 }
 
 impl GpuFeed {
     /// Open the first hardware encoder that takes these settings, feeding
-    /// `source`. Blocks while the encoder opens.
+    /// `source`, at the size `step` is on. Blocks while the encoder opens.
     pub(crate) fn open(
         source: &NativeVideoSource,
         settings: EncoderSettings,
+        step: Arc<Mutex<StepDown>>,
         on_failed: Box<dyn Fn() + Send + Sync>,
+        on_resize: Box<dyn Fn() + Send + Sync>,
     ) -> Result<GpuFeed, String> {
         let gate = Arc::new(Mutex::new(RateGate::new()));
         let encoder = GpuEncoder::open(
@@ -63,6 +74,8 @@ impl GpuFeed {
             on_failed,
             reported: AtomicBool::new(false),
             gate,
+            step,
+            on_resize,
         })
     }
 
@@ -192,11 +205,17 @@ impl GpuFeed {
         true
     }
 
-    /// Whether the encoder is within WebRTC's target, so the next picture
-    /// may go to it.
+    /// Whether the next picture may go to the encoder: one of those the
+    /// share's step sends, with the encoder within WebRTC's target.
     fn admits(&self) -> bool {
-        self.encoder.note_offered();
         let now = Instant::now();
+        let mut step = self.step.lock().unwrap();
+        // Counted only once taken, so the encoder's rate follows the pictures
+        // this step sends.
+        if !step.takes(now) {
+            return false;
+        }
+        self.encoder.note_offered();
         let target = self.encoder.bitrate();
         let mut gate = self.gate.lock().unwrap();
         if let Some(report) = gate.report(now) {
@@ -217,7 +236,23 @@ impl GpuFeed {
                 report.keyframes,
             );
         }
-        gate.admits(target, now)
+        let admitted = gate.admits(target, now);
+        #[cfg(test)]
+        let admitted = admitted
+            && !(super::encoder::test_hooks::LEAVE_OUT_HALF.load(Ordering::Relaxed)
+                && super::encoder::test_hooks::GATED
+                    .fetch_add(1, Ordering::Relaxed)
+                    .is_multiple_of(2));
+        drop(gate);
+        let stepped = step.picture(admitted, target, now);
+        drop(step);
+        if let Some(Stepped { change, from, to }) = stepped {
+            log::info!("screenshare: at {target} bps, stepping from {from} to {to}");
+            if change == Change::Size {
+                (self.on_resize)();
+            }
+        }
+        admitted
     }
 }
 
