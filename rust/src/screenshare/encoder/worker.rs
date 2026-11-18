@@ -20,6 +20,7 @@
 //! click's result, a share's first picture and a late viewer's keyframe all
 //! reached viewers that late (Nov 11 2026). So that picture is sent again once,
 //! [`push_after`] with nothing new, which brings it out.
+use super::frame_rate::FrameRateScale;
 use super::key_pacing::KeyframePacing;
 use super::{clamp_bitrate, EncodedSink, EncoderInput, EncoderSettings, Nv12Frame};
 use crate::screenshare::latest::{self, Putter, Taker};
@@ -90,8 +91,12 @@ pub(crate) struct GpuEncoder {
     /// rather than allocated a frame at a time.
     spare: Arc<Mutex<Vec<Vec<u8>>>>,
     failed: Arc<AtomicBool>,
-    /// The rate the encoder is at, for an encoder opened to take over.
+    /// The rate WebRTC asks for, for the rate gate and for an encoder
+    /// opened to take over. The encoder itself may be at more
+    /// ([`FrameRateScale`]).
     bitrate: Arc<AtomicU32>,
+    /// Pictures offered to the share's feed, before the rate gate.
+    offered: Arc<AtomicU32>,
     // Read by the Wayland capture, which only Linux has.
     #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     import_failed: Arc<Mutex<Option<ImportFailed>>>,
@@ -125,11 +130,13 @@ impl GpuEncoder {
         let spare = Arc::new(Mutex::new(Vec::new()));
         let failed = Arc::new(AtomicBool::new(false));
         let bitrate = Arc::new(AtomicU32::new(settings.start_bitrate_bps));
+        let offered = Arc::new(AtomicU32::new(0));
         let import_failed = Arc::new(Mutex::new(None));
         let shared = Shared {
             spare: spare.clone(),
             failed: failed.clone(),
             bitrate: bitrate.clone(),
+            offered: offered.clone(),
             import_failed: import_failed.clone(),
         };
         let handle = thread::Builder::new()
@@ -142,6 +149,7 @@ impl GpuEncoder {
                 spare,
                 failed,
                 bitrate,
+                offered,
                 import_failed,
                 takes_gpu_picture,
                 replaced: AtomicU32::new(0),
@@ -212,6 +220,12 @@ impl GpuEncoder {
         &self.name
     }
 
+    /// Count a picture offered to the share's feed, whether or not the rate
+    /// gate then lets it through: what the encoder's rate is scaled to.
+    pub(crate) fn note_offered(&self) {
+        self.offered.fetch_add(1, Ordering::Relaxed);
+    }
+
     /// The pictures replaced before the encoder took them since the last
     /// call, counted again from none.
     pub(crate) fn take_replaced(&self) -> u32 {
@@ -236,6 +250,7 @@ struct Shared {
     spare: Arc<Mutex<Vec<Vec<u8>>>>,
     failed: Arc<AtomicBool>,
     bitrate: Arc<AtomicU32>,
+    offered: Arc<AtomicU32>,
     import_failed: Arc<Mutex<Option<ImportFailed>>>,
 }
 
@@ -284,7 +299,11 @@ fn run<S, F>(
     };
     let _ = opened.send(Ok((name.clone(), session.takes_gpu_picture())));
 
-    let mut current = settings.start_bitrate_bps.min(settings.max_bitrate_bps);
+    // WebRTC's target, and the rate the encoder is at: the target scaled to
+    // the pictures that come.
+    let mut target = settings.start_bitrate_bps.min(settings.max_bitrate_bps);
+    let mut current = target;
+    let mut scale = FrameRateScale::new(settings.fps);
     // The first picture, and any a viewer asks for, must be one it can start
     // from; a request that arrives while a picture is being dropped waits for
     // the next.
@@ -334,24 +353,33 @@ fn run<S, F>(
         };
         keyframe |= wanted_key;
         if let Some(requested) = wanted_rate {
-            let rate = clamp_bitrate(requested, settings.max_bitrate_bps);
+            target = clamp_bitrate(requested, settings.max_bitrate_bps);
+            shared.bitrate.store(target, Ordering::Relaxed);
             #[cfg(test)]
-            super::test_hooks::LAST_RATE.store(rate, Ordering::Relaxed);
-            #[cfg(test)]
-            if super::test_hooks::IGNORE_RATE.load(Ordering::Relaxed) {
-                // Heard, so the rest of the share knows the target, but not
-                // passed on.
-                current = rate;
-                shared.bitrate.store(rate, Ordering::Relaxed);
-            }
-            if rate != current {
-                match session.set_bitrate(rate) {
-                    Ok(()) => {
-                        current = rate;
-                        shared.bitrate.store(rate, Ordering::Relaxed);
-                    }
-                    Err(e) => log::warn!("encoder: moving the bitrate to {rate}: {e}"),
-                }
+            super::test_hooks::LAST_RATE.store(target, Ordering::Relaxed);
+        }
+        let before = scale.scale();
+        scale.observe(shared.offered.load(Ordering::Relaxed), Instant::now());
+        if scale.scale() != before {
+            log::info!(
+                "encoder: {name}: {:.0} of {} pictures a second come, so each gets {:.2}x the \
+                 rate's share",
+                f64::from(settings.fps) / scale.scale(),
+                settings.fps,
+                scale.scale(),
+            );
+        }
+        let rate = scale.rate(target);
+        #[cfg(test)]
+        if super::test_hooks::IGNORE_RATE.load(Ordering::Relaxed) {
+            // Heard, so the rest of the share knows the target, but not
+            // passed on.
+            current = rate;
+        }
+        if rate != current {
+            match session.set_bitrate(rate) {
+                Ok(()) => current = rate,
+                Err(e) => log::warn!("encoder: moving the bitrate to {rate}: {e}"),
             }
         }
 
@@ -487,6 +515,8 @@ mod tests {
         pictures: u32,
         /// Each repeat, and whether it was a keyframe.
         repeats: Vec<bool>,
+        /// Each rate it was moved to.
+        rates: Vec<u32>,
     }
 
     struct FakeSession {
@@ -501,7 +531,8 @@ mod tests {
     }
 
     impl Session for FakeSession {
-        fn set_bitrate(&mut self, _bps: u32) -> Result<(), String> {
+        fn set_bitrate(&mut self, bps: u32) -> Result<(), String> {
+            self.asked.lock().unwrap().rates.push(bps);
             Ok(())
         }
 
@@ -535,6 +566,8 @@ mod tests {
 
     struct FakeSink {
         keyframe: Arc<AtomicBool>,
+        /// A rate WebRTC asks for, once.
+        rate: Arc<Mutex<Option<u64>>>,
     }
 
     impl EncodedSink for FakeSink {
@@ -545,7 +578,7 @@ mod tests {
         }
 
         fn bitrate_wanted(&mut self) -> Option<u64> {
-            None
+            self.rate.lock().unwrap().take()
         }
     }
 
@@ -570,6 +603,22 @@ mod tests {
         repeats_itself: bool,
         holds: bool,
     ) -> (GpuEncoder, Arc<Mutex<Asked>>, Arc<AtomicBool>) {
+        let (encoder, asked, keyframe, _) =
+            fake_with_rate(import_fails, repeats_itself, holds, None);
+        (encoder, asked, keyframe)
+    }
+
+    fn fake_with_rate(
+        import_fails: Option<(u32, u64)>,
+        repeats_itself: bool,
+        holds: bool,
+        rate: Option<u64>,
+    ) -> (
+        GpuEncoder,
+        Arc<Mutex<Asked>>,
+        Arc<AtomicBool>,
+        Arc<Mutex<Option<u64>>>,
+    ) {
         let asked = Arc::new(Mutex::new(Asked::default()));
         let keyframe = Arc::new(AtomicBool::new(false));
         let session = FakeSession {
@@ -578,15 +627,47 @@ mod tests {
             repeats_itself,
             holds,
         };
+        let rate = Arc::new(Mutex::new(rate));
         let encoder = GpuEncoder::start(
             SETTINGS,
             Box::new(FakeSink {
                 keyframe: keyframe.clone(),
+                rate: rate.clone(),
             }),
             move |_: &EncoderSettings, _: SharedSink| Ok((session, "fake".to_string())),
         )
         .unwrap();
-        (encoder, asked, keyframe)
+        (encoder, asked, keyframe, rate)
+    }
+
+    #[test]
+    fn half_the_pictures_get_twice_the_rate_each() {
+        // Opened for 30 a second, fed 15, WebRTC asking for half the cap.
+        let (encoder, asked, _, _) = fake_with_rate(None, true, false, Some(500_000));
+        let start = Instant::now();
+        while start.elapsed() < Duration::from_millis(2500) {
+            encoder.note_offered();
+            encoder.submit_input(picture());
+            thread::sleep(Duration::from_millis(1000 / 15));
+        }
+        let rates = asked.lock().unwrap().rates.clone();
+        assert_eq!(rates.first(), Some(&500_000), "{rates:?}");
+        let last = *rates.last().unwrap();
+        assert!((900_000..=1_100_000).contains(&last), "{rates:?}");
+        // The gate still holds the encoder to what WebRTC asked for.
+        assert_eq!(encoder.bitrate(), 500_000);
+    }
+
+    #[test]
+    fn a_full_rate_is_left_as_webrtc_asks() {
+        let (encoder, asked, _, _) = fake_with_rate(None, true, false, Some(500_000));
+        let start = Instant::now();
+        while start.elapsed() < Duration::from_millis(2500) {
+            encoder.note_offered();
+            encoder.submit_input(picture());
+            thread::sleep(Duration::from_millis(1000 / 30));
+        }
+        assert_eq!(asked.lock().unwrap().rates, vec![500_000]);
     }
 
     fn picture() -> EncoderInput {

@@ -195,6 +195,7 @@ impl GpuFeed {
     /// Whether the encoder is within WebRTC's target, so the next picture
     /// may go to it.
     fn admits(&self) -> bool {
+        self.encoder.note_offered();
         let now = Instant::now();
         let target = self.encoder.bitrate();
         let mut gate = self.gate.lock().unwrap();

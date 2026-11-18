@@ -1093,6 +1093,21 @@ what was driven are in `TESTING.md`).
   softer (29.6 against 30.5 dB), and a still screen is what text is shared
   on, where a picture left out changes nothing on screen. So the buffer stays
   at one second.
+- **A GPU encoder's rate is scaled to the pictures that come**
+  (`encoder/frame_rate.rs`). It is opened at the share's frame rate and
+  budgets each picture as a share of it, so a game drawing at 40, or capture
+  falling behind beside one, sent that much under WebRTC's target, and WebRTC
+  lowered its estimate to what was sent: the next pictures got smaller
+  budgets and the share talked itself down (a friend's whole-screen RDR2
+  share at 0.3 to 2 Mbps on a 100 Mbps line, Nov 18 2026). The encoder is
+  handed the target times the frame rate it was opened at over the rate
+  pictures reached the feed in the last second, up to three times, moved in
+  steps of a tenth, and kept through a still spell. The pictures are counted
+  before the gate, or each it left out would make the next ones bigger. The
+  gate itself still holds the encoder to the target. Proven by unit tests,
+  the encoder thread fed half its rate (`half_the_pictures_get_twice_the_rate_each`)
+  and a real 60 fps share that kept its scale at one (Nov 18 2026); a real
+  share short of pictures has not been measured yet.
 
 ### H264 in High profile — [Implemented October 2026, off Oct 29 to Nov 7 2026]
 
