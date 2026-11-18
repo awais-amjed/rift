@@ -21,10 +21,12 @@
 //! otherwise the share would stay black for as long as it is watched. On
 //! Linux that is a GPU picture that would not import; on Windows any picture,
 //! once the runner's device is lost.
+use super::pace::Pace;
 use livekit::webrtc::prelude::{I420Buffer, VideoBuffer};
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::sync::Mutex;
+use std::time::Instant;
 
 /// The runner's "a new picture is waiting" for one texture: it marks the
 /// texture so Flutter asks for it on its next frame. Safe from any thread.
@@ -158,6 +160,8 @@ struct Slot<P> {
     failed: bool,
     /// A picture has come since the slot opened.
     came: bool,
+    /// How evenly they come, for the log.
+    pace: Pace,
 }
 
 /// The slots, and the pictures lent out of them.
@@ -182,6 +186,7 @@ impl<P: Picture> Table<P> {
                 mark,
                 failed: false,
                 came: false,
+                pace: Pace::default(),
             },
         );
     }
@@ -189,13 +194,23 @@ impl<P: Picture> Table<P> {
     /// Nothing more is delivered to [texture]. A picture already lent stays
     /// alive until the runner hands it back.
     fn close(&mut self, texture: u64) {
-        self.slots.remove(&texture);
+        if let Some(line) = self.slots.remove(&texture).and_then(|slot| slot.pace.end()) {
+            log::info!("{line}");
+        }
     }
 
     /// Puts [picture] in its slot, over any the runner has not taken, and
     /// answers the runner's mark to call; none when nothing watches [texture].
     fn deliver(&mut self, texture: u64, picture: P) -> Option<Option<MarkFn>> {
         let slot = self.slots.get_mut(&texture)?;
+        let planes = picture.planes();
+        let replaced = slot.newest.is_some();
+        if let Some(line) = slot
+            .pace
+            .came(Instant::now(), (planes.width, planes.height), replaced)
+        {
+            log::info!("{line}");
+        }
         slot.newest = Some(picture);
         slot.came = true;
         Some(slot.mark)
@@ -216,7 +231,9 @@ impl<P: Picture> Table<P> {
 
     /// The newest picture, lent until [unlock]; none when nothing new came.
     fn lock(&mut self, texture: u64) -> Option<WatchPlanes> {
-        let picture = self.slots.get_mut(&texture)?.newest.take()?;
+        let slot = self.slots.get_mut(&texture)?;
+        let picture = slot.newest.take()?;
+        slot.pace.drawn();
         let planes = picture.planes();
         // The one lent before is handed back with it, so a runner that forgot
         // an unlock holds one picture, not every one since.

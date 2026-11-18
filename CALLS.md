@@ -1246,6 +1246,14 @@ libwebrtc still decodes, on the CPU.
   nothing (`live_watch_gives_up_on_a_share_it_cannot_read`).
 - **Unseen:** its pictures are turned off and on with the call's
   (`setWatchPicturesOn`).
+- **The log** says once a minute how evenly a watched share's pictures came
+  (`rust/src/watching/pace.rs`): how many came and were drawn, how many the
+  window replaced before drawing them, and the waits over 100 ms with the
+  longest. A wait over 100 ms is a jerk the viewer sees. Waits with pictures
+  replaced point at the watcher's window; waits without, at the network or the
+  sharer, whose log says what it left out to fit its connection (the gate's
+  `left out N pictures … within B bps`). Added Nov 18 after a stuttering H265
+  share whose watcher's log could say nothing about its pictures.
 - **The sound** is played by Rust itself (`rust/src/watching/sound`), on a
   stream of its own on the Streams device (`AppState.streamOutputId`, the
   main output unless split off; *Where each sound plays*): PulseAudio's on Linux,
