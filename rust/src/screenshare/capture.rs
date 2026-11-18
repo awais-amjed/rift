@@ -316,10 +316,21 @@ impl TimerResolutionGuard {
             PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION,
         };
         // Execution speed and the timer resolution both held unthrottled.
-        set_power_throttling(
-            PROCESS_POWER_THROTTLING_EXECUTION_SPEED
-                | PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION,
-        );
+        // Windows 10 has no timer flag (it came in Windows 11) and refuses
+        // a mask naming it whole, execution speed with it ("The parameter
+        // is incorrect" in a friend's log, Nov 18 2026), so it is asked
+        // again for execution speed alone.
+        let both = PROCESS_POWER_THROTTLING_EXECUTION_SPEED
+            | PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION;
+        if set_power_throttling(both).is_err() {
+            match set_power_throttling(PROCESS_POWER_THROTTLING_EXECUTION_SPEED) {
+                Ok(()) => log::info!(
+                    "capture: power throttling off for execution speed only \
+                     (no timer flag before Windows 11)"
+                ),
+                Err(e) => log::info!("capture: power throttling left to Windows: {e}"),
+            }
+        }
         unsafe { windows::Win32::Media::timeBeginPeriod(1) };
         Self
     }
@@ -329,14 +340,16 @@ impl TimerResolutionGuard {
 impl Drop for TimerResolutionGuard {
     fn drop(&mut self) {
         unsafe { windows::Win32::Media::timeEndPeriod(1) };
-        set_power_throttling(0);
+        if let Err(e) = set_power_throttling(0) {
+            log::info!("capture: power throttling not handed back: {e}");
+        }
     }
 }
 
 /// Turn off Windows' power throttling for this process in the ways `held`
 /// names, leaving the rest to Windows: 0 hands all of it back.
 #[cfg(target_os = "windows")]
-fn set_power_throttling(held: u32) {
+fn set_power_throttling(held: u32) -> windows::core::Result<()> {
     use windows::Win32::System::Threading::{
         GetCurrentProcess, ProcessPowerThrottling, SetProcessInformation,
         PROCESS_POWER_THROTTLING_CURRENT_VERSION, PROCESS_POWER_THROTTLING_STATE,
@@ -348,16 +361,13 @@ fn set_power_throttling(held: u32) {
     };
     // SAFETY: `state` is the structure this information class takes, and
     // outlives the call.
-    let set = unsafe {
+    unsafe {
         SetProcessInformation(
             GetCurrentProcess(),
             ProcessPowerThrottling,
             std::ptr::from_ref(&state).cast(),
             std::mem::size_of::<PROCESS_POWER_THROTTLING_STATE>() as u32,
         )
-    };
-    if let Err(e) = set {
-        log::info!("capture: power throttling left to Windows: {e}");
     }
 }
 

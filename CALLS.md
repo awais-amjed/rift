@@ -889,7 +889,9 @@ what was driven are in `TESTING.md`).
   (`capture.rs`): Windows 11 slows a process it judges out of sight, as Rift
   is behind a game, and capture at 120 fell to about 92 pictures a second
   within seconds; unthrottled it held 119.8 (Oct 16 2026, a test process
-  with no window, so the app's own case is inferred, not measured). FFmpeg's
+  with no window, so the app's own case is inferred, not measured). Windows
+  10 has no flag for the timer and refused the whole request naming it, so
+  there it asks again for execution speed alone (Nov 18 2026). FFmpeg's
   NVENC also holds one picture above 60 fps (`ffmpeg.rs`, `delay_frames`):
   waiting out each one at the idle clocks NVIDIA's driver drops to a few
   seconds into a share had kept it near 87 fps, and with it the viewer got
