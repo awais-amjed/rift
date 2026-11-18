@@ -7,6 +7,15 @@
 //! 2026). A share of the game's window does not. So while the mouse is held
 //! like that, a whole-screen share leaves the cursor out, and puts it back as
 //! soon as it is let go: Alt+Tab, or a menu that frees it.
+//!
+//! A game filling the only screen keeps the mouse to its window, which is the
+//! whole desktop, and that reads as no hold at all. Such a game hides the
+//! cursor too, so a Windows Graphics Capture share also leaves the cursor out
+//! while it is hidden over a window that fills its screen (the review of a
+//! friend's RDR2 share, Nov 18 2026). A hidden cursor is on nobody's screen,
+//! and libwebrtc's DXGI capture and Rift's own (`capture_wgc::dxgi`) leave it
+//! out already. Not any hidden cursor: Windows hides it while you type, and
+//! the share would follow every pause.
 use std::time::{Duration, Instant};
 
 /// How often the hold is looked at. Leaving the game is noticed within this,
@@ -46,7 +55,7 @@ pub(crate) struct CursorGate {
 }
 
 impl CursorGate {
-    /// `held`: whether a game has the mouse as the share starts.
+    /// `held`: whether the cursor is out of sight as the share starts.
     pub(crate) fn new(held: bool, now: Instant) -> Self {
         Self {
             shown: !held,
@@ -69,16 +78,39 @@ impl CursorGate {
         (shown != self.shown).then(|| {
             self.shown = shown;
             if shown {
-                log::info!("capture: the mouse is free again; the cursor is back in the share");
+                log::info!("capture: the cursor is back in the share");
             } else {
-                log::info!("capture: a game has locked the mouse; the cursor is left out");
+                log::info!(
+                    "capture: a game has the mouse, or hides the cursor in full screen; it is left out"
+                );
             }
             shown
         })
     }
 }
 
-/// Whether a game has the mouse now.
+/// Whether a Windows Graphics Capture share should leave the cursor out now:
+/// a game holds the mouse, or the cursor is hidden over a window filling its
+/// screen.
+#[cfg(target_os = "windows")]
+pub(crate) fn cursor_out_of_sight() -> bool {
+    use windows::Win32::UI::WindowsAndMessaging::{
+        GetCursorInfo, GetForegroundWindow, CURSORINFO, CURSOR_SHOWING,
+    };
+    let mut info = CURSORINFO {
+        cbSize: std::mem::size_of::<CURSORINFO>() as u32,
+        ..Default::default()
+    };
+    // SAFETY: `info` is the size it says.
+    let hidden = unsafe { GetCursorInfo(&mut info) }.is_ok()
+        && (info.flags.0 & CURSOR_SHOWING.0 == 0 || info.hCursor.is_invalid());
+    // SAFETY: no arguments; it only answers.
+    (hidden && super::exclusive::fills_its_screen(unsafe { GetForegroundWindow() }))
+        || game_holds_mouse()
+}
+
+/// Whether a game has the mouse now. Not a hidden cursor: a video in full
+/// screen hides it too, and is no game (`exclusive`).
 #[cfg(target_os = "windows")]
 pub(crate) fn game_holds_mouse() -> bool {
     use windows::Win32::Foundation::RECT;
@@ -170,6 +202,12 @@ mod tests {
             Some(rect(1920, 0, 3840, 1080))
         ));
         assert!(!held_by_game(GAME, DESKTOP, None));
+    }
+
+    /// Why a hidden cursor is left out too (`cursor_out_of_sight`).
+    #[test]
+    fn a_game_filling_the_only_screen_shows_no_hold() {
+        assert!(!held_by_game(GAME, GAME, Some(GAME)));
     }
 
     #[test]

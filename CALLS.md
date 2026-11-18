@@ -634,10 +634,15 @@ clipped to inside the window in front (`game_mouse.rs`, looked at four times
 a second). It comes back once the game lets go: Alt+Tab, or a menu that frees
 the mouse. Rift's own session turns `IsCursorCaptureEnabled` off and on as it
 runs; libwebrtc's capturer takes the cursor only as it opens, so another opens
-on the same screen at each change. Elsewhere Auto shows the cursor. A game that hides
-the mouse without clipping it is not caught. **Not yet proved:** written Nov
-14 2026 and tested only as a unit test and a Windows compile, not on Windows
-with a game, so it is not yet known whether that friend's game clips the mouse.
+on the same screen at each change. Elsewhere Auto shows the cursor. A game filling
+the only screen clips the mouse to its window, which is the whole desktop, and that
+reads as no clip at all. So Rift's session also leaves the cursor out while it is
+hidden over a window that fills its screen, taskbar and all (Nov 19 2026, from a
+review of a friend's RDR2 share). A hidden cursor is on nobody's screen, and
+libwebrtc's capturer and Rift's DXGI one leave it out already. Not any hidden
+cursor: Windows hides it while you type, and the share would follow every pause.
+Proved on Windows with CS2, which clips the mouse to a point (Nov 15 2026,
+`TESTING.md`); the hidden-cursor rule is not yet tried with a game.
 
 ## Which sound goes with a shared window — [Implemented October 2026]
 

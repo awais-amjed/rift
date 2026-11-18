@@ -949,7 +949,7 @@ pub(super) fn run(
         fps: fps.clone(),
     });
     let mut gate = (request.capture_cursor && request.cursor_off_in_games && !is_window)
-        .then(|| CursorGate::new(game_mouse::game_holds_mouse(), Instant::now()));
+        .then(|| CursorGate::new(game_mouse::cursor_out_of_sight(), Instant::now()));
     let cursor = request.capture_cursor && gate.as_ref().is_none_or(CursorGate::shown);
     let session = match open_session(&winrt_device, target, cursor, &flow) {
         Ok(session) => session,
@@ -1028,7 +1028,7 @@ pub(super) fn run(
         // A running session takes the cursor in or out as it goes.
         if let Some(shown) = gate
             .as_mut()
-            .and_then(|gate| gate.step(Instant::now(), game_mouse::game_holds_mouse))
+            .and_then(|gate| gate.step(Instant::now(), game_mouse::cursor_out_of_sight))
         {
             running.cursor = shown;
             if let Some(session) = &running.session {

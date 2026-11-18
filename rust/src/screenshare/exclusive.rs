@@ -125,15 +125,15 @@ pub(crate) fn fills(window: Rect, screen: Rect) -> bool {
     screen.within(&window)
 }
 
-/// A look at the window `id` now.
+/// Whether `window` covers the whole of the screen it is on, taskbar and all,
+/// which a maximised window does not.
 #[cfg(target_os = "windows")]
-pub(crate) fn look(id: u64) -> Seen {
-    use windows::Win32::Foundation::{HWND, RECT};
+pub(crate) fn fills_its_screen(window: windows::Win32::Foundation::HWND) -> bool {
+    use windows::Win32::Foundation::RECT;
     use windows::Win32::Graphics::Gdi::{
         GetMonitorInfoW, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONULL,
     };
-    use windows::Win32::UI::Shell::{SHQueryUserNotificationState, QUNS_RUNNING_D3D_FULL_SCREEN};
-    use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowRect};
+    use windows::Win32::UI::WindowsAndMessaging::GetWindowRect;
 
     let of = |r: RECT| Rect {
         left: r.left,
@@ -141,22 +141,33 @@ pub(crate) fn look(id: u64) -> Seen {
         right: r.right,
         bottom: r.bottom,
     };
-    let window = HWND(id as usize as *mut _);
     // SAFETY: each call writes only what it is handed, which outlives it; a
-    // closed window only makes them fail.
-    let fills_front = unsafe {
+    // closed or null window only makes them fail.
+    unsafe {
         let mut rect = RECT::default();
         let monitor = MonitorFromWindow(window, MONITOR_DEFAULTTONULL);
         let mut info = MONITORINFO {
             cbSize: std::mem::size_of::<MONITORINFO>() as u32,
             ..Default::default()
         };
-        GetForegroundWindow() == window
+        !window.0.is_null()
             && GetWindowRect(window, &mut rect).is_ok()
             && !monitor.is_invalid()
             && GetMonitorInfoW(monitor, &mut info).as_bool()
             && fills(of(rect), of(info.rcMonitor))
-    };
+    }
+}
+
+/// A look at the window `id` now.
+#[cfg(target_os = "windows")]
+pub(crate) fn look(id: u64) -> Seen {
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::UI::Shell::{SHQueryUserNotificationState, QUNS_RUNNING_D3D_FULL_SCREEN};
+    use windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
+
+    let window = HWND(id as usize as *mut _);
+    // SAFETY: no arguments; it only answers.
+    let fills_front = unsafe { GetForegroundWindow() } == window && fills_its_screen(window);
     // SAFETY: no arguments; it only answers.
     let d3d = unsafe { SHQueryUserNotificationState() }
         .is_ok_and(|state| state == QUNS_RUNNING_D3D_FULL_SCREEN);
