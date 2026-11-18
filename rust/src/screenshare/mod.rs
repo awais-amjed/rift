@@ -22,6 +22,8 @@ mod latest;
 #[cfg_attr(not(desktop), allow(dead_code))]
 mod pacer;
 mod pixels;
+#[cfg(desktop)]
+mod priority;
 #[cfg(target_os = "linux")]
 pub(crate) mod portal;
 #[cfg(target_os = "linux")]

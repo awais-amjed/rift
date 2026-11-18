@@ -228,6 +228,7 @@ pub(crate) fn spawn(request: CaptureRequest) -> (Capture, Started) {
     let handle = thread::Builder::new()
         .name("share-capture".to_string())
         .spawn(move || {
+            super::priority::raise_this_thread();
             // A Wayland share runs on Rift's own stream where it can.
             #[cfg(target_os = "linux")]
             let request = match capture_pw::run(
@@ -305,8 +306,13 @@ pub(crate) fn spawn(request: CaptureRequest) -> (Capture, Started) {
 /// pictures a second to 92 a few seconds in, and FFmpeg's Quick Sync sent
 /// 88.7 fps; with throttling off, 119.8 and 118.3 (Oct 16 2026, an i7-12700H
 /// laptop). On drop, Windows decides again.
+///
+/// And it holds the process's GPU work at high priority, ahead of the game's
+/// (`priority.rs`).
 #[cfg(target_os = "windows")]
-pub(super) struct TimerResolutionGuard;
+pub(super) struct TimerResolutionGuard {
+    _gpu: super::priority::GpuPriority,
+}
 
 #[cfg(target_os = "windows")]
 impl TimerResolutionGuard {
@@ -332,7 +338,9 @@ impl TimerResolutionGuard {
             }
         }
         unsafe { windows::Win32::Media::timeBeginPeriod(1) };
-        Self
+        Self {
+            _gpu: super::priority::GpuPriority::raise(),
+        }
     }
 }
 

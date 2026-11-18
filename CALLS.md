@@ -1894,6 +1894,19 @@ gone, and Rift already asks for that timer in a call without it (`powercfg
 (`rust/src/screenshare/capture.rs`). Not measured: Rift unthrottled or not
 while a game covers it in a call.
 
+A share is the other way round: its pictures are only as smooth as its
+capture, conversion and encoder threads, and the game in front is what crowds
+them out. A friend's share beside a game logged NVENC's send at 5 to 7 ms a
+picture but up to 86 ms at worst (Nov 18 2026). So on Windows, since that day,
+a share's `share-capture`, `share-frames` and `gpu-encoder` threads run above
+normal, and while one runs the process asks for its GPU work at high priority
+(`D3DKMTSetProcessSchedulingPriorityClass`, as Sunshine does; realtime is not
+asked, since it can starve the desktop's compositor). Every device in the
+process takes it: Rift's own, FFmpeg's encoder's and libwebrtc's DXGI
+duplication's (`rust/src/screenshare/priority.rs`). Windows may refuse the GPU
+step to a process without the privilege to raise priority; the log says which.
+Not yet run on Windows, nor measured beside a GPU-bound game.
+
 What the placement costs a game, measured Oct 25 2026 on a laptop's Windows,
 the model on the mic's thread: with a stand-in game on every CPU, the game's
 frames taking over 1.5 times its fastest went from 0.16–0.31% with the filter off to 0.83–0.92% on DPDFNet-2, and its

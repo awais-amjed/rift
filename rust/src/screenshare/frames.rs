@@ -32,7 +32,10 @@ pub(crate) fn spawn_processing(
 ) -> JoinHandle<()> {
     thread::Builder::new()
         .name("share-frames".to_string())
-        .spawn(move || run(frame_rx, source_slot))
+        .spawn(move || {
+            super::priority::raise_this_thread();
+            run(frame_rx, source_slot)
+        })
         .expect("no processing thread")
 }
 

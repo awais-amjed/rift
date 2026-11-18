@@ -141,7 +141,10 @@ impl GpuEncoder {
         };
         let handle = thread::Builder::new()
             .name("gpu-encoder".to_string())
-            .spawn(move || run(settings, sink, open, frames_rx, opened_tx, shared))
+            .spawn(move || {
+                crate::screenshare::priority::raise_this_thread();
+                run(settings, sink, open, frames_rx, opened_tx, shared)
+            })
             .map_err(|e| format!("no encoder thread: {e}"))?;
         match opened_rx.recv() {
             Ok(Ok((name, takes_gpu_picture))) => Ok(GpuEncoder {

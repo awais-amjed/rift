@@ -881,7 +881,10 @@ pub(super) fn run(
         .name("share-frames".to_string())
         .spawn({
             let fps = fps.clone();
-            move || process(pictures, processing, told, fps)
+            move || {
+                super::priority::raise_this_thread();
+                process(pictures, processing, told, fps)
+            }
         })
         .expect("no processing thread");
 
