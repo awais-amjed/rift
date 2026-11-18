@@ -1,9 +1,9 @@
 //! How libwebrtc's capturer keeps up, for the log.
 //!
-//! A whole screen on Windows 10 (and any share Rift's own capture does not
-//! take) is captured by libwebrtc on the share's capture thread, one call a
-//! tick: on Windows a DXGI duplication, a copy to memory and a wait for the
-//! GPU. Beside a game that fills the GPU a tick can outlast its interval, and
+//! A share Rift's own capture does not take (VP9, an encoder that reads
+//! memory, a screen on another GPU than the encoder's) is captured by libwebrtc
+//! on the share's capture thread, one call a tick: for a screen on Windows 10 a
+//! DXGI duplication, a copy to memory and a wait for the GPU. Beside a game that fills the GPU a tick can outlast its interval, and
 //! the share then quietly runs below its rate ("Behind" in `capture::run`).
 //! A friend's whole-screen RDR2 share went to 1–18 fps and the log could not
 //! say whether capture was the reason (Nov 18 2026), so the ticks are timed

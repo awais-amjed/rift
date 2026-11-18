@@ -52,8 +52,9 @@ pub(crate) fn options(source_type: DesktopCaptureSourceType) -> DesktopCapturerO
     options
 }
 
-/// Whether a screen here is captured with Windows Graphics Capture: the rest stay
-/// on DXGI (see [`options`]).
+/// Whether a screen here is captured with Windows Graphics Capture: the rest are
+/// duplicated with DXGI (see [`options`]), by Rift on the GPU where the share's
+/// encoder takes textures, by libwebrtc otherwise.
 #[cfg(target_os = "windows")]
 pub(crate) fn screens_on_wgc() -> bool {
     capture_border_optional()
@@ -61,6 +62,10 @@ pub(crate) fn screens_on_wgc() -> bool {
 
 /// Whether Windows lets an app capture without the yellow border, asked of
 /// the API itself rather than read from a build number.
+///
+/// `RIFT_SCREENS_ON_DXGI=1` answers no, so Windows 11 takes a screen the way
+/// Windows 10 does: the DXGI duplication can then be tried on a computer that
+/// is not on Windows 10 (`capture_wgc::dxgi`).
 #[cfg(target_os = "windows")]
 fn capture_border_optional() -> bool {
     use std::sync::OnceLock;
@@ -68,17 +73,24 @@ fn capture_border_optional() -> bool {
     use windows::Foundation::Metadata::ApiInformation;
     static OPTIONAL: OnceLock<bool> = OnceLock::new();
     *OPTIONAL.get_or_init(|| {
-        let optional = ApiInformation::IsPropertyPresent(
-            h!("Windows.Graphics.Capture.GraphicsCaptureSession"),
-            h!("IsBorderRequired"),
-        )
-        .unwrap_or(false);
+        let forced = std::env::var_os("RIFT_SCREENS_ON_DXGI").is_some_and(|v| v == "1");
+        let optional = !forced
+            && ApiInformation::IsPropertyPresent(
+                h!("Windows.Graphics.Capture.GraphicsCaptureSession"),
+                h!("IsBorderRequired"),
+            )
+            .unwrap_or(false);
         log::info!(
-            "capture: screens with {}",
+            "capture: screens with {}{}",
             if optional {
                 "Windows Graphics Capture"
             } else {
                 "DXGI, which draws no border"
+            },
+            if forced {
+                " (RIFT_SCREENS_ON_DXGI)"
+            } else {
+                ""
             }
         );
         optional

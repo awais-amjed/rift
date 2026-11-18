@@ -1,8 +1,10 @@
 //! A Windows share on Rift's own Windows Graphics Capture session
 //! (`docs/gpu-codecs/STEP1_WINDOWS.md`): each picture stays on the GPU and goes
-//! to NVENC on the same device, drawn into NV12 by ffenc. When any of it refuses,
-//! the share runs on libwebrtc's capturer as before, with no second picker, since
-//! Rift's own list chose the source.
+//! to NVENC on the same device, drawn into NV12 by ffenc. A whole screen on
+//! Windows 10, where that session would draw a yellow border, is duplicated with
+//! DXGI on the same device instead ([`dxgi`]). When any of it refuses, the share
+//! runs on libwebrtc's capturer as before, with no second picker, since Rift's
+//! own list chose the source.
 //!
 //! Read from OBS's `libobs-winrt/winrt-capture.cpp`, FFmpeg's
 //! `vsrc_gfxcapture_winrt.cpp` and Sunshine's `display_wgc.cpp`. As FFmpeg and
@@ -58,6 +60,8 @@ use windows::Win32::System::WinRT::Direct3D11::{
 use windows::Win32::System::WinRT::Graphics::Capture::IGraphicsCaptureItemInterop;
 use windows::Win32::System::WinRT::{RoInitialize, RO_INIT_MULTITHREADED};
 
+mod dxgi;
+
 /// How often the capture thread looks for a stop, an ended window or a new rate.
 /// The pictures themselves never wait on it.
 const POLL: Duration = Duration::from_millis(50);
@@ -97,12 +101,19 @@ const SESSIONS_FIRST: u32 = 1;
 /// the encoder and be drawn by it at once, and the pool needs one to write into.
 const POOL_BUFFERS: i32 = 4;
 
-/// One picture from the frame pool. The buffer goes back when the last holder
-/// drops it.
+/// One picture from the frame pool, or from a screen's duplication. The buffer
+/// goes back when the last holder drops it.
 pub(crate) struct WgcPicture {
-    frame: Direct3D11CaptureFrame,
+    held: Held,
     texture: ID3D11Texture2D,
     size: Size,
+}
+
+/// What a picture holds its texture in.
+enum Held {
+    Frame(Direct3D11CaptureFrame),
+    /// One of a duplication's copies, free again once this goes.
+    Copied(#[allow(dead_code)] Arc<dxgi::Copy>),
 }
 
 // SAFETY: the frame is free-threaded, and only `gpu-encoder` reads the texture,
@@ -111,6 +122,14 @@ unsafe impl Send for WgcPicture {}
 unsafe impl Sync for WgcPicture {}
 
 impl WgcPicture {
+    fn copied(copy: Arc<dxgi::Copy>, size: Size) -> WgcPicture {
+        WgcPicture {
+            texture: copy.texture().clone(),
+            held: Held::Copied(copy),
+            size,
+        }
+    }
+
     pub(crate) fn size(&self) -> Size {
         self.size
     }
@@ -123,7 +142,9 @@ impl WgcPicture {
 
 impl Drop for WgcPicture {
     fn drop(&mut self) {
-        let _ = self.frame.Close();
+        if let Held::Frame(frame) = &self.held {
+            let _ = frame.Close();
+        }
     }
 }
 
@@ -193,21 +214,11 @@ pub(super) enum Handoff {
 }
 
 /// Whether a share goes on Rift's own capture: with the switch on, in a codec the
-/// GPU makes, to an encoder that takes the picture on the GPU. A screen also needs
-/// Windows Graphics Capture to be how screens are captured here: on Windows 10
-/// they stay on DXGI, which draws no border (`sources::options`). Windows there
-/// have no other way, so they come here too.
-fn takes_rifts_capture(
-    gpu_capture: bool,
-    codec: VideoCodec,
-    encoder_takes_textures: bool,
-    source_type: DesktopCaptureSourceType,
-    screens_on_wgc: bool,
-) -> bool {
-    gpu_capture
-        && GpuCodec::for_share(codec).is_some()
-        && encoder_takes_textures
-        && (source_type != DesktopCaptureSourceType::Screen || screens_on_wgc)
+/// GPU makes, to an encoder that takes the picture on the GPU. A screen where
+/// Windows Graphics Capture would draw its border is duplicated instead
+/// ([`Target::Duplicated`]).
+fn takes_rifts_capture(gpu_capture: bool, codec: VideoCodec, encoder_takes_textures: bool) -> bool {
+    gpu_capture && GpuCodec::for_share(codec).is_some() && encoder_takes_textures
 }
 
 /// What a share does about a session that has gone quiet.
@@ -305,8 +316,46 @@ struct Flow {
     fps: Arc<AtomicU32>,
 }
 
-/// One running session, undone on drop.
-struct Session {
+impl Flow {
+    /// Hand a picture on, telling whoever waits for the first.
+    fn deliver(&self, picture: WgcPicture) {
+        if let Some(tx) = self.first.lock().unwrap().take() {
+            let _ = tx.send(Progress::FirstFrame(picture.size));
+        }
+        self.arrived.store(true, Ordering::Relaxed);
+        if let Some(pictures) = &*self.pictures.lock().unwrap() {
+            // The one it replaced goes back to the pool here.
+            drop(pictures.put(picture));
+        }
+    }
+}
+
+/// A running source of pictures, undone on drop.
+enum Session {
+    Wgc(WgcSession),
+    Duplicated(dxgi::Duplication),
+}
+
+impl Session {
+    fn show_cursor(&self, shown: bool) {
+        match self {
+            Session::Wgc(wgc) => {
+                let _ = wgc.session.SetIsCursorCaptureEnabled(shown);
+            }
+            Session::Duplicated(duplication) => duplication.show_cursor(shown),
+        }
+    }
+
+    /// A duplication reads the rate from the flow itself.
+    fn set_rate(&self, fps: u32) {
+        if let Session::Wgc(wgc) = self {
+            let _ = wgc.session.SetMinUpdateInterval(update_interval(fps));
+        }
+    }
+}
+
+/// One running Windows Graphics Capture session, undone on drop.
+struct WgcSession {
     pool: Direct3D11CaptureFramePool,
     session: GraphicsCaptureSession,
     item: GraphicsCaptureItem,
@@ -314,7 +363,7 @@ struct Session {
     closed: i64,
 }
 
-impl Drop for Session {
+impl Drop for WgcSession {
     fn drop(&mut self) {
         // In the order FFmpeg's wgc_stop_capture_session takes: no more calls
         // from either event first. An event already running holds its own
@@ -338,6 +387,9 @@ unsafe impl Send for FreeThreaded {}
 enum Target {
     Window(u64),
     Screen(HMONITOR),
+    /// A screen duplicated with DXGI, where Windows Graphics Capture would
+    /// draw its border (`sources::screens_on_wgc`).
+    Duplicated(HMONITOR),
 }
 
 fn item_for(target: Target) -> windows::core::Result<GraphicsCaptureItem> {
@@ -346,7 +398,9 @@ fn item_for(target: Target) -> windows::core::Result<GraphicsCaptureItem> {
     unsafe {
         match target {
             Target::Window(id) => interop.CreateForWindow(HWND(id as isize as *mut c_void)),
-            Target::Screen(monitor) => interop.CreateForMonitor(monitor),
+            Target::Screen(monitor) | Target::Duplicated(monitor) => {
+                interop.CreateForMonitor(monitor)
+            }
         }
     }
 }
@@ -365,6 +419,12 @@ fn open_session(
     cursor: bool,
     flow: &Arc<Flow>,
 ) -> windows::core::Result<Session> {
+    if let Target::Duplicated(monitor) = target {
+        let access: IDirect3DDxgiInterfaceAccess = device.cast()?;
+        // SAFETY: the WinRT device is a handle on a D3D11 one.
+        let device: ID3D11Device = unsafe { access.GetInterface()? };
+        return dxgi::Duplication::open(&device, monitor, cursor, flow).map(Session::Duplicated);
+    }
     let item = item_for(target)?;
     let size = item.Size()?;
     let pool = Direct3D11CaptureFramePool::CreateFreeThreaded(
@@ -412,7 +472,7 @@ fn open_session(
             },
         ))?
     };
-    let opened = Session {
+    let opened = WgcSession {
         pool,
         session,
         item,
@@ -420,7 +480,7 @@ fn open_session(
         closed,
     };
     opened.session.StartCapture()?;
-    Ok(opened)
+    Ok(Session::Wgc(opened))
 }
 
 /// On the frame pool's thread, which must not be held up.
@@ -473,19 +533,11 @@ fn picture_arrived(
     if size.width < 2 || size.height < 2 {
         return Ok(());
     }
-    if let Some(tx) = flow.first.lock().unwrap().take() {
-        let _ = tx.send(Progress::FirstFrame(size));
-    }
-    flow.arrived.store(true, Ordering::Relaxed);
-    let picture = WgcPicture {
-        frame,
+    flow.deliver(WgcPicture {
+        held: Held::Frame(frame),
         texture,
         size,
-    };
-    if let Some(pictures) = &*flow.pictures.lock().unwrap() {
-        // The one it replaced goes back to the pool here.
-        drop(pictures.put(picture));
-    }
+    });
     Ok(())
 }
 
@@ -723,7 +775,8 @@ fn monitor_of(id: u64) -> Option<HMONITOR> {
 /// The session a share runs on, as [`SharedWindow`] takes it again when a game
 /// swaps its window, and [`QuietWatch`] when it goes quiet.
 struct Running<'a> {
-    capturer: &'a DesktopCapturer,
+    /// `None` for a duplicated screen, whose list nothing reads again.
+    capturer: Option<&'a DesktopCapturer>,
     device: &'a IDirect3DDevice,
     cursor: bool,
     flow: &'a Arc<Flow>,
@@ -745,7 +798,9 @@ impl Running<'_> {
 
 impl Recapture for Running<'_> {
     fn listed(&self) -> Vec<Source> {
-        self.capturer.get_source_list()
+        self.capturer
+            .map(DesktopCapturer::get_source_list)
+            .unwrap_or_default()
     }
 
     fn capture(&mut self, source: Source) {
@@ -787,13 +842,7 @@ pub(super) fn run(
 ) -> Handoff {
     // Asked only with the switch on: the answer opens an encoder to find out.
     let vendor = request.gpu_capture.then(encoder::takes_textures).flatten();
-    let takes = takes_rifts_capture(
-        request.gpu_capture,
-        request.codec,
-        vendor.is_some(),
-        request.source_type,
-        sources::screens_on_wgc(),
-    );
+    let takes = takes_rifts_capture(request.gpu_capture, request.codec, vendor.is_some());
     let Some(vendor) = vendor.filter(|_| takes) else {
         log::info!(
             "capture: GPU capture {}; libwebrtc's capturer",
@@ -843,13 +892,19 @@ pub(super) fn run(
     let is_window = request.source_type == DesktopCaptureSourceType::Window;
     let target = if is_window {
         Some(Target::Window(source.id()))
-    } else {
+    } else if sources::screens_on_wgc() {
         monitor_of(source.id()).map(Target::Screen)
+    } else {
+        monitor_of(source.id()).map(Target::Duplicated)
     };
     let Some(target) = target else {
         log::info!("capture: no monitor for that screen; libwebrtc's capturer");
         return Handoff::Fallback(request);
     };
+    // libwebrtc's DXGI capturer holds every output duplicated while it lives,
+    // and an output is duplicated once per process: it goes before Rift's
+    // duplication opens.
+    let capturer = (!matches!(target, Target::Duplicated(_))).then_some(capturer);
 
     let held = held.unwrap_or_else(|| HeldDevice::share(device, winrt_device.clone()));
     let (put, pictures) = latest::channel::<WgcPicture>();
@@ -871,7 +926,13 @@ pub(super) fn run(
             return Handoff::Fallback(request);
         }
     };
-    log::info!("capture: on Rift's Windows Graphics Capture session");
+    log::info!(
+        "capture: on Rift's {}",
+        match target {
+            Target::Duplicated(_) => "DXGI duplication",
+            _ => "Windows Graphics Capture session",
+        }
+    );
     #[cfg(test)]
     counts::SESSIONS.fetch_add(1, Ordering::Relaxed);
     let wants_memory = Arc::new(AtomicBool::new(false));
@@ -889,7 +950,7 @@ pub(super) fn run(
         .expect("no processing thread");
 
     let mut running = Running {
-        capturer: &capturer,
+        capturer: capturer.as_ref(),
         device: &winrt_device,
         cursor,
         flow: &flow,
@@ -938,7 +999,7 @@ pub(super) fn run(
         {
             running.cursor = shown;
             if let Some(session) = &running.session {
-                let _ = session.session.SetIsCursorCaptureEnabled(shown);
+                session.show_cursor(shown);
             }
         }
         let now = fps.load(Ordering::Relaxed);
@@ -946,7 +1007,7 @@ pub(super) fn run(
             log::info!("capture: now {now} fps");
             rate = now;
             if let Some(session) = &running.session {
-                let _ = session.session.SetMinUpdateInterval(update_interval(now));
+                session.set_rate(now);
             }
         }
         let away = window.as_ref().is_some_and(SharedWindow::away);
@@ -993,7 +1054,7 @@ pub(super) fn run(
     // may be a window the game has since swapped for another.
     let now_on = match running.target {
         Target::Window(id) => id,
-        Target::Screen(_) => source.id(),
+        Target::Screen(_) | Target::Duplicated(_) => source.id(),
     };
     // The session first, then the mailbox, which ends the processing thread.
     drop(running);
@@ -1223,61 +1284,16 @@ pub(super) mod arrivals {
 mod tests {
     use super::*;
 
-    const WINDOW: DesktopCaptureSourceType = DesktopCaptureSourceType::Window;
-    const SCREEN: DesktopCaptureSourceType = DesktopCaptureSourceType::Screen;
-
     #[test]
     fn the_switch_keeps_a_share_out() {
-        assert!(!takes_rifts_capture(
-            false,
-            VideoCodec::H264,
-            true,
-            SCREEN,
-            true
-        ));
-        assert!(takes_rifts_capture(
-            true,
-            VideoCodec::H264,
-            true,
-            SCREEN,
-            true
-        ));
+        assert!(!takes_rifts_capture(false, VideoCodec::H264, true));
+        assert!(takes_rifts_capture(true, VideoCodec::H264, true));
     }
 
     #[test]
     fn vp9_and_an_encoder_taking_memory_stay_on_libwebrtc() {
-        assert!(!takes_rifts_capture(
-            true,
-            VideoCodec::VP9,
-            true,
-            SCREEN,
-            true
-        ));
-        assert!(!takes_rifts_capture(
-            true,
-            VideoCodec::H264,
-            false,
-            SCREEN,
-            true
-        ));
-    }
-
-    #[test]
-    fn windows_10_keeps_dxgi_for_a_screen_but_not_a_window() {
-        assert!(!takes_rifts_capture(
-            true,
-            VideoCodec::H264,
-            true,
-            SCREEN,
-            false
-        ));
-        assert!(takes_rifts_capture(
-            true,
-            VideoCodec::H264,
-            true,
-            WINDOW,
-            false
-        ));
+        assert!(!takes_rifts_capture(true, VideoCodec::VP9, true));
+        assert!(!takes_rifts_capture(true, VideoCodec::H264, false));
     }
 
     /// A share that began just before a picture at `start`.

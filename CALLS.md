@@ -581,6 +581,31 @@ LiveKit fork draws it in (`set_wgc_screen_capturer`, `RIFT.md` there). A
 screen's id differs between the two, so the list, its thumbnails and the
 share all take their options from the same place.
 
+libwebrtc's DXGI capturer brings each picture to memory: a copy to a staging
+texture, a wait for the GPU, a copy out, a conversion on the CPU and an upload
+again, on the share's capture thread at every tick. Beside RDR2 a friend's
+whole-screen share on Windows 10 reached its viewer at 1–18 fps, while his
+window share of another game, on Rift's own session, held 60 (Nov 18 2026). So
+since Nov 18 a Windows 10 screen whose share Rift's session would take
+(above) is duplicated by Rift itself, on the encoder's device, and its
+pictures stay on the GPU (`capture_wgc/dxgi.rs`): each new desktop image is
+copied out of the duplication at once, as Sunshine and OBS do, and the cursor
+drawn into the copy by GDI (`DrawIconEx`), so Auto, Show and Hide work as on
+Rift's session. A duplication Windows takes back, at a mode change, a game
+going full screen, a UAC prompt or the lock screen, is made again every 100 ms
+until it comes, and the share holds its last picture meanwhile. An output can
+be duplicated once per process, and libwebrtc's DXGI capturer holds every
+output while it lives, so the one the share found its source with goes first;
+a share dialog opened during the share may list that screen through GDI, or
+not at all. The screen has to be on the encoder's GPU: a laptop whose screen
+hangs off its integrated GPU while NVENC is on the other, a turned screen, an
+HDR desktop, or a basic display driver's duplication in memory, goes to
+libwebrtc's capturer as before. GDI waits for the copy under the cursor, so a
+draw of 2 ms or more is logged (`capture: drawing the cursor took up to`);
+if a game makes that long, the cursor wants drawing on the GPU instead. `RIFT_SCREENS_ON_DXGI=1` takes screens this way on Windows 11 too,
+to try it there. **Not yet proved:** written Nov 18 2026 and built for
+Windows; no Windows computer has run it yet.
+
 A **window** keeps Windows Graphics Capture, and on Windows 10 its border.
 The only borderless way to capture one there is GDI, which is slow and shows
 most games black.
