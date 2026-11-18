@@ -10,6 +10,7 @@
 
 #include <memory>
 
+#include "gpu_watch.h"
 #include "seen_watch.h"
 #include "stream_texture.h"
 #include "tray_icon.h"
@@ -64,6 +65,18 @@ class FlutterWindow : public Win32Window {
 
   // Watched shares' pictures, drawn by the runner (stream_texture.h).
   std::unique_ptr<rift::StreamTextures> stream_textures_;
+
+  // MethodChannel between Dart and the watch on Flutter's GPU: the runner
+  // says it was lost, and Dart asks for Rift to be started again.
+  std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> gpu_channel_;
+  std::unique_ptr<GpuWatch> gpu_watch_;
+  // Said once: a lost device stays lost.
+  bool gpu_lost_said_ = false;
+
+  // Configure |gpu_channel_| and watch the adapter Flutter draws with.
+  void SetupGpuWatch();
+  // Tells Dart, once, that the GPU went, with |reason|.
+  void SayGpuLost(HRESULT reason);
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_

@@ -1,15 +1,16 @@
 import 'package:equatable/equatable.dart';
 
-/// The call to go back into after Rift restarts itself for an update.
+/// The call to go back into after Rift restarts itself: for an update, or
+/// because the GPU its window draws with was reset (`GpuReset`).
 ///
-/// Written only by Restart to update, never by a quit: someone who quits is
+/// Written only by those restarts, never by a quit: someone who quits is
 /// done with the call, and Rift also starts at sign-in, hidden in the tray,
 /// where joining a call with the mic open would be the last thing anyone
-/// expected. A restart for an update is Rift leaving on its own account, so
-/// it puts the person back where it found them.
+/// expected. A restart of its own is Rift leaving on its own account, so it
+/// puts the person back where it found them.
 class CallToResume extends Equatable {
   /// How long after the restart the call is still rejoined. An update is in
-  /// place and running again within seconds; past this, the update failed
+  /// place and running again within seconds; past this, the restart failed
   /// and the person opened Rift by hand, much later, for something else.
   static const keptFor = Duration(minutes: 2);
 

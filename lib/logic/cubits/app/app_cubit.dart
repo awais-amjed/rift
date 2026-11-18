@@ -549,9 +549,10 @@ class AppCubit extends HydratedCubit<AppState> {
     return {...state.seenKeys, person: seen.acknowledge()};
   }
 
-  // ── Persisted: the call to rejoin after an update ────────
+  // ── Persisted: the call to rejoin after a restart ───────
 
-  /// Saved by Restart to update just before Rift quits.
+  /// Saved just before Rift quits to restart itself: for an update, or after
+  /// a GPU reset.
   void rememberCallToResume(CallToResume call) {
     emit(state.copyWith(callToResume: call));
   }

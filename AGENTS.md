@@ -385,6 +385,10 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   The tray icon on Windows stays the runner's (`tray_icon.cpp`, `WindowsTray`): it came in
   when tray_manager's, made from Dart's own thread, stopped answering clicks from beta.5 to
   beta.10, and a runner-owned icon works whichever thread Dart is on.
+  Flutter never recovers from a GPU reset: a game that crashes the driver takes Flutter's
+  device with it, and the engine keeps drawing on the dead one, so the window stays white
+  while the call goes on. The runner watches a device of its own on Flutter's adapter
+  (`gpu_watch.cpp`) and Dart restarts Rift into the call (`GpuResetListener`, `relaunch.cpp`).
   The runner sets the noise filter up in `FlutterWindow::OnCreate`, and Dart may ask before
   it is there, so `NoiseFilter` waits for it (`ready`) and settings say so
   (`NoiseFilterWork`) rather than reading its absence as for good, which once left Windows

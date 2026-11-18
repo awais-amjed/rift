@@ -5,8 +5,11 @@
 
 #include <shellapi.h>
 
+#include <algorithm>
+
 #include "echo_canceller.h"
 #include "flutter_window.h"
+#include "relaunch.h"
 #include "single_instance.h"
 #include "startup_guard.h"
 #include "utils.h"
@@ -35,6 +38,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // Before the single-instance check: Velopack runs these while Rift may be
   // open, and they must not be taken for a second launch.
   if (HandleVelopackHook()) return EXIT_SUCCESS;
+  // A copy restarting itself started this one, which takes over once it has
+  // gone (relaunch.h).
+  WaitForEarlierCopy();
 
   SingleInstance single_instance;
   if (!single_instance.Acquire()) {
@@ -63,6 +69,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
 
   std::vector<std::string> command_line_arguments =
       GetCommandLineArguments();
+  command_line_arguments.erase(
+      std::remove_if(command_line_arguments.begin(),
+                     command_line_arguments.end(), IsRunnerArgument),
+      command_line_arguments.end());
 
   project.set_dart_entrypoint_arguments(std::move(command_line_arguments));
 

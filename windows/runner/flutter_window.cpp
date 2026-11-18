@@ -11,10 +11,25 @@
 #include "flutter/generated_plugin_registrant.h"
 #include "global_key_hook.h"
 #include "noise_filter/noise_filter.h"
+#include "relaunch.h"
 #include "single_instance.h"
 #include "startup_guard.h"
+#include "stream_draw.h"
 
 namespace {
+
+// A test's stand-in for a driver reset: the loss is said this many seconds
+// after the start, while the device is in fact fine. Only a test sets it.
+constexpr UINT_PTR kFakeGpuLossTimer = 0x52474c;  // "RGL"
+
+UINT FakeGpuLossSeconds() {
+  wchar_t value[16] = {};
+  if (::GetEnvironmentVariableW(L"RIFT_FAKE_GPU_LOSS_SECONDS", value,
+                                ARRAYSIZE(value)) == 0) {
+    return 0;
+  }
+  return static_cast<UINT>(::wcstoul(value, nullptr, 10));
+}
 
 bool StartedMinimized() {
   int argc = 0;
@@ -58,6 +73,7 @@ bool FlutterWindow::OnCreate() {
   SetupPttChannel();
   SetupSeenChannel();
   SetupTrayChannel();
+  SetupGpuWatch();
 
   // The first frame is where a start counts as finished (startup_guard.h).
   // A start at sign-in that should stay in the tray never shows the window:
@@ -78,6 +94,7 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
+  gpu_watch_ = nullptr;
   tray_icon_ = nullptr;
   GlobalKeyHook::Instance().Stop();
   ptt_event_sink_ = nullptr;
@@ -136,9 +153,28 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
       if (seen_watch_) seen_watch_->Check();
       return 0;
 
+    case kWmGpuLost:
+      SayGpuLost(gpu_watch_ ? gpu_watch_->Reason() : S_OK);
+      return 0;
+
+    case WM_ACTIVATE:
+      // Where Windows cannot signal the loss, it is found when someone comes
+      // back to the window to see why it is white.
+      if (LOWORD(wparam) != WA_INACTIVE && gpu_watch_ &&
+          !gpu_watch_->listening() && gpu_watch_->Reason() != S_OK) {
+        SayGpuLost(gpu_watch_->Reason());
+      }
+      break;
+
     case WM_TIMER:
       if (wparam == SeenWatch::kTimerId) {
         if (seen_watch_) seen_watch_->Check();
+        return 0;
+      }
+      if (wparam == kFakeGpuLossTimer) {
+        ::KillTimer(hwnd, kFakeGpuLossTimer);
+        StreamLog("gpu: a test fakes the loss of Flutter's GPU");
+        SayGpuLost(DXGI_ERROR_DEVICE_RESET);
         return 0;
       }
       break;
@@ -247,4 +283,59 @@ void FlutterWindow::SetupTrayChannel() {
           result->NotImplemented();
         }
       });
+}
+
+void FlutterWindow::SetupGpuWatch() {
+  gpu_channel_ =
+      std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
+          flutter_controller_->engine()->messenger(), "rift/gpu",
+          &flutter::StandardMethodCodec::GetInstance());
+  gpu_channel_->SetMethodCallHandler(
+      [this](const flutter::MethodCall<flutter::EncodableValue>& call,
+             std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>>
+                 result) {
+        if (call.method_name() == "relaunch") {
+          // Out of sight again if it was out of sight now: a start at
+          // sign-in waiting in the tray stays there.
+          const bool minimized = !::IsWindowVisible(GetHandle());
+          const bool started = RelaunchAfterExit(minimized);
+          StreamLog(started ? "gpu: started Rift again, to take over once "
+                              "this copy leaves"
+                            : "gpu: could not start Rift again");
+          result->Success(flutter::EncodableValue(started));
+        } else {
+          result->NotImplemented();
+        }
+      });
+
+  IDXGIAdapter* adapter = nullptr;
+  if (flutter_controller_->engine()->GetGraphicsAdapter(&adapter) &&
+      adapter != nullptr) {
+    auto device = GpuWatch::MakeDevice(adapter);
+    adapter->Release();
+    if (device) {
+      gpu_watch_ = std::make_unique<GpuWatch>(GetHandle(), std::move(device));
+    }
+  }
+  if (!gpu_watch_) {
+    StreamLog("gpu: no device to watch Flutter's GPU with");
+  } else if (!gpu_watch_->listening()) {
+    StreamLog("gpu: Windows cannot signal the loss of Flutter's GPU; it is "
+              "looked for when the window is activated");
+  }
+
+  if (const UINT seconds = FakeGpuLossSeconds()) {
+    ::SetTimer(GetHandle(), kFakeGpuLossTimer, seconds * 1000, nullptr);
+  }
+}
+
+void FlutterWindow::SayGpuLost(HRESULT reason) {
+  if (gpu_lost_said_ || !gpu_channel_) return;
+  gpu_lost_said_ = true;
+  StreamLog("gpu: the GPU Flutter draws with was lost (%08lx); Flutter "
+            "cannot draw on it again",
+            reason);
+  gpu_channel_->InvokeMethod(
+      "lost", std::make_unique<flutter::EncodableValue>(
+                  static_cast<int64_t>(static_cast<uint32_t>(reason))));
 }

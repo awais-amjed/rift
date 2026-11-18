@@ -1,7 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 
-import '../../../data/classes/call_to_resume.dart';
 import '../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../logic/cubits/update/update_cubit.dart';
 import '../confirm_dialog.dart';
@@ -26,14 +25,5 @@ Future<void> restartToUpdate(BuildContext context) async {
     if (!confirmed) return;
   }
   // Read after the question: the call may have changed while it was open.
-  final call = livekit.state;
-  await updates.restartToUpdate(
-    call: call.currentChannelId == null
-        ? null
-        : CallToResume(
-            channelId: call.currentChannelId!,
-            deafened: call.isDeafened,
-            savedAt: DateTime.now(),
-          ),
-  );
+  await updates.restartToUpdate(call: livekit.state.toResume(DateTime.now()));
 }

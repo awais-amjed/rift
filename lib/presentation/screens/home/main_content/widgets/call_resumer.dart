@@ -11,8 +11,8 @@ import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
 
-/// Rejoins the call Restart to update left, once this start has unlocked —
-/// see `CallToResume`.
+/// Rejoins the call Rift left to restart itself, for an update or after a
+/// GPU reset, once this start has unlocked — see `CallToResume`.
 ///
 /// Waits for the vault, not the first frame: the home screen is built while
 /// the vault is still being read, and the call's key comes from it. Selecting
@@ -56,7 +56,7 @@ class _CallResumerState extends State<CallResumer> {
         )
         .firstOrNull;
     if (home == null) {
-      HelperMethods.printDebug('[Call] the call before the update is gone');
+      HelperMethods.printDebug('[Call] the call before the restart is gone');
       return;
     }
 
@@ -65,7 +65,7 @@ class _CallResumerState extends State<CallResumer> {
     if (livekit.state.inCall || app.state.selectedChannelId != null) return;
 
     HelperMethods.printDebug(
-      '[Call] rejoining the call from before the update',
+      '[Call] rejoining the call from before the restart',
     );
     if (servers.state.selectedServerId != home.id) {
       servers.selectServer(home);

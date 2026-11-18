@@ -1,4 +1,4 @@
-# Builds windows/runner/stream_draw.cpp and stream_device.cpp with their tests,
+# Builds windows/runner/stream_draw.cpp, stream_device.cpp and gpu_watch.cpp with their tests,
 # outside Flutter, and runs them on each adapter given (DXGI's order; 0 is the
 # one Flutter takes when Rift names no GPU):
 #   powershell -File windows\runner\test\run.ps1 0 1
@@ -24,7 +24,8 @@ $build = @(
   "fxc /nologo /T ps_5_0 /E main /Vn kStreamDrawPs /Fh `"$out\stream_draw_ps.h`" `"$runner\stream_draw_ps.hlsl`" >nul",
   "fxc /nologo /T ps_5_0 /E main /Vn kStreamDrawNv12Ps /Fh `"$out\stream_draw_nv12_ps.h`" `"$runner\stream_draw_nv12_ps.hlsl`" >nul",
   "$cl /Fe`"$out\stream_draw_test.exe`" `"$runner\test\stream_draw_test.cpp`" `"$runner\stream_draw.cpp`" d3d11.lib dxgi.lib",
-  "$cl /Fe`"$out\stream_device_test.exe`" `"$runner\test\stream_device_test.cpp`" `"$runner\stream_device.cpp`" `"$runner\stream_draw.cpp`" d3d11.lib d3d12.lib dxgi.lib"
+  "$cl /Fe`"$out\stream_device_test.exe`" `"$runner\test\stream_device_test.cpp`" `"$runner\stream_device.cpp`" `"$runner\stream_draw.cpp`" d3d11.lib d3d12.lib dxgi.lib",
+  "$cl /Fe`"$out\gpu_watch_test.exe`" `"$runner\test\gpu_watch_test.cpp`" `"$runner\gpu_watch.cpp`" `"$runner\relaunch.cpp`" d3d11.lib d3d12.lib dxgi.lib user32.lib shell32.lib"
 ) -join ' && '
 cmd /c $build
 if ($LASTEXITCODE) { throw "build failed ($LASTEXITCODE)" }
@@ -33,6 +34,11 @@ $failed = 0
 foreach ($a in $adapters) {
   foreach ($test in 'stream_draw_test', 'stream_device_test') {
     & "$out\$test.exe" $a
+    if ($LASTEXITCODE) { $failed++ }
+  }
+  # The second removal case in a process of its own (one D3D12 device each).
+  foreach ($case in 1, 2) {
+    & "$out\gpu_watch_test.exe" $a $case
     if ($LASTEXITCODE) { $failed++ }
   }
 }

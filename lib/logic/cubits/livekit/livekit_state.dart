@@ -162,6 +162,16 @@ class LiveKitState extends Equatable {
   /// In a call of either kind, connected or on the way.
   bool get inCall => currentChannelId != null || dmCall != null;
 
+  /// The call to rejoin if Rift restarts itself at [now]: a channel's,
+  /// never a direct call, which rang somebody and has nothing to go back to.
+  CallToResume? toResume(DateTime now) => currentChannelId == null
+      ? null
+      : CallToResume(
+          channelId: currentChannelId!,
+          deafened: isDeafened,
+          savedAt: now,
+        );
+
   /// One name for the call this device is in, whichever kind: the channel's
   /// id, or `dm:<callId>`. What a share records as the call it belongs to.
   String? get callKey =>

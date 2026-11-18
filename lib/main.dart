@@ -18,6 +18,7 @@ import 'logic/cubits/vault/vault_cubit.dart';
 import 'logic/helper_methods.dart';
 import 'logic/ptt/push_to_talk_listener.dart';
 import 'logic/services/app_window.dart';
+import 'logic/services/gpu_reset.dart';
 import 'logic/services/host_platform.dart';
 import 'logic/services/login_launch/login_launch.dart';
 import 'logic/services/storage_namespace.dart';
@@ -27,6 +28,7 @@ import 'logic/shortcuts/call_shortcut_listener.dart';
 import 'logic/visibility/app_seen_listener.dart';
 import 'presentation/app_providers.dart';
 import 'presentation/common/app_toast.dart';
+import 'presentation/common/gpu_reset/gpu_reset_listener.dart';
 import 'presentation/common/notices/notice_listeners.dart';
 import 'presentation/common/selected_server_scope.dart';
 import 'presentation/common/title_bar_overlay.dart';
@@ -40,6 +42,7 @@ void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
   StorageNamespace.readArguments(args);
   LoginLaunch.readArguments(args);
+  GpuReset.readArguments(args);
   final appCubit = await AppBootstrap.run();
   // One for the app: the vault signs in through it when joining, and every
   // server call after that does.
@@ -178,10 +181,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                             ),
                             // Around the navigator, so a ringing call is above
                             // every page, dialog and sheet — see IncomingCallOverlay.
-                            child: NoticeListeners(
-                              child: PipOverlay(
-                                child: TitleBarOverlay(
-                                  child: IncomingCallOverlay(child: child!),
+                            child: GpuResetListener(
+                              child: NoticeListeners(
+                                child: PipOverlay(
+                                  child: TitleBarOverlay(
+                                    child: IncomingCallOverlay(child: child!),
+                                  ),
                                 ),
                               ),
                             ),
