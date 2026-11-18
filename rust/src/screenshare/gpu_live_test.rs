@@ -207,6 +207,7 @@ async fn decoded_frames(
         .expect("a hardware encoder opens")
     });
     let raw = source.clone();
+    let lost = source.clone();
     let track = LocalVideoTrack::create_video_track("screen_share", RtcVideoSource::Native(source));
     sharer
         .local_participant()
@@ -290,6 +291,7 @@ async fn decoded_frames(
     frames.sent_fmtp = fmtp_of(track.get_stats().await.unwrap_or_default());
     frames.fmtp = fmtp_of(remote.get_stats().await.unwrap_or_default());
     let _ = feeding.await;
+    frames.chain_breaks = lost.take_chain_breaks();
     sharer.close().await.unwrap();
     viewer.close().await.unwrap();
     frames
@@ -306,6 +308,8 @@ struct Decoded {
     /// The fmtp lines of the codec the viewer and the sharer negotiated.
     fmtp: String,
     sent_fmtp: String,
+    /// Times the chain of pre-encoded frames broke before WebRTC's encoder.
+    chain_breaks: u32,
 }
 
 /// The fmtp line of the codec a track's video stream uses.

@@ -983,6 +983,23 @@ what was driven are in `TESTING.md`).
   away now waits one picture longer each time (`encoder/key_pacing.rs`), so no regular
   drop stays on it: 0 of 8 stopped, in the same test, and 0 of 8 on NVENC (0 of 3 in
   H264).
+- **A frame two in the queue.** libwebrtc's encoder thread drops the older of
+  two frames waiting for it. A raw frame loses nothing by it; a pre-encoded one
+  breaks the chain until a keyframe, as above, so a busy PC whose encoder
+  thread ran late paid a keyframe each time (the review of a friend's RDR2
+  share, Nov 18 2026). The LiveKit fork's source now waits for the
+  pass-through encoder to take a frame before handing over the next, at most
+  20 ms, and only while the encoder keeps up, so a paused encoder costs one
+  wait. A wait that runs out rests the waiting for a second, since the
+  congestion window drops a frame in every few (`EncodedHandover`, its
+  `RIFT.md`). The sharer's log counts the times the chain broke before the
+  encoder. A frame stamped in the same millisecond as the one before is
+  dropped too; libwebrtc's timestamp aligner keeps them a millisecond apart
+  except where it clips a stamp to the clock. The drops could not be made
+  to happen here: a 30 fps H264 test share pinned to one core with three
+  busy loops on it broke no chain with the wait or without (Nov 19 2026,
+  `live_gpu_h264_is_seen_with_the_key_and_by_nobody_else`), so the wait is
+  shown to cost nothing, not yet to help.
 - **Stepping a share down.** A desktop share goes out as one stream, never a second
   encode, in the best of H265, H264, VP9 and VP8, from what was picked or Auto chose
   downwards, that everyone watching plays (`ShareLadder`). Each client publishes
@@ -1371,7 +1388,8 @@ libwebrtc still decodes, on the CPU.
   (`capture: libwebrtc's capturer: …`, `tick_report.rs`). On a GPU share, how
   many pictures reached the encoder's feed, how many the rate gate left out to
   fit WebRTC's target and how many a newer one replaced while the encoder was
-  busy (`N pictures came; left out …`). For every share, WebRTC's own counts
+  busy, and how many times the chain of frames broke before WebRTC's
+  encoder, each a keyframe (`N pictures came; left out …`). For every share, WebRTC's own counts
   (`screenshare: sent N frames …`, `send_report.rs`): frames and keyframes
   sent, the rate against the target and the estimate, the PLI, FIR and NACK
   that viewers sent, the pacer's wait, the round trip and the loss, and what

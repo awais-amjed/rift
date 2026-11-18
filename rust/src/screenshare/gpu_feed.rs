@@ -43,6 +43,9 @@ pub(crate) struct GpuFeed {
     /// Called, from the processing thread, when the share steps to another
     /// size: the session opens an encoder for it.
     on_resize: Box<dyn Fn() + Send + Sync>,
+    /// Asked, for the gate's log line, how often the chain of frames broke
+    /// before WebRTC's encoder: each break cost a keyframe.
+    source: NativeVideoSource,
 }
 
 impl GpuFeed {
@@ -76,6 +79,7 @@ impl GpuFeed {
             gate,
             step,
             on_resize,
+            source: source.clone(),
         })
     }
 
@@ -227,13 +231,14 @@ impl GpuFeed {
             log::info!(
                 "screenshare: {} pictures came; left out {} ({} within 1 s of a keyframe) to \
                  keep {} within {target} bps, {} replaced waiting for it; keyframes: {}, \
-                 {average_kb} KB average",
+                 {average_kb} KB average; the chain broke {} times before WebRTC's encoder",
                 report.offered,
                 report.left_out,
                 report.left_out_after_keyframes,
                 self.encoder.name(),
                 self.encoder.take_replaced(),
                 report.keyframes,
+                self.source.take_chain_breaks(),
             );
         }
         let admitted = gate.admits(target, now);
