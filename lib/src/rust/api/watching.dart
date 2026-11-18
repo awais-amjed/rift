@@ -124,12 +124,17 @@ class WatchEvent {
   /// Why the connection was lost; empty otherwise.
   final String reason;
 
+  /// For [`WatchEventKind::Receives`], the value to publish; empty
+  /// otherwise.
+  final String receives;
+
   const WatchEvent({
     required this.kind,
     required this.shareIdentity,
     required this.width,
     required this.height,
     required this.reason,
+    required this.receives,
   });
 
   @override
@@ -138,7 +143,8 @@ class WatchEvent {
       shareIdentity.hashCode ^
       width.hashCode ^
       height.hashCode ^
-      reason.hashCode;
+      reason.hashCode ^
+      receives.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -149,7 +155,8 @@ class WatchEvent {
           shareIdentity == other.shareIdentity &&
           width == other.width &&
           height == other.height &&
-          reason == other.reason;
+          reason == other.reason &&
+          receives == other.receives;
 }
 
 enum WatchEventKind {
@@ -162,6 +169,12 @@ enum WatchEventKind {
   /// GPU could not decode it): the app watches through the call's
   /// connection again.
   lost,
+
+  /// The app publishes `receives` as its voice connection's `receives`
+  /// attribute: how this device receives the shares it watches, while that
+  /// is badly (`watching::receive_report`). The watch connection may not
+  /// set attributes of its own.
+  receives,
 }
 
 /// Where the runner reads a watched picture: the addresses of

@@ -142,4 +142,22 @@ void main() {
       });
     });
   });
+
+  group('VoiceAttributes.onlyReceives', () {
+    test('a watch connection telling a sharer is passed over', () {
+      expect(VoiceAttributes.onlyReceives(const {'receives': '{}'}), isTrue);
+    });
+
+    test('anything the roster shows is not', () {
+      expect(
+        VoiceAttributes.onlyReceives(const {
+          'receives': '{}',
+          'deafened': 'true',
+        }),
+        isFalse,
+      );
+      expect(VoiceAttributes.onlyReceives(const {'watching': '[]'}), isFalse);
+      expect(VoiceAttributes.onlyReceives(const {}), isFalse);
+    });
+  });
 }

@@ -1010,7 +1010,20 @@ what was driven are in `TESTING.md`).
   needs to mend the chain, which every viewer is waiting for, still goes at
   once: the LiveKit fork raises it apart (`take_chain_repair_request`, its
   `RIFT.md`). A viewer joining within a second of a keyframe therefore waits
-  up to a second more for its first picture.
+  up to a second more for its first picture. The sharer's estimate measures
+  only its own link, so a viewer watching through Rust says, every 5 s while
+  its watch connection loses 2% of packets or asks for two keyframes or more,
+  what it lost, asked for and received (`watching/receive_report.rs`), and the
+  sharer's log names it. The app publishes that as the `receives` attribute of
+  the voice connection, since a watch connection may not set attributes, and
+  clears it when the watch connection goes. A viewer receiving well says
+  nothing, since every attribute change reaches every client, and the roster
+  passes over a change to `receives` alone. A phone or a browser, watching on
+  the call's connection, does not say. Verified Nov 19 2026 against a local
+  LiveKit, with the watch connection asking for keyframes three times a second
+  and the test publishing what it handed over
+  (`live_watch_tells_the_sharer_only_when_it_receives_badly`); not yet through
+  the app, nor with packets really lost.
 - **Stepping a share down.** A desktop share goes out as one stream, never a second
   encode, in the best of H265, H264, VP9 and VP8, from what was picked or Auto chose
   downwards, that everyone watching plays (`ShareLadder`). Each client publishes
@@ -1406,7 +1419,8 @@ libwebrtc still decodes, on the CPU.
   that viewers sent, the pacer's wait, the round trip and the loss, and what
   WebRTC says limits it. Few captures or pictures coming points at capture;
   pictures left out with the target far under the cap, at the estimate;
-  keyframes every report with PLIs, at a viewer losing packets.
+  keyframes every report with PLIs, at a viewer losing packets, which a
+  viewer watching through Rust names (`a viewer (…) lost N% of packets`).
 - **The sound** is played by Rust itself (`rust/src/watching/sound`), on a
   stream of its own on the Streams device (`AppState.streamOutputId`, the
   main output unless split off; *Where each sound plays*): PulseAudio's on Linux,

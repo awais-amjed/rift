@@ -35,6 +35,16 @@ class VoiceAttributes {
   /// (`ShareLadder`). Sent from the start of the call, like [watchingKey].
   static const playsKey = 'plays';
 
+  /// What a watch connection tells a sharer while it receives a share badly
+  /// (`watching/receive_report.rs`), read by the sharer's Rust session. Set
+  /// every few seconds while it lasts, so a change to it alone is passed over.
+  static const receivesKey = 'receives';
+
+  /// Whether [changed] (the attributes an update changed) is only a watch
+  /// connection's [receivesKey], which nothing in the roster shows.
+  static bool onlyReceives(Map<String, String> changed) =>
+      changed.isNotEmpty && changed.keys.every((key) => key == receivesKey);
+
   /// What a client that has not said plays: everything, except the H265 that
   /// only a client new enough to say so can play.
   static const playsUnsaid = {VideoCodec.h264, VideoCodec.vp9, VideoCodec.vp8};

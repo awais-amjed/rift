@@ -55,6 +55,11 @@ mixin _RustWatchMixin
   /// everybody's picture through another step up and down to do it.
   bool _rustWatchGaveOut = false;
 
+  /// The last `receives` this device published for the watch connection,
+  /// which may not publish it itself: cleared when that connection goes, so
+  /// no sharer goes on hearing of trouble nobody is having.
+  String? _receivesSaid;
+
   void _noteRustWatchGaveOut() {
     if (_rustWatchGaveOut) return;
     _rustWatchGaveOut = true;
@@ -242,6 +247,22 @@ mixin _RustWatchMixin
       case WatchEventKind.lost:
         if (_rustWatchRoom == null) return;
         unawaited(_fallBackFromRust(event.reason));
+      case WatchEventKind.receives:
+        unawaited(_sayReceives(event.receives));
+    }
+  }
+
+  /// Publishes how the watch connection receives the shares it watches,
+  /// while that is badly, for their sharers' logs
+  /// (`watching/receive_report.rs`).
+  Future<void> _sayReceives(String value) async {
+    final local = state.room?.localParticipant;
+    if (local == null) return;
+    _receivesSaid = value;
+    try {
+      await local.setAttributes({VoiceAttributes.receivesKey: value});
+    } catch (e) {
+      HelperMethods.printDebug('[LiveKit] saying how shares are received: $e');
     }
   }
 
@@ -289,6 +310,9 @@ mixin _RustWatchMixin
     _rustWatchRoom = null;
     _rustWatchOpening = null;
     _rustVolumes.clear();
+    final said = _receivesSaid;
+    if (said != null && said != '{}') unawaited(_sayReceives('{}'));
+    _receivesSaid = null;
     if (!wasOpen) return;
     if (state.watchedPictures.isNotEmpty) {
       emit(state.copyWith(watchedPictures: const {}));

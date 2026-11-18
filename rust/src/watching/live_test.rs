@@ -485,6 +485,96 @@ async fn assert_stats(identity: &str, codec: &str) {
     );
 }
 
+/// What the viewer says, as the sharer's connection sees it, of the share it
+/// watches, within [within]. The app publishes it on the voice connection;
+/// here [voice] does, as the watch connection hands each value over.
+async fn told_the_sharer(
+    share: &Share,
+    voice: &Room,
+    identity: &str,
+    within: Duration,
+) -> Option<String> {
+    let until = Instant::now() + within;
+    loop {
+        for value in session::receives_said() {
+            let attributes = std::collections::HashMap::from([("receives".to_string(), value)]);
+            voice
+                .local_participant()
+                .set_attributes(attributes)
+                .await
+                .expect("the voice connection may set its attributes");
+        }
+        let said = share
+            .room
+            .remote_participants()
+            .get(&ParticipantIdentity("watcher~laptop".to_string()))
+            .and_then(|watch| super::receive_report::of(&watch.attributes(), identity));
+        if let Some(report) = said {
+            return Some(report.describe());
+        }
+        if Instant::now() >= until {
+            return None;
+        }
+        tokio::time::sleep(Duration::from_millis(250)).await;
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a LiveKit server; see the module doc"]
+async fn live_watch_tells_the_sharer_only_when_it_receives_badly() {
+    let _ = env_logger::builder().is_test(true).try_init();
+    let server = Server::from_env();
+    let name = room_name("receives");
+    let key = shared_key();
+    let share_identity = "member~desk_share";
+    const TEXTURE: u64 = 7;
+
+    let voice = start_watching(&server, &name, key.clone(), KEY_INDEX).await;
+    session::watch(share_identity.to_string(), TEXTURE, mark_address(), false)
+        .await
+        .expect("watches");
+    let share = Share::start(&server, &name, share_identity, &key, KEY_INDEX).await;
+    assert!(
+        marked(TEXTURE, 0, 10, Duration::from_secs(30)).await,
+        "pictures arrive"
+    );
+    // Two reports' time, received well.
+    let said = told_the_sharer(&share, &voice, share_identity, Duration::from_secs(12)).await;
+    assert_eq!(said, None, "a viewer receiving well says nothing");
+
+    // Asking for keyframes three times a second, as a viewer losing packets
+    // does.
+    let asking = Arc::new(AtomicBool::new(true));
+    let asker = tokio::spawn({
+        let asking = asking.clone();
+        async move {
+            while asking.load(Ordering::SeqCst) {
+                session::ask_for_keyframe_for_test(share_identity).await;
+                tokio::time::sleep(Duration::from_millis(333)).await;
+            }
+        }
+    });
+    let said = told_the_sharer(&share, &voice, share_identity, Duration::from_secs(15)).await;
+    log::info!("receives test: the sharer was told the viewer {said:?}");
+    assert!(said.is_some(), "a viewer asking for keyframes says so");
+
+    // Well again: the report goes.
+    asking.store(false, Ordering::SeqCst);
+    asker.await.unwrap();
+    let until = Instant::now() + Duration::from_secs(15);
+    while told_the_sharer(&share, &voice, share_identity, Duration::ZERO)
+        .await
+        .is_some()
+    {
+        assert!(
+            Instant::now() < until,
+            "the report is cleared once well again"
+        );
+        tokio::time::sleep(Duration::from_millis(250)).await;
+    }
+    session::stop().await;
+}
+
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "needs a LiveKit server; see the module doc"]
 async fn live_watch_draws_a_watched_share_and_stops_when_unwatched() {
@@ -1632,4 +1722,3 @@ async fn live_watch_leaves_nothing_running_after_the_call() {
         "LiveKit's runtime is gone after the call: {after:?}"
     );
 }
-

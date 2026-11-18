@@ -230,6 +230,7 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
       // Somebody deafening themselves is published rather than visible —
       // see [VoiceAttributes].
       ..on<ParticipantAttributesChanged>((e) {
+        if (VoiceAttributes.onlyReceives(e.attributes)) return;
         _syncParticipants();
         _cueWatching(e);
       })

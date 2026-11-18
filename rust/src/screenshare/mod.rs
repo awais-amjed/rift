@@ -34,7 +34,7 @@ pub(crate) mod pw_stream;
 mod rate_gate;
 pub(crate) mod resolution;
 #[cfg(desktop)]
-mod send_report;
+pub(crate) mod send_report;
 #[cfg(desktop)]
 pub(crate) mod session;
 #[cfg(desktop)]

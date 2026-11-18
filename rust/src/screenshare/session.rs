@@ -18,6 +18,7 @@ use crate::api::screenshare::types::{
 use crate::api::screenshare::types::{ScreenshareEvent, VideoCodec};
 use crate::sharing::audio::{self, AudioCapture, AudioCaptureHandle, AudioSelection};
 use crate::sharing::room;
+use crate::watching::receive_report::{self, Report};
 use livekit::prelude::*;
 use livekit::webrtc::desktop_capturer::DesktopCaptureSourceType;
 use livekit::webrtc::prelude::VideoResolution;
@@ -381,12 +382,34 @@ pub(crate) async fn video_stats() -> Option<Vec<livekit::webrtc::stats::RtcStats
     }
 }
 
+/// What each viewer receiving the share badly says of it
+/// (`receive_report`), by the viewer's voice connection.
+async fn viewers_in_trouble() -> HashMap<String, Report> {
+    let slot = SESSION.lock().await;
+    let Some(session) = slot.as_ref() else {
+        return HashMap::new();
+    };
+    let share = session.room.local_participant().identity().to_string();
+    session
+        .room
+        .remote_participants()
+        .values()
+        .filter_map(|viewer| {
+            receive_report::of(&viewer.attributes(), &share)
+                .map(|report| (viewer.identity().to_string(), report))
+        })
+        .collect()
+}
+
 /// Says in the log, every [`send_report::REPORT_EVERY`], what WebRTC sent of
 /// the running share's picture: the sharer's side of a stutter a viewer
-/// reports (`send_report`). Runs until [`stop`] aborts it; a stretch with
-/// nothing sent, a minimised window's, is not said.
+/// reports (`send_report`). And each viewer that says it receives the share
+/// badly, when what it says changes: the share is one stream, so its
+/// keyframes and rate are everyone's. Runs until [`stop`] aborts it; a
+/// stretch with nothing sent, a minimised window's, is not said.
 async fn report_sending() {
     let mut last: Option<(SendTotals, Instant)> = None;
+    let mut troubled: HashMap<String, Report> = HashMap::new();
     let mut ticks = tokio::time::interval(send_report::REPORT_EVERY);
     ticks.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     // The first tick is at once, before anything is sent.
@@ -412,6 +435,22 @@ async fn report_sending() {
             );
         }
         last = Some((totals, now));
+        let viewers = viewers_in_trouble().await;
+        for (viewer, report) in &viewers {
+            if troubled.get(viewer) != Some(report) {
+                log::info!(
+                    "screenshare: a viewer ({viewer}) {}; the share is one stream, so its \
+                     keyframes and rate are every viewer's",
+                    report.describe()
+                );
+            }
+        }
+        for viewer in troubled.keys().filter(|v| !viewers.contains_key(*v)) {
+            log::info!(
+                "screenshare: a viewer ({viewer}) no longer says it receives the share badly"
+            );
+        }
+        troubled = viewers;
     }
 }
 

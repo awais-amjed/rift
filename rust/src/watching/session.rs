@@ -11,17 +11,19 @@
 //! itself, so here it is safe.
 use super::decode;
 use super::frames::{self, MarkFn};
+use super::receive_report::{self, Report, Totals};
 use super::sound::{self, Gain, Playing};
 use crate::api::watching::{emit_watch_event, WatchEvent, WatchEventKind, WatchRoom, WatchStats};
+use crate::screenshare::send_report::REPORT_EVERY;
 use crate::sharing::room;
 use futures_util::StreamExt;
 use livekit::prelude::*;
 use livekit::webrtc::prelude::VideoBuffer;
 use livekit::webrtc::video_stream::native::NativeVideoStream;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex as StdMutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
@@ -66,6 +68,7 @@ struct Session {
     room: Room,
     shares: Shares,
     events: JoinHandle<()>,
+    reporter: JoinHandle<()>,
 }
 
 // Held for the whole of a start or a stop, as a share's session is, so a stop
@@ -104,6 +107,7 @@ pub(crate) async fn start(config: WatchRoom) -> Result<(), String> {
         room,
         shares,
         events,
+        reporter: tokio::spawn(report_receiving()),
     });
     Ok(())
 }
@@ -117,6 +121,7 @@ pub(crate) async fn stop() {
 
 async fn close(session: Session) {
     session.events.abort();
+    session.reporter.abort();
     for (_, watched) in lock(&session.shares).drain() {
         let_go(watched);
     }
@@ -237,21 +242,131 @@ pub(crate) async fn stats(identity: &str) -> Option<WatchStats> {
         if !lock(&session.shares).contains_key(identity) {
             return None;
         }
-        let participant = session
-            .room
-            .remote_participants()
-            .get(&ParticipantIdentity(identity.to_string()))
-            .cloned()?;
-        participant
-            .track_publications()
-            .into_values()
-            .find_map(|publication| match publication.track() {
-                Some(RemoteTrack::Video(track)) => Some(track),
-                _ => None,
-            })?
+        picture_of(session, identity)?
     };
     let reports = track.get_stats().await.ok()?;
     super::stats::received(&reports)
+}
+
+/// [identity]'s picture as this connection receives it.
+fn picture_of(session: &Session, identity: &str) -> Option<RemoteVideoTrack> {
+    let participant = session
+        .room
+        .remote_participants()
+        .get(&ParticipantIdentity(identity.to_string()))
+        .cloned()?;
+    participant
+        .track_publications()
+        .into_values()
+        .find_map(|publication| match publication.track() {
+            Some(RemoteTrack::Video(track)) => Some(track),
+            _ => None,
+        })
+}
+
+/// Asks [identity]'s sharer for a keyframe, as a viewer losing packets does.
+#[cfg(test)]
+pub(super) async fn ask_for_keyframe_for_test(identity: &str) {
+    let slot = SESSION.lock().await;
+    if let Some(track) = slot.as_ref().and_then(|s| picture_of(s, identity)) {
+        track.rtc_track().request_keyframe();
+    }
+}
+
+/// Tells each watched share's sharer, every [`REPORT_EVERY`], when this
+/// device receives its picture badly (`receive_report`), through the app,
+/// which publishes it on the voice connection: a watch connection may not set
+/// attributes. Runs until [`close`] aborts it.
+async fn report_receiving() {
+    // Each share's last totals, with the track they came from: a share
+    // changing codec, or watched again, is another receiver counting afresh.
+    let mut last: HashMap<String, (TrackSid, Totals)> = HashMap::new();
+    let mut published: Option<String> = None;
+    let mut ticks = tokio::time::interval(REPORT_EVERY);
+    ticks.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    loop {
+        ticks.tick().await;
+        // Nothing of the session is held over an await, as in `stats`.
+        let pictures: Vec<(String, RemoteVideoTrack)> = {
+            let slot = SESSION.lock().await;
+            let Some(session) = slot.as_ref() else {
+                continue;
+            };
+            let watched: Vec<String> = lock(&session.shares).keys().cloned().collect();
+            watched
+                .into_iter()
+                .filter_map(|identity| {
+                    picture_of(session, &identity).map(|track| (identity, track))
+                })
+                .collect()
+        };
+        let now = Instant::now();
+        let mut reports = BTreeMap::new();
+        let mut totals = HashMap::new();
+        for (identity, track) in pictures {
+            let Some(these) = track
+                .get_stats()
+                .await
+                .ok()
+                .and_then(|stats| Totals::from_stats(&stats, now))
+            else {
+                continue;
+            };
+            let sid = track.sid();
+            if let Some(report) = last
+                .get(&identity)
+                .filter(|(before_sid, _)| *before_sid == sid)
+                .and_then(|(_, before)| Report::between(before, &these))
+            {
+                reports.insert(identity.clone(), report);
+            }
+            totals.insert(identity, (sid, these));
+        }
+        last = totals;
+        let Some(value) = receive_report::attribute(&reports, published.as_deref()) else {
+            continue;
+        };
+        if value == "{}" {
+            log::info!("watching: no share is received badly now; the sharers are told");
+        } else if published.as_deref().is_none_or(|p| p == "{}") {
+            for report in reports.values().filter(|r| r.in_trouble()) {
+                log::info!(
+                    "watching: telling a sharer this device {}",
+                    report.describe()
+                );
+            }
+        }
+        say_receives(&value);
+        published = Some(value);
+    }
+}
+
+/// Hands the app the `receives` attribute to publish.
+fn say_receives(value: &str) {
+    #[cfg(test)]
+    RECEIVES_SAID
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .push(value.to_string());
+    emit_watch_event(WatchEvent {
+        kind: WatchEventKind::Receives,
+        share_identity: String::new(),
+        width: 0,
+        height: 0,
+        reason: String::new(),
+        receives: value.to_string(),
+    });
+}
+
+/// Each `receives` value handed to the app, for the tests, which publish it
+/// themselves.
+#[cfg(test)]
+static RECEIVES_SAID: StdMutex<Vec<String>> = StdMutex::new(Vec::new());
+
+/// Takes the `receives` values handed to the app since the last call.
+#[cfg(test)]
+pub(super) fn receives_said() -> Vec<String> {
+    std::mem::take(&mut *RECEIVES_SAID.lock().unwrap_or_else(|e| e.into_inner()))
 }
 
 /// Sets how loud [identity]'s sound plays: the share's own volume times the
@@ -452,6 +567,7 @@ pub(super) fn picture_size(identity: &str, seen: &mut (u32, u32), now: (u32, u32
         width: now.0,
         height: now.1,
         reason: String::new(),
+        receives: String::new(),
     });
 }
 
@@ -468,6 +584,7 @@ pub(super) fn lost(reason: &str) {
         width: 0,
         height: 0,
         reason: reason.to_string(),
+        receives: String::new(),
     });
 }
 

@@ -34,6 +34,9 @@ pub struct WatchEvent {
     pub height: u32,
     /// Why the connection was lost; empty otherwise.
     pub reason: String,
+    /// For [`WatchEventKind::Receives`], the value to publish; empty
+    /// otherwise.
+    pub receives: String,
 }
 
 pub enum WatchEventKind {
@@ -45,6 +48,11 @@ pub enum WatchEventKind {
     /// GPU could not decode it): the app watches through the call's
     /// connection again.
     Lost,
+    /// The app publishes `receives` as its voice connection's `receives`
+    /// attribute: how this device receives the shares it watches, while that
+    /// is badly (`watching::receive_report`). The watch connection may not
+    /// set attributes of its own.
+    Receives,
 }
 
 /// A watched share's receive numbers, as libwebrtc counts them for its

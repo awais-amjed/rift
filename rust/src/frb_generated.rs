@@ -3899,12 +3899,14 @@ impl SseDecode for crate::api::watching::WatchEvent {
         let mut var_width = <u32>::sse_decode(deserializer);
         let mut var_height = <u32>::sse_decode(deserializer);
         let mut var_reason = <String>::sse_decode(deserializer);
+        let mut var_receives = <String>::sse_decode(deserializer);
         return crate::api::watching::WatchEvent {
             kind: var_kind,
             share_identity: var_shareIdentity,
             width: var_width,
             height: var_height,
             reason: var_reason,
+            receives: var_receives,
         };
     }
 }
@@ -3916,6 +3918,7 @@ impl SseDecode for crate::api::watching::WatchEventKind {
         return match inner {
             0 => crate::api::watching::WatchEventKind::PictureSize,
             1 => crate::api::watching::WatchEventKind::Lost,
+            2 => crate::api::watching::WatchEventKind::Receives,
             _ => unreachable!("Invalid variant for WatchEventKind: {}", inner),
         };
     }
@@ -4772,6 +4775,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::watching::WatchEvent {
             self.width.into_into_dart().into_dart(),
             self.height.into_into_dart().into_dart(),
             self.reason.into_into_dart().into_dart(),
+            self.receives.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -4793,6 +4797,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::watching::WatchEventKind {
         match self {
             Self::PictureSize => 0.into_dart(),
             Self::Lost => 1.into_dart(),
+            Self::Receives => 2.into_dart(),
             _ => unreachable!(),
         }
     }
@@ -5555,6 +5560,7 @@ impl SseEncode for crate::api::watching::WatchEvent {
         <u32>::sse_encode(self.width, serializer);
         <u32>::sse_encode(self.height, serializer);
         <String>::sse_encode(self.reason, serializer);
+        <String>::sse_encode(self.receives, serializer);
     }
 }
 
@@ -5565,6 +5571,7 @@ impl SseEncode for crate::api::watching::WatchEventKind {
             match self {
                 crate::api::watching::WatchEventKind::PictureSize => 0,
                 crate::api::watching::WatchEventKind::Lost => 1,
+                crate::api::watching::WatchEventKind::Receives => 2,
                 _ => {
                     unimplemented!("");
                 }

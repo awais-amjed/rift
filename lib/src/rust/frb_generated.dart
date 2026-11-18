@@ -86,7 +86,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
-        stem: 'rust_lib_rift',
+        stem: 'UNKNOWN',
         ioDirectory: 'rust/target/release/',
         webPrefix: 'pkg/',
         wasmBindgenName: 'wasm_bindgen',
@@ -3636,14 +3636,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   WatchEvent dco_decode_watch_event(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
     return WatchEvent(
       kind: dco_decode_watch_event_kind(arr[0]),
       shareIdentity: dco_decode_String(arr[1]),
       width: dco_decode_u_32(arr[2]),
       height: dco_decode_u_32(arr[3]),
       reason: dco_decode_String(arr[4]),
+      receives: dco_decode_String(arr[5]),
     );
   }
 
@@ -4481,12 +4482,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_width = sse_decode_u_32(deserializer);
     var var_height = sse_decode_u_32(deserializer);
     var var_reason = sse_decode_String(deserializer);
+    var var_receives = sse_decode_String(deserializer);
     return WatchEvent(
       kind: var_kind,
       shareIdentity: var_shareIdentity,
       width: var_width,
       height: var_height,
       reason: var_reason,
+      receives: var_receives,
     );
   }
 
@@ -5356,6 +5359,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_u_32(self.width, serializer);
     sse_encode_u_32(self.height, serializer);
     sse_encode_String(self.reason, serializer);
+    sse_encode_String(self.receives, serializer);
   }
 
   @protected
