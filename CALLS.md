@@ -982,6 +982,12 @@ what was driven are in `TESTING.md`).
   (`sharing/room.rs`): its first probes found about 27 Mbps, and a picture moving
   after 20 s had its cap within 2 s, in H265 too (Nov 19 2026, NVENC,
   `climb_live_test` on the local server). Not yet measured on a slow upload.
+  The encoder hears a new rate without a frame passing too: the fork's pass-through
+  encoder had handed it over with the next frame, and a share whose rate gate was
+  holding pictures back to keep within a fallen estimate sent none, so it heard the
+  estimate recover only when its encoder repeated a picture, up to a second later. It
+  now hears within the encoder thread's 100 ms poll (Nov 19 2026, the fork's test; not
+  measured live, which needs a link that loses packets).
 - **A share that stopped on a slow upload.** When too much sent goes unacknowledged,
   WebRTC's congestion window drops every Nth frame before the pass-through encoder,
   which then holds the deltas after the gap and asks for a keyframe. At a low rate the
