@@ -55,6 +55,14 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
   /// Looks out for a phone's share that viewers cannot see.
   PhoneEncoderWatch? _encoderWatch;
 
+  /// Whether anybody can see Rift, as `AppSeenListener` says ([setAppSeen]).
+  bool _appSeen = true;
+
+  /// The exclusive-full-screen notice, held while Rift cannot be seen. It is
+  /// found only while the game covers the screen, so shown at once it came
+  /// and went behind the game.
+  Notice? _heldNotice;
+
   ScreenshareCubit({LiveKitCubit? livekitCubit})
     : _livekitCubit = livekitCubit,
       super(const ScreenshareState()) {
@@ -100,7 +108,29 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
         );
       case ScreenshareEvent.h265FellBack:
         _fellBackTo(VideoCodec.h264, 'H265 could not go out this time.');
+      case ScreenshareEvent.exclusiveFullScreen:
+        _heldNotice = Notice.info(
+          'Viewers see a still picture',
+          'The game is in exclusive full screen. Set it to borderless '
+              'or windowed full screen, or share your screen instead.',
+          duration: Notice.long,
+        );
+        _showHeldNotice();
     }
+  }
+
+  /// Told by `AppSeenListener` whenever it changes.
+  void setAppSeen(bool seen) {
+    _appSeen = seen;
+    _showHeldNotice();
+  }
+
+  void _showHeldNotice() {
+    final notice = _heldNotice;
+    if (notice == null || !_appSeen) return;
+    _heldNotice = null;
+    // Nothing to say about a share that has ended meanwhile.
+    if (state.isSharing) emit(state.copyWith(notice: notice));
   }
 
   /// A codec that failed partway through a share, or while it was starting,

@@ -236,6 +236,10 @@ enum ScreenshareEvent {
   /// H265 was asked for and could not go out, at the start or part way
   /// through, so the share went out as H264 from the same GPU instead.
   h265FellBack,
+
+  /// The shared window is a game in exclusive full screen, which a window's
+  /// capture gets no pictures from: viewers see a still. Once a share.
+  exclusiveFullScreen,
 }
 
 /// Whether a share draws the mouse cursor into its picture.

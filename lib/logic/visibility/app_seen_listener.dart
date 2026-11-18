@@ -7,11 +7,14 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../cubits/livekit/livekit_cubit.dart';
+import '../cubits/screenshare/screenshare_cubit.dart';
 import '../services/pip_service.dart';
 
 /// Tells the call whether anybody can see Rift, so a watched stream's
 /// picture is turned off while nobody can ([LiveKitCubit.setAppSeen]), and
-/// stops the animations below it meanwhile ([TickerMode]).
+/// stops the animations below it meanwhile ([TickerMode]). The share hears it
+/// too, to hold a notice found while a game covers Rift
+/// ([ScreenshareCubit.setAppSeen]).
 ///
 /// Minimised, or hidden to the tray, comes from the app lifecycle. On Windows
 /// the lifecycle never says so, and the runner tells it instead
@@ -56,6 +59,7 @@ class _AppSeenListenerState extends State<AppSeenListener>
     }
     _seen = _seenNow();
     context.read<LiveKitCubit>().setAppSeen(_seen);
+    context.read<ScreenshareCubit>().setAppSeen(_seen);
   }
 
   @override
@@ -88,6 +92,7 @@ class _AppSeenListenerState extends State<AppSeenListener>
   void _tell() {
     final seen = _seenNow();
     context.read<LiveKitCubit>().setAppSeen(seen);
+    context.read<ScreenshareCubit>().setAppSeen(seen);
     if (seen != _seen && mounted) setState(() => _seen = seen);
   }
 

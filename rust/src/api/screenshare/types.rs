@@ -150,6 +150,9 @@ pub enum ScreenshareEvent {
     /// H265 was asked for and could not go out, at the start or part way
     /// through, so the share went out as H264 from the same GPU instead.
     H265FellBack,
+    /// The shared window is a game in exclusive full screen, which a window's
+    /// capture gets no pictures from: viewers see a still. Once a share.
+    ExclusiveFullScreen,
 }
 
 const FPS_LIMIT: u32 = 240;

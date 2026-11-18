@@ -13,6 +13,7 @@
 //! unload with WinRT's teardown crashes.
 use super::capture::{self, CaptureRequest, Command, Feed, Progress, Recapture, SharedWindow};
 use super::encoder::{self, GpuCodec};
+use super::exclusive::{self, QuietRun, Run};
 use super::frames::now_us;
 use super::game_mouse::{self, CursorGate};
 use super::gpu_feed::{GpuFeed, Picture};
@@ -219,6 +220,37 @@ pub(super) enum Handoff {
 /// ([`Target::Duplicated`]).
 fn takes_rifts_capture(gpu_capture: bool, codec: VideoCodec, encoder_takes_textures: bool) -> bool {
     gpu_capture && GpuCodec::for_share(codec).is_some() && encoder_takes_textures
+}
+
+/// Notes a new session opened on a quiet source, and tells the sharer when the
+/// shared window is a game in exclusive full screen, which gives a session no
+/// pictures ([`exclusive`]).
+fn looked_at(run: &mut QuietRun, running: &Running) {
+    let Target::Window(id) = running.target else {
+        return;
+    };
+    let Run::Look { first } = run.reopened(Instant::now()) else {
+        return;
+    };
+    let seen = exclusive::look(id);
+    // Once a run, not at each new session: a still window does this all the
+    // time. What the look found says why a game was or was not told.
+    if first {
+        log::info!(
+            "capture: the shared window gave no picture for a while; in front and filling its \
+             screen {}, Direct3D full screen {}, a game holds the mouse {}",
+            seen.fills_front,
+            seen.d3d,
+            seen.mouse
+        );
+    }
+    if run.looked(seen.game()) {
+        log::warn!(
+            "capture: the shared window is a game in exclusive full screen, which gives no \
+             pictures; the sharer is told"
+        );
+        crate::api::screenshare::emit_screenshare_event(ScreenshareEvent::ExclusiveFullScreen);
+    }
 }
 
 /// What a share does about a session that has gone quiet.
@@ -961,6 +993,7 @@ pub(super) fn run(
     let mut rate = fps.load(Ordering::Relaxed);
     let mut quiet = QuietWatch::new(*flow.last.lock().unwrap());
     let mut reopens = 0u32;
+    let mut run = QuietRun::new();
     let ending = loop {
         match command_rx.recv_timeout(POLL) {
             Ok(Command::Terminate) | Err(RecvTimeoutError::Disconnected) => break Ending::Done,
@@ -1014,12 +1047,12 @@ pub(super) fn run(
         let last = *flow.last.lock().unwrap();
         match quiet.step(Instant::now(), last, away) {
             Quiet::Wait => {}
-            // Not logged: a still source does this all the time.
             Quiet::Reopen => {
                 reopens += 1;
                 #[cfg(test)]
                 counts::REOPENS.fetch_add(1, Ordering::Relaxed);
                 running.reopen();
+                looked_at(&mut run, &running);
             }
             Quiet::Again => {
                 log::info!(
@@ -1030,6 +1063,7 @@ pub(super) fn run(
                 #[cfg(test)]
                 counts::REOPENS.fetch_add(1, Ordering::Relaxed);
                 running.reopen();
+                looked_at(&mut run, &running);
             }
             Quiet::Back(after) => {
                 log::info!(

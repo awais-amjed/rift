@@ -563,7 +563,20 @@ reset fails at once, which is why the share waits out five. On a real reset (`dx
 stopped. On NVENC a still source rarely trips this, since Windows also sends a picture
 whenever the screen around it is drawn. On AMD a still window does, a new session every 2 to
 3 s, with no picture lost at any (`STEP1_AMD.md`; again in H265 Nov 8 2026, 14 and 17 new
-sessions in about 35 s still). The switch is *Capture the screen on the
+sessions in about 35 s still). A game in exclusive full screen draws past the compositor,
+so a **window** share of it gets each new session's first picture and nothing more:
+viewers see one picture every 2 s (from the review of a friend's RDR2 share, Nov 18 2026).
+From the third new session of a run, about 6 s, Rift looks at the shared window: in front
+and filling its screen, and either Windows saying a Direct3D program has the screen to
+itself or a game holding the mouse (which only shows on a desktop of more than one
+screen). The first look of each run is logged with what it found. Three looks in a row
+that find a game, about 10 s, tell the sharer once a share that viewers see a still and to
+set the game to borderless or share the screen. The notice waits until Rift can be seen,
+since the game covers it when this is found. A still window goes quiet the same way, so
+the quiet alone is not enough, and a game loading a level draws nothing for a few seconds,
+so one look is not either. The share does not move to the screen by itself: a window was
+chosen, and the screen shows whatever is in front after an Alt+Tab.
+Not yet run against a real exclusive-full-screen game. The switch is *Capture the screen on the
 GPU* in settings, shown on every Windows build: off, the next share never reaches Rift's
 session, nor opens its device, and goes as below.
 

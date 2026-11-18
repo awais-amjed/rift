@@ -3730,6 +3730,7 @@ impl SseDecode for crate::api::screenshare::types::ScreenshareEvent {
             0 => crate::api::screenshare::types::ScreenshareEvent::SourceClosed,
             1 => crate::api::screenshare::types::ScreenshareEvent::EncoderFellBack,
             2 => crate::api::screenshare::types::ScreenshareEvent::H265FellBack,
+            3 => crate::api::screenshare::types::ScreenshareEvent::ExclusiveFullScreen,
             _ => unreachable!("Invalid variant for ScreenshareEvent: {}", inner),
         };
     }
@@ -4564,6 +4565,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::screenshare::types::Screensha
             Self::SourceClosed => 0.into_dart(),
             Self::EncoderFellBack => 1.into_dart(),
             Self::H265FellBack => 2.into_dart(),
+            Self::ExclusiveFullScreen => 3.into_dart(),
             _ => unreachable!(),
         }
     }
@@ -5386,6 +5388,7 @@ impl SseEncode for crate::api::screenshare::types::ScreenshareEvent {
                 crate::api::screenshare::types::ScreenshareEvent::SourceClosed => 0,
                 crate::api::screenshare::types::ScreenshareEvent::EncoderFellBack => 1,
                 crate::api::screenshare::types::ScreenshareEvent::H265FellBack => 2,
+                crate::api::screenshare::types::ScreenshareEvent::ExclusiveFullScreen => 3,
                 _ => {
                     unimplemented!("");
                 }

@@ -11,6 +11,8 @@ mod capture_pw;
 mod capture_wgc;
 #[cfg(desktop)]
 pub(crate) mod encoder;
+#[cfg(any(target_os = "windows", test))]
+mod exclusive;
 #[cfg(desktop)]
 mod frames;
 #[cfg(any(target_os = "windows", test))]

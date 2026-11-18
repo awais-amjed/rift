@@ -24,7 +24,7 @@ pub(crate) struct Rect {
 }
 
 impl Rect {
-    fn within(&self, outer: &Rect) -> bool {
+    pub(crate) fn within(&self, outer: &Rect) -> bool {
         self.left >= outer.left
             && self.top >= outer.top
             && self.right <= outer.right
