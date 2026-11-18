@@ -4,6 +4,10 @@ use livekit::e2ee::manager::E2eeManager;
 use livekit::e2ee::{E2eeOptions, EncryptionType};
 use livekit::prelude::*;
 
+/// The ceiling of a share connection's estimate: far above any share's cap,
+/// so that it only lifts libwebrtc's 5 Mbps limit on probes.
+const SHARE_CONNECTION_MAX_BPS: u32 = 100_000_000;
+
 /// Join the room this token is for, encrypting with the call's key.
 ///
 /// `with_shared_key` is right here and not in the app: a share publishes and
@@ -19,6 +23,15 @@ pub(crate) async fn connect(
     // While nobody watches the share, the server tells it to stop sending
     // the picture, and libwebrtc stops encoding it.
     room_options.dynacast = true;
+    // libwebrtc probes a sender's path while it sends less than its estimate
+    // only for screen content, and a pre-encoded share must be camera content
+    // (repeated frames would break its chain). Without probes a share that
+    // went still, or whose estimate fell, climbed back only as fast as it sent.
+    // And with no ceiling of the connection's own it never probes above
+    // 5 Mbps, so this one is far above any share: the probes then stop at
+    // twice what the share may send (Rift's fork, RIFT.md).
+    room_options.rtc_config.periodic_alr_bandwidth_probing = true;
+    room_options.rtc_config.max_bitrate_bps = Some(SHARE_CONNECTION_MAX_BPS);
 
     let (room, events) = Room::connect(livekit_url, livekit_token, room_options)
         .await

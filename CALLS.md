@@ -971,6 +971,17 @@ what was driven are in `TESTING.md`).
   in H265, against H264's 840 kbps at 20. On NVENC, with NVIDIA's card drawing the screen
   and nothing from Intel, H265 took 10, 10 and 8 s and H264 8 s, and on the 1 Mbps upload
   H265 sent 849 kbps at 56 fps against H264's 792 at 38 (Nov 8 2026, same test).
+- **Probing a share's path.** Since Nov 19 2026 a share's start hint is capped at
+  1 Mbps in every codec, as a camera's (the fork's `RIFT.md`): an H264 share had
+  opened at 90% of its cap, which a slower upload lost. libwebrtc never probes above
+  5 Mbps on a connection with no ceiling of its own, and LiveKit sets none, and it
+  probes a quiet sender only for screen content, which a pre-encoded share cannot be.
+  So after its first probes a 12 Mbps H264 share stood at 5 Mbps and climbed only as
+  fast as it sent: a picture that moved after 20 s still took 14 s to reach its cap.
+  A share connection now has a 100 Mbps ceiling and probes while quiet
+  (`sharing/room.rs`): its first probes found about 27 Mbps, and a picture moving
+  after 20 s had its cap within 2 s, in H265 too (Nov 19 2026, NVENC,
+  `climb_live_test` on the local server). Not yet measured on a slow upload.
 - **A share that stopped on a slow upload.** When too much sent goes unacknowledged,
   WebRTC's congestion window drops every Nth frame before the pass-through encoder,
   which then holds the deltas after the gap and asks for a keyframe. At a low rate the
