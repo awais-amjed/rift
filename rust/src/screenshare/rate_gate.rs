@@ -20,6 +20,17 @@ use std::time::Instant;
 /// keyframe a viewer asks for.
 const AHEAD_SECONDS: f64 = 0.2;
 
+/// How far ahead of `target_bps` an encoder that keeps its own buffer
+/// (NVENC, AMF) may spend, in bits: as far as the gate lets it. A buffer of
+/// a whole second let NVENC run ahead on every busy stretch of a game, and
+/// the gate then left out the pictures after it in a row, a freeze each
+/// time; at this, game clips lost next to none (Nov 18 2026, `CALLS.md`). It is
+/// WebRTC's target the gate drains at, not the rate the encoder is handed,
+/// which is scaled up when fewer pictures come.
+pub(crate) fn encoder_buffer_bits(target_bps: u32) -> u32 {
+    (f64::from(target_bps) * AHEAD_SECONDS) as u32
+}
+
 /// How often the pictures left out are reported in the log.
 const REPORT_SECONDS: f64 = 5.0;
 
@@ -150,6 +161,20 @@ mod tests {
             run(&mut gate, Instant::now(), 10, |_| frame_at(TARGET)),
             10 * FPS
         );
+    }
+
+    #[test]
+    fn an_encoder_spending_its_whole_buffer_at_once_loses_at_most_a_picture() {
+        let mut gate = RateGate::new();
+        let burst = (encoder_buffer_bits(TARGET) / 8) as usize;
+        let admitted = run(&mut gate, Instant::now(), 10, |picture| {
+            if picture == 0 {
+                burst
+            } else {
+                frame_at(TARGET)
+            }
+        });
+        assert!(admitted + 1 >= 10 * FPS, "{admitted} of {}", 10 * FPS);
     }
 
     #[test]

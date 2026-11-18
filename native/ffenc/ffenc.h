@@ -28,7 +28,7 @@ extern "C" {
 
 // Bumped whenever a function or struct below changes, so the crate refuses a
 // library from another build instead of calling it wrongly.
-#define RIFT_FFENC_ABI 14
+#define RIFT_FFENC_ABI 15
 
 typedef struct RiftFfenc RiftFfenc;
 
@@ -62,6 +62,10 @@ typedef struct RiftFfencConfig {
   // caller's to keep, on the encoder's own GPU, which rift_ffenc_send_d3d11
   // takes pictures from. NULL takes memory only. NVENC, Quick Sync and AMF.
   void* d3d11_device;
+  // NVENC's and AMF's rate buffer to start with, in bits: how far ahead of
+  // the rate it may spend. 0 is one second of the peak. Other encoders keep
+  // their own (set_rates).
+  int64_t buffer_bits;
 } RiftFfencConfig;
 
 typedef struct RiftFfencPacket {
@@ -86,9 +90,11 @@ RIFT_FFENC_EXPORT RiftFfenc* rift_ffenc_open(const RiftFfencConfig* config,
 // The GPU's driver, as it names itself.
 RIFT_FFENC_EXPORT const char* rift_ffenc_driver(const RiftFfenc* enc);
 
-// A new average rate, taken from the next picture on.
+// A new average rate, and NVENC's and AMF's buffer in bits as in
+// RiftFfencConfig, taken from the next picture on.
 RIFT_FFENC_EXPORT void rift_ffenc_set_bitrate(RiftFfenc* enc,
-                                              int64_t bitrate_bps);
+                                              int64_t bitrate_bps,
+                                              int64_t buffer_bits);
 
 // Encode one picture: `width * height` bytes of Y, then interleaved UV at
 // half size (NV12), tightly packed. The picture is copied to the GPU before

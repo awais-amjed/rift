@@ -1116,8 +1116,25 @@ what was driven are in `TESTING.md`).
   picture keyframes were 50 to 65 KB and nothing was left out. Halving the
   encoder's buffer took VAAPI's 12 to about 6 but left the keyframe of text
   softer (29.6 against 30.5 dB), and a still screen is what text is shared
-  on, where a picture left out changes nothing on screen. So the buffer stays
+  on, where a picture left out changes nothing on screen. So VAAPI's buffer stays
   at one second.
+
+  NVENC and AMF are held to the gate's own 0.2 s instead, of WebRTC's target
+  rather than the rate they are handed (`rate_gate::encoder_buffer_bits`). With a
+  whole second, NVENC spends ahead on every busy stretch of a game, legitimately
+  for it, and the gate then leaves out the pictures after it in a row: one freeze
+  of a few hundred ms each time, every few seconds, on a link with room to spare
+  (a friend's RDR2 share logged up to 14 left out every 5 s at full rate, Nov 18
+  2026). Measured that day on an RTX 3070 Ti Laptop through the library, three
+  game clips at 1080p60 with the rate moved 8 → 3 → 8 Mbps, the gate replayed
+  over what came out: with a second, 7 to 32 pictures left out in each 10 s, in
+  runs of up to 22; with 0.2 s, 0 to 7, all where the rate fell. With the rate
+  held at 3, 6 or 11 Mbps (FFmpeg's own tool, the same settings), the two busiest
+  clips lost none at 0.2 s against up to 83 with a second, and at 0.15 s every
+  clip's picture stayed within 0.1 dB PSNR of the second's. The cost is a
+  keyframe of still text: at 2 to 8 Mbps it comes out 5 to 15% smaller and 0.1
+  to 1.6 dB softer, and half a second on it is still up to 2.5 dB softer. AMF
+  takes the same buffer and is not measured.
 - **A GPU encoder's rate is scaled to the pictures that come**
   (`encoder/frame_rate.rs`). It is opened at the share's frame rate and
   budgets each picture as a share of it, so a game drawing at 40, or capture

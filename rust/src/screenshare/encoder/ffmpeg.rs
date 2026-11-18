@@ -28,6 +28,7 @@ use super::{Encoded, EncoderInput, EncoderSettings, GpuCodec};
 use crate::screenshare::capture_wgc;
 #[cfg(target_os = "linux")]
 use crate::screenshare::pw_stream::RiftDmabuf;
+use crate::screenshare::rate_gate;
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 use crate::screenshare::resolution;
 use libloading::Library;
@@ -38,7 +39,7 @@ use std::time::{Duration, Instant};
 
 /// The library's interface version this crate was written against
 /// (`RIFT_FFENC_ABI` in `ffenc.h`).
-const ABI: i32 = 14;
+const ABI: i32 = 15;
 
 /// The library's name: in the bundle's `lib` folder on Linux, beside the app
 /// on Windows.
@@ -75,6 +76,8 @@ struct Config {
     high: i32,
     /// Windows: the `ID3D11Device` a share's pictures are on, or null.
     d3d11_device: *mut c_void,
+    /// NVENC's and AMF's rate buffer, in bits.
+    buffer_bits: i64,
 }
 
 /// Where the upright picture goes inside the encoded size (`RiftRect`).
@@ -106,7 +109,7 @@ struct Packet {
 struct Api {
     open: unsafe extern "C" fn(*const Config, *mut c_char, usize) -> *mut c_void,
     driver: unsafe extern "C" fn(*const c_void) -> *const c_char,
-    set_bitrate: unsafe extern "C" fn(*mut c_void, i64),
+    set_bitrate: unsafe extern "C" fn(*mut c_void, i64, i64),
     send: unsafe extern "C" fn(*mut c_void, *const u8, i64, i32) -> i32,
     #[cfg(target_os = "linux")]
     takes_dmabuf: unsafe extern "C" fn(*const c_void) -> i32,
@@ -585,6 +588,9 @@ fn open_raw(
         delay_frames: delay_frames(settings.fps),
         high: i32::from(settings.h264_high),
         d3d11_device: d3d11_raw,
+        buffer_bits: i64::from(rate_gate::encoder_buffer_bits(worker::start_bitrate(
+            settings,
+        ))),
     };
     let mut error = [0 as c_char; 256];
     // SAFETY: `config` and the strings it points at outlive the call, and
@@ -695,9 +701,9 @@ impl Parameters {
 }
 
 impl Session for FfmpegSession {
-    fn set_bitrate(&mut self, bps: u32) -> Result<(), String> {
+    fn set_bitrate(&mut self, bps: u32, buffer_bits: u32) -> Result<(), String> {
         // SAFETY: `raw` is live until the session drops.
-        unsafe { (self.api.set_bitrate)(self.raw, i64::from(bps)) };
+        unsafe { (self.api.set_bitrate)(self.raw, i64::from(bps), i64::from(buffer_bits)) };
         Ok(())
     }
 

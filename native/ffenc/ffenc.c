@@ -232,16 +232,24 @@ static int64_t peak_of(Api api, int64_t bitrate_bps, int32_t peak_percent) {
 
 // The rate, its peak and the buffer they are held over, on the encoder: when
 // it opens, and at every move.
-static void set_rates(RiftFfenc* enc, int64_t bitrate_bps) {
+static void set_rates(RiftFfenc* enc, int64_t bitrate_bps,
+                      int64_t buffer_bits) {
   AVCodecContext* c = enc->codec;
   c->bit_rate = bitrate_bps;
   c->rc_max_rate = peak_of(enc->api, bitrate_bps, enc->peak_percent);
-  // One second of the peak, which is what VAAPI's encoder takes when none is
-  // given (and what its patch keeps as the rate moves). Left to itself,
-  // FFmpeg's NVENC keeps two seconds of the rate it opened at, whatever the
-  // rate moves to. QSV's is set once (open_codec).
+  // NVENC and AMF take the caller's buffer: as far ahead of the rate as the
+  // share lets an encoder get before it leaves pictures out (rate_gate.rs).
+  // With a whole second, NVENC spent ahead on every busy stretch of a game
+  // and the gate left the pictures after it out in a row, a freeze each time;
+  // with the gate's own 0.2 s, game clips lost next to none, at about the
+  // same picture (Nov 18 2026, CALLS.md). Without one, one second of the peak,
+  // which is what VAAPI's encoder takes when none is given (and what its
+  // patch keeps as the rate moves). Left to itself, FFmpeg's NVENC keeps two
+  // seconds of the rate it opened at, whatever the rate moves to. QSV's is
+  // set once (open_codec).
   if (enc->api == API_NVENC || enc->api == API_AMF) {
-    c->rc_buffer_size = (int)c->rc_max_rate;
+    c->rc_buffer_size =
+        (int)(buffer_bits > 0 ? buffer_bits : c->rc_max_rate);
   }
   // A tenth of a second, not VAAPI's whole one. H265 on Intel's low-power
   // encoder otherwise answers any rate move, even of 0.5%, with a picture ten
@@ -270,7 +278,7 @@ static int open_codec(RiftFfenc* enc, const AVCodec* codec,
   }
   c->gop_size = config->gop;
   c->max_b_frames = 0;
-  set_rates(enc, config->bitrate_bps);
+  set_rates(enc, config->bitrate_bps, config->buffer_bits);
   if (codec->id == AV_CODEC_ID_H264) {
     // High, or constrained baseline for a viewer that cannot play High:
     // the two LiveKit's pass-through offers. With no B-frames (above), High
@@ -623,13 +631,14 @@ fail:
 
 const char* rift_ffenc_driver(const RiftFfenc* enc) { return enc->driver; }
 
-void rift_ffenc_set_bitrate(RiftFfenc* enc, int64_t bitrate_bps) {
+void rift_ffenc_set_bitrate(RiftFfenc* enc, int64_t bitrate_bps,
+                            int64_t buffer_bits) {
   // Read by the encoder before the next picture: by NVENC and QSV
   // themselves, by VAAPI and AMF once patched
   // (third_party/ffmpeg/RIFT_PATCHES.md).
   if (EXITING()) return;
   LOCK(enc);
-  if (!SHUT(enc)) set_rates(enc, bitrate_bps);
+  if (!SHUT(enc)) set_rates(enc, bitrate_bps, buffer_bits);
   UNLOCK(enc);
 }
 

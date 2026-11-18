@@ -24,6 +24,7 @@ use super::frame_rate::FrameRateScale;
 use super::key_pacing::KeyframePacing;
 use super::{clamp_bitrate, EncodedSink, EncoderInput, EncoderSettings, Nv12Frame};
 use crate::screenshare::latest::{self, Putter, Taker};
+use crate::screenshare::rate_gate;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
@@ -57,8 +58,10 @@ pub(super) enum EncodeError {
 
 /// One open encoder, as the thread drives it.
 pub(super) trait Session {
-    /// Move the average rate; an error leaves the old one.
-    fn set_bitrate(&mut self, bps: u32) -> Result<(), String>;
+    /// Move the average rate, and how far ahead of WebRTC's target an
+    /// encoder that keeps a buffer of its own may spend, in bits
+    /// ([`rate_gate::encoder_buffer_bits`]); an error leaves the old ones.
+    fn set_bitrate(&mut self, bps: u32, buffer_bits: u32) -> Result<(), String>;
     /// Encode a picture. What comes out goes to the sink, now or from the
     /// encoder's own thread.
     fn encode(&mut self, input: &EncoderInput, keyframe: bool) -> Result<(), EncodeError>;
@@ -302,10 +305,10 @@ fn run<S, F>(
     };
     let _ = opened.send(Ok((name.clone(), session.takes_gpu_picture())));
 
-    // WebRTC's target, and the rate the encoder is at: the target scaled to
-    // the pictures that come.
+    // WebRTC's target, and the rate and buffer the encoder is at: the target
+    // scaled to the pictures that come, and the gate's allowance of it.
     let mut target = settings.start_bitrate_bps.min(settings.max_bitrate_bps);
-    let mut current = target;
+    let mut current = (target, rate_gate::encoder_buffer_bits(target));
     let mut scale = FrameRateScale::new(settings.fps);
     // The first picture, and any a viewer asks for, must be one it can start
     // from; a request that arrives while a picture is being dropped waits for
@@ -372,7 +375,7 @@ fn run<S, F>(
                 scale.scale(),
             );
         }
-        let rate = scale.rate(target);
+        let rate = (scale.rate(target), rate_gate::encoder_buffer_bits(target));
         #[cfg(test)]
         if super::test_hooks::IGNORE_RATE.load(Ordering::Relaxed) {
             // Heard, so the rest of the share knows the target, but not
@@ -380,9 +383,9 @@ fn run<S, F>(
             current = rate;
         }
         if rate != current {
-            match session.set_bitrate(rate) {
+            match session.set_bitrate(rate.0, rate.1) {
                 Ok(()) => current = rate,
-                Err(e) => log::warn!("encoder: moving the bitrate to {rate}: {e}"),
+                Err(e) => log::warn!("encoder: moving the bitrate to {}: {e}", rate.0),
             }
         }
 
@@ -534,7 +537,7 @@ mod tests {
     }
 
     impl Session for FakeSession {
-        fn set_bitrate(&mut self, bps: u32) -> Result<(), String> {
+        fn set_bitrate(&mut self, bps: u32, _buffer_bits: u32) -> Result<(), String> {
             self.asked.lock().unwrap().rates.push(bps);
             Ok(())
         }
