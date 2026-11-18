@@ -54,9 +54,12 @@ const PAUSED_ATTRIBUTE: &str = "paused";
 const SIZE_ATTRIBUTE: &str = "size";
 const FPS_ATTRIBUTE: &str = "fps";
 
-/// Where LiveKit starts WebRTC's estimate for a new track
-/// (`x-google-start-bitrate`). A new GPU encoder starts there too: one that
-/// started at the share's cap made frames WebRTC judged to overshoot, and
+/// Where LiveKit starts WebRTC's estimate for a new track at most
+/// (`x-google-start-bitrate`), for every codec, and lower after a slow
+/// connection setup. Rift's fork caps a share's as a camera's (its `RIFT.md`):
+/// one opened near its cap probed above it, and a slower upload lost its first
+/// seconds. A new GPU encoder starts here too: one that started at the share's
+/// cap made frames WebRTC judged to overshoot, and
 /// dropped, before its first rate request had even arrived.
 #[cfg(gpu_encoder)]
 const START_BITRATE_BPS: u32 = 1_000_000;
