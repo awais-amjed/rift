@@ -144,7 +144,7 @@ every step, and [sizing the machine](https://docs.joinrift.app/sizing/) has
 measured numbers for servers from fifty members to fifty thousand. There's a
 local-testing mode for trying Rift on your own network first.
 
-## Highlights
+## Features
 
 Private from the first message, and built for game nights as much as group
 chats. Nothing here sits behind a subscription.
@@ -178,59 +178,54 @@ chats. Nothing here sits behind a subscription.
       anywhere. What a bot writes is marked, because the server can read it.
     </td>
   </tr>
-</table>
-
-## What it does
-
-<table>
   <tr>
-    <td width="50%" valign="top">
-      <b>Voice, video and screen sharing</b><br>
-      Native capture, your own resolution, frame rate and bitrate, and system
-      audio on Linux and Windows.
-    </td>
-    <td width="50%" valign="top">
+    <td valign="top">
       <b>Channels and DMs</b><br>
       Text and voice channels, private channels, roles and permissions per
-      channel, DMs on a server,
-      and DMs with friends across servers.
+      channel, DMs on a server, and DMs with friends across servers.
+    </td>
+    <td valign="top">
+      <b>Calls and cameras</b><br>
+      Drop into a voice channel, turn on your camera, or ring someone from a DM,
+      with a key only the two of you can work out: not even the server's owner
+      can listen in.
     </td>
   </tr>
   <tr>
-    <td valign="top">
-      <b>Private calls in DMs</b><br>
-      Encrypted with a key only the two of you can work out — not even the
-      server's owner can listen in.
-    </td>
     <td valign="top">
       <b>The everyday tools</b><br>
       Replies, forwards, reactions, mentions, pins, polls, voice messages, a
       soundboard and videos that play in the chat. Link previews are made by
       the sender.
     </td>
-  </tr>
-  <tr>
     <td valign="top">
       <b>Your server, your rules</b><br>
       Set how long history is kept, how big an attachment can be, how many fit
       in a call, and how much storage it all gets.
     </td>
+  </tr>
+  <tr>
     <td valign="top">
       <b>Moderation that fits</b><br>
       Reports, time-outs, kicks and bans for admins; for everyone, a say in who
       can message them and a block that works.
     </td>
-  </tr>
-  <tr>
     <td valign="top">
       <b>Sensitive images and videos, blurred for you</b><br>
       A classifier that runs on your device, since a server can't scan what it
       can't read.
     </td>
+  </tr>
+  <tr>
     <td valign="top">
       <b>Watch while you chat</b><br>
       A stream floats over the chat while you read and reply. Calls, streams and
       sounds can each play on their own speakers or headset.
+    </td>
+    <td valign="top">
+      <b>Find communities</b><br>
+      Browse the public directory of servers and bots, or join with one invite
+      link. Listing your own server is up to you.
     </td>
   </tr>
 </table>
