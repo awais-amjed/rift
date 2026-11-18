@@ -144,6 +144,40 @@ every step, and [sizing the machine](https://docs.joinrift.app/sizing/) has
 measured numbers for servers from fifty members to fifty thousand. There's a
 local-testing mode for trying Rift on your own network first.
 
+## Highlights
+
+Private from the first message, and built for game nights as much as group
+chats. Nothing here sits behind a subscription.
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <b>Yours, and private</b><br>
+      End-to-end encrypted messages, files and calls, on a server you run or a
+      friend's, and open source in every part.
+    </td>
+    <td width="50%" valign="top">
+      <b>Screen sharing made for games</b><br>
+      Up to 4K, or 120 fps at 1440p, encoded on your graphics card (NVIDIA, AMD
+      or Intel) in H264 or H265. Share a game window or your whole screen, with
+      its sound.
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <b>A clear voice, hands on the game</b><br>
+      Noise suppression runs on your own computer, up to DPDFNet's neural model.
+      Push-to-talk and the mute, deafen and leave keys work while a game is in
+      front.
+    </td>
+    <td valign="top">
+      <b>Watch and chat at once</b><br>
+      A stream floats over the chat while you read and reply. Calls, streams and
+      sounds can each play on their own speakers or headset.
+    </td>
+  </tr>
+</table>
+
 ## What it does
 
 <table>
@@ -155,7 +189,8 @@ local-testing mode for trying Rift on your own network first.
     </td>
     <td width="50%" valign="top">
       <b>Channels and DMs</b><br>
-      Text and voice channels, private channels and roles, DMs on a server,
+      Text and voice channels, private channels, roles and permissions per
+      channel, DMs on a server,
       and DMs with friends across servers.
     </td>
   </tr>
@@ -167,8 +202,9 @@ local-testing mode for trying Rift on your own network first.
     </td>
     <td valign="top">
       <b>The everyday tools</b><br>
-      Replies, forwards, reactions, mentions, pins, polls, voice messages and a
-      soundboard. Link previews are made by the sender.
+      Replies, forwards, reactions, mentions, pins, polls, voice messages, a
+      soundboard and videos that play in the chat. Link previews are made by
+      the sender.
     </td>
   </tr>
   <tr>
@@ -202,37 +238,6 @@ local-testing mode for trying Rift on your own network first.
   <img src=".github/assets/app-voice.png" width="880" alt="A Rift voice channel with three people in the call">
 </p>
 
-## Rift and Discord
-
-Most of what you use every day — plus what only running it yourself can give.
-
-<table>
-  <tr>
-    <th align="left" width="50%">In both</th>
-    <th align="left" width="50%">Only on Rift</th>
-  </tr>
-  <tr>
-    <td valign="top">
-      ✓ Text and voice channels<br>
-      ✓ Direct messages and DM calls<br>
-      ✓ Video calls and screen sharing<br>
-      ✓ Screen sharing with system audio<br>
-      ✓ 1080p 60fps screen sharing <sub>— Nitro on Discord</sub><br>
-      ✓ Large file uploads <sub>— Nitro on Discord</sub><br>
-      ✓ Soundboard and voice messages<br>
-      ✓ Replies, reactions, pins and polls<br>
-      ✓ Bots and webhooks<br>
-      ✓ A directory to find communities<br>
-      ✓ End-to-end encrypted calls
-    </td>
-    <td valign="top">
-      <b>✓ End-to-end encrypted messages</b><br>
-      <b>✓ Run your own server</b><br>
-      <b>✓ Fully open source</b>
-    </td>
-  </tr>
-</table>
-
 ## How it fits together
 
 ```mermaid
@@ -258,7 +263,7 @@ flowchart LR
 ## Building it
 
 You need [Flutter](https://docs.flutter.dev/get-started/install) (stable,
-3.41 or newer) and a [Rust](https://rustup.rs) toolchain.
+3.50 or newer) and a [Rust](https://rustup.rs) toolchain.
 
 ```bash
 flutter pub get
@@ -282,7 +287,7 @@ and these development packages:
 # and build with CC=clang-21 CXX=clang++-21.
 sudo apt install cmake ninja-build pkg-config libgtk-3-dev libsecret-1-dev \
   libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libpulse-dev libva-dev libdrm-dev \
-  libpipewire-0.3-dev libegl-dev libgbm-dev libayatana-appindicator3-dev
+  libpipewire-0.3-dev libegl-dev libgbm-dev libgles-dev libayatana-appindicator3-dev
 
 # Arch
 sudo pacman -S clang cmake ninja gtk3 libsecret gstreamer gst-plugins-base \
