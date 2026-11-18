@@ -144,7 +144,7 @@ every step, and [sizing the machine](https://docs.joinrift.app/sizing/) has
 measured numbers for servers from fifty members to fifty thousand. There's a
 local-testing mode for trying Rift on your own network first.
 
-## Features
+## Highlights
 
 Private from the first message, and built for game nights as much as group
 chats. Nothing here sits behind a subscription.
@@ -178,13 +178,18 @@ chats. Nothing here sits behind a subscription.
       anywhere. What a bot writes is marked, because the server can read it.
     </td>
   </tr>
+</table>
+
+## Features
+
+<table>
   <tr>
-    <td valign="top">
+    <td width="50%" valign="top">
       <b>Channels and DMs</b><br>
       Text and voice channels, private channels, roles and permissions per
       channel, DMs on a server, and DMs with friends across servers.
     </td>
-    <td valign="top">
+    <td width="50%" valign="top">
       <b>Calls and cameras</b><br>
       Drop into a voice channel, turn on your camera, or ring someone from a DM,
       with a key only the two of you can work out: not even the server's owner
