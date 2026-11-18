@@ -473,7 +473,8 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
   granted" check fails if it forgets. Run `./scripts/db_test.sh` in the repository you
   touched.
 - **The two central directories are not governed alike, and the difference is the
-  rule.** A server listing reserves `(supabase_url, server_id)` — a pair that exists
+  rule.** A server listing reserves `(supabase_url, server_id)`, the address
+  compared by `server_url_key` so that no re-spelling makes a second one — a pair that exists
   whether or not its owner claimed it — so the first publisher locks the real admin out,
   and `publish_server` is service-role only behind an edge function that redeems a
   one-time token against the server's own domain. A bot listing reserves nothing and
