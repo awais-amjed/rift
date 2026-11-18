@@ -171,9 +171,11 @@ chats. Nothing here sits behind a subscription.
       front.
     </td>
     <td valign="top">
-      <b>Watch and chat at once</b><br>
-      A stream floats over the chat while you read and reply. Calls, streams and
-      sounds can each play on their own speakers or headset.
+      <b>Bots and webhooks</b><br>
+      Build a bot in <a href="https://github.com/awais-amjed/rift-bot-sdk-node">TypeScript</a>
+      or <a href="https://github.com/awais-amjed/rift-bot-sdk-rust">Rust</a>, with commands,
+      panels, DMs and a voice of its own, in stereo for music. Webhooks post from
+      anywhere. What a bot writes is marked, because the server can read it.
     </td>
   </tr>
 </table>
@@ -226,10 +228,9 @@ chats. Nothing here sits behind a subscription.
       can't read.
     </td>
     <td valign="top">
-      <b>Bots and webhooks</b><br>
-      Through the <a href="https://github.com/awais-amjed/rift-bot-sdk-node">TypeScript</a>
-      and <a href="https://github.com/awais-amjed/rift-bot-sdk-rust">Rust</a> SDKs.
-      What a bot writes is marked, because the server can read it.
+      <b>Watch while you chat</b><br>
+      A stream floats over the chat while you read and reply. Calls, streams and
+      sounds can each play on their own speakers or headset.
     </td>
   </tr>
 </table>
