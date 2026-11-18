@@ -1253,9 +1253,22 @@ libwebrtc still decodes, on the CPU.
   window replaced before drawing them, and the waits over 100 ms with the
   longest. A wait over 100 ms is a jerk the viewer sees. Waits with pictures
   replaced point at the watcher's window; waits without, at the network or the
-  sharer, whose log says what it left out to fit its connection (the gate's
-  `left out N pictures … within B bps`). Added Nov 18 after a stuttering H265
+  sharer. Added Nov 18 after a stuttering H265
   share whose watcher's log could say nothing about its pictures.
+- **The sharer's log** says every 5 s where pictures went, so a stutter can be
+  placed from one bug report (added Nov 18 after a whole-screen game share
+  reached its viewer at 1–18 fps). On libwebrtc's capturer, how many captures
+  ran, how long each took and how often one ran past the next
+  (`capture: libwebrtc's capturer: …`, `tick_report.rs`). On a GPU share, how
+  many pictures reached the encoder's feed, how many the rate gate left out to
+  fit WebRTC's target and how many a newer one replaced while the encoder was
+  busy (`N pictures came; left out …`). For every share, WebRTC's own counts
+  (`screenshare: sent N frames …`, `send_report.rs`): frames and keyframes
+  sent, the rate against the target and the estimate, the PLI, FIR and NACK
+  that viewers sent, the pacer's wait, the round trip and the loss, and what
+  WebRTC says limits it. Few captures or pictures coming points at capture;
+  pictures left out with the target far under the cap, at the estimate;
+  keyframes every report with PLIs, at a viewer losing packets.
 - **The sound** is played by Rust itself (`rust/src/watching/sound`), on a
   stream of its own on the Streams device (`AppState.streamOutputId`, the
   main output unless split off; *Where each sound plays*): PulseAudio's on Linux,

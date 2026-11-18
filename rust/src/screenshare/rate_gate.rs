@@ -32,6 +32,8 @@ const AFTER_KEYFRAME_SECONDS: f64 = 1.0;
 /// What the gate saw since its last report.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub(crate) struct GateReport {
+    /// Pictures offered to the gate, admitted or not.
+    pub offered: u32,
     pub left_out: u32,
     /// Of those, the ones within [`AFTER_KEYFRAME_SECONDS`] of a keyframe.
     pub left_out_after_keyframes: u32,
@@ -80,6 +82,7 @@ impl RateGate {
         self.drain(now);
         self.target_bps = target_bps;
         let open = self.ahead_bits <= f64::from(target_bps) * AHEAD_SECONDS;
+        self.counts.offered += 1;
         if !open {
             self.counts.left_out += 1;
             if self
@@ -92,11 +95,12 @@ impl RateGate {
         open
     }
 
-    /// The pictures left out and the keyframes made since the last report,
-    /// once every [`REPORT_SECONDS`] while there are any.
+    /// The pictures offered and left out and the keyframes made since the
+    /// last report, once every [`REPORT_SECONDS`] while pictures come: how
+    /// many reach the gate at all says whether capture keeps up.
     pub(crate) fn report(&mut self, now: Instant) -> Option<GateReport> {
         let since = *self.reported_at.get_or_insert(now);
-        let quiet = self.counts.left_out == 0 && self.counts.keyframes == 0;
+        let quiet = self.counts.offered == 0 && self.counts.keyframes == 0;
         if quiet || now.duration_since(since).as_secs_f64() < REPORT_SECONDS {
             return None;
         }

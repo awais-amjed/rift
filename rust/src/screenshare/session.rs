@@ -7,6 +7,7 @@ use super::gpu_feed::GpuFeed;
 #[cfg(gpu_encoder)]
 use super::resolution::fit_within;
 use super::resolution::{target_size, Size};
+use super::send_report::{self, SendTotals};
 use super::track::{publish_video_track, TrackSettings};
 use crate::api::screenshare::types::{
     self, ScreenShareConfig, ShareCursor, ShareQuality, ShareRoom,
@@ -21,7 +22,7 @@ use livekit::webrtc::prelude::VideoResolution;
 use livekit::webrtc::video_source::native::NativeVideoSource;
 use std::collections::HashMap;
 use std::sync::{Arc, Weak};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
@@ -80,6 +81,8 @@ struct Session {
     /// Publishes the picture when its first frame arrives, for a share that
     /// started on a minimised window and is waiting for it to be opened.
     publisher: Option<JoinHandle<()>>,
+    /// Says what WebRTC sent every few seconds ([`report_sending`]).
+    reporter: JoinHandle<()>,
 }
 
 // An async mutex, held for the whole of a start or a stop. A second start
@@ -141,6 +144,7 @@ pub(crate) async fn start(config: ScreenShareConfig) -> Result<String, String> {
         audio_selection: AudioSelection::from(&config),
         participant,
         publisher,
+        reporter: tokio::spawn(report_sending()),
     });
     log::info!("screenshare: started");
     Ok(format!("Connected to room: {room_name} ({room_sid})"))
@@ -153,6 +157,7 @@ pub(crate) async fn stop() -> Result<String, String> {
         capture,
         audio,
         publisher,
+        reporter,
         ..
     }) = slot.take()
     else {
@@ -162,6 +167,7 @@ pub(crate) async fn stop() -> Result<String, String> {
     if let Some(publisher) = publisher {
         publisher.abort();
     }
+    reporter.abort();
 
     // Room teardown and the blocking thread joins run at the same time. The
     // capturer's drop (inside the capture join) releases the WGC session,
@@ -355,19 +361,55 @@ pub(crate) async fn update(quality: ShareQuality) -> Result<ShareQuality, String
 }
 
 /// The running share's picture as WebRTC reports it: what encoder it went
-/// through, how many frames, and what held it back. For the benchmark.
-#[cfg(test)]
+/// through, how many frames, and what held it back. For the log
+/// ([`report_sending`]) and the benchmark.
 pub(crate) async fn video_stats() -> Option<Vec<livekit::webrtc::stats::RtcStats>> {
-    let slot = SESSION.lock().await;
-    let session = slot.as_ref()?;
-    let sid = session.video.track.lock().await.clone()?;
-    let publication = session
-        .room
-        .local_participant()
-        .get_track_publication(&sid)?;
+    // Nothing of the session is held over an await: its capture is not
+    // `Sync`, and the log's reporter runs on any of the runtime's threads.
+    let (participant, video) = {
+        let slot = SESSION.lock().await;
+        let session = slot.as_ref()?;
+        (session.room.local_participant(), session.video.clone())
+    };
+    let sid = video.track.lock().await.clone()?;
+    let publication = participant.get_track_publication(&sid)?;
     match publication.track()? {
         LocalTrack::Video(track) => track.get_stats().await.ok(),
         _ => None,
+    }
+}
+
+/// Says in the log, every [`send_report::REPORT_EVERY`], what WebRTC sent of
+/// the running share's picture: the sharer's side of a stutter a viewer
+/// reports (`send_report`). Runs until [`stop`] aborts it; a stretch with
+/// nothing sent, a minimised window's, is not said.
+async fn report_sending() {
+    let mut last: Option<(SendTotals, Instant)> = None;
+    let mut ticks = tokio::time::interval(send_report::REPORT_EVERY);
+    ticks.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    // The first tick is at once, before anything is sent.
+    ticks.tick().await;
+    loop {
+        ticks.tick().await;
+        let Some(totals) = video_stats()
+            .await
+            .and_then(|stats| SendTotals::from_stats(&stats))
+        else {
+            continue;
+        };
+        let now = Instant::now();
+        let before = last.as_ref();
+        let sent_any = before.is_none_or(|(before, _)| before.frames_sent != totals.frames_sent);
+        if sent_any {
+            let seconds = before.map_or(send_report::REPORT_EVERY.as_secs_f64(), |(_, at)| {
+                now.duration_since(*at).as_secs_f64()
+            });
+            log::info!(
+                "{}",
+                send_report::describe(before.map(|(totals, _)| totals), &totals, seconds)
+            );
+        }
+        last = Some((totals, now));
     }
 }
 

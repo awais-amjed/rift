@@ -30,11 +30,15 @@ pub(crate) mod pw_stream;
 mod rate_gate;
 pub(crate) mod resolution;
 #[cfg(desktop)]
+mod send_report;
+#[cfg(desktop)]
 pub(crate) mod session;
 #[cfg(desktop)]
 pub(crate) mod sources;
 #[cfg(any(target_os = "windows", target_os = "linux"))]
 pub(crate) mod thumbnail;
+#[cfg_attr(not(desktop), allow(dead_code))]
+mod tick_report;
 #[cfg(desktop)]
 mod track;
 #[cfg(target_os = "windows")]

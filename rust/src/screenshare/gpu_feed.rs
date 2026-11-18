@@ -205,11 +205,14 @@ impl GpuFeed {
                 0
             };
             log::info!(
-                "screenshare: left out {} pictures ({} within 1 s of a keyframe) to keep {} \
-                 within {target} bps; keyframes: {}, {average_kb} KB average",
+                "screenshare: {} pictures came; left out {} ({} within 1 s of a keyframe) to \
+                 keep {} within {target} bps, {} replaced waiting for it; keyframes: {}, \
+                 {average_kb} KB average",
+                report.offered,
                 report.left_out,
                 report.left_out_after_keyframes,
                 self.encoder.name(),
+                self.encoder.take_replaced(),
                 report.keyframes,
             );
         }

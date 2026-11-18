@@ -465,6 +465,7 @@ fn run(
     let mut rate = fps.load(Ordering::Relaxed);
     let mut frame_interval = interval(rate);
     let mut next_frame = Instant::now() + frame_interval;
+    let mut ticks = super::tick_report::CaptureTicks::default();
     let back = loop {
         let timeout = next_frame.saturating_duration_since(Instant::now());
         match command_rx.recv_timeout(timeout) {
@@ -488,7 +489,9 @@ fn run(
                         None => log::warn!("capture: no capturer to change the cursor with"),
                     }
                 }
+                let ticked = Instant::now();
                 capturer.capture_frame();
+                let took = ticked.elapsed();
                 #[cfg(target_os = "windows")]
                 let ended = match window.as_mut() {
                     Some(window) => {
@@ -532,8 +535,22 @@ fn run(
                 // capture a little slower than the interval (a 2K window
                 // over X11 at 120 fps: 8.9 ms of 8.3) used to wait out a
                 // whole interval after it, which halved the rate.
-                if Instant::now() > next_frame {
-                    next_frame = Instant::now();
+                let now = Instant::now();
+                let behind = now > next_frame;
+                if behind {
+                    next_frame = now;
+                }
+                ticks.add(took, behind);
+                if let Some(report) = ticks.report(now) {
+                    log::info!(
+                        "capture: libwebrtc's capturer: {} captures in {:.1} s at {rate} fps, \
+                         {:.1} ms each (longest {:.1}), behind {} times",
+                        report.ticks,
+                        report.seconds,
+                        report.average_ms,
+                        report.longest_ms,
+                        report.behind,
+                    );
                 }
             }
         }

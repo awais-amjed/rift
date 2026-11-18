@@ -96,6 +96,9 @@ pub(crate) struct GpuEncoder {
     #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     import_failed: Arc<Mutex<Option<ImportFailed>>>,
     takes_gpu_picture: bool,
+    /// Pictures a newer one replaced while they waited for the encoder,
+    /// since the feed last asked: the encoder falling behind, for the log.
+    replaced: AtomicU32,
     handle: Option<JoinHandle<()>>,
     pub name: String,
 }
@@ -141,6 +144,7 @@ impl GpuEncoder {
                 bitrate,
                 import_failed,
                 takes_gpu_picture,
+                replaced: AtomicU32::new(0),
                 handle: Some(handle),
                 name,
             }),
@@ -174,6 +178,7 @@ impl GpuEncoder {
     pub(crate) fn submit_input(&self, input: EncoderInput) {
         if let Some(frames) = &self.frames {
             if let Some(dropped) = frames.put(input) {
+                self.replaced.fetch_add(1, Ordering::Relaxed);
                 recycle(&self.spare, dropped);
             }
         }
@@ -205,6 +210,12 @@ impl GpuEncoder {
 
     pub(crate) fn name(&self) -> &str {
         &self.name
+    }
+
+    /// The pictures replaced before the encoder took them since the last
+    /// call, counted again from none.
+    pub(crate) fn take_replaced(&self) -> u32 {
+        self.replaced.swap(0, Ordering::Relaxed)
     }
 }
 
