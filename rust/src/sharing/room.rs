@@ -4,8 +4,8 @@ use livekit::e2ee::manager::E2eeManager;
 use livekit::e2ee::{E2eeOptions, EncryptionType};
 use livekit::prelude::*;
 
-/// The ceiling of a share connection's estimate: far above any share's cap,
-/// so that it only lifts libwebrtc's 5 Mbps limit on probes.
+/// The ceiling of a share connection's estimate: the highest cap a share can
+/// be given, so that it only lifts libwebrtc's 5 Mbps limit on probes.
 const SHARE_CONNECTION_MAX_BPS: u32 = 100_000_000;
 
 /// Join the room this token is for, encrypting with the call's key.
@@ -28,8 +28,12 @@ pub(crate) async fn connect(
     // (repeated frames would break its chain). Without probes a share that
     // went still, or whose estimate fell, climbed back only as fast as it sent.
     // And with no ceiling of the connection's own it never probes above
-    // 5 Mbps, so this one is far above any share: the probes then stop at
-    // twice what the share may send (Rift's fork, RIFT.md).
+    // 5 Mbps, so this one is as high as any share's cap: the probes then stop
+    // at twice what the share may send (Rift's fork, RIFT.md). Not while
+    // nobody watches and the stream is stopped: a probe queued then goes out
+    // with the next viewer's first picture, at twice the estimate. A ceiling
+    // set from the share's cap would hold back a share whose cap was raised,
+    // since it is set only when the connection is made.
     room_options.rtc_config.periodic_alr_bandwidth_probing = true;
     room_options.rtc_config.max_bitrate_bps = Some(SHARE_CONNECTION_MAX_BPS);
 
