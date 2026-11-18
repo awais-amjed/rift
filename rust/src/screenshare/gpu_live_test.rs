@@ -5,8 +5,9 @@
 //! `live_test.rs`) and a hardware H264 encoder; no screen.
 use super::encoder::test_hooks;
 use super::encoder::{
-    h264, Encoded, EncodedSink, EncoderSettings, GpuCodec, GpuEncoder, Nv12Frame,
+    h264, Encoded, EncodedSink, EncoderSettings, GpuCodec, GpuEncoder, KeyframeWanted, Nv12Frame,
 };
+use super::gpu_feed::keyframe_wanted;
 use super::live_test::{shared_key, viewer_as, Server, KEY_INDEX};
 use super::session;
 use crate::api::screenshare::types::{
@@ -70,10 +71,13 @@ impl EncodedSink for H265ToSource {
         });
     }
 
-    fn keyframe_wanted(&mut self) -> bool {
+    fn keyframe_wanted(&mut self) -> KeyframeWanted {
         let every = H265_KEY_EVERY.load(Ordering::Relaxed);
         let due = every > 0 && H265_SENT.load(Ordering::Relaxed) % every == 0;
-        self.0.take_keyframe_request() || due
+        match keyframe_wanted(&self.0) {
+            KeyframeWanted::No | KeyframeWanted::Viewer if due => KeyframeWanted::Mend,
+            wanted => wanted,
+        }
     }
 
     fn bitrate_wanted(&mut self) -> Option<u64> {
@@ -123,8 +127,8 @@ impl EncodedSink for ToSource {
             frame_metadata: None,
         });
     }
-    fn keyframe_wanted(&mut self) -> bool {
-        self.0.take_keyframe_request()
+    fn keyframe_wanted(&mut self) -> KeyframeWanted {
+        keyframe_wanted(&self.0)
     }
     fn bitrate_wanted(&mut self) -> Option<u64> {
         self.0
@@ -760,8 +764,8 @@ impl EncodedSink for Counting {
         }
     }
 
-    fn keyframe_wanted(&mut self) -> bool {
-        false
+    fn keyframe_wanted(&mut self) -> KeyframeWanted {
+        KeyframeWanted::No
     }
 
     fn bitrate_wanted(&mut self) -> Option<u64> {

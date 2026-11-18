@@ -11,7 +11,8 @@
 //! a keyframe and WebRTC still wants a frame now and then. The last picture
 //! is encoded again then: at once when a keyframe is wanted, and after
 //! [`REPEAT_AFTER`] of quiet otherwise. A keyframe asked for again straight away
-//! waits its turn ([`KeyframePacing`]).
+//! waits its turn, and one a viewer asked for waits a second from the last
+//! ([`Keyframes`]).
 //!
 //! An encoder may keep each picture until the next goes in, as NVENC is asked
 //! to above 60 fps ([`Session::holds_one_back`]). While pictures keep coming
@@ -21,7 +22,7 @@
 //! reached viewers that late (Nov 11 2026). So that picture is sent again once,
 //! [`push_after`] with nothing new, which brings it out.
 use super::frame_rate::FrameRateScale;
-use super::key_pacing::KeyframePacing;
+use super::key_pacing::Keyframes;
 use super::{clamp_bitrate, EncodedSink, EncoderInput, EncoderSettings, Nv12Frame};
 use crate::screenshare::latest::{self, Putter, Taker};
 use crate::screenshare::rate_gate;
@@ -313,8 +314,7 @@ fn run<S, F>(
     // The first picture, and any a viewer asks for, must be one it can start
     // from; a request that arrives while a picture is being dropped waits for
     // the next.
-    let mut keyframe = true;
-    let mut pacing = KeyframePacing::new();
+    let mut keys = Keyframes::new();
     // The last picture encoded, its timestamp and when: what a still screen
     // repeats, and how long it has been still.
     let mut last: Option<(i64, Instant)> = None;
@@ -357,7 +357,7 @@ fn run<S, F>(
             let mut sink = sink.lock().unwrap();
             (sink.keyframe_wanted(), sink.bitrate_wanted())
         };
-        keyframe |= wanted_key;
+        keys.heard(wanted_key);
         if let Some(requested) = wanted_rate {
             target = clamp_bitrate(requested, settings.max_bitrate_bps);
             shared.bitrate.store(target, Ordering::Relaxed);
@@ -391,7 +391,7 @@ fn run<S, F>(
 
         // A keyframe waiting its turn still moves things on: a still screen repeats
         // its picture rather than wait for one that may never come.
-        let key_now = keyframe && pacing.allows_key();
+        let key_now = keys.next(Instant::now());
 
         let Some(input) = input else {
             // A still screen.
@@ -400,7 +400,7 @@ fn run<S, F>(
             };
             let still = at.elapsed();
             let push = held.is_some_and(|since| since.elapsed() >= push_after);
-            if !keyframe && !push && still < REPEAT_AFTER {
+            if !keys.due(Instant::now()) && !push && still < REPEAT_AFTER {
                 continue;
             }
             let timestamp_us = timestamp_us + still.as_micros() as i64;
@@ -412,8 +412,7 @@ fn run<S, F>(
             }
             match session.repeat(timestamp_us, key_now) {
                 Ok(true) => {
-                    pacing.encoded(key_now);
-                    keyframe &= !key_now;
+                    keys.encoded(key_now, Instant::now());
                     last = Some((timestamp_us, Instant::now()));
                     held = (holds && key_now).then(Instant::now);
                 }
@@ -432,8 +431,7 @@ fn run<S, F>(
                     };
                     match result {
                         Ok(()) => {
-                            pacing.encoded(key_now);
-                            keyframe &= !key_now;
+                            keys.encoded(key_now, Instant::now());
                             last = Some((timestamp_us, Instant::now()));
                             held = (holds && key_now).then(Instant::now);
                         }
@@ -479,8 +477,7 @@ fn run<S, F>(
         }
         match result {
             Ok(()) => {
-                pacing.encoded(key_now);
-                keyframe &= !key_now;
+                keys.encoded(key_now, Instant::now());
                 last = Some((timestamp_us, Instant::now()));
                 held = holds.then(Instant::now);
             }
@@ -511,8 +508,14 @@ fn run<S, F>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::screenshare::encoder::{Encoded, GpuCodec};
-    use std::sync::atomic::AtomicBool;
+    use crate::screenshare::encoder::{Encoded, GpuCodec, KeyframeWanted};
+
+    /// The keyframe the sink says WebRTC wants, taken once.
+    type Wanted = Arc<Mutex<KeyframeWanted>>;
+
+    fn want(wanted: &Wanted, kind: KeyframeWanted) {
+        *wanted.lock().unwrap() = kind;
+    }
     use std::time::{Duration, Instant};
 
     /// What the fake encoder was asked to do.
@@ -571,7 +574,7 @@ mod tests {
     }
 
     struct FakeSink {
-        keyframe: Arc<AtomicBool>,
+        keyframe: Wanted,
         /// A rate WebRTC asks for, once.
         rate: Arc<Mutex<Option<u64>>>,
     }
@@ -579,8 +582,8 @@ mod tests {
     impl EncodedSink for FakeSink {
         fn deliver(&mut self, _frame: Encoded<'_>) {}
 
-        fn keyframe_wanted(&mut self) -> bool {
-            self.keyframe.swap(false, Ordering::Relaxed)
+        fn keyframe_wanted(&mut self) -> KeyframeWanted {
+            std::mem::replace(&mut *self.keyframe.lock().unwrap(), KeyframeWanted::No)
         }
 
         fn bitrate_wanted(&mut self) -> Option<u64> {
@@ -600,7 +603,7 @@ mod tests {
     };
 
     /// A fake encoder, what it is asked, and the sink's keyframe request.
-    fn fake(import_fails: Option<(u32, u64)>) -> (GpuEncoder, Arc<Mutex<Asked>>, Arc<AtomicBool>) {
+    fn fake(import_fails: Option<(u32, u64)>) -> (GpuEncoder, Arc<Mutex<Asked>>, Wanted) {
         fake_session(import_fails, true, false)
     }
 
@@ -608,7 +611,7 @@ mod tests {
         import_fails: Option<(u32, u64)>,
         repeats_itself: bool,
         holds: bool,
-    ) -> (GpuEncoder, Arc<Mutex<Asked>>, Arc<AtomicBool>) {
+    ) -> (GpuEncoder, Arc<Mutex<Asked>>, Wanted) {
         let (encoder, asked, keyframe, _) =
             fake_with_rate(import_fails, repeats_itself, holds, None);
         (encoder, asked, keyframe)
@@ -622,11 +625,11 @@ mod tests {
     ) -> (
         GpuEncoder,
         Arc<Mutex<Asked>>,
-        Arc<AtomicBool>,
+        Wanted,
         Arc<Mutex<Option<u64>>>,
     ) {
         let asked = Arc::new(Mutex::new(Asked::default()));
-        let keyframe = Arc::new(AtomicBool::new(false));
+        let keyframe = Arc::new(Mutex::new(KeyframeWanted::No));
         let session = FakeSession {
             asked: asked.clone(),
             import_fails,
@@ -719,8 +722,26 @@ mod tests {
             .unwrap()
             .pictures
             == 1));
-        keyframe.store(true, Ordering::Relaxed);
+        want(&keyframe, KeyframeWanted::Mend);
         assert!(until(Duration::from_millis(150), || {
+            asked.lock().unwrap().repeats == vec![true]
+        }));
+    }
+
+    #[test]
+    fn a_viewers_keyframe_on_a_still_screen_waits_a_second_from_the_last() {
+        let (encoder, asked, keyframe) = fake(None);
+        encoder.submit_input(picture());
+        assert!(until(Duration::from_millis(200), || asked
+            .lock()
+            .unwrap()
+            .pictures
+            == 1));
+        // The first picture was a keyframe, just now.
+        want(&keyframe, KeyframeWanted::Viewer);
+        thread::sleep(Duration::from_millis(600));
+        assert!(asked.lock().unwrap().repeats.is_empty());
+        assert!(until(Duration::from_millis(700), || {
             asked.lock().unwrap().repeats == vec![true]
         }));
     }
@@ -736,8 +757,8 @@ mod tests {
             .unwrap()
             .pictures
             == 1));
-        // A viewer joining asks for a keyframe: it gets the picture at once.
-        keyframe.store(true, Ordering::Relaxed);
+        // A keyframe wanted at once gets the picture at once.
+        want(&keyframe, KeyframeWanted::Mend);
         assert!(until(Duration::from_millis(150), || asked
             .lock()
             .unwrap()
@@ -768,8 +789,8 @@ mod tests {
         // Once: the repeat itself is nothing a viewer waits for.
         thread::sleep(Duration::from_millis(400));
         assert_eq!(asked.lock().unwrap().repeats, vec![false]);
-        // A keyframe a viewer asks for is held back too, and brought out.
-        keyframe.store(true, Ordering::Relaxed);
+        // A keyframe is held back too, and brought out.
+        want(&keyframe, KeyframeWanted::Mend);
         assert!(until(Duration::from_millis(400), || {
             asked.lock().unwrap().repeats == vec![false, true, false]
         }));

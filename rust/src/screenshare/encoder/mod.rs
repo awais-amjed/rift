@@ -256,12 +256,23 @@ pub(crate) struct Encoded<'a> {
     pub keyframe: bool,
 }
 
+/// Whether WebRTC wants a keyframe, and why.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum KeyframeWanted {
+    No,
+    /// A viewer needs a picture it can start from: one joined, or lost
+    /// packets. It may wait a little ([`key_pacing::VIEWER_KEY_EVERY`]).
+    Viewer,
+    /// The pass-through encoder is holding every frame until a keyframe, a
+    /// frame having never reached it: no viewer gets a picture until then.
+    Mend,
+}
+
 /// Where encoded frames go, and where WebRTC's requests come from. In a share
 /// this is the pre-encoded video source; in a test, a recorder.
 pub(crate) trait EncodedSink: Send + 'static {
     fn deliver(&mut self, frame: Encoded<'_>);
-    /// A viewer needs a picture it can start from: one joined, or lost packets.
-    fn keyframe_wanted(&mut self) -> bool;
+    fn keyframe_wanted(&mut self) -> KeyframeWanted;
     /// What the connection can carry now, when WebRTC's estimate has moved.
     fn bitrate_wanted(&mut self) -> Option<u64>;
 }

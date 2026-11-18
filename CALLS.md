@@ -1000,6 +1000,17 @@ what was driven are in `TESTING.md`).
   busy loops on it broke no chain with the wait or without (Nov 19 2026,
   `live_gpu_h264_is_seen_with_the_key_and_by_nobody_else`), so the wait is
   shown to cost nothing, not yet to help.
+- **A viewer losing packets.** A share is one stream, so a keyframe a viewer
+  asks for goes to every viewer, and the gate then leaves pictures out to pay
+  for it. LiveKit's server lets one request through each 500 ms for a stream of
+  one layer, so a viewer whose link lost packets all the time made everyone's
+  picture stutter twice a second (the review of a friend's RDR2 share, Nov 18
+  2026). A GPU share now makes a keyframe a viewer asked for no sooner than a
+  second after the last (`encoder/key_pacing.rs`). One the pass-through encoder
+  needs to mend the chain, which every viewer is waiting for, still goes at
+  once: the LiveKit fork raises it apart (`take_chain_repair_request`, its
+  `RIFT.md`). A viewer joining within a second of a keyframe therefore waits
+  up to a second more for its first picture.
 - **Stepping a share down.** A desktop share goes out as one stream, never a second
   encode, in the best of H265, H264, VP9 and VP8, from what was picked or Auto chose
   downwards, that everyone watching plays (`ShareLadder`). Each client publishes

@@ -7,7 +7,7 @@
 #[cfg(target_os = "windows")]
 use super::capture_wgc::WgcPicture;
 use super::encoder::{
-    h264, Encoded, EncodedSink, EncoderSettings, GpuCodec, GpuEncoder, Nv12Frame,
+    h264, Encoded, EncodedSink, EncoderSettings, GpuCodec, GpuEncoder, KeyframeWanted, Nv12Frame,
 };
 #[cfg(target_os = "linux")]
 use super::encoder::{DmaBufFrame, EncoderInput};
@@ -311,6 +311,21 @@ fn dump_for_test(payload: &[u8]) {
     }
 }
 
+/// What WebRTC wants of a pre-encoded source. A keyframe to mend the chain
+/// is asked for with a plain request beside it, and both are taken, so the
+/// plain one is not heard again as a viewer's.
+pub(crate) fn keyframe_wanted(source: &NativeVideoSource) -> KeyframeWanted {
+    let mend = source.take_chain_repair_request();
+    let asked = source.take_keyframe_request();
+    if mend {
+        KeyframeWanted::Mend
+    } else if asked {
+        KeyframeWanted::Viewer
+    } else {
+        KeyframeWanted::No
+    }
+}
+
 impl EncodedSink for SourceSink {
     fn deliver(&mut self, frame: Encoded<'_>) {
         #[cfg(test)]
@@ -358,8 +373,8 @@ impl EncodedSink for SourceSink {
         });
     }
 
-    fn keyframe_wanted(&mut self) -> bool {
-        self.source.take_keyframe_request()
+    fn keyframe_wanted(&mut self) -> KeyframeWanted {
+        keyframe_wanted(&self.source)
     }
 
     fn bitrate_wanted(&mut self) -> Option<u64> {
