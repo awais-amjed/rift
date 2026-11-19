@@ -1441,6 +1441,57 @@ async fn live_gpu_watch_h265_keyframes_survive_encryption() {
     runner.assert_all_handed_back();
 }
 
+/// A viewer whose GPU decodes slower than the share arrives falls behind,
+/// loses its backlog and needs a keyframe, which goes to every viewer. Each
+/// time it falls behind again soon after, it waits longer before asking: here,
+/// at 10 decodes a second of a 30 fps share, it falls behind every 1.5 s, and
+/// asked at once each time (Nov 19 2026).
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a LiveKit server and a GPU decoder; see the module doc"]
+async fn live_watch_a_decoder_falling_behind_asks_less_often() {
+    use super::decode::test_hooks::{DECODE_MS, KEYFRAMES};
+    let _ = env_logger::builder().is_test(true).try_init();
+    #[cfg(windows)]
+    let runner = super::decode::RunnerDeviceInPlace::new();
+    super::decode::choose();
+    super::decode::gpu().expect("decoding on the GPU here");
+    let server = Server::from_env();
+    let key = shared_key();
+    let share_identity = "member~desk_share";
+    let texture = 9;
+    let name = room_name("behind");
+    let voice = start_watching(&server, &name, key.clone(), KEY_INDEX).await;
+    session::watch(share_identity.to_string(), texture, mark_address(), true)
+        .await
+        .expect("watches");
+    let share = Share::start(&server, &name, share_identity, &key, KEY_INDEX).await;
+    assert!(
+        marked(texture, 0, 10, Duration::from_secs(15)).await,
+        "pictures reach the runner's slot"
+    );
+    DECODE_MS.store(100, Ordering::Relaxed);
+    let (from_keys, from_marks) = (KEYFRAMES.load(Ordering::Relaxed), marks(texture));
+    tokio::time::sleep(Duration::from_secs(20)).await;
+    let keys = KEYFRAMES.load(Ordering::Relaxed) - from_keys;
+    let drawn = marks(texture) - from_marks;
+    DECODE_MS.store(0, Ordering::Relaxed);
+    log::info!("falling behind: {keys} keyframes and {drawn} pictures in 20 s");
+    assert!(drawn > 0, "pictures still drawn between keyframes");
+    assert!(keys <= 7, "{keys} keyframes in 20 s, about one each 1.5 s");
+    // Keeping up again: pictures flow, and a later flush would ask at once.
+    let at = marks(texture);
+    assert!(
+        marked(texture, at, 30, Duration::from_secs(10)).await,
+        "pictures flow again once decoding keeps up"
+    );
+    session::unwatch(share_identity).await;
+    session::stop().await;
+    share.end().await;
+    let _ = voice.close().await;
+    #[cfg(windows)]
+    runner.assert_all_handed_back();
+}
+
 /// What the server says of H265 reaches the participant. `RIFT_TEST_H265_OFF`
 /// says the server under test has it off (`room.enabled_codecs`).
 #[tokio::test(flavor = "multi_thread")]

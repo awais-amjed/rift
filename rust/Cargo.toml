@@ -132,6 +132,6 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
 # says why, and when each change can go. Every crate of LiveKit's this
 # library builds comes from the one commit, so they always match.
 [patch.crates-io]
-livekit = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "dbe8261324f390e015fa6c5a7a71c9fe21708987" }
-livekit-api = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "dbe8261324f390e015fa6c5a7a71c9fe21708987" }
-webrtc-sys = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "dbe8261324f390e015fa6c5a7a71c9fe21708987" }
+livekit = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "d327e513b8e68943299b37fda814c0ff045b9e8a" }
+livekit-api = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "d327e513b8e68943299b37fda814c0ff045b9e8a" }
+webrtc-sys = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "d327e513b8e68943299b37fda814c0ff045b9e8a" }

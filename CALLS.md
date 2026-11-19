@@ -1546,7 +1546,17 @@ libwebrtc still decodes, on the CPU.
   decode against references thrown away, which smeared the picture (found
   by review Nov 5). On Windows (Nov 5, laptop, debug build, the
   decoder stalled 2 s by `RIFT_WATCH_DECODE_STALL_AT`): the stream flushed,
-  the frames after it waited, logged, and a keyframe came within 0.5 s. A share the GPU cannot
+  the frames after it waited, logged, and a keyframe came within 0.5 s.
+  A share is one stream, so that keyframe goes to every viewer, and a
+  decoder that cannot keep up at all (its GPU busy with a game) falls behind
+  again soon after it: one decoding 10 pictures a second of a 30 fps share
+  fell behind every 1.5 s and made 12 keyframes in 20 s for everyone (a
+  review of a game share, Nov 18). So a flush within 10 s of the last waits
+  before asking, 1 s, then 2, then 4 at most; the fork leaves that ask to
+  Rift (`reader_asks_after_flush`), where it asked at once itself. Measured
+  Nov 19 by `live_watch_a_decoder_falling_behind_asks_less_often` (Linux,
+  VAAPI): 5 keyframes in 20 s, and the slow viewer drew 85 pictures where
+  it drew 197, since it waits longer for each keyframe. A share the GPU cannot
   decode, three keyframes in a row that fail (on Windows the first picture
   that fails once the device it decodes on was removed, since none decodes
   on it again), a runner that cannot import

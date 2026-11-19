@@ -65,6 +65,15 @@ const KEYFRAMES_TRIED: u32 = 3;
 /// How often a keyframe is asked for while waiting for one.
 const ASK_EVERY: Duration = Duration::from_secs(1);
 
+/// A flushed backlog this soon after the last is the decoder falling behind
+/// again, not a passing stall.
+const BEHIND_AGAIN_WITHIN: Duration = Duration::from_secs(10);
+
+/// The longest a decoder that keeps falling behind waits after a flush before
+/// asking for a keyframe. A share is one stream, so each keyframe goes to every
+/// viewer, and the sharer's rate gate leaves pictures out to pay for it.
+const MOST_WAIT_AFTER_FLUSH: Duration = Duration::from_secs(4);
+
 /// The codecs a share arrives in that the GPU decodes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Codec {
@@ -151,6 +160,7 @@ pub(crate) fn feed(
     let runtime = tokio::runtime::Handle::current();
     let mut options = NativeEncodedVideoStreamOptions::default();
     options.max_pending_frames = Some(PENDING_FRAMES);
+    options.reader_asks_after_flush = true;
     let stream = NativeEncodedVideoStream::new(track.rtc_track(), options);
     thread::Builder::new()
         .name("rift-watch-decode".to_string())
@@ -185,7 +195,7 @@ fn decode(
     let mut chain = Chain::default();
     let mut decoder: Option<Decoder> = None;
     let mut size = (0, 0);
-    let mut asked: Option<Instant> = None;
+    let mut asking = Asking::default();
     let mut received: u32 = 0;
     while let Some(frame) = next() {
         received = received.saturating_add(1);
@@ -198,13 +208,29 @@ fn decode(
             return;
         };
         let key = frame.frame_type == EncodedFrameType::Key;
-        if frame.after_gap && !key && !chain.broken {
+        #[cfg(test)]
+        if key {
+            test_hooks::KEYFRAMES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        }
+        if frame.after_flush {
+            match asking.flushed(Instant::now()) {
+                None => log::info!(
+                    "watching: decoding fell {PENDING_FRAMES} {codec:?} frames behind, \
+                     asking for a keyframe"
+                ),
+                Some(wait) => log::info!(
+                    "watching: decoding fell {PENDING_FRAMES} {codec:?} frames behind again, \
+                     asking for a keyframe in {} s",
+                    wait.as_secs()
+                ),
+            }
+        } else if frame.after_gap && !key && !chain.broken {
             log::info!("watching: {codec:?} frames were lost, waiting for a keyframe");
         }
         match chain.next(codec, key, frame.after_gap) {
             Next::Wait => {
                 log::debug!("watching: {codec:?} frame before a keyframe, skipped");
-                ask_for_keyframe(&frame, &mut asked);
+                ask_for_keyframe(&frame, &mut asking);
                 continue;
             }
             Next::Open => match Decoder::open(codec, gpu) {
@@ -222,6 +248,7 @@ fn decode(
         let Some(decoder) = decoder.as_mut() else {
             continue;
         };
+        slow_for_test();
         match decoder.decode(frame.payload(), frame.timestamp_us) {
             Ok(pictures) => {
                 chain.decoded(key);
@@ -248,7 +275,7 @@ fn decode(
                     return;
                 }
                 log::warn!("watching: a picture did not decode ({err}), waiting for a keyframe");
-                ask_for_keyframe(&frame, &mut asked);
+                ask_for_keyframe(&frame, &mut asking);
             }
         }
     }
@@ -275,10 +302,72 @@ fn stall_for_test(received: u32) {
 #[cfg(not(debug_assertions))]
 fn stall_for_test(_received: u32) {}
 
-fn ask_for_keyframe(frame: &ReceivedEncodedFrame, asked: &mut Option<Instant>) {
-    if asked.is_none_or(|at| at.elapsed() >= ASK_EVERY) {
+/// Tests only: [`test_hooks::DECODE_MS`] makes each decode take that long, as a
+/// GPU too busy to keep up with the share does.
+#[cfg(test)]
+fn slow_for_test() {
+    let ms = test_hooks::DECODE_MS.load(std::sync::atomic::Ordering::Relaxed);
+    if ms > 0 {
+        thread::sleep(Duration::from_millis(ms));
+    }
+}
+
+#[cfg(not(test))]
+fn slow_for_test() {}
+
+#[cfg(test)]
+pub(crate) mod test_hooks {
+    use std::sync::atomic::{AtomicU32, AtomicU64};
+
+    /// How long each decode takes on top of its own time.
+    pub(crate) static DECODE_MS: AtomicU64 = AtomicU64::new(0);
+    /// Keyframes received.
+    pub(crate) static KEYFRAMES: AtomicU32 = AtomicU32::new(0);
+}
+
+fn ask_for_keyframe(frame: &ReceivedEncodedFrame, asking: &mut Asking) {
+    if asking.may_ask(Instant::now()) {
         frame.request_keyframe();
-        *asked = Some(Instant::now());
+    }
+}
+
+/// When a keyframe may be asked for. A decoder that keeps falling behind
+/// waits longer after each flush: the keyframe would reach every viewer, and
+/// this one would fall behind again soon after it. One that keeps up again
+/// for [`BEHIND_AGAIN_WITHIN`] asks at once.
+#[derive(Debug, Default)]
+struct Asking {
+    /// No ask before this.
+    not_before: Option<Instant>,
+    last_flush: Option<Instant>,
+    wait: Duration,
+}
+
+impl Asking {
+    /// The stream flushed the backlog. The wait before asking, when this is
+    /// falling behind again.
+    fn flushed(&mut self, now: Instant) -> Option<Duration> {
+        let again = self
+            .last_flush
+            .is_some_and(|at| now.duration_since(at) < BEHIND_AGAIN_WITHIN);
+        self.last_flush = Some(now);
+        if !again {
+            self.wait = Duration::ZERO;
+            self.not_before = None;
+            return None;
+        }
+        self.wait = (self.wait * 2).clamp(ASK_EVERY, MOST_WAIT_AFTER_FLUSH);
+        self.not_before = Some(now + self.wait);
+        Some(self.wait)
+    }
+
+    /// Whether to ask now; if so, the next ask waits [`ASK_EVERY`].
+    fn may_ask(&mut self, now: Instant) -> bool {
+        if self.not_before.is_some_and(|at| now < at) {
+            return false;
+        }
+        self.not_before = Some(now + ASK_EVERY);
+        true
     }
 }
 
@@ -357,6 +446,48 @@ impl Chain {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn asks_at_most_once_a_second() {
+        let start = Instant::now();
+        let mut asking = Asking::default();
+        assert!(asking.may_ask(start));
+        assert!(!asking.may_ask(start + Duration::from_millis(900)));
+        assert!(asking.may_ask(start + Duration::from_millis(1000)));
+    }
+
+    #[test]
+    fn a_first_flush_asks_at_once() {
+        let start = Instant::now();
+        let mut asking = Asking::default();
+        assert!(asking.may_ask(start));
+        assert_eq!(asking.flushed(start + Duration::from_millis(100)), None);
+        assert!(
+            asking.may_ask(start + Duration::from_millis(100)),
+            "the backlog is lost: ask even though one was asked for just now"
+        );
+    }
+
+    #[test]
+    fn falling_behind_again_waits_longer_each_time() {
+        let start = Instant::now();
+        let at = |secs: u64| start + Duration::from_secs(secs);
+        let mut asking = Asking::default();
+        assert_eq!(asking.flushed(at(0)), None);
+        assert!(asking.may_ask(at(0)));
+        let mut now = 0;
+        for want in [1, 2, 4, 4] {
+            now += 3;
+            assert_eq!(asking.flushed(at(now)), Some(Duration::from_secs(want)));
+            assert!(!asking.may_ask(at(now)));
+            assert!(!asking.may_ask(at(now + want) - Duration::from_millis(1)));
+            assert!(asking.may_ask(at(now + want)));
+            now += want;
+        }
+        // Keeping up for long enough: the next flush is a passing stall.
+        assert_eq!(asking.flushed(at(now + 10)), None);
+        assert!(asking.may_ask(at(now + 10)));
+    }
 
     #[test]
     fn a_stream_joined_mid_way_waits_for_a_keyframe() {
