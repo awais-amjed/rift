@@ -845,7 +845,10 @@ screen, the same day) gnome-shell was 28–30% with it and 14% without, Rift 17%
 card 39 W and 16–24 W, the share 120 a second either way. So the NVIDIA figures above are high
 by RustDesk's part, and the full clock may be its. If the GL
 side does not open, NVENC takes memory as before. A window keeps Dart's pick (no second picker); a screen
-is picked in the portal, and the first-picture limit starts once it answers. A
+is picked in the portal, and the first-picture limit starts once it answers. If
+Rift's stream then fails to open, libwebrtc's capturer puts the picker up again,
+and the limit waits for that answer too (Nov 19; not driven, as nothing here makes
+the stream fail after a pick). A
 lent buffer keeps its own fds and mapping until Rust lets it go, since PipeWire
 frees a stream's buffers on every renegotiation (a crash before that, Oct 29).
 When the library, the portal or the stream refuses, libwebrtc's capturer runs

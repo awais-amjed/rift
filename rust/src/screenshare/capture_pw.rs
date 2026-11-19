@@ -368,6 +368,9 @@ pub(super) fn run(
             log::warn!(
                 "capture: Rift's PipeWire stream did not open ({reason}); libwebrtc's capturer"
             );
+            // Whose own portal puts the picker up again, and the session must
+            // wait on the person once more, not the first frame's 10 s.
+            let _ = progress.send(Progress::Picking);
             return Handoff::Fallback(request);
         }
     };
