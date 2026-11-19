@@ -743,14 +743,16 @@ int32_t rift_ffenc_send_dmabuf(RiftFfenc* enc, const RiftDmabuf* buf,
     err = send_gpu(enc, frame, timestamp_us, keyframe);
   } else if (err == AVERROR(EAGAIN) && enc->last) {
     // A passing failure (nvenc_gl.c): the picture before it again, so a keyframe
-    // asked for still goes out and the stream's time moves on.
+    // asked for still goes out and the stream's time moves on. The caller
+    // tries this one again.
     err = av_frame_ref(frame, enc->last);
     if (err == 0) err = send_gpu(enc, frame, timestamp_us, keyframe);
+    if (err == 0) err = RIFT_FFENC_SENT_LAST;
   }
   av_frame_free(&frame);
 done:
   UNLOCK(enc);
-  return err < 0 ? err : 0;
+  return err < 0 || err == RIFT_FFENC_SENT_LAST ? err : 0;
 #else
   (void)enc, (void)buf, (void)place, (void)timestamp_us, (void)keyframe;
   return AVERROR(ENOSYS);
@@ -783,12 +785,14 @@ int32_t rift_ffenc_send_d3d11(RiftFfenc* enc, void* texture,
     err = send_gpu(enc, frame, timestamp_us, keyframe);
   } else if (err == AVERROR(EAGAIN) && enc->last) {
     // A passing failure: the picture before it again, so a keyframe asked for
-    // still goes out and the stream's time moves on.
+    // still goes out and the stream's time moves on. The caller tries this
+    // one again.
     err = av_frame_ref(frame, enc->last);
     if (err == 0) err = send_gpu(enc, frame, timestamp_us, keyframe);
+    if (err == 0) err = RIFT_FFENC_SENT_LAST;
   }
   av_frame_free(&frame);
-  return err < 0 ? err : 0;
+  return err < 0 || err == RIFT_FFENC_SENT_LAST ? err : 0;
 #else
   (void)enc, (void)texture, (void)source_width, (void)source_height,
       (void)place, (void)timestamp_us, (void)keyframe;

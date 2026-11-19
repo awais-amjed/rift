@@ -138,6 +138,13 @@ typedef struct RiftDmabuf {
 // for another.
 #define RIFT_FFENC_IMPORT_FAILED (-0x52494D50)
 
+// A picture already on the GPU did not convert this time, in a way that passes
+// (nvenc_gl.c, d3d11_nv12.c), and the one before went out in its place, so a
+// keyframe asked for still goes and the stream's time moves on. The caller
+// sends this picture again: on a still screen it is the last change, and
+// nothing newer would bring it.
+#define RIFT_FFENC_SENT_LAST 1
+
 typedef struct RiftRect {
   int32_t x;
   int32_t y;
@@ -153,8 +160,8 @@ RIFT_FFENC_EXPORT int32_t rift_ffenc_takes_dmabuf(const RiftFfenc* enc);
 // Encode one DMA-BUF picture. `place` is where the upright picture goes
 // inside the encoded size, the rest black; NULL fills it. Returns once the
 // GPU has copied the picture, so the caller may give the buffer back; the
-// fds stay the caller's. 0, RIFT_FFENC_IMPORT_FAILED, or a negative FFmpeg
-// error; AVERROR(ENOSYS) for an encoder that takes none.
+// fds stay the caller's. 0, RIFT_FFENC_SENT_LAST, RIFT_FFENC_IMPORT_FAILED,
+// or a negative FFmpeg error; AVERROR(ENOSYS) for an encoder that takes none.
 RIFT_FFENC_EXPORT int32_t rift_ffenc_send_dmabuf(RiftFfenc* enc,
                                                  const RiftDmabuf* buf,
                                                  const RiftRect* place,
@@ -180,8 +187,8 @@ RIFT_FFENC_EXPORT int32_t rift_ffenc_takes_d3d11(const RiftFfenc* enc);
 // Encode the part `source_width` by `source_height` of `texture`, a BGRA
 // ID3D11Texture2D on the config's device. `place` is where it goes inside the
 // encoded size, the rest black; NULL fills it. The texture may be let go of when
-// this returns. 0, or a negative FFmpeg error; AVERROR(ENOSYS) for an encoder
-// that takes none.
+// this returns. 0, RIFT_FFENC_SENT_LAST, or a negative FFmpeg error;
+// AVERROR(ENOSYS) for an encoder that takes none.
 RIFT_FFENC_EXPORT int32_t rift_ffenc_send_d3d11(RiftFfenc* enc, void* texture,
                                                 int32_t source_width,
                                                 int32_t source_height,

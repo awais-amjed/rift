@@ -97,6 +97,11 @@ const IMPORT_FAILED: i32 = -0x5249_4D50;
 /// FFmpeg's `AVERROR(EAGAIN)`: `rift_ffenc_repeat` before any picture on the GPU.
 const AVERROR_EAGAIN: i32 = -11;
 
+/// A picture on the GPU did not convert this time, and the one before went out
+/// in its place (`RIFT_FFENC_SENT_LAST`): [`EncodeError::Instead`]. An older
+/// library never says so, and the picture is then lost as it was before.
+const SENT_LAST: i32 = 1;
+
 #[repr(C)]
 struct Packet {
     data: *const u8,
@@ -767,11 +772,11 @@ impl Session for FfmpegSession {
 impl FfmpegSession {
     fn encode_once(&mut self, input: &EncoderInput, keyframe: bool) -> Result<(), EncodeError> {
         let started = Instant::now();
-        match input {
+        let sent = match input {
             EncoderInput::Nv12(frame) => {
                 // SAFETY: `raw` is live, and the picture is copied before the
                 // call returns.
-                let sent = unsafe {
+                let code = unsafe {
                     (self.api.send)(
                         self.raw,
                         frame.data.as_ptr(),
@@ -779,19 +784,25 @@ impl FfmpegSession {
                         i32::from(keyframe),
                     )
                 };
-                if sent < 0 {
+                if code < 0 {
                     return Err(EncodeError::Failed(format!(
-                        "FFmpeg refused a picture ({sent})"
+                        "FFmpeg refused a picture ({code})"
                     )));
                 }
                 self.repeatable = false;
+                Ok(())
             }
             #[cfg(target_os = "linux")]
-            EncoderInput::DmaBuf(frame) => self.send_dmabuf(frame, keyframe)?,
+            EncoderInput::DmaBuf(frame) => self.send_dmabuf(frame, keyframe),
             #[cfg(target_os = "windows")]
-            EncoderInput::Wgc(frame) => self.send_wgc(frame, keyframe)?,
+            EncoderInput::Wgc(frame) => self.send_wgc(frame, keyframe),
+        };
+        // The picture that went out in this one's place is collected too.
+        if !matches!(sent, Ok(()) | Err(EncodeError::Instead)) {
+            return sent;
         }
-        self.receive(started).map_err(EncodeError::Failed)
+        self.receive(started).map_err(EncodeError::Failed)?;
+        sent
     }
 
     /// Hand the library a DMA-BUF, letterboxed into the encoded size by the
@@ -849,6 +860,9 @@ impl FfmpegSession {
             )));
         }
         self.repeatable = true;
+        if sent == SENT_LAST {
+            return Err(EncodeError::Instead);
+        }
         Ok(())
     }
 
@@ -893,6 +907,9 @@ impl FfmpegSession {
             )));
         }
         self.repeatable = true;
+        if sent == SENT_LAST {
+            return Err(EncodeError::Instead);
+        }
         Ok(())
     }
 

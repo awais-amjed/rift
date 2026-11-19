@@ -55,6 +55,12 @@ pub(super) enum EncodeError {
     /// modifier; the encoder carries on. Only Linux has DMA-BUFs.
     #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     ImportFailed { drm_format: u32, modifier: u64 },
+    /// The GPU did not convert this picture this time, in a way that passes,
+    /// and the one before went out in its place, so a keyframe asked for still
+    /// went. The picture is tried again on the next tick unless a newer one
+    /// comes first: on a still screen it is the last change, and viewers kept
+    /// the one before it until the screen changed again.
+    Instead,
 }
 
 /// One open encoder, as the thread drives it.
@@ -327,6 +333,8 @@ fn run<S, F>(
     let holds = session.holds_one_back();
     let push_after = push_after(settings.fps);
     let mut held: Option<Instant> = None;
+    // A picture that went out as the one before it ([`EncodeError::Instead`]).
+    let mut again: Option<EncoderInput> = None;
     #[cfg(test)]
     let mut fed = 0u32;
     loop {
@@ -336,9 +344,20 @@ fn run<S, F>(
                 .clamp(Duration::from_millis(1), KEYFRAME_POLL),
             None => KEYFRAME_POLL,
         };
-        let input = frames.take_timeout(wait);
+        let mut input = frames.take_timeout(wait);
         if input.is_none() && frames.closed() {
             break;
+        }
+        match (&input, again.take()) {
+            (Some(_), Some(older)) => recycle(&shared.spare, older),
+            // Under a time after the picture that went out in its place.
+            (None, Some(mut older)) => {
+                if let Some((timestamp_us, at)) = last {
+                    older.set_timestamp_us(timestamp_us + at.elapsed().as_micros() as i64);
+                }
+                input = Some(older);
+            }
+            _ => {}
         }
         if shared.failed.load(Ordering::Relaxed) {
             break;
@@ -430,7 +449,8 @@ fn run<S, F>(
                         EncoderInput::Wgc(_) => None,
                     };
                     match result {
-                        Ok(()) => {
+                        // Only a picture on the GPU goes out as another.
+                        Ok(()) | Err(EncodeError::Instead) => {
                             keys.encoded(key_now, Instant::now());
                             last = Some((timestamp_us, Instant::now()));
                             held = (holds && key_now).then(Instant::now);
@@ -465,6 +485,7 @@ fn run<S, F>(
                     recycle(&shared.spare, EncoderInput::Nv12(older));
                 }
             }
+            input if matches!(result, Err(EncodeError::Instead)) => again = Some(input),
             input => {
                 // A DMA-BUF encoded is the session's to repeat now.
                 if result.is_ok() {
@@ -476,7 +497,7 @@ fn run<S, F>(
             }
         }
         match result {
-            Ok(()) => {
+            Ok(()) | Err(EncodeError::Instead) => {
                 keys.encoded(key_now, Instant::now());
                 last = Some((timestamp_us, Instant::now()));
                 held = holds.then(Instant::now);
@@ -526,6 +547,8 @@ mod tests {
         repeats: Vec<bool>,
         /// Each rate it was moved to.
         rates: Vec<u32>,
+        /// Each picture's timestamp, as it was asked to encode it.
+        stamps: Vec<i64>,
     }
 
     struct FakeSession {
@@ -537,6 +560,8 @@ mod tests {
         repeats_itself: bool,
         /// Whether it says it holds each picture until the next goes in.
         holds: bool,
+        /// The encode, counted from 0, that sends the picture before instead.
+        instead_at: Option<usize>,
     }
 
     impl Session for FakeSession {
@@ -545,14 +570,19 @@ mod tests {
             Ok(())
         }
 
-        fn encode(&mut self, _input: &EncoderInput, _keyframe: bool) -> Result<(), EncodeError> {
+        fn encode(&mut self, input: &EncoderInput, _keyframe: bool) -> Result<(), EncodeError> {
             if let Some((drm_format, modifier)) = self.import_fails {
                 return Err(EncodeError::ImportFailed {
                     drm_format,
                     modifier,
                 });
             }
-            self.asked.lock().unwrap().pictures += 1;
+            let mut asked = self.asked.lock().unwrap();
+            asked.stamps.push(input.timestamp_us());
+            if self.instead_at == Some(asked.stamps.len() - 1) {
+                return Err(EncodeError::Instead);
+            }
+            asked.pictures += 1;
             Ok(())
         }
 
@@ -635,6 +665,7 @@ mod tests {
             import_fails,
             repeats_itself,
             holds,
+            instead_at: None,
         };
         let rate = Arc::new(Mutex::new(rate));
         let encoder = GpuEncoder::start(
@@ -677,6 +708,68 @@ mod tests {
             thread::sleep(Duration::from_millis(1000 / 30));
         }
         assert_eq!(asked.lock().unwrap().rates, vec![500_000]);
+    }
+
+    /// A fake encoder whose second picture goes out as the first.
+    fn fake_instead() -> (GpuEncoder, Arc<Mutex<Asked>>) {
+        let asked = Arc::new(Mutex::new(Asked::default()));
+        let session = FakeSession {
+            asked: asked.clone(),
+            import_fails: None,
+            repeats_itself: true,
+            holds: false,
+            instead_at: Some(1),
+        };
+        let encoder = GpuEncoder::start(
+            SETTINGS,
+            Box::new(FakeSink {
+                keyframe: Arc::new(Mutex::new(KeyframeWanted::No)),
+                rate: Arc::new(Mutex::new(None)),
+            }),
+            move |_: &EncoderSettings, _: SharedSink| Ok((session, "fake".to_string())),
+        )
+        .unwrap();
+        (encoder, asked)
+    }
+
+    fn picture_at(timestamp_us: i64) -> EncoderInput {
+        EncoderInput::Nv12(Nv12Frame {
+            data: vec![0; Nv12Frame::len_for(64, 64)],
+            timestamp_us,
+        })
+    }
+
+    #[test]
+    fn a_picture_sent_as_the_one_before_is_tried_again_on_a_still_screen() {
+        let (encoder, asked) = fake_instead();
+        let encoded = || asked.lock().unwrap().stamps.len();
+        encoder.submit_input(picture_at(1_000));
+        assert!(until(Duration::from_secs(1), || encoded() == 1));
+        encoder.submit_input(picture_at(2_000));
+        // Nothing newer comes: the second is encoded again, a tick later and
+        // under a later time, well before a still screen's repeat.
+        assert!(until(Duration::from_millis(500), || encoded() == 3));
+        let asked = asked.lock().unwrap();
+        assert_eq!(asked.pictures, 2);
+        assert_eq!(&asked.stamps[..2], &[1_000, 2_000]);
+        assert!(asked.stamps[2] > 2_000, "{:?}", asked.stamps);
+        assert!(asked.repeats.is_empty(), "repeated {:?}", asked.repeats);
+        assert!(!encoder.failed());
+    }
+
+    #[test]
+    fn a_newer_picture_takes_the_place_of_one_to_try_again() {
+        let (encoder, asked) = fake_instead();
+        let encoded = || asked.lock().unwrap().stamps.len();
+        encoder.submit_input(picture_at(1_000));
+        assert!(until(Duration::from_secs(1), || encoded() == 1));
+        encoder.submit_input(picture_at(2_000));
+        // Within the tick before the second is tried again.
+        assert!(until(Duration::from_secs(1), || encoded() == 2));
+        encoder.submit_input(picture_at(3_000));
+        assert!(until(Duration::from_secs(1), || encoded() == 3));
+        thread::sleep(Duration::from_millis(300));
+        assert_eq!(asked.lock().unwrap().stamps, vec![1_000, 2_000, 3_000]);
     }
 
     fn picture() -> EncoderInput {

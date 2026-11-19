@@ -535,7 +535,9 @@ as below, and Rift's session falls back to it. Verified Nov 1 with a test progra
 NVENC: real shares with a viewer, the shared window closed 20 times (10
 closed, 10 killed) with no crash or hang, and known colours within 0.5 of a level of
 BT.601 limited. Driven in the app Nov 1–2 on NVENC (`TESTING.md`), CS2 among it. Quick Sync so far in ffenc's own test (`test_windows.sh`) and one bench
-share with a viewer (58.3 fps decoded). A picture that fails to draw sends the last one again;
+share with a viewer (58.3 fps decoded). A picture that fails to draw sends the last one again,
+and is itself tried again on the encoder's next tick unless a newer one comes first, so a still
+screen's last change still arrives (`RIFT_FFENC_SENT_LAST`, Nov 19; the encoder worker's tests);
 a second of them in a row, or the GPU gone, ends the encoder and the share goes on as VP9
 (`live_wgc_failing_gpu_moves_to_vp9`), found within a tick even while no new picture
 comes; a removed device hands the share to libwebrtc's capturer at once. A share also
@@ -802,7 +804,9 @@ NVENC for this reason, except on a **screen NVIDIA's card draws alone**: a card 
 with a display connected and no Intel or AMD card with one (`gpu_choice.rs`). There NVENC comes
 first and takes the DMA-BUF too (`native/ffenc/nvenc_gl.c`): imported into EGL, drawn
 as NV12 by one GL shader pass, and copied by CUDA into NVENC's frame, on the worker's own
-thread, with the compositor's explicit sync waited for on PipeWire's. Proved Oct 30 on an
+thread, with the compositor's explicit sync waited for on PipeWire's. A DMA-BUF that has
+imported before and fails once goes out as the picture before it, and is tried again a tick
+later, as on Windows (`test_nvenc_dmabuf.c`, *passing*, Nov 19). Proved Oct 30 on an
 RTX 3070 Ti, GNOME 50, with `test_nvenc_dmabuf.c` and a live share: 60 s of the whole screen
 flipping between two grays gave no torn or stale picture (`STEP2_NVIDIA.md`, *Sync*), with
 the sync timeline and without it, the GPU idle and full. While a fullscreen window fills that

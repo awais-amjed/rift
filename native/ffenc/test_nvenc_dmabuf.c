@@ -382,7 +382,8 @@ static void memory_between(void) {
 
 // A format and modifier that have imported this share and fail once are a
 // passing failure, a game filling the GPU's memory say: the last picture goes
-// out again and the modifier stays. One that never has is refused, and a long
+// out again, the caller is told to send this one again, and the modifier
+// stays. One that never has is refused, and a long
 // run of the first kind ends in the encoder failing.
 static void passing_failure(void) {
   RiftFfenc* enc = open_encoder(1280, 720);
@@ -400,7 +401,8 @@ static void passing_failure(void) {
   RiftDmabuf gone = b.dmabuf;
   gone.fds[0] = -1;
   int err = rift_ffenc_send_dmabuf(enc, &gone, NULL, at += 16667, 0);
-  CHECK(err == 0, "passing: a failure on a good modifier returned %d", err);
+  CHECK(err == RIFT_FFENC_SENT_LAST,
+        "passing: a failure on a good modifier returned %d", err);
   drain(enc, &stream);
   CHECK(stream.packets == 2, "passing: %d packets, wanted the repeat", stream.packets);
 

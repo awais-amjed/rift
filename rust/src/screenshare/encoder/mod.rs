@@ -247,6 +247,16 @@ impl EncoderInput {
             EncoderInput::Wgc(frame) => frame.timestamp_us,
         }
     }
+
+    pub(crate) fn set_timestamp_us(&mut self, timestamp_us: i64) {
+        match self {
+            EncoderInput::Nv12(frame) => frame.timestamp_us = timestamp_us,
+            #[cfg(target_os = "linux")]
+            EncoderInput::DmaBuf(frame) => frame.timestamp_us = timestamp_us,
+            #[cfg(target_os = "windows")]
+            EncoderInput::Wgc(frame) => frame.timestamp_us = timestamp_us,
+        }
+    }
 }
 
 /// One frame out of the encoder: an H264 or H265 access unit in Annex B.
