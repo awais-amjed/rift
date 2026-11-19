@@ -20,6 +20,14 @@
 //! is on screen: a still desktop at a low rate keeps its size, since it costs
 //! next to nothing. WebRTC's target says when to climb, since a share held
 //! below it cannot show that more would fit.
+//!
+//! Neither says anything while nobody watches. The server pauses the picture
+//! then, WebRTC's target stays where it was, low for a share started before
+//! anybody came, and the gate went on leaving pictures out against it. A
+//! 1440p share nobody watched on Windows 10 stepped down to 960p within 20 s,
+//! and its first viewer waited 11 s for the full size (Nov 19 2026). So the
+//! share holds its step while paused, and judges again once WebRTC's estimate
+//! has had a few seconds with a viewer.
 
 use super::resolution::Size;
 use crate::api::screenshare::types::SharePriority;
@@ -133,6 +141,8 @@ pub(crate) struct StepDown {
     climbed_at: Option<Instant>,
     /// When the next picture is due, while the frame rate is stepped down.
     due: Option<Instant>,
+    /// Whether the server has paused the picture, nobody watching it.
+    paused: bool,
 }
 
 impl StepDown {
@@ -159,6 +169,7 @@ impl StepDown {
             climb_hold: CLIMB_HOLD,
             climbed_at: None,
             due: None,
+            paused: false,
         }
     }
 
@@ -210,6 +221,24 @@ impl StepDown {
         }
     }
 
+    /// Note whether the server has paused the picture, and say whether that
+    /// changed. Paused, nothing is judged; watched again, the share waits as
+    /// a new track does, for WebRTC's estimate to climb.
+    pub(crate) fn set_paused(&mut self, paused: bool, now: Instant) -> bool {
+        if paused == self.paused {
+            return false;
+        }
+        self.paused = paused;
+        self.window = None;
+        self.judged = None;
+        self.bad_windows = 0;
+        self.climbable_since = None;
+        if !paused && self.settled.is_some() {
+            self.settled = Some(now + START_SETTLE);
+        }
+        true
+    }
+
     /// Note a picture the gate admitted or left out, at what WebRTC asks for,
     /// and say whether the share steps down or up for it.
     pub(crate) fn picture(
@@ -218,7 +247,7 @@ impl StepDown {
         target_bps: u32,
         now: Instant,
     ) -> Option<Stepped> {
-        if now < *self.settled.get_or_insert(now + START_SETTLE) {
+        if now < *self.settled.get_or_insert(now + START_SETTLE) || self.paused {
             return None;
         }
         if self.at > 0 && f64::from(target_bps) >= self.climb_needs() {
@@ -626,6 +655,37 @@ mod tests {
         let up = run(&mut step, at(28), 30.0, 4_000_000, |_| true);
         assert_eq!(up.len(), 1, "{up:?}");
         assert!((19.9..20.1).contains(&up[0].0), "{up:?}");
+    }
+
+    #[test]
+    fn a_share_nobody_watches_holds_its_size() {
+        let mut step = fitted(SharePriority::Smoothness);
+        let start = Instant::now();
+        assert!(step.set_paused(true, start));
+        assert!(!step.set_paused(true, start), "no change");
+        // A low target from before anybody came, and every other picture
+        // left out against it.
+        assert_eq!(run(&mut step, start, 30.0, 800_000, |n| n % 2 == 0), []);
+        assert_eq!(step.at, 0);
+    }
+
+    #[test]
+    fn a_paused_share_neither_climbs_nor_finishes_a_window() {
+        let mut step = fitted(SharePriority::Smoothness);
+        let start = Instant::now();
+        run(&mut step, start, 5.0, 1_000_000, |n| n % 2 == 0);
+        assert_eq!(step.at, 1);
+        let at = |seconds| start + Duration::from_secs(seconds);
+        // One bad window before the pause does not add to one after it.
+        assert_eq!(run(&mut step, at(10), 2.1, 1_000_000, |n| n % 2 == 0), []);
+        step.set_paused(true, at(13));
+        assert_eq!(run(&mut step, at(13), 30.0, 4_000_000, |_| true), [], "no climb");
+        assert_eq!(step.at, 1);
+        step.set_paused(false, at(43));
+        // Five seconds for the estimate, then two windows.
+        let changes = run(&mut step, at(43), 9.5, 1_000_000, |n| n % 2 == 0);
+        assert_eq!(changes.len(), 1, "{changes:?}");
+        assert!((9.0..9.2).contains(&changes[0].0), "{changes:?}");
     }
 
     #[test]

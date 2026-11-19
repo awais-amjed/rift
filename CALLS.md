@@ -1048,9 +1048,7 @@ what was driven are in `TESTING.md`).
   the app on Windows 10 (VM, NVENC H265, 2K at 17 Mbps beside Heaven) a whole-screen
   share nobody watched asked for none; when the first viewer came the estimate stood at
   1.1 Mbps, and a second after the probe the encoder had 16.7 Mbps of 39 available
-  (Nov 19 2026). Not yet measured on a slow upload. Not fixed: a share nobody watches
-  is given 0.8 Mbps, so its step-down shrank it from 1440p to 960p within 20 s, and it
-  took 11 s after the viewer came to step back up.
+  (Nov 19 2026). Not yet measured on a slow upload.
   The encoder hears a new rate without a frame passing too: the fork's pass-through
   encoder had handed it over with the next frame, and a share whose rate gate was
   holding pictures back to keep within a fallen estimate sent none, so it heard the
@@ -1313,6 +1311,16 @@ what was driven are in `TESTING.md`).
   that is lower. Going down again within 60 s of a climb doubles that wait, up
   to 160 s. Climbing relies on WebRTC raising its estimate while the smaller
   picture is sent, which it does because the encoder spends what it is given.
+  Nothing is judged while the server has paused the picture, which dynacast does
+  while nobody watches (the track's layer is off, `publishing_layers`, read every
+  second), and a viewer's arrival gets the 5 s a new track does. WebRTC's target
+  stays where it was through a pause, 0.8 Mbps for a share started before anybody
+  came, and the gate went on leaving pictures out against it: a 2K share on
+  Windows 10 nobody watched stepped down to 960p within 20 s, and its first viewer
+  waited 11 s for the full size. Held, the same share left out up to 139 pictures
+  in 5 s while paused and kept its size, and its viewer had 2560x1440 at 58 fps
+  and 13.5 of 17 Mbps in the first 5 s (Nov 19 2026, NVENC H265 beside Heaven). On
+  Linux the target stood at the cap through a pause, so nothing was lost there.
 
   Measured Nov 18 2026 on an RTX 3070 Ti Laptop through the library. Two game
   clips ran at a fixed rate for 20 s, with the gate deciding before each

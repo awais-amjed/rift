@@ -93,6 +93,9 @@ struct Session {
     /// Asks for a probe as a connection's pictures begin to flow
     /// ([`probe_first_frames`]).
     prober: JoinHandle<()>,
+    /// Tells the step-down when nobody watches ([`follow_pause`]).
+    #[cfg(gpu_encoder)]
+    pause_follower: JoinHandle<()>,
 }
 
 // An async mutex, held for the whole of a start or a stop. A second start
@@ -156,6 +159,8 @@ pub(crate) async fn start(config: ScreenShareConfig) -> Result<String, String> {
         publisher,
         reporter: tokio::spawn(report_sending()),
         prober: tokio::spawn(probe_first_frames()),
+        #[cfg(gpu_encoder)]
+        pause_follower: tokio::spawn(follow_pause()),
     });
     log::info!("screenshare: started");
     Ok(format!("Connected to room: {room_name} ({room_sid})"))
@@ -170,6 +175,8 @@ pub(crate) async fn stop() -> Result<String, String> {
         publisher,
         reporter,
         prober,
+        #[cfg(gpu_encoder)]
+        pause_follower,
         ..
     }) = slot.take()
     else {
@@ -181,6 +188,8 @@ pub(crate) async fn stop() -> Result<String, String> {
     }
     reporter.abort();
     prober.abort();
+    #[cfg(gpu_encoder)]
+    pause_follower.abort();
 
     // Room teardown and the blocking thread joins run at the same time. The
     // capturer's drop (inside the capture join) releases the WGC session,
@@ -377,8 +386,13 @@ pub(crate) async fn update(quality: ShareQuality) -> Result<ShareQuality, String
 /// through, how many frames, and what held it back. For the log
 /// ([`report_sending`]) and the benchmark.
 pub(crate) async fn video_stats() -> Option<Vec<livekit::webrtc::stats::RtcStats>> {
+    share_track().await?.1.get_stats().await.ok()
+}
+
+/// The running share's picture, and the track it goes out on.
+async fn share_track() -> Option<(Arc<Video>, LocalVideoTrack)> {
     // Nothing of the session is held over an await: its capture is not
-    // `Sync`, and the log's reporter runs on any of the runtime's threads.
+    // `Sync`, and the tasks asking run on any of the runtime's threads.
     let (participant, video) = {
         let slot = SESSION.lock().await;
         let session = slot.as_ref()?;
@@ -387,8 +401,38 @@ pub(crate) async fn video_stats() -> Option<Vec<livekit::webrtc::stats::RtcStats
     let sid = video.track.lock().await.clone()?;
     let publication = participant.get_track_publication(&sid)?;
     match publication.track()? {
-        LocalTrack::Video(track) => track.get_stats().await.ok(),
+        LocalTrack::Video(track) => Some((video, track)),
         _ => None,
+    }
+}
+
+/// How often a GPU share asks whether the server has paused its picture.
+#[cfg(gpu_encoder)]
+const PAUSE_LOOK_EVERY: Duration = Duration::from_secs(1);
+
+/// Tells the share's step-down whether the server has paused the picture,
+/// which it does while nobody watches ([`StepDown::set_paused`]). Runs until
+/// [`stop`] aborts it.
+#[cfg(gpu_encoder)]
+async fn follow_pause() {
+    loop {
+        tokio::time::sleep(PAUSE_LOOK_EVERY).await;
+        let Some((video, track)) = share_track().await else {
+            continue;
+        };
+        // One layer, and dynacast turns it off while nobody receives it.
+        let layers = track.publishing_layers();
+        let paused = !layers.is_empty() && layers.iter().all(|layer| !layer.active);
+        if video.step.lock().unwrap().set_paused(paused, Instant::now()) {
+            log::info!(
+                "screenshare: {}",
+                if paused {
+                    "nobody watches, so the server paused the picture; its size holds"
+                } else {
+                    "someone watches again"
+                }
+            );
+        }
     }
 }
 
