@@ -665,6 +665,63 @@ async fn live_gpu_share_resizes_rejoins_and_falls_back() {
     viewer.close().await.unwrap();
 }
 
+/// An encoder that fails on a still Wayland screen, as on a GPU that is gone:
+/// its repeat of the last picture fails (`FAIL_REPEAT`), and the share moves
+/// to VP9 at once. Before Nov 19 2026 nothing noticed until the screen
+/// changed, since only a new picture asked the encoder. Needs Rift's own
+/// stream (`RIFT_PORTAL_TOKEN`, as `pw_stream`'s tests) and a screen nothing
+/// moves on: a moving one gives the encoder nothing to repeat.
+#[cfg(target_os = "linux")]
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a LiveKit server, a still Wayland screen, RIFT_PORTAL_TOKEN and a GPU that takes DMA-BUFs"]
+async fn live_gpu_encoder_failing_on_a_still_screen_moves_to_vp9() {
+    let _ = env_logger::builder()
+        .is_test(true)
+        .filter_level(log::LevelFilter::Info)
+        .try_init();
+    std::env::var("RIFT_PORTAL_TOKEN").expect("run with RIFT_PORTAL_TOKEN");
+    let server = Server::from_env();
+    let room = format!(
+        "rift-still-fail-{}",
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis()
+    );
+    let (viewer, mut events) = viewer_as(&server, &room, "viewer").await;
+    session::start(h264_share(&server, &room))
+        .await
+        .expect("share starts");
+    let first = watch(&next_video_track(&mut events).await, Duration::from_secs(2)).await;
+    assert_eq!(share_encoder().await, "LiveKit pre-encoded passthrough");
+    test_hooks::FAIL_REPEAT.store(true, Ordering::Relaxed);
+    let failing = Instant::now();
+    let moved = timeout(Duration::from_secs(10), next_video_track(&mut events)).await;
+    test_hooks::FAIL_REPEAT.store(false, Ordering::Relaxed);
+    let moved = moved.expect("the share moved to VP9");
+    let moved_after = failing.elapsed();
+    let after = watch(&moved, Duration::from_secs(3)).await;
+    let encoder = share_encoder().await;
+    log::info!(
+        "wayland share, encoder failing on a still screen: {} frames before in 2 s, \
+         VP9's track {} ms after, {} frames in 3 s, first after {} ms, encoder {encoder}",
+        first.frames,
+        moved_after.as_millis(),
+        after.frames,
+        after.first.as_millis()
+    );
+    // The repeat comes a second into the stillness, and the processing
+    // thread asks within a tenth of one after.
+    assert!(
+        moved_after < Duration::from_secs(4),
+        "VP9 after {moved_after:?}"
+    );
+    assert_eq!(encoder, "libvpx");
+    assert!(after.frames > 0, "no picture on VP9");
+    assert_eq!(session::stop().await.unwrap(), "Stopped successfully");
+    viewer.close().await.unwrap();
+}
+
 /// A share whose pictures keep being left out steps down to a smaller
 /// picture on the same track, without a gap, and climbs back once the link
 /// carries the full one (`step_down.rs`). The rate gate is made to leave out

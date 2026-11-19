@@ -553,12 +553,26 @@ impl Sender {
     /// Whether the feed attached now is a GPU feed that has not taken
     /// `picture`. Tells the stream of a new feed's buffers on the way, so a
     /// still screen's stream follows a fall back to VP9 too.
+    ///
+    /// A GPU feed that has taken it is asked whether its encoder failed, which
+    /// tells the session so. On a still screen nothing else asks: only
+    /// [`send`](Self::send) does, and there is nothing to send, while the
+    /// encoder fails on repeating the last picture. Unasked, the share stayed
+    /// frozen on a dead encoder until the screen changed, and never moved to
+    /// VP9 (as on Windows, `capture_wgc.rs`).
     fn untaken(&mut self, picture: &PwPicture) -> bool {
         let Some((feed, _)) = self.slot.feed(size_of(picture)) else {
             return false;
         };
         self.follow.feed(&feed);
-        matches!(&feed, Feed::Gpu(gpu) if self.taken.wants(gpu))
+        let Feed::Gpu(gpu) = &feed else {
+            return false;
+        };
+        if self.taken.wants(gpu) {
+            return true;
+        }
+        gpu.failed();
+        false
     }
 
     /// `picture` to the feed for its size, or kept for one not there yet.

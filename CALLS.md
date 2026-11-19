@@ -882,6 +882,12 @@ it, and on a still screen nothing newer comes to take its place. The stream
 lets Rust hold four pictures, and one that comes while Rust holds them waits
 in the stream until Rust lets one go: handed back unseen, as OBS's rule had
 it, a still screen's last change never reached the viewer (Oct 30).
+A GPU feed that has taken it is asked on each of those ticks whether its encoder
+failed, as on Windows. Before, only a new picture asked: an encoder that failed
+repeating a still screen's picture left the share frozen until the screen
+changed, and it never moved to VP9. Since Nov 19 2026 it moves 1.1 s after
+(`live_gpu_encoder_failing_on_a_still_screen_moves_to_vp9`, Intel VAAPI on
+GNOME 50; with the fix taken out, still not moved after 10 s).
 Proved Oct 29 by
 the live share tests on GNOME 50 (Iris Xe): 1080p, a resize, a late joiner,
 encoder failure to VP9 and no GPU; and in the app (the measurement and
