@@ -629,6 +629,15 @@ struct Signals {
     unchanged: Arc<AtomicU32>,
 }
 
+/// Whether a captured picture shows anything to share. Windows' capturer
+/// gives one under 2 pixels as a window closes (Oct 16 2026), and GNOME's
+/// stream for a window gave a 1x1 one first (Nov 20 2026). Taken as the
+/// share's size, the track came out 2x2, and libwebrtc aborted on scaling a
+/// picture to it.
+pub(crate) fn shows_something(size: Size) -> bool {
+    size.width >= 2 && size.height >= 2
+}
+
 impl Signals {
     /// A callback for the capturer, which tells `first_frame` how the first
     /// result went.
@@ -639,9 +648,11 @@ impl Signals {
         let signals = self.clone();
         let mut still = StillScreen::default();
         move |result| match result {
-            // What Windows' capturer gives as a window closes, which is no
-            // picture of anything (seen Oct 16 2026).
-            Ok(frame) if frame.width() < 2 || frame.height() < 2 => {}
+            Ok(frame)
+                if !shows_something(Size {
+                    width: frame.width() as u32,
+                    height: frame.height() as u32,
+                }) => {}
             Ok(frame) => {
                 if let Some(tx) = first_frame.take() {
                     let _ = tx.send(Progress::FirstFrame(Size {
@@ -1031,6 +1042,17 @@ mod tests {
         slot.feed(resized);
         slot.seed(first);
         assert_eq!(slot.native(), Some(resized));
+    }
+
+    #[test]
+    fn a_picture_under_two_pixels_shows_nothing() {
+        let size = |width, height| Size { width, height };
+        // GNOME's stream for a window, before it drew it (Nov 20 2026).
+        assert!(!shows_something(size(1, 1)));
+        assert!(!shows_something(size(1920, 1)));
+        assert!(!shows_something(size(0, 1080)));
+        assert!(shows_something(size(2, 2)));
+        assert!(shows_something(size(850, 687)));
     }
 
     #[test]

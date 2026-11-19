@@ -4,7 +4,7 @@
 //! DMA-BUF where the encoder takes one, or from memory: a VP8 or VP9 window on
 //! NVIDIA's screen ([`takes_rifts_stream`]), or after a fall back to VP9.
 //! When any of it refuses, the share runs on libwebrtc's capturer as before.
-use super::capture::{CaptureRequest, Command, Feed, Progress, VideoSlot};
+use super::capture::{shows_something, CaptureRequest, Command, Feed, Progress, VideoSlot};
 use super::encoder::{dmabuf_target, DmabufTarget, GpuCodec};
 use super::frames::{now_us, Converter};
 use super::gpu_feed::{GpuFeed, Picture};
@@ -298,6 +298,10 @@ pub(super) fn run(
     let first = Mutex::new(Some(progress.clone()));
     let seen = arrived.clone();
     let sink = move |picture: PwPicture| {
+        // Neither a size to share at nor a picture to send: back it goes.
+        if !shows_something(picture.size()) {
+            return;
+        }
         if !seen.swap(true, Ordering::Relaxed) {
             if let Some(tx) = first.lock().unwrap().take() {
                 let _ = tx.send(Progress::FirstFrame(picture.size()));
