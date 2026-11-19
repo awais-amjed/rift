@@ -149,6 +149,9 @@ pub(crate) mod test_hooks {
     /// cannot carry the share (`gpu_feed.rs`).
     pub(crate) static LEAVE_OUT_HALF: AtomicBool = AtomicBool::new(false);
     pub(crate) static GATED: AtomicU32 = AtomicU32::new(0);
+    /// Encoder sessions open now, and the most there have been at once.
+    pub(crate) static OPEN: AtomicU32 = AtomicU32::new(0);
+    pub(crate) static MOST_OPEN: AtomicU32 = AtomicU32::new(0);
 }
 
 /// The largest picture a hardware H264 encoder is sure to take: H264 level

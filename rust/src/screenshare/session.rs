@@ -693,11 +693,10 @@ impl Video {
                 target.height,
                 settings.fps
             );
-            // The old encoder closes before the new one opens.
             let start = old.bitrate();
             self.slot.detach();
-            *self.gpu.lock().unwrap() = None;
             drop(old);
+            self.close_gpu().await;
             let fed = source.clone();
             let encoder = encoder_settings(codec, target, &settings, start);
             let step = self.step.clone();
@@ -753,6 +752,8 @@ impl Video {
             .native()
             .ok_or("No frame has been captured to size the picture by")?;
         self.slot.detach();
+        #[cfg(gpu_encoder)]
+        self.close_gpu().await;
         if let Err(e) = self.participant().unpublish_track(&old).await {
             log::warn!("screenshare: unpublishing the old picture: {e:?}");
         }
@@ -774,9 +775,7 @@ impl Video {
             .ok_or("No frame has been captured to size the picture by")?;
         self.slot.detach();
         #[cfg(gpu_encoder)]
-        {
-            *self.gpu.lock().unwrap() = None;
-        }
+        self.close_gpu().await;
         self.publish_locked(&mut track, native).await
     }
 
@@ -889,6 +888,47 @@ impl Video {
             size: target,
         });
         Ok(sid)
+    }
+
+    /// Close the GPU picture's encoder, if there is one, before another opens:
+    /// a card at its limit of encoder sessions refuses a second, and the share
+    /// falls to VP9. A republish left the old one open until the new one was
+    /// published. The slot has let the feed go by now, but the processing
+    /// thread may still hold it for the picture it is sending, so this waits
+    /// for that too, for a second at most.
+    #[cfg(gpu_encoder)]
+    async fn close_gpu(&self) {
+        let Some(picture) = self.gpu.lock().unwrap().take() else {
+            return;
+        };
+        let started = Instant::now();
+        let mut feed = picture.feed;
+        loop {
+            match Arc::try_unwrap(feed) {
+                Ok(alone) => {
+                    let waited = started.elapsed();
+                    // Joins the encoder's thread, which finishes what it holds.
+                    drop(alone);
+                    if waited >= Duration::from_millis(1) {
+                        log::info!(
+                            "screenshare: waited {} ms for the old encoder to be let go",
+                            waited.as_millis()
+                        );
+                    }
+                    return;
+                }
+                Err(held) if started.elapsed() < Duration::from_secs(1) => {
+                    feed = held;
+                    tokio::time::sleep(Duration::from_millis(2)).await;
+                }
+                Err(_) => {
+                    log::warn!(
+                        "screenshare: the old encoder is still held; the new one opens beside it"
+                    );
+                    return;
+                }
+            }
+        }
     }
 
     /// Give up on this codec for the rest of this share, and say so: H265

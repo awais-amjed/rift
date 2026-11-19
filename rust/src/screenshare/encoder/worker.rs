@@ -310,6 +310,11 @@ fn run<S, F>(
             return;
         }
     };
+    #[cfg(test)]
+    {
+        use super::test_hooks::{MOST_OPEN, OPEN};
+        MOST_OPEN.fetch_max(OPEN.fetch_add(1, Ordering::SeqCst) + 1, Ordering::SeqCst);
+    }
     let _ = opened.send(Ok((name.clone(), session.takes_gpu_picture())));
 
     // WebRTC's target, and the rate and buffer the encoder is at: the target
@@ -523,6 +528,8 @@ fn run<S, F>(
     }
     // Dropping it finishes what the encoder holds and closes it.
     drop(session);
+    #[cfg(test)]
+    super::test_hooks::OPEN.fetch_sub(1, Ordering::SeqCst);
     log::info!("encoder: {name} closed");
 }
 

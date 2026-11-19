@@ -922,7 +922,11 @@ what was driven are in `TESTING.md`).
   published, so this publishes a new track and viewers see the picture blink,
   where a new size or rate on the GPU keeps the track. The capture carries
   on, since both CPU and GPU encoders take its pictures, so the desktop's
-  picker is not asked again.
+  picker is not asked again. The old GPU encoder closes before the new one
+  opens, on a new size as on a new track, so a card at its limit of encoder
+  sessions does not refuse the new one. Until Nov 19 2026 a new track's opened
+  first (`live_gpu_codec_change_closes_the_old_encoder_first`: two open at once
+  without the fix, one with it, H264 to H265 on Intel VAAPI).
 - **Auto never drops to VP8 under load.** VP8 is the lighter codec only on an
   idle machine; on a busy one its encoder threads fight over the cores.
   Measured Oct 5 2026 on Linux (`bench_test.rs`, a moving 960x1000 window at

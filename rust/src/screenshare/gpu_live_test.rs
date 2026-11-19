@@ -722,6 +722,64 @@ async fn live_gpu_encoder_failing_on_a_still_screen_moves_to_vp9() {
     viewer.close().await.unwrap();
 }
 
+/// A change from one codec the GPU makes to another publishes a new track
+/// with a new encoder, and the old encoder closes before it opens: a card at
+/// its limit of sessions refuses a second, and the share would fall to VP9.
+/// Until Nov 19 2026 the old one stayed open until the new track was
+/// published. Needs Rift's own stream (`RIFT_PORTAL_TOKEN`) and a GPU that
+/// makes H264 and H265.
+#[cfg(target_os = "linux")]
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a LiveKit server, a Wayland screen, RIFT_PORTAL_TOKEN and a GPU making H264 and H265"]
+async fn live_gpu_codec_change_closes_the_old_encoder_first() {
+    let _ = env_logger::builder()
+        .is_test(true)
+        .filter_level(log::LevelFilter::Info)
+        .try_init();
+    std::env::var("RIFT_PORTAL_TOKEN").expect("run with RIFT_PORTAL_TOKEN");
+    // As an app whose watched shares decode on the GPU: only that offers H265.
+    crate::watching::decode::choose();
+    let server = Server::from_env();
+    let room = format!(
+        "rift-codec-change-{}",
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis()
+    );
+    let (viewer, mut events) = viewer_as(&server, &room, "viewer").await;
+    session::start(h264_share(&server, &room))
+        .await
+        .expect("share starts");
+    let first = watch(&next_video_track(&mut events).await, Duration::from_secs(2)).await;
+    assert_eq!(share_encoder().await, "LiveKit pre-encoded passthrough");
+    test_hooks::MOST_OPEN.store(test_hooks::OPEN.load(Ordering::SeqCst), Ordering::SeqCst);
+    session::update(ShareQuality {
+        resolution: 1080,
+        fps: 30,
+        bitrate: 8,
+        codec: share::VideoCodec::H265,
+        share_audio: false,
+    })
+    .await
+    .expect("the codec changes");
+    let moved = timeout(Duration::from_secs(10), next_video_track(&mut events))
+        .await
+        .expect("a new track");
+    let after = watch(&moved, Duration::from_secs(2)).await;
+    let most = test_hooks::MOST_OPEN.load(Ordering::SeqCst);
+    log::info!(
+        "codec change: {} frames before, {} after on decoder {}, at most {most} encoder(s) open",
+        first.frames,
+        after.frames,
+        after.decoder
+    );
+    assert_eq!(most, 1, "the old encoder was still open");
+    assert!(after.frames > 0, "no picture after the change");
+    assert_eq!(session::stop().await.unwrap(), "Stopped successfully");
+    viewer.close().await.unwrap();
+}
+
 /// A share whose pictures keep being left out steps down to a smaller
 /// picture on the same track, without a gap, and climbs back once the link
 /// carries the full one (`step_down.rs`). The rate gate is made to leave out
