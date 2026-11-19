@@ -605,8 +605,7 @@ since Nov 18 a Windows 10 screen whose share Rift's session would take
 (above) is duplicated by Rift itself, on the encoder's device, and its
 pictures stay on the GPU (`capture_wgc/dxgi.rs`): each new desktop image is
 copied out of the duplication at once, as Sunshine and OBS do, and the cursor
-drawn into the copy by GDI (`DrawIconEx`), so Auto, Show and Hide work as on
-Rift's session. A duplication Windows takes back, at a mode change, a game
+drawn into the copy, so Auto, Show and Hide work as on Rift's session. A duplication Windows takes back, at a mode change, a game
 going full screen, a UAC prompt or the lock screen, is made again every 100 ms
 until it comes, and the share holds its last picture meanwhile. An output can
 be duplicated once per process, and libwebrtc's DXGI capturer holds every
@@ -615,11 +614,23 @@ a share dialog opened during the share may list that screen through GDI, or
 not at all. The screen has to be on the encoder's GPU: a laptop whose screen
 hangs off its integrated GPU while NVENC is on the other, a turned screen, an
 HDR desktop, or a basic display driver's duplication in memory, goes to
-libwebrtc's capturer as before. GDI waits for the copy under the cursor, so a
-draw of 2 ms or more is logged (`capture: drawing the cursor took up to`);
-if a game makes that long, the cursor wants drawing on the GPU instead. `RIFT_SCREENS_ON_DXGI=1` takes screens this way on Windows 11 too,
-to try it there. **Not yet proved:** written Nov 18 2026 and built for
-Windows; no Windows computer has run it yet.
+libwebrtc's capturer as before. `RIFT_SCREENS_ON_DXGI=1` takes screens this
+way on Windows 11 too, to try it there. Passed Nov 19 2026 on Windows 11 and
+Windows 10 in a VM with an RTX 3070 Ti, a viewer on Linux.
+
+The cursor was first drawn by GDI (`DrawIconEx`) into the copy, which had to
+wait for the GPU to finish with it: 8–15 ms a picture on a still Windows 10
+desktop, and beside Heaven running uncapped 33–47 ms, which held the share to
+21 fps while the pointer was over the desktop (Nov 19 2026). So its shape is
+read through GDI only when it changes, into two small textures, and drawn on
+the GPU (`capture_wgc/cursor.rs`, `cursor_shape.rs`): one with straight alpha,
+and one, white where the cursor inverts what is under it (the text cursor), drawn
+with a blend that turns the screen inside out, as Sunshine draws them. The
+encoder's conversion (`d3d11_nv12.c`) draws on the same device without setting
+a blend, so the cursor's draw puts the default back: left inverting, it turned
+every picture grey. A draw of 2 ms or more is still logged (`capture: drawing
+the cursor took up to`). Verified Nov 19 2026 in the Windows 10 VM beside
+Heaven: 57–60 fps with the pointer on the desktop, draws under 2 ms.
 
 libwebrtc's DXGI capturer asks for a new picture without waiting, and hands
 over its last one whenever the screen drew nothing new since, marked

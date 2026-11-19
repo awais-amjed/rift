@@ -15,14 +15,13 @@
 //! each new desktop image is copied out of the duplication's texture at once,
 //! and the duplication's frame let go: the next picture can then come while the
 //! encoder reads this one. DXGI leaves the cursor out of its pictures, so it is
-//! drawn into the copy here, by GDI as libwebrtc's own cursor monitor reads it:
-//! the copy is made GDI-compatible, and Windows draws the cursor its own way,
-//! the inverting ones too.
+//! drawn into the copy here, on the GPU (`cursor`), the inverting ones too.
 //!
 //! An output can be duplicated once per process. libwebrtc's DXGI capturer
 //! holds every output while it lives, so the share lets go of the one it found
 //! its source with before this opens (`capture_wgc::run`).
 
+use super::cursor::CursorDrawer;
 use super::{Flow, WgcPicture};
 use crate::screenshare::pacer;
 use crate::screenshare::resolution::Size;
@@ -34,8 +33,8 @@ use windows::core::{Error, Interface, Result, HRESULT};
 use windows::Win32::Foundation::{E_ACCESSDENIED, E_FAIL, E_INVALIDARG, E_NOTIMPL, POINT, RECT};
 use windows::Win32::Graphics::Direct3D10::ID3D10Multithread;
 use windows::Win32::Graphics::Direct3D11::{
-    ID3D11Device, ID3D11DeviceContext, ID3D11Texture2D, D3D11_BIND_RENDER_TARGET,
-    D3D11_BIND_SHADER_RESOURCE, D3D11_RESOURCE_MISC_GDI_COMPATIBLE, D3D11_TEXTURE2D_DESC,
+    ID3D11Device, ID3D11DeviceContext, ID3D11RenderTargetView, ID3D11Texture2D,
+    D3D11_BIND_RENDER_TARGET, D3D11_BIND_SHADER_RESOURCE, D3D11_TEXTURE2D_DESC,
     D3D11_USAGE_DEFAULT,
 };
 use windows::Win32::Graphics::Dxgi::Common::{
@@ -43,16 +42,13 @@ use windows::Win32::Graphics::Dxgi::Common::{
     DXGI_SAMPLE_DESC,
 };
 use windows::Win32::Graphics::Dxgi::{
-    IDXGIDevice, IDXGIOutput1, IDXGIOutputDuplication, IDXGIResource, IDXGISurface1,
-    DXGI_ERROR_ACCESS_DENIED, DXGI_ERROR_ACCESS_LOST, DXGI_ERROR_NOT_CURRENTLY_AVAILABLE,
-    DXGI_ERROR_NOT_FOUND, DXGI_ERROR_SESSION_DISCONNECTED, DXGI_ERROR_UNSUPPORTED,
-    DXGI_ERROR_WAIT_TIMEOUT, DXGI_OUTDUPL_FRAME_INFO,
+    IDXGIDevice, IDXGIOutput1, IDXGIOutputDuplication, IDXGIResource, DXGI_ERROR_ACCESS_DENIED,
+    DXGI_ERROR_ACCESS_LOST, DXGI_ERROR_NOT_CURRENTLY_AVAILABLE, DXGI_ERROR_NOT_FOUND,
+    DXGI_ERROR_SESSION_DISCONNECTED, DXGI_ERROR_UNSUPPORTED, DXGI_ERROR_WAIT_TIMEOUT,
+    DXGI_OUTDUPL_FRAME_INFO,
 };
-use windows::Win32::Graphics::Gdi::{DeleteObject, HMONITOR};
-use windows::Win32::UI::WindowsAndMessaging::{
-    DrawIconEx, GetCursorInfo, GetIconInfo, CURSORINFO, CURSOR_SHOWING, DI_NORMAL, HCURSOR, HICON,
-    ICONINFO,
-};
+use windows::Win32::Graphics::Gdi::HMONITOR;
+use windows::Win32::UI::WindowsAndMessaging::{GetCursorInfo, CURSORINFO, CURSOR_SHOWING, HCURSOR};
 
 /// The copies a picture is handed out in. One can wait in the capture's
 /// mailbox, one in the processing thread (held by the pacer, or left out by the
@@ -72,13 +68,13 @@ const AGAIN_AFTER: Duration = Duration::from_millis(100);
 /// How often a slow cursor draw is reported.
 const REPORT_EVERY: Duration = Duration::from_secs(5);
 
-/// A cursor draw at least this long is reported: GDI waits for the copy under
-/// it, which beside a game that fills the GPU may take a while.
+/// A cursor draw at least this long is reported. It only asks the GPU, so it
+/// should take well under this unless the encoder holds the device.
 const SLOW_DRAW: Duration = Duration::from_millis(2);
 
 /// One of the copies a picture is handed out in, free again once its picture
-/// has gone.
-pub(super) struct Copy(ID3D11Texture2D);
+/// has gone, and the view the cursor is drawn into it through.
+pub(super) struct Copy(ID3D11Texture2D, ID3D11RenderTargetView);
 
 // SAFETY: a texture on a multithread-protected device; this module writes it
 // only while no picture holds it, and `gpu-encoder` only reads it.
@@ -149,9 +145,11 @@ impl Drop for Duplication {
 struct Screen {
     device: ID3D11Device,
     context: ID3D11DeviceContext,
-    /// Held across a cursor draw, which must finish before the encoder's
-    /// next command on the device.
+    /// Held across a cursor draw, whose states and draws must not mix with
+    /// the encoder's commands on the device.
     lock: ID3D10Multithread,
+    /// `None` if its shaders could not be made, and then no cursor is drawn.
+    cursor: Option<CursorDrawer>,
     monitor: HMONITOR,
     /// `None` while Windows has it back and it is being made again.
     duplication: Option<IDXGIOutputDuplication>,
@@ -174,10 +172,14 @@ impl Screen {
         // SAFETY: a live device.
         let context = unsafe { device.GetImmediateContext()? };
         let (image, copies) = textures(device, size)?;
+        let cursor = CursorDrawer::new(device)
+            .inspect_err(|e| log::warn!("capture: the cursor cannot be drawn: {e}"))
+            .ok();
         Ok(Screen {
             device: device.clone(),
             context,
             lock: device.cast()?,
+            cursor,
             monitor,
             duplication: Some(duplication),
             desktop,
@@ -213,23 +215,22 @@ impl Screen {
             .cloned()
     }
 
-    /// Draw the cursor into `copy` through GDI, with the device held: the DC
-    /// must be let go before anything else is asked of the device. A failure
-    /// leaves the picture without it, which is all it costs.
-    fn draw_cursor(&self, copy: &ID3D11Texture2D, pointer: Pointer, spots: &mut HotSpots) {
-        let cursor = HCURSOR(pointer.handle as *mut _);
-        let (x, y) = cursor_corner(pointer.at, &self.desktop, spots.of(cursor));
-        let Ok(surface) = copy.cast::<IDXGISurface1>() else {
+    /// Draw the cursor into `copy` on the GPU. Its shape is read again only
+    /// when it changed; one that cannot be read is left out.
+    fn draw_cursor(&mut self, copy: &Copy, pointer: Pointer) {
+        let Some(drawer) = self.cursor.as_mut() else {
             return;
         };
-        // SAFETY: the copy is GDI-compatible and no picture holds it yet; the
-        // device is held from before the DC is taken until after it is let go.
+        let Some(hot_spot) = drawer.hot_spot(&self.device, HCURSOR(pointer.handle as *mut _))
+        else {
+            return;
+        };
+        let corner = cursor_corner(pointer.at, &self.desktop, hot_spot);
+        // SAFETY: the device is held across the draw's states and draws, and
+        // no picture holds the copy yet.
         unsafe {
             self.lock.Enter();
-            if let Ok(dc) = surface.GetDC(false) {
-                let _ = DrawIconEx(dc, x, y, HICON(cursor.0), 0, 0, 0, None, DI_NORMAL);
-                let _ = surface.ReleaseDC(None);
-            }
+            drawer.draw(&self.context, &copy.1, corner);
             self.lock.Leave();
         }
     }
@@ -239,7 +240,14 @@ impl Screen {
 fn textures(device: &ID3D11Device, size: Size) -> Result<(ID3D11Texture2D, Vec<Arc<Copy>>)> {
     let image = texture(device, size, false)?;
     let copies = (0..COPIES)
-        .map(|_| texture(device, size, true).map(|t| Arc::new(Copy(t))))
+        .map(|_| {
+            let texture = texture(device, size, true)?;
+            let mut view = None;
+            // SAFETY: a texture made to be drawn into, on this device.
+            unsafe { device.CreateRenderTargetView(&texture, None, Some(&mut view))? };
+            let view = view.ok_or_else(|| Error::from_hresult(E_FAIL))?;
+            Ok(Arc::new(Copy(texture, view)))
+        })
         .collect::<Result<Vec<_>>>()?;
     Ok((image, copies))
 }
@@ -286,8 +294,8 @@ fn duplicate_output(
     }
 }
 
-/// A BGRA texture of `size`; one a picture is handed out in can also be drawn
-/// on by GDI, and read by the encoder's conversion.
+/// A BGRA texture of `size`; one a picture is handed out in can also have the
+/// cursor drawn into it, and be read by the encoder's conversion.
 fn texture(device: &ID3D11Device, size: Size, handed_out: bool) -> Result<ID3D11Texture2D> {
     let desc = D3D11_TEXTURE2D_DESC {
         Width: size.width,
@@ -306,11 +314,7 @@ fn texture(device: &ID3D11Device, size: Size, handed_out: bool) -> Result<ID3D11
             0
         },
         CPUAccessFlags: 0,
-        MiscFlags: if handed_out {
-            D3D11_RESOURCE_MISC_GDI_COMPATIBLE.0 as u32
-        } else {
-            0
-        },
+        MiscFlags: 0,
     };
     let mut made = None;
     // SAFETY: `made` is written and read here only.
@@ -366,41 +370,6 @@ fn cursor_corner(at: (i32, i32), desktop: &RECT, hot_spot: POINT) -> (i32, i32) 
     )
 }
 
-/// Hot spots, kept for the cursor last drawn: reading one makes two bitmaps.
-#[derive(Default)]
-struct HotSpots {
-    handle: usize,
-    spot: POINT,
-}
-
-impl HotSpots {
-    fn of(&mut self, cursor: HCURSOR) -> POINT {
-        let handle = cursor.0 as usize;
-        if handle != self.handle {
-            let mut info = ICONINFO::default();
-            // SAFETY: `info` is written; its bitmaps are ours to delete.
-            unsafe {
-                if GetIconInfo(HICON(cursor.0), &mut info).is_ok() {
-                    self.spot = POINT {
-                        x: info.xHotspot as i32,
-                        y: info.yHotspot as i32,
-                    };
-                    if !info.hbmMask.is_invalid() {
-                        let _ = DeleteObject(info.hbmMask.into());
-                    }
-                    if !info.hbmColor.is_invalid() {
-                        let _ = DeleteObject(info.hbmColor.into());
-                    }
-                } else {
-                    self.spot = POINT::default();
-                }
-            }
-            self.handle = handle;
-        }
-        self.spot
-    }
-}
-
 /// Whether DXGI refused for a reason that passes: the duplication taken back
 /// at a mode change or a full-screen game, the secure desktop of a UAC prompt
 /// or the lock screen, a session switching, or another duplication of the
@@ -432,7 +401,6 @@ fn duplicate(mut screen: Screen, flow: &Flow, stop: &AtomicBool, cursor: &Atomic
     // A new desktop image not yet handed out, kept when every copy is out.
     let mut pending = false;
     let mut drawn: Option<Pointer> = None;
-    let mut spots = HotSpots::default();
     let mut next = Instant::now();
     let mut slowest = Duration::ZERO;
     let mut reported = Instant::now();
@@ -549,7 +517,7 @@ fn duplicate(mut screen: Screen, flow: &Flow, stop: &AtomicBool, cursor: &Atomic
         unsafe { screen.context.CopyResource(copy.texture(), &screen.image) };
         if pointer.shown {
             let began = Instant::now();
-            screen.draw_cursor(copy.texture(), pointer, &mut spots);
+            screen.draw_cursor(&copy, pointer);
             slowest = slowest.max(began.elapsed());
         }
         if reported.elapsed() >= REPORT_EVERY {

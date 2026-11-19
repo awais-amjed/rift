@@ -61,6 +61,7 @@ use windows::Win32::System::WinRT::Direct3D11::{
 use windows::Win32::System::WinRT::Graphics::Capture::IGraphicsCaptureItemInterop;
 use windows::Win32::System::WinRT::{RoInitialize, RO_INIT_MULTITHREADED};
 
+mod cursor;
 mod dxgi;
 
 /// How often the capture thread looks for a stop, an ended window or a new rate.
