@@ -21,6 +21,9 @@ class SourceThumbnailGrid extends StatelessWidget {
   final bool captureFullScreen;
   final ValueChanged<CaptureSource> onChanged;
 
+  /// Whether the source a running share captures is marked, for a switch.
+  final bool marksShared;
+
   const SourceThumbnailGrid({
     super.key,
     required this.sources,
@@ -28,6 +31,7 @@ class SourceThumbnailGrid extends StatelessWidget {
     required this.thumbnails,
     required this.captureFullScreen,
     required this.onChanged,
+    this.marksShared = false,
   });
 
   static const _gap = 12.0;
@@ -65,6 +69,7 @@ class SourceThumbnailGrid extends StatelessWidget {
               screen: captureFullScreen,
               app: source.appId,
               minimised: source.minimised,
+              sharedNow: marksShared && source.shared,
               selected: source.index == selectedIndex,
               onTap: () => onChanged(source),
             );

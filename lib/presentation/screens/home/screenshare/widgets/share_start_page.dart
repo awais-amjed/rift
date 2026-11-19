@@ -24,6 +24,10 @@ class ShareStartPage extends StatelessWidget {
   final VoidCallback onAdvanced;
   final VoidCallback onClose;
 
+  /// A running share is being switched to another source: only what to
+  /// share is asked, since its quality is changed from its own menu.
+  final bool switching;
+
   const ShareStartPage({
     super.key,
     required this.settings,
@@ -33,6 +37,7 @@ class ShareStartPage extends StatelessWidget {
     required this.onAudioToggle,
     required this.onAdvanced,
     required this.onClose,
+    this.switching = false,
   });
 
   static const _sideBySideWidth = 420.0;
@@ -46,7 +51,10 @@ class ShareStartPage extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       spacing: 20,
       children: [
-        ShareDialogHeader(title: 'Share your screen', onClose: onClose),
+        ShareDialogHeader(
+          title: switching ? 'Switch to' : 'Share your screen',
+          onClose: onClose,
+        ),
         Flexible(
           child: SingleChildScrollView(
             child: Column(
@@ -73,46 +81,48 @@ class ShareStartPage extends StatelessWidget {
                     ),
                   ],
                 ),
-                SettingsSection(
-                  label: 'Quality',
-                  children: [
-                    ShareQualityRow(
-                      settings: settings,
-                      onChanged: onChanged,
-                      onCustom: onAdvanced,
-                    ),
-                  ],
-                ),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final advanced = ShareAdvancedButton(
-                      summary: ShareSummary.advanced(settings, maxShareMbps),
-                      onTap: onAdvanced,
-                    );
-                    final soundSwitch = ShareSoundSwitch(
-                      on: settings.shareAudio,
-                      onTap: onAudioToggle,
-                    );
-                    // Side by side the summary would be cut to nothing.
-                    if (constraints.maxWidth < _sideBySideWidth) {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        spacing: 8,
-                        children: [if (sound) soundSwitch, advanced],
+                if (!switching) ...[
+                  SettingsSection(
+                    label: 'Quality',
+                    children: [
+                      ShareQualityRow(
+                        settings: settings,
+                        onChanged: onChanged,
+                        onCustom: onAdvanced,
+                      ),
+                    ],
+                  ),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final advanced = ShareAdvancedButton(
+                        summary: ShareSummary.advanced(settings, maxShareMbps),
+                        onTap: onAdvanced,
                       );
-                    }
-                    return Row(
-                      mainAxisAlignment: sound
-                          ? MainAxisAlignment.spaceBetween
-                          : MainAxisAlignment.end,
-                      spacing: 8,
-                      children: [
-                        if (sound) soundSwitch,
-                        Flexible(child: advanced),
-                      ],
-                    );
-                  },
-                ),
+                      final soundSwitch = ShareSoundSwitch(
+                        on: settings.shareAudio,
+                        onTap: onAudioToggle,
+                      );
+                      // Side by side the summary would be cut to nothing.
+                      if (constraints.maxWidth < _sideBySideWidth) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          spacing: 8,
+                          children: [if (sound) soundSwitch, advanced],
+                        );
+                      }
+                      return Row(
+                        mainAxisAlignment: sound
+                            ? MainAxisAlignment.spaceBetween
+                            : MainAxisAlignment.end,
+                        spacing: 8,
+                        children: [
+                          if (sound) soundSwitch,
+                          Flexible(child: advanced),
+                        ],
+                      );
+                    },
+                  ),
+                ],
               ],
             ),
           ),

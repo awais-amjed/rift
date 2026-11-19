@@ -9,6 +9,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:rift/data/classes/screen_share_settings.dart';
 import 'package:rift/logic/cubits/app/app_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
+import 'package:rift/presentation/common/app_button.dart';
 import 'package:rift/presentation/common/selectable_surface.dart';
 import 'package:rift/presentation/common/show_custom_dialog.dart';
 import 'package:rift/presentation/screens/home/screenshare/screen_share_settings_dialog.dart';
@@ -53,6 +54,8 @@ void main() {
     WidgetTester tester, {
     bool picksSourceInApp = true,
     List<CaptureSource> screens = const [screenOne],
+    List<CaptureSource> windows = const [window],
+    bool switching = false,
     int maxShareMbps = 0,
     ScreenShareSettings settings = const ScreenShareSettings(),
     Size size = const Size(1180, 780),
@@ -89,8 +92,9 @@ void main() {
                       child: ScreenShareSettingsDialog(
                         maxShareMbps: maxShareMbps,
                         picksSourceInApp: picksSourceInApp,
+                        switching: switching,
                         listSources: ({required captureFullScreen}) async =>
-                            captureFullScreen ? screens : const [window],
+                            captureFullScreen ? screens : windows,
                       ),
                     ),
                   ),
@@ -489,5 +493,88 @@ void main() {
         },
       );
     }
+  });
+
+  group('switching a running share', () {
+    const shared = CaptureSource(
+      index: 0,
+      title: 'Game',
+      appId: '',
+      minimised: false,
+      shared: true,
+    );
+    const browser = CaptureSource(
+      index: 1,
+      title: 'Browser',
+      appId: '',
+      minimised: false,
+      shared: false,
+    );
+    const sharingGame = ScreenShareSettings(
+      captureFullScreen: false,
+      selectedVideoSourceIndex: 0,
+      selectedVideoSourceTitle: 'Game',
+    );
+
+    AppButton switchButton(WidgetTester tester) =>
+        tester.widget<AppButton>(find.widgetWithText(AppButton, 'Switch'));
+
+    testWidgets('asks only what to switch to', (tester) async {
+      await open(tester, switching: true);
+      expect(find.text('Switch to'), findsOneWidget);
+      expect(find.text('Share your screen'), findsNothing);
+      expect(find.byType(ShareQualityRow), findsNothing);
+      expect(find.text('Advanced'), findsNothing);
+    });
+
+    testWidgets('the list says Switch, not Start sharing', (tester) async {
+      await open(tester, switching: true);
+      await tester.tap(find.text('A window'));
+      await tester.pumpAndSettle();
+      expect(find.text('Start sharing'), findsNothing);
+      expect(find.widgetWithText(AppButton, 'Switch'), findsOneWidget);
+    });
+
+    testWidgets('marks what is shared now, and will not switch to it', (
+      tester,
+    ) async {
+      await open(
+        tester,
+        switching: true,
+        windows: [shared, browser],
+        settings: sharingGame,
+      );
+      await tester.tap(find.text('A window'));
+      await tester.pumpAndSettle();
+      expect(find.text('Sharing now'), findsOneWidget);
+      expect(switchButton(tester).onPressed, isNull);
+
+      await tester.tap(find.text('Browser'));
+      await tester.pumpAndSettle();
+      expect(switchButton(tester).onPressed, isNotNull);
+    });
+
+    testWidgets('answers with the source picked', (tester) async {
+      final answers = await open(
+        tester,
+        switching: true,
+        windows: [shared, browser],
+        settings: sharingGame,
+      );
+      await tester.tap(find.text('A window'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Browser'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Switch'));
+      await tester.pumpAndSettle();
+      expect(answers.single?.selectedVideoSourceTitle, 'Browser');
+    });
+
+    testWidgets('a new share marks nothing', (tester) async {
+      await open(tester, windows: [shared, browser], settings: sharingGame);
+      await tester.tap(find.text('A window'));
+      await tester.pumpAndSettle();
+      expect(find.text('Sharing now'), findsNothing);
+    });
   });
 }

@@ -6,6 +6,7 @@ import '../../../../../data/constants.dart';
 import '../../../../common/hover_builder.dart';
 import '../../../../theme/app_motion.dart';
 import '../../../../theme/app_text.dart';
+import '../../../../theme/media_colors.dart';
 import '../../../../theme/theme_context.dart';
 import 'minimised_preview.dart';
 
@@ -19,6 +20,9 @@ class SourceTile extends StatelessWidget {
   final Uint8List? thumbnail;
   final bool minimised;
   final bool selected;
+
+  /// The source the share being switched captures now.
+  final bool sharedNow;
   final VoidCallback onTap;
 
   /// A screen rather than a window: which icon stands in for the picture.
@@ -38,6 +42,7 @@ class SourceTile extends StatelessWidget {
     required this.minimised,
     required this.selected,
     required this.onTap,
+    this.sharedNow = false,
     this.screen = false,
     this.app = '',
   });
@@ -92,6 +97,7 @@ class SourceTile extends StatelessWidget {
                           const MinimisedPreview()
                         else
                           _Placeholder(screen: screen, app: app),
+                        if (sharedNow) const _SharingNow(),
                         if (selected) const _Badge(),
                       ],
                     ),
@@ -140,6 +146,34 @@ class _Badge extends StatelessWidget {
         height: SourceTile._badgeSize,
         decoration: BoxDecoration(color: theme.primary, shape: BoxShape.circle),
         child: Icon(Icons.check, size: K.iconRow, color: theme.onPrimary),
+      ),
+    );
+  }
+}
+
+/// Over the picture of what is shared now. Drawn on [MediaColors]: on
+/// Windows 10 the shared screen may have no picture, and the mark is then
+/// what tells it.
+class _SharingNow extends StatelessWidget {
+  const _SharingNow();
+
+  static const _padding = EdgeInsets.symmetric(horizontal: 8, vertical: 3);
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      top: SourceTile._badgeInset,
+      left: SourceTile._badgeInset,
+      child: Container(
+        padding: _padding,
+        decoration: BoxDecoration(
+          color: MediaColors.panel,
+          borderRadius: BorderRadius.circular(K.radiusPill),
+        ),
+        child: Text(
+          'Sharing now',
+          style: AppText.chip.copyWith(color: MediaColors.onMedia),
+        ),
       ),
     );
   }

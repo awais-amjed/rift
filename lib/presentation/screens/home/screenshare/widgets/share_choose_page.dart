@@ -26,6 +26,10 @@ class ShareChoosePage extends StatelessWidget {
   final VoidCallback onClose;
   final VoidCallback onStart;
 
+  /// A running share is being switched: the source shared now is marked, and
+  /// cannot be switched to.
+  final bool switching;
+
   const ShareChoosePage({
     super.key,
     required this.settings,
@@ -37,7 +41,18 @@ class ShareChoosePage extends StatelessWidget {
     required this.onBack,
     required this.onClose,
     required this.onStart,
+    this.switching = false,
   });
+
+  /// The source picked, as listed.
+  CaptureSource? get _picked {
+    final index = settings.selectedVideoSourceIndex;
+    if (index == null) return null;
+    for (final source in sources ?? const <CaptureSource>[]) {
+      if (source.index == index) return source;
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,18 +73,24 @@ class ShareChoosePage extends StatelessWidget {
           spacing: 10,
           children: [
             Expanded(
-              child: Text(
-                ShareSummary.quality(settings),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppText.rowQuiet.copyWith(color: theme.textTertiary),
-              ),
+              child: switching
+                  ? const SizedBox.shrink()
+                  : Text(
+                      ShareSummary.quality(settings),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.rowQuiet.copyWith(
+                        color: theme.textTertiary,
+                      ),
+                    ),
             ),
             AppButton(
-              label: 'Start sharing',
-              onPressed: settings.selectedVideoSourceIndex == null
-                  ? null
-                  : onStart,
+              label: switching ? 'Switch' : 'Start sharing',
+              onPressed: switch (_picked) {
+                null => null,
+                CaptureSource(shared: true) when switching => null,
+                _ => onStart,
+              },
             ),
           ],
         ),
@@ -97,6 +118,7 @@ class ShareChoosePage extends StatelessWidget {
       selectedIndex: settings.selectedVideoSourceIndex,
       thumbnails: thumbnails,
       captureFullScreen: full,
+      marksShared: switching,
       onChanged: onChanged,
     );
   }

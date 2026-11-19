@@ -21,7 +21,11 @@ import 'stream_choice_menu.dart';
 class ScreenShareMenu extends StatelessWidget {
   final VoidCallback onStop;
 
-  const ScreenShareMenu({super.key, required this.onStop});
+  /// Picks another screen or window for the share, which keeps its
+  /// connection. Null where the share cannot switch (a phone or a browser).
+  final VoidCallback? onSwitch;
+
+  const ScreenShareMenu({super.key, required this.onStop, this.onSwitch});
 
   @override
   Widget build(BuildContext context) {
@@ -46,6 +50,15 @@ class ScreenShareMenu extends StatelessWidget {
               },
             ),
             Divider(height: 9, color: themeState.borderPrimary),
+            if (onSwitch case final onSwitch?)
+              ContextMenuItem(
+                icon: Icons.swap_horiz_rounded,
+                label: 'Switch screen or window',
+                onTap: () {
+                  ContextMenuScope.of(context)?.call();
+                  onSwitch();
+                },
+              ),
             ContextMenuSubmenuItem(
               icon: Icons.aspect_ratio_rounded,
               label: 'Resolution',

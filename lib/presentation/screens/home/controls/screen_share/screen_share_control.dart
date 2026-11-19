@@ -11,6 +11,7 @@ import '../../../../../data/enums/server_permission.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/cubits/screenshare/screenshare_cubit.dart';
+import '../../../../../logic/cubits/screenshare/share_attempt.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
 import '../../../../../logic/services/host_platform.dart';
@@ -142,6 +143,38 @@ class _ScreenShareControlState extends State<ScreenShareControl> {
     if (portalChoice != null) unawaited(WindowSharePortal.forget(portalChoice));
   }
 
+  /// Picks another screen or window for the running share, which goes on
+  /// over the same connection, so those watching keep watching. A Linux
+  /// window with sound asks its sound as a new share does.
+  Future<void> _switchSource() async {
+    final screenshareCubit = context.read<ScreenshareCubit>();
+    final picked = await showCustomDialog<ScreenShareSettings>(
+      context: context,
+      build: (_) => const ScreenShareSettingsDialog(switching: true),
+    );
+    if (picked == null || !mounted) return;
+    // Whether the sound is asked is the running share's: the dialog's draft
+    // holds the saved settings, and its sound switch was not shown.
+    var settings = picked.copyWith(
+      shareAudio: screenshareCubit.state.settings?.shareAudio ?? false,
+    );
+    String? portalChoice;
+    if (WindowSoundStep.appliesTo(settings)) {
+      final share = await WindowSoundStep.run(
+        context,
+        settings,
+        ShareAttempt(),
+      );
+      if (share == null) return;
+      (:settings, :portalChoice) = share;
+    }
+    await screenshareCubit.switchSource(
+      settings: settings,
+      portalChoice: portalChoice,
+    );
+    if (portalChoice != null) unawaited(WindowSharePortal.forget(portalChoice));
+  }
+
   /// Opens the menu above the button, its left edge on the button's.
   void _openMenu() {
     final box = _buttonKey.currentContext?.findRenderObject() as RenderBox?;
@@ -151,6 +184,7 @@ class _ScreenShareControlState extends State<ScreenShareControl> {
       context,
       ScreenShareMenu(
         onStop: () => context.read<ScreenshareCubit>().stopScreenShare(),
+        onSwitch: ScreenshareCubit.changesQualityLive ? _switchSource : null,
       ),
       topLeft - const Offset(0, _menuGap),
     );

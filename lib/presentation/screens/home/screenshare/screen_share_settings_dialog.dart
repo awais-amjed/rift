@@ -49,11 +49,16 @@ class ScreenShareSettingsDialog extends StatefulWidget {
   final Future<List<CaptureSource>> Function({required bool captureFullScreen})
   listSources;
 
+  /// Picks what a running share switches to, rather than a share to start:
+  /// what to share, and nothing about how.
+  final bool switching;
+
   const ScreenShareSettingsDialog({
     super.key,
     this.maxShareMbps = ServerLimits.unlimited,
     this.picksSourceInApp,
     this.listSources = ScreenShareSources.listCapture,
+    this.switching = false,
   });
 
   @override
@@ -248,6 +253,7 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
       onAudioToggle: _onAudioToggle,
       onAdvanced: () => setState(() => _page = _Page.advanced),
       onClose: _close,
+      switching: widget.switching,
     ),
     _Page.choose => ShareChoosePage(
       settings: _draft,
@@ -259,6 +265,7 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
       onBack: _goBack,
       onClose: _close,
       onStart: _confirm,
+      switching: widget.switching,
     ),
     _Page.advanced => ShareAdvancedPage(
       settings: _draft,
