@@ -13,6 +13,7 @@ use super::pacer::{self, Pacer};
 use super::portal::{self, PortalError, PortalKind, PortalSession};
 use super::pw_stream::{self, PwBuffers, PwEvent, PwPicture, PwStream};
 use super::resolution::Size;
+use super::still::{Repeats, REPEAT_EVERY};
 use crate::api::screenshare::types::{ScreenshareEvent, VideoCodec};
 use livekit::webrtc::desktop_capturer::DesktopCaptureSourceType;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
@@ -26,22 +27,9 @@ use tokio::sync::mpsc::UnboundedSender;
 /// rate. The pictures themselves never wait on it.
 const POLL: Duration = Duration::from_millis(100);
 
-/// How long the processing thread waits on a quiet compositor before it
-/// sends the last memory picture again. A compositor sends a picture only
-/// when the window changes, and KDE drew a covered window once and then
-/// nothing (Oct 30, the KDE VM), where libwebrtc's capturer hands over its
-/// last picture on every tick. WebRTC needs a picture to answer a viewer's
-/// keyframe request with, and LiveKit's own keepalive runs at this rate too.
-const REPEAT_EVERY: Duration = Duration::from_millis(100);
-
-/// The repeat once a picture has been still for [`SETTLED_AFTER`]: by then
-/// the quick repeats have sharpened it, and each one is an encode. The same
-/// back-off libwebrtc's own still-screen mode makes (its zero-hertz idle
-/// repeat), owner's call Oct 30.
-const REPEAT_IDLE: Duration = Duration::from_secs(1);
-
-/// How long after a new picture the repeats stay at [`REPEAT_EVERY`].
-const SETTLED_AFTER: Duration = Duration::from_secs(2);
+// A compositor sends a picture only when the window changes, and KDE drew a
+// covered window once and then nothing (Oct 30, the KDE VM), so the last
+// memory picture is sent again on `still.rs`'s clock.
 
 /// How long the stream stays paused before viewers are told the share is.
 /// PipeWire pauses a stream for each renegotiation too (a switch of buffers,
@@ -116,42 +104,31 @@ struct Still {
     /// The kept picture's size; `None` once a DMA-BUF came after it, which
     /// the GPU encoder repeats itself.
     kept: Option<Size>,
-    /// When it was last sent, or kept.
-    since: Instant,
-    /// When it came from the compositor.
-    fresh: Instant,
+    repeats: Repeats,
 }
 
 impl Still {
     fn new(now: Instant) -> Self {
         Self {
             kept: None,
-            since: now,
-            fresh: now,
+            repeats: Repeats::new(now),
         }
     }
 
     /// A picture went to the feed, or was kept for one not there yet.
     fn noted(&mut self, kept: Option<Size>, now: Instant) {
         self.kept = kept;
-        self.since = now;
-        self.fresh = now;
+        self.repeats.fresh(now);
     }
 
     /// The kept picture was sent again.
     fn repeated(&mut self, now: Instant) {
-        self.since = now;
+        self.repeats.repeated(now);
     }
 
     /// The size of the picture to send again, once it is due.
     fn due(&self, now: Instant) -> Option<Size> {
-        let wait = if now.saturating_duration_since(self.fresh) < SETTLED_AFTER {
-            REPEAT_EVERY
-        } else {
-            REPEAT_IDLE
-        };
-        self.kept
-            .filter(|_| now.saturating_duration_since(self.since) >= wait)
+        self.kept.filter(|_| self.repeats.due(now))
     }
 }
 
@@ -482,8 +459,8 @@ fn ended_by(stream_ended: Option<String>, session_closed: bool) -> Option<String
 /// The processing thread: each picture to its feed, in the buffers the feed
 /// can use, asking the stream for those whenever the feed changes. The last
 /// memory picture is kept and sent again while the compositor sends nothing
-/// ([`REPEAT_EVERY`], then [`REPEAT_IDLE`]), the first one among them: it
-/// says the size the feed is made for, so it comes before there is a feed.
+/// (`still.rs`), the first one among them: it says the size the feed is made
+/// for, so it comes before there is a feed.
 /// And the newest picture of either kind is kept until a GPU feed takes it:
 /// the rate gate can leave it out, and a new encoder or track has not had
 /// it, and on a still screen nothing newer comes to take its place.
@@ -735,6 +712,7 @@ fn unturned(picture: &PwPicture) -> Size {
 
 #[cfg(test)]
 mod tests {
+    use super::super::still::{REPEAT_IDLE, SETTLED_AFTER};
     use super::*;
 
     #[test]

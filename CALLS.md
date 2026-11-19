@@ -621,6 +621,21 @@ if a game makes that long, the cursor wants drawing on the GPU instead. `RIFT_SC
 to try it there. **Not yet proved:** written Nov 18 2026 and built for
 Windows; no Windows computer has run it yet.
 
+libwebrtc's DXGI capturer asks for a new picture without waiting, and hands
+over its last one whenever the screen drew nothing new since, marked
+unchanged. Each was converted and encoded all the same, so a still desktop
+shared at 60 fps cost 60 conversions and encodes a second. Since Nov 19 the
+ones it marks unchanged are left out (`capture::StillScreen`), and the last
+picture is sent again on the clock a Wayland share keeps (`still.rs`): every
+100 ms for 2 s after a change, then once a second. A moved cursor is a
+change. Measured Nov 19 2026 in the Windows 11 VM with
+`RIFT_SCREENS_ON_DXGI=1` (`live_a_still_dxgi_screen_is_sent_once_a_second`):
+of 152 captures in 5 s at 30 fps, 131 were unchanged; 20 pictures were
+encoded instead of 150, and the viewer got 5 in the 6 s after the first 3.
+Still not fixed: with the share's rate at the screen's, a tick can fall
+between two of the screen's pictures and the next one gets two, of which only
+the newer is sent. That needs a wait in `AcquireNextFrame`, inside libwebrtc.
+
 A **window** keeps Windows Graphics Capture, and on Windows 10 its border.
 The only borderless way to capture one there is GDI, which is slow and shows
 most games black.

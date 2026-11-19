@@ -211,3 +211,70 @@ async fn live_bad_token_fails_and_leaves_nothing_running() {
     assert!(err.contains("Failed to connect"), "{err}");
     assert_eq!(session::stop().await.unwrap(), "No active session");
 }
+
+/// A still screen on Windows 10's capturer (DXGI) is sent again once a second
+/// rather than at the share's rate, and still reaches the viewer
+/// (`capture::StillScreen`). Windows 11 captures a screen this way with
+/// `RIFT_SCREENS_ON_DXGI=1`, which the test sets. Run it on the desktop, not
+/// over SSH, and leave the mouse alone: DXGI sees only the signed-in session,
+/// and a moved cursor is a change.
+#[cfg(target_os = "windows")]
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a LiveKit server and a Windows desktop"]
+async fn live_a_still_dxgi_screen_is_sent_once_a_second() {
+    let _ = env_logger::builder()
+        .is_test(true)
+        .filter_level(log::LevelFilter::Info)
+        .try_init();
+    // Before anything asks which capturer a screen gets: the answer is kept.
+    std::env::set_var("RIFT_SCREENS_ON_DXGI", "1");
+    let server = Server::from_env();
+    let room = fresh_room();
+    let (viewer, mut events) = viewer(&server, &room).await;
+    let mut config = config(&server, &room);
+    // libwebrtc's capturer, as a share whose encoder reads memory has.
+    config.gpu_capture = false;
+    config.fps = 30;
+    session::start(config).await.expect("share starts");
+
+    let track = timeout(WAIT, async {
+        loop {
+            if let RoomEvent::TrackSubscribed {
+                track: RemoteTrack::Video(track),
+                ..
+            } = events.recv().await.expect("room events")
+            {
+                break track;
+            }
+        }
+    })
+    .await
+    .expect("the viewer sees the screen-share track");
+
+    // The quick repeats after the first picture, then the settled ones.
+    let mut stream = NativeVideoStream::new(track.rtc_track());
+    let first = pictures_in(&mut stream, Duration::from_secs(3)).await;
+    let settled = pictures_in(&mut stream, Duration::from_secs(6)).await;
+    log::info!("live test: {first} pictures in the first 3 s, {settled} in the 6 s after");
+    assert!(first > 0, "the viewer got no picture");
+    // 30 fps would be 180; once a second is 6, and the taskbar clock or a
+    // notification may change something.
+    assert!(
+        (1..=20).contains(&settled),
+        "{settled} pictures in 6 s of a still screen"
+    );
+
+    assert_eq!(session::stop().await.unwrap(), "Stopped successfully");
+    viewer.close().await.unwrap();
+}
+
+/// How many pictures the viewer decodes in the next `wait`.
+#[cfg(target_os = "windows")]
+async fn pictures_in(stream: &mut NativeVideoStream, wait: Duration) -> u32 {
+    let until = tokio::time::Instant::now() + wait;
+    let mut pictures = 0;
+    while let Ok(Some(_)) = tokio::time::timeout_at(until, stream.next()).await {
+        pictures += 1;
+    }
+    pictures
+}

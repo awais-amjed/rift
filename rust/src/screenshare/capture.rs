@@ -13,11 +13,13 @@ use super::gpu_feed::GpuFeed;
 use super::latest::{self, Putter};
 use super::resolution::Size;
 use super::sources;
+use super::still::Repeats;
 #[cfg(target_os = "windows")]
 use super::window_win;
 use crate::api::screenshare::types::{ScreenshareEvent, VideoCodec};
 use livekit::webrtc::desktop_capturer::{
     CaptureError, CaptureSource as Source, DesktopCaptureSourceType, DesktopCapturer, DesktopFrame,
+    CAPTURER_WIN_DXGI,
 };
 use livekit::webrtc::video_source::native::NativeVideoSource;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
@@ -459,6 +461,7 @@ fn run(
         frames: Arc::new(frame_tx),
         lost: Arc::new(AtomicBool::new(false)),
         arrived: Arc::new(AtomicBool::new(false)),
+        unchanged: Arc::new(AtomicU32::new(0)),
     };
     #[cfg(target_os = "windows")]
     let listed = source.as_ref().map(|source| sources::Listed {
@@ -552,12 +555,13 @@ fn run(
                 if let Some(report) = ticks.report(now) {
                     log::info!(
                         "capture: libwebrtc's capturer: {} captures in {:.1} s at {rate} fps, \
-                         {:.1} ms each (longest {:.1}), behind {} times",
+                         {:.1} ms each (longest {:.1}), behind {} times, {} unchanged",
                         report.ticks,
                         report.seconds,
                         report.average_ms,
                         report.longest_ms,
                         report.behind,
+                        signals.unchanged.swap(0, Ordering::Relaxed),
                     );
                 }
             }
@@ -596,6 +600,9 @@ struct Signals {
     /// A picture has come in.
     #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
     arrived: Arc<AtomicBool>,
+    /// Pictures left out since the last report, as nothing had changed in
+    /// them ([`StillScreen`]).
+    unchanged: Arc<AtomicU32>,
 }
 
 impl Signals {
@@ -606,6 +613,7 @@ impl Signals {
         mut first_frame: Option<UnboundedSender<Progress>>,
     ) -> impl FnMut(Result<DesktopFrame, CaptureError>) + Send + 'static {
         let signals = self.clone();
+        let mut still = StillScreen::default();
         move |result| match result {
             // What Windows' capturer gives as a window closes, which is no
             // picture of anything (seen Oct 16 2026).
@@ -618,6 +626,11 @@ impl Signals {
                     }));
                 }
                 signals.arrived.store(true, Ordering::Relaxed);
+                let unchanged = frame.capturer_id() == CAPTURER_WIN_DXGI && frame.unchanged();
+                if !still.sends(unchanged, Instant::now()) {
+                    signals.unchanged.fetch_add(1, Ordering::Relaxed);
+                    return;
+                }
                 // One still waiting means the converter is behind; it is
                 // dropped for this newer one.
                 let _ = signals.frames.put(SendableFrame(frame));
@@ -630,6 +643,44 @@ impl Signals {
             }
             // Transient: the next tick retries.
             Err(_) => {}
+        }
+    }
+}
+
+/// Which of a capturer's pictures go on to be converted and encoded.
+///
+/// Windows 10's screen capturer (DXGI) hands over its last picture on every
+/// tick whether or not the screen drew a new one, and marks it unchanged.
+/// Each was converted and encoded all the same: 60 a second of a still
+/// desktop at 60 fps (the streaming review, Nov 18 2026). An unchanged one
+/// now goes only when a still picture is due to be sent again (`still.rs`),
+/// as on Wayland. Other capturers do not all mark what changed, so theirs
+/// all go.
+#[derive(Default)]
+struct StillScreen {
+    /// From the first picture sent.
+    repeats: Option<Repeats>,
+}
+
+impl StillScreen {
+    /// Whether to send a picture that `unchanged` says nothing changed in.
+    fn sends(&mut self, unchanged: bool, now: Instant) -> bool {
+        match &mut self.repeats {
+            Some(repeats) if unchanged => {
+                let due = repeats.due(now);
+                if due {
+                    repeats.repeated(now);
+                }
+                due
+            }
+            Some(repeats) => {
+                repeats.fresh(now);
+                true
+            }
+            None => {
+                self.repeats = Some(Repeats::new(now));
+                true
+            }
         }
     }
 }
@@ -938,6 +989,29 @@ fn wait_for_window(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_unchanged_screen_goes_only_when_a_repeat_is_due() {
+        use super::super::still::{REPEAT_EVERY, REPEAT_IDLE, SETTLED_AFTER};
+        let start = Instant::now();
+        let mut still = StillScreen::default();
+        // The first picture goes, whatever it says.
+        assert!(still.sends(true, start));
+        assert!(!still.sends(true, start + Duration::from_millis(17)));
+        assert!(still.sends(true, start + REPEAT_EVERY));
+        // A changed one always goes, and starts the quick repeats again.
+        let moved = start + Duration::from_millis(150);
+        assert!(still.sends(false, moved));
+        assert!(still.sends(false, moved + Duration::from_millis(17)));
+        let changed = moved + Duration::from_millis(17);
+        assert!(!still.sends(true, changed + Duration::from_millis(50)));
+        assert!(still.sends(true, changed + REPEAT_EVERY));
+        // Still for a while: once a second.
+        let settled = changed + SETTLED_AFTER;
+        assert!(still.sends(true, settled));
+        assert!(!still.sends(true, settled + REPEAT_EVERY));
+        assert!(still.sends(true, settled + REPEAT_IDLE));
+    }
 
     fn window(id: u64, program: u32, title: &str) -> (u64, Option<u32>, String) {
         (id, Some(program), title.to_string())
