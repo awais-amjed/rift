@@ -989,6 +989,16 @@ what was driven are in `TESTING.md`).
   past half a second, Nov 11 2026). The encoder's thread now sends that
   picture again two pictures' time later, which brings it out: 18 ms at 120
   (`worker.rs`, `Session::holds_one_back`).
+- **A still screen's lone picture is encoded at the idle clocks.** A picture now
+  and then is too little work for NVIDIA's driver to raise the clocks, so each
+  waits out a slow encode: on Windows 10, at 2K60 in H265, a still screen took
+  77 to 163 ms a picture, a pointer moved four times a second 69 to 77 ms, and a
+  moving screen 10.6 ms, with the GPU at P8 (210 MHz) throughout the first two
+  (Nov 19 2026, an RTX 3070 Ti Laptop in a VM, `encoder: … send` in the log).
+  So a change on a still screen, typing or a scrolled page, reaches a viewer
+  about a tenth of a second later than one in motion. It is left that way: only
+  an administrator can hold the clocks up, and keeping the GPU busy to stay
+  awake would cost the power the idle clocks save, on a laptop most of all.
 - **H265 from the GPU to the GPU.** On game footage
   at 11 Mbps it stayed at or above baseline H264 at 15 and level with High at 12, the
   least that did on both Intel and NVIDIA, and
