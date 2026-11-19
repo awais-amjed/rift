@@ -2,6 +2,7 @@
 use super::capture::{self, Capture, CaptureRequest, Feed, Progress, Started, VideoSlot};
 #[cfg(gpu_encoder)]
 use super::encoder::{self, EncoderSettings, GpuCodec};
+use super::first_probe::FirstFrames;
 #[cfg(gpu_encoder)]
 use super::gpu_feed::GpuFeed;
 #[cfg(gpu_encoder)]
@@ -89,6 +90,9 @@ struct Session {
     publisher: Option<JoinHandle<()>>,
     /// Says what WebRTC sent every few seconds ([`report_sending`]).
     reporter: JoinHandle<()>,
+    /// Asks for a probe as a connection's pictures begin to flow
+    /// ([`probe_first_frames`]).
+    prober: JoinHandle<()>,
 }
 
 // An async mutex, held for the whole of a start or a stop. A second start
@@ -151,6 +155,7 @@ pub(crate) async fn start(config: ScreenShareConfig) -> Result<String, String> {
         participant,
         publisher,
         reporter: tokio::spawn(report_sending()),
+        prober: tokio::spawn(probe_first_frames()),
     });
     log::info!("screenshare: started");
     Ok(format!("Connected to room: {room_name} ({room_sid})"))
@@ -164,6 +169,7 @@ pub(crate) async fn stop() -> Result<String, String> {
         audio,
         publisher,
         reporter,
+        prober,
         ..
     }) = slot.take()
     else {
@@ -174,6 +180,7 @@ pub(crate) async fn stop() -> Result<String, String> {
         publisher.abort();
     }
     reporter.abort();
+    prober.abort();
 
     // Room teardown and the blocking thread joins run at the same time. The
     // capturer's drop (inside the capture join) releases the WGC session,
@@ -454,6 +461,39 @@ async fn report_sending() {
             );
         }
         troubled = viewers;
+    }
+}
+
+/// Asks the share's connection for one probe of its path as its pictures
+/// begin to flow, and again on a connection made again ([`first_probe`]).
+/// Runs until [`stop`] aborts it.
+async fn probe_first_frames() {
+    let mut first = FirstFrames::default();
+    loop {
+        tokio::time::sleep(first.next_look()).await;
+        let Some(totals) = video_stats()
+            .await
+            .and_then(|stats| SendTotals::from_stats(&stats))
+        else {
+            continue;
+        };
+        let slot = SESSION.lock().await;
+        let Some(session) = slot.as_ref() else {
+            continue;
+        };
+        let cap_bps = f64::from(session.video.settings.lock().unwrap().bitrate) * 1e6;
+        if !first.note(totals.frames_sent, totals.available_bps, cap_bps) {
+            continue;
+        }
+        match session.room.probe_publisher() {
+            Ok(()) => log::info!(
+                "screenshare: pictures began to flow with {:.1} Mbps available of a {:.0} \
+                 Mbps cap; probing the path",
+                totals.available_bps / 1e6,
+                cap_bps / 1e6
+            ),
+            Err(e) => log::warn!("screenshare: asking for a probe failed: {e:?}"),
+        }
     }
 }
 

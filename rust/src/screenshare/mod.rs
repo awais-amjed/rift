@@ -15,6 +15,8 @@ pub(crate) mod encoder;
 mod cursor_shape;
 #[cfg(any(target_os = "windows", test))]
 mod exclusive;
+#[cfg_attr(not(desktop), allow(dead_code))]
+mod first_probe;
 #[cfg(desktop)]
 mod frames;
 #[cfg(any(target_os = "windows", test))]

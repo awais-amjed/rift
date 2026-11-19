@@ -4,14 +4,19 @@
 //!
 //! `RIFT_CLIMB_CODEC` (h264, h265), `RIFT_CLIMB_WATCHER_AT` (seconds until a viewer
 //! joins, 0 from the start), `RIFT_CLIMB_STILL` (seconds of a still picture first),
-//! `RIFT_CLIMB_FOR` (seconds in all). Needs a LiveKit server (`live_test.rs`).
+//! `RIFT_CLIMB_SILENT` (seconds of no pictures at all first, as a minimised
+//! window gives), `RIFT_CLIMB_FOR` (seconds in all), `RIFT_CLIMB_PROBE` (set:
+//! ask for a probe as pictures begin to flow, as a share does, `first_probe`).
+//! Needs a LiveKit server (`live_test.rs`).
 //!
 //! `live_gpu_screen_share_rate_climb` does the same through the share itself, from
 //! the real screen, for what capture and the rate gate add. `RIFT_PORTAL_TOKEN`
 //! names the portal's token, and what moves on the screen is the caller's to arrange.
 use super::encoder::{EncoderSettings, GpuCodec, GpuEncoder, Nv12Frame};
+use super::first_probe::FirstFrames;
 use super::gpu_live_test::{H265ToSource, ToSource};
 use super::live_test::{shared_key, Server, KEY_INDEX};
+use super::send_report::SendTotals;
 use super::track::{publish_video_track, TrackSettings};
 use crate::api::screenshare::types::{ShareCursor, SharePriority, VideoCodec};
 use crate::sharing::room;
@@ -71,11 +76,16 @@ async fn live_gpu_share_rate_climb() {
     };
     let watcher_at = seconds("RIFT_CLIMB_WATCHER_AT", 0);
     let still = seconds("RIFT_CLIMB_STILL", 0);
+    let silent = seconds("RIFT_CLIMB_SILENT", 0);
+    let probe = std::env::var("RIFT_CLIMB_PROBE").is_ok();
+    let mut first = FirstFrames::default();
     let run_for = seconds("RIFT_CLIMB_FOR", 60);
 
     // As an app whose watched shares decode on the GPU: only that offers H265.
     crate::watching::decode::choose();
-    crate::watching::decode::gpu().expect("decoding on the GPU here");
+    if codec == GpuCodec::H265 {
+        crate::watching::decode::gpu().expect("decoding on the GPU here");
+    }
 
     let server = Server::from_env();
     let key = shared_key();
@@ -148,6 +158,11 @@ async fn live_gpu_share_rate_climb() {
             let frame = Duration::from_micros(1_000_000 / u64::from(FPS));
             let mut next = Instant::now();
             while !stop.load(Ordering::SeqCst) {
+                if began.elapsed().as_secs() < silent {
+                    std::thread::sleep(frame);
+                    next = Instant::now();
+                    continue;
+                }
                 if began.elapsed().as_secs() >= still {
                     moved += 1;
                 }
@@ -199,7 +214,18 @@ async fn live_gpu_share_rate_climb() {
             log::info!("climb: viewer joined at {} s", began.elapsed().as_secs());
         }
         let (mut available, mut sent, mut retx, mut active) = (0.0, 0, 0, false);
-        for stat in track.get_stats().await.unwrap_or_default() {
+        let stats = track.get_stats().await.unwrap_or_default();
+        if let Some(totals) = SendTotals::from_stats(&stats).filter(|_| probe) {
+            let cap_bps = f64::from(cap_mbps) * 1e6;
+            if first.note(totals.frames_sent, totals.available_bps, cap_bps) {
+                sharer.probe_publisher().expect("asks for a probe");
+                log::info!(
+                    "climb: probing at {:.1} Mbps available",
+                    totals.available_bps / 1e6
+                );
+            }
+        }
+        for stat in stats {
             match stat {
                 RtcStats::CandidatePair(pair) if pair.candidate_pair.nominated => {
                     available = pair.candidate_pair.available_outgoing_bitrate;

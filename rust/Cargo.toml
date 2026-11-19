@@ -126,12 +126,13 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
 # can go out in High profile; an H265 track gets the start bitrate hint the
 # server leaves out; a participant can read the codecs its server takes;
 # received video can be read still encoded, for Rift to decode on the GPU
-# (src/watching/decode); and a closed room lets go of its remote participants,
+# (src/watching/decode); a room can ask its publishing connection to probe
+# its path (src/screenshare/first_probe.rs); and a closed room lets go of its remote participants,
 # so the runtime's threads end with the call (taken from livekit 0.11.0, test:
 # live_watch_leaves_nothing_running_after_the_call). RIFT.md on that branch
 # says why, and when each change can go. Every crate of LiveKit's this
 # library builds comes from the one commit, so they always match.
 [patch.crates-io]
-livekit = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "fc87dbff02cc548f65907dc6931bad570216ce37" }
-livekit-api = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "fc87dbff02cc548f65907dc6931bad570216ce37" }
-webrtc-sys = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "fc87dbff02cc548f65907dc6931bad570216ce37" }
+livekit = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "b6713507427f05c990686e2a698f3afa9dbb4883" }
+livekit-api = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "b6713507427f05c990686e2a698f3afa9dbb4883" }
+webrtc-sys = { git = "https://github.com/awais-amjed/livekit-rust-sdks", rev = "b6713507427f05c990686e2a698f3afa9dbb4883" }

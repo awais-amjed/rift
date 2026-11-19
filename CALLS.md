@@ -1030,6 +1030,27 @@ what was driven are in `TESTING.md`).
   (`sharing/room.rs`): its first probes found about 27 Mbps, and a picture moving
   after 20 s had its cap within 2 s, in H265 too (Nov 19 2026, NVENC,
   `climb_live_test` on the local server). Not yet measured on a slow upload.
+  Those first probes go out only with media, though, and a share whose first pictures
+  came late lost them: on Windows 11 three of four shares took 20–30 s to reach a
+  17 Mbps cap, and a window share that started minimised sat under 5 Mbps for 25 s,
+  climbing at about 8% a second as a sender that fills its estimate does (Nov 19 2026).
+  On Linux a share sending nothing for its first 10 s stood at its 1 Mbps start
+  throughout, and reached a 12 Mbps cap 8–10 s after its pictures began. So a share now
+  asks its connection for one probe, up to twice its cap, once its pictures flow (ten
+  frames in a second), while WebRTC's estimate is under the cap (`first_probe.rs`, and
+  `Room::probe_publisher` in the fork), and again on a connection made again. Not on
+  the first frame: a share nobody watches is paused by the server and sends one in a
+  while, and libwebrtc holds a probe to twice the cap only while the track sends, so a
+  probe asked for then went to the connection's 100 Mbps ceiling (Windows 10, Nov 19
+  2026). With it the same share had its cap within 2 s of its first pictures, three runs
+  of three, and a share that moved from the start asked for none (Nov 19 2026, Intel
+  VAAPI, H264, `climb_live_test` with `RIFT_CLIMB_SILENT` and `RIFT_CLIMB_PROBE`). In
+  the app on Windows 10 (VM, NVENC H265, 2K at 17 Mbps beside Heaven) a whole-screen
+  share nobody watched asked for none; when the first viewer came the estimate stood at
+  1.1 Mbps, and a second after the probe the encoder had 16.7 Mbps of 39 available
+  (Nov 19 2026). Not yet measured on a slow upload. Not fixed: a share nobody watches
+  is given 0.8 Mbps, so its step-down shrank it from 1440p to 960p within 20 s, and it
+  took 11 s after the viewer came to step back up.
   The encoder hears a new rate without a frame passing too: the fork's pass-through
   encoder had handed it over with the next frame, and a share whose rate gate was
   holding pictures back to keep within a fallen estimate sent none, so it heard the
