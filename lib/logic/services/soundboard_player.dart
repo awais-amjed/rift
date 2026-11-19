@@ -119,9 +119,9 @@ class SoundboardPlayer {
         output == null || output.isEmpty || output.startsWith('default: ');
     if (onDefault && !HostPlatform.playsOggOnlyThroughRust) return null;
     try {
+      if (onDefault && !_isOgg(await _headOf(source))) return null;
       final bytes = await _bytesOf(source);
       if (bytes == null) return null;
-      if (onDefault && !_isOgg(bytes)) return null;
       return await playSound(
         deviceId: onDefault ? null : output,
         bytes: bytes,
@@ -135,12 +135,31 @@ class SoundboardPlayer {
   }
 
   /// Every page of an Ogg file starts with these four bytes.
-  static bool _isOgg(Uint8List bytes) =>
+  static bool _isOgg(List<int>? bytes) =>
+      bytes != null &&
       bytes.length >= 4 &&
       bytes[0] == 0x4f &&
       bytes[1] == 0x67 &&
       bytes[2] == 0x67 &&
       bytes[3] == 0x53;
+
+  /// The first bytes of [source], enough to tell an Ogg file: read alone,
+  /// since every clip on the default device is asked and most are not one.
+  static Future<List<int>?> _headOf(Source source) async {
+    switch (source) {
+      case BytesSource(:final bytes):
+        return bytes;
+      case DeviceFileSource(:final path):
+        final file = await File(path).open();
+        try {
+          return await file.read(4);
+        } finally {
+          await file.close();
+        }
+      default:
+        return null;
+    }
+  }
 
   static Future<Uint8List?> _bytesOf(Source source) async => switch (source) {
     BytesSource(:final bytes) => bytes,
