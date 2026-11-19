@@ -94,11 +94,19 @@ impl AudioSelection {
     /// another source can keep the sound it has. A program is the same
     /// program whichever of its streams it was listed by.
     pub(crate) fn same_sound(&self, other: &AudioSelection) -> bool {
+        self.same_sound_where(other, cfg!(target_os = "windows"))
+    }
+
+    /// [`same_sound`](Self::same_sound), where `by_process` says whether the
+    /// sound is captured by process (Windows). Linux is told the window's
+    /// process too, and captures by program, so a switch to another window
+    /// of no new program keeps its sound.
+    fn same_sound_where(&self, other: &AudioSelection, by_process: bool) -> bool {
         let program = |app: &Option<AudioSource>| {
             app.as_ref()
                 .map(|app| (app.binary.clone(), app.app_name.clone(), app.app_id.clone()))
         };
-        self.pid == other.pid && program(&self.app) == program(&other.app)
+        (!by_process || self.pid == other.pid) && program(&self.app) == program(&other.app)
     }
 }
 
@@ -357,10 +365,22 @@ mod tests {
     }
 
     #[test]
-    fn the_same_process_is_the_same_sound() {
-        assert!(pid(1).same_sound(&pid(1)));
-        assert!(!pid(1).same_sound(&pid(2)));
-        assert!(!pid(1).same_sound(&AudioSelection::default()));
+    fn the_same_process_is_the_same_sound_where_sound_is_by_process() {
+        assert!(pid(1).same_sound_where(&pid(1), true));
+        assert!(!pid(1).same_sound_where(&pid(2), true));
+        assert!(!pid(1).same_sound_where(&AudioSelection::default(), true));
+    }
+
+    #[test]
+    fn a_window_s_process_is_no_other_sound_where_sound_is_by_program() {
+        // Linux names the window's process too, and captures by program.
+        let firefox = |pid| AudioSelection {
+            pid: Some(pid),
+            ..of(app("firefox", 3))
+        };
+        assert!(firefox(1).same_sound_where(&firefox(2), false));
+        assert!(!firefox(1).same_sound_where(&firefox(2), true));
+        assert!(!firefox(1).same_sound_where(&of(app("mpv", 3)), false));
     }
 
     #[test]

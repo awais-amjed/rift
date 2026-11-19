@@ -50,6 +50,8 @@ pub(crate) mod thumbnail;
 #[cfg_attr(not(desktop), allow(dead_code))]
 mod still;
 #[cfg_attr(not(desktop), allow(dead_code))]
+mod stops;
+#[cfg_attr(not(desktop), allow(dead_code))]
 mod tick_report;
 #[cfg(desktop)]
 mod track;

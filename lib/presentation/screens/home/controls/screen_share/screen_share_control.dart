@@ -124,7 +124,8 @@ class _ScreenShareControlState extends State<ScreenShareControl> {
     }
 
     String? portalChoice;
-    if (WindowSoundStep.appliesTo(settings)) {
+    final soundPicked = WindowSoundStep.appliesTo(settings);
+    if (soundPicked) {
       if (!mounted) return;
       final share = await WindowSoundStep.run(context, settings, attempt);
       if (share == null) return;
@@ -159,7 +160,8 @@ class _ScreenShareControlState extends State<ScreenShareControl> {
       shareAudio: screenshareCubit.state.settings?.shareAudio ?? false,
     );
     String? portalChoice;
-    if (WindowSoundStep.appliesTo(settings)) {
+    final soundPicked = WindowSoundStep.appliesTo(settings);
+    if (soundPicked) {
       final share = await WindowSoundStep.run(
         context,
         settings,
@@ -171,6 +173,7 @@ class _ScreenShareControlState extends State<ScreenShareControl> {
     await screenshareCubit.switchSource(
       settings: settings,
       portalChoice: portalChoice,
+      soundPicked: soundPicked,
     );
     if (portalChoice != null) unawaited(WindowSharePortal.forget(portalChoice));
   }

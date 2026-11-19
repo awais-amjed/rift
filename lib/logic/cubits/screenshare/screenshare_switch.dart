@@ -12,12 +12,18 @@ mixin _ScreenshareSwitchMixin on Cubit<ScreenshareState> {
   /// own picker, as for a start. The sound is ticked as it came out: a window
   /// on Windows brings its own app's, which may play nothing.
   ///
+  /// On Linux the sound is the running share's unless [soundPicked]: a window
+  /// whose sound was asked for (`WindowSoundStep`) brings what was picked,
+  /// and anything else keeps what the share plays. The dialog's own draft
+  /// holds the saved settings' sound, which is not the share's.
+  ///
   /// A switch that fails leaves the share as it was on Linux, where the old
   /// capture runs until the new one has a picture; on Windows the old one is
   /// already gone, and Rust ends the share (`SourceClosed`).
   Future<void> switchSource({
     required ScreenShareSettings settings,
     String? portalChoice,
+    bool soundPicked = false,
   }) async {
     final current = state.settings;
     if (!state.isSharing ||
@@ -27,6 +33,11 @@ mixin _ScreenshareSwitchMixin on Cubit<ScreenshareState> {
       return;
     }
     _switching = true;
+    if (!soundPicked) {
+      settings = settings.copyWith(
+        clearAudioSource: true,
+      ).copyWith(selectedAudioSource: current.selectedAudioSource);
+    }
     try {
       final soundOn = await switchScreenshare(
         source: ShareSource(
@@ -52,6 +63,8 @@ mixin _ScreenshareSwitchMixin on Cubit<ScreenshareState> {
       );
     } catch (e) {
       HelperMethods.printDebug('✗ Screen share switch error: $e');
+      // Stopped while it waited on the desktop's picker: nothing to say.
+      if (!state.isSharing) return;
       emit(
         state.copyWith(
           notice: Notice.error(

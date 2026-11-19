@@ -10,6 +10,7 @@ use super::resolution::fit_within;
 use super::resolution::{target_size, Size};
 use super::send_report::{self, SendTotals};
 use super::sources;
+use super::stops::Stops;
 #[cfg(gpu_encoder)]
 use super::step_down::StepDown;
 use super::track::{publish_video_track, TrackSettings};
@@ -108,6 +109,10 @@ struct Session {
 // nothing and leaving a room connected that no one can reach any more.
 static SESSION: Mutex<Option<Session>> = Mutex::const_new(None);
 
+// Stops on their way, which a switch waiting on its new source hears: it
+// holds the session meanwhile, and under Wayland that wait is on a person.
+static STOPS: Stops = Stops::new();
+
 pub(crate) async fn start(config: ScreenShareConfig) -> Result<String, String> {
     types::check(&config)?;
     let mut slot = SESSION.lock().await;
@@ -176,6 +181,7 @@ pub(crate) async fn start(config: ScreenShareConfig) -> Result<String, String> {
 }
 
 pub(crate) async fn stop() -> Result<String, String> {
+    let _stopping = STOPS.begin();
     let mut slot = SESSION.lock().await;
     let Some(Session {
         room,
@@ -442,7 +448,17 @@ pub(crate) async fn switch(source: ShareSource) -> Result<bool, String> {
         }
     }
     let (capture, mut started) = capture::spawn(request);
-    let first = match first_frame(&mut started).await {
+    let waited = tokio::select! {
+        first = first_frame(&mut started) => Some(first),
+        () = STOPS.asked() => None,
+    };
+    let Some(waited) = waited else {
+        // The stop that is waiting for the session ends the share.
+        let reason = stop_capture(capture, "The share was stopped".to_string()).await;
+        log::info!("screenshare: the switch was stopped");
+        return Err(reason);
+    };
+    let first = match waited {
         Ok(first) => first,
         Err(reason) => {
             let reason = stop_capture(capture, reason).await;
@@ -461,7 +477,11 @@ pub(crate) async fn switch(source: ShareSource) -> Result<bool, String> {
         held = session.video.slot().take();
         let _ = tokio::task::spawn_blocking(move || old.stop()).await;
     }
-    session.video.set_slot(capture.slot());
+    let new_slot = capture.slot();
+    if let Some(native) = first {
+        new_slot.seed(native);
+    }
+    session.video.set_slot(new_slot);
     session.capture = Some(capture);
     sources::set_sharing(chosen);
 
@@ -483,6 +503,7 @@ pub(crate) async fn switch(source: ShareSource) -> Result<bool, String> {
         }
         None => {
             drop(held);
+            session.video.unpublish().await;
             log::info!("screenshare: waiting for the window to be opened");
             session.publisher = Some(tokio::spawn(publish_when_opened(
                 session.video.clone(),
@@ -1041,6 +1062,24 @@ impl Video {
             log::warn!("screenshare: unpublishing the old picture: {e:?}");
         }
         self.publish_locked(&mut track, native).await
+    }
+
+    /// Take the picture down until there is one to show: a share switched to
+    /// a minimised window has none, and publishes when the window is opened
+    /// (`publish_when_opened`), as a share started on one does. Left up, a
+    /// change made meanwhile — the menu, a codec step, a reconnect — would
+    /// look for a frame there is none of, and end the share.
+    async fn unpublish(&self) {
+        let mut track = self.track.lock().await;
+        let Some(old) = track.take() else {
+            return;
+        };
+        self.slot().detach();
+        #[cfg(gpu_encoder)]
+        self.close_gpu().await;
+        if let Err(e) = self.participant().unpublish_track(&old).await {
+            log::warn!("screenshare: unpublishing the picture: {e:?}");
+        }
     }
 
     /// Publish the picture again on the participant a move just put in

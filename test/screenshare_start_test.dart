@@ -284,6 +284,65 @@ void main() {
       expect(cubit.state.settings!.selectedVideoSourceTitle, 'Screen 2');
     });
 
+    const music = AudioSource(
+      index: 7,
+      sink: 1,
+      appName: 'Player',
+      binary: 'player',
+      mediaName: 'Song',
+      appId: 'player',
+      playing: true,
+    );
+    const browser = AudioSource(
+      index: 9,
+      sink: 1,
+      appName: 'Browser',
+      binary: 'browser',
+      mediaName: 'Video',
+      appId: 'browser',
+      playing: true,
+    );
+
+    test('keeps the running share\'s sound when none was asked', () async {
+      final cubit = newCubit();
+      await cubit.startScreenShare(
+        settings: window.copyWith(selectedAudioSource: music),
+        gpuCapture: true,
+      );
+      // The dialog's draft holds the saved settings' sound, not the share's.
+      await cubit.switchSource(
+        settings: screen.copyWith(selectedAudioSource: browser),
+      );
+      expect(rust.switchedTo!.selectedAudioSource, music);
+      expect(cubit.state.settings!.selectedAudioSource, music);
+    });
+
+    test('takes the sound picked for the new window', () async {
+      final cubit = newCubit();
+      await cubit.startScreenShare(
+        settings: window.copyWith(selectedAudioSource: music),
+        gpuCapture: true,
+      );
+      await cubit.switchSource(
+        settings: otherWindow.copyWith(selectedAudioSource: browser),
+        soundPicked: true,
+      );
+      expect(rust.switchedTo!.selectedAudioSource, browser);
+      expect(cubit.state.settings!.selectedAudioSource, browser);
+    });
+
+    test('a switch the share was stopped during says nothing', () async {
+      final cubit = await sharing();
+      rust.holdSwitch = Completer();
+      final switching = cubit.switchSource(settings: screen);
+      await pumpEventQueue();
+      await cubit.stopScreenShare();
+      final afterStop = cubit.state.notice;
+      rust.holdSwitch!.completeError('The share was stopped');
+      await switching;
+      expect(cubit.state.notice, afterStop);
+    });
+
     test('nothing is switched while nothing is shared', () async {
       final cubit = newCubit();
       await cubit.switchSource(settings: screen);

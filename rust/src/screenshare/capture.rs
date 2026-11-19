@@ -161,6 +161,14 @@ impl VideoSlot {
         )
     }
 
+    /// Note the first frame's size, as the capture reported it, where the
+    /// processing thread has not yet fed a frame of its own. The capture
+    /// reports before that thread is handed the frame, and a share switched
+    /// to it is sized by this at once (`session::switch`).
+    pub(crate) fn seed(&self, first: Size) {
+        self.0.lock().unwrap().native.get_or_insert(first);
+    }
+
     /// The size the source is capturing at, once a frame has arrived.
     pub(crate) fn native(&self) -> Option<Size> {
         self.0.lock().unwrap().native
@@ -529,8 +537,19 @@ fn run(
                 #[cfg(not(target_os = "windows"))]
                 let ended = signals.lost.load(Ordering::Relaxed);
                 if ended {
-                    log::info!("capture: source closed, ending the share");
-                    crate::api::screenshare::emit_screenshare_event(ScreenshareEvent::SourceClosed);
+                    // Before its first picture the capture is still being
+                    // started, or switched to, and whoever waits for that
+                    // picture is told (`Progress::Failed`, or no picture in
+                    // time). Ending the share from here would end one a
+                    // switch was leaving running.
+                    if signals.arrived.load(Ordering::Relaxed) {
+                        log::info!("capture: source closed, ending the share");
+                        crate::api::screenshare::emit_screenshare_event(
+                            ScreenshareEvent::SourceClosed,
+                        );
+                    } else {
+                        log::info!("capture: the source closed before its first picture");
+                    }
                     break false;
                 }
                 #[cfg(target_os = "windows")]
@@ -604,7 +623,6 @@ struct Signals {
     /// was closed or Windows stopped capturing it.
     lost: Arc<AtomicBool>,
     /// A picture has come in.
-    #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
     arrived: Arc<AtomicBool>,
     /// Pictures left out since the last report, as nothing had changed in
     /// them ([`StillScreen`]).
@@ -995,6 +1013,25 @@ fn wait_for_window(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_slot_knows_its_first_frame_s_size_before_the_frame_is_fed() {
+        let first = Size {
+            width: 1920,
+            height: 1080,
+        };
+        let slot = VideoSlot::default();
+        slot.seed(first);
+        assert_eq!(slot.native(), Some(first));
+        // A frame fed since is newer, and is what the picture is sized by.
+        let resized = Size {
+            width: 1280,
+            height: 720,
+        };
+        slot.feed(resized);
+        slot.seed(first);
+        assert_eq!(slot.native(), Some(resized));
+    }
 
     #[test]
     fn an_unchanged_screen_goes_only_when_a_repeat_is_due() {
