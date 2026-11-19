@@ -1464,7 +1464,18 @@ async fn live_watch_a_decoder_falling_behind_asks_less_often() {
     session::watch(share_identity.to_string(), texture, mark_address(), true)
         .await
         .expect("watches");
-    let share = Share::start(&server, &name, share_identity, &key, KEY_INDEX).await;
+    // VP9, which every GPU here decodes: VP8 is not decoded on the GPU by
+    // AMD, nor by NVIDIA through D3D11, where the watch gives up on the GPU
+    // and this test saw no picture (Nov 19 2026, an RTX 3070 Ti).
+    let share = Share::start_in(
+        &server,
+        &name,
+        share_identity,
+        &key,
+        KEY_INDEX,
+        VideoCodec::VP9,
+    )
+    .await;
     assert!(
         marked(texture, 0, 10, Duration::from_secs(15)).await,
         "pictures reach the runner's slot"
