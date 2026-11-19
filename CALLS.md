@@ -384,6 +384,14 @@ the system default whatever was chosen. Decoding a two-second clip took
 23–57 ms on Linux in each format uploads allow (mp3, m4a, wav, ogg, opus;
 Nov 16, `live_sound_decodes_to_stereo`).
 
+A clip in Ogg is decoded by Rift itself, on both (`clips/sound_ogg.rs`):
+Vorbis by lewton, Opus by the libopus inside libwebrtc. Windows has no Ogg
+reader for a desktop app, Media Foundation answering every one with no byte
+stream handler, Web Media Extensions or not, and the player goes through
+Media Foundation too, so a Windows listener heard nothing from such a clip
+(Nov 19 2026). There an Ogg clip takes the cue player even on the system
+default.
+
 ## A phone's main thread while a call starts and ends — [Implemented November 2026]
 
 On Android the UI runs on the main thread, and flutter_webrtc and audioplayers

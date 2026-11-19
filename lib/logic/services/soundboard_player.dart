@@ -32,7 +32,8 @@ import 'soundboard_play.dart';
 /// player cannot pick a device on the desktop, so with one chosen, Windows and
 /// Linux decode the clip with the system's decoders and play it through the
 /// Rust library's cue player ([playSound]), and keep the player for when that
-/// fails — the same split as [SoundService]'s cues.
+/// fails — the same split as [SoundService]'s cues. A clip in Ogg goes that
+/// way on Windows with no device chosen too: there the player cannot read it.
 class SoundboardPlayer {
   SoundboardPlayer._();
   static final SoundboardPlayer instance = SoundboardPlayer._();
@@ -114,14 +115,15 @@ class SoundboardPlayer {
     if (!HostPlatform.playsCuesOnChosenOutput) return null;
     // WebRTC's own "default: …" entry is the system default, which the
     // player already follows.
-    if (output == null || output.isEmpty || output.startsWith('default: ')) {
-      return null;
-    }
+    final onDefault =
+        output == null || output.isEmpty || output.startsWith('default: ');
+    if (onDefault && !HostPlatform.playsOggOnlyThroughRust) return null;
     try {
       final bytes = await _bytesOf(source);
       if (bytes == null) return null;
+      if (onDefault && !_isOgg(bytes)) return null;
       return await playSound(
-        deviceId: output,
+        deviceId: onDefault ? null : output,
         bytes: bytes,
         volume: volume,
         maxMs: SoundboardPlay.maxPlayback.inMilliseconds,
@@ -131,6 +133,14 @@ class SoundboardPlayer {
       return null;
     }
   }
+
+  /// Every page of an Ogg file starts with these four bytes.
+  static bool _isOgg(Uint8List bytes) =>
+      bytes.length >= 4 &&
+      bytes[0] == 0x4f &&
+      bytes[1] == 0x67 &&
+      bytes[2] == 0x67 &&
+      bytes[3] == 0x53;
 
   static Future<Uint8List?> _bytesOf(Source source) async => switch (source) {
     BytesSource(:final bytes) => bytes,

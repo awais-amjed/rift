@@ -28,6 +28,8 @@ use linux::Clip;
 mod poster_linux;
 #[cfg(target_os = "linux")]
 mod sound_linux;
+#[cfg(any(target_os = "linux", windows))]
+mod sound_ogg;
 
 #[cfg(windows)]
 mod media_engine;
@@ -54,11 +56,17 @@ pub(crate) struct Pcm {
     pub(crate) rate: u32,
 }
 
-/// [bytes]' sound, decoded by the system as a chat video's is, at most
+/// [bytes]' sound, decoded by the system as a chat video's is (an Ogg one
+/// here, `sound_ogg`), at most
 /// [max_ms] of it: a soundboard clip, for the cue player to play on the
 /// call's device. Fails where the system has no decoder for it.
 #[cfg_attr(not(any(target_os = "linux", windows)), allow(dead_code))]
 pub(crate) fn decode_sound(bytes: Vec<u8>, max_ms: u32) -> Result<Pcm, String> {
+    // Windows has no Ogg reader (`sound_ogg`).
+    #[cfg(any(target_os = "linux", windows))]
+    if sound_ogg::is_ogg(&bytes) {
+        return sound_ogg::decode(&bytes, max_ms);
+    }
     #[cfg(target_os = "linux")]
     {
         sound_linux::decode(Source::memory(bytes), max_ms)

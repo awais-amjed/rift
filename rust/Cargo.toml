@@ -60,6 +60,11 @@ libloading = "0.9"
 image = { version = "0.25", default-features = false, features = ["jpeg"] }
 env_logger = { version = "0.11", default-features = false }
 nanomp3 = "0.2.0"
+# A soundboard clip in Ogg (src/clips/sound_ogg.rs), which Windows has no
+# reader for: lewton decodes Vorbis, in pure Rust, and ogg reads the pages an
+# Opus clip comes in, for the libopus libwebrtc already has. 0.8, as lewton's.
+lewton = "0.10"
+ogg = "0.8"
 deep_filter = { git = "https://github.com/Rikorose/DeepFilterNet", rev = "d375b2d8309e0935d165700c91da9de862a99c31", default-features = false }
 # ONNX Runtime, for DPDFNet, the noise model in this library, on a computer
 # Ceva's own runtime for it cannot run on (src/dpdfnet): tract runs its GRU

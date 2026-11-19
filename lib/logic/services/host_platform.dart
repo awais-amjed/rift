@@ -114,6 +114,12 @@ class HostPlatform {
   static bool get playsCuesOnChosenOutput =>
       !kIsWeb && (Platform.isWindows || Platform.isLinux);
 
+  /// Whether a soundboard clip in Ogg plays only through the Rust library,
+  /// even on the default device. Windows has no Ogg reader for a desktop app,
+  /// and the audio player goes through the same Media Foundation, so it played
+  /// such a clip as silence (`rust/src/clips/sound_ogg.rs`).
+  static bool get playsOggOnlyThroughRust => !kIsWeb && Platform.isWindows;
+
   /// Whether a call heard before the microphone has run plays at 16 kHz.
   ///
   /// The desktop WebRTC library flutter_webrtc ships always installs a
