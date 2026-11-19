@@ -20,6 +20,14 @@ class _Rust implements RustLibApi {
   int starts = 0;
   int stops = 0;
 
+  /// A switch fails with [switchError] or waits on [holdSwitch], and
+  /// answers [switchSound] for whether the sound goes on.
+  Object? switchError;
+  Completer<bool>? holdSwitch;
+  bool switchSound = true;
+  ShareSource? switchedTo;
+  int switches = 0;
+
   @override
   Stream<ScreenshareEvent> crateApiScreenshareScreenshareEventStream() =>
       const Stream.empty();
@@ -34,6 +42,16 @@ class _Rust implements RustLibApi {
     starts++;
     if (startError != null) throw startError!;
     return holdStart == null ? 'started' : holdStart!.future;
+  }
+
+  @override
+  Future<bool> crateApiScreenshareSwitchScreenshare({
+    required ShareSource source,
+  }) async {
+    switches++;
+    switchedTo = source;
+    if (switchError != null) throw switchError!;
+    return holdSwitch == null ? switchSound : holdSwitch!.future;
   }
 
   @override
@@ -96,7 +114,12 @@ void main() {
       ..startError = null
       ..holdStart = null
       ..starts = 0
-      ..stops = 0;
+      ..stops = 0
+      ..switchError = null
+      ..holdSwitch = null
+      ..switchSound = true
+      ..switchedTo = null
+      ..switches = 0;
   });
 
   ScreenshareCubit newCubit() {
@@ -184,6 +207,87 @@ void main() {
       await start(cubit);
       expect(cubit.state.hasError, isTrue);
       expect(cubit.state.isSharing, isFalse);
+    });
+  });
+
+  group('switching what is shared', () {
+    const window = ScreenShareSettings(
+      shareAudio: true,
+      captureFullScreen: false,
+      selectedVideoSourceIndex: 0,
+      selectedVideoSourcePid: 5,
+      selectedVideoSourceTitle: 'Game',
+    );
+    const screen = ScreenShareSettings(
+      captureFullScreen: true,
+      selectedVideoSourceIndex: 1,
+      selectedVideoSourceTitle: 'Screen 2',
+    );
+    const otherWindow = ScreenShareSettings(
+      captureFullScreen: false,
+      selectedVideoSourceIndex: 3,
+      selectedVideoSourcePid: 42,
+      selectedVideoSourceTitle: 'Browser',
+    );
+
+    Future<ScreenshareCubit> sharing() async {
+      final cubit = newCubit();
+      await cubit.startScreenShare(settings: window, gpuCapture: true);
+      return cubit;
+    }
+
+    test('shares the source picked, on the running share', () async {
+      final cubit = await sharing();
+      await cubit.switchSource(settings: screen);
+      expect(rust.switches, 1);
+      expect(rust.starts, 1);
+      expect(rust.switchedTo!.captureFullScreen, isTrue);
+      expect(rust.switchedTo!.selectedVideoSourceIndex, 1);
+      expect(cubit.state.isSharing, isTrue);
+      expect(cubit.state.settings!.captureFullScreen, isTrue);
+      expect(cubit.state.settings!.selectedVideoSourceTitle, 'Screen 2');
+      expect(cubit.state.notice, isNotNull);
+    });
+
+    test('a window brings its own process for its sound', () async {
+      final cubit = await sharing();
+      await cubit.switchSource(settings: otherWindow);
+      expect(rust.switchedTo!.selectedAudioSourcePid, 42);
+    });
+
+    test('ticks the sound as it came out', () async {
+      final cubit = await sharing();
+      rust.switchSound = false;
+      await cubit.switchSource(settings: otherWindow);
+      expect(cubit.state.settings!.shareAudio, isFalse);
+    });
+
+    test('a switch that fails leaves the share as it was', () async {
+      final cubit = await sharing();
+      rust.switchError = 'The desktop\'s picker had no answer';
+      await cubit.switchSource(settings: screen);
+      expect(cubit.state.isSharing, isTrue);
+      expect(cubit.state.settings!.captureFullScreen, isFalse);
+      expect(cubit.state.settings!.selectedVideoSourceTitle, 'Game');
+      expect(cubit.state.notice, isNotNull);
+    });
+
+    test('a second switch while one runs is not made', () async {
+      final cubit = await sharing();
+      rust.holdSwitch = Completer();
+      final first = cubit.switchSource(settings: screen);
+      await pumpEventQueue();
+      await cubit.switchSource(settings: otherWindow);
+      rust.holdSwitch!.complete(true);
+      await first;
+      expect(rust.switches, 1);
+      expect(cubit.state.settings!.selectedVideoSourceTitle, 'Screen 2');
+    });
+
+    test('nothing is switched while nothing is shared', () async {
+      final cubit = newCubit();
+      await cubit.switchSource(settings: screen);
+      expect(rust.switches, 0);
     });
   });
 }

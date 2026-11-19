@@ -388,4 +388,42 @@ void main() {
       );
     });
   });
+
+  group('a share switched to another source', () {
+    const running = ScreenShareSettings(
+      resolution: 1440,
+      fps: 120,
+      captureFullScreen: false,
+      selectedVideoSourceIndex: 0,
+      selectedVideoSourcePid: 5,
+      selectedVideoSourceTitle: 'Game',
+      selectedVideoSourceAppId: 'game',
+    );
+    const picked = ScreenShareSettings(
+      resolution: 720,
+      fps: 30,
+      captureFullScreen: true,
+      selectedVideoSourceIndex: 1,
+      selectedVideoSourceTitle: 'Screen 2',
+    );
+
+    test('takes the picked source', () {
+      final now = running.withSourceOf(picked);
+      expect(now.captureFullScreen, isTrue);
+      expect(now.selectedVideoSourceIndex, 1);
+      expect(now.selectedVideoSourceTitle, 'Screen 2');
+    });
+
+    test('drops what the old source had and the new one has not', () {
+      final now = running.withSourceOf(picked);
+      expect(now.selectedVideoSourcePid, isNull);
+      expect(now.selectedVideoSourceAppId, isNull);
+    });
+
+    test('keeps the quality it is running at', () {
+      final now = running.withSourceOf(picked);
+      expect(now.resolution, 1440);
+      expect(now.fps, 120);
+    });
+  });
 }

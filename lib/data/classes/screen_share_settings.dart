@@ -296,6 +296,22 @@ class ScreenShareSettings extends Equatable {
         soundForApps: soundForApps,
       );
 
+  /// The source picked in [other], and its sound, at this share's quality:
+  /// what a running share becomes when it is switched to another screen or
+  /// window.
+  ScreenShareSettings withSourceOf(ScreenShareSettings other) =>
+      copyWith(
+        captureFullScreen: other.captureFullScreen,
+        clearVideoSource: true,
+        clearAudioSource: true,
+      ).copyWith(
+        selectedVideoSourceIndex: other.selectedVideoSourceIndex,
+        selectedVideoSourcePid: other.selectedVideoSourcePid,
+        selectedVideoSourceTitle: other.selectedVideoSourceTitle,
+        selectedVideoSourceAppId: other.selectedVideoSourceAppId,
+        selectedAudioSource: other.selectedAudioSource,
+      );
+
   /// Passing null keeps the current value, so removing a selection needs an
   /// explicit [clearVideoSource] / [clearAudioSource] — the settings dialog
   /// does exactly that when you switch between screen and window capture.

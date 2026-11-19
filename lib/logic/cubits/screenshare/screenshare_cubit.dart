@@ -28,6 +28,7 @@ import 'stream_change_notice.dart';
 part 'screenshare_follow.dart';
 part 'screenshare_ladder.dart';
 part 'screenshare_state.dart';
+part 'screenshare_switch.dart';
 
 /// Cubit managing screen sharing.
 ///
@@ -40,7 +41,10 @@ part 'screenshare_state.dart';
 /// Android has MediaProjection, which libwebrtc does not expose a desktop
 /// capturer for at all — [_sdkCapturesScreen] is which of the two applies.
 class ScreenshareCubit extends Cubit<ScreenshareState>
-    with _ScreenshareFollowMixin, _ScreenshareLadderMixin {
+    with
+        _ScreenshareFollowMixin,
+        _ScreenshareLadderMixin,
+        _ScreenshareSwitchMixin {
   /// Whether the LiveKit SDK captures the screen here, rather than Rust.
   static bool get _sdkCapturesScreen => kIsWeb || HostPlatform.isMobile;
 
