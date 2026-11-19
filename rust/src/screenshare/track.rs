@@ -91,7 +91,7 @@ pub(crate) async fn publish_video_track(
                 simulcast: false,
                 dtx: false,
                 red: false,
-                preconnect_buffer: true,
+                preconnect_buffer: false,
                 video_encoding: Some(VideoEncoding {
                     max_bitrate,
                     max_framerate: f64::from(settings.fps),
