@@ -210,6 +210,34 @@ void main() {
     });
   });
 
+  group('a desktop picker closed without a choice', () {
+    // Rust's words for it (`capture_pw::open`): the person chose nothing,
+    // and knows it.
+    const closed = "The desktop's picker was closed without a choice";
+
+    test('is no failed start', () async {
+      final cubit = newCubit();
+      rust.startError = closed;
+      await start(cubit);
+      expect(cubit.state.hasError, isFalse);
+      expect(cubit.state.status, ScreenshareStatus.idle);
+      expect(cubit.state.notice, isNull);
+      expect(cubit.beginAttempt(), isNotNull);
+    });
+
+    test('says nothing at a switch', () async {
+      final cubit = newCubit();
+      await start(cubit);
+      final before = cubit.state.notice;
+      rust.switchError = closed;
+      await cubit.switchSource(
+        settings: const ScreenShareSettings(captureFullScreen: true),
+      );
+      expect(cubit.state.isSharing, isTrue);
+      expect(cubit.state.notice, before);
+    });
+  });
+
   group('switching what is shared', () {
     const window = ScreenShareSettings(
       shareAudio: true,

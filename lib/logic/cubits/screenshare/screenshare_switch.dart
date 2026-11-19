@@ -34,9 +34,9 @@ mixin _ScreenshareSwitchMixin on Cubit<ScreenshareState> {
     }
     _switching = true;
     if (!soundPicked) {
-      settings = settings.copyWith(
-        clearAudioSource: true,
-      ).copyWith(selectedAudioSource: current.selectedAudioSource);
+      settings = settings
+          .copyWith(clearAudioSource: true)
+          .copyWith(selectedAudioSource: current.selectedAudioSource);
     }
     try {
       final soundOn = await switchScreenshare(
@@ -63,8 +63,9 @@ mixin _ScreenshareSwitchMixin on Cubit<ScreenshareState> {
       );
     } catch (e) {
       HelperMethods.printDebug('✗ Screen share switch error: $e');
-      // Stopped while it waited on the desktop's picker: nothing to say.
-      if (!state.isSharing) return;
+      // Stopped while it waited on the desktop's picker, or the picker was
+      // closed: nothing to say.
+      if (!state.isSharing || e == ScreenshareCubit.pickerClosed) return;
       emit(
         state.copyWith(
           notice: Notice.error(

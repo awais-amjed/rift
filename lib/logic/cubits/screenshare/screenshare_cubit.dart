@@ -194,12 +194,21 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
     } catch (e) {
       HelperMethods.printDebug('✗ Screen share error: $e');
       if (e == _alreadySharing) return _keepRunningShare();
+      if (e == pickerClosed) {
+        return emit(state.copyWith(status: ScreenshareStatus.idle));
+      }
       _fail('Failed to start screen share: $e');
     }
   }
 
   /// Rust's refusal of a second share (`session::start`).
   static const _alreadySharing = 'Already sharing screen';
+
+  /// Rust's word that the desktop's picker was closed without a choice
+  /// (`capture_pw`). The person chose nothing and knows it, so it is no
+  /// failure and nothing is said, at a start or a switch.
+  static const pickerClosed =
+      "The desktop's picker was closed without a choice";
 
   /// Rust has a share the app had lost track of, a failed stop for one. It is
   /// still going out, so it is shown as running: Stop is the way to end it.

@@ -269,6 +269,8 @@ pub(super) fn run(
     ));
     let session = match opened {
         Ok(session) => session,
+        // Word for word what the app takes as no failure
+        // (`ScreenshareCubit.pickerClosed`).
         Err(PortalError::Cancelled) => {
             let _ = progress.send(Progress::Failed(
                 "The desktop's picker was closed without a choice".to_string(),
