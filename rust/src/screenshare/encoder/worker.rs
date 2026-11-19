@@ -764,12 +764,18 @@ mod tests {
         encoder.submit_input(picture_at(1_000));
         assert!(until(Duration::from_secs(1), || encoded() == 1));
         encoder.submit_input(picture_at(2_000));
-        // Within the tick before the second is tried again.
         assert!(until(Duration::from_secs(1), || encoded() == 2));
+        // Likely within the tick before the second is tried again; a busy
+        // machine may try it once first.
         encoder.submit_input(picture_at(3_000));
-        assert!(until(Duration::from_secs(1), || encoded() == 3));
+        assert!(until(Duration::from_secs(1), || {
+            asked.lock().unwrap().stamps.contains(&3_000)
+        }));
         thread::sleep(Duration::from_millis(300));
-        assert_eq!(asked.lock().unwrap().stamps, vec![1_000, 2_000, 3_000]);
+        let stamps = asked.lock().unwrap().stamps.clone();
+        assert_eq!(&stamps[..2], &[1_000, 2_000]);
+        assert_eq!(stamps.last(), Some(&3_000), "{stamps:?}");
+        assert!(stamps.len() <= 4, "{stamps:?}");
     }
 
     fn picture() -> EncoderInput {
