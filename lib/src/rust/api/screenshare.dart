@@ -38,6 +38,15 @@ Future<ShareQuality> updateScreenshare({required ShareQuality quality}) =>
 Future<void> moveScreenshare({required ShareRoom room}) =>
     RustLib.instance.api.crateApiScreenshareMoveScreenshare(room: room);
 
+/// Switch the running share to another screen or window, keeping its
+/// connection, so viewers keep watching. Returns whether its sound goes on.
+///
+/// On Linux a source that cannot be captured (a desktop picker cancelled)
+/// leaves the share as it was; on Windows the old capture is already gone by
+/// then, and the share ends (`ScreenshareEvent::SourceClosed`).
+Future<bool> switchScreenshare({required ShareSource source}) =>
+    RustLib.instance.api.crateApiScreenshareSwitchScreenshare(source: source);
+
 /// Stop the share and leave the room. Succeeds when nothing was running: a
 /// teardown that errors would make every disconnect look like a failure.
 Future<String> stopScreenshare() =>

@@ -103,6 +103,34 @@ pub struct ShareQuality {
     pub share_audio: bool,
 }
 
+/// What a running share is switched to: a source picked as a share's is,
+/// and the sound that goes with it. The picture's quality and the
+/// connection stay as they are, so viewers keep watching.
+pub struct ShareSource {
+    /// As [`ScreenShareConfig::capture_full_screen`].
+    pub capture_full_screen: bool,
+    /// As [`ScreenShareConfig::selected_video_source_index`].
+    pub selected_video_source_index: Option<u32>,
+    /// As [`ScreenShareConfig::portal_choice`].
+    pub portal_choice: Option<String>,
+    /// As [`ScreenShareConfig::selected_audio_source`].
+    pub selected_audio_source: Option<AudioSource>,
+    /// As [`ScreenShareConfig::selected_audio_source_pid`].
+    pub selected_audio_source_pid: Option<u32>,
+}
+
+impl From<&ScreenShareConfig> for ShareSource {
+    fn from(config: &ScreenShareConfig) -> Self {
+        Self {
+            capture_full_screen: config.capture_full_screen,
+            selected_video_source_index: config.selected_video_source_index,
+            portal_choice: config.portal_choice.clone(),
+            selected_audio_source: config.selected_audio_source.clone(),
+            selected_audio_source_pid: config.selected_audio_source_pid,
+        }
+    }
+}
+
 /// A screen or window that can be captured.
 #[derive(Clone, Debug)]
 pub struct CaptureSource {
@@ -117,6 +145,9 @@ pub struct CaptureSource {
     /// is back on screen, so a share of it starts paused and begins when the
     /// user opens it.
     pub minimised: bool,
+    /// The source the running share captures, which the picker marks when a
+    /// share is switched to another.
+    pub shared: bool,
 }
 
 /// A PulseAudio sink-input: one application's playback stream. Linux only;
@@ -219,6 +250,21 @@ mod tests {
             e2ee_key: vec![0; 32],
             e2ee_key_index: 0,
         }
+    }
+
+    #[test]
+    fn a_share_source_is_what_the_config_picked() {
+        let mut c = config();
+        c.capture_full_screen = false;
+        c.selected_video_source_index = Some(3);
+        c.portal_choice = Some("token".to_string());
+        c.selected_audio_source_pid = Some(42);
+        let source = ShareSource::from(&c);
+        assert!(!source.capture_full_screen);
+        assert_eq!(source.selected_video_source_index, Some(3));
+        assert_eq!(source.portal_choice.as_deref(), Some("token"));
+        assert_eq!(source.selected_audio_source_pid, Some(42));
+        assert!(source.selected_audio_source.is_none());
     }
 
     #[test]

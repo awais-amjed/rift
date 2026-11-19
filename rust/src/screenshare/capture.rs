@@ -145,6 +145,12 @@ impl VideoSlot {
         self.0.lock().unwrap().feed = None;
     }
 
+    /// Stop sending pictures anywhere, handing back where they went: a share
+    /// switched to another source may feed the same one from the new capture.
+    pub(crate) fn take(&self) -> Option<(Feed, Size)> {
+        self.0.lock().unwrap().feed.take()
+    }
+
     /// Whether the feed attached takes Windows Graphics Capture's pictures on the
     /// GPU: an encoder opened on the share's device.
     #[cfg(target_os = "windows")]

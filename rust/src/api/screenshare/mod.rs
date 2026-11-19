@@ -19,7 +19,7 @@ use crate::frb_generated::StreamSink;
 use std::sync::Mutex;
 use types::{
     AudioSource, CaptureSource, ScreenShareConfig, ScreenshareEvent, ShareQuality, ShareRoom,
-    VideoCodec,
+    ShareSource, VideoCodec,
 };
 
 // Set once when Flutter subscribes; replaced if it subscribes again.
@@ -84,6 +84,24 @@ pub async fn move_screenshare(room: ShareRoom) -> Result<(), String> {
     #[cfg(not(desktop))]
     {
         let _ = room;
+        Err("Screen sharing from Rust is desktop-only on this build".to_string())
+    }
+}
+
+/// Switch the running share to another screen or window, keeping its
+/// connection, so viewers keep watching. Returns whether its sound goes on.
+///
+/// On Linux a source that cannot be captured (a desktop picker cancelled)
+/// leaves the share as it was; on Windows the old capture is already gone by
+/// then, and the share ends (`ScreenshareEvent::SourceClosed`).
+pub async fn switch_screenshare(source: ShareSource) -> Result<bool, String> {
+    #[cfg(desktop)]
+    {
+        session::switch(source).await
+    }
+    #[cfg(not(desktop))]
+    {
+        let _ = source;
         Err("Screen sharing from Rust is desktop-only on this build".to_string())
     }
 }

@@ -9,19 +9,19 @@ use super::gpu_feed::GpuFeed;
 use super::resolution::fit_within;
 use super::resolution::{target_size, Size};
 use super::send_report::{self, SendTotals};
+use super::sources;
 #[cfg(gpu_encoder)]
 use super::step_down::StepDown;
 use super::track::{publish_video_track, TrackSettings};
 use crate::api::screenshare::types::{
-    self, ScreenShareConfig, ShareCursor, ShareQuality, ShareRoom,
+    self, ScreenShareConfig, ShareCursor, ShareQuality, ShareRoom, ShareSource, VideoCodec,
 };
 #[cfg(gpu_encoder)]
-use crate::api::screenshare::types::{ScreenshareEvent, VideoCodec};
+use crate::api::screenshare::types::ScreenshareEvent;
 use crate::sharing::audio::{self, AudioCapture, AudioCaptureHandle, AudioSelection};
 use crate::sharing::room;
 use crate::watching::receive_report::{self, Report};
 use livekit::prelude::*;
-use livekit::webrtc::desktop_capturer::DesktopCaptureSourceType;
 use livekit::webrtc::prelude::VideoResolution;
 use livekit::webrtc::video_source::native::NativeVideoSource;
 use std::collections::HashMap;
@@ -79,7 +79,11 @@ struct Session {
     /// The LiveKit the room is on, so a move to the same one can tell whether
     /// the share is already there.
     livekit_url: String,
-    capture: Capture,
+    /// None only between a Windows switch stopping the old capture and the
+    /// new one starting ([`switch`]).
+    capture: Option<Capture>,
+    /// Whether the cursor is drawn, for a capture a switch starts.
+    cursor: ShareCursor,
     video: Arc<Video>,
     audio: Option<AudioCaptureHandle>,
     /// Whose sound to capture if it is turned on during the share.
@@ -151,7 +155,8 @@ pub(crate) async fn start(config: ScreenShareConfig) -> Result<String, String> {
     *slot = Some(Session {
         room,
         livekit_url: config.livekit_url.clone(),
-        capture,
+        capture: Some(capture),
+        cursor: config.cursor,
         video,
         audio,
         audio_selection: AudioSelection::from(&config),
@@ -162,6 +167,10 @@ pub(crate) async fn start(config: ScreenShareConfig) -> Result<String, String> {
         #[cfg(gpu_encoder)]
         pause_follower: tokio::spawn(follow_pause()),
     });
+    sources::set_sharing(sources::chosen(
+        config.capture_full_screen,
+        config.selected_video_source_index,
+    ));
     log::info!("screenshare: started");
     Ok(format!("Connected to room: {room_name} ({room_sid})"))
 }
@@ -199,12 +208,15 @@ pub(crate) async fn stop() -> Result<String, String> {
     let (room_result, _) = tokio::join!(
         room.close(),
         tokio::task::spawn_blocking(move || {
-            capture.stop();
+            if let Some(capture) = capture {
+                capture.stop();
+            }
             if let Some(audio) = audio {
                 audio.terminate();
             }
         }),
     );
+    sources::set_sharing(None);
     if let Err(e) = room_result {
         log::warn!("screenshare: disconnect reported {e:?}");
     }
@@ -325,7 +337,9 @@ pub(crate) async fn update(quality: ShareQuality) -> Result<ShareQuality, String
         quality.share_audio
     );
 
-    session.capture.set_fps(quality.fps);
+    if let Some(capture) = &session.capture {
+        capture.set_fps(quality.fps);
+    }
     let new_codec = session.video.set_codec(quality.codec);
     let new_picture = session
         .video
@@ -360,18 +374,7 @@ pub(crate) async fn update(quality: ShareQuality) -> Result<ShareQuality, String
             )
             .await;
         }
-        (false, Some(handle)) => {
-            let track = handle.track();
-            if let Err(e) = session
-                .room
-                .local_participant()
-                .unpublish_track(&track)
-                .await
-            {
-                log::warn!("screenshare: unpublishing the sound: {e:?}");
-            }
-            let _ = tokio::task::spawn_blocking(move || handle.terminate()).await;
-        }
+        (false, Some(handle)) => end_sound(&session.room, handle).await,
         (_, unchanged) => session.audio = unchanged,
     }
 
@@ -380,6 +383,141 @@ pub(crate) async fn update(quality: ShareQuality) -> Result<ShareQuality, String
         share_audio: session.audio.is_some(),
         ..quality
     })
+}
+
+/// Whether a switch stops the old capture before starting the new one.
+///
+/// On Windows it has to: a share holds one GPU device, which its encoder opens
+/// on (`capture_wgc::SHARE_DEVICE`), and Windows 10 duplicates a screen only
+/// once a process. The pick was made in Rift's own list there, so the gap is
+/// only the new capture's start. Elsewhere the new capture starts beside the
+/// old: under Wayland the desktop's picker comes up for it, and viewers keep
+/// the old picture while it is open, or for good if it is cancelled.
+const STOPS_OLD_FIRST: bool = cfg!(target_os = "windows");
+
+/// Switch the running share to another screen or window, on the same
+/// connection, so viewers keep watching. The picture keeps its track where
+/// its size allows, and is published again where it does not. Returns
+/// whether its sound goes on: a window on Windows brings its own app's.
+pub(crate) async fn switch(source: ShareSource) -> Result<bool, String> {
+    let mut slot = SESSION.lock().await;
+    let Some(session) = slot.as_mut() else {
+        return Err("Not sharing".to_string());
+    };
+    let chosen = sources::chosen(
+        source.capture_full_screen,
+        source.selected_video_source_index,
+    );
+    if sources::same_source(chosen, sources::sharing()) {
+        log::info!("screenshare: already sharing that");
+        return Ok(session.audio.is_some());
+    }
+    log::info!(
+        "screenshare: switching to a {}",
+        if source.capture_full_screen {
+            "screen"
+        } else {
+            "window"
+        }
+    );
+    // A share still waiting on a minimised window waits no longer.
+    if let Some(publisher) = session.publisher.take() {
+        publisher.abort();
+    }
+    let settings = *session.video.settings.lock().unwrap();
+    let request = capture_request(
+        &source,
+        session.video.codec(),
+        settings.fps,
+        session.cursor,
+        settings.gpu_capture,
+        &session.participant,
+    );
+
+    let mut held = None;
+    if STOPS_OLD_FIRST {
+        held = session.video.slot().take();
+        if let Some(old) = session.capture.take() {
+            let _ = tokio::task::spawn_blocking(move || old.stop()).await;
+        }
+    }
+    let (capture, mut started) = capture::spawn(request);
+    let first = match first_frame(&mut started).await {
+        Ok(first) => first,
+        Err(reason) => {
+            let reason = stop_capture(capture, reason).await;
+            log::warn!("screenshare: the switch failed: {reason}");
+            if session.capture.is_none() {
+                // Nothing is captured any more: end it, the way a closed
+                // window does.
+                crate::api::screenshare::emit_screenshare_event(
+                    crate::api::screenshare::types::ScreenshareEvent::SourceClosed,
+                );
+            }
+            return Err(reason);
+        }
+    };
+    if let Some(old) = session.capture.take() {
+        held = session.video.slot().take();
+        let _ = tokio::task::spawn_blocking(move || old.stop()).await;
+    }
+    session.video.set_slot(capture.slot());
+    session.capture = Some(capture);
+    sources::set_sharing(chosen);
+
+    match first {
+        Some(native) => {
+            if let Err(reason) = session.video.rebind(native, held).await {
+                crate::api::screenshare::emit_screenshare_event(
+                    crate::api::screenshare::types::ScreenshareEvent::SourceClosed,
+                );
+                return Err(reason);
+            }
+            // The window switched away from may have been minimised, which
+            // viewers were told; this one is not.
+            let participant = session.participant.lock().unwrap().clone();
+            let attributes = HashMap::from([(PAUSED_ATTRIBUTE.to_string(), false.to_string())]);
+            if let Err(e) = participant.set_attributes(attributes).await {
+                log::warn!("screenshare: telling viewers paused=false: {e:?}");
+            }
+        }
+        None => {
+            drop(held);
+            log::info!("screenshare: waiting for the window to be opened");
+            session.publisher = Some(tokio::spawn(publish_when_opened(
+                session.video.clone(),
+                started,
+            )));
+        }
+    }
+
+    let selection = AudioSelection::from(&source);
+    if !selection.same_sound(&session.audio_selection) {
+        if let Some(handle) = session.audio.take() {
+            end_sound(&session.room, handle).await;
+            session.audio = audio::start(
+                &session.room,
+                AudioCapture {
+                    selection: selection.clone(),
+                    track_name: AUDIO_TRACK_NAME.to_string(),
+                    on_ended: None,
+                },
+            )
+            .await;
+        }
+    }
+    session.audio_selection = selection;
+    log::info!("screenshare: switched");
+    Ok(session.audio.is_some())
+}
+
+/// Take the share's sound off the room and stop capturing it.
+async fn end_sound(room: &Room, handle: AudioCaptureHandle) {
+    let track = handle.track();
+    if let Err(e) = room.local_participant().unpublish_track(&track).await {
+        log::warn!("screenshare: unpublishing the sound: {e:?}");
+    }
+    let _ = tokio::task::spawn_blocking(move || handle.terminate()).await;
 }
 
 /// The running share's picture as WebRTC reports it: what encoder it went
@@ -556,54 +694,23 @@ async fn bring_up(
     participant: &SharedParticipant,
     config: &ScreenShareConfig,
 ) -> Result<Parts, String> {
-    let (capture, mut started) = capture::spawn(CaptureRequest {
-        source_type: if config.capture_full_screen {
-            DesktopCaptureSourceType::Screen
-        } else {
-            DesktopCaptureSourceType::Window
-        },
-        selected_index: config.selected_video_source_index,
-        portal_choice: config.portal_choice.clone(),
-        gpu_capture: config.gpu_capture,
-        codec: config.codec,
-        fps: config.fps,
-        capture_cursor: config.cursor != ShareCursor::Never,
-        cursor_off_in_games: config.cursor == ShareCursor::Auto && config.capture_full_screen,
-        on_paused: Some(announce_paused(participant.clone())),
-        following: None,
-    });
-
-    // While the desktop's picker is up, the first frame waits on a person.
-    let mut limit = FIRST_FRAME_TIMEOUT;
-    let first = loop {
-        match tokio::time::timeout(limit, started.recv()).await {
-            Ok(Some(Progress::Picking)) => limit = PICKER_TIMEOUT,
-            Ok(Some(Progress::Picked)) => limit = FIRST_FRAME_TIMEOUT,
-            Ok(Some(Progress::FirstFrame(size))) => break Some(size),
-            Ok(Some(Progress::Waiting)) => break None,
-            Ok(Some(Progress::Failed(reason))) => return Err(stop_capture(capture, reason).await),
-            Ok(None) => {
-                let reason = "The capture thread stopped before producing a frame".to_string();
-                return Err(stop_capture(capture, reason).await);
-            }
-            Err(_) if limit == PICKER_TIMEOUT => {
-                let reason = "The desktop's picker had no answer".to_string();
-                return Err(stop_capture(capture, reason).await);
-            }
-            Err(_) => {
-                let reason = format!(
-                    "No frames arrived from the selected source in {} seconds",
-                    FIRST_FRAME_TIMEOUT.as_secs()
-                );
-                return Err(stop_capture(capture, reason).await);
-            }
-        }
+    let (capture, mut started) = capture::spawn(capture_request(
+        &ShareSource::from(config),
+        config.codec,
+        config.fps,
+        config.cursor,
+        config.gpu_capture,
+        participant,
+    ));
+    let first = match first_frame(&mut started).await {
+        Ok(first) => first,
+        Err(reason) => return Err(stop_capture(capture, reason).await),
     };
 
     let video = Arc::new_cyclic(|me| Video {
         me: me.clone(),
         participant: participant.clone(),
-        slot: capture.slot(),
+        slot: std::sync::Mutex::new(capture.slot()),
         settings: std::sync::Mutex::new(TrackSettings::from(config)),
         track: Mutex::new(None),
         #[cfg(gpu_encoder)]
@@ -646,6 +753,59 @@ async fn bring_up(
     Ok((capture, video, audio, publisher))
 }
 
+/// What a capture of `source` is asked for, at the share's codec, rate and
+/// cursor.
+fn capture_request(
+    source: &ShareSource,
+    codec: VideoCodec,
+    fps: u32,
+    cursor: ShareCursor,
+    gpu_capture: bool,
+    participant: &SharedParticipant,
+) -> CaptureRequest {
+    CaptureRequest {
+        source_type: sources::source_type(source.capture_full_screen),
+        selected_index: source.selected_video_source_index,
+        portal_choice: source.portal_choice.clone(),
+        gpu_capture,
+        codec,
+        fps,
+        capture_cursor: cursor != ShareCursor::Never,
+        cursor_off_in_games: cursor == ShareCursor::Auto && source.capture_full_screen,
+        on_paused: Some(announce_paused(participant.clone())),
+        following: None,
+    }
+}
+
+/// The size of a new capture's first frame, or None for a minimised window
+/// that has none until it is opened. While the desktop's picker is up, the
+/// first frame waits on a person. On an error the capture is the caller's to
+/// stop.
+async fn first_frame(started: &mut Started) -> Result<Option<Size>, String> {
+    let mut limit = FIRST_FRAME_TIMEOUT;
+    loop {
+        match tokio::time::timeout(limit, started.recv()).await {
+            Ok(Some(Progress::Picking)) => limit = PICKER_TIMEOUT,
+            Ok(Some(Progress::Picked)) => limit = FIRST_FRAME_TIMEOUT,
+            Ok(Some(Progress::FirstFrame(size))) => return Ok(Some(size)),
+            Ok(Some(Progress::Waiting)) => return Ok(None),
+            Ok(Some(Progress::Failed(reason))) => return Err(reason),
+            Ok(None) => {
+                return Err("The capture thread stopped before producing a frame".to_string())
+            }
+            Err(_) if limit == PICKER_TIMEOUT => {
+                return Err("The desktop's picker had no answer".to_string())
+            }
+            Err(_) => {
+                return Err(format!(
+                    "No frames arrived from the selected source in {} seconds",
+                    FIRST_FRAME_TIMEOUT.as_secs()
+                ))
+            }
+        }
+    }
+}
+
 /// What publishing the picture needs, none of it borrowed from the start.
 struct Video {
     /// For a GPU encoder failing mid-share, which republishes from another
@@ -653,7 +813,9 @@ struct Video {
     #[cfg_attr(not(gpu_encoder), allow(dead_code))]
     me: Weak<Video>,
     participant: SharedParticipant,
-    slot: VideoSlot,
+    /// Where the capture hands its pictures; another capture's when the share
+    /// is switched to another source ([`switch`]).
+    slot: std::sync::Mutex<VideoSlot>,
     /// Changed by [`update`]; read each time the picture is published.
     settings: std::sync::Mutex<TrackSettings>,
     /// The published track, once there is one. Held for the whole of a
@@ -685,6 +847,43 @@ struct GpuPicture {
 }
 
 impl Video {
+    /// The capture's pictures now — see [`switch`].
+    fn slot(&self) -> VideoSlot {
+        self.slot.lock().unwrap().clone()
+    }
+
+    fn set_slot(&self, slot: VideoSlot) {
+        *self.slot.lock().unwrap() = slot;
+    }
+
+    /// Take the pictures of a capture just switched to, whose first frame is
+    /// `native`. `held` is what the old capture fed. A raw source of the size
+    /// the new picture needs is fed on, and viewers see no blink; anything else
+    /// goes through [`change_picture`](Self::change_picture), which keeps a
+    /// GPU picture's track and opens its encoder again on the new capture
+    /// (on Windows, on the new capture's device). A share that never
+    /// published, waiting on a minimised window, publishes now.
+    async fn rebind(&self, native: Size, held: Option<(Feed, Size)>) -> Result<(), String> {
+        {
+            let mut track = self.track.lock().await;
+            if track.is_none() {
+                return self.publish_locked(&mut track, native).await;
+            }
+            let target = target_size(native, self.settings.lock().unwrap().max_height);
+            if let Some((Feed::Raw(source), size)) = &held {
+                if *size == target {
+                    log::info!("screenshare: the new source fits the picture as it is");
+                    self.slot().attach(Feed::Raw(source.clone()), target);
+                    return Ok(());
+                }
+            }
+        }
+        // The old encoder is closed before another opens, which waits for
+        // every hold on its feed to go.
+        drop(held);
+        self.change_picture().await
+    }
+
     /// Who publishes the picture now — see [`SharedParticipant`].
     fn participant(&self) -> LocalParticipant {
         self.participant.lock().unwrap().clone()
@@ -761,7 +960,7 @@ impl Video {
                 return None;
             }
             let codec = GpuCodec::for_share(settings.codec)?;
-            let native = self.slot.native()?;
+            let native = self.slot().native()?;
             let target = {
                 let mut step = self.step.lock().unwrap();
                 step.fit(
@@ -778,7 +977,7 @@ impl Video {
                 settings.fps
             );
             let start = old.bitrate();
-            self.slot.detach();
+            self.slot().detach();
             drop(old);
             self.close_gpu().await;
             let fed = source.clone();
@@ -795,7 +994,7 @@ impl Video {
             match opened {
                 Ok(feed) => {
                     let feed = Arc::new(feed);
-                    self.slot.attach(Feed::Gpu(feed.clone()), target);
+                    self.slot().attach(Feed::Gpu(feed.clone()), target);
                     *self.gpu.lock().unwrap() = Some(GpuPicture {
                         source,
                         feed,
@@ -832,10 +1031,10 @@ impl Video {
             return Ok(());
         };
         let native = self
-            .slot
+            .slot()
             .native()
             .ok_or("No frame has been captured to size the picture by")?;
-        self.slot.detach();
+        self.slot().detach();
         #[cfg(gpu_encoder)]
         self.close_gpu().await;
         if let Err(e) = self.participant().unpublish_track(&old).await {
@@ -854,10 +1053,10 @@ impl Video {
             return Ok(());
         }
         let native = self
-            .slot
+            .slot()
             .native()
             .ok_or("No frame has been captured to size the picture by")?;
-        self.slot.detach();
+        self.slot().detach();
         #[cfg(gpu_encoder)]
         self.close_gpu().await;
         self.publish_locked(&mut track, native).await
@@ -915,7 +1114,7 @@ impl Video {
         {
             *self.gpu.lock().unwrap() = None;
         }
-        self.slot.attach(Feed::Raw(source.clone()), target);
+        self.slot().attach(Feed::Raw(source.clone()), target);
         let sid = publish_video_track(&self.participant(), source, &settings, None).await?;
         *track = Some(sid);
         announce_picture(&self.participant(), target, settings.fps);
@@ -956,7 +1155,7 @@ impl Video {
         .map_err(|e| format!("The GPU encoder did not open: {e}"))??;
         log::info!("screenshare: encoding on {}", feed.name());
         let feed = Arc::new(feed);
-        self.slot.attach(Feed::Gpu(feed.clone()), target);
+        self.slot().attach(Feed::Gpu(feed.clone()), target);
         let sid = publish_video_track(
             &self.participant(),
             source.clone(),
@@ -1165,7 +1364,7 @@ async fn publish_when_opened(video: Arc<Video>, mut started: Started) {
                 return;
             }
             Progress::FirstFrame(native) => {
-                if let Err(reason) = video.publish(native).await {
+                if let Err(reason) = video.rebind(native, None).await {
                     // The share is up with nothing to show and no way to put
                     // it right from here: end it, the way a closed window does.
                     log::warn!("screenshare: {reason}");

@@ -104,6 +104,7 @@ void main() {
               title: 'Game',
               appId: '',
               minimised: false,
+              shared: false,
             ),
           );
       expect(settings.codecChosen, isTrue);
@@ -234,6 +235,7 @@ void main() {
               title: 'Game',
               appId: '',
               minimised: false,
+              shared: false,
             ),
           );
       expect(settings.showsAdvanced, isTrue);
@@ -265,6 +267,7 @@ void main() {
           title: 'Game',
           appId: '',
           minimised: false,
+          shared: false,
         ),
       );
       expect(picked.cursor, ShareCursor.never);
@@ -305,6 +308,7 @@ void main() {
               title: 'Game',
               appId: '',
               minimised: false,
+              shared: false,
             ),
           );
       expect(settings.priority, SharePriority.balanced);
@@ -319,6 +323,7 @@ void main() {
         audioSourcePid: 10,
         appId: '',
         minimised: false,
+        shared: false,
       ),
     );
     final restored = ScreenShareSettings.fromJson(settings.toJson());
@@ -334,6 +339,7 @@ void main() {
             title: 'Screen',
             appId: '',
             minimised: false,
+            shared: false,
           ),
         );
     expect(settings.selectedVideoSourcePid, isNull);

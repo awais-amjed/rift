@@ -30,18 +30,21 @@ void main() {
     title: 'Screen 1',
     appId: '',
     minimised: false,
+    shared: false,
   );
   const screenTwo = CaptureSource(
     index: 1,
     title: 'Screen 2',
     appId: '',
     minimised: false,
+    shared: false,
   );
   const window = CaptureSource(
     index: 0,
     title: 'Notes',
     appId: '',
     minimised: false,
+    shared: false,
   );
 
   /// Opens the dialog from a button, as the call bar does, and hands back

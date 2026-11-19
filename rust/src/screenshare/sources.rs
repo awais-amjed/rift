@@ -105,6 +105,47 @@ pub(crate) fn source_type(capture_full_screen: bool) -> DesktopCaptureSourceType
     }
 }
 
+/// The source a running share captures, as it was picked from a list Rift
+/// showed. None while nothing is shared, or when the desktop's own picker
+/// chose it (Wayland), when Rift cannot say which of its sources it is.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct Sharing {
+    pub kind: DesktopCaptureSourceType,
+    pub id: u64,
+}
+
+static SHARING: Mutex<Option<Sharing>> = Mutex::new(None);
+
+/// Noted by the share as it starts, switches and stops, for the picker to
+/// mark the source being shared.
+pub(crate) fn set_sharing(sharing: Option<Sharing>) {
+    *SHARING.lock().unwrap() = sharing;
+}
+
+pub(crate) fn sharing() -> Option<Sharing> {
+    *SHARING.lock().unwrap()
+}
+
+/// What a share of `index` in the last list of its kind would capture.
+pub(crate) fn chosen(capture_full_screen: bool, index: Option<u32>) -> Option<Sharing> {
+    let kind = source_type(capture_full_screen);
+    let listed = listed(kind, index?)?;
+    Some(Sharing {
+        kind,
+        id: listed.id,
+    })
+}
+
+/// Whether a switch to `chosen` would change nothing. A source the desktop
+/// picks is never known to be the same, so it is always switched to.
+pub(crate) fn same_source(chosen: Option<Sharing>, sharing: Option<Sharing>) -> bool {
+    chosen.is_some() && chosen == sharing
+}
+
+fn is_shared(sharing: Option<Sharing>, kind: DesktopCaptureSourceType, id: u64) -> bool {
+    sharing == Some(Sharing { kind, id })
+}
+
 /// The source at `index` in the last list shown, if there was one.
 pub(crate) fn listed(source_type: DesktopCaptureSourceType, index: u32) -> Option<Listed> {
     shown(source_type)
@@ -138,6 +179,7 @@ pub(crate) fn list(capture_full_screen: bool) -> Vec<CaptureSource> {
     log::info!("capture: {} sources", listed.len());
 
     let owners = (!capture_full_screen).then(Owners::open).flatten();
+    let now = sharing();
     let sources = listed
         .iter()
         .enumerate()
@@ -152,6 +194,7 @@ pub(crate) fn list(capture_full_screen: bool) -> Vec<CaptureSource> {
                 audio_source_pid: pid,
                 app_id,
                 minimised: source.minimised,
+                shared: is_shared(now, source_type, source.id),
             }
         })
         .collect();
@@ -237,6 +280,37 @@ mod tests {
 
     fn window(id: u64, title: &str) -> (u64, String) {
         (id, title.to_string())
+    }
+
+    fn sharing(kind: DesktopCaptureSourceType, id: u64) -> Option<Sharing> {
+        Some(Sharing { kind, id })
+    }
+
+    #[test]
+    fn only_the_shared_source_of_its_kind_is_marked() {
+        let now = sharing(DesktopCaptureSourceType::Window, 20);
+        assert!(is_shared(now, DesktopCaptureSourceType::Window, 20));
+        assert!(!is_shared(now, DesktopCaptureSourceType::Window, 10));
+        assert!(!is_shared(now, DesktopCaptureSourceType::Screen, 20));
+        assert!(!is_shared(None, DesktopCaptureSourceType::Window, 20));
+    }
+
+    #[test]
+    fn the_source_already_shared_is_no_switch() {
+        let screen = sharing(DesktopCaptureSourceType::Screen, 5);
+        assert!(same_source(screen, screen));
+        assert!(!same_source(
+            sharing(DesktopCaptureSourceType::Window, 5),
+            screen
+        ));
+        assert!(!same_source(sharing(DesktopCaptureSourceType::Screen, 6), screen));
+    }
+
+    #[test]
+    fn a_source_the_desktop_picks_is_never_the_one_shared() {
+        // Under Wayland nothing is chosen from Rift's list, on either side.
+        assert!(!same_source(None, None));
+        assert!(!same_source(None, sharing(DesktopCaptureSourceType::Screen, 5)));
     }
 
     #[test]

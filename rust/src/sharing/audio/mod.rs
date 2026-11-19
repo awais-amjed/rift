@@ -4,7 +4,7 @@
 //! at 48 kHz. Publishing the track and feeding LiveKit is the same on both
 //! and lives here, so it exists once — for the audio that rides along with a
 //! screen share, and for a sound share, which is only this.
-use crate::api::screenshare::types::{AudioSource, ScreenShareConfig};
+use crate::api::screenshare::types::{AudioSource, ScreenShareConfig, ShareSource};
 use crate::api::soundshare::SoundShareConfig;
 use catch_up::CatchUp;
 use livekit::options::{audio, TrackPublishOptions};
@@ -87,6 +87,28 @@ pub(crate) struct AudioSelection {
     pub app: Option<AudioSource>,
     /// Windows: the process whose audio to capture; none means everything but Rift.
     pub pid: Option<u32>,
+}
+
+impl AudioSelection {
+    /// Whether `other` captures the same sound, so a share switched to
+    /// another source can keep the sound it has. A program is the same
+    /// program whichever of its streams it was listed by.
+    pub(crate) fn same_sound(&self, other: &AudioSelection) -> bool {
+        let program = |app: &Option<AudioSource>| {
+            app.as_ref()
+                .map(|app| (app.binary.clone(), app.app_name.clone(), app.app_id.clone()))
+        };
+        self.pid == other.pid && program(&self.app) == program(&other.app)
+    }
+}
+
+impl From<&ShareSource> for AudioSelection {
+    fn from(source: &ShareSource) -> Self {
+        Self {
+            app: source.selected_audio_source.clone(),
+            pid: source.selected_audio_source_pid,
+        }
+    }
 }
 
 impl From<&ScreenShareConfig> for AudioSelection {
@@ -312,6 +334,47 @@ pub(crate) fn samples_from_le_bytes(bytes: &[u8]) -> Vec<i16> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn app(binary: &str, index: u32) -> AudioSource {
+        AudioSource {
+            index,
+            sink: 1,
+            app_name: binary.to_string(),
+            binary: binary.to_string(),
+            media_name: String::new(),
+            app_id: String::new(),
+            pid: Some(7),
+            playing: true,
+        }
+    }
+
+    fn pid(pid: u32) -> AudioSelection {
+        AudioSelection { app: None, pid: Some(pid) }
+    }
+
+    fn of(app: AudioSource) -> AudioSelection {
+        AudioSelection { app: Some(app), pid: None }
+    }
+
+    #[test]
+    fn the_same_process_is_the_same_sound() {
+        assert!(pid(1).same_sound(&pid(1)));
+        assert!(!pid(1).same_sound(&pid(2)));
+        assert!(!pid(1).same_sound(&AudioSelection::default()));
+    }
+
+    #[test]
+    fn the_same_program_is_the_same_sound_whatever_stream_it_was_listed_by() {
+        // A sink-input's index changes with each stream the program opens.
+        assert!(of(app("firefox", 3)).same_sound(&of(app("firefox", 9))));
+        assert!(!of(app("firefox", 3)).same_sound(&of(app("mpv", 3))));
+        assert!(!of(app("firefox", 3)).same_sound(&AudioSelection::default()));
+    }
+
+    #[test]
+    fn everything_but_rift_is_the_same_as_itself() {
+        assert!(AudioSelection::default().same_sound(&AudioSelection::default()));
+    }
 
     #[test]
     fn bytes_become_little_endian_samples() {

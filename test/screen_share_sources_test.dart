@@ -10,6 +10,7 @@ CaptureSource src(int index, {int? pid, String? title}) => CaptureSource(
   audioSourcePid: pid,
   appId: '',
   minimised: false,
+  shared: false,
 );
 
 /// What was saved after picking [source] last time.

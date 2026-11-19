@@ -132,6 +132,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ShareRoom dco_decode_box_autoadd_share_room(dynamic raw);
 
   @protected
+  ShareSource dco_decode_box_autoadd_share_source(dynamic raw);
+
+  @protected
   SoundShareConfig dco_decode_box_autoadd_sound_share_config(dynamic raw);
 
   @protected
@@ -259,6 +262,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ShareRoom dco_decode_share_room(dynamic raw);
+
+  @protected
+  ShareSource dco_decode_share_source(dynamic raw);
 
   @protected
   SoundShareConfig dco_decode_sound_share_config(dynamic raw);
@@ -414,6 +420,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ShareRoom sse_decode_box_autoadd_share_room(SseDeserializer deserializer);
 
   @protected
+  ShareSource sse_decode_box_autoadd_share_source(SseDeserializer deserializer);
+
+  @protected
   SoundShareConfig sse_decode_box_autoadd_sound_share_config(
     SseDeserializer deserializer,
   );
@@ -557,6 +566,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ShareRoom sse_decode_share_room(SseDeserializer deserializer);
+
+  @protected
+  ShareSource sse_decode_share_source(SseDeserializer deserializer);
 
   @protected
   SoundShareConfig sse_decode_sound_share_config(SseDeserializer deserializer);
@@ -737,6 +749,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_share_room(
     ShareRoom self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_share_source(
+    ShareSource self,
     SseSerializer serializer,
   );
 
@@ -925,6 +943,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_share_room(ShareRoom self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_share_source(ShareSource self, SseSerializer serializer);
 
   @protected
   void sse_encode_sound_share_config(

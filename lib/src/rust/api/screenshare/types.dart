@@ -8,7 +8,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import '../../frb_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `check_picture`, `check_quality`, `check_room`, `check`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
 
 /// A PulseAudio sink-input: one application's playback stream. Linux only;
 /// Windows picks audio by process id from [`CaptureSource`] instead.
@@ -85,12 +85,17 @@ class CaptureSource {
   /// user opens it.
   final bool minimised;
 
+  /// The source the running share captures, which the picker marks when a
+  /// share is switched to another.
+  final bool shared;
+
   const CaptureSource({
     required this.index,
     required this.title,
     this.audioSourcePid,
     required this.appId,
     required this.minimised,
+    required this.shared,
   });
 
   @override
@@ -99,7 +104,8 @@ class CaptureSource {
       title.hashCode ^
       audioSourcePid.hashCode ^
       appId.hashCode ^
-      minimised.hashCode;
+      minimised.hashCode ^
+      shared.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -110,7 +116,8 @@ class CaptureSource {
           title == other.title &&
           audioSourcePid == other.audioSourcePid &&
           appId == other.appId &&
-          minimised == other.minimised;
+          minimised == other.minimised &&
+          shared == other.shared;
 }
 
 class ScreenShareConfig {
@@ -346,6 +353,53 @@ class ShareRoom {
           livekitToken == other.livekitToken &&
           e2EeKey == other.e2EeKey &&
           e2EeKeyIndex == other.e2EeKeyIndex;
+}
+
+/// What a running share is switched to: a source picked as a share's is,
+/// and the sound that goes with it. The picture's quality and the
+/// connection stay as they are, so viewers keep watching.
+class ShareSource {
+  /// As [`ScreenShareConfig::capture_full_screen`].
+  final bool captureFullScreen;
+
+  /// As [`ScreenShareConfig::selected_video_source_index`].
+  final int? selectedVideoSourceIndex;
+
+  /// As [`ScreenShareConfig::portal_choice`].
+  final String? portalChoice;
+
+  /// As [`ScreenShareConfig::selected_audio_source`].
+  final AudioSource? selectedAudioSource;
+
+  /// As [`ScreenShareConfig::selected_audio_source_pid`].
+  final int? selectedAudioSourcePid;
+
+  const ShareSource({
+    required this.captureFullScreen,
+    this.selectedVideoSourceIndex,
+    this.portalChoice,
+    this.selectedAudioSource,
+    this.selectedAudioSourcePid,
+  });
+
+  @override
+  int get hashCode =>
+      captureFullScreen.hashCode ^
+      selectedVideoSourceIndex.hashCode ^
+      portalChoice.hashCode ^
+      selectedAudioSource.hashCode ^
+      selectedAudioSourcePid.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ShareSource &&
+          runtimeType == other.runtimeType &&
+          captureFullScreen == other.captureFullScreen &&
+          selectedVideoSourceIndex == other.selectedVideoSourceIndex &&
+          portalChoice == other.portalChoice &&
+          selectedAudioSource == other.selectedAudioSource &&
+          selectedAudioSourcePid == other.selectedAudioSourcePid;
 }
 
 /// Codec for the published video track. The Dart settings store these same
