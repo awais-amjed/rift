@@ -153,6 +153,11 @@ struct RiftPwStream {
   bool closing;
   bool ended;
   bool logged_sync;
+  // Pictures dropped other than for a cursor that moved alone, how many of
+  // them the log has told, and when it last did (`note_drop`).
+  int64_t dropped;
+  int64_t dropped_told;
+  int64_t drop_told_ns;
 };
 
 /* auxiliary methods */
@@ -571,10 +576,33 @@ static int64_t monotonic_ns(void) {
   return (int64_t)now.tv_sec * 1000000000 + now.tv_nsec;
 }
 
+// How often the log may tell of dropped pictures.
+#define DROP_TOLD_EVERY_NS (5 * (int64_t)1000000000)
+
+// A picture dropped because `why`: told in the app's log at once, then at most
+// every DROP_TOLD_EVERY_NS with how many went since, and the total at the
+// close. Each one is a picture viewers never get, and at AV_LOG_DEBUG none
+// reached the log a person sends.
+static void note_drop(RiftPwStream* s, const char* why) {
+  s->dropped++;
+  int64_t now = monotonic_ns();
+  if (s->drop_told_ns != 0 && now - s->drop_told_ns < DROP_TOLD_EVERY_NS)
+    return;
+  av_log(NULL, AV_LOG_WARNING,
+         "pipewire: %" PRId64
+         " picture(s) dropped since the last note, the "
+         "last because %s\n",
+         s->dropped - s->dropped_told, why);
+  s->dropped_told = s->dropped;
+  s->drop_told_ns = now;
+}
+
 // OBS's process_video_sync, up to the texture: the newest buffer, its crop,
 // turn and sync points, handed to Rust instead of drawn.
 static void on_process_cb(void* user_data) {
   RiftPwStream* s = user_data;
+  // Why a picture is dropped, for the log; none for what is routine.
+  const char* why = NULL;
   struct spa_meta_header* header;
   struct spa_meta_region* region;
   struct spa_meta_videotransform* video_transform;
@@ -596,7 +624,7 @@ static void on_process_cb(void* user_data) {
 
   header = spa_buffer_find_meta_data(buffer, SPA_META_Header, sizeof(*header));
   if (header && (header->flags & SPA_META_HEADER_FLAG_CORRUPTED) > 0) {
-    av_log(NULL, AV_LOG_DEBUG, "pipewire: buffer is corrupt\n");
+    why = "the compositor marked it corrupt";
     goto drop;
   }
 
@@ -607,7 +635,10 @@ static void on_process_cb(void* user_data) {
   if (buffer->datas[0].chunk->size == 0) goto drop;
 
   const struct format_info* format = format_of(s);
-  if (!format) goto drop;
+  if (!format) {
+    why = "its format is not one Rift reads";
+    goto drop;
+  }
 
   uint32_t width = s->format.info.raw.size.width;
   uint32_t height = s->format.info.raw.size.height;
@@ -644,7 +675,10 @@ static void on_process_cb(void* user_data) {
     struct spa_meta_sync_timeline* synctimeline = spa_buffer_find_meta_data(
         buffer, SPA_META_SyncTimeline, sizeof(struct spa_meta_sync_timeline));
 
-    if (planes == 0 || planes > 4) goto drop;
+    if (planes == 0 || planes > 4) {
+      why = "a DMA-BUF had no planes or more than four";
+      goto drop;
+    }
 
     RiftDmabuf* dmabuf = &picture.dmabuf;
     dmabuf->width = (int32_t)width;
@@ -661,7 +695,10 @@ static void on_process_cb(void* user_data) {
     dmabuf->transform = (int32_t)transform;
     for (uint32_t plane = 0; plane < planes; plane++) {
       dmabuf->fds[plane] = held_fd(h, plane, (int)buffer->datas[plane].fd);
-      if (dmabuf->fds[plane] < 0) goto drop;
+      if (dmabuf->fds[plane] < 0) {
+        why = "a DMA-BUF's fd could not be kept";
+        goto drop;
+      }
       dmabuf->offsets[plane] = buffer->datas[plane].chunk->offset;
       dmabuf->strides[plane] = (uint32_t)buffer->datas[plane].chunk->stride;
       corrupt |=
@@ -669,7 +706,7 @@ static void on_process_cb(void* user_data) {
     }
 
     if (corrupt) {
-      av_log(NULL, AV_LOG_DEBUG, "pipewire: buffer contains corrupted data\n");
+      why = "the compositor marked a plane corrupt";
       goto drop;
     }
 
@@ -680,8 +717,7 @@ static void on_process_cb(void* user_data) {
           buffer->datas[planes].type != SPA_DATA_SyncObj ||
           !wait_timeline_point(s, (int)buffer->datas[planes].fd,
                                synctimeline->acquire_point)) {
-        av_log(NULL, AV_LOG_DEBUG,
-               "pipewire: the compositor did not finish a picture\n");
+        why = "the compositor did not finish drawing it in time";
         goto drop;
       }
       // On PipeWire's thread, so it has to stay short.
@@ -701,7 +737,7 @@ static void on_process_cb(void* user_data) {
     struct spa_data* d = &buffer->datas[0];
 
     if ((d->chunk->flags & SPA_CHUNK_FLAG_CORRUPTED) > 0) {
-      av_log(NULL, AV_LOG_DEBUG, "pipewire: buffer contains corrupted data\n");
+      why = "the compositor marked it corrupt";
       goto drop;
     }
 
@@ -711,11 +747,14 @@ static void on_process_cb(void* user_data) {
     uint64_t start = offset + (uint64_t)crop_y * stride + (uint64_t)crop_x * 4;
     uint64_t len = (uint64_t)stride * (crop_h - 1) + (uint64_t)crop_w * 4;
     if (stride < width * 4 || start + len > d->maxsize) {
-      av_log(NULL, AV_LOG_DEBUG, "pipewire: a memory buffer too small\n");
+      why = "a memory buffer was too small for its picture";
       goto drop;
     }
     const uint8_t* data = held_data(h, d);
-    if (!data) goto drop;
+    if (!data) {
+      why = "a memory buffer could not be kept";
+      goto drop;
+    }
     // Whole rows where the buffer has them, as libyuv's callers check for: a
     // window's crop stops short of the stride on its last row.
     uint64_t rows = (uint64_t)stride * crop_h;
@@ -726,6 +765,7 @@ static void on_process_cb(void* user_data) {
     picture.order = order_of(format->drm_format);
     picture.buffers = RIFT_PW_MEMORY;
   } else {
+    why = "it came in neither a DMA-BUF nor memory";
     goto drop;
   }
 
@@ -741,6 +781,7 @@ static void on_process_cb(void* user_data) {
   return;
 
 drop:
+  if (why) note_drop(s, why);
   return_unused_pw_buffer(s, b);
 }
 
@@ -1170,6 +1211,9 @@ void rift_pw_close(RiftPwStream* s) {
            " pictures\n",
            s->sync_wait_total_us / s->sync_waits, s->sync_wait_worst_us,
            s->sync_waits);
+  if (s->dropped > 0)
+    av_log(NULL, AV_LOG_INFO,
+           "pipewire: %" PRId64 " picture(s) dropped in all\n", s->dropped);
   bool now = s->held == 0;
   pw_thread_loop_unlock(s->thread_loop);
   if (now) destroy(s);

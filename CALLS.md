@@ -1453,6 +1453,12 @@ libwebrtc still decodes, on the CPU.
   pictures left out with the target far under the cap, at the estimate;
   keyframes every report with PLIs, at a viewer losing packets, which a
   viewer watching through Rust names (`a viewer (…) lost N% of packets`).
+  On Rift's own Wayland stream, a picture the stream itself drops (marked
+  corrupt, a compositor that did not finish drawing it, a buffer too small) is
+  in the log at once and then every 5 s with a count (`pipewire: N picture(s)
+  dropped since the last note, the last because …`), and the total at the end;
+  until Nov 19 they were at a level the app's log never kept. A buffer that
+  only moves the cursor is dropped as before, unlogged.
 - **The sound** is played by Rust itself (`rust/src/watching/sound`), on a
   stream of its own on the Streams device (`AppState.streamOutputId`, the
   main output unless split off; *Where each sound plays*): PulseAudio's on Linux,
