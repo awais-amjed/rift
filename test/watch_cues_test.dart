@@ -100,6 +100,7 @@ void main() {
         watching: {theirStream, myStream},
         pushToTalkIdle: false,
         plays: const {},
+        clipping: false,
       );
       expect(VoiceAttributes.watchingOf(attrs), {myStream, theirStream});
     });
@@ -111,6 +112,7 @@ void main() {
           watching: {},
           pushToTalkIdle: up,
           plays: const {},
+          clipping: false,
         ),
       );
       expect(idle(true), isTrue);
@@ -125,6 +127,7 @@ void main() {
         watching: {},
         pushToTalkIdle: false,
         plays: const {},
+        clipping: false,
       );
       expect(attrs.containsKey(VoiceAttributes.watchingKey), isTrue);
       expect(VoiceAttributes.watchingOf(attrs), isEmpty);

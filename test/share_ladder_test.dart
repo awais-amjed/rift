@@ -110,6 +110,7 @@ void main() {
         watching: const {},
         pushToTalkIdle: false,
         plays: const {h265, vp8},
+        clipping: false,
       );
       expect(VoiceAttributes.playsOf(attrs), {h265, vp8});
     });

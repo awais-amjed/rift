@@ -40,6 +40,11 @@ class VoiceAttributes {
   /// every few seconds while it lasts, so a change to it alone is passed over.
   static const receivesKey = 'receives';
 
+  /// This client keeps the last stretch of the call for clips
+  /// (`CALLS.md`, *Clipping a call*). Published before it starts keeping
+  /// anything, so nobody is in a clip without having been able to see this.
+  static const clippingKey = 'clipping';
+
   /// Whether [changed] (the attributes an update changed) is only a watch
   /// connection's [receivesKey], which nothing in the roster shows.
   static bool onlyReceives(Map<String, String> changed) =>
@@ -57,11 +62,13 @@ class VoiceAttributes {
     required Set<String> watching,
     required bool pushToTalkIdle,
     required Set<VideoCodec> plays,
+    required bool clipping,
   }) => {
     deafenedKey: deafened ? 'true' : 'false',
     watchingKey: jsonEncode(watching.toList()..sort()),
     pushToTalkIdleKey: pushToTalkIdle ? 'true' : 'false',
     playsKey: jsonEncode(plays.map((c) => c.name).toList()..sort()),
+    clippingKey: clipping ? 'true' : 'false',
   };
 
   /// The codecs [attributes] says it plays; [playsUnsaid] for a client from
@@ -90,6 +97,9 @@ class VoiceAttributes {
 
   static bool isPushToTalkIdle(Map<String, String> attributes) =>
       attributes[pushToTalkIdleKey] == 'true';
+
+  static bool isClipping(Map<String, String> attributes) =>
+      attributes[clippingKey] == 'true';
 
   /// Whether [participant]'s mic is open: its track unmuted, and not a
   /// push-to-talk key that is up, which leaves the track live and silent.

@@ -786,6 +786,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
           watching: state.subscribedScreenshares,
           pushToTalkIdle: _pushToTalkIdle,
           plays: plays,
+          clipping: false,
         ),
       );
     } catch (e) {
