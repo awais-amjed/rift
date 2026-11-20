@@ -15,7 +15,12 @@
 //! each new desktop image is copied out of the duplication's texture at once,
 //! and the duplication's frame let go: the next picture can then come while the
 //! encoder reads this one. DXGI leaves the cursor out of its pictures, so it is
-//! drawn into the copy here, on the GPU (`cursor`), the inverting ones too.
+//! drawn into the copy here, on the GPU (`cursor`), the inverting ones too. Its
+//! shape is the one the duplication hands over (`GetFramePointerShape`), as
+//! Windows draws it: GDI's (`GetIconInfo`) is an animated cursor's first frame
+//! at the base size, so a busy cursor stood still, a cursor enlarged in
+//! Windows' pointer settings came out at 32 pixels, and a new pointer scheme
+//! mid-share, which keeps the cursor's handle, went unseen (Nov 20 2026).
 //!
 //! An output can be duplicated once per process. libwebrtc's DXGI capturer
 //! holds every output while it lives, so the share lets go of the one it found
@@ -23,6 +28,7 @@
 
 use super::cursor::CursorDrawer;
 use super::{Flow, WgcPicture};
+use crate::screenshare::cursor_shape::dxgi_shape_images;
 use crate::screenshare::pacer;
 use crate::screenshare::resolution::Size;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -45,10 +51,10 @@ use windows::Win32::Graphics::Dxgi::{
     IDXGIDevice, IDXGIOutput1, IDXGIOutputDuplication, IDXGIResource, DXGI_ERROR_ACCESS_DENIED,
     DXGI_ERROR_ACCESS_LOST, DXGI_ERROR_NOT_CURRENTLY_AVAILABLE, DXGI_ERROR_NOT_FOUND,
     DXGI_ERROR_SESSION_DISCONNECTED, DXGI_ERROR_UNSUPPORTED, DXGI_ERROR_WAIT_TIMEOUT,
-    DXGI_OUTDUPL_FRAME_INFO,
+    DXGI_OUTDUPL_FRAME_INFO, DXGI_OUTDUPL_POINTER_SHAPE_INFO,
 };
 use windows::Win32::Graphics::Gdi::HMONITOR;
-use windows::Win32::UI::WindowsAndMessaging::{GetCursorInfo, CURSORINFO, CURSOR_SHOWING, HCURSOR};
+use windows::Win32::UI::WindowsAndMessaging::{GetCursorInfo, CURSORINFO, CURSOR_SHOWING};
 
 /// The copies a picture is handed out in. One can wait in the capture's
 /// mailbox, one in the processing thread (held by the pacer, or left out by the
@@ -150,6 +156,13 @@ struct Screen {
     lock: ID3D10Multithread,
     /// `None` if its shaders could not be made, and then no cursor is drawn.
     cursor: Option<CursorDrawer>,
+    /// How many shapes the duplication has handed over: each one, an animated
+    /// cursor's every frame too, makes a new picture.
+    shapes: u64,
+    /// What a shape is read into, kept between them.
+    shape_bytes: Vec<u8>,
+    /// Whether a shape that could not be read was logged.
+    shape_failed: bool,
     monitor: HMONITOR,
     /// `None` while Windows has it back and it is being made again.
     duplication: Option<IDXGIOutputDuplication>,
@@ -180,6 +193,9 @@ impl Screen {
             context,
             lock: device.cast()?,
             cursor,
+            shapes: 0,
+            shape_bytes: Vec::new(),
+            shape_failed: false,
             monitor,
             duplication: Some(duplication),
             desktop,
@@ -215,14 +231,60 @@ impl Screen {
             .cloned()
     }
 
-    /// Draw the cursor into `copy` on the GPU. Its shape is read again only
-    /// when it changed; one that cannot be read is left out.
-    fn draw_cursor(&mut self, copy: &Copy, pointer: Pointer) {
+    /// Take the cursor's new shape from the frame `duplication` holds, `size`
+    /// bytes of it. One that cannot be read leaves the cursor out until the next.
+    fn read_shape(&mut self, duplication: &IDXGIOutputDuplication, size: u32) {
         let Some(drawer) = self.cursor.as_mut() else {
             return;
         };
-        let Some(hot_spot) = drawer.hot_spot(&self.device, HCURSOR(pointer.handle as *mut _))
-        else {
+        self.shapes += 1;
+        self.shape_bytes.resize(size as usize, 0);
+        let mut info = DXGI_OUTDUPL_POINTER_SHAPE_INFO::default();
+        let mut needed = 0;
+        // SAFETY: the buffer holds `size` bytes; the frame is still held.
+        let read = unsafe {
+            duplication.GetFramePointerShape(
+                size,
+                self.shape_bytes.as_mut_ptr().cast(),
+                &mut needed,
+                &mut info,
+            )
+        };
+        let shape = read.and_then(|()| {
+            let bytes = &self.shape_bytes[..needed.min(size) as usize];
+            let images = dxgi_shape_images(
+                info.Type,
+                info.Width,
+                info.Height,
+                info.Pitch as usize,
+                bytes,
+            )
+            .ok_or_else(|| {
+                Error::new(
+                    E_FAIL,
+                    format!(
+                        "a shape of kind {} at {}x{} cannot be drawn",
+                        info.Type, info.Width, info.Height
+                    ),
+                )
+            })?;
+            drawer.set_shape(&self.device, &images, info.HotSpot)
+        });
+        if let Err(e) = shape {
+            drawer.forget();
+            if !self.shape_failed {
+                self.shape_failed = true;
+                log::info!("capture: the cursor's shape could not be read: {e}");
+            }
+        }
+    }
+
+    /// Draw the cursor into `copy` on the GPU, in the shape last handed over.
+    fn draw_cursor(&self, copy: &Copy, pointer: Pointer) {
+        let Some(drawer) = self.cursor.as_ref() else {
+            return;
+        };
+        let Some(hot_spot) = drawer.hot_spot() else {
             return;
         };
         let corner = cursor_corner(pointer.at, &self.desktop, hot_spot);
@@ -322,18 +384,19 @@ fn texture(device: &ID3D11Device, size: Size, handed_out: bool) -> Result<ID3D11
     made.ok_or_else(|| Error::from_hresult(E_FAIL))
 }
 
-/// The cursor as it would be drawn: where, which, and whether at all. A
-/// hidden one is always the same, so it moving makes no picture.
+/// The cursor as it would be drawn: where, in which of the shapes handed over,
+/// and whether at all. A hidden one is always the same, so it moving makes no
+/// picture.
 #[derive(Clone, Copy, PartialEq, Debug, Default)]
 struct Pointer {
     shown: bool,
     at: (i32, i32),
-    handle: usize,
+    shape: u64,
 }
 
 impl Pointer {
-    /// The cursor now, as it shows on the screen at `desktop`.
-    fn now(desktop: &RECT) -> Pointer {
+    /// The cursor now, as it shows on the screen at `desktop`, in shape `shape`.
+    fn now(desktop: &RECT, shape: u64) -> Pointer {
         let mut info = CURSORINFO {
             cbSize: std::mem::size_of::<CURSORINFO>() as u32,
             ..Default::default()
@@ -351,7 +414,7 @@ impl Pointer {
         Pointer {
             shown: true,
             at,
-            handle: info.hCursor.0 as usize,
+            shape,
         }
     }
 }
@@ -476,8 +539,12 @@ fn duplicate(mut screen: Screen, flow: &Flow, stop: &AtomicBool, cursor: &Atomic
                         pending = true;
                     }
                 }
+                if info.PointerShapeBufferSize > 0 {
+                    screen.read_shape(&duplication, info.PointerShapeBufferSize);
+                }
                 drop(resource);
-                // SAFETY: the frame acquired above, its image already copied out.
+                // SAFETY: the frame acquired above, its image and shape already
+                // copied out.
                 if let Err(e) = unsafe { duplication.ReleaseFrame() } {
                     if passing(e.code()) {
                         lost_at = Some(Instant::now());
@@ -501,7 +568,7 @@ fn duplicate(mut screen: Screen, flow: &Flow, stop: &AtomicBool, cursor: &Atomic
             continue;
         }
         let pointer = if cursor.load(Ordering::Relaxed) {
-            Pointer::now(&screen.desktop)
+            Pointer::now(&screen.desktop, screen.shapes)
         } else {
             Pointer::default()
         };

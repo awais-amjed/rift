@@ -4,6 +4,8 @@
 //! Windows keeps a cursor as two masks, as `DrawIconEx` reads them: an AND mask
 //! that says which pixels are left alone, and a colour (or, for a black and
 //! white cursor, an XOR mask) that is then put over or XORed into the screen.
+//! DXGI's desktop duplication hands a shape over in one of three kinds
+//! ([`dxgi_shape_images`]), the same masks laid out its own way.
 //! Blending on the GPU cannot XOR, so the pixels that invert what is under them
 //! (the text cursor's, a black and white cursor's) go in a picture of their own,
 //! drawn white with a blend that turns what is under it inside out, as
@@ -116,6 +118,93 @@ pub(crate) fn shape_images(
     })
 }
 
+/// The largest side a shape is taken with. Windows' largest pointer size is 256.
+const LARGEST: u32 = 512;
+
+/// `DXGI_OUTDUPL_POINTER_SHAPE_TYPE`: the AND mask over the XOR one, each a
+/// 1-bit picture, so twice as tall as the cursor.
+pub(crate) const DXGI_MONOCHROME: u32 = 1;
+/// BGRA with straight alpha.
+pub(crate) const DXGI_COLOR: u32 = 2;
+/// BGRA whose alpha says what the colour does: 0 put over the screen, 0xFF
+/// XORed into it.
+pub(crate) const DXGI_MASKED_COLOR: u32 = 4;
+
+/// The two pictures for a shape DXGI's duplication handed over
+/// (`GetFramePointerShape`): its kind, its `width` and `height` as DXGI gives
+/// them, and `pitch` bytes a row. `None` for a kind not known, a size out of
+/// reach, or bytes shorter than the size says.
+pub(crate) fn dxgi_shape_images(
+    kind: u32,
+    width: u32,
+    height: u32,
+    pitch: usize,
+    bytes: &[u8],
+) -> Option<ShapeImages> {
+    if width == 0 || height == 0 || width > LARGEST || height > LARGEST * 2 {
+        return None;
+    }
+    let (w, h) = (width as usize, height as usize);
+    let row_bytes = match kind {
+        DXGI_MONOCHROME => w.div_ceil(8),
+        _ => w * 4,
+    };
+    if pitch < row_bytes || bytes.len() < pitch * (h - 1) + row_bytes {
+        return None;
+    }
+    let row = |y: usize| &bytes[y * pitch..][..row_bytes];
+    match kind {
+        DXGI_MONOCHROME => {
+            let h = h / 2;
+            if h == 0 {
+                return None;
+            }
+            // DXGI's rows are as long as they need be; a DIB's are padded.
+            let stride = mono_stride(width);
+            let padded = |rows: std::ops::Range<usize>| {
+                let mut out = Vec::with_capacity(stride * rows.len());
+                for y in rows {
+                    out.extend_from_slice(row(y));
+                    out.resize(out.len() + stride - row_bytes, 0);
+                }
+                out
+            };
+            shape_images(width, h as u32, &padded(0..h), Xor::Mono(&padded(h..2 * h)))
+        }
+        DXGI_COLOR => {
+            if h > LARGEST as usize {
+                return None;
+            }
+            Some(ShapeImages {
+                width,
+                height,
+                blended: (0..h).flat_map(row).copied().collect(),
+                inverted: None,
+            })
+        }
+        DXGI_MASKED_COLOR => {
+            if h > LARGEST as usize {
+                return None;
+            }
+            // As a colour cursor without alpha: the AND mask set where the
+            // colour is XORed in, and the colour's alpha cleared.
+            let stride = mono_stride(width);
+            let mut and = vec![0u8; stride * h];
+            let mut color = Vec::with_capacity(w * h * 4);
+            for y in 0..h {
+                for (x, pixel) in row(y).as_chunks::<4>().0.iter().enumerate() {
+                    if pixel[3] == 0xFF {
+                        and[y * stride + x / 8] |= 0x80 >> (x % 8);
+                    }
+                    color.extend_from_slice(&[pixel[0], pixel[1], pixel[2], 0]);
+                }
+            }
+            shape_images(width, height, &and, Xor::Color(&color))
+        }
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -188,6 +277,49 @@ mod tests {
         let shape = shape_images(33, 1, &and, Xor::Mono(&xor)).unwrap();
         assert_eq!(pixel(&shape.blended, 32), WHITE);
         assert_eq!(pixel(&shape.blended, 31), BLACK);
+    }
+
+    #[test]
+    fn a_dxgi_black_and_white_shape_is_read_by_its_pitch() {
+        // 2x2, one byte a row: AND rows then XOR rows, as in the GDI test above.
+        let bytes = [0b0000_0000, 0b1100_0000, 0b0100_0000, 0b0100_0000];
+        let shape = dxgi_shape_images(DXGI_MONOCHROME, 2, 4, 1, &bytes).unwrap();
+        assert_eq!((shape.width, shape.height), (2, 2));
+        assert_eq!(pixel(&shape.blended, 0), BLACK);
+        assert_eq!(pixel(&shape.blended, 1), WHITE);
+        assert_eq!(pixel(&shape.blended, 2), CLEAR);
+        assert_eq!(pixel(&shape.inverted.unwrap(), 3), WHITE);
+    }
+
+    #[test]
+    fn a_dxgi_colour_shape_keeps_its_alpha_and_drops_the_padding() {
+        // 1x2 with a pitch of 8: four bytes of padding after each pixel.
+        let bytes = [1, 2, 3, 128, 9, 9, 9, 9, 4, 5, 6, 0];
+        let shape = dxgi_shape_images(DXGI_COLOR, 1, 2, 8, &bytes).unwrap();
+        assert_eq!(shape.blended, vec![1, 2, 3, 128, 4, 5, 6, 0]);
+        assert_eq!(shape.inverted, None);
+    }
+
+    #[test]
+    fn a_dxgi_masked_shape_puts_over_or_inverts_by_its_alpha() {
+        // Opaque red, a black XOR (nothing), a white XOR (inverts).
+        let bytes = [0, 0, 255, 0, 0, 0, 0, 0xFF, 255, 255, 255, 0xFF];
+        let shape = dxgi_shape_images(DXGI_MASKED_COLOR, 3, 1, 12, &bytes).unwrap();
+        assert_eq!(pixel(&shape.blended, 0), [0, 0, 255, 255]);
+        assert_eq!(pixel(&shape.blended, 1), CLEAR);
+        assert_eq!(pixel(&shape.blended, 2), CLEAR);
+        let inverted = shape.inverted.unwrap();
+        assert_eq!(pixel(&inverted, 1), CLEAR);
+        assert_eq!(pixel(&inverted, 2), WHITE);
+    }
+
+    #[test]
+    fn a_dxgi_shape_it_cannot_read_is_refused() {
+        assert_eq!(dxgi_shape_images(DXGI_COLOR, 2, 2, 8, &[0; 15]), None);
+        assert_eq!(dxgi_shape_images(DXGI_COLOR, 2, 2, 4, &[0; 16]), None);
+        assert_eq!(dxgi_shape_images(DXGI_MONOCHROME, 8, 1, 1, &[0; 1]), None);
+        assert_eq!(dxgi_shape_images(3, 1, 1, 4, &[0; 4]), None);
+        assert_eq!(dxgi_shape_images(DXGI_COLOR, 0, 1, 4, &[0; 4]), None);
     }
 
     #[test]

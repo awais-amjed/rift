@@ -696,15 +696,25 @@ The cursor was first drawn by GDI (`DrawIconEx`) into the copy, which had to
 wait for the GPU to finish with it: 8–15 ms a picture on a still Windows 10
 desktop, and beside Heaven running uncapped 33–47 ms, which held the share to
 21 fps while the pointer was over the desktop (Nov 19 2026). So its shape is
-read through GDI only when it changes, into two small textures, and drawn on
-the GPU (`capture_wgc/cursor.rs`, `cursor_shape.rs`): one with straight alpha,
+taken only when it changes, into two small textures, and drawn on the GPU
+(`capture_wgc/cursor.rs`, `cursor_shape.rs`). The shape is the one the
+duplication hands over with a frame (`GetFramePointerShape`), as Windows draws
+it. Read through GDI (`GetIconInfo`) at first, it was an animated cursor's first
+frame at the base 32 pixels, so a busy cursor stood still, and a pointer enlarged
+in Windows' settings showed at normal size. A new pointer scheme or size,
+which keeps the cursor's handle, went unseen until the cursor changed. Each
+shape handed over, an animated cursor's every frame among them, makes a new
+picture. Of the two textures, one is drawn with straight alpha,
 and one, white where the cursor inverts what is under it (the text cursor), drawn
 with a blend that turns the screen inside out, as Sunshine draws them. The
 encoder's conversion (`d3d11_nv12.c`) draws on the same device without setting
 a blend, so the cursor's draw puts the default back: left inverting, it turned
 every picture grey. A draw of 2 ms or more is still logged (`capture: drawing
 the cursor took up to`). Verified Nov 19 2026 in the Windows 10 VM beside
-Heaven: 57–60 fps with the pointer on the desktop, draws under 2 ms.
+Heaven: 57–60 fps with the pointer on the desktop, draws under 2 ms. Verified
+again with the shape from DXGI on Nov 20 2026, in the same VM: the busy cursor turned, a
+144-pixel pointer was drawn at that size, an inverting one inverted, and the
+share held 60 fps beside Heaven.
 
 libwebrtc's DXGI capturer asks for a new picture without waiting, and hands
 over its last one whenever the screen drew nothing new since, marked

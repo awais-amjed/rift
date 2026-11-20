@@ -1,13 +1,13 @@
 //! The cursor drawn into a duplicated screen's pictures on the GPU.
 //!
-//! Its shape is read through GDI once each time it changes, into two small
-//! textures (`cursor_shape`), and each picture then gets it with two draws. GDI
-//! drawing into the picture itself, as this did before, had to wait for the GPU
-//! to finish with the picture first: 8–15 ms on a still Windows 10 desktop,
-//! 33–47 ms beside an uncapped game, which held the share to 21 fps (Nov 19
-//! 2026). Nothing here waits for the GPU.
+//! Its shape comes from the duplication each time it changes (`dxgi`), into
+//! two small textures (`cursor_shape`), and each picture then gets it with two
+//! draws. GDI drawing into the picture itself, as this did before, had to wait
+//! for the GPU to finish with the picture first: 8–15 ms on a still Windows 10
+//! desktop, 33–47 ms beside an uncapped game, which held the share to 21 fps
+//! (Nov 19 2026). Nothing here waits for the GPU.
 
-use crate::screenshare::cursor_shape::{mono_stride, shape_images, ShapeImages, Xor};
+use crate::screenshare::cursor_shape::ShapeImages;
 use std::sync::OnceLock;
 use windows::core::{s, Error, Result, PCSTR};
 use windows::Win32::Foundation::{E_FAIL, POINT};
@@ -24,11 +24,6 @@ use windows::Win32::Graphics::Direct3D11::{
     D3D11_TEXTURE2D_DESC, D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_USAGE_IMMUTABLE, D3D11_VIEWPORT,
 };
 use windows::Win32::Graphics::Dxgi::Common::{DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_SAMPLE_DESC};
-use windows::Win32::Graphics::Gdi::{
-    DeleteObject, GetDC, GetDIBits, GetObjectW, ReleaseDC, BITMAP, BITMAPINFO, BITMAPINFOHEADER,
-    BI_RGB, DIB_RGB_COLORS, HBITMAP, RGBQUAD,
-};
-use windows::Win32::UI::WindowsAndMessaging::{GetIconInfo, HCURSOR, HICON, ICONINFO};
 
 /// A quad over the viewport, which is set to the cursor's place, sampling its
 /// shape a pixel for a pixel.
@@ -114,9 +109,9 @@ pub(super) struct CursorDrawer {
     raster: ID3D11RasterizerState,
     over: ID3D11BlendState,
     invert: ID3D11BlendState,
-    /// The last cursor asked for, and its shape if it could be read: one that
-    /// could not is not read again until the cursor changes.
-    shape: Option<(usize, Option<Shape>)>,
+    /// The shape the duplication last handed over; `None` before the first,
+    /// or after one that could not be read, and then no cursor is drawn.
+    shape: Option<Shape>,
 }
 
 impl CursorDrawer {
@@ -171,21 +166,39 @@ impl CursorDrawer {
         })
     }
 
-    /// The hot spot of `cursor`, reading its shape if it changed. `None` if
-    /// its shape cannot be read, and then it is not drawn.
-    pub(super) fn hot_spot(&mut self, device: &ID3D11Device, cursor: HCURSOR) -> Option<POINT> {
-        let handle = cursor.0 as usize;
-        if self.shape.as_ref().is_none_or(|(had, _)| *had != handle) {
-            let shape = read_shape(device, cursor);
-            if let Err(e) = &shape {
-                log::info!("capture: the cursor's shape could not be read: {e}");
-            }
-            self.shape = Some((handle, shape.ok()));
-        }
-        self.shape.as_ref()?.1.as_ref().map(|shape| shape.hot_spot)
+    /// Draw `images` from now, its hot spot at `hot_spot`. One that cannot be
+    /// put on the GPU leaves no cursor drawn until the next.
+    pub(super) fn set_shape(
+        &mut self,
+        device: &ID3D11Device,
+        images: &ShapeImages,
+        hot_spot: POINT,
+    ) -> Result<()> {
+        self.shape = None;
+        self.shape = Some(Shape {
+            hot_spot,
+            width: images.width,
+            height: images.height,
+            blended: upload(device, images, &images.blended)?,
+            inverted: match &images.inverted {
+                Some(inverted) => Some(upload(device, images, inverted)?),
+                None => None,
+            },
+        });
+        Ok(())
     }
 
-    /// Draw the shape [`hot_spot`](Self::hot_spot) last read, its corner at
+    /// Forget the shape, after one that could not be read.
+    pub(super) fn forget(&mut self) {
+        self.shape = None;
+    }
+
+    /// The hot spot of the shape drawn; `None` while there is none to draw.
+    pub(super) fn hot_spot(&self) -> Option<POINT> {
+        self.shape.as_ref().map(|shape| shape.hot_spot)
+    }
+
+    /// Draw the shape, its corner at
     /// `corner` in the picture `target` draws into. The caller holds the
     /// device: every state is set here, and the picture and the blend let go again after.
     pub(super) fn draw(
@@ -194,7 +207,7 @@ impl CursorDrawer {
         target: &ID3D11RenderTargetView,
         corner: (i32, i32),
     ) {
-        let Some((_, Some(shape))) = &self.shape else {
+        let Some(shape) = &self.shape else {
             return;
         };
         let viewport = D3D11_VIEWPORT {
@@ -257,141 +270,6 @@ fn blend(
     // SAFETY: `desc` and `state` live across the call.
     unsafe { device.CreateBlendState(&desc, Some(&mut state))? };
     state.ok_or_else(|| Error::from_hresult(E_FAIL))
-}
-
-/// `cursor`'s shape, read from its bitmaps and put on the GPU.
-fn read_shape(device: &ID3D11Device, cursor: HCURSOR) -> Result<Shape> {
-    let mut info = ICONINFO::default();
-    // SAFETY: `info` is written; its bitmaps are ours, deleted below.
-    unsafe { GetIconInfo(HICON(cursor.0), &mut info)? };
-    let images = images(info.hbmMask, info.hbmColor);
-    // SAFETY: the bitmaps GetIconInfo made, deleted once.
-    unsafe {
-        if !info.hbmMask.is_invalid() {
-            let _ = DeleteObject(info.hbmMask.into());
-        }
-        if !info.hbmColor.is_invalid() {
-            let _ = DeleteObject(info.hbmColor.into());
-        }
-    }
-    let images = images?;
-    Ok(Shape {
-        hot_spot: POINT {
-            x: info.xHotspot as i32,
-            y: info.yHotspot as i32,
-        },
-        width: images.width,
-        height: images.height,
-        blended: upload(device, &images, &images.blended)?,
-        inverted: match &images.inverted {
-            Some(inverted) => Some(upload(device, &images, inverted)?),
-            None => None,
-        },
-    })
-}
-
-/// A shape's two pictures from a cursor's mask and colour bitmaps. A black and
-/// white cursor has no colour bitmap, and its mask is twice as tall: the AND
-/// mask over the XOR one.
-fn images(mask: HBITMAP, color: HBITMAP) -> Result<ShapeImages> {
-    let failed = || Error::new(E_FAIL, "the cursor's bitmaps could not be read");
-    let mut bitmap = BITMAP::default();
-    // SAFETY: `bitmap` is the size given.
-    if unsafe {
-        GetObjectW(
-            mask.into(),
-            std::mem::size_of::<BITMAP>() as i32,
-            Some((&mut bitmap as *mut BITMAP).cast()),
-        )
-    } == 0
-    {
-        return Err(failed());
-    }
-    let width = bitmap.bmWidth as u32;
-    let mono = color.is_invalid();
-    let height = if mono {
-        bitmap.bmHeight as u32 / 2
-    } else {
-        bitmap.bmHeight as u32
-    };
-    if width == 0 || height == 0 || width > 512 || height > 512 {
-        return Err(failed());
-    }
-    // SAFETY: the screen's DC, let go below.
-    let dc = unsafe { GetDC(None) };
-    let masks = dib_bits(dc, mask, width, bitmap.bmHeight as u32, 1);
-    let colors = if mono {
-        None
-    } else {
-        Some(dib_bits(dc, color, width, height, 32))
-    };
-    // SAFETY: the DC taken above.
-    unsafe { ReleaseDC(None, dc) };
-    let masks = masks.ok_or_else(failed)?;
-    let and_len = mono_stride(width) * height as usize;
-    let shape = match colors {
-        None => shape_images(
-            width,
-            height,
-            &masks[..and_len],
-            Xor::Mono(&masks[and_len..]),
-        ),
-        Some(colors) => shape_images(
-            width,
-            height,
-            &masks,
-            Xor::Color(&colors.ok_or_else(failed)?),
-        ),
-    };
-    shape.ok_or_else(failed)
-}
-
-/// A bitmap's pixels as top-down DIB rows of `bits` a pixel.
-fn dib_bits(
-    dc: windows::Win32::Graphics::Gdi::HDC,
-    bitmap: HBITMAP,
-    width: u32,
-    height: u32,
-    bits: u16,
-) -> Option<Vec<u8>> {
-    /// A 1-bit DIB's header comes with two colours after it.
-    #[repr(C)]
-    struct Info {
-        header: BITMAPINFOHEADER,
-        colors: [RGBQUAD; 2],
-    }
-    let mut info = Info {
-        header: BITMAPINFOHEADER {
-            biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
-            biWidth: width as i32,
-            biHeight: -(height as i32),
-            biPlanes: 1,
-            biBitCount: bits,
-            biCompression: BI_RGB.0,
-            ..Default::default()
-        },
-        colors: [RGBQUAD::default(); 2],
-    };
-    let stride = if bits == 1 {
-        mono_stride(width)
-    } else {
-        width as usize * 4
-    };
-    let mut pixels = vec![0u8; stride * height as usize];
-    // SAFETY: `pixels` holds `height` rows of the stride asked for, and `info`
-    // has room for the colours a 1-bit DIB comes with.
-    let lines = unsafe {
-        GetDIBits(
-            dc,
-            bitmap,
-            0,
-            height,
-            Some(pixels.as_mut_ptr().cast()),
-            (&mut info as *mut Info).cast::<BITMAPINFO>(),
-            DIB_RGB_COLORS,
-        )
-    };
-    (lines == height as i32).then_some(pixels)
 }
 
 /// One of a shape's pictures as a texture the shaders read.
