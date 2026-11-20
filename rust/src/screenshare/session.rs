@@ -982,20 +982,21 @@ impl Video {
             }
             let codec = GpuCodec::for_share(settings.codec)?;
             let native = self.slot().native()?;
-            let target = {
+            // The step's own rate, which a share stepped down to fewer
+            // pictures sends rather than the share's.
+            let (target, fps) = {
                 let mut step = self.step.lock().unwrap();
                 step.fit(
                     gpu_target(target_size(native, settings.max_height)),
                     settings.fps,
                     settings.bitrate.saturating_mul(1_000_000),
                 );
-                step.size()
+                (step.size(), step.fps())
             };
             log::info!(
-                "screenshare: re-encoding at {}x{}, {} fps, on the same track",
+                "screenshare: re-encoding at {}x{}, {fps} fps, on the same track",
                 target.width,
                 target.height,
-                settings.fps
             );
             let start = old.bitrate();
             self.slot().detach();
