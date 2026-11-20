@@ -37,7 +37,17 @@ class AddClipForm extends StatefulWidget {
   })
   onAdd;
 
-  const AddClipForm({super.key, required this.full, required this.onAdd});
+  /// A sound already in hand — a call clip, trimmed — staged as if it had
+  /// been picked: the same refusals, then a name to give it.
+  final ({Uint8List bytes, String fileName, String mime, Duration duration})?
+  initial;
+
+  const AddClipForm({
+    super.key,
+    required this.full,
+    required this.onAdd,
+    this.initial,
+  });
 
   @override
   State<AddClipForm> createState() => _AddClipFormState();
@@ -53,6 +63,51 @@ class _AddClipFormState extends State<AddClipForm> {
   Duration _duration = Duration.zero;
   bool _busy = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initial case final clip?) {
+      _error = _stage(
+        bytes: clip.bytes,
+        fileName: clip.fileName,
+        mime: clip.mime,
+        duration: clip.duration,
+      );
+    }
+  }
+
+  /// Takes the file in, or says why not: a picked file's refusals, then its
+  /// length. The length is the one rule that cannot be checked from the
+  /// file's name or its size, so it is asked here rather than in
+  /// `rejectionFor` — at the moment of picking, which is the last point where
+  /// trimming the file is still an option the uploader has.
+  String? _stage({
+    required Uint8List bytes,
+    required String fileName,
+    required String mime,
+    required Duration duration,
+  }) {
+    final refused =
+        SoundboardStaging.rejectionFor(
+          fileName: fileName,
+          mime: mime,
+          bytes: bytes.length,
+        ) ??
+        SoundboardStaging.rejectionForDuration(
+          fileName: fileName,
+          duration: duration,
+        );
+    if (refused != null) return refused;
+    _bytes = bytes;
+    _fileName = fileName;
+    _mime = mime;
+    _duration = duration;
+    if (_nameCtrl.text.trim().isEmpty) {
+      _nameCtrl.text = _defaultName(fileName);
+    }
+    return null;
+  }
 
   @override
   void dispose() {
@@ -88,27 +143,14 @@ class _AddClipFormState extends State<AddClipForm> {
     // Measured by the stack that will play it, before anything is uploaded.
     final duration = await SoundboardStaging.measure(bytes, path: file.path);
     if (!mounted) return;
-    // The length is the one rule that cannot be checked from the file's name
-    // or its size, so it is asked here rather than in `rejectionFor` — and
-    // it is asked at the moment of picking, which is the last point where
-    // trimming the file is still an option the uploader has.
-    final tooLong = SoundboardStaging.rejectionForDuration(
-      fileName: file.name,
-      duration: duration,
+    setState(
+      () => _error = _stage(
+        bytes: bytes,
+        fileName: file.name,
+        mime: mime,
+        duration: duration,
+      ),
     );
-    if (tooLong != null) {
-      setState(() => _error = tooLong);
-      return;
-    }
-    setState(() {
-      _bytes = bytes;
-      _fileName = file.name;
-      _mime = mime;
-      _duration = duration;
-      if (_nameCtrl.text.trim().isEmpty) {
-        _nameCtrl.text = _defaultName(file.name);
-      }
-    });
   }
 
   /// The file's name without its extension, cut to what the column takes.

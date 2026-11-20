@@ -30,6 +30,12 @@ class AppSeenListener extends StatefulWidget {
 
   const AppSeenListener({super.key, required this.child});
 
+  /// Whether anybody can see Rift, for what waits until they can: the call
+  /// clip view. Not [TickerMode], which a page pushed over the one asking
+  /// turns off as well. True above this listener, where nothing is hidden.
+  static bool seenFrom(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_AppSeen>()?.seen ?? true;
+
   @override
   State<AppSeenListener> createState() => _AppSeenListenerState();
 }
@@ -103,6 +109,17 @@ class _AppSeenListenerState extends State<AppSeenListener>
   /// (Nov 15). A stopped animation picks up where its clock says when Rift
   /// is seen again, so whatever waits on one finishing waits until then.
   @override
-  Widget build(BuildContext context) =>
-      TickerMode(enabled: _seen, child: widget.child);
+  Widget build(BuildContext context) => _AppSeen(
+    seen: _seen,
+    child: TickerMode(enabled: _seen, child: widget.child),
+  );
+}
+
+class _AppSeen extends InheritedWidget {
+  final bool seen;
+
+  const _AppSeen({required this.seen, required super.child});
+
+  @override
+  bool updateShouldNotify(_AppSeen oldWidget) => oldWidget.seen != seen;
 }

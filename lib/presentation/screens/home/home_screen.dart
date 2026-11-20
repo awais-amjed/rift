@@ -23,6 +23,7 @@ import '../../common/canvas_backdrop.dart';
 import '../../common/overlay_scrim.dart';
 import '../../responsive/shell_scope.dart';
 import '../../theme/app_motion.dart';
+import 'call_clip/call_clip_opener.dart';
 import 'calls/call_notification_router.dart';
 import 'conversation_notification_router.dart';
 import 'in_app_message_toasts.dart';
@@ -273,11 +274,15 @@ class _HomeScreenState extends State<HomeScreen> {
               child: ConversationNotificationRouter(
                 // What a focused window says in place of a notification.
                 child: InAppMessageToasts(
-                  // A phone is a different shell, not a squeezed desktop: the
-                  // list is the screen and everything else is pushed over it.
-                  child: context.layoutMode.isCompact
-                      ? _QuickSwitcherShortcut(child: _buildPhone())
-                      : _QuickSwitcherShortcut(child: _buildDesktop(context)),
+                  // The trim view for a clip of the call, once Rift is seen.
+                  child: CallClipOpener(
+                    // A phone is a different shell, not a squeezed desktop:
+                    // the list is the screen and everything else is pushed
+                    // over it.
+                    child: context.layoutMode.isCompact
+                        ? _QuickSwitcherShortcut(child: _buildPhone())
+                        : _QuickSwitcherShortcut(child: _buildDesktop(context)),
+                  ),
                 ),
               ),
             ),
