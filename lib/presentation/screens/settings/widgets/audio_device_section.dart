@@ -36,7 +36,6 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
 
   String? _selectionError;
 
-
   StreamSubscription<void>? _deviceChangeSub;
 
   @override

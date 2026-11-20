@@ -38,12 +38,8 @@ void main() {
     ),
   );
 
-  ClipSafety safety(Attachment a, SensitiveContentMode mode) => ClipSafety(
-    attachment: a,
-    mode: mode,
-    changed: () {},
-    flagged: () {},
-  );
+  ClipSafety safety(Attachment a, SensitiveContentMode mode) =>
+      ClipSafety(attachment: a, mode: mode, changed: () {}, flagged: () {});
 
   test('a video flagged before is covered at once', () {
     final a = video('v-known');

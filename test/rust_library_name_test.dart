@@ -8,9 +8,6 @@ void main() {
   // way (Nov 19 2026), every desktop and phone build stopped at start, unable
   // to find UNKNOWN.dll.
   test('the bindings load the Rust library by its name', () {
-    expect(
-      RustLib.kDefaultExternalLibraryLoaderConfig.stem,
-      'rust_lib_rift',
-    );
+    expect(RustLib.kDefaultExternalLibraryLoaderConfig.stem, 'rust_lib_rift');
   });
 }

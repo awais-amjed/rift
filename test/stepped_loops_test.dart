@@ -21,7 +21,9 @@ void main() {
       tester.pumpWidget(
         Directionality(
           textDirection: TextDirection.ltr,
-          child: Center(child: TickerMode(enabled: on, child: loop)),
+          child: Center(
+            child: TickerMode(enabled: on, child: loop),
+          ),
         ),
       );
 

@@ -43,7 +43,10 @@ void main() {
       expect(text, contains(ServerPermission.sendMessages));
       expect(voice, contains(ServerPermission.speak));
       expect(text.toSet().intersection(voice.toSet()), isEmpty);
-      expect([...text, ...voice], isNot(contains(ServerPermission.viewChannel)));
+      expect([
+        ...text,
+        ...voice,
+      ], isNot(contains(ServerPermission.viewChannel)));
       for (final p in [...text, ...voice]) {
         expect(p.group, isNot(PermissionGroup.server), reason: p.name);
       }
@@ -175,8 +178,7 @@ void main() {
 
     test('Listen-only takes the soundboard too', () {
       final both = UserPermissions(
-        bits:
-            ServerPermission.useSoundboard.mask | ServerPermission.speak.mask,
+        bits: ServerPermission.useSoundboard.mask | ServerPermission.speak.mask,
       );
       expect(SoundboardCubit.mayPlay(both), isTrue);
       expect(
