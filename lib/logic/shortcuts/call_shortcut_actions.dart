@@ -13,6 +13,9 @@ void runCallShortcut(CallShortcut action, LiveKitCubit livekit) {
       // Outside a call there is nothing to leave, and leaving anyway plays
       // the leave sound and clears the selected channel.
       if (livekit.state.currentChannelId != null) livekit.disconnect();
+    case CallShortcut.clip:
+      // Out of a call, or with clipping off, it says why and keeps nothing.
+      livekit.clipCall();
   }
 }
 
@@ -21,4 +24,5 @@ String callShortcutTitle(CallShortcut action) => switch (action) {
   CallShortcut.mute => 'Mute',
   CallShortcut.deafen => 'Deafen',
   CallShortcut.leave => 'Leave call',
+  CallShortcut.clip => 'Clip the call',
 };

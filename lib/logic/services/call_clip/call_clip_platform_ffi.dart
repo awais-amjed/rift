@@ -1,15 +1,15 @@
 import 'dart:ffi';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 
 import '../../../data/classes/call_clip_audio.dart';
 import '../../helper_methods.dart';
+import '../host_platform.dart';
 import 'call_clip_native.dart';
 
 /// On Windows and Linux, the runner's ring; elsewhere none.
-CallClipNative platformCallClip() => (Platform.isWindows || Platform.isLinux)
+CallClipNative platformCallClip() => HostPlatform.clipsCalls
     ? (_FfiCallClip.load() ?? const CallClipNative.none())
     : const CallClipNative.none();
 

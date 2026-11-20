@@ -3,8 +3,10 @@ import 'package:flutter/services.dart';
 
 import 'key_shortcut.dart';
 
-/// What a call shortcut does: the same as the mute, deafen and leave buttons.
-enum CallShortcut { mute, deafen, leave }
+/// What a call shortcut does: the same as the mute, deafen and leave buttons,
+/// and taking a clip of the call (Windows and Linux only: CALLS.md, "Clipping
+/// a call").
+enum CallShortcut { mute, deafen, leave, clip }
 
 /// The keys picked for each [CallShortcut], each unset until chosen. Per
 /// device, in `AppState`.
@@ -12,13 +14,15 @@ class CallShortcuts extends Equatable {
   final KeyShortcut? mute;
   final KeyShortcut? deafen;
   final KeyShortcut? leave;
+  final KeyShortcut? clip;
 
-  const CallShortcuts({this.mute, this.deafen, this.leave});
+  const CallShortcuts({this.mute, this.deafen, this.leave, this.clip});
 
   KeyShortcut? operator [](CallShortcut action) => switch (action) {
     CallShortcut.mute => mute,
     CallShortcut.deafen => deafen,
     CallShortcut.leave => leave,
+    CallShortcut.clip => clip,
   };
 
   /// [action] on [keys], or unset with null. Keys another action had are
@@ -34,6 +38,7 @@ class CallShortcuts extends Equatable {
       mute: pick(CallShortcut.mute),
       deafen: pick(CallShortcut.deafen),
       leave: pick(CallShortcut.leave),
+      clip: pick(CallShortcut.clip),
     );
   }
 
@@ -59,6 +64,7 @@ class CallShortcuts extends Equatable {
       mute: read('mute'),
       deafen: read('deafen'),
       leave: read('leave'),
+      clip: read('clip'),
     );
   }
 
@@ -66,8 +72,9 @@ class CallShortcuts extends Equatable {
     'mute': mute?.toJson(),
     'deafen': deafen?.toJson(),
     'leave': leave?.toJson(),
+    'clip': clip?.toJson(),
   };
 
   @override
-  List<Object?> get props => [mute, deafen, leave];
+  List<Object?> get props => [mute, deafen, leave, clip];
 }

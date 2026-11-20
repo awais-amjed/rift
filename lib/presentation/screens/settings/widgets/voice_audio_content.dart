@@ -11,6 +11,7 @@ import 'section_title.dart';
 import 'settings_tab.dart';
 import 'voice_audio/audio_ducking_section.dart';
 import 'voice_audio/audio_processing_section.dart';
+import 'voice_audio/clipping/clipping_section.dart';
 import 'voice_audio/mic_volume_control.dart';
 import 'voice_audio/output_volume_section.dart';
 import 'voice_audio/soundboard_section.dart';
@@ -18,8 +19,9 @@ import 'voice_audio/sounds/sounds_section.dart';
 
 /// The Voice & Audio settings tab: devices, the mic with its volume and test
 /// and how it is cleaned up, call volume and on Windows other apps' volume
-/// during calls, then the soundboard and Rift's own sounds as this device
-/// hears them. The keys for push-to-talk, mute and deafen are Keybinds'.
+/// during calls, then the soundboard, clipping the call on Windows and Linux,
+/// and Rift's own sounds as this device hears them. The keys for
+/// push-to-talk, mute, deafen and clip are Keybinds'.
 class VoiceAudioContent extends StatelessWidget {
   /// A section to scroll to and light up, for someone sent here to it.
   final SettingsSection? focus;
@@ -73,6 +75,11 @@ class VoiceAudioContent extends StatelessWidget {
             ],
             const SectionDivider(),
             SoundboardSection(appState: appState),
+            // Beside the soundboard, where a clip usually ends up.
+            if (HostPlatform.clipsCalls) ...[
+              const SectionDivider(),
+              ClippingSection(appState: appState),
+            ],
             const SectionDivider(),
             SoundsSection(appState: appState),
           ],

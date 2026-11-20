@@ -62,6 +62,12 @@ class HostPlatform {
   static bool get hearsShortcutsAnywhere =>
       !kIsWeb && (Platform.isWindows || Platform.isLinux);
 
+  /// Whether the last stretch of a call can be kept for clips: the runners
+  /// that hold libwebrtc's playout (`native/call_clip`). The phones, macOS
+  /// and the browser play the call where Rift cannot reach it.
+  static bool get clipsCalls =>
+      !kIsWeb && (Platform.isWindows || Platform.isLinux);
+
   /// Whether a screen share can carry the computer's audio.
   ///
   /// Windows has WASAPI loopback and Linux has PulseAudio monitors; both are

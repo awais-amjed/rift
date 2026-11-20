@@ -10,7 +10,7 @@ import '../../../../theme/theme_context.dart';
 import '../section_title.dart';
 import 'call_shortcut_row.dart';
 
-/// Keys for mute, deafen and leave, heard from anywhere on Windows and
+/// Keys for mute, deafen, leave and clip, heard from anywhere on Windows and
 /// Linux ([HostPlatform.hearsShortcutsAnywhere]). Desktop only
 /// ([HostPlatform.isDesktop]) — see [CallShortcutListener].
 class CallShortcutsSection extends StatelessWidget {
@@ -26,8 +26,16 @@ class CallShortcutsSection extends StatelessWidget {
     this.desktopActions = const {},
   });
 
+  /// The rows shown here: clipping only where calls can be clipped
+  /// ([HostPlatform.clipsCalls]).
+  static List<CallShortcut> get shownActions => [
+    for (final action in CallShortcut.values)
+      if (action != CallShortcut.clip || HostPlatform.clipsCalls) action,
+  ];
+
   @override
   Widget build(BuildContext context) {
+    final shown = shownActions;
     final hint = AppText.secondary.copyWith(color: context.theme.textTertiary);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -45,8 +53,8 @@ class CallShortcutsSection extends StatelessWidget {
         if (!kIsWeb && Platform.isLinux)
           Text('Your computer may ask you to allow them.', style: hint),
         const SizedBox(height: 12),
-        for (final action in CallShortcut.values) ...[
-          if (action != CallShortcut.values.first) const SizedBox(height: 12),
+        for (final action in shown) ...[
+          if (action != shown.first) const SizedBox(height: 12),
           CallShortcutRow(
             action: action,
             keys: shortcuts[action],

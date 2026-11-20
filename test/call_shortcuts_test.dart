@@ -8,7 +8,10 @@ import 'package:rift/data/classes/key_shortcut.dart';
 import 'package:rift/logic/cubits/app/app_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/logic/ptt/desktop_shortcut_settings.dart';
+import 'package:rift/logic/services/host_platform.dart';
+import 'package:rift/logic/shortcuts/call_shortcut_actions.dart';
 import 'package:rift/logic/shortcuts/call_shortcut_listener.dart';
+import 'package:rift/logic/shortcuts/linux_call_shortcuts.dart';
 import 'package:rift/presentation/screens/settings/widgets/keybinds/call_shortcuts_section.dart';
 
 import 'support/memory_storage.dart';
@@ -160,6 +163,47 @@ void main() {
     });
   });
 
+  group('the clip shortcut', () {
+    test('survives a save', () {
+      final saved = CallShortcuts(clip: ctrlShiftL);
+      expect(CallShortcuts.fromJson(saved.toJson()).clip, ctrlShiftL);
+      expect(CallShortcuts.fromJson(saved.toJson()), saved);
+    });
+
+    test('an old save without it reads as unset', () {
+      final old = CallShortcuts.fromJson({
+        'mute': ctrlShiftM.toJson(),
+        'deafen': null,
+        'leave': null,
+      });
+      expect(old.clip, isNull);
+      expect(old.mute, ctrlShiftM);
+    });
+
+    test('its keys are taken from mute', () {
+      final moved = CallShortcuts(
+        mute: ctrlShiftM,
+      ).withKeys(CallShortcut.clip, ctrlShiftM);
+      expect(moved.mute, isNull);
+      expect(moved.clip, ctrlShiftM);
+    });
+
+    test('a press finds it', () {
+      const ctrlShift = (ctrl: true, alt: false, shift: true, meta: false);
+      final shortcuts = CallShortcuts(mute: ctrlShiftM, clip: ctrlShiftL);
+      expect(
+        shortcuts.actionForKey(LogicalKeyboardKey.keyL.keyId, ctrlShift),
+        CallShortcut.clip,
+      );
+    });
+
+    test('has a title and a stable desktop id', () {
+      expect(callShortcutTitle(CallShortcut.clip), 'Clip the call');
+      expect(portalIdFor(CallShortcut.clip), 'call-clip');
+      expect(callShortcutForPortalId('call-clip'), CallShortcut.clip);
+    });
+  });
+
   group('picking in Settings', () {
     setUp(() => HydratedBloc.storage = MemoryStorage());
 
@@ -236,7 +280,10 @@ void main() {
       await tester.pump();
 
       expect(app.state.callShortcuts.mute, isNull);
-      expect(find.text('Set keys'), findsNWidgets(3));
+      expect(
+        find.text('Set keys'),
+        findsNWidgets(CallShortcutsSection.shownActions.length),
+      );
       expect(CallShortcutListener.capturing, isFalse);
     });
 
@@ -249,7 +296,10 @@ void main() {
       await tester.pump();
 
       expect(app.state.callShortcuts.mute, isNull);
-      expect(find.text('Not set'), findsNWidgets(3));
+      expect(
+        find.text('Not set'),
+        findsNWidgets(CallShortcutsSection.shownActions.length),
+      );
     });
 
     testWidgets("a desktop key Rift cannot read is shown as the desktop's", (
@@ -267,6 +317,16 @@ void main() {
     testWidgets('Leave call has a row of its own', (tester) async {
       await pump(tester);
       expect(find.text('Leave call'), findsOneWidget);
+    });
+
+    testWidgets('Clip the call has a row where calls are clipped', (
+      tester,
+    ) async {
+      await pump(tester);
+      expect(
+        find.text('Clip the call'),
+        HostPlatform.clipsCalls ? findsOneWidget : findsNothing,
+      );
     });
 
     testWidgets('they work from anywhere', (tester) async {
@@ -290,7 +350,11 @@ void main() {
         await tester.pump();
 
         expect(find.text('Ctrl+Shift+M'), findsOneWidget);
-        expect(find.text('Set keys'), findsNWidgets(2), reason: 'not for Mute');
+        expect(
+          find.text('Set keys'),
+          findsNWidgets(CallShortcutsSection.shownActions.length - 1),
+          reason: 'not for Mute',
+        );
         expect(find.text('Clear'), findsOneWidget);
         if (DesktopShortcutSettings.canOpen) {
           expect(find.text('Change key'), findsOneWidget);
