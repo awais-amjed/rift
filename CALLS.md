@@ -2303,7 +2303,8 @@ asked, since it can starve the desktop's compositor). Every device in the
 process takes it: Rift's own, FFmpeg's encoder's and libwebrtc's DXGI
 duplication's (`rust/src/screenshare/priority.rs`). Windows may refuse the GPU
 step to a process without the privilege to raise priority; the log says which.
-Not yet run on Windows, nor measured beside a GPU-bound game.
+Windows granted it in every GPU share of the Rust live tests on Windows 11 (Nov 19 2026,
+a VM with an RTX 3070 Ti). Not yet measured beside a GPU-bound game.
 
 What the placement costs a game, measured Oct 25 2026 on a laptop's Windows,
 the model on the mic's thread: with a stand-in game on every CPU, the game's
