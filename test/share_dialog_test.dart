@@ -570,6 +570,28 @@ void main() {
       expect(answers.single?.selectedVideoSourceTitle, 'Browser');
     });
 
+    testWidgets('lists even one screen, so the one shared says so', (
+      tester,
+    ) async {
+      const sharedScreen = CaptureSource(
+        index: 0,
+        title: 'Screen 1',
+        appId: '',
+        minimised: false,
+        shared: true,
+      );
+      final answers = await open(
+        tester,
+        switching: true,
+        screens: [sharedScreen],
+      );
+      await tester.tap(find.text('Entire screen'));
+      await tester.pumpAndSettle();
+      expect(answers, isEmpty);
+      expect(find.text('Sharing now'), findsOneWidget);
+      expect(switchButton(tester).onPressed, isNull);
+    });
+
     testWidgets('a new share marks nothing', (tester) async {
       await open(tester, windows: [shared, browser], settings: sharingGame);
       await tester.tap(find.text('A window'));

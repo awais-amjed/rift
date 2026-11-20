@@ -171,15 +171,15 @@ pub(crate) fn list(capture_full_screen: bool) -> Vec<CaptureSource> {
             Vec::new()
         }
     };
+    let now = sharing();
     let listed = if capture_full_screen {
-        with_minimised(found, Vec::new())
+        with_minimised(with_shared_screen(found, now), Vec::new())
     } else {
         with_minimised(found, minimised_windows())
     };
     log::info!("capture: {} sources", listed.len());
 
     let owners = (!capture_full_screen).then(Owners::open).flatten();
-    let now = sharing();
     let sources = listed
         .iter()
         .enumerate()
@@ -250,6 +250,32 @@ impl Owners {
     }
 }
 
+/// The capturer's screens with the one being shared put back in its place.
+///
+/// On Windows 10 libwebrtc lists screens by duplicating each GPU's outputs,
+/// and an output is duplicated once per process: while Rift's own duplication
+/// holds the shared screen, that GPU's screens were left out, and with one
+/// screen left the switch dialog took it as the only one and switched to it
+/// (Nov 20 2026). A screen's id is its place among the display devices, so it
+/// is the same in either list.
+fn with_shared_screen(
+    mut found: Vec<(u64, String)>,
+    sharing: Option<Sharing>,
+) -> Vec<(u64, String)> {
+    let Some(Sharing {
+        kind: DesktopCaptureSourceType::Screen,
+        id,
+    }) = sharing
+    else {
+        return found;
+    };
+    if found.iter().all(|(listed, _)| *listed != id) {
+        let at = found.partition_point(|(listed, _)| *listed < id);
+        found.insert(at, (id, String::new()));
+    }
+    found
+}
+
 /// The capturer's list followed by the minimised windows it left out. A
 /// window that turns up in both — minimised or restored between the two
 /// looks — is listed once, where the capturer put it.
@@ -311,6 +337,32 @@ mod tests {
         // Under Wayland nothing is chosen from Rift's list, on either side.
         assert!(!same_source(None, None));
         assert!(!same_source(None, sharing(DesktopCaptureSourceType::Screen, 5)));
+    }
+
+    #[test]
+    fn a_shared_screen_the_capturer_left_out_is_listed_in_its_place() {
+        // Windows 10, Nov 20 2026: Rift's own duplication held screen 0, and
+        // libwebrtc's list had only screen 1.
+        let now = sharing(DesktopCaptureSourceType::Screen, 0);
+        assert_eq!(
+            with_shared_screen(vec![window(1, "")], now),
+            vec![window(0, ""), window(1, "")]
+        );
+        let now = sharing(DesktopCaptureSourceType::Screen, 2);
+        assert_eq!(
+            with_shared_screen(vec![window(0, ""), window(1, "")], now),
+            vec![window(0, ""), window(1, ""), window(2, "")]
+        );
+    }
+
+    #[test]
+    fn a_listed_or_no_shared_screen_leaves_the_list_alone() {
+        let found = vec![window(0, ""), window(1, "")];
+        let screen = sharing(DesktopCaptureSourceType::Screen, 1);
+        assert_eq!(with_shared_screen(found.clone(), screen), found);
+        let window_shared = sharing(DesktopCaptureSourceType::Window, 7);
+        assert_eq!(with_shared_screen(found.clone(), window_shared), found);
+        assert_eq!(with_shared_screen(found.clone(), None), found);
     }
 
     #[test]

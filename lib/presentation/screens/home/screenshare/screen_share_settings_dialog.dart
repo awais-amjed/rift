@@ -212,7 +212,14 @@ class _ScreenShareSettingsDialogState extends State<ScreenShareSettingsDialog> {
     if (!mounted) return;
     setState(() => _opening = false);
     if (!listed) return;
-    if (captureFullScreen && _captureSources?.length == 1) return _confirm();
+    // A switch always shows its list: the one screen there is most likely
+    // the one already shared, and the list says so rather than nothing
+    // happening.
+    if (captureFullScreen &&
+        _captureSources?.length == 1 &&
+        !widget.switching) {
+      return _confirm();
+    }
     setState(() => _page = _Page.choose);
     _startThumbnails();
   }
