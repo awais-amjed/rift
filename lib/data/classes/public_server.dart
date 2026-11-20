@@ -28,8 +28,16 @@ class PublicServer extends Equatable {
 
   /// What the operator claimed when they last saved. Central cannot count the
   /// members of a database it has no credentials for, so this is self-reported
-  /// and [updatedAt] is how stale it might be.
+  /// and [updatedAt] is how stale it might be. It orders nothing: a number
+  /// the publisher chooses would let a listing put itself first.
   final int memberCount;
+
+  /// `server_likes` counted, which is what the directory ranks by.
+  final int likeCount;
+
+  /// Whether this account is one of [likeCount]. Not a column: it is per
+  /// reader, and the repository asks for the page on screen.
+  final bool likedByMe;
 
   final bool isListed;
   final DateTime updatedAt;
@@ -55,6 +63,8 @@ class PublicServer extends Equatable {
     this.iconPath,
     this.tags = const [],
     this.memberCount = 0,
+    this.likeCount = 0,
+    this.likedByMe = false,
     this.isListed = true,
     required this.updatedAt,
     this.hiddenAt,
@@ -71,7 +81,10 @@ class PublicServer extends Equatable {
   /// before you commit to joining.
   String get host => Uri.tryParse(supabaseUrl)?.host ?? supabaseUrl;
 
-  factory PublicServer.fromJson(Map<String, dynamic> json) {
+  factory PublicServer.fromJson(
+    Map<String, dynamic> json, {
+    bool likedByMe = false,
+  }) {
     return PublicServer(
       id: json['id'] as String,
       ownerId: json['owner_id'] as String,
@@ -85,6 +98,8 @@ class PublicServer extends Equatable {
           (json['tags'] as List<dynamic>?)?.map((t) => t as String).toList() ??
           const [],
       memberCount: (json['member_count'] as num?)?.toInt() ?? 0,
+      likeCount: (json['like_count'] as num?)?.toInt() ?? 0,
+      likedByMe: likedByMe,
       isListed: json['is_listed'] as bool? ?? true,
       updatedAt:
           DateTime.tryParse(json['updated_at'] as String? ?? '')?.toLocal() ??
@@ -107,11 +122,31 @@ class PublicServer extends Equatable {
     'icon_path': iconPath,
     'tags': tags,
     'member_count': memberCount,
+    'like_count': likeCount,
     'is_listed': isListed,
     'updated_at': updatedAt.toUtc().toIso8601String(),
     'hidden_at': hiddenAt?.toUtc().toIso8601String(),
     'hidden_reason': hiddenReason,
   };
+
+  PublicServer copyWith({bool? likedByMe, int? likeCount}) => PublicServer(
+    id: id,
+    ownerId: ownerId,
+    supabaseUrl: supabaseUrl,
+    serverId: serverId,
+    inviteCode: inviteCode,
+    name: name,
+    description: description,
+    iconPath: iconPath,
+    tags: tags,
+    memberCount: memberCount,
+    likeCount: likeCount ?? this.likeCount,
+    likedByMe: likedByMe ?? this.likedByMe,
+    isListed: isListed,
+    updatedAt: updatedAt,
+    hiddenAt: hiddenAt,
+    hiddenReason: hiddenReason,
+  );
 
   @override
   List<Object?> get props => [
@@ -125,6 +160,8 @@ class PublicServer extends Equatable {
     iconPath,
     tags,
     memberCount,
+    likeCount,
+    likedByMe,
     isListed,
     updatedAt,
     hiddenAt,

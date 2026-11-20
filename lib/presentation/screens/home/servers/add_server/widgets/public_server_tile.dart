@@ -7,6 +7,7 @@ import '../../../../../../logic/cubits/public_servers/public_servers_cubit.dart'
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/directory_icon.dart';
+import '../../../../../common/directory_like_button.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
 import '../../../directory_reports/report_listing_button.dart';
@@ -16,7 +17,8 @@ import '../../../directory_reports/report_listing_button.dart';
 /// The host is shown next to the member count because it is the only piece of
 /// provenance a stranger has: a listing is written by whoever published it, and
 /// central verifies none of it. Where the server actually lives is the one
-/// thing on the row that can't be made up.
+/// thing on the row that can't be made up. The heart is what the row is
+/// ranked by; the member count is the operator's claim, and ranks nothing.
 class PublicServerTile extends StatelessWidget {
   final PublicServer server;
 
@@ -24,7 +26,16 @@ class PublicServerTile extends StatelessWidget {
   /// offering a second registration that would fail on the username.
   final VoidCallback? onJoin;
 
-  const PublicServerTile({super.key, required this.server, this.onJoin});
+  final VoidCallback? onLike;
+  final bool likeBusy;
+
+  const PublicServerTile({
+    super.key,
+    required this.server,
+    this.onJoin,
+    this.onLike,
+    this.likeBusy = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -47,19 +58,32 @@ class PublicServerTile extends StatelessWidget {
             size: 40,
           ),
           Expanded(child: _details(themeState)),
-          if (onJoin != null)
-            AppButton(label: 'Join', onPressed: onJoin)
-          else
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 9),
-              child: Text(
-                'Joined',
-                style: AppText.label.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: themeState.textTertiary,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            spacing: 6,
+            children: [
+              if (onJoin != null)
+                AppButton(label: 'Join', onPressed: onJoin)
+              else
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 9),
+                  child: Text(
+                    'Joined',
+                    style: AppText.label.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: themeState.textTertiary,
+                    ),
+                  ),
                 ),
+              DirectoryLikeButton(
+                count: server.likeCount,
+                liked: server.likedByMe,
+                busy: likeBusy,
+                onTap: onLike,
               ),
-            ),
+            ],
+          ),
           if (server.ownerId !=
               context.read<PublicServersCubit>().currentUserId)
             ReportListingButton(

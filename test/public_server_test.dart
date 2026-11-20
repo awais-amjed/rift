@@ -16,6 +16,7 @@ void main() {
     'icon_url': null,
     'tags': ['gaming', 'tech'],
     'member_count': 12,
+    'like_count': 3,
     'is_listed': true,
     'updated_at': '2026-08-12T10:00:00Z',
     ...overrides,
@@ -32,8 +33,19 @@ void main() {
       expect(back.inviteCode, 'abc123xyz9');
       expect(back.tags, ['gaming', 'tech']);
       expect(back.memberCount, 12);
+      expect(back.likeCount, 3);
       expect(back.isListed, isTrue);
       expect(back.updatedAt.toUtc(), DateTime.utc(2026, 8, 12, 10));
+    });
+
+    test('whether I liked it comes from the page, not the row', () {
+      expect(PublicServer.fromJson(row()).likedByMe, isFalse);
+      final liked = PublicServer.fromJson(row(), likedByMe: true);
+      expect(liked.likedByMe, isTrue);
+      final unliked = liked.copyWith(likedByMe: false, likeCount: 2);
+      expect(unliked.likedByMe, isFalse);
+      expect(unliked.likeCount, 2);
+      expect(unliked.name, liked.name);
     });
 
     test('a row with no tags is an empty list, not null', () {

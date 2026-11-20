@@ -7,6 +7,7 @@ class PublicServersState extends Equatable {
   final List<PublicServer> results;
   final String query;
   final String? tag;
+  final DirectorySort sort;
   final bool loading;
 
   /// Whether a browse has ever completed. An empty [results] means "nothing
@@ -23,6 +24,10 @@ class PublicServersState extends Equatable {
   /// under results, the other replaces them.
   final bool loadingMore;
 
+  /// Listings whose like is in flight, so a second tap is dropped and the
+  /// heart can stop answering until central has.
+  final Set<String> liking;
+
   // ── Publishing ────────────────────────────────────────────
 
   final List<PublicServer> myListings;
@@ -38,10 +43,12 @@ class PublicServersState extends Equatable {
     this.results = const [],
     this.query = '',
     this.tag,
+    this.sort = DirectorySort.top,
     this.loading = false,
     this.hasBrowsed = false,
     this.hasMore = false,
     this.loadingMore = false,
+    this.liking = const {},
     this.myListings = const [],
     this.cap,
     this.savingListing = false,
@@ -68,10 +75,12 @@ class PublicServersState extends Equatable {
     List<PublicServer>? results,
     String? query,
     String? tag,
+    DirectorySort? sort,
     bool? loading,
     bool? hasBrowsed,
     bool? hasMore,
     bool? loadingMore,
+    Set<String>? liking,
     List<PublicServer>? myListings,
     int? cap,
     bool? savingListing,
@@ -83,10 +92,12 @@ class PublicServersState extends Equatable {
       results: results ?? this.results,
       query: query ?? this.query,
       tag: clearTag ? null : (tag ?? this.tag),
+      sort: sort ?? this.sort,
       loading: loading ?? this.loading,
       hasBrowsed: hasBrowsed ?? this.hasBrowsed,
       hasMore: hasMore ?? this.hasMore,
       loadingMore: loadingMore ?? this.loadingMore,
+      liking: liking ?? this.liking,
       myListings: myListings ?? this.myListings,
       cap: cap ?? this.cap,
       savingListing: savingListing ?? this.savingListing,
@@ -99,10 +110,12 @@ class PublicServersState extends Equatable {
     results,
     query,
     tag,
+    sort,
     loading,
     hasBrowsed,
     hasMore,
     loadingMore,
+    SetProp(liking),
     myListings,
     cap,
     savingListing,

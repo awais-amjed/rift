@@ -4,7 +4,9 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../data/classes/api_response.dart';
+import '../../../data/classes/equality_props.dart';
 import '../../../data/classes/public_server.dart';
+import '../../../data/enums/directory_sort.dart';
 import '../../../data/enums/listing_kind.dart';
 import '../../../data/enums/report_reason.dart';
 import '../../../data/repositories/listing_report_repository.dart';
@@ -116,6 +118,7 @@ class PublicServersCubit extends Cubit<PublicServersState> {
     final response = await _repo.browse(
       query: state.query,
       tag: state.tag,
+      sort: state.sort,
       offset: offset,
     );
     if (isClosed) return null;
@@ -148,6 +151,67 @@ class PublicServersCubit extends Cubit<PublicServersState> {
           : state.copyWith(tag: tag),
     );
     unawaited(browse());
+  }
+
+  /// Change the order. Top or new — see [DirectorySort].
+  void setSort(DirectorySort sort) {
+    if (sort == state.sort) return;
+    _debounce?.cancel();
+    emit(state.copyWith(sort: sort));
+    unawaited(browse());
+  }
+
+  // ── Liking ────────────────────────────────────────────────
+
+  /// Like or unlike, and keep the count the row shows in step. Answers the
+  /// refusal, if central refused, for the browser to show: it is not a
+  /// failure of the list, which stays as it was.
+  ///
+  /// As `PublicBotsCubit.toggleLike`: the heart moves when central answers,
+  /// since a like can be refused (no handle claimed), and a second tap while
+  /// the first is in flight is dropped.
+  Future<String?> toggleLike(String listingId) async {
+    if (state.liking.contains(listingId)) return null;
+    final current = _resultById(listingId);
+    if (current == null) return null;
+
+    emit(
+      state.copyWith(liking: {...state.liking, listingId}, clearError: true),
+    );
+
+    final wanted = !current.likedByMe;
+    final response = await _repo.setLiked(listingId, liked: wanted);
+    if (isClosed) return null;
+
+    final done = {...state.liking}..remove(listingId);
+    if (!response.success) {
+      emit(state.copyWith(liking: done));
+      return response.error ?? 'Could not save that like.';
+    }
+
+    // Re-read from central, since somebody else may have liked it in
+    // between. Null means the like was already there.
+    final count = response.data as int?;
+    emit(
+      state.copyWith(
+        liking: done,
+        results: [
+          for (final server in state.results)
+            if (server.id == listingId)
+              server.copyWith(likedByMe: wanted, likeCount: count)
+            else
+              server,
+        ],
+      ),
+    );
+    return null;
+  }
+
+  PublicServer? _resultById(String listingId) {
+    for (final server in state.results) {
+      if (server.id == listingId) return server;
+    }
+    return null;
   }
 
   // ── Publishing ────────────────────────────────────────────

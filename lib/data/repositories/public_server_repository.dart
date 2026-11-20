@@ -4,6 +4,7 @@ import '../../logic/services/paging.dart';
 import '../central_failure.dart';
 import '../classes/api_response.dart';
 import '../classes/public_server.dart';
+import '../enums/directory_sort.dart';
 
 /// The central server directory — central's `public_servers` table.
 ///
@@ -13,6 +14,7 @@ import '../classes/public_server.dart';
 /// encrypted — a listing is meant to be read by strangers.
 class PublicServerRepository {
   static const _table = 'public_servers';
+  static const _likes = 'server_likes';
 
   SupabaseClient get _client => Supabase.instance.client;
 
@@ -23,7 +25,10 @@ class PublicServerRepository {
   String? get currentUserId => _uid;
 
   /// Browse the directory. [query] matches the name or the description,
-  /// [tag] narrows to listings carrying it, [offset] pages.
+  /// [tag] narrows to listings carrying it, [sort] orders it, [offset] pages.
+  ///
+  /// Never by `member_count`: the publishing admin's client reports it, so a
+  /// listing could claim its way to the top.
   ///
   /// Answers `{results, has_more}`. Over-fetches one row past the page so
   /// "there is more" is proved rather than guessed from a full page — see
@@ -39,6 +44,7 @@ class PublicServerRepository {
   Future<APIResponse> browse({
     String? query,
     String? tag,
+    DirectorySort sort = DirectorySort.top,
     int limit = 50,
     int offset = 0,
   }) async {
@@ -60,18 +66,45 @@ class PublicServerRepository {
         request = request.contains('tags', [tag]);
       }
 
-      final rows = await request
-          .order('member_count', ascending: false)
-          .order('updated_at', ascending: false)
-          .range(offset, offset + limit);
+      // `created_at` breaks the tie rather than `updated_at`, matching
+      // idx_public_servers_top: publishing again must not lift an old listing.
+      var ordered = request.order(sort.column, ascending: false);
+      if (sort != DirectorySort.fresh) {
+        ordered = ordered.order('created_at', ascending: false);
+      }
+      final rows = await ordered.range(offset, offset + limit);
 
       final page = Paging.split(rows, limit: limit);
+      final liked = await _likedAmong([for (final r in page.rows) r['id']]);
       return APIResponse.success({
-        'results': [for (final r in page.rows) PublicServer.fromJson(r)],
+        'results': [
+          for (final r in page.rows)
+            PublicServer.fromJson(r, likedByMe: liked.contains(r['id'])),
+        ],
         'has_more': page.hasMore,
       });
     } catch (e) {
       return CentralFailure.response(e);
+    }
+  }
+
+  /// Which of [listingIds] this account has already liked: one query for the
+  /// page, as the bot browser does, because "have *I* liked this" is per
+  /// reader and a listing is shared.
+  Future<Set<String>> _likedAmong(List<dynamic> listingIds) async {
+    final uid = _uid;
+    if (uid == null || listingIds.isEmpty) return const {};
+    try {
+      final rows = await _client
+          .from(_likes)
+          .select('listing_id')
+          .eq('user_id', uid)
+          .inFilter('listing_id', listingIds);
+      return {for (final r in rows) r['listing_id'] as String};
+    } catch (_) {
+      // A directory that renders without hearts is worth more than one that
+      // refuses to render.
+      return const {};
     }
   }
 
@@ -230,6 +263,51 @@ class PublicServerRepository {
       return CentralFailure.response(e);
     }
   }
+
+  /// Like or unlike a listing, answering with its count as central now has
+  /// it. As `PublicBotRepository.setLiked`: an insert and a delete, the
+  /// primary key making a second like a duplicate rather than a vote, and the
+  /// count re-read because a trigger recounts it.
+  Future<APIResponse> setLiked(String listingId, {required bool liked}) async {
+    try {
+      final uid = _uid;
+      if (uid == null) return APIResponse.error('Not signed in.');
+
+      if (liked) {
+        await _client.from(_likes).insert({
+          'listing_id': listingId,
+          'user_id': uid,
+        });
+      } else {
+        await _client
+            .from(_likes)
+            .delete()
+            .eq('listing_id', listingId)
+            .eq('user_id', uid);
+      }
+
+      final row = await _client
+          .from(_table)
+          .select('like_count')
+          .eq('id', listingId)
+          .maybeSingle();
+      return APIResponse.success((row?['like_count'] as num?)?.toInt() ?? 0);
+    } on PostgrestException catch (e) {
+      if (CentralFailure.isUnreachable(e)) return CentralFailure.response(e);
+      // 23503: `server_likes.user_id` references the profile table, so an
+      // account with no handle claimed is not a vote.
+      if (e.code == '23503') return APIResponse.error(_likeNeedsProfile);
+      // 23505: liked already, which two quick taps can produce — and is what
+      // was asked for.
+      if (e.code == '23505') return APIResponse.success(null);
+      return CentralFailure.response(e);
+    } catch (e) {
+      return CentralFailure.response(e);
+    }
+  }
+
+  static const _likeNeedsProfile =
+      'Claim a handle on your Rift account before liking a server.';
 
   /// How many servers one account may list (`max_public_servers()`).
   Future<APIResponse> cap() async {

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rift/data/classes/api_response.dart';
 import 'package:rift/data/classes/public_server.dart';
+import 'package:rift/data/enums/directory_sort.dart';
 import 'package:rift/data/repositories/public_server_repository.dart';
 import 'package:rift/logic/cubits/public_servers/public_servers_cubit.dart';
 
@@ -21,6 +22,10 @@ PublicServer server(String id) => PublicServer(
 /// Answers browse from a script, and records what it was asked for.
 class _FakeRepo implements PublicServerRepository {
   final List<int> offsets = [];
+  final List<DirectorySort> sorts = [];
+
+  /// What [setLiked] answers: a count, or a refusal.
+  APIResponse likeAnswer = APIResponse.success(1);
   final List<({List<PublicServer> results, bool hasMore})> pages;
 
   /// Held open when set, so a test can look at the state mid-flight.
@@ -32,10 +37,12 @@ class _FakeRepo implements PublicServerRepository {
   Future<APIResponse> browse({
     String? query,
     String? tag,
+    DirectorySort sort = DirectorySort.top,
     int limit = 50,
     int offset = 0,
   }) async {
     offsets.add(offset);
+    sorts.add(sort);
     if (gate != null) await gate!.future;
     final page = pages.isEmpty
         ? (results: <PublicServer>[], hasMore: false)
@@ -45,6 +52,10 @@ class _FakeRepo implements PublicServerRepository {
       'has_more': page.hasMore,
     });
   }
+
+  @override
+  Future<APIResponse> setLiked(String listingId, {required bool liked}) async =>
+      likeAnswer;
 
   @override
   noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -132,6 +143,53 @@ void main() {
       expect(cubit.state.results.map((s) => s.id), ['z']);
       expect(cubit.state.hasMore, isFalse);
       expect(repo.offsets, [0, 1, 0]);
+    });
+  });
+
+  group('PublicServersCubit order and likes', () {
+    test('browses by likes first, and New asks again by newest', () async {
+      final repo = _FakeRepo([
+        (results: [server('a')], hasMore: false),
+        (results: [server('b')], hasMore: false),
+      ]);
+      final cubit = PublicServersCubit(repo: repo);
+
+      await cubit.browse();
+      cubit.setSort(DirectorySort.fresh);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(repo.sorts, [DirectorySort.top, DirectorySort.fresh]);
+      expect(cubit.state.results.map((s) => s.id), ['b']);
+    });
+
+    test('a like lands with the count central answers', () async {
+      final repo = _FakeRepo([
+        (results: [server('a'), server('b')], hasMore: false),
+      ])..likeAnswer = APIResponse.success(7);
+      final cubit = PublicServersCubit(repo: repo);
+      await cubit.browse();
+
+      expect(await cubit.toggleLike('a'), isNull);
+      final a = cubit.state.results.first;
+      expect(a.likedByMe, isTrue);
+      expect(a.likeCount, 7);
+      expect(cubit.state.results.last.likedByMe, isFalse);
+      expect(cubit.state.liking, isEmpty);
+    });
+
+    test('a refused like is handed back and leaves the list alone', () async {
+      // A refusal (no handle claimed) is not the list failing: the browser
+      // keeps its rows and says why once.
+      final repo = _FakeRepo([
+        (results: [server('a')], hasMore: false),
+      ])..likeAnswer = APIResponse.error('Claim a handle first.');
+      final cubit = PublicServersCubit(repo: repo);
+      await cubit.browse();
+
+      expect(await cubit.toggleLike('a'), 'Claim a handle first.');
+      expect(cubit.state.error, isNull);
+      expect(cubit.state.results.single.likedByMe, isFalse);
+      expect(cubit.state.liking, isEmpty);
     });
   });
 }

@@ -8,9 +8,11 @@ import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
+import '../../../../../logic/helper_methods.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/app_text_field.dart';
+import '../../../../common/directory_sort_bar.dart';
 import '../../../../common/hint_card.dart';
 import '../../../../common/no_central_account.dart';
 import 'widgets/browse_results.dart';
@@ -58,6 +60,12 @@ class _BrowseServersModalState extends State<BrowseServersModal> {
   Set<String> get _joined =>
       context.read<ServerCubit>().state.servers.map((s) => s.id).toSet();
 
+  /// A refused like (no handle claimed) is said once, over the list.
+  Future<void> _like(PublicServersCubit cubit, PublicServer server) async {
+    final refusal = await cubit.toggleLike(server.id);
+    if (refusal != null) HelperMethods.showError(error: refusal);
+  }
+
   @override
   Widget build(BuildContext context) {
     final signedIn = context.select<SupabaseBackupCubit, bool>(
@@ -96,11 +104,22 @@ class _BrowseServersModalState extends State<BrowseServersModal> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            AppTextField(
-              controller: _searchCtrl,
-              hint: 'Search by name or description',
-              autofocus: true,
-              onChanged: cubit.search,
+            Row(
+              spacing: 10,
+              children: [
+                Expanded(
+                  child: AppTextField(
+                    controller: _searchCtrl,
+                    hint: 'Search by name or description',
+                    autofocus: true,
+                    onChanged: cubit.search,
+                  ),
+                ),
+                DirectorySortBar(
+                  selected: state.sort,
+                  onSelected: cubit.setSort,
+                ),
+              ],
             ),
             if (state.visibleTags.isNotEmpty) ...[
               const SizedBox(height: 12),
@@ -117,6 +136,7 @@ class _BrowseServersModalState extends State<BrowseServersModal> {
                 state: state,
                 joinedServerIds: _joined,
                 onJoin: widget.onJoin,
+                onLike: (server) => unawaited(_like(cubit, server)),
                 onRetry: cubit.browse,
                 onLoadMore: () => unawaited(cubit.loadMore()),
               ),

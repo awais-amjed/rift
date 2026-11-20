@@ -21,6 +21,7 @@ class BrowseResults extends StatelessWidget {
   final PublicServersState state;
   final Set<String> joinedServerIds;
   final void Function(PublicServer server) onJoin;
+  final void Function(PublicServer server) onLike;
   final VoidCallback onRetry;
 
   /// Asked for when the list is scrolled near its end. Safe to fire often —
@@ -33,6 +34,7 @@ class BrowseResults extends StatelessWidget {
     required this.state,
     required this.joinedServerIds,
     required this.onJoin,
+    required this.onLike,
     required this.onRetry,
     required this.onLoadMore,
   });
@@ -103,6 +105,8 @@ class BrowseResults extends StatelessWidget {
             onJoin: joinedServerIds.contains(server.serverId)
                 ? null
                 : () => onJoin(server),
+            onLike: () => onLike(server),
+            likeBusy: state.liking.contains(server.id),
           );
         },
       ),
