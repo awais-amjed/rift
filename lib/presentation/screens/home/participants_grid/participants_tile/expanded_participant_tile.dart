@@ -49,6 +49,9 @@ class ExpandedParticipantTile extends StatelessWidget {
 
   /// See [ParticipantNameBadge.isPushToTalkIdle].
   final bool isPushToTalkIdle;
+
+  /// See [ParticipantNameBadge.isClipping].
+  final bool isClipping;
   final bool isDeafened;
   final bool isScreenshare;
 
@@ -124,6 +127,7 @@ class ExpandedParticipantTile extends StatelessWidget {
     required this.isMicEnabled,
     required this.isMuted,
     this.isPushToTalkIdle = false,
+    this.isClipping = false,
     this.isDeafened = false,
     required this.isScreenshare,
     this.shareIdentity,
@@ -314,6 +318,7 @@ class ExpandedParticipantTile extends StatelessWidget {
                         isMicEnabled: isMicEnabled,
                         isMuted: isMuted,
                         isPushToTalkIdle: isPushToTalkIdle,
+                        isClipping: isClipping,
                         isDeafened: isDeafened,
                         isScreenshare: isScreenshare,
                       ),

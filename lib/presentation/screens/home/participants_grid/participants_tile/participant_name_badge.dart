@@ -3,9 +3,11 @@ import 'dart:ui';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../../data/constants.dart';
+import '../../../../../logic/services/voice_status_icons.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/custom_colors.dart';
 import '../../../../theme/theme_context.dart';
+import '../../sidebar/widgets/voice_status_row_icons.dart';
 
 /// Name badge showing participant name and status icons
 class ParticipantNameBadge extends StatelessWidget {
@@ -23,6 +25,10 @@ class ParticipantNameBadge extends StatelessWidget {
   /// grey, since they are not muted, just not talking.
   final bool isPushToTalkIdle;
 
+  /// They keep the last stretch of the call for clips: the sidebar's mark,
+  /// so it reads the same in both places.
+  final bool isClipping;
+
   /// Shown before the name. Defaults to the screen icon for a screen share;
   /// a shared track passes its own, having no picture to put a screen on.
   final IconData? leadingIcon;
@@ -35,6 +41,7 @@ class ParticipantNameBadge extends StatelessWidget {
     this.isDeafened = false,
     this.isScreenshare = false,
     this.isPushToTalkIdle = false,
+    this.isClipping = false,
     this.leadingIcon,
   });
 
@@ -72,6 +79,15 @@ class ParticipantNameBadge extends StatelessWidget {
                   style: AppText.row.copyWith(color: themeState.textPrimary),
                 ),
               ),
+              if (!isScreenshare && isClipping)
+                Tooltip(
+                  message: VoiceStatusRowIcons.clippingTooltip,
+                  child: Icon(
+                    VoiceStatusRowIcons.iconOf(VoiceStatusIcon.clipping),
+                    size: K.iconInline,
+                    color: themeState.textTertiary,
+                  ),
+                ),
               if (!isScreenshare && isDeafened)
                 const Icon(
                   Icons.headset_off_rounded,

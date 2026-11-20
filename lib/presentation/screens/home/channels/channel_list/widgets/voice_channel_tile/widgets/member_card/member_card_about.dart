@@ -134,6 +134,7 @@ class MemberCardAbout extends StatelessWidget {
     VoiceStatusIcon.hiddenFromThem => 'Your voice is hidden from them',
     VoiceStatusIcon.sharingScreen => 'Sharing their screen',
     VoiceStatusIcon.sharingSound => 'Sharing sound',
+    VoiceStatusIcon.clipping => 'Clipping on',
   };
 
   static Widget _line(

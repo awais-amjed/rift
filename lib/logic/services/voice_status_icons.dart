@@ -8,6 +8,11 @@ enum VoiceStatusIcon {
   /// They have an application's sound shared.
   sharingSound,
 
+  /// They keep the last stretch of the call for clips (CALLS.md, "Clipping a
+  /// call"). Only known for the call this device is in: presence does not
+  /// carry it.
+  clipping,
+
   /// They have deafened themselves.
   deafened,
 
@@ -68,6 +73,7 @@ List<VoiceStatusIcon> voiceStatusIcons(
   final icons = <VoiceStatusIcon>[];
   if (participant.isSharingScreen) icons.add(VoiceStatusIcon.sharingScreen);
   if (participant.isSharingSound) icons.add(VoiceStatusIcon.sharingSound);
+  if (participant.isClipping) icons.add(VoiceStatusIcon.clipping);
 
   final deafened = participant.isServerDeafened || participant.isDeafened;
   if (participant.isServerDeafened) {

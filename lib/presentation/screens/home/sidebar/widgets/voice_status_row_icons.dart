@@ -17,7 +17,8 @@ import '../../channels/channel_list/widgets/voice_channel_tile/widgets/roster_ro
 /// the accent instead: it is not a problem, it is the thing you might want to
 /// go and look at. A bot that cannot hear is grey: that is how a bot comes,
 /// not something anybody did to it, and a red mark on every music bot would
-/// drown out the ones that mean something.
+/// drown out the ones that mean something. Clipping is grey too: worth
+/// knowing, but nothing is wrong.
 class VoiceStatusRowIcons extends StatelessWidget {
   final ParticipantInfo participant;
 
@@ -46,6 +47,9 @@ class VoiceStatusRowIcons extends StatelessWidget {
   /// Shared with the row for a call you are not in: the choice holds in
   /// every call, so it shows before you meet them in one.
   static const hiddenFromThemTooltip = 'Your voice is hidden from them';
+
+  /// Shared with the call's tiles, which mark it by the name.
+  static const clippingTooltip = 'Clipping on';
 
   @override
   Widget build(BuildContext context) {
@@ -96,7 +100,8 @@ class VoiceStatusRowIcons extends StatelessWidget {
         VoiceStatusIcon.sharingScreen ||
         VoiceStatusIcon.sharingSound => theme.accentBright,
         VoiceStatusIcon.cannotHear ||
-        VoiceStatusIcon.waitingToTalk => theme.textTertiary,
+        VoiceStatusIcon.waitingToTalk ||
+        VoiceStatusIcon.clipping => theme.textTertiary,
         VoiceStatusIcon.mutedForYou || VoiceStatusIcon.hiddenFromThem =>
           CustomColors.error.withValues(alpha: 0.7),
         VoiceStatusIcon.deafenedByModerator ||
@@ -111,6 +116,8 @@ class VoiceStatusRowIcons extends StatelessWidget {
     // the icon means one thing wherever it turns up.
     VoiceStatusIcon.sharingScreen => Icons.monitor_outlined,
     VoiceStatusIcon.sharingSound => Icons.graphic_eq_rounded,
+    // Scissors: what is kept is a clip of the call, not a recording of it.
+    VoiceStatusIcon.clipping => Icons.content_cut_rounded,
     VoiceStatusIcon.deafened ||
     VoiceStatusIcon.deafenedByModerator ||
     VoiceStatusIcon.cannotHear => Icons.headset_off,
@@ -127,6 +134,7 @@ class VoiceStatusRowIcons extends StatelessWidget {
   String _tooltip(VoiceStatusIcon icon) => switch (icon) {
     VoiceStatusIcon.sharingScreen => 'Sharing their screen',
     VoiceStatusIcon.sharingSound => 'Sharing sound',
+    VoiceStatusIcon.clipping => clippingTooltip,
     VoiceStatusIcon.deafened => 'Deafened — they can’t hear the call',
     VoiceStatusIcon.deafenedByModerator => 'Deafened by a moderator',
     VoiceStatusIcon.cannotHear => cannotHearTooltip,
