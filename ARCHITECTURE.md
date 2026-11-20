@@ -154,7 +154,10 @@ function refuses a session that did not begin with a password in the last ten
 minutes: a phone left unlocked is not enough to destroy an account. Every central
 row cascades from the Auth user, so the function empties the person's Storage
 folders (the backup, DM files, bug-report logs, directory icons), then deletes the
-user. The servers on the device are untouched, since they never belonged to the
+user. Auth keeps no record of sign-ins in the database for it to leave behind
+(`GOTRUE_AUDIT_LOG_DISABLE_POSTGRES`, with `central-audit-log-prune` nightly in
+case), and a backup whose account went some other way is removed by the nightly
+sweep (`orphaned_backups`). The servers on the device are untouched, since they never belonged to the
 account, and the device re-wraps its seed under the typed password, the one a
 vault with no account opens with. The person's DM partners lose those
 conversations too, because each one is a single shared record. An account
