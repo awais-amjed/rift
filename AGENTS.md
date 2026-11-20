@@ -35,6 +35,8 @@ lib/
     visibility/   # Whether anybody can see Rift (AppSeenListener), which pauses watched pictures
                   # and stops animations (TickerMode)
     shortcuts/    # Keys for mute, deafen and leave, from anywhere (CallShortcutListener)
+    mic_badge/    # A mic on the Windows taskbar button and tray icon while the call hears you
+                  # (MicBadgeListener; the runner draws it, mic_badge.cpp)
     helper_methods.dart  # HelperMethods: toasts, navigation, printDebug
   presentation/
     common/       # Shared widgets (AppModal, AppTitleBar, ...)
