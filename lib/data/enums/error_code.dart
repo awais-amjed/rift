@@ -138,10 +138,10 @@ class ErrorCode {
   /// signing up", and the answer to it is another confirmation email.
   static const String emailNotConfirmed = 'email_not_confirmed';
 
-  /// Too many confirmation emails, too fast. Supabase enforces both a minimum
-  /// gap between two emails to one address and an hourly cap for the whole
-  /// project, and it is the second that bites — the built-in mail service is
-  /// metered in single figures per hour.
+  /// Too many confirmation emails, too fast: a minimum gap between two emails
+  /// to one address, or the hourly cap central sets for everybody at once.
+  /// A caller over its own per-address allowance hears GoTrue's
+  /// `over_request_rate_limit` instead, before any email is counted.
   static const String emailSendRateLimited = 'over_email_send_rate_limit';
 
   // ── Generic ───────────────────────────────────────────────────────────────────
