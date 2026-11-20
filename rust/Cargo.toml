@@ -60,6 +60,9 @@ libloading = "0.9"
 image = { version = "0.25", default-features = false, features = ["jpeg"] }
 env_logger = { version = "0.11", default-features = false }
 nanomp3 = "0.2.0"
+# A call clip added to the soundboard is MP3 (src/call_clip): LAME, LGPL, built
+# from source by its -sys crate.
+mp3lame-encoder = "0.3.0"
 # A soundboard clip in Ogg (src/clips/sound_ogg.rs), which Windows has no
 # reader for: lewton decodes Vorbis, in pure Rust, and ogg reads the pages an
 # Opus clip comes in, for the libopus libwebrtc already has. 0.8, as lewton's.

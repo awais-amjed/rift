@@ -2,6 +2,7 @@ pub mod api;
 #[cfg(any(target_os = "windows", target_os = "linux"))]
 mod audio_endpoints;
 mod blob_cipher;
+mod call_clip;
 #[cfg(desktop)]
 mod clips;
 #[cfg(any(target_os = "windows", target_os = "linux"))]

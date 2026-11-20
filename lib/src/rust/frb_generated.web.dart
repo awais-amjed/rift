@@ -13,6 +13,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_web.dart';
 
 import 'api/audio_endpoints.dart';
 import 'api/blob_cipher.dart';
+import 'api/call_clip.dart';
 import 'api/clips.dart';
 import 'api/cue.dart';
 import 'api/ducking.dart';
@@ -200,6 +201,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<CaptureSource> dco_decode_list_capture_source(dynamic raw);
 
   @protected
+  List<int> dco_decode_list_prim_i_16_loose(dynamic raw);
+
+  @protected
   Int16List dco_decode_list_prim_i_16_strict(dynamic raw);
 
   @protected
@@ -273,6 +277,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SoundShareEvent dco_decode_sound_share_event(dynamic raw);
+
+  @protected
+  int dco_decode_u_16(dynamic raw);
 
   @protected
   int dco_decode_u_32(dynamic raw);
@@ -494,6 +501,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<int> sse_decode_list_prim_i_16_loose(SseDeserializer deserializer);
+
+  @protected
   Int16List sse_decode_list_prim_i_16_strict(SseDeserializer deserializer);
 
   @protected
@@ -577,6 +587,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SoundShareEvent sse_decode_sound_share_event(SseDeserializer deserializer);
+
+  @protected
+  int sse_decode_u_16(SseDeserializer deserializer);
 
   @protected
   int sse_decode_u_32(SseDeserializer deserializer);
@@ -845,6 +858,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_prim_i_16_loose(
+    List<int> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_prim_i_16_strict(
     Int16List self,
     SseSerializer serializer,
@@ -960,6 +979,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     SoundShareEvent self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_u_16(int self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_32(int self, SseSerializer serializer);

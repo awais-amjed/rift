@@ -1,5 +1,6 @@
 pub mod audio_endpoints;
 pub mod blob_cipher;
+pub mod call_clip;
 pub mod clips;
 pub mod cue;
 pub mod ducking;

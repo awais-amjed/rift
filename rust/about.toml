@@ -24,3 +24,14 @@ accepted = [
 # Build scripts and tests do not end up in the shipped library.
 ignore-build-dependencies = true
 ignore-dev-dependencies = true
+
+# LAME, for the MP3 of a call clip added to the soundboard (src/call_clip),
+# and its Rust bindings: LGPL, accepted for these two crates alone (owner's
+# call, Nov 21 2026). The app is GPL-3.0 with its source published, so anyone
+# can rebuild it against a changed LAME, which is what the LGPL asks of a
+# library linked in statically.
+[mp3lame-encoder]
+accepted = ["LGPL-3.0"]
+
+[mp3lame-sys]
+accepted = ["LGPL-3.0"]
