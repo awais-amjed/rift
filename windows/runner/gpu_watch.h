@@ -19,7 +19,9 @@
 #include <windows.h>
 #include <wrl/client.h>
 
-// Posted to the window once the watched device is gone.
+// Posted to the window once the watched device is gone, with the tick
+// (GetTickCount64) Windows signalled it at in its LPARAM, so the log can say
+// how long the window took to hear it.
 static constexpr UINT kWmGpuLost = WM_APP + 103;
 
 class GpuWatch {

@@ -40,5 +40,6 @@ HRESULT GpuWatch::Reason() const {
 }
 
 void CALLBACK GpuWatch::OnRemoved(PVOID window, BOOLEAN /*timed_out*/) {
-  ::PostMessageW(static_cast<HWND>(window), kWmGpuLost, 0, 0);
+  ::PostMessageW(static_cast<HWND>(window), kWmGpuLost, 0,
+                 static_cast<LPARAM>(::GetTickCount64()));
 }

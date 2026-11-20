@@ -154,6 +154,8 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
       return 0;
 
     case kWmGpuLost:
+      StreamLog("gpu: Windows signalled the loss %llu ms ago",
+                ::GetTickCount64() - static_cast<ULONGLONG>(lparam));
       SayGpuLost(gpu_watch_ ? gpu_watch_->Reason() : S_OK);
       return 0;
 
