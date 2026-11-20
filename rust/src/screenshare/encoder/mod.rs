@@ -166,7 +166,11 @@ pub(crate) const MAX_SIZE: Size = Size {
 
 /// The lowest bitrate the encoder is held to, whatever the connection asks
 /// for: below this a 1080p picture is mush, and WebRTC's estimate climbs back
-/// faster from a picture than from nothing.
+/// faster from a picture than from nothing. The encoder's alone: the rate gate
+/// still holds the share to what WebRTC asked, so on a link under this fewer
+/// pictures go out, each worth the floor's share. A gate held to the floor too
+/// sent five times what a 100 kbps link could carry, the picture a second
+/// late and half of it lost (Nov 20 2026, `CALLS.md`).
 const MIN_BITRATE_BPS: u32 = 150_000;
 
 /// Whether a GPU share's H264 goes out in High profile. Off from Oct 29 to

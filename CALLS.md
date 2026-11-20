@@ -1448,6 +1448,26 @@ what was driven are in `TESTING.md`).
   to 13 times in each 5 s the chain broke before WebRTC's encoder, each break
   a keyframe.
 
+  Why, found on Linux the same night (Intel VAAPI H265, a noise picture,
+  LiveKit's download policed from a container at 400 then 100 kbps): the
+  estimate fell under the encoder's 150 kbps floor (`MIN_BITRATE_BPS`), to 30
+  to 60 kbps, and the gate held the share to the floor rather than to WebRTC's
+  target. It sent 0.4 Mbps into 100 kbps, the pacer a second behind and half
+  the packets lost. The gate now holds to what WebRTC asks, and only the
+  encoder keeps the floor, so fewer pictures go, each worth the floor's share:
+  0.03 to 0.14 Mbps went out at the same limit, the pacer 10 to 700 ms behind,
+  and mostly nothing lost. The chain still broke, up to 14 times in 5 s, and
+  libwebrtc's own count put 74 to 234 frames a minute down to its congestion
+  window, none to a busy encoder. That window is the round trip plus 350 ms at
+  the target, a few KB at these rates, so one keyframe fills it. The frames
+  after it are dropped before the pass-through encoder, and the keyframe that
+  mends the chain fills the window again. Not fixed yet: libwebrtc can lower
+  the target instead of dropping frames (`WebRTC-CongestionWindow` without
+  `DropFrame`), which is a change to the fork. Also seen: a share started at
+  1080p on that link sent one 205 KB keyframe of noise, which held a 30 kbps
+  gate shut for most of a minute. The viewer gave up on Rust's picture after
+  6 s, and the share moved to VP9.
+
 ### H264 in High profile — [Implemented October 2026, off Oct 29 to Nov 7 2026]
 
 A GPU share's H264 goes out in High profile instead of constrained baseline:

@@ -139,7 +139,9 @@ impl GpuEncoder {
         let (opened_tx, opened_rx) = mpsc::channel();
         let spare = Arc::new(Mutex::new(Vec::new()));
         let failed = Arc::new(AtomicBool::new(false));
-        let bitrate = Arc::new(AtomicU32::new(settings.start_bitrate_bps));
+        let bitrate = Arc::new(AtomicU32::new(
+            settings.start_bitrate_bps.min(settings.max_bitrate_bps),
+        ));
         let offered = Arc::new(AtomicU32::new(0));
         let import_failed = Arc::new(Mutex::new(None));
         let shared = Shared {
@@ -224,7 +226,9 @@ impl GpuEncoder {
         self.failed.load(Ordering::Relaxed)
     }
 
-    /// The rate WebRTC last asked for, inside the cap.
+    /// The rate WebRTC last asked for, inside the cap. Not raised to the
+    /// encoder's floor ([`clamp_bitrate`]): the rate gate holds the share to
+    /// this, so a link under the floor gets fewer pictures, not more bits.
     pub(crate) fn bitrate(&self) -> u32 {
         self.bitrate.load(Ordering::Relaxed)
     }
@@ -262,6 +266,8 @@ impl Drop for GpuEncoder {
 struct Shared {
     spare: Arc<Mutex<Vec<Vec<u8>>>>,
     failed: Arc<AtomicBool>,
+    /// What WebRTC last asked for, inside the cap but not raised to the
+    /// encoder's floor: what the rate gate holds the share to.
     bitrate: Arc<AtomicU32>,
     offered: Arc<AtomicU32>,
     import_failed: Arc<Mutex<Option<ImportFailed>>>,
@@ -281,7 +287,10 @@ fn recycle(spare: &Mutex<Vec<Vec<u8>>>, input: EncoderInput) {
 
 /// The rate an encoder opens at.
 pub(super) fn start_bitrate(settings: &EncoderSettings) -> u32 {
-    let start = settings.start_bitrate_bps.min(settings.max_bitrate_bps);
+    let start = clamp_bitrate(
+        u64::from(settings.start_bitrate_bps),
+        settings.max_bitrate_bps,
+    );
     #[cfg(test)]
     let start = if super::test_hooks::IGNORE_RATE.load(Ordering::Relaxed) {
         settings.max_bitrate_bps
@@ -317,9 +326,13 @@ fn run<S, F>(
     }
     let _ = opened.send(Ok((name.clone(), session.takes_gpu_picture())));
 
-    // WebRTC's target, and the rate and buffer the encoder is at: the target
-    // scaled to the pictures that come, and the gate's allowance of it.
-    let mut target = settings.start_bitrate_bps.min(settings.max_bitrate_bps);
+    // WebRTC's target raised to the floor, and the rate and buffer the
+    // encoder is at: that scaled to the pictures that come, and the gate's
+    // allowance of it.
+    let mut target = clamp_bitrate(
+        u64::from(settings.start_bitrate_bps),
+        settings.max_bitrate_bps,
+    );
     let mut current = (target, rate_gate::encoder_buffer_bits(target));
     let mut scale = FrameRateScale::new(settings.fps);
     // The first picture, and any a viewer asks for, must be one it can start
@@ -384,7 +397,8 @@ fn run<S, F>(
         keys.heard(wanted_key);
         if let Some(requested) = wanted_rate {
             target = clamp_bitrate(requested, settings.max_bitrate_bps);
-            shared.bitrate.store(target, Ordering::Relaxed);
+            let asked = requested.min(u64::from(settings.max_bitrate_bps)) as u32;
+            shared.bitrate.store(asked, Ordering::Relaxed);
             #[cfg(test)]
             super::test_hooks::LAST_RATE.store(target, Ordering::Relaxed);
         }
@@ -715,6 +729,26 @@ mod tests {
             thread::sleep(Duration::from_millis(1000 / 30));
         }
         assert_eq!(asked.lock().unwrap().rates, vec![500_000]);
+    }
+
+    #[test]
+    fn under_the_floor_the_encoder_keeps_it_and_the_gate_holds_to_webrtc() {
+        // A link WebRTC puts at 30 kbps: each picture still gets the floor's
+        // share, and the gate lets fewer of them through, so what goes out is
+        // what WebRTC asked for (a share held to the floor sent five times
+        // that, Nov 20 2026).
+        let (encoder, asked, _, _) = fake_with_rate(None, true, false, Some(30_000));
+        let start = Instant::now();
+        while start.elapsed() < Duration::from_millis(500) {
+            encoder.note_offered();
+            encoder.submit_input(picture());
+            thread::sleep(Duration::from_millis(1000 / 30));
+        }
+        assert_eq!(
+            asked.lock().unwrap().rates,
+            vec![super::super::MIN_BITRATE_BPS]
+        );
+        assert_eq!(encoder.bitrate(), 30_000);
     }
 
     /// A fake encoder whose second picture goes out as the first.

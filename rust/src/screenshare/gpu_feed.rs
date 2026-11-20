@@ -119,7 +119,8 @@ impl GpuFeed {
         true
     }
 
-    /// The rate the encoder is at, which one taking over starts from.
+    /// What WebRTC last asked for, which one taking over starts from (raised
+    /// to its floor, as this one's was).
     pub(crate) fn bitrate(&self) -> u32 {
         self.encoder.bitrate()
     }

@@ -1,12 +1,15 @@
 //! Holding a GPU share to the rate WebRTC asks for, by leaving pictures out
 //! before they are encoded.
 //!
-//! WebRTC drops nothing of a GPU share. Its frame dropper is off for
-//! pre-encoded frames (`webrtc-sys` 0.3.49), because a dropped H264
-//! frame breaks every frame after it until the next keyframe. So whatever an
-//! encoder makes beyond WebRTC's target waits in WebRTC's send queue, and on
-//! a link that cannot carry it the picture falls further behind its sound
-//! the longer it runs. Encoders do overshoot: one in variable bitrate on a
+//! WebRTC's frame dropper is off for pre-encoded frames (`webrtc-sys`
+//! 0.3.49), because a dropped H264 frame breaks every frame after it until
+//! the next keyframe. So whatever an encoder makes beyond WebRTC's target
+//! waits in WebRTC's send queue, and on a link that cannot carry it the
+//! picture falls further behind its sound the longer it runs. Once that queue
+//! is long enough WebRTC does drop frames before its encoder (its congestion
+//! window, or a pause while the queue empties), and each one then costs a
+//! keyframe. So the gate holds to WebRTC's own target, never to a floor above
+//! it. Encoders do overshoot: one in variable bitrate on a
 //! fast game, or one slow to follow a target that has just fallen. A picture
 //! left out before the encoder breaks nothing; the viewer sees a lower frame
 //! rate instead of a late picture.
