@@ -1200,8 +1200,14 @@ what was driven are in `TESTING.md`).
   the call's connection, does not say. Verified Nov 19 2026 against a local
   LiveKit, with the watch connection asking for keyframes three times a second
   and the test publishing what it handed over
-  (`live_watch_tells_the_sharer_only_when_it_receives_badly`); not yet through
-  the app, nor with packets really lost.
+  (`live_watch_tells_the_sharer_only_when_it_receives_badly`). Through the
+  app on Nov 20 2026: a Windows 10 viewer that lost 55% of packets for one 5 s
+  was named in a Linux sharer's log and cleared 5 s later, and the second
+  viewer, on Linux, was never named. A capped download did not make a viewer
+  lose packets: with the VM held to 400 kbps of a 0.85 Mbps share, LiveKit
+  sent it less (10 to 35 pictures a second), nothing was reported, and the
+  other viewer had 60 a second with no wait over 100 ms. So the one-a-second
+  pace for viewers' keyframes is not yet seen with packets really lost.
 - **Stepping a share down.** A desktop share goes out as one stream, never a second
   encode, in the best of H265, H264, VP9 and VP8, from what was picked or Auto chose
   downwards, that everyone watching plays (`ShareLadder`). Each client publishes
@@ -1430,7 +1436,17 @@ what was driven are in `TESTING.md`).
   game clip. With the gate made to leave out every other picture, the share
   stepped from 1280x720 to 852x480 on the same track and the viewer kept
   getting pictures. It climbed back 12 s after the gate was freed, in three runs
-  of three. Not yet tried on a real slow link, nor on Windows.
+  of three. On Windows 10 in the app (Nov 20 2026, NVENC H265 1080p60 beside
+  Heaven, the VM's upload policed to 400 kbps, Dave watching on Linux):
+  Smoothness stepped 1080p60 to 720p60 within 7 s, then to 540p and 360p as
+  the estimate fell to the 150 kbps floor. The viewer kept a picture, and the
+  size held for two minutes at that limit. Freed, it climbed 360p to 1080p in
+  58 s, 720p to 1080p in 13 s. Balanced went 1080p60, 720p60, 720p30 (no
+  re-encode for the frame rate), then 540p30 and 360p30. A still desktop at the
+  same limit kept 1080p. The limit there was a policer, which drops what is
+  over it rather than queueing it: the estimate sat at 0.1 to 0.4 Mbps, and 6
+  to 13 times in each 5 s the chain broke before WebRTC's encoder, each break
+  a keyframe.
 
 ### H264 in High profile — [Implemented October 2026, off Oct 29 to Nov 7 2026]
 
@@ -1705,7 +1721,10 @@ libwebrtc still decodes, on the CPU.
   Rift (`reader_asks_after_flush`), where it asked at once itself. Measured
   Nov 19 by `live_watch_a_decoder_falling_behind_asks_less_often` (Linux,
   VAAPI): 5 keyframes in 20 s, and the slow viewer drew 85 pictures where
-  it drew 197, since it waits longer for each keyframe. A share the GPU cannot
+  it drew 197, since it waits longer for each keyframe. Not reached in the
+  app on Windows 10 (Nov 20 2026): an RTX 3070 Ti decoding an 11 Mbps H265
+  1080p60 share beside Heaven, windowed or full screen on the other screen,
+  kept 57.7 pictures a second and never fell behind. A share the GPU cannot
   decode, three keyframes in a row that fail (on Windows the first picture
   that fails once the device it decodes on was removed, since none decodes
   on it again), a runner that cannot import
