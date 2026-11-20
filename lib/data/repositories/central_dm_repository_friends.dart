@@ -13,7 +13,7 @@ part of 'central_dm_repository.dart';
 mixin _CentralDmFriendsMixin {
   SupabaseClient get _client;
 
-  /// Errors these RPCs raise by name, so a caller can tell "they blocked you"
+  /// Errors these RPCs raise by name, so a caller can tell "you blocked them"
   /// from "the network is down" without matching on prose.
   static const _codes = [
     'blocked',
