@@ -73,6 +73,7 @@ bool FlutterWindow::OnCreate() {
   SetupPttChannel();
   SetupSeenChannel();
   SetupTrayChannel();
+  SetupMicBadge();
   SetupGpuWatch();
 
   // The first frame is where a start counts as finished (startup_guard.h).
@@ -96,6 +97,7 @@ bool FlutterWindow::OnCreate() {
 void FlutterWindow::OnDestroy() {
   gpu_watch_ = nullptr;
   tray_icon_ = nullptr;
+  mic_badge_ = nullptr;
   GlobalKeyHook::Instance().Stop();
   ptt_event_sink_ = nullptr;
   seen_watch_ = nullptr;
@@ -119,6 +121,7 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
   if (message == WM_WINDOWPOSCHANGED && seen_watch_) {
     ::PostMessageW(hwnd, kWmSeenCheck, 0, 0);
   }
+  if (mic_badge_) mic_badge_->OnMessage(message);
 
   // Give Flutter, including plugins, an opportunity to handle window messages.
   if (flutter_controller_) {
@@ -276,6 +279,7 @@ void FlutterWindow::SetupTrayChannel() {
                       choice == TrayIcon::Choice::kShow ? "show" : "quit",
                       nullptr);
                 });
+            tray_icon_->SetMicOn(mic_on_);
           }
           result->Success(flutter::EncodableValue(tray_icon_->ok()));
         } else if (call.method_name() == "remove") {
@@ -284,6 +288,28 @@ void FlutterWindow::SetupTrayChannel() {
         } else {
           result->NotImplemented();
         }
+      });
+}
+
+void FlutterWindow::SetupMicBadge() {
+  mic_badge_ = std::make_unique<MicBadge>(GetHandle());
+  mic_badge_channel_ =
+      std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
+          flutter_controller_->engine()->messenger(), "rift/mic_badge",
+          &flutter::StandardMethodCodec::GetInstance());
+  mic_badge_channel_->SetMethodCallHandler(
+      [this](const flutter::MethodCall<flutter::EncodableValue>& call,
+             std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>>
+                 result) {
+        if (call.method_name() != "set") {
+          result->NotImplemented();
+          return;
+        }
+        const auto* on = std::get_if<bool>(call.arguments());
+        mic_on_ = on != nullptr && *on;
+        if (mic_badge_) mic_badge_->Set(mic_on_);
+        if (tray_icon_) tray_icon_->SetMicOn(mic_on_);
+        result->Success();
       });
 }
 

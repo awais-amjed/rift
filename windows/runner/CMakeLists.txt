@@ -12,6 +12,7 @@ add_executable(${BINARY_NAME} WIN32
   "global_key_hook.cpp"
   "gpu_watch.cpp"
   "main.cpp"
+  "mic_badge.cpp"
   "relaunch.cpp"
   "seen_watch.cpp"
   "single_instance.cpp"

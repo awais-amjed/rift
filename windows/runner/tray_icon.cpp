@@ -10,6 +10,7 @@ namespace {
 
 constexpr wchar_t kWindowClass[] = L"RIFT_TRAY_WINDOW";
 constexpr wchar_t kTooltip[] = L"Rift";
+constexpr wchar_t kMicTooltip[] = L"Rift \u2013 microphone on";
 constexpr UINT kWmTrayEvent = WM_APP + 1;
 constexpr UINT kIconId = 1;
 constexpr UINT kMenuShow = 1;
@@ -39,9 +40,14 @@ TrayIcon::TrayIcon(std::function<void(Choice)> on_choice)
   ::ChangeWindowMessageFilterEx(window_, taskbar_created_, MSGFLT_ALLOW,
                                 nullptr);
 
-  icon_ = static_cast<HICON>(::LoadImageW(
-      instance, MAKEINTRESOURCEW(IDI_TRAY_ICON), IMAGE_ICON,
-      ::GetSystemMetrics(SM_CXSMICON), ::GetSystemMetrics(SM_CYSMICON),
+  const int width = ::GetSystemMetrics(SM_CXSMICON);
+  const int height = ::GetSystemMetrics(SM_CYSMICON);
+  icon_ = static_cast<HICON>(::LoadImageW(instance,
+                                          MAKEINTRESOURCEW(IDI_TRAY_ICON),
+                                          IMAGE_ICON, width, height,
+                                          LR_DEFAULTCOLOR));
+  mic_icon_ = static_cast<HICON>(::LoadImageW(
+      instance, MAKEINTRESOURCEW(IDI_TRAY_MIC_ICON), IMAGE_ICON, width, height,
       LR_DEFAULTCOLOR));
 
   data_.cbSize = sizeof(data_);
@@ -61,6 +67,16 @@ TrayIcon::~TrayIcon() {
     ::DestroyWindow(window_);
   }
   if (icon_ != nullptr) ::DestroyIcon(icon_);
+  if (mic_icon_ != nullptr) ::DestroyIcon(mic_icon_);
+}
+
+void TrayIcon::SetMicOn(bool on) {
+  if (on == mic_on_ || window_ == nullptr) return;
+  mic_on_ = on;
+  // Kept in |data_|, so a new taskbar (TaskbarCreated) gets the same one.
+  data_.hIcon = on && mic_icon_ != nullptr ? mic_icon_ : icon_;
+  ::wcscpy_s(data_.szTip, on ? kMicTooltip : kTooltip);
+  ::Shell_NotifyIconW(NIM_MODIFY, &data_);
 }
 
 void TrayIcon::AddToShell() {

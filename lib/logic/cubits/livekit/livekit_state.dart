@@ -198,6 +198,52 @@ class LiveKitState extends Equatable {
       !isServerDeafened &&
       !isSpeakDenied;
 
+  /// Whether the microphone should be open: transmitting, or under
+  /// push-to-talk waiting for the key.
+  ///
+  /// Push-to-talk keeps the device running between presses and only mutes
+  /// the track. Stopping it on every release meant every press opened the
+  /// device again, and the first part of what was said went nowhere while it
+  /// started. Muting by hand, deafening or being muted by a moderator still
+  /// let go of the device.
+  ///
+  /// `micEnabled` overrides only the user's own toggle, for the connect path
+  /// where the stored preference is passed in before it reaches state. Their
+  /// own deafen and any moderation always come from state.
+  bool capturesMic({
+    required bool pushToTalk,
+    required bool hasPushToTalkKey,
+    bool? micEnabled,
+  }) {
+    if (!(micEnabled ?? isMicEnabled)) return false;
+    if (isDeafenedEffective || isServerMuted || isSpeakDenied) return false;
+    return !pushToTalk || hasPushToTalkKey;
+  }
+
+  /// Whether the call hears the microphone: open, and under push-to-talk
+  /// with the key down. The one rule for it — the mic badge on the taskbar
+  /// asks this too, so it cannot say "live" while nobody hears you.
+  bool transmitsMic({
+    required bool pushToTalk,
+    required bool hasPushToTalkKey,
+    bool? micEnabled,
+  }) {
+    if (!capturesMic(
+      pushToTalk: pushToTalk,
+      hasPushToTalkKey: hasPushToTalkKey,
+      micEnabled: micEnabled,
+    )) {
+      return false;
+    }
+    return !pushToTalk || isPushToTalkPressed;
+  }
+
+  /// Whether people in a call can hear you right now: [transmitsMic] in a
+  /// call that is connected. What the taskbar's mic badge shows.
+  bool micLive({required bool pushToTalk, required bool hasPushToTalkKey}) =>
+      connectionState == LiveKitConnectionState.connected &&
+      transmitsMic(pushToTalk: pushToTalk, hasPushToTalkKey: hasPushToTalkKey);
+
   /// Deafened by this device — their own choice, or the mic test. What the
   /// rest of the call is told.
   bool get isSelfDeafened => isDeafened || isMicTesting;

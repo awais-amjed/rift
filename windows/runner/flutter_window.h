@@ -11,6 +11,7 @@
 #include <memory>
 
 #include "gpu_watch.h"
+#include "mic_badge.h"
 #include "seen_watch.h"
 #include "stream_texture.h"
 #include "tray_icon.h"
@@ -62,6 +63,17 @@ class FlutterWindow : public Win32Window {
 
   // Configure |tray_channel_| against the running Flutter engine.
   void SetupTrayChannel();
+
+  // MethodChannel on which Dart says whether people in the call can hear the
+  // person: the taskbar's badge and the tray's icon show it.
+  std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>>
+      mic_badge_channel_;
+  std::unique_ptr<MicBadge> mic_badge_;
+  // What Dart last said, for a tray icon put up after it.
+  bool mic_on_ = false;
+
+  // Configure |mic_badge_channel_| against the running Flutter engine.
+  void SetupMicBadge();
 
   // Watched shares' pictures, drawn by the runner (stream_texture.h).
   std::unique_ptr<rift::StreamTextures> stream_textures_;

@@ -31,6 +31,11 @@ class TrayIcon {
   // shell refuses for now still counts: it goes up when a taskbar appears.
   bool ok() const { return window_ != nullptr; }
 
+  // Swaps in the icon with the mic on it while people in the call can hear
+  // the person (MicBadge has the taskbar's half): hidden to the tray, Rift has
+  // no taskbar button to show it on.
+  void SetMicOn(bool on);
+
  private:
   static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wparam,
                                   LPARAM lparam) noexcept;
@@ -43,6 +48,8 @@ class TrayIcon {
   HWND window_ = nullptr;
   NOTIFYICONDATAW data_ = {};
   HICON icon_ = nullptr;
+  HICON mic_icon_ = nullptr;
+  bool mic_on_ = false;
   // Registered by Explorer: broadcast when a taskbar starts, which forgets
   // every icon. Hidden windows hear it; message-only ones would not.
   UINT taskbar_created_ = 0;

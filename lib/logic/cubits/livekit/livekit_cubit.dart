@@ -503,34 +503,19 @@ class LiveKitCubit extends Cubit<LiveKitState>
   }
 
   @override
-  bool _shouldTransmitMic({bool? micEnabled}) {
-    if (!_shouldCaptureMic(micEnabled: micEnabled)) return false;
-    if (!_appCubit.state.pushToTalkEnabled) return true;
-    return state.isPushToTalkPressed;
-  }
+  bool _shouldTransmitMic({bool? micEnabled}) => state.transmitsMic(
+    pushToTalk: _appCubit.state.pushToTalkEnabled,
+    hasPushToTalkKey: _appCubit.state.pushToTalkKeyId != null,
+    micEnabled: micEnabled,
+  );
 
-  /// Whether the microphone should be open: transmitting, or under
-  /// push-to-talk waiting for the key.
-  ///
-  /// Push-to-talk keeps the device running between presses and only mutes
-  /// the track. Stopping it on every release meant every press opened the
-  /// device again, and the first part of what was said went nowhere while it
-  /// started. Muting by hand, deafening or being muted by a moderator still
-  /// let go of the device.
+  /// See [LiveKitState.capturesMic].
   @override
-  bool _shouldCaptureMic({bool? micEnabled}) {
-    // `micEnabled` overrides only the user's own toggle, for the connect path
-    // where the stored preference is passed in before it reaches state. Their
-    // own deafen and any moderation always come from state.
-    if (!(micEnabled ?? state.isMicEnabled)) return false;
-    if (state.isDeafenedEffective ||
-        state.isServerMuted ||
-        state.isSpeakDenied) {
-      return false;
-    }
-    final settings = _appCubit.state;
-    return !settings.pushToTalkEnabled || settings.pushToTalkKeyId != null;
-  }
+  bool _shouldCaptureMic({bool? micEnabled}) => state.capturesMic(
+    pushToTalk: _appCubit.state.pushToTalkEnabled,
+    hasPushToTalkKey: _appCubit.state.pushToTalkKeyId != null,
+    micEnabled: micEnabled,
+  );
 
   /// Plays the push-to-talk tone for [on].
   ///

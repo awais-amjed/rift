@@ -16,6 +16,7 @@ import 'logic/cubits/app/app_cubit.dart';
 import 'logic/cubits/theme/theme_cubit.dart';
 import 'logic/cubits/vault/vault_cubit.dart';
 import 'logic/helper_methods.dart';
+import 'logic/mic_badge/mic_badge_listener.dart';
 import 'logic/ptt/push_to_talk_listener.dart';
 import 'logic/services/app_window.dart';
 import 'logic/services/gpu_reset.dart';
@@ -159,33 +160,35 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             return AppSeenListener(
               child: PushToTalkListener(
                 child: CallShortcutListener(
-                  child: MaterialApp.router(
-                    routerConfig: _router,
-                    darkTheme: AppTheme.dark(themeState.palette),
-                    theme: AppTheme.light(themeState.palette),
-                    themeMode: themeState.themeMode,
-                    // Inside the app, not around it: a toast is drawn by
-                    // `AppToast`, which reads the palette off the `ThemeData`
-                    // this `MaterialApp` installs — around it there is no theme
-                    // to read and every toast fell back to the package's own.
-                    builder: EasyLoading.init(
-                      builder: (context, child) => PhoneTextScale(
-                        child: SelectedServerScope(
-                          child: ToastificationWrapper(
-                            // Clear of the title bar: a toast arrives in the same
-                            // corner the window buttons live in.
-                            config: const ToastificationConfig(
-                              alignment: Alignment.topRight,
-                              itemWidth: AppToast.maxWidth,
-                              marginBuilder: _toastMargin,
-                            ),
-                            // Around the navigator, so a ringing call is above
-                            // every page, dialog and sheet — see IncomingCallOverlay.
-                            child: GpuResetListener(
-                              child: NoticeListeners(
-                                child: PipOverlay(
-                                  child: TitleBarOverlay(
-                                    child: IncomingCallOverlay(child: child!),
+                  child: MicBadgeListener(
+                    child: MaterialApp.router(
+                      routerConfig: _router,
+                      darkTheme: AppTheme.dark(themeState.palette),
+                      theme: AppTheme.light(themeState.palette),
+                      themeMode: themeState.themeMode,
+                      // Inside the app, not around it: a toast is drawn by
+                      // `AppToast`, which reads the palette off the `ThemeData`
+                      // this `MaterialApp` installs — around it there is no theme
+                      // to read and every toast fell back to the package's own.
+                      builder: EasyLoading.init(
+                        builder: (context, child) => PhoneTextScale(
+                          child: SelectedServerScope(
+                            child: ToastificationWrapper(
+                              // Clear of the title bar: a toast arrives in the same
+                              // corner the window buttons live in.
+                              config: const ToastificationConfig(
+                                alignment: Alignment.topRight,
+                                itemWidth: AppToast.maxWidth,
+                                marginBuilder: _toastMargin,
+                              ),
+                              // Around the navigator, so a ringing call is above
+                              // every page, dialog and sheet — see IncomingCallOverlay.
+                              child: GpuResetListener(
+                                child: NoticeListeners(
+                                  child: PipOverlay(
+                                    child: TitleBarOverlay(
+                                      child: IncomingCallOverlay(child: child!),
+                                    ),
                                   ),
                                 ),
                               ),
