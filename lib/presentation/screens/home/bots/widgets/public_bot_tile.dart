@@ -6,11 +6,11 @@ import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/public_bots/public_bots_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/directory_icon.dart';
+import '../../../../common/directory_like_button.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 import '../../directory_reports/report_listing_button.dart';
 import 'bot_command_list.dart';
-import 'bot_like_button.dart';
 import 'bot_source_link.dart';
 
 /// One bot in the browser.
@@ -85,7 +85,7 @@ class PublicBotTile extends StatelessWidget {
                     ),
                   ),
                 ),
-              BotLikeButton(
+              DirectoryLikeButton(
                 count: bot.likeCount,
                 liked: bot.likedByMe,
                 busy: likeBusy,

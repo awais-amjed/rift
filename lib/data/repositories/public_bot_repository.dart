@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../logic/services/paging.dart';
 import '../classes/api_response.dart';
 import '../classes/public_bot.dart';
+import '../enums/directory_sort.dart';
 
 /// The central bot directory — central's `public_bots` and `bot_likes`.
 ///
@@ -36,7 +37,7 @@ class PublicBotRepository {
   Future<APIResponse> browse({
     String? query,
     String? tag,
-    BotSort sort = BotSort.top,
+    DirectorySort sort = DirectorySort.top,
     int limit = 50,
     int offset = 0,
   }) async {
@@ -62,7 +63,7 @@ class PublicBotRepository {
       // idx_public_bots_top: an author must not be able to lift an old bot up
       // the page by editing its description.
       var ordered = request.order(sort.column, ascending: false);
-      if (sort != BotSort.fresh) {
+      if (sort != DirectorySort.fresh) {
         ordered = ordered.order('created_at', ascending: false);
       }
       final rows = await ordered.range(offset, offset + limit);

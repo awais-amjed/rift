@@ -1,9 +1,9 @@
 import 'package:material_ui/material_ui.dart';
 
-import '../../../../../data/constants.dart';
-import '../../../../theme/app_motion.dart';
-import '../../../../theme/app_text.dart';
-import '../../../../theme/theme_context.dart';
+import '../../data/constants.dart';
+import '../theme/app_motion.dart';
+import '../theme/app_text.dart';
+import '../theme/theme_context.dart';
 
 /// The heart on a directory row: the count, and whether this account is one
 /// of it.
@@ -15,12 +15,13 @@ import '../../../../theme/theme_context.dart';
 ///
 /// The filled state waits for central. A like can be refused (an account with
 /// no handle claimed cannot vote), and a heart that fills and then empties is
-/// worse than one that takes a moment — see `PublicBotsCubit.toggleLike`.
-class BotLikeButton extends StatelessWidget {
+/// worse than one that takes a moment — see `PublicBotsCubit.toggleLike` and
+/// `PublicServersCubit.toggleLike`.
+class DirectoryLikeButton extends StatelessWidget {
   final int count;
   final bool liked;
 
-  /// True while this bot's like is in flight. The control stays put and stops
+  /// True while this listing's like is in flight. The control stays put and stops
   /// answering rather than swapping in a spinner: it is 24 pixels wide, and
   /// anything that changes size here moves the row under the cursor.
   final bool busy;
@@ -29,7 +30,7 @@ class BotLikeButton extends StatelessWidget {
   /// account. The count still shows, because it is still true.
   final VoidCallback? onTap;
 
-  const BotLikeButton({
+  const DirectoryLikeButton({
     super.key,
     required this.count,
     required this.liked,

@@ -12,11 +12,11 @@ import '../../../../logic/services/open_link.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/app_text_field.dart';
+import '../../../common/directory_sort_bar.dart';
 import '../../../common/hint_card.dart';
 import '../../../common/no_central_account.dart';
 import '../servers/add_server/widgets/tag_filter_bar.dart';
 import 'widgets/bot_results.dart';
-import 'widgets/bot_sort_bar.dart';
 
 /// The browse step of [BotDirectoryDialog]: every bot whose author chose to
 /// be findable.
@@ -71,6 +71,12 @@ class _BrowseBotsModalState extends State<BrowseBotsModal> {
     if (!await openExternalLink(bot.sourceUrl)) {
       HelperMethods.showError(error: 'Could not open that link.');
     }
+  }
+
+  /// A refused like (no handle claimed) is said once, over the list.
+  Future<void> _like(PublicBotsCubit cubit, PublicBot bot) async {
+    final refusal = await cubit.toggleLike(bot.id);
+    if (refusal != null) HelperMethods.showError(error: refusal);
   }
 
   @override
@@ -128,7 +134,10 @@ class _BrowseBotsModalState extends State<BrowseBotsModal> {
                     onChanged: cubit.search,
                   ),
                 ),
-                BotSortBar(selected: state.sort, onSelected: cubit.setSort),
+                DirectorySortBar(
+                  selected: state.sort,
+                  onSelected: cubit.setSort,
+                ),
               ],
             ),
             if (state.visibleTags.isNotEmpty) ...[
@@ -145,7 +154,7 @@ class _BrowseBotsModalState extends State<BrowseBotsModal> {
               child: BotResults(
                 state: state,
                 onAdd: widget.canAdd ? widget.onAdd : null,
-                onLike: (bot) => unawaited(cubit.toggleLike(bot.id)),
+                onLike: (bot) => unawaited(_like(cubit, bot)),
                 onOpenSource: (bot) => unawaited(_openSource(bot)),
                 onRetry: cubit.browse,
                 onLoadMore: () => unawaited(cubit.loadMore()),

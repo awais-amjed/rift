@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../data/classes/api_response.dart';
 import '../../../data/classes/equality_props.dart';
 import '../../../data/classes/public_bot.dart';
+import '../../../data/enums/directory_sort.dart';
 import '../../../data/enums/listing_kind.dart';
 import '../../../data/enums/report_reason.dart';
 import '../../../data/repositories/directory_icon_repository.dart';
@@ -149,8 +150,8 @@ class PublicBotsCubit extends Cubit<PublicBotsState> {
     unawaited(browse());
   }
 
-  /// Change the order. Top or new — see [BotSort].
-  void setSort(BotSort sort) {
+  /// Change the order. Top or new — see [DirectorySort].
+  void setSort(DirectorySort sort) {
     if (sort == state.sort) return;
     _debounce?.cancel();
     emit(state.copyWith(sort: sort));
@@ -159,28 +160,30 @@ class PublicBotsCubit extends Cubit<PublicBotsState> {
 
   // ── Liking ────────────────────────────────────────────────
 
-  /// Like or unlike, and keep the count the row shows in step.
+  /// Like or unlike, and keep the count the row shows in step. Answers the
+  /// refusal, if central refused, for the browser to show: it is not a
+  /// failure of the list, which stays as it was.
   ///
   /// The heart moves when central answers, not before: a like is a write to
   /// somebody else's listing, and a filled heart that turns out to have been
   /// refused — no handle claimed, say — is the one case where showing the
   /// outcome early is showing the wrong thing. A second tap while the first
   /// is in flight is dropped rather than queued.
-  Future<void> toggleLike(String botId) async {
-    if (state.liking.contains(botId)) return;
+  Future<String?> toggleLike(String botId) async {
+    if (state.liking.contains(botId)) return null;
     final current = _botById(botId);
-    if (current == null) return;
+    if (current == null) return null;
 
     emit(state.copyWith(liking: {...state.liking, botId}, clearError: true));
 
     final wanted = !current.likedByMe;
     final response = await _repo.setLiked(botId, liked: wanted);
-    if (isClosed) return;
+    if (isClosed) return null;
 
     final done = {...state.liking}..remove(botId);
     if (!response.success) {
-      emit(state.copyWith(liking: done, error: response.error));
-      return;
+      emit(state.copyWith(liking: done));
+      return response.error ?? 'Could not save that like.';
     }
 
     // The count comes back from central rather than being adjusted here: a
@@ -196,6 +199,7 @@ class PublicBotsCubit extends Cubit<PublicBotsState> {
         ),
       ),
     );
+    return null;
   }
 
   PublicBot? _botById(String botId) {

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rift/data/classes/public_bot.dart';
+import 'package:rift/data/enums/directory_sort.dart';
 
 /// The bot directory row as the browser reads it, and the two things about it
 /// that are easy to get wrong: the manifest is somebody else's JSON, and the
@@ -107,12 +108,12 @@ void main() {
     });
   });
 
-  group('BotSort', () {
+  group('DirectorySort', () {
     test('names the column central orders on', () {
       // Mirrors idx_public_bots_top and idx_public_bots_new. If either index
       // is renamed away from its column, the order silently stops using it.
-      expect(BotSort.top.column, 'like_count');
-      expect(BotSort.fresh.column, 'created_at');
+      expect(DirectorySort.top.column, 'like_count');
+      expect(DirectorySort.fresh.column, 'created_at');
     });
   });
 }

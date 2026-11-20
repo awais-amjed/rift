@@ -8,7 +8,7 @@ class PublicBotsState extends Equatable {
   final List<PublicBot> results;
   final String query;
   final String? tag;
-  final BotSort sort;
+  final DirectorySort sort;
   final bool loading;
 
   /// Whether a browse has ever completed. An empty [results] means "nothing
@@ -43,7 +43,7 @@ class PublicBotsState extends Equatable {
     this.results = const [],
     this.query = '',
     this.tag,
-    this.sort = BotSort.top,
+    this.sort = DirectorySort.top,
     this.loading = false,
     this.hasBrowsed = false,
     this.hasMore = false,
@@ -75,7 +75,7 @@ class PublicBotsState extends Equatable {
     List<PublicBot>? results,
     String? query,
     String? tag,
-    BotSort? sort,
+    DirectorySort? sort,
     bool? loading,
     bool? hasBrowsed,
     bool? hasMore,

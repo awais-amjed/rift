@@ -1,21 +1,21 @@
 import 'package:material_ui/material_ui.dart';
 
-import '../../../../../data/classes/public_bot.dart';
-import '../../../../../data/constants.dart';
-import '../../../../common/selectable_surface.dart';
-import '../../../../theme/app_text.dart';
+import '../../data/constants.dart';
+import '../../data/enums/directory_sort.dart';
+import '../theme/app_text.dart';
+import 'selectable_surface.dart';
 
 /// Top or New.
 ///
 /// Two orders and no more. "Top" is the whole point of a like count, and
-/// "New" exists because without it a bot listed today is behind every bot
-/// listed before it, for as long as it takes to be found — which is the
+/// "New" exists because without it a listing made today is behind every one
+/// made before it, for as long as it takes to be found — which is the
 /// failure mode of ranking by a cumulative count.
-class BotSortBar extends StatelessWidget {
-  final BotSort selected;
-  final ValueChanged<BotSort> onSelected;
+class DirectorySortBar extends StatelessWidget {
+  final DirectorySort selected;
+  final ValueChanged<DirectorySort> onSelected;
 
-  const BotSortBar({
+  const DirectorySortBar({
     super.key,
     required this.selected,
     required this.onSelected,
@@ -27,7 +27,7 @@ class BotSortBar extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       spacing: 6,
       children: [
-        for (final sort in BotSort.values)
+        for (final sort in DirectorySort.values)
           SelectableSurface(
             selected: sort == selected,
             onTap: () => onSelected(sort),

@@ -188,23 +188,3 @@ class PublicBot extends Equatable {
     hiddenReason,
   ];
 }
-
-/// How the browser orders the directory.
-enum BotSort {
-  /// Best-liked first — the default, and the reason `like_count` is a column.
-  top,
-
-  /// Newest first, which is the only way a bot with no likes yet is ever seen.
-  fresh;
-
-  /// The column central orders on, and the direction.
-  String get column => switch (this) {
-    BotSort.top => 'like_count',
-    BotSort.fresh => 'created_at',
-  };
-
-  String get label => switch (this) {
-    BotSort.top => 'Top',
-    BotSort.fresh => 'New',
-  };
-}
