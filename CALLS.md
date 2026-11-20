@@ -1750,14 +1750,19 @@ libwebrtc still decodes, on the CPU.
   again soon after it: one decoding 10 pictures a second of a 30 fps share
   fell behind every 1.5 s and made 12 keyframes in 20 s for everyone (a
   review of a game share, Nov 18). So a flush within 10 s of the last waits
-  before asking, 1 s, then 2, then 4 at most; the fork leaves that ask to
+  before asking, 1 s, then 2, then 4 at most, and a flush before that ask
+  leaves it where it was; the fork leaves that ask to
   Rift (`reader_asks_after_flush`), where it asked at once itself. Measured
   Nov 19 by `live_watch_a_decoder_falling_behind_asks_less_often` (Linux,
   VAAPI): 5 keyframes in 20 s, and the slow viewer drew 85 pictures where
-  it drew 197, since it waits longer for each keyframe. Not reached in the
-  app on Windows 10 (Nov 20 2026): an RTX 3070 Ti decoding an 11 Mbps H265
-  1080p60 share beside Heaven, windowed or full screen on the other screen,
-  kept 57.7 pictures a second and never fell behind. A share the GPU cannot
+  it drew 197, since it waits longer for each keyframe. Heaven beside the
+  watch never made it fall behind in the app on Windows 10 (Nov 20 2026): an
+  RTX 3070 Ti decoding an 11 Mbps H265 1080p60 share, windowed or full
+  screen on the other screen, kept 57.7 pictures a second. Its decode thread
+  suspended for 0.7 s every 2 s did, and each fall put the 4 s ask off
+  again, so none was asked while the falls lasted; since then a fall leaves
+  a waiting ask where it is (`falling_behind_before_the_ask_does_not_put_it_off`).
+  A share the GPU cannot
   decode, three keyframes in a row that fail (on Windows the first picture
   that fails once the device it decodes on was removed, since none decodes
   on it again), a runner that cannot import

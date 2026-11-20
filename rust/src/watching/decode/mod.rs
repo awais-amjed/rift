@@ -220,8 +220,8 @@ fn decode(
                 ),
                 Some(wait) => log::info!(
                     "watching: decoding fell {PENDING_FRAMES} {codec:?} frames behind again, \
-                     asking for a keyframe in {} s",
-                    wait.as_secs()
+                     asking for a keyframe in {:.1} s",
+                    wait.as_secs_f32()
                 ),
             }
         } else if frame.after_gap && !key && !chain.broken {
@@ -334,13 +334,17 @@ fn ask_for_keyframe(frame: &ReceivedEncodedFrame, asking: &mut Asking) {
 /// When a keyframe may be asked for. A decoder that keeps falling behind
 /// waits longer after each flush: the keyframe would reach every viewer, and
 /// this one would fall behind again soon after it. One that keeps up again
-/// for [`BEHIND_AGAIN_WITHIN`] asks at once.
+/// for [`BEHIND_AGAIN_WITHIN`] asks at once. A flush before the last one's
+/// ask leaves that ask where it was: each one put it off again, and a decoder
+/// falling behind more often than the wait never asked while it did.
 #[derive(Debug, Default)]
 struct Asking {
     /// No ask before this.
     not_before: Option<Instant>,
     last_flush: Option<Instant>,
     wait: Duration,
+    /// A flush's wait runs, and no keyframe was asked for since.
+    waiting: bool,
 }
 
 impl Asking {
@@ -354,10 +358,15 @@ impl Asking {
         if !again {
             self.wait = Duration::ZERO;
             self.not_before = None;
+            self.waiting = false;
             return None;
+        }
+        if let Some(at) = self.not_before.filter(|_| self.waiting) {
+            return Some(at.saturating_duration_since(now));
         }
         self.wait = (self.wait * 2).clamp(ASK_EVERY, MOST_WAIT_AFTER_FLUSH);
         self.not_before = Some(now + self.wait);
+        self.waiting = true;
         Some(self.wait)
     }
 
@@ -367,6 +376,7 @@ impl Asking {
             return false;
         }
         self.not_before = Some(now + ASK_EVERY);
+        self.waiting = false;
         true
     }
 }
@@ -487,6 +497,34 @@ mod tests {
         // Keeping up for long enough: the next flush is a passing stall.
         assert_eq!(asking.flushed(at(now + 10)), None);
         assert!(asking.may_ask(at(now + 10)));
+    }
+
+    #[test]
+    fn falling_behind_before_the_ask_does_not_put_it_off() {
+        // Falls every 2 s, closer together than the longest wait. Each fall
+        // gets its ask within MOST_WAIT_AFTER_FLUSH. Seen on Windows 10 (Nov
+        // 20): every fall moved the ask 4 s on, so none came while they lasted.
+        let start = Instant::now();
+        let mut asking = Asking::default();
+        let mut asks = Vec::new();
+        for tick in 0..=300u64 {
+            let now = start + Duration::from_millis(tick * 100);
+            if tick % 20 == 0 {
+                asking.flushed(now);
+            }
+            if asking.may_ask(now) {
+                asks.push(now);
+            }
+        }
+        for fall in (0..=300u64).step_by(20) {
+            let fall = start + Duration::from_millis(fall * 100);
+            assert!(
+                asks.iter()
+                    .any(|&ask| ask >= fall && ask <= fall + MOST_WAIT_AFTER_FLUSH),
+                "no keyframe asked within {MOST_WAIT_AFTER_FLUSH:?} of the fall at {:?}",
+                fall - start
+            );
+        }
     }
 
     #[test]
