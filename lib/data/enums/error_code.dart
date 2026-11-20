@@ -107,6 +107,12 @@ class ErrorCode {
   /// self-hosted server has no message quota.
   static const String quotaExceeded = 'quota_exceeded';
 
+  /// The account holds as much in a central bucket as it may: its DM files
+  /// for the last 31 days. Storage's refusal, carrying the message central's
+  /// `refuse_over_account_ceiling` raises; the space comes back as the
+  /// nightly sweep takes old files.
+  static const String accountStorageFull = 'account_storage_full';
+
   // ── Client-side ───────────────────────────────────────────────────────────────
   /// No socket: the connection was refused, or the host did not resolve.
   /// Minted by the client, not the server — when the server is down there is

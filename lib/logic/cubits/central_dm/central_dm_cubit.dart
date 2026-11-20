@@ -20,6 +20,7 @@ import '../../../data/classes/paged.dart';
 import '../../../data/classes/pending_attachment.dart';
 import '../../../data/constants.dart';
 import '../../../data/enums/app_sound.dart';
+import '../../../data/enums/error_code.dart';
 import '../../../data/enums/friendship_state.dart';
 import '../../../data/enums/home_surface.dart';
 import '../../../data/enums/notification_level.dart';

@@ -400,7 +400,10 @@ they can read that conversation (`chat_attachments_select`); a server from
 before that let any of its members fetch any file. On central a DM's file sits
 in its sender's folder, and only the sender and the people they have sent a DM
 to may fetch it (`dm_attachment_readable`); before Nov 18 2026 every account
-could, though only as ciphertext. Deleting a message has to delete its blobs, and
+could, though only as ciphertext. An account holds at most 1 GB and 5,000 DM files
+at a time, and the nightly sweep takes each after 31 days (`account_storage_ceiling`);
+past that Storage refuses the upload with `account_storage_full`, which the app
+puts into words. Deleting a message has to delete its blobs, and
 storage refuses a direct delete — so that path goes through an endpoint holding
 the Storage API rather than any database role.
 

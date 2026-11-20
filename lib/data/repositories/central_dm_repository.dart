@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide ErrorCode;
 
 import '../../logic/services/broadcast_payload.dart';
 import '../../logic/services/chat_message_ops.dart';
@@ -10,6 +10,7 @@ import '../classes/api_response.dart';
 import '../classes/friend.dart';
 import '../classes/friend_buckets.dart';
 import '../classes/paged.dart';
+import '../enums/error_code.dart';
 import '../enums/friendship_state.dart';
 import '../enums/notification_level.dart';
 import 'attachment_repository.dart';

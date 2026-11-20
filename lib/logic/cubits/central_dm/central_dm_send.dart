@@ -224,7 +224,16 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
         return false;
       }
       if (open()) _removePending(pendingId);
-      emit(state.copyWith(notice: Notice.error('Failed to upload attachment')));
+      // Central's file space for the account is used up: the one refusal
+      // with something the reader can act on, so it is said as it came.
+      final full = e.errorCode == ErrorCode.accountStorageFull;
+      emit(
+        state.copyWith(
+          notice: Notice.error(
+            full ? e.message : 'Failed to upload attachment',
+          ),
+        ),
+      );
       return open();
     } catch (e) {
       HelperMethods.printDebug('[CentralDM] send failed: $e');

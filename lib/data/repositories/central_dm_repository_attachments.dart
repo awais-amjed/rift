@@ -41,6 +41,13 @@ mixin _CentralDmAttachmentsMixin {
       );
       return APIResponse.success(uploaded);
     } catch (e) {
+      if (e is StorageException && e.message == ErrorCode.accountStorageFull) {
+        return APIResponse.error(
+          "You've used all the space for files in DMs. Files are kept for 31 "
+          'days, so room frees up as older ones are cleared.',
+          errorCode: ErrorCode.accountStorageFull,
+        );
+      }
       return CentralFailure.response(e);
     }
   }
