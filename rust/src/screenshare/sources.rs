@@ -173,7 +173,8 @@ pub(crate) fn list(capture_full_screen: bool) -> Vec<CaptureSource> {
     };
     let now = sharing();
     let listed = if capture_full_screen {
-        with_minimised(with_shared_screen(found, now), Vec::new())
+        let before: Vec<u64> = SCREENS.lock().unwrap().iter().map(|s| s.id).collect();
+        with_minimised(with_shared_screen(found, now, &before), Vec::new())
     } else {
         with_minimised(found, minimised_windows())
     };
@@ -258,9 +259,16 @@ impl Owners {
 /// screen left the switch dialog took it as the only one and switched to it
 /// (Nov 20 2026). A screen's id is its place among the display devices, so it
 /// is the same in either list.
+///
+/// It goes back where `before`, the last list of screens shown, had it: the
+/// capturer lists screens by GPU, not by id, and the dialog names a screen
+/// and keeps its pick by place. Put back by id, the shared screen was
+/// "Screen 1" when the share started and "Screen 2" in the switch, and the
+/// pick landed on the other screen. Never shown, it goes in by id.
 fn with_shared_screen(
     mut found: Vec<(u64, String)>,
     sharing: Option<Sharing>,
+    before: &[u64],
 ) -> Vec<(u64, String)> {
     let Some(Sharing {
         kind: DesktopCaptureSourceType::Screen,
@@ -270,7 +278,14 @@ fn with_shared_screen(
         return found;
     };
     if found.iter().all(|(listed, _)| *listed != id) {
-        let at = found.partition_point(|(listed, _)| *listed < id);
+        let at = match before.iter().position(|shown| *shown == id) {
+            // Before the first screen that came after it last time.
+            Some(place) => found
+                .iter()
+                .position(|(listed, _)| before[place + 1..].contains(listed))
+                .unwrap_or(found.len()),
+            None => found.partition_point(|(listed, _)| *listed < id),
+        };
         found.insert(at, (id, String::new()));
     }
     found
@@ -345,12 +360,12 @@ mod tests {
         // libwebrtc's list had only screen 1.
         let now = sharing(DesktopCaptureSourceType::Screen, 0);
         assert_eq!(
-            with_shared_screen(vec![window(1, "")], now),
+            with_shared_screen(vec![window(1, "")], now, &[]),
             vec![window(0, ""), window(1, "")]
         );
         let now = sharing(DesktopCaptureSourceType::Screen, 2);
         assert_eq!(
-            with_shared_screen(vec![window(0, ""), window(1, "")], now),
+            with_shared_screen(vec![window(0, ""), window(1, "")], now, &[]),
             vec![window(0, ""), window(1, ""), window(2, "")]
         );
     }
@@ -359,10 +374,28 @@ mod tests {
     fn a_listed_or_no_shared_screen_leaves_the_list_alone() {
         let found = vec![window(0, ""), window(1, "")];
         let screen = sharing(DesktopCaptureSourceType::Screen, 1);
-        assert_eq!(with_shared_screen(found.clone(), screen), found);
+        assert_eq!(with_shared_screen(found.clone(), screen, &[]), found);
         let window_shared = sharing(DesktopCaptureSourceType::Window, 7);
-        assert_eq!(with_shared_screen(found.clone(), window_shared), found);
-        assert_eq!(with_shared_screen(found.clone(), None), found);
+        assert_eq!(with_shared_screen(found.clone(), window_shared, &[]), found);
+        assert_eq!(with_shared_screen(found.clone(), None, &[]), found);
+    }
+
+    #[test]
+    fn a_shared_screen_goes_back_where_the_last_list_had_it() {
+        // Windows 10, Nov 20 2026: libwebrtc lists screens by GPU, so the
+        // Odyssey (display 1, on the NVIDIA card) came before the basic
+        // screen (display 0). Put back by number it moved to second, and the
+        // dialog's pick, kept by place, landed on the other screen.
+        let now = sharing(DesktopCaptureSourceType::Screen, 1);
+        assert_eq!(
+            with_shared_screen(vec![window(0, "")], now, &[1, 0]),
+            vec![window(1, ""), window(0, "")]
+        );
+        // A screen attached since keeps the capturer's place for it.
+        assert_eq!(
+            with_shared_screen(vec![window(0, ""), window(2, "")], now, &[1, 0]),
+            vec![window(1, ""), window(0, ""), window(2, "")]
+        );
     }
 
     #[test]
