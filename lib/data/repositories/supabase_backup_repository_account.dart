@@ -274,6 +274,11 @@ mixin _CentralAccountMixin {
   static String _deleteFailure(String code) => switch (code) {
     'reauthentication_needed' => 'Sign in again, then try once more.',
     'moderator_account' => 'A moderator account cannot be deleted here.',
+    // Central holds deletion for a day after a password change, so a
+    // stolen sign-in that changed it cannot also delete the account.
+    'password_changed_recently' =>
+      'The password changed less than a day ago. Deleting the account '
+          'opens again a day after a change.',
     'not_authenticated' => 'You are signed out. Sign in, then try again.',
     _ => "Couldn't delete the account. Try again in a moment.",
   };

@@ -151,7 +151,10 @@ the key too.
 **Deleting the account** (Settings → Account & backup) is central's
 `delete_account`. It asks for the password again and signs in with it, because the
 function refuses a session that did not begin with a password in the last ten
-minutes: a phone left unlocked is not enough to destroy an account. Every central
+minutes: a phone left unlocked is not enough to destroy an account. It also
+refuses for a day after the password changes (`password_changes`), because a
+session under a day old may set a password with no emailed code; the owner is
+emailed about the change and has that day to take the account back. Every central
 row cascades from the Auth user, so the function empties the person's Storage
 folders (the backup, DM files, bug-report logs, directory icons), then deletes the
 user. Auth keeps no record of sign-ins in the database for it to leave behind
