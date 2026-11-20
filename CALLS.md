@@ -213,8 +213,11 @@ duplicates every output to count them and leaves out a GPU whose output
 this process is already duplicating. While Rift's own duplication held the
 shared screen, the list showed only the other screen, and the dialog took
 it for the only one and switched to it, unasked (Nov 20 2026). The shared
-screen is now put back in its place in the list (`sources::with_shared_screen`);
-it has no thumbnail there, and the mark stands in. Not fixed: while
+screen is now put back in the list (`sources::with_shared_screen`) where the
+last list shown had it: libwebrtc lists screens by GPU, not by display
+number, and the dialog names a screen and keeps its pick by place, so put
+back by number the shared screen was renamed and the pick landed on the
+other one. It has no thumbnail there, and the mark stands in. Not fixed: while
 libwebrtc's own capturer runs a share, its screen list stays as it was when
 the share started, so a screen attached mid-share is not offered until the
 share ends.
@@ -223,7 +226,9 @@ Verified Nov 20 2026 with a Linux viewer watching throughout, sound read off
 its output: Linux X11 and Wayland switches (owner driving), and in the
 Windows 11 VM on its NVIDIA GPU, H264 window to window, window to screen,
 screen to a minimised window with a quality change while it waited, and a
-VP9 switch of one size. Not proven: a real X11 screen (Xwayland films a black
+VP9 switch of one size; in the Windows 10 VM on its NVIDIA GPU with two
+screens, the shared screen marked in its place while Rift's duplication held
+it, then screen to screen, screen to window and back. Not proven: a real X11 screen (Xwayland films a black
 one), and a Linux window closing after its new capture has started.
 
 ## A phone's share — [Implemented November 2026]
