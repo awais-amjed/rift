@@ -6,6 +6,7 @@
 #endif
 
 #include "flutter/generated_plugin_registrant.h"
+#include "call_clip/call_clip.h"
 #include "noise_filter/noise_filter.h"
 #include "seen_watch.h"
 #include "single_instance.h"
@@ -130,6 +131,7 @@ static void my_application_activate(GApplication* application) {
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
   rift::WatchSeen(window, view);
   rift::InstallNoiseFilter();
+  rift::InstallCallClip();
   rift::InstallStreamTextures(view);
 
   gtk_widget_grab_focus(GTK_WIDGET(view));

@@ -10,6 +10,7 @@
 
 #include "flutter/generated_plugin_registrant.h"
 #include "global_key_hook.h"
+#include "call_clip/call_clip.h"
 #include "noise_filter/noise_filter.h"
 #include "relaunch.h"
 #include "single_instance.h"
@@ -66,6 +67,7 @@ bool FlutterWindow::OnCreate() {
   }
   RegisterPlugins(flutter_controller_->engine());
   rift::InstallNoiseFilter();
+  rift::InstallCallClip();
   stream_textures_ =
       std::make_unique<rift::StreamTextures>(flutter_controller_->engine());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());

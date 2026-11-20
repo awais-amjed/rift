@@ -44,7 +44,8 @@ add_subdirectory("${CMAKE_SOURCE_DIR}/../native/noise_filter"
 target_link_libraries(${BINARY_NAME} PRIVATE rift_noise_filter)
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}/../native")
 target_link_options(${BINARY_NAME} PRIVATE
-  "LINKER:--export-dynamic-symbol=rift_noise_filter_*")
+  "LINKER:--export-dynamic-symbol=rift_noise_filter_*"
+  "LINKER:--export-dynamic-symbol=rift_call_clip_*")
 
 # The system's C++ unwinder goes ahead of Flutter's. Flutter 3.50's engine
 # exports a copy of LLVM's (_Unwind_RaiseException and the rest) and comes

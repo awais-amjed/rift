@@ -41,7 +41,11 @@ else()
   target_link_libraries(rnnoise PRIVATE m)
 endif()
 
+# The call's own sound kept for clips (native/call_clip) is built in here: it
+# reaches libwebrtc the same way, and takes the mic from the filter.
 add_library(rift_noise_filter STATIC
+  "../call_clip/call_clip.cc"
+  "../call_clip/clip_store.cc"
   "limiter.cc"
   "noise_filter.cc"
   "rate_converter.cc"

@@ -12,6 +12,7 @@
 #include <flutter_webrtc/flutter_web_r_t_c_plugin.h>
 #include <rnnoise.h>
 
+#include "../call_clip/call_clip.h"
 #include "limiter.h"
 #include "rate_converter.h"
 
@@ -158,6 +159,9 @@ class NoiseProcessing final
     Boost(num_frames, buffer);
     if (modelled) timings_.Add(std::chrono::steady_clock::now() - start);
     Gate(num_frames, buffer);
+    // What the call now hears from this microphone, for clips that include
+    // it (native/call_clip). It only reads, and returns at once while off.
+    CallClipMic(buffer, num_frames, num_frames * 100);
   }
 
   void TakeTimings(int64_t* out) { timings_.Take(out); }
