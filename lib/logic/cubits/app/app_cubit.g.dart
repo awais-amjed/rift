@@ -16,6 +16,9 @@ AppState _$AppStateFromJson(Map<String, dynamic> json) => AppState(
   callShortcuts: json['callShortcuts'] == null
       ? const CallShortcuts()
       : CallShortcuts.fromJson(json['callShortcuts'] as Map<String, dynamic>),
+  clippingEnabled: json['clippingEnabled'] as bool? ?? false,
+  clipSeconds: (json['clipSeconds'] as num?)?.toInt() ?? 60,
+  clipIncludeMic: json['clipIncludeMic'] as bool? ?? false,
   desktopShortcutsGranted:
       (json['desktopShortcutsGranted'] as List<dynamic>?)
           ?.map((e) => e as String)
@@ -136,6 +139,9 @@ Map<String, dynamic> _$AppStateToJson(AppState instance) => <String, dynamic>{
   'pushToTalkKeyId': instance.pushToTalkKeyId,
   'pushToTalkKeyLabel': instance.pushToTalkKeyLabel,
   'callShortcuts': instance.callShortcuts.toJson(),
+  'clippingEnabled': instance.clippingEnabled,
+  'clipSeconds': instance.clipSeconds,
+  'clipIncludeMic': instance.clipIncludeMic,
   'desktopShortcutsGranted': instance.desktopShortcutsGranted,
   'desktopShortcutsRefused': instance.desktopShortcutsRefused,
   'titleBarVisible': instance.titleBarVisible,

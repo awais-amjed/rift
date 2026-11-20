@@ -11,6 +11,10 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
   ScreenshareCubit? get _screenshareCubit;
   void _syncParticipants({bool speakingOnly});
   Future<void> _publishSelfState();
+  ClipRecorder get _clipRecorder;
+  void _syncClipping();
+  void _noticeClippers();
+  void _hearClip(Participant from, int seconds);
 
   /// Implemented by [_LiveKitConnectionMixin]; a dropped call joins again
   /// through the same path as a click.
@@ -51,9 +55,14 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
       ..on<RoomConnectedEvent>((e) => _applyVoicePrivacy(e.room))
       // A full reconnect starts a server session that lets everyone hear you
       // and publishes the mic again before this hears it is back.
-      ..on<RoomReconnectingEvent>((e) => _holdMicThroughRestart())
+      ..on<RoomReconnectingEvent>((e) {
+        _holdMicThroughRestart();
+        // Nothing is kept while the room may not have the clipping flag.
+        _clipRecorder.pause();
+      })
       ..on<RoomReconnectedEvent>((e) {
         _releaseMicAfterRestart();
+        _syncClipping();
         emit(state.copyWith(arrivals: state.arrivals + 1));
       })
       ..on<TrackE2EEStateEvent>(_noteDecryption)
@@ -79,6 +88,7 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
         }
         _syncParticipants();
         _applyStoredSettings();
+        _noticeClippers();
       })
       ..on<ParticipantDisconnectedEvent>((e) {
         final identity = e.participant.identity;
@@ -233,6 +243,9 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
         if (VoiceAttributes.onlyReceives(e.attributes)) return;
         _syncParticipants();
         _cueWatching(e);
+        if (e.attributes.containsKey(VoiceAttributes.clippingKey)) {
+          _noticeClippers();
+        }
       })
       ..on<ParticipantPermissionsUpdatedEvent>((e) => _syncParticipants())
       // Two things arrive on the data channel, and which one a packet is
@@ -282,7 +295,17 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
             userId: ParticipantIdentity.userIdOf(e.participant!.identity),
             soundId: soundId,
           );
+          return;
         }
+
+        // Somebody kept the last stretch of the call (CALLS.md, *Clipping a
+        // call*). Told at most once a minute per person, decided here.
+        final clipped = ClipSignal.secondsOf(
+          data: e.data,
+          topic: e.topic,
+          fromParticipant: e.participant != null,
+        );
+        if (clipped != null) _hearClip(e.participant!, clipped);
       })
       ..on<RoomDisconnectedEvent>((e) {
         // Only handle unexpected disconnects; intentional disconnects set state beforehand.

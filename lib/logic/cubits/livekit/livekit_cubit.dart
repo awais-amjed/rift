@@ -11,6 +11,7 @@ import '../../../data/apis/moderation_api.dart';
 import '../../../data/apis/voice_api.dart';
 import '../../../data/apis/voice_bots_api.dart';
 import '../../../data/classes/api_response.dart';
+import '../../../data/classes/call_clip_audio.dart';
 import '../../../data/classes/call_to_resume.dart';
 import '../../../data/classes/channel.dart';
 import '../../../data/classes/dm_call_place.dart';
@@ -30,6 +31,10 @@ import '../../helper_methods.dart';
 import '../../services/audio_devices.dart';
 import '../../services/audio_reception.dart';
 import '../../services/before_quit.dart';
+import '../../services/call_clip/call_clip_native.dart';
+import '../../services/call_clip/clip_notice_rules.dart';
+import '../../services/call_clip/clip_recorder.dart';
+import '../../services/call_clip/clip_signal.dart';
 import '../../services/call_foreground_service.dart';
 import '../../services/call_volume.dart';
 import '../../services/channel_keyring.dart';
@@ -73,6 +78,7 @@ import '../vault/vault_cubit.dart';
 
 part 'livekit_audio_reception.dart';
 part 'livekit_capture_revive.dart';
+part 'livekit_clipping.dart';
 part 'livekit_connection.dart';
 part 'livekit_dm_call.dart';
 part 'livekit_e2ee.dart';
@@ -108,9 +114,18 @@ class LiveKitCubit extends Cubit<LiveKitState>
         _RustWatchMixin,
         _VoiceActivityMixin,
         _CaptureReviveMixin,
-        _WatchRequestMixin {
+        _WatchRequestMixin,
+        _ClippingMixin {
   @override
   final AppCubit _appCubit;
+
+  @override
+  late final ClipRecorder _clipRecorder = ClipRecorder(
+    CallClipNative.platform(),
+    publish: _publishClipping,
+  );
+  @override
+  final ClipNoticeRules _clipRules = ClipNoticeRules();
   @override
   final TokenCubit _tokenCubit;
   @override
@@ -232,6 +247,18 @@ class LiveKitCubit extends Cubit<LiveKitState>
     // state has changed, which is what it reads.
     if (change.nextState.leftCall(change.currentState)) {
       unawaited(Future(_followShares));
+      _clipRules.reset();
+    }
+    // Clipping stops the moment the connection is not the call's any more,
+    // and starts again only once the flag has gone round the room it is in.
+    final wasConnected =
+        change.currentState.connectionState == LiveKitConnectionState.connected;
+    final isConnected =
+        change.nextState.connectionState == LiveKitConnectionState.connected;
+    if (wasConnected && !isConnected) _clipRecorder.pause();
+    if (wasConnected != isConnected ||
+        change.nextState.callKey != change.currentState.callKey) {
+      unawaited(Future(_syncClipping));
     }
   }
 
@@ -362,6 +389,9 @@ class LiveKitCubit extends Cubit<LiveKitState>
         isPushToTalkIdle: p is LocalParticipant
             ? _pushToTalkIdle
             : VoiceAttributes.isPushToTalkIdle(p.attributes),
+        isClipping: p is LocalParticipant
+            ? _clipRecorder.flagged
+            : VoiceAttributes.isClipping(p.attributes),
         isSharePaused:
             ParticipantIdentity.isScreenshare(p.identity) &&
             VoiceAttributes.isSharePaused(p.attributes),
@@ -454,6 +484,12 @@ class LiveKitCubit extends Cubit<LiveKitState>
   void _onAppStateChanged(AppState appState) {
     final previous = _lastAppState;
     _lastAppState = appState;
+
+    if (previous.clippingEnabled != appState.clippingEnabled ||
+        previous.clipSeconds != appState.clipSeconds ||
+        previous.clipIncludeMic != appState.clipIncludeMic) {
+      _syncClipping();
+    }
 
     // Audio-processing toggles: recreate the mic track so the new capture
     // constraints apply mid-call. Of the noise choice, only whether
@@ -773,12 +809,20 @@ class LiveKitCubit extends Cubit<LiveKitState>
   /// is watching the rest of the effects of.
   @override
   Future<void> _publishSelfState() async {
-    if (state.room?.localParticipant == null) return;
+    await _publishSelfStateChecked();
+  }
+
+  /// [_publishSelfState], answering whether the room has the attributes —
+  /// what clipping waits for before it keeps anything.
+  @override
+  Future<bool> _publishSelfStateChecked() async {
+    if (state.room?.localParticipant == null) return false;
     final plays = await ViewerCodecs.forCall(
       rustWatchGaveOut: _rustWatchGaveOut,
     );
     final local = state.room?.localParticipant;
-    if (local == null) return;
+    if (local == null) return false;
+    var told = false;
     try {
       await local.setAttributes(
         VoiceAttributes.forSelf(
@@ -786,15 +830,17 @@ class LiveKitCubit extends Cubit<LiveKitState>
           watching: state.subscribedScreenshares,
           pushToTalkIdle: _pushToTalkIdle,
           plays: plays,
-          clipping: false,
+          clipping: _clipFlag,
         ),
       );
+      told = true;
     } catch (e) {
       HelperMethods.printDebug('[LiveKit] publishing own state: $e');
     }
     // Our own row reads what we watch from the cubit, so a stream's watchers
     // include us as soon as we open it.
     if (!isClosed) _syncParticipants();
+    return told;
   }
 
   /// Who is watching this device's screen share and what each can play, for
@@ -873,6 +919,14 @@ class LiveKitCubit extends Cubit<LiveKitState>
   @override
   Future<void> close() async {
     BeforeQuit.instance.remove(_leaveOnQuit);
+    _clipRecorder.pause();
+    await _clipRecorder.update(
+      enabled: false,
+      connected: false,
+      inCall: false,
+      seconds: 0,
+      includeMic: false,
+    );
     _cancelPushToTalkRelease();
     await _appSubscription?.cancel();
     await _cleanupRoom();

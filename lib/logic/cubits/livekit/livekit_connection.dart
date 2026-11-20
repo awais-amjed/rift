@@ -30,6 +30,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
   /// Implemented by the cubit: tells the room what this client is doing that
   /// it cannot see for itself.
   Future<void> _publishSelfState();
+  void _noticeClippers();
 
   /// See `_RustWatchMixin`: starts over with each room.
   set _rustWatchGaveOut(bool gaveOut);
@@ -405,6 +406,8 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       _syncParticipants();
       _applyStoredSettings();
       unawaited(_followShares());
+      // Those already here with clipping on, said once for the call.
+      _noticeClippers();
       return false;
     } catch (e) {
       HelperMethods.printDebug('[LiveKit] room.connect() threw: $e');

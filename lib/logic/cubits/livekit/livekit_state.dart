@@ -130,6 +130,11 @@ class LiveKitState extends Equatable {
   /// `NoticeListeners`: so far, that the microphone could not be opened.
   final Notice? notice;
 
+  /// Clips taken with the shortcut and not yet opened in the trim view,
+  /// oldest first (`ClipRecorder.maxQueued` at most). Kept through a rejoin
+  /// of the same call, dropped with the call.
+  final List<CallClipAudio> pendingClips;
+
   const LiveKitState({
     this.connectionState = LiveKitConnectionState.disconnected,
     this.room,
@@ -157,6 +162,7 @@ class LiveKitState extends Equatable {
     this.listeningOnlyTo,
     this.voiceOnlyFor,
     this.notice,
+    this.pendingClips = const [],
   });
 
   /// In a call of either kind, connected or on the way.
@@ -336,6 +342,7 @@ class LiveKitState extends Equatable {
     Set<String>? voiceOnlyFor,
     bool clearVoiceOnlyFor = false,
     Notice? notice,
+    List<CallClipAudio>? pendingClips,
     bool clearStreamToOpen = false,
     bool clearRoom = false,
     bool clearChannelId = false,
@@ -406,6 +413,7 @@ class LiveKitState extends Equatable {
           ? (voiceOnlyFor ?? this.voiceOnlyFor)
           : null,
       notice: notice ?? this.notice,
+      pendingClips: sameCall ? (pendingClips ?? this.pendingClips) : const [],
     );
   }
 
@@ -437,5 +445,6 @@ class LiveKitState extends Equatable {
     listeningOnlyTo,
     voiceOnlyFor,
     notice,
+    pendingClips,
   ];
 }

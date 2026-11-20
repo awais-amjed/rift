@@ -51,6 +51,11 @@ class ParticipantInfo {
   /// refusing to talk, just not talking yet.
   final bool isPushToTalkIdle;
 
+  /// They keep the last stretch of the call for clips — see
+  /// `VoiceAttributes.clippingKey`. Marked beside their name for as long as
+  /// it lasts, since a toast is easy to miss.
+  final bool isClipping;
+
   /// A screen share whose window is minimised or gone, so its picture is
   /// standing still — see `VoiceAttributes.isSharePaused`. False for anything
   /// else.
@@ -83,6 +88,7 @@ class ParticipantInfo {
     this.isServerMuted = false,
     this.isServerDeafened = false,
     this.isPushToTalkIdle = false,
+    this.isClipping = false,
     this.isSharePaused = false,
     this.shareQuality,
     this.watching = const {},
@@ -107,6 +113,7 @@ class ParticipantInfo {
     isServerMuted: isServerMuted,
     isServerDeafened: isServerDeafened,
     isPushToTalkIdle: isPushToTalkIdle,
+    isClipping: isClipping,
     isSharePaused: isSharePaused,
     shareQuality: shareQuality,
     watching: watching,
@@ -133,6 +140,7 @@ class ParticipantInfo {
       isServerMuted == other.isServerMuted &&
       isServerDeafened == other.isServerDeafened &&
       isPushToTalkIdle == other.isPushToTalkIdle &&
+      isClipping == other.isClipping &&
       isSharePaused == other.isSharePaused &&
       shareQuality == other.shareQuality &&
       setEquals(watching, other.watching);

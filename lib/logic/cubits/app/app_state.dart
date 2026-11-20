@@ -20,6 +20,16 @@ class AppState extends Equatable {
   /// Keys for mute, deafen and leave call, heard from anywhere.
   final CallShortcuts callShortcuts;
 
+  /// Keeping the last stretch of every call for the clip shortcut, on
+  /// Windows and Linux. The call is told (CALLS.md, *Clipping a call*).
+  final bool clippingEnabled;
+
+  /// How much a clip holds: 30, 60 or 120 seconds.
+  final int clipSeconds;
+
+  /// Whether a clip holds this person's own microphone beside the call.
+  final bool clipIncludeMic;
+
   /// The desktop's shortcut ids (Linux portal) it answered for last, so a
   /// refused dialog can fall back on them even straight after a launch: the
   /// desktop keeps its grants between runs, and one Cancel used to drop
@@ -332,6 +342,9 @@ class AppState extends Equatable {
     this.pushToTalkKeyId,
     this.pushToTalkKeyLabel,
     this.callShortcuts = const CallShortcuts(),
+    this.clippingEnabled = false,
+    this.clipSeconds = 60,
+    this.clipIncludeMic = false,
     this.desktopShortcutsGranted = const [],
     this.desktopShortcutsRefused = const [],
     this.titleBarVisible = true,
@@ -429,6 +442,9 @@ class AppState extends Equatable {
     String? pushToTalkKeyLabel,
     bool clearPushToTalkKeybind = false,
     CallShortcuts? callShortcuts,
+    bool? clippingEnabled,
+    int? clipSeconds,
+    bool? clipIncludeMic,
     List<String>? desktopShortcutsGranted,
     List<String>? desktopShortcutsRefused,
     bool? titleBarVisible,
@@ -512,6 +528,9 @@ class AppState extends Equatable {
           ? null
           : (pushToTalkKeyLabel ?? this.pushToTalkKeyLabel),
       callShortcuts: callShortcuts ?? this.callShortcuts,
+      clippingEnabled: clippingEnabled ?? this.clippingEnabled,
+      clipSeconds: clipSeconds ?? this.clipSeconds,
+      clipIncludeMic: clipIncludeMic ?? this.clipIncludeMic,
       desktopShortcutsGranted:
           desktopShortcutsGranted ?? this.desktopShortcutsGranted,
       desktopShortcutsRefused:
@@ -636,6 +655,9 @@ class AppState extends Equatable {
     pushToTalkKeyId,
     pushToTalkKeyLabel,
     callShortcuts,
+    clippingEnabled,
+    clipSeconds,
+    clipIncludeMic,
     desktopShortcutsGranted,
     desktopShortcutsRefused,
     titleBarVisible,

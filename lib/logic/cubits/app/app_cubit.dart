@@ -109,6 +109,27 @@ class AppCubit extends HydratedCubit<AppState> {
     emit(state.copyWith(pushToTalkEnabled: enabled));
   }
 
+  // ── Clipping ───────────────────────────────────────────────
+
+  /// The lengths a clip can be, in seconds.
+  static const List<int> clipLengths = [30, 60, 120];
+
+  void setClippingEnabled(bool enabled) {
+    emit(state.copyWith(clippingEnabled: enabled));
+  }
+
+  /// One of [clipLengths]; anything else is taken as the nearest of them.
+  void setClipSeconds(int seconds) {
+    final nearest = clipLengths.reduce(
+      (a, b) => (a - seconds).abs() <= (b - seconds).abs() ? a : b,
+    );
+    emit(state.copyWith(clipSeconds: nearest));
+  }
+
+  void setClipIncludeMic(bool include) {
+    emit(state.copyWith(clipIncludeMic: include));
+  }
+
   void setPushToTalkKeybind({required int keyId, required String label}) {
     emit(state.copyWith(pushToTalkKeyId: keyId, pushToTalkKeyLabel: label));
   }
