@@ -165,6 +165,67 @@ share and both bot SDKs had it off already. RED, Opus's spare copy of each
 packet, is off as well. Both SDKs leave it out of an encrypted call, and
 every call is encrypted.
 
+## Switching what a share shows — [Implemented November 2026, Windows and Linux]
+
+A running desktop share can move to another screen or window from its menu
+(**Switch screen or window**) without stopping. It keeps its connection, the
+share's own participant, so whoever is watching goes on watching: before it,
+the only way was Stop and share again, which gave viewers a new stream, and
+they often had to press Watch again. Phone and browser shares have no such
+item.
+
+The dialog opens in a switch mode: Screen or Window, then the list, whose
+button says Switch. It asks nothing about quality, which the menu changes
+live already. The source shared now is marked **Sharing now** in the list,
+from Rust, which knows what it captures, and cannot be picked. A switch
+always shows the list, even of one screen, where a new share starts on a
+lone screen at once: that screen is likely the one already shared.
+
+**The order differs by platform.** On Windows the old capture stops before
+the new one starts: a share has one GPU device, and a screen can be
+duplicated once per process. The pick was made in Rift's own list, so the
+gap is only the capture's start, about 200 ms window to window. On Linux
+the new capture starts beside the old one, and the old one stops at the
+new one's first picture. Under Wayland the desktop's picker comes up only
+after the switch is asked, and viewers keep the old picture while it is
+open. A Stop pressed while that picker waits ends the share at once
+(`screenshare::stops`), and a picker closed without a choice says nothing
+and leaves the share as it was.
+
+**What the viewer sees.** A GPU share re-encodes on the same track at the
+new size. A VP9 switch between sources of one size keeps everything, and
+nothing blinks. A switch to a minimised window on Windows takes the picture
+down and waits ("Paused — the shared window is hidden" for the viewer); the
+window's opening publishes a fresh one at whatever quality was set
+meanwhile, and the viewer gets it without pressing Watch.
+
+**Sound follows the new source.** On Windows a window's sound is its
+process's, and a screen's is everything but Rift. On Linux a switch to a
+window with sound on asks for its sound the way a new share does (the
+sound step); a switch to a screen keeps the sound already chosen.
+
+**If the new source fails**, Linux still has the old capture running, so
+the share carries on and the sharer is told. On Windows the share ends with
+the reason, as a failed quality change does.
+
+**Windows 10 lists screens with libwebrtc's DXGI capturer,** which
+duplicates every output to count them and leaves out a GPU whose output
+this process is already duplicating. While Rift's own duplication held the
+shared screen, the list showed only the other screen, and the dialog took
+it for the only one and switched to it, unasked (Nov 20 2026). The shared
+screen is now put back in its place in the list (`sources::with_shared_screen`);
+it has no thumbnail there, and the mark stands in. Not fixed: while
+libwebrtc's own capturer runs a share, its screen list stays as it was when
+the share started, so a screen attached mid-share is not offered until the
+share ends.
+
+Verified Nov 20 2026 with a Linux viewer watching throughout, sound read off
+its output: Linux X11 and Wayland switches (owner driving), and in the
+Windows 11 VM on its NVIDIA GPU, H264 window to window, window to screen,
+screen to a minimised window with a quality change while it waited, and a
+VP9 switch of one size. Not proven: a real X11 screen (Xwayland films a black
+one), and a Linux window closing after its new capture has started.
+
 ## A phone's share — [Implemented November 2026]
 
 An Android phone's share goes through LiveKit's SDK, on MediaProjection, not
