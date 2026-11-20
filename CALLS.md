@@ -1463,7 +1463,10 @@ what was driven are in `TESTING.md`).
   after it are dropped before the pass-through encoder, and the keyframe that
   mends the chain fills the window again. Not fixed yet: libwebrtc can lower
   the target instead of dropping frames (`WebRTC-CongestionWindow` without
-  `DropFrame`), which is a change to the fork. Also seen: a share started at
+  `DropFrame`), which is a change to the fork, and not needed above a few hundred kbps: at
+  1 Mbps the chain broke once as the limit began, then not at all for three
+  minutes (libwebrtc counted 1 frame dropped, then none), 52 to 60 pictures a
+  second at 360p, the pacer 0 to 20 ms behind. Also seen: a share started at
   1080p on that link sent one 205 KB keyframe of noise, which held a 30 kbps
   gate shut for most of a minute. The viewer gave up on Rust's picture after
   6 s, and the share moved to VP9.
