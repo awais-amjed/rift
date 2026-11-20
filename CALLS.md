@@ -1471,6 +1471,16 @@ what was driven are in `TESTING.md`).
   gate shut for most of a minute. The viewer gave up on Rust's picture after
   6 s, and the share moved to VP9.
 
+  The same Windows 10 run with the fix (Nov 20, later): the estimate no
+  longer sat at the floor but moved between 0.03 and 0.25 Mbps, the share
+  sent about what it asked, the pacer 0 to 80 ms behind (once 266 ms) instead
+  of 1.3 s, and nothing was lost. Smoothness stepped to 720p, 540p and 360p at
+  4, 11 and 18 s, and freed it climbed back in 13, 26 and 39 s. At 360p the
+  chain broke 0 to 13 times in 5 s: some stretches ran at 60 pictures a second
+  with no keyframe, others fell to one a second, every picture a keyframe,
+  for up to 20 s. Balanced's re-encodes after its frame-rate step now name
+  30 fps.
+
 ### H264 in High profile — [Implemented October 2026, off Oct 29 to Nov 7 2026]
 
 A GPU share's H264 goes out in High profile instead of constrained baseline:
