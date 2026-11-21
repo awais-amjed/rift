@@ -16,6 +16,7 @@ mixin _CentralDmReadyMixin
     on Cubit<CentralDmState>, _CentralDmUnreadMixin, _CentralDmPinsMixin {
   @override
   CentralDmRepository get _repo;
+  SupabaseBackupRepository get _backups;
   VaultCubit get _vaultCubit;
 
   /// Owned by the hub, which is also what closes it — see `_teardown`.
@@ -31,6 +32,7 @@ mixin _CentralDmReadyMixin
   void _onIncoming(String senderId);
   void _onMessageUpdated(String messageId, String senderId);
   void _onGraphChanged();
+  void _onIncomingStatus(RealtimeSubscribeStatus status);
   @override
   void _onReadElsewhere(String? peerId);
 
@@ -78,7 +80,8 @@ mixin _CentralDmReadyMixin
   }
 
   /// Ask central again now, rather than at the next scheduled retry — the
-  /// "Try again" under the can't-reach state.
+  /// "Try again" under the can't-reach state, and what the app calls once a
+  /// backup conflict has been answered (`CentralVaultListener`).
   Future<void> retryReady() {
     _clearReadyRetry();
     return _ensureReady();
@@ -117,16 +120,37 @@ mixin _CentralDmReadyMixin
     }
   }
 
+  /// The seed the live account was set up with.
+  ///
+  /// A cloud backup restored over this device's vault swaps the seed in
+  /// place, with the session still up. Every DM key worked out before then
+  /// is the old seed's, and so is everything this device published, so a
+  /// ready account whose seed has moved is set up again from the start.
+  String? _activeSeed;
+
+  /// Implemented by the hub: drop the open conversation's saved copy without
+  /// writing it, when what it was kept under is going away.
+  void _forgetOpenCopy();
+
   /// One pass: session, vault, then the directory profile behind them.
   Future<void> _readyPass() async {
     final user = _repo.currentUser;
-    if (user == null || _vaultCubit.state.masterSeed == null) {
+    final seed = _vaultCubit.state.masterSeed;
+    if (user == null || seed == null) {
       _clearReadyRetry();
+      _activeSeed = null;
       await _teardown();
       emit(const CentralDmState(status: CentralDmStatus.signedOut));
       return;
     }
-    if (state.status == CentralDmStatus.ready && _incoming != null) return;
+    if (state.status == CentralDmStatus.ready && _incoming != null) {
+      if (seed == _activeSeed) return;
+      _activeSeed = null;
+      _forgetOpenCopy();
+      await _teardown();
+      if (isClosed) return;
+      emit(const CentralDmState(status: CentralDmStatus.error));
+    }
 
     final profileResponse = await _repo.getMyProfile();
     if (isClosed) return;
@@ -150,7 +174,11 @@ mixin _CentralDmReadyMixin
       return;
     }
 
-    await _activateProfile(profile['handle'] as String);
+    await _activateProfile(
+      profile['handle'] as String,
+      seed: seed,
+      published: profile,
+    );
   }
 
   /// Drop an error the user has moved on from.
@@ -189,7 +217,9 @@ mixin _CentralDmReadyMixin
       return false;
     }
     emit(state.copyWith(claiming: false));
-    await _activateProfile(normalized);
+    final seed = _vaultCubit.state.masterSeed;
+    if (seed == null) return false;
+    await _activateProfile(normalized, seed: seed);
     return true;
   }
 
@@ -212,22 +242,76 @@ mixin _CentralDmReadyMixin
   Future<void> _onPushTokenAsync() async {
     final token = PushService.instance.token.value;
     if (token == null || isClosed) return;
-    await _repo.registerDevice(token: token, platform: PushService.platform);
+    final response = await _repo.registerDevice(
+      token: token,
+      platform: PushService.platform,
+    );
+    if (!response.success) {
+      // Most often the token is still another account's: one that used this
+      // phone and never signed out. Central keeps it with them, so this
+      // device is not rung for Rift DMs until that account lets it go.
+      HelperMethods.printDebug(
+        '[CentralDm] push registration refused: ${response.error}',
+      );
+    }
   }
 
-  Future<void> _activateProfile(String handle) async {
-    // Keep the published keys in sync with the seed-derived identity (a
-    // restored seed on a new device re-derives the same keys, so this is
-    // normally a no-op).
+  /// Whether the account's cloud backup is this device's vault, or there is
+  /// none yet (the backup cubit then uploads this one). Null when it could
+  /// not be read.
+  Future<bool?> _accountIsThisVault() async {
+    final response = await _backups.downloadBackup();
+    if (!response.success) return null;
+    final backup = response.data as String?;
+    if (backup == null) return true;
+    return _vaultCubit.isBackupOfThisVault(backup);
+  }
+
+  /// Become ready as [handle], with the keys [seed] derives.
+  ///
+  /// [published] is the account's directory row as read, when it was read
+  /// rather than just written by [claimHandle].
+  Future<void> _activateProfile(
+    String handle, {
+    required String seed,
+    Map<String, dynamic>? published,
+  }) async {
     final chat = await _vaultCubit.getChatIdentityForHost(_centralHost);
     final signing = await _vaultCubit.getIdentityForHost(_centralHost);
-    unawaited(
-      _repo.upsertProfile(
+    if (isClosed || _vaultCubit.state.masterSeed != seed) return;
+    if (published != null &&
+        (published['chat_public_key'] != chat.publicKeyBase64 ||
+            published['signing_public_key'] != signing.publicKeyBase64)) {
+      // The account published another vault's keys. Writing this device's
+      // over them used to happen on sign-in, before the backup conflict it
+      // comes with had been answered: every friend saw "Key changed" and
+      // sealed to keys nobody would keep if the cloud backup was chosen.
+      // They are this device's to publish only once the account's backup
+      // is this vault — or there is none, and this vault becomes it.
+      final adopted = await _accountIsThisVault();
+      if (isClosed || _vaultCubit.state.masterSeed != seed) return;
+      if (adopted == null) {
+        emit(state.copyWith(status: CentralDmStatus.error));
+        _scheduleReadyRetry();
+        return;
+      }
+      if (!adopted) {
+        emit(state.copyWith(status: CentralDmStatus.otherVault));
+        return;
+      }
+      final response = await _repo.upsertProfile(
         handle: handle,
         chatPublicKey: chat.publicKeyBase64,
         signingPublicKey: signing.publicKeyBase64,
-      ),
-    );
+      );
+      if (isClosed) return;
+      if (!response.success) {
+        emit(state.copyWith(status: CentralDmStatus.error));
+        _scheduleReadyRetry();
+        return;
+      }
+    }
+    _activeSeed = seed;
 
     unawaited(_registerDevice());
     _incoming ??= _repo.subscribeIncoming(
@@ -237,6 +321,7 @@ mixin _CentralDmReadyMixin
       onRead: _onReadElsewhere,
       onGraphChanged: _onGraphChanged,
       onPinChanged: _onPinChanged,
+      onStatus: _onIncomingStatus,
     );
     emit(state.copyWith(status: CentralDmStatus.ready, myHandle: handle));
     // Before the conversations: the graph is what decides whether each of them

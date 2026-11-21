@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart' hide ErrorCode;
@@ -262,6 +263,8 @@ class CentralDmRepository
   /// moved on one, [onGraphChanged] for a
   /// friendship or a block, and [onPinChanged] for a pin either side moved.
   ///
+  /// [onStatus] hears each join, so a rejoin can read what was missed.
+  ///
   /// Both DM callbacks carry the peer, so the caller can re-read that one
   /// conversation instead of the whole list.
   ///
@@ -277,6 +280,7 @@ class CentralDmRepository
     required void Function(String? peerId) onRead,
     required void Function() onGraphChanged,
     required void Function(String peerId, String messageId) onPinChanged,
+    void Function(RealtimeSubscribeStatus status)? onStatus,
   }) {
     final myId = _client.auth.currentUser!.id;
     final channel =
@@ -324,7 +328,12 @@ class CentralDmRepository
                 onRead(BroadcastPayload.stringOf(message, 'scope_id')),
           )
           ..onBroadcast(event: 'graph', callback: (_) => onGraphChanged())
-          ..subscribe();
+          // Each join, the first and every one after a dropped connection.
+          // A microtask later: realtime_client calls this from inside its
+          // walk over the socket's channels (see `ServerRealtime._sendJoin`).
+          ..subscribe(
+            (status, _) => scheduleMicrotask(() => onStatus?.call(status)),
+          );
     return channel;
   }
 

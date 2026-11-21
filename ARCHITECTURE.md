@@ -138,6 +138,16 @@ wrapped by the account password like any other, so a new device restores with
 nothing else typed. And a device signing in to a backup of its own vault — the
 same seed — combines the two rather than asking which identity to keep.
 
+A device whose vault is *another* identity's waits for the answer. Until the
+person picks one, Rift DMs publish nothing and read nothing: the account's
+directory row keeps the keys of the vault its backup holds, and the device says
+"Choose which vault to keep" (`CentralDmStatus.otherVault`). Signing in used to
+write this device's keys over them at once, before the question was answered, and
+friends sealed to a vault that restoring the backup then threw away (found in
+review, Nov 21 2026). Keeping this device's vault replaces the backup, and the keys
+go up after it; restoring the backup replaces the seed in place, and Rift DMs set
+themselves up again under it.
+
 A **recovery key**, shown once at vault creation, is the second door. Central
 cannot reset a password into a readable vault — resetting the credential half
 leaves the ciphertext exactly as unreadable as before. That is the honest
@@ -173,7 +183,10 @@ Central also runs the **public server directory** (opt-in, each listing proved b
 a token the server's admin mints) and the **push relay**, which exists because an
 FCM token is scoped to the app's Firebase project, so a self-hosted server cannot
 wake its own members' phones. Relaying teaches central a device token and a
-moment: not the sender, not the text, not the server or the channel.
+moment: not the sender, not the text, not the server or the channel. A token stays
+with the account that registered it (`device_tokens_own`), so signing out deletes
+this device's first; left behind, it went on ringing the phone for the account that
+had left, and the next account signed in there was never rung.
 
 ---
 

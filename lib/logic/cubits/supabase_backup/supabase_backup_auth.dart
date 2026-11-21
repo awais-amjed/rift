@@ -5,6 +5,7 @@ part of 'supabase_backup_cubit.dart';
 /// and a vault password (ARCHITECTURE.md §3) before anything is sent.
 mixin _SupabaseBackupAuthMixin on Cubit<SupabaseBackupState> {
   SupabaseBackupRepository get _repo;
+  CentralDmRepository get _devices;
   CryptoRepository get _crypto;
   Timer? get _autoBackupTimer;
   set _accountVaultPassword(String? value);
@@ -191,9 +192,26 @@ mixin _SupabaseBackupAuthMixin on Cubit<SupabaseBackupState> {
   }
 
   /// Signs out of the central server. The local vault is untouched.
+  ///
+  /// This device's push registration goes first, while the session can still
+  /// delete it. A token stays with the account that registered it (central
+  /// refuses another account's claim on it), so one left behind went on
+  /// waking this phone for the account that left, and the next account to
+  /// sign in here was never rung.
   Future<void> signOut() async {
     _intentionalSignOut = true;
     emit(state.copyWith(isProcessing: true, clearMessage: true));
+    final token = PushService.isSupported
+        ? PushService.instance.token.value
+        : null;
+    if (token != null) {
+      final forgotten = await _devices.unregisterDevice(token);
+      if (!forgotten.success) {
+        HelperMethods.printDebug(
+          '[SupabaseBackup] push registration not removed: ${forgotten.error}',
+        );
+      }
+    }
     final response = await _repo.signOut();
     if (!response.success) {
       HelperMethods.printDebug(

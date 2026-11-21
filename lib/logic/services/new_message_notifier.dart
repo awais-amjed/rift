@@ -20,6 +20,9 @@ class NewMessageNotifier {
   final Map<String, int> _newest = {};
   bool _primed = false;
 
+  /// Whether a scan has been made since the last [reset].
+  bool get primed => _primed;
+
   /// Forget all state — call when the identity/server context changes so the
   /// next scan re-primes instead of notifying for a different account's chats.
   void reset() {

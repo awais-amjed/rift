@@ -42,6 +42,9 @@ mixin _CentralDmFriendsMixin on Cubit<CentralDmState> {
     for (final open in state.openBuckets) {
       unawaited(loadBucket(open));
     }
+    // Every change to the graph comes through here, and the open conversation
+    // may be with the person it was about.
+    unawaited(_refreshOpenPeerState());
   }
 
   /// The first page of each list a tab draws, fetched when that tab is
@@ -151,8 +154,20 @@ mixin _CentralDmFriendsMixin on Cubit<CentralDmState> {
   /// profile — because the buckets cannot answer it just after an action:
   /// every change drops the loaded pages, so the row that would have said
   /// what happened is the one that went.
-  Future<FriendshipState> friendshipState(String peerId) =>
-      _repo.friendshipState(peerId);
+  Future<FriendshipState> friendshipState(String peerId) async =>
+      await _repo.friendshipState(peerId) ?? FriendshipState.none;
+
+  /// Ask central where you stand with the open peer — see
+  /// [CentralDmState.openPeerState]. A failed read keeps the last answer.
+  Future<void> _refreshOpenPeerState() async {
+    final peerId = state.openPeerId;
+    if (peerId == null) return;
+    final standing = await _repo.friendshipState(peerId);
+    if (isClosed || standing == null || state.openPeerId != peerId) return;
+    if (standing != state.openPeerState) {
+      emit(state.copyWith(openPeerState: standing));
+    }
+  }
 
   Future<bool> acceptRequest(String peerId) =>
       _change(() => _repo.respondToRequest(userId: peerId, accept: true));

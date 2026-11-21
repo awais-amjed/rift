@@ -18,9 +18,17 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
   /// Implemented by the unread mixin.
   void markOpenConversationRead();
 
+  /// Implemented by the friends mixin.
+  Future<void> _refreshOpenPeerState();
+
   /// The open conversation's saved copy — see [SavedConversation].
   SavedConversation get _saved;
   String? get _seed;
+
+  /// A message rang while the conversation was opening. The page being
+  /// fetched may have been read before it was stored, and the bell is not
+  /// rung twice, so the open reads after its page once it is ready.
+  bool _rangWhileOpening = false;
 
   Future<void> openConversation({
     required String peerId,
@@ -36,7 +44,13 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
     if (peerSigningKey != null) _peerSigningKeys[peerId] = peerSigningKey;
     // Before the state moves on: the flush reads the conversation being left.
     unawaited(_saved.flush(leaving: true));
+    _rangWhileOpening = false;
+    final samePeer = state.openPeerId == peerId;
 
+    // Nothing of the last conversation is carried into this one: a history
+    // window, a page still loading, or where it stood with its peer. Kept,
+    // a window opened in one showed its bar in the next and stopped its
+    // arrivals, and a page left loading stopped paging in every one after.
     emit(
       state.copyWith(
         friendsOpen: false,
@@ -47,10 +61,15 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
         // the composer under it and whatever was typed.
         messages: again ? null : const [],
         hasMoreHistory: again ? null : false,
+        hasNewerHistory: again ? null : false,
+        isLoadingMore: false,
         clearError: true,
+        loadFailed: false,
         showingSaved: again ? null : false,
+        clearOpenPeerState: !samePeer,
       ),
     );
+    unawaited(_refreshOpenPeerState());
 
     final key = await _dmKeyFor(peerId, _peerChatKeys[peerId]);
     if (state.openPeerId != peerId) return;
@@ -71,15 +90,36 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
 
     final fetched = await _fetchLatest(peerId);
     if (state.openPeerId != peerId) return;
-    // Kept on screen when the page could not be fetched, saying so in the
-    // composer's place. Without a saved copy this stays what it always was.
-    if (!fetched && state.showingSaved) {
-      emit(state.copyWith(chatStatus: DmChatStatus.error));
+    // A saved copy is kept on screen when the page could not be fetched,
+    // saying so in the composer's place. Without one there is nothing to
+    // show, and the conversation says it could not be loaded.
+    if (!fetched) {
+      emit(
+        state.copyWith(
+          chatStatus: DmChatStatus.error,
+          loadFailed: !state.showingSaved,
+        ),
+      );
       return;
     }
     emit(state.copyWith(chatStatus: DmChatStatus.ready));
     markOpenConversationRead();
     unawaited(refreshQuota());
+    if (_rangWhileOpening) {
+      _rangWhileOpening = false;
+      unawaited(_fetchAfterLatest());
+    }
+  }
+
+  /// A message rang for the open conversation — see [_rangWhileOpening].
+  void _catchUpOpen() {
+    switch (state.chatStatus) {
+      case DmChatStatus.ready:
+        unawaited(_fetchAfterLatest());
+      case DmChatStatus.loading:
+        _rangWhileOpening = true;
+      case DmChatStatus.error || DmChatStatus.closed:
+    }
   }
 
   /// Open the conversation again after it failed to load — the saved copy's
@@ -154,6 +194,11 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
     final rows = (data['messages'] as List).cast<Map<String, dynamic>>();
     _saved.replace(rows);
     final decrypted = await _decryptRows(peerId, rows);
+    // Opened while these were being read: they are not that conversation's.
+    if (state.openPeerId != peerId) return false;
+    // A held send this page shows was stored after all is not put back
+    // beside itself.
+    _outbox.retireStored(peerId, rows);
     emit(
       state.copyWith(
         // Anything that failed to send to this peer goes back on the end.
@@ -193,13 +238,25 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
     _saved.merge(rows);
 
     final incoming = await _decryptRows(peerId, rows);
-    if (incoming.isEmpty) return;
+    // Another conversation was opened while they were read.
+    if (incoming.isEmpty || state.openPeerId != peerId) return;
 
+    // A held send that is among them was stored after all: its row goes,
+    // and the stored one takes its place.
+    final stored = _outbox.retireStored(peerId, rows);
+    var current = state.messages;
+    for (final pendingId in stored.pendingIds) {
+      current = ChatMessageOps.removePending(current, pendingId);
+    }
     final result = ChatMessageOps.mergeIncoming(
-      current: state.messages,
+      current: current,
       incoming: incoming,
+      claimed: stored.rowIds,
     );
-    if (result.fresh.isEmpty) return;
+    if (result.fresh.isEmpty) {
+      if (stored.pendingIds.isNotEmpty) emit(state.copyWith(messages: current));
+      return;
+    }
 
     _outbox.dropRetired(result.retired);
     emit(state.copyWith(messages: result.merged));
@@ -322,6 +379,7 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
 
     final rows = (response.data as Map<String, dynamic>)['messages'] as List;
     final newer = await _decryptRows(peerId, rows.cast<Map<String, dynamic>>());
+    if (state.openPeerId != peerId) return;
     emit(
       state.copyWith(
         messages: [...state.messages, ...newer],
@@ -336,9 +394,16 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
     final peerId = state.openPeerId;
     if (peerId == null || !state.hasNewerHistory) return;
     emit(state.copyWith(isLoadingMore: true, hasNewerHistory: false));
-    await _fetchLatest(peerId);
+    final fetched = await _fetchLatest(peerId);
+    // Not fetched, the list is still the window it was, and says so: called
+    // live, arrivals were added to its end and paging on skipped the gap.
     if (state.openPeerId == peerId) {
-      emit(state.copyWith(isLoadingMore: false));
+      emit(
+        state.copyWith(
+          isLoadingMore: false,
+          hasNewerHistory: fetched ? null : true,
+        ),
+      );
     }
   }
 
@@ -404,6 +469,7 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
     final data = response.data as Map<String, dynamic>;
     final rows = (data['messages'] as List).cast<Map<String, dynamic>>();
     final older = await _decryptRows(peerId, rows);
+    if (state.openPeerId != peerId) return;
     emit(
       state.copyWith(
         messages: [...older.reversed, ...state.messages],

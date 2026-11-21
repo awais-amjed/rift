@@ -5,7 +5,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rift_crypto/rift_crypto.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'
-    show AuthChangeEvent, AuthState, RealtimeChannel;
+    show AuthChangeEvent, AuthState, RealtimeChannel, RealtimeSubscribeStatus;
 
 import '../../../data/classes/api_response.dart';
 import '../../../data/classes/attachment.dart';
@@ -27,6 +27,7 @@ import '../../../data/enums/notification_level.dart';
 import '../../../data/repositories/attachment_repository.dart';
 import '../../../data/repositories/blob/blob_sink.dart';
 import '../../../data/repositories/central_dm_repository.dart';
+import '../../../data/repositories/supabase_backup_repository.dart';
 import '../../../supabase_config.dart';
 import '../../helper_methods.dart';
 import '../../services/attachment_cleanup.dart';
@@ -89,6 +90,8 @@ class CentralDmCubit extends Cubit<CentralDmState>
   @override
   final CentralDmRepository _repo;
   @override
+  final SupabaseBackupRepository _backups;
+  @override
   final VaultCubit _vaultCubit;
   @override
   final AppCubit _appCubit;
@@ -146,11 +149,13 @@ class CentralDmCubit extends Cubit<CentralDmState>
     required VaultCubit vaultCubit,
     required AppCubit appCubit,
     CentralDmRepository? repo,
+    SupabaseBackupRepository? backups,
     CryptoRepository? crypto,
   }) : _vaultCubit = vaultCubit,
        _appCubit = appCubit,
        _lastSurface = appCubit.state.surface,
        _repo = repo ?? CentralDmRepository(),
+       _backups = backups ?? SupabaseBackupRepository(),
        _crypto = crypto ?? CryptoRepository(),
        super(const CentralDmState()) {
     _authSub = _repo.authChanges.listen((auth) {
@@ -220,9 +225,9 @@ class CentralDmCubit extends Cubit<CentralDmState>
   void _onIncoming(String senderId) {
     if (isClosed) return;
     unawaited(refreshConversation(senderId));
+    if (state.openPeerId == senderId) _catchUpOpen();
     final isOpen =
         state.chatStatus == DmChatStatus.ready && state.openPeerId == senderId;
-    if (isOpen) unawaited(_fetchAfterLatest());
 
     // The chime for a focused window, when the conversation is not the one
     // on screen. Unfocused, the notification carries it — see
@@ -261,6 +266,33 @@ class CentralDmCubit extends Cubit<CentralDmState>
   }
 
   @override
+  void _forgetOpenCopy() => _saved.discard();
+
+  /// The inbox has been joined since this account was set up, so the next
+  /// join is a rejoin — after a dropped connection, with rings missed.
+  bool _incomingJoinedBefore = false;
+
+  /// Reads again what a dropped connection kept from being heard: the lists,
+  /// and the open conversation, which catches up — or, if it never loaded,
+  /// opens again. Before, a laptop that slept came back with the read cursor
+  /// moved to the newest message while the open chat did not show it.
+  @override
+  void _onIncomingStatus(RealtimeSubscribeStatus status) {
+    if (status != RealtimeSubscribeStatus.subscribed || isClosed) return;
+    final rejoin = _incomingJoinedBefore;
+    _incomingJoinedBefore = true;
+    if (!rejoin) return;
+    unawaited(loadFriends().then((_) => refreshConversations()));
+    if (state.openPeerId == null) return;
+    if (state.chatStatus == DmChatStatus.error &&
+        (state.showingSaved || state.loadFailed)) {
+      unawaited(retryOpen());
+    } else {
+      _catchUpOpen();
+    }
+  }
+
+  @override
   Future<void> _teardown() async {
     final channel = _incoming;
     _incoming = null;
@@ -271,6 +303,8 @@ class CentralDmCubit extends Cubit<CentralDmState>
     // else's sentence.
     _outbox.clear();
     _notifier.reset();
+    _resetConversationReads();
+    _incomingJoinedBefore = false;
     // Cursors belong to the signed-in account, not the app.
     _resetUnread();
     // Decrypted attachment bytes are held outside any cubit's state, so an
@@ -290,13 +324,24 @@ class CentralDmCubit extends Cubit<CentralDmState>
   /// leave out — and an old message from somebody blocked afterwards, which
   /// should not get to ring a phone, is dropped by `dm_conversations` before
   /// the list is built.
+  ///
+  /// A muted conversation raises nothing; only the chime checked the level
+  /// before, so a muted Rift DM still put its text on screen while the window
+  /// was in the background. One conversation read before the first whole
+  /// list is not scanned: it would prime the notifier, and the first list
+  /// would then announce every conversation whose newest message is theirs.
   @override
-  void _notifyFromConversations(List<DmConversation> conversations) {
+  void _notifyFromConversations(
+    List<DmConversation> conversations, {
+    bool partial = false,
+  }) {
+    if (partial && !_notifier.primed) return;
     _notifier.scan(
       conversations,
       titleFor: (c) => c.peerName,
       payloadFor: (c) =>
           ConversationNotificationPayload.centralDm(c.peerId).encode(),
+      muted: (c) => state.levelFor(c.peerId).isMuted,
     );
   }
 

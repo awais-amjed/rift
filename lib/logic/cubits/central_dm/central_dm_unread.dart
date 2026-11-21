@@ -157,7 +157,13 @@ mixin _CentralDmUnreadMixin on Cubit<CentralDmState> {
     if (!merge) _latestInbound.clear();
     _latestInbound.addAll(latestInbound);
     for (final entry in latestInbound.entries) {
-      if (!unread.containsKey(entry.key)) _readCursors[entry.key] = entry.value;
+      if (!unread.containsKey(entry.key)) {
+        _readCursors[entry.key] = entry.value;
+      } else {
+        // Central counts it unread, so whatever this device thought it had
+        // written did not land, and the next read must write again.
+        _readCursors.remove(entry.key);
+      }
     }
   }
 
@@ -192,9 +198,16 @@ mixin _CentralDmUnreadMixin on Cubit<CentralDmState> {
     final latest = _latestInbound[peerId] ?? 0;
     if (latest <= (_readCursors[peerId] ?? 0)) return false;
     _readCursors[peerId] = latest;
-    // Optimistic: the badge is already gone locally. A failed write self-heals
-    // on the next refresh, which would simply count the messages again.
-    unawaited(_repo.setReadCursor(peerId: peerId, lastReadId: latest));
+    // Optimistic: the badge is already gone locally. A failed write is taken
+    // back, so the next read writes again: kept, the refresh brought the
+    // badge back and opening the conversation no longer cleared it.
+    unawaited(
+      _repo.setReadCursor(peerId: peerId, lastReadId: latest).then((written) {
+        if (!written.success && _readCursors[peerId] == latest) {
+          _readCursors.remove(peerId);
+        }
+      }),
+    );
     return true;
   }
 }

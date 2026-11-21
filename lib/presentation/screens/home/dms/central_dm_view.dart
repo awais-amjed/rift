@@ -58,6 +58,11 @@ class _RestingState extends StatelessWidget {
         'Pick a handle',
         'Claim a handle in the panel on the left so people can find you.',
       ),
+      CentralDmStatus.otherVault => (
+        'Choose which vault to keep',
+        'Your Rift account was set up on another vault. Choose one under '
+            'Settings → Account & backup, and your Rift DMs open here.',
+      ),
       // `ready` is answered by the friends page above, so this is a pass that
       // could not reach central. It used to read "Finding your account…" and
       // stay that way; the cubit now keeps asking, and says so.

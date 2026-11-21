@@ -19,6 +19,12 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
   /// Implemented by the friends mixin.
   Future<void> loadFriends();
 
+  /// Implemented by the history mixin: what a retry reads first, in case
+  /// central stored the message after all, and the way out of a history
+  /// window a send takes.
+  Future<void> _fetchAfterLatest();
+  Future<void> returnToPresent();
+
   /// Sends that did not get out. On the class rather than here because the
   /// history mixin restores from it too (CODE_STYLE §5).
   Outbox get _outbox;
@@ -50,15 +56,40 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
     List<PendingAttachment> attachments = const [],
     Future<PendingLinkPreview?>? preview,
     String? replyToId,
+  }) => _sendAndSettle(
+    text,
+    attachments: attachments,
+    preview: preview,
+    replyToId: replyToId,
+  );
+
+  /// [sendDm], or a retry of [earlier], with its files settled once it is
+  /// over.
+  Future<bool> _sendAndSettle(
+    String text, {
+    List<PendingAttachment> attachments = const [],
+    Future<PendingLinkPreview?>? preview,
+    String? replyToId,
+    OutboxEntry? earlier,
   }) async {
     final refused = await _sendDm(
       text,
       attachments: attachments,
       preview: preview,
       replyToId: replyToId,
+      earlier: earlier,
     );
     _outbox.settle(attachments, refused: refused);
     return refused;
+  }
+
+  /// Whether a message can go to the open conversation now.
+  bool get _sendable {
+    final peerId = state.openPeerId;
+    return peerId != null &&
+        _myUserId != null &&
+        _dmKeys[peerId] != null &&
+        state.chatStatus == DmChatStatus.ready;
   }
 
   /// [sendDm] itself; the wrapper settles the files once it is over.
@@ -67,18 +98,20 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
     List<PendingAttachment> attachments = const [],
     Future<PendingLinkPreview?>? preview,
     String? replyToId,
+    OutboxEntry? earlier,
   }) async {
-    final peerId = state.openPeerId;
-    final myId = _myUserId;
-    if (peerId == null ||
-        myId == null ||
-        state.chatStatus != DmChatStatus.ready) {
-      return false;
-    }
-    final key = _dmKeys[peerId];
-    if (key == null) return false;
+    if (!_sendable) return false;
+    final peerId = state.openPeerId!;
+    final myId = _myUserId!;
+    final key = _dmKeys[peerId]!;
     final trimmed = text.trim();
     if (trimmed.isEmpty && attachments.isEmpty) return false;
+    // Where the conversation stood when this message was first sent, for
+    // telling it apart from an earlier one should its answer be lost.
+    final storedAfter =
+        earlier?.storedAfter ?? ChatMessageOps.latestId(state.messages);
+    // Each attempt that reached central and heard nothing back.
+    final signatures = {...?earlier?.signatures};
 
     // Resolved against rows already decrypted and verified. A reference this
     // client cannot see is one it has no business asserting.
@@ -105,6 +138,20 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
     emit(state.copyWith(messages: [...state.messages, pending]));
     _outbox.sending(peerId, pending);
     bool open() => state.openPeerId == peerId;
+
+    // How a failure here is held for a retry.
+    void hold() => _failSend(
+      pending: pending,
+      myId: myId,
+      entry: OutboxEntry(
+        destination: peerId,
+        row: pending.copyWith(sendFailed: true),
+        attachments: attachments,
+        preview: preview,
+        signatures: signatures,
+        storedAfter: storedAfter,
+      ),
+    );
 
     try {
       // Always encrypted and always in one request: the composer offers no
@@ -154,6 +201,9 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
         keyVersion: 1,
       );
 
+      // Noted before it goes: an answer that never comes may still mean the
+      // message was stored.
+      signatures.add(envelope.signature);
       final response = await _repo.sendDm(
         recipientId: peerId,
         envelope: envelope.toJson(),
@@ -165,7 +215,7 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
         // only for a response that actually came back — a send that never
         // arrived has no code, and nothing about the account to report.
         if (Outbox.canRetry(response.errorCode)) {
-          _failSend(pending: pending, peerId: peerId, attachments: attachments);
+          hold();
           return false;
         }
         // Said wherever the reader is: the only news of a message that
@@ -187,6 +237,21 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
         sentAt: DateTime.parse(data['created_at'] as String),
         isMine: true,
       );
+      // Sent from a stretch of history: added to its end, paging on from
+      // there skipped everything between it and the live end. The live end
+      // is where it is, so the conversation goes there instead.
+      if (open() && state.hasNewerHistory) {
+        _removePending(pendingId);
+        emit(
+          state.copyWith(
+            quota: data['quota'] as int?,
+            remaining: data['remaining'] as int?,
+          ),
+        );
+        unawaited(returnToPresent());
+        unawaited(refreshConversations());
+        return false;
+      }
       final here = open();
       emit(
         state.copyWith(
@@ -220,7 +285,7 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
     } on AttachmentUploadException catch (e) {
       HelperMethods.printDebug('[CentralDM] attachment upload failed: $e');
       if (Outbox.canRetry(e.errorCode)) {
-        _failSend(pending: pending, peerId: peerId, attachments: attachments);
+        hold();
         return false;
       }
       if (open()) _removePending(pendingId);
@@ -253,19 +318,22 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
   /// offer a retry for. Holds whether or not the conversation is still open,
   /// so walking away mid-failure does not lose the message
   /// (`Outbox.restoreInto` brings it back).
+  ///
+  /// A send that outlived its account — signed out while it was on its way —
+  /// is not held: the outbox was emptied with that account, and keeping it
+  /// would offer the next one a retry on somebody else's sentence. It is
+  /// said instead.
   void _failSend({
     required ChatMessage pending,
-    required String peerId,
-    required List<PendingAttachment> attachments,
+    required String myId,
+    required OutboxEntry entry,
   }) {
-    _outbox.hold(
-      OutboxEntry(
-        destination: peerId,
-        row: pending.copyWith(sendFailed: true),
-        attachments: attachments,
-      ),
-    );
-    if (state.openPeerId == peerId) {
+    if (_myUserId != myId) {
+      emit(state.copyWith(notice: Notice.error('Your message was not sent.')));
+      return;
+    }
+    _outbox.hold(entry);
+    if (state.openPeerId == entry.destination) {
       emit(
         state.copyWith(
           messages: ChatMessageOps.markFailed(state.messages, pending.id),
@@ -275,7 +343,33 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
   }
 
   /// Try one held send again — what tapping a "Not sent" row does.
+  ///
+  /// An attempt that reached central and heard nothing back may have been
+  /// stored, so the newest rows are read first: one of them being this
+  /// message retires the row instead (`Outbox.retireStored`). Sent again
+  /// unread, it reached them twice and spent the quota twice.
+  ///
+  /// A conversation that cannot take a message just now keeps the row and
+  /// says so. Taken out first, the send gave up without a word and the
+  /// message was gone.
   Future<void> retrySend(String pendingId) async {
+    final held = _outbox.held(pendingId);
+    if (held == null) return;
+    if (!_sendable || state.openPeerId != held.destination) {
+      emit(
+        state.copyWith(
+          notice: Notice.error(
+            "This conversation can't take messages right now. Your message "
+            'is kept.',
+          ),
+        ),
+      );
+      return;
+    }
+    if (held.signatures.isNotEmpty) {
+      await _fetchAfterLatest();
+      if (!_outbox.holds(pendingId)) return;
+    }
     final entry = _outbox.take(pendingId);
     if (entry == null) return;
     emit(
@@ -283,10 +377,12 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
         messages: ChatMessageOps.removePending(state.messages, pendingId),
       ),
     );
-    await sendDm(
+    await _sendAndSettle(
       entry.text,
       attachments: entry.attachments,
+      preview: entry.preview,
       replyToId: entry.row.replyToId,
+      earlier: entry,
     );
   }
 

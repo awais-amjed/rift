@@ -13,6 +13,13 @@ mixin _CentralDmEditMixin on Cubit<CentralDmState> {
   String? get _myUserId;
   Future<ServerIdentity> _signingIdentity();
 
+  /// Implemented by the history and conversations mixins: after an edit or
+  /// delete, the saved copy and the list's preview are brought up to date.
+  /// Neither was, so the next open drew the old text for a moment, and a
+  /// deleted last message stayed in the list until something else moved it.
+  Future<void> refreshMessage(String messageId);
+  Future<void> refreshConversation(String peerId);
+
   /// Re-seal [messageId] with [newText]; attachments carry over unchanged.
   Future<void> editMessage(String messageId, String newText) async {
     final peerId = state.openPeerId;
@@ -64,6 +71,8 @@ mixin _CentralDmEditMixin on Cubit<CentralDmState> {
           ),
         ),
       );
+      unawaited(refreshMessage(messageId));
+      unawaited(refreshConversation(peerId));
     } catch (e) {
       HelperMethods.printDebug('[CentralDM] edit failed: $e');
       if (state.openPeerId == peerId) {
@@ -104,6 +113,7 @@ mixin _CentralDmEditMixin on Cubit<CentralDmState> {
       unawaited(
         AttachmentCleanup.forMessage(doomed, delete: _repo.deleteAttachments),
       );
+      unawaited(refreshConversation(peerId));
     } catch (e) {
       HelperMethods.printDebug('[CentralDM] delete failed: $e');
       if (state.openPeerId == peerId) {

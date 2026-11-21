@@ -10,6 +10,11 @@ enum CentralDmStatus {
 
   ready,
   error,
+
+  /// The account published another vault's keys, and its cloud backup is
+  /// not this device's vault: the backup conflict has not been answered, or
+  /// was put off. Nothing is published or read until it is.
+  otherVault,
 }
 
 /// Chat status of the open central conversation (mirrors the server-DM enum
@@ -73,6 +78,12 @@ class CentralDmState extends Equatable {
 
   final String? openPeerId;
   final String? openPeerHandle;
+
+  /// Where you stand with the open peer, asked of central when the
+  /// conversation opens and after every change to the friends graph — see
+  /// [stateFor]. Null until the first answer.
+  final FriendshipState? openPeerState;
+
   final DmChatStatus chatStatus;
   final List<ChatMessage> messages;
   final bool hasMoreHistory;
@@ -88,6 +99,13 @@ class CentralDmState extends Equatable {
   final bool hasNewerHistory;
 
   final String? error;
+
+  /// The open conversation's page could not be fetched and nothing was saved
+  /// to show instead: [chatStatus] is `error`, and Try again opens it again.
+  /// Before, it was `ready` with no messages — it looked empty, cleared its
+  /// badge for messages never shown, and the next arrival was read from the
+  /// start of the conversation as if it were new.
+  final bool loadFailed;
 
   /// Text to seed the add-friend field with. Set when arriving from a member's
   /// context menu, where their server display name is the best guess at a
@@ -119,12 +137,14 @@ class CentralDmState extends Equatable {
     this.friendsOpen = false,
     this.openPeerId,
     this.openPeerHandle,
+    this.openPeerState,
     this.chatStatus = DmChatStatus.closed,
     this.messages = const [],
     this.hasMoreHistory = false,
     this.isLoadingMore = false,
     this.hasNewerHistory = false,
     this.error,
+    this.loadFailed = false,
     this.handleQuery,
     this.showingSaved = false,
     this.notice,
@@ -146,12 +166,15 @@ class CentralDmState extends Equatable {
     bool? friendsOpen,
     String? openPeerId,
     String? openPeerHandle,
+    FriendshipState? openPeerState,
+    bool clearOpenPeerState = false,
     DmChatStatus? chatStatus,
     List<ChatMessage>? messages,
     bool? hasMoreHistory,
     bool? isLoadingMore,
     bool? hasNewerHistory,
     String? error,
+    bool? loadFailed,
     String? handleQuery,
     bool clearError = false,
     bool clearHandleQuery = false,
@@ -180,6 +203,9 @@ class CentralDmState extends Equatable {
       openPeerHandle: closeConversation
           ? null
           : (openPeerHandle ?? this.openPeerHandle),
+      openPeerState: closeConversation || clearOpenPeerState
+          ? null
+          : (openPeerState ?? this.openPeerState),
       chatStatus: closeConversation
           ? DmChatStatus.closed
           : (chatStatus ?? this.chatStatus),
@@ -187,9 +213,14 @@ class CentralDmState extends Equatable {
       hasMoreHistory: closeConversation
           ? false
           : (hasMoreHistory ?? this.hasMoreHistory),
-      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
-      hasNewerHistory: hasNewerHistory ?? this.hasNewerHistory,
+      isLoadingMore: closeConversation
+          ? false
+          : (isLoadingMore ?? this.isLoadingMore),
+      hasNewerHistory: closeConversation
+          ? false
+          : (hasNewerHistory ?? this.hasNewerHistory),
       error: clearError ? null : (error ?? this.error),
+      loadFailed: closeConversation ? false : (loadFailed ?? this.loadFailed),
       handleQuery: clearHandleQuery ? null : (handleQuery ?? this.handleQuery),
       showingSaved: closeConversation
           ? false
@@ -205,10 +236,13 @@ class CentralDmState extends Equatable {
   ///
   /// The conversation row is the authoritative answer:
   /// `dm_conversations` resolves it per peer, so the client no longer holds the
-  /// whole graph to work it out. Whichever friends tab is open is the fallback,
-  /// and it answers for somebody reached from the friends page before a message
-  /// has ever been exchanged with them — there is no conversation row to carry
-  /// their state yet.
+  /// whole graph to work it out. Somebody reached from the friends page before
+  /// a message has ever been exchanged with them has no row yet, and for the
+  /// open one [openPeerState] answers. The friends tabs were that answer, and
+  /// every change to the graph drops their pages: accepting a request from
+  /// the open conversation left it saying "not friends", and any graph event
+  /// swapped a friend's composer for that note, typed words and all. Whichever
+  /// tab is open is the last resort, for a peer that is not open.
   ///
   /// A scan rather than a map, because this is asked about *one* peer: the
   /// open conversation. A row in the list has its own state on it and reads it
@@ -219,7 +253,8 @@ class CentralDmState extends Equatable {
         return conversation.state ?? FriendshipState.none;
       }
     }
-    return friends.stateOf(peerId) ?? FriendshipState.none;
+    final asked = peerId == openPeerId ? openPeerState : null;
+    return asked ?? friends.stateOf(peerId) ?? FriendshipState.none;
   }
 
   /// Whether the open conversation can be typed into — which is to say
@@ -269,12 +304,14 @@ class CentralDmState extends Equatable {
     friendsOpen,
     openPeerId,
     openPeerHandle,
+    openPeerState,
     chatStatus,
     messages,
     hasMoreHistory,
     isLoadingMore,
     hasNewerHistory,
     error,
+    loadFailed,
     handleQuery,
     showingSaved,
     notice,

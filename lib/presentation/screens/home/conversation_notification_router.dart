@@ -70,7 +70,7 @@ class _ConversationNotificationRouterState
     }
     if (target == null || !mounted) return;
     if (target.isCentralDm) {
-      _openCentralDm(target.targetId);
+      await _openCentralDm(target.targetId);
     } else {
       await _openOnServer(target);
     }
@@ -115,14 +115,17 @@ class _ConversationNotificationRouterState
     app.setSurface(HomeSurface.serverDms);
   }
 
-  void _openCentralDm(String peerId) {
-    final conversation = context
-        .read<CentralDmCubit>()
-        .state
-        .conversations
+  /// Opened from the list, which has the keys the conversation needs. On a
+  /// cold start it is still empty when the press arrives, so this waits for
+  /// its first page, as a server DM waits for its server's.
+  Future<void> _openCentralDm(String peerId) async {
+    final dms = context.read<CentralDmCubit>();
+    context.read<AppCubit>().setSurface(HomeSurface.centralDms);
+    await dms.listed();
+    if (!mounted) return;
+    final conversation = dms.state.conversations
         .where((c) => c.peerId == peerId)
         .firstOrNull;
-    context.read<AppCubit>().setSurface(HomeSurface.centralDms);
     if (conversation != null) openCentralConversation(context, conversation);
   }
 

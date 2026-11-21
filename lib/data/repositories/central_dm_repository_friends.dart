@@ -56,10 +56,12 @@ mixin _CentralDmFriendsMixin {
   /// is gone and the graph can no longer say what happened. One row, asked by
   /// id, is what a profile needs to redraw itself.
   ///
-  /// A failure is [FriendshipState.none] rather than an error: this decides
-  /// which buttons a dialog offers, and the server refuses everything the
-  /// standing does not allow anyway.
-  Future<FriendshipState> friendshipState(String peerId) async {
+  /// Null when central could not be asked. A profile reads that as
+  /// [FriendshipState.none]: it decides which buttons a dialog offers, and
+  /// the server refuses everything the standing does not allow anyway. The
+  /// open conversation keeps its last answer instead, since "not friends"
+  /// takes its composer away.
+  Future<FriendshipState?> friendshipState(String peerId) async {
     try {
       final raw = await _client.rpc(
         'friendship_state',
@@ -67,7 +69,7 @@ mixin _CentralDmFriendsMixin {
       );
       return FriendshipState.parse(raw);
     } catch (_) {
-      return FriendshipState.none;
+      return null;
     }
   }
 

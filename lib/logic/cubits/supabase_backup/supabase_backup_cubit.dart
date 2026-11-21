@@ -7,10 +7,12 @@ import 'package:supabase_flutter/supabase_flutter.dart' show AuthState, User;
 import '../../../data/classes/notice.dart';
 import '../../../data/enums/auth_status.dart';
 import '../../../data/enums/error_code.dart';
+import '../../../data/repositories/central_dm_repository.dart';
 import '../../../data/repositories/supabase_backup_repository.dart';
 import '../../../logic/helper_methods.dart';
 import '../../services/backup_merge.dart';
 import '../../services/central_handle.dart';
+import '../../services/push_service.dart';
 import '../../services/window_focus_service.dart';
 import '../vault/vault_cubit.dart';
 
@@ -61,6 +63,10 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState>
 
   @override
   final SupabaseBackupRepository _repo;
+
+  /// Where this device's push registration lives, for signing out.
+  @override
+  final CentralDmRepository _devices;
   @override
   final CryptoRepository _crypto;
   @override
@@ -119,8 +125,10 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState>
   SupabaseBackupCubit({
     required VaultCubit vaultCubit,
     SupabaseBackupRepository? repo,
+    CentralDmRepository? devices,
     CryptoRepository? crypto,
   }) : _repo = repo ?? SupabaseBackupRepository(),
+       _devices = devices ?? CentralDmRepository(),
        _crypto = crypto ?? CryptoRepository(),
        _vaultCubit = vaultCubit,
        super(const SupabaseBackupState()) {

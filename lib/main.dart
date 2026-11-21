@@ -29,6 +29,7 @@ import 'logic/shortcuts/call_shortcut_listener.dart';
 import 'logic/visibility/app_seen_listener.dart';
 import 'presentation/app_providers.dart';
 import 'presentation/common/app_toast.dart';
+import 'presentation/common/central_vault_listener.dart';
 import 'presentation/common/gpu_reset/gpu_reset_listener.dart';
 import 'presentation/common/notices/notice_listeners.dart';
 import 'presentation/common/selected_server_scope.dart';
@@ -185,9 +186,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                               // every page, dialog and sheet — see IncomingCallOverlay.
                               child: GpuResetListener(
                                 child: NoticeListeners(
-                                  child: PipOverlay(
-                                    child: TitleBarOverlay(
-                                      child: IncomingCallOverlay(child: child!),
+                                  child: CentralVaultListener(
+                                    child: PipOverlay(
+                                      child: TitleBarOverlay(
+                                        child: IncomingCallOverlay(
+                                          child: child!,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),

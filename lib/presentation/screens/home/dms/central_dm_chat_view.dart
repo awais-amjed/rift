@@ -25,6 +25,7 @@ import '../../../common/chat/saved_copy_notice.dart';
 import '../../../common/loading_block.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
+import '../chat/widgets/chat_status_view.dart';
 import '../mobile/widgets/mini_call_bar.dart';
 import '../profile/person/show_person_profile.dart';
 import '../profile/person/verification/key_check_gate.dart';
@@ -113,6 +114,7 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
     state.hasNewerHistory,
     state.canSendToOpen,
     state.error,
+    state.loadFailed,
   );
 
   Widget _frame(BuildContext context, CentralDmState state) {
@@ -323,6 +325,17 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
         return _buildList(state, live: false);
       case DmChatStatus.loading:
         return const LoadingBlock();
+      // Never loaded, and nothing saved to show instead.
+      case DmChatStatus.error when state.loadFailed:
+        return ChatStatusView(
+          icon: Icons.cloud_off_rounded,
+          title: "Couldn't load this conversation",
+          message:
+              'Your Rift account server did not answer. Check your '
+              'connection and try again.',
+          showRetry: true,
+          onRetry: context.read<CentralDmCubit>().retryOpen,
+        );
       case DmChatStatus.error:
         return Center(
           child: Padding(

@@ -16,6 +16,7 @@ mixin _VaultBackupMixin on Cubit<VaultState> {
 
   SecureStorageRepository get _storage;
   Map<String, ServerIdentity> get _identityCache;
+  Map<String, ChatIdentity> get _chatIdentityCache;
   void Function(ServerManifest)? get _onServersImported;
   ServerManifest Function()? get _getServersForExport;
 
@@ -204,7 +205,12 @@ mixin _VaultBackupMixin on Cubit<VaultState> {
         await _storage.saveRecoverySeed(backup.recovery!);
       }
 
+      // Both caches hold what the seed being replaced derived. Only the
+      // signing one was emptied, so after a cloud backup was restored over
+      // this device's vault every chat key was still the old vault's until
+      // the app restarted.
       _identityCache.clear();
+      _chatIdentityCache.clear();
 
       emit(VaultState(status: AuthStatus.unlocked, masterSeed: masterSeedB64));
 
