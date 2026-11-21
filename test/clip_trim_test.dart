@@ -5,6 +5,7 @@ import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/logic/services/call_clip/clip_trim.dart';
+import 'package:rift/presentation/screens/home/call_clip/call_clip_dialog.dart';
 import 'package:rift/presentation/screens/home/servers/manage/panels/soundboard/add_clip_form.dart';
 
 import 'support/memory_storage.dart';
@@ -111,13 +112,15 @@ void main() {
   });
 
   group('the play line', () {
-    double at(Duration elapsed, {Duration length = const Duration(seconds: 4)}) =>
-        ClipTrim.playhead(
-          start: 0.2,
-          end: 0.6,
-          elapsed: elapsed,
-          length: length,
-        );
+    double at(
+      Duration elapsed, {
+      Duration length = const Duration(seconds: 4),
+    }) => ClipTrim.playhead(
+      start: 0.2,
+      end: 0.6,
+      elapsed: elapsed,
+      length: length,
+    );
 
     test('starts at the start of the selection', () {
       expect(at(Duration.zero), closeTo(0.2, 1e-9));
@@ -140,9 +143,43 @@ void main() {
     });
   });
 
+  group('Add to soundboard is offered', () {
+    bool offers({
+      bool fromDmCall = false,
+      String? clip = 's1',
+      String? scope = 's1',
+      bool canManage = true,
+    }) => CallClipDialog.offersAdd(
+      fromDmCall: fromDmCall,
+      clipServerId: clip,
+      scopeServerId: scope,
+      canManage: canManage,
+    );
+
+    test('on the server it was clipped on, to a manager', () {
+      expect(offers(), isTrue);
+    });
+
+    test('never opened on another server', () {
+      expect(offers(scope: 's2'), isFalse);
+    });
+
+    test('never once that server is off the list', () {
+      expect(offers(clip: null), isFalse);
+    });
+
+    test('never from a DM call, or to somebody who may not manage it', () {
+      expect(offers(fromDmCall: true), isFalse);
+      expect(offers(canManage: false), isFalse);
+    });
+  });
+
   group('sizes', () {
     test('a WAV is its header and 4 bytes a frame', () {
-      expect(ClipTrim.wavBytes(const Duration(seconds: 30)), 44 + 30 * 48000 * 4);
+      expect(
+        ClipTrim.wavBytes(const Duration(seconds: 30)),
+        44 + 30 * 48000 * 4,
+      );
     });
 
     test('an MP3 is its bitrate times its length', () {

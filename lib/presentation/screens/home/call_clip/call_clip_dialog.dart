@@ -29,7 +29,9 @@ import 'widgets/clip_waveform.dart';
 /// A clip of the call, to trim and then save as a WAV or put on the call's
 /// soundboard as an MP3 (CALLS.md, "Clipping a call"). Opened by
 /// [CallClipOpener] in the call's server scope, with its own copy of the
-/// audio: the ring keeps running, and the call can end under it.
+/// audio: the ring keeps running, and the call can end under it. Or opened
+/// again from the clips kept on this device (`openStoredClip`), in the scope
+/// of the server it was clipped on, while that is still on the list.
 class CallClipDialog extends StatefulWidget {
   final CallClipAudio clip;
 
@@ -37,11 +39,33 @@ class CallClipDialog extends StatefulWidget {
   /// soundboard, whatever server it is on.
   final bool fromDmCall;
 
+  /// The server it was clipped on, whose soundboard Add puts it on; null
+  /// when that is not on the list any more. Add is offered only inside that
+  /// server's scope: opened anywhere else, the soundboard read here is
+  /// another server's.
+  final String? serverId;
+
   const CallClipDialog({
     super.key,
     required this.clip,
     required this.fromDmCall,
+    required this.serverId,
   });
+
+  /// Whether Add to soundboard is offered: to somebody who may manage the
+  /// soundboard, for a clip from a channel's call, inside the scope of the
+  /// server it was clipped on ([scopeServerId]) — never another's, which is
+  /// whose soundboard would be read there.
+  static bool offersAdd({
+    required bool fromDmCall,
+    required String? clipServerId,
+    required String? scopeServerId,
+    required bool canManage,
+  }) =>
+      canManage &&
+      !fromDmCall &&
+      clipServerId != null &&
+      clipServerId == scopeServerId;
 
   /// The soundboard's bitrate: a clip up to its 30 s fits well inside 5 MB.
   static const int kbps = 192;
@@ -248,7 +272,13 @@ class _CallClipDialogState extends State<CallClipDialog> {
                   saving: _saving,
                   adding: _encoding,
                   onSave: _save,
-                  onAdd: canManage && !widget.fromDmCall
+                  onAdd:
+                      CallClipDialog.offersAdd(
+                        fromDmCall: widget.fromDmCall,
+                        clipServerId: widget.serverId,
+                        scopeServerId: serverId,
+                        canManage: canManage,
+                      )
                       ? _encodeForBoard
                       : null,
                 ),

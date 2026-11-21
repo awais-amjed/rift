@@ -49,7 +49,11 @@ class _CallClipOpenerState extends State<CallClipOpener> {
       showCustomDialog<void>(
         context: context,
         build: (_) {
-          final dialog = CallClipDialog(clip: clip, fromDmCall: fromDmCall);
+          final dialog = CallClipDialog(
+            clip: clip,
+            fromDmCall: fromDmCall,
+            serverId: serverId,
+          );
           return serverId == null
               ? dialog
               : ServerContextScope(serverId: serverId, child: dialog);
