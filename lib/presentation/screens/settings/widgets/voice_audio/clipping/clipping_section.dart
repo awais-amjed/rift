@@ -2,8 +2,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../../../logic/services/call_clip/clip_library.dart';
 import '../../../../../theme/app_text.dart';
 import '../../../../../theme/theme_context.dart';
+import '../../../../home/call_clip/stored_clip_opener.dart';
+import '../../../../home/call_clip/widgets/clip_history_list.dart';
 import '../../section_title.dart';
 import '../../setting_toggle_row.dart';
 import 'widgets/clip_length_choice.dart';
@@ -56,6 +59,21 @@ class ClippingSection extends StatelessWidget {
             onChanged: app.setClipIncludeMic,
           ),
         ],
+        // Shown with clipping off too: what was kept before stays until it
+        // is deleted, and this is where it can be, outside a call.
+        const SizedBox(height: 20),
+        Text(
+          'Recent clips',
+          style: AppText.strong.copyWith(color: context.theme.textPrimary),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'The last ${ClipLibrary.keep}, kept on this device, sealed with '
+          'your account. Open one to trim it again.',
+          style: AppText.secondary.copyWith(color: context.theme.textTertiary),
+        ),
+        const SizedBox(height: 8),
+        ClipHistoryList(onOpen: (clip) => openStoredClip(context, clip)),
       ],
     );
   }
