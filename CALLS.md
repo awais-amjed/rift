@@ -2191,12 +2191,21 @@ playout section: it is exactly what was heard.
 `clipping` attribute (`VoiceAttributes`), and the ring starts writing only once
 that publish has gone round (`ClipRecorder`). Off, leaving or moving to another
 call stops writing first and throws the ring away; an open trim view keeps its
-own copy. When Rift rejoins by itself (a reconnect, a region move, Restart to
-update), writing stops at the drop and starts again only after the flag is
-published to the new connection, so someone who joined in the gap is never
-kept before they could see it. The ring keeps what it had: it belongs to the
-call, not the connection, and a clip jumps over the pause itself. The quiet
-on either side of it stays, as silence: libwebrtc hands the tap nothing while
+own copy. A move is told apart from a rejoin by the call's key
+(`LiveKitState.callKey`, handed to `ClipRecorder.update`): until Nov 21 a
+switch went through the rejoin path and kept the old call's audio, so a clip
+joined it onto the new one (found in review). When Rift rejoins by itself (a
+reconnect, a region move), writing stops at the drop and starts again only
+after the flag is published to the new connection, so someone who joined in
+the gap is never kept before they could see it. The ring keeps what it had:
+it belongs to the call, not the connection, and a clip jumps over the pause
+itself, however many there were with nothing played between them; the mic is
+placed by the same reckoning. Restart to update is a new process, which comes
+back with an empty ring and goes through the same gate. The flag a client sends with any
+other change of its attributes is `ClipRecorder.claiming`, which turning
+clipping off clears even while disconnected: before, a flag left from before
+a rejoin was sent again to the next call. The quiet
+on either side of a pause stays, as silence: libwebrtc hands the tap nothing while
 the call is silent, so the ring fills such a stretch when sound comes back.
 Before Nov 21 a rejoin in the middle of one dropped it, joining audio from
 minutes earlier straight onto what came after (seen in the live check). A

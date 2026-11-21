@@ -24,7 +24,9 @@ class ClipRecorder {
 
   int _seconds = 0;
   bool _mic = false;
+  String? _call;
   bool _published = false;
+  bool _claim = false;
   bool? _writing;
   // Moved on by [pause]: a publish that was already on its way when the
   // connection gave out must not turn writing on for the next one.
@@ -44,10 +46,18 @@ class ClipRecorder {
   /// Whether the flag this client last sent says it is clipping.
   bool get flagged => _published;
 
+  /// What this client's attributes should say whenever they are sent, for
+  /// any reason: clipping only while the recorder means to be. A flag sent
+  /// before a rejoin is not still claimed once clipping is off.
+  bool get claiming => _claim;
+
+  /// [call] names the call ([LiveKitState.callKey]): another one starts
+  /// with an empty ring, so a clip never joins one call onto the next.
   Future<void> update({
     required bool enabled,
     required bool connected,
     required bool inCall,
+    required String? call,
     required int seconds,
     required bool includeMic,
   }) {
@@ -56,6 +66,7 @@ class ClipRecorder {
         enabled: enabled,
         connected: connected,
         inCall: inCall,
+        call: call,
         seconds: seconds,
         includeMic: includeMic,
       ),
@@ -68,6 +79,7 @@ class ClipRecorder {
     required bool enabled,
     required bool connected,
     required bool inCall,
+    required String? call,
     required int seconds,
     required bool includeMic,
   }) async {
@@ -79,18 +91,33 @@ class ClipRecorder {
       _native.setWriting(false);
       _writing = false;
     }
+    if (call != _call) {
+      _call = call;
+      if (_seconds > 0) {
+        if (_writing != false) {
+          _native.setWriting(false);
+          _writing = false;
+        }
+        _native.configure(0, includeMic: false);
+        _seconds = 0;
+        _mic = false;
+      }
+    }
     if (wantSeconds != _seconds || wantMic != _mic) {
       _native.configure(wantSeconds, includeMic: wantMic);
       _seconds = wantSeconds;
       _mic = wantMic;
     }
     if (!wantFlag) {
-      if (_published && connected) await _publish(false);
+      final was = _published;
+      _claim = false;
       _published = false;
+      if (was && connected) await _publish(false);
       return;
     }
     if (!_published) {
       final generation = _generation;
+      _claim = true;
       final told = await _publish(true);
       if (generation != _generation) return;
       _published = told;

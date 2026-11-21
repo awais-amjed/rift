@@ -835,7 +835,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
           watching: state.subscribedScreenshares,
           pushToTalkIdle: _pushToTalkIdle,
           plays: plays,
-          clipping: _clipFlag,
+          clipping: _clipRecorder.claiming,
         ),
       );
       told = true;
@@ -929,6 +929,7 @@ class LiveKitCubit extends Cubit<LiveKitState>
       enabled: false,
       connected: false,
       inCall: false,
+      call: null,
       seconds: 0,
       includeMic: false,
     );

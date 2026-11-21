@@ -1,8 +1,7 @@
 part of 'livekit_cubit.dart';
 
-/// Over the cubit-part budget and one job: clipping. Keeping the last stretch
-/// of the call for the clip shortcut, and telling the call who does it
-/// (CALLS.md, *Clipping a call*).
+/// Clipping: keeping the last stretch of the call for the clip shortcut, and
+/// telling the call who does it (CALLS.md, *Clipping a call*).
 ///
 /// The order is [ClipRecorder]'s: the flag goes round before anything is
 /// kept. The notices are [ClipNoticeRules]': once per person per call that
@@ -14,9 +13,6 @@ mixin _ClippingMixin on Cubit<LiveKitState> {
   ClipLibrary get _clipLibrary;
   VaultCubit get _vaultCubit;
   SessionRepository? get _session;
-
-  /// Whether this client's published attributes say it is clipping.
-  bool _clipFlag = false;
 
   Future<bool> _publishSelfStateChecked();
 
@@ -32,18 +28,17 @@ mixin _ClippingMixin on Cubit<LiveKitState> {
             state.connectionState == LiveKitConnectionState.connected &&
             state.room?.localParticipant != null,
         inCall: state.inCall,
+        call: state.callKey,
         seconds: app.clipSeconds,
         includeMic: app.clipIncludeMic,
       ),
     );
   }
 
-  /// [ClipRecorder]'s publish: the flag set to [clipping] in this client's
-  /// attributes, answering whether the call has it.
-  Future<bool> _publishClipping(bool clipping) {
-    _clipFlag = clipping;
-    return _publishSelfStateChecked();
-  }
+  /// [ClipRecorder]'s publish: this client's attributes, the flag in them
+  /// read from [ClipRecorder.claiming] (which is [clipping] by now),
+  /// answering whether the call has them.
+  Future<bool> _publishClipping(bool clipping) => _publishSelfStateChecked();
 
   /// Tells the call's people about anybody with clipping on they have not
   /// been told about yet in this call: on joining, and as each arrives or

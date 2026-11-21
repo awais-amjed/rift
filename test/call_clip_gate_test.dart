@@ -54,12 +54,14 @@ void main() {
     bool enabled = true,
     bool connected = true,
     bool inCall = true,
+    String? call = 'channel-a',
     int seconds = 60,
     bool includeMic = false,
   }) => recorder.update(
     enabled: enabled,
     connected: connected,
     inCall: inCall,
+    call: inCall ? call : null,
     seconds: seconds,
     includeMic: includeMic,
   );
@@ -115,6 +117,38 @@ void main() {
     await update(inCall: false, connected: false);
     expect(native.calls.first, 'writing false');
     expect(native.calls, contains('configure 0'));
+  });
+
+  test('another call starts with an empty ring', () async {
+    await update();
+    native.calls.clear();
+    // Moving to another channel: the connection is made again first.
+    recorder.pause();
+    await update(connected: false, call: 'channel-b');
+    expect(native.calls, ['writing false', 'configure 0', 'configure 60']);
+    native.calls.clear();
+    await update(call: 'channel-b');
+    expect(native.calls, ['publish true', 'writing true']);
+  });
+
+  test('a rejoin of the same call keeps the ring', () async {
+    await update();
+    native.calls.clear();
+    recorder.pause();
+    await update(connected: false);
+    await update();
+    expect(native.calls, isNot(contains('configure 0')));
+  });
+
+  test('turned off after a rejoin, the flag is not claimed again', () async {
+    await update();
+    expect(recorder.claiming, isTrue);
+    recorder.pause();
+    await update(enabled: false, connected: false);
+    expect(recorder.claiming, isFalse);
+    await update(enabled: false);
+    expect(recorder.claiming, isFalse);
+    expect(published, [true]);
   });
 
   test('a new length or the mic reconfigures without a new flag', () async {
