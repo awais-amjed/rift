@@ -78,8 +78,12 @@ void ClipStore::Configure(int seconds, bool include_mic) {
 
 void ClipStore::SetWriting(bool on, int64_t now_us) {
   if (on) {
-    started_us_.store(now_us, std::memory_order_release);
-    epoch_.fetch_add(1, std::memory_order_acq_rel);
+    if (writing_.load(std::memory_order_acquire)) return;
+    // Counted before writing is seen on, so a block after it skips it.
+    const int64_t stopped = stopped_us_.load(std::memory_order_acquire);
+    if (stopped >= 0) {
+      paused_us_.fetch_add(now_us - stopped, std::memory_order_acq_rel);
+    }
     writing_.store(true, std::memory_order_release);
   } else if (writing_.exchange(false, std::memory_order_acq_rel)) {
     stopped_us_.store(now_us, std::memory_order_release);
@@ -89,18 +93,15 @@ void ClipStore::SetWriting(bool on, int64_t now_us) {
 void ClipStore::Keep(Lane& lane, int converted, bool stereo, int block_frames,
                      int rate, int64_t now_us) {
   const int64_t block_us = static_cast<int64_t>(block_frames) * 1000000 / rate;
-  const int epoch = epoch_.load(std::memory_order_acquire);
+  const int64_t paused = paused_us_.load(std::memory_order_acquire);
   if (lane.end_us >= 0) {
-    int64_t gap_us = now_us - lane.end_us - block_us;
-    // The first block after a pause: the quiet either side of it is kept,
-    // the pause itself skipped.
-    if (lane.epoch != epoch) {
-      gap_us -= started_us_.load(std::memory_order_acquire) -
-                stopped_us_.load(std::memory_order_acquire);
-    }
+    // The quiet since the last block is kept, any pauses within it (one or
+    // several rejoins) skipped.
+    const int64_t gap_us =
+        now_us - lane.end_us - block_us - (paused - lane.paused_seen);
     if (gap_us > kGapUs) lane.ring->WriteSilence(gap_us * kRate / 1000000);
   }
-  lane.epoch = epoch;
+  lane.paused_seen = paused;
   const int channels = lane.ring->Channels();
   lane.end_us = now_us;
   lane.frames.resize(static_cast<size_t>(converted * channels));
@@ -156,21 +157,20 @@ void ClipStore::WriteMic(const float* mono, int frames, int rate,
 void ClipStore::CatchUp(int64_t now_us) {
   std::lock_guard<std::mutex> lock(call_.lock);
   if (!call_.ring || call_.end_us < 0) return;
-  const int64_t stopped = stopped_us_.load(std::memory_order_acquire);
-  const int epoch = epoch_.load(std::memory_order_acquire);
-  // While paused, the call is quiet only until the pause began.
+  // Both changed only from Dart's thread, which this runs on too.
   const bool writing = writing_.load(std::memory_order_acquire);
-  const int64_t until = writing ? now_us : (std::max)(stopped, call_.end_us);
-  int64_t gap_us = until - call_.end_us;
-  if (writing && call_.epoch != epoch) {
-    gap_us -= started_us_.load(std::memory_order_acquire) - stopped;
-  }
+  const int64_t paused = paused_us_.load(std::memory_order_acquire);
+  // While paused, the call is quiet only until the pause began; the pause
+  // under way is counted by the first block after it, as usual.
+  const int64_t until =
+      writing ? now_us
+              : (std::max)(stopped_us_.load(std::memory_order_acquire),
+                           call_.end_us);
+  const int64_t gap_us = until - call_.end_us - (paused - call_.paused_seen);
   if (gap_us <= kGapUs) return;
   call_.ring->WriteSilence(gap_us * kRate / 1000000);
   call_.end_us = until;
-  // The pause is counted now; the next block after it must not count it
-  // again. One still to come is counted by that block as usual.
-  if (writing) call_.epoch = epoch;
+  call_.paused_seen = paused;
 }
 
 int64_t ClipStore::Frames() {
@@ -188,10 +188,13 @@ int64_t ClipStore::Snapshot(int16_t* out, int64_t max_frames) {
   std::vector<int16_t> mic(static_cast<size_t>(n));
   const int64_t m = mic_.ring->CopyNewest(mic.data(), n);
   // The mic's newest frame sits where it was recorded: as far before the
-  // call's newest as it stopped before the call did.
+  // call's newest as it stopped before the call did, less the pauses
+  // between them, which the call's ring skipped.
   int64_t offset = 0;
-  if (call_.end_us >= 0 && mic_.end_us >= 0 && call_.end_us > mic_.end_us) {
-    offset = (call_.end_us - mic_.end_us) * kRate / 1000000;
+  if (call_.end_us >= 0 && mic_.end_us >= 0) {
+    const int64_t between = call_.end_us - mic_.end_us -
+                            (call_.paused_seen - mic_.paused_seen);
+    if (between > 0) offset = between * kRate / 1000000;
   }
   const int64_t start = n - offset - m;
   for (int64_t i = 0; i < m; ++i) {

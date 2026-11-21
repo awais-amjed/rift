@@ -305,6 +305,65 @@ void CatchUpSkipsThePause() {
   CHECK(store.Frames() == 48000 * 11 + 480);
 }
 
+// Rift rejoins twice with no block from the call between (it stayed
+// quiet): both pauses are skipped, not only the last.
+void TwoPausesWithoutABlock() {
+  rift::ClipStore store;
+  store.Configure(30, false);
+  store.SetWriting(true, 0);
+  int64_t now = 0;
+  for (int64_t f = 0; f < 48000; f += 480) {
+    auto call = Block(48000, 1000, 1000, f);
+    store.WriteCall(call.data(), 480, 48000, 2, now);
+    now += 10000;
+  }
+  now += 2 * 1000000;
+  store.SetWriting(false, now);
+  now += 10 * 1000000;
+  store.SetWriting(true, now);
+  now += 1 * 1000000;
+  store.SetWriting(false, now);
+  now += 10 * 1000000;
+  store.SetWriting(true, now);
+  now += 3 * 1000000;
+  auto call = Block(48000, 1000, 1000, 0);
+  store.WriteCall(call.data(), 480, 48000, 2, now);
+  // 1 s of tone, 6 s of quiet (2 + 1 + 3), the block.
+  CHECK(store.Frames() == 48000 * 7 + 480);
+}
+
+// The mic goes quiet (muted), the call plays on, Rift rejoins, the call
+// plays on again. The mic stays where it was said: the pause the call
+// skipped is not counted between them.
+void MicAcrossAPause() {
+  rift::ClipStore store;
+  store.Configure(30, true);
+  store.SetWriting(true, 0);
+  int64_t now = 0;
+  for (int64_t f = 0; f < 48000 * 2; f += 480) {
+    auto call = Block(48000, 0, 0, f);
+    store.WriteCall(call.data(), 480, 48000, 2, now);
+    if (f < 48000) {
+      auto mic = Block(48000, 700, 0, f);
+      store.WriteMic(mic.data(), 480, 48000, now);
+    }
+    now += 10000;
+  }
+  store.SetWriting(false, now);
+  now += 3 * 1000000;
+  store.SetWriting(true, now);
+  for (int64_t f = 0; f < 48000; f += 480) {
+    auto call = Block(48000, 0, 0, f);
+    store.WriteCall(call.data(), 480, 48000, 2, now);
+    now += 10000;
+  }
+  std::vector<int16_t> pcm(store.Frames() * 2);
+  const int64_t n = store.Snapshot(pcm.data(), store.Frames());
+  CHECK(n == 48000 * 3);
+  CHECK(Rms(pcm, 0, 2400, 45600) > 3000);
+  CHECK(Rms(pcm, 0, 50400, n) < 50);
+}
+
 // Shrinking the length keeps the newest audio.
 void ShorterKeepsNewest() {
   rift::ClipStore store;
@@ -367,6 +426,8 @@ int main() {
   QuietAroundPauseIsKept();
   QuietUntilNowIsKept();
   CatchUpSkipsThePause();
+  TwoPausesWithoutABlock();
+  MicAcrossAPause();
   ShorterKeepsNewest();
   ConfigureWhileWriting();
   if (g_failed == 0) std::printf("clip store: all passed\n");

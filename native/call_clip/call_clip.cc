@@ -12,7 +12,9 @@ namespace rift {
 
 namespace {
 
-ClipStore g_store;
+// Never destroyed, like the tap: libwebrtc's audio threads may still hand
+// over a block while the process exits, after static destructors have run.
+ClipStore& g_store = *new ClipStore();
 std::atomic<bool> g_installed{false};
 std::atomic<int32_t> g_render_rate{0};
 std::atomic<int32_t> g_render_channels{0};

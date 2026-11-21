@@ -75,9 +75,11 @@ class ClipStore {
     std::mutex lock;
     std::optional<ClipRing> ring;
     Converter convert[2];
-    // When the last block arrived, or -1 after a pause.
+    // When the last block arrived, or -1 before the first.
     int64_t end_us = -1;
-    int epoch = 0;
+    // paused_us_ as that block found it: what has been paused since is
+    // skipped, not kept as quiet.
+    int64_t paused_seen = 0;
     std::vector<float> left, right;
     std::vector<int16_t> frames;
   };
@@ -90,11 +92,10 @@ class ClipStore {
   Lane call_;
   Lane mic_;
   std::atomic<bool> writing_{false};
-  std::atomic<int> epoch_{0};
-  // When writing last stopped and started again: the pause a quiet stretch
-  // across it leaves out.
-  std::atomic<int64_t> stopped_us_{0};
-  std::atomic<int64_t> started_us_{0};
+  // When writing last stopped (-1 before it first did), and how long it has
+  // been off in all: the pauses a quiet stretch across them leaves out.
+  std::atomic<int64_t> stopped_us_{-1};
+  std::atomic<int64_t> paused_us_{0};
 };
 
 }  // namespace rift
