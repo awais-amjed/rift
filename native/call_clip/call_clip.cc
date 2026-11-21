@@ -101,7 +101,7 @@ void rift_call_clip_configure(int32_t seconds, int32_t include_mic) {
 }
 
 void rift_call_clip_set_writing(int32_t on) {
-  rift::g_store.SetWriting(on != 0);
+  rift::g_store.SetWriting(on != 0, rift::NowUs());
 }
 
 int64_t rift_call_clip_frames(void) { return rift::g_store.Frames(); }
