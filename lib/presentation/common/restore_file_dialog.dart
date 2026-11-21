@@ -134,9 +134,18 @@ class _RestoreFileDialogState extends State<RestoreFileDialog> {
           description: 'Your identity was imported from the backup file.',
         );
       } else {
+        // The one thing a person can do about a refused password that the
+        // message would not otherwise tell them (seen in the live check).
+        final hint =
+            !_useRecoveryKey &&
+                email.isEmpty &&
+                (result.error ?? '').startsWith('Wrong password')
+            ? '. If it was made signed in to an account, enter that '
+                  "account's email too."
+            : '';
         setState(() {
           _isProcessing = false;
-          _error = result.error ?? 'Failed to restore backup';
+          _error = '${result.error ?? 'Failed to restore backup'}$hint';
         });
       }
     } catch (e) {
