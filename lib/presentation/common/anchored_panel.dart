@@ -16,11 +16,13 @@ import 'show_custom_dialog.dart';
 ///
 /// [width] is what the panel asks for; a window narrower than that gets the
 /// window less a margin. Its height is whatever [child] needs, up to what fits
-/// below the anchor.
+/// below the anchor — or above it, with [above], for a button at the foot of
+/// the window, such as one in the call's control bar.
 Future<T?> showAnchoredPanel<T>({
   required BuildContext anchor,
   required double width,
   required Widget child,
+  bool above = false,
 }) {
   final box = anchor.findRenderObject() as RenderBox?;
   final overlay =
@@ -44,7 +46,7 @@ Future<T?> showAnchoredPanel<T>({
       autofocus: true,
       onKeyEvent: (_, event) => closeOnEscape(context, event),
       child: CustomSingleChildLayout(
-        delegate: _BelowAnchor(anchor: rect, width: width),
+        delegate: _ByAnchor(anchor: rect, width: width, above: above),
         child: panel,
       ),
     ),
@@ -57,7 +59,7 @@ Future<T?> showAnchoredPanel<T>({
         opacity: curved,
         child: SlideTransition(
           position: Tween(
-            begin: const Offset(0, -0.015),
+            begin: Offset(0, above ? 0.015 : -0.015),
             end: Offset.zero,
           ).animate(curved),
           child: child,
@@ -67,10 +69,12 @@ Future<T?> showAnchoredPanel<T>({
   );
 }
 
-/// Under the anchor, right edges aligned, kept inside the window.
-class _BelowAnchor extends SingleChildLayoutDelegate {
+/// Under the anchor (or over it, [above]), right edges aligned, kept inside
+/// the window.
+class _ByAnchor extends SingleChildLayoutDelegate {
   final Rect anchor;
   final double width;
+  final bool above;
 
   /// Between the anchor and the panel, and between the panel and the window.
   static const double _gap = 6;
@@ -79,16 +83,22 @@ class _BelowAnchor extends SingleChildLayoutDelegate {
   /// Below this the panel stops fitting under the anchor and simply scrolls.
   static const double _minHeight = 200;
 
-  const _BelowAnchor({required this.anchor, required this.width});
+  const _ByAnchor({
+    required this.anchor,
+    required this.width,
+    required this.above,
+  });
 
   @override
   BoxConstraints getConstraintsForChild(BoxConstraints constraints) {
     final maxWidth = math.min(width, constraints.maxWidth - _margin * 2);
-    final below = constraints.maxHeight - anchor.bottom - _gap - _margin;
+    final room = above
+        ? anchor.top - _gap - _margin
+        : constraints.maxHeight - anchor.bottom - _gap - _margin;
     return BoxConstraints(
       minWidth: maxWidth,
       maxWidth: maxWidth,
-      maxHeight: math.max(_minHeight, below),
+      maxHeight: math.max(_minHeight, room),
     );
   }
 
@@ -100,14 +110,16 @@ class _BelowAnchor extends SingleChildLayoutDelegate {
           math.max(_margin, size.width - childSize.width - _margin),
         )
         .toDouble();
-    final top = math.min(
-      anchor.bottom + _gap,
-      math.max(_margin, size.height - childSize.height - _margin),
-    );
+    final top = above
+        ? math.max(_margin, anchor.top - _gap - childSize.height)
+        : math.min(
+            anchor.bottom + _gap,
+            math.max(_margin, size.height - childSize.height - _margin),
+          );
     return Offset(left, top);
   }
 
   @override
-  bool shouldRelayout(_BelowAnchor old) =>
-      old.anchor != anchor || old.width != width;
+  bool shouldRelayout(_ByAnchor old) =>
+      old.anchor != anchor || old.width != width || old.above != above;
 }

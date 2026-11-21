@@ -14,6 +14,7 @@ import '../../../theme/app_shadows.dart';
 import '../../../theme/theme_context.dart';
 import '../soundboard/soundboard_button.dart';
 import 'screen_share/screen_share_control.dart';
+import 'widgets/clips_button.dart';
 import 'widgets/control_button.dart';
 import 'widgets/leave_button.dart';
 import 'widgets/sound_share_button.dart';
@@ -211,6 +212,9 @@ class _ControlBarContent extends StatelessWidget {
                 // here that is not about this person's own microphone or
                 // screen — it is the room's.
                 const SoundboardButton(),
+                // Clips sit by the soundboard: what was just said, kept,
+                // and one way to put it there.
+                const ClipsButton(),
                 if (SoundShareCubit.isSupported) ...[
                   const SoundShareButton(),
                   const SizedBox(width: 4),

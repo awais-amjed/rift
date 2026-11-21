@@ -57,12 +57,13 @@ String clippingOnText(List<String> names) {
 }
 
 /// The line for [name] having kept the last [seconds] of the call.
-String clippedText(String name, int seconds) {
-  final span = switch (seconds) {
-    1 => 'second',
-    60 => 'minute',
-    120 => '2 minutes',
-    _ => '$seconds seconds',
-  };
-  return '$name clipped the last $span';
-}
+String clippedText(String name, int seconds) =>
+    '$name clipped the last ${clipSpanText(seconds)}';
+
+/// [seconds] as it follows "the last": "minute", "2 minutes", "30 seconds".
+String clipSpanText(int seconds) => switch (seconds) {
+  1 => 'second',
+  60 => 'minute',
+  120 => '2 minutes',
+  _ => '$seconds seconds',
+};
