@@ -387,9 +387,12 @@ class LiveKitState extends Equatable {
       subscribedScreenshares:
           subscribedScreenshares ?? this.subscribedScreenshares,
       watchedPictures: watchedPictures ?? this.watchedPictures,
-      isServerMuted: isServerMuted ?? this.isServerMuted,
-      isServerDeafened: isServerDeafened ?? this.isServerDeafened,
-      isSpeakDenied: isSpeakDenied ?? this.isSpeakDenied,
+      // A moderator's hold and a channel without Speak are the call's, and
+      // the next call's room says its own once it connects. Kept after a
+      // leave, they held the dock's buttons with no call to lift them in.
+      isServerMuted: sameCall && (isServerMuted ?? this.isServerMuted),
+      isServerDeafened: sameCall && (isServerDeafened ?? this.isServerDeafened),
+      isSpeakDenied: sameCall && (isSpeakDenied ?? this.isSpeakDenied),
       // Tied to the connection rather than cleared by hand at each of the
       // places a call can end, so no path out of a call can leave a stale one.
       connectedAt: nextConnection == LiveKitConnectionState.connected

@@ -10,6 +10,8 @@ import 'package:rift/logic/cubits/livekit/livekit_cubit.dart';
 /// un-deafening rewrote it to true, so muting yourself, deafening, then
 /// un-deafening turned your microphone back on by itself.
 void main() {
+  group('moderation ends with the call', moderationEndsWithTheCall);
+
   group('LiveKitState.isMicOn', () {
     test('on when the member wants it and nobody has taken it away', () {
       expect(const LiveKitState(isMicEnabled: true).isMicOn, isTrue);
@@ -208,5 +210,48 @@ void main() {
       );
       expect(switching.leftCall(inVoice), isTrue);
     });
+  });
+}
+
+/// What a moderator or a channel's permissions held over one call ends with
+/// that call. Kept after a leave, the dock's mic and deafen buttons stayed
+/// held ("Muted by a moderator", "You can't speak here") and pressing them
+/// did nothing until the next call connected.
+void moderationEndsWithTheCall() {
+  const held = LiveKitState(
+    currentChannelId: 'a',
+    currentServerId: 's',
+    isServerMuted: true,
+    isServerDeafened: true,
+    isSpeakDenied: true,
+  );
+
+  test('a leave lets go of all three', () {
+    final left = held.copyWith(
+      connectionState: LiveKitConnectionState.disconnected,
+      clearChannelId: true,
+    );
+    expect(left.isServerMuted, isFalse);
+    expect(left.isServerDeafened, isFalse);
+    expect(left.isSpeakDenied, isFalse);
+    expect(left.isMicHeld, isFalse);
+  });
+
+  test('a move to another channel starts it fresh', () {
+    final moved = held.copyWith(
+      connectionState: LiveKitConnectionState.connecting,
+      currentChannelId: 'b',
+    );
+    expect(moved.isServerMuted, isFalse);
+    expect(moved.isSpeakDenied, isFalse);
+  });
+
+  test('a rejoin of the same channel keeps them', () {
+    final again = held.copyWith(
+      connectionState: LiveKitConnectionState.connecting,
+    );
+    expect(again.isServerMuted, isTrue);
+    expect(again.isServerDeafened, isTrue);
+    expect(again.isSpeakDenied, isTrue);
   });
 }
