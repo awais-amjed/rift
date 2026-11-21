@@ -5,12 +5,13 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../../../data/constants.dart';
 import '../../../../../logic/helper_methods.dart';
+import '../../../../../logic/services/call_clip/clip_output.dart';
 import '../../../../../src/rust/api/call_clip.dart';
 import '../../../../../src/rust/api/cue.dart';
 import '../../../../common/app_button.dart';
 
 /// Plays the selection, and stops it, on the call's output device
-/// ([outputId], as WebRTC lists it; the default when null). Built again for a
+/// ([outputId], as WebRTC lists it; the default when null or gone). Built again for a
 /// new selection, which stops what was playing: a preview is of one cut.
 class ClipPreviewButton extends StatefulWidget {
   /// The selection, interleaved 16-bit: cut when Play is pressed, not on
@@ -65,16 +66,15 @@ class _ClipPreviewButtonState extends State<ClipPreviewButton> {
         rate: widget.rate,
         channels: widget.channels,
       );
-      final output = widget.outputId;
-      // WebRTC's own "default: …" entry is the system default.
-      final onDefault =
-          output == null || output.isEmpty || output.startsWith('default: ');
       final frames = pcm.length ~/ widget.channels;
-      final started = await playSound(
-        deviceId: onDefault ? null : output,
-        bytes: wav,
-        volume: 1,
-        maxMs: frames * 1000 ~/ widget.rate + 250,
+      final started = await ClipOutput.play(
+        widget.outputId,
+        (device) => playSound(
+          deviceId: device,
+          bytes: wav,
+          volume: 1,
+          maxMs: frames * 1000 ~/ widget.rate + 250,
+        ),
       );
       if (!mounted) {
         unawaited(stopCue(id: started.id));
