@@ -15,7 +15,11 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
 
   /// Implemented by the cubit and its other mixins.
   void _syncParticipants();
-  void setupRoomListeners(Room room);
+  EventsListener<RoomEvent> setupRoomListeners(Room room);
+  List<EventsListener<RoomEvent>> get _listeners;
+
+  /// Implemented by the cubit: see [CallSteps].
+  CallSteps get _callSteps;
   void _applyStoredSettings();
   bool _hearsAudio(
     Room room,
@@ -114,9 +118,11 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
     bool? cameraEnabled,
   }) async {
     ViewerCodecs.askEarly();
-    final hadRoom = state.room != null;
-    final wasConnecting =
+    final turn = _callSteps.begin();
+    final hadCall =
+        state.room != null ||
         state.connectionState == LiveKitConnectionState.connecting;
+
     // The channel this switch is leaving, read before the emit below renames
     // it. Its token names a node and is dropped for the same reason leaving
     // drops one — see [forgetChannelToken].
@@ -128,14 +134,15 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
     // stream again.
     if (leaving == channelId) {
       _watchResume.remember(state.subscribedScreenshares, DateTime.now());
+    } else {
+      // Another channel's people, drawn under this one's name until it
+      // connects.
+      _appCubit.setParticipants([]);
     }
 
     // Emit 'connecting' before cleanup so the RoomDisconnectedEvent fired during
     // _cleanupRoom is not misread as an unexpected disconnect and doesn't clear
     // the new channel ID.
-    final session = _session;
-    final server = session?.serverById(serverId);
-
     emit(
       state.copyWith(
         connectionState: LiveKitConnectionState.connecting,
@@ -143,23 +150,50 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
         // The server asked for, even one this device no longer has: the join
         // fails below, and Retry asks the same server again.
         currentServerId: serverId,
+        // What the call joins with, said now: a mute pressed while it
+        // connects changes this, and the connect honours it.
+        isMicEnabled: micEnabled,
+        isCameraEnabled: cameraEnabled,
+        participants: leaving == channelId ? null : const [],
         clearDmCall: true,
         clearFailure: true,
       ),
     );
 
-    if (hadRoom || wasConnecting) await _cleanupRoom();
+    await _callSteps.run(
+      () => _joinChannel(
+        turn,
+        channelId: channelId,
+        serverId: serverId,
+        leaving: leaving,
+        cleanUp: hadCall,
+      ),
+    );
+  }
+
+  /// The part of [connectToChannel] that waits, run in [turn] once whatever
+  /// was pressed before it has finished ([CallSteps]). A press after it
+  /// makes it stale, and it stops at the next wait without a word: whatever
+  /// was pressed has its own say.
+  Future<void> _joinChannel(
+    int turn, {
+    required String channelId,
+    required String serverId,
+    required String? leaving,
+    required bool cleanUp,
+  }) async {
+    bool current() => _callSteps.isCurrent(turn);
+    if (!current()) return;
+
+    if (cleanUp || state.room != null) await _cleanupRoom();
     if (leaving != channelId) forgetChannelToken(leaving);
+    if (!current()) return;
 
     emit(state.copyWith(clearRoom: true));
 
+    final server = _session?.serverById(serverId);
     if (server == null) {
-      emit(
-        state.copyWith(
-          connectionState: LiveKitConnectionState.error,
-          failure: const ConnectionFailure.noServer(),
-        ),
-      );
+      _failJoin(const ConnectionFailure.noServer());
       return;
     }
     // A cached token belongs to the account it was minted for, and this
@@ -168,12 +202,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
     // and joins the room as them.
     final userId = server.user?.id;
     if (userId == null) {
-      emit(
-        state.copyWith(
-          connectionState: LiveKitConnectionState.error,
-          failure: const ConnectionFailure.noServer(),
-        ),
-      );
+      _failJoin(const ConnectionFailure.noServer());
       return;
     }
 
@@ -183,103 +212,116 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       userId,
     );
 
-    // The token and the key at once, since neither needs the other: asked for
-    // one after the other, each added a round trip to the wait for the room.
-    // Both are waited for before either answer counts, so that a token refused
-    // leaves nothing of the key still on its way.
-    //
-    // The key before the room. A call joined without one would connect, work,
-    // and be readable by the server — the single thing this is here to stop —
-    // so there is no unencrypted fallback path to take by accident.
-    final (minted, e2ee) = await (
-      cached != null
-          ? Future<APIResponse?>.value()
-          : _voiceOn(server.id)!.getChannelToken(channelId),
-      _prepareE2EE(channelId, server),
-    ).wait;
-
-    String livekitToken;
-    // Where the mint said to take it. Null from a server too old to say, and
-    // then the server row answers — see [CachedToken.livekitUrl].
-    String? mintedUrl;
-    if (cached != null) {
-      livekitToken = cached.token;
-      mintedUrl = cached.livekitUrl;
-    } else {
-      final response = minted!;
-      if (!response.success) {
-        HelperMethods.printDebug(
-          '[LiveKit] Failed to get channel token: ${response.error}',
-        );
+    final bool mintAgain;
+    try {
+      // The token and the key at once, since neither needs the other: asked
+      // for one after the other, each added a round trip to the wait for the
+      // room. Both are waited for before either answer counts, so that a
+      // token refused leaves nothing of the key still on its way.
+      //
+      // The key before the room. A call joined without one would connect,
+      // work, and be readable by the server — the single thing this is here
+      // to stop — so there is no unencrypted fallback path to take by
+      // accident.
+      final (minted, e2ee) = await (
+        cached != null
+            ? Future<APIResponse?>.value()
+            : _voiceOn(server.id)!.getChannelToken(channelId),
+        _prepareE2EE(channelId, server),
+      ).wait;
+      if (!current()) {
         _clearE2EE();
-        emit(
-          state.copyWith(
-            connectionState: LiveKitConnectionState.error,
-            failure: ConnectionFailure.tokenRefused(response),
-          ),
-        );
         return;
       }
-      livekitToken = response.data['token'] as String;
-      mintedUrl = response.data['livekit_url'] as String?;
-      _tokenCubit.saveToken(
-        server.supabaseUrl,
-        channelId,
-        userId,
-        livekitToken,
-        livekitUrl: mintedUrl,
-      );
-    }
 
-    // The address the token was minted for, then the server's own. Checked
-    // here rather than before the token, because the token is what names it:
-    // a channel able to live on a different LiveKit than its server's default
-    // has to be told so by the thing that decided it.
-    final livekitUrl = mintedUrl ?? server.livekitUrl;
-    if (livekitUrl == null) {
+      String livekitToken;
+      // Where the mint said to take it. Null from a server too old to say,
+      // and then the server row answers — see [CachedToken.livekitUrl].
+      String? mintedUrl;
+      if (cached != null) {
+        livekitToken = cached.token;
+        mintedUrl = cached.livekitUrl;
+      } else {
+        final response = minted!;
+        if (!response.success) {
+          HelperMethods.printDebug(
+            '[LiveKit] Failed to get channel token: ${response.error}',
+          );
+          _clearE2EE();
+          _failJoin(ConnectionFailure.tokenRefused(response));
+          return;
+        }
+        livekitToken = response.data['token'] as String;
+        mintedUrl = response.data['livekit_url'] as String?;
+        _tokenCubit.saveToken(
+          server.supabaseUrl,
+          channelId,
+          userId,
+          livekitToken,
+          livekitUrl: mintedUrl,
+        );
+      }
+
+      // The address the token was minted for, then the server's own. Checked
+      // here rather than before the token, because the token is what names
+      // it: a channel able to live on a different LiveKit than its server's
+      // default has to be told so by the thing that decided it.
+      final livekitUrl = mintedUrl ?? server.livekitUrl;
+      if (livekitUrl == null) {
+        _clearE2EE();
+        _failJoin(const ConnectionFailure.noLiveKitUrl());
+        return;
+      }
+
+      final (:options, :refused) = e2ee;
+      if (options == null) {
+        _failJoin(refused ?? const ConnectionFailure.noChannelKey());
+        return;
+      }
+
+      mintAgain = await _joinRoom(
+        livekitUrl: livekitUrl,
+        livekitToken: livekitToken,
+        e2ee: options,
+        tokenWasCached: cached != null,
+        callName: _channelName(server.channels, channelId),
+        serverName: server.name,
+        isCurrent: current,
+        // And from here on, a key rotated by somebody being removed has to
+        // reach this call rather than waiting for a rejoin.
+        onConnected: () => _watchKeyRotations(server, channelId),
+      );
+    } catch (e) {
+      // Thrown before the room: the vault, the key provider, an answer
+      // without a token. Uncaught, it left "Connecting…" up for good.
+      HelperMethods.printDebug('[LiveKit] join gave out before the room: $e');
       _clearE2EE();
-      emit(
-        state.copyWith(
-          connectionState: LiveKitConnectionState.error,
-          failure: const ConnectionFailure.noLiveKitUrl(),
-        ),
-      );
+      if (current()) _failJoin(ConnectionFailure.from(e));
       return;
     }
-
-    final (:options, :refused) = e2ee;
-    if (options == null) {
-      emit(
-        state.copyWith(
-          connectionState: LiveKitConnectionState.error,
-          failure: refused ?? const ConnectionFailure.noChannelKey(),
-        ),
-      );
-      return;
-    }
-
-    final mintAgain = await _joinRoom(
-      livekitUrl: livekitUrl,
-      livekitToken: livekitToken,
-      e2ee: options,
-      micEnabled: micEnabled,
-      cameraEnabled: cameraEnabled,
-      tokenWasCached: cached != null,
-      callName: _channelName(server.channels, channelId),
-      serverName: server.name,
-      // And from here on, a key rotated by somebody being removed has to
-      // reach this call rather than waiting for a rejoin.
-      onConnected: () => _watchKeyRotations(server, channelId),
-    );
-    if (mintAgain) {
+    if (mintAgain && current()) {
       _tokenCubit.invalidateToken(channelId);
-      await connectToChannel(
+      await _joinChannel(
+        turn,
         channelId: channelId,
         serverId: server.id,
-        micEnabled: micEnabled,
-        cameraEnabled: cameraEnabled,
+        leaving: channelId,
+        cleanUp: false,
       );
     }
+  }
+
+  /// A join that will not happen, said in the state. The people it showed
+  /// belong to a call this device is not in.
+  void _failJoin(ConnectionFailure failure) {
+    _appCubit.setParticipants([]);
+    emit(
+      state.copyWith(
+        connectionState: LiveKitConnectionState.error,
+        failure: failure,
+        participants: const [],
+      ),
+    );
   }
 
   /// The half of a join that is the same whatever the call is: a room, keyed
@@ -294,11 +336,10 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
     required String livekitUrl,
     required String livekitToken,
     required E2EEOptions e2ee,
-    required bool? micEnabled,
-    required bool? cameraEnabled,
     required bool tokenWasCached,
     required String callName,
     required String? serverName,
+    required bool Function() isCurrent,
     void Function()? onConnected,
   }) async {
     final room = Room(
@@ -313,11 +354,12 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
     // sound from playing as somebody joins (CALLS.md).
     room.audioHeldOnArrival = (participant, publication) =>
         !_hearsAudio(room, participant, publication);
-    setupRoomListeners(room);
+    final listener = setupRoomListeners(room);
 
     try {
-      final useMicEnabled = micEnabled ?? state.isMicEnabled;
-      final useCameraEnabled = cameraEnabled ?? state.isCameraEnabled;
+      // As the state has them now, which a press while connecting changed.
+      final useMicEnabled = state.isMicEnabled;
+      final useCameraEnabled = state.isCameraEnabled;
       // With anybody's ears shut to you, the mic waits until the server has
       // been told who may receive it: published inside the connect, it would
       // reach everyone present before the list could be sent ([VoicePrivacy]).
@@ -350,6 +392,12 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       // publish after this one — unmuting, the camera, a track rebuilt when
       // the input device moved.
       await room.e2eeManager?.setKeyIndex(_callKeyIndex);
+      // Left, or somewhere else pressed, while this connected.
+      if (!isCurrent()) {
+        _clearE2EE();
+        await _dropUnjoinedRoom(room, listener);
+        return false;
+      }
       _applyVoicePrivacy(room);
       onConnected?.call();
 
@@ -360,8 +408,6 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
           connectedAt: SteadyClock.now(),
           connectedLivekitUrl: livekitUrl,
           arrivals: state.arrivals + 1,
-          isMicEnabled: useMicEnabled,
-          isCameraEnabled: useCameraEnabled,
         ),
       );
 
@@ -416,40 +462,52 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       // in — so that case is tried once more before anyone sees an error. The
       // second attempt has no cached token to reach for, so it cannot loop.
       // See [VoiceRejoin].
-      final mintAgain = tokenWasCached && VoiceRejoin.refusedCachedToken(e);
-      if (!mintAgain) {
-        emit(
-          state.copyWith(
-            connectionState: LiveKitConnectionState.error,
-            failure: ConnectionFailure.from(e),
-          ),
-        );
-      }
+      final mintAgain =
+          isCurrent() && tokenWasCached && VoiceRejoin.refusedCachedToken(e);
+      // A join nobody is waiting for any more fails without a word.
+      if (!mintAgain && isCurrent()) _failJoin(ConnectionFailure.from(e));
       // The key material, and the doorbell subscription [_prepareE2EE] may
       // have opened to ask for it, both belong to a call that is not
       // happening. Nothing used to be held this early, so nothing had to be
       // let go here.
       _clearE2EE();
-      // Caught, because a room that never connected does not always report its
-      // own disconnect, and `disconnect` then times out waiting for it. The
-      // exception used to escape from here, past everything below: nobody saw
-      // it while the error had already been shown, but it skipped the second
-      // attempt and left "Connecting…" on screen for good.
-      //
-      // Disposed whatever the disconnect did. A disconnect that timed out used
-      // to skip the dispose with it, and the half-joined room went on holding
-      // its tracks and native observers into the next call.
-      try {
-        await room.disconnect();
-      } catch (e) {
-        HelperMethods.printDebug('[LiveKit] teardown after a failed join: $e');
-      }
-      try {
-        await room.dispose();
-      } catch (e) {
-        HelperMethods.printDebug('[LiveKit] dispose after a failed join: $e');
-      }
+      await _dropUnjoinedRoom(room, listener);
       return mintAgain;
+    }
+  }
+
+  /// Takes down a room that never became the call's: a join that failed, or
+  /// one overtaken while it connected. Its listener goes first, so its own
+  /// disconnect is not heard as the call dropping, and because nothing else
+  /// holds it: the next teardown only finds the listeners of a room in the
+  /// state.
+  Future<void> _dropUnjoinedRoom(
+    Room room,
+    EventsListener<RoomEvent> listener,
+  ) async {
+    _listeners.remove(listener);
+    try {
+      await listener.dispose();
+    } catch (e) {
+      HelperMethods.printDebug('[LiveKit] listener of an unjoined room: $e');
+    }
+    // Caught, because a room that never connected does not always report its
+    // own disconnect, and `disconnect` then times out waiting for it. The
+    // exception used to escape a failed join here, skipping the second attempt
+    // and leaving "Connecting…" on screen for good.
+    //
+    // Disposed whatever the disconnect did. A disconnect that timed out used
+    // to skip the dispose with it, and the half-joined room went on holding
+    // its tracks and native observers into the next call.
+    try {
+      await room.disconnect();
+    } catch (e) {
+      HelperMethods.printDebug('[LiveKit] teardown of an unjoined room: $e');
+    }
+    try {
+      await room.dispose();
+    } catch (e) {
+      HelperMethods.printDebug('[LiveKit] dispose of an unjoined room: $e');
     }
   }
 

@@ -24,6 +24,8 @@ mixin _LiveKitLeaveMixin on Cubit<LiveKitState>, _E2EEMixin {
   void _resetCaptureRevive();
   void _resetMicSilence();
   Future<void> _endRustWatch();
+  CallSteps get _callSteps;
+  void _forgetDmMediaKey();
 
   /// Disconnects from the current room.
   ///
@@ -31,9 +33,14 @@ mixin _LiveKitLeaveMixin on Cubit<LiveKitState>, _E2EEMixin {
   /// same signal `VoiceConnectionListener` listens on to leave a call, so this re-enters
   /// itself on every leave: the second call starts as soon as the first
   /// awaits, and both then tear down the same [Room].
+  ///
+  /// Said at once, taken down in turn ([CallSteps]): a join still connecting
+  /// is made stale here and stands down by itself, and the room is taken down
+  /// after it, so neither runs over the other.
   Future<void> disconnect() async {
     if (_disconnecting) return;
     _disconnecting = true;
+    _callSteps.begin();
     // Read before anything clears it; the token is dropped at the end.
     final leaving = state.currentChannelId;
     try {
@@ -70,30 +77,27 @@ mixin _LiveKitLeaveMixin on Cubit<LiveKitState>, _E2EEMixin {
         ),
       );
 
-      // A phone's call page is sliding away now, and the room is taken down
-      // once it has gone. Closing it is native work on the phone's main
-      // thread, which is the UI's: it waited 116 ms on libwebrtc in the middle
-      // of the slide, which stuttered. The call is heard for that half second
-      // more, under the leave cue.
-      if (HostPlatform.isMobile) {
-        final room = state.room;
-        await Future<void>.delayed(_pageSlide);
-        // Joined somewhere else meanwhile: the join took this room down
-        // itself, and what is there now is the new call's.
-        if (!identical(state.room, room)) {
-          forgetChannelToken(leaving);
-          return;
+      await _callSteps.run(() async {
+        // A phone's call page is sliding away now, and the room is taken
+        // down once it has gone. Closing it is native work on the phone's
+        // main thread, which is the UI's: it waited 116 ms on libwebrtc in
+        // the middle of the slide, which stuttered. The call is heard for
+        // that half second more, under the leave cue.
+        if (HostPlatform.isMobile && state.room != null) {
+          await Future<void>.delayed(_pageSlide);
         }
-      }
 
-      await _cleanupRoom();
-      // The call's key ring goes with the call. Holding it would leave the
-      // last channel's key in memory long after leaving, and would key the
-      // next call with it if a load ever failed quietly.
-      _clearE2EE();
-      _keyring?.clear();
-      emit(state.copyWith(clearRoom: true));
-      forgetChannelToken(leaving);
+        await _cleanupRoom();
+        // The call's key ring goes with the call. Holding it would leave the
+        // last channel's key in memory long after leaving, and would key the
+        // next call with it if a load ever failed quietly. Nothing joins
+        // meanwhile: a join pressed now runs after this.
+        _clearE2EE();
+        _keyring?.clear();
+        _forgetDmMediaKey();
+        emit(state.copyWith(clearRoom: true));
+        forgetChannelToken(leaving);
+      });
     } finally {
       _disconnecting = false;
     }

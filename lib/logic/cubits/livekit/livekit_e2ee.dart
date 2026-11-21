@@ -84,6 +84,10 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
   /// call and an open channel are different channels most of the time.
   final KeySweepDoorbell _rotations = KeySweepDoorbell();
 
+  /// The server's socket coming back, for as long as the doorbell is held:
+  /// a ring sent while it was down is not sent again.
+  StreamSubscription<void>? _realtimeBack;
+
   /// Bots an admin has allowed to hear this channel. They are keyed with the
   /// channel key itself rather than a derived one — there is no third thing to
   /// give a listener, which is why that grant is a key grant and cannot be
@@ -239,10 +243,16 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
       server,
       () => unawaited(_onKeyDoorbell(channelId)),
     );
+    unawaited(_realtimeBack?.cancel());
+    _realtimeBack = realtime.returned.listen(
+      (_) => unawaited(_onKeyDoorbell(channelId)),
+    );
   }
 
   void _clearE2EE() {
     unawaited(_rotations.stop());
+    unawaited(_realtimeBack?.cancel());
+    _realtimeBack = null;
     _keyProvider = null;
     _callChannelKey = null;
     _callKeyIndex = 0;

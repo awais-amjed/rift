@@ -300,7 +300,6 @@ mixin _RustWatchMixin
 
   /// Closes the watch connection and lets go of its textures — the call's
   /// room going, for whatever reason, or the connection failing.
-  @override
   Future<void> _endRustWatch() async {
     _noWatchConnections = false;
     final textures = state.watchedPictures.values

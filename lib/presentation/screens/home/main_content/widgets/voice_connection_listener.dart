@@ -34,12 +34,14 @@ class VoiceConnectionListener extends StatelessWidget {
         }
 
         // The channel's own server, which is the selected one for a click but
-        // not for a moderator moving you while you read another server.
+        // not for a moderator moving you while you read another server. A
+        // server signed out of, or with no LiveKit of its own, is still asked:
+        // the join says why it cannot happen, where returning here left the
+        // old call running under the new channel's selection. And a channel
+        // can be sent to a LiveKit its server does not name.
         final session = context.read<SessionRepository>();
         final server = session.serverWithChannel(channelId);
         if (server == null) return;
-        if (server.user == null) return;
-        if (server.livekitUrl == null) return;
 
         livekitCubit.connectToChannel(
           channelId: channelId,

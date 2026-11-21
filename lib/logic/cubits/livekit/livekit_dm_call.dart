@@ -23,12 +23,13 @@ mixin _DmCallConnectMixin on Cubit<LiveKitState>, _E2EEMixin {
     required String livekitUrl,
     required String livekitToken,
     required E2EEOptions e2ee,
-    required bool? micEnabled,
-    required bool? cameraEnabled,
     required bool tokenWasCached,
     required String callName,
     required String? serverName,
+    required bool Function() isCurrent,
   });
+  CallSteps get _callSteps;
+  void _failJoin(ConnectionFailure failure);
 
   /// The DM call's media key, kept for as long as the call so a dropped
   /// connection can rejoin without asking the call cubit for it again.
@@ -48,66 +49,75 @@ mixin _DmCallConnectMixin on Cubit<LiveKitState>, _E2EEMixin {
     bool? cameraEnabled,
   }) async {
     ViewerCodecs.askEarly();
-    final hadRoom = state.room != null;
-    final wasConnecting =
+    final turn = _callSteps.begin();
+    final hadCall =
+        state.room != null ||
         state.connectionState == LiveKitConnectionState.connecting;
     final leaving = state.currentChannelId;
+    if (state.dmCall?.callId != place.callId) _appCubit.setParticipants([]);
 
     emit(
       state.copyWith(
         connectionState: LiveKitConnectionState.connecting,
         dmCall: place,
+        isMicEnabled: micEnabled,
+        isCameraEnabled: cameraEnabled,
+        participants: state.dmCall?.callId == place.callId ? null : const [],
         clearChannelId: true,
         clearFailure: true,
       ),
     );
     _appCubit.setSelectedChannelId(null);
 
-    if (hadRoom || wasConnecting) await _cleanupRoom();
-    forgetChannelToken(leaving);
-    _clearE2EE();
-    _keyring?.clear();
-    emit(state.copyWith(clearRoom: true));
-    _dmMediaKey = mediaKey;
+    await _callSteps.run(() async {
+      // Hung up, or replaced by another call, before this had its turn.
+      bool current() => _callSteps.isCurrent(turn) && state.dmCall == place;
+      if (!current()) return;
 
-    final response = await _voiceOn(server.id)!.getDmCallToken(place.callId);
-    // Hung up, or replaced by another call, while the token was on its way.
-    if (state.dmCall != place) return;
-    if (!response.success) {
-      HelperMethods.printDebug(
-        '[LiveKit] no token for DM call ${place.callId}: ${response.error}',
-      );
-      emit(
-        state.copyWith(
-          connectionState: LiveKitConnectionState.error,
-          failure: ConnectionFailure.tokenRefused(response),
-        ),
-      );
-      return;
-    }
+      if (hadCall || state.room != null) await _cleanupRoom();
+      forgetChannelToken(leaving);
+      _clearE2EE();
+      _keyring?.clear();
+      emit(state.copyWith(clearRoom: true));
+      _dmMediaKey = mediaKey;
 
-    final data = response.data as Map<String, dynamic>;
-    final livekitUrl = data['livekit_url'] as String? ?? server.livekitUrl;
-    if (livekitUrl == null) {
-      emit(
-        state.copyWith(
-          connectionState: LiveKitConnectionState.error,
-          failure: const ConnectionFailure.noLiveKitUrl(),
-        ),
-      );
-      return;
-    }
+      try {
+        final response = await _voiceOn(
+          server.id,
+        )!.getDmCallToken(place.callId);
+        // Hung up, or replaced by another call, while the token was on its
+        // way.
+        if (!current()) return;
+        if (!response.success) {
+          HelperMethods.printDebug(
+            '[LiveKit] no token for DM call ${place.callId}: ${response.error}',
+          );
+          _failJoin(ConnectionFailure.tokenRefused(response));
+          return;
+        }
 
-    await _joinRoom(
-      livekitUrl: livekitUrl,
-      livekitToken: data['token'] as String,
-      e2ee: await _prepareFixedKey(mediaKey),
-      micEnabled: micEnabled,
-      cameraEnabled: cameraEnabled,
-      tokenWasCached: false,
-      callName: place.peerName,
-      serverName: server.name,
-    );
+        final data = response.data as Map<String, dynamic>;
+        final livekitUrl = data['livekit_url'] as String? ?? server.livekitUrl;
+        if (livekitUrl == null) {
+          _failJoin(const ConnectionFailure.noLiveKitUrl());
+          return;
+        }
+
+        await _joinRoom(
+          livekitUrl: livekitUrl,
+          livekitToken: data['token'] as String,
+          e2ee: await _prepareFixedKey(mediaKey),
+          tokenWasCached: false,
+          callName: place.peerName,
+          serverName: server.name,
+          isCurrent: current,
+        );
+      } catch (e) {
+        HelperMethods.printDebug('[LiveKit] DM call join gave out: $e');
+        _clearE2EE();
+        if (current()) _failJoin(ConnectionFailure.from(e));
+      }
+    });
   }
 
   /// Join the DM call this device is in again — a dropped connection, or

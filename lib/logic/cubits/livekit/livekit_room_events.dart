@@ -28,6 +28,9 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
   /// Implemented by [_DmCallConnectMixin], for the same reason.
   Future<void> rejoinDmCall();
 
+  /// Implemented by [_LiveKitLeaveMixin]: a call given up on is left.
+  Future<void> disconnect();
+
   Future<void> _checkReceivers();
   void _applyScreenshareQualitySettings(Participant participant);
   void _onRemoteAudioArrived(RemoteTrackPublication publication);
@@ -40,11 +43,10 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
   void _letGoOfUnwatchedPictures();
   void _syncPictureReception();
   void _noteDecryption(TrackE2EEStateEvent e);
-  Future<void> _endRustWatch();
 
   /// Public because the connection mixin wires this up when a room is
   /// created — cubit-internal, not part of the UI-facing API.
-  void setupRoomListeners(Room room) {
+  EventsListener<RoomEvent> setupRoomListeners(Room room) {
     final listener = room.createListener();
     _listeners.add(listener);
     _watchingSeen.clear();
@@ -64,6 +66,11 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
         _releaseMicAfterRestart();
         _syncClipping();
         emit(state.copyWith(arrivals: state.arrivals + 1));
+        // A key rotated while the connection was out was rung for on a
+        // doorbell nobody here heard: asked for now, or the call stays on
+        // the old key and hears nobody new.
+        final channelId = state.currentChannelId;
+        if (channelId != null) unawaited(_onKeyDoorbell(channelId));
       })
       ..on<TrackE2EEStateEvent>(_noteDecryption)
       ..on<ParticipantConnectedEvent>((e) {
@@ -332,17 +339,12 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
           return;
         }
 
-        unawaited(_endRustWatch());
-        _appCubit.setSelectedChannelId(null);
-        emit(
-          state.copyWith(
-            connectionState: LiveKitConnectionState.disconnected,
-            clearRoom: true,
-            clearDmCall: true,
-            participants: [],
-          ),
-        );
+        // Given up: left the way a press of Leave leaves, so the room, its
+        // listener, the keys and the call notification go with it. Emptying
+        // the state here instead left `disconnect` no room to take down.
+        unawaited(disconnect());
       });
+    return listener;
   }
 
   /// Joins [channelId] because a moderator said so.

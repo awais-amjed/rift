@@ -37,6 +37,7 @@ import '../../services/call_clip/clip_notice_rules.dart';
 import '../../services/call_clip/clip_recorder.dart';
 import '../../services/call_clip/clip_signal.dart';
 import '../../services/call_foreground_service.dart';
+import '../../services/call_steps.dart';
 import '../../services/call_volume.dart';
 import '../../services/channel_keyring.dart';
 import '../../services/connection_failure.dart';
@@ -175,6 +176,15 @@ class LiveKitCubit extends Cubit<LiveKitState>
   /// State, so it lives here rather than in either mixin that reads it.
   @override
   bool _disconnecting = false;
+
+  /// Joins and leaves, one at a time and the latest press winning — see
+  /// [CallSteps].
+  @override
+  final CallSteps _callSteps = CallSteps();
+
+  /// The DM call's key goes with the call, like a channel's ([disconnect]).
+  @override
+  void _forgetDmMediaKey() => _dmMediaKey = null;
 
   /// The input device this process last put in force, which every mic track
   /// has to name — see [_buildAudioCaptureOptions]. Null until a call has

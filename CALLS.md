@@ -79,6 +79,37 @@ pays for its own members only: their presence entries and call moves, on the
 socket the unread badges already held open, and two topics each against the
 console's allowance of 1,000 per member.
 
+## Joining and leaving, one at a time — [Implemented November 2026]
+
+A join waits on the network twice: for the token and the channel's key, then for
+the room. A Leave or another channel pressed in that time used to run beside it,
+and neither saw the other. The leave found no room to close, and the join went
+on to connect into a call with no Leave button on screen. A quick switch left the
+first room connected under the second channel's name. The two also shared one
+keyring, so one channel's load could clear the other's keys.
+
+`CallSteps` puts joins and leaves in a line. Each press takes a new turn, which
+makes every earlier one stale, and each step runs once the one before it has
+finished. What a press means is said at once: Leave empties the call and the
+selection, and a join shows "Connecting…" under its channel. The waiting is
+done in turn. A join still waiting checks its turn after the token and key,
+and again once the room has connected. If it is stale, it stands down without
+a word and takes its own room down, listener first, so that room's disconnect
+is not heard as the call dropping.
+
+What the call joins with is said when the join starts, and the connect honours
+the state as it then is. So a mute pressed while "Connecting…" is kept. What
+held the controls in one call (a moderator's mute or deafen, a channel without
+Speak) is tied to that call in `LiveKitState.copyWith`, like the voice
+allow-lists: a leave or a move lets go of it, and a rejoin of the same channel
+keeps it.
+
+A key rotated while the connection was out is asked for again when the room
+comes back (`RoomReconnectedEvent`) and when the server's socket does
+(`ServerRealtime.returned`), since the doorbell that announced it is not rung
+twice. A call the SDK gives up on is left through `disconnect`, the same way as
+pressing Leave. Verified on Linux on Nov 21 2026 (`TESTING.md`).
+
 ## Hiding your voice from somebody — [Implemented October 2026]
 
 "Hide my voice from them" is the other direction from a mute for yourself:
