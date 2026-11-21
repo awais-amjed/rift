@@ -227,4 +227,89 @@ void main() {
       expect(w!.hasNewer, isTrue);
     });
   });
+
+  // Review of Nov 22: a reconnect read only what was newer, so a row deleted,
+  // edited or reacted to while the connection was down stayed as it was.
+  group('reconcileNewest', () {
+    test('the page replaces what it covers: edits in, deletes out', () {
+      final result = ChatMessageOps.reconcileNewest(
+        current: [msg('3'), msg('5'), msg('7'), msg('9')],
+        page: [
+          msg('5', text: 'edited'),
+          msg('9'),
+          msg('11'),
+        ],
+        floor: 5,
+      );
+      expect([for (final m in result.merged) m.id], ['3', '5', '9', '11']);
+      expect(result.merged[1].text, 'edited');
+      expect([for (final m in result.fresh) m.id], ['11']);
+      expect(result.replaced, isFalse);
+    });
+
+    test('a page that is the whole conversation covers every row', () {
+      final result = ChatMessageOps.reconcileNewest(
+        current: [msg('3'), msg('5')],
+        page: [msg('5')],
+        floor: null,
+      );
+      expect([for (final m in result.merged) m.id], ['5']);
+    });
+
+    test('a reaction changed meanwhile is taken from the page', () {
+      final result = ChatMessageOps.reconcileNewest(
+        current: [msg('5')],
+        page: [
+          msg(
+            '5',
+            reactions: const [
+              MessageReaction(emoji: '👍', count: 2, mine: false),
+            ],
+          ),
+        ],
+        floor: null,
+      );
+      expect(result.merged.single.reactions.single.count, 2);
+      expect(result.fresh, isEmpty);
+    });
+
+    test('pending sends stay, and one the page holds is retired', () {
+      final result = ChatMessageOps.reconcileNewest(
+        current: [
+          msg('5'),
+          msg('pending-1', text: 'out', mine: true, pending: true),
+          msg('pending-2', text: 'still going', mine: true, pending: true),
+        ],
+        page: [
+          msg('5'),
+          msg('6', text: 'out', mine: true),
+        ],
+        floor: 5,
+      );
+      expect([for (final m in result.merged) m.id], ['5', 'pending-2', '6']);
+      expect(result.retired, ['pending-1']);
+    });
+
+    test('a page above everything held replaces it outright', () {
+      final result = ChatMessageOps.reconcileNewest(
+        current: [msg('3'), msg('5')],
+        page: [msg('60'), msg('61')],
+        floor: 60,
+      );
+      expect([for (final m in result.merged) m.id], ['60', '61']);
+      expect(result.replaced, isTrue);
+    });
+
+    test('the floor is the oldest id the server sent', () {
+      expect(
+        ChatMessageOps.floorOf([
+          {'id': 9},
+          {'id': 4},
+          {'id': '7'},
+        ]),
+        4,
+      );
+      expect(ChatMessageOps.floorOf(const []), isNull);
+    });
+  });
 }

@@ -34,20 +34,35 @@ mixin _DmReactionsMixin on Cubit<DmState> {
     if (!response.success) {
       emit(state.copyWith(notice: Notice.error('Failed to react')));
     }
-    await refreshReactionsFor(messageId);
+    final read = await refreshReactionsFor(messageId);
+    // Neither got through — offline, most likely — so nothing replaced the
+    // flip: take it back, or the chip says a reaction is there that is not.
+    if (!response.success && !read && state.openPeerId == peerId) {
+      emit(
+        state.copyWith(
+          messages: ReactionOps.withOptimisticReaction(
+            state.messages,
+            messageId: messageId,
+            emoji: emoji,
+          ),
+        ),
+      );
+    }
   }
 
   /// Re-fetch one message's authoritative reactions, leaving the rest alone.
-  Future<void> refreshReactionsFor(String messageId) async {
+  ///
+  /// Answers whether the counts were read.
+  Future<bool> refreshReactionsFor(String messageId) async {
     final peerId = state.openPeerId;
     final idNum = int.tryParse(messageId);
-    if (peerId == null || idNum == null) return;
+    if (peerId == null || idNum == null) return false;
 
     final response = await _reactions.listReactions(
       scope: 'dm',
       messageIds: [idNum],
     );
-    if (!response.success || state.openPeerId != peerId) return;
+    if (!response.success || state.openPeerId != peerId) return false;
     emit(
       state.copyWith(
         messages: ReactionOps.withReactionsFor(
@@ -57,6 +72,7 @@ mixin _DmReactionsMixin on Cubit<DmState> {
         ),
       ),
     );
+    return true;
   }
 
   /// Every loaded message — the fallback for a doorbell that didn't name one.

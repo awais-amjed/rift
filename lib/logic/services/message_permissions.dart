@@ -14,8 +14,16 @@ class MessagePermissions {
   /// words in someone's mouth under their own name is worse than removing the
   /// message. Attachment-only messages aren't editable: there is no text to
   /// change, and swapping attachments would mean a fresh upload.
+  ///
+  /// Nor a `/` command or a poll, which the server refuses to edit
+  /// (`command_cannot_be_edited`, `poll_cannot_be_edited`): offered, Edit
+  /// only led to that refusal in raw words.
   static bool canEdit(ChatMessage message) =>
-      message.isMine && !message.isPending && message.text.isNotEmpty;
+      message.isMine &&
+      !message.isPending &&
+      message.text.isNotEmpty &&
+      !message.isCommand &&
+      message.poll == null;
 
   /// The author always may; a moderator may delete anyone's.
   ///

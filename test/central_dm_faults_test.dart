@@ -380,18 +380,19 @@ void main() {
     expect(dms.state.canSendToOpen, isTrue);
   });
 
-  test('a rejoin reads what arrived while the connection was down', () async {
+  test('a rejoin reads what changed while the connection was down', () async {
     await start();
     central.joined!(RealtimeSubscribeStatus.subscribed);
     await _settle();
     await open();
-    final before = central.afterReads;
+    final before = central.latestReads;
 
-    // The first join asks nothing more; one after a dropped connection
-    // catches the open conversation up.
+    // The first join asks nothing more; one after a dropped connection reads
+    // the newest page again, so edits and deletes are seen as well as what
+    // was sent (review, Nov 22).
     central.joined!(RealtimeSubscribeStatus.subscribed);
     await _settle();
-    expect(central.afterReads, before + 1);
+    expect(central.latestReads, before + 1);
   });
 
   test('a ring while the conversation opens is read once it has', () async {

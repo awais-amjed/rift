@@ -128,6 +128,10 @@ class ForwardService with _ForwardBlobsMixin, _ForwardDmsMixin {
     CentralDmTarget() => _sendToCentralDm(target, message, files, note),
   };
 
+  /// Said when a file could not be copied into a destination: the forward
+  /// is not sent without it.
+  static const _filesDidNotTravel = "Couldn't copy its files there.";
+
   // ── Channels ──────────────────────────────────────────────
 
   Future<String?> _sendToChannel(
@@ -156,6 +160,7 @@ class ForwardService with _ForwardBlobsMixin, _ForwardDmsMixin {
       serverId: server.id,
       plain: plain,
     );
+    if (attachments == null) return _filesDidNotTravel;
     final identity = await _identityFor(server);
     if (identity == null) return 'Your vault is locked.';
 

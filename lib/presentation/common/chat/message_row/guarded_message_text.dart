@@ -30,6 +30,24 @@ class GuardedMessageText extends StatefulWidget {
 
   static final Set<String> _revealed = {};
 
+  /// Whether [text] is covered in this message's row — asked by what shows
+  /// a message's words outside it (a reply's quote, a forward's card), which
+  /// once drew in full what the row hid (review, Nov 22). Call from `build`.
+  static bool covers(
+    BuildContext context, {
+    required String messageId,
+    required String text,
+  }) {
+    final mode = context.select<AppCubit, SensitiveContentMode>(
+      (c) => c.state.sensitiveContentMode,
+    );
+    if (mode == SensitiveContentMode.off || _revealed.contains(messageId)) {
+      return false;
+    }
+    final verdict = TextSafety.instance.check(messageId, text);
+    return verdict != null && verdict.isSensitive;
+  }
+
   @visibleForTesting
   static void resetReveals() => _revealed.clear();
 
@@ -40,16 +58,15 @@ class GuardedMessageText extends StatefulWidget {
 class _GuardedMessageTextState extends State<GuardedMessageText> {
   @override
   Widget build(BuildContext context) {
-    final mode = context.select<AppCubit, SensitiveContentMode>(
-      (c) => c.state.sensitiveContentMode,
-    );
-    if (mode == SensitiveContentMode.off ||
-        GuardedMessageText._revealed.contains(widget.messageId)) {
+    if (!GuardedMessageText.covers(
+      context,
+      messageId: widget.messageId,
+      text: widget.text,
+    )) {
       return widget.child;
     }
-    final verdict = TextSafety.instance.check(widget.messageId, widget.text);
-    if (verdict == null || !verdict.isSensitive) return widget.child;
 
+    final mode = context.read<AppCubit>().state.sensitiveContentMode;
     final canReveal = mode == SensitiveContentMode.blur;
     final themeState = context.theme;
     return MouseRegion(

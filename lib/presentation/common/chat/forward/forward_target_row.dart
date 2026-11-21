@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../../data/constants.dart';
 import '../../../../logic/services/forwarding/forward_target.dart';
 import '../../../theme/app_text.dart';
+import '../../../theme/custom_colors.dart';
 import '../../../theme/theme_context.dart';
 
 /// One destination in the forward picker, with its own checkbox.
@@ -48,8 +49,19 @@ class ForwardTargetRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    Text(
-                      target.context,
+                    Text.rich(
+                      TextSpan(
+                        text: target.context,
+                        children: [
+                          if (target.notEncrypted)
+                            TextSpan(
+                              text: ' · Not encrypted',
+                              style: TextStyle(
+                                color: theme.statusInk(CustomColors.warning),
+                              ),
+                            ),
+                        ],
+                      ),
                       style: AppText.label.copyWith(
                         fontWeight: FontWeight.w400,
                         color: theme.textTertiary,

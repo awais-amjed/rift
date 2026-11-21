@@ -35,6 +35,9 @@ mixin _DmEditMixin on Cubit<DmState> {
     final existing = state.messages.where((m) => m.id == messageId).firstOrNull;
     if (existing == null) return;
     if (trimmed.isEmpty || trimmed == existing.text) return;
+    // This server's, taken before the awaits: read after them, a switch in
+    // between sent the envelope sealed here to a row on the next server.
+    final dms = _dms;
 
     try {
       final identity = await _vaultIdentityFor(server);
@@ -46,7 +49,7 @@ mixin _DmEditMixin on Cubit<DmState> {
         keyVersion: 1,
       );
 
-      final response = await _dms.editDm(
+      final response = await dms.editDm(
         messageId: id,
         envelope: envelope.toJson(),
       );

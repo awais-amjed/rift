@@ -19,6 +19,11 @@ sealed class ForwardTarget {
 
   /// The line under it: which server, or which tier a DM is on.
   String get context;
+
+  /// Whether what is sent there goes in the clear — a channel whose
+  /// encryption a manager turned off. The picker says so before the send,
+  /// as the composer does.
+  bool get notEncrypted => false;
 }
 
 /// A channel on one server.
@@ -36,6 +41,9 @@ class ChannelTarget extends ForwardTarget {
 
   @override
   String get context => server.name;
+
+  @override
+  bool get notEncrypted => !channel.isEncrypted;
 }
 
 /// A DM with a member of one server.

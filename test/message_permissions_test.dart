@@ -29,6 +29,23 @@ void main() {
       expect(MessagePermissions.canEdit(msg()), isTrue);
     });
 
+    test('not a command, which the server refuses to edit', () {
+      expect(
+        MessagePermissions.canEdit(
+          ChatMessage(
+            id: '1',
+            authorId: 'me',
+            authorName: 'Me',
+            text: '/roll d20',
+            sentAt: DateTime(2026, 8, 3),
+            isMine: true,
+            isCommand: true,
+          ),
+        ),
+        isFalse,
+      );
+    });
+
     test('nobody may edit someone else’s message', () {
       expect(MessagePermissions.canEdit(msg(isMine: false)), isFalse);
     });

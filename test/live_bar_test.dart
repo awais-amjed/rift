@@ -225,13 +225,30 @@ void main() {
 
   testWidgets('a vote does not fold it', (tester) async {
     final votes = <(String, int)>[];
-    await pump(tester, live: three, onVote: (id, o) => votes.add((id, o)));
+    await pump(
+      tester,
+      live: three,
+      tallies: {'30': PollTally.empty(2)},
+      onVote: (id, o) => votes.add((id, o)),
+    );
     await tester.tap(find.text('Which map tonight?'));
     await tester.pumpAndSettle();
     await tester.tap(find.byType(PollOptionRow).first);
     await tester.pumpAndSettle();
     expect(votes, [('30', 0)]);
     expect(find.byType(MessagePollCard), findsNWidgets(3));
+  });
+
+  // Review of Nov 22: a vote replaces the whole ballot, so one sent before
+  // the counts said what this member held took back their other picks.
+  testWidgets('no vote before the counts are in', (tester) async {
+    final votes = <(String, int)>[];
+    await pump(tester, live: three, onVote: (id, o) => votes.add((id, o)));
+    await tester.tap(find.text('Which map tonight?'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(PollOptionRow).first);
+    await tester.pumpAndSettle();
+    expect(votes, isEmpty);
   });
 
   testWidgets('a tap on the open line folds it', (tester) async {

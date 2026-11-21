@@ -63,6 +63,25 @@ class _ForwardDialogState extends State<ForwardDialog> {
     super.dispose();
   }
 
+  /// The chosen channels that are not encrypted. Said before the send, as
+  /// the composer says it before one there: forwarded words and files go to
+  /// those in the clear (review, Nov 22).
+  List<ForwardTarget> get _plainTargets => [
+    for (final target in widget.targets)
+      if (target.notEncrypted && _selected.contains(target.id)) target,
+  ];
+
+  bool get _plainChosen => _plainTargets.isNotEmpty;
+
+  String get _plainWarning {
+    final plain = _plainTargets;
+    final where = plain.length == 1
+        ? '${plain.single.label} is'
+        : '${plain.length} of these channels are';
+    return '$where not encrypted. Its server can read what you forward '
+        'there, files included.';
+  }
+
   List<ForwardTarget> get _results =>
       ForwardTargetSearch.filter(widget.targets, _search.text);
 
@@ -199,6 +218,10 @@ class _ForwardDialogState extends State<ForwardDialog> {
           maxLength: 500,
         ),
         const SizedBox(height: 8),
+        if (_plainChosen) ...[
+          HintCard(icon: Icons.lock_open_rounded, text: _plainWarning),
+          const SizedBox(height: 8),
+        ],
         const HintCard(
           icon: Icons.info_outlined,
           text:

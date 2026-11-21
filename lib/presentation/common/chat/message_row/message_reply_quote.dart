@@ -5,6 +5,8 @@ import '../../../../data/constants.dart';
 import '../../../../logic/services/message_excerpt.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
+import 'guarded_message_text.dart';
+import 'message_origin_badge.dart';
 
 /// What this client knows about the message a reply names.
 ///
@@ -109,10 +111,22 @@ class MessageReplyQuote extends StatelessWidget {
               message.authorName,
               style: AppText.chip.copyWith(color: theme.textSecondary),
             ),
+            // Badged as its row is: a webhook named like a member is quoted
+            // as that member otherwise.
+            if (MessageOriginBadge.isNeededFor(message)) ...[
+              const SizedBox(width: 6),
+              MessageOriginBadge(message: message),
+            ],
             const SizedBox(width: 6),
             Flexible(
               child: Text(
-                MessageExcerpt.of(message),
+                GuardedMessageText.covers(
+                      context,
+                      messageId: message.id,
+                      text: message.text,
+                    )
+                    ? 'Sensitive message'
+                    : MessageExcerpt.of(message),
                 style: _quiet.copyWith(color: theme.textTertiary),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,

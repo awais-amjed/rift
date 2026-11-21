@@ -25,6 +25,7 @@ import '../attachments/attachment_loader.dart';
 import '../attachments/message_attachments.dart';
 import '../link_preview_card.dart';
 import '../panel/panel_view.dart';
+import '../polls/confirm_end_poll.dart';
 import '../polls/message_poll_card.dart';
 import '../reactions/message_reactions_bar.dart';
 import '../reactions/reaction_picker.dart';
@@ -452,6 +453,7 @@ class _ChatMessageRowState extends State<ChatMessageRow>
           if (message.forwarded case final forwarded?)
             MessageForwardedCard(
               forwarded: forwarded,
+              messageId: message.id,
               attachmentLoader: widget.attachmentLoader,
               inPlainChannel: message.inPlainChannel,
             ),

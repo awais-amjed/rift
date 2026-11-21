@@ -212,4 +212,70 @@ class ChatMessageOps {
     }
     return (merged: [...kept, ...fresh], fresh: fresh, retired: retired);
   }
+
+  /// The oldest id among [rows] as the server sent them — the `floor` for
+  /// [reconcileNewest]. Null for none.
+  static int? floorOf(List<Map<String, dynamic>> rows) {
+    int? floor;
+    for (final row in rows) {
+      final id = int.tryParse('${row['id']}');
+      if (id != null && (floor == null || id < floor)) floor = id;
+    }
+    return floor;
+  }
+
+  /// Fold a fresh read of the newest page into what's on screen, after the
+  /// connection was down and every doorbell rung meanwhile was lost.
+  ///
+  /// Reading only what is newer ([mergeIncoming]) left whatever changed on
+  /// the rows already held as it was: a message deleted while the laptop
+  /// slept stayed on screen, an edit kept its old words, a reaction or a pin
+  /// its old count, until the conversation was opened again (review, Nov 22).
+  /// So the rows the page covers — from [floor] up, or all of them when
+  /// [floor] is null because the page is the whole conversation — are taken
+  /// from it: changed ones replaced, missing ones gone, as an open would draw
+  /// them. Older rows the reader scrolled up to are kept, and pending ones
+  /// stay where they are.
+  ///
+  /// [page] is oldest-first. [floor] is the oldest id among the rows the
+  /// server sent, before any were dropped, so a dropped row does not leave
+  /// one below it unchecked. A page starting above everything held means more
+  /// arrived than one page holds, and what is loaded no longer joins on to
+  /// it: then the page replaces them outright, and [replaced] says so.
+  static ({
+    List<ChatMessage> merged,
+    List<ChatMessage> fresh,
+    List<String> retired,
+    bool replaced,
+  })
+  reconcileNewest({
+    required List<ChatMessage> current,
+    required List<ChatMessage> page,
+    required int? floor,
+    Set<String> claimed = const {},
+  }) {
+    final held = current.where((m) => !m.isPending);
+    final replaced =
+        floor != null && held.isNotEmpty && floor > latestId(current);
+    final byId = {for (final m in page) m.id: m};
+    final kept = <ChatMessage>[
+      for (final m in current)
+        if (m.isPending)
+          m
+        else if (!replaced)
+          // Below the page: kept. In it: its new self, or gone.
+          if (floor != null && int.parse(m.id) < floor) m else ?byId[m.id],
+    ];
+    final result = mergeIncoming(
+      current: kept,
+      incoming: page,
+      claimed: claimed,
+    );
+    return (
+      merged: result.merged,
+      fresh: result.fresh,
+      retired: result.retired,
+      replaced: replaced,
+    );
+  }
 }

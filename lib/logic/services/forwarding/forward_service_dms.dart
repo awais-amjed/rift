@@ -42,6 +42,7 @@ mixin _ForwardDmsMixin on _ForwardBlobsMixin {
       scopePrefix: context.replaceAll(':', '_'),
       serverId: server.id,
     );
+    if (attachments == null) return ForwardService._filesDidNotTravel;
 
     final envelope = await crypto.sealMessage(
       plaintext: MessageBody(
@@ -87,6 +88,7 @@ mixin _ForwardDmsMixin on _ForwardBlobsMixin {
       files,
       scopePrefix: me,
     );
+    if (attachments == null) return ForwardService._filesDidNotTravel;
 
     final envelope = await crypto.sealMessage(
       plaintext: MessageBody(

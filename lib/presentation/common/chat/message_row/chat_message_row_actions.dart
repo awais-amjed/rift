@@ -29,7 +29,10 @@ mixin _MessageRowActionsMixin on State<ChatMessageRow> {
       !message.isPending &&
       // Answering something you cannot read yet would seal a reference to a
       // message whose author and content you are guessing at.
-      !message.isLocked;
+      !message.isLocked &&
+      // A bot's answer only you were shown: everybody else's quote of it
+      // would say the original was deleted.
+      !message.isEphemeral;
   bool get _canForward =>
       widget.onForward != null && ForwardPayload.canForward(message);
   bool get _canEdit =>
@@ -226,13 +229,7 @@ mixin _MessageRowActionsMixin on State<ChatMessageRow> {
 
   /// Ending a poll early cannot be taken back, and it ends it for everyone.
   Future<void> _confirmClosePoll() async {
-    final confirmed = await showConfirmDialog(
-      context: context,
-      title: 'End this poll?',
-      message: 'Voting stops now for everyone, and the results are final.',
-      confirmLabel: 'End poll',
-      icon: Icons.poll_outlined,
-    );
+    final confirmed = await confirmEndPoll(context);
     if (confirmed) widget.onClosePoll?.call(message.id);
   }
 

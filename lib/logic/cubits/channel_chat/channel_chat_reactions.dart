@@ -35,21 +35,36 @@ mixin _ChannelChatReactionsMixin on Cubit<ChannelChatState> {
     if (!response.success) {
       emit(state.copyWith(notice: Notice.error('Failed to react')));
     }
-    await refreshReactionsFor(messageId);
+    final read = await refreshReactionsFor(messageId);
+    // Neither got through — offline, most likely — so nothing replaced the
+    // flip: take it back, or the chip says a reaction is there that is not.
+    if (!response.success && !read && state.channelId == channelId) {
+      emit(
+        state.copyWith(
+          messages: ReactionOps.withOptimisticReaction(
+            state.messages,
+            messageId: messageId,
+            emoji: emoji,
+          ),
+        ),
+      );
+    }
   }
 
   /// Re-fetch the authoritative reactions on one message and merge them in.
   /// Everything else on screen is left alone.
-  Future<void> refreshReactionsFor(String messageId) async {
+  ///
+  /// Answers whether the counts were read.
+  Future<bool> refreshReactionsFor(String messageId) async {
     final channelId = state.channelId;
     final idNum = int.tryParse(messageId);
-    if (channelId == null || idNum == null) return;
+    if (channelId == null || idNum == null) return false;
 
     final response = await _reactions.listReactions(
       scope: 'channel',
       messageIds: [idNum],
     );
-    if (!response.success || state.channelId != channelId) return;
+    if (!response.success || state.channelId != channelId) return false;
     emit(
       state.copyWith(
         messages: ReactionOps.withReactionsFor(
@@ -59,6 +74,7 @@ mixin _ChannelChatReactionsMixin on Cubit<ChannelChatState> {
         ),
       ),
     );
+    return true;
   }
 
   /// Re-fetch reactions for every loaded message.

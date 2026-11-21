@@ -89,7 +89,11 @@ class MessagePollCard extends StatelessWidget {
                   picked: tally.mine.contains(i),
                   multiple: poll.multiple,
                   share: showResults ? tally.shareOf(i) : null,
-                  onTap: closed || onVote == null ? null : () => onVote!(i),
+                  // Not before the counts are in: a vote replaces the
+                  // whole ballot, built from the one they report.
+                  onTap: closed || onVote == null || this.tally == null
+                      ? null
+                      : () => onVote!(i),
                 ),
               ],
               const SizedBox(height: 10),

@@ -138,7 +138,12 @@ mixin _ForwardBlobsMixin {
   ///
   /// [serverId] null uploads to central. [plain] sends every file as it is,
   /// for a channel whose encryption is off.
-  Future<List<Attachment>> _reupload(
+  ///
+  /// Null when any file could not be fetched or put there: a forward that
+  /// went without some of its files reported success, and one of a picture
+  /// alone arrived blank (review, Nov 22). What was uploaded before the
+  /// failure is left to the orphan sweep, as an abandoned send's is.
+  Future<List<Attachment>?> _reupload(
     List<Attachment> attachments,
     List<PendingAttachment?> files, {
     required String scopePrefix,
@@ -148,7 +153,7 @@ mixin _ForwardBlobsMixin {
     final out = <Attachment>[];
     for (var i = 0; i < attachments.length; i++) {
       final file = i < files.length ? files[i] : null;
-      if (file == null) continue;
+      if (file == null) return null;
       try {
         Future<APIResponse> upload(
           PendingAttachment file, {
@@ -162,7 +167,7 @@ mixin _ForwardBlobsMixin {
                 serverId,
               ).uploadStaged(file, scopePrefix: scopePrefix, plain: plain);
         final response = await upload(file);
-        if (!response.success) continue;
+        if (!response.success) return null;
         final blob = response.data as UploadedBlob;
         final source = attachments[i];
         out.add(
@@ -190,6 +195,7 @@ mixin _ForwardBlobsMixin {
         );
       } catch (e) {
         HelperMethods.printDebug('[Forward] blob upload failed: $e');
+        return null;
       }
     }
     return out;

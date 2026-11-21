@@ -343,7 +343,9 @@ turns the header's "Encrypted" chip into an amber "Key changed", which stays
 had verified it stays until the new code is marked as matching or the
 verification forgotten — and until then nothing is sent to them: the DM's
 composer gives way to a notice offering the code (`KeyCheckGate`), and the
-forward list leaves them out. Verifying said this key was theirs, so a new
+forward list leaves them out — noting first the keys the conversation lists
+give for verified people, so a change is caught there even in a conversation
+not opened since. Verifying said this key was theirs, so a new
 one is not sealed to until somebody looks; "Forget" is the way to send
 anyway. Everybody else is only told. The record is public keys and is never
 uploaded; another device of yours keeps its own.

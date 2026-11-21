@@ -180,7 +180,8 @@ mixin _ChannelChatRealtimeMixin
         unawaited(retry());
         return;
       }
-      unawaited(_fetchAfterLatest());
+      // What changed on the rows held, not only what is new.
+      unawaited(_rereadNewest());
       // A poll posted far up, or ended, while the feed was down.
       unawaited(refreshLive());
     });
@@ -259,7 +260,13 @@ mixin _ChannelChatRealtimeMixin
   }
 
   void _onChangeDoorbell(Map<String, dynamic> payload) {
-    if (isClosed || state.status != ChannelChatStatus.ready) return;
+    // Read-only too: a webhook's post or a locked row can be edited or
+    // deleted while the reader has no key.
+    if (isClosed ||
+        (state.status != ChannelChatStatus.ready &&
+            state.status != ChannelChatStatus.readOnly)) {
+      return;
+    }
     final messageId = BroadcastPayload.stringOf(payload, 'message_id');
     if (messageId != null) unawaited(refreshMessage(messageId));
   }

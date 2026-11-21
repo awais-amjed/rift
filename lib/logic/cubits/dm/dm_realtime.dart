@@ -100,7 +100,7 @@ mixin _DmRealtimeMixin
         (state.showingSaved || state.loadFailed)) {
       unawaited(retryOpen());
     } else {
-      _catchUpOpen();
+      _rereadOpen();
     }
   }
 

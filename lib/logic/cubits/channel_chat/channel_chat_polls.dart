@@ -21,6 +21,9 @@ mixin _ChannelChatPollsMixin on Cubit<ChannelChatState> {
 
   Future<void> refreshMessage(String messageId);
 
+  /// Polls with a vote on its way — see [vote].
+  final Set<String> _voting = {};
+
   /// Post a poll asking [body], open for [duration].
   ///
   /// [notEncrypted] is what the dialog told its author. A poll they were told
@@ -145,18 +148,36 @@ mixin _ChannelChatPollsMixin on Cubit<ChannelChatState> {
   /// Tap [option] on the poll in [messageId]: vote for it, move the vote to
   /// it, or take it back — whichever that tap means for this poll (see
   /// [PollOps.ballotAfterTap]).
+  ///
+  /// The ballot sent replaces the whole of this member's vote, so it is built
+  /// from the one the server last reported. Not before that has arrived —
+  /// a tap then sent just that option and took back the others held in a
+  /// several-choice poll (review, Nov 22) — and one tap at a time per poll,
+  /// since a second built from the same report would undo the first.
   Future<void> vote(String messageId, int option) async {
     final channelId = state.channelId;
     final id = int.tryParse(messageId);
-    final poll = state.messageById(messageId)?.poll;
+    final message = state.messageById(messageId);
+    final poll = message?.poll;
     if (channelId == null || id == null || poll == null) return;
+    final mine = state.pollTallies[messageId]?.mine;
+    if (mine == null) {
+      unawaited(refreshTalliesFor([message!]));
+      return;
+    }
+    if (!_voting.add(messageId)) return;
 
     final ballot = PollOps.ballotAfterTap(
       multiple: poll.multiple,
-      mine: state.pollTallies[messageId]?.mine ?? const {},
+      mine: mine,
       option: option,
     );
-    final response = await _pinsPolls.votePoll(messageId: id, options: ballot);
+    final APIResponse response;
+    try {
+      response = await _pinsPolls.votePoll(messageId: id, options: ballot);
+    } finally {
+      _voting.remove(messageId);
+    }
     if (!response.success) {
       emit(
         state.copyWith(

@@ -288,7 +288,7 @@ class CentralDmCubit extends Cubit<CentralDmState>
         (state.showingSaved || state.loadFailed)) {
       unawaited(retryOpen());
     } else {
-      _catchUpOpen();
+      _rereadOpen();
     }
   }
 

@@ -113,6 +113,46 @@ mixin _ChannelChatHistoryMixin
     if (freshIncoming.isNotEmpty) _onFreshIncoming(freshIncoming);
   }
 
+  /// The feed is back after a dropped connection: read the newest page again
+  /// and fold it into what is loaded ([ChatMessageOps.reconcileNewest]), so
+  /// what was edited, deleted, reacted to or pinned meanwhile shows — not
+  /// only what was sent.
+  Future<void> _rereadNewest() async {
+    final channelId = state.channelId;
+    if (channelId == null || state.hasNewerHistory) return;
+
+    final response = await _readLatest(channelId);
+    if (!response.success || state.channelId != channelId) return;
+    final data = response.data as Map<String, dynamic>;
+    final rows = (data['messages'] as List).cast<Map<String, dynamic>>();
+    final hasMore = data['has_more'] as bool? ?? false;
+    _saved.replace(rows);
+    final page = await _decryptRows(channelId, rows);
+    if (state.channelId != channelId || state.hasNewerHistory) return;
+
+    final stored = _outbox.retireStored(channelId, rows);
+    var current = state.messages;
+    for (final pendingId in stored.pendingIds) {
+      current = ChatMessageOps.removePending(current, pendingId);
+    }
+    final result = ChatMessageOps.reconcileNewest(
+      current: current,
+      page: page.reversed.toList(),
+      floor: hasMore ? ChatMessageOps.floorOf(rows) : null,
+      claimed: stored.rowIds,
+    );
+    _outbox.dropRetired(result.retired);
+    emit(
+      state.copyWith(
+        messages: result.merged,
+        hasMoreHistory: result.replaced ? hasMore : null,
+      ),
+    );
+
+    final freshIncoming = result.fresh.where((m) => !m.isMine).toList();
+    if (freshIncoming.isNotEmpty) _onFreshIncoming(freshIncoming);
+  }
+
   /// Fetch one message by id, when a doorbell named it and the catch-up read
   /// did not bring it back.
   ///

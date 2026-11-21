@@ -277,6 +277,23 @@ void main() {
       expect(ids, contains('dm:s1:u1'));
       expect(ids, contains('central:u1'));
     });
+
+    test('a channel with encryption off says so', () {
+      final targets = ForwardTargets.gather(
+        servers: [
+          server('s', 'Home', [
+            channel('sealed', 'sealed'),
+            Channel(
+              id: 'open',
+              name: 'open',
+              channelType: ChannelType.text,
+              isEncrypted: false,
+            ),
+          ]),
+        ],
+      );
+      expect([for (final t in targets) t.notEncrypted], [false, true]);
+    });
   });
 
   group('ForwardTargetSearch', () {

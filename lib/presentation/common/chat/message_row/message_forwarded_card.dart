@@ -7,6 +7,7 @@ import '../../../theme/theme_context.dart';
 import '../../message_markup_text.dart';
 import '../attachments/attachment_loader.dart';
 import '../attachments/message_attachments.dart';
+import 'guarded_message_text.dart';
 
 /// Words somebody carried in from another conversation.
 ///
@@ -25,6 +26,10 @@ import '../attachments/message_attachments.dart';
 class MessageForwardedCard extends StatelessWidget {
   final ForwardedMessage forwarded;
 
+  /// The message carrying the card. Its words are covered like a message's
+  /// own, under an id of their own: they are not the forwarder's line.
+  final String messageId;
+
   /// Fetches the re-uploaded blobs, which live in *this* conversation's
   /// scope — the bytes were copied on the way in, so the ordinary loader
   /// for this surface is the right one.
@@ -36,6 +41,7 @@ class MessageForwardedCard extends StatelessWidget {
   const MessageForwardedCard({
     super.key,
     required this.forwarded,
+    required this.messageId,
     this.attachmentLoader,
     this.inPlainChannel = false,
   });
@@ -67,11 +73,15 @@ class MessageForwardedCard extends StatelessWidget {
               // mentions passed: an `@name` inside a forward is a name from
               // somewhere else, and lighting it up here would promise a ping
               // that was never sent to anybody in this room.
-              Text.rich(
-                messageMarkupSpan(
-                  forwarded.text,
-                  base: AppText.body.copyWith(color: theme.textSecondary),
-                  theme: theme,
+              GuardedMessageText(
+                messageId: '$messageId:forwarded',
+                text: forwarded.text,
+                child: Text.rich(
+                  messageMarkupSpan(
+                    forwarded.text,
+                    base: AppText.body.copyWith(color: theme.textSecondary),
+                    theme: theme,
+                  ),
                 ),
               ),
             ],

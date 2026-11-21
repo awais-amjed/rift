@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../../../data/classes/chat_message.dart';
 import '../../../../../data/classes/poll.dart';
 import '../../../../theme/theme_context.dart';
+import '../../polls/confirm_end_poll.dart';
 import '../../polls/message_poll_card.dart';
 
 /// Every open poll in the channel, opened in the bar: each drawn as the chat
@@ -44,7 +45,11 @@ class LivePollsList extends StatelessWidget {
                 ? null
                 : (option) => onVote!(message.id, option),
             onClose: message.isMine && onClosePoll != null
-                ? () => onClosePoll!(message.id)
+                ? () async {
+                    if (await confirmEndPoll(context)) {
+                      onClosePoll!(message.id);
+                    }
+                  }
                 : null,
           ),
         ],

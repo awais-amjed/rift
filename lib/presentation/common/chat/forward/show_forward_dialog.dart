@@ -38,6 +38,26 @@ Future<void> showForwardDialog(
   final dms = context.read<DmCubit>();
   final central = context.read<CentralDmCubit>();
   final themeCubit = context.read<ThemeCubit>();
+  final app = context.read<AppCubit>();
+
+  // A forward seals to each person's key as the list has it, and only a
+  // change already noticed held them back: one never seen, because their
+  // conversation had not been opened since, was sealed to without a word
+  // (review, Nov 22). So the keys listed for people this device verified
+  // are noted first, as opening their conversation would, and a changed one
+  // holds them here too.
+  for (final (tier, conversations) in [
+    ('server', dms.state.conversations),
+    ('central', central.state.conversations),
+  ]) {
+    for (final conversation in conversations) {
+      final person = '$tier:${conversation.peerId}';
+      final key = conversation.peerChatPublicKey;
+      if (key == null || key.isEmpty) continue;
+      if (!app.state.verifiedCodes.containsKey(person)) continue;
+      app.noteChatKey(person, key);
+    }
+  }
 
   final targets = ForwardTargets.gather(
     servers: servers.state.servers,
@@ -49,7 +69,7 @@ Future<void> showForwardDialog(
     centralDms: central.state.conversations,
     currentChannelId: currentChannelId,
     currentPeerId: currentPeerId,
-    held: context.read<AppCubit>().state.keysToCheck,
+    held: app.state.keysToCheck,
   );
 
   return showCustomDialog(

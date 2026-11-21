@@ -262,6 +262,56 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
     emit(state.copyWith(messages: result.merged));
   }
 
+  /// The connection is back after dropping: read the newest page again and
+  /// fold it into what is loaded ([ChatMessageOps.reconcileNewest]), so what
+  /// was edited, deleted, reacted to or pinned meanwhile shows — not only
+  /// what was sent. A conversation still opening reads it once it has.
+  void _rereadOpen() {
+    switch (state.chatStatus) {
+      case DmChatStatus.ready:
+        unawaited(_rereadNewest());
+      case DmChatStatus.loading:
+        _rangWhileOpening = true;
+      case DmChatStatus.error || DmChatStatus.closed:
+    }
+  }
+
+  Future<void> _rereadNewest() async {
+    final peerId = state.openPeerId;
+    if (peerId == null || state.hasNewerHistory) return;
+
+    final response = await _repo.listDms(
+      peerId: peerId,
+      limit: ChatMessageOps.pageSize,
+    );
+    if (!response.success || state.openPeerId != peerId) return;
+    final data = response.data as Map<String, dynamic>;
+    final rows = (data['messages'] as List).cast<Map<String, dynamic>>();
+    final hasMore = data['has_more'] as bool? ?? false;
+    _saved.replace(rows);
+    final page = await _decryptRows(peerId, rows);
+    if (state.openPeerId != peerId || state.hasNewerHistory) return;
+
+    final stored = _outbox.retireStored(peerId, rows);
+    var current = state.messages;
+    for (final pendingId in stored.pendingIds) {
+      current = ChatMessageOps.removePending(current, pendingId);
+    }
+    final result = ChatMessageOps.reconcileNewest(
+      current: current,
+      page: page.reversed.toList(),
+      floor: hasMore ? ChatMessageOps.floorOf(rows) : null,
+      claimed: stored.rowIds,
+    );
+    _outbox.dropRetired(result.retired);
+    emit(
+      state.copyWith(
+        messages: result.merged,
+        hasMoreHistory: result.replaced ? hasMore : null,
+      ),
+    );
+  }
+
   /// Look up one message a reply names, without putting it in the list.
   ///
   /// Three outcomes, kept apart on purpose — see [QuotedMessage]. A row that
