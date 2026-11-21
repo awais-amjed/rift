@@ -49,7 +49,10 @@ class SoundShareCubit extends Cubit<SoundShareState> {
 
   /// Starts sharing [source] into the call this client is in.
   Future<void> startSoundShare({required AudioSource source}) async {
-    if (!isSupported) return;
+    // One at a time: a second press while the first connected waited for
+    // it in Rust, was refused there, and marked the running share failed —
+    // which no stop, not even leaving the call, would then touch.
+    if (!isSupported || !state.canStart) return;
     emit(state.copyWith(status: SoundShareStatus.connecting));
 
     try {
@@ -123,8 +126,29 @@ class SoundShareCubit extends Cubit<SoundShareState> {
       if (_callGone(channelId)) await stopSoundShare();
     } catch (e) {
       HelperMethods.printDebug('✗ Sound share error: $e');
+      if (e == _alreadySharing) return _keepRunningShare();
       _fail('Failed to share sound: $e');
     }
+  }
+
+  /// Rust's refusal of a second share (`sharing::sound::start`).
+  static const _alreadySharing = 'Already sharing sound';
+
+  /// Rust has a share the app had lost track of: a failed stop of one. It is
+  /// still going out, so it is shown as running, which is what lets Stop and
+  /// leaving the call end it.
+  void _keepRunningShare() {
+    emit(
+      state.copyWith(
+        status: SoundShareStatus.sharing,
+        channelId: _livekitCubit?.state.callKey,
+        notice: Notice.info(
+          'You are already sharing sound',
+          'Stop it to share another app.',
+        ),
+      ),
+    );
+    if (_callGone(state.channelId)) unawaited(stopSoundShare());
   }
 
   /// Stops the share. Safe to call when nothing is running.

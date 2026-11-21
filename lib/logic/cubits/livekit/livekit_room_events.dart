@@ -190,9 +190,20 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
           // A picture the Rust watch connection holds is not received here
           // as well ([_RustWatchMixin]); nor is one nobody watches.
           if (e.publication.source == TrackSource.screenShareVideo) {
-            if (_watching(e.participant.identity) &&
-                !state.watchedPictures.containsKey(e.participant.identity)) {
+            final identity = e.participant.identity;
+            final resumed = !state.subscribedScreenshares.contains(identity);
+            if (_watching(identity) &&
+                !state.watchedPictures.containsKey(identity)) {
               e.publication.setVideoQuality(VideoQuality.HIGH);
+              // A stream watched again after this device's own rejoin: its
+              // sharer was in the room before us, so no publish announced
+              // it, and this is the first word of it. It goes the way a
+              // press of Watch sends it, or it came back on the call's own
+              // connection, which plays no H265, while this device still
+              // said it could.
+              if (resumed) {
+                unawaited(_receiveWatchedPicture(e.participant, e.publication));
+              }
             }
             _syncPictureReception();
           } else if (e.publication.source == TrackSource.screenShareAudio) {

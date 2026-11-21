@@ -60,17 +60,38 @@ class _Rust implements RustLibApi {
     return 'stopped';
   }
 
+  /// Changes to the running share, as sent; each waits on [holdUpdate].
+  final List<ShareQuality> updates = [];
+  Completer<void>? holdUpdate;
+
+  @override
+  Future<ShareQuality> crateApiScreenshareUpdateScreenshare({
+    required ShareQuality quality,
+  }) async {
+    updates.add(quality);
+    final hold = holdUpdate;
+    if (hold != null) {
+      holdUpdate = null;
+      await hold.future;
+    }
+    return quality;
+  }
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 /// A call the share can belong to.
 class _Call implements LiveKitCubit {
-  @override
-  LiveKitState get state => const LiveKitState(
+  static const inCall = LiveKitState(
     currentChannelId: 'voice',
     connectionState: LiveKitConnectionState.connected,
   );
+
+  LiveKitState callState = inCall;
+
+  @override
+  LiveKitState get state => callState;
 
   @override
   Server? get callServer => Server(
@@ -119,11 +140,16 @@ void main() {
       ..holdSwitch = null
       ..switchSound = true
       ..switchedTo = null
-      ..switches = 0;
+      ..switches = 0
+      ..updates.clear()
+      ..holdUpdate = null;
   });
 
+  late _Call call;
+
   ScreenshareCubit newCubit() {
-    final cubit = ScreenshareCubit(livekitCubit: _Call());
+    call = _Call();
+    final cubit = ScreenshareCubit(livekitCubit: call);
     addTearDown(cubit.close);
     return cubit;
   }
@@ -375,6 +401,79 @@ void main() {
       final cubit = newCubit();
       await cubit.switchSource(settings: screen);
       expect(rust.switches, 0);
+    });
+  });
+
+  group('a call left while its share starts', () {
+    test('stops Rust waiting on the picker, and says nothing', () async {
+      final cubit = newCubit();
+      rust.holdStart = Completer();
+      final starting = start(cubit);
+      await pumpEventQueue();
+      expect(rust.starts, 1);
+
+      call.callState = const LiveKitState();
+      await cubit.followCall();
+      expect(rust.stops, 1);
+
+      // What Rust answers the start that heard the stop.
+      rust.holdStart!.completeError('The share was stopped');
+      await starting;
+      expect(cubit.state.status, ScreenshareStatus.idle);
+      expect(cubit.state.notice, isNull);
+    });
+
+    test('a start still fetching its token never reaches Rust', () async {
+      final cubit = newCubit();
+      final starting = start(cubit);
+      call.callState = const LiveKitState();
+      await starting;
+      expect(rust.starts, 0);
+      expect(cubit.state.status, ScreenshareStatus.idle);
+    });
+
+    test('a start in the same call is left alone', () async {
+      final cubit = newCubit();
+      rust.holdStart = Completer();
+      final starting = start(cubit);
+      await pumpEventQueue();
+      await cubit.followCall();
+      expect(rust.stops, 0);
+      rust.holdStart!.complete('started');
+      await starting;
+      expect(cubit.state.isSharing, isTrue);
+    });
+  });
+
+  group('changes to a running share', () {
+    test('go to Rust one at a time, each with the latest settings', () async {
+      final cubit = newCubit();
+      await cubit.startScreenShare(
+        settings: const ScreenShareSettings(shareAudio: true),
+        gpuCapture: true,
+      );
+      final top = cubit.state.codec!;
+      expect(top, isNot(VideoCodec.vp8));
+
+      rust.holdUpdate = Completer();
+      final hold = rust.holdUpdate!;
+      final soundOff = cubit.changeQuality(shareAudio: false);
+      await pumpEventQueue();
+      // A watcher who plays only VP8 arrives while the sound goes off.
+      cubit.followWatchers([
+        (name: 'Dave', plays: {VideoCodec.vp8}),
+      ]);
+      await pumpEventQueue();
+      expect(rust.updates, hasLength(1));
+
+      hold.complete();
+      await soundOff;
+      await pumpEventQueue();
+      expect(rust.updates, hasLength(2));
+      expect(rust.updates.last.codec, VideoCodec.vp8);
+      expect(rust.updates.last.shareAudio, isFalse);
+      expect(cubit.state.settings!.shareAudio, isFalse);
+      expect(cubit.state.codec, VideoCodec.vp8);
     });
   });
 }

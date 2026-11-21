@@ -9,7 +9,32 @@ mixin _ScreenshareLadderMixin on Cubit<ScreenshareState> {
   /// Who is watching this share now, as `LiveKitCubit` last said.
   List<ShareWatcher> _watchers = const [];
 
-  bool _movingRung = false;
+  /// A change to the running share is on its way to Rust: a rung move, or
+  /// one from the menu ([ScreenshareCubit.changeQuality]). While it is, the
+  /// ladder holds still, and it looks again once the change is through.
+  bool _changingShare = false;
+
+  /// The last change to the running share, which the next waits for. Each
+  /// sends the whole of the share's settings, so two at once sent the older
+  /// ones last: a watcher arriving while the sound was turned off put it
+  /// back on, under a menu that said it was off.
+  Future<void> _lastChange = Future.value();
+
+  /// Runs [change] once every change before it is through, holding the
+  /// ladder meanwhile. [change] reads the share's settings when it runs, not
+  /// when it was asked for.
+  Future<T> _oneChangeAtATime<T>(Future<T> Function() change) {
+    final run = _lastChange.then((_) async {
+      _changingShare = true;
+      try {
+        return await change();
+      } finally {
+        _changingShare = false;
+      }
+    });
+    _lastChange = run.then<void>((_) {}, onError: (_) {});
+    return run;
+  }
 
   late final ShareRungFollow _rungFollow = ShareRungFollow(
     onMove: (rung) => unawaited(_moveToRung(rung)),
@@ -25,20 +50,26 @@ mixin _ScreenshareLadderMixin on Cubit<ScreenshareState> {
   void _followRung() {
     final top = state.topCodec;
     final current = state.codec;
-    if (!state.isSharing || _movingRung || top == null || current == null) {
+    if (!state.isSharing || _changingShare || top == null || current == null) {
       return;
     }
     _rungFollow.update(top: top, current: current, watchers: _watchers);
   }
 
   Future<void> _moveToRung(VideoCodec rung) async {
+    // Another change is through first, and looks again for itself.
+    if (_changingShare) return;
+    final moved = await _oneChangeAtATime(() => _moveNowToRung(rung));
+    // Whatever changed while it moved.
+    if (moved) _followRung();
+  }
+
+  /// Whether the share is still up to follow its watchers.
+  Future<bool> _moveNowToRung(VideoCodec rung) async {
     final settings = state.settings;
     final from = state.codec;
-    if (!state.isSharing || settings == null || from == null || _movingRung) {
-      return;
-    }
-    if (rung == from) return;
-    _movingRung = true;
+    if (!state.isSharing || settings == null || from == null) return false;
+    if (rung == from) return true;
     try {
       final applied = await updateScreenshare(
         quality: ShareQuality(
@@ -54,10 +85,10 @@ mixin _ScreenshareLadderMixin on Cubit<ScreenshareState> {
           shareAudio: settings.shareAudio && HostPlatform.capturesSystemAudio,
         ),
       );
-      if (!state.isSharing) return;
+      if (!state.isSharing) return false;
       emit(state.copyWith(codec: applied.codec));
       // Otherwise it fell back, which says so itself.
-      if (applied.codec != rung) return;
+      if (applied.codec != rung) return true;
       emit(
         state.copyWith(
           notice: ShareLadder.isBelow(rung, from)
@@ -68,15 +99,12 @@ mixin _ScreenshareLadderMixin on Cubit<ScreenshareState> {
                 ),
         ),
       );
+      return true;
     } catch (e) {
       // Rust ends a share whose picture it could not put back, and says so.
       HelperMethods.printDebug('✗ Moving the share to ${rung.name}: $e');
-      return;
-    } finally {
-      _movingRung = false;
+      return false;
     }
-    // Whatever changed while it moved.
-    _followRung();
   }
 
   /// The note for a share held at [rung] by those watching.

@@ -111,11 +111,14 @@ class _DecryptedVideoState extends State<DecryptedVideo> {
       unawaited(context.read<LiveKitCubit>().renewPicture(track));
     }
     final before = await _keyFrames();
+    // Gone, or onto another track, while the count came.
+    if (!mounted || !identical(track, widget.track)) return;
     _gate.onDecrypting(before);
     HelperMethods.printDebug(
       '[Stream] decrypting ${_waited.elapsedMilliseconds} ms after the cover '
       'went up, $before keyframes decoded before; asked for a fresh one',
     );
+    _pollTimer?.cancel();
     _pollTimer = Timer.periodic(_poll, (_) async {
       final count = await _keyFrames();
       _open(() => _gate.onKeyFrames(count));

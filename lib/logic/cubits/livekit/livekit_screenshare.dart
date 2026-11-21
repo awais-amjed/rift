@@ -122,6 +122,18 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
       return;
     }
 
+    // Out of the watched set before the Rust picture goes: a roster sync
+    // while Rust let go of it found the stream watched and played nowhere
+    // else, and turned this room's copy and its sound on for a moment.
+    if (state.watchedPictures.containsKey(identity)) {
+      emit(
+        state.copyWith(
+          subscribedScreenshares: Set<String>.from(state.subscribedScreenshares)
+            ..remove(identity),
+        ),
+      );
+    }
+
     // Before the participant is looked up: a share that has just gone still
     // has its texture to let go of.
     var unsubscribedAny = await _unwatchThroughRust(identity);
@@ -223,6 +235,24 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
       // pretending it is a connection failure would replace a live call with an
       // error page.
       HelperMethods.printDebug('[LiveKit] Screen share failed: $e');
+      return false;
+    }
+  }
+
+  /// Takes this device's phone or browser share out of the call's room, if
+  /// it has one there. False when the unpublish failed and the share may
+  /// still be going out. Never [toggleScreenShare]: that flips what this
+  /// state last said, and when the state had missed the share ending, Stop
+  /// started a new one.
+  Future<bool> stopSdkScreenShare() async {
+    try {
+      // Nothing to do where nothing is published.
+      await state.room?.localParticipant?.setScreenShareEnabled(false);
+      if (state.isScreenSharing) emit(state.copyWith(isScreenSharing: false));
+      _syncParticipants();
+      return true;
+    } catch (e) {
+      HelperMethods.printDebug('[LiveKit] Stopping the screen share: $e');
       return false;
     }
   }

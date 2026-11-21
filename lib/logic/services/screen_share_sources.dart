@@ -27,11 +27,13 @@ class ScreenShareSources {
       final sources = await listCaptureSources(
         captureFullScreen: captureFullScreen,
       );
+      // Never a title: the log goes with a bug report, and a window's title
+      // can be a document's name or a chat.
       final label = captureFullScreen ? 'screen' : 'window';
       for (final source in sources) {
         HelperMethods.printDebug(
           '[CaptureSource][$label] index=${source.index} '
-          'title="${source.title}" pid=${source.audioSourcePid}',
+          'pid=${source.audioSourcePid}',
         );
       }
       return sources;

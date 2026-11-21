@@ -113,6 +113,9 @@ static SESSION: Mutex<Option<Session>> = Mutex::const_new(None);
 // holds the session meanwhile, and under Wayland that wait is on a person.
 static STOPS: Stops = Stops::new();
 
+/// Why a start or a switch ended when a stop came while it waited.
+const START_STOPPED: &str = "The share was stopped";
+
 pub(crate) async fn start(config: ScreenShareConfig) -> Result<String, String> {
     types::check(&config)?;
     let mut slot = SESSION.lock().await;
@@ -454,7 +457,7 @@ pub(crate) async fn switch(source: ShareSource) -> Result<bool, String> {
     };
     let Some(waited) = waited else {
         // The stop that is waiting for the session ends the share.
-        let reason = stop_capture(capture, "The share was stopped".to_string()).await;
+        let reason = stop_capture(capture, START_STOPPED.to_string()).await;
         log::info!("screenshare: the switch was stopped");
         return Err(reason);
     };
@@ -723,7 +726,14 @@ async fn bring_up(
         config.gpu_capture,
         participant,
     ));
-    let first = match first_frame(&mut started).await {
+    // A stop heard while waiting: the call this share was for was left with
+    // the desktop's picker still up, and a window picked after that must not
+    // go out. Dart knows the reason's words (`ScreenshareCubit`).
+    let waited = tokio::select! {
+        first = first_frame(&mut started) => first,
+        () = STOPS.asked() => Err(START_STOPPED.to_string()),
+    };
+    let first = match waited {
         Ok(first) => first,
         Err(reason) => return Err(stop_capture(capture, reason).await),
     };

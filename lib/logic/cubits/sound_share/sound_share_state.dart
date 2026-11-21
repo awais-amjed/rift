@@ -33,6 +33,10 @@ class SoundShareState extends Equatable {
 
   bool get hasError => status == SoundShareStatus.error;
 
+  /// Whether a press could start a share: nothing is starting, running or
+  /// stopping.
+  bool get canStart => status == SoundShareStatus.idle || hasError;
+
   /// What the controls call it: the application's name if it gave one, and
   /// otherwise the plain word, never an empty label.
   String get label {

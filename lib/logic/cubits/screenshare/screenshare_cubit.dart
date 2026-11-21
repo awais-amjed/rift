@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart' show AppLifecycleState, WidgetsBinding;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' show Helper;
+import 'package:livekit_client/livekit_client.dart' show Room;
 
 import '../../../data/classes/notice.dart';
 import '../../../data/classes/screen_share_settings.dart';
@@ -182,6 +183,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
     // while Rust went on sending it.
     if (!state.canStart) return;
 
+    _startingFor = _livekitCubit?.state.callKey;
     emit(state.copyWith(status: ScreenshareStatus.connecting));
 
     try {
@@ -194,7 +196,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
     } catch (e) {
       HelperMethods.printDebug('✗ Screen share error: $e');
       if (e == _alreadySharing) return _keepRunningShare();
-      if (e == pickerClosed) {
+      if (e == pickerClosed || e == _startStopped) {
         return emit(state.copyWith(status: ScreenshareStatus.idle));
       }
       _fail('Failed to start screen share: $e');
@@ -203,6 +205,11 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
 
   /// Rust's refusal of a second share (`session::start`).
   static const _alreadySharing = 'Already sharing screen';
+
+  /// Rust's word that a stop came while the share was starting
+  /// (`session::bring_up`): the call it was for was left
+  /// ([_ScreenshareFollowMixin.followCall]). Nothing to say about it.
+  static const _startStopped = 'The share was stopped';
 
   /// Rust's word that the desktop's picker was closed without a choice
   /// (`capture_pw`). The person chose nothing and knows it, so it is no
@@ -339,6 +346,7 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
       _fail('Not in a call');
       return;
     }
+    _startedInRoom = livekit.state.room;
 
     // On desktop, delegate to the Rust LiveKit implementation, with a
     // screenshare-specific token from whichever mint the call came from —
@@ -430,6 +438,12 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
       e2EeKeyIndex: encryption.index,
     );
 
+    // Left while the token and the key were fetched: nothing has gone out
+    // yet, and nothing should.
+    if (_callGone(channelId)) {
+      emit(state.copyWith(status: ScreenshareStatus.idle));
+      return;
+    }
     _fellBackWhileStarting = null;
     final result = await startScreenshare(config: config);
     HelperMethods.printDebug('✓ Rust connection result: $result');
@@ -464,6 +478,25 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
   /// ([streamChangeNotice]): the viewers' picture blinking is the only other
   /// sign of it.
   Future<ScreenShareSettings?> changeQuality({
+    int? fps,
+    int? resolution,
+    VideoCodec? codec,
+    bool? shareAudio,
+  }) async {
+    final now = await _oneChangeAtATime(
+      () => _changeQualityNow(
+        fps: fps,
+        resolution: resolution,
+        codec: codec,
+        shareAudio: shareAudio,
+      ),
+    );
+    // Watchers who came or went while it changed.
+    _followRung();
+    return now;
+  }
+
+  Future<ScreenShareSettings?> _changeQualityNow({
     int? fps,
     int? resolution,
     VideoCodec? codec,
@@ -532,7 +565,6 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
       } else if (applied.codec == wantedCodec) {
         _noteChange(now, current, fps, shareAudio, codecChanged: false);
       }
-      _followRung();
       return now;
     } catch (e) {
       HelperMethods.printDebug('✗ Screen share change error: $e');
@@ -581,8 +613,19 @@ class ScreenshareCubit extends Cubit<ScreenshareState>
       // the only way in — the Rust pipeline below captures a *desktop*, and
       // libwebrtc does not build its capturer for Android at all.
       if (_sdkCapturesScreen) {
-        if (_livekitCubit != null) {
-          await _livekitCubit.toggleScreenShare();
+        if (_livekitCubit != null &&
+            !await _livekitCubit.stopSdkScreenShare()) {
+          // Still going out, maybe: the button stays a way to stop it.
+          emit(
+            state.copyWith(
+              status: ScreenshareStatus.sharing,
+              notice: Notice.error(
+                'Could not stop your stream. Try again.',
+                duration: Notice.long,
+              ),
+            ),
+          );
+          return;
         }
         // The capture has stopped, so the service drops back to the plain
         // call type — the call is still running and still needs holding up.

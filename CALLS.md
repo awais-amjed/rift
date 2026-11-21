@@ -10,7 +10,13 @@ leaves out. Headings match the ones cited from the code.
 A share is a connection of its own, so it does not go where the call goes, and
 the app holds the two together from both ends. The sharer's app follows every change of its call in one
 place (`LiveKitCubit.onChange`, `LiveKitState.leftCall`) rather than at each way
-out, and a share that finishes starting after its call has gone ends at once.
+out, and a share that finishes starting after its call has gone ends at once. A
+desktop share still starting when its call is left is stopped where it waits:
+under Wayland the desktop's picker can stay up for minutes with the share's
+connection already in the room, and Rust's start gives up when a stop comes
+while it waits for the first picture (`session::bring_up`), so a window picked
+after leaving never goes out. One that comes up in the room a rejoin or region
+change has just left follows the call as soon as it is up.
 Everybody else's app leaves out, and silences, any share whose owner's connection
 is not in the room (`sharesWithoutOwner`), whatever the sharer's app did, and
 brings it back when the owner is. A region change or a rejoin puts the call in a
@@ -23,7 +29,10 @@ one whose call failed to come back: it can reconnect with the token it holds
 when the call cannot get a new one, and would stream on to a room the sharer is
 not in. Viewers keep
 watching a stream that drops out and is back within half a minute
-(`WatchResume`), whoever's connection it was that dropped.
+(`WatchResume`), whoever's connection it was that dropped. After the viewer's
+own rejoin the sharer is already in the new room, so no publish announces the
+stream and its subscription is the first word of it; it goes through Rust from
+there as a press of Watch would send it.
 
 ## A call belongs to its server, not to the selection
 

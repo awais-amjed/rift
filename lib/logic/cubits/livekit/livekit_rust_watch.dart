@@ -172,17 +172,26 @@ mixin _RustWatchMixin
     }
   }
 
+  /// The last opening begun, kept when the room it was for has gone: the
+  /// next waits for it, so a stale opening's stop never lands after the
+  /// next one's start and closes it.
+  Future<bool> _lastRustWatchStart = Future.value(false);
+
   Future<bool> _openRustWatch(Room room) {
     if (_rustWatchRoom == room) {
       return _rustWatchOpening ?? Future.value(true);
     }
     _rustWatchRoom = room;
-    return _rustWatchOpening = _startRustWatch(room);
+    final after = _lastRustWatchStart;
+    return _rustWatchOpening = _lastRustWatchStart = _startRustWatch(
+      room,
+      after: after,
+    );
   }
 
-  Future<bool> _startRustWatch(Room room) async {
+  Future<bool> _startRustWatch(Room room, {required Future<bool> after}) async {
     final encryption = callEncryption;
-    if (encryption == null) return _rustWatchRefused('no call key');
+    if (encryption == null) return _rustWatchRefused(room, 'no call key');
     final response = await shareToken(watch: true);
     if (_rustWatchRoom != room) return false;
     final data = response.data;
@@ -190,14 +199,20 @@ mixin _RustWatchMixin
     final url = data is Map ? data['livekit_url'] : null;
     final identity = data is Map ? data['identity'] : null;
     if (!response.success || token is! String || url is! String) {
-      return _rustWatchRefused(response.error ?? 'no token');
+      return _rustWatchRefused(room, response.error ?? 'no token');
     }
     if (identity is! String || !ParticipantIdentity.isWatch(identity)) {
       _noWatchConnections = true;
-      return _rustWatchRefused('the server does not mint watch connections');
+      return _rustWatchRefused(
+        room,
+        'the server does not mint watch connections',
+      );
     }
 
     _rustWatchEvents ??= RustWatch.events.listen(_onRustWatchEvent);
+    // An opening for a room before this one finishes first, closing what it
+    // opened, then the close itself.
+    await after;
     await _rustWatchClosed;
     if (_rustWatchRoom != room) return false;
     final error = await RustWatch.start(
@@ -206,7 +221,7 @@ mixin _RustWatchMixin
       key: encryption.key,
       keyIndex: encryption.index,
     );
-    if (error != null) return _rustWatchRefused(error);
+    if (error != null) return _rustWatchRefused(room, error);
     if (_rustWatchRoom != room) {
       await _closeRustWatch();
       return false;
@@ -221,7 +236,11 @@ mixin _RustWatchMixin
     return true;
   }
 
-  bool _rustWatchRefused(String why) {
+  /// An opening for [room] failed. Nothing is cleared, and no step down
+  /// asked, when the call has moved on to another room since: that one's
+  /// opening may be under way.
+  bool _rustWatchRefused(Room room, String why) {
+    if (_rustWatchRoom != room) return false;
     HelperMethods.printDebug(
       '[LiveKit] watching through the call instead of Rust: $why',
     );
