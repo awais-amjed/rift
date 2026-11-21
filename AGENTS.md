@@ -170,7 +170,9 @@ native/call_clip/     # C++ linked in with it: a tap on what the call plays (lib
   HydratedBloc/JSON state. The one exception is `MessageCache`: a channel's saved
   copy holds its keys, in a file sealed under a key derived from the seed. It is
   therefore no more exposed than the seed in secure storage. Keep it that way:
-  nothing goes in that file unsealed.
+  nothing goes in that file unsealed. Call clips (`ClipLibrary`) are kept the same
+  way, under a key of their own: decrypted call or message content never goes to
+  disk unsealed unless the person saves it themselves.
 - Anything touching vault export/import must keep backward compatibility with existing
   `BackupFile.version` values.
 

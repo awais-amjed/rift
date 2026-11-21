@@ -2131,11 +2131,35 @@ call shortcut beside mute, deafen and leave, global like them) takes what is
 kept at that moment and opens a trim view. There you choose a part, play it,
 and **Save** it as a WAV file, or **Add to soundboard** as a 192 kbps stereo
 MP3 through the soundboard's own add form, with its 30 s and 5 MB refusals.
-Add is offered only with `manageSoundboard` on the call's server, and never in
-a DM call, which has no server. A clip taken while Rift is hidden opens when
-Rift is next seen (`AppSeenListener.seenFrom`); up to five wait in turn
+Add is offered only with `manageSoundboard` on the server the clip was taken
+on, inside that server's scope (`CallClipDialog.offersAdd`), and never for a
+DM call, which has no soundboard. While Play runs, a line moves over the
+waveform across the selection, stepped about 30 times a second
+(`ClipPlayLine`). A clip taken while Rift is hidden opens when Rift is next
+seen (`AppSeenListener.seenFrom`); up to five wait in turn
 (`LiveKitState.pendingClips`), and a short sound says the press was heard,
 since Rift may be behind a game.
+
+The shortcut is not the only way: a scissors button in the call's control
+bar, beside the soundboard, opens a **Clips** card (`ClipsCard`) with "Clip
+the last minute" (the same press), or, with clipping off, the setting's own
+switch and its line about the call being told.
+
+**The newest ten are kept on the device** (`ClipLibrary`), so a trim view
+closed unsaved loses nothing. Every press that keeps something adds it before
+the trim view opens, and the eleventh drops the oldest. The Clips card and
+Settings, Voice & audio, Clipping list them (`ClipHistoryCubit`); a row opens
+the clip in the trim view again, in the scope of the server it was taken on
+while that is still on the list, so Add goes to that soundboard and nowhere
+else. Each can be deleted, or all at once after a question. A clip is the
+decrypted sound of an encrypted call, other people's voices, so it is kept as
+the saved conversations are: sealed with AES-256-GCM under a key derived from
+the seed (`deriveClipKey`, `local-cache/clips:v1`), in two files under the
+profile's `clips` folder, a small one the list is read from and the samples.
+That is about 23 MB a two-minute clip, about 230 MB for ten. A copy the key
+cannot open is deleted when found, and signing out deletes them all
+(`VaultCubit.resetVault`). Save and Add are the person's choice to write a clip
+out in the clear.
 
 **Where it comes from.** The runner puts a tap on libwebrtc's render
 pre-processing (`native/call_clip`, installed beside the noise filter), the
@@ -2204,9 +2228,10 @@ by the owner's choice: a call could always be recorded with other software.
 Bots are not told.
 
 Built Nov 21 2026 and covered by unit tests (the ring's wrap and resize, the
-order of flag and writing, the notice rules, the trim and the formats). Not yet
-driven live: the right channel's position in libwebrtc's buffer is still to be
-checked with a left-only tone (`TESTING.md`).
+order of flag and writing, the notice rules, the trim and the formats, the kept
+clips' sealing and limit, the Clips card). Driven live on Linux on Nov 21
+(`TESTING.md`), the right channel's place in libwebrtc's buffer included,
+checked with a tone in one ear at a time.
 
 ## Receiving a call's audio — [Implemented October 2026]
 

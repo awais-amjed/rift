@@ -543,6 +543,12 @@ Documents folder, which Windows often syncs to OneDrive
 (`StorageNamespace.profileDirectory`). iOS backs it up, sealed but not yet
 excluded. See `MessageCache` and `SavedConversation`.
 
+**Call clips, the same way** [November 2026]. The newest ten clips of calls
+(`CALLS.md`, *Clipping a call*) are kept so a closed trim view can be opened
+again. They are the decrypted sound of encrypted calls, so each is sealed under
+a key of its own derived from the seed (`deriveClipKey`), in the profile's
+`clips` folder, and goes with the vault reset (`ClipLibrary`).
+
 **Pictures too, in the clear** [October 2026]. Avatars and server and directory
 icons are kept on disk between runs, so a restart draws them without downloading
 each one again (`MediaDiskCache`, behind `MediaStore.images`). They are not
@@ -669,7 +675,8 @@ everybody is a row.
 
 **A call can be clipped, and the call is told.** With clipping on, a Windows or Linux
 client keeps the last stretch of what the call played to it, for a clip saved as a file
-or added to a soundboard. It keeps nothing until the call has its `clipping` attribute,
+or added to a soundboard; the newest ten clips stay on the device, sealed like the saved
+conversations. It keeps nothing until the call has its `clipping` attribute,
 which every client shows as a mark by the name, with a notice when someone has it on and
 when they clip. No permission forbids it, and Rift versions from before it show nothing
 (`CALLS.md`, *Clipping a call*).
