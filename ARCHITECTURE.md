@@ -442,7 +442,11 @@ delete any file in the server, deleting a message that named other people's
 files would have deleted those too (found in the Nov 22 review). Another's are
 left to the orphan sweep. A send that is refused removes what it uploaded, and
 a retry names the files its first attempt put up rather than uploading them
-again (`UploadedFiles`).
+again (`UploadedFiles`). Refused means the database said no: the gateway's own
+502, 503 or 504 is no answer, and the send is held like one over a dead socket
+(`ServerDb.run`), since an insert left waiting can still land after the gateway
+gives up (seen live Nov 22, when a refusal there deleted a stored message's
+picture).
 
 The sealing runs in the Rust library (`NativeBlobCipher`) on a desktop or
 phone, off the UI thread: the Dart reference froze the window for seconds on a

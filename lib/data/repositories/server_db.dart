@@ -44,6 +44,11 @@ class ServerDb {
   /// error — as opposed to the sentences Postgres itself raises.
   static final RegExp _raisedCode = RegExp(r'^[a-z][a-z0-9_]{2,40}$');
 
+  /// The statuses the gateway in front of PostgREST answers with for itself,
+  /// carried as the error's code since its body has none of PostgREST's own.
+  /// A 500 is left out: that one is the database's. As `CentralFailure`.
+  static const Set<String> _gateway = {'502', '503', '504'};
+
   /// Runs one database call and turns whatever comes back — rows, an RPC's
   /// json, an exception — into the [APIResponse] the rest of the app speaks.
   ///
@@ -56,6 +61,22 @@ class ServerDb {
       return APIResponse.success(await body());
     } on PostgrestException catch (e) {
       final message = e.message;
+      // The gateway answering for PostgREST: down, restarting, or too slow.
+      // That is no answer from the database, not a no, so it is retried like
+      // a dead socket. Read as a refusal, a send whose insert stored after the
+      // gateway gave up on it was given back and its files deleted, leaving
+      // a stored message naming files that were gone (live check, Nov 22).
+      if (_gateway.contains(e.code)) {
+        return e.code == '504'
+            ? APIResponse.error(
+                "This server isn't responding — it may be offline. Try again later.",
+                errorCode: ErrorCode.serverTimeout,
+              )
+            : APIResponse.error(
+                "Can't reach this server. It may be offline, or check your connection.",
+                errorCode: ErrorCode.serverUnreachable,
+              );
+      }
       if (e.code == 'PGRST301' ||
           message.contains('JWT') ||
           message.contains('expired')) {

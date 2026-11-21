@@ -82,6 +82,26 @@ void main() {
       expect(Outbox.canRetry(response.errorCode), isTrue);
     });
 
+    test('the gateway answering for a database that did not is too', () async {
+      // Kong's own 502/503/504 carries no PostgREST code, so the status is
+      // the code. A 504 may have stored the message after the gateway gave
+      // up: it must be held (and checked for on retry), not refused, or the
+      // refusal path deletes the files the stored message names.
+      for (final status in ['502', '503', '504']) {
+        final response = await ServerDb.run(
+          () async => throw PostgrestException(
+            message: '{"message":"An invalid response was received"}',
+            code: status,
+          ),
+        );
+        expect(Outbox.canRetry(response.errorCode), isTrue, reason: status);
+      }
+      final timedOut = await ServerDb.run(
+        () async => throw PostgrestException(message: 'timeout', code: '504'),
+      );
+      expect(timedOut.errorCode, ErrorCode.serverTimeout);
+    });
+
     test('but a refusal that came back over a working socket is not', () async {
       // A quota trigger raising in Postgres reaches the client with its own
       // code. The connection was fine; the answer was no.
