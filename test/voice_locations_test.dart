@@ -210,6 +210,50 @@ void main() {
     });
   });
 
+  group('who a read may not know about yet', () {
+    // LiveKit counts a room's people at most every five seconds, and the
+    // roster skips a room it counts as empty: a read just after someone
+    // opened an empty channel leaves them out. A watching client heard them
+    // announce it a second before its 30 s read, took the read, and drew the
+    // channel empty for as long as they stayed.
+    test('someone heard just before the read was asked', () {
+      final heard = VoiceLocations.heardSince(
+        const {'u1': Duration(seconds: 59)},
+        asked: const Duration(seconds: 60),
+      );
+
+      expect(heard, {'u1'});
+      final next = VoiceLocations.mergeSnapshot(
+        const {},
+        current: const {'u1': 'switch-call'},
+        heard: heard,
+      );
+      expect(next, {'u1': 'switch-call'});
+    });
+
+    test('someone heard while the read was out', () {
+      expect(
+        VoiceLocations.heardSince(
+          const {'u1': Duration(seconds: 61)},
+          asked: const Duration(seconds: 60),
+        ),
+        {'u1'},
+      );
+    });
+
+    test('not someone heard long before: the read is the better answer', () {
+      // A ghost is somebody whose last word was long ago; the read is what
+      // takes them away.
+      expect(
+        VoiceLocations.heardSince(
+          const {'u1': Duration(seconds: 40)},
+          asked: const Duration(seconds: 60),
+        ),
+        isEmpty,
+      );
+    });
+  });
+
   group('rosters', () {
     test('groups members by the channel they are in', () {
       final rosters = VoiceLocations.rosters(

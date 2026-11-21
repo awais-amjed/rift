@@ -82,7 +82,7 @@ class VoiceLocations {
 
   /// Folds the sharers a roster read reported into what we already have,
   /// the way [mergeSnapshot] folds the locations: anyone in [heard] spoke
-  /// after the read was taken, so [current] decides for them.
+  /// too recently for the read to know, so [current] decides for them.
   ///
   /// A null [snapshot] is a server from before the roster listed sharers. It
   /// knows nothing either way, so what the broadcasts said stands, for
@@ -120,13 +120,34 @@ class VoiceLocations {
     return next;
   }
 
+  /// How long someone's own word outranks a roster read.
+  ///
+  /// LiveKit counts a room's people at most every five seconds
+  /// (`roomUpdateInterval`, v1.13), and `voice_roster` skips a room it counts
+  /// as empty: for up to five seconds after someone opens an empty channel,
+  /// every read leaves them out. Verified Nov 21 2026: a read asked 0.6 s
+  /// after the announcement came back without them, and the watching client
+  /// drew the channel empty until they moved again.
+  static const heardOutranksRead = Duration(seconds: 10);
+
+  /// Who spoke recently enough that a read [asked] for then may not know it:
+  /// [heardAt] holds when each person's last broadcast reached us, on the
+  /// same clock as [asked].
+  static Set<String> heardSince(
+    Map<String, Duration> heardAt, {
+    required Duration asked,
+  }) => {
+    for (final MapEntry(key: userId, value: at) in heardAt.entries)
+      if (at >= asked - heardOutranksRead) userId,
+  };
+
   /// Folds a freshly fetched [snapshot] into what we already have.
   ///
   /// [heard] is everyone whose own broadcast reached us while the snapshot was
-  /// in flight. They win: the snapshot was taken before they spoke, and
-  /// applying it wholesale would drag them back to where they used to be. For
-  /// everyone else the snapshot is the better answer — it came from LiveKit,
-  /// which is the only participant that can't be out of date.
+  /// in flight, or shortly before it ([heardSince]). They win: the snapshot
+  /// may not know they spoke, and applying it wholesale would drag them back
+  /// to where they used to be. For everyone else the snapshot is the better
+  /// answer — it came from LiveKit, which only lags behind a new word.
   static Map<String, String> mergeSnapshot(
     Map<String, String> snapshot, {
     required Map<String, String> current,

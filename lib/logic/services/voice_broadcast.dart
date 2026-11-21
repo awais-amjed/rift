@@ -51,9 +51,11 @@ class VoiceBroadcast {
   bool _announcedSharing = false;
   bool _hasAnnounced = false;
 
-  /// Everyone whose own broadcast reached us since the in-flight snapshot was
-  /// requested. They outrank it; see [VoiceLocations.mergeSnapshot].
-  final Set<String> _heard = {};
+  /// When each person's own broadcast last reached us, on [_clock]. Whoever
+  /// spoke shortly before a read, or while it was out, outranks it; see
+  /// [VoiceLocations.heardSince].
+  final Map<String, Duration> _heardAt = {};
+  final Stopwatch _clock = Stopwatch()..start();
   int _epoch = 0;
   bool _disposed = false;
 
@@ -180,7 +182,7 @@ class VoiceBroadcast {
     if (_disposed) return;
     final delta = VoiceLocations.decode(message);
     if (delta == null) return;
-    _heard.add(delta.userId);
+    _heardAt[delta.userId] = _clock.elapsed;
     _locations = VoiceLocations.applyDelta(
       _locations,
       userId: delta.userId,
@@ -197,7 +199,7 @@ class VoiceBroadcast {
 
   Future<void> _snapshot() async {
     final epoch = ++_epoch;
-    _heard.clear();
+    final asked = _clock.elapsed;
     final roster = await fetchRoster();
     // A newer snapshot started while this one was out, or we were torn down.
     if (_disposed || epoch != _epoch) return;
@@ -210,15 +212,18 @@ class VoiceBroadcast {
       return;
     }
     _rosterRead = true;
+    final heard = VoiceLocations.heardSince(_heardAt, asked: asked);
+    // Nobody older can outrank this read or any later one.
+    _heardAt.removeWhere((userId, _) => !heard.contains(userId));
     _locations = VoiceLocations.mergeSnapshot(
       roster.locations,
       current: _locations,
-      heard: _heard,
+      heard: heard,
     );
     _sharing = VoiceLocations.mergeSharing(
       roster.sharing,
       current: _sharing,
-      heard: _heard,
+      heard: heard,
       locations: _locations,
     );
     onChanged();
