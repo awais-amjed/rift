@@ -55,6 +55,21 @@ abstract final class ClipTrim {
   static int mp3Bytes(Duration d, int kbps) =>
       d.inMicroseconds * kbps * 1000 ~/ 8 ~/ Duration.microsecondsPerSecond;
 
+  /// Where the play line is, as a fraction of the clip: [elapsed] into a
+  /// preview of the selection from [start] to [end] (fractions too), which
+  /// lasts [length]. Held at [end] once it is over, since the timer that
+  /// asks can be late.
+  static double playhead({
+    required double start,
+    required double end,
+    required Duration elapsed,
+    required Duration length,
+  }) {
+    if (length <= Duration.zero) return start;
+    final played = elapsed.inMicroseconds / length.inMicroseconds;
+    return start + (end - start) * played.clamp(0.0, 1.0);
+  }
+
   /// `m:ss.t`, for the ends of the selection.
   static String timeLabel(Duration d) {
     final tenths = d.inMilliseconds ~/ 100;

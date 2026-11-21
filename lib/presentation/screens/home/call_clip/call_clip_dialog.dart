@@ -21,6 +21,7 @@ import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 import '../servers/manage/panels/soundboard/add_clip_form.dart';
 import 'widgets/clip_actions.dart';
+import 'widgets/clip_play_line.dart';
 import 'widgets/clip_preview_button.dart';
 import 'widgets/clip_trim_handles.dart';
 import 'widgets/clip_waveform.dart';
@@ -56,6 +57,9 @@ class _CallClipDialogState extends State<CallClipDialog> {
   static const Duration _shortest = Duration(milliseconds: 500);
 
   late final List<double> _peaks;
+
+  /// How far the preview has played, for the line over the waveform.
+  final ValueNotifier<Duration?> _played = ValueNotifier(null);
   double _start = 0;
   double _end = 1;
   bool _saving = false;
@@ -81,6 +85,12 @@ class _CallClipDialogState extends State<CallClipDialog> {
   void initState() {
     super.initState();
     _peaks = ClipTrim.peaks(_clip.pcm, _clip.channels, _bars);
+  }
+
+  @override
+  void dispose() {
+    _played.dispose();
+    super.dispose();
   }
 
   Future<void> _save() async {
@@ -189,6 +199,12 @@ class _CallClipDialogState extends State<CallClipDialog> {
               fit: StackFit.expand,
               children: [
                 ClipWaveform(peaks: _peaks, start: _start, end: _end),
+                ClipPlayLine(
+                  played: _played,
+                  start: _start,
+                  end: _end,
+                  length: _length,
+                ),
                 ClipTrimHandles(
                   start: _start,
                   end: _end,
@@ -222,6 +238,7 @@ class _CallClipDialogState extends State<CallClipDialog> {
                 rate: _clip.rate,
                 channels: _clip.channels,
                 outputId: outputId,
+                played: _played,
               ),
               const SizedBox(width: 10),
               Expanded(

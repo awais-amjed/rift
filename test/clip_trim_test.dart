@@ -110,6 +110,36 @@ void main() {
     });
   });
 
+  group('the play line', () {
+    double at(Duration elapsed, {Duration length = const Duration(seconds: 4)}) =>
+        ClipTrim.playhead(
+          start: 0.2,
+          end: 0.6,
+          elapsed: elapsed,
+          length: length,
+        );
+
+    test('starts at the start of the selection', () {
+      expect(at(Duration.zero), closeTo(0.2, 1e-9));
+    });
+
+    test('moves across the selection with the time played', () {
+      expect(at(const Duration(seconds: 1)), closeTo(0.3, 1e-9));
+      expect(at(const Duration(seconds: 2)), closeTo(0.4, 1e-9));
+    });
+
+    test('stops at the end, however late the timer is', () {
+      expect(at(const Duration(seconds: 9)), closeTo(0.6, 1e-9));
+    });
+
+    test('a selection of no length stays at its start', () {
+      expect(
+        at(const Duration(seconds: 1), length: Duration.zero),
+        closeTo(0.2, 1e-9),
+      );
+    });
+  });
+
   group('sizes', () {
     test('a WAV is its header and 4 bytes a frame', () {
       expect(ClipTrim.wavBytes(const Duration(seconds: 30)), 44 + 30 * 48000 * 4);
