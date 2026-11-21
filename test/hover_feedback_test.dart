@@ -255,6 +255,7 @@ void main() {
           nonceB64: 'n',
         ),
         loader: AttachmentLoader(
+          origin: 'o',
           load: (_) async => null,
           save: (_, _, {onProgress}) async => APIResponse.error('offline'),
         ),

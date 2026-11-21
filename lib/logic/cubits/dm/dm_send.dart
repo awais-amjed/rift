@@ -116,6 +116,9 @@ mixin _DmSendMixin on Cubit<DmState> {
         earlier?.storedAfter ?? ChatMessageOps.latestId(state.messages);
     // Each attempt that reached the server and heard nothing back.
     final signatures = {...?earlier?.signatures};
+    // What an earlier attempt already uploaded, named again rather than
+    // uploaded twice.
+    var uploadedFiles = earlier?.uploaded;
 
     final pendingId = 'pending-${_pendingCounter++}';
     // Held in a local as well as emitted: if this send fails it becomes the row
@@ -145,6 +148,7 @@ mixin _DmSendMixin on Cubit<DmState> {
       preview: preview,
       signatures: signatures,
       storedAfter: storedAfter,
+      uploaded: uploadedFiles,
     );
     _DmSendOutcome fail({required String? errorCode, required String error}) =>
         _failSend(
@@ -170,26 +174,37 @@ mixin _DmSendMixin on Cubit<DmState> {
         scopePrefix: scope,
         onProgress: onProgress,
       );
-      final uploaded = await ChatAttachmentUploader.uploadAll(
-        pending: attachments,
-        uploadOne: uploadOne,
-        onProgress: (progress) {
-          _outbox.progress(pendingId, progress);
-          if (!open()) return;
-          emit(
-            state.copyWith(
-              messages: ChatMessageOps.setUploadProgress(
-                state.messages,
-                pendingId,
-                progress,
-              ),
-            ),
-          );
-        },
-      );
-      final sentPreview = await ChatAttachmentUploader.uploadPreview(
-        preview: preview,
-        uploadOne: uploadOne,
+      final again = uploadedFiles;
+      final uploaded = again != null
+          ? again.attachments
+          : await ChatAttachmentUploader.uploadAll(
+              pending: attachments,
+              uploadOne: uploadOne,
+              origin: attachmentsApi.origin,
+              onProgress: (progress) {
+                _outbox.progress(pendingId, progress);
+                if (!open()) return;
+                emit(
+                  state.copyWith(
+                    messages: ChatMessageOps.setUploadProgress(
+                      state.messages,
+                      pendingId,
+                      progress,
+                    ),
+                  ),
+                );
+              },
+            );
+      final sentPreview = again != null
+          ? again.preview
+          : await ChatAttachmentUploader.uploadPreview(
+              preview: preview,
+              uploadOne: uploadOne,
+              origin: attachmentsApi.origin,
+            );
+      uploadedFiles = UploadedFiles(
+        attachments: uploaded,
+        preview: sentPreview,
       );
 
       final identity = await _vaultIdentityFor(server);
@@ -215,6 +230,12 @@ mixin _DmSendMixin on Cubit<DmState> {
       );
 
       if (!response.success) {
+        // Refused: nothing will ever name these files. Not when an attempt
+        // before this one went unanswered, which may have stored them.
+        if (!Outbox.canRetry(response.errorCode) &&
+            (earlier?.signatures.isEmpty ?? true)) {
+          unawaited(attachmentsApi.deleteAttachments(uploadedFiles.paths));
+        }
         final outcome = fail(
           errorCode: response.errorCode,
           error:
@@ -399,12 +420,14 @@ mixin _DmSendMixin on Cubit<DmState> {
   Future<Uint8List?> loadAttachment(Attachment attachment) =>
       ChatAttachmentUploader.load(
         attachment: attachment,
+        origin: _attachments.origin,
         download: () => _attachments.downloadAttachment(
           path: attachment.storagePath,
           keyB64: attachment.keyB64,
           nonceB64: attachment.nonceB64,
           sha256B64: attachment.sha256B64,
           chunkSize: attachment.chunkSize,
+          size: attachment.size,
         ),
       );
 
@@ -425,6 +448,7 @@ mixin _DmSendMixin on Cubit<DmState> {
 
   /// What the message list draws, saves and plays attachments with.
   AttachmentLoader get attachmentLoader => AttachmentLoader(
+    origin: _attachments.origin,
     load: loadAttachment,
     save: saveAttachment,
     read: readAttachment,

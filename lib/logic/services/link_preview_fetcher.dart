@@ -108,10 +108,15 @@ class LinkPreviewFetcher {
       final type = response.headers['content-type'] ?? '';
       if (!type.contains(accept.split('/').first)) return null;
 
+      // A whole read has [timeout] twice over, not each piece: a page
+      // trickling a byte every few seconds held the send that waits for its
+      // card for as long as it liked (review, Nov 22).
+      final reading = Stopwatch()..start();
       final buffer = BytesBuilder(copy: false);
       await for (final chunk in response.stream.timeout(timeout)) {
         buffer.add(chunk);
         if (buffer.length > limit) break;
+        if (reading.elapsed > timeout * 2) return null;
       }
       final bytes = buffer.takeBytes();
       return bytes.length > limit ? bytes.sublist(0, limit) : bytes;

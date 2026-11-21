@@ -21,10 +21,14 @@ import '../sensitive_image_cover.dart';
 /// shows does not change from one frame to the next: a look took about 40 ms
 /// on a laptop's CPU and 170 ms on a mid-range phone (Nov 14).
 ///
-/// The verdict is kept under the video's id ([ImageSafetyClassifier.remember]),
+/// The verdict is kept under the video's key ([ImageSafetyClassifier.remember]),
 /// so a card scrolled away and back is covered at once.
 class ClipSafety {
   final Attachment attachment;
+
+  /// What a verdict on [attachment] or its poster is kept under
+  /// (`AttachmentLoader.keyOf`): never the id, which the sender chooses.
+  final String Function(Attachment attachment) keyOf;
 
   /// The setting, read when the card was made, as a picture's thumbnail
   /// reads it.
@@ -37,13 +41,16 @@ class ClipSafety {
 
   ClipSafety({
     required this.attachment,
+    required this.keyOf,
     required this.mode,
     required VoidCallback changed,
     required VoidCallback flagged,
   }) : _changed = changed,
        _flagged = flagged,
        sensitive =
-           ImageSafetyClassifier.instance.cached(attachment.id)?.isSensitive ??
+           ImageSafetyClassifier.instance
+               .cached(keyOf(attachment))
+               ?.isSensitive ??
            false;
 
   /// How often a playing video is looked at: half as often on a phone,
@@ -69,7 +76,7 @@ class ClipSafety {
   bool get covered =>
       sensitive &&
       mode != SensitiveContentMode.off &&
-      !SensitiveImageCover.isRevealed(attachment.id);
+      !SensitiveImageCover.isRevealed(keyOf(attachment));
 
   /// The poster's [bytes], looked at once for each new set. Called as the
   /// card draws, so it only starts the look; the answer comes as a change.
@@ -82,14 +89,14 @@ class ClipSafety {
       return;
     }
     final classifier = ImageSafetyClassifier.instance;
-    final known = classifier.cached(poster.id);
+    final known = classifier.cached(keyOf(poster));
     if (known != null) {
       if (known.isSensitive) _flag(known);
       posterChecked = true;
       return;
     }
     unawaited(
-      classifier.classify(poster.id, bytes).then((verdict) {
+      classifier.classify(keyOf(poster), bytes).then((verdict) {
         if (_gone) return;
         if (verdict != null && verdict.isSensitive) _flag(verdict);
         posterChecked = true;
@@ -148,6 +155,6 @@ class ClipSafety {
 
   void _flag(ImageSafetyVerdict verdict) {
     sensitive = true;
-    ImageSafetyClassifier.instance.remember(attachment.id, verdict);
+    ImageSafetyClassifier.instance.remember(keyOf(attachment), verdict);
   }
 }

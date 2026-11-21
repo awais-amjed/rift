@@ -6,11 +6,16 @@ import 'package:material_ui/material_ui.dart';
 import '../../../data/classes/attachment.dart';
 import '../../../data/classes/link_preview.dart';
 import '../../../data/constants.dart';
+import '../../../data/enums/sensitive_content_mode.dart';
+import '../../../logic/cubits/app/app_cubit.dart';
 import '../../../logic/cubits/media/media_cubit.dart';
+import '../../../logic/services/image_safety.dart';
+import '../../../logic/services/image_safety_classifier.dart';
 import '../../../logic/services/open_link.dart';
 import '../../theme/app_text.dart';
 import '../../theme/theme_context.dart';
 import 'attachments/attachment_loader.dart';
+import 'attachments/sensitive_image_cover.dart';
 
 /// The sender's preview of a link, under their message: site, title, a line
 /// or two, and the thumbnail they captured. Tapping opens the link.
@@ -106,11 +111,17 @@ class LinkPreviewCard extends StatelessWidget {
   }
 }
 
-/// The captured picture, once its bytes are decrypted; nothing while they
-/// are on the way, so the card does not jump.
+/// The captured picture, once its bytes are decrypted and looked at;
+/// nothing while they are on the way, so the card does not jump.
 ///
-/// Stateful only to ask [MediaCubit] once, when it appears; the bytes are
-/// read from there, so a failed download is retried like any other picture.
+/// Looked at by the same on-device model as a picture sent in a message, and
+/// covered the same way: the sender chose this picture as surely as one they
+/// attached, and a page's own picture went past the setting uncovered
+/// (review, Nov 22).
+///
+/// Stateful to ask [MediaCubit] once, when it appears, and to run the model
+/// once for the bytes; those are read from there, so a failed download is
+/// retried like any other picture.
 class _Thumbnail extends StatefulWidget {
   final Attachment image;
   final AttachmentLoader loader;
@@ -122,18 +133,24 @@ class _Thumbnail extends StatefulWidget {
 }
 
 class _ThumbnailState extends State<_Thumbnail> {
+  /// Read once, as a message picture's thumbnail reads it.
+  late SensitiveContentMode _mode;
+  Future<ImageSafetyVerdict?>? _verdict;
+  Uint8List? _verdictFor;
+
+  String get _key => widget.loader.keyOf(widget.image);
+
   @override
   void initState() {
     super.initState();
+    _mode = context.read<AppCubit>().state.sensitiveContentMode;
     _want();
   }
 
   @override
   void didUpdateWidget(_Thumbnail old) {
     super.didUpdateWidget(old);
-    if (old.image.id != widget.image.id || old.loader != widget.loader) {
-      _want();
-    }
+    if (old.loader.keyOf(old.image) != _key) _want();
   }
 
   void _want() {
@@ -141,24 +158,47 @@ class _ThumbnailState extends State<_Thumbnail> {
     final loader = widget.loader;
     context.read<MediaCubit>().want(
       MediaKind.attachment,
-      image.storagePath,
+      _key,
       () => loader(image),
     );
+  }
+
+  Future<ImageSafetyVerdict?> _verdictOf(Uint8List bytes) {
+    if (!identical(bytes, _verdictFor) || _verdict == null) {
+      _verdictFor = bytes;
+      _verdict = ImageSafetyClassifier.instance.classify(_key, bytes);
+    }
+    return _verdict!;
   }
 
   @override
   Widget build(BuildContext context) {
     return BlocSelector<MediaCubit, MediaState, Uint8List?>(
-      selector: (state) =>
-          state.bytes(MediaKind.attachment, widget.image.storagePath),
+      selector: (state) => state.bytes(MediaKind.attachment, _key),
       builder: (context, bytes) {
         if (bytes == null) return const SizedBox.shrink();
-        return SizedBox(
-          height: LinkPreviewCard.thumbnailHeight,
-          width: double.infinity,
-          child: Image.memory(bytes, fit: BoxFit.cover),
+        if (_mode == SensitiveContentMode.off) return _picture(bytes, null);
+        final known = ImageSafetyClassifier.instance.cached(_key);
+        if (known != null) return _picture(bytes, known);
+        return FutureBuilder<ImageSafetyVerdict?>(
+          future: _verdictOf(bytes),
+          builder: (context, verdict) =>
+              verdict.connectionState == ConnectionState.done
+              ? _picture(bytes, verdict.data)
+              : const SizedBox.shrink(),
         );
       },
+    );
+  }
+
+  Widget _picture(Uint8List bytes, ImageSafetyVerdict? verdict) {
+    final image = Image.memory(bytes, fit: BoxFit.cover);
+    return SizedBox(
+      height: LinkPreviewCard.thumbnailHeight,
+      width: double.infinity,
+      child: (verdict?.isSensitive ?? false)
+          ? SensitiveImageCover(attachmentId: _key, mode: _mode, child: image)
+          : image,
     );
   }
 }

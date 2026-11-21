@@ -320,11 +320,12 @@ class _VideoViewerPageState extends State<VideoViewerPage>
 
   /// The poster until the first picture lands, then the picture.
   Widget _video() {
-    final posterPath = _p.attachment.poster?.storagePath;
+    final posterOf = _p.attachment.poster;
+    final posterKey = posterOf == null ? null : _p.loader.keyOf(posterOf);
     final poster = context.select<MediaCubit, Uint8List?>(
-      (c) => posterPath == null
+      (c) => posterKey == null
           ? null
-          : c.state.entry(MediaKind.attachment, posterPath)?.bytes,
+          : c.state.entry(MediaKind.attachment, posterKey)?.bytes,
     );
     final clip = _p.clip;
     final safety = _p.safety;
@@ -339,7 +340,7 @@ class _VideoViewerPageState extends State<VideoViewerPage>
       // alone (see AttachmentVideoCard).
       child: safety.covered
           ? SensitiveImageCover(
-              attachmentId: _p.attachment.id,
+              attachmentId: _p.loader.keyOf(_p.attachment),
               mode: safety.mode,
               label: 'Sensitive video',
               onReveal: _changed,

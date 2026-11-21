@@ -1,10 +1,43 @@
 import 'dart:async';
 
+import '../../data/classes/attachment.dart';
 import '../../data/classes/chat_message.dart';
+import '../../data/classes/link_preview.dart';
 import '../../data/classes/pending_attachment.dart';
 import '../../data/enums/error_code.dart';
 import 'attachment_staging.dart';
 import 'link_preview_fetcher.dart';
+
+/// Files a send already put on the server, held with its entry so a retry
+/// names them again instead of uploading them a second time. Each retry used
+/// to upload every file anew, and the copies from before stayed in storage,
+/// counted against the server's cap, for as long as the conversation had
+/// older messages (review, Nov 22).
+class UploadedFiles {
+  final List<Attachment> attachments;
+
+  /// The link card with its picture uploaded, or null for none.
+  final LinkPreview? preview;
+
+  /// Whether they went up as they are, for a channel whose encryption is
+  /// off. A retry after that changed uploads them again rather than send a
+  /// file the server can read beside a message it cannot.
+  final bool plain;
+
+  const UploadedFiles({
+    required this.attachments,
+    this.preview,
+    this.plain = false,
+  });
+
+  /// Every object they are: the files, a video's poster, the card's picture.
+  List<String> get paths => [
+    for (final attachment in [...attachments, ?preview?.image]) ...[
+      attachment.storagePath,
+      ?attachment.poster?.storagePath,
+    ],
+  ];
+}
 
 /// One send that did not land, and everything a second attempt would need.
 ///
@@ -51,6 +84,9 @@ class OutboxEntry {
   /// of a later one.
   final int storedAfter;
 
+  /// What of it is on the server already, or null while nothing is.
+  final UploadedFiles? uploaded;
+
   const OutboxEntry({
     required this.destination,
     this.scope,
@@ -61,6 +97,7 @@ class OutboxEntry {
     this.preview,
     this.signatures = const {},
     this.storedAfter = 0,
+    this.uploaded,
   });
 
   String get pendingId => row.id;

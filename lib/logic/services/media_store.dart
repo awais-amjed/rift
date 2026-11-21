@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import '../../data/classes/attachment.dart';
 import '../../data/classes/media_entry.dart';
 import 'media_disk_cache.dart';
 
@@ -53,10 +54,17 @@ class MediaStore {
   Stream<String> get changes => _changes.stream;
 
   /// What an entry is held under: [path] on [origin], the host it is fetched
-  /// from. An attachment has none, its path naming a channel's own blob. A
+  /// from. An attachment's is its server or central ([attachmentKey]). A
   /// host cannot hold a line break, so no two pairs make one key.
   static String keyOf(String? origin, String path) =>
       origin == null ? path : '$origin\n$path';
+
+  /// What [attachment]'s bytes are held under in [attachments]: its
+  /// [Attachment.contentKey] on [origin], the server or central it is
+  /// stored on (`AttachmentLoader.origin`). The path alone let a server that
+  /// repeats another's path draw its own bytes under the other's message.
+  static String attachmentKey(String origin, Attachment attachment) =>
+      keyOf(origin, attachment.contentKey);
 
   MediaEntry? operator [](String key) => _entries[key];
 
@@ -129,11 +137,11 @@ class MediaStore {
     }
   }
 
-  /// Forget one attachment: the message that carried it was deleted, and its
-  /// plaintext should not outlive it in memory.
-  void remove(String path) {
-    _inFlight.remove(path);
-    if (_entries.remove(path) != null) _changes.add(path);
+  /// Forget one attachment, by its [attachmentKey]: the message that carried
+  /// it was deleted, and its plaintext should not outlive it in memory.
+  void remove(String key) {
+    _inFlight.remove(key);
+    if (_entries.remove(key) != null) _changes.add(key);
   }
 
   /// Forget everything held, every fetch on its way, and what is on disk.

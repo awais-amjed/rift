@@ -30,6 +30,7 @@ class ClipPlayback extends ChangeNotifier {
   }) : length = Duration(milliseconds: attachment.durationMs ?? 0) {
     safety = ClipSafety(
       attachment: attachment,
+      keyOf: loader.keyOf,
       mode: mode,
       changed: _changed,
       flagged: pause,

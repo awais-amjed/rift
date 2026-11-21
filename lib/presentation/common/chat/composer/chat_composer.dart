@@ -260,7 +260,18 @@ class _ChatComposerState extends State<ChatComposer>
     // a different message while already replying is still one transition.
     final now = widget.replyingTo?.id;
     if (now != null && now != old.replyingTo?.id) _focusNode.requestFocus();
-    if (widget.conversation != old.conversation) _focusOnOpen();
+    if (widget.conversation != old.conversation) {
+      _focusOnOpen();
+      // Files picked for one conversation are not sent to the next: carried
+      // over, Send posted them wherever the composer had moved to (review,
+      // Nov 22). Not from a conversation still opening, whose own files
+      // they are.
+      if (old.conversation != null && _staged.isNotEmpty) {
+        final dropped = List<PendingAttachment>.of(_staged);
+        _staged.clear();
+        unawaited(AttachmentStaging.discard(dropped));
+      }
+    }
   }
 
   /// Puts the caret in the field when a conversation opens, after the frame

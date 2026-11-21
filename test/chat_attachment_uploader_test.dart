@@ -11,6 +11,8 @@ import 'package:rift/logic/services/media_store.dart';
 
 /// The upload step all three chat pipelines share. What matters most is the
 /// failure: its code is what decides between the outbox and a refusal.
+const _origin = 'https://s.invalid#server';
+
 void main() {
   setUp(MediaStore.attachments.clear);
 
@@ -39,6 +41,7 @@ void main() {
           file('a.png', [1]),
           file('b.png', [2, 2]),
         ],
+        origin: _origin,
         uploadOne: (_, {onProgress}) async => stored('p${n++}'),
       );
 
@@ -59,6 +62,7 @@ void main() {
           file('a.bin', [1]).copyWith(plain: true),
           file('b.bin', [2]),
         ],
+        origin: _origin,
         uploadOne: (file, {onProgress}) async {
           asked.add(file.plain);
           return file.plain
@@ -87,6 +91,7 @@ void main() {
           file('a.bin', List.filled(300, 1)),
           file('b.bin', List.filled(100, 2)),
         ],
+        origin: _origin,
         uploadOne: (file, {onProgress}) async {
           // A sealed file is a little bigger on the wire than on disk.
           final wire = file.size + 16;
@@ -113,9 +118,22 @@ void main() {
         pending: [
           file('a.png', [7, 8]),
         ],
+        origin: _origin,
         uploadOne: (_, {onProgress}) async => stored('p'),
       );
-      expect(MediaStore.attachments['p']?.bytes, [7, 8]);
+      final sent = await ChatAttachmentUploader.uploadAll(
+        pending: [
+          file('b.png', [7, 8]),
+        ],
+        origin: _origin,
+        uploadOne: (_, {onProgress}) async => stored('p'),
+      );
+      expect(
+        MediaStore
+            .attachments[MediaStore.attachmentKey(_origin, sent.single)]
+            ?.bytes,
+        [7, 8],
+      );
     });
 
     test('stops at the first failure and carries its code', () async {
@@ -125,6 +143,7 @@ void main() {
           file('a.png', [1]),
           file('b.png', [2]),
         ],
+        origin: _origin,
         uploadOne: (_, {onProgress}) async {
           calls++;
           return APIResponse.error('offline', errorCode: 'network');
@@ -148,6 +167,7 @@ void main() {
           pending: [
             file('a.png', [1]),
           ],
+          origin: _origin,
           uploadOne: (_, {onProgress}) async => APIResponse(success: true),
         ),
         throwsA(isA<AttachmentUploadException>()),
@@ -172,6 +192,7 @@ void main() {
       var n = 0;
       final result = await ChatAttachmentUploader.uploadAll(
         pending: [video()],
+        origin: _origin,
         uploadOne: (f, {onProgress}) async {
           sent.add(f);
           return stored('p${n++}');
@@ -187,7 +208,12 @@ void main() {
       expect(poster.size, jpeg.length);
       expect(poster.keyB64, 'k-p1');
       // The sender's card draws it without fetching it back.
-      expect(MediaStore.attachments['p1']?.bytes, jpeg);
+      expect(
+        MediaStore
+            .attachments[MediaStore.attachmentKey(_origin, poster)]
+            ?.bytes,
+        jpeg,
+      );
     });
 
     test('a picture or a sound gets no poster', () async {
@@ -196,6 +222,7 @@ void main() {
         pending: [
           file('a.png', [1]),
         ],
+        origin: _origin,
         uploadOne: (_, {onProgress}) async => stored('p'),
         posterOf: (_) async {
           asked++;
@@ -210,6 +237,7 @@ void main() {
       var uploads = 0;
       final result = await ChatAttachmentUploader.uploadAll(
         pending: [video()],
+        origin: _origin,
         uploadOne: (_, {onProgress}) async => stored('p${uploads++}'),
         posterOf: (_) async => null,
       );
@@ -220,6 +248,7 @@ void main() {
     test('one that will not make or upload never fails the send', () async {
       final thrown = await ChatAttachmentUploader.uploadAll(
         pending: [video()],
+        origin: _origin,
         uploadOne: (_, {onProgress}) async => stored('p'),
         posterOf: (_) async => throw StateError('no decoder'),
       );
@@ -229,6 +258,7 @@ void main() {
       var n = 0;
       final refused = await ChatAttachmentUploader.uploadAll(
         pending: [video()],
+        origin: _origin,
         uploadOne: (_, {onProgress}) async =>
             n++ == 0 ? stored('v') : APIResponse.error('full'),
         posterOf: (_) async => jpeg,
@@ -241,6 +271,7 @@ void main() {
       var made = 0;
       final result = await ChatAttachmentUploader.uploadAll(
         pending: [video(poster: jpeg)],
+        origin: _origin,
         uploadOne: (_, {onProgress}) async => stored('p'),
         posterOf: (_) async {
           made++;
@@ -256,6 +287,7 @@ void main() {
     test('no preview uploads nothing', () async {
       final preview = await ChatAttachmentUploader.uploadPreview(
         preview: null,
+        origin: _origin,
         uploadOne: (_, {onProgress}) async => fail('should not upload'),
       );
       expect(preview, isNull);
@@ -266,6 +298,7 @@ void main() {
         preview: Future.value(
           const PendingLinkPreview(url: 'https://a.b', title: 'T'),
         ),
+        origin: _origin,
         uploadOne: (_, {onProgress}) async => fail('should not upload'),
       );
       expect(preview!.title, 'T');
@@ -277,6 +310,7 @@ void main() {
         preview: Future.value(
           PendingLinkPreview(url: 'https://a.b', image: file('t.png', [1])),
         ),
+        origin: _origin,
         uploadOne: (_, {onProgress}) async => stored('thumb'),
       );
       expect(preview!.image!.storagePath, 'thumb');
@@ -286,6 +320,7 @@ void main() {
       final fetch = Completer<PendingLinkPreview?>();
       final uploading = ChatAttachmentUploader.uploadPreview(
         preview: fetch.future,
+        origin: _origin,
         uploadOne: (_, {onProgress}) async => fail('should not upload'),
       );
       fetch.complete(const PendingLinkPreview(url: 'https://a.b', title: 'T'));
@@ -295,6 +330,7 @@ void main() {
     test('a fetch that found nothing sends the message bare', () async {
       final preview = await ChatAttachmentUploader.uploadPreview(
         preview: Future.value(null),
+        origin: _origin,
         uploadOne: (_, {onProgress}) async => fail('should not upload'),
       );
       expect(preview, isNull);
@@ -314,8 +350,13 @@ void main() {
     );
 
     test('reads the cache before the network', () async {
-      MediaStore.attachments.put('p', Uint8List.fromList([9]));
+      MediaStore.attachments.put(
+        at('p').contentKey,
+        Uint8List.fromList([9]),
+        origin: _origin,
+      );
       final bytes = await ChatAttachmentUploader.load(
+        origin: _origin,
         attachment: at('p'),
         download: () async => fail('should not download'),
       );
@@ -324,20 +365,100 @@ void main() {
 
     test('caches what it downloads', () async {
       final bytes = await ChatAttachmentUploader.load(
+        origin: _origin,
         attachment: at('q'),
         download: () async => APIResponse.success(Uint8List.fromList([5])),
       );
       expect(bytes, [5]);
-      expect(MediaStore.attachments['q']?.bytes, [5]);
+      expect(
+        MediaStore
+            .attachments[MediaStore.attachmentKey(_origin, at('q'))]
+            ?.bytes,
+        [5],
+      );
     });
 
     test('a failed download is null and caches nothing', () async {
       final bytes = await ChatAttachmentUploader.load(
+        origin: _origin,
         attachment: at('r'),
         download: () async => APIResponse.error('gone'),
       );
       expect(bytes, isNull);
-      expect(MediaStore.attachments['r']?.bytes, isNull);
+      expect(
+        MediaStore
+            .attachments[MediaStore.attachmentKey(_origin, at('r'))]
+            ?.bytes,
+        isNull,
+      );
+    });
+
+    // A path is the sender's to name: another message naming the same one
+    // with a wrong key, or another server repeating it, must neither draw
+    // these bytes nor spoil their download (review, Nov 22).
+    test('the same path under another key or server is another file', () async {
+      final mine = at('s');
+      MediaStore.attachments.put(
+        mine.contentKey,
+        Uint8List.fromList([1]),
+        origin: _origin,
+      );
+      final forged = Attachment(
+        id: 'x',
+        kind: AttachmentKind.file,
+        name: 'f',
+        mime: 'text/plain',
+        size: 1,
+        storagePath: 's',
+        keyB64: 'other',
+        nonceB64: 'n',
+      );
+      expect(
+        await ChatAttachmentUploader.load(
+          origin: _origin,
+          attachment: forged,
+          download: () async => APIResponse.error('wrong key'),
+        ),
+        isNull,
+      );
+      expect(
+        await ChatAttachmentUploader.load(
+          origin: 'https://other.invalid#server',
+          attachment: mine,
+          download: () async => APIResponse.error('not here'),
+        ),
+        isNull,
+      );
+      expect(
+        await ChatAttachmentUploader.load(
+          origin: _origin,
+          attachment: mine,
+          download: () async => fail('should not download'),
+        ),
+        [1],
+      );
+    });
+  });
+
+  group('uploadPreview', () {
+    // The card is a nicety: a picture the server will not take sends the
+    // card without it rather than refusing the message (review, Nov 22).
+    test('a picture that will not upload leaves the card without it', () async {
+      final preview = await ChatAttachmentUploader.uploadPreview(
+        preview: Future.value(
+          PendingLinkPreview(
+            url: 'https://example.com/',
+            title: 'Example',
+            image: file('card.png', [1]),
+          ),
+        ),
+        origin: _origin,
+        uploadOne: (_, {onProgress}) async =>
+            APIResponse.error('no', errorCode: 'forbidden'),
+      );
+      expect(preview?.url, 'https://example.com/');
+      expect(preview?.title, 'Example');
+      expect(preview?.image, isNull);
     });
   });
 }

@@ -112,6 +112,9 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
         earlier?.storedAfter ?? ChatMessageOps.latestId(state.messages);
     // Each attempt that reached central and heard nothing back.
     final signatures = {...?earlier?.signatures};
+    // What an earlier attempt already uploaded, named again rather than
+    // uploaded twice.
+    var uploadedFiles = earlier?.uploaded;
 
     // Resolved against rows already decrypted and verified. A reference this
     // client cannot see is one it has no business asserting.
@@ -150,6 +153,7 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
         preview: preview,
         signatures: signatures,
         storedAfter: storedAfter,
+        uploaded: uploadedFiles,
       ),
     );
 
@@ -164,27 +168,38 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
         scopePrefix: myId,
         data: file.bytes ?? await file.source.readAsBytes(),
       );
-      final uploaded = await ChatAttachmentUploader.uploadAll(
-        pending: attachments,
-        uploadOne: uploadOne,
-        // One request a file, so the bar moves a file at a time.
-        onProgress: (progress) {
-          _outbox.progress(pendingId, progress);
-          if (!open()) return;
-          emit(
-            state.copyWith(
-              messages: ChatMessageOps.setUploadProgress(
-                state.messages,
-                pendingId,
-                progress,
-              ),
-            ),
-          );
-        },
-      );
-      final sentPreview = await ChatAttachmentUploader.uploadPreview(
-        preview: preview,
-        uploadOne: uploadOne,
+      final again = uploadedFiles;
+      final uploaded = again != null
+          ? again.attachments
+          : await ChatAttachmentUploader.uploadAll(
+              pending: attachments,
+              uploadOne: uploadOne,
+              origin: AttachmentLoader.central,
+              // One request a file, so the bar moves a file at a time.
+              onProgress: (progress) {
+                _outbox.progress(pendingId, progress);
+                if (!open()) return;
+                emit(
+                  state.copyWith(
+                    messages: ChatMessageOps.setUploadProgress(
+                      state.messages,
+                      pendingId,
+                      progress,
+                    ),
+                  ),
+                );
+              },
+            );
+      final sentPreview = again != null
+          ? again.preview
+          : await ChatAttachmentUploader.uploadPreview(
+              preview: preview,
+              uploadOne: uploadOne,
+              origin: AttachmentLoader.central,
+            );
+      uploadedFiles = UploadedFiles(
+        attachments: uploaded,
+        preview: sentPreview,
       );
 
       final identity = await _signingIdentity();
@@ -217,6 +232,11 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
         if (Outbox.canRetry(response.errorCode)) {
           hold();
           return false;
+        }
+        // Refused: nothing will ever name these files. Not when an attempt
+        // before this one went unanswered, which may have stored them.
+        if (earlier?.signatures.isEmpty ?? true) {
+          unawaited(_repo.deleteAttachments(uploadedFiles.paths));
         }
         // Said wherever the reader is: the only news of a message that
         // will not arrive.
@@ -444,6 +464,7 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
   Future<Uint8List?> loadAttachment(Attachment attachment) =>
       ChatAttachmentUploader.load(
         attachment: attachment,
+        origin: AttachmentLoader.central,
         download: () => _repo.downloadAttachment(
           path: attachment.storagePath,
           keyB64: attachment.keyB64,
@@ -472,6 +493,9 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
   }
 
   /// What the message list draws and saves attachments with.
-  AttachmentLoader get attachmentLoader =>
-      AttachmentLoader(load: loadAttachment, save: saveAttachment);
+  AttachmentLoader get attachmentLoader => AttachmentLoader(
+    origin: AttachmentLoader.central,
+    load: loadAttachment,
+    save: saveAttachment,
+  );
 }

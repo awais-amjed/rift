@@ -104,6 +104,8 @@ mixin _DmEditMixin on Cubit<DmState> {
     // Captured before the row goes: once it leaves the list, nothing else in
     // the app knows which blobs were its.
     final doomed = state.messages.where((m) => m.id == messageId).firstOrNull;
+    // And the server it is on, before the await.
+    final attachments = _attachments;
 
     try {
       final response = await _dms.deleteDm(messageId: id);
@@ -127,7 +129,8 @@ mixin _DmEditMixin on Cubit<DmState> {
       unawaited(
         AttachmentCleanup.forMessage(
           doomed,
-          delete: _attachments.deleteAttachments,
+          origin: attachments.origin,
+          delete: attachments.deleteAttachments,
         ),
       );
       unawaited(refreshConversations());

@@ -159,6 +159,12 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
         earlier?.storedAfter ?? ChatMessageOps.latestId(state.messages);
     // Each attempt that reached the server and heard nothing back.
     final signatures = {...?earlier?.signatures};
+    // What an earlier attempt already uploaded, named again rather than
+    // uploaded twice — unless the channel's encryption changed since.
+    var uploadedFiles = earlier?.uploaded;
+    if (uploadedFiles != null && uploadedFiles.plain != plain) {
+      uploadedFiles = null;
+    }
     final trimmed = text.trim();
     if (trimmed.isEmpty && attachments.isEmpty) return false;
 
@@ -229,6 +235,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
       preview: preview,
       signatures: signatures,
       storedAfter: storedAfter,
+      uploaded: uploadedFiles,
     );
 
     try {
@@ -244,26 +251,38 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
         plain: plain,
         mayGoPlain: mayGoPlain,
       );
-      final uploaded = await ChatAttachmentUploader.uploadAll(
-        pending: attachments,
-        uploadOne: uploadOne,
-        onProgress: (progress) {
-          _outbox.progress(pendingId, progress);
-          if (!open()) return;
-          emit(
-            state.copyWith(
-              messages: ChatMessageOps.setUploadProgress(
-                state.messages,
-                pendingId,
-                progress,
-              ),
-            ),
-          );
-        },
-      );
-      final sentPreview = await ChatAttachmentUploader.uploadPreview(
-        preview: preview,
-        uploadOne: uploadOne,
+      final again = uploadedFiles;
+      final uploaded = again != null
+          ? again.attachments
+          : await ChatAttachmentUploader.uploadAll(
+              pending: attachments,
+              uploadOne: uploadOne,
+              origin: attachmentsApi.origin,
+              onProgress: (progress) {
+                _outbox.progress(pendingId, progress);
+                if (!open()) return;
+                emit(
+                  state.copyWith(
+                    messages: ChatMessageOps.setUploadProgress(
+                      state.messages,
+                      pendingId,
+                      progress,
+                    ),
+                  ),
+                );
+              },
+            );
+      final sentPreview = again != null
+          ? again.preview
+          : await ChatAttachmentUploader.uploadPreview(
+              preview: preview,
+              uploadOne: uploadOne,
+              origin: attachmentsApi.origin,
+            );
+      uploadedFiles = UploadedFiles(
+        attachments: uploaded,
+        preview: sentPreview,
+        plain: plain,
       );
 
       final host = Uri.parse(server.supabaseUrl).host;
@@ -381,6 +400,12 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
       }
 
       if (!response.success) {
+        // Refused: nothing will ever name these files. Not when an attempt
+        // before this one went unanswered, which may have stored them.
+        if (!Outbox.canRetry(response.errorCode) &&
+            (earlier?.signatures.isEmpty ?? true)) {
+          unawaited(attachmentsApi.deleteAttachments(uploadedFiles.paths));
+        }
         return _failSend(
           pending: pending,
           channelId: channelId,
@@ -569,12 +594,14 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
   Future<Uint8List?> loadAttachment(Attachment attachment) =>
       ChatAttachmentUploader.load(
         attachment: attachment,
+        origin: _attachments.origin,
         download: () => _attachments.downloadAttachment(
           path: attachment.storagePath,
           keyB64: attachment.keyB64,
           nonceB64: attachment.nonceB64,
           sha256B64: attachment.sha256B64,
           chunkSize: attachment.chunkSize,
+          size: attachment.size,
         ),
       );
 
@@ -595,6 +622,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
 
   /// What the message list draws, saves and plays attachments with.
   AttachmentLoader get attachmentLoader => AttachmentLoader(
+    origin: _attachments.origin,
     load: loadAttachment,
     save: saveAttachment,
     read: readAttachment,

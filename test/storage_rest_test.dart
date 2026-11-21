@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:rift/data/repositories/storage_rest.dart';
 
 /// The Storage REST rules the attachment, avatar and soundboard repositories
@@ -114,6 +115,52 @@ void main() {
         body: Uint8List.sublistView(whole, 4),
       );
       expect((client.sent! as http.Request).bodyBytes, [4, 5, 6, 7, 8, 9]);
+    });
+  });
+
+  // A file read whole is held to what one sent in one piece can be, whatever
+  // its message says (review, Nov 22).
+  group('exchange', () {
+    final uri = Uri.parse('https://s.invalid/storage/v1/object/x');
+
+    test('reads an answer within the limit', () async {
+      final client = MockClient(
+        (_) async => http.Response.bytes(List.filled(10, 1), 200),
+      );
+      final r = await StorageRest.exchange(
+        client,
+        'GET',
+        uri,
+        headers: const {},
+        within: const Duration(seconds: 5),
+        maxBytes: 10,
+      );
+      expect(r.bodyBytes.length, 10);
+    });
+
+    test('refuses an answer past the limit', () async {
+      final client = MockClient(
+        (_) async => http.Response.bytes(List.filled(11, 1), 200),
+      );
+      expect(
+        StorageRest.exchange(
+          client,
+          'GET',
+          uri,
+          headers: const {},
+          within: const Duration(seconds: 5),
+          maxBytes: 10,
+        ),
+        throwsA(isA<BodyTooLarge>()),
+      );
+    });
+
+    test('a slow line gets longer for a bigger file', () {
+      expect(StorageRest.timeoutFor(0), StorageRest.timeout);
+      expect(
+        StorageRest.timeoutFor(12 * 1024 * 1024),
+        greaterThan(const Duration(minutes: 2)),
+      );
     });
   });
 }

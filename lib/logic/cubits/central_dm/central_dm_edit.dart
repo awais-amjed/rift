@@ -111,7 +111,11 @@ mixin _CentralDmEditMixin on Cubit<CentralDmState> {
         ),
       );
       unawaited(
-        AttachmentCleanup.forMessage(doomed, delete: _repo.deleteAttachments),
+        AttachmentCleanup.forMessage(
+          doomed,
+          origin: AttachmentLoader.central,
+          delete: _repo.deleteAttachments,
+        ),
       );
       unawaited(refreshConversation(peerId));
     } catch (e) {

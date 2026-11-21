@@ -117,6 +117,8 @@ mixin _ChannelChatEditMixin on Cubit<ChannelChatState> {
     // Captured before the row goes: once it leaves the list, nothing else in
     // the app knows which blobs were its.
     final doomed = state.messages.where((m) => m.id == messageId).firstOrNull;
+    // And the server it is on, before the await.
+    final attachments = _attachments;
 
     try {
       final response = await _channelMessages.deleteChatMessage(messageId: id);
@@ -140,7 +142,8 @@ mixin _ChannelChatEditMixin on Cubit<ChannelChatState> {
       unawaited(
         AttachmentCleanup.forMessage(
           doomed,
-          delete: _attachments.deleteAttachments,
+          origin: attachments.origin,
+          delete: attachments.deleteAttachments,
         ),
       );
     } catch (e) {

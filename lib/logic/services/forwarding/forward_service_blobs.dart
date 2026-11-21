@@ -32,7 +32,9 @@ mixin _ForwardBlobsMixin {
         // bucket and its own client, and whose files are all small.
         if (sourceServerId != null &&
             attachment.size > AttachmentStaging.inMemoryMaxBytes) {
-          final sink = await scratchTarget(attachment.name);
+          // Not under its own name: a copy a crash leaves in the cache until
+          // the day-old sweep should not say what it is.
+          final sink = await scratchTarget('forward.bin');
           final response = await blobsOn(
             sourceServerId,
           ).saveAttachment(attachment: attachment, sink: sink);
@@ -154,6 +156,12 @@ mixin _ForwardBlobsMixin {
     for (var i = 0; i < attachments.length; i++) {
       final file = i < files.length ? files[i] : null;
       if (file == null) return null;
+      // Central takes nothing bigger, so a big file is not read into memory
+      // and sealed only to be refused (review, Nov 22).
+      if (serverId == null &&
+          file.size > ServerLimits.centralMaxAttachmentBytes) {
+        return null;
+      }
       try {
         Future<APIResponse> upload(
           PendingAttachment file, {
@@ -189,6 +197,9 @@ mixin _ForwardBlobsMixin {
                 ? await ChatAttachmentUploader.posterFor(
                     file,
                     uploadOne: upload,
+                    origin: serverId == null
+                        ? AttachmentLoader.central
+                        : blobsOn(serverId).origin,
                   )
                 : null,
           ),

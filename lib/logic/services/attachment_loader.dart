@@ -5,6 +5,7 @@ import '../../data/classes/attachment.dart';
 import '../../data/repositories/attachment_repository.dart';
 import '../../data/repositories/blob/blob_reader.dart';
 import '../../data/repositories/blob/blob_sink.dart';
+import 'media_store.dart';
 
 /// How a chat draws and saves the attachments in it, handed down from the
 /// cubit that owns the conversation.
@@ -34,7 +35,25 @@ class AttachmentLoader {
   /// a file that cannot (see `AttachmentRepository.readerFor`).
   final BlobReader? Function(Attachment attachment)? read;
 
-  const AttachmentLoader({required this.load, required this.save, this.read});
+  /// Where the conversation's files are stored: a server's
+  /// `AttachmentsApi.origin`, or [central]. Bytes and the picture check's
+  /// verdicts are kept under it ([keyOf]).
+  final String origin;
+
+  /// [origin] for Rift DMs, whose files are on central.
+  static const String central = 'central';
+
+  const AttachmentLoader({
+    required this.origin,
+    required this.load,
+    required this.save,
+    this.read,
+  });
+
+  /// What [attachment]'s bytes, and the picture check's verdict on them, are
+  /// held under: never its id or its path alone, which the sender chooses.
+  String keyOf(Attachment attachment) =>
+      MediaStore.attachmentKey(origin, attachment);
 
   /// [attachment] read as it plays, where it can be.
   BlobReader? readerFor(Attachment attachment) => read?.call(attachment);
@@ -44,10 +63,11 @@ class AttachmentLoader {
   @override
   bool operator ==(Object other) =>
       other is AttachmentLoader &&
+      other.origin == origin &&
       other.load == load &&
       other.save == save &&
       other.read == read;
 
   @override
-  int get hashCode => Object.hash(load, save, read);
+  int get hashCode => Object.hash(origin, load, save, read);
 }

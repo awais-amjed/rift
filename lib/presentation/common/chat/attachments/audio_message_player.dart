@@ -127,7 +127,7 @@ class _AudioMessagePlayerState extends State<AudioMessagePlayer>
   Widget build(BuildContext context) {
     final held = context.select<MediaCubit, Uint8List?>(
       (c) => c.state
-          .entry(MediaKind.attachment, widget.attachment.storagePath)
+          .entry(MediaKind.attachment, widget.loader.keyOf(widget.attachment))
           ?.bytes,
     );
     if (_holdsVideo(held)) {

@@ -100,8 +100,8 @@ class _AttachmentImageThumbState extends State<AttachmentImageThumb> {
   @override
   void didUpdateWidget(AttachmentImageThumb old) {
     super.didUpdateWidget(old);
-    if (old.attachment.id != widget.attachment.id ||
-        old.loader != widget.loader) {
+    if (old.loader.keyOf(old.attachment) !=
+        widget.loader.keyOf(widget.attachment)) {
       _want();
     }
   }
@@ -111,7 +111,7 @@ class _AttachmentImageThumbState extends State<AttachmentImageThumb> {
     final loader = widget.loader;
     context.read<MediaCubit>().want(
       MediaKind.attachment,
-      attachment.storagePath,
+      loader.keyOf(attachment),
       () => loader(attachment),
     );
   }
@@ -121,7 +121,7 @@ class _AttachmentImageThumbState extends State<AttachmentImageThumb> {
     if (!identical(bytes, _verdictFor) || _verdict == null) {
       _verdictFor = bytes;
       _verdict = ImageSafetyClassifier.instance.classify(
-        widget.attachment.id,
+        widget.loader.keyOf(widget.attachment),
         bytes,
       );
     }
@@ -150,8 +150,10 @@ class _AttachmentImageThumbState extends State<AttachmentImageThumb> {
 
   Widget _build(BuildContext context, Size? box) {
     final content = BlocSelector<MediaCubit, MediaState, MediaEntry?>(
-      selector: (state) =>
-          state.entry(MediaKind.attachment, widget.attachment.storagePath),
+      selector: (state) => state.entry(
+        MediaKind.attachment,
+        widget.loader.keyOf(widget.attachment),
+      ),
       builder: (context, entry) {
         final bytes = entry?.bytes;
         if (entry?.status == MediaStatus.failure) {
@@ -170,7 +172,7 @@ class _AttachmentImageThumbState extends State<AttachmentImageThumb> {
           return _picture(box, bytes, null);
         }
         final known = ImageSafetyClassifier.instance.cached(
-          widget.attachment.id,
+          widget.loader.keyOf(widget.attachment),
         );
         if (known != null) return _picture(box, bytes, known);
         return FutureBuilder<ImageSafetyVerdict?>(
@@ -221,7 +223,7 @@ class _AttachmentImageThumbState extends State<AttachmentImageThumb> {
           ? ClipRRect(
               borderRadius: BorderRadius.circular(K.radiusCard),
               child: SensitiveImageCover(
-                attachmentId: widget.attachment.id,
+                attachmentId: widget.loader.keyOf(widget.attachment),
                 mode: _mode,
                 child: _Openable(
                   bytes: bytes,

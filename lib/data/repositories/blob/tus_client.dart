@@ -150,8 +150,7 @@ class TusClient {
 
   /// Long enough for a piece on a slow line: 30 s plus a second for every
   /// 100 KB, so 8 MB gets a little under two minutes.
-  static Duration pieceTimeout(int bytes) =>
-      StorageRest.timeout + Duration(milliseconds: bytes ~/ 100);
+  static Duration pieceTimeout(int bytes) => StorageRest.timeoutFor(bytes);
 
   static void _check(http.Response response, String failed) {
     final refused = StorageRest.refusal(response, failed: failed);

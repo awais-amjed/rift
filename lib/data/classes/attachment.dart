@@ -57,7 +57,8 @@ enum AttachmentKind {
 /// same sealed body — the server can read the file but cannot change it, and a
 /// download that does not match is not shown.
 class Attachment extends Equatable {
-  /// Stable id within the message (used as a widget key / cache key).
+  /// Stable id within the message, used as a widget key. Chosen by the
+  /// sender, so never a cache key: see [contentKey].
   final String id;
   final AttachmentKind kind;
 
@@ -121,6 +122,21 @@ class Attachment extends Equatable {
   /// Whether the server holds ciphertext ([keyB64] opens it) rather than the
   /// file itself.
   bool get isEncrypted => sha256B64 == null;
+
+  /// What fixes this attachment's bytes: the object and what opens it. Held
+  /// bytes and the picture check's verdict are kept under it (with the host
+  /// the object is on, `MediaStore.attachmentKey`), never under [id] or the
+  /// path alone. Both are the sender's to choose, so a second message naming
+  /// the same id over an explicit picture was drawn with the first one's
+  /// "safe" verdict, and one naming someone else's path with a wrong key
+  /// failed the shared download of the real one (review, Nov 22).
+  String get contentKey => [
+    storagePath,
+    keyB64,
+    nonceB64,
+    sha256B64 ?? '',
+    chunkSize ?? '',
+  ].join('\n');
 
   factory Attachment.fromJson(Map<String, dynamic> json) {
     return Attachment(

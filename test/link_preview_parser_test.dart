@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rift/data/classes/link_preview.dart';
 import 'package:rift/logic/services/link_preview_parser.dart';
 
 void main() {
@@ -81,6 +82,25 @@ void main() {
 
     test('a page with nothing to say is empty', () {
       expect(LinkPreviewParser.parse('<p>hi</p>', page).isEmpty, isTrue);
+    });
+  });
+
+  // The card and the words travel apart in the body, so the card is drawn
+  // only under words that still link to it (review, Nov 22).
+  group('LinkDetector.matching', () {
+    const card = LinkPreview(url: 'https://example.com/a', title: 'A');
+
+    test('kept under the link it was made for', () {
+      expect(LinkDetector.matching('see https://example.com/a', card), card);
+    });
+
+    test('dropped once the link is edited out or changed', () {
+      expect(LinkDetector.matching('see nothing', card), isNull);
+      expect(LinkDetector.matching('see https://example.com/b', card), isNull);
+    });
+
+    test('none stays none', () {
+      expect(LinkDetector.matching('https://example.com/a', null), isNull);
     });
   });
 }

@@ -34,6 +34,7 @@ void main() {
       durationMs: 60000,
     ),
     loader: AttachmentLoader(
+      origin: 'o',
       load: (_) async => null,
       save: (_, _, {onProgress}) => throw UnimplementedError(),
     ),

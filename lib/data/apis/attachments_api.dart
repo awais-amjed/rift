@@ -36,6 +36,14 @@ class AttachmentsApi {
   /// exact.
   static String _bucketFor(Server server) => 'chat-${server.id}';
 
+  /// Where this server's files are, for keeping their bytes apart from
+  /// another's (`MediaStore.attachmentKey`): its project and its id, since
+  /// one project holds several servers and a path is the server's to
+  /// choose. Read as the server is named now, so a server that has since
+  /// gone keys on its id alone and fetches nothing anyway.
+  String get origin =>
+      '${_target.server?.supabaseUrl ?? ''}#${_target.serverId}';
+
   /// The server with its key — or null when it is gone, or has no key yet.
   ///
   /// Resolved once for both halves of a call: a blob sealed for one server and
@@ -168,6 +176,7 @@ class AttachmentsApi {
     required String nonceB64,
     String? sha256B64,
     int? chunkSize,
+    int? size,
   }) async {
     final target = _withKey();
     if (target == null) return APIResponse.error(ServerSession.gone);
@@ -183,6 +192,7 @@ class AttachmentsApi {
         nonceB64: nonceB64,
         sha256B64: sha256B64,
         chunkSize: chunkSize,
+        size: size,
       ),
     );
   }

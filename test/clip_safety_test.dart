@@ -5,12 +5,16 @@ import 'package:rift/data/classes/attachment.dart';
 import 'package:rift/data/enums/sensitive_content_mode.dart';
 import 'package:rift/logic/services/image_safety.dart';
 import 'package:rift/logic/services/image_safety_classifier.dart';
+import 'package:rift/logic/services/media_store.dart';
 import 'package:rift/presentation/common/chat/attachments/sensitive_image_cover.dart';
 import 'package:rift/presentation/common/chat/attachments/video/clip_safety.dart';
 
 /// A chat video's cover follows the verdicts kept for it and its poster:
 /// covered at once when either was flagged, never with the setting off, and
 /// lifted for the session once pressed.
+/// What a verdict is kept under, as a loader on origin `o` keys it.
+String _key(Attachment a) => MediaStore.attachmentKey('o', a);
+
 void main() {
   setUp(SensitiveImageCover.resetReveals);
 
@@ -38,12 +42,17 @@ void main() {
     ),
   );
 
-  ClipSafety safety(Attachment a, SensitiveContentMode mode) =>
-      ClipSafety(attachment: a, mode: mode, changed: () {}, flagged: () {});
+  ClipSafety safety(Attachment a, SensitiveContentMode mode) => ClipSafety(
+    attachment: a,
+    keyOf: _key,
+    mode: mode,
+    changed: () {},
+    flagged: () {},
+  );
 
   test('a video flagged before is covered at once', () {
     final a = video('v-known');
-    ImageSafetyClassifier.instance.remember(a.id, flagged);
+    ImageSafetyClassifier.instance.remember(_key(a), flagged);
     expect(safety(a, SensitiveContentMode.blur).covered, isTrue);
     expect(safety(a, SensitiveContentMode.hide).covered, isTrue);
     expect(safety(a, SensitiveContentMode.off).covered, isFalse);
@@ -51,7 +60,7 @@ void main() {
 
   test('a flagged poster covers the video and is kept for it', () {
     final a = video('v-poster');
-    ImageSafetyClassifier.instance.remember(a.poster!.id, flagged);
+    ImageSafetyClassifier.instance.remember(_key(a.poster!), flagged);
     final s = safety(a, SensitiveContentMode.blur);
     expect(s.covered, isFalse);
     expect(s.posterChecked, isFalse);
@@ -65,7 +74,7 @@ void main() {
 
   test('a fine poster is drawn and leaves it uncovered', () {
     final a = video('v-fine');
-    ImageSafetyClassifier.instance.remember(a.poster!.id, fine);
+    ImageSafetyClassifier.instance.remember(_key(a.poster!), fine);
     final s = safety(a, SensitiveContentMode.blur)..lookAtPoster(Uint8List(1));
     expect(s.posterChecked, isTrue);
     expect(s.covered, isFalse);
@@ -75,6 +84,25 @@ void main() {
     final a = video('v-off');
     final s = safety(a, SensitiveContentMode.off)..lookAtPoster(Uint8List(1));
     expect(s.posterChecked, isTrue);
-    expect(ImageSafetyClassifier.instance.cached(a.poster!.id), isNull);
+    expect(ImageSafetyClassifier.instance.cached(_key(a.poster!)), isNull);
+  });
+
+  // An id is the sender's to choose: a verdict on one file must not answer
+  // for another that claims its id (review, Nov 22).
+  test("a verdict is the file's, not its id's", () {
+    final a = video('v-same');
+    ImageSafetyClassifier.instance.remember(_key(a), flagged);
+    final other = Attachment(
+      id: a.id,
+      kind: AttachmentKind.video,
+      name: 'clip.mp4',
+      mime: 'video/mp4',
+      size: 1,
+      storagePath: 'p/elsewhere',
+      keyB64: '',
+      nonceB64: '',
+    );
+    expect(safety(a, SensitiveContentMode.blur).covered, isTrue);
+    expect(safety(other, SensitiveContentMode.blur).covered, isFalse);
   });
 }

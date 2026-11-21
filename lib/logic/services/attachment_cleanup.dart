@@ -1,4 +1,5 @@
 import '../../data/classes/api_response.dart';
+import '../../data/classes/attachment.dart';
 import '../../data/classes/chat_message.dart';
 import '../helper_methods.dart';
 import 'media_store.dart';
@@ -28,22 +29,36 @@ class AttachmentCleanup {
   /// sweep collects later. Failing the delete over it — or worse, leaving the
   /// message on screen — would trade something visible for something that
   /// isn't.
+  ///
+  /// Only for a message of your own. The paths come from the body, and the
+  /// body is its sender's to write: a member could name anyone's files in
+  /// the conversation, and a manager deleting that message as spam, whom
+  /// `chat_attachments_delete` lets delete any file in the server, would
+  /// have deleted all of them (review, Nov 22). Another's are left to the
+  /// sweep. [origin] is where the files are (`AttachmentLoader.origin`), for
+  /// letting go of their bytes here, which happens for any message.
   static Future<void> forMessage(
     ChatMessage? message, {
+    required String origin,
     required Future<APIResponse> Function(List<String> paths) delete,
   }) async {
-    final paths = pathsOf(message);
-    if (paths.isEmpty) return;
+    final attachments = attachmentsOf(message);
+    if (attachments.isEmpty) return;
 
     // Drop the plaintext bytes first. That part can't fail, and it must happen
     // even if the network call does — the message is gone from the UI, so its
     // decrypted images should not survive in memory.
-    for (final path in paths) {
-      MediaStore.attachments.remove(path);
+    for (final attachment in attachments) {
+      MediaStore.attachments.remove(
+        MediaStore.attachmentKey(origin, attachment),
+      );
     }
+    if (message == null || !message.isMine) return;
 
     try {
-      final response = await delete(paths);
+      final response = await delete([
+        for (final attachment in attachments) attachment.storagePath,
+      ]);
       if (!response.success) {
         HelperMethods.printDebug(
           '[Attachments] blob delete failed, leaving it to the sweep: '
@@ -55,12 +70,19 @@ class AttachmentCleanup {
     }
   }
 
-  /// The storage paths [message] carries, a video's poster's too, or empty
-  /// when it has none.
+  /// Every file [message] carries: its attachments and a video's poster, a
+  /// forward's copies, which its forwarder uploaded as their own, and its
+  /// link preview's picture. Empty when it has none.
+  static List<Attachment> attachmentsOf(ChatMessage? message) => [
+    for (final attachment in [
+      ...?message?.attachments,
+      ...?message?.forwarded?.attachments,
+      ?message?.preview?.image,
+    ]) ...[attachment, ?attachment.poster],
+  ];
+
+  /// The storage paths of [attachmentsOf].
   static List<String> pathsOf(ChatMessage? message) => [
-    for (final attachment in message?.attachments ?? const []) ...[
-      attachment.storagePath,
-      if (attachment.poster case final poster?) poster.storagePath,
-    ],
+    for (final attachment in attachmentsOf(message)) attachment.storagePath,
   ];
 }

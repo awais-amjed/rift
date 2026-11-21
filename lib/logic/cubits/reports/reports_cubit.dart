@@ -168,9 +168,11 @@ class ReportsCubit extends Cubit<ReportsState> {
   Future<APIResponse> dismiss(ReportEntry entry) =>
       _record(entry, ReportOutcome.dismissed);
 
-  /// Delete the reported message, with its attachments when this device
-  /// could open it to know which they are. A message its author already
-  /// deleted is already the outcome wanted.
+  /// Delete the reported message. Its files are left to the server's sweep:
+  /// the paths are the reporter's word against its sender's, and a body
+  /// naming other people's files would have had them deleted too
+  /// (`AttachmentCleanup.forMessage`). A message its author already deleted
+  /// is already the outcome wanted.
   Future<APIResponse> deleteMessage(ReportEntry entry) async {
     final reported = entry.report.message;
     if (reported == null) return APIResponse.error('Not a message report');
@@ -181,6 +183,7 @@ class ReportsCubit extends Cubit<ReportsState> {
     unawaited(
       AttachmentCleanup.forMessage(
         entry.message,
+        origin: attachments.origin,
         delete: attachments.deleteAttachments,
       ),
     );

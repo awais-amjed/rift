@@ -435,7 +435,14 @@ at a time, and the nightly sweep takes each after 31 days (`account_storage_ceil
 past that Storage refuses the upload with `account_storage_full`, which the app
 puts into words. Deleting a message has to delete its blobs, and
 storage refuses a direct delete — so that path goes through an endpoint holding
-the Storage API rather than any database role.
+the Storage API rather than any database role. A client deletes the blobs only
+of a message of its own (`AttachmentCleanup.forMessage`): the paths are in a
+body its sender wrote, and a manager, whom `chat_attachments_delete` lets
+delete any file in the server, deleting a message that named other people's
+files would have deleted those too (found in the Nov 22 review). Another's are
+left to the orphan sweep. A send that is refused removes what it uploaded, and
+a retry names the files its first attempt put up rather than uploading them
+again (`UploadedFiles`).
 
 The sealing runs in the Rust library (`NativeBlobCipher`) on a desktop or
 phone, off the UI thread: the Dart reference froze the window for seconds on a
@@ -498,6 +505,13 @@ first chunk not yet opened. It is saved beside the chosen name and renamed into
   file. A file sealed in one
   piece, or sent unencrypted (whose digest checks only at the end), is fetched
   whole to play, up to 64 MB (`ChatClip.wholeMaxBytes`).
+- *Read whole only within a limit* [Nov 22 2026]: a picture is fetched the
+  moment it comes into view and a sound when it is played, so a picture past
+  16 MB or a sound past 64 MB is drawn as a file to save
+  (`MessageAttachments.drawnAs`), and nothing read whole goes past 65 MB
+  whatever its message says (`AttachmentRepository.wholeMaxBytes`). A request
+  is given 30 s and a second for each 100 KB (`StorageRest.timeoutFor`), and
+  torn down when that runs out rather than left to finish unheard.
 
 ### Saved on the device [Implemented September 2026]
 
@@ -581,7 +595,12 @@ they do say whom this device has seen, so a vault reset deletes them. Leaving a 
 go when nothing has drawn them for a month, or sooner when the folder passes its
 size. A file is named by the SHA-256 of the host and the path, never the path
 alone, since a server chooses its own paths and could repeat another's to leave
-its bytes in that one's place; the copy in memory is held the same way. Attachments never go to disk: they are decrypted
+its bytes in that one's place; the copy in memory is held the same way. A
+decrypted attachment in memory, and the picture check's verdict on it, are held
+under its server and what opens it — path, key and nonce
+(`Attachment.contentKey`, `MediaStore.attachmentKey`) — never its id or its
+path alone, both of which its sender chooses: a second message reusing an id
+was drawn with the first one's "safe" verdict (Nov 22 review). Attachments never go to disk: they are decrypted
 message content. The one copy outside memory is a chat sound playing on Linux,
 where the system player takes only a file: it is written under
 `$XDG_RUNTIME_DIR` (memory-backed, the user's alone) and deleted when the card

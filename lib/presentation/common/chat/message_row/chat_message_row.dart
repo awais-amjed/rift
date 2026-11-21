@@ -12,6 +12,7 @@ import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../logic/helper_methods.dart';
 import '../../../../logic/services/forwarding/forward_payload.dart';
 import '../../../../logic/services/host_platform.dart';
+import '../../../../logic/services/link_preview_parser.dart';
 import '../../../../logic/services/mentions.dart';
 import '../../../../logic/services/message_permissions.dart';
 import '../../../responsive/shell_scope.dart';
@@ -510,7 +511,9 @@ class _ChatMessageRowState extends State<ChatMessageRow>
             loader: widget.attachmentLoader!,
             inPlainChannel: message.inPlainChannel,
           ),
-        if (message.preview case final preview? when preview.hasContent)
+        // Only under words that still link to it (`LinkDetector.matching`).
+        if (LinkDetector.matching(message.text, message.preview)
+            case final preview? when preview.hasContent)
           LinkPreviewCard(preview: preview, loader: widget.attachmentLoader),
         if (showReactions)
           MessageReactionsBar(

@@ -46,13 +46,27 @@ class ChatAttachmentUploader {
   static Future<LinkPreview?> uploadPreview({
     required Future<PendingLinkPreview?>? preview,
     required BlobUpload uploadOne,
+    required String origin,
   }) async {
     final pending = await preview;
     if (pending == null) return null;
     final image = pending.image;
-    final uploaded = image == null
-        ? const <Attachment>[]
-        : await uploadAll(pending: [image], uploadOne: uploadOne);
+    var uploaded = const <Attachment>[];
+    if (image != null) {
+      try {
+        uploaded = await uploadAll(
+          pending: [image],
+          uploadOne: uploadOne,
+          origin: origin,
+        );
+      } on AttachmentUploadException catch (e) {
+        // The card is the sender's nicety, not the message: one whose
+        // picture was refused (no Attach files, a full server, central's
+        // ceiling) goes without it, as a poster does, instead of taking the
+        // message down with it (review, Nov 22).
+        HelperMethods.printDebug('[Attachments] preview picture not sent: $e');
+      }
+    }
     return LinkPreview(
       url: pending.url,
       title: pending.title,
@@ -64,8 +78,9 @@ class ChatAttachmentUploader {
 
   /// Uploads every [pending] file in order and returns the resulting
   /// [Attachment]s. A small file's plaintext bytes are stashed in the
-  /// [MediaStore.attachments] under its storage path so the sender renders it without
-  /// a round-trip. Throws [AttachmentUploadException] on the first failure.
+  /// [MediaStore.attachments] under its [MediaStore.attachmentKey] on
+  /// [origin], so the sender renders it without a round-trip. Throws
+  /// [AttachmentUploadException] on the first failure.
   ///
   /// [onProgress] hears how much of all of [pending] has gone, 0 to 1, in
   /// steps of at least a percent — often enough for a bar, rarely enough not
@@ -75,6 +90,7 @@ class ChatAttachmentUploader {
   static Future<List<Attachment>> uploadAll({
     required List<PendingAttachment> pending,
     required BlobUpload uploadOne,
+    required String origin,
     void Function(double progress)? onProgress,
     PosterMaker posterOf = ChatClip.posterToSend,
   }) async {
@@ -107,31 +123,35 @@ class ChatAttachmentUploader {
         );
       }
       final r = response.data as UploadedBlob;
+      final sent = Attachment(
+        id: _attachmentId(),
+        kind: pa.kind,
+        name: pa.name,
+        mime: pa.mime,
+        size: pa.size,
+        storagePath: r.path,
+        keyB64: r.keyB64,
+        nonceB64: r.nonceB64,
+        sha256B64: r.sha256B64,
+        chunkSize: r.chunkSize,
+        width: pa.width,
+        height: pa.height,
+        durationMs: pa.durationMs,
+        poster: pa.kind == AttachmentKind.video
+            ? await posterFor(
+                pa,
+                uploadOne: uploadOne,
+                origin: origin,
+                posterOf: posterOf,
+              )
+            : null,
+      );
       // A big file is not held, so there is nothing to keep; the sender's
       // card fetches it like anyone else's if it is ever opened.
       if (pa.bytes case final bytes?) {
-        MediaStore.attachments.put(r.path, bytes);
+        MediaStore.attachments.put(sent.contentKey, bytes, origin: origin);
       }
-      result.add(
-        Attachment(
-          id: _attachmentId(),
-          kind: pa.kind,
-          name: pa.name,
-          mime: pa.mime,
-          size: pa.size,
-          storagePath: r.path,
-          keyB64: r.keyB64,
-          nonceB64: r.nonceB64,
-          sha256B64: r.sha256B64,
-          chunkSize: r.chunkSize,
-          width: pa.width,
-          height: pa.height,
-          durationMs: pa.durationMs,
-          poster: pa.kind == AttachmentKind.video
-              ? await posterFor(pa, uploadOne: uploadOne, posterOf: posterOf)
-              : null,
-        ),
-      );
+      result.add(sent);
     }
     return result;
   }
@@ -142,6 +162,7 @@ class ChatAttachmentUploader {
   static Future<Attachment?> posterFor(
     PendingAttachment video, {
     required BlobUpload uploadOne,
+    required String origin,
     PosterMaker posterOf = ChatClip.posterToSend,
   }) async {
     try {
@@ -160,8 +181,7 @@ class ChatAttachmentUploader {
       );
       if (!response.success || response.data is! UploadedBlob) return null;
       final r = response.data as UploadedBlob;
-      MediaStore.attachments.put(r.path, jpeg);
-      return Attachment(
+      final poster = Attachment(
         id: _attachmentId(),
         kind: AttachmentKind.image,
         name: 'poster.jpg',
@@ -175,6 +195,8 @@ class ChatAttachmentUploader {
         width: shape?.width,
         height: shape?.height,
       );
+      MediaStore.attachments.put(poster.contentKey, jpeg, origin: origin);
+      return poster;
     } catch (e) {
       HelperMethods.printDebug('[Attachments] poster not sent: $e');
       return null;
@@ -183,16 +205,17 @@ class ChatAttachmentUploader {
 
   /// Return an attachment's decrypted bytes, from [MediaStore.attachments] if
   /// held, else by invoking [download] (an [APIResponse] whose `data` is the
-  /// decrypted `Uint8List`). Null on failure. Two callers asking at once share
-  /// one download.
+  /// decrypted `Uint8List`). Null on failure. Two callers asking for the same
+  /// file on the same [origin] share one download.
   static Future<Uint8List?> load({
     required Attachment attachment,
+    required String origin,
     required Future<APIResponse> Function() download,
-  }) => MediaStore.attachments.load(attachment.storagePath, () async {
+  }) => MediaStore.attachments.load(attachment.contentKey, () async {
     final response = await download();
     if (!response.success || response.data == null) return null;
     return response.data as Uint8List;
-  });
+  }, origin: origin);
 }
 
 /// An attachment that did not upload, and the code that says whether trying

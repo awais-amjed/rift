@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
@@ -21,6 +22,13 @@ abstract final class StorageRest {
 
   /// How long an upload or download may take before it is given up on.
   static const Duration timeout = Duration(seconds: 30);
+
+  /// How long one moving [bytes] may take: [timeout], and a second for each
+  /// 100 KB on top, so a slow uplink is not given up on halfway through a
+  /// photo that it would have finished. A flat 30 s failed every 12 MB
+  /// picture sent over 2 Mbit/s (review, Nov 22).
+  static Duration timeoutFor(int bytes) =>
+      timeout + Duration(milliseconds: bytes ~/ 100);
 
   static Map<String, String> headers(String anonKey, String bearerToken) => {
     'apikey': anonKey,
@@ -71,6 +79,66 @@ abstract final class StorageRest {
     return http.Response.fromStream(await client.send(request));
   }
 
+  /// [method] on [uri], given up on and torn down after [within], and its
+  /// answer read whole — refused past [maxBytes].
+  ///
+  /// Torn down, not just stopped waiting for: `Future.timeout` left the
+  /// request running, so a send given up on still finished as a file nobody
+  /// named, and a download went on filling memory after it was abandoned.
+  /// [maxBytes] holds a download to what a file sent in one piece can be,
+  /// whatever its message claims: a picture's bytes were read whole, with no
+  /// end, the moment it came into view.
+  static Future<http.Response> exchange(
+    http.Client client,
+    String method,
+    Uri uri, {
+    required Map<String, String> headers,
+    required Duration within,
+    Uint8List? body,
+    int? maxBytes,
+  }) async {
+    final abort = Completer<void>();
+    void stop() {
+      if (!abort.isCompleted) abort.complete();
+    }
+
+    final timer = Timer(within, stop);
+    try {
+      final request = http.AbortableRequest(
+        method,
+        uri,
+        abortTrigger: abort.future,
+      )..headers.addAll(headers);
+      if (body != null) request.bodyBytes = body;
+      final streamed = await client.send(request);
+      if (maxBytes == null) return await http.Response.fromStream(streamed);
+      final declared = streamed.contentLength;
+      if (declared != null && declared > maxBytes) {
+        stop();
+        throw const BodyTooLarge();
+      }
+      final read = BytesBuilder(copy: false);
+      await for (final piece in streamed.stream) {
+        read.add(piece);
+        if (read.length > maxBytes) {
+          stop();
+          throw const BodyTooLarge();
+        }
+      }
+      return http.Response.bytes(
+        read.takeBytes(),
+        streamed.statusCode,
+        request: streamed.request,
+        headers: streamed.headers,
+        reasonPhrase: streamed.reasonPhrase,
+      );
+    } on http.RequestAbortedException {
+      throw TimeoutException('Storage took too long', within);
+    } finally {
+      timer.cancel();
+    }
+  }
+
   /// What [response] means when it is not a success, or null when it is.
   ///
   /// [failed] names the operation: "Upload failed", "Avatar upload failed".
@@ -116,4 +184,12 @@ abstract final class StorageRest {
       return false;
     }
   }
+}
+
+/// A download bigger than [StorageRest.exchange] was told it could be.
+class BodyTooLarge implements Exception {
+  const BodyTooLarge();
+
+  @override
+  String toString() => 'That file is too big to open here.';
 }

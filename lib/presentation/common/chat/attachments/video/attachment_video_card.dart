@@ -86,7 +86,7 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
     final loader = widget.loader;
     context.read<MediaCubit>().want(
       MediaKind.attachment,
-      poster.storagePath,
+      loader.keyOf(poster),
       () => loader(poster),
     );
   }
@@ -129,11 +129,12 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
         loader: widget.loader,
       );
     }
-    final posterPath = widget.attachment.poster?.storagePath;
+    final posterOf = widget.attachment.poster;
+    final posterKey = posterOf == null ? null : widget.loader.keyOf(posterOf);
     final poster = context.select<MediaCubit, Uint8List?>(
-      (c) => posterPath == null
+      (c) => posterKey == null
           ? null
-          : c.state.entry(MediaKind.attachment, posterPath)?.bytes,
+          : c.state.entry(MediaKind.attachment, posterKey)?.bytes,
     );
     return BlocListener<AppCubit, AppState>(
       listenWhen: (prev, curr) =>
@@ -264,7 +265,7 @@ class _AttachmentVideoCardState extends State<AttachmentVideoCard>
   Widget _covered(Uint8List? poster) => ClipRRect(
     borderRadius: BorderRadius.circular(K.radiusCard),
     child: SensitiveImageCover(
-      attachmentId: widget.attachment.id,
+      attachmentId: widget.loader.keyOf(widget.attachment),
       mode: _playback.safety.mode,
       label: 'Sensitive video',
       onReveal: _changed,

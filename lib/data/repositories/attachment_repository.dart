@@ -170,7 +170,7 @@ class AttachmentRepository
       }
       final path = buildPath(scopePrefix);
       final uri = StorageRest.object(baseUrl, bucket, path);
-      final resp = await StorageRest.sendBytes(
+      final resp = await StorageRest.exchange(
         _http,
         'POST',
         uri,
@@ -180,7 +180,8 @@ class AttachmentRepository
           'x-upsert': 'false',
         },
         body: blob.ciphertext,
-      ).timeout(StorageRest.timeout);
+        within: StorageRest.timeoutFor(blob.ciphertext.length),
+      );
 
       final refused = StorageRest.refusal(resp, failed: 'Upload failed');
       if (refused != null) return refused;
@@ -238,8 +239,18 @@ class AttachmentRepository
     }
   }
 
+  /// The most a file read whole into memory may be: a video played from
+  /// memory (`ChatClip.wholeMaxBytes`, 64 MB) and its seal. Anything bigger is
+  /// read as it is saved or played, never all at once.
+  static const int wholeMaxBytes = 65 * 1024 * 1024;
+
   /// Download a blob from [bucket] and [open] it. On success `data` is the
   /// file's `Uint8List`.
+  ///
+  /// [size] is what the message says the file is, which gives the request
+  /// its time ([StorageRest.timeoutFor]); none gives it the most a file read
+  /// whole can take. Not trusted for more: whatever it says, no more than
+  /// [wholeMaxBytes] is read.
   Future<APIResponse> download({
     required String baseUrl,
     required String anonKey,
@@ -250,12 +261,20 @@ class AttachmentRepository
     required String nonceB64,
     String? sha256B64,
     int? chunkSize,
+    int? size,
   }) async {
     try {
       final uri = StorageRest.authenticated(baseUrl, bucket, path);
-      final resp = await _http
-          .get(uri, headers: StorageRest.headers(anonKey, bearerToken))
-          .timeout(StorageRest.timeout);
+      final resp = await StorageRest.exchange(
+        _http,
+        'GET',
+        uri,
+        headers: StorageRest.headers(anonKey, bearerToken),
+        within: StorageRest.timeoutFor(
+          math.min(size ?? wholeMaxBytes, wholeMaxBytes),
+        ),
+        maxBytes: wholeMaxBytes,
+      );
 
       final refused = StorageRest.refusal(resp, failed: 'Download failed');
       if (refused != null) return refused;

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:rift_crypto/rift_crypto.dart';
@@ -10,17 +11,21 @@ import '../../../data/classes/api_response.dart';
 import '../../../data/classes/attachment.dart';
 import '../../../data/classes/forwarded_message.dart';
 import '../../../data/classes/message_body.dart';
+import '../../../data/classes/message_cache_slot.dart';
 import '../../../data/classes/pending_attachment.dart';
 import '../../../data/classes/server.dart';
+import '../../../data/classes/server_limits.dart';
 import '../../../data/repositories/attachment_repository.dart';
 import '../../../data/repositories/central_dm_repository.dart';
 import '../../../data/repositories/session_repository.dart';
 import '../../../supabase_config.dart';
 import '../../cubits/vault/vault_cubit.dart';
 import '../../helper_methods.dart';
+import '../attachment_loader.dart';
 import '../attachment_staging.dart';
 import '../chat_attachment_uploader.dart';
 import '../file_save/save_target.dart';
+import '../message_cache.dart';
 import 'forward_target.dart';
 
 part 'forward_service_blobs.dart';
@@ -103,6 +108,7 @@ class ForwardService with _ForwardBlobsMixin, _ForwardDmsMixin {
         try {
           final error = await _sendOne(target, message, fetched.files, note);
           results.add(ForwardResult(target, error: error));
+          if (error == null) _forgetSaved(target);
         } catch (e) {
           HelperMethods.printDebug('[Forward] ${target.id} failed: $e');
           results.add(ForwardResult(target, error: 'Could not forward'));
@@ -114,6 +120,32 @@ class ForwardService with _ForwardBlobsMixin, _ForwardDmsMixin {
       }
     }
     return results;
+  }
+
+  /// [target]'s saved copy, written before this forward and with no way to
+  /// add it: the send answers with an id, not a row. Dropped, so the next
+  /// open waits for the real page rather than drawing one without it, as a
+  /// quick send does (`DmCubit.quickSend`). One open now writes its own
+  /// again as it is left.
+  void _forgetSaved(ForwardTarget target) {
+    final seed = vault.state.masterSeed;
+    if (seed == null) return;
+    final slot = switch (target) {
+      ChannelTarget(:final server, :final channel) => MessageCacheSlot.channel(
+        supabaseUrl: server.supabaseUrl,
+        serverId: server.id,
+        channelId: channel.id,
+      ),
+      ServerDmTarget(:final server, :final peerId) => MessageCacheSlot.serverDm(
+        supabaseUrl: server.supabaseUrl,
+        serverId: server.id,
+        peerId: peerId,
+      ),
+      CentralDmTarget(:final peerId) => MessageCacheSlot.centralDm(
+        peerId: peerId,
+      ),
+    };
+    unawaited(MessageCache.instance.forget(seed, slot));
   }
 
   /// Null on success, a sentence otherwise.

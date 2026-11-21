@@ -1,6 +1,8 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../data/classes/attachment.dart';
+import '../../../../logic/services/attachment_staging.dart';
+import '../../../../logic/services/chat_clip/chat_clip.dart';
 import 'attachment_file_card.dart';
 import 'attachment_image_thumb.dart';
 import 'attachment_loader.dart';
@@ -27,7 +29,21 @@ class MessageAttachments extends StatelessWidget {
     this.inPlainChannel = false,
   });
 
-  Widget _body(Attachment a) => switch (a.kind) {
+  /// How [a] is drawn: as what it is, unless drawing it means reading more
+  /// into memory than a file sent in one piece can be. A picture is read
+  /// whole the moment it comes into view, and a sound when it is played, so
+  /// a 1 GB "picture" was downloaded by everyone who scrolled past it
+  /// (review, Nov 22). Those are files to save instead. A video plays as it
+  /// is read, so it keeps its card.
+  static AttachmentKind drawnAs(Attachment a) => switch (a.kind) {
+    AttachmentKind.image when a.size > AttachmentStaging.inMemoryMaxBytes =>
+      AttachmentKind.file,
+    AttachmentKind.audio when a.size > ChatClip.wholeMaxBytes =>
+      AttachmentKind.file,
+    _ => a.kind,
+  };
+
+  Widget _body(Attachment a) => switch (drawnAs(a)) {
     AttachmentKind.image => AttachmentImageThumb(
       key: ValueKey(a.id),
       attachment: a,

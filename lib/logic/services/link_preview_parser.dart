@@ -1,5 +1,6 @@
 import 'package:html/parser.dart' as html;
 
+import '../../data/classes/link_preview.dart';
 import 'message_markup.dart';
 
 /// The parts of a page a preview is made of, as Open Graph or the page's
@@ -94,6 +95,24 @@ class LinkDetector {
     for (final span in parseMessageMarkup(text)) {
       final link = span.link;
       if (link != null) return Uri.tryParse(link);
+    }
+    return null;
+  }
+
+  /// [preview] when [text] links to what it shows, else null.
+  ///
+  /// The card and the words travel separately in the body, so nothing else
+  /// ties one to the other: an edit that changed or took out the link left
+  /// the old card under the new words, opening the old address, and a body
+  /// written by hand could put any card under any text (review, Nov 22).
+  /// Compared the way the composer made it ([firstUrl], as a string).
+  static LinkPreview? matching(String text, LinkPreview? preview) {
+    if (preview == null) return null;
+    for (final span in parseMessageMarkup(text)) {
+      final link = span.link;
+      if (link != null && Uri.tryParse(link)?.toString() == preview.url) {
+        return preview;
+      }
     }
     return null;
   }

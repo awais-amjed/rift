@@ -15,7 +15,8 @@ class _Owner {
     TransferProgress? onProgress,
   }) async => APIResponse(success: true);
 
-  AttachmentLoader get loader => AttachmentLoader(load: load, save: save);
+  AttachmentLoader get loader =>
+      AttachmentLoader(origin: 'o', load: load, save: save);
 }
 
 /// A chat cubit hands its loader out from a getter, so each rebuild makes a
