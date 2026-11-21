@@ -71,7 +71,10 @@ void main() {
     expect(opened!.pcm, audio(3).pcm);
     expect(opened.rate, 48000);
     expect(opened.channels, 2);
-    expect(opened.at, kept.at);
+    // Local, as a press's own time is: the trim view prints it, and names
+    // the saved file by it.
+    expect(opened.at.isUtc, isFalse);
+    expect(opened.at.isAtSameMomentAs(kept.at), isTrue);
   });
 
   test('keeps only the newest ten', () async {

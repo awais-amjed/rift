@@ -143,7 +143,9 @@ class ClipLibrary {
             ),
             rate: clip.rate,
             channels: clip.channels,
-            at: clip.at,
+            // Local, as a press's own time is: the trim view prints it and
+            // names the saved file by it.
+            at: clip.at.toLocal(),
           );
         } catch (e) {
           HelperMethods.printDebug(

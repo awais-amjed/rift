@@ -35,8 +35,8 @@ class ClippingSection extends StatelessWidget {
         SettingToggleRow(
           title: 'Keep the call for clips',
           description:
-              'Save what was just said with the clip shortcut, set in '
-              'Keybinds.',
+              'Save what was just said with the Clips button in a call, or '
+              'the clip shortcut, set in Keybinds.',
           value: on,
           onChanged: app.setClippingEnabled,
         ),
