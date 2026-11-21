@@ -552,6 +552,7 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
           onEdit: acting ? cubit.editMessage : null,
           onDelete: live ? cubit.deleteMessage : null,
           onRetry: live ? cubit.retrySend : null,
+          onDiscard: cubit.discardSend,
           canReact: acting,
           onTogglePin: acting
               ? (message) => unawaited(

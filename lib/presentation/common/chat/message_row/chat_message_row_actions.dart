@@ -66,9 +66,21 @@ mixin _MessageRowActionsMixin on State<ChatMessageRow> {
     await saveAttachment(context, loader, message.attachments.single);
   }
 
-  bool get _canDelete =>
-      widget.onDelete != null &&
-      MessagePermissions.canDelete(message, isModerator: widget.isModerator);
+  /// A message that failed on the way out is deleted from this device only:
+  /// nobody else ever had it. Every other action needs it sent.
+  bool get _canDelete => message.sendFailed
+      ? widget.onDiscard != null
+      : widget.onDelete != null &&
+            MessagePermissions.canDelete(
+              message,
+              isModerator: widget.isModerator,
+            );
+
+  /// Whether this row has a menu. A send still going has none; a failed one
+  /// has Copy and Delete, so a message that will never go is not stuck
+  /// there with Retry as the only way out.
+  bool get _hasMenu =>
+      !message.isPending || (message.sendFailed && widget.onDiscard != null);
 
   void _toggle(String emoji) =>
       widget.onToggleReaction?.call(message.id, emoji);
@@ -87,7 +99,7 @@ mixin _MessageRowActionsMixin on State<ChatMessageRow> {
   /// the press is held, so without it the finger spends half a second on a
   /// screen that looks like it is ignoring it.
   void _openContextMenuByTouch(Offset position) {
-    if (message.isPending) return;
+    if (!_hasMenu) return;
     if (HostPlatform.isMobile) HapticFeedback.mediumImpact();
     unawaited(_openContextMenu(position));
   }
@@ -100,7 +112,7 @@ mixin _MessageRowActionsMixin on State<ChatMessageRow> {
   bool _menuOpen = false;
 
   Future<void> _openContextMenu(Offset position) async {
-    if (message.isPending || _menuOpen) return;
+    if (!_hasMenu || _menuOpen) return;
     _menuOpen = true;
     try {
       await _showContextMenu(position);
@@ -192,6 +204,12 @@ mixin _MessageRowActionsMixin on State<ChatMessageRow> {
   }
 
   Future<void> _confirmDelete() async {
+    // Never sent, so there is nobody else to remove it for, and Retry
+    // was the other choice on the same row.
+    if (message.sendFailed) {
+      widget.onDiscard?.call(message.id);
+      return;
+    }
     final confirmed = await showConfirmDialog(
       context: context,
       title: 'Delete message?',

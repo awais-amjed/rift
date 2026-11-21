@@ -534,6 +534,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
 
   void _onServerChanged() {
     _pruneSavedIfListChanged(_shownServer);
+    _outbox.dropOutside({for (final server in _session.servers) server.id});
     // Losing the open channel's server closes it.
     if (state.channelId != null && _openServerId != null && _server == null) {
       unawaited(closeChannel());

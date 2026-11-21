@@ -385,6 +385,7 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
       onEdit: live ? cubit.editMessage : null,
       onDelete: live ? cubit.deleteMessage : null,
       onRetry: live ? cubit.retrySend : null,
+      onDiscard: cubit.discardSend,
       // Pins change what the other person sees, so they take the same
       // friendship sending does, and central refuses them without it.
       onTogglePin: live && state.canSendToOpen

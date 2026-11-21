@@ -221,6 +221,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
     // How a failure here is held for a retry.
     OutboxEntry heldAs(ChatMessage row) => OutboxEntry(
       destination: channelId,
+      scope: server.id,
       row: row,
       attachments: attachments,
       toBotId: command?.bot.id,
@@ -546,6 +547,14 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
       pingReplyTo: entry.pingReplyTo,
       earlier: entry,
     );
+  }
+
+  /// Throw a held send away unsent — Delete on a "Not sent" row. Nobody else
+  /// ever had it, so it goes from this device only, with its staged files.
+  void discardSend(String pendingId) {
+    if (!_outbox.holds(pendingId)) return;
+    _outbox.drop(pendingId);
+    _removePending(pendingId);
   }
 
   void _removePending(String pendingId) {

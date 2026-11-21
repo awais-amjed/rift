@@ -17,6 +17,10 @@ class OutboxEntry {
   /// Which conversation it belongs to — a channel id, or a peer id.
   final String destination;
 
+  /// The server a channel's send was for, so leaving the server can forget
+  /// it. Null for a DM, whose cubit empties its outbox when its server goes.
+  final String? scope;
+
   /// The failed row, `isPending` and `sendFailed` both true.
   final ChatMessage row;
 
@@ -49,6 +53,7 @@ class OutboxEntry {
 
   const OutboxEntry({
     required this.destination,
+    this.scope,
     required this.row,
     this.attachments = const [],
     this.toBotId,
@@ -146,7 +151,8 @@ class Outbox {
   /// remove" would send twice.
   OutboxEntry? take(String pendingId) => _held.remove(pendingId);
 
-  /// Forget one entry without retrying it — the row is going away. A send
+  /// Forget one entry without retrying it — the row is going away, or was
+  /// deleted unsent. A send
   /// still on its way stops being drawn on return (its message is already
   /// in the conversation); its files are its own, so they are left alone.
   void drop(String pendingId) {
@@ -190,6 +196,16 @@ class Outbox {
     }
     return (pendingIds: pendingIds, rowIds: rowIds);
   }
+
+  /// Forget the held sends for servers no longer on [scopes]: a server left
+  /// has nowhere for them to go, and they held their files until the app
+  /// quit.
+  void dropOutside(Set<String> scopes) => _held.removeWhere((_, entry) {
+    final scope = entry.scope;
+    if (scope == null || scopes.contains(scope)) return false;
+    _forget(entry);
+    return true;
+  });
 
   /// Forget everything for one conversation.
   void dropDestination(String destination) => _held.removeWhere((_, entry) {

@@ -76,6 +76,7 @@ mixin _MessageListRowsMixin on State<ChatMessageList> {
       (a.onEdit == null) == (b.onEdit == null) &&
       (a.onDelete == null) == (b.onDelete == null) &&
       (a.onRetry == null) == (b.onRetry == null) &&
+      (a.onDiscard == null) == (b.onDiscard == null) &&
       (a.onPanelAction == null) == (b.onPanelAction == null) &&
       (a.onTogglePin == null) == (b.onTogglePin == null) &&
       (a.onReport == null) == (b.onReport == null) &&
@@ -92,6 +93,7 @@ mixin _MessageListRowsMixin on State<ChatMessageList> {
       widget.onEdit?.call(messageId, text);
   void _delete(String messageId) => widget.onDelete?.call(messageId);
   void _retry(String pendingId) => widget.onRetry?.call(pendingId);
+  void _discard(String pendingId) => widget.onDiscard?.call(pendingId);
   void _panelAction(String messageId, String action, String? value) =>
       widget.onPanelAction?.call(messageId, action, value);
   void _togglePin(ChatMessage message) => widget.onTogglePin?.call(message);

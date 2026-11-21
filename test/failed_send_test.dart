@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
@@ -60,6 +61,7 @@ void main() {
     WidgetTester tester,
     List<ChatMessage> messages, {
     void Function(String pendingId)? onRetry,
+    void Function(String pendingId)? onDiscard,
   }) => tester.pumpWidget(
     MultiBlocProvider(
       providers: [
@@ -70,7 +72,11 @@ void main() {
       ],
       child: MaterialApp(
         home: Scaffold(
-          body: ChatMessageList(messages: messages, onRetry: onRetry),
+          body: ChatMessageList(
+            messages: messages,
+            onRetry: onRetry,
+            onDiscard: onDiscard,
+          ),
         ),
       ),
     ),
@@ -129,5 +135,50 @@ void main() {
     expect(find.text('second'), findsOneWidget);
     expect(find.text('Not sent'), findsOneWidget);
     expect(find.text('Try again'), findsOneWidget);
+  });
+
+  group('deleting one that will never go', () {
+    // Retry was the only thing a failed row offered, so a message that was
+    // never going to go stayed in the conversation until the app quit.
+    Future<void> rightClick(WidgetTester tester, String text) async {
+      await tester.tap(find.text(text), buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('its menu offers Delete, which throws it away at once', (
+      tester,
+    ) async {
+      final discarded = <String>[];
+      await pump(
+        tester,
+        [mine('pending-3', pending: true, failed: true)],
+        onRetry: (_) {},
+        onDiscard: discarded.add,
+      );
+
+      await rightClick(tester, 'ok sounds good');
+      expect(find.text('Delete message'), findsOneWidget);
+      expect(find.text('Copy text'), findsOneWidget);
+      // Nothing that needs it sent.
+      expect(find.text('Edit message'), findsNothing);
+      expect(find.text('Forward'), findsNothing);
+
+      await tester.tap(find.text('Delete message'));
+      await tester.pumpAndSettle();
+      // Nobody else ever had it, so there is nothing to confirm.
+      expect(find.text('Delete message?'), findsNothing);
+      expect(discarded, ['pending-3']);
+    });
+
+    testWidgets('one still sending has no menu', (tester) async {
+      await pump(
+        tester,
+        [mine('pending-4', pending: true)],
+        onRetry: (_) {},
+        onDiscard: (_) {},
+      );
+      await rightClick(tester, 'ok sounds good');
+      expect(find.text('Delete message'), findsNothing);
+    });
   });
 }

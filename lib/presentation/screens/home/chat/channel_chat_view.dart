@@ -651,6 +651,8 @@ class _ChannelChatViewState extends State<ChannelChatView>
                       .currentChannelId,
                 )
               : null,
+          // Local only, so it needs no connection.
+          onDiscard: cubit.discardSend,
           onPanelAction: live ? cubit.pressPanelAction : null,
           // Channel managers and admins may remove anyone's message.
           isModerator: live && _isModerator(context),

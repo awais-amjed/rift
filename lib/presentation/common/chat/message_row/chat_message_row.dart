@@ -111,6 +111,10 @@ class ChatMessageRow extends StatefulWidget {
   /// still says "Not sent", it just has nothing to offer.
   final void Function(String pendingId)? onRetry;
 
+  /// Throw away a failed message without sending it. Null on a surface with
+  /// no outbox, where a failed row has no menu.
+  final void Function(String pendingId)? onDiscard;
+
   /// Somebody pressed something on a bot's panel. Null where the surface has
   /// no way to send one — a panel is still worth reading where it cannot be
   /// touched, so the buttons are drawn and inert rather than hidden.
@@ -169,6 +173,7 @@ class ChatMessageRow extends StatefulWidget {
     this.onEdit,
     this.onDelete,
     this.onRetry,
+    this.onDiscard,
     this.onPanelAction,
     this.isModerator = false,
     this.canReact = true,

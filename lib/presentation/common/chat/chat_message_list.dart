@@ -91,6 +91,9 @@ class ChatMessageList extends StatefulWidget {
   /// being there.
   final void Function(String pendingId)? onRetry;
 
+  /// Throw away a message that failed on the way out, unsent.
+  final void Function(String pendingId)? onDiscard;
+
   /// Somebody pressed something on a bot's panel.
   final void Function(String messageId, String action, String? value)?
   onPanelAction;
@@ -169,6 +172,7 @@ class ChatMessageList extends StatefulWidget {
     this.onEdit,
     this.onDelete,
     this.onRetry,
+    this.onDiscard,
     this.onPanelAction,
     this.isModerator = false,
     this.canReact = true,
@@ -486,6 +490,7 @@ class _ChatMessageListState extends State<ChatMessageList>
       onEdit: widget.onEdit == null ? null : _edit,
       onDelete: widget.onDelete == null ? null : _delete,
       onRetry: widget.onRetry == null ? null : _retry,
+      onDiscard: widget.onDiscard == null ? null : _discard,
       onPanelAction: widget.onPanelAction == null ? null : _panelAction,
       isModerator: widget.isModerator,
       canReact: widget.canReact,

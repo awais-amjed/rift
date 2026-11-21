@@ -107,6 +107,22 @@ void main() {
     });
   });
 
+  group('a server left', () {
+    test('takes its channels\' held sends with it, and nothing else', () {
+      // Nothing could send them any more, and their files stayed staged
+      // until the app quit.
+      final outbox = Outbox()
+        ..hold(OutboxEntry(destination: 'a', scope: 'gone', row: row('p1')))
+        ..hold(OutboxEntry(destination: 'b', scope: 'kept', row: row('p2')))
+        ..hold(OutboxEntry(destination: 'peer', row: row('p3')));
+      outbox.dropOutside({'kept'});
+      expect(outbox.holds('p1'), isFalse);
+      expect(outbox.holds('p2'), isTrue);
+      // A DM's entry has no server here; its cubit empties its own outbox.
+      expect(outbox.holds('p3'), isTrue);
+    });
+  });
+
   group('holding and taking', () {
     test('take hands the entry back exactly once', () {
       final outbox = Outbox()..hold(entry('pending-0'));

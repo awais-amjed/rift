@@ -328,6 +328,14 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
     }
   }
 
+  /// Throw a held send away unsent — Delete on a "Not sent" row. Nobody else
+  /// ever had it, so it goes from this device only, with its staged files.
+  void discardSend(String pendingId) {
+    if (!_outbox.holds(pendingId)) return;
+    _outbox.drop(pendingId);
+    _removePending(pendingId);
+  }
+
   void _removePending(String pendingId) {
     emit(
       state.copyWith(
