@@ -4,8 +4,9 @@ part of 'livekit_cubit.dart';
 enum LiveKitConnectionState { disconnected, connecting, connected, error }
 
 /// The current call: the room, who is in it, and this device's own toggles.
-/// Emitted on every speaking change, so a builder that shows only some of it
-/// filters with `buildWhen`.
+/// Emitted often while a call runs, so a builder that shows only some of it
+/// filters with `buildWhen`. Not on a speaking change alone: that reaches the
+/// UI in `AppState.participants`.
 class LiveKitState extends Equatable {
   final LiveKitConnectionState connectionState;
   final Room? room;

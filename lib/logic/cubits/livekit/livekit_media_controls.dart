@@ -87,13 +87,15 @@ mixin _MediaControlsMixin on Cubit<LiveKitState> {
       await _restoreRemoteAudio();
     }
 
+    // Republishes or drops the mic track according to the whole picture — own
+    // toggle, own deafen, moderation, push-to-talk. Before the roster is told:
+    // telling waits on the server's answer, and the room heard you for that
+    // long after you deafened.
+    await _syncMicrophoneTransmission();
+
     // Nobody can see a deafen — it is this client not listening — so it is
     // published for everyone else's roster.
     await _publishSelfState();
-
-    // Republishes or drops the mic track according to the whole picture — own
-    // toggle, own deafen, moderation, push-to-talk.
-    await _syncMicrophoneTransmission();
     await _updateVoiceActivityMonitor();
     if (state.room != null) _syncParticipants();
   }

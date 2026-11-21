@@ -9,8 +9,8 @@ import 'video_stream_stats.dart';
 ///
 /// LiveKit tells the room about tracks, not about intentions. A muted
 /// microphone is visible because the track goes away; deafening is a decision
-/// made entirely inside the listener's client — it unsubscribes from other
-/// people's audio, which nobody else can see. So it is said out loud, as a
+/// made entirely inside the listener's client — it holds other people's
+/// audio, which nobody else can see. So it is said out loud, as a
 /// participant attribute, and everyone's roster can show it. Watching a stream
 /// is the same: a subscription only the watcher's client knows about.
 ///

@@ -8,6 +8,11 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
   void _syncAudioReception();
   void _applyStoredSettings();
   void _syncRustSound();
+  bool _hearsAudio(
+    Room room,
+    Participant participant,
+    TrackPublication publication,
+  );
 
   /// Mutes/unmutes a participant for everyone in the room (requires is_channel_manager).
   /// Server-side moderation: persistently mute/deafen a user for everyone.
@@ -42,6 +47,10 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
   /// every device somebody is on, a member muted from the members sidebar
   /// (which has only their user id), and a share restarted with a new device
   /// segment. Same rule [_applyStoredSettings] uses on join.
+  ///
+  /// Only those heard: a setting would turn a held one on, an unwatched
+  /// stream or one whose owner has left. It is put on when it comes back
+  /// ([_syncAudioReception]).
   Iterable<rtc.MediaStreamTrack> _audioTracksFor(String key) sync* {
     final room = state.room;
     if (room == null) return;
@@ -49,6 +58,7 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
       for (final pub in participant.audioTrackPublications) {
         final track = pub.track;
         if (track == null) continue;
+        if (!_hearsAudio(room, participant, pub)) continue;
         final trackKey = ParticipantIdentity.settingsKeyOf(
           participant.identity,
           screenAudio: pub.source == TrackSource.screenShareAudio,
@@ -93,9 +103,6 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
     for (final track in _audioTracksFor(key)) {
       _applyAudioSetting(track, setting, app.outputVolume);
     }
-    // A setting turns its track on, and one held for "Mute everyone else
-    // for me" has to stay off.
-    if (state.listeningOnlyTo != null) _syncAudioReception();
   }
 
   /// Locally mutes/unmutes a remote participant's voice (this user only).
@@ -167,8 +174,11 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
       ),
     );
     _syncAudioReception();
-    // What comes back on, comes back with its own mute and volume.
-    if (!only) _applyStoredSettings();
+    // What comes back on, comes back with its own mute and volume, and so
+    // does the one person heard. Their mute came off above, but their track
+    // was never held, so nothing turned it back on: hearing only somebody
+    // you had muted was hearing nobody.
+    _applyStoredSettings();
   }
 
   /// Lets only [target] hear you in this call, or everyone again — see
@@ -190,8 +200,10 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
       _appCubit.state.voiceHiddenFrom.isNotEmpty || state.voiceOnlyFor != null;
 
   /// Whether a full reconnect is holding the mic silent — see
-  /// [_holdMicThroughRestart].
+  /// [_holdMicThroughRestart]. The mic sync keeps it silent while this holds,
+  /// so unmuting meanwhile does not open it.
   bool _micHeldForPrivacy = false;
+  Timer? _micReleaseTimer;
 
   /// A full reconnect is a new session on the server, which lets everybody
   /// subscribe until it is told otherwise, and LiveKit publishes the mic
@@ -199,27 +211,58 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
   /// mic sends silence from the moment the call drops until the list has gone
   /// again ([_releaseMicAfterRestart]): a hidden person may be subscribed for
   /// that moment, and hears nothing.
+  ///
+  /// Held with no mic track too: one published by an unmute during the
+  /// reconnect went out live.
   void _holdMicThroughRestart() {
     if (!_voiceRestricted) return;
+    _micReleaseTimer?.cancel();
+    _micReleaseTimer = null;
+    _micHeldForPrivacy = true;
+    _keepMicHeld();
+  }
+
+  /// Silences the mic track while [_micHeldForPrivacy] holds. Called by the
+  /// mic sync after each change, since unmuting switches the track back on.
+  void _keepMicHeld() {
+    if (!_micHeldForPrivacy) return;
     final track = state.room?.localParticipant
         ?.getTrackPublicationBySource(TrackSource.microphone)
         ?.track;
-    if (track == null) return;
-    track.mediaStreamTrack.enabled = false;
-    _micHeldForPrivacy = true;
+    track?.mediaStreamTrack.enabled = false;
   }
 
   /// Sends the list for the call that came back, then lets the mic speak —
   /// unless it was muted meanwhile, which a mute does by the same switch.
+  ///
+  /// After [K.voicePrivacySettle], not at once: the server does not answer
+  /// the list, and the mic's sound travels apart from it, so sound let out
+  /// with the list could reach a hidden person before the server had read it.
   void _releaseMicAfterRestart() {
     _applyVoicePrivacy();
     if (!_micHeldForPrivacy) return;
+    _micReleaseTimer?.cancel();
+    _micReleaseTimer = Timer(K.voicePrivacySettle, () {
+      _micReleaseTimer = null;
+      if (isClosed || !_micHeldForPrivacy) return;
+      _micHeldForPrivacy = false;
+      final pub = state.room?.localParticipant?.getTrackPublicationBySource(
+        TrackSource.microphone,
+      );
+      final track = pub?.track;
+      if (track != null && !pub!.muted) track.mediaStreamTrack.enabled = true;
+    });
+  }
+
+  /// Lets go of a hold the call ended under: a reconnect that never came
+  /// back would otherwise keep the next call's mic silent.
+  // Called from `_LiveKitLeaveMixin` through its abstract declaration, which
+  // the unused-element check can't follow.
+  // ignore: unused_element
+  void _forgetMicHold() {
+    _micReleaseTimer?.cancel();
+    _micReleaseTimer = null;
     _micHeldForPrivacy = false;
-    final pub = state.room?.localParticipant?.getTrackPublicationBySource(
-      TrackSource.microphone,
-    );
-    final track = pub?.track;
-    if (track != null && !pub!.muted) track.mediaStreamTrack.enabled = true;
   }
 
   /// Tells the call server who may receive your microphone — see
@@ -227,7 +270,17 @@ mixin _ParticipantMixin on Cubit<LiveKitState> {
   /// is published, since the list names both.
   ///
   /// [room] is for the moment before it is in the state: the connect.
+  ///
+  /// Not while a call is being left: leaving clears "Let only them hear me"
+  /// at once, but a phone keeps the room up for its page slide, and somebody
+  /// joining then was sent a list that let everyone hear you. The list sent
+  /// last stands until the room goes. A join names its [room], so it is
+  /// never skipped: a new session lets everyone in until told.
   void _applyVoicePrivacy([Room? room]) {
+    if (room == null &&
+        state.connectionState == LiveKitConnectionState.disconnected) {
+      return;
+    }
     room ??= state.room;
     final local = room?.localParticipant;
     if (room == null || local == null) return;

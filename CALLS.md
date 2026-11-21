@@ -136,9 +136,15 @@ joined; hiding mid-call cut them within a second; and un-hiding reconnected them
 A **full reconnect** is a new session on the server, which lets everybody
 subscribe until told otherwise, and LiveKit publishes the microphone again
 before the app hears the call is back. So while anybody is hidden, the
-microphone sends silence from the moment the call drops until the list has been
-sent for the new session. A hidden person may be subscribed for that moment, but
-only to silence. Verified Oct 14 with three forced full reconnects
+microphone sends silence from the moment the call drops until half a second
+after the list has been sent for the new session (`K.voicePrivacySettle`): the
+server does not answer the list, and the sound travels apart from it, so sound
+let out with it could reach a hidden person before the server had read it. An
+unmute during the reconnect stays silent too, and a call that never comes back
+lets the hold go with it. A hidden person may be subscribed for that moment, but
+only to silence. Leaving keeps the last list until the room is gone: a phone
+keeps the room up for its page slide, and somebody joining then was sent one
+that let everyone hear you (Nov 21 2026). Verified Oct 14 with three forced full reconnects
 (`sendSimulateScenario`) while speech played into the test mic: the hidden
 person was never subscribed, and everyone else had speech again within a
 quarter of a second.
@@ -2289,7 +2295,8 @@ connected. So joining a call with a share in it played up to 80 ms of the
 share's sound, just before the join chime (reported Nov 5 2026 on Windows and
 Linux). Now every remote audio track is turned off the moment Dart hears of it
 and turned on when it starts, unless the app says it is held
-(`Room.audioHeldOnArrival`, asked with `hearsRemoteAudio`'s answer;
+(`Room.audioHeldOnArrival`, asked with `hearsRemoteAudio`'s answer and
+whether this device has the person muted;
 `third_party/livekit_client/RIFT_PATCHES.md`, patches 9 and 10). Measured Nov 5
 in the real app on the local stack, Linux, a 5 kHz tone as the share's sound:
 the tone in 8 joins of 13 before, starting up to 56 ms before the hold, and in

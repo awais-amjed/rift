@@ -21,6 +21,7 @@ mixin _AudioReceptionMixin on Cubit<LiveKitState> {
   void _applyStoredSettings();
   void _syncRustSound();
   Future<void> retryConnection();
+  bool _isOwnShare(String identity);
 
   /// When the receiver check last joined the call again.
   DateTime? _lastReceiverRejoin;
@@ -33,6 +34,11 @@ mixin _AudioReceptionMixin on Cubit<LiveKitState> {
     TrackPublication publication,
   ) {
     final identity = participant.identity;
+    // Already coming out of your own speakers: heard here too, it plays
+    // twice. Dropped as it arrives; this keeps it off if it ever is not.
+    if (ParticipantIdentity.isSoundShare(identity) && _isOwnShare(identity)) {
+      return false;
+    }
     final stream =
         !ParticipantIdentity.isSoundShare(identity) &&
         (ParticipantIdentity.isScreenshare(identity) ||

@@ -301,6 +301,11 @@ class K {
   /// stream and stopped playout, which a fresh mic must come after.
   static const Duration captureReviveDelay = Duration(seconds: 2);
 
+  /// How long the mic stays silent after a full reconnect has sent who may
+  /// hear it, with anybody's ears shut to you. The server does not answer
+  /// the list, so this stands in for its round trip, with room to spare.
+  static const Duration voicePrivacySettle = Duration(milliseconds: 500);
+
   /// The least time between two rejoins for audio receivers that share an
   /// id ([LiveKitCubit]'s receiver check). A fresh connection has none, so a
   /// second within a minute means something else is wrong, and rejoining in

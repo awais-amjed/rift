@@ -161,22 +161,32 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
         unawaited(_registerTrackKey(e.participant.identity));
         // A new receiver is where two can come to share an id.
         unawaited(_checkReceivers());
+        // Counted whatever holds it: a held track still plays out, so on
+        // Windows its going is what can stop the mic ([_CaptureReviveMixin]).
+        // Counted only when heard, joining deafened, undeafening and the last
+        // other voice leaving left the mic dead for whoever came next.
+        _onRemoteAudioArrived(e.publication);
+        // Your own share is dropped whatever else holds it. Kept while
+        // deafened, undeafening turned it on, and you heard your own music
+        // twice over.
+        if (ParticipantIdentity.isSoundShare(e.participant.identity) &&
+            _isOwnShare(e.participant.identity)) {
+          e.publication.unsubscribe();
+          return;
+        }
         // Deafening drops the audio there is at that moment; the SDK
         // subscribes to every track that comes after it by itself. Somebody
         // joining, a mic published afresh, or rejoining the call while
         // deafened all used to play at full volume under a deafened icon.
         if (_staysDeafened(e.publication)) return;
-        _onRemoteAudioArrived(e.publication);
         // Saved mute and volume, now that there is a track to put them on.
         // Publishing is too early: the track arrives after it, so somebody
         // who came back, or streamed again, was heard at full volume.
         _applyStoredSettings();
 
-        if (ParticipantIdentity.isSoundShare(e.participant.identity)) {
-          if (_isOwnShare(e.participant.identity)) {
-            e.publication.unsubscribe();
-          }
-        } else if (_isStreamTrack(e.participant, e.publication)) {
+        // A sound share is heard like a person, so only a stream is left.
+        if (!ParticipantIdentity.isSoundShare(e.participant.identity) &&
+            _isStreamTrack(e.participant, e.publication)) {
           // A picture the Rust watch connection holds is not received here
           // as well ([_RustWatchMixin]); nor is one nobody watches.
           if (e.publication.source == TrackSource.screenShareVideo) {
@@ -397,10 +407,6 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
     }
   }
 
-  /// Whether [publication] is part of somebody's stream, and so waits for
-  /// them to be watched. A desktop streams on a `_screenshare` connection of
-  /// its own; a phone publishes its screen beside its microphone, and was
-  /// sent to everyone in the call whether they had asked to watch or not.
   /// Holds [publication] if it is audio arriving while deafened, and says
   /// so. Undeafening turns it back on with everything else. Held, not
   /// unsubscribed ([_AudioReceptionMixin]).
@@ -411,6 +417,10 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
     return true;
   }
 
+  /// Whether [publication] is part of somebody's stream, and so waits for
+  /// them to be watched. A desktop streams on a `_screenshare` connection of
+  /// its own; a phone publishes its screen beside its microphone, and was
+  /// sent to everyone in the call whether they had asked to watch or not.
   static bool _isStreamTrack(
     Participant participant,
     TrackPublication publication,
@@ -454,9 +464,6 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
     return true;
   }
 
-  /// Stops counting [identity]'s stream as watched once it has ended. It
-  /// stayed in the list, so the next stream from the same phone opened
-  /// already watched, and the room was told this client was still watching.
   /// A watched share's picture, just published: through the Rust watch
   /// connection where it can be, in this room where it cannot.
   ///
@@ -474,6 +481,9 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
     _applyScreenshareQualitySettings(participant);
   }
 
+  /// Stops counting [identity]'s stream as watched once it has ended. It
+  /// stayed in the list, so the next stream from the same phone opened
+  /// already watched, and the room was told this client was still watching.
   void _forgetStream(String identity) {
     if (!state.subscribedScreenshares.contains(identity)) return;
     emit(

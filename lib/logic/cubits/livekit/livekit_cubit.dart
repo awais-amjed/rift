@@ -243,10 +243,10 @@ class LiveKitCubit extends Cubit<LiveKitState>
   @override
   void onChange(Change<LiveKitState> change) {
     super.onChange(change);
-    if (change.currentState.isMicEnabled != change.nextState.isMicEnabled) {
-      unawaited(
-        CallForegroundService.micChanged(change.nextState.isMicEnabled),
-      );
+    // Whether the mic is on, not the user's own toggle: deafening and a
+    // moderator leave that alone, and the shade said the mic was on.
+    if (change.currentState.isMicOn != change.nextState.isMicOn) {
+      unawaited(CallForegroundService.micChanged(change.nextState.isMicOn));
     }
     _syncPictureInPicture(change.nextState);
     // What follows the call rather than the selection — its soundboard, its
@@ -492,10 +492,6 @@ class LiveKitCubit extends Cubit<LiveKitState>
     await _syncMicrophoneTransmission(syncParticipants: true);
   }
 
-  /// Collapses a user who is present from multiple devices into a single
-  /// roster entry (one per user, and one per user's screenshare). The kept
-  /// entry prefers the local participant, then a speaking one, then a
-
   void _onAppStateChanged(AppState appState) {
     final previous = _lastAppState;
     _lastAppState = appState;
@@ -610,7 +606,10 @@ class LiveKitCubit extends Cubit<LiveKitState>
     // carries a moment of the room — see [_pushToTalkIdle].
     final idle = capture && !transmit;
     final silenced = idle && NoiseFilter.canSilence;
-    NoiseFilter.setSilenced(silenced);
+    // Lifted here only to speak. To close the mic it is lifted once the mic
+    // is muted, below: lifted first, a push-to-talk mic waiting for the key
+    // sent a frame of the room as it was muted or deafened.
+    if (silenced || transmit) NoiseFilter.setSilenced(silenced);
     if (idle != _pushToTalkIdle) {
       _pushToTalkIdle = idle;
       unawaited(_publishSelfState());
@@ -662,6 +661,10 @@ class LiveKitCubit extends Cubit<LiveKitState>
       // running for push-to-talk is stopped here.
       if (!capture && running) await track.stop();
     }
+    if (!silenced && !transmit) NoiseFilter.setSilenced(false);
+    // A reconnect keeping your voice from somebody holds the mic silent
+    // whatever was pressed meanwhile; unmuting switches the track on.
+    _keepMicHeld();
     // Re-bind the level monitor to the (possibly new) mic track.
     await _updateVoiceActivityMonitor();
     if (syncParticipants) _syncParticipants();
@@ -892,6 +895,20 @@ class LiveKitCubit extends Cubit<LiveKitState>
     identity,
     state.room?.localParticipant?.identity,
   );
+
+  /// Whether this device has [pub] muted, under the key its setting is
+  /// stored by — see [_applyStoredSettings].
+  @override
+  bool _mutedHere(Room room, Participant participant, TrackPublication pub) =>
+      _appCubit.state
+          .settingFor(
+            ParticipantIdentity.settingsKeyOf(
+              participant.identity,
+              screenAudio: pub.source == TrackSource.screenShareAudio,
+              localIdentity: room.localParticipant?.identity,
+            ),
+          )
+          .muted;
 
   /// Re-applies persisted mute/volume settings to current remote participants.
   @override

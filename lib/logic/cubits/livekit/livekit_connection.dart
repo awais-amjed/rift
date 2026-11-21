@@ -21,6 +21,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
   /// Implemented by the cubit: see [CallSteps].
   CallSteps get _callSteps;
   void _applyStoredSettings();
+  bool _mutedHere(Room room, Participant participant, TrackPublication pub);
   bool _hearsAudio(
     Room room,
     Participant participant,
@@ -351,9 +352,11 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       ),
     );
     // Off from the start: the event comes too late to keep a held share's
-    // sound from playing as somebody joins (CALLS.md).
+    // sound from playing as somebody joins (CALLS.md). Somebody you muted as
+    // well, who was heard until the join had finished.
     room.audioHeldOnArrival = (participant, publication) =>
-        !_hearsAudio(room, participant, publication);
+        !_hearsAudio(room, participant, publication) ||
+        _mutedHere(room, participant, publication);
     final listener = setupRoomListeners(room);
 
     try {
@@ -375,6 +378,11 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
           camera: TrackOption(enabled: useCameraEnabled),
         ),
       );
+      // Muted or deafened while that connected: the mic went out live, and
+      // stayed live until the devices further down were applied.
+      if (joinMicEnabled && !_shouldTransmitMic()) {
+        await room.localParticipant?.setMicrophoneEnabled(false);
+      }
 
       // Whoever is already here, plus us. A participant whose key is not
       // registered is one nobody can hear, so this happens before the state
@@ -410,6 +418,9 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
           arrivals: state.arrivals + 1,
         ),
       );
+      // Saved mutes and volumes on whoever is here, now there is a room to
+      // find them in: their tracks arrived while there was none.
+      _applyStoredSettings();
 
       // Only now can the saved devices be applied — see
       // [_applySavedAudioDevices]. If the input moved, the mic track the
@@ -439,7 +450,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
         CallForegroundService.callStarted(
           channelName: callName,
           serverName: serverName,
-          micEnabled: state.isMicEnabled,
+          micEnabled: state.isMicOn,
           onToggleMute: toggleMicrophone,
           onLeave: disconnect,
         ),

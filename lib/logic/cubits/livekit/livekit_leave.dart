@@ -23,6 +23,7 @@ mixin _LiveKitLeaveMixin on Cubit<LiveKitState>, _E2EEMixin {
   Future<void> _stopVoiceActivityMonitor();
   void _resetCaptureRevive();
   void _resetMicSilence();
+  void _forgetMicHold();
   Future<void> _endRustWatch();
   CallSteps get _callSteps;
   void _forgetDmMediaKey();
@@ -138,6 +139,16 @@ mixin _LiveKitLeaveMixin on Cubit<LiveKitState>, _E2EEMixin {
     // disconnecting both land here, so two teardowns can otherwise overlap and
     // disconnect and dispose the same Room twice over.
     _resetCaptureRevive();
+    _forgetMicHold();
+    // The mic closed before the silence lifts. Under push-to-talk with the
+    // key up the track is live, kept quiet only by the silence, and the room
+    // heard the open mic until the disconnect landed.
+    state.room?.localParticipant
+            ?.getTrackPublicationBySource(TrackSource.microphone)
+            ?.track
+            ?.mediaStreamTrack
+            .enabled =
+        false;
     _resetMicSilence();
     // The watch connection is this room's; the next room opens its own.
     unawaited(_endRustWatch());
