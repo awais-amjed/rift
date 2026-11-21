@@ -14,8 +14,12 @@ mixin _DmEditMixin on Cubit<DmState> {
   Map<String, Uint8List> get _dmKeys;
   Future<ServerIdentity> _vaultIdentityFor(Server server);
 
-  /// Tell the peer that this message changed, so their open conversation
-  /// re-reads it. Implemented by the hub.
+  /// Implemented by the history and conversations mixins: after an edit or
+  /// delete, the saved copy and the list's preview are brought up to date.
+  /// Neither was, so the next open drew the old text for a moment, and a
+  /// deleted last message stayed in the list until something else moved it.
+  Future<void> refreshMessage(String messageId);
+  Future<void> refreshConversations();
 
   /// Re-seal [messageId] with [newText]; attachments carry over unchanged.
   Future<void> editMessage(String messageId, String newText) async {
@@ -77,6 +81,8 @@ mixin _DmEditMixin on Cubit<DmState> {
           ),
         ),
       );
+      unawaited(refreshMessage(messageId));
+      unawaited(refreshConversations());
     } catch (e) {
       HelperMethods.printDebug('[DM] edit failed: $e');
       if (state.openPeerId == peerId) {
@@ -121,6 +127,7 @@ mixin _DmEditMixin on Cubit<DmState> {
           delete: _attachments.deleteAttachments,
         ),
       );
+      unawaited(refreshConversations());
     } catch (e) {
       HelperMethods.printDebug('[DM] delete failed: $e');
       if (state.openPeerId == peerId) {

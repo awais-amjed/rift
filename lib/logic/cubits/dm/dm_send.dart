@@ -18,6 +18,15 @@ mixin _DmSendMixin on Cubit<DmState> {
   Future<void> refreshConversations();
   Future<void> refreshOpenLinkState();
 
+  /// Implemented by the history mixin: what a retry reads first, in case the
+  /// server stored the message after all, and the way out of a history window
+  /// a send takes.
+  Future<void> _fetchAfterLatest();
+  Future<void> returnToPresent();
+
+  /// The server these DMs are set up for, to tell a send that outlived it.
+  String? get _readyServerId;
+
   /// Sends that did not get out. On the class rather than here because the
   /// history mixin restores from it too (CODE_STYLE §5).
   Outbox get _outbox;
@@ -37,48 +46,76 @@ mixin _DmSendMixin on Cubit<DmState> {
     List<PendingAttachment> attachments = const [],
     Future<PendingLinkPreview?>? preview,
     String? replyToId,
-  }) async {
-    final refused = await _sendDm(
-      text,
-      attachments: attachments,
-      preview: preview,
-      replyToId: replyToId,
-    );
-    _outbox.settle(attachments, refused: refused);
-    return refused;
-  }
+  }) async =>
+      await _sendAndSettle(
+        text,
+        attachments: attachments,
+        preview: preview,
+        replyToId: replyToId,
+      ) ==
+      _DmSendOutcome.refusedBack;
 
-  /// [sendDm] itself; the wrapper settles the files once it is over.
-  Future<bool> _sendDm(
+  /// [sendDm], or a retry of [earlier], with its files settled once it is
+  /// over.
+  Future<_DmSendOutcome> _sendAndSettle(
     String text, {
     List<PendingAttachment> attachments = const [],
     Future<PendingLinkPreview?>? preview,
     String? replyToId,
+    OutboxEntry? earlier,
   }) async {
-    final peerId = state.openPeerId;
-    final server = _server;
-    final user = server?.user;
-    if (peerId == null ||
-        server == null ||
-        user == null ||
-        state.chatStatus != DmChatStatus.ready) {
-      return false;
-    }
-    final key = _dmKeys[peerId];
-    if (key == null) return false;
-    // Bound now: the send goes on if the reader walks away, even to another
-    // server, and these follow the server this cubit is on.
-    final dmsApi = _dms;
-    final attachmentsApi = _attachments;
-    final peerName = state.openPeerName;
-    final trimmed = text.trim();
-    if (trimmed.isEmpty && attachments.isEmpty) return false;
+    final outcome = await _sendDm(
+      text,
+      attachments: attachments,
+      preview: preview,
+      replyToId: replyToId,
+      earlier: earlier,
+    );
+    _outbox.settle(attachments, refused: outcome == _DmSendOutcome.refusedBack);
+    return outcome;
+  }
 
+  /// Whether a message can go to the open conversation now.
+  bool get _sendable {
+    final peerId = state.openPeerId;
+    return peerId != null &&
+        _server?.user != null &&
+        _dmKeys[peerId] != null &&
+        state.chatStatus == DmChatStatus.ready;
+  }
+
+  /// [sendDm] itself; the wrapper settles the files once it is over.
+  Future<_DmSendOutcome> _sendDm(
+    String text, {
+    List<PendingAttachment> attachments = const [],
+    Future<PendingLinkPreview?>? preview,
+    String? replyToId,
+    OutboxEntry? earlier,
+  }) async {
+    if (!_sendable) return _DmSendOutcome.notSent;
+    final peerId = state.openPeerId!;
     // Resolved against rows already decrypted and verified. A reference this
     // client cannot see is one it has no business asserting.
     final replyId = replyToId == null
         ? null
         : state.messages.where((m) => m.id == replyToId).firstOrNull?.id;
+    final server = _server!;
+    final user = server.user!;
+    final key = _dmKeys[peerId]!;
+    // Bound now: the send goes on if the reader walks away, even to another
+    // server, and these follow the server this cubit is on.
+    final dmsApi = _dms;
+    final attachmentsApi = _attachments;
+    final peerName = state.openPeerName;
+    final serverId = _readyServerId;
+    final trimmed = text.trim();
+    if (trimmed.isEmpty && attachments.isEmpty) return _DmSendOutcome.notSent;
+    // Where the conversation stood when this message was first sent, for
+    // telling it apart from an earlier one should its answer be lost.
+    final storedAfter =
+        earlier?.storedAfter ?? ChatMessageOps.latestId(state.messages);
+    // Each attempt that reached the server and heard nothing back.
+    final signatures = {...?earlier?.signatures};
 
     final pendingId = 'pending-${_pendingCounter++}';
     // Held in a local as well as emitted: if this send fails it becomes the row
@@ -99,6 +136,26 @@ mixin _DmSendMixin on Cubit<DmState> {
     emit(state.copyWith(messages: [...state.messages, pending]));
     _outbox.sending(peerId, pending);
     bool open() => state.openPeerId == peerId;
+
+    // How a failure here is held for a retry.
+    OutboxEntry heldAs(ChatMessage row) => OutboxEntry(
+      destination: peerId,
+      row: row,
+      attachments: attachments,
+      preview: preview,
+      signatures: signatures,
+      storedAfter: storedAfter,
+    );
+    _DmSendOutcome fail({required String? errorCode, required String error}) =>
+        _failSend(
+          pending: pending,
+          peerId: peerId,
+          peerName: peerName,
+          serverId: serverId,
+          heldAs: heldAs,
+          errorCode: errorCode,
+          error: error,
+        );
 
     try {
       final scope = DmCubit.conversationContext(
@@ -149,16 +206,16 @@ mixin _DmSendMixin on Cubit<DmState> {
         keyVersion: 1,
       );
 
+      // Noted before it goes: an answer that never comes may still mean the
+      // message was stored.
+      signatures.add(envelope.signature);
       final response = await dmsApi.sendDm(
         recipientId: peerId,
         envelope: envelope.toJson(),
       );
 
       if (!response.success) {
-        final refused = _failSend(
-          pending: pending,
-          peerId: peerId,
-          attachments: attachments,
+        final outcome = fail(
           errorCode: response.errorCode,
           error:
               DmRefusal.describe(
@@ -170,7 +227,7 @@ mixin _DmSendMixin on Cubit<DmState> {
         );
         // A refusal about the request says where things stand now.
         if (open()) unawaited(refreshOpenLinkState());
-        return refused;
+        return outcome;
       }
 
       final data = response.data as Map<String, dynamic>;
@@ -187,7 +244,15 @@ mixin _DmSendMixin on Cubit<DmState> {
       );
       unawaited(refreshConversations());
       // Away, there is nothing to swap: the next open's page has it.
-      if (!open()) return false;
+      if (!open()) return _DmSendOutcome.sent;
+      // Sent from a stretch of history: added to its end, paging on from
+      // there skipped everything between it and the live end. The live end
+      // is where it is, so the conversation goes there instead.
+      if (state.hasNewerHistory) {
+        _removePending(pendingId);
+        unawaited(returnToPresent());
+        return _DmSendOutcome.sent;
+      }
       emit(
         state.copyWith(
           messages: ChatMessageOps.replacePending(
@@ -208,25 +273,13 @@ mixin _DmSendMixin on Cubit<DmState> {
           state.messages.length <= 1) {
         unawaited(refreshOpenLinkState());
       }
-      return false;
+      return _DmSendOutcome.sent;
     } on AttachmentUploadException catch (e) {
       HelperMethods.printDebug('[DM] attachment upload failed: $e');
-      return _failSend(
-        pending: pending,
-        peerId: peerId,
-        attachments: attachments,
-        errorCode: e.errorCode,
-        error: 'Failed to upload attachment',
-      );
+      return fail(errorCode: e.errorCode, error: 'Failed to upload attachment');
     } catch (e) {
       HelperMethods.printDebug('[DM] send failed: $e');
-      return _failSend(
-        pending: pending,
-        peerId: peerId,
-        attachments: attachments,
-        errorCode: null,
-        error: 'Failed to send message',
-      );
+      return fail(errorCode: null, error: 'Failed to send message');
     } finally {
       _outbox.finished(pendingId);
     }
@@ -237,30 +290,41 @@ mixin _DmSendMixin on Cubit<DmState> {
   /// surfaces. A refusal takes the row away and says why; a connection that
   /// dropped keeps it and holds what a retry would need.
   ///
-  /// Returns whether it was a refusal seen with the conversation still open,
-  /// which is when the words go back to the composer.
-  bool _failSend({
+  /// A refusal seen with the conversation still open is
+  /// [_DmSendOutcome.refusedBack], which is when the words go back to the
+  /// composer.
+  ///
+  /// A send that outlived its server — the reader moved to another while it
+  /// was on its way — is not held: the outbox was emptied with that server's
+  /// DMs, and nothing would ever draw the row again. It is said instead.
+  _DmSendOutcome _failSend({
     required ChatMessage pending,
     required String peerId,
-    required List<PendingAttachment> attachments,
+    required String? peerName,
+    required String? serverId,
+    required OutboxEntry Function(ChatMessage row) heldAs,
     required String? errorCode,
     required String error,
   }) {
+    if (_readyServerId != serverId) {
+      emit(
+        state.copyWith(
+          notice: Notice.error(
+            'Your message to ${peerName ?? 'them'} was not sent.',
+          ),
+        ),
+      );
+      return _DmSendOutcome.refused;
+    }
     final open = state.openPeerId == peerId;
     if (!Outbox.canRetry(errorCode)) {
       // Said wherever the reader is: the only news of a message that will
       // not arrive.
       if (open) _removePending(pending.id);
       emit(state.copyWith(notice: Notice.error(error)));
-      return open;
+      return open ? _DmSendOutcome.refusedBack : _DmSendOutcome.refused;
     }
-    _outbox.hold(
-      OutboxEntry(
-        destination: peerId,
-        row: pending.copyWith(sendFailed: true),
-        attachments: attachments,
-      ),
-    );
+    _outbox.hold(heldAs(pending.copyWith(sendFailed: true)));
     if (open) {
       emit(
         state.copyWith(
@@ -268,11 +332,37 @@ mixin _DmSendMixin on Cubit<DmState> {
         ),
       );
     }
-    return false;
+    return _DmSendOutcome.held;
   }
 
   /// Try one held send again — what tapping a "Not sent" row does.
+  ///
+  /// An attempt that reached the server and heard nothing back may have been
+  /// stored, so the newest rows are read first: one of them being this
+  /// message retires the row instead (`Outbox.retireStored`). Sent again
+  /// unread, it reached them twice.
+  ///
+  /// A conversation that cannot take a message just now keeps the row and
+  /// says so. Taken out first, the send gave up without a word and the
+  /// message was gone.
   Future<void> retrySend(String pendingId) async {
+    final held = _outbox.held(pendingId);
+    if (held == null) return;
+    if (!_sendable || state.openPeerId != held.destination) {
+      emit(
+        state.copyWith(
+          notice: Notice.error(
+            "This conversation can't take messages right now. Your message "
+            'is kept.',
+          ),
+        ),
+      );
+      return;
+    }
+    if (held.signatures.isNotEmpty) {
+      await _fetchAfterLatest();
+      if (!_outbox.holds(pendingId)) return;
+    }
     final entry = _outbox.take(pendingId);
     if (entry == null) return;
     emit(
@@ -280,10 +370,12 @@ mixin _DmSendMixin on Cubit<DmState> {
         messages: ChatMessageOps.removePending(state.messages, pendingId),
       ),
     );
-    await sendDm(
+    await _sendAndSettle(
       entry.text,
       attachments: entry.attachments,
+      preview: entry.preview,
       replyToId: entry.row.replyToId,
+      earlier: entry,
     );
   }
 
@@ -337,4 +429,24 @@ mixin _DmSendMixin on Cubit<DmState> {
     save: saveAttachment,
     read: readAttachment,
   );
+}
+
+/// How a DM send ended — more than [DmCubit.sendDm]'s bool, for the quick
+/// send, which has no row of its own to show a held message on.
+enum _DmSendOutcome {
+  /// The server stored it.
+  sent,
+
+  /// The connection failed; the row says "Not sent" and the outbox holds it.
+  held,
+
+  /// The server refused it with the conversation still open: the words go
+  /// back to the composer.
+  refusedBack,
+
+  /// Refused, or lost with the server it was for, with nobody looking.
+  refused,
+
+  /// Never started: nothing to send, or the conversation cannot take it.
+  notSent,
 }

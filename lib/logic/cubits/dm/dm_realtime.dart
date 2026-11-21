@@ -86,11 +86,22 @@ mixin _DmRealtimeMixin
   /// the lists were just read — unless that read failed, as it does when the
   /// app starts with the server out of reach, and then nothing else would
   /// ever read them again.
+  ///
+  /// The open conversation catches up too, as a channel does: a message that
+  /// arrived while the connection was down was in the list's preview but
+  /// not on the page. One that could not be loaded is opened again.
   void _onInboxStatus(RealtimeSubscribeStatus status) {
     if (status != RealtimeSubscribeStatus.subscribed || isClosed) return;
     final rejoin = _inboxJoinedBefore;
     _inboxJoinedBefore = true;
     if (rejoin || state.conversationsFailed) unawaited(refreshLists());
+    if (!rejoin || state.openPeerId == null) return;
+    if (state.chatStatus == DmChatStatus.error &&
+        (state.showingSaved || state.loadFailed)) {
+      unawaited(retryOpen());
+    } else {
+      _catchUpOpen();
+    }
   }
 
   /// The conversation list, the requests waiting and who is blocked — what
@@ -130,12 +141,13 @@ mixin _DmRealtimeMixin
   }
 
   void _onChangeDoorbell(Map<String, dynamic> payload) {
-    if (isClosed || state.chatStatus != DmChatStatus.ready) return;
+    if (isClosed) return;
+    // The conversation list shows a preview of the newest message, which an
+    // edit or delete can change — whichever conversation is open, or none.
+    unawaited(refreshConversations());
+    if (state.chatStatus != DmChatStatus.ready) return;
     final messageId = BroadcastPayload.stringOf(payload, 'message_id');
     if (messageId != null) unawaited(refreshMessage(messageId));
-    // The conversation list shows a preview of the newest message, which an
-    // edit or delete can change.
-    unawaited(refreshConversations());
   }
 
   /// A ring without a message id is an older client; fall back to refreshing
@@ -153,12 +165,12 @@ mixin _DmRealtimeMixin
   void _onDoorbell() {
     if (isClosed) return;
     unawaited(refreshConversations());
-    if (state.chatStatus == DmChatStatus.ready) {
-      unawaited(_fetchAfterLatest());
-      // A reply to our request is its acceptance.
-      if (state.openLinkState != DmLinkState.open) {
-        unawaited(refreshOpenLinkState());
-      }
+    if (state.openPeerId == null) return;
+    _catchUpOpen();
+    // A reply to our request is its acceptance.
+    if (state.chatStatus == DmChatStatus.ready &&
+        state.openLinkState != DmLinkState.open) {
+      unawaited(refreshOpenLinkState());
     }
   }
 

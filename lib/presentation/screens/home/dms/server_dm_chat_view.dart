@@ -36,6 +36,7 @@ import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 import '../calls/dm_call_stage.dart';
 import '../calls/widgets/dm_call_side_chat_header.dart';
+import '../chat/widgets/chat_status_view.dart';
 import '../mobile/widgets/mini_call_bar.dart';
 import '../participants_grid/participants_grid.dart';
 import '../profile/person/show_person_profile.dart';
@@ -179,6 +180,7 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
     state.hasNewerHistory,
     state.calls,
     state.error,
+    state.loadFailed,
   );
 
   /// The picture the conversation list has for the open person, for while
@@ -490,6 +492,17 @@ class _ServerDmChatViewState extends State<ServerDmChatView>
         return _buildList(context, state, live: false);
       case DmChatStatus.loading:
         return const LoadingBlock();
+      // Never loaded, and nothing saved to show instead.
+      case DmChatStatus.error when state.loadFailed:
+        return ChatStatusView(
+          icon: Icons.cloud_off_rounded,
+          title: "Couldn't load this conversation",
+          message:
+              'The server did not answer. Check your connection and try '
+              'again.',
+          showRetry: true,
+          onRetry: context.read<DmCubit>().retryOpen,
+        );
       case DmChatStatus.error:
         return Center(
           child: Padding(

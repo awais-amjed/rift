@@ -38,7 +38,8 @@ class DmRequestBanner extends StatelessWidget {
       HelperMethods.showError(error: response.error ?? 'Something went wrong');
       return;
     }
-    if (!accept) cubit.closeConversation();
+    // Only if it is still the one answered: another may be open by now.
+    if (!accept && cubit.state.openPeerId == peerId) cubit.closeConversation();
   }
 
   Future<void> _block(BuildContext context) async {
@@ -48,7 +49,7 @@ class DmRequestBanner extends StatelessWidget {
       HelperMethods.showError(error: response.error ?? 'Could not block');
       return;
     }
-    cubit.closeConversation();
+    if (cubit.state.openPeerId == peerId) cubit.closeConversation();
     HelperMethods.showToast(
       title: 'Blocked',
       description: '$peerName can no longer message you here.',

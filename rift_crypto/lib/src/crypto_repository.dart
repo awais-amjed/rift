@@ -308,6 +308,23 @@ class CryptoRepository
   static Uint8List fromBase64(String b64) =>
       Uint8List.fromList(base64Decode(b64));
 
+  /// A member's published chat key as an X25519 public key, or null when it
+  /// is not one. Every member writes their own `chat_public_key` and nothing
+  /// on the server checks it, so a key read from a row is anyone's text: one
+  /// that would not decode threw out of the code reading a whole list, and a
+  /// single member could empty everyone's conversation list or stop a
+  /// channel's key reaching anybody new. Null makes it what a missing key
+  /// is — that one person's messages locked, everyone else's untouched.
+  static Uint8List? chatPublicKeyOrNull(String? b64) {
+    if (b64 == null) return null;
+    try {
+      final bytes = fromBase64(b64);
+      return bytes.length == 32 ? bytes : null;
+    } on FormatException {
+      return null;
+    }
+  }
+
   static const _b58Alphabet =
       '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 

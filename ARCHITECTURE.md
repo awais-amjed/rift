@@ -343,6 +343,14 @@ DM notices at its next list read — an arriving message or a launch — because
 central rings nothing when a profile's key changes. Either way a derived DM key is
 only reused while the peer key it came from is still the one listed.
 
+A listed key is whatever its owner wrote: every member sets their own
+`chat_public_key`, and neither server nor central checks it is a key. So the client
+reads one through `CryptoRepository.chatPublicKeyOrNull`, and one that is not 32
+bytes of base64 counts as none — that person's messages are locked and nobody
+else's are touched. Thrown instead, a single member's bad value emptied the DM
+list of everyone who talked to them and stopped a channel's key being sealed to
+anybody new (found in review, Nov 21 2026).
+
 It covers the key a message is *sealed to*, not yet the key it is signed
 with: a member row carries `chat_public_key` and no signing key, so adding
 that means a column and a migration first.

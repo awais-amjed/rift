@@ -47,6 +47,12 @@ mixin _DmRequestsMixin on Cubit<DmState> {
     if (peerId == null) return;
     final response = await _moderation.dmLinkState(peerId: peerId);
     if (isClosed || state.openPeerId != peerId) return;
+    // Not heard is not an answer: the banner or the request's lock stays
+    // until the server can be asked, rather than the composer opening on a
+    // dropped connection.
+    if (!response.success && ErrorCode.isRetryable(response.errorCode)) {
+      return;
+    }
     // An older server has no such function; open is what it always meant.
     final linkState = response.success
         ? DmLinkState.fromString(response.data as String?)

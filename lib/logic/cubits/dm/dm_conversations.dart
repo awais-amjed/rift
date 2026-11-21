@@ -50,6 +50,16 @@ mixin _DmConversationsMixin on Cubit<DmState> {
   /// on it.
   bool _conversationsListed = false;
 
+  /// Where the next page starts: the newest message id of the last row
+  /// listed, as the server sent it. Not read from the decrypted preview,
+  /// which is null for a row whose newest message was dropped — and any
+  /// member can send one that fails its signature, which ended paging there.
+  int? _conversationsCursor;
+
+  /// Counts reads from the top. A page asked for before one is from the list
+  /// as it was, and appended after it, it could list somebody twice.
+  int _conversationReads = 0;
+
   /// Reload from the top. Runs on open, on every incoming message and when
   /// the inbox rejoins after a dropped connection, so it deliberately
   /// re-reads only the first page — a conversation that has just been spoken
@@ -59,10 +69,13 @@ mixin _DmConversationsMixin on Cubit<DmState> {
     final serverId = _readyServerId;
     final openPeer = state.openPeerId;
     final openKeyBefore = openPeer == null ? null : _dmKeySources[openPeer];
+    final read = ++_conversationReads;
     emit(state.copyWith(conversationsLoading: true));
 
     final page = await _fetchConversations();
     if (isClosed || _readyServerId != serverId) return;
+    // A later read is on its way and answers for the list.
+    if (read != _conversationReads) return;
     _conversationsListed = true;
     if (page == null) {
       emit(
@@ -74,6 +87,7 @@ mixin _DmConversationsMixin on Cubit<DmState> {
     // Everything below the first page is dropped rather than merged: those rows
     // may have moved above it since, and reconciling two reads of a list that
     // reorders itself is how a conversation ends up drawn twice.
+    _conversationsCursor = page.cursor;
     emit(
       state.copyWith(
         conversations: page.conversations,
@@ -110,16 +124,27 @@ mixin _DmConversationsMixin on Cubit<DmState> {
   /// after the end, is a no-op.
   Future<void> loadMoreConversations() async {
     if (_loadingMoreConversations || !state.hasMoreConversations) return;
-    final last = state.conversations.lastOrNull?.lastMessage?.id;
-    final before = int.tryParse(last ?? '');
+    final before = _conversationsCursor;
     if (before == null) return;
 
     final serverId = _readyServerId;
+    final read = _conversationReads;
     _loadingMoreConversations = true;
-    final page = await _fetchConversations(before: before);
-    _loadingMoreConversations = false;
-    if (isClosed || page == null || _readyServerId != serverId) return;
+    final ({List<DmConversation> conversations, bool hasMore, int? cursor})?
+    page;
+    try {
+      page = await _fetchConversations(before: before);
+    } finally {
+      _loadingMoreConversations = false;
+    }
+    if (isClosed ||
+        page == null ||
+        _readyServerId != serverId ||
+        read != _conversationReads) {
+      return;
+    }
 
+    _conversationsCursor = page.cursor;
     emit(
       state.copyWith(
         conversations: [...state.conversations, ...page.conversations],
@@ -131,8 +156,9 @@ mixin _DmConversationsMixin on Cubit<DmState> {
     // long since been decided about.
   }
 
-  /// One page, decrypted. Null when the request failed.
-  Future<({List<DmConversation> conversations, bool hasMore})?>
+  /// One page, decrypted, and where the page after it starts. Null when the
+  /// request failed.
+  Future<({List<DmConversation> conversations, bool hasMore, int? cursor})?>
   _fetchConversations({int? before}) async {
     final response = await _dms.listDmConversations(before: before);
     if (isClosed || !response.success) return null;
@@ -143,7 +169,12 @@ mixin _DmConversationsMixin on Cubit<DmState> {
 
     final conversations = await _conversationsFrom(rows);
     if (conversations == null) return null;
-    return (conversations: conversations, hasMore: data['has_more'] == true);
+    final last = rows.lastOrNull?['last_message'] as Map<String, dynamic>?;
+    return (
+      conversations: conversations,
+      hasMore: data['has_more'] == true,
+      cursor: int.tryParse('${last?['id']}'),
+    );
   }
 
   /// Rows in the `dm_conversations` shape, previews decrypted. The requests

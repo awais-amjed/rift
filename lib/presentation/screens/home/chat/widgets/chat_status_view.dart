@@ -23,6 +23,10 @@ class ChatStatusView extends StatelessWidget {
   final String message;
   final bool showRetry;
 
+  /// What Try again does. The open channel's retry when not given — a
+  /// conversation passes its own.
+  final VoidCallback? onRetry;
+
   /// What is being waited for, drawn as a pill with the app's working dots.
   final String? listening;
 
@@ -34,6 +38,7 @@ class ChatStatusView extends StatelessWidget {
     required this.title,
     required this.message,
     this.showRetry = false,
+    this.onRetry,
     this.listening,
     this.detail,
   });
@@ -96,7 +101,8 @@ class ChatStatusView extends StatelessWidget {
             AppButton(
               label: 'Try again',
               variant: AppButtonVariant.secondary,
-              onPressed: () => context.read<ChannelChatCubit>().retry(),
+              onPressed:
+                  onRetry ?? () => context.read<ChannelChatCubit>().retry(),
             ),
           ],
         ],

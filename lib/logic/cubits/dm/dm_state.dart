@@ -67,6 +67,12 @@ class DmState extends Equatable {
 
   final String? error;
 
+  /// The open conversation's page could not be fetched and nothing was saved
+  /// to show instead: [chatStatus] is `error`, and Try again opens it again.
+  /// Before, it was `ready` with no messages — it looked empty, and the next
+  /// arrival was read from the start of the conversation as if it were new.
+  final bool loadFailed;
+
   /// [messages] are the copy this device saved, not yet replaced by what the
   /// server says: drawn while the conversation opens, and kept when it cannot.
   final bool showingSaved;
@@ -93,6 +99,7 @@ class DmState extends Equatable {
     this.blockedIds = const {},
     this.calls = const [],
     this.error,
+    this.loadFailed = false,
     this.showingSaved = false,
     this.notice,
   });
@@ -119,6 +126,7 @@ class DmState extends Equatable {
     List<DmCall>? calls,
     String? error,
     bool clearError = false,
+    bool? loadFailed,
     bool closeConversation = false,
     bool? showingSaved,
     Notice? notice,
@@ -156,6 +164,7 @@ class DmState extends Equatable {
       blockedIds: blockedIds ?? this.blockedIds,
       calls: closeConversation ? const [] : (calls ?? this.calls),
       error: clearError ? null : (error ?? this.error),
+      loadFailed: closeConversation ? false : (loadFailed ?? this.loadFailed),
       showingSaved: closeConversation
           ? false
           : (showingSaved ?? this.showingSaved),
@@ -183,6 +192,7 @@ class DmState extends Equatable {
     SetProp(blockedIds),
     calls,
     error,
+    loadFailed,
     showingSaved,
     notice,
   ];

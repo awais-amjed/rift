@@ -130,7 +130,9 @@ mixin _ChatCryptoMixin {
   /// channel-keyring rows for `post_channel_keys`.
   ///
   /// Each member is a row carrying `user_id` and `chat_public_key`; the
-  /// output is `{'user_id': …, …WrappedKey.toJson()}`. Bootstrapping a
+  /// output is `{'user_id': …, …WrappedKey.toJson()}`, with nothing for a
+  /// member whose key is not one ([CryptoRepository.chatPublicKeyOrNull]).
+  /// Bootstrapping a
   /// keyring, healing members who lack an entry, and the background sweep all
   /// need exactly this, and a keyring built even slightly differently by one
   /// of them would lock those members out of the channel.
@@ -152,12 +154,13 @@ mixin _ChatCryptoMixin {
   }) async {
     final entries = <Map<String, dynamic>>[];
     for (final member in members) {
-      final wrapped = await wrapKey(
-        key: key,
-        recipientPublicKey: CryptoRepository.fromBase64(
-          member['chat_public_key'] as String,
-        ),
+      // A member whose published key is not a key gets nothing, and the rest
+      // still get theirs: thrown, it stopped the whole pass for everyone.
+      final recipient = CryptoRepository.chatPublicKeyOrNull(
+        member['chat_public_key'] as String?,
       );
+      if (recipient == null) continue;
+      final wrapped = await wrapKey(key: key, recipientPublicKey: recipient);
       entries.add({'user_id': member['user_id'], ...wrapped.toJson()});
     }
     return entries;
@@ -216,7 +219,9 @@ mixin _ChatCryptoMixin {
   }) async {
     final box = await AesGcm.with256bits().encrypt(
       olderKey,
-      secretKey: SecretKey(await hmacSha256(key: newerKey, message: 'keylink:v1')),
+      secretKey: SecretKey(
+        await hmacSha256(key: newerKey, message: 'keylink:v1'),
+      ),
       aad: utf8.encode('keylink:v1:$channelId:$newerVersion'),
     );
     return (
@@ -246,7 +251,9 @@ mixin _ChatCryptoMixin {
         nonce: CryptoRepository.fromBase64(nonce),
         mac: Mac(sealed.sublist(sealed.length - macLength)),
       ),
-      secretKey: SecretKey(await hmacSha256(key: newerKey, message: 'keylink:v1')),
+      secretKey: SecretKey(
+        await hmacSha256(key: newerKey, message: 'keylink:v1'),
+      ),
       aad: utf8.encode('keylink:v1:$channelId:$newerVersion'),
     );
     return Uint8List.fromList(opened);

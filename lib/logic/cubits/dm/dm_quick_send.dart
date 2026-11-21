@@ -7,24 +7,14 @@ part of 'dm_cubit.dart';
 /// Text only, sealed exactly as [sendDm] seals it. Into a conversation that is
 /// already open it *is* [sendDm], so the open page draws the row the usual
 /// way.
-mixin _DmQuickSendMixin on Cubit<DmState> {
-  Server? get _server;
-  DmsApi get _dms;
+///
+/// On the send mixin for [_sendAndSettle], whose outcome says whether a
+/// message into the open conversation was stored or only held.
+mixin _DmQuickSendMixin on Cubit<DmState>, _DmSendMixin {
   MembersApi get _members;
-  CryptoRepository get _crypto;
   Server? get _savedServer;
   String? get _seed;
   Future<Uint8List?> _dmKeyFor(String peerId, String? peerChatKey);
-  Future<ServerIdentity> _vaultIdentityFor(Server server);
-
-  /// Implemented by the send and conversations mixins.
-  Future<bool> sendDm(
-    String text, {
-    List<PendingAttachment> attachments,
-    Future<PendingLinkPreview?>? preview,
-    String? replyToId,
-  });
-  Future<void> refreshConversations();
 
   /// Sends [text] to [peerId]. Completes with what went wrong, in words, or
   /// null once the server has stored it.
@@ -36,8 +26,16 @@ mixin _DmQuickSendMixin on Cubit<DmState> {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return null;
     if (state.openPeerId == peerId && state.chatStatus == DmChatStatus.ready) {
-      final refused = await sendDm(trimmed);
-      return refused ? 'The message was not sent.' : null;
+      // Only stored is "sent": a message held as "Not sent" sits in a
+      // conversation this card is not showing, and the card saying it went
+      // was the one news of it.
+      return switch (await _sendAndSettle(trimmed)) {
+        _DmSendOutcome.sent => null,
+        _DmSendOutcome.held =>
+          'The message was not sent. It is kept in your conversation with '
+              '$peerName.',
+        _ => 'The message was not sent.',
+      };
     }
 
     final server = _server;

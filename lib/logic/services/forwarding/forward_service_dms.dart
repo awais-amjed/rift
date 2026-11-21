@@ -24,12 +24,12 @@ mixin _ForwardDmsMixin on _ForwardBlobsMixin {
     final me = server.user?.id;
     final peerKey = target.peerChatPublicKey;
     if (me == null) return 'You are not signed in to ${server.name}.';
-    if (peerKey == null) {
+    if (CryptoRepository.chatPublicKeyOrNull(peerKey) == null) {
       return '${target.peerName} has not published a key on ${server.name}.';
     }
 
     final host = Uri.parse(server.supabaseUrl).host;
-    final key = await _dmKey(host, peerKey);
+    final key = await _dmKey(host, peerKey!);
     final identity = await _identityFor(server);
     if (key == null || identity == null) return 'Your vault is locked.';
 
@@ -69,11 +69,13 @@ mixin _ForwardDmsMixin on _ForwardBlobsMixin {
     final me = central.currentUser?.id;
     final peerKey = target.peerChatPublicKey;
     if (me == null) return 'You are not signed in to Rift.';
-    if (peerKey == null) return '@${target.peerHandle} has no key published.';
+    if (CryptoRepository.chatPublicKeyOrNull(peerKey) == null) {
+      return '@${target.peerHandle} has no key published.';
+    }
     if (vault.state.masterSeed == null) return 'Your vault is locked.';
 
     final host = Uri.parse(SupabaseConfig.supabaseUrl).host;
-    final key = await _dmKey(host, peerKey);
+    final key = await _dmKey(host, peerKey!);
     final identity = await vault.getIdentityForHost(host);
     if (key == null) return 'Your vault is locked.';
 
@@ -106,11 +108,12 @@ mixin _ForwardDmsMixin on _ForwardBlobsMixin {
   }
 
   Future<Uint8List?> _dmKey(String host, String peerChatPublicKey) async {
-    if (vault.state.masterSeed == null) return null;
+    final theirKey = CryptoRepository.chatPublicKeyOrNull(peerChatPublicKey);
+    if (vault.state.masterSeed == null || theirKey == null) return null;
     final identity = await vault.getChatIdentityForHost(host);
     return crypto.deriveDmKey(
       myKeyPair: identity.keyPair,
-      theirPublicKey: CryptoRepository.fromBase64(peerChatPublicKey),
+      theirPublicKey: theirKey,
     );
   }
 

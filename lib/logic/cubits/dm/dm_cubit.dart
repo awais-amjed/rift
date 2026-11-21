@@ -26,6 +26,7 @@ import '../../../data/classes/pending_attachment.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/enums/dm_link_state.dart';
 import '../../../data/enums/dm_policy.dart';
+import '../../../data/enums/error_code.dart';
 import '../../../data/repositories/attachment_repository.dart';
 import '../../../data/repositories/blob/blob_reader.dart';
 import '../../../data/repositories/blob/blob_sink.dart';
@@ -254,6 +255,7 @@ class DmCubit extends Cubit<DmState>
     unawaited(_saved.flush(leaving: true));
     _readyServerId = null;
     _conversationsListed = false;
+    _conversationsCursor = null;
     _forgetSetAside();
     _dmKeys.clear();
     _dmKeySources.clear();
@@ -288,14 +290,17 @@ class DmCubit extends Cubit<DmState>
         (peerChatKey == null || _dmKeySources[peerId] == peerChatKey)) {
       return cached;
     }
-    if (peerChatKey == null) return null;
+    // Not a key at all is the same as none: their messages show locked, and
+    // nobody else's are touched (see [CryptoRepository.chatPublicKeyOrNull]).
+    final theirKey = CryptoRepository.chatPublicKeyOrNull(peerChatKey);
+    if (peerChatKey == null || theirKey == null) return null;
     final server = _server;
     if (server == null || _vaultCubit.state.masterSeed == null) return null;
 
     final identity = await _vaultCubit.getChatIdentityForHost(_hostOf(server));
     final key = await _crypto.deriveDmKey(
       myKeyPair: identity.keyPair,
-      theirPublicKey: CryptoRepository.fromBase64(peerChatKey),
+      theirPublicKey: theirKey,
     );
     _dmKeys[peerId] = key;
     _dmKeySources[peerId] = peerChatKey;
@@ -304,12 +309,25 @@ class DmCubit extends Cubit<DmState>
 
   // ── Notifications ───────────────────────────────────────
 
+  /// Whether a conversation is muted, from `ServerNotificationsCubit`, which
+  /// holds every level. It leaves this server's DMs to this cubit while the
+  /// window is unfocused, and before this was asked a muted person's message
+  /// still raised a notification quoting it.
+  bool Function(String serverId, String peerId)? _isMuted;
+
+  /// See [_isMuted] — set once, by the cubit that holds the levels, as
+  /// `ChannelChatCubit.setNotificationLevelSource` is for channels.
+  void setMuteSource(bool Function(String serverId, String peerId) source) =>
+      _isMuted = source;
+
   @override
   void _notifyFromConversations(List<DmConversation> conversations) {
     final serverId = _readyServerId;
     _notifier.scan(
       conversations,
       titleFor: (c) => c.peerName,
+      muted: (c) =>
+          serverId != null && (_isMuted?.call(serverId, c.peerId) ?? false),
       payloadFor: (c) => serverId == null
           ? null
           : ConversationNotificationPayload.serverDm(

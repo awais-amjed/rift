@@ -24,6 +24,11 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
 
   /// The open conversation's saved copy — see [SavedConversation].
   SavedConversation get _saved;
+
+  /// A message rang while the conversation was opening. The page being
+  /// fetched may have been read before it was stored, and the bell is not
+  /// rung twice, so the open reads after its page once it is ready.
+  bool _rangWhileOpening = false;
   Server? get _savedServer;
   String? get _seed;
 
@@ -41,9 +46,17 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
     _forgetSetAside();
     // Before the state moves on: the flush reads the conversation being left.
     unawaited(_saved.flush(leaving: true));
+    _rangWhileOpening = false;
+    final samePeer = state.openPeerId == peerId;
 
     // [again] is a retry over the saved copy: it stays on screen, and so does
     // the composer under it with whatever was typed.
+    //
+    // Nothing of the last conversation is carried into this one: its typing
+    // line, its calls, where it stood with its peer, a history window or a
+    // page still loading. Kept, they were drawn under the new person until
+    // something happened to replace each, and a page left loading stopped
+    // paging in every conversation after.
     emit(
       state.copyWith(
         openPeerId: peerId,
@@ -52,7 +65,14 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
         messages: again ? null : const [],
         hasMoreHistory: again ? null : false,
         clearError: true,
+        loadFailed: false,
         showingSaved: again ? null : false,
+        hasNewerHistory: again ? null : false,
+        isLoadingMore: false,
+        clearTyping: !samePeer,
+        calls: samePeer ? null : const [],
+        openLinkState: samePeer ? null : DmLinkState.open,
+        clearOpenPeerPolicy: !samePeer,
       ),
     );
 
@@ -78,15 +98,30 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
     _joinPeerTopic(peerId);
     final fetched = await _fetchLatest(peerId);
     if (state.openPeerId != peerId) return;
-    // Kept on screen when the page could not be fetched, saying so in the
-    // composer's place. Without a saved copy this stays what it always was.
+    // A saved copy is kept on screen when the page could not be fetched,
+    // saying so in the composer's place. Without one there is nothing to
+    // show, and the conversation says it could not be loaded.
     emit(
       state.copyWith(
-        chatStatus: !fetched && state.showingSaved
-            ? DmChatStatus.error
-            : DmChatStatus.ready,
+        chatStatus: fetched ? DmChatStatus.ready : DmChatStatus.error,
+        loadFailed: !fetched && !state.showingSaved,
       ),
     );
+    if (fetched && _rangWhileOpening) {
+      _rangWhileOpening = false;
+      unawaited(_fetchAfterLatest());
+    }
+  }
+
+  /// A message rang for the open conversation — see [_rangWhileOpening].
+  void _catchUpOpen() {
+    switch (state.chatStatus) {
+      case DmChatStatus.ready:
+        unawaited(_fetchAfterLatest());
+      case DmChatStatus.loading:
+        _rangWhileOpening = true;
+      case DmChatStatus.error || DmChatStatus.closed:
+    }
   }
 
   /// Open the conversation again after it failed to load — the saved copy's
@@ -168,6 +203,11 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
     final rows = (data['messages'] as List).cast<Map<String, dynamic>>();
     _saved.replace(rows);
     final decrypted = await _decryptRows(peerId, rows);
+    // Opened while these were being read: they are not that conversation's.
+    if (state.openPeerId != peerId) return false;
+    // A held send this page shows was stored after all is not put back
+    // beside itself.
+    _outbox.retireStored(peerId, rows);
     emit(
       state.copyWith(
         // Anything that failed to send to this peer goes back on the end.
@@ -207,13 +247,25 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
     _saved.merge(rows);
 
     final incoming = await _decryptRows(peerId, rows);
-    if (incoming.isEmpty) return;
+    // Another conversation was opened while they were read.
+    if (incoming.isEmpty || state.openPeerId != peerId) return;
 
+    // A held send that is among them was stored after all: its row goes,
+    // and the stored one takes its place.
+    final stored = _outbox.retireStored(peerId, rows);
+    var current = state.messages;
+    for (final pendingId in stored.pendingIds) {
+      current = ChatMessageOps.removePending(current, pendingId);
+    }
     final result = ChatMessageOps.mergeIncoming(
-      current: state.messages,
+      current: current,
       incoming: incoming,
+      claimed: stored.rowIds,
     );
-    if (result.fresh.isEmpty) return;
+    if (result.fresh.isEmpty) {
+      if (stored.pendingIds.isNotEmpty) emit(state.copyWith(messages: current));
+      return;
+    }
 
     _outbox.dropRetired(result.retired);
     emit(state.copyWith(messages: result.merged));
@@ -334,6 +386,7 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
 
     final rows = (response.data as Map<String, dynamic>)['messages'] as List;
     final newer = await _decryptRows(peerId, rows.cast<Map<String, dynamic>>());
+    if (state.openPeerId != peerId) return;
     emit(
       state.copyWith(
         messages: [...state.messages, ...newer],
@@ -348,9 +401,16 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
     final peerId = state.openPeerId;
     if (peerId == null || !state.hasNewerHistory) return;
     emit(state.copyWith(isLoadingMore: true, hasNewerHistory: false));
-    await _fetchLatest(peerId);
+    final fetched = await _fetchLatest(peerId);
+    // Not fetched, the list is still the window it was, and says so: called
+    // live, arrivals were added to its end and paging on skipped the gap.
     if (state.openPeerId == peerId) {
-      emit(state.copyWith(isLoadingMore: false));
+      emit(
+        state.copyWith(
+          isLoadingMore: false,
+          hasNewerHistory: fetched ? null : true,
+        ),
+      );
     }
   }
 
@@ -419,6 +479,7 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
     final data = response.data as Map<String, dynamic>;
     final rows = (data['messages'] as List).cast<Map<String, dynamic>>();
     final older = await _decryptRows(peerId, rows);
+    if (state.openPeerId != peerId) return;
     emit(
       state.copyWith(
         messages: [...older.reversed, ...state.messages],

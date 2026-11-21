@@ -354,13 +354,18 @@ class CentralDmCubit extends Cubit<CentralDmState>
         (peerChatKey == null || _dmKeySources[peerId] == peerChatKey)) {
       return cached;
     }
-    if (peerChatKey == null || _vaultCubit.state.masterSeed == null) {
+    // As on a server: a key that is not one locks that person's messages and
+    // nothing else (see [CryptoRepository.chatPublicKeyOrNull]).
+    final theirKey = CryptoRepository.chatPublicKeyOrNull(peerChatKey);
+    if (peerChatKey == null ||
+        theirKey == null ||
+        _vaultCubit.state.masterSeed == null) {
       return null;
     }
     final identity = await _vaultCubit.getChatIdentityForHost(_centralHost);
     final key = await _crypto.deriveDmKey(
       myKeyPair: identity.keyPair,
-      theirPublicKey: CryptoRepository.fromBase64(peerChatKey),
+      theirPublicKey: theirKey,
     );
     _dmKeys[peerId] = key;
     _dmKeySources[peerId] = peerChatKey;

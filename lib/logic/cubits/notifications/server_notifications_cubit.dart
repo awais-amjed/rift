@@ -111,6 +111,11 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
       (channelId) =>
           state.channelLevel(chatCubit.openServerId ?? '', channelId),
     );
+    // The same for this server's DMs, which that cubit notifies of itself
+    // while the window is unfocused.
+    dmCubit.setMuteSource(
+      (serverId, peerId) => state.dmLevel(serverId, peerId).isMuted,
+    );
     _dmSub = dmCubit.stream.listen(_onDmChanged);
     _appSub = appCubit.stream.listen(_onAppStateChanged);
     WindowFocusService.instance.focused.addListener(_onFocusChanged);
