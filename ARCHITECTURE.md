@@ -667,6 +667,13 @@ already knows. **What they may do** is the database's, because that is where
 permissions live. Muting somebody for yourself is local state; muting them for
 everybody is a row.
 
+**A call can be clipped, and the call is told.** With clipping on, a Windows or Linux
+client keeps the last stretch of what the call played to it, for a clip saved as a file
+or added to a soundboard. It keeps nothing until the call has its `clipping` attribute,
+which every client shows as a mark by the name, with a notice when someone has it on and
+when they clip. No permission forbids it, and Rift versions from before it show nothing
+(`CALLS.md`, *Clipping a call*).
+
 ### Hiding your voice from somebody — [Implemented October 2026]
 
 "Hide my voice from them" is the other direction from a mute for yourself:

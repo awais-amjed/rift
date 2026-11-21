@@ -2123,6 +2123,85 @@ other (earlier notes calling it mono had measured a mono sender). Web,
 Android and macOS use other WebRTC builds and are not affected (not
 measured).
 
+## Clipping a call — [Built November 2026, Windows and Linux]
+
+With clipping on (Settings, Voice & audio), Rift keeps the last 30 seconds,
+1 minute or 2 minutes of the call as you heard it. The clip shortcut (a fourth
+call shortcut beside mute, deafen and leave, global like them) takes what is
+kept at that moment and opens a trim view. There you choose a part, play it,
+and **Save** it as a WAV file, or **Add to soundboard** as a 192 kbps stereo
+MP3 through the soundboard's own add form, with its 30 s and 5 MB refusals.
+Add is offered only with `manageSoundboard` on the call's server, and never in
+a DM call, which has no server. A clip taken while Rift is hidden opens when
+Rift is next seen (`AppSeenListener.seenFrom`); up to five wait in turn
+(`LiveKitState.pendingClips`), and a short sound says the press was heard,
+since Rift may be behind a game.
+
+**Where it comes from.** The runner puts a tap on libwebrtc's render
+pre-processing (`native/call_clip`, installed beside the noise filter), the
+slot flutter_webrtc already fills with an empty processor, so filling it
+changes nothing about what is played (*How a call is played out on the
+desktop*). It sees the call mixed, in both channels, at the processing rate,
+and keeps it in a ring at 48 kHz stereo 16-bit (`ClipStore`): about 23 MB for
+2 minutes. The audio threads only try-lock it; a block that finds it busy is
+dropped, which costs a clip 10 ms rather than the call a glitch. While
+clipping is off nothing is kept and the tap returns at once.
+
+**What a clip holds:** voices, a sound share, bots, and a stream watched
+through the call. Not:
+- a stream watched through Rust, the usual way on the desktop: its sound plays
+  from its own stream outside libwebrtc (*Watching a share through Rust*);
+- soundboard sounds, which every listener plays locally outside the call;
+- a voice hidden from you, which is never played to you;
+- anything while you are deafened: libwebrtc plays nothing, so the ring keeps
+  silence;
+- your own microphone, unless "Include my mic" is on. Then the noise filter
+  hands the ring the mic after its model, volume and gate, which is what the
+  call hears from you, and it is mixed into both channels when a clip is
+  taken, lined up by each block's arrival time.
+
+Nothing above about 15 kHz is in a clip, for the reason given under the
+playout section: it is exactly what was heard.
+
+**Nobody is recorded before they are told.** Turning clipping on publishes a
+`clipping` attribute (`VoiceAttributes`), and the ring starts writing only once
+that publish has gone round (`ClipRecorder`). Off, leaving or moving to another
+call stops writing first and throws the ring away; an open trim view keeps its
+own copy. When Rift rejoins by itself (a reconnect, a region move, Restart to
+update), writing stops at the drop and starts again only after the flag is
+published to the new connection, so someone who joined in the gap is never
+kept before they could see it. The ring keeps what it had: it belongs to the
+call, not the connection, and a clip jumps over the gap.
+
+**What the others see.** A grey scissors mark, "Clipping on", by the
+clipper's name on their tile and their sidebar row, for as long as the
+attribute is set, the clipper's own included. And two notices:
+- "Sam has clipping on", once per person per call, when you join and find
+  them with it on or they turn it on. Several at once make one line ("Sam,
+  Alex and 1 other have clipping on"). Leaving and joining again or turning it
+  off and on does not repeat it. A call here is your own stay in the channel:
+  leaving on purpose or switching calls starts afresh, Rift's own rejoins do
+  not, and Restart to update does, since it is kept in memory.
+- "Sam clipped the last minute", from a reliable data packet on `rift.clip`
+  (`ClipSignal`, `{v: 1, type: "clipped", seconds}`), at most once a minute
+  per person. The limit is applied by the receiver as the packet comes in
+  (`ClipNoticeRules`), as the soundboard's cooldown is, so a modified client
+  cannot flood anyone with it; the length is held to 1–120 s. The packet is a
+  courtesy: a client can leave it out, and the attribute and its mark are what
+  say someone can clip.
+
+Every client that joins a call shows the mark and both notices, phones and the
+web included, though only Windows and Linux can clip. **Rift versions from
+before clipping show nothing**, neither the mark nor the notices, and nothing
+on the clipper's side can change that. There is no permission to forbid it,
+by the owner's choice: a call could always be recorded with other software.
+Bots are not told.
+
+Built Nov 21 2026 and covered by unit tests (the ring's wrap and resize, the
+order of flag and writing, the notice rules, the trim and the formats). Not yet
+driven live: the right channel's position in libwebrtc's buffer is still to be
+checked with a left-only tone (`TESTING.md`).
+
 ## Receiving a call's audio — [Implemented October 2026]
 
 **Audio this client should not hear is held, never unsubscribed.** Deafened,

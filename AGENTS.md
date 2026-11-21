@@ -34,7 +34,7 @@ lib/
     ptt/          # Push-to-talk key and mouse button listener
     visibility/   # Whether anybody can see Rift (AppSeenListener), which pauses watched pictures
                   # and stops animations (TickerMode)
-    shortcuts/    # Keys for mute, deafen and leave, from anywhere (CallShortcutListener)
+    shortcuts/    # Keys for mute, deafen, leave and clip, from anywhere (CallShortcutListener)
     mic_badge/    # A mic on the Windows taskbar button and tray icon while the call hears you
                   # (MicBadgeListener; the runner draws it, mic_badge.cpp)
     helper_methods.dart  # HelperMethods: toasts, navigation, printDebug
@@ -60,6 +60,11 @@ native/noise_filter/  # C++ the Linux and Windows runners link in: a noise model
                       # settings mic test reads the mic outside libwebrtc and runs the
                       # same steps in rust/src/mic_test/clean.rs, borrowing the runner's
                       # RNNoise, so it sounds like the call
+native/call_clip/     # C++ linked in with it: a tap on what the call plays (libwebrtc's
+                      # render pre-processing), and the mic from the noise filter, kept
+                      # in a ring while clipping is on; Dart reads it over FFI
+                      # (lib/logic/services/call_clip/, CALLS.md *Clipping a call*),
+                      # and rust/src/call_clip encodes the soundboard's MP3 (LAME)
 ```
 
 ## State management — Bloc/Cubit only
