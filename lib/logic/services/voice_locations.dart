@@ -162,6 +162,24 @@ class VoiceLocations {
       if (locations[userId] == channelId) userId,
   };
 
+  /// Where to tell everyone we are, with the call in [channelId] (null out
+  /// of one) and [connected] or still connecting, having last [said] it.
+  ///
+  /// A new channel waits for the room. Said as the join began, everyone drew
+  /// us in the sidebar a moment before the call drew us in its grid: the
+  /// token, the key and the connect were still to come, half a second or so
+  /// on a distant server. The channel we are leaving is let go at once, so a
+  /// move does not keep us there either (Oct 6 2026), and a join that fails
+  /// was never said. The channel we already said stays said while we connect
+  /// to it again — a region change, a connection coming back — or everyone
+  /// would draw us leaving and coming back.
+  static String? placeToSay({
+    required String? channelId,
+    required bool connected,
+    required String? said,
+  }) =>
+      channelId != null && (connected || channelId == said) ? channelId : null;
+
   /// The per-channel rosters to draw, as user ids.
   ///
   /// Two filters, both load-bearing. Anyone presence doesn't list as [online]

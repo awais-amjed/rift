@@ -299,4 +299,59 @@ void main() {
       );
     });
   });
+
+  group('what to say while a call connects', () {
+    test('a join waits for the room', () {
+      // Said at once, everyone drew the joiner in the sidebar a moment before
+      // the call's grid did: the token, the key and the connect were still
+      // to come.
+      expect(
+        VoiceLocations.placeToSay(
+          channelId: 'c1',
+          connected: false,
+          said: null,
+        ),
+        isNull,
+      );
+      expect(
+        VoiceLocations.placeToSay(channelId: 'c1', connected: true, said: null),
+        'c1',
+      );
+    });
+
+    test('a move leaves the old channel at once', () {
+      expect(
+        VoiceLocations.placeToSay(
+          channelId: 'c2',
+          connected: false,
+          said: 'c1',
+        ),
+        isNull,
+      );
+    });
+
+    test('a rejoin of the same channel keeps it', () {
+      // A region change or a dropped connection coming back: nobody's
+      // sidebar folds us out and back in.
+      expect(
+        VoiceLocations.placeToSay(
+          channelId: 'c1',
+          connected: false,
+          said: 'c1',
+        ),
+        'c1',
+      );
+    });
+
+    test('out of a call says nowhere', () {
+      expect(
+        VoiceLocations.placeToSay(
+          channelId: null,
+          connected: false,
+          said: 'c1',
+        ),
+        isNull,
+      );
+    });
+  });
 }

@@ -137,6 +137,9 @@ class VoiceBroadcast {
   /// Who has a screen up, by user id.
   Set<String> get sharing => _sharing;
 
+  /// Where we last told everyone we are, null for nowhere or nothing yet.
+  String? get announced => _announced;
+
   /// Tell everyone we're now in [channelId], or nowhere when it's null, and
   /// whether we have a screen up there.
   ///

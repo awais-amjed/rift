@@ -35,13 +35,10 @@ mixin _VoiceLocationMixin on Cubit<ChannelPresenceState> {
   /// channel had not changed. One person sat in a call for everyone else to
   /// see only from inside it (Oct 21 2026).
   void _announceLocation() {
-    // A move says where it is going the moment it starts. Waiting for the new
-    // room meant waiting for the old one to close, a token, the key and the
-    // connect — half a second on a local server, more on a real one — and
-    // until then everyone else drew us in the channel we had left. A join
-    // that then fails ends in `error`, which says "nowhere" like leaving
-    // does. A DM call connects with no channel, and so leaves the one it
-    // came from straight away too.
+    // A move leaves the old channel the moment it starts, and says the new
+    // one once the room has us (`VoiceLocations.placeToSay`). A DM call
+    // connects with no channel, and so leaves the one it came from straight
+    // away too.
     final serverId = _currentServerId;
     final userId = _currentUserId;
     if (serverId == null || userId == null) return;
@@ -62,11 +59,16 @@ mixin _VoiceLocationMixin on Cubit<ChannelPresenceState> {
     // channel is one that server does not have.
     final channelId = lkState.currentServerId != serverId
         ? null
-        : switch (lkState.connectionState) {
-            LiveKitConnectionState.connecting ||
-            LiveKitConnectionState.connected => lkState.currentChannelId,
-            _ => null,
-          };
+        : VoiceLocations.placeToSay(
+            channelId: switch (lkState.connectionState) {
+              LiveKitConnectionState.connecting ||
+              LiveKitConnectionState.connected => lkState.currentChannelId,
+              _ => null,
+            },
+            connected:
+                lkState.connectionState == LiveKitConnectionState.connected,
+            said: _voice?.announced,
+          );
     return (
       channelId: channelId,
       // A desktop's screen is a connection of its own, which comes back to
