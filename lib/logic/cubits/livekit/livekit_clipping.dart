@@ -11,6 +11,9 @@ mixin _ClippingMixin on Cubit<LiveKitState> {
   AppCubit get _appCubit;
   ClipRecorder get _clipRecorder;
   ClipNoticeRules get _clipRules;
+  ClipLibrary get _clipLibrary;
+  VaultCubit get _vaultCubit;
+  SessionRepository? get _session;
 
   /// Whether this client's published attributes say it is clipping.
   bool _clipFlag = false;
@@ -109,7 +112,7 @@ mixin _ClippingMixin on Cubit<LiveKitState> {
       return;
     }
     if (!_appCubit.state.clippingEnabled) {
-      _clipNotice('Clipping is off', 'Turn it on in Settings, under Voice.');
+      _clipNotice('Clipping is off', 'Turn it on in Settings, under Voice & audio.');
       return;
     }
     final audio = _clipRecorder.snapshot();
@@ -117,6 +120,9 @@ mixin _ClippingMixin on Cubit<LiveKitState> {
       _clipNotice('Nothing to clip yet', 'The call has not played anything.');
       return;
     }
+    // Kept before anything else is awaited, while the call is still the one
+    // it was clipped from.
+    unawaited(_keepClip(audio));
     try {
       await state.room?.localParticipant?.publishData(
         ClipSignal.encode(
@@ -136,6 +142,37 @@ mixin _ClippingMixin on Cubit<LiveKitState> {
         pendingClips: ClipRecorder.enqueue(state.pendingClips, audio),
       ),
     );
+  }
+
+  /// Puts [audio] among the clips this device keeps, so closing the trim
+  /// view unsaved loses nothing (`ClipLibrary`). Named by where it was taken,
+  /// as it was then.
+  Future<void> _keepClip(CallClipAudio audio) async {
+    final seed = _vaultCubit.state.masterSeed;
+    if (seed == null) return;
+    final dm = state.dmCall;
+    final serverId = state.callServerId;
+    final server = serverId == null ? null : _session?.serverById(serverId);
+    final channelId = dm == null ? state.currentChannelId : null;
+    String? channelName;
+    for (final channel in server?.channels ?? const <Channel>[]) {
+      if (channel.id == channelId) channelName = channel.name;
+    }
+    final place = dm != null
+        ? 'Call with ${dm.peerName}'
+        : [?channelName, ?server?.name].join(' · ');
+    try {
+      await _clipLibrary.add(
+        seed,
+        audio,
+        serverId: serverId,
+        channelId: channelId,
+        place: place.isEmpty ? 'A call' : place,
+        fromDmCall: dm != null,
+      );
+    } catch (e) {
+      HelperMethods.printDebug('[Clips] could not keep the clip: $e');
+    }
   }
 
   /// The trim view has taken clip [id].

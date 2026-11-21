@@ -9,6 +9,7 @@ import '../logic/cubits/app/app_cubit.dart';
 import '../logic/cubits/audio_device_list/audio_device_list_cubit.dart';
 import '../logic/cubits/central_dm/central_dm_cubit.dart';
 import '../logic/cubits/channel_chat/channel_chat_cubit.dart';
+import '../logic/cubits/clip_history/clip_history_cubit.dart';
 import '../logic/cubits/dm/dm_cubit.dart';
 import '../logic/cubits/dm_call/dm_call_cubit.dart';
 import '../logic/cubits/ducking/ducking_cubit.dart';
@@ -78,6 +79,7 @@ class AppProviders extends StatelessWidget {
         BlocProvider.value(value: appCubit),
         BlocProvider.value(value: vaultCubit),
         BlocProvider(create: (_) => TokenCubit()),
+        BlocProvider(create: (_) => ClipHistoryCubit()),
         BlocProvider(
           create: (context) => LiveKitCubit(
             appCubit: context.read<AppCubit>(),

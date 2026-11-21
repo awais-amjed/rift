@@ -16,6 +16,7 @@ import '../../../data/repositories/server_repository.dart';
 import '../../../data/repositories/session_repository.dart';
 import '../../../logic/helper_methods.dart';
 import '../../../logic/services/backup_merge.dart';
+import '../../../logic/services/call_clip/clip_library.dart';
 import '../../../logic/services/media_store.dart';
 import '../../../logic/services/message_cache.dart';
 
@@ -160,6 +161,8 @@ class VaultCubit extends Cubit<VaultState>
     // So do the conversations saved on this device, which the seed being
     // wiped here is the only key to.
     await MessageCache.instance.clear();
+    // And the clips of calls it kept, sealed under the same seed.
+    await ClipLibrary.instance.clear();
     emit(const VaultState(status: AuthStatus.fresh));
   }
 }

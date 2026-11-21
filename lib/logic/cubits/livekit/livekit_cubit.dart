@@ -32,6 +32,7 @@ import '../../services/audio_devices.dart';
 import '../../services/audio_reception.dart';
 import '../../services/before_quit.dart';
 import '../../services/call_clip/call_clip_native.dart';
+import '../../services/call_clip/clip_library.dart';
 import '../../services/call_clip/clip_notice_rules.dart';
 import '../../services/call_clip/clip_recorder.dart';
 import '../../services/call_clip/clip_signal.dart';
@@ -127,6 +128,8 @@ class LiveKitCubit extends Cubit<LiveKitState>
   @override
   final ClipNoticeRules _clipRules = ClipNoticeRules();
   @override
+  final ClipLibrary _clipLibrary;
+  @override
   final TokenCubit _tokenCubit;
   @override
   final SessionRepository? _session;
@@ -188,7 +191,9 @@ class LiveKitCubit extends Cubit<LiveKitState>
     SessionRepository? session,
     ScreenshareCubit? screenshareCubit,
     CryptoRepository? crypto,
+    ClipLibrary? clipLibrary,
   }) : _appCubit = appCubit,
+       _clipLibrary = clipLibrary ?? ClipLibrary.instance,
        _session = session,
        _vaultCubit = vaultCubit,
        _tokenCubit = tokenCubit,
