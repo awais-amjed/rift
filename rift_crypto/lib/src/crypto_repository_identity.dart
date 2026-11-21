@@ -45,6 +45,16 @@ mixin _IdentityCryptoMixin {
   Future<Uint8List> deriveMessageCacheKey(Uint8List masterSeed) =>
       hmacSha256(key: masterSeed, message: 'local-cache/messages:v1');
 
+  /// Derive the key that seals the call clips this device keeps.
+  ///
+  /// key = HMAC-SHA256(masterSeed, "local-cache/clips:v1")
+  ///
+  /// A rung of its own, beside [deriveMessageCacheKey], for the same reasons:
+  /// a clip is the decrypted sound of a call, kept only as sealed as the
+  /// seed it is derived from.
+  Future<Uint8List> deriveClipKey(Uint8List masterSeed) =>
+      hmacSha256(key: masterSeed, message: 'local-cache/clips:v1');
+
   /// Derive the full server identity from the master seed and host.
   ///
   /// Returns the Ed25519 keypair (for auth/signing) and the stable ID (for
