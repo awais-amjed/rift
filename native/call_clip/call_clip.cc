@@ -104,7 +104,12 @@ void rift_call_clip_set_writing(int32_t on) {
   rift::g_store.SetWriting(on != 0, rift::NowUs());
 }
 
-int64_t rift_call_clip_frames(void) { return rift::g_store.Frames(); }
+int64_t rift_call_clip_frames(void) {
+  // Dart asks this just before taking a clip: the quiet since the last
+  // block is the end of it.
+  rift::g_store.CatchUp(rift::NowUs());
+  return rift::g_store.Frames();
+}
 
 int64_t rift_call_clip_snapshot(int16_t* out, int64_t max_frames) {
   if (out == nullptr || max_frames <= 0) return 0;

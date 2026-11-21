@@ -38,7 +38,8 @@ RIFT_CALL_CLIP_EXPORT void rift_call_clip_configure(int32_t seconds,
 // on only once the call has been told that clipping is on.
 RIFT_CALL_CLIP_EXPORT void rift_call_clip_set_writing(int32_t on);
 
-// Frames a snapshot would hold now, at 48 kHz.
+// Frames a snapshot would hold now, at 48 kHz, the quiet since the call's
+// last block included: asked just before a snapshot.
 RIFT_CALL_CLIP_EXPORT int64_t rift_call_clip_frames(void);
 
 // Copies up to max_frames of the newest audio to `out`, interleaved 48 kHz

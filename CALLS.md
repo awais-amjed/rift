@@ -2199,9 +2199,10 @@ call, not the connection, and a clip jumps over the pause itself. The quiet
 on either side of it stays, as silence: libwebrtc hands the tap nothing while
 the call is silent, so the ring fills such a stretch when sound comes back.
 Before Nov 21 a rejoin in the middle of one dropped it, joining audio from
-minutes earlier straight onto what came after (seen in the live check). For
-the same reason a clip taken during a quiet stretch ends at the last sound,
-not at the press.
+minutes earlier straight onto what came after (seen in the live check). A
+clip taken during a quiet stretch is filled up to the press the same way
+(`ClipStore::CatchUp`). Until Nov 21 it ended at the last sound, so a clip
+pressed minutes after a tone held the whole tone (seen in the win11 check).
 
 **What the others see.** A grey scissors mark, "Clipping on", by the
 clipper's name on their tile and their sidebar row, for as long as the

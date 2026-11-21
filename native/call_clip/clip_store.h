@@ -46,6 +46,13 @@ class ClipStore {
   // A 10 ms block of the microphone as the call hears it.
   void WriteMic(const float* mono, int frames, int rate, int64_t now_us);
 
+  // Keeps the quiet since the call's last block, up to `now_us`, as a clip
+  // taken now must end in it: libwebrtc hands over no blocks while a call is
+  // silent, so a clip pressed long after the last sound otherwise ended with
+  // that sound. A pause (SetWriting) within it is left out, as in WriteCall.
+  // Called just before a clip is taken.
+  void CatchUp(int64_t now_us);
+
   // Frames a snapshot would hold now.
   int64_t Frames();
 

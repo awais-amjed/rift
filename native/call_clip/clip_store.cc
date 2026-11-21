@@ -1,5 +1,6 @@
 #include "clip_store.h"
 
+#include <algorithm>
 #include <cmath>
 #include <numeric>
 
@@ -150,6 +151,26 @@ void ClipStore::WriteMic(const float* mono, int frames, int rate,
   mic_.left.resize(converted);
   mic_.convert[0].Run(mono, frames, mic_.left.data());
   Keep(mic_, converted, false, frames, rate, now_us);
+}
+
+void ClipStore::CatchUp(int64_t now_us) {
+  std::lock_guard<std::mutex> lock(call_.lock);
+  if (!call_.ring || call_.end_us < 0) return;
+  const int64_t stopped = stopped_us_.load(std::memory_order_acquire);
+  const int epoch = epoch_.load(std::memory_order_acquire);
+  // While paused, the call is quiet only until the pause began.
+  const bool writing = writing_.load(std::memory_order_acquire);
+  const int64_t until = writing ? now_us : (std::max)(stopped, call_.end_us);
+  int64_t gap_us = until - call_.end_us;
+  if (writing && call_.epoch != epoch) {
+    gap_us -= started_us_.load(std::memory_order_acquire) - stopped;
+  }
+  if (gap_us <= kGapUs) return;
+  call_.ring->WriteSilence(gap_us * kRate / 1000000);
+  call_.end_us = until;
+  // The pause is counted now; the next block after it must not count it
+  // again. One still to come is counted by that block as usual.
+  if (writing) call_.epoch = epoch;
 }
 
 int64_t ClipStore::Frames() {
